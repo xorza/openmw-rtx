@@ -51,6 +51,27 @@ namespace Rtx
             return false;
         }
 
+        /// The entry `Pass` filed under `key`, opened for its segments to be read alone (`ContentStore::Store::open`).
+        template <ContentPass Pass>
+        std::optional<ContentStore::Opened> open(const ContentStore::Key& key)
+        {
+            return mStore->open(key, storeKindOf(Pass::sPass), Pass::sVersion, mReach);
+        }
+
+        /// `ContentStore::Store::readSegments`.
+        bool readSegments(
+            ContentStore::Opened& entry, std::uint32_t first, std::uint32_t count, std::span<std::byte> into)
+        {
+            return mStore->readSegments(entry, first, count, into);
+        }
+
+        /// Deletes the entry `Pass` filed under `key`, which did not fit its input.
+        template <ContentPass Pass>
+        void discard(const ContentStore::Key& key)
+        {
+            mStore->discard(key, storeKindOf(Pass::sPass));
+        }
+
         /// Whether an entry for `Pass` stands under `key`, nothing of it read (`ContentStore::holds`).
         template <ContentPass Pass>
         bool stands(const ContentStore::Key& key)

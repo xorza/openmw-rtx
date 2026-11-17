@@ -252,7 +252,7 @@ namespace Rtx
 
     bool ConversionPass::fits(const Input& input, const Output& output)
     {
-        return fillsLayout(madeLayout(input, output.mForm), output);
+        return fillsLayout(madeLayout(input, output.mForm), output.mForm, output.mBytes.size());
     }
 
     ChainScratch ConversionPass::scratchOf(const Input& input)

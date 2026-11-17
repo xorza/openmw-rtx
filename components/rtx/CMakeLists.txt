@@ -62,10 +62,12 @@ openmw_rtx_layer(
     common
     openmw-rtx-shaders
     SOURCES
+        common/bufferpool.cpp
         common/runs.cpp
         common/slots.cpp
     HEADERS
         common/asserts.hpp
+        common/bufferpool.hpp
         common/cardaddress.hpp
         common/clock.hpp
         common/error.hpp

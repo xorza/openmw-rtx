@@ -132,6 +132,13 @@ What the game reads from files (`components/resource`), changed for the handheld
   OpenSceneGraph hooks a read through its registry's `ReadFileCallback`, and as Unreal's derived data keys a texture
   by its source's hash taken at import. Refused: a key a pass hashes from the texels each ask, which reads the file
   to key what the store holds; facts made at a material's first ask, which read the file again once the texels went.
+- **A made chain is handed over in a buffer of a bounded pool, read a segment at a time** (`Rtx::BufferPool`,
+  `ContentPreprocessor::chain` into a pool): the store's entry is opened, its form's byte read, and its levels read
+  by position into a pooled buffer, each segment's digest checked; the buffer goes back to the pool as the made image
+  goes, the device having its copy. 256 MiB in use and free, by size class a power of two, so a hand-over allocates
+  nothing once warm, as DirectStorage reads into a bounded staging buffer. A job whose slot left before it started is
+  cancelled. Refused: a buffer allocated a read, freed on the frame's thread; reading into the staging memory, which
+  is write-combined and which a digest would read back.
 - **A preload is a guess, skipped past the budget** (`CellPreloader`), and asked again later. Refused: waiting for room,
   which stalls the queue.
 

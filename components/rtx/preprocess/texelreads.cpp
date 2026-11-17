@@ -12,6 +12,7 @@ namespace Rtx
             mBytes[at] += other.mBytes[at];
         }
         mChainsFoundWhole += other.mChainsFoundWhole;
+        mCancelled += other.mCancelled;
         return *this;
     }
 

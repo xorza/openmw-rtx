@@ -549,9 +549,7 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 One bump of the store's version carries every format change of this plan, the manifest's among them, so the stores are
 made again once; a store made on the desk is the handheld's too, the key being the content.
 
-3. `Store::open` and the ranged `read`, with item 13, which is their first reader.
 4. The manifest states each model's radius and whether it gives light, which item 15 reads.
-5. `LevelReader` and `BufferPool`; cancel; the uploader gives buffers back.
 6. Tests: a re-arrival opens one file; a level range read equals the decode's bytes for every block format; a stream's
    bytes the same through its buffer and past it, at every boundary; no allocation a hand-over once warm; a cancelled
    job holds nothing.
@@ -625,6 +623,11 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **12.5. The pool, the ranged read and cancel**: a made chain is read from the store a segment at a time into a
+  buffer of a bounded pool (`Store::open`, `Store::readSegments`, `Rtx::BufferPool`), and given back as its made image
+  goes; a job whose slot left before it started is cancelled. The `LevelReader` of a file that stands as shipped
+  moves to item 13, which reads a texture's levels by need: whole, its read is the decode it stands in for.
 
 - **12.3, its second part. The kind's folder and a digest a segment** (store format 3): a generic segment table and not
   a level's, as the store knows no levels; `Store::write` takes `ContentStore::Filed`, its fifth parameter folded in.

@@ -16,12 +16,12 @@ namespace Rtx
         return bytes;
     }
 
-    osg::ref_ptr<const MadeImage> MadeImage::make(const MadeLayout& layout, Misc::ByteBuffer bytes)
+    osg::ref_ptr<const MadeImage> MadeImage::make(const MadeLayout& layout, PooledBuffer bytes)
     {
         assert(layout.mCount > 0 && "a made chain of no level");
         assert(layout.mCount <= levelsTo1x1(layout.mWidth, layout.mHeight) && "a level under a texel");
-        assert(bytes.size() == layout.bytes() && "a chain of another length than its levels");
-        assert(bytes.size() <= std::numeric_limits<std::uint32_t>::max() && "a level past a 32-bit offset");
+        assert(bytes.bytes().size() == layout.bytes() && "a chain of another length than its levels");
+        assert(bytes.bytes().size() <= std::numeric_limits<std::uint32_t>::max() && "a level past a 32-bit offset");
 
         osg::ref_ptr<MadeImage> made = new MadeImage;
         made->mFormat = layout.mFormat;

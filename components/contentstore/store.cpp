@@ -85,7 +85,7 @@ namespace ContentStore
                 return "its key";
             if (trailer.mKind >= kinds)
                 return "its kind";
-            if (trailer.mSegments == 0 || trailer.mSegments > Store::sSegmentsMost || trailer.mReserved != 0)
+            if (trailer.mSegments == 0 || trailer.mSegments > sSegmentsMost || trailer.mReserved != 0)
                 return "its segments";
             const std::uint64_t tail = tailBytesOf(trailer.mSegments);
             if (fileBytes < tail || trailer.mPayloadBytes != fileBytes - tail)
@@ -340,6 +340,133 @@ namespace ContentStore
         });
 
         return found;
+    }
+
+    std::optional<Opened> Store::open(
+        const Key& key, const std::uint32_t kind, const std::uint32_t version, const Reach reach)
+    {
+        assert(kind < mPolicy.mKindCount && "a kind the store's owner does not have");
+
+        Opened opened;
+        const bool resident = mMonitor.under([&] {
+            const auto held = mResident.find(key);
+            if (held == mResident.end() || held->second.mKind != kind || held->second.mVersion != version)
+                return false;
+            opened.mResident = held->second.mPayload;
+            return true;
+        });
+        if (resident)
+        {
+            opened.mSegments = 1;
+            opened.mEnds[0] = opened.mResident->size();
+        }
+
+        // The file opened only where it stands: a miss is the common case at a content's first sessions, and opening
+        // a missing file throws.
+        bool found = resident;
+        if (!found && reach == Reach::Disk)
+        {
+            opened.mPath = pathOf(key, kind);
+            std::error_code missing;
+            if (std::filesystem::is_regular_file(opened.mPath, missing))
+                found = openFile(opened, key, kind, version);
+        }
+
+        mMonitor.under([&] { ++(found ? mStats.mFound : mStats.mMissed); });
+        if (!found)
+            return std::nullopt;
+        return opened;
+    }
+
+    bool Store::openFile(Opened& opened, const Key& key, const std::uint32_t kind, const std::uint32_t version)
+    {
+        try
+        {
+            opened.mFile = Platform::File::open(opened.mPath);
+        }
+        catch (const std::system_error&)
+        {
+            return false;
+        }
+
+        const std::uint64_t fileBytes = Platform::File::size(opened.mFile);
+        EntryTrailer trailer{};
+        std::string_view failed;
+        if (fileBytes < sizeof(trailer)
+            || Platform::File::readAt(
+                   opened.mFile, static_cast<std::size_t>(fileBytes - sizeof(trailer)), &trailer, sizeof(trailer))
+                != sizeof(trailer))
+            failed = "its length";
+        if (failed.empty())
+            failed = checkTrailer(trailer, key, fileBytes, mPolicy.mKindCount);
+        if (failed.empty() && (trailer.mKind != kind || trailer.mVersion != version))
+            failed = trailer.mKind != kind ? "the kind asked for" : "the version asked for";
+
+        std::array<SegmentRecord, sSegmentsMost> records{};
+        const std::size_t tableBytes = std::size_t{ trailer.mSegments } * sizeof(SegmentRecord);
+        if (failed.empty()
+            && Platform::File::readAt(
+                   opened.mFile, static_cast<std::size_t>(trailer.mPayloadBytes), records.data(), tableBytes)
+                != tableBytes)
+            failed = "its length";
+        if (failed.empty()
+            && digestOf(std::as_bytes(std::span(records.data(), trailer.mSegments))) != trailer.mTableDigest)
+            failed = "its table's digest";
+
+        std::uint64_t start = 0;
+        for (std::uint32_t at = 0; failed.empty() && at < trailer.mSegments; ++at)
+        {
+            const bool last = at + 1 == trailer.mSegments;
+            if (records[at].mEnd < start || records[at].mEnd > trailer.mPayloadBytes
+                || (last && records[at].mEnd != trailer.mPayloadBytes))
+                failed = "its segments";
+            opened.mEnds[at] = records[at].mEnd;
+            opened.mDigests[at] = records[at].mDigest;
+            start = records[at].mEnd;
+        }
+
+        if (!failed.empty())
+        {
+            opened.mFile = Platform::File::ScopedHandle();
+            refuse(opened.mPath, failed);
+            return false;
+        }
+        opened.mSegments = trailer.mSegments;
+        return true;
+    }
+
+    bool Store::readSegments(
+        Opened& entry, const std::uint32_t first, const std::uint32_t count, const std::span<std::byte> into)
+    {
+        assert(count > 0 && "a read of no segment");
+        assert(first + count <= entry.mSegments && "segments past the entry's");
+        const std::uint64_t start = entry.startOf(first);
+        assert(into.size() == entry.endOf(first + count - 1) - start && "a read into another length than its segments");
+
+        if (entry.mResident != nullptr)
+        {
+            std::copy_n(entry.mResident->begin() + static_cast<std::ptrdiff_t>(start), into.size(), into.begin());
+            return true;
+        }
+
+        bool whole = true;
+        for (std::size_t done = 0; whole && done < into.size();)
+        {
+            const std::size_t read = Platform::File::readAt(
+                entry.mFile, static_cast<std::size_t>(start) + done, into.data() + done, into.size() - done);
+            whole = read > 0;
+            done += read;
+        }
+        for (std::uint32_t at = first; whole && at < first + count; ++at)
+            whole = digestOf(into.subspan(static_cast<std::size_t>(entry.startOf(at) - start),
+                        static_cast<std::size_t>(entry.endOf(at) - entry.startOf(at))))
+                == entry.mDigests[at];
+        if (!whole)
+        {
+            entry.mFile = Platform::File::ScopedHandle();
+            refuse(entry.mPath, "its digest");
+        }
+        return whole;
     }
 
     bool Store::holds(const Key& key, const std::uint32_t kind, const Reach reach)

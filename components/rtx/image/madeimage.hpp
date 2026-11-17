@@ -8,7 +8,7 @@
 #include <osg/Referenced>
 #include <osg/ref_ptr>
 
-#include <components/misc/bytebuffer.hpp>
+#include <components/rtx/common/bufferpool.hpp>
 
 #include "texturedata.hpp"
 #include "textureformat.hpp"
@@ -34,14 +34,15 @@ namespace Rtx
     {
     public:
         /// `bytes` laid at `layout`, which they fill exactly: what reaches here is a pass's run or a
-        /// stored entry its pass found to fit its file (`ChainPass::fits`).
-        static osg::ref_ptr<const MadeImage> make(const MadeLayout& layout, Misc::ByteBuffer bytes);
+        /// stored entry its pass found to fit its file (`ChainPass::fits`). Its buffer goes back to its pool as the
+        /// made image goes, the device having its copy.
+        static osg::ref_ptr<const MadeImage> make(const MadeLayout& layout, PooledBuffer bytes);
 
         TextureFormat getFormat() const { return mFormat; }
 
         /// Every level, each offset into `getBytes`.
         std::span<const MipLevel> getLevels() const { return mLevels; }
-        std::span<const std::byte> getBytes() const { return mBytes; }
+        std::span<const std::byte> getBytes() const { return mBytes.bytes(); }
 
         /// The layout the levels are laid at.
         const TexelLayout& getLaid() const { return mLaid; }
@@ -51,7 +52,7 @@ namespace Rtx
         ~MadeImage() override = default;
 
         TextureFormat mFormat{};
-        Misc::ByteBuffer mBytes;
+        PooledBuffer mBytes;
         std::vector<MipLevel> mLevels;
         TexelLayout mLaid{};
     };

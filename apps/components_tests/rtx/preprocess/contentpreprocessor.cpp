@@ -23,6 +23,7 @@
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
+#include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/specularlayout.hpp>
@@ -741,6 +742,47 @@ namespace Rtx
             const std::filesystem::path path = store.pathOf(digest.getKey(), storeKindOf(ContentPassId::Chain));
             ASSERT_TRUE(std::filesystem::exists(path)) << "filed under the key the pass makes";
             EXPECT_EQ(std::filesystem::file_size(path), 113u + 5u * 24u + 64u);
+        }
+
+        /// **A chain is handed over in a buffer of a pool, read from the store a segment at a time** (`chain` into a
+        /// pool): a chainless 64 by 64 BC1 colour made whole in BC7, 4096 + 1024 + 256 + 64 + 16 + 16 + 16 = 5488
+        /// bytes, past what the store holds in memory, is made and copied into a 64 KiB buffer at the first ask; a
+        /// later session reads it from its file into the buffer given back, the same bytes, found and not made.
+        TEST(RtxContentPreprocessorTest, aChainIsHandedOverInAPoolsBufferReadFromTheStore)
+        {
+            const osg::ref_ptr<osg::Image> file = makeBc1(64, 64, 1);
+            const ChainPass::Input input{ .mImage = *file, .mEncoding = TextureEncoding::Colour };
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            const std::shared_ptr<BufferPool> pool = BufferPool::make(std::size_t{ 1 } << 20);
+
+            ContentStore::Store store(folder, sContentStorePolicy);
+            Misc::ByteBuffer madeBytes;
+            const std::byte* buffer = nullptr;
+            {
+                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                PooledChain made;
+                ASSERT_TRUE(content.chain(input, *pool, {}, made));
+                EXPECT_EQ(made.mForm, ChainForm::Bc7);
+                ASSERT_EQ(made.mBytes.bytes().size(), 5488u);
+                madeBytes.assign(made.mBytes.bytes().begin(), made.mBytes.bytes().end());
+                buffer = made.mBytes.bytes().data();
+                EXPECT_EQ(pool->getHeld().mInUse, std::size_t{ 64 } << 10);
+                EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
+            }
+            store.flush();
+            EXPECT_EQ(pool->getHeld().mFree, std::size_t{ 64 } << 10) << "given back";
+
+            ContentStore::Store next(folder, sContentStorePolicy);
+            next.flush();
+            ContentPreprocessor content(&next, ContentStore::Reach::Disk);
+            PooledChain found;
+            ASSERT_TRUE(content.chain(input, *pool, {}, found));
+            EXPECT_EQ(found.mForm, ChainForm::Bc7);
+            EXPECT_EQ(Misc::ByteBuffer(found.mBytes.bytes().begin(), found.mBytes.bytes().end()), madeBytes);
+            EXPECT_EQ(found.mBytes.bytes().data(), buffer) << "the buffer given back";
+            const PassStats stats = content.takeStats().at(ContentPassId::Chain);
+            EXPECT_EQ(stats.mHits, 1u);
+            EXPECT_EQ(stats.mRunMs, 0.0);
         }
 
         /// **A stored chain that reads whole and does not fit its file is run again and replaced**, as a

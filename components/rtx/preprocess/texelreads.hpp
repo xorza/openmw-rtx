@@ -28,14 +28,15 @@ namespace Rtx
 
     inline constexpr std::size_t sTexelReadCount = 4;
 
-    /// The asks for a header's texels by why, with the bytes of the texels each was answered, and how many chains made
-    /// again were found whole in the store, so nothing of their file is read for the upload. Counted by the thread that
-    /// asked, as `ContentStats` are.
+    /// The asks for a header's texels by why, with the bytes of the texels each was answered, how many chains made
+    /// again were found whole in the store, so nothing of their file is read for the upload, and how many reads were
+    /// cancelled before they started, their slot gone. Counted by the thread that asked, as `ContentStats` are.
     struct TexelReads
     {
         std::array<std::uint32_t, sTexelReadCount> mCounts{};
         std::array<std::uint64_t, sTexelReadCount> mBytes{};
         std::uint32_t mChainsFoundWhole = 0;
+        std::uint32_t mCancelled = 0;
 
         std::uint32_t count(TexelRead why) const { return mCounts[static_cast<std::size_t>(why)]; }
         std::uint64_t bytes(TexelRead why) const { return mBytes[static_cast<std::size_t>(why)]; }

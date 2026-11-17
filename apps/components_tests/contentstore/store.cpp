@@ -670,6 +670,66 @@ namespace ContentStore
             EXPECT_EQ(again.getStats().mStamped, 0u);
         }
 
+        /// **An entry's segments read alone, each checked against its digest** (`Store::open`): a 6000-byte payload
+        /// filed in three segments ending at 1000, 5000 and 6000 opens with its table and no payload read; its middle
+        /// segment reads alone as the payload's bytes 1000 to 5000, and its last two together. One byte of the middle
+        /// segment changed on disk fails that read, refuses and deletes the file. An entry the store holds in memory
+        /// opens as one segment, its whole payload; asked at another version, its file is a fault, as a read finds it.
+        TEST(ContentStoreTest, anEntrysSegmentsReadAloneEachCheckedAgainstItsDigest)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            const Misc::ByteBuffer payload = payloadOf(6000, 3);
+            Store store(folder, sPolicy);
+            store.write(Filed{ .mKey = sKey,
+                            .mKind = sFact,
+                            .mVersion = 3,
+                            .mPayload = payload,
+                            .mSegmentEnds = { 1000, 5000, 6000 } },
+                Reach::Disk);
+            store.flush();
+
+            std::optional<Opened> opened = store.open(sKey, sFact, 3, Reach::Disk);
+            ASSERT_TRUE(opened.has_value());
+            ASSERT_EQ(opened->getSegmentCount(), 3u);
+            EXPECT_EQ(opened->startOf(1), 1000u);
+            EXPECT_EQ(opened->endOf(1), 5000u);
+
+            Misc::ByteBuffer middle(4000);
+            ASSERT_TRUE(store.readSegments(*opened, 1, 1, middle));
+            EXPECT_EQ(middle, Misc::ByteBuffer(payload.begin() + 1000, payload.begin() + 5000));
+            Misc::ByteBuffer tail(5000);
+            ASSERT_TRUE(store.readSegments(*opened, 1, 2, tail));
+            EXPECT_EQ(tail, Misc::ByteBuffer(payload.begin() + 1000, payload.end()));
+
+            const std::filesystem::path path = store.pathOf(sKey, sFact);
+            std::vector<char> bytes = readAll(path);
+            bytes[2000] ^= 1;
+            writeAll(path, bytes);
+            std::optional<Opened> spoiled = store.open(sKey, sFact, 3, Reach::Disk);
+            ASSERT_TRUE(spoiled.has_value()) << "its table holds";
+            Misc::ByteBuffer first(1000);
+            EXPECT_TRUE(store.readSegments(*spoiled, 0, 1, first)) << "the first segment is whole";
+            EXPECT_FALSE(store.readSegments(*spoiled, 1, 1, middle));
+            EXPECT_FALSE(std::filesystem::exists(path));
+            EXPECT_EQ(store.getStats().mRefused, 1u);
+
+            const Misc::ByteBuffer small = payloadOf(16, 4);
+            store.write(Filed{ .mKey = sOther, .mKind = sFact, .mVersion = 3, .mPayload = small, .mSegmentEnds = {} },
+                Reach::Disk);
+            std::optional<Opened> held = store.open(sOther, sFact, 3, Reach::Memory);
+            ASSERT_TRUE(held.has_value()) << "held in memory as it was written";
+            ASSERT_EQ(held->getSegmentCount(), 1u);
+            Misc::ByteBuffer read(16);
+            ASSERT_TRUE(store.readSegments(*held, 0, 1, read));
+            EXPECT_EQ(read, small);
+
+            store.write(Filed{ .mKey = sThird, .mKind = sFact, .mVersion = 3, .mPayload = payload, .mSegmentEnds = {} },
+                Reach::Disk);
+            store.flush();
+            EXPECT_FALSE(store.open(sThird, sFact, 4, Reach::Disk).has_value()) << "another version";
+            EXPECT_FALSE(std::filesystem::exists(store.pathOf(sThird, sFact)));
+        }
+
         /// **The file format, byte for byte**: a payload of 8 bytes in two segments of 3 and 5, each segment's
         /// record, its end and its digest, then the trailer: the magic "RTXC" read as a little-endian word, format 3,
         /// the kind, the version, the key, the table's digest, the payload's length, the count of segments and a word

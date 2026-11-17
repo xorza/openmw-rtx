@@ -11,6 +11,7 @@ target_sources(
         myguirtx/sharedtexture.cpp
         myguirtx/texture.cpp
         platform/linuxtext.cpp
+        rtx/common/bufferpool.cpp
         rtx/common/error.cpp
         rtx/common/halffloat.cpp
         rtx/common/job.cpp

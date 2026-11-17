@@ -49,9 +49,10 @@ namespace Rtx
         Misc::ByteBuffer mBytes{};
     };
 
-    /// Whether `chain` fills `layout` exactly, or, with no layout, stands and holds no byte: the one
-    /// check of a made chain against its file (`ChainPass::fits`, `ConversionPass::fits`).
-    bool fillsLayout(const std::optional<MadeLayout>& layout, const MadeChain& chain);
+    /// Whether a chain of `form` and `bytes` fills `layout` exactly, or, with no layout, stands and holds no byte: the
+    /// one check of a made chain against its file (`ChainPass::fits`, `ConversionPass::fits`, a chain read whole into a
+    /// pool).
+    bool fillsLayout(const std::optional<MadeLayout>& layout, ChainForm form, std::size_t bytes);
 
     /// Where a made chain laid at `layout` ends each level and then its form's byte, as its codec lays the payload,
     /// into `ends` (`ChainPass::segmentEndsOf`); nothing where it stands, or its bytes do not fill the layout.

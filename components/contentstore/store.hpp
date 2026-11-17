@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -16,7 +17,9 @@
 #include <vector>
 
 #include <components/misc/bytebuffer.hpp>
+#include <components/misc/digestwords.hpp>
 #include <components/misc/monitor.hpp>
+#include <components/platform/file.hpp>
 #include <components/platform/thread.hpp>
 
 #include "key.hpp"
@@ -117,6 +120,32 @@ namespace ContentStore
         std::vector<std::uint64_t> mSegmentEnds;
     };
 
+    /// The most segments an entry holds: a chain's levels to a texel at the largest side a slot holds, and the form's
+    /// byte, with room past them. A trailer that states more is refused unread.
+    inline constexpr std::uint32_t sSegmentsMost = 64;
+
+    /// An entry opened for its segments to be read alone (`Store::readSegments`): its table, and its file or, where the
+    /// store holds it in memory, its payload. Moved, never copied.
+    class Opened
+    {
+    public:
+        std::uint32_t getSegmentCount() const { return mSegments; }
+
+        /// Where segment `segment` starts and ends in the payload; the payload's length is the last's end.
+        std::uint64_t startOf(std::uint32_t segment) const { return segment == 0 ? 0 : mEnds[segment - 1]; }
+        std::uint64_t endOf(std::uint32_t segment) const { return mEnds[segment]; }
+
+    private:
+        friend class Store;
+
+        std::filesystem::path mPath;
+        Platform::File::ScopedHandle mFile;
+        std::shared_ptr<const Misc::ByteBuffer> mResident;
+        std::uint32_t mSegments = 0;
+        std::array<std::uint64_t, sSegmentsMost> mEnds{};
+        std::array<Misc::DigestWords, sSegmentsMost> mDigests{};
+    };
+
     /// What is derived from the content, kept on disk across sessions: one file per entry under its key, in a folder
     /// of its kind and in 256 folders under it named by the key's first byte, as ccache and Bazel's disk cache keep
     /// theirs (`docs/architecture.md`, "One file an entry, and every entry untrusted"). The kind's folder lets the
@@ -149,10 +178,6 @@ namespace ContentStore
         /// the other's entries as files it cannot read.
         static constexpr std::uint32_t sFormat = 3;
 
-        /// The most segments an entry holds: a chain's levels to a texel at the largest side a slot holds, and the
-        /// form's byte, with room past them. A trailer that states more is refused unread.
-        static constexpr std::uint32_t sSegmentsMost = 64;
-
         /// @param directory where the store stands, made if it is not there; its files are in the folder
         ///        of its format under it.
         Store(const std::filesystem::path& directory, const Policy& policy);
@@ -166,6 +191,16 @@ namespace ContentStore
         /// The entry `key` filed as `kind` at `version`, into `payload`, answering whether a whole
         /// one was there within `reach`. A refused file is deleted.
         bool read(const Key& key, std::uint32_t kind, std::uint32_t version, Reach reach, Misc::ByteBuffer& payload);
+
+        /// The entry `key` filed as `kind` at `version`, opened within `reach` for its segments to be read alone, its
+        /// payload unread: nothing where none stands, its trailer or its table does not hold, which refuses and deletes
+        /// the file, or it names another kind or version. A hit, as a read is.
+        std::optional<Opened> open(const Key& key, std::uint32_t kind, std::uint32_t version, Reach reach);
+
+        /// Reads `count` segments of `entry` from `first` into `into`, as long as they are, each checked against its
+        /// digest: false where the file does not read so or a digest does not hold, which refuses and deletes it, and
+        /// `into` is then unspecified.
+        bool readSegments(Opened& entry, std::uint32_t first, std::uint32_t count, std::span<std::byte> into);
 
         /// Whether an entry stands under `key` within `reach`, held in memory or as a file whose trailer holds for
         /// its size, with its payload unread, and the session's stamp queued as a hit queues it: what a preparation
@@ -230,6 +265,10 @@ namespace ContentStore
         void start();
         void writeFile(const Filed& task);
         void stampFile(const Key& key, std::uint32_t kind);
+
+        /// Opens `opened`'s file, which stands, for `key` filed as `kind` at `version`, and reads its trailer and its
+        /// table; refuses and deletes it where either does not hold.
+        bool openFile(Opened& opened, const Key& key, std::uint32_t kind, std::uint32_t version);
 
         /// Reads the file at `path` for `key` into `kind`, `version` and `payload`, answering whether
         /// it was whole; refuses and deletes it where it was not. Nothing where there is no file.

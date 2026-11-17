@@ -172,9 +172,10 @@ namespace RtxTool
             reads.mCounts = { 3, 40, 2, 0 };
             reads.mBytes = { 1 * sMiB, 120 * sMiB, 6 * sMiB, 0 };
             reads.mChainsFoundWhole = 17;
+            reads.mCancelled = 5;
             EXPECT_EQ(describeTexelReads(reads),
                 "  texels asked   fact 3 (1.0 MiB)   file 40 (120.0 MiB)   partner 2 (6.0 MiB)   preparation 0 (0.0 "
-                "MiB)   chains found whole 17\n");
+                "MiB)   chains found whole 17   cancelled 5\n");
         }
 
         /// **The ring by distance, what stands of what it holds**, only the distances holding a placement, the last
@@ -387,6 +388,7 @@ namespace RtxTool
             place.mTexelReads.mCounts = { 46, 47, 48, 49 };
             place.mTexelReads.mBytes = { 50, 51, 52, 53 };
             place.mTexelReads.mChainsFoundWhole = 54;
+            place.mTexelReads.mCancelled = 66;
             place.mGame = GameHeld{ .mLoadedCells = 63, .mPreloadedCells = 64, .mStarvedLooks = 65 };
 
             const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "memory-record.json";
@@ -426,7 +428,8 @@ namespace RtxTool
             EXPECT_NE(json.find(content), std::string::npos) << json;
             EXPECT_NE(json.find(R"(, "texelReads": {"fact": 46, "factBytes": 50, "file": 47, "fileBytes": 51, )"
                                 R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"
-                                R"("chainsFoundWhole": 54}, "game": {"loadedCells": 63, "preloadedCells": 64, )"
+                                R"("chainsFoundWhole": 54, "cancelled": 66}, "game": {"loadedCells": 63, )"
+                                R"("preloadedCells": 64, )"
                                 R"("starvedLooks": 65})"),
                 std::string::npos)
                 << json;

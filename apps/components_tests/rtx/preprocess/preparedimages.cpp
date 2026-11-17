@@ -501,7 +501,8 @@ namespace Rtx
         /// header made through one open, each job's read held at the file's next. A slot leaves while its read waits
         /// and asks again before it lands: the read stands for it, 48 bytes unhanded. Forgotten once made, it goes at
         /// once. Read as data and forgotten while it waits, it goes as its job lands: nothing is left held for the
-        /// session, and each slot that left while its file was read is counted.
+        /// session, and each slot that left while its file was read is counted. One that left before its job started
+        /// is cancelled.
         TEST(RtxPreparedImagesTest, whatASlotThatLeavesWasReadForIsForgottenUnlessAskedAgain)
         {
             GatedFile file(Testing::ddsDxt1(8, 8, 3, 0x55), 1);
@@ -536,6 +537,19 @@ namespace Rtx
             prepared.flush();
             EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "what its job made went as it landed";
             EXPECT_EQ(prepared.getEntryCount(), 0u) << "and its entry with it";
+            prepared.takeStats();
+
+            // **A job whose slot left before it started is cancelled**: the one hand held at the file's gate by a
+            // colour's read, a map of data queued behind it and forgotten reads nothing when its turn comes.
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Data, TextureWrap::Repeat).mPending);
+            prepared.forget(*header, TextureEncoding::Data, TextureWrap::Repeat, nullptr);
+            file.let();
+            prepared.flush();
+            const ContentStats cancelled = prepared.takeStats();
+            EXPECT_EQ(cancelled.mTexelReads.mCancelled, 1u);
+            EXPECT_EQ(cancelled.mTexelReads.count(TexelRead::File), 1u) << "the colour's read alone";
+            EXPECT_EQ(cancelled.at(ContentPassId::Chain).mAsked, 0u) << "no chain asked for the map";
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no

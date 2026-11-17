@@ -25,7 +25,7 @@ namespace Rtx
         }
 
         ContentPreprocessor mContent;
-        MadeChain mChain;
+        PooledChain mChain;
         std::jthread mWorker;
     };
 
@@ -42,6 +42,7 @@ namespace Rtx
 
     PreparedImages::PreparedImages(ContentStore::Store* const store, const std::size_t hands)
         : mStore(store)
+        , mPool(BufferPool::make(sPoolBytes))
     {
         assert(hands >= 1 && "no thread to make images on");
         for (std::size_t at = 0; at < hands; ++at)
@@ -257,8 +258,24 @@ namespace Rtx
                 job = std::move(mQueue.front());
                 mQueue.pop_front();
                 ++mInFlight;
+                // **A job whose slot left before it started is cancelled**: nothing waits for what it would read, and
+                // its entry goes now rather than as it lands (`forget`).
+                const auto entry = mEntries.find(job.mKey);
+                job.mCancelled = entry != mEntries.end() && entry->second.mLeft;
+                if (job.mCancelled)
+                    mEntries.erase(entry);
             },
             [&](const std::stop_token&) {
+                if (job.mCancelled)
+                {
+                    mMonitor.hand([&] {
+                        --mInFlight;
+                        ++mStats.mTexelReads.mCancelled;
+                        job = Job{};
+                    });
+                    return;
+                }
+
                 // **The header a model holds, keyed by its derivation**: a chain the store holds whole reads nothing of
                 // the file, and a run reads its texels through the header.
                 const osg::Image& file = *job.mFile;
@@ -273,7 +290,7 @@ namespace Rtx
                         .mEncoding = encoding,
                         .mWrap = wrap,
                         .mRead = &pixels };
-                    if (hand.mContent.convert(input, hand.mChain))
+                    if (hand.mContent.convert(input, *mPool, stop, hand.mChain))
                         layout = ConversionPass::madeLayout(input, hand.mChain.mForm);
                 }
                 else if (job.mMakes)
@@ -281,7 +298,7 @@ namespace Rtx
                     const ChainPass::Input input{
                         .mImage = file, .mEncoding = encoding, .mWrap = wrap, .mRead = &pixels
                     };
-                    if (hand.mContent.chain(input, hand.mChain))
+                    if (hand.mContent.chain(input, *mPool, stop, hand.mChain))
                         layout = ChainPass::madeLayout(input, hand.mChain.mForm);
                 }
 
@@ -289,6 +306,7 @@ namespace Rtx
                 osg::ref_ptr<const MadeImage> made;
                 if (layout.has_value())
                     made = MadeImage::make(*layout, std::move(hand.mChain.mBytes));
+                hand.mChain.mBytes = PooledBuffer();
 
                 // The file's texels where the upload reads its levels, nothing made: a run's read, else one now. A
                 // chain made holds none.

@@ -207,11 +207,12 @@ namespace RtxTool
         {
             return std::format(
                 R"({{"fact": {}, "factBytes": {}, "file": {}, "fileBytes": {}, "partner": {}, )"
-                R"("partnerBytes": {}, "preparation": {}, "preparationBytes": {}, "chainsFoundWhole": {}}})",
+                R"("partnerBytes": {}, "preparation": {}, "preparationBytes": {}, "chainsFoundWhole": {}, )"
+                R"("cancelled": {}}})",
                 reads.count(Rtx::TexelRead::Fact), reads.bytes(Rtx::TexelRead::Fact), reads.count(Rtx::TexelRead::File),
                 reads.bytes(Rtx::TexelRead::File), reads.count(Rtx::TexelRead::Partner),
                 reads.bytes(Rtx::TexelRead::Partner), reads.count(Rtx::TexelRead::Preparation),
-                reads.bytes(Rtx::TexelRead::Preparation), reads.mChainsFoundWhole);
+                reads.bytes(Rtx::TexelRead::Preparation), reads.mChainsFoundWhole, reads.mCancelled);
         }
 
         std::string asJson(const Arrivals& arrivals)
@@ -471,7 +472,7 @@ namespace RtxTool
                  std::pair{ Rtx::TexelRead::File, "file" }, std::pair{ Rtx::TexelRead::Partner, "partner" },
                  std::pair{ Rtx::TexelRead::Preparation, "preparation" } })
             out += std::format("   {} {} ({:.1f} MiB)", name, reads.count(why), Rtx::mebibytes(reads.bytes(why)));
-        out += std::format("   chains found whole {}\n", reads.mChainsFoundWhole);
+        out += std::format("   chains found whole {}   cancelled {}\n", reads.mChainsFoundWhole, reads.mCancelled);
         return out;
     }
 

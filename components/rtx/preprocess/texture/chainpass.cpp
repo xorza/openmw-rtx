@@ -118,11 +118,11 @@ namespace Rtx
         release();
     }
 
-    bool fillsLayout(const std::optional<MadeLayout>& layout, const MadeChain& chain)
+    bool fillsLayout(const std::optional<MadeLayout>& layout, const ChainForm form, const std::size_t bytes)
     {
         if (!layout.has_value())
-            return chain.mForm == ChainForm::Stands && chain.mBytes.empty();
-        return chain.mBytes.size() == layout->bytes();
+            return form == ChainForm::Stands && bytes == 0;
+        return bytes == layout->bytes();
     }
 
     std::optional<MadeLayout> ChainPass::madeLayout(const Input& input, const ChainForm form)
@@ -179,7 +179,7 @@ namespace Rtx
 
     bool ChainPass::fits(const Input& input, const Output& output)
     {
-        return fillsLayout(madeLayout(input, output.mForm), output);
+        return fillsLayout(madeLayout(input, output.mForm), output.mForm, output.mBytes.size());
     }
 
     ChainScratch ChainPass::scratchOf(const Input& input)

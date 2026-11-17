@@ -15,6 +15,7 @@
 
 #include <components/misc/monitor.hpp>
 #include <components/platform/thread.hpp>
+#include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -154,6 +155,9 @@ namespace Rtx
 
             /// Whether its chain is made again (`prepares`), or its texels alone read.
             bool mMakes = false;
+
+            /// Whether its slot left before it started (`forget`), so it reads nothing.
+            bool mCancelled = false;
         };
 
         /// The entry `file` is found under as a slot asks for it: the wrap only where it decides what is made.
@@ -175,6 +179,13 @@ namespace Rtx
         void sweep();
 
         ContentStore::Store* const mStore;
+
+        /// **The buffers the made chains are read into, 256 MiB in use and free**: a 4096-square map's whole chain in
+        /// BC7 is 21 MiB, so a dozen stand between the hands and the uploads before a hand waits for one given back;
+        /// the free ones are the host's for the session, which the handheld can spare no more of. A chain past it is
+        /// read alone (`BufferPool`).
+        static constexpr std::size_t sPoolBytes = std::size_t{ 256 } << 20;
+        std::shared_ptr<BufferPool> mPool;
 
         Misc::Monitor mMonitor;
         std::map<Key, Entry> mEntries;
