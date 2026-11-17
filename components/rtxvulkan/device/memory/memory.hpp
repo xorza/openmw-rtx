@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
@@ -365,8 +366,26 @@ namespace Rtx
 
         /// Has the library ask the driver its budget again, which it otherwise does only every
         /// few dozen allocations. Before a decision about what content fits, so the decision is
-        /// made against what the device says now.
+        /// made against what the device says now. On a device whose memory is the system's, reads
+        /// what the system leaves the process as well, once a second at most (`systemBoundOf`).
         void refreshBudget(std::uint64_t frame);
+
+        /// **What a device whose memory is the system's may hold**: what it holds, `usage`, and what the system
+        /// leaves the process beside it, `available`, less `sHostReserveBytes` for what the host takes before the
+        /// next reading. A driver's budget for such a heap is the heap less the device's own use, and sees nothing the
+        /// process's heap and the other programs hold (RADV, `radv_get_memory_budget_properties`).
+        static constexpr VkDeviceSize systemBoundOf(const VkDeviceSize usage, const VkDeviceSize available)
+        {
+            const VkDeviceSize room = usage + available;
+            return room - std::min(room, sHostReserveBytes);
+        }
+
+        /// What the host's own side keeps of the system's memory, a gigabyte, as the caches of what is read keep
+        /// (`Resource::CacheBudget::sReserveBytes`).
+        static constexpr VkDeviceSize sHostReserveBytes = VkDeviceSize{ 1 } << 30;
+
+        /// Whether the device's memory is the system's: an integrated device, as its type states.
+        bool isUnified() const { return mUnified; }
 
         /// How many calls to `vkAllocateMemory` stand behind everything handed out.
         std::size_t getBlockCount() const;
@@ -482,6 +501,15 @@ namespace Rtx
 
         std::optional<VkDeviceSize> mBudgetLimit;
         VkDeviceSize mFrameReserve = 0;
+
+        /// Whether the device's memory is the system's, and what that leaves the device as `refreshBudget` last read
+        /// it, and when: nothing on a device with memory of its own.
+        bool mUnified = false;
+        std::optional<VkDeviceSize> mSystemBound;
+        std::chrono::steady_clock::time_point mSystemRead{};
+
+        /// `budget` held to `limitBudget`'s and the system's bound, whichever are less.
+        VkDeviceSize heldTo(VkDeviceSize budget) const;
 
         /// What `holdOutside` was last told.
         VkDeviceSize mHeldOutside = 0;

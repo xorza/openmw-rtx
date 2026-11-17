@@ -370,6 +370,19 @@ namespace Rtx
             EXPECT_LT(memory.getBlockCount(), grown) << "emptied blocks were kept";
         }
 
+        /// **A device whose memory is the system's is held to what the system leaves**: holding 2 GiB with 5 left
+        /// beside it, 6 after the host's gigabyte; holding a quarter with a half left, nothing. The device here says
+        /// whether its memory is the system's by its type.
+        TEST_F(RtxMemoryTest, aUnifiedDeviceIsHeldToWhatTheSystemLeaves)
+        {
+            constexpr VkDeviceSize sGiB = VkDeviceSize{ 1 } << 30;
+            static_assert(MemoryAllocator::systemBoundOf(2 * sGiB, 5 * sGiB) == 6 * sGiB);
+            static_assert(MemoryAllocator::systemBoundOf(sGiB / 4, sGiB / 2) == 0);
+            EXPECT_EQ(getDevice().getMemory().isUnified(),
+                getDevice().getPhysicalDevice().getProperties().mProperties2.properties.deviceType
+                    == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU);
+        }
+
         /// With no room left, content is refused and the frame's own memory is made.
         ///
         /// **Both ways content comes to new memory**: forty megabytes, more than half a block, is an allocation of its

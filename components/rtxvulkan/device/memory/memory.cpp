@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bit>
 #include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <format>
 #include <mutex>
@@ -15,6 +16,7 @@
 #include <volk.h>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/platform/memory.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -173,6 +175,10 @@ namespace Rtx
         , mContent(contentTypesOf(memory))
         , mLibrary(device, instance, physicalDevice, extensions)
     {
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+        mUnified = properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+
         // Made now and not when first asked for, so no thread ever makes one: a pool with no block
         // holds nothing. One over each type content may be placed in, which leaves out AMD's
         // device-coherent types: the library refuses a pool over one, and a pool asked of each
@@ -466,8 +472,8 @@ namespace Rtx
             ++before)
             owed += mHeld[heap][before];
 
-        const VkDeviceSize heldTo = std::min(budget, mBudgetLimit.value_or(budget));
-        return heldTo > owed ? heldTo - owed : 0;
+        const VkDeviceSize held = heldTo(budget);
+        return held > owed ? held - owed : 0;
     }
 
     VkDeviceSize MemoryAllocator::getContentFree() const
@@ -513,8 +519,7 @@ namespace Rtx
         const Graveyard& graveyard = mDevice.getGraveyard();
         const VkDeviceSize letGo
             = getContentFree() + graveyard.getBuried(MemoryUse::Structure) + graveyard.getBuried(MemoryUse::Texture);
-        return VideoBudget{ .mBudget = std::min(heap.budget, mBudgetLimit.value_or(heap.budget)),
-            .mHeld = heap.usage > letGo ? heap.usage - letGo : 0 };
+        return VideoBudget{ .mBudget = heldTo(heap.budget), .mHeld = heap.usage > letGo ? heap.usage - letGo : 0 };
     }
 
     void MemoryAllocator::noteRefused(
@@ -597,6 +602,28 @@ namespace Rtx
     void MemoryAllocator::refreshBudget(const std::uint64_t frame)
     {
         vmaSetCurrentFrameIndex(mLibrary.get(), static_cast<std::uint32_t>(frame));
+        if (!mUnified)
+            return;
+
+        // **Once a second at most**, a read of the system's figure, so no hand-over pays more than one in that time.
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        if (mSystemBound.has_value() && now - mSystemRead < std::chrono::seconds(1))
+            return;
+        mSystemRead = now;
+        const std::optional<std::uint64_t> available = Platform::availableMemory();
+        if (!available.has_value())
+        {
+            mSystemBound.reset();
+            return;
+        }
+        VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
+        mSystemBound = systemBoundOf(budgets[mContent.mHeap].usage, *available);
+    }
+
+    VkDeviceSize MemoryAllocator::heldTo(const VkDeviceSize budget) const
+    {
+        return std::min({ budget, mBudgetLimit.value_or(budget), mSystemBound.value_or(budget) });
     }
 
     std::size_t MemoryAllocator::getLiveCount() const
@@ -646,7 +673,9 @@ namespace Rtx
             // tells a driver that would not say from one that said none by the columns' absence.
             if (mBudget)
             {
-                use.mBudget = std::min(budgets[heap].budget, mBudgetLimit.value_or(budgets[heap].budget));
+                use.mBudget = heap == mContent.mHeap
+                    ? heldTo(budgets[heap].budget)
+                    : std::min(budgets[heap].budget, mBudgetLimit.value_or(budgets[heap].budget));
                 use.mHeld = budgets[heap].usage;
             }
         }
