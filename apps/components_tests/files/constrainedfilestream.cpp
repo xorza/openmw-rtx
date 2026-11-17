@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -54,6 +55,36 @@ namespace
         const Files::IStreamPtr stream = Files::openConstrainedFileStream(writeFile(), sStart, sLength);
         EXPECT_EQ(readRest(*stream), expected(sStart, sLength));
         EXPECT_EQ(stream->get(), std::char_traits<char>::eof());
+    }
+
+    /// **A read of many bytes is its range's bytes at every boundary**: through the buffer and past it, from the start
+    /// and from a position inside a buffered run, a request of less than the buffer, exactly it, and more, and one
+    /// past the range's end, which stops there; each followed by a small read, which goes on from where the large one
+    /// ended.
+    TEST(FilesConstrainedFileStreamTest, aLargeReadIsItsRangesBytesAtEveryBoundary)
+    {
+        const std::filesystem::path path = writeFile();
+        constexpr std::size_t sBuffer = 8192;
+        for (const std::size_t skip : { std::size_t{ 0 }, std::size_t{ 1 }, std::size_t{ 100 } })
+            for (const std::size_t count : { sBuffer - 1, sBuffer, sBuffer + 1, sLength - 101, sLength })
+            {
+                SCOPED_TRACE(testing::Message() << "skip " << skip << ", count " << count);
+                const Files::IStreamPtr stream = Files::openConstrainedFileStream(path, sStart, sLength);
+                std::string skipped(skip, '\0');
+                stream->read(skipped.data(), static_cast<std::streamsize>(skip));
+                std::string read(count, '\0');
+                stream->read(read.data(), static_cast<std::streamsize>(count));
+                const std::size_t inRange = std::min(count, sLength - skip);
+                EXPECT_EQ(static_cast<std::size_t>(stream->gcount()), inRange);
+                read.resize(inRange);
+                EXPECT_EQ(read, expected(sStart + skip, inRange));
+                if (skip + count >= sLength)
+                    continue;
+                const std::size_t small = std::min(std::size_t{ 4 }, sLength - skip - count);
+                std::string after(small, '\0');
+                stream->read(after.data(), static_cast<std::streamsize>(small));
+                EXPECT_EQ(after, expected(sStart + skip + count, small)) << "a small read after a large one";
+            }
     }
 
     TEST(FilesConstrainedFileStreamTest, aFileOfItsOwnRunsToTheFilesEnd)

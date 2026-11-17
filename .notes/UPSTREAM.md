@@ -88,6 +88,9 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   function; `CacheStats` counts loads, waits and reloads. Two threads that missed one model both loaded it. Its test of
   a throwing load holds the loader's catch until the waiter is joined, since the exception both share is freed through
   a count in libstdc++, which ThreadSanitizer cannot see.
+- `ConstrainedFileStreamBuf::xsgetn` reads a request no smaller than its buffer straight into the caller's memory: one
+  read and one copy in place of 2,731 reads of 8 KiB for a 22 MiB image. Cost: a conflict with an edit to the stream
+  buffer, already the fork's. Approved with item 12 of the tree and content memory plan (2026-11-17).
 - An archive opened once and read by position (`Platform::File::readAt`): `Bsa::BSAFile` holds a `Files::SharedFile`,
   and each entry's `ConstrainedFileStreamBuf` keeps its own position, where each entry opened the archive again (18,082
   opens of `Morrowind.bsa` in 75 s); POSIX `pread`, Windows `ReadFile` at an `OVERLAPPED`'s offset, the file shared for

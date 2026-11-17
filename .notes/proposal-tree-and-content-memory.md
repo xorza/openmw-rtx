@@ -527,7 +527,7 @@ made again once; a store made on the desk is the handheld's too, the key being t
 3. Every chain whole, with a digest a level; `Store::open` and the ranged `read`; the kind in the entry's folder, so
    the start opens no file to learn it.
 4. The manifest states each model's radius and whether it gives light, which item 15 reads.
-5. `xsgetn`; `LevelReader` and `BufferPool`; cancel; the uploader gives buffers back.
+5. `LevelReader` and `BufferPool`; cancel; the uploader gives buffers back.
 6. Tests: a re-arrival opens one file; a level range read equals the decode's bytes for every block format; a stream's
    bytes the same through its buffer and past it, at every boundary; no allocation a hand-over once warm; a cancelled
    job holds nothing.
