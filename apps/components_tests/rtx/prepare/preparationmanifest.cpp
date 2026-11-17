@@ -196,7 +196,11 @@ namespace Rtx
             Misc::ByteBuffer scratch;
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             for (const StoredKey& key : { sShared, sOwn })
-                store.write(key.mKey, storeKindOf(ContentPassId::AlphaSpan), 1, Misc::ByteBuffer{ std::byte{ 1 } },
+                store.write(ContentStore::Filed{ .mKey = key.mKey,
+                                .mKind = storeKindOf(ContentPassId::AlphaSpan),
+                                .mVersion = 1,
+                                .mPayload = Misc::ByteBuffer{ std::byte{ 1 } },
+                                .mSegmentEnds = {} },
                     ContentStore::Reach::Disk);
             store.flush();
 
@@ -209,7 +213,7 @@ namespace Rtx
                 0);
             EXPECT_TRUE(manifest.standingDigest("meshes/m.nif", stamps, store, scratch).has_value());
 
-            std::filesystem::remove(store.pathOf(sOwn.mKey));
+            std::filesystem::remove(store.pathOf(sOwn.mKey, storeKindOf(sOwn.mPass)));
             ContentStore::Store reopened(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, reopened, scratch).has_value())
                 << "a key the store lost";
@@ -269,7 +273,11 @@ namespace Rtx
             EXPECT_EQ(both[1].mDigest, std::max(vanilla.mDigest, repack.mDigest));
 
             // Re-walked from the vanilla files, now with a key the store holds: that entry is replaced, not added.
-            store.write(sOwn.mKey, storeKindOf(ContentPassId::AlphaSpan), 1, Misc::ByteBuffer{ std::byte{ 1 } },
+            store.write(ContentStore::Filed{ .mKey = sOwn.mKey,
+                            .mKind = storeKindOf(ContentPassId::AlphaSpan),
+                            .mVersion = 1,
+                            .mPayload = Misc::ByteBuffer{ std::byte{ 1 } },
+                            .mSegmentEnds = {} },
                 ContentStore::Reach::Disk);
             store.flush();
             PreparationManifest::Entry rewalked = vanilla;
@@ -360,7 +368,11 @@ namespace Rtx
                 .mPass = ContentPassId::Shape };
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
-                store.write(shape.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion, Misc::ByteBuffer(8192),
+                store.write(ContentStore::Filed{ .mKey = shape.mKey,
+                                .mKind = storeKindOf(ContentPassId::Shape),
+                                .mVersion = ShapePass::sVersion,
+                                .mPayload = Misc::ByteBuffer(8192),
+                                .mSegmentEnds = {} },
                     ContentStore::Reach::Disk);
                 store.flush();
             }
@@ -384,7 +396,7 @@ namespace Rtx
                 shape.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion, ContentStore::Reach::Memory, read));
             EXPECT_EQ(read.size(), 8192u);
 
-            std::filesystem::remove(reopened.pathOf(shape.mKey));
+            std::filesystem::remove(reopened.pathOf(shape.mKey, storeKindOf(ContentPassId::Shape)));
             ContentStore::Store lost(folder, sContentStorePolicy);
             EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, lost, scratch).has_value())
                 << "a shape the store lost";

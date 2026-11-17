@@ -549,8 +549,7 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 One bump of the store's version carries every format change of this plan, the manifest's among them, so the stores are
 made again once; a store made on the desk is the handheld's too, the key being the content.
 
-3. A digest a level; `Store::open` and the ranged `read`; the kind in the entry's folder, so
-   the start opens no file to learn it.
+3. `Store::open` and the ranged `read`, with item 13, which is their first reader.
 4. The manifest states each model's radius and whether it gives light, which item 15 reads.
 5. `LevelReader` and `BufferPool`; cancel; the uploader gives buffers back.
 6. Tests: a re-arrival opens one file; a level range read equals the decode's bytes for every block format; a stream's
@@ -626,6 +625,10 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **12.3, its second part. The kind's folder and a digest a segment** (store format 3): a generic segment table and not
+  a level's, as the store knows no levels; `Store::write` takes `ContentStore::Filed`, its fifth parameter folded in.
+  `Store::open` and the ranged read wait for item 13, their first reader, rather than stand unread.
 
 - **12.3, its first part. Every chain whole**: a block file's built levels are kept under its finest as the file
   holds it, in the own form, and the coarser form, `TextureData::mCoarser`, `MadeLayout::mFirst` and the prepared

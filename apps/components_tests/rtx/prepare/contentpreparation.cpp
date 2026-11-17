@@ -243,7 +243,7 @@ namespace Rtx
                         lost.push_back(key);
                 ASSERT_FALSE(lost.empty()) << "the second model filed no entry of its own";
                 for (const StoredKey& key : lost)
-                    ASSERT_TRUE(std::filesystem::remove(store.pathOf(key.mKey)));
+                    ASSERT_TRUE(std::filesystem::remove(store.pathOf(key.mKey, storeKindOf(key.mPass))));
 
                 ContentStore::Store reopened(folder, sContentStorePolicy);
                 const PreparationSetup lostSetup{ .mContent = content,
@@ -254,7 +254,7 @@ namespace Rtx
                 EXPECT_EQ(prepare(lostSetup, both).mWalked, 1u) << "the model whose entry was lost, and no other";
                 reopened.flush();
                 for (const StoredKey& key : lost)
-                    EXPECT_TRUE(std::filesystem::exists(reopened.pathOf(key.mKey)));
+                    EXPECT_TRUE(std::filesystem::exists(reopened.pathOf(key.mKey, storeKindOf(key.mPass))));
             }
 
             prepare(setup, { "meshes/a.nif" });

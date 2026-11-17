@@ -30,12 +30,13 @@ namespace ContentStore
 {
     namespace
     {
-        /// What an entry's file ends with, after its payload: the payload's own length and digest, as `PipelineCache`
-        /// writes its own, because a file a power loss zeroed after its rename, or one cut short, passes every check
-        /// of the fields before them. Written `Durability::Whole` and not synced: the digest finds what a sync would
-        /// have kept, and thousands of entries a load would each wait on the disk. At the end and not the front, as
-        /// Parquet puts its footer: a read takes the whole file into the buffer the payload is handed in and drops
-        /// the trailer by a resize, where a header taken off the front moved every byte after it.
+        /// What an entry's file ends with, after its payload and its segments' table: the payload's own length, the
+        /// table's length and digest, as `PipelineCache` writes its own, because a file a power loss zeroed after its
+        /// rename, or one cut short, passes every check of the fields before them. Written `Durability::Whole` and not
+        /// synced: the digests find what a sync would have kept, and thousands of entries a load would each wait on
+        /// the disk. At the end and not the front, as Parquet puts its footer: a read takes the whole file into the
+        /// buffer the payload is handed in and drops the table and the trailer by a resize, where a header taken off
+        /// the front moved every byte after it.
         struct EntryTrailer
         {
             std::uint32_t mMagic;
@@ -43,19 +44,36 @@ namespace ContentStore
             std::uint32_t mKind;
             std::uint32_t mVersion;
             Misc::DigestWords mKey;
-            Misc::DigestWords mDigest;
+            Misc::DigestWords mTableDigest;
             std::uint64_t mPayloadBytes;
+            std::uint32_t mSegments;
+            std::uint32_t mReserved;
         };
 
-        static_assert(sizeof(EntryTrailer) == 56, "the trailer carries no padding");
+        static_assert(sizeof(EntryTrailer) == 64, "the trailer carries no padding");
+
+        /// One segment of the payload in the table before the trailer: where it ends, and its bytes' digest.
+        struct SegmentRecord
+        {
+            std::uint64_t mEnd;
+            Misc::DigestWords mDigest;
+        };
+
+        static_assert(sizeof(SegmentRecord) == 24, "a segment's record carries no padding");
+
+        /// The bytes a file holds past its payload for `segments` segments: their table and the trailer.
+        std::uint64_t tailBytesOf(const std::uint32_t segments)
+        {
+            return std::uint64_t{ segments } * sizeof(SegmentRecord) + sizeof(EntryTrailer);
+        }
 
         /// "RTXC", read as a little-endian word: the ray tracer's store had the format first, and a magic of
         /// another would have refused every entry it holds.
         constexpr std::uint32_t sMagic = 0x43585452u;
 
         /// **The one check of a trailer**, `read`'s and `holds`'s: the check that failed, or nothing
-        /// where it holds for `key`, a file of `fileBytes`, and `kinds` kinds. The payload's digest is
-        /// the read's alone, which has the payload.
+        /// where it holds for `key`, a file of `fileBytes`, and `kinds` kinds. The table's and the segments'
+        /// digests are the read's alone, which has them.
         std::string_view checkTrailer(
             const EntryTrailer& trailer, const Key& key, const std::uint64_t fileBytes, const std::uint32_t kinds)
         {
@@ -67,7 +85,10 @@ namespace ContentStore
                 return "its key";
             if (trailer.mKind >= kinds)
                 return "its kind";
-            if (fileBytes < sizeof(EntryTrailer) || trailer.mPayloadBytes != fileBytes - sizeof(EntryTrailer))
+            if (trailer.mSegments == 0 || trailer.mSegments > Store::sSegmentsMost || trailer.mReserved != 0)
+                return "its segments";
+            const std::uint64_t tail = tailBytesOf(trailer.mSegments);
+            if (fileBytes < tail || trailer.mPayloadBytes != fileBytes - tail)
                 return "its length";
             return {};
         }
@@ -102,6 +123,36 @@ namespace ContentStore
             return state.getWords();
         }
 
+        /// **The check of a file's segments**, the read's, over `file` whole, whose trailer `checkTrailer` passed: the
+        /// check that failed, or nothing where the table's digest holds, its ends never fall and reach the payload's
+        /// length, and
+        /// each segment's bytes hold their digest.
+        std::string_view checkSegments(const EntryTrailer& trailer, std::span<const std::byte> file)
+        {
+            const auto payloadBytes = static_cast<std::size_t>(trailer.mPayloadBytes);
+            const std::span<const std::byte> tableBytes
+                = file.subspan(payloadBytes, std::size_t{ trailer.mSegments } * sizeof(SegmentRecord));
+            if (digestOf(tableBytes) != trailer.mTableDigest)
+                return "its table's digest";
+
+            std::uint64_t start = 0;
+            for (std::uint32_t at = 0; at < trailer.mSegments; ++at)
+            {
+                SegmentRecord record{};
+                std::memcpy(&record, tableBytes.data() + std::size_t{ at } * sizeof(SegmentRecord), sizeof(record));
+                const bool last = at + 1 == trailer.mSegments;
+                if (record.mEnd < start || record.mEnd > trailer.mPayloadBytes
+                    || (last && record.mEnd != trailer.mPayloadBytes))
+                    return "its segments";
+                if (digestOf(
+                        file.subspan(static_cast<std::size_t>(start), static_cast<std::size_t>(record.mEnd - start)))
+                    != record.mDigest)
+                    return "its digest";
+                start = record.mEnd;
+            }
+            return {};
+        }
+
         /// Whether `name` is an entry's: the key's 32 hexadecimal digits.
         bool isEntryName(std::string_view name)
         {
@@ -134,14 +185,13 @@ namespace ContentStore
             std::uint64_t mStale = 0;
         };
 
-        /// Lists every entry under `folder` where `listing` asks for them, and removes a temporary file older
-        /// than `Platform::sPartialStaleAfter`.
-        Swept sweepFolder(const std::filesystem::path& folder, const Listing listing)
+        /// Lists every entry under `folder`, one kind's, where `listing` asks for them, into `swept`, and removes a
+        /// temporary file older than `Platform::sPartialStaleAfter`.
+        void sweepFolder(const std::filesystem::path& folder, const Listing listing, Swept& swept)
         {
-            Swept swept;
             const std::optional<std::vector<std::filesystem::directory_entry>> folders = Platform::listFolder(folder);
             if (!folders.has_value())
-                return swept;
+                return;
 
             const std::filesystem::file_time_type now = std::filesystem::file_time_type::clock::now();
             for (const std::filesystem::directory_entry& shard : *folders)
@@ -186,11 +236,6 @@ namespace ContentStore
                         StoredFile{ .mTime = time, .mBytes = bytes, .mPath = file.path(), .mKey = key });
                 }
             }
-
-            // **The oldest first**: an entry's time is its last use, and the start loads the newest.
-            std::sort(swept.mKept.begin(), swept.mKept.end(),
-                [](const StoredFile& a, const StoredFile& b) { return a.mTime < b.mTime; });
-            return swept;
         }
     }
 
@@ -227,10 +272,10 @@ namespace ContentStore
         mWorker = std::jthread();
     }
 
-    std::filesystem::path Store::pathOf(const Key& key) const
+    std::filesystem::path Store::pathOf(const Key& key, const std::uint32_t kind) const
     {
         const std::string name = std::format("{:016x}{:016x}", key.mHash[0], key.mHash[1]);
-        return mDirectory / name.substr(0, 2) / name;
+        return mDirectory / std::to_string(kind) / name.substr(0, 2) / name;
     }
 
     bool Store::read(const Key& key, const std::uint32_t kind, const std::uint32_t version, const Reach reach,
@@ -241,7 +286,7 @@ namespace ContentStore
         const auto stampOnce = [&](const std::size_t payloadBytes) {
             if (!ranks(kind, payloadBytes) || !stampsOnce(key))
                 return false;
-            mQueue.emplace_back(StampTask{ .mKey = key });
+            mQueue.emplace_back(StampTask{ .mKey = key, .mKind = kind });
             return true;
         };
 
@@ -269,7 +314,7 @@ namespace ContentStore
         {
             std::uint32_t readKind = 0;
             std::uint32_t readVersion = 0;
-            const std::filesystem::path path = pathOf(key);
+            const std::filesystem::path path = pathOf(key, kind);
             found = readFile(path, key, readKind, readVersion, payload);
 
             // The key is made of its maker's name and version, so a file under it that names another kind
@@ -297,29 +342,30 @@ namespace ContentStore
         return found;
     }
 
-    bool Store::holds(const Key& key, const Reach reach)
+    bool Store::holds(const Key& key, const std::uint32_t kind, const Reach reach)
     {
+        assert(kind < mPolicy.mKindCount && "a kind the store's owner does not have");
+
         // What ranks the entry for the start's load (`ranks`), off the entry held or the file's trailer.
-        std::uint32_t kind = 0;
         std::size_t payloadBytes = 0;
         bool found = mMonitor.under([&] {
             const auto held = mResident.find(key);
-            if (held == mResident.end())
+            if (held == mResident.end() || held->second.mKind != kind)
                 return false;
-            kind = held->second.mKind;
             payloadBytes = held->second.mPayload->size();
             return true;
         });
         if (!found && reach == Reach::Disk)
         {
-            const std::filesystem::path path = pathOf(key);
+            const std::filesystem::path path = pathOf(key, kind);
             if (const std::optional<TailRead> tail = readTrailer(path))
             {
-                const std::string_view failed = checkTrailer(tail->mTrailer, key, tail->mBytes, mPolicy.mKindCount);
+                std::string_view failed = checkTrailer(tail->mTrailer, key, tail->mBytes, mPolicy.mKindCount);
+                if (failed.empty() && tail->mTrailer.mKind != kind)
+                    failed = "the kind asked for";
                 found = failed.empty();
                 if (!found)
                     refuse(path, failed);
-                kind = tail->mTrailer.mKind;
                 payloadBytes = static_cast<std::size_t>(tail->mTrailer.mPayloadBytes);
             }
         }
@@ -333,17 +379,25 @@ namespace ContentStore
             ++mStats.mHeld;
             if (!ranks(kind, payloadBytes) || !stampsOnce(key))
                 return false;
-            mQueue.emplace_back(StampTask{ .mKey = key });
+            mQueue.emplace_back(StampTask{ .mKey = key, .mKind = kind });
             return true;
         });
         return found;
     }
 
-    void Store::write(const Key& key, const std::uint32_t kind, const std::uint32_t version, Misc::ByteBuffer payload,
-        const Reach reach)
+    void Store::write(Filed entry, const Reach reach)
     {
-        assert(kind < mPolicy.mKindCount && "a kind the store's owner does not have");
-        assert(payload.size() <= sPayloadMost && "an entry past what a stored file may hold");
+        assert(entry.mKind < mPolicy.mKindCount && "a kind the store's owner does not have");
+        assert(entry.mPayload.size() <= sPayloadMost && "an entry past what a stored file may hold");
+        assert(entry.mSegmentEnds.size() < sSegmentsMost && "an entry of more segments than a file may hold");
+        assert(std::ranges::is_sorted(entry.mSegmentEnds) && "segments whose ends fall");
+        assert((entry.mSegmentEnds.empty() || entry.mSegmentEnds.back() == entry.mPayload.size())
+            && "segments that do not end where the payload does");
+
+        const Key& key = entry.mKey;
+        const std::uint32_t kind = entry.mKind;
+        const std::uint32_t version = entry.mVersion;
+        const Misc::ByteBuffer& payload = entry.mPayload;
 
         // **Room in the queue, or an empty queue**: one payload past the bound still goes alone, and a
         // writer that reaches the disk waits for room, where the frame's thread, which may wait on no
@@ -373,8 +427,7 @@ namespace ContentStore
                 // Written now, so its time is this session's: no stamp follows a later hit on it.
                 stampsOnce(key);
                 mQueuedBytes += payload.size();
-                mQueue.emplace_back(
-                    WriteTask{ .mKey = key, .mKind = kind, .mVersion = version, .mPayload = std::move(payload) });
+                mQueue.emplace_back(std::move(entry));
                 return true;
             });
             if (queued || dropped)
@@ -390,7 +443,7 @@ namespace ContentStore
         }
     }
 
-    void Store::discard(const Key& key)
+    void Store::discard(const Key& key, const std::uint32_t kind)
     {
         mMonitor.give([&] {
             const auto held = mResident.find(key);
@@ -399,7 +452,7 @@ namespace ContentStore
                 mResidentBytes -= residentBytesOf(held->second.mPayload->size());
                 mResident.erase(held);
             }
-            mQueue.emplace_back(DiscardTask{ .mKey = key });
+            mQueue.emplace_back(DiscardTask{ .mKey = key, .mKind = kind });
             return true;
         });
     }
@@ -478,7 +531,7 @@ namespace ContentStore
             [&] {
                 task = std::move(mQueue.front());
                 mQueue.pop_front();
-                if (const WriteTask* const write = std::get_if<WriteTask>(&task))
+                if (const Filed* const write = std::get_if<Filed>(&task))
                     mQueuedBytes -= write->mPayload.size();
                 ++mInFlight;
             },
@@ -496,20 +549,28 @@ namespace ContentStore
             [this]<class Kind>(Kind& one) {
                 if constexpr (std::is_same_v<Kind, StartTask>)
                     start();
-                else if constexpr (std::is_same_v<Kind, WriteTask>)
+                else if constexpr (std::is_same_v<Kind, Filed>)
                     writeFile(one);
                 else if constexpr (std::is_same_v<Kind, StampTask>)
-                    stampFile(one.mKey);
+                    stampFile(one.mKey, one.mKind);
                 else
-                    refuse(pathOf(one.mKey), "a payload its owner could not read");
+                    refuse(pathOf(one.mKey, one.mKind), "a payload its owner could not read");
             },
             task);
     }
 
     void Store::start()
     {
-        const Swept swept
-            = sweepFolder(mDirectory, mPolicy.mHolding.has_value() ? Listing::Entries : Listing::StaleOnly);
+        // **A kind held at any size is passed by unread**, its folder swept of temporaries alone: its owner reads the
+        // entries its content asks for, and the start loads none of it.
+        Swept swept;
+        for (std::uint32_t kind = 0; kind < mPolicy.mKindCount; ++kind)
+            sweepFolder(mDirectory / std::to_string(kind),
+                mPolicy.mHolding.has_value() && !isHeldAtAnySize(kind) ? Listing::Entries : Listing::StaleOnly, swept);
+
+        // **The oldest first**: an entry's time is its last use, and the start loads the newest.
+        std::sort(swept.mKept.begin(), swept.mKept.end(),
+            [](const StoredFile& a, const StoredFile& b) { return a.mTime < b.mTime; });
         if (!mPolicy.mHolding.has_value())
         {
             mMonitor.under([&] { mStats.mStale += swept.mStale; });
@@ -533,12 +594,13 @@ namespace ContentStore
         Misc::ByteBuffer payload;
         for (const auto& entry : std::views::reverse(swept.mKept))
         {
-            if (entry.mBytes > sizeof(EntryTrailer) + sResidentMost)
+            if (entry.mBytes > tailBytesOf(1) + sResidentMost)
                 continue;
 
             // Not read where it could not be kept: a store that only grows would read every small
-            // file at every start, past the bound, for nothing.
-            const std::size_t costs = residentBytesOf(entry.mBytes - sizeof(EntryTrailer));
+            // file at every start, past the bound, for nothing. A small entry is one segment.
+            const std::size_t costs
+                = residentBytesOf(entry.mBytes - std::min<std::uintmax_t>(entry.mBytes, tailBytesOf(1)));
             if (mMonitor.under([&] {
                     return mResidentBytes + costs > holding.mResidentBytesMost
                         || mResident.size() >= holding.mResidentCountMost;
@@ -547,7 +609,7 @@ namespace ContentStore
 
             std::uint32_t kind = 0;
             std::uint32_t version = 0;
-            if (!readFile(entry.mPath, entry.mKey, kind, version, payload) || isHeldAtAnySize(kind))
+            if (!readFile(entry.mPath, entry.mKey, kind, version, payload))
                 continue;
             if (std::shared_ptr<const Misc::ByteBuffer> kept = residentCopy(kind, payload))
                 mMonitor.under([&] { keepResident(entry.mKey, kind, version, std::move(kept)); });
@@ -560,7 +622,7 @@ namespace ContentStore
         // **Bounded before it is read**: a file is untrusted, and one past the most a payload holds is
         // refused on its size, unread rather than allocated for.
         if (const Result<void, Platform::IoError> read
-            = Platform::readWhole(path, payload, sizeof(EntryTrailer) + sPayloadMost);
+            = Platform::readWhole(path, payload, tailBytesOf(sSegmentsMost) + sPayloadMost);
             !read.isOk())
         {
             if (read.error().mFailure == Platform::IoFailure::TooLarge)
@@ -581,17 +643,16 @@ namespace ContentStore
             return false;
         }
         const std::size_t fileBytes = payload.size();
-        const std::size_t payloadBytes = fileBytes - sizeof(trailer);
-        std::memcpy(&trailer, payload.data() + payloadBytes, sizeof(trailer));
-        payload.resize(payloadBytes);
+        std::memcpy(&trailer, payload.data() + fileBytes - sizeof(trailer), sizeof(trailer));
         std::string_view failed = checkTrailer(trailer, key, fileBytes, mPolicy.mKindCount);
-        if (failed.empty() && digestOf(payload) != trailer.mDigest)
-            failed = "its digest";
+        if (failed.empty())
+            failed = checkSegments(trailer, payload);
         if (!failed.empty())
         {
             refuse(path, failed);
             return false;
         }
+        payload.resize(static_cast<std::size_t>(trailer.mPayloadBytes));
 
         kind = trailer.mKind;
         version = trailer.mVersion;
@@ -608,9 +669,9 @@ namespace ContentStore
                                 << ", deleted it, and counts every refusal after it";
     }
 
-    void Store::writeFile(const WriteTask& task)
+    void Store::writeFile(const Filed& task)
     {
-        const std::filesystem::path path = pathOf(task.mKey);
+        const std::filesystem::path path = pathOf(task.mKey, task.mKind);
         std::error_code failed;
 
         // A key whose file stands is stamped and not written again: a key is its entry's whole input, so the file
@@ -620,24 +681,42 @@ namespace ContentStore
         if (std::filesystem::exists(path, failed))
         {
             if (ranks(task.mKind, task.mPayload.size()))
-                stampFile(task.mKey);
+                stampFile(task.mKey, task.mKind);
             return;
         }
 
         std::filesystem::create_directories(path.parent_path(), failed);
+
+        // One segment, the whole payload, where the entry states none.
+        std::array<SegmentRecord, sSegmentsMost> records{};
+        const std::span<const std::uint64_t> ends = task.mSegmentEnds;
+        const std::uint64_t whole = task.mPayload.size();
+        const auto segments = static_cast<std::uint32_t>(std::max<std::size_t>(ends.size(), 1));
+        std::uint64_t start = 0;
+        for (std::uint32_t at = 0; at < segments; ++at)
+        {
+            const std::uint64_t end = ends.empty() ? whole : ends[at];
+            records[at] = SegmentRecord{ .mEnd = end,
+                .mDigest = digestOf(std::span<const std::byte>(task.mPayload)
+                        .subspan(static_cast<std::size_t>(start), static_cast<std::size_t>(end - start))) };
+            start = end;
+        }
+        const std::span<const SegmentRecord> table(records.data(), segments);
 
         const EntryTrailer trailer{ .mMagic = sMagic,
             .mFormat = sFormat,
             .mKind = task.mKind,
             .mVersion = task.mVersion,
             .mKey = task.mKey.mHash,
-            .mDigest = digestOf(task.mPayload),
-            .mPayloadBytes = task.mPayload.size() };
+            .mTableDigest = digestOf(std::as_bytes(table)),
+            .mPayloadBytes = whole,
+            .mSegments = segments,
+            .mReserved = 0 };
 
         // **Written whole** (`Platform::writeWhole`), so a reader sees a whole entry or none, and two
         // writers of one key, which write the same bytes, leave one.
-        const std::array<std::span<const std::byte>, 2> parts{ std::span<const std::byte>(task.mPayload),
-            std::as_bytes(std::span(&trailer, 1)) };
+        const std::array<std::span<const std::byte>, 3> parts{ std::span<const std::byte>(task.mPayload),
+            std::as_bytes(table), std::as_bytes(std::span(&trailer, 1)) };
         if (const Result<void, Platform::IoError> written
             = Platform::writeWhole(path, parts, Platform::Durability::Whole);
             !written.isOk())
@@ -653,10 +732,10 @@ namespace ContentStore
         }
     }
 
-    void Store::stampFile(const Key& key)
+    void Store::stampFile(const Key& key, const std::uint32_t kind)
     {
         std::error_code failed;
-        std::filesystem::last_write_time(pathOf(key), std::filesystem::file_time_type::clock::now(), failed);
+        std::filesystem::last_write_time(pathOf(key, kind), std::filesystem::file_time_type::clock::now(), failed);
         if (!failed)
             mMonitor.under([&] { ++mStats.mStamped; });
     }

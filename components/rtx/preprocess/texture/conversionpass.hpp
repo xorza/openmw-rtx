@@ -96,6 +96,9 @@ namespace Rtx
         /// for any other form (`ChainPass::madeLayout`).
         static std::optional<MadeLayout> madeLayout(const Input& input, ChainForm form);
 
+        /// Where `output`'s payload's segments end (`ChainPass::segmentEndsOf`).
+        static void segmentEndsOf(const Input& input, const Output& output, std::vector<std::uint64_t>& ends);
+
         /// Whether `output` can be a run of `input`'s (`ChainPass::fits`).
         static bool fits(const Input& input, const Output& output);
 

@@ -263,7 +263,11 @@ namespace DetourNavigator
             const std::filesystem::path spoilt = TestingOpenMW::currentTestDirPath() / "spoilt";
             {
                 ContentStore::Store raw(spoilt, ContentStore::Policy{ .mKindCount = 1, .mHolding = std::nullopt });
-                raw.write(key, 0, NavMeshTileStore::sTileVersion, Misc::ByteBuffer(64, std::byte{ 7 }),
+                raw.write(ContentStore::Filed{ .mKey = key,
+                              .mKind = 0,
+                              .mVersion = NavMeshTileStore::sTileVersion,
+                              .mPayload = Misc::ByteBuffer(64, std::byte{ 7 }),
+                              .mSegmentEnds = {} },
                     ContentStore::Reach::Disk);
             }
             NavMeshTileStore refusing(spoilt);

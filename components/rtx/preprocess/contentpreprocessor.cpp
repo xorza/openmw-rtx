@@ -43,7 +43,7 @@ namespace Rtx
             if (mKeysInto != nullptr)
                 mKeysInto->push_back(StoredKey{ .mKey = key, .mPass = Pass::sPass });
 
-            if (ask == ContentAsk::Stored ? mCache.stands(key) : mCache.find<Pass>(key, input, output))
+            if (ask == ContentAsk::Stored ? mCache.stands<Pass>(key) : mCache.find<Pass>(key, input, output))
             {
                 ++stats.mHits;
                 stats.mFoundMs += since(keyed, std::chrono::steady_clock::now());
@@ -55,9 +55,9 @@ namespace Rtx
             pass.run(input, output);
             // A stored ask reads no output, so what the run made moves into the store's payload.
             if (ask == ContentAsk::Stored)
-                mCache.keep<Pass>(key, std::move(output));
+                mCache.keep<Pass>(key, input, std::move(output));
             else
-                mCache.keep<Pass>(key, output);
+                mCache.keep<Pass>(key, input, output);
             stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
             return true;
         }

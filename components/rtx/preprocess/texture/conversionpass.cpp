@@ -245,6 +245,11 @@ namespace Rtx
         return laid;
     }
 
+    void ConversionPass::segmentEndsOf(const Input& input, const Output& output, std::vector<std::uint64_t>& ends)
+    {
+        segmentEndsOfLayout(madeLayout(input, output.mForm), output, ends);
+    }
+
     bool ConversionPass::fits(const Input& input, const Output& output)
     {
         return fillsLayout(madeLayout(input, output.mForm), output);

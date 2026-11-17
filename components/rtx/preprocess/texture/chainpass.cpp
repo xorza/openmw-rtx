@@ -157,6 +157,26 @@ namespace Rtx
         return std::nullopt;
     }
 
+    void segmentEndsOfLayout(
+        const std::optional<MadeLayout>& layout, const MadeChain& chain, std::vector<std::uint64_t>& ends)
+    {
+        if (!layout.has_value() || chain.mBytes.size() != layout->bytes())
+            return;
+        const TexelLayout laid = layoutOf(layout->mFormat);
+        std::uint64_t end = 0;
+        for (std::uint32_t level = 0; level < layout->mCount; ++level)
+        {
+            end += laid.levelBytes(std::max(layout->mWidth >> level, 1u), std::max(layout->mHeight >> level, 1u));
+            ends.push_back(end);
+        }
+        ends.push_back(end + 1);
+    }
+
+    void ChainPass::segmentEndsOf(const Input& input, const Output& output, std::vector<std::uint64_t>& ends)
+    {
+        segmentEndsOfLayout(madeLayout(input, output.mForm), output, ends);
+    }
+
     bool ChainPass::fits(const Input& input, const Output& output)
     {
         return fillsLayout(madeLayout(input, output.mForm), output);

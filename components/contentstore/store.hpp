@@ -103,13 +103,29 @@ namespace ContentStore
         Disk,
     };
 
-    /// What is derived from the content, kept on disk across sessions: one file per entry under its key, in 256
-    /// folders named by the key's first byte, as ccache and Bazel's disk cache keep theirs (`docs/architecture.md`,
-    /// "One file an entry, and every entry untrusted"). Every file is untrusted data: its own trailer states its
-    /// kind, its version, its key and its payload's length and digest, and a file that does not match is a miss and
-    /// is deleted. No cap, by the user's decision: an entry stays until its file is refused or deleted by hand; each
-    /// file's time, which a hit sets once a session where the store holds entries in memory, ranks what the start
-    /// loads. Nothing here fails loudly: a directory that cannot be made or written is a store that misses.
+    /// An entry `write` files: its key, its kind and its version, its payload, and where the payload's segments end,
+    /// each kept with a digest of its own, so a range of them reads and checks alone, as KTX 2 indexes its levels: a
+    /// made chain's levels. No end for one segment, the whole payload.
+    struct Filed
+    {
+        Key mKey;
+        std::uint32_t mKind = 0;
+        std::uint32_t mVersion = 0;
+        Misc::ByteBuffer mPayload;
+
+        /// Each segment's end, rising, the last the payload's length.
+        std::vector<std::uint64_t> mSegmentEnds;
+    };
+
+    /// What is derived from the content, kept on disk across sessions: one file per entry under its key, in a folder
+    /// of its kind and in 256 folders under it named by the key's first byte, as ccache and Bazel's disk cache keep
+    /// theirs (`docs/architecture.md`, "One file an entry, and every entry untrusted"). The kind's folder lets the
+    /// start load a kind's entries and pass another's by without opening a file. Every file is untrusted data: its
+    /// own trailer states its kind, its version, its key, its payload's length and its segments' table, each segment
+    /// with its digest, and a file that does not match is a miss and is deleted. No cap, by the user's decision: an
+    /// entry stays until its file is refused or deleted by hand; each file's time, which a hit sets once a session
+    /// where the store holds entries in memory, ranks what the start loads. Nothing here fails loudly: a directory that
+    /// cannot be made or written is a store that misses.
     ///
     /// One for an owner's folder in a process, shared by every thread that asks it. Reads run on the asking thread;
     /// writes, stamps, the start's sweep and the loading of the small entries into memory run on a thread of the
@@ -129,9 +145,13 @@ namespace ContentStore
         static std::size_t residentBytesOf(std::size_t payloadBytes);
 
         /// The file format's version, in every trailer, and **the folder of the store's that holds its
-        /// files** (`v2`): two builds of different formats on one machine keep apart, and neither deletes
+        /// files** (`v3`): two builds of different formats on one machine keep apart, and neither deletes
         /// the other's entries as files it cannot read.
-        static constexpr std::uint32_t sFormat = 2;
+        static constexpr std::uint32_t sFormat = 3;
+
+        /// The most segments an entry holds: a chain's levels to a texel at the largest side a slot holds, and the
+        /// form's byte, with room past them. A trailer that states more is refused unread.
+        static constexpr std::uint32_t sSegmentsMost = 64;
 
         /// @param directory where the store stands, made if it is not there; its files are in the folder
         ///        of its format under it.
@@ -151,16 +171,16 @@ namespace ContentStore
         /// its size, with its payload unread, and the session's stamp queued as a hit queues it: what a preparation
         /// asks, which needs the entry stored and not its bytes. A file cut short or of another's trailer is refused
         /// and deleted, as a read refuses it; one whose payload a fault changed is found by the read's digest.
-        bool holds(const Key& key, Reach reach);
+        bool holds(const Key& key, std::uint32_t kind, Reach reach);
 
-        /// Files `payload` under `key` as `kind` at `version`, on the store's thread, once the queue has
-        /// room for it, `Policy::mQueuedBytesMost`, or is empty: a writer that reaches the disk waits for room, and one
-        /// that reaches memory alone drops it, which a later ask answers as a miss.
-        void write(const Key& key, std::uint32_t kind, std::uint32_t version, Misc::ByteBuffer payload, Reach reach);
+        /// Files `entry` on the store's thread, once the queue has room for its payload, `Policy::mQueuedBytesMost`,
+        /// or is empty: a writer that reaches the disk waits for room, and one that reaches memory alone drops it,
+        /// which a later ask answers as a miss.
+        void write(Filed entry, Reach reach);
 
-        /// Deletes the entry `key` filed, whose payload its owner could not read, on the store's thread:
+        /// Deletes the entry `key` filed as `kind`, whose payload its owner could not read, on the store's thread:
         /// a write of the entry made again in its place finds no file and writes it.
-        void discard(const Key& key);
+        void discard(const Key& key, std::uint32_t kind);
 
         /// Waits until every write, stamp and the start's sweep handed so far are done.
         void flush();
@@ -170,8 +190,8 @@ namespace ContentStore
 
         Stats getStats();
 
-        /// Where the entry `key` stands.
-        std::filesystem::path pathOf(const Key& key) const;
+        /// Where the entry `key` of `kind` stands.
+        std::filesystem::path pathOf(const Key& key, std::uint32_t kind) const;
 
     private:
         /// What the store's thread is handed: the start's sweep and load, an entry to write, a file to stamp
@@ -180,25 +200,19 @@ namespace ContentStore
         {
         };
 
-        struct WriteTask
-        {
-            Key mKey;
-            std::uint32_t mKind;
-            std::uint32_t mVersion;
-            Misc::ByteBuffer mPayload;
-        };
-
         struct StampTask
         {
             Key mKey;
+            std::uint32_t mKind = 0;
         };
 
         struct DiscardTask
         {
             Key mKey;
+            std::uint32_t mKind = 0;
         };
 
-        using Task = std::variant<StartTask, WriteTask, StampTask, DiscardTask>;
+        using Task = std::variant<StartTask, Filed, StampTask, DiscardTask>;
 
         /// What an entry is: its kind and version, which an ask holds against its own, and its payload. Shared and
         /// never changed, so a reader takes it under the lock and copies it after, and an entry replaced or discarded
@@ -214,8 +228,8 @@ namespace ContentStore
         void run(Task& task);
         /// The start's work: the sweep of stale temporaries, and the small entries loaded into memory.
         void start();
-        void writeFile(const WriteTask& task);
-        void stampFile(const Key& key);
+        void writeFile(const Filed& task);
+        void stampFile(const Key& key, std::uint32_t kind);
 
         /// Reads the file at `path` for `key` into `kind`, `version` and `payload`, answering whether
         /// it was whole; refuses and deletes it where it was not. Nothing where there is no file.

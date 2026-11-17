@@ -148,20 +148,24 @@ namespace DetourNavigator
         {
             Log(Debug::Warning) << "A stored navmesh tile could not be read, and is made again: " << e.what();
         }
-        mStore.discard(key);
+        mStore.discard(key, sTileKind);
         return nullptr;
     }
 
     bool NavMeshTileStore::holds(const ContentStore::Key& key)
     {
-        return mStore.holds(key, ContentStore::Reach::Disk);
+        return mStore.holds(key, sTileKind, ContentStore::Reach::Disk);
     }
 
     void NavMeshTileStore::write(const ContentStore::Key& key, const PreparedNavMeshData& data)
     {
         const std::vector<std::byte> packed = Misc::compress(serialize(data));
-        mStore.write(
-            key, sTileKind, sTileVersion, Misc::ByteBuffer(packed.begin(), packed.end()), ContentStore::Reach::Disk);
+        mStore.write(ContentStore::Filed{ .mKey = key,
+                         .mKind = sTileKind,
+                         .mVersion = sTileVersion,
+                         .mPayload = Misc::ByteBuffer(packed.begin(), packed.end()),
+                         .mSegmentEnds = {} },
+            ContentStore::Reach::Disk);
     }
 
     void NavMeshTileStore::flush()

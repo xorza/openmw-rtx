@@ -256,6 +256,11 @@ filled on the loading screen (`research/2026-11-08-normal-map-chains.md`).
   the entry is with its digest, a file that does not match is a miss and deleted, and a write is a rename. Refused:
   SQLite, by the user's decision; a pack file a pass; a sync before each rename, where the digest finds what a power
   loss left.
+- **An entry's file stands in its kind's folder, and holds a digest a segment** (format 3): the start loads one kind's
+  small entries and passes a kind held at any size by without opening a file, and a made chain is filed a segment a
+  level, its form's byte last, so a range of its levels can be read and checked alone, as KTX 2 indexes its levels.
+  Refused: the kind read off each file's trailer at the start; one digest over the payload, which a ranged read
+  cannot check.
 - **One store, in a component of its own**, which any owner may hold one of, with its kinds and residency stated by the
   owner (`ContentStore::Policy`).
 - **The navigator's tiles in the content store** (`DetourNavigator::NavMeshTileStore`), by the user's decision, shared

@@ -615,7 +615,11 @@ namespace Rtx
             ContentStore::Digest digest(sContentPasses.name(ContentPassId::TexelMean), TexelMean::sVersion);
             digest.add(hashFile(*painted, scratch));
             const Misc::ByteBuffer broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
-            store.write(digest.getKey(), storeKindOf(ContentPassId::TexelMean), TexelMean::sVersion, broken,
+            store.write(ContentStore::Filed{ .mKey = digest.getKey(),
+                            .mKind = storeKindOf(ContentPassId::TexelMean),
+                            .mVersion = TexelMean::sVersion,
+                            .mPayload = broken,
+                            .mSegmentEnds = {} },
                 ContentStore::Reach::Disk);
 
             ContentPreprocessor content(&store, ContentStore::Reach::Memory);
@@ -675,7 +679,11 @@ namespace Rtx
 
                 ContentStore::Store store(
                     TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), sContentStorePolicy);
-                store.write(digest.getKey(), storeKindOf(ContentPassId::Shape), ShapePass::sVersion, payload,
+                store.write(ContentStore::Filed{ .mKey = digest.getKey(),
+                                .mKind = storeKindOf(ContentPassId::Shape),
+                                .mVersion = ShapePass::sVersion,
+                                .mPayload = payload,
+                                .mSegmentEnds = {} },
                     ContentStore::Reach::Disk);
                 ContentPreprocessor content(&store, ContentStore::Reach::Memory);
                 std::vector<std::uint32_t> run;
@@ -697,6 +705,42 @@ namespace Rtx
             normals.clear();
             EXPECT_TRUE(
                 ShapePass::fits(input, ShapePass::Output{ .mKept = kept, .mNormals = normals, .mSources = sources }));
+        }
+
+        /// **A made chain is filed a segment a level, its form's byte last** (`ChainPass::segmentEndsOf`), so a range
+        /// of its levels reads and checks alone: an 8 by 8 BC1 file of one level made whole in BC7 to a texel lays
+        /// 64, 16, 16 and 16 bytes, ending at 64, 80, 96 and 112, and the form's byte at 113; the store's file holds
+        /// those five segments' records. A chain that stands is one segment, and one that does not fill its layout
+        /// states none.
+        TEST(RtxContentPreprocessorTest, aMadeChainIsFiledASegmentALevel)
+        {
+            const osg::ref_ptr<osg::Image> single = makeBc1(8, 8, 1);
+            const ChainPass::Input input{ .mImage = *single, .mEncoding = TextureEncoding::Colour };
+            std::vector<std::uint64_t> ends;
+            ChainPass::segmentEndsOf(
+                input, MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(112) }, ends);
+            EXPECT_EQ(ends, (std::vector<std::uint64_t>{ 64, 80, 96, 112, 113 }));
+            ends.clear();
+            ChainPass::segmentEndsOf(input, MadeChain{}, ends);
+            EXPECT_TRUE(ends.empty()) << "a chain that stands";
+            ChainPass::segmentEndsOf(
+                input, MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(111) }, ends);
+            EXPECT_TRUE(ends.empty()) << "a chain short of its layout";
+
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            ContentStore::Store store(folder, sContentStorePolicy);
+            ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+            TexelScratch scratch;
+            ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
+            digest.add(hashFile(*single, scratch));
+            digest.add(TextureEncoding::Colour);
+            MadeChain made;
+            ASSERT_TRUE(content.chain(input, made));
+            ASSERT_EQ(made.mForm, ChainForm::Bc7);
+            store.flush();
+            const std::filesystem::path path = store.pathOf(digest.getKey(), storeKindOf(ContentPassId::Chain));
+            ASSERT_TRUE(std::filesystem::exists(path)) << "filed under the key the pass makes";
+            EXPECT_EQ(std::filesystem::file_size(path), 113u + 5u * 24u + 64u);
         }
 
         /// **A stored chain that reads whole and does not fit its file is run again and replaced**, as a
@@ -742,7 +786,11 @@ namespace Rtx
                 ContentCodec<MadeChain>::encode(stored, payload);
                 ContentStore::Store store(
                     TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), sContentStorePolicy);
-                store.write(digest.getKey(), storeKindOf(ContentPassId::Chain), ChainPass::sVersion, payload,
+                store.write(ContentStore::Filed{ .mKey = digest.getKey(),
+                                .mKind = storeKindOf(ContentPassId::Chain),
+                                .mVersion = ChainPass::sVersion,
+                                .mPayload = payload,
+                                .mSegmentEnds = {} },
                     ContentStore::Reach::Disk);
                 ContentPreprocessor content(&store, ContentStore::Reach::Disk);
                 for (std::int32_t ask = 0; ask < 2; ++ask)
@@ -809,7 +857,7 @@ namespace Rtx
             std::vector<osg::Vec3f> normals(8, rounded);
             std::vector<std::uint32_t> sources;
             const ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
-            cache.keep<ShapePass>(key, output);
+            cache.keep<ShapePass>(key, input, output);
 
             std::vector<std::uint32_t> foundKept;
             std::vector<osg::Vec3f> foundNormals;

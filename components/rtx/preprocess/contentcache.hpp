@@ -47,25 +47,37 @@ namespace Rtx
                 return false;
             if (ContentCodec<typename Pass::Output>::decode(mPayload, output) && fits<Pass>(input, output))
                 return true;
-            mStore->discard(key);
+            mStore->discard(key, storeKindOf(Pass::sPass));
             return false;
         }
 
         /// Whether an entry for `Pass` stands under `key`, nothing of it read (`ContentStore::holds`).
-        bool stands(const ContentStore::Key& key) { return mStore->holds(key, mReach); }
+        template <ContentPass Pass>
+        bool stands(const ContentStore::Key& key)
+        {
+            return mStore->holds(key, storeKindOf(Pass::sPass), mReach);
+        }
 
-        /// Keeps what `Pass` computed from the input filed under `key`: encoded into a payload of its
+        /// Keeps what `Pass` computed from `input`, filed under `key`: encoded into a payload of its
         /// own, which the store's queue takes. Every codec is whole for what its pass hands over, so a
         /// later hit hands over this very output. An output handed over to be kept and not read again
-        /// moves into its payload where its codec can take it whole (a made chain's bytes).
+        /// moves into its payload where its codec can take it whole (a made chain's bytes). **A pass that
+        /// lays its output in segments says where they end** (`Pass::segmentEndsOf`, a made chain's levels),
+        /// which the store keeps a digest each of.
         template <ContentPass Pass, class Output>
             requires StoredOutput<typename Pass::Output>
             && std::same_as<std::remove_cvref_t<Output>, typename Pass::Output>
-        void keep(const ContentStore::Key& key, Output&& output)
+        void keep(const ContentStore::Key& key, const typename Pass::Input& input, Output&& output)
         {
-            Misc::ByteBuffer payload;
-            ContentCodec<typename Pass::Output>::encode(std::forward<Output>(output), payload);
-            mStore->write(key, storeKindOf(Pass::sPass), Pass::sVersion, std::move(payload), mReach);
+            ContentStore::Filed entry{ .mKey = key,
+                .mKind = storeKindOf(Pass::sPass),
+                .mVersion = Pass::sVersion,
+                .mPayload = {},
+                .mSegmentEnds = {} };
+            if constexpr (requires { Pass::segmentEndsOf(input, output, entry.mSegmentEnds); })
+                Pass::segmentEndsOf(input, output, entry.mSegmentEnds);
+            ContentCodec<typename Pass::Output>::encode(std::forward<Output>(output), entry.mPayload);
+            mStore->write(std::move(entry), mReach);
         }
 
     private:

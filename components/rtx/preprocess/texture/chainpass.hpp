@@ -53,6 +53,11 @@ namespace Rtx
     /// check of a made chain against its file (`ChainPass::fits`, `ConversionPass::fits`).
     bool fillsLayout(const std::optional<MadeLayout>& layout, const MadeChain& chain);
 
+    /// Where a made chain laid at `layout` ends each level and then its form's byte, as its codec lays the payload,
+    /// into `ends` (`ChainPass::segmentEndsOf`); nothing where it stands, or its bytes do not fill the layout.
+    void segmentEndsOfLayout(
+        const std::optional<MadeLayout>& layout, const MadeChain& chain, std::vector<std::uint64_t>& ends);
+
     /// A file's chain made again from its finest level (`ChainBuild`), as a pass: what the store keeps
     /// for every normal and data map, since the replacers' own chains are made with filters that are
     /// wrong for a map (`docs/architecture.md`, "Every normal and data map's chain is rebuilt, and a
@@ -121,6 +126,10 @@ namespace Rtx
         /// alone; nothing for `ChainForm::Stands`, and for a form no run of `input` makes in that shape: own
         /// levels of a loose file.
         static std::optional<MadeLayout> madeLayout(const Input& input, ChainForm form);
+
+        /// Where `output`'s payload's segments end as its codec lays it (`ContentCache::keep`): each level `madeLayout`
+        /// lays, and the form's byte after them; nothing for a chain that stands, one segment.
+        static void segmentEndsOf(const Input& input, const Output& output, std::vector<std::uint64_t>& ends);
 
         /// Whether `output` can be a run of `input`'s (`ContentCache::find`): its form lays levels for
         /// the file and its bytes fill them exactly, or nothing stands and it holds no byte. An entry
