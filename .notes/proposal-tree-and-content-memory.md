@@ -492,8 +492,6 @@ No change to how content is held. First what stands in a baseline's way:
    bound, its files brought back. It forwards the environment a run names, `GLIBC_TUNABLES` first, which item 10's
    tunables need. The scheduled tasks left there (`omw-tour`, `omw-run-tours`) name scripts that are gone and are
    replaced by the verb's own. `./omw lint driver` and the driver's tests hold it.
-2. The handheld's PBR tour flies again: its abort in leg 3 on "a sprite light bake names a source that does not
-   stand" (`.notes/ISSUES.md`) is fixed where the source came to be empty, with its test.
 3. A tour and a `scene` run start as the game does, asking for no huge pages; `bench` and `noise` keep them.
 4. The timer caches expire in a tour as they do in play, and its preload distance is the shipped one. What that does
    to a flight's worst frames is read off the baseline; a grid reach scaled apart from the doors' is proposed with

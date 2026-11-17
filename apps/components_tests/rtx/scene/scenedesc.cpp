@@ -262,6 +262,19 @@ namespace Rtx
             const Index normalOnly = scene.textures().add(normal, TextureWrap::Repeat, TextureEncoding::Normal);
             EXPECT_EQ(scene.textures().findFile(normal), sNoIndex) << "data is no bake's source";
 
+            // **A bake finds a slot that stands, never one that rests**: the device frees what rests whenever room is
+            // wanted, and a bake made from a slot freed in its own hand-over names nothing.
+            constexpr VFS::Path::NormalizedView spark("textures/tx_spark.dds");
+            const Index clamped = scene.textures().add(spark, TextureWrap::Clamp);
+            const Index repeated = scene.textures().add(spark, TextureWrap::Repeat);
+            scene.textures().stand(clamped, 64, false);
+            scene.drop(scene.holdTexture(clamped));
+            scene.compact();
+            ASSERT_TRUE(scene.textures().getRows()[clamped].mRest.mResting);
+            EXPECT_EQ(scene.textures().findFile(spark), repeated) << "the slot that stands, not the one that rests";
+            scene.drop(scene.holdTexture(repeated));
+            EXPECT_EQ(scene.textures().findFile(spark), sNoIndex) << "a slot that rests alone";
+
             // The file leaves the lookup with its last slot of either encoding, and not before.
             TextureHold colour = scene.holdTexture(0);
             TextureHold data = scene.holdTexture(stoneData);

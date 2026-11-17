@@ -111,7 +111,7 @@ namespace Rtx
 
         for (const TextureEncoding encoding : { TextureEncoding::Colour, TextureEncoding::Painted })
             for (const Index slot : known->second[static_cast<std::size_t>(encoding)])
-                if (slot != sNoIndex)
+                if (slot != sNoIndex && !rowAt(slot).mRest.mResting)
                     return slot;
 
         return sNoIndex;
