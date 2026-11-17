@@ -514,9 +514,7 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 ### 11. The device uses its budget
 
 2. Rooms: masks as the source's bytes.
-4. Item 9's room arithmetic, which these rooms replace: a want filed for a mesh refused in the loose storage; a
-   texture's fit compared as its image's requirements, not the hole's margins.
-5. Tours on the handheld, Repack and PBR: no refusal with room under the budget; item 8's figures again.
+4. Tours on the handheld, Repack and PBR: no refusal with room under the budget; item 8's figures again.
 
 ### 12. One read a texture
 
@@ -542,7 +540,8 @@ made again once; a store made on the desk is the handheld's too, the key being t
    image buried after; a move up reads only the levels it adds.
 2. `TexturePlan`, by room alone: an arrival stands whole where the plan fits, else at the plan's level; a reserve that
    moves changes the budget and the plan follows a bounded step a hand-over.
-3. The short list, the waits and the rebuild go. Tests: a change of mode keeps every structure and geometry buffer; a
+3. The short list, the waits and the rebuild go, and with them a texture's want, whose hole adds the margins a resting
+   texture's fit, its range, never carries (item 9). Tests: a change of mode keeps every structure and geometry buffer; a
    texture brought down and up again reads its top levels once; two runs plan alike.
 4. Tours of the three contents on the desk, the handheld and Windows.
 
@@ -556,7 +555,8 @@ made again once; a store made on the desk is the handheld's too, the key being t
 4. The ring's flat records; the cell pools go.
 5. The ground's indices as one run every cell's mesh names.
 6. On the device: `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the
-   rest counting geometry.
+   rest counting geometry; and a want for a mesh refused in the loose storage, which a block emptied answers and no
+   resting mesh's fit does (item 9).
 7. The shape digest made where the host asks for digests; `repeat --pairs=10` agrees.
 8. Tests: a crossing allocates nothing; the arrivals' bound. Tours: the host's peak against item 8's.
 
