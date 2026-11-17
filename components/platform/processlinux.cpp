@@ -20,6 +20,7 @@
 #include <sched.h>
 // NOLINTNEXTLINE(modernize-deprecated-headers): POSIX's `kill`, which <csignal> need not declare
 #include <signal.h>
+#include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -113,6 +114,12 @@ namespace Platform::Process
         if (const std::optional<std::filesystem::path> self = executable())
             execv(self->c_str(), argv);
         unsetenv("GLIBC_TUNABLES"); // NOLINT(concurrency-mt-unsafe): the process's first act, before any thread
+    }
+
+    bool refuseTransparentHugePages()
+    {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's prctl
+        return prctl(PR_SET_THP_DISABLE, 1, 0, 0, 0) == 0;
     }
 
     std::optional<float> hugePageShare()

@@ -215,6 +215,10 @@ namespace RtxTool
             EXPECT_EQ(plain.mFrame.mCacheBudget, std::nullopt);
             EXPECT_EQ(lineOf(options, { "--cache-budget=64" }, Verb::Bench).mFrame.mCacheBudget,
                 std::optional<std::uint64_t>(std::uint64_t{ 64 } << 20));
+            EXPECT_EQ(plain.mFrame.mTransparentHugePages, TransparentHugePages::System);
+            EXPECT_EQ(lineOf(options, { "--transparent-huge-pages=off" }, Verb::Tour).mFrame.mTransparentHugePages,
+                TransparentHugePages::Off);
+            EXPECT_THROW(lineOf(options, { "--transparent-huge-pages=never" }, Verb::Tour), std::runtime_error);
 
             // Each named apart, so a window takes the other from the player's settings.
             const ToolLine rays = lineOf(options, { "--bounce-rays=3" }, Verb::View);

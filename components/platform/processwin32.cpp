@@ -230,6 +230,11 @@ namespace Platform::Process
 
     void restartOnHugePages(char** /*argv*/) {}
 
+    bool refuseTransparentHugePages()
+    {
+        return true;
+    }
+
     std::optional<float> hugePageShare()
     {
         return std::nullopt;

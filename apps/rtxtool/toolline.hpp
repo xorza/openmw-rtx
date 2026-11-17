@@ -51,6 +51,15 @@ namespace RtxTool
     /// What `--content-cache` names: the game's store, none, or a directory of the run's own.
     using ContentCacheChoice = std::variant<GameContentCache, NoContentCache, std::filesystem::path>;
 
+    /// `--transparent-huge-pages`: what the system gives every mapping, or none (`Platform::Process::
+    /// refuseTransparentHugePages`), for a run that asks what a kernel that gives every mapping huge pages adds to the
+    /// heap's free memory.
+    enum class TransparentHugePages : std::uint8_t
+    {
+        System,
+        Off,
+    };
+
     /// What `--size` names.
     struct FrameSize
     {
@@ -90,6 +99,8 @@ namespace RtxTool
 
             /// `--cache-budget`, in bytes.
             std::optional<std::uint64_t> mCacheBudget;
+
+            TransparentHugePages mTransparentHugePages = TransparentHugePages::System;
 
             std::filesystem::path mPipelineCode;
 

@@ -138,6 +138,10 @@ namespace RtxTool
             framed.mSetup.mKernels = Rtx::KernelSet::Every;
             framed.mSetup.mRun.mMemoryBudget = line.mMemoryBudget;
             framed.mSetup.mCacheBudget = line.mCacheBudget;
+            if (line.mTransparentHugePages == TransparentHugePages::Off
+                && !Platform::Process::refuseTransparentHugePages())
+                throw std::runtime_error(
+                    "--transparent-huge-pages=off: the system would not take the process off them");
             framed.mSetup.mRun.mPipelineCode = line.mPipelineCode;
             framed.mSetup.mContentStore = std::visit(
                 [&](const auto& choice) -> std::optional<std::filesystem::path> {

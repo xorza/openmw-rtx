@@ -135,6 +135,12 @@ namespace Platform::Process
     /// of 0.40 to 0.49 ms, and on huge pages 0.41 each.
     void restartOnHugePages(char** argv);
 
+    /// Takes the process off transparent huge pages from here on, for every mapping it makes and every child it starts
+    /// (Linux's `PR_SET_THP_DISABLE`), and answers whether the system took it: what a run that asks what a kernel
+    /// giving huge pages to every mapping adds to the heap's free memory sets. A system with no transparent huge pages,
+    /// Windows among them, already runs without, and answers true.
+    bool refuseTransparentHugePages();
+
     /// `Platform::LinuxText::hugePageShare` of this process, now. Nothing on a system that is not Linux,
     /// or where the rollup cannot be read.
     std::optional<float> hugePageShare();

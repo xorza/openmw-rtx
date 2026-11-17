@@ -528,6 +528,11 @@ namespace RtxTool
             "them more: how a machine short of memory loads, its models and images let go and read "
             "again, on one that is not. Not given, what the system leaves them less a GiB");
 
+        option(sFramed, "transparent-huge-pages", bpo::value<std::string>()->default_value("system"),
+            "system, or off to take the process off transparent huge pages before it loads anything: what a "
+            "kernel that gives every mapping huge pages adds to the heap's free memory, which a tour's report "
+            "says. Linux alone has them, and elsewhere a run already has none");
+
         option(sFramed, "pipeline-code", bpo::value<std::string>()->default_value(""),
             "write what the driver compiled each pipeline to, as text, to <dir>/<pipeline>.txt, "
             "numbered where pipelines share a name: on "
@@ -964,6 +969,10 @@ namespace RtxTool
             frame.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
         if (named("cache-budget"))
             frame.mCacheBudget = variables["cache-budget"].as<std::uint64_t>() * 1024 * 1024;
+        if (const std::string& pages = text("transparent-huge-pages"); pages == "off")
+            frame.mTransparentHugePages = TransparentHugePages::Off;
+        else if (pages != "system")
+            throw std::runtime_error("--transparent-huge-pages is system or off, and not \"" + pages + "\"");
         frame.mPipelineCode = text("pipeline-code");
         if (const std::string& store = text("content-cache"); store == "off")
             frame.mContentCache = NoContentCache{};
