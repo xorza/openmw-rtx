@@ -549,10 +549,6 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 One bump of the store's version carries every format change of this plan, the manifest's among them, so the stores are
 made again once; a store made on the desk is the handheld's too, the key being the content.
 
-4. The manifest states each model's radius and whether it gives light, which item 15 reads.
-6. Tests: a re-arrival opens one file; a level range read equals the decode's bytes for every block format; a stream's
-   bytes the same through its buffer and past it, at every boundary; no allocation a hand-over once warm; a cancelled
-   job holds nothing.
 7. Handheld PBR tour: image loads at one a file, the tour's time, the heap's free share; and item 10's tunables once
    more, now that the largest buffers are the pool's.
 
@@ -623,6 +619,14 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **12.4. The manifest's radius and light** move to item 15, their one reader: a field no code reads is dead until
+  then, and the manifest has a signature of its own, so it is made again with item 15 and not with the store.
+
+- **12.6. The tests**: a re-arrival reads none of its file
+  (`aHeaderWhoseChainTheStoreHoldsWholeComesBackWithNoRead`), a stream's bytes through its buffer and past it (with
+  `xsgetn`), no allocation a warm hand-over (`RtxBufferPoolTest`), a cancelled job reads nothing; a level range read
+  against the decode moves to item 13 with the `LevelReader`.
 
 - **12.5. The pool, the ranged read and cancel**: a made chain is read from the store a segment at a time into a
   buffer of a bounded pool (`Store::open`, `Store::readSegments`, `Rtx::BufferPool`), and given back as its made image
