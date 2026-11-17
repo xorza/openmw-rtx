@@ -2,7 +2,17 @@ import unittest
 from pathlib import Path, PureWindowsPath
 from unittest import mock
 
-from omw.remote import build_refusal, fetch_note, lacking, linked, remote_line, remote_script, sonames, split_env
+from omw.remote import (
+    EnvSplit,
+    build_refusal,
+    fetch_note,
+    lacking,
+    linked,
+    remote_line,
+    remote_script,
+    sonames,
+    split_env,
+)
 from omw import remotewindows
 from omw.remotewindows import WindowsRun, cmd_quote, is_windows, windows_args, windows_script
 from omw.system import WINDOWS, Refusal
@@ -108,10 +118,10 @@ class RemoteScriptTest(unittest.TestCase):
 
 class EnvironmentTest(unittest.TestCase):
     def test_the_environment_ahead_of_the_verb_is_split_off_in_either_form_and_a_bad_word_refused(self):
-        self.assertEqual(split_env(["--env", "GLIBC_TUNABLES=glibc.malloc.mmap_threshold=262144",
-                                    "--env=A=", "tour", "--env=x"]),
-                         ([("GLIBC_TUNABLES", "glibc.malloc.mmap_threshold=262144"), ("A", "")], ["tour", "--env=x"]))
-        self.assertEqual(split_env(["bench"]), ([], ["bench"]))
+        split = split_env(["--env", "GLIBC_TUNABLES=glibc.malloc.mmap_threshold=262144", "--env=A=", "tour", "--env=x"])
+        self.assertEqual(split.env, [("GLIBC_TUNABLES", "glibc.malloc.mmap_threshold=262144"), ("A", "")])
+        self.assertEqual(split.words, ["tour", "--env=x"])
+        self.assertEqual(split_env(["bench"]), EnvSplit(env=[], words=["bench"]))
         for bad in (["--env"], ["--env", "NOVALUE", "tour"], ["--env", "1A=b", "tour"], ["--env", "A-B=c", "tour"]):
             with self.subTest(bad=bad), self.assertRaises(Refusal):
                 split_env(bad)

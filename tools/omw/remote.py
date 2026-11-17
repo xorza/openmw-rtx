@@ -116,7 +116,14 @@ def remote_line(args: list[str], verb: str, here: Path) -> RemoteLine:
     return line
 
 
-def split_env(args: list[str]) -> tuple[list[tuple[str, str]], list[str]]:
+@dataclass
+class EnvSplit:
+    """A remote line's environment, each name with its value, and its words from the verb on."""
+    env: list[tuple[str, str]]
+    words: list[str]
+
+
+def split_env(args: list[str]) -> EnvSplit:
     """The `--env NAME=VALUE` words ahead of the verb, and the words from the verb on. A name the shell could not set,
     and a value with no name, are refused."""
     env: list[tuple[str, str]] = []
@@ -133,7 +140,7 @@ def split_env(args: list[str]) -> tuple[list[tuple[str, str]], list[str]]:
             raise Refusal(f"remote: --env takes NAME=VALUE, and {word!r} is none")
         env.append((name, value))
         at += 1
-    return env, args[at:]
+    return EnvSplit(env=env, words=args[at:])
 
 
 def remote_script(folder: Path, verb: str, args: list[str], measured: bool,
@@ -174,7 +181,8 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
         raise Refusal("remote runs a harness verb on a host: `omw [flavour] remote <user@host> [--env NAME=VALUE]... "
                       "<verb> [args]`")
     host = args[0]
-    env, words = split_env(args[1:])
+    split = split_env(args[1:])
+    env, words = split.env, split.words
     if not words:
         raise Refusal("remote: no verb follows the environment")
     verb, rest = words[0], words[1:]
