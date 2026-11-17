@@ -1,9 +1,9 @@
 #include "cellstore.hpp"
 
 #include <algorithm>
-#include <functional>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>

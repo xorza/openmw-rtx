@@ -11,8 +11,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <apps/components_tests/rtx/support/image.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/heldsubmit.hpp>
@@ -23,12 +23,12 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/deviceanswer.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/material.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
@@ -416,7 +416,8 @@ namespace Rtx
                 Batch batch(getPool());
                 DeviceAnswer answer;
                 const std::array both{ large.mData, small.mData };
-                textures.write(batch, passes, rooms, both, TextureArray::noWants(), answer, WhenRoomless::Waits, nullptr);
+                textures.write(
+                    batch, passes, rooms, both, TextureArray::noWants(), answer, WhenRoomless::Waits, nullptr);
                 batch.flush();
             }
             ASSERT_EQ(textures.getHeld().mBytes, 344064u + 86016u);
@@ -424,8 +425,8 @@ namespace Rtx
             DeviceAnswer answer;
             {
                 Batch batch(getPool());
-                EXPECT_EQ(textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1 }, scene.textures(), answer),
-                    65536u);
+                EXPECT_EQ(
+                    textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1 }, scene.textures(), answer), 65536u);
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
             }
@@ -440,8 +441,8 @@ namespace Rtx
             answer.clear();
             {
                 Batch batch(getPool());
-                EXPECT_EQ(textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1 }, scene.textures(), answer),
-                    262144u);
+                EXPECT_EQ(
+                    textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1 }, scene.textures(), answer), 262144u);
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
             }
