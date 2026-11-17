@@ -300,7 +300,9 @@ namespace Rtx
 
         /// Where the game holds each reference it moved, sorted by the reference: `moveReference`.
         /// The content stands a reference in one cell, which is the one cell that holds any of it,
-        /// found once it is held.
+        /// found once it is held. **Bounded by the content's references a script moves**, statics, doors and
+        /// lamps: an actor's move never reaches the ring (`MWRender::ringMayHold`), and the list goes with the
+        /// game (`forgetReferences`).
         struct Moved
         {
             ESM::RefNum mRefNum;

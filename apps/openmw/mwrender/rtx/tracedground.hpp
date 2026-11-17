@@ -28,6 +28,11 @@ namespace MWRender
     bool standsAway(
         bool sameWorldspace, const ESM::Position& standing, const ESM::Position& placed, ESM::RefId worldspace);
 
+    /// **Whether a record of `type` can be a reference the cell ring holds**: an actor or a list of them is a body the
+    /// scene graph mirrors and the physics moves on every frame, which no held cell stands, and whose every move the
+    /// ring would otherwise keep for good (`CellPlacer::moveReference`).
+    bool ringMayHold(std::int32_t type);
+
     /// The ground and the distance as the ray tracer has them: a `TracedTerrain` that draws no
     /// chunks, and the mirror's cell ring, which stands the distant statics itself. What the game
     /// says of a reference reaches the ring through this and the mirror, the way it reaches the
