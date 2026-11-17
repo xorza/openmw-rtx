@@ -201,12 +201,12 @@ namespace RtxTool
         /// Every field of one row, as one list: `digestParts` reads these whole, so a field not named would escape
         /// the gate, and one added and not named here does not compile. Whether the mesh brought tangents is left
         /// out; the meshes column adds it where set, so a scene with none digests to the words on record. So are its
-        /// key, which its vertices make and the vertices column digests, and its place in the rest, which no frame
-        /// reads; whether it rests and what it stands are digested.
+        /// key and the key of the indices it shares, which its vertices and indices make and their columns digest, and
+        /// its place in the rest, which no frame reads; whether it rests and what it stands are digested.
         auto fieldsOf(const Rtx::MeshRange& mesh)
         {
-            const auto& [vertices, indices, secondTexCoords, unitStreams, tangents, shape, deformer, bindOffset,
-                poseOffset, posed, bounds, key, stoodBytes, rest] = mesh;
+            const auto& [vertices, indices, sharedIndexKey, secondTexCoords, unitStreams, tangents, shape, deformer,
+                bindOffset, poseOffset, posed, bounds, key, stoodBytes, rest] = mesh;
             return std::tie(vertices, indices, secondTexCoords, unitStreams, shape, deformer, bindOffset, poseOffset,
                 posed, bounds, stoodBytes, rest.mResting);
         }

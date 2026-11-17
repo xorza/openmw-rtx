@@ -185,6 +185,15 @@ namespace Rtx
         /// The static meshes by their key, one slot a key, which leaves with its slot; the meshes that rest; and the
         /// scene's clock at the last `compact`.
         boost::unordered_flat_map<MeshKey, Index, MeshKeyHash> mKeyIndex;
+
+        /// The runs of indices meshes share (`MeshArrays::mSharedIndices`), by their digest, with how many meshes
+        /// name each.
+        struct SharedIndices
+        {
+            Run mRun;
+            std::uint32_t mHolders = 0;
+        };
+        boost::unordered_flat_map<MeshKey, SharedIndices, MeshKeyHash> mSharedIndices;
         RestQueue mResting;
         RestingGeometry mRestingGeometry;
         std::uint64_t mClock = 0;

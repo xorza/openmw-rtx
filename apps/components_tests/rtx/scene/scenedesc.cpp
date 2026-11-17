@@ -137,6 +137,48 @@ namespace Rtx
             }
         }
 
+        /// **Meshes that share their indices name one run of them**, a land cell's ground as every cell triangulates
+        /// it: two quads a unit apart sharing the quad's six indices take six in the shared buffer and not twelve, and
+        /// both name the run at nought; a third that keeps its own takes six more. The run stays while a sharer stands,
+        /// so a sharer added after one went names it still, and goes with the last, its room a later mesh's.
+        TEST(RtxSceneDescTest, meshesThatShareTheirIndicesNameOneRunOfThem)
+        {
+            SceneDesc scene;
+            const std::array<osg::Vec3f, 4> raised{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 0.0f, 1.0f),
+                osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 1.0f) };
+            const std::array<osg::Vec3f, 4> higher{ osg::Vec3f(0.0f, 0.0f, 2.0f), osg::Vec3f(1.0f, 0.0f, 2.0f),
+                osg::Vec3f(1.0f, 1.0f, 2.0f), osg::Vec3f(0.0f, 1.0f, 2.0f) };
+            const std::array<osg::Vec3f, 4> highest{ osg::Vec3f(0.0f, 0.0f, 3.0f), osg::Vec3f(1.0f, 0.0f, 3.0f),
+                osg::Vec3f(1.0f, 1.0f, 3.0f), osg::Vec3f(0.0f, 1.0f, 3.0f) };
+            const auto shared = [&](std::span<const osg::Vec3f> positions) {
+                return scene.addMesh(
+                    MeshArrays{ .mPositions = positions, .mIndices = Testing::sQuadIndices, .mSharedIndices = true },
+                    FoldedShape{});
+            };
+            const Index first = shared(Testing::sUnitQuad);
+            const Index second = shared(raised);
+            EXPECT_EQ(scene.meshes().getIndices().size(), 6u);
+            EXPECT_EQ(scene.meshes().getRows()[first].mIndices, scene.meshes().getRows()[second].mIndices);
+            EXPECT_EQ(scene.meshes().getRows()[second].mIndices.mOffset, 0u);
+            EXPECT_EQ(scene.meshes().getMeshIndices(second)[5], 3u);
+
+            const Index own
+                = scene.addMesh(MeshArrays{ .mPositions = higher, .mIndices = Testing::sQuadIndices }, FoldedShape{});
+            EXPECT_EQ(scene.meshes().getRows()[own].mIndices.mOffset, 6u) << "a mesh that keeps its own run";
+
+            // The run stays while a sharer stands: one gone, a new sharer names it still.
+            Testing::letGoMesh(scene, first);
+            const Index fourth = shared(highest);
+            EXPECT_EQ(scene.meshes().getRows()[fourth].mIndices.mOffset, 0u) << "the run went with one of two sharers";
+
+            // And goes with the last: a mesh of its own takes its room.
+            Testing::letGoMesh(scene, second);
+            Testing::letGoMesh(scene, fourth);
+            const Index after
+                = scene.addMesh(MeshArrays{ .mPositions = raised, .mIndices = Testing::sQuadIndices }, FoldedShape{});
+            EXPECT_EQ(scene.meshes().getRows()[after].mIndices.mOffset, 0u) << "the last sharer kept the run";
+        }
+
         TEST(RtxSceneDescTest, aMeshRemembersWhereItsVerticesWent)
         {
             SceneDesc scene;

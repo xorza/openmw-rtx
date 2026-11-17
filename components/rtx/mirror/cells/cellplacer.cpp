@@ -386,7 +386,8 @@ namespace Rtx
                                                  .mNormals = ground.mNormals,
                                                  .mTexCoords = ground.mTexCoords,
                                                  .mColours = ground.mColours,
-                                                 .mIndices = ground.mIndices },
+                                                 .mIndices = ground.mIndices,
+                                                 .mSharedIndices = true },
             FoldedShape{});
 
         // Held on the scene, because no drawable and no state set will ever name them:

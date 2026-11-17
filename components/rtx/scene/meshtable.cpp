@@ -8,6 +8,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <components/misc/hashstate.hpp>
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/halffloat.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -118,13 +119,31 @@ namespace Rtx
         ++mRevision;
 
         const Run vertices = mVertexRuns.allocate(static_cast<std::uint32_t>(positions.size()));
-        const Run elements = put(mIndexRuns, mIndices, indices);
+
+        // **One run of indices for every mesh that shares them**, held by a count and filed under their digest: a land
+        // cell's ground carried its own copy of one triangulation, 96 KiB a cell on the host and as much on the device.
+        std::optional<MeshKey> sharedKey;
+        Run elements;
+        if (arrays.mSharedIndices)
+        {
+            Misc::HashState digest;
+            digest.add(indices);
+            sharedKey = MeshKey{ .mWords = digest.getWords() };
+            auto [shared, made] = mSharedIndices.try_emplace(*sharedKey);
+            if (made)
+                shared->second.mRun = put(mIndexRuns, mIndices, indices);
+            ++shared->second.mHolders;
+            elements = shared->second.mRun;
+        }
+        else
+            elements = put(mIndexRuns, mIndices, indices);
         const Run second
             = arrays.mSecondTexCoords.empty() ? Run{} : put(mSecondRuns, mSecondTexCoords, arrays.mSecondTexCoords);
 
         MeshRange range{
             .mVertices = vertices,
             .mIndices = elements,
+            .mSharedIndexKey = sharedKey,
             .mSecondTexCoords = second,
             .mUnitStreams = arrays.mSecondTexCoords.empty() ? 0u : arrays.mUnitStreams,
             .mShape = shape,
@@ -332,7 +351,20 @@ namespace Rtx
         // The allocators merge the room with whatever it touches, so a cell leaves as the one hole
         // it came as.
         mVertexRuns.release(range.mVertices);
-        mIndexRuns.release(range.mIndices);
+        if (range.mSharedIndexKey.has_value())
+        {
+            const auto shared = mSharedIndices.find(*range.mSharedIndexKey);
+            assert(shared != mSharedIndices.end() && shared->second.mHolders > 0
+                && "a mesh that shares indices no run of them holds");
+            if (--shared->second.mHolders == 0)
+            {
+                mIndexRuns.release(range.mIndices);
+                mSharedIndices.erase(shared);
+            }
+            range.mSharedIndexKey.reset();
+        }
+        else
+            mIndexRuns.release(range.mIndices);
         mSecondRuns.release(range.mSecondTexCoords);
         deformers.release(range);
         mTriangles -= range.getTriangleCount();

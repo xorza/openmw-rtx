@@ -571,7 +571,6 @@ made again once; a store made on the desk is the handheld's too, the key being t
 3. `PreparedModel` lets go of its arrays once adopted, on the reader's thread; a second adoption finds its meshes by
    key or asks the reader to fill it again.
 4. The ring's flat records; the cell pools go.
-5. The ground's indices as one run every cell's mesh names.
 6. On the device: `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the
    rest counting geometry; and a want for a mesh refused in the loose storage, which a block emptied answers and no
    resting mesh's fit does (item 9).

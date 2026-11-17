@@ -55,6 +55,10 @@ namespace Rtx
         std::span<const osg::Vec4f> mTangents{};
 
         std::span<const std::uint32_t> mIndices{};
+
+        /// Whether its indices are one list many meshes carry alike, a land cell's ground as every cell of one shape
+        /// triangulates it: the table keeps one run of them, which every such mesh names (`MeshTable`).
+        bool mSharedIndices = false;
     };
 
     /// What a camera's cull mask sorts a placement by: the rasterizer's `Mask_Actor | Mask_Player`,
@@ -199,6 +203,10 @@ namespace Rtx
         /// Where its indices sit. They are mesh-local, so a triangle's vertex is
         /// `mVertices.mOffset` plus what the index says.
         Run mIndices;
+
+        /// What its indices are filed under where it shares them (`MeshArrays::mSharedIndices`): the run goes back once
+        /// the last mesh naming it goes. Nothing for a mesh whose run is its own.
+        std::optional<MeshKey> mSharedIndexKey;
 
         /// Where its second set of texture coordinates sits, in a buffer of its own that only the
         /// meshes carrying one take from — a count of nought for every other mesh, which is nearly
