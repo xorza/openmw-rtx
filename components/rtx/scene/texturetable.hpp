@@ -38,6 +38,11 @@ namespace Rtx
         std::uint64_t mAbove = 0;
         std::uint32_t mTextures = 0;
 
+        /// The same of the textures that rest, each against the level its last readers asked (`TextureRow::mLastWant`):
+        /// what a rest at that level would give back.
+        std::uint64_t mRestingStood = 0;
+        std::uint64_t mRestingAbove = 0;
+
         bool operator==(const TexturesAboveWant&) const = default;
     };
 
@@ -116,6 +121,12 @@ namespace Rtx
         /// the finest footprint asked of the material makes of it, and one at level 0 for each holder that reads it
         /// itself. Empty where nothing reads it.
         TextureAsks mAsks{};
+
+        /// The finest level asked while its last ask stood, kept once the asks go: what its readers wanted of it as
+        /// it came to rest. And what it then stood above that level, measured as it was laid to rest, while its
+        /// image was still at hand (`TextureTable::measureAboveWant`).
+        std::uint8_t mLastWant = 0;
+        std::uint64_t mRestAbove = 0;
 
         /// What a person reads the slot as, in a refusal or a legend: a file's path, and what a bake
         /// or a composite was made from.
@@ -205,9 +216,9 @@ namespace Rtx
         /// from the level its nearest user asks").
         std::uint8_t getWant(const Index slot) const { return rowAt(slot).mAsks.finest().value_or(0); }
 
-        /// The meter of `TexturesAboveWant`, from one walk of the slots: every file standing whole, named and not
-        /// resting, its bytes split by its chain's own levels, its file's layout or, where its chain was made again,
-        /// the block layout every made chain stands in. A walk, for a report and not for a frame.
+        /// The meter of `TexturesAboveWant`, from one walk of the slots: every file stood whole, its bytes split by its
+        /// chain's own levels, its file's layout or, where its chain was made again, the block layout every made chain
+        /// stands in; one that rests against the level its last readers asked. A walk, for a report and not a frame.
         TexturesAboveWant measureAboveWant() const;
 
         /// What the device made of `slot`'s image gives back of the pools textures stand in, `bytes`, the device's

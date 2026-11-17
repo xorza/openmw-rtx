@@ -287,11 +287,17 @@ namespace RtxTool
             balmora.mContent.mReader = Rtx::ReaderMemory{ .mLentBytes = 10 * sMiB, .mLentContentBytes = 5 * sMiB };
             vivec.mContent.mReader = Rtx::ReaderMemory{ .mSpareBytes = 8 * sMiB };
             // **The textures above their want at their most**: balmora's 30 MiB of 120 stood whole, a quarter, over
-            // vivec's 10 of 200.
-            balmora.mContent.mAboveWant
-                = Rtx::TexturesAboveWant{ .mStood = 120 * sMiB, .mAbove = 30 * sMiB, .mTextures = 12 };
-            vivec.mContent.mAboveWant
-                = Rtx::TexturesAboveWant{ .mStood = 200 * sMiB, .mAbove = 10 * sMiB, .mTextures = 3 };
+            // vivec's 10 of 200; and of those resting, vivec's 500 of 800, 62.5%, over balmora's 100 of 400.
+            balmora.mContent.mAboveWant = Rtx::TexturesAboveWant{ .mStood = 120 * sMiB,
+                .mAbove = 30 * sMiB,
+                .mTextures = 12,
+                .mRestingStood = 400 * sMiB,
+                .mRestingAbove = 100 * sMiB };
+            vivec.mContent.mAboveWant = Rtx::TexturesAboveWant{ .mStood = 200 * sMiB,
+                .mAbove = 10 * sMiB,
+                .mTextures = 3,
+                .mRestingStood = 800 * sMiB,
+                .mRestingAbove = 500 * sMiB };
             balmora.mGame = GameHeld{ .mLoadedCells = 30, .mStarvedLooks = 2 };
             vivec.mGame = GameHeld{ .mLoadedCells = 40, .mPreloadedCells = 1, .mStarvedLooks = 7 };
             record.add(balmora);
@@ -305,6 +311,10 @@ namespace RtxTool
                 << record.getReport();
             EXPECT_NE(record.getReport().find("\nthe textures stood above their want at most 30.0 of 120.0 MiB stood "
                                               "whole, 25.0%, in 12 textures, at balmora\n"),
+                std::string::npos)
+                << record.getReport();
+            EXPECT_NE(record.getReport().find("\nthe resting textures stood above their last want at most 500.0 of "
+                                              "800.0 MiB, 62.5%, at vivec\n"),
                 std::string::npos)
                 << record.getReport();
             EXPECT_NE(record.getReport().find("\nthe geometry reached at most 1.60 M vertices and 3.00 M indices, at "

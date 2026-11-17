@@ -621,10 +621,16 @@ The steps:
    moved finer. Tests: a far cell asks a coarse level and a near one level 0; a texture a walk placement also uses wants
    level 0; a band crossing moves the want by one; a material rewritten moves its asks to its new slots; a hot path that
    allocates nothing once warm.
-3. **The meter, which moves nothing**: the memory report states the bytes standing, and resting, above their want. It
-   is flown on the handheld's PBR and Repack tours. Under a tenth of the texture bytes on both, the rest of this item is
-   declined.
-4. **Standing by want**:
+3. **The meter, which moves nothing**: the memory report states the bytes standing above their want, and those
+   resting above the want their last readers asked. It is flown on the handheld's PBR and Repack tours. **Judged at the
+   peak** (the user, 2026-11-17: the worst stop is what memory runs out at, as the frame's worst is the metric): under a
+   tenth of the textures standing at the worst stop on both, step 4 is declined. The desk's PBR tour at `66aa444291`
+   measured 451 of 1948 MiB, 23.2%, at the first land leg; the median stop 5.4%, every stop together 6.1%.
+4. **Resting at the last want**, apart from step 5: a texture laid to rest is moved down to the level its last readers
+   asked, by the device's copy, so the rest holds several textures in the room one held whole. The resting half of the
+   meter is its measure, and it has its own tenth. The desk's rest reached about 7 GiB at the same tour's peak, four
+   times what stood named.
+5. **Standing by want**:
    - `SceneTextures` lays a description from its want, so a far arrival stages and stands only its small levels;
    - `chooseLevels` starts from the want;
    - `DeviceAnswer`'s short is a texture standing coarser than its want;
@@ -633,12 +639,12 @@ The steps:
 
    Tests: an arrival stands from its want; a want moved finer is handed over again whole from it; a room short moves
    down the texture above its want before a larger one.
-5. **Checks and tours.** `shot --views=all --against` moves no picture, a shadow ray's cutout aside, and `repeat
+6. **Checks and tours.** `shot --views=all --against` moves no picture, a shadow ray's cutout aside, and `repeat
    --pairs=10` agrees. Tours of the three contents on the handheld show the device's texture bytes and the refusals
    against item 8's.
 
 Defragmentation by the same copy (the old 16.4) stays open, but only if a tour after this item still refuses a texture
-with room in pieces. The GPU's feedback meter is declined unless step 5's pictures move: the bound is derived, so its
+with room in pieces. The GPU's feedback meter is declined unless step 6's pictures move: the bound is derived, so its
 promise is checked by the pictures, not measured by a second path.
 
 ### 19. Device memory made off the frame

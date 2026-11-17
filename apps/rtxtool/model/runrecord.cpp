@@ -104,6 +104,18 @@ namespace RtxTool
                                      : 0.0,
                     above.mTextures, peak->mView);
             }
+            if (const BenchPlace* const peak
+                = peakOf(places, [](const BenchPlace& place) { return place.mContent.mAboveWant.mRestingAbove; }))
+            {
+                const Rtx::TexturesAboveWant& above = peak->mContent.mAboveWant;
+                out += std::format(
+                    "the resting textures stood above their last want at most {:.1f} of {:.1f} MiB, {:.1f}%, at {}\n",
+                    Rtx::mebibytes(above.mRestingAbove), Rtx::mebibytes(above.mRestingStood),
+                    above.mRestingStood > 0
+                        ? 100.0 * static_cast<double>(above.mRestingAbove) / static_cast<double>(above.mRestingStood)
+                        : 0.0,
+                    peak->mView);
+            }
 
             if (const BenchPlace* const peak
                 = peakOf(places, [](const BenchPlace& place) { return unstoodOf(place.mContent.mRing).mMeshes; }))

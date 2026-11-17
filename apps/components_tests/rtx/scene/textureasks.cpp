@@ -143,7 +143,7 @@ namespace Rtx
         /// to one texel is 4 × (1024² + 512² + … + 1) = 4 × 1398101 = 5592404 bytes, of which level 0 is 4194304.
         /// Asked at step 23, footprint -9, it is wanted from level floor(-9 + 10) = 1: level 0's bytes stand above
         /// it. A texture nothing asks is wanted whole and counts only in what stood; one not stood whole counts in
-        /// neither.
+        /// neither. One that rests counts against the level its last readers asked.
         TEST(RtxTextureAsksTest, theMeterSplitsWhatATextureStoodByItsChainsLevels)
         {
             SceneDesc scene;
@@ -170,8 +170,14 @@ namespace Rtx
             scene.unaskMaterial(material, 23);
             scene.unaskMaterial(other, 23);
             EXPECT_EQ(textures.measureAboveWant(), (TexturesAboveWant{ .mStood = 2 * 5592404 }));
+
+            // The far texture goes to rest with its material: it counts as resting, against the level its last
+            // readers asked, 1, so level 0's bytes again. The texture that was never stood whole is freed.
             scene.drop(std::move(held));
             scene.drop(std::move(otherHeld));
+            EXPECT_TRUE(textures.getRows()[far].mRest.mResting);
+            EXPECT_EQ(textures.measureAboveWant(),
+                (TexturesAboveWant{ .mStood = 5592404, .mRestingStood = 5592404, .mRestingAbove = 4194304 }));
         }
     }
 }

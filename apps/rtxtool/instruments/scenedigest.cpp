@@ -484,13 +484,14 @@ namespace RtxTool
         // each path ends with its length so two laid end to end cannot read as one. Every other field is bound whole,
         // as `forEachMaterialField` does: the wrap and encoding reach the sampler and the decode. The image and
         // partner are files' bytes, which the path names; of what the device stands its bytes and whether it is the
-        // chain made again, which moves every level under the finest. Its asks are left out: they are the placements'
-        // and the ring's distances, and the level they make stood is digested where it lands.
+        // chain made again, which moves every level under the finest. Its asks, its last want and what it rests above
+        // it are left out: they are the placements' and the ring's distances, and the level they make stood is
+        // digested where it lands.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
             const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stoodBytes, stoodMade, rest,
-                asks] = row;
+                asks, lastWant, restAbove] = row;
             const auto& [resting, waitingAt, restedBefore, restedAfter, filedAt, order, fit, fitBefore, fitAfter]
                 = rest;
             const std::string_view name = path.value();
