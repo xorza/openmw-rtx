@@ -815,9 +815,6 @@ for 22.4 MiB).
 
 **Proposed upstream, awaiting the user's yes** (`UPSTREAM.md`'s rule):
 
-- **`MWWorld::Scene::preloadTeleportDoorDestinations` asks the budget before it loads**: the destination's
-  `findCell` loads its references, which a preload the budget then skips has still paid for. The fix is
-  `CacheBudget::hasRoom` asked first, as `CellPreloader::preload` asks it. Cost: two lines in `mwworld/scene.cpp`.
 - **`components/platform/filestdio.cpp`, built by nothing, goes**: upstream's fallback for a system with neither
   POSIX nor Win32, which the fork's CMake dropped when it built Linux and Windows alone. Alternatively, the fallback is
   restored in the one place the implementation is chosen.
