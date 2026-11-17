@@ -36,12 +36,14 @@ Why the items stand in this order, each a reason a later item leans on:
 - **Small and independent before large** (items 9–11): the faults, the heap and the ceiling need no format change, and
   end the handheld's refusals and its caches' thrash, so the tours that follow read clean.
 - **Every format change of the store and its manifest in one item** (item 12), so the stores are made again once.
-- **The planner before the geometry's host copy goes** (item 13 before 14): until no world is rebuilt for a reserve
-  that moved, a rebuild reads that copy.
-- **Flat ring records before the ring's prefix** (item 14 before 15), so the prefix is written once, on the records
-  that stay.
-- **Need after the planner, and streams after the geometry** (items 16–17): each is a policy or a layout over a
-  mechanism an earlier item makes, and each may be declined on its own measurement without undoing one.
+- **What a player feels before what tidies** (reviewed with the user, 2026-11-17, at `579612228d`): the rest of the
+  plan is ordered by what the handheld measured, not by the shape it was written for. The longest frames are explained
+  first (item 8), since every later item is judged against them; then the ring's reading again of models (item 15),
+  the largest cost the tours name; then the device's mesh memory (item 14.6), where the tours still refuse structure
+  blocks; then need (item 16), behind its meter. What only tidies a mechanism that works is declined: the texture
+  planner's rest (item 13), the ring's flat records unless measured (item 14.4), the streams' spike (item 17).
+- **The texture's level moved down before the geometry's host copy went** (item 13's first part before 14): until no
+  world is rebuilt for a reserve that moved, a rebuild read that copy.
 
 ## Findings
 
@@ -251,7 +253,10 @@ a start 0.26–1.48 s.
 - **The stores are made again, once** (item 12): its keys and its entries' format change.
 - **Every stored chain is whole** (item 12.3), about 700 MiB more on the desk's three profiles.
 - **One planner moves a texture's level** (item 13), in place of the three mechanisms that size a texture today. It
-  stands where "a residency manager" was refused with no reason recorded.
+  stands where "a residency manager" was refused with no reason recorded. **Its rest declined at the user's review
+  (2026-11-17)**: see **Declined**.
+- **The plan reordered by what the handheld measured** (the user's review, 2026-11-17): the longest frames, the ring's
+  parses, the device's mesh memory, need; what only tidies a mechanism that works is declined.
 - **A resting mesh counts its structure and its geometry, and gives both back** (item 14.6), changing "a mesh counts
   what its eviction gives back" (`a3d689826f`).
 - **Levels by need, a meter first** (item 16): declined past its meter if under a tenth of the handheld PBR tour's
@@ -318,7 +323,8 @@ a start 0.26–1.48 s.
   ([spec](https://registry.khronos.org/KTX/specs/2.0/ktxspec.v2.html)). The coarser chains kept whole add about
   700 MiB to the desk's three profiles, a twentieth of the store. Refused: the coarser form, a second file for ever;
   one digest over the payload, which a ranged read cannot check.
-- **A texture's levels are read by position, from where they stand, into a buffer the reader owns**: the store's entry
+- **Declined with item 13's planner, and kept for a reader of levels if one is ever proposed again.** **A texture's
+  levels are read by position, from where they stand, into a buffer the reader owns**: the store's entry
   for a made chain; the file's own bytes for a block-compressed file that stands as shipped, through the stream the
   game opens it as. The buffers are a bounded pool by size class, so a hand-over allocates nothing and a reader waits
   where the pool is empty, a worker only and never the frame's thread, as DirectStorage reads into a bounded staging
@@ -341,7 +347,8 @@ a start 0.26–1.48 s.
   the limit, a stream's block no run touches goes back to the device, and geometry is taken as content, refused with
   its mesh. Changes "a mesh counts what its eviction gives back", whose reason holds for an evicted mesh and not for a
   resting one.
-- **A texture stands at a level, and one planner moves it**, by the user's decision: down by a copy on the device, up
+- **Declined past its first part (item 13).** **A texture stands at a level, and one planner moves it**, by the user's
+  decision: down by a copy on the device, up
   by a read of the levels it adds. RTX Remix makes a new image at the wanted levels and swaps the view
   ([`rtx_texture_manager.cpp`](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/main/src/dxvk/rtx_render/rtx_texture_manager.cpp)),
   and Unreal lowers a plan a level at a time until it fits
@@ -370,7 +377,7 @@ a start 0.26–1.48 s.
   duplication on unified memory.
 - **The harness digests a mesh's shape only where the host asks for digests**: nothing else reads it. Refused: the
   digest made for every mesh the game adds; reading the device's buffers back.
-- **The ring's records are flat, and a reference states once what is its own**: one buffer for the ring with a run a
+- **Declined with item 14.4.** **The ring's records are flat, and a reference states once what is its own**: one buffer for the ring with a run a
   cell, a row a reference and a slot a part. Refused: pools that keep what each object grew to.
 - **The ring reads what can stand at its distance**: a cell's references are read largest first as far as the size rule
   reaches one band ahead, and further as the cell nears; a model's radius is the preparation's to state. Refused:
@@ -455,8 +462,7 @@ class Store
 
 // components/rtx/preprocess: replaces PreparedImages' reading half. A miss still goes to the passes.
 class BufferPool            // by power-of-two class; a stated bound in bytes; take() waits; give() from any thread
-class LevelReader           // the hands, the queue, cancel(slot); hands out a pool buffer with its levels' spans
-struct LevelSource          // std::variant<StoredChain{Key}, ShippedFile{header, first level's offset}>
+// LevelReader and LevelSource: declined with item 13's planner.
 
 // components/rtx/scene
 struct PackedMesh           // spans in the device's form: positions, normal words, coordinates, colours, tangents,
@@ -464,11 +470,9 @@ struct PackedMesh           // spans in the device's form: positions, normal wor
                             // does not bring is an empty span from the start, whatever item 17 decides of the device
 class MeshArrivals          // one flat buffer a stream, a start for each arrived slot, cleared after the hand-over,
                             // given back past its bound
-struct TextureLevels { std::uint8_t mStands; std::uint8_t mWanted; std::uint8_t mFloor; };   // on TextureRow
-class TexturePlan           // budget and wants in; a bounded list of moves out, a hand-over; a defragmentation
-                            // pass's moves are its moves at the same level
+// TextureLevels and TexturePlan: declined (item 13); a texture's level moves by makeRoom and the waits.
 
-// components/rtx/mirror/cells: one RunBuffer each for the ring, a run a cell.
+// components/rtx/mirror/cells: one RunBuffer each for the ring, a run a cell (declined, item 14.4).
 struct HeldReference        // model, first part, place, RefNum, gate, radius, flags: what Placement repeated a part
 // and std::uint32_t slots, one a part; a placement's transform is made where it stands
 
@@ -481,9 +485,9 @@ class MemoryAllocator
 };
 ```
 
-Gone: `PreparedImages::mEntries`' holds, `ChainForm::Coarser`, `ShortTexture`, `SceneUploader::TextureWait` and
-`evictForRoom`'s shared figure, `TextureArray::chooseLevels`, `rebuildsWorld` and `wasHeldBack`, `MeshTable`'s arrays,
-`PreparedModel`'s arrays past adoption, `Placement`, the `Recycled` and `Spares` pools of cells.
+Gone: `PreparedImages::mEntries`' holds, `ChainForm::Coarser`, `rebuildsWorld` and `wasHeldBack`, `MeshTable`'s
+arrays, `PreparedModel`'s arrays past adoption. Staying, their items declined: `ShortTexture`,
+`SceneUploader::TextureWait`, `TextureArray::chooseLevels` (item 13); `Placement` and the cell pools (item 14.4).
 
 ## Plan
 
@@ -523,35 +527,33 @@ every leg's worst frame with what led it, and every outrun. A tour now expires t
 before (huge pages, the scaled reach, no expiry), so `2026-11-17-handheld-tours-and-store-forms.md`'s figures can be
 told apart from the game's.
 
-Then the baseline's longest frames are explained: the ten longest on the handheld, a content each, are profiled
-(`perf` beside the run, as `./omw profile` does on the desk) until each names what led it. One an item of this plan
-causes or cures is that item's to show gone; one that is upstream's is proposed with its profile.
+**Next, ahead of every other item**: the baseline's longest frames are explained: the ten longest on the handheld, a
+content each, are profiled (`perf` beside the run, as `./omw profile` does on the desk) until each names what led it.
+One an item of this plan causes or cures is that item's to show gone; one that is upstream's is proposed with its
+profile; one no item names becomes an item of its own here, ahead of item 15, where its cost is the larger.
 
-### 13. A texture stands at a level
+### 13. The stand-in's fix, flown
 
-1. A move on the device: a new image at the level, the kept levels copied, the slot's descriptors written, the old
-   image buried after; a move up reads only the levels it adds.
-2. `TexturePlan`, by room alone: an arrival stands whole where the plan fits, else at the plan's level; a reserve that
-   moves changes the budget and the plan follows a bounded step a hand-over.
-3. The short list, the waits and the rebuild go, and with them a texture's want, whose hole adds the margins a resting
-   texture's fit, its range, never carries (item 9). Tests: a change of mode keeps every structure and geometry buffer; a
-   texture brought down and up again reads its top levels once; two runs plan alike.
-4. Tours of the three contents on the desk, the handheld and Windows.
-
-### 14. One copy of the geometry
-
-4. The ring's flat records; the cell pools go.
-6. On the device: `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the
-   rest counting geometry; and a want for a mesh refused in the loose storage, which a block emptied answers and no
-   resting mesh's fit does (item 9).
-8. Tests: a crossing allocates nothing; the arrivals' bound. Tours: the host's peak against item 8's.
+4. The handheld's PBR and Repack tours at `579612228d`: no texture drawn as the stand-in for room, against 95 and 63
+   at `f45fb184d7`. A stand-in still drawn is worked as a fault, not logged.
 
 ### 15. The ring reads what can stand
 
+0. **Measured first**: item 8's count of models parsed and parsed again on the handheld's Repack tour at the head, and
+   what the parse costs the loading threads in its profile. Declined if the parses again are under a tenth of all.
 1. A cell's references read as a prefix by radius, one band ahead of the size rule, the radius the manifest's;
-   `CellRing` asks the reader to go further as a cell nears.
+   `CellRing` asks the reader to go further as a cell nears. Written on the ring's records as they stand.
 2. Item 8's count again; `repeat` and `shot`, since a model must stand before the frame that first shows it; and no
    outrun on the legs the baseline outran.
+
+### 14. The device's mesh memory
+
+6. **Only where the tours still refuse a mesh for room** (the Repack at `f45fb184d7` refused three 64 MiB structure
+   blocks): `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the rest
+   counting geometry; and a want for a mesh refused in the loose storage, which a block emptied answers and no resting
+   mesh's fit does (item 9).
+8. Tests: a block no run touches goes back, and a mesh refused in the loose storage stands once one empties. Tours:
+   no mesh refused for room on the Repack.
 
 ### 16. Levels by need
 
@@ -561,17 +563,13 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
    hit records.
 2. Its histogram over the tours: the share of texture bytes in levels no ray read. Under a tenth on the handheld's PBR
    tour, the rest of this item is declined.
-3. The plan's order under pressure, with the peak's hold; a floor every texture keeps.
-4. Defragmentation by the planner's move, if a tour after item 11 still refused a texture with room in pieces: one
-   pass where a want finds no hole, bounded by what a hand-over stages. A test: a pool cut into pieces takes the
-   texture it refused, and no frame that fits runs a pass.
+3. The order under pressure, with the peak's hold: `makeRoom` moves down what stands above its want first, then the
+   largest; a floor every texture keeps. The move it orders is item 13's copy on the device; a move up past want
+   stays the waits' hand-over whole, item 13's planner having been declined.
+4. Defragmentation by the same copy at the texture's own level, if a tour after item 11 still refused a texture with
+   room in pieces: one pass where a want finds no hole, bounded by what a hand-over stages. A test: a pool cut into
+   pieces takes the texture it refused, and no frame that fits runs a pass.
 5. `noise` and `shot` under a budget held low; tours.
-
-### 17. Streams a mesh brings
-
-Tangents and colours in runs of their own, a mesh without one reading a shared element through a stride of nought, so
-the shader keeps one path. Kept only if `kernels` shows no tier change. A spike, not a commitment: a committed hit's
-corners through position fetch, which would free the positions' 12 B a vertex.
 
 ### 18. Close
 
@@ -699,6 +697,22 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   repack's peak on the handheld (`research/2026-11-17-handheld-allocator-tunables.md`), before packing halved it, and a
   model named again after its meshes left the device would need the reader to fill it again while a cell waits on it.
   What the reader holds is room: 170 MiB lent for those 64 MiB, and 39 MiB spare.
+
+- **13, past its first two parts: the move up by the levels it adds, `TexturePlan`, the short list and the waits
+  gone** (the user's review, 2026-11-17). With the stand-in's fix the waits do what the planner was for: everything
+  stands where it fits, a stand-in gets room made for it, and what moved down comes back. What the rest buys is a
+  quarter of a move up's bytes, as the kept levels are copied rather than read, and one mechanism for three; the
+  PBR tour's 13.8 GB read again are chiefly retakes after evictions, which it does not touch. Its `LevelReader` would be
+  a second reader of the shipped file beside the image manager's. Proposed again only with a tour whose moves up read
+  more than a tenth of its texel bytes, which needs the cause carried through `PreparedImages::find` (item 8).
+
+- **14.4. The ring's flat records, the cell pools gone**: an allocation's worth per crossing, which the allocator's
+  four arenas and pinned threshold (item 10.1) already keep from fragmenting the heap; nothing measured names the ring's
+  pools among the handheld's peak. Proposed again with a profile or a peak that does. Item 15 is written on the records
+  as they stand.
+
+- **17. Streams a mesh brings**: a spike with no measured cost behind it; the positions' 12 B a vertex freed by
+  position fetch is a guess until a tour shows geometry near the device's ceiling.
 
 - **11.2. The ground's masks as the land's bytes**: read a byte at a time (`storageBuffer8BitAccess`), the RADV
   compile of the handheld's chip under the drm-shim put 14 landing kernels with a mod's maps from 112 registers to
