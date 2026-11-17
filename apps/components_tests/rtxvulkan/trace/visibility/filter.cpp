@@ -504,7 +504,7 @@ namespace Rtx::Testing
             EXPECT_EQ(settle(bright), lit);
             {
                 MemoryAllocator& memory = mProbe.getDevice().getMemory();
-                const Testing::BudgetLimit tight(memory, Testing::budgetAbove(memory, MemoryUse::Texture, 0) - 1);
+                const Testing::BudgetLimit tight(memory, Testing::budgetAtContent(memory) - 1);
                 mRenderer.setUpscale(Upscale::Quality);
                 mRenderer.setUpscale(Upscale::Off);
             }

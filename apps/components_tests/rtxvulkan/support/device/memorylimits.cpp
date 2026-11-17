@@ -44,6 +44,12 @@ namespace Rtx::Testing
         return held.mHeld + owed + above;
     }
 
+    VkDeviceSize budgetAtContent(const MemoryAllocator& memory)
+    {
+        const VkDeviceSize usage = memory.report().mHeaps[memory.getVideoHeap()].mHeld;
+        return budgetAbove(memory, MemoryUse::Texture, 0) - (usage - memory.getVideoBudget().mHeld);
+    }
+
     NoRoomForContent::NoRoomForContent(const Device& device)
         : mNone(device.getMemory(), 0)
     {

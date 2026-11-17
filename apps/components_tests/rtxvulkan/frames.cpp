@@ -654,7 +654,7 @@ namespace Rtx
             EXPECT_TRUE(worldHeld()) << "a reserve that shrank built again a world nothing was held back from";
 
             {
-                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAbove(memory, MemoryUse::Texture, 0));
+                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAtContent(memory));
                 EXPECT_EQ(runAt(Upscale::Native), upscaled);
             }
             EXPECT_FALSE(worldHeld())
@@ -703,7 +703,7 @@ namespace Rtx
             ASSERT_TRUE(worldHeld());
             EXPECT_EQ(runAt(Upscale::Off), upscaled) << "the reserve kept no room for a mode the run named";
             {
-                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAbove(memory, MemoryUse::Texture, 0));
+                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAtContent(memory));
                 EXPECT_EQ(runAt(Upscale::Native), upscaled);
                 EXPECT_TRUE(worldHeld()) << "a move between two modes the run named built the world again";
                 EXPECT_EQ(runAt(Upscale::Off), upscaled);
@@ -793,7 +793,7 @@ namespace Rtx
             mRenderer.setUpscale(Upscale::Off);
             {
                 MemoryAllocator& memory = mProbe.getDevice().getMemory();
-                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAbove(memory, MemoryUse::Texture, 0));
+                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAtContent(memory));
                 mRenderer.setUpscale(Upscale::Native);
             }
             ASSERT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, 0u)

@@ -15,4 +15,3 @@
 - `components/platform/filestdio.cpp`, a third implementation of `Platform::File`, is built by no target.
 - The handheld's Fullrest Repack tour at `8c032f6e00` outran its world: six cells of leg 2 (6..7, -13..-11) never stood whole while the player was in their column.
 - `env/install_almalinux_deps.sh` fetches autoconf from ftp.gnu.org alone, which some networks reach only over IPv6: there the release-base image fails to build on Docker's default network, which has none.
-- `MemoryAllocator::contentFits`, which a change of mode asks before it builds the world again, compares content's ceiling with the driver's usage, what rests and the pools' free bytes in it.

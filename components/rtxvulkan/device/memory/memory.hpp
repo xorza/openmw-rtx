@@ -338,8 +338,10 @@ namespace Rtx
 
         /// Whether the video heap stands under the ceiling a texture is made against, as the
         /// budget and the frame's reserve set it now: whether everything content holds is what a
-        /// load would stand it in. Asks the driver's budget as the library last read it, so after
-        /// `refreshBudget` for an answer about now.
+        /// load would stand it in. What the process holds and keeps is read, free runs and what is
+        /// buried left out (`getVideoBudget`); what rests is the core's, and counted. Asks the
+        /// driver's budget as the library last read it, so after `refreshBudget` for an answer
+        /// about now.
         bool contentFits() const;
 
         /// What `reserveFrame` was last told.

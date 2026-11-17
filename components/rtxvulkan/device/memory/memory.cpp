@@ -598,8 +598,9 @@ namespace Rtx
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
-        const VmaBudget& budget = budgets[mContent.mHeap];
-        return budget.usage <= ceilingOf(mContent.mHeap, MemoryUse::Texture, budget.budget);
+        // What the process holds and keeps (`getVideoBudget`): the pools' and the storages' free runs and what is
+        // buried are content's to take again, and a load would stand none of them.
+        return getVideoBudget().mHeld <= ceilingOf(mContent.mHeap, MemoryUse::Texture, budgets[mContent.mHeap].budget);
     }
 
     void MemoryAllocator::limitBudget(const std::optional<VkDeviceSize> bytes)
