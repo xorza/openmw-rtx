@@ -22,7 +22,8 @@ namespace DetourNavigator
     class NavMeshManager
     {
     public:
-        explicit NavMeshManager(const Settings& settings, std::unique_ptr<NavMeshTileStore>&& store);
+        NavMeshManager(
+            const Settings& settings, std::unique_ptr<NavMeshTileStore>&& store, Resource::CacheBudget& budget);
 
         ScopedUpdateGuard makeUpdateGuard() { return mRecastMeshManager.makeUpdateGuard(); }
 

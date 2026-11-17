@@ -43,7 +43,6 @@ namespace Settings
         SettingValue<std::int32_t> mRegionMinArea{ mIndex, "Navigator", "region min area", makeMaxSanitizerInt(0) };
         SettingValue<std::size_t> mAsyncNavMeshUpdaterThreads{ mIndex, "Navigator", "async nav mesh updater threads",
             makeMaxSanitizerSize(1) };
-        SettingValue<std::size_t> mMaxNavMeshTilesCacheSize{ mIndex, "Navigator", "max nav mesh tiles cache size" };
         SettingValue<std::size_t> mMaxPolygonPathSize{ mIndex, "Navigator", "max polygon path size" };
         SettingValue<std::size_t> mMaxSmoothPathSize{ mIndex, "Navigator", "max smooth path size" };
         SettingValue<bool> mEnableWriteRecastMeshToFile{ mIndex, "Navigator", "enable write recast mesh to file" };

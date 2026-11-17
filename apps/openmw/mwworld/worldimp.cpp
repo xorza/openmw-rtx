@@ -246,7 +246,8 @@ namespace MWWorld
         {
             auto navigatorSettings = DetourNavigator::makeSettingsFromSettingsManager(maxRecastLogLevel);
             navigatorSettings.mRecast.mSwimHeightScale = mSwimHeightScale;
-            mNavigator = DetourNavigator::makeNavigator(navigatorSettings, mCachePath);
+            mNavigator
+                = DetourNavigator::makeNavigator(navigatorSettings, mCachePath, mResourceSystem->getCacheBudget());
         }
         else
         {

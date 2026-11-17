@@ -29,6 +29,11 @@ namespace Loading
     class Listener;
 }
 
+namespace Resource
+{
+    class CacheBudget;
+}
+
 namespace DetourNavigator
 {
     struct Settings;
@@ -191,8 +196,10 @@ namespace DetourNavigator
         virtual float getMaxNavmeshAreaRealRadius() const = 0;
     };
 
-    /// A navigator whose tiles are kept under `cachePath` where `settings` ask for the disk cache.
-    std::unique_ptr<Navigator> makeNavigator(const Settings& settings, const std::filesystem::path& cachePath);
+    /// A navigator whose tiles are kept under `cachePath` where `settings` ask for the disk cache, and in memory as
+    /// `budget`, which outlives it, holds the caches of the process.
+    std::unique_ptr<Navigator> makeNavigator(
+        const Settings& settings, const std::filesystem::path& cachePath, Resource::CacheBudget& budget);
 
     std::unique_ptr<Navigator> makeNavigatorStub();
 }

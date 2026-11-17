@@ -111,6 +111,12 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   (`ImageManager::getModelImage` in place of `getImage` in the NIF loader's `getTextureImage`, `attachAutoMaps` and the
   scene manager's image reader; `Resource::ModelImages::Headers`, `Resource::ImageHeader`, `Resource::texelsOf`,
   `releaseTexels`): cached models held 7.6 GiB of texels under the PBR replacers while the device held 2.2.
+- The navigator's tile cache under the caches' byte budget (`DetourNavigator::NavMeshTilesCache` a
+  `Resource::BudgetedCache`, the budget handed down from `makeNavigator`), and `[Navigator] max nav mesh tiles cache
+  size` gone with its default: a fixed 256 MiB, full on every tour, outside the budget every other cache yields to. Its
+  tests hold the budget's semantics: a tile past the budget is handed over and kept while used. Cost: a conflict with
+  an edit to `navmeshtilescache.{hpp,cpp}`, the navigator's constructors, or the setting. Approved with item 10 of the
+  tree and content memory plan (2026-11-17).
 - The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`) in place of its SQLite database,
   which leaves the build: one store for what the fork derives from the content, shared across profiles, its key
   versioned (`DetourNavigatorTileVersionTest`). A tile is keyed on its recast mesh's triangles, so `MeshSource` and

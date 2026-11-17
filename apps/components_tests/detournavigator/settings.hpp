@@ -35,7 +35,6 @@ namespace DetourNavigator
             result.mRecast.mTileSize = 64;
             result.mWaitUntilMinDistanceToPlayer = std::numeric_limits<std::int32_t>::max();
             result.mAsyncNavMeshUpdaterThreads = 1;
-            result.mMaxNavMeshTilesCacheSize = 1024 * 1024;
             result.mDetour.mMaxPolygonPathSize = 1024;
             result.mDetour.mMaxSmoothPathSize = 1024;
             result.mDetour.mMaxPolys = 4096;

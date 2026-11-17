@@ -265,13 +265,13 @@ namespace DetourNavigator
 
     AsyncNavMeshUpdater::AsyncNavMeshUpdater(const Settings& settings, TileCachedRecastMeshManager& recastMeshManager,
         OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshTileStore>&& store,
-        const Clock& clock)
+        Resource::CacheBudget& budget, const Clock& clock)
         : mSettings(settings)
         , mRecastMeshManager(recastMeshManager)
         , mOffMeshConnectionsManager(offMeshConnectionsManager)
         , mClock(clock)
         , mShouldStop()
-        , mNavMeshTilesCache(settings.mMaxNavMeshTilesCacheSize)
+        , mNavMeshTilesCache(budget)
         , mStore(std::move(store))
         , mStoreReader(makeStoreReader(*this, mStore.get(), mSettings))
     {

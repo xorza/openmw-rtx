@@ -10,6 +10,7 @@
 #include <components/detournavigator/navmeshtilescache.hpp>
 #include <components/detournavigator/stats.hpp>
 #include <components/esm3/loadland.hpp>
+#include <components/resource/cachebudget.hpp>
 
 namespace
 {
@@ -179,7 +180,8 @@ namespace
     template <std::size_t maxCacheSize, std::int32_t hitPercentage>
     void getFromFilledCache(benchmark::State& state)
     {
-        NavMeshTilesCache cache(maxCacheSize);
+        Resource::CacheBudget budget(maxCacheSize);
+        NavMeshTilesCache cache(budget);
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
@@ -239,7 +241,8 @@ namespace
     template <std::size_t maxCacheSize>
     void setToBoundedNonEmptyCache(benchmark::State& state)
     {
-        NavMeshTilesCache cache(maxCacheSize);
+        Resource::CacheBudget budget(maxCacheSize);
+        NavMeshTilesCache cache(budget);
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;

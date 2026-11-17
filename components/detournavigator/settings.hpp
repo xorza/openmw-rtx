@@ -49,7 +49,6 @@ namespace DetourNavigator
         std::int32_t mWaitUntilMinDistanceToPlayer = 0;
         std::int32_t mMaxTilesNumber = 0;
         std::size_t mAsyncNavMeshUpdaterThreads = 0;
-        std::size_t mMaxNavMeshTilesCacheSize = 0;
         std::string mRecastMeshPathPrefix;
         std::string mNavMeshPathPrefix;
         std::chrono::milliseconds mMinUpdateInterval{};

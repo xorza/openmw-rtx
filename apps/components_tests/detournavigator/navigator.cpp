@@ -24,6 +24,7 @@
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/rng.hpp>
 #include <components/resource/bulletshape.hpp>
+#include <components/resource/cachebudget.hpp>
 #include <components/testing/util.hpp>
 
 #include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
@@ -54,8 +55,9 @@ namespace
     struct DetourNavigatorNavigatorTest : Test
     {
         Settings mSettings = makeSettings();
+        Resource::CacheBudget mBudget{ Resource::CacheBudget::sUnbounded };
         std::unique_ptr<Navigator> mNavigator = std::make_unique<NavigatorImpl>(
-            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
+            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"), mBudget);
         const osg::Vec3f mPlayerPosition{ 256, 256, 0 };
         const ESM::RefId mWorldspace = ESM::RefId::stringRefId("sys::default");
         const AgentBounds mAgentBounds{ CollisionShapeType::Aabb, { 29, 29, 66 } };
@@ -215,7 +217,7 @@ namespace
     {
         mSettings.mWaitUntilMinDistanceToPlayer = 0;
         mNavigator = std::make_unique<NavigatorImpl>(
-            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
+            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"), mBudget);
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
         const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
@@ -633,7 +635,7 @@ namespace
     {
         mSettings.mAsyncNavMeshUpdaterThreads = 2;
         mNavigator = std::make_unique<NavigatorImpl>(
-            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
+            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"), mBudget);
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
         const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
@@ -1128,7 +1130,8 @@ namespace
     TEST_P(DetourNavigatorNavigatorNotSupportedAgentBoundsTest, on_add_agent)
     {
         const Settings settings = makeSettings();
-        NavigatorImpl navigator(settings, nullptr);
+        Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+        NavigatorImpl navigator(settings, nullptr, budget);
         EXPECT_FALSE(navigator.addAgent(GetParam()));
     }
 
@@ -1293,7 +1296,8 @@ namespace
         Loading::Listener listener;
         Settings settings = makeSettings();
         settings.mMaxTilesNumber = 5;
-        NavigatorImpl navigator(settings, nullptr);
+        Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+        NavigatorImpl navigator(settings, nullptr, budget);
         const AgentBounds agentBounds{ CollisionShapeType::Aabb, { 29, 29, 66 } };
         ASSERT_TRUE(navigator.addAgent(agentBounds));
 
@@ -1338,7 +1342,8 @@ namespace
         Settings settings = makeSettings();
         settings.mMaxTilesNumber = 1;
         settings.mWaitUntilMinDistanceToPlayer = 1;
-        NavigatorImpl navigator(settings, nullptr);
+        Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+        NavigatorImpl navigator(settings, nullptr, budget);
         const AgentBounds agentBounds{ CollisionShapeType::Aabb, { 29, 29, 66 } };
         ASSERT_TRUE(navigator.addAgent(agentBounds));
 
@@ -1383,8 +1388,9 @@ namespace
         Settings settings = makeSettings();
         settings.mMaxTilesNumber = 1;
         settings.mWaitUntilMinDistanceToPlayer = 1;
+        Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
         NavigatorImpl navigator(
-            settings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
+            settings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"), budget);
         const AgentBounds agentBounds{ CollisionShapeType::Aabb, { 29, 29, 66 } };
         ASSERT_TRUE(navigator.addAgent(agentBounds));
 

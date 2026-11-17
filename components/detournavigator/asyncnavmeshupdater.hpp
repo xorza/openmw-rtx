@@ -195,7 +195,7 @@ namespace DetourNavigator
         /// @param clock what a job's delay is timed by, which outlives the updater.
         AsyncNavMeshUpdater(const Settings& settings, TileCachedRecastMeshManager& recastMeshManager,
             OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshTileStore>&& store,
-            const Clock& clock = steadyClock());
+            Resource::CacheBudget& budget, const Clock& clock = steadyClock());
         ~AsyncNavMeshUpdater();
 
         void post(const AgentBounds& agentBounds, const SharedNavMeshCacheItem& navMeshCacheItem,
