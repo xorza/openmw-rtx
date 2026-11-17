@@ -620,6 +620,12 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 
 ## Changed
 
+- **13, its first part. A texture that stands moves down**: `TextureArray::makeRoom` copies a level down on the
+  device for an arrival the room does not hold whole and for a reserve a change of mode grows past content, in place of
+  building the world again. A move up is the waits' hand-over whole again, not one that reads only the levels it adds,
+  which needs the `LevelReader`; the waits, the short list and the rebuild for a reserve that shrinks over held-back
+  content stay until a planner sizes every texture by the room (13.2, 13.3).
+
 - **12.4. The manifest's radius and light** move to item 15, their one reader: a field no code reads is dead until
   then, and the manifest has a signature of its own, so it is made again with item 15 and not with the store.
 

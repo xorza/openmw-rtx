@@ -326,15 +326,24 @@ namespace Rtx
                 = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, reserved, mUpscaler, itsDeclared));
         }
 
-        // **The world is built again only where the reserve moving changes what it would stand as**: the
-        // hand-over after this finds its slot empty (`SceneUploader`) and stands every texture against the
-        // new room. A rebuild is every structure and texture in one flushed batch, seconds of a frame.
+        // **A reserve that grows past what content holds is room made by textures moving down** (`makeRoom`), copied
+        // on the device, what moved handed over whole again once the room is back. **The world is built again only
+        // where a reserve that shrinks could stand more of what was held back**: the hand-over after this finds its
+        // slot empty (`SceneUploader`) and stands every texture and structure against the new room, seconds of a
+        // frame.
         const VkDeviceSize reserved = memory.getFrameReserve();
         memory.refreshBudget(mDevice.getTimeline().getNext());
         memory.reserveFrame(reserve);
-        const DeviceScene* const world = mScenes.find(SceneSlot::world());
+        DeviceScene* const world = mScenes.find(SceneSlot::world());
+        if (rebuild == WorldRebuild::WhereTheReserveAsks && world != nullptr && reserve > reserved)
+            if (const VkDeviceSize over = memory.getContentOver(); over > 0)
+            {
+                Batch moved(mDevice.getPool());
+                world->makeTextureRoom(moved, mArrival, over);
+                moved.flush();
+            }
         const bool rebuildsWorld = rebuild == WorldRebuild::WhereTheReserveAsks && world != nullptr
-            && reserve != reserved && (reserve > reserved ? !memory.contentFits() : world->wasHeldBack());
+            && reserve < reserved && world->wasHeldBack();
         if (rebuildsWorld)
         {
             drain();

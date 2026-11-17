@@ -1,6 +1,7 @@
 #include "texturearrival.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -57,6 +58,14 @@ namespace Rtx
         mSpreads.push_back(Spread{ .mMap = &map, .mSpread = &spread });
     }
 
+    void TextureArrival::moveDown(const Image& from, const std::uint32_t dropped, const Image& to)
+    {
+        assert(dropped > 0 && "a move that drops no level");
+        assert(dropped + to.getMipLevels() == from.getMipLevels() && "a move to other levels than the source's");
+        assert(to.getFormat() == from.getFormat() && "a move into another format");
+        mMoves.push_back(Move{ .mFrom = &from, .mDropped = dropped, .mTo = &to });
+    }
+
     void TextureArrival::bake(const Image& source, const Image& bake)
     {
         mBakes.push_back(Bake{ .mSource = &source, .mBake = &bake });
@@ -64,13 +73,13 @@ namespace Rtx
 
     void TextureArrival::record(Batch& batch, const TexturePasses& passes, GpuTimer* const timer)
     {
-        const bool any = !mUploads.empty() || !mSpreads.empty() || !mBakes.empty();
+        const bool any = !mUploads.empty() || !mMoves.empty() || !mSpreads.empty() || !mBakes.empty();
         mRecordedBarriers = 0;
         if (any)
         {
             // Room for the widest barrier of the run, the one after the copies, which holds every
             // image the run writes once.
-            const std::size_t widest = mUploads.size() + mSpreads.size() + mBakes.size();
+            const std::size_t widest = mUploads.size() + 2 * mMoves.size() + mSpreads.size() + mBakes.size();
             mImageBarriers.resize(std::max(widest, mImageBarriers.size()));
 
             const VkCommandBuffer commands = batch.getCommands();
@@ -93,6 +102,7 @@ namespace Rtx
 
         mRegions.clear();
         mUploads.clear();
+        mMoves.clear();
         mSpreads.clear();
         mBakes.clear();
     }
@@ -102,16 +112,41 @@ namespace Rtx
         // Nothing before them: the head of every command buffer orders it after the last frame.
         for (const Upload& upload : mUploads)
             upload.mImage->addTransition(barriers, Use::sUndefined, Use::sCopyWrite);
+        for (const Move& move : mMoves)
+        {
+            move.mFrom->addTransition(barriers, Use::sTextureSample, Use::sCopyRead);
+            move.mTo->addTransition(barriers, Use::sUndefined, Use::sCopyWrite);
+        }
         barriers.flush();
 
         for (const Upload& upload : mUploads)
             vkCmdCopyBufferToImage(commands, upload.mStaged.mBuffer, upload.mImage->getHandle(),
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, upload.mCount, &mRegions[upload.mFirst]);
+        for (const Move& move : mMoves)
+        {
+            mMoveRegions.clear();
+            for (std::uint32_t level = 0; level < move.mTo->getMipLevels(); ++level)
+                mMoveRegions.push_back(
+                    VkImageCopy{ .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, move.mDropped + level, 0, 1 },
+                        .srcOffset = {},
+                        .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1 },
+                        .dstOffset = {},
+                        .extent = { std::max(move.mTo->getWidth() >> level, 1u),
+                            std::max(move.mTo->getHeight() >> level, 1u), 1 } });
+            vkCmdCopyImage(commands, move.mFrom->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                move.mTo->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                static_cast<std::uint32_t>(mMoveRegions.size()), mMoveRegions.data());
+        }
 
         // What was written, as the textures they are, and what a dispatch writes next, out of
-        // `UNDEFINED`.
+        // `UNDEFINED`; what a move read, back as the texture a frame in flight may still sample.
         for (const Upload& upload : mUploads)
             upload.mImage->addTransition(barriers, Use::sCopyWrite, Use::sTextureSample);
+        for (const Move& move : mMoves)
+        {
+            move.mFrom->addTransition(barriers, Use::sCopyRead, Use::sTextureSample);
+            move.mTo->addTransition(barriers, Use::sCopyWrite, Use::sTextureSample);
+        }
         for (const Spread& spread : mSpreads)
             spread.mSpread->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
         for (const Bake& bake : mBakes)

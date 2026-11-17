@@ -287,6 +287,84 @@ namespace Rtx
             }
         }
 
+        /// **Room is made by what stands moving down, the most bytes first, copied on the device** (`makeRoom`): a
+        /// 128-square ladder of three levels, 65536 + 16384 + 4096 = 86016 bytes, each level painted its own value, and
+        /// a 64-square file of one level, 16384, stand whole. Asked for a byte, the ladder moves a level down, its
+        /// second level copied into the new image's first, 20480 bytes standing and 65536 given back, and it is named
+        /// short with the 86016 it stood before; the file of one level cannot move. Asked for more than the ladder can
+        /// give, it moves no further, 64 square at the floor. A slot an arrival names stays where it is.
+        TEST_F(RtxTextureArrayTest, roomIsMadeByWhatStandsMovingDownCopiedOnTheDevice)
+        {
+            Device& device = getDevice();
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            TextureArrival rooms(device);
+            Batch setup(getPool());
+            TextureArray textures(device, setup, layout, passes, rooms, 2);
+            setup.flush();
+
+            Testing::TestTexture ladder;
+            Testing::paintLevels(ladder, 128, 128, 3, "ladder");
+            for (std::size_t level = 0; level < ladder.mLevels.size(); ++level)
+                std::fill_n(ladder.mBytes.begin() + ladder.mLevels[level].mOffset,
+                    std::size_t{ ladder.mLevels[level].mWidth } * ladder.mLevels[level].mHeight * 4,
+                    static_cast<std::uint8_t>(10 * (level + 1)));
+            ladder.mData.mSlot = 0;
+            Testing::TestTexture single;
+            Testing::paintLevels(single, 64, 64, 1, "single");
+            single.mData.mSlot = 1;
+            {
+                Batch batch(getPool());
+                DeviceAnswer answer;
+                const std::array both{ ladder.mData, single.mData };
+                textures.write(batch, passes, rooms, both, answer, WhenRoomless::Waits, nullptr);
+                batch.flush();
+            }
+            ASSERT_EQ(textures.getHeld().mBytes, 86016u + 16384u);
+
+            DeviceAnswer answer;
+            {
+                Batch batch(getPool());
+                const std::array kept{ ladder.mData };
+                EXPECT_EQ(textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1, .mKeep = kept }, answer), 0u)
+                    << "the ladder kept, and the other cannot move";
+                rooms.record(batch, passes, nullptr);
+                batch.flush();
+            }
+
+            {
+                Batch batch(getPool());
+                EXPECT_EQ(textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1 }, answer), 65536u);
+                rooms.record(batch, passes, nullptr);
+                batch.flush();
+            }
+            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(64u, 64u));
+            EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(64u, 64u)) << "a file of one level";
+            EXPECT_EQ(textures.getHeld().mBytes, 20480u + 16384u);
+            EXPECT_EQ(textures.getHeld().mReduced, 1u);
+            ASSERT_EQ(answer.mShort.size(), 1u);
+            EXPECT_EQ(answer.mShort[0], (ShortTexture{ .mSlot = 0, .mStoodBytes = 20480, .mWholeBytes = 86016 }));
+            EXPECT_EQ(textures.getTexels(0) & Shaders::TEXTURE_TEXELS, 64u * 64u);
+
+            std::vector<std::uint8_t> read;
+            textures.getImage(0).read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read, 0);
+            ASSERT_EQ(read.size(), 64u * 64u * 4u);
+            EXPECT_EQ(read.front(), 20u) << "the ladder's second level, copied on the device";
+            EXPECT_EQ(read.back(), 20u);
+            textures.getImage(0).read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read, 1);
+            EXPECT_EQ(read.front(), 30u) << "its third";
+
+            {
+                Batch batch(getPool());
+                EXPECT_EQ(
+                    textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = std::uint64_t{ 1 } << 30 }, answer), 0u)
+                    << "64 square, the floor";
+                rooms.record(batch, passes, nullptr);
+                batch.flush();
+            }
+            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(64u, 64u));
+        }
+
         /// **The file that stands the most bytes comes down a level first, and of two that stand alike the later slot,
         /// until the arrival fits.** Two of the ladders of `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt`, 21504
         /// bytes whole, 5120 from the second level and 1024 from the third: in 21504 + 5120 bytes the second slot

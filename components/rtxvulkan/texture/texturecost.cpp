@@ -5,6 +5,7 @@
 #include <cassert>
 
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/shaders/shared/bc7.h>
@@ -38,12 +39,17 @@ namespace Rtx
             return texelsOf(shape) * texelBytes(TEXTURE_WRITTEN_FORMAT);
         }
 
-        /// The texels of a spread of a file begun at level `first`: half the side it stands at, to
-        /// one texel.
+        /// The texels of a spread of an image `width` by `height`: half its side, to one texel.
+        VkDeviceSize spreadTexels(const std::uint32_t width, const std::uint32_t height)
+        {
+            return texelsOf(chainTo1x1(std::max(width / 2, 1u), std::max(height / 2, 1u)));
+        }
+
+        /// The same of a file begun at level `first`.
         VkDeviceSize spreadTexels(const TextureData& texture, const std::uint32_t first)
         {
             const MipLevel& top = texture.mLevels[first];
-            return texelsOf(chainTo1x1(std::max(top.mWidth / 2, 1u), std::max(top.mHeight / 2, 1u)));
+            return spreadTexels(top.mWidth, top.mHeight);
         }
     }
 
@@ -61,11 +67,18 @@ namespace Rtx
 
     TextureCost priceFile(const TextureData& texture, const std::uint32_t first)
     {
+        return priceShape(texture.mFormat, shapeOf(texture, first), texture.getCompanion() == TextureCompanion::Spread);
+    }
+
+    TextureCost priceShape(const TextureFormat format, const ImageShape& shape, const bool spread)
+    {
+        const TexelLayout layout = layoutOf(format);
+        VkDeviceSize image = 0;
+        for (std::uint32_t level = 0; level < shape.mLevels; ++level)
+            image += layout.levelBytes(std::max(shape.mWidth >> level, 1u), std::max(shape.mHeight >> level, 1u));
         return TextureCost{
-            .mImage = texture.bytesFrom(first),
-            .mCompanion = texture.getCompanion() == TextureCompanion::Spread
-                ? spreadTexels(texture, first) * texelBytes(NORMAL_SPREAD_FORMAT)
-                : 0,
+            .mImage = image,
+            .mCompanion = spread ? spreadTexels(shape.mWidth, shape.mHeight) * texelBytes(NORMAL_SPREAD_FORMAT) : 0,
         };
     }
 

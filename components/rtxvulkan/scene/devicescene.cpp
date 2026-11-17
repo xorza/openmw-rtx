@@ -131,6 +131,12 @@ namespace Rtx
         return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables, timer);
     }
 
+    void DeviceScene::makeTextureRoom(Batch& batch, TextureArrival& arrival, const VkDeviceSize bytes)
+    {
+        mTextures.makeRoom(arrival, TextureArray::RoomAsk{ .mBytes = bytes, .mKeep = {}, .mCopyMost = bytes }, mAnswer);
+        arrival.record(batch, mPasses.mTextures, nullptr);
+    }
+
     void DeviceScene::extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene,
         std::span<const TextureData> arrived, const WhenRoomless whenRoomless, GpuTimer* const timer)
     {

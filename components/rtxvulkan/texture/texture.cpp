@@ -188,6 +188,44 @@ namespace Rtx
             arrival.spread(mImage, mCompanion);
 
         mBytes = priceFile(data, first).standing();
+        mFormat = data.mFormat;
+        return {};
+    }
+
+    Result<void, MemoryRefusal> Texture::standMovedDown(const Device& device, TextureArrival& arrival,
+        const Texture& from, const std::uint32_t dropped, std::string_view name, const MemoryUse use)
+    {
+        assert(isEmpty() && "a texture stood over one that stands");
+        assert(!from.isEmpty() && "a move of a texture that does not stand");
+        assert(dropped > 0 && dropped < from.mImage.getMipLevels() && "a move past the texture's last level");
+
+        const ImageShape shape{ .mWidth = from.mImage.getWidthAt(dropped),
+            .mHeight = from.mImage.getHeightAt(dropped),
+            .mLevels = from.mImage.getMipLevels() - dropped };
+        const bool spread = from.hasCompanion();
+        Result<Image, MemoryRefusal> companion
+            = spread ? makeSpreadMap(device, name, use, shape.mWidth, shape.mHeight) : Image();
+        if (!companion.isOk())
+            return Err{ companion.error() };
+
+        Result<Image, MemoryRefusal> image = Image::tryMake(use, device,
+            ImageDescription{ .mWidth = shape.mWidth,
+                .mHeight = shape.mHeight,
+                .mFormat = from.mImage.getFormat(),
+                .mUsage = sUploadedTextureUsage,
+                .mMipLevels = shape.mLevels },
+            name);
+        if (!image.isOk())
+            return Err{ image.error() };
+
+        mWrap = from.mWrap;
+        mFormat = from.mFormat;
+        mImage = std::move(image.value());
+        mCompanion = std::move(companion.value());
+        arrival.moveDown(from.mImage, dropped, mImage);
+        if (spread)
+            arrival.spread(mImage, mCompanion);
+        mBytes = priceShape(mFormat, shape, spread).standing();
         return {};
     }
 
@@ -367,7 +405,20 @@ namespace Rtx
         for (const TextureData& texture : arrived)
             reserveSlot(texture.mSlot);
 
-        chooseLevels(arrived, mDevice.getMemory().getRoom(MemoryUse::Texture), arrival, mFirsts);
+        // What the last write moved out of: the batch that copied from it has gone to the queue since.
+        mMovedFrom.clear();
+
+        // **Room made for an arrival the room does not hold whole by what stands moving down**, before it is held
+        // smaller: what moves gives its room back once the frames that sample it are done, and the arrival stood short
+        // meanwhile is handed over whole again then (`SceneUploader`).
+        const VkDeviceSize room = mDevice.getMemory().getRoom(MemoryUse::Texture);
+        mFullFirsts.assign(arrived.size(), 0);
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+            if (arrived[at].mSource == TextureSource::File)
+                mFullFirsts[at] = arrived[at].firstLevelWithin(mSideLimit).value_or(0);
+        if (const VkDeviceSize whole = costAt(arrived, mFullFirsts, true, arrival); whole > room)
+            makeRoom(arrival, RoomAsk{ .mBytes = whole - room, .mKeep = arrived }, answer);
+        chooseLevels(arrived, room, arrival, mFirsts);
 
         std::uint32_t held = 0;
         std::uint32_t deepest = 0;
@@ -719,18 +770,88 @@ namespace Rtx
                 .mOutput = texture.mSource == TextureSource::GroundGloss ? Shaders::GROUND_COMPOSITE_GLOSS
                                                                          : Shaders::GROUND_COMPOSITE_ALBEDO });
 
+        owe(texture.mSlot);
+    }
+
+    void TextureArray::owe(const std::uint32_t at)
+    {
         // How many texels the slot now holds, for `coneLod`, the wrap that picks its sampler, and
         // whether they are the stand-in's, which every reader of an optional map asks —
         // `TEXTURE_STANDS_IN`. Owed to every copy beside the descriptor owed to every set.
+        const Slot& slot = mSlots[at];
         const Texture& standing = standingIn(slot);
         const std::uint32_t texels = standing.getImage().getWidth() * standing.getImage().getHeight();
         assert(texels <= Shaders::TEXTURE_TEXELS && "a texel count that reaches the wrap");
-        mTexels.write(texture.mSlot) = texels
-            | (static_cast<std::uint32_t>(standing.getWrap()) << Shaders::TEXTURE_WRAP_SHIFT)
+        mTexels.write(at) = texels | (static_cast<std::uint32_t>(standing.getWrap()) << Shaders::TEXTURE_WRAP_SHIFT)
             | (slot.mStandIn ? Shaders::TEXTURE_STANDS_IN : 0u);
 
         for (SlotSet& owed : mOwed.live())
-            owed.addMakingRoom(texture.mSlot);
+            owed.addMakingRoom(at);
+    }
+
+    VkDeviceSize TextureArray::makeRoom(TextureArrival& arrival, const RoomAsk& ask, DeviceAnswer& answer)
+    {
+        const VkDeviceSize bytes = ask.mBytes;
+        const std::span<const TextureData> keep = ask.mKeep;
+        mMovable.clear();
+        for (std::uint32_t at = 0; at < mSlots.size(); ++at)
+        {
+            const Slot& slot = mSlots[at];
+            if (slot.mStandIn || slot.mTexture.isEmpty() || slot.mSource != TextureSource::File)
+                continue;
+            if (std::ranges::any_of(keep, [&](const TextureData& texture) { return texture.mSlot == at; }))
+                continue;
+            mMovable.push_back(Movable{ .mStanding = slot.mTexture.getBytes(), .mSlot = at });
+        }
+        const auto lessStanding = [](const Movable& left, const Movable& right) {
+            return std::tie(left.mStanding, left.mSlot) < std::tie(right.mStanding, right.mSlot);
+        };
+        std::ranges::make_heap(mMovable, lessStanding);
+
+        std::string name;
+        VkDeviceSize freed = 0;
+        VkDeviceSize copied = 0;
+        while (freed < bytes && copied < ask.mCopyMost && !mMovable.empty())
+        {
+            std::ranges::pop_heap(mMovable, lessStanding);
+            const std::uint32_t at = mMovable.back().mSlot;
+            mMovable.pop_back();
+            Slot& slot = mSlots[at];
+            const Image& image = slot.mTexture.getImage();
+            if (image.getMipLevels() < 2 || std::max(image.getWidthAt(1), image.getHeightAt(1)) < sMoveFloorSide)
+                continue;
+
+            if constexpr (sDebugNames)
+                name = "texture " + std::to_string(at);
+
+            // **The old one where it stays, and the new one made in the slot**, since the arrival's work names both
+            // images by where they stand: a texture moved after it was named was a barrier on what moved out.
+            // **The bytes it stood before, as its file's**: the owner hands it over whole again once the room holds
+            // that much, and a texture that came smaller still asks the room its file needs then.
+            const VkDeviceSize before = slot.mTexture.getBytes();
+            forget(slot);
+            mMovedFrom.push_back(std::move(slot.mTexture));
+            slot.mTexture = Texture();
+            if (!slot.mTexture.standMovedDown(mDevice, arrival, mMovedFrom.back(), 1, name, MemoryUse::Texture).isOk())
+            {
+                slot.mTexture = std::move(mMovedFrom.back());
+                mMovedFrom.pop_back();
+                count(slot);
+                break;
+            }
+            slot.mReduced = true;
+            count(slot);
+            owe(at);
+            freed += before - slot.mTexture.getBytes();
+            copied += slot.mTexture.getBytes();
+            answer.mShort.push_back(
+                ShortTexture{ .mSlot = at, .mStoodBytes = slot.mTexture.getBytes(), .mWholeBytes = before });
+            answer.mTextureFits.push_back(FitBytes{ .mSlot = at, .mBytes = slot.mTexture.getImage().getMemoryBytes() });
+
+            mMovable.push_back(Movable{ .mStanding = slot.mTexture.getBytes(), .mSlot = at });
+            std::ranges::push_heap(mMovable, lessStanding);
+        }
+        return freed;
     }
 
     VkDescriptorSet TextureArray::getSet(const FrameSlot slot) const
@@ -962,6 +1083,12 @@ namespace Rtx
         assert(slot < mSlots.size() && "the extent of a slot the array does not have");
         const Image& image = standingIn(mSlots[slot]).getImage();
         return Shaders::uvec2(image.getWidth(), image.getHeight());
+    }
+
+    const Image& TextureArray::getImage(const std::uint32_t slot) const
+    {
+        assert(slot < mSlots.size() && "the image of a slot the array does not have");
+        return standingIn(mSlots[slot]).getImage();
     }
 
     void TextureArray::forget(const Slot& slot)

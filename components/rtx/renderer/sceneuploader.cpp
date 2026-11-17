@@ -152,13 +152,16 @@ namespace Rtx
                 known->mRead = PreparedImage{};
                 continue;
             }
+            // What the file asks of the room: as this hand-over described it, or, for a texture the device moved down
+            // to make room, the bytes it stood before (`DeviceAnswer::mShort`).
             const auto described = std::ranges::find(mTextures.getStood(), stood.mSlot, &SceneTextures::Stood::mSlot);
-            assert(described != mTextures.getStood().end() && "a texture stood short this hand-over did not describe");
+            assert((described != mTextures.getStood().end() || stood.mWholeBytes > 0)
+                && "a texture stood short this hand-over did not describe and did not move");
             const osg::Image* const file = textures.getRows()[stood.mSlot].mImage.get();
             assert(file != nullptr && "a texture stood short with no file to hand over again");
             mTextureWaits.push_back(TextureWait{ .mSlot = stood.mSlot,
                 .mSource = file,
-                .mFileBytes = described->mBytes,
+                .mFileBytes = described != mTextures.getStood().end() ? described->mBytes : stood.mWholeBytes,
                 .mStoodBytes = stood.mStoodBytes,
                 .mWaited = 0,
                 .mReading = false,

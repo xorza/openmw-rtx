@@ -33,6 +33,10 @@ namespace Rtx
         Index mSlot = sNoIndex;
         std::uint64_t mStoodBytes = 0;
 
+        /// What it stood before it moved down to make room (`TextureArray::makeRoom`), which the hand-over that moved
+        /// it did not describe; nought for a texture the hand-over stood short as it arrived.
+        std::uint64_t mWholeBytes = 0;
+
         bool operator==(const ShortTexture& other) const = default;
     };
 

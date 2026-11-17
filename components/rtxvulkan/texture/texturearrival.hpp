@@ -45,6 +45,12 @@ namespace Rtx
         /// `image` by `regions`, whose offsets are into `staged`. `image` is met undefined.
         void upload(const StagingRun& staged, const Image& image, std::span<const VkBufferImageCopy> regions);
 
+        /// Copies `from`'s levels past its first `dropped` into `to`, every level `to` holds: a texture moved to a
+        /// smaller side on the device, nothing read from the host (`Texture::standMovedDown`). `from` is met as a
+        /// texture the trace samples and left as one, since a frame in flight may still sample it; `to` is met
+        /// undefined.
+        void moveDown(const Image& from, std::uint32_t dropped, const Image& to);
+
         /// `NormalSpreadPass` of `map` into `spread`, met undefined, through the run's means.
         void spread(const Image& map, const Image& spread);
 
@@ -85,6 +91,13 @@ namespace Rtx
             const Image* mSpread;
         };
 
+        struct Move
+        {
+            const Image* mFrom;
+            std::uint32_t mDropped;
+            const Image* mTo;
+        };
+
         struct Bake
         {
             const Image* mSource;
@@ -103,7 +116,11 @@ namespace Rtx
         /// The copies' regions, every upload's in one run, moved along by where its bytes landed.
         std::vector<VkBufferImageCopy> mRegions;
 
+        /// One move's levels at a time, refilled for each.
+        std::vector<VkImageCopy> mMoveRegions;
+
         std::vector<Upload> mUploads;
+        std::vector<Move> mMoves;
         std::vector<Spread> mSpreads;
         std::vector<Bake> mBakes;
 

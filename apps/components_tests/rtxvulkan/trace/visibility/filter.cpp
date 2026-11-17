@@ -498,9 +498,9 @@ namespace Rtx::Testing
             EXPECT_GT(held(bright), lit) << "a held eye adapted to the bright sky";
 
             // A new extent keeps the eye: an eye adapted to the bright sky meets the dim one past two upscale
-            // modes barely moved, where an eye that lost its past would start again at a day. The modes' reserves
-            // are released and built again in between, as the uploader does, under a budget a byte short of the
-            // textures' ceiling at the heap, so whichever mode grows the reserve finds content past what it leaves.
+            // modes barely moved, where an eye that lost its past would start again at a day. Under a budget a byte
+            // short of the textures' ceiling at the heap, whichever mode grows the reserve finds content past what it
+            // leaves, and the world stays, its textures moved down for the room.
             EXPECT_EQ(settle(bright), lit);
             {
                 MemoryAllocator& memory = mProbe.getDevice().getMemory();
@@ -508,9 +508,8 @@ namespace Rtx::Testing
                 mRenderer.setUpscale(Upscale::Quality);
                 mRenderer.setUpscale(Upscale::Off);
             }
-            ASSERT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, 0u)
-                << "neither mode grew the reserve past what content left, so nothing here was built again";
-            mRenderer.setScene(Rtx::SceneSlot::world(), sky, {});
+            ASSERT_NE(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, 0u)
+                << "a reserve that grew past what content left built the world again";
             EXPECT_LT(shot(dim), 0.5 * adapted) << "a new extent snapped the eye";
 
             // **And a new world loses it, whatever frame comes first**: a held frame after the world

@@ -342,7 +342,10 @@ namespace Rtx
         /// buried left out (`getVideoBudget`); what rests is the core's, and counted. Asks the
         /// driver's budget as the library last read it, so after `refreshBudget` for an answer
         /// about now.
-        bool contentFits() const;
+        bool contentFits() const { return getContentOver() == 0; }
+
+        /// What content holds past that ceiling, nought where it fits (`contentFits`).
+        VkDeviceSize getContentOver() const;
 
         /// What `reserveFrame` was last told.
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }

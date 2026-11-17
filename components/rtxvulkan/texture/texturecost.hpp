@@ -7,6 +7,7 @@
 namespace Rtx
 {
     struct TextureData;
+    enum class TextureFormat : std::uint8_t;
 
     /// The extent and the level count of the image a texture stands as.
     struct ImageShape
@@ -38,6 +39,10 @@ namespace Rtx
 
     /// What a file costs, begun at level `first`, as `Texture::standFile` makes it.
     TextureCost priceFile(const TextureData& texture, std::uint32_t first);
+
+    /// What an image of `format` and `shape` costs, its companion a spread where `spread` says: a file's at the shape
+    /// it stands as (`priceFile`), and one moved to a smaller side (`Texture::standMovedDown`).
+    TextureCost priceShape(TextureFormat format, const ImageShape& shape, bool spread);
 
     /// The bytes of float means a file's spread is built through, begun at level `first`: every
     /// level of the spread, and nought for a file with none.

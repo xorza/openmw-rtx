@@ -594,13 +594,15 @@ namespace Rtx
         mFrameReserve = bytes;
     }
 
-    bool MemoryAllocator::contentFits() const
+    VkDeviceSize MemoryAllocator::getContentOver() const
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         // What the process holds and keeps (`getVideoBudget`): the pools' and the storages' free runs and what is
         // buried are content's to take again, and a load would stand none of them.
-        return getVideoBudget().mHeld <= ceilingOf(mContent.mHeap, MemoryUse::Texture, budgets[mContent.mHeap].budget);
+        const VkDeviceSize held = getVideoBudget().mHeld;
+        const VkDeviceSize ceiling = ceilingOf(mContent.mHeap, MemoryUse::Texture, budgets[mContent.mHeap].budget);
+        return held - std::min(held, ceiling);
     }
 
     void MemoryAllocator::limitBudget(const std::optional<VkDeviceSize> bytes)
