@@ -79,6 +79,11 @@ namespace Rtx
         Refit,
     };
 
+    /// **A storage's block for a scene opened at no room**, a picture's or a view's, which holds a handful of models:
+    /// content's 64 MiB block for each of its two storages took 128 MiB for a picture of one room. A structure past it
+    /// is a block of its own size, as past any block.
+    inline constexpr VkDeviceSize sSmallSceneBlockBytes = VkDeviceSize{ 4 } << 20;
+
     /// One bottom-level acceleration structure per mesh, inside storage buffers at offsets, and the
     /// compaction that keeps them tight: a structure is built loose, the driver is asked what a tight
     /// copy would come to, and the copy is made in the storage that keeps it.
@@ -97,8 +102,9 @@ namespace Rtx
 
         /// @param buildRoom what one run of `build` may work in: `sStructureBuildRoom`, and less for
         ///        a test that splits a few meshes into runs.
-        /// @param blockBytes how large a block of either storage is made: content's block, and a unit
-        ///        for a test whose every structure is a block of its own size.
+        /// @param blockBytes how large a block of either storage is made: content's block for a world, a
+        ///        small scene's for a scene opened at no room (`sSmallSceneBlockBytes`), and a unit for a test
+        ///        whose every structure is a block of its own size.
         explicit BottomLevelStore(const Device& device, VkDeviceSize buildRoom = sStructureBuildRoom,
             VkDeviceSize blockBytes = sContentBlockBytes);
 

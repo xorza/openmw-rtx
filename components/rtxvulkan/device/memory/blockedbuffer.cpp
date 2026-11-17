@@ -1,6 +1,6 @@
 #include "blockedbuffer.hpp"
 
-#include <algorithm>
+#include <array>
 #include <string>
 #include <utility>
 
@@ -40,8 +40,17 @@ namespace Rtx
     {
         assert(mDevice != nullptr && "a blocked buffer written before it was opened");
 
-        const std::uint32_t wanted
-            = std::max(1u, static_cast<std::uint32_t>(alignUp(elements, mBlockSize) / mBlockSize));
+        // **A first block only once a run lands**: a stream no mesh of the scene carries, the second texture
+        // coordinates of every picture's scene, holds no block, which no shader reads where no run names it. Its table
+        // is one null address, so every table a frame names is a buffer.
+        const auto wanted = static_cast<std::uint32_t>(alignUp(elements, mBlockSize) / mBlockSize);
+        if (wanted == 0 && mTable.isEmpty())
+        {
+            constexpr std::array<VkDeviceAddress, 1> sNone{};
+            mTable = uploadBuffer(
+                batch, std::span<const VkDeviceAddress>(sNone), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, mTableName);
+            return;
+        }
         if (wanted <= mBlocks.size())
             return;
 

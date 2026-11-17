@@ -35,7 +35,8 @@ namespace Rtx
 
         const std::size_t sharedBlocks = mShared.getAddresses().size();
         const std::size_t ownBlocks = mOwn.at(FrameSlot{}).getAddresses().size();
-        if (sharedBlocks == mJoinedShared && ownBlocks == mJoinedOwn)
+        // Joined at least once, so a scene whose blocks no run reached yet still names a table of null blocks.
+        if (sharedBlocks == mJoinedShared && ownBlocks == mJoinedOwn && !mTables.at(FrameSlot{}).isEmpty())
             return;
 
         // A block past `ownFirst` would resolve two ids to one place. The ids are vertices, and the

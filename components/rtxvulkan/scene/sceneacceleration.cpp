@@ -76,7 +76,7 @@ namespace Rtx
         , mPlacementRoom(placementRoom)
         , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage")
         , mPacked(device, BufferKind::DeviceLocal, sBuildInputUsage, "instances packed")
-        , mBottomLevel(device)
+        , mBottomLevel(device, sStructureBuildRoom, placementRoom > 0 ? sContentBlockBytes : sSmallSceneBlockBytes)
         , mRefitScratch(device, BufferKind::DeviceLocal, sScratchUsage, "refit scratch")
         , mTopLevelScratch(device, BufferKind::DeviceLocal, sScratchUsage, "top level scratch")
     {
