@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/ref_ptr>
 
 namespace osg
@@ -12,9 +14,9 @@ namespace osg
 namespace SceneUtil
 {
 
-    osg::ref_ptr<osg::Uniform> createTexMatUniform(unsigned int texUnit, const osg::Matrixf& mat);
+    osg::ref_ptr<osg::Uniform> createTexMatUniform(std::uint32_t texUnit, const osg::Matrixf& mat);
 
-    void setupTexMatForStateSet(osg::StateSet& stateset, unsigned int texUnit, const osg::Matrixf& mat);
+    void setupTexMatForStateSet(osg::StateSet& stateset, std::uint32_t texUnit, const osg::Matrixf& mat);
 
     void initTexMatForStateSet(osg::StateSet& stateset);
 

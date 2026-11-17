@@ -1,7 +1,8 @@
-#include <QIcon>
-#include <QSurfaceFormat>
+#include <cstdint>
 #include <string>
 
+#include <QIcon>
+#include <QSurfaceFormat>
 #include <osg/DisplaySettings>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -28,9 +29,9 @@ namespace
         format.setRenderableType(QSurfaceFormat::OpenGL);
         format.setDepthBufferSize(24);
         format.setSamples(ds->getMultiSamples());
-        format.setStencilBufferSize(static_cast<int>(ds->getMinimumNumStencilBits()));
+        format.setStencilBufferSize(static_cast<std::int32_t>(ds->getMinimumNumStencilBits()));
         format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
-        format.setAlphaBufferSize(static_cast<int>(ds->getMinimumNumAlphaBits()));
+        format.setAlphaBufferSize(static_cast<std::int32_t>(ds->getMinimumNumAlphaBits()));
         QSurfaceFormat::setDefaultFormat(format);
     }
 }
@@ -38,7 +39,7 @@ namespace
 // Qt's Q_INIT_RESOURCE declares its function in the caller's namespace, where an unnamed one would hide the
 // definition the resource compiler gives the global one.
 // NOLINTNEXTLINE(misc-use-anonymous-namespace)
-static int runApplication(int argc, char* argv[])
+static std::int32_t runApplication(std::int32_t argc, char* argv[])
 {
     Platform::init();
 
@@ -76,7 +77,7 @@ static int runApplication(int argc, char* argv[])
     return editor.run();
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     return Debug::wrapApplication(&runApplication, argc, argv, "OpenMW-CS");
 }

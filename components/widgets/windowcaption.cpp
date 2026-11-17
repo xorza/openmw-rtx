@@ -1,5 +1,6 @@
 #include "windowcaption.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 namespace Gui
@@ -48,7 +49,7 @@ namespace Gui
         MyGUI::Widget* caption = mClient;
         caption->setSize(textSize.width + 24, caption->getHeight());
 
-        int barwidth = (getWidth() - caption->getWidth()) / 2;
+        std::int32_t barwidth = (getWidth() - caption->getWidth()) / 2;
         caption->setPosition(barwidth, caption->getTop());
         if (mLeft)
             mLeft->setCoord(0, mLeft->getTop(), barwidth, mLeft->getHeight());

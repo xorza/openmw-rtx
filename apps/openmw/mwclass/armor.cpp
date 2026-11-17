@@ -1,6 +1,7 @@
 #include "armor.hpp"
 
 #include <cmath>
+#include <cstdint>
 
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
@@ -64,7 +65,7 @@ namespace MWClass
         return true;
     }
 
-    int Armor::getItemMaxHealth(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Armor::getItemMaxHealth(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Armor>* ref = ptr.get<ESM::Armor>();
 
@@ -78,15 +79,15 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    std::pair<std::vector<int>, bool> Armor::getEquipmentSlots(const MWWorld::ConstPtr& ptr) const
+    std::pair<std::vector<std::int32_t>, bool> Armor::getEquipmentSlots(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Armor>* ref = ptr.get<ESM::Armor>();
 
-        std::vector<int> slots;
+        std::vector<std::int32_t> slots;
 
-        const int size = 11;
+        const std::int32_t size = 11;
 
-        static const int sMapping[size][2] = { { ESM::Armor::Helmet, MWWorld::InventoryStore::Slot_Helmet },
+        static const std::int32_t sMapping[size][2] = { { ESM::Armor::Helmet, MWWorld::InventoryStore::Slot_Helmet },
             { ESM::Armor::Cuirass, MWWorld::InventoryStore::Slot_Cuirass },
             { ESM::Armor::LPauldron, MWWorld::InventoryStore::Slot_LeftPauldron },
             { ESM::Armor::RPauldron, MWWorld::InventoryStore::Slot_RightPauldron },
@@ -182,7 +183,7 @@ namespace MWClass
             return ESM::Skill::HeavyArmor;
     }
 
-    int Armor::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Armor::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Armor>* ref = ptr.get<ESM::Armor>();
 
@@ -225,7 +226,7 @@ namespace MWClass
         return ref->mBase->mIcon.getNormalized();
     }
 
-    MWGui::ToolTipInfo Armor::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Armor::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Armor>* ref = ptr.get<ESM::Armor>();
 
@@ -259,9 +260,9 @@ namespace MWClass
 
         text += "\n#{sArmorRating}: "
             + MWGui::ToolTips::toString(
-                static_cast<int>(getSkillAdjustedArmorRating(ptr, MWMechanics::getPlayer(), true)));
+                static_cast<std::int32_t>(getSkillAdjustedArmorRating(ptr, MWMechanics::getPlayer(), true)));
 
-        int remainingHealth = getItemHealth(ptr);
+        std::int32_t remainingHealth = getItemHealth(ptr);
         text += "\n#{sCondition}: " + MWGui::ToolTips::toString(remainingHealth) + "/"
             + MWGui::ToolTips::toString(ref->mBase->mData.mHealth);
 
@@ -282,7 +283,7 @@ namespace MWClass
 
         info.enchant = ref->mBase->mEnchant;
         if (!info.enchant.empty())
-            info.remainingEnchantCharge = static_cast<int>(ptr.getCellRef().getEnchantmentCharge());
+            info.remainingEnchantCharge = static_cast<std::int32_t>(ptr.getCellRef().getEnchantmentCharge());
 
         info.text = std::move(text);
 
@@ -296,8 +297,8 @@ namespace MWClass
         return ref->mBase->mEnchant;
     }
 
-    const ESM::RefId& Armor::applyEnchantment(
-        const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId, int enchCharge, const std::string& newName) const
+    const ESM::RefId& Armor::applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId,
+        std::int32_t enchCharge, const std::string& newName) const
     {
         const MWWorld::LiveCellRef<ESM::Armor>* ref = ptr.get<ESM::Armor>();
 
@@ -331,11 +332,11 @@ namespace MWClass
         const ESM::RefId armorSkillType = getEquipmentSkill(ptr, useLuaInterfaceIfAvailable);
         float armorSkill = actor.getClass().getSkill(actor, armorSkillType);
 
-        int iBaseArmorSkill = MWBase::Environment::get()
-                                  .getESMStore()
-                                  ->get<ESM::GameSetting>()
-                                  .find("iBaseArmorSkill")
-                                  ->mValue.getInteger();
+        std::int32_t iBaseArmorSkill = MWBase::Environment::get()
+                                           .getESMStore()
+                                           ->get<ESM::GameSetting>()
+                                           .find("iBaseArmorSkill")
+                                           ->mValue.getInteger();
 
         if (ref->mBase->mData.mWeight == 0)
             return static_cast<float>(ref->mBase->mData.mArmor);
@@ -343,7 +344,8 @@ namespace MWClass
             return static_cast<float>(ref->mBase->mData.mArmor) * armorSkill / static_cast<float>(iBaseArmorSkill);
     }
 
-    std::pair<int, std::string_view> Armor::canBeEquipped(const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const
+    std::pair<std::int32_t, std::string_view> Armor::canBeEquipped(
+        const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const
     {
         const MWWorld::InventoryStore& invStore = npc.getClass().getInventoryStore(npc);
 
@@ -351,7 +353,7 @@ namespace MWClass
             return { 0, "#{sInventoryMessage1}" };
 
         // slots that this item can be equipped in
-        std::pair<std::vector<int>, bool> slots = getEquipmentSlots(ptr);
+        std::pair<std::vector<std::int32_t>, bool> slots = getEquipmentSlots(ptr);
 
         if (slots.first.empty())
             return { 0, {} };
@@ -376,7 +378,7 @@ namespace MWClass
             }
         }
 
-        for (int& slot : slots.first)
+        for (std::int32_t& slot : slots.first)
         {
             // If equipping a shield, check if there's a twohanded weapon conflicting with it
             if (slot == MWWorld::InventoryStore::Slot_CarriedLeft)
@@ -412,14 +414,14 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
-    int Armor::getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Armor::getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Armor>* ref = ptr.get<ESM::Armor>();
 
         return ref->mBase->mData.mEnchant;
     }
 
-    bool Armor::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Armor::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::Armor)
             || ((npcServices & ESM::NPC::MagicItems) && !getEnchantment(item).empty());

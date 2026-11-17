@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QWidget>
 
 #include <components/contentselector/view/combobox.hpp>
@@ -22,7 +24,7 @@ public:
 public:
     explicit ProfilesComboBox(QWidget* parent = nullptr);
     void setEditEnabled(bool editable);
-    void setCurrentProfile(int index)
+    void setCurrentProfile(std::int32_t index)
     {
         ComboBox::setCurrentIndex(index);
         mOldProfile = currentText();
@@ -31,13 +33,13 @@ public:
 signals:
     void signalProfileTextChanged(const QString& item);
     void signalProfileChanged(const QString& previous, const QString& current);
-    void signalProfileChanged(int index);
+    void signalProfileChanged(std::int32_t index);
     void profileRenamed(const QString& oldName, const QString& newName);
 
 private slots:
 
     void slotEditingFinished();
-    void slotIndexChangedByUser(int index);
+    void slotIndexChangedByUser(std::int32_t index);
     void slotTextChanged(const QString& text);
 
 private:

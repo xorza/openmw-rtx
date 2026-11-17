@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace MWClass
@@ -12,7 +14,7 @@ namespace MWClass
 
         MWWorld::Ptr copyToCellImpl(const MWWorld::ConstPtr& ptr, MWWorld::CellStore& cell) const override;
 
-        static int getSndGenTypeFromName(std::string_view name);
+        static std::int32_t getSndGenTypeFromName(std::string_view name);
 
     public:
         void insertObjectRendering(const MWWorld::Ptr& ptr, const std::string& model,
@@ -31,7 +33,7 @@ namespace MWClass
         bool hasToolTip(const MWWorld::ConstPtr& ptr) const override;
         ///< @return true if this object has a tooltip when focused (default implementation: true)
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
         ESM::RefId getScript(const MWWorld::ConstPtr& ptr) const override;

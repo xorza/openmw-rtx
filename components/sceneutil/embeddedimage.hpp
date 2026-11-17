@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <typeinfo>
@@ -43,7 +44,7 @@ namespace SceneUtil
         std::string_view getKey() const { return mKey; }
 
         /// Stamps `image`, which `model` carries as its record `record`.
-        static void stamp(osg::Image& image, std::string_view model, unsigned int record)
+        static void stamp(osg::Image& image, std::string_view model, std::uint32_t record)
         {
             image.setUserData(new EmbeddedImage(std::string(model) + "#" + std::to_string(record)));
         }

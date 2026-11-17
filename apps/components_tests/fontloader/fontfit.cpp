@@ -1,4 +1,5 @@
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <initializer_list>
 #include <string>
@@ -41,9 +42,9 @@ namespace Gui
         /// What a font's rasterization comes to, as far as anything drawn with it reads.
         struct Raster
         {
-            int mHeight = 0;
-            int mAtlasWidth = 0;
-            int mAtlasHeight = 0;
+            std::int32_t mHeight = 0;
+            std::int32_t mAtlasWidth = 0;
+            std::int32_t mAtlasHeight = 0;
             MyGUI::GlyphInfo mA;
 
             bool operator==(const Raster& other) const

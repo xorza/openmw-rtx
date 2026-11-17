@@ -1,5 +1,7 @@
 #include "rtt.hpp"
 
+#include <cstdint>
+
 #include <osg/Texture2D>
 #include <osg/Texture2DArray>
 #include <osgUtil/CullVisitor>
@@ -23,8 +25,9 @@ namespace SceneUtil
         };
     }
 
-    RTTNode::RTTNode(uint32_t textureWidth, uint32_t textureHeight, uint32_t samples, bool generateMipmaps,
-        int renderOrderNum, StereoAwareness stereoAwareness, bool addMSAAIntermediateTarget)
+    RTTNode::RTTNode(std::uint32_t textureWidth, std::uint32_t textureHeight, std::uint32_t samples,
+        bool generateMipmaps, std::int32_t renderOrderNum, StereoAwareness stereoAwareness,
+        bool addMSAAIntermediateTarget)
         : mTextureWidth(textureWidth)
         , mTextureHeight(textureHeight)
         , mSamples(samples)
@@ -112,7 +115,8 @@ namespace SceneUtil
     osg::Texture2DArray* RTTNode::createTextureArray(GLint internalFormat)
     {
         auto* textureArray = new osg::Texture2DArray;
-        textureArray->setTextureSize(static_cast<int>(mTextureWidth), static_cast<int>(mTextureHeight), 2);
+        textureArray->setTextureSize(
+            static_cast<std::int32_t>(mTextureWidth), static_cast<std::int32_t>(mTextureHeight), 2);
         textureArray->setInternalFormat(internalFormat);
         GLenum sourceFormat = 0;
         GLenum sourceType = 0;
@@ -137,7 +141,7 @@ namespace SceneUtil
     osg::Texture2D* RTTNode::createTexture(GLint internalFormat)
     {
         auto* texture = new osg::Texture2D;
-        texture->setTextureSize(static_cast<int>(mTextureWidth), static_cast<int>(mTextureHeight));
+        texture->setTextureSize(static_cast<std::int32_t>(mTextureWidth), static_cast<std::int32_t>(mTextureHeight));
         texture->setInternalFormat(internalFormat);
         GLenum sourceFormat = 0;
         GLenum sourceType = 0;
@@ -191,7 +195,8 @@ namespace SceneUtil
             camera->setRenderOrder(osg::Camera::PRE_RENDER, mRenderOrderNum);
             camera->setClearMask(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
-            camera->setViewport(0, 0, static_cast<int>(mTextureWidth), static_cast<int>(mTextureHeight));
+            camera->setViewport(
+                0, 0, static_cast<std::int32_t>(mTextureWidth), static_cast<std::int32_t>(mTextureHeight));
             SceneUtil::setCameraClearDepth(camera);
 
             camera->getOrCreateStateSet()->addUniform(new osg::Uniform(

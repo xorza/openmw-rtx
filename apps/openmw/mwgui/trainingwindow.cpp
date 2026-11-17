@@ -1,5 +1,8 @@
 #include "trainingwindow.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_TextIterator.h>
@@ -61,7 +64,7 @@ namespace MWGui
         mPtr = actor;
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
         mPlayerGold->setCaptionWithReplacing("#{sGold}: " + MyGUI::utility::toString(playerGold));
 
@@ -70,7 +73,7 @@ namespace MWGui
         const MWWorld::Store<ESM::Skill>& skillStore = store->get<ESM::Skill>();
 
         // NPC can train you in their best 3 skills
-        constexpr size_t maxSkills = 3;
+        constexpr std::size_t maxSkills = 3;
         std::vector<std::pair<const ESM::Skill*, float>> skills;
         skills.reserve(maxSkills);
 
@@ -105,13 +108,13 @@ namespace MWGui
 
         MWMechanics::NpcStats& pcStats = player.getClass().getNpcStats(player);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
         mTrainingButtons.clear();
-        for (size_t i = 0; i < skills.size(); ++i)
+        for (std::size_t i = 0; i < skills.size(); ++i)
         {
             const ESM::Skill* skill = skills[i].first;
-            int price = static_cast<int>(pcStats.getSkill(skill->mId).getBase()
+            auto price = static_cast<std::int32_t>(pcStats.getSkill(skill->mId).getBase()
                 * static_cast<float>(gmst.find("iTrainingMod")->mValue.getInteger()));
             price = std::max(1, price);
             price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
@@ -119,7 +122,7 @@ namespace MWGui
             auto* button = mTrainingOptions->createWidget<MyGUI::Button>(price <= playerGold
                     ? "SandTextButton"
                     : "SandTextButtonDisabled", // can't use setEnabled since that removes tooltip
-                MyGUI::IntCoord(4, static_cast<int>(3 + i * static_cast<std::size_t>(lineHeight)),
+                MyGUI::IntCoord(4, static_cast<std::int32_t>(3 + i * static_cast<std::size_t>(lineHeight)),
                     mTrainingOptions->getWidth() - 10, lineHeight),
                 MyGUI::Align::Default);
 
@@ -166,7 +169,7 @@ namespace MWGui
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
-        int price = static_cast<int>(pcStats.getSkill(skill->mId).getBase()
+        auto price = static_cast<std::int32_t>(pcStats.getSkill(skill->mId).getBase()
             * static_cast<float>(store.get<ESM::GameSetting>().find("iTrainingMod")->mValue.getInteger()));
         price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
@@ -206,7 +209,7 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->fadeScreenIn(0.2f, false, 0.2f);
     }
 
-    void TrainingWindow::onTrainingProgressChanged(int cur, int total)
+    void TrainingWindow::onTrainingProgressChanged(std::int32_t cur, std::int32_t total)
     {
         mProgressBar.setProgress(cur, total);
     }

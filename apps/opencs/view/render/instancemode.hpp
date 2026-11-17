@@ -1,9 +1,10 @@
 #pragma once
 
-#include <QString>
+#include <cstdint>
 #include <string>
 #include <vector>
 
+#include <QString>
 #include <osg/Group>
 #include <osg/Node>
 #include <osg/Quat>
@@ -44,7 +45,7 @@ namespace CSVRender
         std::string mSubModeId;
         InstanceSelectionMode* mSelectionMode;
         DragMode mDragMode;
-        int mDragAxis;
+        std::int32_t mDragAxis;
         bool mLocked;
         float mUnitScaleDist;
         osg::ref_ptr<osg::Group> mParentNode;
@@ -53,7 +54,7 @@ namespace CSVRender
         CSMWorld::IdTable* mSelectionGroups;
 
         QString getTooltip();
-        int getSubModeFromId(const std::string& id) const;
+        std::int32_t getSubModeFromId(const std::string& id) const;
 
         osg::Vec3 quatToEuler(const osg::Quat& rot) const;
         osg::Quat eulerToQuat(const osg::Vec3& euler) const;
@@ -100,7 +101,7 @@ namespace CSVRender
 
         bool secondarySelectStartDrag(const QPoint& pos) override;
 
-        void drag(const QPoint& pos, int diffX, int diffY, double speedFactor) override;
+        void drag(const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor) override;
 
         void dragCompleted(const QPoint& pos) override;
 
@@ -108,13 +109,13 @@ namespace CSVRender
         /// editing mode
         void dragAborted() override;
 
-        void dragWheel(int diff, double speedFactor) override;
+        void dragWheel(std::int32_t diff, double speedFactor) override;
 
         void dragEnterEvent(QDragEnterEvent* event) override;
 
         void dropEvent(QDropEvent* event) override;
 
-        int getSubMode() const override;
+        std::int32_t getSubMode() const override;
 
     signals:
 
@@ -126,8 +127,8 @@ namespace CSVRender
         void subModeChanged(const std::string& id);
         void deleteSelectedInstances();
         void cloneSelectedInstances();
-        void getSelectionGroup(const int group);
-        void saveSelectionGroup(const int group);
+        void getSelectionGroup(const std::int32_t group);
+        void saveSelectionGroup(const std::int32_t group);
         void dropToCollision();
     };
 

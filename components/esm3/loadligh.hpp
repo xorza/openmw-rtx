@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <components/esm/defs.hpp>
@@ -41,16 +42,16 @@ namespace ESM
         struct LHDTstruct
         {
             float mWeight;
-            int32_t mValue;
-            int32_t mTime; // Duration
-            int32_t mRadius;
-            uint32_t mColor; // 4-byte rgba value
-            int32_t mFlags;
+            std::int32_t mValue;
+            std::int32_t mTime; // Duration
+            std::int32_t mRadius;
+            std::uint32_t mColor; // 4-byte rgba value
+            std::int32_t mFlags;
         }; // Size = 24 bytes
 
         LHDTstruct mData{};
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         ESM::RefId mId, mSound, mScript;
         std::string mName;
         Path mModel;

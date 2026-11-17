@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "parser.hpp"
 
 namespace Compiler
@@ -17,7 +19,7 @@ namespace Compiler
     public:
         SkipParser(ErrorHandler& errorHandler, const Context& context, bool reportStrayArguments = false);
 
-        bool parseInt(int value, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle an int token.
         /// \return fetch another token?
 
@@ -29,11 +31,11 @@ namespace Compiler
         ///< Handle a name token.
         /// \return fetch another token?
 
-        bool parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a keyword token.
         /// \return fetch another token?
 
-        bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a special character token.
         /// \return fetch another token?
     };

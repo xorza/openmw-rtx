@@ -1,5 +1,7 @@
 #include "methodselectionpage.hpp"
 
+#include <cstdint>
+
 #include <QDesktopServices>
 #include <QUrl>
 
@@ -35,7 +37,7 @@ Wizard::MethodSelectionPage::MethodSelectionPage(QWidget* parent)
     connect(buyLinkButton, &QPushButton::released, this, &MethodSelectionPage::handleBuyButton);
 }
 
-int Wizard::MethodSelectionPage::nextId() const
+std::int32_t Wizard::MethodSelectionPage::nextId() const
 {
     if (field(QStringLiteral("installation.retailDisc")).toBool())
         return MainWizard::Page_InstallationTarget;

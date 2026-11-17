@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 
@@ -14,7 +15,7 @@ namespace MWSound
         if (mQueue.empty())
             return;
 
-        int samplesPerSegment = static_cast<int>(static_cast<float>(mSampleRate) / mSamplesPerSec);
+        auto samplesPerSegment = static_cast<std::int32_t>(static_cast<float>(mSampleRate) / mSamplesPerSec);
         std::size_t numSamples = bytesToFrames(mQueue.size(), mChannelConfig, mSampleType);
         std::size_t advance = framesToBytes(1, mChannelConfig, mSampleType);
 
@@ -23,7 +24,7 @@ namespace MWSound
         while (segment < numSamples / static_cast<std::size_t>(samplesPerSegment))
         {
             float sum = 0;
-            int samplesAdded = 0;
+            std::int32_t samplesAdded = 0;
             while (sample < numSamples && sample < (segment + 1) * static_cast<std::size_t>(samplesPerSegment))
             {
                 // get sample on a scale from -1 to 1
@@ -32,8 +33,8 @@ namespace MWSound
                     value = static_cast<float>((static_cast<char>(mQueue[sample * advance] ^ 0x80))) / 128.f;
                 else if (mSampleType == SampleType_Int16)
                 {
-                    value = *reinterpret_cast<const int16_t*>(&mQueue[sample * advance]);
-                    value /= static_cast<float>(std::numeric_limits<int16_t>::max());
+                    value = *reinterpret_cast<const std::int16_t*>(&mQueue[sample * advance]);
+                    value /= static_cast<float>(std::numeric_limits<std::int16_t>::max());
                 }
                 else if (mSampleType == SampleType_Float32)
                 {
@@ -61,7 +62,7 @@ namespace MWSound
         if (mSamplesPerSec <= 0.0f || mSamples.empty() || sec < 0.0f)
             return 0.0f;
 
-        size_t index = std::min(static_cast<size_t>(sec * mSamplesPerSec), mSamples.size() - 1);
+        std::size_t index = std::min(static_cast<std::size_t>(sec * mSamplesPerSec), mSamples.size() - 1);
         return mSamples[index];
     }
 

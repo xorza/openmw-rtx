@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 
@@ -19,11 +21,11 @@ namespace Settings
         /// Increment i until it longer points to a whitespace character
         /// in the string or has reached the end of the string.
         /// @return false if we have reached the end of the string
-        bool skipWhiteSpace(size_t& i, std::string& str);
+        bool skipWhiteSpace(std::size_t& i, std::string& str);
 
         [[noreturn]] void fail(const std::string& message);
 
         std::filesystem::path mFile;
-        int mLine = 0;
+        std::int32_t mLine = 0;
     };
 }

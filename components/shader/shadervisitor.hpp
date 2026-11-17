@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/NodeVisitor>
 #include <osg/Program>
 
@@ -76,7 +78,7 @@ namespace Shader
             ~ShaderRequirements() = default;
 
             // <texture stage, texture name>
-            std::map<int, std::string> mTextures;
+            std::map<std::int32_t, std::string> mTextures;
 
             bool mAlphaTestOverridden;
             bool mAlphaBlendOverridden;
@@ -93,7 +95,7 @@ namespace Shader
             bool mReconstructNormalZ; // used for red-green normal maps (e.g. BC5)
 
             // -1 == no tangents required
-            int mTexStageRequiringTangents;
+            std::int32_t mTexStageRequiringTangents;
 
             bool mSoftParticles;
 

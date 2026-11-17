@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <span>
@@ -83,7 +84,7 @@ namespace MWRender
     {
     public:
         TracedTerrain(osg::Group& sceneRoot, osg::Group& worldRoot, Terrain::Storage& storage,
-            Resource::SceneManager& scenes, const StandingGround& distance, unsigned int nodeMask,
+            Resource::SceneManager& scenes, const StandingGround& distance, std::uint32_t nodeMask,
             ESM::RefId worldspace);
 
         /// Out of line, where the grids' types are whole.
@@ -95,10 +96,10 @@ namespace MWRender
 
         /// Stands the cell's grid for the intersector out of one a cell that left gave back, the arrays
         /// refilled in place, so a cell arriving allocates nothing after the first few.
-        void loadCell(int x, int y) override;
+        void loadCell(std::int32_t x, std::int32_t y) override;
 
         /// Takes the cell's grid down and keeps it for the next cell to arrive.
-        void unloadCell(int x, int y) override;
+        void unloadCell(std::int32_t x, std::int32_t y) override;
 
         /// Shows or hides the two answers and the borders, as `Terrain::QuadTreeWorld` hangs or takes down its
         /// root: `RenderingManager::enableTerrain` turns the last worldspace's ground off when another's comes
@@ -187,7 +188,7 @@ namespace MWRender
         osg::ref_ptr<osg::Group> mBorders;
 
         /// The terrain's mask, which `enable` gives the borders back.
-        const unsigned int mNodeMask;
+        const std::uint32_t mNodeMask;
 
         /// The worldspace's land in cells and a cell's side, read once: the land's box walks every land
         /// record, which every focus ray paid for, 0.13 ms a frame on a large content list.

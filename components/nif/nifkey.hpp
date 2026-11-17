@@ -3,6 +3,8 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -55,7 +57,7 @@ namespace Nif
 
         std::string mFrameName;
         float mLegacyWeight{};
-        uint32_t mInterpolationType = InterpolationType_Unknown;
+        std::uint32_t mInterpolationType = InterpolationType_Unknown;
         MapType mKeys;
 
         // Read in a KeyGroup (see http://niftools.sourceforge.net/doc/nif/NiKeyframeData.html)
@@ -77,7 +79,7 @@ namespace Nif
                 }
             }
 
-            const auto count = nif->get<uint32_t>();
+            const auto count = nif->get<std::uint32_t>();
 
             if (count == 0 && !morph)
                 return;
@@ -221,7 +223,7 @@ namespace Nif
     inline void readKeyMapPair(NIFStream& stream, std::pair<float, KeyT<bool>>& value)
     {
         stream.read(value.first);
-        value.second.mValue = stream.get<uint8_t>() != 0;
+        value.second.mValue = stream.get<std::uint8_t>() != 0;
     }
 
     using FloatKeyMap = KeyMapT<float, &NIFStream::get<float>>;

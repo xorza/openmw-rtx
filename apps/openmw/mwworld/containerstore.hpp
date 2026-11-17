@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -74,8 +76,8 @@ namespace MWWorld
     class ContainerStoreListener
     {
     public:
-        virtual void itemAdded(const ConstPtr& item, int count) {}
-        virtual void itemRemoved(const ConstPtr& item, int count) {}
+        virtual void itemAdded(const ConstPtr& item, std::int32_t count) {}
+        virtual void itemRemoved(const ConstPtr& item, std::int32_t count) {}
         virtual ~ContainerStoreListener() = default;
     };
 
@@ -125,8 +127,8 @@ namespace MWWorld
 
         typedef typename ContainerStoreTrait<PtrType, void>::type ContainerStoreType;
 
-        int mType{};
-        int mMask{};
+        std::int32_t mType{};
+        std::int32_t mMask{};
         ContainerStoreType mContainer;
         mutable PtrType mPtr;
 
@@ -148,7 +150,7 @@ namespace MWWorld
         ContainerStoreIteratorBase(ContainerStoreType container);
         ///< End-iterator
 
-        ContainerStoreIteratorBase(int mask, ContainerStoreType container);
+        ContainerStoreIteratorBase(std::int32_t mask, ContainerStoreType container);
         ///< Begin-iterator
 
         // construct iterator using a CellRefList iterator
@@ -204,12 +206,12 @@ namespace MWWorld
         PtrType operator*() const;
 
         ContainerStoreIteratorBase& operator++();
-        ContainerStoreIteratorBase operator++(int);
+        ContainerStoreIteratorBase operator++(std::int32_t);
         ContainerStoreIteratorBase& operator=(const ContainerStoreIteratorBase& rhs);
         ContainerStoreIteratorBase(const ContainerStoreIteratorBase& rhs) = default;
         ~ContainerStoreIteratorBase() = default;
 
-        int getType() const;
+        std::int32_t getType() const;
         const ContainerStore* getContainerStore() const;
 
         friend class ContainerStore;
@@ -236,26 +238,26 @@ namespace MWWorld
         };
 
     public:
-        static constexpr int Type_Potion = 0x0001;
-        static constexpr int Type_Apparatus = 0x0002;
-        static constexpr int Type_Armor = 0x0004;
-        static constexpr int Type_Book = 0x0008;
-        static constexpr int Type_Clothing = 0x0010;
-        static constexpr int Type_Ingredient = 0x0020;
-        static constexpr int Type_Light = 0x0040;
-        static constexpr int Type_Lockpick = 0x0080;
-        static constexpr int Type_Miscellaneous = 0x0100;
-        static constexpr int Type_Probe = 0x0200;
-        static constexpr int Type_Repair = 0x0400;
-        static constexpr int Type_Weapon = 0x0800;
+        static constexpr std::int32_t Type_Potion = 0x0001;
+        static constexpr std::int32_t Type_Apparatus = 0x0002;
+        static constexpr std::int32_t Type_Armor = 0x0004;
+        static constexpr std::int32_t Type_Book = 0x0008;
+        static constexpr std::int32_t Type_Clothing = 0x0010;
+        static constexpr std::int32_t Type_Ingredient = 0x0020;
+        static constexpr std::int32_t Type_Light = 0x0040;
+        static constexpr std::int32_t Type_Lockpick = 0x0080;
+        static constexpr std::int32_t Type_Miscellaneous = 0x0100;
+        static constexpr std::int32_t Type_Probe = 0x0200;
+        static constexpr std::int32_t Type_Repair = 0x0400;
+        static constexpr std::int32_t Type_Weapon = 0x0800;
 
-        static constexpr int Type_Last = Type_Weapon;
+        static constexpr std::int32_t Type_Last = Type_Weapon;
 
-        static constexpr int Type_All = 0xffff;
+        static constexpr std::int32_t Type_All = 0xffff;
 
         static const ESM::RefId sGoldId;
 
-        static constexpr bool isStorableType(unsigned int t)
+        static constexpr bool isStorableType(std::uint32_t t)
         {
             return t == ESM::Potion::sRecordId || t == ESM::Apparatus::sRecordId || t == ESM::Armor::sRecordId
                 || t == ESM::Book::sRecordId || t == ESM::Clothing::sRecordId || t == ESM::Ingredient::sRecordId
@@ -286,7 +288,7 @@ namespace MWWorld
         Lists mLists;
 
         mutable float mCachedWeight = 0;
-        unsigned int mSeed = 0;
+        std::uint32_t mSeed = 0;
         MWWorld::SafePtr mPtr; // Container or actor that holds this store.
         std::weak_ptr<ResolutionListener> mResolutionListener;
 
@@ -298,19 +300,19 @@ namespace MWWorld
         bool mRechargingItemsUpToDate = false;
 
         virtual void storeEquipmentState(
-            const MWWorld::LiveCellRefBase& ref, size_t index, ESM::InventoryState& inventory) const;
+            const MWWorld::LiveCellRefBase& ref, std::size_t index, ESM::InventoryState& inventory) const;
 
         virtual void readEquipmentState(
-            const MWWorld::ContainerStoreIterator& iter, size_t index, const ESM::InventoryState& inventory);
+            const MWWorld::ContainerStoreIterator& iter, std::size_t index, const ESM::InventoryState& inventory);
 
         std::ptrdiff_t index(const ContainerStoreIterator& iter) const;
 
     private:
-        ContainerStoreIterator addImp(const ConstPtr& ptr, int count, bool markModified = true);
-        void addInitialItem(
-            const ESM::RefId& id, const ESM::RefId& owner, int count, Misc::Rng::Generator* prng, bool topLevel = true);
-        void addInitialItemImp(const MWWorld::Ptr& ptr, const ESM::RefId& owner, int count, Misc::Rng::Generator* prng,
-            bool topLevel = true);
+        ContainerStoreIterator addImp(const ConstPtr& ptr, std::int32_t count, bool markModified = true);
+        void addInitialItem(const ESM::RefId& id, const ESM::RefId& owner, std::int32_t count,
+            Misc::Rng::Generator* prng, bool topLevel = true);
+        void addInitialItemImp(const MWWorld::Ptr& ptr, const ESM::RefId& owner, std::int32_t count,
+            Misc::Rng::Generator* prng, bool topLevel = true);
 
         template <typename T>
         ContainerStoreIterator getState(CellRefList<T>& collection, const ESM::ObjectState& state);
@@ -319,7 +321,7 @@ namespace MWWorld
         void storeState(const LiveCellRef<T>& ref, ESM::ObjectState& state) const;
 
         template <typename T>
-        void storeStates(const CellRefList<T>& collection, ESM::InventoryState& inventory, size_t& index,
+        void storeStates(const CellRefList<T>& collection, ESM::InventoryState& inventory, std::size_t& index,
             bool equipable = false) const;
 
         void updateRechargingItems();
@@ -345,18 +347,18 @@ namespace MWWorld
         const Ptr& getPtr() const { return mPtr.ptrOrEmpty(); }
         void setPtr(const Ptr& ptr) { mPtr = SafePtr(ptr); }
 
-        ConstContainerStoreIterator cbegin(int mask = Type_All) const;
+        ConstContainerStoreIterator cbegin(std::int32_t mask = Type_All) const;
         ConstContainerStoreIterator cend() const;
-        ConstContainerStoreIterator begin(int mask = Type_All) const;
+        ConstContainerStoreIterator begin(std::int32_t mask = Type_All) const;
         ConstContainerStoreIterator end() const;
 
-        ContainerStoreIterator begin(int mask = Type_All);
+        ContainerStoreIterator begin(std::int32_t mask = Type_All);
         ContainerStoreIterator end();
 
         bool hasVisibleItems() const;
 
         virtual ContainerStoreIterator add(
-            const ConstPtr& itemPtr, int count, bool allowAutoEquip = true, bool resolve = true);
+            const ConstPtr& itemPtr, std::int32_t count, bool allowAutoEquip = true, bool resolve = true);
         ///< Add the item pointed to by \a ptr to this container. (Stacks automatically if needed)
         ///
         /// \note The item pointed to is not required to exist beyond this function call.
@@ -367,15 +369,17 @@ namespace MWWorld
         /// @return if stacking happened, return iterator to the item that was stacked against, otherwise iterator to
         /// the newly inserted item.
 
-        ContainerStoreIterator add(const ESM::RefId& id, int count, bool allowAutoEquip = true);
+        ContainerStoreIterator add(const ESM::RefId& id, std::int32_t count, bool allowAutoEquip = true);
         ///< Utility to construct a ManualRef and call add(ptr, count, actorPtr, true)
 
-        int remove(const ESM::RefId& itemId, int count, bool equipReplacement = 0, bool resolve = true);
+        std::int32_t remove(
+            const ESM::RefId& itemId, std::int32_t count, bool equipReplacement = 0, bool resolve = true);
         ///< Remove \a count item(s) designated by \a itemId from this container.
         ///
         /// @return the number of items actually removed
 
-        virtual int remove(const Ptr& item, int count, bool equipReplacement = 0, bool resolve = true);
+        virtual std::int32_t remove(
+            const Ptr& item, std::int32_t count, bool equipReplacement = 0, bool resolve = true);
         ///< Remove \a count item(s) designated by \a item from this inventory.
         ///
         /// @return the number of items actually removed
@@ -392,7 +396,7 @@ namespace MWWorld
         void rechargeItems(float duration);
         ///< Restore charge on enchanted items. Note this should only be done for the player.
 
-        ContainerStoreIterator unstack(const Ptr& ptr, int count = 1);
+        ContainerStoreIterator unstack(const Ptr& ptr, std::int32_t count = 1);
         ///< Unstack an item in this container. The item's count will be set to count, then a new stack will be added
         ///< with (origCount-count).
         ///
@@ -403,22 +407,22 @@ namespace MWWorld
         /// If a compatible stack is found, the item's count is added to that stack, then the original is deleted.
         /// @return If the item was stacked, return the stack, otherwise return the old (untouched) item.
 
-        int count(const ESM::RefId& id) const;
+        std::int32_t count(const ESM::RefId& id) const;
         ///< @return How many items with refID \a id are in this container?
 
         ContainerStoreListener* getContListener() const;
         void setContListener(ContainerStoreListener* listener);
 
     protected:
-        ContainerStoreIterator addNewStack(const ConstPtr& ptr, int count);
+        ContainerStoreIterator addNewStack(const ConstPtr& ptr, std::int32_t count);
         ///< Add the item to this container (do not try to stack it onto existing items)
 
         virtual void flagAsModified();
 
         /// + and - operations that can deal with negative stacks
         /// Note that negativity is infectious
-        static int addItems(int count1, int count2);
-        static int subtractItems(int count1, int count2);
+        static std::int32_t addItems(std::int32_t count1, std::int32_t count2);
+        static std::int32_t subtractItems(std::int32_t count1, std::int32_t count2);
 
     public:
         virtual bool stacks(const ConstPtr& ptr1, const ConstPtr& ptr2) const;
@@ -427,7 +431,7 @@ namespace MWWorld
         void fill(const ESM::InventoryList& items, const ESM::RefId& owner, Misc::Rng::Generator& prng);
         ///< Insert items into *this.
 
-        void fillNonRandom(const ESM::InventoryList& items, const ESM::RefId& owner, unsigned int seed);
+        void fillNonRandom(const ESM::InventoryList& items, const ESM::RefId& owner, std::uint32_t seed);
         ///< Insert items into *this, excluding leveled items
 
         virtual void clear();
@@ -436,7 +440,7 @@ namespace MWWorld
         float getWeight() const;
         ///< Return total weight of the items contained in *this.
 
-        static int getType(const ConstPtr& ptr);
+        static std::int32_t getType(const ConstPtr& ptr);
         ///< This function throws an exception, if ptr does not point to an object, that can be
         /// put into a container.
 

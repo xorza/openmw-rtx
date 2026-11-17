@@ -63,6 +63,7 @@ IncludeCategories:
     Priority:        2
   - Regex:           '^<[a-z_0-9]+>$'
     Priority:        1
+    CaseSensitive:   true
   - Regex:           '^<(components|apps)/'
     Priority:        4
   - Regex:           '^<'

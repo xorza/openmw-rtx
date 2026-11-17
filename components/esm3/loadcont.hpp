@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -19,7 +20,7 @@ namespace ESM
 
     struct ContItem
     {
-        int32_t mCount{ 0 };
+        std::int32_t mCount{ 0 };
         ESM::RefId mItem;
     };
 
@@ -48,13 +49,13 @@ namespace ESM
             Unknown = 8
         };
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mScript;
         std::string mName;
         Path mModel;
 
         float mWeight{}; // Not sure, might be max total weight allowed?
-        int32_t mFlags{};
+        std::int32_t mFlags{};
         InventoryList mInventory;
 
         void load(ESMReader& esm, bool& isDeleted);

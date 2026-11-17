@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -185,8 +186,8 @@ namespace MWRender
         options.mDlss = DlssLibrary::foldersIn(spec.mUserLocalData, spec.mGameFiles);
         // None whose traced extent truncates to nought, and none past the side every device chosen
         // makes an image at.
-        constexpr auto smallest = static_cast<int>(Rtx::sSmallestFrameSide);
-        constexpr auto largest = static_cast<int>(Rtx::sLargestFrameSide);
+        constexpr auto smallest = static_cast<std::int32_t>(Rtx::sSmallestFrameSide);
+        constexpr auto largest = static_cast<std::int32_t>(Rtx::sLargestFrameSide);
         boundFrame(
             Misc::FrameBounds{ .mSmallest = osg::Vec2i(smallest, smallest), .mLargest = osg::Vec2i(largest, largest) });
         presentIn(mWindow.readSize());
@@ -417,7 +418,8 @@ namespace MWRender
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
     }
 
-    void RtxRenderer::windowResized(int, int, const int width, const int height) noexcept
+    void RtxRenderer::windowResized(
+        std::int32_t, std::int32_t, const std::int32_t width, const std::int32_t height) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
         presentIn(osg::Vec2i(width, height));
@@ -590,7 +592,7 @@ namespace MWRender
         getResources().clearCache();
     }
 
-    void RtxRenderer::capture(osg::Image& image, int width, int height) noexcept
+    void RtxRenderer::capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
         const osg::ref_ptr<osg::Image> taken = FrameReader::read(*mRenderer, width, height, Rtx::Channels::Rgb);

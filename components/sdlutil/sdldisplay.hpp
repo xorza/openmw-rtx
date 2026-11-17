@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <SDL3/SDL_video.h>
@@ -9,12 +10,12 @@ namespace SDLUtil
     /// The display `[Video] screen` names: SDL3 names a display by an ID, and the setting keeps the
     /// display's place in SDL's list. The primary display where the list has no such place, since a
     /// display unplugged since the setting was written is no reason not to start.
-    SDL_DisplayID displayAt(int index);
+    SDL_DisplayID displayAt(std::int32_t index);
 
     struct DisplayResolution
     {
-        int mWidth = 0;
-        int mHeight = 0;
+        std::int32_t mWidth = 0;
+        std::int32_t mHeight = 0;
     };
 
     /// The sizes in pixels of `display`'s fullscreen modes, largest first and each once: SDL lists a

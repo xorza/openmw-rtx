@@ -1,12 +1,15 @@
 #include "scripttracker.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 namespace LuaUtil
 {
     namespace
     {
-        constexpr unsigned sMinLoadedFrames = 50;
-        constexpr unsigned sMaxLoadedFrames = 600;
-        constexpr unsigned sUsageFrameGrowth = 10;
+        constexpr std::uint32_t sMinLoadedFrames = 50;
+        constexpr std::uint32_t sMaxLoadedFrames = 600;
+        constexpr std::uint32_t sUsageFrameGrowth = 10;
         constexpr std::size_t sMinToProcess = 1;
         constexpr std::size_t sToProcessDiv = 20; // 5%
     }

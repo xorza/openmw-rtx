@@ -1,5 +1,7 @@
 #include "page.hpp"
 
+#include <cstdint>
+
 #include <QGridLayout>
 #include <QLabel>
 
@@ -24,7 +26,7 @@ void CSVPrefs::Page::addSetting(CSMPrefs::Setting* setting)
 {
     const CSMPrefs::SettingWidgets widgets = setting->makeWidgets(this);
 
-    int next = mGrid->rowCount();
+    std::int32_t next = mGrid->rowCount();
 
     if (widgets.mLabel != nullptr && widgets.mInput != nullptr)
     {

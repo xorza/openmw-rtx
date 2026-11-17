@@ -1,5 +1,7 @@
 #include "activespells.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/luamanager.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
@@ -51,7 +53,7 @@ namespace
             effect.mMagnitude = 0.f;
             effect.mMinMagnitude = static_cast<float>(enam.mData.mMagnMin);
             effect.mMaxMagnitude = static_cast<float>(enam.mData.mMagnMax);
-            effect.mEffectIndex = static_cast<int32_t>(enam.mIndex);
+            effect.mEffectIndex = static_cast<std::int32_t>(enam.mIndex);
             effect.mFlags = ESM::ActiveEffect::Flag_None;
             if (ignoreResistances)
                 effect.mFlags |= ESM::ActiveEffect::Flag_Ignore_Resistances;
@@ -312,7 +314,7 @@ namespace MWMechanics
             {
                 context.mPlayNonLooping = !store.isFirstEquip();
                 const auto world = MWBase::Environment::get().getWorld();
-                for (int slotIndex = 0; slotIndex < MWWorld::InventoryStore::Slots; slotIndex++)
+                for (std::int32_t slotIndex = 0; slotIndex < MWWorld::InventoryStore::Slots; slotIndex++)
                 {
                     auto slot = store.getSlot(slotIndex);
                     if (slot == store.end())
@@ -386,10 +388,10 @@ namespace MWMechanics
             if (result.mType == MagicApplicationResult::Type::REFLECTED)
             {
                 ESM::IndexedENAMstruct& reflected = reflectedEffects.emplace_back();
-                reflected.mData.mDuration = static_cast<int32_t>(it->mDuration);
-                reflected.mData.mMagnMin = static_cast<int32_t>(it->mMinMagnitude);
-                reflected.mData.mMagnMax = static_cast<int32_t>(it->mMaxMagnitude);
-                reflected.mIndex = static_cast<uint32_t>(it->mEffectIndex);
+                reflected.mData.mDuration = static_cast<std::int32_t>(it->mDuration);
+                reflected.mData.mMagnMin = static_cast<std::int32_t>(it->mMinMagnitude);
+                reflected.mData.mMagnMax = static_cast<std::int32_t>(it->mMaxMagnitude);
+                reflected.mIndex = static_cast<std::uint32_t>(it->mEffectIndex);
                 it = spellIt->mEffects.erase(it);
             }
             else if (result.mType == MagicApplicationResult::Type::REMOVED)
@@ -439,7 +441,7 @@ namespace MWMechanics
                 // Remove effects tied to equipment that has been unequipped
                 const auto& store = ptr.getClass().getInventoryStore(ptr);
                 remove = true;
-                for (int slotIndex = 0; slotIndex < MWWorld::InventoryStore::Slots; slotIndex++)
+                for (std::int32_t slotIndex = 0; slotIndex < MWWorld::InventoryStore::Slots; slotIndex++)
                 {
                     auto slot = store.getSlot(slotIndex);
                     if (slot != store.end() && slot->getCellRef().getRefNum().isSet()
@@ -702,11 +704,11 @@ namespace MWMechanics
             const auto convertSummons = [converter = state.mActorIdConverter](auto& collection) {
                 for (ActiveSpellParams& params : collection)
                 {
-                    converter->convert(params.mCaster, static_cast<int>(params.mCaster.mIndex));
+                    converter->convert(params.mCaster, static_cast<std::int32_t>(params.mCaster.mIndex));
                     for (ESM::ActiveEffect& effect : params.mEffects)
                     {
                         if (auto* refNum = std::get_if<ESM::RefNum>(&effect.mArg))
-                            converter->convert(*refNum, static_cast<int>(refNum->mIndex));
+                            converter->convert(*refNum, static_cast<std::int32_t>(refNum->mIndex));
                     }
                 }
             };

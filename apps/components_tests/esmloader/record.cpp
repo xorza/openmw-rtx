@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdint>
 #include <tuple>
 
 #include <gmock/gmock.h>
@@ -13,8 +14,8 @@ namespace
 
     struct Value
     {
-        int mKey;
-        int mValue;
+        std::int32_t mKey;
+        std::int32_t mValue;
     };
 
     auto tie(const Value& v)

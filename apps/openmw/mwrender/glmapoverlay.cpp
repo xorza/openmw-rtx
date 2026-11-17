@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <utility>
 
@@ -184,9 +185,9 @@ namespace MWRender
         mRoot->getParent(0)->removeChild(mRoot);
     }
 
-    void GlMapOverlay::requestOverlayTextureUpdate(int x, int y, int width, int height,
-        const osg::ref_ptr<osg::Texture2D>& texture, bool clear, bool cpuCopy, float srcLeft, float srcTop,
-        float srcRight, float srcBottom)
+    void GlMapOverlay::requestOverlayTextureUpdate(std::int32_t x, std::int32_t y, std::int32_t width,
+        std::int32_t height, const osg::ref_ptr<osg::Texture2D>& texture, bool clear, bool cpuCopy, float srcLeft,
+        float srcTop, float srcRight, float srcBottom)
     {
         osg::ref_ptr<osg::Camera> camera(new osg::Camera);
         camera->setNodeMask(Mask_RenderToTexture);
@@ -273,7 +274,7 @@ namespace MWRender
     void GlMapOverlay::paintTile(const SceneUtil::ImageRegion& destination, std::shared_ptr<OffscreenView> tile)
     {
         // The seam counts rows from the bottom and the request from the top.
-        const int top = mHeight - destination.mY - destination.mHeight;
+        const std::int32_t top = mHeight - destination.mY - destination.mHeight;
 
         // Upstream's GlobalMap::exploreCell, handed the local map's texture: a tile this renderer
         // made is a GlTileView, whose texture is the one upstream's `getMapTexture` answered with.
@@ -288,7 +289,7 @@ namespace MWRender
         // image onto the overlay on the next frame, filtered, and the result is copied back.
         const auto imageWidth = static_cast<float>(image->s());
         const auto imageHeight = static_cast<float>(image->t());
-        const int top = mHeight - destination.mY - destination.mHeight;
+        const std::int32_t top = mHeight - destination.mY - destination.mHeight;
         const float srcTop = (imageHeight - static_cast<float>(source.mY + source.mHeight)) / imageHeight;
         const float srcBottom = (imageHeight - static_cast<float>(source.mY)) / imageHeight;
 
@@ -321,7 +322,7 @@ namespace MWRender
         return *mGuiTexture;
     }
 
-    bool GlMapOverlay::copyResult(osg::Camera* camera, unsigned int frame)
+    bool GlMapOverlay::copyResult(osg::Camera* camera, std::uint32_t frame)
     {
         auto it = mPendingImageDest.find(camera);
         if (it == mPendingImageDest.end())

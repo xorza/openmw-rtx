@@ -1,5 +1,6 @@
 #include "itemdata.hpp"
 
+#include <cstdint>
 #include <utility>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -113,7 +114,7 @@ namespace MWLua
                         {
                             // if the value set is less than 0, chargeInt and chargeIntRemainder is set to 0
                             ptr.getCellRef().setChargeIntRemainder(std::max(0.f, std::modf(cond, &cond)));
-                            ptr.getCellRef().setCharge(std::max(0, static_cast<int>(cond)));
+                            ptr.getCellRef().setCharge(std::max(0, static_cast<std::int32_t>(cond)));
                         }
                     }
                     else

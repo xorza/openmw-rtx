@@ -1,6 +1,8 @@
 #include "loadweap.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <stdexcept>
 #include <utility>
@@ -46,13 +48,13 @@ namespace ESM
         struct EsmWPDTstruct
         {
             float mWeight;
-            int32_t mValue;
-            int16_t mType;
-            uint16_t mHealth;
+            std::int32_t mValue;
+            std::int16_t mType;
+            std::uint16_t mHealth;
             float mSpeed, mReach;
-            uint16_t mEnchant;
-            std::array<unsigned char, 2> mChop, mSlash, mThrust;
-            int32_t mFlags;
+            std::uint16_t mEnchant;
+            std::array<std::uint8_t, 2> mChop, mSlash, mThrust;
+            std::int32_t mFlags;
         };
 
         const std::array sWeaponTypeIds = {
@@ -89,12 +91,12 @@ namespace ESM
 
         void toBinary(const Weapon::WPDTstruct& src, EsmWPDTstruct& dst)
         {
-            const int index = Weapon::refIdToIndex(src.mType);
+            const std::int32_t index = Weapon::refIdToIndex(src.mType);
             if (index < 0)
                 throw std::runtime_error(std::format("Cannot serialize weapon type {}", src.mType.toDebugString()));
             dst.mWeight = src.mWeight;
             dst.mValue = src.mValue;
-            dst.mType = static_cast<int16_t>(index);
+            dst.mType = static_cast<std::int16_t>(index);
             dst.mHealth = src.mHealth;
             dst.mSpeed = src.mSpeed;
             dst.mReach = src.mReach;
@@ -113,19 +115,19 @@ namespace ESM
         }
     }
 
-    RefId Weapon::indexToRefId(int index)
+    RefId Weapon::indexToRefId(std::int32_t index)
     {
         if (index < 0 || std::cmp_greater_equal(index, sWeaponTypeIds.size()))
             return {};
         return sWeaponTypeIds[static_cast<std::size_t>(index)];
     }
 
-    int Weapon::refIdToIndex(RefId id)
+    std::int32_t Weapon::refIdToIndex(RefId id)
     {
         for (std::size_t i = 0; i < sWeaponTypeIds.size(); ++i)
         {
             if (sWeaponTypeIds[i] == id)
-                return static_cast<int>(i);
+                return static_cast<std::int32_t>(i);
         }
         return -1;
     }

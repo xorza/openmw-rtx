@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <span>
@@ -20,7 +21,7 @@ namespace MWGui
         virtual void setAttribute(ESM::RefId id, const MWMechanics::AttributeValue& value) {}
         virtual void setValue(std::string_view id, const MWMechanics::DynamicStat<float>& value) {}
         virtual void setValue(std::string_view, const std::string& value) {}
-        virtual void setValue(std::string_view, int value) {}
+        virtual void setValue(std::string_view, std::int32_t value) {}
         virtual void setValue(ESM::RefId id, const MWMechanics::SkillValue& value) {}
         virtual void configureSkills(std::span<const ESM::RefId> major, std::span<const ESM::RefId> minor) {}
     };
@@ -40,7 +41,7 @@ namespace MWGui
         ESM::RefId mWatchedRace;
         ESM::RefId mWatchedClass;
 
-        int mWatchedLevel;
+        std::int32_t mWatchedLevel;
 
         float mWatchedTimeToStartDrowning;
 
@@ -51,7 +52,7 @@ namespace MWGui
         void setAttribute(ESM::RefId id, const MWMechanics::AttributeValue& value);
         void setValue(std::string_view id, const MWMechanics::DynamicStat<float>& value);
         void setValue(std::string_view id, const std::string& value);
-        void setValue(std::string_view id, int value);
+        void setValue(std::string_view id, std::int32_t value);
         void setValue(ESM::RefId id, const MWMechanics::SkillValue& value);
         void configureSkills(std::span<const ESM::RefId> major, std::span<const ESM::RefId> minor);
 

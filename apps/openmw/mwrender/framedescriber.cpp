@@ -1,6 +1,7 @@
 #include "framedescriber.hpp"
 
 #include <cassert>
+#include <cstdint>
 #include <optional>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -23,8 +24,8 @@ namespace MWRender
         MWBase::World& simulation = *MWBase::Environment::get().getWorld();
 
         // The simulation's "no transition" is -1, and `WorldState` would rather say it in the type.
-        const int next = simulation.getNextWeatherScriptId();
-        const std::optional<int> nextWeather = next < 0 ? std::nullopt : std::optional(next);
+        const std::int32_t next = simulation.getNextWeatherScriptId();
+        const std::optional<std::int32_t> nextWeather = next < 0 ? std::nullopt : std::optional(next);
 
         // **Off the light and the toggles, and nothing recorded twice.** The sun light is the one
         // copy of what the four setters wrote, and what the weather settled is the weather

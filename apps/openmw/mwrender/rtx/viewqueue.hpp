@@ -80,7 +80,7 @@ namespace MWRender
 
     private:
         /// How many views `nameView` has named.
-        unsigned int mNamed = 0;
+        std::uint32_t mNamed = 0;
 
         /// Every picture alive, in the order made.
         std::vector<TracedView*> mViews;

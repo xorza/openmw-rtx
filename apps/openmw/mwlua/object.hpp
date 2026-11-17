@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <stdexcept>
 
 #include <sol/sol.hpp>
@@ -83,10 +84,10 @@ namespace MWLua
     };
 
     // Reuse userdata across equivalent pushes.
-    int pushCachedObject(lua_State* state, const LObject& value);
-    int pushCachedObject(lua_State* state, const GObject& value);
-    int pushCachedObject(lua_State* state, const LCell& value);
-    int pushCachedObject(lua_State* state, const GCell& value);
+    std::int32_t pushCachedObject(lua_State* state, const LObject& value);
+    std::int32_t pushCachedObject(lua_State* state, const GObject& value);
+    std::int32_t pushCachedObject(lua_State* state, const LCell& value);
+    std::int32_t pushCachedObject(lua_State* state, const GCell& value);
 
     // Forget world-bound cache entries.
     void clearObjectCaches(lua_State* state);
@@ -99,7 +100,7 @@ namespace sol
         template <>
         struct unqualified_pusher<MWLua::LObject>
         {
-            static int push(lua_State* state, const MWLua::LObject& value)
+            static std::int32_t push(lua_State* state, const MWLua::LObject& value)
             {
                 return MWLua::pushCachedObject(state, value);
             }
@@ -107,7 +108,7 @@ namespace sol
         template <>
         struct unqualified_pusher<MWLua::GObject>
         {
-            static int push(lua_State* state, const MWLua::GObject& value)
+            static std::int32_t push(lua_State* state, const MWLua::GObject& value)
             {
                 return MWLua::pushCachedObject(state, value);
             }
@@ -115,7 +116,7 @@ namespace sol
         template <>
         struct unqualified_pusher<MWLua::LCell>
         {
-            static int push(lua_State* state, const MWLua::LCell& value)
+            static std::int32_t push(lua_State* state, const MWLua::LCell& value)
             {
                 return MWLua::pushCachedObject(state, value);
             }
@@ -123,7 +124,7 @@ namespace sol
         template <>
         struct unqualified_pusher<MWLua::GCell>
         {
-            static int push(lua_State* state, const MWLua::GCell& value)
+            static std::int32_t push(lua_State* state, const MWLua::GCell& value)
             {
                 return MWLua::pushCachedObject(state, value);
             }

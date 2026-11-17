@@ -1,6 +1,7 @@
 #include "bindingsmanager.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <initializer_list>
@@ -34,8 +35,8 @@
 
 namespace MWInput
 {
-    static const int sFakeDeviceId = 1; // As we only support one controller at a time, use a fake deviceID so we don't
-                                        // lose bindings when switching controllers
+    static const std::int32_t sFakeDeviceId = 1; // As we only support one controller at a time, use a fake deviceID so
+                                                 // we don't lose bindings when switching controllers
 
     namespace
     {
@@ -90,7 +91,7 @@ namespace MWInput
 
         void channelChanged(ICS::Channel* channel, float currentValue, float previousValue) override
         {
-            int action = channel->getNumber();
+            std::int32_t action = channel->getNumber();
             mBindingsManager->actionValueChanged(action, currentValue, previousValue);
         }
 
@@ -130,7 +131,7 @@ namespace MWInput
             return;
         }
 
-        void mouseButtonBindingDetected(ICS::InputControlSystem* ics, ICS::Control* control, unsigned int button,
+        void mouseButtonBindingDetected(ICS::InputControlSystem* ics, ICS::Control* control, std::uint32_t button,
             ICS::Control::ControlChangingDirection direction) override
         {
             if (!mDetectingKeyboard)
@@ -152,8 +153,8 @@ namespace MWInput
             MWBase::Environment::get().getWindowManager()->notifyInputActionBound();
         }
 
-        void joystickAxisBindingDetected(ICS::InputControlSystem* ics, int deviceID, ICS::Control* control, int axis,
-            ICS::Control::ControlChangingDirection direction) override
+        void joystickAxisBindingDetected(ICS::InputControlSystem* ics, std::int32_t deviceID, ICS::Control* control,
+            std::int32_t axis, ICS::Control::ControlChangingDirection direction) override
         {
             // only allow binding to the trigers
             if (axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
@@ -168,8 +169,8 @@ namespace MWInput
             MWBase::Environment::get().getWindowManager()->notifyInputActionBound();
         }
 
-        void joystickButtonBindingDetected(ICS::InputControlSystem* ics, int deviceID, ICS::Control* control,
-            unsigned int button, ICS::Control::ControlChangingDirection direction) override
+        void joystickButtonBindingDetected(ICS::InputControlSystem* ics, std::int32_t deviceID, ICS::Control* control,
+            std::uint32_t button, ICS::Control::ControlChangingDirection direction) override
         {
             if (mDetectingKeyboard)
                 return;
@@ -199,7 +200,7 @@ namespace MWInput
         loadKeyDefaults();
         loadControllerDefaults();
 
-        for (int i = 0; i < A_Last; ++i)
+        for (std::int32_t i = 0; i < A_Last; ++i)
         {
             mInputBinder->getChannel(i)->addListener(mListener.get());
         }
@@ -221,13 +222,13 @@ namespace MWInput
         mInputBinder->update(dt);
     }
 
-    bool BindingsManager::isLeftOrRightButton(int action, bool joystick) const
+    bool BindingsManager::isLeftOrRightButton(std::int32_t action, bool joystick) const
     {
-        int mouseBinding = static_cast<int>(
+        auto mouseBinding = static_cast<std::int32_t>(
             mInputBinder->getMouseButtonBinding(mInputBinder->getControl(action), ICS::Control::INCREASE));
         if (mouseBinding != ICS_MAX_DEVICE_BUTTONS)
             return true;
-        int buttonBinding = static_cast<int>(mInputBinder->getJoystickButtonBinding(
+        auto buttonBinding = static_cast<std::int32_t>(mInputBinder->getJoystickButtonBinding(
             mInputBinder->getControl(action), sFakeDeviceId, ICS::Control::INCREASE));
         if (joystick && (buttonBinding == 0 || buttonBinding == 1))
             return true;
@@ -236,11 +237,11 @@ namespace MWInput
 
     void BindingsManager::setPlayerControlsEnabled(bool enabled)
     {
-        int playerChannels[] = { A_AutoMove, A_AlwaysRun, A_ToggleWeapon, A_ToggleSpell, A_Rest, A_QuickKey1,
+        std::int32_t playerChannels[] = { A_AutoMove, A_AlwaysRun, A_ToggleWeapon, A_ToggleSpell, A_Rest, A_QuickKey1,
             A_QuickKey2, A_QuickKey3, A_QuickKey4, A_QuickKey5, A_QuickKey6, A_QuickKey7, A_QuickKey8, A_QuickKey9,
             A_QuickKey10, A_Use, A_Journal };
 
-        for (int pc : playerChannels)
+        for (std::int32_t pc : playerChannels)
         {
             mInputBinder->getChannel(pc)->setEnabled(enabled);
         }
@@ -251,12 +252,12 @@ namespace MWInput
         mInputBinder->setJoystickDeadZone(deadZone);
     }
 
-    float BindingsManager::getActionValue(int id) const
+    float BindingsManager::getActionValue(std::int32_t id) const
     {
         return mInputBinder->getChannel(id)->getValue();
     }
 
-    bool BindingsManager::actionIsActive(int id) const
+    bool BindingsManager::actionIsActive(std::int32_t id) const
     {
         return getActionValue(id) == 1.0f;
     }
@@ -265,7 +266,7 @@ namespace MWInput
     {
         // using hardcoded key defaults is inevitable, if we want the configuration files to stay valid
         // across different versions of OpenMW (in the case where another input action is added)
-        std::map<int, SDL_Scancode> defaultKeyBindings;
+        std::map<std::int32_t, SDL_Scancode> defaultKeyBindings;
 
         // Gets the Keyvalue from the Scancode; gives the button in the same place reguardless of keyboard format
         defaultKeyBindings[A_Activate] = SDL_SCANCODE_SPACE;
@@ -308,15 +309,15 @@ namespace MWInput
         defaultKeyBindings[A_QuickLoad] = SDL_SCANCODE_F9;
         defaultKeyBindings[A_TogglePostProcessorHUD] = SDL_SCANCODE_F2;
 
-        std::map<int, int> defaultMouseButtonBindings;
+        std::map<std::int32_t, std::int32_t> defaultMouseButtonBindings;
         defaultMouseButtonBindings[A_Inventory] = SDL_BUTTON_RIGHT;
         defaultMouseButtonBindings[A_Use] = SDL_BUTTON_LEFT;
 
-        std::map<int, ICS::InputControlSystem::MouseWheelClick> defaultMouseWheelBindings;
+        std::map<std::int32_t, ICS::InputControlSystem::MouseWheelClick> defaultMouseWheelBindings;
         defaultMouseWheelBindings[A_ZoomIn] = ICS::InputControlSystem::MouseWheelClick::UP;
         defaultMouseWheelBindings[A_ZoomOut] = ICS::InputControlSystem::MouseWheelClick::DOWN;
 
-        for (int i = 0; i < A_Last; ++i)
+        for (std::int32_t i = 0; i < A_Last; ++i)
         {
             ICS::Control* control = nullptr;
             bool controlExists = mInputBinder->getChannel(i)->getControlsCount() != 0;
@@ -346,11 +347,12 @@ namespace MWInput
                 }
                 else if (defaultMouseButtonBindings.contains(i)
                     && (force
-                        || !mInputBinder->isMouseButtonBound(static_cast<unsigned int>(defaultMouseButtonBindings[i]))))
+                        || !mInputBinder->isMouseButtonBound(
+                            static_cast<std::uint32_t>(defaultMouseButtonBindings[i]))))
                 {
                     control->setInitialValue(0.0f);
                     mInputBinder->addMouseButtonBinding(
-                        control, static_cast<unsigned int>(defaultMouseButtonBindings[i]), ICS::Control::INCREASE);
+                        control, static_cast<std::uint32_t>(defaultMouseButtonBindings[i]), ICS::Control::INCREASE);
                 }
                 else if (defaultMouseWheelBindings.contains(i)
                     && (force || !mInputBinder->isMouseWheelBound(defaultMouseWheelBindings[i])))
@@ -379,7 +381,7 @@ namespace MWInput
     {
         // using hardcoded key defaults is inevitable, if we want the configuration files to stay valid
         // across different versions of OpenMW (in the case where another input action is added)
-        std::map<int, int> defaultButtonBindings;
+        std::map<std::int32_t, std::int32_t> defaultButtonBindings;
 
         defaultButtonBindings[A_Activate] = SDL_GAMEPAD_BUTTON_SOUTH;
         defaultButtonBindings[A_ToggleWeapon] = SDL_GAMEPAD_BUTTON_WEST;
@@ -394,7 +396,7 @@ namespace MWInput
         defaultButtonBindings[A_GameMenu] = SDL_GAMEPAD_BUTTON_START;
         defaultButtonBindings[A_QuickSave] = SDL_GAMEPAD_BUTTON_GUIDE;
 
-        std::map<int, int> defaultAxisBindings;
+        std::map<std::int32_t, std::int32_t> defaultAxisBindings;
         defaultAxisBindings[A_MoveForwardBackward] = SDL_GAMEPAD_AXIS_LEFTY;
         defaultAxisBindings[A_MoveLeftRight] = SDL_GAMEPAD_AXIS_LEFTX;
         defaultAxisBindings[A_LookUpDown] = SDL_GAMEPAD_AXIS_RIGHTY;
@@ -402,7 +404,7 @@ namespace MWInput
         defaultAxisBindings[A_Use] = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
         defaultAxisBindings[A_Jump] = SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
 
-        for (int i = 0; i < A_Last; i++)
+        for (std::int32_t i = 0; i < A_Last; i++)
         {
             ICS::Control* control = nullptr;
             bool controlExists = mInputBinder->getChannel(i)->getControlsCount() != 0;
@@ -433,16 +435,16 @@ namespace MWInput
                 if (defaultButtonBindings.contains(i)
                     && (force
                         || !mInputBinder->isJoystickButtonBound(
-                            sFakeDeviceId, static_cast<unsigned int>(defaultButtonBindings[i]))))
+                            sFakeDeviceId, static_cast<std::uint32_t>(defaultButtonBindings[i]))))
                 {
                     control->setInitialValue(0.0f);
                     mInputBinder->addJoystickButtonBinding(control, sFakeDeviceId,
-                        static_cast<unsigned int>(defaultButtonBindings[i]), ICS::Control::INCREASE);
+                        static_cast<std::uint32_t>(defaultButtonBindings[i]), ICS::Control::INCREASE);
                 }
                 else if (defaultAxisBindings.contains(i)
                     && (force
                         || !mInputBinder->isJoystickAxisBound(
-                            sFakeDeviceId, static_cast<unsigned int>(defaultAxisBindings[i]))))
+                            sFakeDeviceId, static_cast<std::uint32_t>(defaultAxisBindings[i]))))
                 {
                     control->setValue(0.5f);
                     control->setInitialValue(0.5f);
@@ -453,7 +455,7 @@ namespace MWInput
         }
     }
 
-    std::string_view BindingsManager::getActionDescription(int action)
+    std::string_view BindingsManager::getActionDescription(std::int32_t action)
     {
         switch (action)
         {
@@ -542,7 +544,7 @@ namespace MWInput
         }
     }
 
-    std::string BindingsManager::getActionKeyBindingName(int action)
+    std::string BindingsManager::getActionKeyBindingName(std::int32_t action)
     {
         const auto controls = mInputBinder->getChannel(action)->getAttachedControls();
         if (controls.empty())
@@ -551,7 +553,7 @@ namespace MWInput
         ICS::Control* c = controls.front().control;
 
         SDL_Scancode key = mInputBinder->getKeyBinding(c, ICS::Control::INCREASE);
-        unsigned int mouse = mInputBinder->getMouseButtonBinding(c, ICS::Control::INCREASE);
+        std::uint32_t mouse = mInputBinder->getMouseButtonBinding(c, ICS::Control::INCREASE);
         ICS::InputControlSystem::MouseWheelClick wheel = mInputBinder->getMouseWheelBinding(c, ICS::Control::INCREASE);
         if (key != SDL_SCANCODE_UNKNOWN)
             return MyGUI::TextIterator::toTagsString(mInputBinder->scancodeToString(key));
@@ -575,7 +577,7 @@ namespace MWInput
             return "#{Interface:None}";
     }
 
-    std::string BindingsManager::getActionControllerBindingName(int action)
+    std::string BindingsManager::getActionControllerBindingName(std::int32_t action)
     {
         const auto controls = mInputBinder->getChannel(action)->getAttachedControls();
         if (controls.empty())
@@ -589,28 +591,28 @@ namespace MWInput
                 mInputBinder->getJoystickAxisBinding(c, sFakeDeviceId, ICS::Control::INCREASE));
         else if (mInputBinder->getJoystickButtonBinding(c, sFakeDeviceId, ICS::Control::INCREASE)
             != ICS_MAX_DEVICE_BUTTONS)
-            return SDLUtil::sdlControllerButtonToString(
-                static_cast<int>(mInputBinder->getJoystickButtonBinding(c, sFakeDeviceId, ICS::Control::INCREASE)));
+            return SDLUtil::sdlControllerButtonToString(static_cast<std::int32_t>(
+                mInputBinder->getJoystickButtonBinding(c, sFakeDeviceId, ICS::Control::INCREASE)));
         else
             return "#{Interface:None}";
     }
 
-    const std::initializer_list<int>& BindingsManager::getActionKeySorting()
+    const std::initializer_list<std::int32_t>& BindingsManager::getActionKeySorting()
     {
-        static const std::initializer_list<int> actions{ A_MoveForward, A_MoveBackward, A_MoveLeft, A_MoveRight,
-            A_TogglePOV, A_ZoomIn, A_ZoomOut, A_Run, A_AlwaysRun, A_Sneak, A_Activate, A_Use, A_ToggleWeapon,
-            A_ToggleSpell, A_CycleSpellLeft, A_CycleSpellRight, A_CycleWeaponLeft, A_CycleWeaponRight, A_AutoMove,
-            A_Jump, A_Inventory, A_Journal, A_Rest, A_Console, A_QuickSave, A_QuickLoad, A_ToggleHUD, A_Screenshot,
-            A_QuickKeysMenu, A_QuickKey1, A_QuickKey2, A_QuickKey3, A_QuickKey4, A_QuickKey5, A_QuickKey6, A_QuickKey7,
-            A_QuickKey8, A_QuickKey9, A_QuickKey10, A_TogglePostProcessorHUD };
+        static const std::initializer_list<std::int32_t> actions{ A_MoveForward, A_MoveBackward, A_MoveLeft,
+            A_MoveRight, A_TogglePOV, A_ZoomIn, A_ZoomOut, A_Run, A_AlwaysRun, A_Sneak, A_Activate, A_Use,
+            A_ToggleWeapon, A_ToggleSpell, A_CycleSpellLeft, A_CycleSpellRight, A_CycleWeaponLeft, A_CycleWeaponRight,
+            A_AutoMove, A_Jump, A_Inventory, A_Journal, A_Rest, A_Console, A_QuickSave, A_QuickLoad, A_ToggleHUD,
+            A_Screenshot, A_QuickKeysMenu, A_QuickKey1, A_QuickKey2, A_QuickKey3, A_QuickKey4, A_QuickKey5, A_QuickKey6,
+            A_QuickKey7, A_QuickKey8, A_QuickKey9, A_QuickKey10, A_TogglePostProcessorHUD };
 
         return actions;
     }
-    const std::initializer_list<int>& BindingsManager::getActionControllerSorting()
+    const std::initializer_list<std::int32_t>& BindingsManager::getActionControllerSorting()
     {
-        static const std::initializer_list<int> actions{ A_MoveForward, A_MoveBackward, A_MoveLeft, A_MoveRight,
-            A_TogglePOV, A_ZoomIn, A_ZoomOut, A_Sneak, A_Activate, A_Use, A_ToggleWeapon, A_ToggleSpell, A_AutoMove,
-            A_Jump, A_Inventory, A_Journal, A_Rest, A_QuickSave, A_QuickLoad, A_ToggleHUD, A_Screenshot,
+        static const std::initializer_list<std::int32_t> actions{ A_MoveForward, A_MoveBackward, A_MoveLeft,
+            A_MoveRight, A_TogglePOV, A_ZoomIn, A_ZoomOut, A_Sneak, A_Activate, A_Use, A_ToggleWeapon, A_ToggleSpell,
+            A_AutoMove, A_Jump, A_Inventory, A_Journal, A_Rest, A_QuickSave, A_QuickLoad, A_ToggleHUD, A_Screenshot,
             A_QuickKeysMenu, A_QuickKey1, A_QuickKey2, A_QuickKey3, A_QuickKey4, A_QuickKey5, A_QuickKey6, A_QuickKey7,
             A_QuickKey8, A_QuickKey9, A_QuickKey10, A_CycleSpellLeft, A_CycleSpellRight, A_CycleWeaponLeft,
             A_CycleWeaponRight };
@@ -618,7 +620,7 @@ namespace MWInput
         return actions;
     }
 
-    void BindingsManager::enableDetectingBindingMode(int action, bool keyboard)
+    void BindingsManager::enableDetectingBindingMode(std::int32_t action, bool keyboard)
     {
         mListener->setDetectingKeyboard(keyboard);
         const auto controls = mInputBinder->getChannel(action)->getAttachedControls();
@@ -662,7 +664,7 @@ namespace MWInput
         mInputBinder->keyReleased(arg);
     }
 
-    void BindingsManager::controllerAdded(int deviceID, const SDL_GamepadDeviceEvent& arg)
+    void BindingsManager::controllerAdded(std::int32_t deviceID, const SDL_GamepadDeviceEvent& arg)
     {
         mInputBinder->controllerAdded(deviceID, arg);
     }
@@ -672,22 +674,22 @@ namespace MWInput
         mInputBinder->controllerRemoved(arg);
     }
 
-    void BindingsManager::controllerButtonPressed(int deviceID, const SDL_GamepadButtonEvent& arg)
+    void BindingsManager::controllerButtonPressed(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg)
     {
         mInputBinder->buttonPressed(deviceID, arg);
     }
 
-    void BindingsManager::controllerButtonReleased(int deviceID, const SDL_GamepadButtonEvent& arg)
+    void BindingsManager::controllerButtonReleased(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg)
     {
         mInputBinder->buttonReleased(deviceID, arg);
     }
 
-    void BindingsManager::controllerAxisMoved(int deviceID, const SDL_GamepadAxisEvent& arg)
+    void BindingsManager::controllerAxisMoved(std::int32_t deviceID, const SDL_GamepadAxisEvent& arg)
     {
         mInputBinder->axisMoved(deviceID, arg);
     }
 
-    SDL_Scancode BindingsManager::getKeyBinding(int actionId)
+    SDL_Scancode BindingsManager::getKeyBinding(std::int32_t actionId)
     {
         return mInputBinder->getKeyBinding(mInputBinder->getControl(actionId), ICS::Control::INCREASE);
     }
@@ -701,7 +703,7 @@ namespace MWInput
             return controllers.begin()->second;
     }
 
-    void BindingsManager::actionValueChanged(int action, float currentValue, float previousValue)
+    void BindingsManager::actionValueChanged(std::int32_t action, float currentValue, float previousValue)
     {
         auto manager = MWBase::Environment::get().getInputManager();
         manager->resetIdleTime();

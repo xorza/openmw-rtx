@@ -1,12 +1,12 @@
 #include "document.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <utility>
-
-#include <stddef.h>
 
 #include <apps/opencs/model/tools/tools.hpp>
 #include <apps/opencs/model/world/data.hpp>
@@ -36,7 +36,7 @@ namespace CSMWorld
 
 void CSMDoc::Document::addGmsts()
 {
-    for (size_t i = 0; i < CSMWorld::DefaultGmsts::FloatCount; ++i)
+    for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::FloatCount; ++i)
     {
         ESM::GameSetting gmst;
         gmst.mId = ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Floats[i]);
@@ -46,7 +46,7 @@ void CSMDoc::Document::addGmsts()
         getData().getGmsts().add(gmst);
     }
 
-    for (size_t i = 0; i < CSMWorld::DefaultGmsts::IntCount; ++i)
+    for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::IntCount; ++i)
     {
         ESM::GameSetting gmst;
         gmst.mId = ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Ints[i]);
@@ -56,7 +56,7 @@ void CSMDoc::Document::addGmsts()
         getData().getGmsts().add(gmst);
     }
 
-    for (size_t i = 0; i < CSMWorld::DefaultGmsts::StringCount; ++i)
+    for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::StringCount; ++i)
     {
         ESM::GameSetting gmst;
         gmst.mId = ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Strings[i]);
@@ -69,7 +69,7 @@ void CSMDoc::Document::addGmsts()
 
 void CSMDoc::Document::addOptionalGmsts()
 {
-    for (size_t i = 0; i < CSMWorld::DefaultGmsts::OptionalFloatCount; ++i)
+    for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::OptionalFloatCount; ++i)
     {
         ESM::GameSetting gmst;
         gmst.mId = ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::OptionalFloats[i]);
@@ -78,7 +78,7 @@ void CSMDoc::Document::addOptionalGmsts()
         addOptionalGmst(gmst);
     }
 
-    for (size_t i = 0; i < CSMWorld::DefaultGmsts::OptionalIntCount; ++i)
+    for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::OptionalIntCount; ++i)
     {
         ESM::GameSetting gmst;
         gmst.mId = ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::OptionalInts[i]);
@@ -87,7 +87,7 @@ void CSMDoc::Document::addOptionalGmsts()
         addOptionalGmst(gmst);
     }
 
-    for (size_t i = 0; i < CSMWorld::DefaultGmsts::OptionalStringCount; ++i)
+    for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::OptionalStringCount; ++i)
     {
         ESM::GameSetting gmst;
         gmst.mId = ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::OptionalStrings[i]);
@@ -201,7 +201,7 @@ void CSMDoc::Document::createBase()
 
     addGmsts();
 
-    for (int i = 0; i < ESM::Skill::Length; ++i)
+    for (std::int32_t i = 0; i < ESM::Skill::Length; ++i)
     {
         ESM::Skill record;
         record.mId = ESM::Skill::indexToRefId(i);
@@ -280,7 +280,7 @@ void CSMDoc::Document::createBase()
         getData().getTopics().add(record);
     }
 
-    for (int i = 0; i < ESM::MagicEffect::Length; ++i)
+    for (std::int32_t i = 0; i < ESM::MagicEffect::Length; ++i)
     {
         ESM::MagicEffect record;
         record.mId = ESM::MagicEffect::indexToRefId(i);
@@ -341,7 +341,8 @@ CSMDoc::Document::Document(const Files::ConfigurationManager& configuration, std
 
     connect(&mUndoStack, &QUndoStack::cleanChanged, this, &Document::modificationStateChanged);
 
-    connect(&mTools, &CSMTools::Tools::progress, this, qOverload<int, int, int>(&Document::progress));
+    connect(&mTools, &CSMTools::Tools::progress, this,
+        qOverload<std::int32_t, std::int32_t, std::int32_t>(&Document::progress));
     connect(&mTools, &CSMTools::Tools::done, this, &Document::operationDone);
     connect(&mTools, &CSMTools::Tools::done, this, &Document::operationDone2);
     connect(&mTools, &CSMTools::Tools::mergeDone, this, &Document::mergeDone);
@@ -349,7 +350,8 @@ CSMDoc::Document::Document(const Files::ConfigurationManager& configuration, std
     mSavingOperation = new Saving(*this, mProjectPath, encoding);
     mSaving = new OperationHolder(this, mSavingOperation);
 
-    connect(mSaving, &OperationHolder::progress, this, qOverload<int, int, int>(&Document::progress));
+    connect(mSaving, &OperationHolder::progress, this,
+        qOverload<std::int32_t, std::int32_t, std::int32_t>(&Document::progress));
     connect(mSaving, &OperationHolder::done, this, &Document::operationDone2);
 
     connect(mSaving, &OperationHolder::reportMessage, this, &Document::reportMessage);
@@ -362,9 +364,9 @@ QUndoStack& CSMDoc::Document::getUndoStack()
     return mUndoStack;
 }
 
-int CSMDoc::Document::getState() const
+std::int32_t CSMDoc::Document::getState() const
 {
-    int state = 0;
+    std::int32_t state = 0;
 
     if (!mUndoStack.isClean() || mDirty)
         state |= State_Modified;
@@ -375,7 +377,7 @@ int CSMDoc::Document::getState() const
     if (mRunner.isRunning())
         state |= State_Locked | State_Running;
 
-    if (int operations = mTools.getRunningOperations())
+    if (std::int32_t operations = mTools.getRunningOperations())
         state |= State_Locked | State_Operation | operations;
 
     return state;
@@ -440,7 +442,7 @@ void CSMDoc::Document::runMerge(std::unique_ptr<CSMDoc::Document> target)
     emit stateChanged(getState(), this);
 }
 
-void CSMDoc::Document::abortOperation(int type)
+void CSMDoc::Document::abortOperation(std::int32_t type)
 {
     if (type == State_Saving)
         mSaving->abort();
@@ -453,13 +455,13 @@ void CSMDoc::Document::modificationStateChanged(bool clean)
     emit stateChanged(getState(), this);
 }
 
-void CSMDoc::Document::reportMessage(const CSMDoc::Message& message, int type)
+void CSMDoc::Document::reportMessage(const CSMDoc::Message& message, std::int32_t type)
 {
     /// \todo find a better way to get these messages to the user.
     Log(Debug::Info) << message.mMessage;
 }
 
-void CSMDoc::Document::operationDone2(int type, bool failed)
+void CSMDoc::Document::operationDone2(std::int32_t type, bool failed)
 {
     if (type == CSMDoc::State_Saving && !failed)
         mDirty = false;
@@ -495,7 +497,7 @@ void CSMDoc::Document::startRunning(const std::string& profile, const std::strin
     mRunner.configure(getData().getDebugProfiles().getRecord(ESM::RefId::stringRefId(profile)).get(), contentFiles,
         startupInstruction);
 
-    int state = getState();
+    std::int32_t state = getState();
 
     if (state & State_Modified)
     {
@@ -526,7 +528,7 @@ void CSMDoc::Document::runStateChanged()
     emit stateChanged(getState(), this);
 }
 
-void CSMDoc::Document::progress(int current, int max, int type)
+void CSMDoc::Document::progress(std::int32_t current, std::int32_t max, std::int32_t type)
 {
     emit progress(current, max, type, 1, this);
 }

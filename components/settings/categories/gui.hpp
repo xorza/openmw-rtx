@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 
 #include <MyGUI_Colour.h>
@@ -17,14 +18,14 @@ namespace Settings
         using WithIndex::WithIndex;
 
         SettingValue<float> mScalingFactor{ mIndex, "GUI", "scaling factor", makeClampSanitizerFloat(0.5f, 8) };
-        SettingValue<int> mFontSize{ mIndex, "GUI", "font size", makeClampSanitizerInt(12, 18) };
+        SettingValue<std::int32_t> mFontSize{ mIndex, "GUI", "font size", makeClampSanitizerInt(12, 18) };
         SettingValue<float> mMenuTransparency{ mIndex, "GUI", "menu transparency", makeClampSanitizerFloat(0, 1) };
         SettingValue<float> mTooltipDelay{ mIndex, "GUI", "tooltip delay", makeMaxSanitizerFloat(0) };
         SettingValue<bool> mStretchMenuBackground{ mIndex, "GUI", "stretch menu background" };
         SettingValue<bool> mControllerMenus{ mIndex, "GUI", "controller menus" };
-        SettingValue<int> mControllerTriggerPressThreshold{ mIndex, "GUI", "controller trigger press",
+        SettingValue<std::int32_t> mControllerTriggerPressThreshold{ mIndex, "GUI", "controller trigger press",
             makeClampSanitizerInt(1, 32767) };
-        SettingValue<int> mControllerTriggerReleaseThreshold{ mIndex, "GUI", "controller trigger release",
+        SettingValue<std::int32_t> mControllerTriggerReleaseThreshold{ mIndex, "GUI", "controller trigger release",
             makeClampSanitizerInt(0, 32766) };
         SettingValue<bool> mControllerTooltips{ mIndex, "GUI", "controller tooltips" };
         SettingValue<bool> mSubtitles{ mIndex, "GUI", "subtitles" };

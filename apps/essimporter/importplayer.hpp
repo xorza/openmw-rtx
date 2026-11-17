@@ -17,7 +17,7 @@ namespace ESSImport
     /// Other player data
     struct PCDT
     {
-        int32_t mBounty{};
+        std::int32_t mBounty{};
         std::string mBirthsign;
 
         std::vector<std::string> mKnownDialogueTopics;
@@ -43,11 +43,11 @@ namespace ESSImport
 
         struct FNAM
         {
-            unsigned char mRank;
-            unsigned char mUnknown1[3];
-            int32_t mReputation;
-            unsigned char mFlags; // 0x1: unknown, 0x2: expelled
-            unsigned char mUnknown2[3];
+            std::uint8_t mRank;
+            std::uint8_t mUnknown1[3];
+            std::int32_t mReputation;
+            std::uint8_t mFlags; // 0x1: unknown, 0x2: expelled
+            std::uint8_t mUnknown2[3];
             ESM::NAME32 mFactionName;
         };
 
@@ -57,7 +57,7 @@ namespace ESSImport
             {
                 float mX, mY, mZ; // worldspace position
                 float mRotZ; // Z angle in radians
-                int32_t mCellX, mCellY; // grid coordinates; for interior cells this is always (0, 0)
+                std::int32_t mCellX, mCellY; // grid coordinates; for interior cells this is always (0, 0)
             };
 
             struct Rotation
@@ -65,32 +65,32 @@ namespace ESSImport
                 float mData[3][3];
             };
 
-            int32_t mPlayerFlags; // controls, camera and draw state
-            uint32_t mLevelProgress;
+            std::int32_t mPlayerFlags; // controls, camera and draw state
+            std::uint32_t mLevelProgress;
             float mSkillProgress[27]; // skill progress, non-uniform scaled
-            unsigned char mSkillIncreases[8]; // number of skill increases for each attribute
-            int32_t mTelekinesisRangeBonus; // in units; seems redundant
+            std::uint8_t mSkillIncreases[8]; // number of skill increases for each attribute
+            std::int32_t mTelekinesisRangeBonus; // in units; seems redundant
             float mVisionBonus; // range: <0.0, 1.0>; affected by light spells and Get/Mod/SetPCVisionBonus
-            int32_t mDetectKeyMagnitude; // seems redundant
-            int32_t mDetectEnchantmentMagnitude; // seems redundant
-            int32_t mDetectAnimalMagnitude; // seems redundant
+            std::int32_t mDetectKeyMagnitude; // seems redundant
+            std::int32_t mDetectEnchantmentMagnitude; // seems redundant
+            std::int32_t mDetectAnimalMagnitude; // seems redundant
             MarkLocation mMarkLocation;
-            unsigned char mUnknown3[4];
+            std::uint8_t mUnknown3[4];
             Rotation mVerticalRotation;
-            unsigned char mSpecIncreases[3]; // number of skill increases for each specialization
-            unsigned char mUnknown4;
+            std::uint8_t mSpecIncreases[3]; // number of skill increases for each specialization
+            std::uint8_t mUnknown4;
         };
 
         struct ENAM
         {
-            int32_t mCellX;
-            int32_t mCellY;
+            std::int32_t mCellX;
+            std::int32_t mCellY;
         };
 
         struct AADT // 44 bytes
         {
-            int32_t animGroupIndex; // See convertANIS() for the mapping.
-            unsigned char mUnknown5[40];
+            std::int32_t animGroupIndex; // See convertANIS() for the mapping.
+            std::uint8_t mUnknown5[40];
         };
 
         std::vector<FNAM> mFactions;

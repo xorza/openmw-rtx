@@ -1,5 +1,7 @@
 #include "effectlist.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 
 #include <components/esm/attr.hpp>
@@ -17,25 +19,25 @@ namespace ESM
         // ENAM format defined by Morrowind.esm
         struct EsmENAMstruct
         {
-            int16_t mEffectID;
-            signed char mSkill, mAttribute;
-            int32_t mRange, mArea, mDuration, mMagnMin, mMagnMax;
+            std::int16_t mEffectID;
+            std::int8_t mSkill, mAttribute;
+            std::int32_t mRange, mArea, mDuration, mMagnMin, mMagnMax;
         };
 
         // Struct with residual binary fields from ENAM
         struct EffectParams
         {
-            int32_t mRange, mArea, mDuration, mMagnMin, mMagnMax;
+            std::int32_t mRange, mArea, mDuration, mMagnMin, mMagnMax;
         };
 
         void toBinary(const ENAMstruct& src, EsmENAMstruct& dst)
         {
-            auto index = static_cast<int16_t>(ESM::MagicEffect::refIdToIndex(src.mEffectID));
+            auto index = static_cast<std::int16_t>(ESM::MagicEffect::refIdToIndex(src.mEffectID));
             if (index < 0 || index >= ESM::MagicEffect::Length)
                 throw std::runtime_error(std::format("Cannot serialize effect {}", src.mEffectID.toDebugString()));
             dst.mEffectID = index;
-            dst.mSkill = static_cast<signed char>(ESM::Skill::refIdToIndex(src.mSkill));
-            dst.mAttribute = static_cast<signed char>(ESM::Attribute::refIdToIndex(src.mAttribute));
+            dst.mSkill = static_cast<std::int8_t>(ESM::Skill::refIdToIndex(src.mSkill));
+            dst.mAttribute = static_cast<std::int8_t>(ESM::Attribute::refIdToIndex(src.mAttribute));
             dst.mRange = src.mRange;
             dst.mArea = src.mArea;
             dst.mDuration = src.mDuration;
@@ -90,14 +92,14 @@ namespace ESM
     void EffectList::populate(const std::vector<ENAMstruct>& effects)
     {
         mList.clear();
-        for (size_t i = 0; i < effects.size(); i++)
-            mList.push_back({ effects[i], static_cast<uint32_t>(i) });
+        for (std::size_t i = 0; i < effects.size(); i++)
+            mList.push_back({ effects[i], static_cast<std::uint32_t>(i) });
     }
 
     void EffectList::updateIndexes()
     {
-        for (size_t i = 0; i < mList.size(); i++)
-            mList[i].mIndex = static_cast<uint32_t>(i);
+        for (std::size_t i = 0; i < mList.size(); i++)
+            mList[i].mIndex = static_cast<std::uint32_t>(i);
     }
 
     void EffectList::add(ESMReader& esm)
@@ -118,7 +120,7 @@ namespace ESM
             s.mSkill = esm.getHNORefId("ENSK");
             s.mAttribute = esm.getHNORefId("ENAT");
         }
-        mList.push_back({ s, static_cast<uint32_t>(mList.size()) });
+        mList.push_back({ s, static_cast<std::uint32_t>(mList.size()) });
     }
 
     void EffectList::save(ESMWriter& esm) const

@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 
@@ -104,7 +105,7 @@ namespace MWRender
             }
 
             /// This world as frame `number` sees it.
-            SceneFrame frame(unsigned int number)
+            SceneFrame frame(std::uint32_t number)
             {
                 mWhen.setFrameNumber(number);
                 return SceneFrame{
@@ -253,7 +254,7 @@ namespace MWRender
             EXPECT_EQ(playing & Mask_Terrain, 0u) << "the intersector's ground is not the ring's";
             EXPECT_EQ(playing & Mask_UpdateVisitor, 0u) << "and what the content hides stays hidden";
 
-            mirror.setViewMask(~0u & ~static_cast<unsigned int>(Mask_Player));
+            mirror.setViewMask(~0u & ~static_cast<std::uint32_t>(Mask_Player));
             const osg::Node::NodeMask watching = mirror.getTraversalMask();
             EXPECT_EQ(watching & Mask_Player, 0u);
 
@@ -281,7 +282,7 @@ namespace MWRender
         /// The loader is left untold here, which is the state the mirror is really built in.
         TEST(RtxWorldMirrorTest, whatTheContentHidesIsLeftOutBeforeTheLoaderIsToldWhichBitHides)
         {
-            const unsigned int told = NifOsg::Loader::getHiddenNodeMask();
+            const std::uint32_t told = NifOsg::Loader::getHiddenNodeMask();
             NifOsg::Loader::setHiddenNodeMask(0);
 
             const osg::Node::NodeMask mask = WorldMirror(MWRender::MirrorKnobs{}, nullptr, nullptr).getTraversalMask();

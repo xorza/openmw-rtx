@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <gtest/gtest.h>
 
 #include <osg/GL>
@@ -40,7 +42,7 @@ namespace SceneUtil
         {
             osg::ref_ptr<osg::Image> image = picture();
             osg::ref_ptr<PaintedTexture> texture = new PaintedTexture(image);
-            const unsigned int unpainted = image->getModifiedCount();
+            const std::uint32_t unpainted = image->getModifiedCount();
 
             EXPECT_TRUE(texture->since(0).mRegion.empty()) << "nothing painted yet";
             EXPECT_EQ(texture->since(0).mPaints, 0u);
@@ -76,7 +78,7 @@ namespace SceneUtil
             osg::ref_ptr<PaintedTexture> texture = new PaintedTexture(image);
 
             // Nine one-texel paints along the bottom row, at x = 0 to 8.
-            for (int x = 0; x < 9; ++x)
+            for (std::int32_t x = 0; x < 9; ++x)
                 texture->paint(ImageRegion{ x, 0, 1, 1 });
 
             EXPECT_EQ(texture->since(0).mRegion, texture->whole()) << "nine back is past the eight remembered";

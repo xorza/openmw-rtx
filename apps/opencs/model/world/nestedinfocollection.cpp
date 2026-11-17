@@ -1,5 +1,6 @@
 #include "nestedinfocollection.hpp"
 
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 
@@ -35,7 +36,7 @@ namespace CSMWorld
         return *iter->second;
     }
 
-    void NestedInfoCollection::addNestedRow(int row, int column, int position)
+    void NestedInfoCollection::addNestedRow(std::int32_t row, std::int32_t column, std::int32_t position)
     {
         auto record = std::make_unique<Record<Info>>();
         record->assign(Collection<Info>::getRecord(row));
@@ -45,7 +46,7 @@ namespace CSMWorld
         Collection<Info>::setRecord(row, std::move(record));
     }
 
-    void NestedInfoCollection::removeNestedRows(int row, int column, int subRow)
+    void NestedInfoCollection::removeNestedRows(std::int32_t row, std::int32_t column, std::int32_t subRow)
     {
         auto record = std::make_unique<Record<Info>>();
         record->assign(Collection<Info>::getRecord(row));
@@ -55,13 +56,15 @@ namespace CSMWorld
         Collection<Info>::setRecord(row, std::move(record));
     }
 
-    QVariant NestedInfoCollection::getNestedData(int row, int column, int subRow, int subColumn) const
+    QVariant NestedInfoCollection::getNestedData(
+        std::int32_t row, std::int32_t column, std::int32_t subRow, std::int32_t subColumn) const
     {
         return getAdapter(Collection<Info>::getColumn(column))
             .getData(Collection<Info>::getRecord(row), subRow, subColumn);
     }
 
-    void NestedInfoCollection::setNestedData(int row, int column, const QVariant& data, int subRow, int subColumn)
+    void NestedInfoCollection::setNestedData(
+        std::int32_t row, std::int32_t column, const QVariant& data, std::int32_t subRow, std::int32_t subColumn)
     {
         auto record = std::make_unique<Record<Info>>();
         record->assign(Collection<Info>::getRecord(row));
@@ -71,12 +74,13 @@ namespace CSMWorld
         Collection<Info>::setRecord(row, std::move(record));
     }
 
-    CSMWorld::NestedTableWrapperBase* NestedInfoCollection::nestedTable(int row, int column) const
+    CSMWorld::NestedTableWrapperBase* NestedInfoCollection::nestedTable(std::int32_t row, std::int32_t column) const
     {
         return getAdapter(Collection<Info>::getColumn(column)).table(Collection<Info>::getRecord(row));
     }
 
-    void NestedInfoCollection::setNestedTable(int row, int column, const CSMWorld::NestedTableWrapperBase& nestedTable)
+    void NestedInfoCollection::setNestedTable(
+        std::int32_t row, std::int32_t column, const CSMWorld::NestedTableWrapperBase& nestedTable)
     {
         auto record = std::make_unique<Record<Info>>();
         record->assign(Collection<Info>::getRecord(row));
@@ -86,17 +90,17 @@ namespace CSMWorld
         Collection<Info>::setRecord(row, std::move(record));
     }
 
-    int NestedInfoCollection::getNestedRowsCount(int row, int column) const
+    std::int32_t NestedInfoCollection::getNestedRowsCount(std::int32_t row, std::int32_t column) const
     {
         return getAdapter(Collection<Info>::getColumn(column)).getRowsCount(Collection<Info>::getRecord(row));
     }
 
-    int NestedInfoCollection::getNestedColumnsCount(int row, int column) const
+    std::int32_t NestedInfoCollection::getNestedColumnsCount(std::int32_t row, std::int32_t column) const
     {
         return getAdapter(Collection<Info>::getColumn(column)).getColumnsCount(Collection<Info>::getRecord(row));
     }
 
-    CSMWorld::NestableColumn* NestedInfoCollection::getNestableColumn(int column)
+    CSMWorld::NestableColumn* NestedInfoCollection::getNestableColumn(std::int32_t column)
     {
         return Collection<Info>::getNestableColumn(column);
     }

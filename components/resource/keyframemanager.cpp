@@ -1,6 +1,7 @@
 #include "keyframemanager.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include <osgAnimation/Animation>
@@ -242,7 +243,7 @@ namespace Resource
         return { .mValue = std::move(loaded), .mBytes = bytes };
     }
 
-    void KeyframeManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void KeyframeManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Keyframe", frameNumber, mCache->getStats(), *stats);
     }

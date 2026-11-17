@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <map>
@@ -106,7 +107,7 @@ namespace MWBase
     public:
         WindowManager(const WindowManager&) = delete;
         WindowManager& operator=(const WindowManager&) = delete;
-        typedef std::vector<int> SkillList;
+        typedef std::vector<std::int32_t> SkillList;
 
         WindowManager() {}
 
@@ -125,7 +126,7 @@ namespace MWBase
         virtual void removeGuiMode(MWGui::GuiMode mode) = 0;
         ///< can be anywhere in the stack
 
-        virtual void goToJail(int days) = 0;
+        virtual void goToJail(std::int32_t days) = 0;
 
         virtual void updatePlayer() = 0;
 
@@ -191,7 +192,7 @@ namespace MWBase
         virtual void setCursorVisible(bool visible) = 0;
         virtual void setCursorActive(bool active) = 0;
         virtual void setCursorInteractionEnabled(bool enabled) = 0;
-        virtual void getMousePosition(int& x, int& y) = 0;
+        virtual void getMousePosition(std::int32_t& x, std::int32_t& y) = 0;
         virtual void getMousePosition(float& x, float& y) = 0;
         virtual void setDragDrop(bool dragDrop) = 0;
         virtual bool getWorldMouseOver() = 0;
@@ -205,7 +206,7 @@ namespace MWBase
 
         /// The interface's font size, in its layout units: the height a line of its text takes,
         /// which a row or a list sized to a line of text sizes by (`Gui::InterfaceFonts::getFontSize`).
-        virtual int getFontSize() const = 0;
+        virtual std::int32_t getFontSize() const = 0;
 
         virtual bool toggleFogOfWar() = 0;
 
@@ -227,12 +228,12 @@ namespace MWBase
         virtual void setSneakVisibility(bool visible) = 0;
 
         /// activate selected quick key
-        virtual void activateQuickKey(int index) = 0;
+        virtual void activateQuickKey(std::int32_t index) = 0;
         /// update activated quick key state (if action executing was delayed for some reason)
         virtual void updateActivatedQuickKey() = 0;
 
         virtual const ESM::RefId& getSelectedSpell() = 0;
-        virtual void setSelectedSpell(const ESM::RefId& spellId, int successChancePercent) = 0;
+        virtual void setSelectedSpell(const ESM::RefId& spellId, std::int32_t successChancePercent) = 0;
         virtual void setSelectedEnchantItem(const MWWorld::Ptr& item) = 0;
         virtual const MWWorld::Ptr& getSelectedEnchantItem() const = 0;
         virtual void setSelectedWeapon(const MWWorld::Ptr& item) = 0;
@@ -248,7 +249,7 @@ namespace MWBase
         virtual void allowMouse() = 0;
         virtual void notifyInputActionBound() = 0;
 
-        virtual void addVisitedLocation(const std::string& name, int x, int y) = 0;
+        virtual void addVisitedLocation(const std::string& name, std::int32_t x, std::int32_t y) = 0;
 
         /// Hides dialog and schedules dialog to be deleted.
         virtual void removeDialog(std::unique_ptr<MWGui::Layout>&& dialog) = 0;
@@ -265,11 +266,11 @@ namespace MWBase
         virtual void staticMessageBox(std::string_view message) = 0;
         virtual void removeStaticMessageBox() = 0;
         virtual void interactiveMessageBox(std::string_view message, const std::vector<std::string>& buttons = {},
-            bool block = false, int defaultFocus = -1) = 0;
+            bool block = false, std::int32_t defaultFocus = -1) = 0;
 
         /// returns the index of the pressed button or -1 if no button was pressed
         /// (->MessageBoxmanager->InteractiveMessageBox)
-        virtual int readPressedButton() = 0;
+        virtual std::int32_t readPressedButton() = 0;
 
         /// A message box with buttons that a content script asks, MWScript's or Lua's: shown, or
         /// logged and not shown where the engine's host shows none
@@ -303,8 +304,8 @@ namespace MWBase
         virtual void changePointer(const std::string& name) = 0;
 
         /// Registers a hardware cursor using a texture from the virtual filesystem.
-        virtual void createLuaCursor(const std::string& name, const std::string& path, int width, int height,
-            int hotspotX, int hotspotY, double rotation) = 0;
+        virtual void createLuaCursor(const std::string& name, const std::string& path, std::int32_t width,
+            std::int32_t height, std::int32_t hotspotX, std::int32_t hotspotY, double rotation) = 0;
         virtual void removeLuaCursor(const std::string& name) = 0;
         /// An empty name removes the override and restores widget-selected cursors.
         virtual void setLuaCursorOverride(const std::string& name) = 0;
@@ -328,8 +329,8 @@ namespace MWBase
         virtual void clear() = 0;
 
         virtual void write(ESM::ESMWriter& writer, Loading::Listener& progress) = 0;
-        virtual void readRecord(ESM::ESMReader& reader, uint32_t type) = 0;
-        virtual size_t countSavedGameRecords() const = 0;
+        virtual void readRecord(ESM::ESMReader& reader, std::uint32_t type) = 0;
+        virtual std::size_t countSavedGameRecords() const = 0;
 
         /// Does the current stack of GUI-windows permit saving?
         virtual bool isSavingAllowed() const = 0;
@@ -354,9 +355,10 @@ namespace MWBase
         /// Fade the screen out to black, over \a time seconds
         virtual void fadeScreenOut(const float time, bool clearQueue = true, float delay = 0.f) = 0;
         /// Fade the screen to a specified percentage of black, over \a time seconds
-        virtual void fadeScreenTo(const int percent, const float time, bool clearQueue = true, float delay = 0.f) = 0;
+        virtual void fadeScreenTo(
+            const std::int32_t percent, const float time, bool clearQueue = true, float delay = 0.f) = 0;
         /// Darken the screen to a specified percentage
-        virtual void setBlindness(const int percent) = 0;
+        virtual void setBlindness(const std::int32_t percent) = 0;
 
         virtual void activateHitOverlay(bool interrupt = true) = 0;
         virtual void setWerewolfOverlay(bool set) = 0;
@@ -379,12 +381,12 @@ namespace MWBase
 
         virtual const MWGui::TextColours& getTextColours() = 0;
 
-        virtual bool injectKeyPress(MyGUI::KeyCode key, unsigned int text, bool repeat) = 0;
+        virtual bool injectKeyPress(MyGUI::KeyCode key, std::uint32_t text, bool repeat) = 0;
         virtual bool injectKeyRelease(MyGUI::KeyCode key) = 0;
 
         void windowVisibilityChange(bool visible) override = 0;
-        void windowResized(int x, int y) override = 0;
-        void windowSized(int width, int height) override = 0;
+        void windowResized(std::int32_t x, std::int32_t y) override = 0;
+        void windowSized(std::int32_t width, std::int32_t height) override = 0;
         void windowClosed() override = 0;
         virtual bool isWindowVisible() const = 0;
 
@@ -403,10 +405,10 @@ namespace MWBase
         /// Return the window that should receive controller events
         virtual MWGui::WindowBase* getActiveControllerWindow() = 0;
         /// Return the available height for menus accounting for visible controller overlays
-        virtual int getControllerMenuHeight() = 0;
+        virtual std::int32_t getControllerMenuHeight() = 0;
         /// Cycle to the next window to receive controller events
         virtual void cycleActiveControllerWindow(bool next) = 0;
-        virtual void setActiveControllerWindow(MWGui::GuiMode mode, size_t activeIndex) = 0;
+        virtual void setActiveControllerWindow(MWGui::GuiMode mode, std::size_t activeIndex) = 0;
         virtual bool getControllerTooltipVisible() const = 0;
         virtual void setControllerTooltipVisible(bool visible) = 0;
         virtual bool getControllerTooltipEnabled() const = 0;

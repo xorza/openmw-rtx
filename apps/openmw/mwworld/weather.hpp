@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -48,7 +49,7 @@ namespace MWWorld
     {
         std::string_view mName;
         MWRender::MoonState::Phase mPhase;
-        unsigned int mPhaseValue;
+        std::uint32_t mPhaseValue;
         float mAlpha;
     };
 
@@ -98,7 +99,7 @@ namespace MWWorld
 
         osg::Vec3f mStormDirection;
         osg::Vec3f mStormParticleRotation;
-        int mScriptId{};
+        std::int32_t mScriptId{};
 
         // Used by scripts to animate signs, etc based on the wind (GetWindSpeed)
         float mWindSpeed{};
@@ -125,7 +126,7 @@ namespace MWWorld
         float mRainEntranceSpeed{};
 
         // Maximum count of rain particles
-        int mRainMaxRaindrops{};
+        std::int32_t mRainMaxRaindrops{};
 
         // Radius of rain effect
         float mRainDiameter{};
@@ -196,9 +197,9 @@ namespace MWWorld
         // NOLINTNEXTLINE(google-explicit-constructor)
         operator ESM::RegionWeatherState() const;
 
-        void setChances(const std::map<ESM::RefId, uint8_t>& chances, const WeatherStore& store);
-        const std::map<ESM::RefId, uint8_t>& getChances() const { return mChances; }
-        uint8_t getChance(ESM::RefId weather) const;
+        void setChances(const std::map<ESM::RefId, std::uint8_t>& chances, const WeatherStore& store);
+        const std::map<ESM::RefId, std::uint8_t>& getChances() const { return mChances; }
+        std::uint8_t getChance(ESM::RefId weather) const;
 
         void setWeather(ESM::RefId weatherID);
 
@@ -206,7 +207,7 @@ namespace MWWorld
 
     private:
         ESM::RefId mWeather;
-        std::map<ESM::RefId, uint8_t> mChances;
+        std::map<ESM::RefId, std::uint8_t> mChances;
 
         void chooseNewWeather(const WeatherStore& store);
     };
@@ -235,13 +236,13 @@ namespace MWWorld
         static constexpr float sRiseHourEpsilon = 1e-4f;
 
         // The moon repeats itself over this cycle.
-        static constexpr int sDaysPerPhase = 3;
-        static constexpr int sPhasesPerCycle = 8;
-        static constexpr int sDaysPerCycle = sDaysPerPhase * sPhasesPerCycle;
+        static constexpr std::int32_t sDaysPerPhase = 3;
+        static constexpr std::int32_t sPhasesPerCycle = 8;
+        static constexpr std::int32_t sDaysPerCycle = sDaysPerPhase * sPhasesPerCycle;
 
         // This arises from the start date of 16 Last Seed, 427 (with 17 increments).
         // TODO: Find an alternate formula that doesn't rely on this day being fixed.
-        static constexpr int sStartIncrements = 17;
+        static constexpr std::int32_t sStartIncrements = 17;
 
         float mFadeInStart;
         float mFadeInFinish;
@@ -260,15 +261,15 @@ namespace MWWorld
         CycleDay mCycle[sDaysPerCycle];
 
         static float hourOfDay(float hours);
-        static int dayOfCycle(int gameDay);
-        static MWRender::MoonState::Phase phase(int gameDay, bool postHandover);
+        static std::int32_t dayOfCycle(std::int32_t gameDay);
+        static MWRender::MoonState::Phase phase(std::int32_t gameDay, bool postHandover);
 
         void calculateSettings();
         void buildCycle();
 
         float hoursUntilVisible() const;
         float hoursUntilInvisible() const;
-        float riseHour(int gameDay) const;
+        float riseHour(std::int32_t gameDay) const;
         float handoverHour(float prevRiseHour, float nextRiseHour) const;
         float rotation(float hours) const;
         float angle(float gameHour, float riseHour) const;
@@ -292,8 +293,8 @@ namespace MWWorld
 
         void reset();
 
-        size_t getSize() const { return mShared.size(); }
-        const Weather* at(size_t index) const { return mShared.at(index); }
+        std::size_t getSize() const { return mShared.size(); }
+        const Weather* at(std::size_t index) const { return mShared.at(index); }
 
         const Weather* search(ESM::RefId id) const;
         const Weather* find(ESM::RefId id) const;
@@ -333,8 +334,8 @@ namespace MWWorld
         /// nothing is left held once the harness stops asking.
         void holdWeather(ESM::RefId current, ESM::RefId next, float crossed);
 
-        void modRegion(ESM::RefId regionID, const std::map<ESM::RefId, uint8_t>& chances);
-        const std::map<ESM::RefId, uint8_t>& getRegionChances(ESM::RefId regionID) const;
+        void modRegion(ESM::RefId regionID, const std::map<ESM::RefId, std::uint8_t>& chances);
+        const std::map<ESM::RefId, std::uint8_t>& getRegionChances(ESM::RefId regionID) const;
         void playerTeleported(const ESM::RefId& playerRegion, bool isExterior);
 
         /**
@@ -372,14 +373,14 @@ namespace MWWorld
         /// `MoonState::phaseToInt` counts it: the last exterior's, as vanilla answers indoors, and
         /// the date's where no exterior update ran since a new game or a load — a game started
         /// in the prison ship, or a save loaded indoors, which the sky's own state does not know.
-        unsigned int getMoonPhase(std::size_t index, const TimeStamp& time) const;
+        std::uint32_t getMoonPhase(std::size_t index, const TimeStamp& time) const;
 
         /// What this settled about the sky, for whatever draws it.
         const MWRender::SkyState& getSkyState() const { return mSky; }
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) const;
 
-        bool readRecord(ESM::ESMReader& reader, uint32_t type);
+        bool readRecord(ESM::ESMReader& reader, std::uint32_t type);
 
         void clear();
 

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -46,26 +48,26 @@ namespace CSMWorld
     {
         virtual ~RefIdDataContainerBase() = default;
 
-        virtual int getSize() const = 0;
+        virtual std::int32_t getSize() const = 0;
 
-        virtual const RecordBase& getRecord(int index) const = 0;
+        virtual const RecordBase& getRecord(std::int32_t index) const = 0;
 
-        virtual RecordBase& getRecord(int index) = 0;
+        virtual RecordBase& getRecord(std::int32_t index) = 0;
 
-        virtual unsigned int getRecordFlags(int index) const = 0;
+        virtual std::uint32_t getRecordFlags(std::int32_t index) const = 0;
 
         virtual void appendRecord(const ESM::RefId& id, bool base) = 0;
 
         virtual void insertRecord(std::unique_ptr<RecordBase> record) = 0;
 
-        virtual int load(ESM::ESMReader& reader, bool base) = 0;
+        virtual std::int32_t load(ESM::ESMReader& reader, bool base) = 0;
         ///< \return index of a loaded record or -1 if no record was loaded
 
-        virtual void erase(int index, int count) = 0;
+        virtual void erase(std::int32_t index, std::int32_t count) = 0;
 
-        virtual ESM::RefId getId(int index) const = 0;
+        virtual ESM::RefId getId(std::int32_t index) const = 0;
 
-        virtual void save(int index, ESM::ESMWriter& writer) const = 0;
+        virtual void save(std::int32_t index, ESM::ESMWriter& writer) const = 0;
     };
 
     template <typename RecordT>
@@ -73,26 +75,26 @@ namespace CSMWorld
     {
         std::vector<std::unique_ptr<Record<RecordT>>> mContainer;
 
-        int getSize() const override;
+        std::int32_t getSize() const override;
 
-        const RecordBase& getRecord(int index) const override;
+        const RecordBase& getRecord(std::int32_t index) const override;
 
-        RecordBase& getRecord(int index) override;
+        RecordBase& getRecord(std::int32_t index) override;
 
-        unsigned int getRecordFlags(int index) const override;
+        std::uint32_t getRecordFlags(std::int32_t index) const override;
 
         void appendRecord(const ESM::RefId& id, bool base) override;
 
         void insertRecord(std::unique_ptr<RecordBase> record) override;
 
-        int load(ESM::ESMReader& reader, bool base) override;
+        std::int32_t load(ESM::ESMReader& reader, bool base) override;
         ///< \return index of a loaded record or -1 if no record was loaded
 
-        void erase(int index, int count) override;
+        void erase(std::int32_t index, std::int32_t count) override;
 
-        ESM::RefId getId(int index) const override;
+        ESM::RefId getId(std::int32_t index) const override;
 
-        void save(int index, ESM::ESMWriter& writer) const override;
+        void save(std::int32_t index, ESM::ESMWriter& writer) const override;
     };
 
     template <typename RecordT>
@@ -104,25 +106,25 @@ namespace CSMWorld
     }
 
     template <typename RecordT>
-    int RefIdDataContainer<RecordT>::getSize() const
+    std::int32_t RefIdDataContainer<RecordT>::getSize() const
     {
-        return static_cast<int>(mContainer.size());
+        return static_cast<std::int32_t>(mContainer.size());
     }
 
     template <typename RecordT>
-    const RecordBase& RefIdDataContainer<RecordT>::getRecord(int index) const
-    {
-        return *mContainer.at(static_cast<std::size_t>(index));
-    }
-
-    template <typename RecordT>
-    RecordBase& RefIdDataContainer<RecordT>::getRecord(int index)
+    const RecordBase& RefIdDataContainer<RecordT>::getRecord(std::int32_t index) const
     {
         return *mContainer.at(static_cast<std::size_t>(index));
     }
 
     template <typename RecordT>
-    unsigned int RefIdDataContainer<RecordT>::getRecordFlags(int index) const
+    RecordBase& RefIdDataContainer<RecordT>::getRecord(std::int32_t index)
+    {
+        return *mContainer.at(static_cast<std::size_t>(index));
+    }
+
+    template <typename RecordT>
+    std::uint32_t RefIdDataContainer<RecordT>::getRecordFlags(std::int32_t index) const
     {
         return mContainer.at(static_cast<std::size_t>(index))->get().mRecordFlags;
     }
@@ -142,15 +144,15 @@ namespace CSMWorld
     }
 
     template <typename RecordT>
-    int RefIdDataContainer<RecordT>::load(ESM::ESMReader& reader, bool base)
+    std::int32_t RefIdDataContainer<RecordT>::load(ESM::ESMReader& reader, bool base)
     {
         RecordT record;
         bool isDeleted = false;
 
         record.load(reader, isDeleted);
 
-        int index = 0;
-        int numRecords = static_cast<int>(mContainer.size());
+        std::int32_t index = 0;
+        auto numRecords = static_cast<std::int32_t>(mContainer.size());
         for (; index < numRecords; ++index)
         {
             if ((mContainer[static_cast<std::size_t>(index)]->get().mId == record.mId))
@@ -203,7 +205,7 @@ namespace CSMWorld
     }
 
     template <typename RecordT>
-    void RefIdDataContainer<RecordT>::erase(int index, int count)
+    void RefIdDataContainer<RecordT>::erase(std::int32_t index, std::int32_t count)
     {
         if (index < 0 || index + count > getSize())
             throw std::runtime_error("invalid RefIdDataContainer index");
@@ -212,13 +214,13 @@ namespace CSMWorld
     }
 
     template <typename RecordT>
-    ESM::RefId RefIdDataContainer<RecordT>::getId(int index) const
+    ESM::RefId RefIdDataContainer<RecordT>::getId(std::int32_t index) const
     {
         return mContainer.at(static_cast<std::size_t>(index))->get().mId;
     }
 
     template <typename RecordT>
-    void RefIdDataContainer<RecordT>::save(int index, ESM::ESMWriter& writer) const
+    void RefIdDataContainer<RecordT>::save(std::int32_t index, ESM::ESMWriter& writer) const
     {
         const Record<RecordT>& record = *mContainer.at(static_cast<std::size_t>(index));
 
@@ -234,7 +236,7 @@ namespace CSMWorld
     class RefIdData
     {
     public:
-        typedef std::pair<int, UniversalId::Type> LocalIndex;
+        typedef std::pair<std::int32_t, UniversalId::Type> LocalIndex;
 
     private:
         RefIdDataContainer<ESM::Activator> mActivators;
@@ -262,7 +264,7 @@ namespace CSMWorld
 
         std::map<UniversalId::Type, RefIdDataContainerBase*> mRecordContainers;
 
-        void erase(const LocalIndex& index, int count);
+        void erase(const LocalIndex& index, std::int32_t count);
         ///< Must not spill over into another type.
 
         ESM::RefId getRecordId(const LocalIndex& index) const;
@@ -270,13 +272,13 @@ namespace CSMWorld
     public:
         RefIdData();
 
-        LocalIndex globalToLocalIndex(int index) const;
+        LocalIndex globalToLocalIndex(std::int32_t index) const;
 
-        int localToGlobalIndex(const LocalIndex& index) const;
+        std::int32_t localToGlobalIndex(const LocalIndex& index) const;
 
         LocalIndex searchId(const ESM::RefId& id) const;
 
-        void erase(int index, int count);
+        void erase(std::int32_t index, std::int32_t count);
 
         void insertRecord(std::unique_ptr<RecordBase> record, CSMWorld::UniversalId::Type type, const ESM::RefId& id);
 
@@ -284,22 +286,22 @@ namespace CSMWorld
 
         RecordBase& getRecord(const LocalIndex& index);
 
-        unsigned int getRecordFlags(const ESM::RefId& id) const;
+        std::uint32_t getRecordFlags(const ESM::RefId& id) const;
 
         void appendRecord(UniversalId::Type type, const ESM::RefId& id, bool base);
 
-        int getAppendIndex(UniversalId::Type type) const;
+        std::int32_t getAppendIndex(UniversalId::Type type) const;
 
         void load(ESM::ESMReader& reader, bool base, UniversalId::Type type);
 
-        int getSize() const;
+        std::int32_t getSize() const;
 
         std::vector<ESM::RefId> getIds(bool listDeleted = true) const;
         ///< Return a sorted collection of all IDs
         ///
         /// \param listDeleted include deleted record in the list
 
-        void save(int index, ESM::ESMWriter& writer) const;
+        void save(std::int32_t index, ESM::ESMWriter& writer) const;
 
         // RECORD CONTAINERS ACCESS METHODS
         const RefIdDataContainer<ESM::Book>& getBooks() const;
@@ -323,6 +325,6 @@ namespace CSMWorld
         const RefIdDataContainer<ESM::Repair>& getRepairs() const;
         const RefIdDataContainer<ESM::Static>& getStatics() const;
 
-        void copyTo(int index, RefIdData& target) const;
+        void copyTo(std::int32_t index, RefIdData& target) const;
     };
 }

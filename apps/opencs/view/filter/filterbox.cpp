@@ -1,11 +1,12 @@
 #include "filterbox.hpp"
 
-#include <QDragEnterEvent>
-#include <QHBoxLayout>
-#include <QVariant>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <QDragEnterEvent>
+#include <QHBoxLayout>
+#include <QVariant>
 
 #include <apps/opencs/model/world/tablemimedata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>

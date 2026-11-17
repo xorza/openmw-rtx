@@ -1,12 +1,14 @@
 #include "scenetoolrun.hpp"
 
+#include <cstdint>
+#include <iterator>
+#include <utility>
+
 #include <QApplication>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QTableWidget>
-#include <iterator>
-#include <utility>
 
 #include <components/misc/scalableicon.hpp>
 
@@ -42,9 +44,9 @@ void CSVWidget::SceneToolRun::updateIcon()
 
 void CSVWidget::SceneToolRun::updatePanel()
 {
-    mTable->setRowCount(static_cast<int>(mProfiles.size()));
+    mTable->setRowCount(static_cast<std::int32_t>(mProfiles.size()));
 
-    int i = 0;
+    std::int32_t i = 0;
 
     for (auto iter(mProfiles.begin()); iter != mProfiles.end(); ++iter, ++i)
     {

@@ -1,5 +1,7 @@
 #include "importdial.hpp"
 
+#include <cstdint>
+
 #include <components/esm3/esmreader.hpp>
 
 namespace ESSImport
@@ -8,11 +10,11 @@ namespace ESSImport
     void DIAL::load(ESM::ESMReader& esm)
     {
         // See ESM::Dialogue::Type enum, not sure why we would need this here though
-        int32_t type = 0;
+        std::int32_t type = 0;
         esm.getHNOT(type, "DATA");
 
         // Deleted dialogue in a savefile. No clue what this means...
-        int32_t deleted = 0;
+        std::int32_t deleted = 0;
         esm.getHNOT(deleted, "DELE");
 
         mIndex = 0;

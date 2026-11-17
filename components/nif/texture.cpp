@@ -1,5 +1,7 @@
 #include "texture.hpp"
 
+#include <cstdint>
+
 #include "data.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 
 namespace Nif
@@ -12,7 +14,7 @@ namespace Nif
         nif->read(mExternal);
         bool hasData = nif->getVersion() >= NIFStream::generateVersion(10, 0, 1, 4);
         if (!hasData && !mExternal)
-            hasData = nif->get<uint8_t>() != 0;
+            hasData = nif->get<std::uint8_t>() != 0;
 
         if (mExternal || nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 0))
             nif->read(mFile);
@@ -20,9 +22,9 @@ namespace Nif
         if (hasData)
             mData.read(nif);
 
-        mPrefs.mPixelLayout = static_cast<PixelLayout>(nif->get<uint32_t>());
-        mPrefs.mUseMipMaps = static_cast<MipMapFormat>(nif->get<uint32_t>());
-        mPrefs.mAlphaFormat = static_cast<AlphaFormat>(nif->get<uint32_t>());
+        mPrefs.mPixelLayout = static_cast<PixelLayout>(nif->get<std::uint32_t>());
+        mPrefs.mUseMipMaps = static_cast<MipMapFormat>(nif->get<std::uint32_t>());
+        mPrefs.mAlphaFormat = static_cast<AlphaFormat>(nif->get<std::uint32_t>());
 
         nif->read(mIsStatic);
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 103))
@@ -41,7 +43,7 @@ namespace Nif
 
     void BSShaderTextureSet::read(NIFStream* nif)
     {
-        nif->getSizedStrings(mTextures, nif->get<uint32_t>());
+        nif->getSizedStrings(mTextures, nif->get<std::uint32_t>());
     }
 
 }

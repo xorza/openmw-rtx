@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
@@ -36,7 +38,7 @@ namespace CSVTools
         QPushButton mReplace;
 
     private:
-        int mSearchResultCount = 0;
+        std::int32_t mSearchResultCount = 0;
 
         void updateSearchButtons();
 
@@ -47,7 +49,7 @@ namespace CSVTools
 
         void setSearchMode(bool enabled);
 
-        void setSearchResultCount(int resultCount);
+        void setSearchResultCount(std::int32_t resultCount);
 
         CSMTools::Search getSearch() const;
 
@@ -57,7 +59,7 @@ namespace CSVTools
 
     private slots:
 
-        void modeSelected(int index);
+        void modeSelected(std::int32_t index);
 
         void textChanged(const QString& text);
 

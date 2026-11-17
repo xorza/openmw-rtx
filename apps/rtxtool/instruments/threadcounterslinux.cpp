@@ -66,7 +66,7 @@ namespace RtxTool
         /// Cycles, the group's leader, then instructions and cache misses, on one kind of core.
         struct Group
         {
-            std::array<int, sEvents> mFds{ -1, -1, -1 };
+            std::array<std::int32_t, sEvents> mFds{ -1, -1, -1 };
 
             /// The kind's number in the events' upper half, nought on a part with one kind.
             std::uint64_t mKind = 0;
@@ -100,7 +100,7 @@ namespace RtxTool
         pid_t mThread = 0;
 
         /// Why the kernel refused the last event it refused, kept before a close could change it.
-        int mRefusal = 0;
+        std::int32_t mRefusal = 0;
 
         /// Why the window `start` opened counts nothing: the kernel refused to reset, read or enable a group.
         std::string_view mStartRefused{};
@@ -110,7 +110,7 @@ namespace RtxTool
         void closeAll()
         {
             for (Group& group : mGroups)
-                for (int& fd : group.mFds)
+                for (std::int32_t& fd : group.mFds)
                     if (fd >= 0)
                     {
                         close(fd);
@@ -137,7 +137,7 @@ namespace RtxTool
                         attr.read_format
                             = PERF_FORMAT_GROUP | PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
                     }
-                    group.mFds[at] = static_cast<int>(syscall(
+                    group.mFds[at] = static_cast<std::int32_t>(syscall(
                         SYS_perf_event_open, &attr, mThread, -1, at == 0 ? -1 : group.mFds[0], PERF_FLAG_FD_CLOEXEC));
                     if (group.mFds[at] < 0)
                     {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -70,8 +72,8 @@ namespace MWWorld
         void clear();
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) const;
-        bool readRecord(ESM::ESMReader& reader, uint32_t type);
-        size_t countSavedGameRecords() const;
+        bool readRecord(ESM::ESMReader& reader, std::uint32_t type);
+        std::size_t countSavedGameRecords() const;
         void saveLoaded(const ESM::ESMReader& reader);
 
     private:
@@ -97,7 +99,7 @@ namespace MWWorld
             // MW-id of an arrow projectile
             ESM::RefId mIdArrow;
 
-            int mProjectileId{};
+            std::int32_t mProjectileId{};
             bool mToDelete{};
         };
 

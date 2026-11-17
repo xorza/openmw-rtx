@@ -1,5 +1,8 @@
 #include "aicombat.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <apps/openmw/mwbase/dialoguemanager.hpp>
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
@@ -494,8 +497,8 @@ namespace MWMechanics
         rotateActorOnAxis(actor, 0, actorMovementSettings, storage);
     }
 
-    void AiCombat::rotateActorOnAxis(
-        const MWWorld::Ptr& actor, int axis, MWMechanics::Movement& actorMovementSettings, AiCombatStorage& storage)
+    void AiCombat::rotateActorOnAxis(const MWWorld::Ptr& actor, std::int32_t axis,
+        MWMechanics::Movement& actorMovementSettings, AiCombatStorage& storage)
     {
         actorMovementSettings.mRotation[axis] = 0;
         bool isRangedCombat = false;
@@ -604,7 +607,7 @@ namespace MWMechanics
             if (MWBase::Environment::get().getWorld()->isUnderwater(MWWorld::ConstPtr(actor), 0.5f))
                 return;
 
-            int mask
+            std::int32_t mask
                 = MWPhysics::CollisionType_World | MWPhysics::CollisionType_HeightMap | MWPhysics::CollisionType_Door;
 
             // Actor can not back up if there is no free space behind
@@ -683,7 +686,7 @@ namespace MWMechanics
                 if (canShout)
                 {
                     // Say a provoking combat phrase
-                    const int iVoiceAttackOdds
+                    const std::int32_t iVoiceAttackOdds
                         = store.get<ESM::GameSetting>().find("iVoiceAttackOdds")->mValue.getInteger();
                     if (Misc::Rng::roll0to99(prng) < iVoiceAttackOdds)
                     {
@@ -750,9 +753,9 @@ namespace
         if (weapon != nullptr)
         {
             // the more damage attackType deals the more probability it has
-            int slash = (weapon->mData.mSlash[0] + weapon->mData.mSlash[1]) / 2;
-            int chop = (weapon->mData.mChop[0] + weapon->mData.mChop[1]) / 2;
-            int thrust = (weapon->mData.mThrust[0] + weapon->mData.mThrust[1]) / 2;
+            std::int32_t slash = (weapon->mData.mSlash[0] + weapon->mData.mSlash[1]) / 2;
+            std::int32_t chop = (weapon->mData.mChop[0] + weapon->mData.mChop[1]) / 2;
+            std::int32_t thrust = (weapon->mData.mThrust[0] + weapon->mData.mThrust[1]) / 2;
 
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
             float roll = Misc::Rng::rollClosedProbability(prng) * static_cast<float>((slash + chop + thrust));

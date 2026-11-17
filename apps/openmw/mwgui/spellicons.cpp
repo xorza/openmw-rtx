@@ -1,5 +1,6 @@
 #include "spellicons.hpp"
 
+#include <cstdint>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -23,7 +24,8 @@ namespace MWGui
 {
     namespace
     {
-        MyGUI::ImageBox* createIcon(MyGUI::Widget& parent, std::string_view name, std::string_view icon, int size)
+        MyGUI::ImageBox* createIcon(
+            MyGUI::Widget& parent, std::string_view name, std::string_view icon, std::int32_t size)
         {
             const VFS::Manager& vfs = *MWBase::Environment::get().getResourceSystem()->getVFS();
 
@@ -52,8 +54,8 @@ namespace MWGui
                 return result;
 
             MWBase::WindowManager& windowManager = *MWBase::Environment::get().getWindowManager();
-            const int minMagnitude = static_cast<int>(srcMinMagnitude);
-            const int maxMagnitude = static_cast<int>(srcMaxMagnitude);
+            const auto minMagnitude = static_cast<std::int32_t>(srcMinMagnitude);
+            const auto maxMagnitude = static_cast<std::int32_t>(srcMaxMagnitude);
             const std::string to = " " + std::string{ windowManager.getGameSettingString("sTo", {}) } + " ";
             if (displayType == ESM::MagicEffect::MDT_TimesInt)
             {
@@ -99,9 +101,9 @@ namespace MWGui
             widget->getUserData<ToolTipInfo>()->text.clear();
         }
 
-        int horizontalOffset = 2;
-        constexpr int verticalOffset = 2;
-        constexpr int size = 16;
+        std::int32_t horizontalOffset = 2;
+        constexpr std::int32_t verticalOffset = 2;
+        constexpr std::int32_t size = 16;
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
         static const float fadeTime = store.get<ESM::GameSetting>().find("fMagicStartIconBlink")->mValue.getFloat();
@@ -164,8 +166,8 @@ namespace MWGui
 
         if (adjustSize)
         {
-            const int newWidth = horizontalOffset > 2 ? horizontalOffset + 2 : 0;
-            const int diff = parent->getWidth() - newWidth;
+            const std::int32_t newWidth = horizontalOffset > 2 ? horizontalOffset + 2 : 0;
+            const std::int32_t diff = parent->getWidth() - newWidth;
             parent->setSize(newWidth, parent->getHeight());
             parent->setPosition(parent->getLeft() + diff, parent->getTop());
         }

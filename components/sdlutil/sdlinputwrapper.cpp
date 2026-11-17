@@ -1,6 +1,7 @@
 #include "sdlinputwrapper.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <ios>
 #include <string_view>
 
@@ -125,7 +126,7 @@ namespace SDLUtil
                     mKeyboardListener->keyPressed(evt.key);
 
                     if (!isModifierHeld(SDL_KMOD_ALT) && evt.key.key >= SDLK_F1 && evt.key.key <= SDLK_F12)
-                        mGraphics.functionKey(static_cast<int>(evt.key.key - SDLK_F1),
+                        mGraphics.functionKey(static_cast<std::int32_t>(evt.key.key - SDLK_F1),
                             evt.key.repeat ? KeyChange::Repeated : KeyChange::Pressed);
 
                     break;
@@ -135,7 +136,8 @@ namespace SDLUtil
                         mKeyboardListener->keyReleased(evt.key);
 
                         if (!isModifierHeld(SDL_KMOD_ALT) && evt.key.key >= SDLK_F1 && evt.key.key <= SDLK_F12)
-                            mGraphics.functionKey(static_cast<int>(evt.key.key - SDLK_F1), KeyChange::Released);
+                            mGraphics.functionKey(
+                                static_cast<std::int32_t>(evt.key.key - SDLK_F1), KeyChange::Released);
                     }
 
                     break;
@@ -307,8 +309,8 @@ namespace SDLUtil
             {
                 // From the window and not the event: SDL drops a superseded resize from its queue,
                 // and the window holds the latest.
-                int width = 0;
-                int height = 0;
+                std::int32_t width = 0;
+                std::int32_t height = 0;
                 SDL_GetWindowSize(mSDLWindow, &width, &height);
                 if (mWindowListener)
                     mWindowListener->windowSized(width, height);
@@ -316,14 +318,14 @@ namespace SDLUtil
             }
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
             {
-                const int w = evt.window.data1;
-                const int h = evt.window.data2;
+                const std::int32_t w = evt.window.data1;
+                const std::int32_t h = evt.window.data2;
 
                 // Happens when you Alt-Tab out of game
                 if (w == 0 && h == 0)
                     return;
 
-                int x = 0, y = 0;
+                std::int32_t x = 0, y = 0;
                 SDL_GetWindowPosition(mSDLWindow, &x, &y);
                 mGraphics.windowResized(x, y, w, h);
 
@@ -374,7 +376,7 @@ namespace SDLUtil
         }
     }
 
-    bool InputWrapper::isModifierHeld(int mod)
+    bool InputWrapper::isModifierHeld(std::int32_t mod)
     {
         return (SDL_GetModState() & mod) != 0;
     }
@@ -479,8 +481,8 @@ namespace SDLUtil
         if (!mMouseRelative || !mWrapPointer || !mGrabPointer)
             return;
 
-        int width = 0;
-        int height = 0;
+        std::int32_t width = 0;
+        std::int32_t height = 0;
 
         SDL_GetWindowSize(mSDLWindow, &width, &height);
 
@@ -519,7 +521,7 @@ namespace SDLUtil
         else if (evt.type == SDL_EVENT_MOUSE_WHEEL)
         {
             mPendingWheelY += static_cast<double>(evt.wheel.y) * 120.0;
-            const int zrel = static_cast<int>(mPendingWheelY);
+            const auto zrel = static_cast<std::int32_t>(mPendingWheelY);
             mPendingWheelY -= zrel;
 
             mMouseZ += zrel;

@@ -25,7 +25,7 @@ namespace DetourNavigator
 
     struct NavMeshTileConsumerStats
     {
-        int mPolyCount;
+        std::int32_t mPolyCount;
     };
 
     struct NavMeshTileConsumer

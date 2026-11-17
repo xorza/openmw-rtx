@@ -316,7 +316,7 @@ namespace Rtx::Testing
             SceneDesc bare;
             addQuad(bare, sWallQuad, sNoIndex);
 
-            constexpr int byte = 110;
+            constexpr std::int32_t byte = 110;
             double previousMean = 0.0;
             for (const float level : { 109.7f, 110.0f, 110.3f })
             {
@@ -348,7 +348,7 @@ namespace Rtx::Testing
                                 ASSERT_EQ(pixels[i + 1], pixels[i]) << "green apart from red at pixel " << i / 4;
                                 ASSERT_EQ(pixels[i + 2], pixels[i]) << "blue apart from red at pixel " << i / 4;
                                 ASSERT_EQ(pixels[i + 3], 255) << "the dither reached the alpha of pixel " << i / 4;
-                                const int step = int{ pixels[i] } - byte;
+                                const std::int32_t step = std::int32_t{ pixels[i] } - byte;
                                 ASSERT_LE(std::abs(step), 1) << "pixel " << i / 4 << " at " << level;
                                 // An index from signed steps, whole and in range before it is widened.
                                 // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
@@ -386,7 +386,7 @@ namespace Rtx::Testing
             SceneDesc bare;
             addQuad(bare, sWallQuad, sNoIndex);
 
-            int previous = 0;
+            std::int32_t previous = 0;
             std::size_t scattered = 0;
             for (const float level : { 109.7f, 110.0f, 110.3f })
             {
@@ -401,7 +401,7 @@ namespace Rtx::Testing
                 ASSERT_EQ(samples.size(), std::size_t{ size } * size * 4);
                 ASSERT_EQ(bytes.size(), samples.size());
 
-                const int sample = samples[0];
+                const std::int32_t sample = samples[0];
                 for (std::size_t i = 0; i < samples.size(); ++i)
                 {
                     if (i % 4 == 3)
@@ -545,7 +545,7 @@ namespace Rtx::Testing
             // The last column the wall covers, and the first one past it.
             constexpr std::size_t row = std::size_t{ size / 2 } * size;
             const auto redAt = [](const Frame& drawn, std::size_t column) {
-                return static_cast<int>(drawn.byte((row + column) * 4));
+                return static_cast<std::int32_t>(drawn.byte((row + column) * 4));
             };
 
             const Frame hard = shoot(scene, {}, camera, size, { .mFrames = 16, .mShow = SurfaceView::Albedo });
@@ -1030,12 +1030,12 @@ namespace Rtx::Testing
                   };
 
             const std::vector<std::uint8_t> bare = shown(150.0f, {});
-            ASSERT_GT(int{ bare[middle] }, 20) << "the wall is not lit";
+            ASSERT_GT(std::int32_t{ bare[middle] }, 20) << "the wall is not lit";
             EXPECT_EQ(bare[middle], bare[middle + 1]) << "a line behind the wall was drawn";
 
             const std::vector<std::uint8_t> lined = shown(50.0f, {});
-            EXPECT_EQ(int{ lined[middle] }, 255) << "the line in front of the wall was not drawn";
-            EXPECT_EQ(int{ lined[middle + 1] }, 0);
+            EXPECT_EQ(std::int32_t{ lined[middle] }, 255) << "the line in front of the wall was not drawn";
+            EXPECT_EQ(std::int32_t{ lined[middle + 1] }, 0);
             EXPECT_EQ(lined[low], bare[low]) << "the line reached a row it does not cross";
 
             // A triangle over the lower half, fifty ahead, at a quarter alpha: over what the wall
@@ -1049,16 +1049,16 @@ namespace Rtx::Testing
                     .mPosition = osg::Vec3f(0.0f, -50.0f, -500.0f), .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 0.25f) },
             };
             const std::vector<std::uint8_t> filled = shown(150.0f, lower);
-            EXPECT_NEAR(int{ filled[low] }, static_cast<int>(0.75f * bare[low] + 0.25f * 255.0f), 1)
+            EXPECT_NEAR(std::int32_t{ filled[low] }, static_cast<std::int32_t>(0.75f * bare[low] + 0.25f * 255.0f), 1)
                 << "the triangle was not blended over the wall";
-            EXPECT_NEAR(int{ filled[low + 1] }, static_cast<int>(0.75f * bare[low + 1]), 1);
+            EXPECT_NEAR(std::int32_t{ filled[low + 1] }, static_cast<std::int32_t>(0.75f * bare[low + 1]), 1);
             EXPECT_EQ(filled[middle], bare[middle]) << "the triangle reached a row above it";
 
             // **And raised to the player's gamma with the picture under it**, as the rasterizer
             // raises its debug draws with the world. A line of red 0.25 is 63.75 of 255 at a gamma
             // of one, and at a gamma of two it is raised by a half, `0.25^(1/2)` = 0.5: 127.5.
-            EXPECT_NEAR(int{ shown(50.0f, {}, 0.25f)[middle] }, 64, 1) << "the line at a gamma of one";
-            EXPECT_NEAR(int{ shown(50.0f, {}, 0.25f, 2.0f)[middle] }, 128, 1) << "the line at a gamma of two";
+            EXPECT_NEAR(std::int32_t{ shown(50.0f, {}, 0.25f)[middle] }, 64, 1) << "the line at a gamma of one";
+            EXPECT_NEAR(std::int32_t{ shown(50.0f, {}, 0.25f, 2.0f)[middle] }, 128, 1) << "the line at a gamma of two";
         }
 
         /// The player's arms are seen through their own eye and stand in front of everything: two decisions the
@@ -1152,9 +1152,9 @@ namespace Rtx::Testing
             EXPECT_NEAR(narrow.mMiddleDistance, 100.0f, 0.01f);
 
             const Seen wide = seenWith(cameraAtFieldOfView(camera.mEyes.mWorld, 60.0f).value());
-            EXPECT_GT(int{ wide.mArm[0] }, 200) << "the arms' eye did not see the pane";
+            EXPECT_GT(std::int32_t{ wide.mArm[0] }, 200) << "the arms' eye did not see the pane";
             EXPECT_TRUE(wide.mArmOnArms);
-            EXPECT_LT(int{ wide.mArm[1] }, 50) << "the arms' eye saw something other than the pane";
+            EXPECT_LT(std::int32_t{ wide.mArm[1] }, 50) << "the arms' eye saw something other than the pane";
             EXPECT_EQ(wide.mMiddle, narrow.mMiddle) << "the arms' eye moved the wall";
             EXPECT_NEAR(wide.mMiddleDistance, 100.0f, 0.01f);
 

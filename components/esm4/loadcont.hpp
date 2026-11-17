@@ -51,7 +51,7 @@ namespace ESM4
         ESM::Path mModel;
 
         float mBoundRadius{};
-        unsigned char mDataFlags{};
+        std::uint8_t mDataFlags{};
         float mWeight{};
 
         ESM::FormId mOpenSound;

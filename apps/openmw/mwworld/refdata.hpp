@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -49,7 +50,7 @@ namespace MWWorld
         ESM::Position mPosition;
         ESM::AnimationState mAnimationState;
         std::unique_ptr<CustomData> mCustomData;
-        unsigned int mFlags{};
+        std::uint32_t mFlags{};
 
         /// separate delete flag used for deletion by a content file
         /// @note not stored in the save game file.

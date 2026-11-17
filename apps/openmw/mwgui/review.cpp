@@ -1,6 +1,8 @@
 #include "review.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
@@ -188,8 +190,8 @@ namespace MWGui
 
     void ReviewDialog::setHealth(const MWMechanics::DynamicStat<float>& value)
     {
-        int current = std::max(0, static_cast<int>(value.getCurrent()));
-        int modified = static_cast<int>(value.getModified());
+        std::int32_t current = std::max(0, static_cast<std::int32_t>(value.getCurrent()));
+        auto modified = static_cast<std::int32_t>(value.getModified());
 
         mHealth->setValue(current, modified);
         std::string valStr = MyGUI::utility::toString(current) + " / " + MyGUI::utility::toString(modified);
@@ -198,8 +200,8 @@ namespace MWGui
 
     void ReviewDialog::setMagicka(const MWMechanics::DynamicStat<float>& value)
     {
-        int current = std::max(0, static_cast<int>(value.getCurrent()));
-        int modified = static_cast<int>(value.getModified());
+        std::int32_t current = std::max(0, static_cast<std::int32_t>(value.getCurrent()));
+        auto modified = static_cast<std::int32_t>(value.getModified());
 
         mMagicka->setValue(current, modified);
         std::string valStr = MyGUI::utility::toString(current) + " / " + MyGUI::utility::toString(modified);
@@ -208,8 +210,8 @@ namespace MWGui
 
     void ReviewDialog::setFatigue(const MWMechanics::DynamicStat<float>& value)
     {
-        int current = static_cast<int>(value.getCurrent());
-        int modified = static_cast<int>(value.getModified());
+        auto current = static_cast<std::int32_t>(value.getCurrent());
+        auto modified = static_cast<std::int32_t>(value.getModified());
 
         mFatigue->setValue(current, modified);
         std::string valStr = MyGUI::utility::toString(current) + " / " + MyGUI::utility::toString(modified);
@@ -291,7 +293,7 @@ namespace MWGui
         groupWidget->setCaption(MyGUI::UString(label));
         mSkillWidgets.push_back(groupWidget);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         coord1.top += lineHeight;
         coord2.top += lineHeight;
     }
@@ -314,7 +316,7 @@ namespace MWGui
         mSkillWidgets.push_back(skillNameWidget);
         mSkillWidgets.push_back(skillValueWidget);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         coord1.top += lineHeight;
         coord2.top += lineHeight;
 
@@ -332,7 +334,7 @@ namespace MWGui
 
         mSkillWidgets.push_back(skillNameWidget);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         coord1.top += lineHeight;
         coord2.top += lineHeight;
     }
@@ -348,7 +350,7 @@ namespace MWGui
 
         mSkillWidgets.push_back(widget);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         coord1.top += lineHeight;
         coord2.top += lineHeight;
     }
@@ -389,9 +391,9 @@ namespace MWGui
             else if (modified < base)
                 state = "decreased";
             MyGUI::TextBox* widget = addValueItem(
-                skill->mName, MyGUI::utility::toString(static_cast<int>(modified)), state, coord1, coord2);
+                skill->mName, MyGUI::utility::toString(static_cast<std::int32_t>(modified)), state, coord1, coord2);
 
-            for (int i = 0; i < 2; ++i)
+            for (std::int32_t i = 0; i < 2; ++i)
             {
                 ToolTips::createSkillToolTip(
                     mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)], skill->mId);
@@ -409,7 +411,7 @@ namespace MWGui
         }
         mSkillWidgets.clear();
 
-        const int valueSize = 40;
+        const std::int32_t valueSize = 40;
         MyGUI::IntCoord coord1(10, 0, mSkillView->getWidth() - (10 + valueSize) - 24, 18);
         MyGUI::IntCoord coord2(coord1.left + coord1.width, coord1.top, valueSize, coord1.height);
 
@@ -531,13 +533,13 @@ namespace MWGui
         eventActivateDialog(BIRTHSIGN_DIALOG);
     }
 
-    void ReviewDialog::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void ReviewDialog::onMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (mSkillView->getViewOffset().top + rel * 0.3 > 0)
             mSkillView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mSkillView->setViewOffset(
-                MyGUI::IntPoint(0, static_cast<int>(mSkillView->getViewOffset().top + rel * 0.3)));
+                MyGUI::IntPoint(0, static_cast<std::int32_t>(mSkillView->getViewOffset().top + rel * 0.3)));
     }
 
     bool ReviewDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)

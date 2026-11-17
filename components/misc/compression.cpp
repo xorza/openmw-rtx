@@ -1,6 +1,7 @@
 #include "compression.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -15,10 +16,11 @@ namespace Misc
     {
         const std::size_t originalSize = data.size();
         std::vector<std::byte> result(
-            static_cast<std::size_t>(LZ4_compressBound(static_cast<int>(originalSize))) + sizeof(originalSize));
-        const int size = LZ4_compress_default(reinterpret_cast<const char*>(data.data()),
-            reinterpret_cast<char*>(result.data()) + sizeof(originalSize), static_cast<int>(data.size()),
-            static_cast<int>(result.size() - sizeof(originalSize)));
+            static_cast<std::size_t>(LZ4_compressBound(static_cast<std::int32_t>(originalSize)))
+            + sizeof(originalSize));
+        const std::int32_t size = LZ4_compress_default(reinterpret_cast<const char*>(data.data()),
+            reinterpret_cast<char*>(result.data()) + sizeof(originalSize), static_cast<std::int32_t>(data.size()),
+            static_cast<std::int32_t>(result.size() - sizeof(originalSize)));
         if (size == 0)
             throw std::runtime_error("Failed to compress");
         std::memcpy(result.data(), &originalSize, sizeof(originalSize));
@@ -31,9 +33,9 @@ namespace Misc
         std::size_t originalSize = 0;
         std::memcpy(&originalSize, data.data(), sizeof(originalSize));
         std::vector<std::byte> result(originalSize);
-        const int size = LZ4_decompress_safe(reinterpret_cast<const char*>(data.data()) + sizeof(originalSize),
-            reinterpret_cast<char*>(result.data()), static_cast<int>(data.size() - sizeof(originalSize)),
-            static_cast<int>(result.size()));
+        const std::int32_t size = LZ4_decompress_safe(reinterpret_cast<const char*>(data.data()) + sizeof(originalSize),
+            reinterpret_cast<char*>(result.data()), static_cast<std::int32_t>(data.size() - sizeof(originalSize)),
+            static_cast<std::int32_t>(result.size()));
         if (size < 0)
             throw std::runtime_error("Failed to decompress");
         if (std::cmp_not_equal(originalSize, size))

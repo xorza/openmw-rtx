@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <SDL3/SDL_events.h>
 
 #include "events.hpp"
@@ -22,7 +24,7 @@ namespace SDLUtil
         void setControllerEventCallback(ControllerListener* listen) { mConListener = listen; }
 
         void capture(bool windowEventsOnly);
-        bool isModifierHeld(int mod);
+        bool isModifierHeld(std::int32_t mod);
         bool isKeyDown(SDL_Scancode key);
 
         void setMouseVisible(bool visible);

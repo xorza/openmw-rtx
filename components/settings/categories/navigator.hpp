@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -29,16 +30,17 @@ namespace Settings
             makeMaxSanitizerFloat(0) };
         SettingValue<float> mMaxSimplificationError{ mIndex, "Navigator", "max simplification error",
             makeMaxSanitizerFloat(0) };
-        SettingValue<int> mTileSize{ mIndex, "Navigator", "tile size", makeMaxSanitizerInt(1) };
-        SettingValue<int> mBorderSize{ mIndex, "Navigator", "border size", makeMaxSanitizerInt(0) };
-        SettingValue<int> mMaxEdgeLen{ mIndex, "Navigator", "max edge len", makeMaxSanitizerInt(0) };
-        SettingValue<int> mMaxNavMeshQueryNodes{ mIndex, "Navigator", "max nav mesh query nodes",
+        SettingValue<std::int32_t> mTileSize{ mIndex, "Navigator", "tile size", makeMaxSanitizerInt(1) };
+        SettingValue<std::int32_t> mBorderSize{ mIndex, "Navigator", "border size", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mMaxEdgeLen{ mIndex, "Navigator", "max edge len", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mMaxNavMeshQueryNodes{ mIndex, "Navigator", "max nav mesh query nodes",
             makeClampSanitizerInt(1, 65535) };
-        SettingValue<int> mMaxPolygonsPerTile{ mIndex, "Navigator", "max polygons per tile",
+        SettingValue<std::int32_t> mMaxPolygonsPerTile{ mIndex, "Navigator", "max polygons per tile",
             makeClampSanitizerInt(1, 1 << 21) };
-        SettingValue<int> mMaxVertsPerPoly{ mIndex, "Navigator", "max verts per poly", makeMaxSanitizerInt(3) };
-        SettingValue<int> mRegionMergeArea{ mIndex, "Navigator", "region merge area", makeMaxSanitizerInt(0) };
-        SettingValue<int> mRegionMinArea{ mIndex, "Navigator", "region min area", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mMaxVertsPerPoly{ mIndex, "Navigator", "max verts per poly",
+            makeMaxSanitizerInt(3) };
+        SettingValue<std::int32_t> mRegionMergeArea{ mIndex, "Navigator", "region merge area", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mRegionMinArea{ mIndex, "Navigator", "region min area", makeMaxSanitizerInt(0) };
         SettingValue<std::size_t> mAsyncNavMeshUpdaterThreads{ mIndex, "Navigator", "async nav mesh updater threads",
             makeMaxSanitizerSize(1) };
         SettingValue<std::size_t> mMaxNavMeshTilesCacheSize{ mIndex, "Navigator", "max nav mesh tiles cache size" };
@@ -55,10 +57,11 @@ namespace Settings
         SettingValue<NavMeshRenderMode> mNavMeshRenderMode{ mIndex, "Navigator", "nav mesh render mode" };
         SettingValue<bool> mEnableAgentsPathsRender{ mIndex, "Navigator", "enable agents paths render" };
         SettingValue<bool> mEnableRecastMeshRender{ mIndex, "Navigator", "enable recast mesh render" };
-        SettingValue<int> mMaxTilesNumber{ mIndex, "Navigator", "max tiles number", makeMaxSanitizerInt(0) };
-        SettingValue<int> mMinUpdateIntervalMs{ mIndex, "Navigator", "min update interval ms", makeMaxSanitizerInt(0) };
-        SettingValue<int> mWaitUntilMinDistanceToPlayer{ mIndex, "Navigator", "wait until min distance to player",
+        SettingValue<std::int32_t> mMaxTilesNumber{ mIndex, "Navigator", "max tiles number", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mMinUpdateIntervalMs{ mIndex, "Navigator", "min update interval ms",
             makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mWaitUntilMinDistanceToPlayer{ mIndex, "Navigator",
+            "wait until min distance to player", makeMaxSanitizerInt(0) };
         SettingValue<bool> mEnableNavMeshDiskCache{ mIndex, "Navigator", "enable nav mesh disk cache" };
         SettingValue<bool> mWaitForAllJobsOnExit{ mIndex, "Navigator", "wait for all jobs on exit" };
     };

@@ -1,5 +1,7 @@
 #include "refid.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <variant>
@@ -210,9 +212,9 @@ namespace ESM
 
         if (value.starts_with(formIdRefIdPrefix))
         {
-            auto v = deserializeHexIntegral<uint64_t>(formIdRefIdPrefix.size(), value);
-            uint32_t index = static_cast<uint32_t>(v) & 0xffffff;
-            int contentFile = static_cast<int>(v >> 24);
+            auto v = deserializeHexIntegral<std::uint64_t>(formIdRefIdPrefix.size(), value);
+            std::uint32_t index = static_cast<std::uint32_t>(v) & 0xffffff;
+            auto contentFile = static_cast<std::int32_t>(v >> 24);
             return ESM::FormId{ index, contentFile };
         }
 

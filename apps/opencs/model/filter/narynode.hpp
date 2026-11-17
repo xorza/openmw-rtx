@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,11 +17,11 @@ namespace CSMFilter
     public:
         NAryNode(const std::vector<std::shared_ptr<Node>>& nodes, std::string name);
 
-        int getSize() const;
+        std::int32_t getSize() const;
 
-        const Node& operator[](int index) const;
+        const Node& operator[](std::int32_t index) const;
 
-        std::vector<int> getReferencedColumns() const override;
+        std::vector<std::int32_t> getReferencedColumns() const override;
         ///< Return a list of the IDs of the columns referenced by this node. The column mapping
         /// passed into test as columns must contain all columns listed here.
 

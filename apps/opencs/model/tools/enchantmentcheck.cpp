@@ -1,8 +1,7 @@
 #include "enchantmentcheck.hpp"
 
+#include <cstdint>
 #include <string>
-
-#include <stddef.h>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
@@ -21,14 +20,14 @@ CSMTools::EnchantmentCheckStage::EnchantmentCheckStage(const CSMWorld::IdCollect
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::EnchantmentCheckStage::setup()
+std::int32_t CSMTools::EnchantmentCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mEnchantments.getSize();
 }
 
-void CSMTools::EnchantmentCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::EnchantmentCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Enchantment>& record = mEnchantments.getRecord(stage);
 

@@ -1,5 +1,11 @@
 #include "datafilespage.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <mutex>
+#include <thread>
+#include <unordered_set>
+
 #include <QClipboard>
 #include <QComboBox>
 #include <QDebug>
@@ -11,10 +17,6 @@
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QTimer>
-#include <algorithm>
-#include <mutex>
-#include <thread>
-#include <unordered_set>
 
 #include <apps/launcher/utils/cellnameloader.hpp>
 #include <apps/launcher/utils/profilescombobox.hpp>
@@ -81,9 +83,9 @@ namespace
             contentSubdirs(subdir.canonicalFilePath(), dirs);
     }
 
-    QList<QPair<int, QListWidgetItem*>> sortedSelectedItems(QListWidget* list, bool reverse = false)
+    QList<QPair<std::int32_t, QListWidgetItem*>> sortedSelectedItems(QListWidget* list, bool reverse = false)
     {
-        QList<QPair<int, QListWidgetItem*>> sortedItems;
+        QList<QPair<std::int32_t, QListWidgetItem*>> sortedItems;
         for (QListWidgetItem* item : list->selectedItems())
             sortedItems.append(qMakePair(list->row(item), item));
 
@@ -102,36 +104,37 @@ namespace Launcher
     {
         struct HandleNavMeshToolMessage
         {
-            int mCellsCount;
-            int mExpectedMaxProgress;
-            int mMaxProgress;
-            int mProgress;
+            std::int32_t mCellsCount;
+            std::int32_t mExpectedMaxProgress;
+            std::int32_t mMaxProgress;
+            std::int32_t mProgress;
 
             HandleNavMeshToolMessage operator()(NavMeshTool::ExpectedCells&& message) const
             {
-                return HandleNavMeshToolMessage{ static_cast<int>(message.mCount), mExpectedMaxProgress,
-                    static_cast<int>(message.mCount) * 100, mProgress };
+                return HandleNavMeshToolMessage{ static_cast<std::int32_t>(message.mCount), mExpectedMaxProgress,
+                    static_cast<std::int32_t>(message.mCount) * 100, mProgress };
             }
 
             HandleNavMeshToolMessage operator()(NavMeshTool::ProcessedCells&& message) const
             {
                 return HandleNavMeshToolMessage{ mCellsCount, mExpectedMaxProgress, mMaxProgress,
-                    std::max(mProgress, static_cast<int>(message.mCount)) };
+                    std::max(mProgress, static_cast<std::int32_t>(message.mCount)) };
             }
 
             HandleNavMeshToolMessage operator()(NavMeshTool::ExpectedTiles&& message) const
             {
-                const int expectedMaxProgress = mCellsCount + static_cast<int>(message.mCount);
+                const std::int32_t expectedMaxProgress = mCellsCount + static_cast<std::int32_t>(message.mCount);
                 return HandleNavMeshToolMessage{ mCellsCount, expectedMaxProgress,
                     std::max(mMaxProgress, expectedMaxProgress), mProgress };
             }
 
             HandleNavMeshToolMessage operator()(NavMeshTool::GeneratedTiles&& message) const
             {
-                int progress = mCellsCount + static_cast<int>(message.mCount);
+                std::int32_t progress = mCellsCount + static_cast<std::int32_t>(message.mCount);
                 if (mExpectedMaxProgress < mMaxProgress)
-                    progress += static_cast<int>(std::round(static_cast<float>((mMaxProgress - mExpectedMaxProgress))
-                        * (static_cast<float>(progress) / static_cast<float>(mExpectedMaxProgress))));
+                    progress += static_cast<std::int32_t>(
+                        std::round(static_cast<float>((mMaxProgress - mExpectedMaxProgress))
+                            * (static_cast<float>(progress) / static_cast<float>(mExpectedMaxProgress))));
                 return HandleNavMeshToolMessage{ mCellsCount, mExpectedMaxProgress, mMaxProgress,
                     std::max(mProgress, progress) };
             }
@@ -236,7 +239,7 @@ void Launcher::DataFilesPage::buildView()
     refreshButton->setDefaultAction(ui.refreshDataFilesAction);
 
     // establish connections
-    connect(ui.profilesComboBox, qOverload<int>(&::ProfilesComboBox::currentIndexChanged), this,
+    connect(ui.profilesComboBox, qOverload<std::int32_t>(&::ProfilesComboBox::currentIndexChanged), this,
         &DataFilesPage::slotProfileChanged);
 
     connect(ui.profilesComboBox, &::ProfilesComboBox::profileRenamed, this, &DataFilesPage::slotProfileRenamed);
@@ -253,7 +256,7 @@ void Launcher::DataFilesPage::buildView()
         &DataFilesPage::readNavMeshToolStdout);
     connect(mNavMeshToolInvoker->getProcess(), &QProcess::readyReadStandardError, this,
         &DataFilesPage::readNavMeshToolStderr);
-    connect(mNavMeshToolInvoker->getProcess(), qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+    connect(mNavMeshToolInvoker->getProcess(), qOverload<std::int32_t, QProcess::ExitStatus>(&QProcess::finished), this,
         &DataFilesPage::navMeshToolFinished);
 
     buildArchiveContextMenu();
@@ -337,12 +340,12 @@ bool Launcher::DataFilesPage::loadSettings()
 
     QComboBox* const languageBox = mSelector->languageBox();
     QStringList languages;
-    for (int i = 0; i < languageBox->count(); ++i)
+    for (std::int32_t i = 0; i < languageBox->count(); ++i)
         languages.push_back(languageBox->itemData(i).toString());
 
     const QString language = Config::languageForEncoding(
         languages, mLauncherSettings.getLanguage(), mGameSettings.value("encoding", { "win1252" }).value);
-    if (const int at = languageBox->findData(language); at != -1)
+    if (const std::int32_t at = languageBox->findData(language); at != -1)
         languageBox->setCurrentIndex(at);
 
     return true;
@@ -375,13 +378,13 @@ void Launcher::DataFilesPage::populateFileViews(const QString& contentModelName)
 
     const QIcon containsDataIcon = Misc::ScalableIcon::load(":/icons/marks/contains-data.svg");
 
-    QProgressDialog progressBar("Adding data directories", {}, 0, static_cast<int>(directories.size()), this);
+    QProgressDialog progressBar("Adding data directories", {}, 0, static_cast<std::int32_t>(directories.size()), this);
     progressBar.setWindowModality(Qt::WindowModal);
 
     std::unordered_set<QString> visitedDirectories;
     for (qsizetype i = 0; i < directories.size(); ++i)
     {
-        progressBar.setValue(static_cast<int>(i));
+        progressBar.setValue(static_cast<std::int32_t>(i));
 
         const Config::SettingValue& currentDir = directories.at(i);
         if (!visitedDirectories.insert(currentDir.value).second)
@@ -461,7 +464,7 @@ void Launcher::DataFilesPage::populateFileViews(const QString& contentModelName)
     }
 
     // sort and tick BSA according to profile
-    int row = 0;
+    std::int32_t row = 0;
     for (const auto& archive : selectedArchives)
     {
         const auto match = ui.archiveListWidget->findItems(archive.value, Qt::MatchFixedString);
@@ -544,7 +547,7 @@ void Launcher::DataFilesPage::saveSettings(const QString& profile)
 QList<Config::SettingValue> Launcher::DataFilesPage::selectedDirectoriesPaths() const
 {
     QList<Config::SettingValue> dirList;
-    for (int i = 0; i < ui.directoryListWidget->count(); ++i)
+    for (std::int32_t i = 0; i < ui.directoryListWidget->count(); ++i)
     {
         const QListWidgetItem* item = ui.directoryListWidget->item(i);
         if (item->flags() & Qt::ItemIsEnabled)
@@ -556,7 +559,7 @@ QList<Config::SettingValue> Launcher::DataFilesPage::selectedDirectoriesPaths() 
 QList<Config::SettingValue> Launcher::DataFilesPage::selectedArchivePaths() const
 {
     QList<Config::SettingValue> archiveList;
-    for (int i = 0; i < ui.archiveListWidget->count(); ++i)
+    for (std::int32_t i = 0; i < ui.archiveListWidget->count(); ++i)
     {
         const QListWidgetItem* item = ui.archiveListWidget->item(i);
         if (item->checkState() == Qt::Checked)
@@ -586,12 +589,12 @@ QAbstractItemModel* Launcher::DataFilesPage::profilesModel() const
     return ui.profilesComboBox->model();
 }
 
-int Launcher::DataFilesPage::profilesIndex() const
+std::int32_t Launcher::DataFilesPage::profilesIndex() const
 {
     return ui.profilesComboBox->currentIndex();
 }
 
-void Launcher::DataFilesPage::setProfile(int index, bool savePrevious)
+void Launcher::DataFilesPage::setProfile(std::int32_t index, bool savePrevious)
 {
     if (index >= -1 && index < ui.profilesComboBox->count())
     {
@@ -620,7 +623,7 @@ void Launcher::DataFilesPage::setProfile(const QString& previous, const QString&
     populateFileViews(current);
 
     // save list of "old" bsa to be able to display "new" bsa in a different colour
-    for (int i = 0; i < ui.archiveListWidget->count(); ++i)
+    for (std::int32_t i = 0; i < ui.archiveListWidget->count(); ++i)
     {
         auto* item = ui.archiveListWidget->item(i);
         mKnownArchives.push_back(item->text());
@@ -666,7 +669,7 @@ void Launcher::DataFilesPage::slotProfileRenamed(const QString& previous, const 
     loadSettings();
 }
 
-void Launcher::DataFilesPage::slotProfileChanged(int index)
+void Launcher::DataFilesPage::slotProfileChanged(std::int32_t index)
 {
     // in case the event was triggered externally
     if (ui.profilesComboBox->currentIndex() != index)
@@ -743,7 +746,7 @@ void Launcher::DataFilesPage::on_deleteProfileAction_triggered()
         return;
 
     // this should work since the Default profile can't be deleted and is always index 0
-    int next = ui.profilesComboBox->currentIndex() - 1;
+    std::int32_t next = ui.profilesComboBox->currentIndex() - 1;
 
     // changing the profile forces a reload of plugin file views.
     ui.profilesComboBox->setCurrentIndex(next);
@@ -768,14 +771,14 @@ void Launcher::DataFilesPage::updateCloneProfileOkButton(const QString& text)
 
 void Launcher::DataFilesPage::addSubdirectories(bool append)
 {
-    int selectedRow = -1;
+    std::int32_t selectedRow = -1;
     if (append)
     {
         selectedRow = ui.directoryListWidget->count();
     }
     else
     {
-        const QList<QPair<int, QListWidgetItem*>> sortedItems = sortedSelectedItems(ui.directoryListWidget);
+        const QList<QPair<std::int32_t, QListWidgetItem*>> sortedItems = sortedSelectedItems(ui.directoryListWidget);
         if (!sortedItems.isEmpty())
             selectedRow = sortedItems.first().first;
     }
@@ -825,7 +828,7 @@ void Launcher::DataFilesPage::addSubdirectories(bool append)
     if (mDirectoryPickerDialog->exec() == QDialog::Rejected)
         return;
 
-    for (int i = 0; i < mDirectoryPicker.dirListWidget->count(); ++i)
+    for (std::int32_t i = 0; i < mDirectoryPicker.dirListWidget->count(); ++i)
     {
         const auto* dir = mDirectoryPicker.dirListWidget->item(i);
         if (dir->checkState() == Qt::Checked)
@@ -907,13 +910,13 @@ void Launcher::DataFilesPage::setCheckStateForMultiSelectedItems(QListWidget* li
     }
 }
 
-void Launcher::DataFilesPage::moveSources(QListWidget* sourceList, int step)
+void Launcher::DataFilesPage::moveSources(QListWidget* sourceList, std::int32_t step)
 {
-    const QList<QPair<int, QListWidgetItem*>> sortedItems = sortedSelectedItems(sourceList, step > 0);
+    const QList<QPair<std::int32_t, QListWidgetItem*>> sortedItems = sortedSelectedItems(sourceList, step > 0);
     for (const auto& i : sortedItems)
     {
-        int selectedRow = sourceList->row(i.second);
-        int newRow = selectedRow + step;
+        std::int32_t selectedRow = sourceList->row(i.second);
+        std::int32_t newRow = selectedRow + step;
         if (selectedRow == -1 || newRow < 0 || newRow > sourceList->count() - 1)
             break;
 
@@ -926,7 +929,7 @@ void Launcher::DataFilesPage::moveSources(QListWidget* sourceList, int step)
     }
 }
 
-void Launcher::DataFilesPage::addArchive(const QString& name, Qt::CheckState selected, int row)
+void Launcher::DataFilesPage::addArchive(const QString& name, Qt::CheckState selected, std::int32_t row)
 {
     if (row == -1)
         row = ui.archiveListWidget->count();
@@ -949,7 +952,7 @@ void Launcher::DataFilesPage::addArchivesFromDir(const QString& path)
     QDir dir(path);
 
     std::unordered_set<VFS::Path::Normalized, VFS::Path::Hash> archives;
-    for (int i = 0; i < ui.archiveListWidget->count(); ++i)
+    for (std::int32_t i = 0; i < ui.archiveListWidget->count(); ++i)
         archives.insert(VFS::Path::normalizedFromQString(ui.archiveListWidget->item(i)->text()));
 
     for (const auto& fileinfo : dir.entryInfoList(archiveFilter))
@@ -1083,7 +1086,7 @@ void Launcher::DataFilesPage::readNavMeshToolStderr()
     updateNavMeshProgress(4096);
 }
 
-void Launcher::DataFilesPage::updateNavMeshProgress(int minDataSize)
+void Launcher::DataFilesPage::updateNavMeshProgress(std::int32_t minDataSize)
 {
     if (!mNavMeshToolProgress.mEnabled)
         return;
@@ -1131,15 +1134,15 @@ void Launcher::DataFilesPage::readNavMeshToolStdout()
     QProcess& process = *mNavMeshToolInvoker->getProcess();
     QByteArray& logData = mNavMeshToolProgress.mLogData;
     logData.append(process.readAllStandardOutput());
-    const int lineEnd = static_cast<int>(logData.lastIndexOf('\n'));
+    const auto lineEnd = static_cast<std::int32_t>(logData.lastIndexOf('\n'));
     if (lineEnd == -1)
         return;
-    const int size = logData.size() >= lineEnd && logData[lineEnd - 1] == '\r' ? lineEnd - 1 : lineEnd;
+    const std::int32_t size = logData.size() >= lineEnd && logData[lineEnd - 1] == '\r' ? lineEnd - 1 : lineEnd;
     ui.navMeshLogPlainTextEdit->appendPlainText(QString::fromUtf8(logData.data(), size));
     logData = logData.mid(lineEnd + 1);
 }
 
-void Launcher::DataFilesPage::navMeshToolFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void Launcher::DataFilesPage::navMeshToolFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus)
 {
     updateNavMeshProgress(0);
     ui.navMeshLogPlainTextEdit->appendPlainText(

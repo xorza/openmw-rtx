@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <mutex>
 #include <string_view>
 
@@ -98,7 +100,7 @@ namespace
             // NiLODNode only uses the last child with a compatible range, osg::LOD uses all of them
             // We must remove overlaps
             std::vector<std::vector<Nif::NiLODNode::LODRange>> ranges;
-            for (unsigned int i = 0; i < lod.getNumRanges(); ++i)
+            for (std::uint32_t i = 0; i < lod.getNumRanges(); ++i)
             {
                 Nif::NiLODNode::LODRange newRange{ lod.getMinRange(i), lod.getMaxRange(i) };
                 for (std::vector<Nif::NiLODNode::LODRange>& rangeVec : ranges)
@@ -130,12 +132,12 @@ namespace
 
             std::vector<osg::ref_ptr<osg::Node>> originalChildren;
             originalChildren.reserve(lod.getNumChildren());
-            for (unsigned int i = 0; i < lod.getNumChildren(); ++i)
+            for (std::uint32_t i = 0; i < lod.getNumChildren(); ++i)
                 originalChildren.push_back(lod.getChild(i));
 
             lod.removeChildren(0, lod.getNumChildren());
 
-            unsigned int originalChildIndex = 0;
+            std::uint32_t originalChildIndex = 0;
             for (const auto& rangeVec : ranges)
             {
                 for (const auto& range : rangeVec)
@@ -148,18 +150,18 @@ namespace
         }
     };
 
-    void getAllNiNodes(const Nif::NiAVObject* node, std::vector<int>& outIndices)
+    void getAllNiNodes(const Nif::NiAVObject* node, std::vector<std::int32_t>& outIndices)
     {
         if (const auto* ninode = dynamic_cast<const Nif::NiNode*>(node))
         {
-            outIndices.push_back(static_cast<int>(ninode->mRecordIndex));
+            outIndices.push_back(static_cast<std::int32_t>(ninode->mRecordIndex));
             for (const auto& child : ninode->mChildren)
                 if (!child.empty())
                     getAllNiNodes(child.getPtr(), outIndices);
         }
     }
 
-    bool isTypeNiGeometry(int type)
+    bool isTypeNiGeometry(std::int32_t type)
     {
         switch (type)
         {
@@ -175,7 +177,7 @@ namespace
         return false;
     }
 
-    bool isTypeBSGeometry(int type)
+    bool isTypeBSGeometry(std::int32_t type)
     {
         switch (type)
         {
@@ -283,25 +285,25 @@ namespace NifOsg
         return sShowMarkers;
     }
 
-    unsigned int Loader::sHiddenNodeMask = 0;
+    std::uint32_t Loader::sHiddenNodeMask = 0;
 
-    void Loader::setHiddenNodeMask(unsigned int mask)
+    void Loader::setHiddenNodeMask(std::uint32_t mask)
     {
         sHiddenNodeMask = mask;
     }
-    unsigned int Loader::getHiddenNodeMask()
+    std::uint32_t Loader::getHiddenNodeMask()
     {
         return sHiddenNodeMask;
     }
 
-    unsigned int Loader::sIntersectionDisabledNodeMask = ~0u;
+    std::uint32_t Loader::sIntersectionDisabledNodeMask = ~0u;
 
-    void Loader::setIntersectionDisabledNodeMask(unsigned int mask)
+    void Loader::setIntersectionDisabledNodeMask(std::uint32_t mask)
     {
         sIntersectionDisabledNodeMask = mask;
     }
 
-    unsigned int Loader::getIntersectionDisabledNodeMask()
+    std::uint32_t Loader::getIntersectionDisabledNodeMask()
     {
         return sIntersectionDisabledNodeMask;
     }
@@ -324,7 +326,7 @@ namespace NifOsg
         {
         public:
             /// @param filename used for warning messages.
-            LoaderImpl(VFS::Path::Normalized filename, unsigned int ver, unsigned int userver, unsigned int bethver)
+            LoaderImpl(VFS::Path::Normalized filename, std::uint32_t ver, std::uint32_t userver, std::uint32_t bethver)
                 : mFilename(std::move(filename))
                 , mVersion(ver)
                 , mUserVersion(userver)
@@ -332,11 +334,11 @@ namespace NifOsg
             {
             }
             VFS::Path::Normalized mFilename;
-            unsigned int mVersion, mUserVersion, mBethVersion;
+            std::uint32_t mVersion, mUserVersion, mBethVersion;
             Resource::BgsmFileManager* mMaterialManager{ nullptr };
             Resource::ImageManager* mImageManager{ nullptr };
 
-            size_t mFirstRootTextureIndex{ ~0u };
+            std::size_t mFirstRootTextureIndex{ ~0u };
             bool mFoundFirstRootTexturingProperty = false;
 
             bool mHasNightDayLabel = false;
@@ -347,16 +349,16 @@ namespace NifOsg
             const Nif::NiSortAdjustNode* mLastAppliedNoInheritSorter = nullptr;
 
             // This is used to queue emitters that weren't attached to their node yet.
-            std::vector<std::pair<unsigned int, osg::ref_ptr<Emitter>>> mEmitterQueue;
+            std::vector<std::pair<std::uint32_t, osg::ref_ptr<Emitter>>> mEmitterQueue;
 
             // This is used to queue look-at controllers whose target nodes may not have been created yet.
-            mutable std::vector<std::pair<unsigned int, osg::ref_ptr<LookAtController>>> mLookAtQueue;
+            mutable std::vector<std::pair<std::uint32_t, osg::ref_ptr<LookAtController>>> mLookAtQueue;
 
             void loadKf(Nif::FileView nif, SceneUtil::KeyframeHolder& target) const
             {
                 const Nif::NiSequenceStreamHelper* seq = nullptr;
-                const size_t numRoots = nif.numRoots();
-                for (size_t i = 0; i < numRoots; ++i)
+                const std::size_t numRoots = nif.numRoots();
+                for (std::size_t i = 0; i < numRoots; ++i)
                 {
                     const Nif::Record* r = nif.getRoot(i);
                     if (r && r->mRecordType == Nif::RC_NiSequenceStreamHelper)
@@ -393,7 +395,7 @@ namespace NifOsg
                 extractTextKeys(textKeyExtraData, target.mTextKeys);
 
                 Nif::NiTimeControllerPtr ctrl = seq->mController;
-                for (size_t i = 1; i < extraList.size() && !ctrl.empty(); i++, (ctrl = ctrl->mNext))
+                for (std::size_t i = 1; i < extraList.size() && !ctrl.empty(); i++, (ctrl = ctrl->mNext))
                 {
                     Nif::ExtraPtr extra = extraList[i];
                     if (extra.empty())
@@ -436,10 +438,10 @@ namespace NifOsg
 
             struct HandleNodeArgs
             {
-                unsigned int mNifVersion;
+                std::uint32_t mNifVersion;
                 SceneUtil::TextKeyMap* mTextKeys;
-                std::vector<unsigned int> mBoundTextures = {};
-                int mAnimFlags = 0;
+                std::vector<std::uint32_t> mBoundTextures = {};
+                std::int32_t mAnimFlags = 0;
                 bool mSkipMeshes = false;
                 bool mHasMarkers = false;
                 bool mHasAnimatedParents = false;
@@ -449,9 +451,9 @@ namespace NifOsg
 
             osg::ref_ptr<osg::Node> load(Nif::FileView nif)
             {
-                const size_t numRoots = nif.numRoots();
+                const std::size_t numRoots = nif.numRoots();
                 std::vector<const Nif::NiAVObject*> roots;
-                for (size_t i = 0; i < numRoots; ++i)
+                for (std::size_t i = 0; i < numRoots; ++i)
                 {
                     const Nif::Record* r = nif.getRoot(i);
                     if (!r)
@@ -493,7 +495,7 @@ namespace NifOsg
                     skel->setStateSet(created->getStateSet());
                     skel->setName(created->getName());
                     skel->setUserDataContainer(created->getUserDataContainer());
-                    for (unsigned int i = 0; i < created->getNumChildren(); ++i)
+                    for (std::uint32_t i = 0; i < created->getNumChildren(); ++i)
                         skel->addChild(created->getChild(i));
                     created->removeChildren(0, created->getNumChildren());
                     created = skel;
@@ -508,7 +510,8 @@ namespace NifOsg
             }
 
             void applyNodeProperties(const Nif::NiAVObject* nifNode, osg::Node* applyTo,
-                SceneUtil::CompositeStateSetUpdater* composite, std::vector<unsigned int>& boundTextures, int animflags)
+                SceneUtil::CompositeStateSetUpdater* composite, std::vector<std::uint32_t>& boundTextures,
+                std::int32_t animflags)
             {
                 bool hasStencilProperty = false;
 
@@ -563,7 +566,7 @@ namespace NifOsg
             }
 
             static void setupController(
-                const Nif::NiTimeController* ctrl, SceneUtil::Controller* toSetup, int animflags)
+                const Nif::NiTimeController* ctrl, SceneUtil::Controller* toSetup, std::int32_t animflags)
             {
                 bool autoPlay = animflags & Nif::NiNode::AnimFlag_AutoPlay;
                 if (autoPlay)
@@ -578,7 +581,7 @@ namespace NifOsg
                 lod->setName(niLodNode->mName);
                 lod->setCenterMode(osg::LOD::USER_DEFINED_CENTER);
                 lod->setCenter(niLodNode->mLODCenter);
-                for (unsigned int i = 0; i < niLodNode->mLODLevels.size(); ++i)
+                for (std::uint32_t i = 0; i < niLodNode->mLODLevels.size(); ++i)
                 {
                     const Nif::NiLODNode::LODRange& range = niLodNode->mLODLevels[i];
                     lod->setRange(i, range.mMinRange, range.mMaxRange);
@@ -654,7 +657,7 @@ namespace NifOsg
                 if (textureEffect->mTextureType != Nif::NiTextureEffect::TextureType::EnvironmentMap)
                 {
                     Log(Debug::Info) << "Unhandled NiTextureEffect type "
-                                     << static_cast<uint32_t>(textureEffect->mTextureType) << " in " << mFilename;
+                                     << static_cast<std::uint32_t>(textureEffect->mTextureType) << " in " << mFilename;
                     return false;
                 }
 
@@ -670,12 +673,13 @@ namespace NifOsg
                         break;
                     default:
                         Log(Debug::Info) << "Unhandled NiTextureEffect CoordGenType "
-                                         << static_cast<uint32_t>(textureEffect->mCoordGenType) << " in " << mFilename;
+                                         << static_cast<std::uint32_t>(textureEffect->mCoordGenType) << " in "
+                                         << mFilename;
                         return false;
                 }
 
-                const unsigned int uvSet = 0;
-                std::vector<unsigned int> boundTextures;
+                const std::uint32_t uvSet = 0;
+                std::vector<std::uint32_t> boundTextures;
                 boundTextures.resize(3); // Dummy vector for attachNiSourceTexture
                 attachNiSourceTexture("envMap", textureEffect->mTexture.getPtr(), textureEffect->wrapS(),
                     textureEffect->wrapT(), uvSet, stateset, boundTextures);
@@ -704,8 +708,9 @@ namespace NifOsg
                         node = new NifOsg::AutoTransform(billboard->mTransform, AutoTransform::Mode::RigidFaceCamera);
                     else
                     {
-                        Log(Debug::Warning) << "Unhandled billboard mode " << static_cast<int>(billboard->mMode)
-                                            << " in record " << nifNode->mRecordIndex;
+                        Log(Debug::Warning)
+                            << "Unhandled billboard mode " << static_cast<std::int32_t>(billboard->mMode)
+                            << " in record " << nifNode->mRecordIndex;
                         node = new NifOsg::AutoTransform(billboard->mTransform);
                     }
 
@@ -809,7 +814,7 @@ namespace NifOsg
 
                 if (nifNode->mRecordType == Nif::RC_NiBSAnimationNode
                     || nifNode->mRecordType == Nif::RC_NiBSParticleNode)
-                    args.mAnimFlags = static_cast<int>(nifNode->mFlags);
+                    args.mAnimFlags = static_cast<std::int32_t>(nifNode->mFlags);
 
                 if (nifNode->mRecordType == Nif::RC_NiSortAdjustNode)
                 {
@@ -971,7 +976,7 @@ namespace NifOsg
                         {
                             osg::ref_ptr<osg::StateSet> effectStateSet = new osg::StateSet;
                             if (handleEffect(effect.getPtr(), effectStateSet))
-                                for (unsigned int i = 0; i < currentNode->getNumChildren(); ++i)
+                                for (std::uint32_t i = 0; i < currentNode->getNumChildren(); ++i)
                                     currentNode->getChild(i)->getOrCreateStateSet()->merge(*effectStateSet);
                         }
                 }
@@ -983,8 +988,8 @@ namespace NifOsg
             }
 
             static void handleMeshControllers(const Nif::NiAVObject* nifNode, osg::Node* node,
-                SceneUtil::CompositeStateSetUpdater* composite, const std::vector<unsigned int>& boundTextures,
-                int animflags)
+                SceneUtil::CompositeStateSetUpdater* composite, const std::vector<std::uint32_t>& boundTextures,
+                std::int32_t animflags)
             {
                 for (Nif::NiTimeControllerPtr ctrl = nifNode->mController; !ctrl.empty(); ctrl = ctrl->mNext)
                 {
@@ -995,9 +1000,9 @@ namespace NifOsg
                         const auto* niuvctrl = static_cast<const Nif::NiUVController*>(ctrl.getPtr());
                         if (niuvctrl->mData.empty())
                             continue;
-                        std::set<unsigned int> texUnits;
+                        std::set<std::uint32_t> texUnits;
                         // UVController should only work for textures which use the given UV Set.
-                        for (unsigned int i = 0; i < boundTextures.size(); ++i)
+                        for (std::uint32_t i = 0; i < boundTextures.size(); ++i)
                         {
                             if (boundTextures[i] == niuvctrl->mUvSet)
                                 texUnits.insert(i);
@@ -1011,7 +1016,7 @@ namespace NifOsg
             }
 
             void handleNodeControllers(
-                const Nif::NiAVObject* nifNode, osg::Node* node, int animflags, bool& isAnimated) const
+                const Nif::NiAVObject* nifNode, osg::Node* node, std::int32_t animflags, bool& isAnimated) const
             {
                 for (Nif::NiTimeControllerPtr ctrl = nifNode->mController; !ctrl.empty(); ctrl = ctrl->mNext)
                 {
@@ -1107,7 +1112,8 @@ namespace NifOsg
             }
 
             void handleMaterialControllers(const Nif::NiProperty* materialProperty,
-                SceneUtil::CompositeStateSetUpdater* composite, int animflags, SceneUtil::Material* baseMaterial) const
+                SceneUtil::CompositeStateSetUpdater* composite, std::int32_t animflags,
+                SceneUtil::Material* baseMaterial) const
             {
                 for (Nif::NiTimeControllerPtr ctrl = materialProperty->mController; !ctrl.empty(); ctrl = ctrl->mNext)
                 {
@@ -1172,15 +1178,15 @@ namespace NifOsg
             }
 
             static osg::ref_ptr<osg::Texture2D> attachTexture(const std::string& name,
-                const osg::ref_ptr<osg::Image>& image, bool wrapS, bool wrapT, unsigned int uvSet,
-                osg::StateSet* stateset, std::vector<unsigned int>& boundTextures)
+                const osg::ref_ptr<osg::Image>& image, bool wrapS, bool wrapT, std::uint32_t uvSet,
+                osg::StateSet* stateset, std::vector<std::uint32_t>& boundTextures)
             {
                 osg::ref_ptr<osg::Texture2D> texture2d = new osg::Texture2D(image);
                 if (image)
                     texture2d->setTextureSize(image->s(), image->t());
                 texture2d->setWrap(osg::Texture::WRAP_S, wrapS ? osg::Texture::REPEAT : osg::Texture::CLAMP_TO_EDGE);
                 texture2d->setWrap(osg::Texture::WRAP_T, wrapT ? osg::Texture::REPEAT : osg::Texture::CLAMP_TO_EDGE);
-                auto texUnit = static_cast<unsigned int>(boundTextures.size());
+                auto texUnit = static_cast<std::uint32_t>(boundTextures.size());
                 if (stateset)
                 {
                     stateset->setTextureAttribute(texUnit, texture2d, osg::StateAttribute::ON);
@@ -1193,20 +1199,20 @@ namespace NifOsg
             }
 
             osg::ref_ptr<osg::Texture2D> attachExternalTexture(const std::string& name, VFS::Path::NormalizedView path,
-                bool wrapS, bool wrapT, unsigned int uvSet, osg::StateSet* stateset,
-                std::vector<unsigned int>& boundTextures) const
+                bool wrapS, bool wrapT, std::uint32_t uvSet, osg::StateSet* stateset,
+                std::vector<std::uint32_t>& boundTextures) const
             {
                 return attachTexture(name, getTextureImage(path), wrapS, wrapT, uvSet, stateset, boundTextures);
             }
 
             osg::ref_ptr<osg::Texture2D> attachNiSourceTexture(const std::string& name, const Nif::NiSourceTexture* st,
-                bool wrapS, bool wrapT, unsigned int uvSet, osg::StateSet* stateset,
-                std::vector<unsigned int>& boundTextures) const
+                bool wrapS, bool wrapT, std::uint32_t uvSet, osg::StateSet* stateset,
+                std::vector<std::uint32_t>& boundTextures) const
             {
                 return attachTexture(name, handleSourceTexture(st), wrapS, wrapT, uvSet, stateset, boundTextures);
             }
 
-            static void clearBoundTextures(osg::StateSet* stateset, std::vector<unsigned int>& boundTextures)
+            static void clearBoundTextures(osg::StateSet* stateset, std::vector<std::uint32_t>& boundTextures)
             {
                 if (!boundTextures.empty())
                 {
@@ -1215,7 +1221,7 @@ namespace NifOsg
             }
 
             void handleTextureControllers(const Nif::NiProperty* texProperty,
-                SceneUtil::CompositeStateSetUpdater* composite, osg::StateSet* stateset, int animflags) const
+                SceneUtil::CompositeStateSetUpdater* composite, osg::StateSet* stateset, std::int32_t animflags) const
             {
                 for (Nif::NiTimeControllerPtr ctrl = texProperty->mController; !ctrl.empty(); ctrl = ctrl->mNext)
                 {
@@ -1243,8 +1249,8 @@ namespace NifOsg
                         const bool wrapT
                             = inherit == nullptr || inherit->getWrap(osg::Texture2D::WRAP_T) == osg::Texture2D::REPEAT;
 
-                        const unsigned int uvSet = 0;
-                        std::vector<unsigned int> boundTextures; // Dummy list for attachTexture
+                        const std::uint32_t uvSet = 0;
+                        std::vector<std::uint32_t> boundTextures; // Dummy list for attachTexture
                         for (const auto& source : flipctrl->mSources)
                         {
                             if (source.empty())
@@ -1343,16 +1349,16 @@ namespace NifOsg
                 auto particleNode = static_cast<const Nif::NiParticles*>(nifNode);
                 if (particleNode->mData.empty())
                 {
-                    partsys->setQuota(static_cast<int>(partctrl->mParticles.size()));
+                    partsys->setQuota(static_cast<std::int32_t>(partctrl->mParticles.size()));
                     return;
                 }
 
                 auto particledata = static_cast<const Nif::NiParticlesData*>(particleNode->mData.getPtr());
-                partsys->setQuota(static_cast<int>(particledata->mNumParticles));
+                partsys->setQuota(static_cast<std::int32_t>(particledata->mNumParticles));
 
                 osg::BoundingBox box;
 
-                int i = 0;
+                std::int32_t i = 0;
                 for (const auto& particle : partctrl->mParticles)
                 {
                     if (i++ >= particledata->mActiveCount)
@@ -1395,7 +1401,7 @@ namespace NifOsg
 
             static osg::ref_ptr<Emitter> handleParticleEmitter(const Nif::NiParticleSystemController* partctrl)
             {
-                std::vector<int> targets;
+                std::vector<std::int32_t> targets;
                 if (partctrl->mRecordType == Nif::RC_NiBSPArrayController && !partctrl->emitAtVertex())
                 {
                     getAllNiNodes(partctrl->mEmitter.getPtr(), targets);
@@ -1484,7 +1490,7 @@ namespace NifOsg
             }
 
             void handleParticleSystem(const Nif::NiAVObject* nifNode, const Nif::Parent* parent, osg::Group* parentNode,
-                SceneUtil::CompositeStateSetUpdater* composite, int animflags)
+                SceneUtil::CompositeStateSetUpdater* composite, std::int32_t animflags)
             {
                 osg::ref_ptr<ParticleSystem> partsys(new ParticleSystem);
                 partsys->setSortMode(osgParticle::ParticleSystem::SORT_BACK_TO_FRONT);
@@ -1587,7 +1593,7 @@ namespace NifOsg
 
             void handleNiGeometryData(const Nif::NiAVObject* nifNode, const Nif::Parent* parent,
                 osg::Geometry* geometry, osg::Node* parentNode, SceneUtil::CompositeStateSetUpdater* composite,
-                const std::vector<unsigned int>& boundTextures, int animflags)
+                const std::vector<std::uint32_t>& boundTextures, std::int32_t animflags)
             {
                 const auto* niGeometry = static_cast<const Nif::NiGeometry*>(nifNode);
                 if (niGeometry->mData.empty())
@@ -1609,18 +1615,18 @@ namespace NifOsg
                     {
                         for (const Nif::NiSkinPartition::Partition& partition : partitions->mPartitions)
                         {
-                            const std::vector<unsigned short>& trueTriangles = partition.mTrueTriangles;
+                            const std::vector<std::uint16_t>& trueTriangles = partition.mTrueTriangles;
                             if (!trueTriangles.empty())
                             {
                                 geometry->addPrimitiveSet(new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES,
-                                    static_cast<unsigned>(trueTriangles.size()), trueTriangles.data()));
+                                    static_cast<std::uint32_t>(trueTriangles.size()), trueTriangles.data()));
                             }
                             for (const auto& strip : partition.mTrueStrips)
                             {
                                 if (strip.size() < 3)
                                     continue;
                                 geometry->addPrimitiveSet(new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLE_STRIP,
-                                    static_cast<unsigned>(strip.size()), strip.data()));
+                                    static_cast<std::uint32_t>(strip.size()), strip.data()));
                             }
                         }
                     }
@@ -1631,22 +1637,22 @@ namespace NifOsg
                     if (niGeometry->mRecordType == Nif::RC_NiTriShape || nifNode->mRecordType == Nif::RC_BSLODTriShape)
                     {
                         auto data = static_cast<const Nif::NiTriShapeData*>(niGeometryData);
-                        const std::vector<unsigned short>& triangles = data->mTriangles;
+                        const std::vector<std::uint16_t>& triangles = data->mTriangles;
                         if (triangles.empty())
                             return;
-                        geometry->addPrimitiveSet(new osg::DrawElementsUShort(
-                            osg::PrimitiveSet::TRIANGLES, static_cast<unsigned>(triangles.size()), triangles.data()));
+                        geometry->addPrimitiveSet(new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES,
+                            static_cast<std::uint32_t>(triangles.size()), triangles.data()));
                     }
                     else if (niGeometry->mRecordType == Nif::RC_NiTriStrips)
                     {
                         auto data = static_cast<const Nif::NiTriStripsData*>(niGeometryData);
                         bool hasGeometry = false;
-                        for (const std::vector<unsigned short>& strip : data->mStrips)
+                        for (const std::vector<std::uint16_t>& strip : data->mStrips)
                         {
                             if (strip.size() < 3)
                                 continue;
-                            geometry->addPrimitiveSet(new osg::DrawElementsUShort(
-                                osg::PrimitiveSet::TRIANGLE_STRIP, static_cast<unsigned>(strip.size()), strip.data()));
+                            geometry->addPrimitiveSet(new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLE_STRIP,
+                                static_cast<std::uint32_t>(strip.size()), strip.data()));
                             hasGeometry = true;
                         }
                         if (!hasGeometry)
@@ -1659,26 +1665,29 @@ namespace NifOsg
                         if (line.empty())
                             return;
                         geometry->addPrimitiveSet(new osg::DrawElementsUShort(
-                            osg::PrimitiveSet::LINES, static_cast<unsigned>(line.size()), line.data()));
+                            osg::PrimitiveSet::LINES, static_cast<std::uint32_t>(line.size()), line.data()));
                     }
                 }
 
                 const auto& normals = niGeometryData->mNormals;
                 const auto& colors = niGeometryData->mColors;
 
-                geometry->setVertexArray(new osg::Vec3Array(static_cast<unsigned>(vertices.size()), vertices.data()));
+                geometry->setVertexArray(
+                    new osg::Vec3Array(static_cast<std::uint32_t>(vertices.size()), vertices.data()));
                 if (!normals.empty())
-                    geometry->setNormalArray(new osg::Vec3Array(static_cast<unsigned>(normals.size()), normals.data()),
+                    geometry->setNormalArray(
+                        new osg::Vec3Array(static_cast<std::uint32_t>(normals.size()), normals.data()),
                         osg::Array::BIND_PER_VERTEX);
                 if (!colors.empty())
-                    geometry->setColorArray(new osg::Vec4Array(static_cast<unsigned>(colors.size()), colors.data()),
+                    geometry->setColorArray(
+                        new osg::Vec4Array(static_cast<std::uint32_t>(colors.size()), colors.data()),
                         osg::Array::BIND_PER_VERTEX);
 
                 const auto& uvlist = niGeometryData->mUVList;
-                int textureStage = 0;
+                std::int32_t textureStage = 0;
                 for (auto it = boundTextures.begin(); it != boundTextures.end(); ++it, ++textureStage)
                 {
-                    unsigned int uvSet = *it;
+                    std::uint32_t uvSet = *it;
                     if (uvSet >= uvlist.size())
                     {
                         Log(Debug::Verbose) << "Out of bounds UV set " << uvSet << " on shape \"" << nifNode->mName
@@ -1688,8 +1697,8 @@ namespace NifOsg
                         uvSet = 0;
                     }
 
-                    geometry->setTexCoordArray(static_cast<unsigned int>(textureStage),
-                        new osg::Vec2Array(static_cast<unsigned>(uvlist[uvSet].size()), uvlist[uvSet].data()),
+                    geometry->setTexCoordArray(static_cast<std::uint32_t>(textureStage),
+                        new osg::Vec2Array(static_cast<std::uint32_t>(uvlist[uvSet].size()), uvlist[uvSet].data()),
                         osg::Array::BIND_PER_VERTEX);
                 }
 
@@ -1708,8 +1717,8 @@ namespace NifOsg
             }
 
             void handleNiGeometry(const Nif::NiAVObject* nifNode, const Nif::Parent* parent, osg::Group* parentNode,
-                SceneUtil::CompositeStateSetUpdater* composite, const std::vector<unsigned int>& boundTextures,
-                int animflags)
+                SceneUtil::CompositeStateSetUpdater* composite, const std::vector<std::uint32_t>& boundTextures,
+                std::int32_t animflags)
             {
                 assert(isTypeNiGeometry(nifNode->mRecordType));
 
@@ -1786,8 +1795,9 @@ namespace NifOsg
                         osg::ref_ptr<SceneUtil::MorphGeometry> morphGeom = new SceneUtil::MorphGeometry;
                         morphGeom->setSourceGeometry(geom);
                         for (const auto& morph : morphs)
-                            morphGeom->addMorphTarget(new osg::Vec3Array(static_cast<unsigned>(morph.mVertices.size()),
-                                                          morph.mVertices.data()),
+                            morphGeom->addMorphTarget(
+                                new osg::Vec3Array(
+                                    static_cast<std::uint32_t>(morph.mVertices.size()), morph.mVertices.data()),
                                 0.f);
 
                         osg::ref_ptr<GeomMorpherController> morphctrl = new GeomMorpherController(nimorphctrl);
@@ -1804,38 +1814,38 @@ namespace NifOsg
             }
 
             void handleBSGeometry(const Nif::NiAVObject* nifNode, const Nif::Parent* parent, osg::Group* parentNode,
-                SceneUtil::CompositeStateSetUpdater* composite, const std::vector<unsigned int>& boundTextures,
-                int animflags)
+                SceneUtil::CompositeStateSetUpdater* composite, const std::vector<std::uint32_t>& boundTextures,
+                std::int32_t animflags)
             {
                 assert(isTypeBSGeometry(nifNode->mRecordType));
 
                 auto bsTriShape = static_cast<const Nif::BSTriShape*>(nifNode);
-                const std::vector<unsigned short>& triangles = bsTriShape->mTriangles;
+                const std::vector<std::uint16_t>& triangles = bsTriShape->mTriangles;
                 if (triangles.empty())
                     return;
 
                 osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
                 geometry->addPrimitiveSet(new osg::DrawElementsUShort(
-                    osg::PrimitiveSet::TRIANGLES, static_cast<unsigned>(triangles.size()), triangles.data()));
+                    osg::PrimitiveSet::TRIANGLES, static_cast<std::uint32_t>(triangles.size()), triangles.data()));
 
                 osg::ref_ptr<osg::Drawable> drawable = geometry;
 
                 // Some input geometry may not be used as is so it needs to be converted.
                 // Normals, tangents and bitangents use a special normal map-like format not equivalent to snorm8 or
                 // unorm8
-                auto normbyteToFloat = [](uint8_t value) { return static_cast<float>(value) / 255.f * 2.f - 1.f; };
+                auto normbyteToFloat = [](std::uint8_t value) { return static_cast<float>(value) / 255.f * 2.f - 1.f; };
                 // Vertices and UV sets may be half-precision.
                 // OSG doesn't have a way to pass half-precision data at the moment.
-                auto halfToFloat = [](uint16_t value) {
-                    uint32_t bits = static_cast<uint32_t>(value & 0x8000) << 16;
+                auto halfToFloat = [](std::uint16_t value) {
+                    std::uint32_t bits = static_cast<std::uint32_t>(value & 0x8000) << 16;
 
-                    const uint32_t exp16 = (value & 0x7c00) >> 10;
-                    uint32_t frac16 = value & 0x3ff;
+                    const std::uint32_t exp16 = (value & 0x7c00) >> 10;
+                    std::uint32_t frac16 = value & 0x3ff;
                     if (exp16)
                         bits |= (exp16 + 0x70) << 23;
                     else if (frac16)
                     {
-                        uint8_t offset = 0;
+                        std::uint8_t offset = 0;
                         do
                         {
                             ++offset;
@@ -1884,16 +1894,18 @@ namespace NifOsg
 
                 if (!vertices.empty())
                     geometry->setVertexArray(
-                        new osg::Vec3Array(static_cast<unsigned>(vertices.size()), vertices.data()));
+                        new osg::Vec3Array(static_cast<std::uint32_t>(vertices.size()), vertices.data()));
                 if (!normals.empty())
-                    geometry->setNormalArray(new osg::Vec3Array(static_cast<unsigned>(normals.size()), normals.data()),
+                    geometry->setNormalArray(
+                        new osg::Vec3Array(static_cast<std::uint32_t>(normals.size()), normals.data()),
                         osg::Array::BIND_PER_VERTEX);
                 if (!colors.empty())
-                    geometry->setColorArray(new osg::Vec4ubArray(static_cast<unsigned>(colors.size()), colors.data()),
+                    geometry->setColorArray(
+                        new osg::Vec4ubArray(static_cast<std::uint32_t>(colors.size()), colors.data()),
                         osg::Array::BIND_PER_VERTEX);
                 if (!uvlist.empty())
                     geometry->setTexCoordArray(0,
-                        new osg::Vec2Array(static_cast<unsigned>(uvlist.size()), uvlist.data()),
+                        new osg::Vec2Array(static_cast<std::uint32_t>(uvlist.size()), uvlist.data()),
                         osg::Array::BIND_PER_VERTEX);
 
                 // This is the skinning data Fallout 4 provides
@@ -1919,10 +1931,10 @@ namespace NifOsg
                         boneInfo[i].mBoundSphere = data->mBones[i].mBoundSphere;
                     }
 
-                    for (size_t i = 0; i < vertices.size(); i++)
+                    for (std::size_t i = 0; i < vertices.size(); i++)
                     {
                         const Nif::BSVertexData& vertData = bsTriShape->mVertData[i];
-                        for (int j = 0; j < 4; j++)
+                        for (std::int32_t j = 0; j < 4; j++)
                             influences[i].emplace_back(vertData.mBoneIndices[static_cast<std::size_t>(j)],
                                 halfToFloat(vertData.mBoneWeights[static_cast<std::size_t>(j)]));
                     }
@@ -1959,7 +1971,7 @@ namespace NifOsg
                 parentNode->addChild(drawable);
             }
 
-            osg::BlendFunc::BlendFuncMode getBlendMode(int mode) const
+            osg::BlendFunc::BlendFuncMode getBlendMode(std::int32_t mode) const
             {
                 switch (mode)
                 {
@@ -1991,7 +2003,7 @@ namespace NifOsg
                 }
             }
 
-            osg::AlphaFunc::ComparisonFunction getTestMode(int mode) const
+            osg::AlphaFunc::ComparisonFunction getTestMode(std::int32_t mode) const
             {
                 switch (mode)
                 {
@@ -2039,8 +2051,8 @@ namespace NifOsg
                     case TestFunc::Always:
                         return osg::Stencil::ALWAYS;
                     default:
-                        Log(Debug::Info) << "Unexpected stencil function: " << static_cast<uint32_t>(func) << " in "
-                                         << mFilename;
+                        Log(Debug::Info) << "Unexpected stencil function: " << static_cast<std::uint32_t>(func)
+                                         << " in " << mFilename;
                         return osg::Stencil::NEVER;
                 }
             }
@@ -2063,7 +2075,7 @@ namespace NifOsg
                     case Action::Invert:
                         return osg::Stencil::INVERT;
                     default:
-                        Log(Debug::Info) << "Unexpected stencil operation: " << static_cast<uint32_t>(op) << " in "
+                        Log(Debug::Info) << "Unexpected stencil operation: " << static_cast<std::uint32_t>(op) << " in "
                                          << mFilename;
                         return osg::Stencil::KEEP;
                 }
@@ -2082,7 +2094,7 @@ namespace NifOsg
                 NiPixelFormat niPixelFormat = pixelData->mPixelFormat;
                 GLenum pixelformat = 0;
                 // Pixel row alignment. Defining it to be consistent with OSG DDS plugin
-                int packing = 1;
+                std::int32_t packing = 1;
                 switch (niPixelFormat.mFormat)
                 {
                     case NiPixelFormat::Format::RGB:
@@ -2115,20 +2127,20 @@ namespace NifOsg
                         break;
                     default:
                         Log(Debug::Info) << "Unhandled internal pixel format "
-                                         << static_cast<uint32_t>(niPixelFormat.mFormat) << " in " << mFilename;
+                                         << static_cast<std::uint32_t>(niPixelFormat.mFormat) << " in " << mFilename;
                         return nullptr;
                 }
 
-                int width = 0;
-                int height = 0;
+                std::int32_t width = 0;
+                std::int32_t height = 0;
 
-                std::vector<unsigned int> mipmapOffsets;
-                for (unsigned int i = 0; i < pixelData->mMipmaps.size(); ++i)
+                std::vector<std::uint32_t> mipmapOffsets;
+                for (std::uint32_t i = 0; i < pixelData->mMipmaps.size(); ++i)
                 {
                     const Nif::NiPixelData::Mipmap& mip = pixelData->mMipmaps[i];
 
-                    size_t mipSize = osg::Image::computeImageSizeInBytes(static_cast<int>(mip.mWidth),
-                        static_cast<int>(mip.mHeight), 1, pixelformat, GL_UNSIGNED_BYTE, packing);
+                    std::size_t mipSize = osg::Image::computeImageSizeInBytes(static_cast<std::int32_t>(mip.mWidth),
+                        static_cast<std::int32_t>(mip.mHeight), 1, pixelformat, GL_UNSIGNED_BYTE, packing);
                     if (mipSize + mip.mOffset > pixelData->mData.size())
                     {
                         Log(Debug::Info) << "Internal texture's mipmap data out of bounds, ignoring texture";
@@ -2139,8 +2151,8 @@ namespace NifOsg
                         mipmapOffsets.push_back(mip.mOffset);
                     else
                     {
-                        width = static_cast<int>(mip.mWidth);
-                        height = static_cast<int>(mip.mHeight);
+                        width = static_cast<std::int32_t>(mip.mWidth);
+                        height = static_cast<std::int32_t>(mip.mHeight);
                     }
                 }
 
@@ -2151,7 +2163,7 @@ namespace NifOsg
                 }
 
                 osg::ref_ptr<osg::Image> image(new osg::Image);
-                const std::vector<unsigned char>& pixels = pixelData->mData;
+                const std::vector<std::uint8_t>& pixels = pixelData->mData;
                 switch (niPixelFormat.mFormat)
                 {
                     case NiPixelFormat::Format::RGB:
@@ -2162,7 +2174,7 @@ namespace NifOsg
                     case NiPixelFormat::Format::DXT3:
                     case NiPixelFormat::Format::DXT5:
                     {
-                        auto* data = new unsigned char[pixels.size()];
+                        auto* data = new std::uint8_t[pixels.size()];
                         memcpy(data, pixels.data(), pixels.size());
                         image->setImage(width, height, 1, static_cast<GLint>(pixelformat), pixelformat,
                             GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE, packing);
@@ -2180,17 +2192,17 @@ namespace NifOsg
                         // We're going to convert the indices that pixel data contains
                         // into real colors using the palette.
                         const auto& palette = pixelData->mPalette->mColors;
-                        const int numChannels = pixelformat == GL_RGBA ? 4 : 3;
-                        auto* data = new unsigned char[pixels.size() * static_cast<std::size_t>(numChannels)];
-                        unsigned char* pixel = data;
-                        for (unsigned char index : pixels)
+                        const std::int32_t numChannels = pixelformat == GL_RGBA ? 4 : 3;
+                        auto* data = new std::uint8_t[pixels.size() * static_cast<std::size_t>(numChannels)];
+                        std::uint8_t* pixel = data;
+                        for (std::uint8_t index : pixels)
                         {
                             memcpy(
-                                pixel, &palette[index], sizeof(unsigned char) * static_cast<std::size_t>(numChannels));
+                                pixel, &palette[index], sizeof(std::uint8_t) * static_cast<std::size_t>(numChannels));
                             pixel += numChannels;
                         }
-                        for (unsigned int& offset : mipmapOffsets)
-                            offset *= static_cast<unsigned int>(numChannels);
+                        for (std::uint32_t& offset : mipmapOffsets)
+                            offset *= static_cast<std::uint32_t>(numChannels);
                         image->setImage(width, height, 1, static_cast<GLint>(pixelformat), pixelformat,
                             GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE, packing);
                         break;
@@ -2225,14 +2237,14 @@ namespace NifOsg
 
             void handleTextureProperty(const Nif::NiTexturingProperty* texprop, const std::string& nodeName,
                 osg::StateSet* stateset, SceneUtil::CompositeStateSetUpdater* composite,
-                std::vector<unsigned int>& boundTextures, int animflags) const
+                std::vector<std::uint32_t>& boundTextures, std::int32_t animflags) const
             {
                 // overriding a parent NiTexturingProperty, so remove what was previously bound
                 clearBoundTextures(stateset, boundTextures);
 
                 // If this loop is changed such that the base texture isn't guaranteed to end up in texture unit 0, the
                 // shadow casting shader will need to be updated accordingly.
-                for (size_t i = 0; i < texprop->mTextures.size(); ++i)
+                for (std::size_t i = 0; i < texprop->mTextures.size(); ++i)
                 {
                     const Nif::NiTexturingProperty::Texture& tex = texprop->mTextures[i];
                     if (tex.mEnabled || (i == Nif::NiTexturingProperty::BaseTexture && !texprop->mController.empty()))
@@ -2328,9 +2340,9 @@ namespace NifOsg
             }
 
             void handleShaderMaterialNodeProperties(const Bgsm::MaterialFile* material, osg::StateSet* stateset,
-                std::vector<unsigned int>& boundTextures) const
+                std::vector<std::uint32_t>& boundTextures) const
             {
-                const unsigned int uvSet = 0;
+                const std::uint32_t uvSet = 0;
                 const bool wrapS = material->wrapS();
                 const bool wrapT = material->wrapT();
                 if (material->mShaderType == Bgsm::ShaderType::Lighting)
@@ -2386,7 +2398,7 @@ namespace NifOsg
             }
 
             static void handleAlphaTesting(
-                bool enabled, osg::AlphaFunc::ComparisonFunction function, int threshold, osg::Node& node)
+                bool enabled, osg::AlphaFunc::ComparisonFunction function, std::int32_t threshold, osg::Node& node)
             {
                 if (enabled)
                 {
@@ -2402,8 +2414,8 @@ namespace NifOsg
                 }
             }
 
-            void handleAlphaBlending(
-                bool enabled, int sourceMode, int destMode, bool sort, bool& hasSortAlpha, osg::Node& node) const
+            void handleAlphaBlending(bool enabled, std::int32_t sourceMode, std::int32_t destMode, bool sort,
+                bool& hasSortAlpha, osg::Node& node) const
             {
                 if (enabled)
                 {
@@ -2444,8 +2456,8 @@ namespace NifOsg
                 mat->setAlpha(shaderMat->mTransparency);
                 handleAlphaTesting(
                     shaderMat->mAlphaTest, osg::AlphaFunc::GREATER, shaderMat->mAlphaTestThreshold, node);
-                handleAlphaBlending(shaderMat->mAlphaBlend, static_cast<int>(shaderMat->mSourceBlendMode),
-                    static_cast<int>(shaderMat->mDestinationBlendMode), true, hasSortAlpha, node);
+                handleAlphaBlending(shaderMat->mAlphaBlend, static_cast<std::int32_t>(shaderMat->mSourceBlendMode),
+                    static_cast<std::int32_t>(shaderMat->mDestinationBlendMode), true, hasSortAlpha, node);
                 handleDecal(shaderMat->mDecal, hasSortAlpha, node);
                 if (shaderMat->mShaderType == Bgsm::ShaderType::Lighting)
                 {
@@ -2464,11 +2476,11 @@ namespace NifOsg
             }
 
             void handleTextureSet(const Nif::BSShaderTextureSet* textureSet, bool wrapS, bool wrapT,
-                const std::string& nodeName, osg::StateSet* stateset, std::vector<unsigned int>& boundTextures) const
+                const std::string& nodeName, osg::StateSet* stateset, std::vector<std::uint32_t>& boundTextures) const
             {
-                const unsigned int uvSet = 0;
+                const std::uint32_t uvSet = 0;
 
-                for (size_t i = 0; i < textureSet->mTextures.size(); ++i)
+                for (std::size_t i = 0; i < textureSet->mTextures.size(); ++i)
                 {
                     if (textureSet->mTextures[i].empty())
                         continue;
@@ -2496,7 +2508,7 @@ namespace NifOsg
                 }
             }
 
-            std::string_view getBSShaderPrefix(unsigned int type) const
+            std::string_view getBSShaderPrefix(std::uint32_t type) const
             {
                 switch (static_cast<Nif::BSShaderType>(type))
                 {
@@ -2517,7 +2529,7 @@ namespace NifOsg
                 return "bs/default";
             }
 
-            std::string_view getBSLightingShaderPrefix(unsigned int type) const
+            std::string_view getBSLightingShaderPrefix(std::uint32_t type) const
             {
                 switch (static_cast<Nif::BSLightingShaderType>(type))
                 {
@@ -2552,8 +2564,8 @@ namespace NifOsg
             }
 
             void handleProperty(const Nif::NiProperty* property, osg::Node* node,
-                SceneUtil::CompositeStateSetUpdater* composite, std::vector<unsigned int>& boundTextures, int animflags,
-                bool hasStencilProperty)
+                SceneUtil::CompositeStateSetUpdater* composite, std::vector<std::uint32_t>& boundTextures,
+                std::int32_t animflags, bool hasStencilProperty)
             {
                 switch (property->mRecordType)
                 {
@@ -2589,7 +2601,7 @@ namespace NifOsg
                             mHasStencilProperty = true;
                             osg::ref_ptr<osg::Stencil> stencil = new osg::Stencil;
                             stencil->setFunction(getStencilFunction(stencilprop->mTestFunction),
-                                static_cast<int>(stencilprop->mStencilRef), stencilprop->mStencilMask);
+                                static_cast<std::int32_t>(stencilprop->mStencilRef), stencilprop->mStencilMask);
                             stencil->setStencilFailOperation(getStencilOperation(stencilprop->mFailAction));
                             stencil->setStencilPassAndDepthFailOperation(
                                 getStencilOperation(stencilprop->mZFailAction));
@@ -2640,7 +2652,7 @@ namespace NifOsg
                         const auto* texprop = static_cast<const Nif::NiTexturingProperty*>(property);
                         osg::StateSet* stateset = node->getOrCreateStateSet();
                         handleTextureProperty(texprop, node->getName(), stateset, composite, boundTextures, animflags);
-                        node->setUserValue("applyMode", static_cast<int>(texprop->mApplyMode));
+                        node->setUserValue("applyMode", static_cast<std::int32_t>(texprop->mApplyMode));
                         break;
                     }
                     case Nif::RC_BSShaderPPLightingProperty:
@@ -2666,7 +2678,7 @@ namespace NifOsg
                         clearBoundTextures(stateset, boundTextures);
                         if (!texprop->mFilename.empty())
                         {
-                            const unsigned int uvSet = 0;
+                            const std::uint32_t uvSet = 0;
                             attachExternalTexture("diffuseMap", VFS::Path::toNormalized(texprop->mFilename),
                                 texprop->wrapS(), texprop->wrapT(), uvSet, stateset, boundTextures);
                         }
@@ -2720,8 +2732,8 @@ namespace NifOsg
                         }
                         if (!texprop->mSourceTexture.empty())
                         {
-                            const unsigned int uvSet = 0;
-                            auto texUnit = static_cast<unsigned>(boundTextures.size());
+                            const std::uint32_t uvSet = 0;
+                            auto texUnit = static_cast<std::uint32_t>(boundTextures.size());
                             attachExternalTexture("diffuseMap", VFS::Path::toNormalized(texprop->mSourceTexture),
                                 texprop->wrapS(), texprop->wrapT(), uvSet, stateset, boundTextures);
                             {
@@ -2803,7 +2815,7 @@ namespace NifOsg
             }
 
             void applyDrawableProperties(osg::Node* node, const std::vector<const Nif::NiProperty*>& properties,
-                SceneUtil::CompositeStateSetUpdater* composite, bool hasVertexColors, int animflags)
+                SceneUtil::CompositeStateSetUpdater* composite, bool hasVertexColors, std::int32_t animflags)
             {
                 // Specular lighting is enabled by default, but there's a quirk...
                 bool specEnabled = true;
@@ -3014,7 +3026,7 @@ namespace NifOsg
                 }
 
                 osg::StateSet* stateset = node->getOrCreateStateSet();
-                auto assignBin = [&](Nif::NiSortAdjustNode::SortingMode mode, int type) {
+                auto assignBin = [&](Nif::NiSortAdjustNode::SortingMode mode, std::int32_t type) {
                     if (mode == Nif::NiSortAdjustNode::SortingMode::Off)
                     {
                         setBinTraversal(stateset);

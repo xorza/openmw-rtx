@@ -1,5 +1,8 @@
 #include "runner.hpp"
 
+#include <cstdint>
+#include <utility>
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QMessageBox>
@@ -8,7 +11,6 @@
 #include <QStringList>
 #include <QTemporaryFile>
 #include <QTextStream>
-#include <utility>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconversion.hpp>
@@ -20,7 +22,7 @@ CSMDoc::Runner::Runner(std::filesystem::path projectPath)
     , mStartup(nullptr)
     , mProjectPath(std::move(projectPath))
 {
-    connect(&mProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, &Runner::finished);
+    connect(&mProcess, qOverload<std::int32_t, QProcess::ExitStatus>(&QProcess::finished), this, &Runner::finished);
 
     connect(&mProcess, &QProcess::readyReadStandardOutput, this, &Runner::readyReadStandardOutput);
 
@@ -132,7 +134,7 @@ void CSMDoc::Runner::configure(const ESM::DebugProfile& profile, const std::vect
     mStartupInstruction = startupInstruction;
 }
 
-void CSMDoc::Runner::finished(int exitCode, QProcess::ExitStatus exitStatus)
+void CSMDoc::Runner::finished(std::int32_t exitCode, QProcess::ExitStatus exitStatus)
 {
     mRunning = false;
     emit runStateChanged();
@@ -155,7 +157,7 @@ CSMDoc::SaveWatcher::SaveWatcher(Runner* runner, OperationHolder* operation)
     connect(operation, &OperationHolder::done, this, &SaveWatcher::saveDone);
 }
 
-void CSMDoc::SaveWatcher::saveDone(int type, bool failed)
+void CSMDoc::SaveWatcher::saveDone(std::int32_t type, bool failed)
 {
     if (failed)
         mRunner->stop();

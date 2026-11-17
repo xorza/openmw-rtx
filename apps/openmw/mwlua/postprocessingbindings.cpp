@@ -1,5 +1,7 @@
 #include "postprocessingbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string_view>
 
@@ -123,7 +125,7 @@ namespace MWLua
                 std::vector<T> values;
                 values.reserve(*targetSize);
 
-                for (size_t i = 0; i < *targetSize; ++i)
+                for (std::size_t i = 0; i < *targetSize; ++i)
                 {
                     sol::object obj = table[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))];
                     if (!obj.is<T>())
@@ -150,8 +152,8 @@ namespace MWLua
             sol::usertype<Shader> shader = lua.new_usertype<Shader>("Shader");
             shader[sol::meta_function::to_string] = [](const Shader& self) { return self.toString(); };
 
-            shader["enable"] = [context](Shader& self, sol::optional<int> optPos) {
-                std::optional<int> pos = std::nullopt;
+            shader["enable"] = [context](Shader& self, sol::optional<std::int32_t> optPos) {
+                std::optional<std::int32_t> pos = std::nullopt;
                 if (optPos)
                     pos = optPos.value();
 
@@ -210,13 +212,13 @@ namespace MWLua
 
             shader["setBool"] = getSetter<bool>(context);
             shader["setFloat"] = getSetter<float>(context);
-            shader["setInt"] = getSetter<int>(context);
+            shader["setInt"] = getSetter<std::int32_t>(context);
             shader["setVector2"] = getSetter<osg::Vec2f>(context);
             shader["setVector3"] = getSetter<osg::Vec3f>(context);
             shader["setVector4"] = getSetter<osg::Vec4f>(context);
 
             shader["setFloatArray"] = getArraySetter<float>(context);
-            shader["setIntArray"] = getArraySetter<int>(context);
+            shader["setIntArray"] = getArraySetter<std::int32_t>(context);
             shader["setVector2Array"] = getArraySetter<osg::Vec2f>(context);
             shader["setVector3Array"] = getArraySetter<osg::Vec3f>(context);
             shader["setVector4Array"] = getArraySetter<osg::Vec4f>(context);

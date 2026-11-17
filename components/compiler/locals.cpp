@@ -1,6 +1,7 @@
 #include "locals.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
 #include <ostream>
 #include <stdexcept>
@@ -26,7 +27,7 @@ namespace Compiler
         throw std::logic_error("Unknown variable type");
     }
 
-    int Locals::searchIndex(char type, std::string_view name) const
+    std::int32_t Locals::searchIndex(char type, std::string_view name) const
     {
         const std::vector<std::string>& collection = get(type);
 
@@ -35,7 +36,7 @@ namespace Compiler
         if (iter == collection.end())
             return -1;
 
-        return static_cast<int>(iter - collection.begin());
+        return static_cast<std::int32_t>(iter - collection.begin());
     }
 
     bool Locals::search(char type, std::string_view name) const
@@ -74,9 +75,9 @@ namespace Compiler
         return ' ';
     }
 
-    int Locals::getIndex(std::string_view name) const
+    std::int32_t Locals::getIndex(std::string_view name) const
     {
-        int index = searchIndex('s', name);
+        std::int32_t index = searchIndex('s', name);
 
         if (index != -1)
             return index;

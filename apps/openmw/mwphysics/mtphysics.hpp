@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <set>
@@ -43,7 +44,7 @@ namespace MWPhysics
         /// @param actorsData per actor data needed to compute new positions
         /// @return new position of each actor
         void applyQueuedMovements(float& timeAccum, std::vector<Simulation>& simulations,
-            Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats);
+            Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats);
 
         void resetSimulation(const ActorMap& actors);
 
@@ -56,8 +57,9 @@ namespace MWPhysics
         std::optional<btVector3> getHitPoint(const btTransform& from, btCollisionObject* target);
         void aabbTest(const btVector3& aabbMin, const btVector3& aabbMax, btBroadphaseAabbCallback& callback);
         void getAabb(const btCollisionObject* obj, btVector3& min, btVector3& max);
-        void setCollisionFilterMask(btCollisionObject* collisionObject, int collisionFilterMask);
-        void addCollisionObject(btCollisionObject* collisionObject, int collisionFilterGroup, int collisionFilterMask);
+        void setCollisionFilterMask(btCollisionObject* collisionObject, std::int32_t collisionFilterMask);
+        void addCollisionObject(
+            btCollisionObject* collisionObject, std::int32_t collisionFilterGroup, std::int32_t collisionFilterMask);
         void removeCollisionObject(btCollisionObject* collisionObject);
         void updateSingleAabb(const std::shared_ptr<PtrHolder>& ptr, bool immediate = false);
         bool getLineOfSight(const std::shared_ptr<Actor>& actor1, const std::shared_ptr<Actor>& actor2);
@@ -76,15 +78,15 @@ namespace MWPhysics
         void refreshLOSCache();
         void updateAabbs();
         void updatePtrAabb(const std::shared_ptr<PtrHolder>& ptr);
-        void updateStats(Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats);
-        std::tuple<unsigned, float> calculateStepConfig(float timeAccum) const;
+        void updateStats(Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats);
+        std::tuple<std::uint32_t, float> calculateStepConfig(float timeAccum) const;
         void afterPreStep();
         void afterPostStep();
         void afterPostSim();
         void syncWithMainThread();
         void waitForWorkers();
         void prepareWork(float& timeAccum, std::vector<Simulation>& simulations,
-            Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats);
+            Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats);
 
         std::unique_ptr<WorldFrameData> mWorldFrameData;
         std::vector<Simulation>* mSimulations = nullptr;
@@ -102,13 +104,13 @@ namespace MWPhysics
         std::unique_ptr<Misc::Barrier> mPostSimBarrier;
 
         LockingPolicy mLockingPolicy;
-        unsigned mNumThreads;
-        int mNumJobs;
-        unsigned mRemainingSteps;
-        int mLOSCacheExpiry;
+        std::uint32_t mNumThreads;
+        std::int32_t mNumJobs;
+        std::uint32_t mRemainingSteps;
+        std::int32_t mLOSCacheExpiry;
         bool mAdvanceSimulation;
-        std::atomic<int> mNextJob;
-        std::atomic<int> mNextLOS;
+        std::atomic<std::int32_t> mNextJob;
+        std::atomic<std::int32_t> mNextLOS;
         std::vector<std::thread> mThreads;
 
         mutable std::shared_mutex mSimulationMutex;
@@ -116,12 +118,12 @@ namespace MWPhysics
         mutable std::shared_mutex mLOSCacheMutex;
         mutable std::mutex mUpdateAabbMutex;
 
-        unsigned int mFrameNumber;
+        std::uint32_t mFrameNumber;
 
-        unsigned mPrevStepCount;
+        std::uint32_t mPrevStepCount;
         Misc::BudgetMeasurement mBudget;
         Misc::BudgetMeasurement mAsyncBudget;
-        unsigned int mBudgetCursor;
+        std::uint32_t mBudgetCursor;
         Misc::FrameClock::time_point mAsyncStartTime;
         Misc::FrameClock::time_point mTimeBegin;
         Misc::FrameClock::time_point mTimeEnd;

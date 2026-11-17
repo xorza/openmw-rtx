@@ -26,6 +26,8 @@
 */
 #include "loadtes4.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 
 #include "reader.hpp"
@@ -45,7 +47,7 @@ void ESM4::Header::load(ESM4::Reader& reader)
                 if (!reader.getExact(mData.version) || !reader.getExact(mData.records)
                     || !reader.getExact(mData.nextObjectId))
                     throw std::runtime_error("TES4 HEDR data read error");
-                if (static_cast<size_t>(subHdr.dataSize)
+                if (static_cast<std::size_t>(subHdr.dataSize)
                     != sizeof(mData.version) + sizeof(mData.records) + sizeof(mData.nextObjectId))
                     throw std::runtime_error("TES4 HEDR data size mismatch");
                 break;
@@ -82,7 +84,7 @@ void ESM4::Header::load(ESM4::Reader& reader)
                 mOverrides.resize(subHdr.dataSize / sizeof(ESM::FormId32));
                 for (ESM::FormId& mOverride : mOverrides)
                 {
-                    uint32_t v = 0;
+                    std::uint32_t v = 0;
                     if (!reader.getExact(v))
                         throw std::runtime_error("TES4 ONAM data read error");
                     mOverride = ESM::FormId::fromUint32(v);

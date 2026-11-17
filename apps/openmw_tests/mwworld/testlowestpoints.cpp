@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdint>
 #include <limits>
 
 #include <gtest/gtest.h>
@@ -13,7 +14,7 @@ namespace MWWorld
 
         // Elements of one array, since MSVC's identical data folding may give equal constants one address. Cast,
         // as the points tell objects apart by their address alone and never read one.
-        const std::array<int, 3> objects{};
+        const std::array<std::int32_t, 3> objects{};
         const auto* const a = reinterpret_cast<const MWPhysics::Object*>(objects.data());
         const auto* const b = reinterpret_cast<const MWPhysics::Object*>(&objects[1]);
         const auto* const c = reinterpret_cast<const MWPhysics::Object*>(&objects[2]);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -75,7 +76,7 @@ namespace MWRender
         osg::Callback* mCullCallback;
         osg::ref_ptr<osg::Callback> mShaderWaterStateSetUpdater;
 
-        osg::Vec3f getSceneNodeCoordinates(int gridX, int gridY);
+        osg::Vec3f getSceneNodeCoordinates(std::int32_t gridX, std::int32_t gridY);
         void updateVisible();
 
         void createSimpleWaterStateSet(osg::Node* node, float alpha);

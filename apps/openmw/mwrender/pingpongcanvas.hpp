@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <utility>
 
@@ -31,7 +33,7 @@ namespace MWRender
 
         void drawImplementation(osg::RenderInfo& renderInfo) const override;
 
-        void resizeGLObjectBuffers(unsigned int maxSize) override;
+        void resizeGLObjectBuffers(std::uint32_t maxSize) override;
 
         void dirty() { mDirty = true; }
 
@@ -65,7 +67,7 @@ namespace MWRender
         /// to. One draws exactly what upstream draws.
         void setInverseGamma(float inverseGamma) { mInverseGamma = inverseGamma; }
 
-        const osg::ref_ptr<osg::Texture>& getSceneTexture(size_t frameId) const { return mTextureScene; }
+        const osg::ref_ptr<osg::Texture>& getSceneTexture(std::size_t frameId) const { return mTextureScene; }
 
     private:
         /// The state the resolve into the destination draws with: `mFallbackStateSet` or

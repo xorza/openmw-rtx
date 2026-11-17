@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -90,7 +91,7 @@ namespace
     };
 
     static osg::FrameBufferAttachment createFrameBufferAttachmentFromTemplate(
-        Usage usage, int width, int height, osg::Texture* textureTemplate, int samples)
+        Usage usage, std::int32_t width, std::int32_t height, osg::Texture* textureTemplate, std::int32_t samples)
     {
         if (usage == Usage::RENDER_BUFFER && !Stereo::getMultiview())
         {
@@ -180,7 +181,7 @@ namespace MWRender
 
         // Give the renderbin access to the opaque depth sampler so it can write its occlusion
         // Distorted geometry is drawn with ALWAYS depth function and depths writes disbled.
-        const int unitSoftEffect
+        const std::int32_t unitSoftEffect
             = shaderManager.reserveGlobalTextureUnits(Shader::ShaderManager::Slot::OpaqueDepthTexture);
         distortionRenderBin->getStateSet()->addUniform(new osg::Uniform("opaqueDepthTex", unitSoftEffect));
 
@@ -215,7 +216,7 @@ namespace MWRender
         else
             Log(Debug::Error) << "'glDisablei' unsupported, pass normals will not be available to shaders.";
 
-        mGLSLVersion = static_cast<int>(ext->glslLanguageVersion * 100);
+        mGLSLVersion = static_cast<std::int32_t>(ext->glslLanguageVersion * 100);
         mUBO = ext->isUniformBufferObjectSupported && mGLSLVersion >= 330;
         mStateUpdater = new Fx::StateUpdater(mUBO);
 
@@ -254,7 +255,7 @@ namespace MWRender
         if (Stereo::getStereo())
             Stereo::Manager::instance().screenResolutionChanged();
 
-        size_t frameId = frame() % 2;
+        std::size_t frameId = frame() % 2;
 
         createObjectsForFrame(frameId);
 
@@ -292,7 +293,7 @@ namespace MWRender
 
     void PostProcessor::traverse(osg::NodeVisitor& nv)
     {
-        unsigned frameId = nv.getTraversalNumber() % 2;
+        std::uint32_t frameId = nv.getTraversalNumber() % 2;
 
         if (nv.getVisitorType() == osg::NodeVisitor::CULL_VISITOR)
             cull(frameId, static_cast<osgUtil::CullVisitor*>(&nv));
@@ -302,7 +303,7 @@ namespace MWRender
         osg::Group::traverse(nv);
     }
 
-    void PostProcessor::cull(unsigned frameId, osgUtil::CullVisitor* cv)
+    void PostProcessor::cull(std::uint32_t frameId, osgUtil::CullVisitor* cv)
     {
         if (const auto& fbo = getFbo(FBO_Intercept, frameId))
         {
@@ -332,7 +333,7 @@ namespace MWRender
         mDistortionCallback->setFBO(mFbos[frameId][FBO_Distortion], frameId);
         mDistortionCallback->setOriginalFBO(mFbos[frameId][FBO_Primary], frameId);
 
-        size_t frame = cv->getTraversalNumber();
+        std::size_t frame = cv->getTraversalNumber();
 
         const osg::Viewport* viewport = cv->getViewport();
         mStateUpdater->setResolution(
@@ -347,7 +348,7 @@ namespace MWRender
             mStateUpdater->setSimulationTime(static_cast<float>(stamp->getSimulationTime()));
             mStateUpdater->setDeltaSimulationTime(static_cast<float>(stamp->getSimulationTime() - mLastSimulationTime));
             // Use a signed int because 'uint' type is not supported in GLSL 120 without extensions
-            mStateUpdater->setFrameNumber(static_cast<int>(stamp->getFrameNumber()));
+            mStateUpdater->setFrameNumber(static_cast<std::int32_t>(stamp->getFrameNumber()));
             mLastSimulationTime = stamp->getSimulationTime();
 
             for (const auto& dispatchNode : mCanvases[frameId]->getPasses())
@@ -403,7 +404,7 @@ namespace MWRender
         resize();
     }
 
-    void PostProcessor::update(size_t frameId)
+    void PostProcessor::update(std::size_t frameId)
     {
         while (!mQueuedTemplates.empty())
         {
@@ -456,12 +457,12 @@ namespace MWRender
         }
     }
 
-    void PostProcessor::createObjectsForFrame(size_t frameId)
+    void PostProcessor::createObjectsForFrame(std::size_t frameId)
     {
         auto& textures = mTextures[frameId];
 
-        int width = renderWidth();
-        int height = renderHeight();
+        std::int32_t width = renderWidth();
+        std::int32_t height = renderHeight();
 
         for (osg::ref_ptr<osg::Texture>& texture : textures)
         {
@@ -495,8 +496,8 @@ namespace MWRender
         textures[Tex_Distortion]->setInternalFormat(GL_RGB);
 
         Stereo::setMultiviewCompatibleTextureSize(textures[Tex_Distortion],
-            static_cast<int>(static_cast<float>(width) * DistortionRatio),
-            static_cast<int>(static_cast<float>(height) * DistortionRatio));
+            static_cast<std::int32_t>(static_cast<float>(width) * DistortionRatio),
+            static_cast<std::int32_t>(static_cast<float>(height) * DistortionRatio));
         textures[Tex_Distortion]->dirtyTextureObject();
 
         auto setupDepth = [](osg::Texture* tex) {
@@ -579,7 +580,7 @@ namespace MWRender
 
     void PostProcessor::dirtyTechniques(bool dirtyAttachments)
     {
-        size_t frameId = frame() % 2;
+        std::size_t frameId = frame() % 2;
 
         mDirty = true;
         mDirtyFrameId = !frameId;
@@ -635,20 +636,20 @@ namespace MWRender
 
             node.mRootStateSet->addUniform(new osg::Uniform("omw_SamplerDistortion", Unit_Distortion));
 
-            int texUnit = Unit_NextFree;
+            std::int32_t texUnit = Unit_NextFree;
 
             // user-defined samplers
             for (const osg::Texture* texture : technique->getTextures())
             {
                 if (const auto* tex1D = dynamic_cast<const osg::Texture1D*>(texture))
                     node.mRootStateSet->setTextureAttribute(
-                        static_cast<unsigned int>(texUnit), new osg::Texture1D(*tex1D));
+                        static_cast<std::uint32_t>(texUnit), new osg::Texture1D(*tex1D));
                 else if (const auto* tex2D = dynamic_cast<const osg::Texture2D*>(texture))
                     node.mRootStateSet->setTextureAttribute(
-                        static_cast<unsigned int>(texUnit), new osg::Texture2D(*tex2D));
+                        static_cast<std::uint32_t>(texUnit), new osg::Texture2D(*tex2D));
                 else if (const auto* tex3D = dynamic_cast<const osg::Texture3D*>(texture))
                     node.mRootStateSet->setTextureAttribute(
-                        static_cast<unsigned int>(texUnit), new osg::Texture3D(*tex3D));
+                        static_cast<std::uint32_t>(texUnit), new osg::Texture3D(*tex3D));
 
                 node.mRootStateSet->addUniform(new osg::Uniform(texture->getName().c_str(), texUnit++));
             }
@@ -661,12 +662,12 @@ namespace MWRender
 
                 if (auto type = uniform->getType())
                     uniform->setUniform(node.mRootStateSet->getOrCreateUniform(
-                        uniform->mName, *type, static_cast<unsigned>(uniform->getNumElements())));
+                        uniform->mName, *type, static_cast<std::uint32_t>(uniform->getNumElements())));
             }
 
             for (const auto& pass : technique->getPasses())
             {
-                int subTexUnit = texUnit;
+                std::int32_t subTexUnit = texUnit;
                 Fx::DispatchNode::SubPass subPass;
 
                 pass->prepareStateSet(subPass.mStateSet, technique->getName());
@@ -688,7 +689,7 @@ namespace MWRender
                     if (subPass.mMipMap)
                     {
                         subPass.mRenderTexture->setNumMipmapLevels(
-                            static_cast<unsigned int>(osg::Image::computeNumberOfMipmapLevels(w, h)));
+                            static_cast<std::uint32_t>(osg::Image::computeNumberOfMipmapLevels(w, h)));
                     }
                     else
                     {
@@ -717,7 +718,8 @@ namespace MWRender
                     }
 
                     auto& renderTarget = technique->getRenderTargetsMap()[name];
-                    subPass.mStateSet->setTextureAttribute(static_cast<unsigned int>(subTexUnit), renderTarget.mTarget);
+                    subPass.mStateSet->setTextureAttribute(
+                        static_cast<std::uint32_t>(subTexUnit), renderTarget.mTarget);
                     subPass.mStateSet->addUniform(new osg::Uniform(name.c_str(), subTexUnit));
 
                     if (std::find_if(attachmentsToDirty.cbegin(), attachmentsToDirty.cend(),
@@ -750,14 +752,14 @@ namespace MWRender
     }
 
     PostProcessor::Status PostProcessor::enableTechnique(
-        const std::shared_ptr<Fx::Technique>& technique, std::optional<int> location)
+        const std::shared_ptr<Fx::Technique>& technique, std::optional<std::int32_t> location)
     {
         if (technique->getLocked() || (location.has_value() && location.value() < 0))
             return Status_Error;
 
         disableTechnique(technique, false);
 
-        size_t pos
+        std::size_t pos
             = std::min(static_cast<std::size_t>(location.value_or(mTechniques.size())) + mInternalTechniques.size(),
                 mTechniques.size());
 
@@ -891,14 +893,14 @@ namespace MWRender
             dirtyTechniques();
     }
 
-    int PostProcessor::renderWidth() const
+    std::int32_t PostProcessor::renderWidth() const
     {
         if (Stereo::getStereo())
             return Stereo::Manager::instance().eyeResolution().x();
         return mWidth;
     }
 
-    int PostProcessor::renderHeight() const
+    std::int32_t PostProcessor::renderHeight() const
     {
         if (Stereo::getStereo())
             return Stereo::Manager::instance().eyeResolution().y();

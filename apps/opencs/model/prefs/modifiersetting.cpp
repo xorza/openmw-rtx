@@ -1,5 +1,7 @@
 #include "modifiersetting.hpp"
 
+#include <cstdint>
+
 #include <QEvent>
 #include <QKeyEvent>
 #include <QLabel>
@@ -26,7 +28,7 @@ namespace CSMPrefs
 
     SettingWidgets ModifierSetting::makeWidgets(QWidget* parent)
     {
-        int modifier = 0;
+        std::int32_t modifier = 0;
         State::get().getShortcutManager().getModifier(getKey(), modifier);
 
         QString text = QString::fromUtf8(State::get().getShortcutManager().convertToString(modifier).c_str());
@@ -53,7 +55,7 @@ namespace CSMPrefs
         {
             const std::string& shortcut = getValue();
 
-            int modifier = 0;
+            std::int32_t modifier = 0;
             State::get().getShortcutManager().convertFromString(shortcut, modifier);
             State::get().getShortcutManager().setModifier(getKey(), modifier);
             resetState();
@@ -68,16 +70,16 @@ namespace CSMPrefs
             if (keyEvent->isAutoRepeat())
                 return true;
 
-            int mod = static_cast<int>(keyEvent->modifiers());
-            int key = keyEvent->key();
+            std::int32_t mod = static_cast<std::int32_t>(keyEvent->modifiers());
+            std::int32_t key = keyEvent->key();
 
             return handleEvent(target, mod, key);
         }
         else if (event->type() == QEvent::MouseButtonPress)
         {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
-            int mod = static_cast<int>(mouseEvent->modifiers());
-            int button = static_cast<int>(mouseEvent->button());
+            std::int32_t mod = static_cast<std::int32_t>(mouseEvent->modifiers());
+            auto button = static_cast<std::int32_t>(mouseEvent->button());
 
             return handleEvent(target, mod, button);
         }
@@ -89,17 +91,17 @@ namespace CSMPrefs
         return false;
     }
 
-    bool ModifierSetting::handleEvent(QObject* target, int mod, int value)
+    bool ModifierSetting::handleEvent(QObject* target, std::int32_t mod, std::int32_t value)
     {
         // For potential future exceptions
-        const int blacklist[] = { 0 };
+        const std::int32_t blacklist[] = { 0 };
 
         if (!mEditorActive)
         {
             if (value == Qt::RightButton)
             {
                 // Clear modifier
-                int modifier = 0;
+                std::int32_t modifier = 0;
                 storeValue(modifier);
 
                 resetState();
@@ -109,14 +111,14 @@ namespace CSMPrefs
         }
 
         // Handle blacklist
-        for (int i : blacklist)
+        for (std::int32_t i : blacklist)
         {
             if (value == i)
                 return true;
         }
 
         // Update modifier
-        int modifier = value;
+        std::int32_t modifier = value;
         storeValue(modifier);
 
         resetState();
@@ -124,7 +126,7 @@ namespace CSMPrefs
         return true;
     }
 
-    void ModifierSetting::storeValue(int modifier)
+    void ModifierSetting::storeValue(std::int32_t modifier)
     {
         State::get().getShortcutManager().setModifier(getKey(), modifier);
         setValue(State::get().getShortcutManager().convertToString(modifier));
@@ -137,7 +139,7 @@ namespace CSMPrefs
         mEditorActive = false;
 
         // Button text
-        int modifier = 0;
+        std::int32_t modifier = 0;
         State::get().getShortcutManager().getModifier(getKey(), modifier);
 
         QString text = QString::fromUtf8(State::get().getShortcutManager().convertToString(modifier).c_str());

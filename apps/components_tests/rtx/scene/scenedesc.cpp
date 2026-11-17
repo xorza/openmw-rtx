@@ -1681,7 +1681,7 @@ namespace Rtx
             const auto big = [&](const float at) {
                 std::vector<osg::Vec3f>& positions = bigs.emplace_back();
                 bigIndices.clear();
-                for (int copy = 0; copy < 2; ++copy)
+                for (std::int32_t copy = 0; copy < 2; ++copy)
                 {
                     for (const osg::Vec3f& vertex : quadAt(at + static_cast<float>(copy)))
                         positions.push_back(vertex);

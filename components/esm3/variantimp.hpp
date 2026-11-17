@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <string>
 
@@ -11,13 +12,13 @@ namespace ESM
 
     void readESMVariantValue(ESMReader& esm, Variant::Format format, VarType type, float& out);
 
-    void readESMVariantValue(ESMReader& esm, Variant::Format format, VarType type, int32_t& out);
+    void readESMVariantValue(ESMReader& esm, Variant::Format format, VarType type, std::int32_t& out);
 
     void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, const std::string& in);
 
     void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, float in);
 
-    void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, int32_t in);
+    void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, std::int32_t in);
 
     struct ReadESMVariantValue
     {

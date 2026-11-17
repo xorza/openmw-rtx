@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 
@@ -23,15 +24,15 @@ namespace MWInput
 
         void update(float dt);
 
-        void buttonPressed(int deviceID, const SDL_GamepadButtonEvent& arg) override;
-        void buttonReleased(int deviceID, const SDL_GamepadButtonEvent& arg) override;
-        void axisMoved(int deviceID, const SDL_GamepadAxisEvent& arg) override;
-        void controllerAdded(int deviceID, const SDL_GamepadDeviceEvent& arg) override;
+        void buttonPressed(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg) override;
+        void buttonReleased(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg) override;
+        void axisMoved(std::int32_t deviceID, const SDL_GamepadAxisEvent& arg) override;
+        void controllerAdded(std::int32_t deviceID, const SDL_GamepadDeviceEvent& arg) override;
         void controllerRemoved(const SDL_GamepadDeviceEvent& arg) override;
 
-        void touchpadMoved(int deviceId, const SDLUtil::TouchEvent& arg) override;
-        void touchpadPressed(int deviceId, const SDLUtil::TouchEvent& arg) override;
-        void touchpadReleased(int deviceId, const SDLUtil::TouchEvent& arg) override;
+        void touchpadMoved(std::int32_t deviceId, const SDLUtil::TouchEvent& arg) override;
+        void touchpadPressed(std::int32_t deviceId, const SDLUtil::TouchEvent& arg) override;
+        void touchpadReleased(std::int32_t deviceId, const SDLUtil::TouchEvent& arg) override;
 
         void setJoystickLastUsed(bool enabled) { mJoystickLastUsed = enabled; }
         bool joystickLastUsed() const { return mJoystickLastUsed; }
@@ -47,8 +48,8 @@ namespace MWInput
         bool isGyroAvailable() const;
         std::array<float, 3> getGyroValues() const;
 
-        std::string getControllerButtonIcon(int button);
-        std::string getControllerAxisIcon(int axis);
+        std::string getControllerButtonIcon(std::int32_t button);
+        std::string getControllerAxisIcon(std::int32_t axis);
 
     private:
         // Return true if GUI consumes input.
@@ -57,7 +58,7 @@ namespace MWInput
 
         void enableGyroSensor();
 
-        int getControllerType();
+        std::int32_t getControllerType();
 
         BindingsManager* mBindingsManager;
         MouseManager* mMouseManager;

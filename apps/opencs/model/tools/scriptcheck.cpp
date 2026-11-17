@@ -1,5 +1,6 @@
 #include "scriptcheck.hpp"
 
+#include <cstdint>
 #include <exception>
 #include <sstream>
 #include <string>
@@ -75,7 +76,7 @@ CSMTools::ScriptCheckStage::ScriptCheckStage(const CSMDoc::Document& document)
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::ScriptCheckStage::setup()
+std::int32_t CSMTools::ScriptCheckStage::setup()
 {
     std::string warnings = CSMPrefs::get()["Scripts"]["warnings"].toString();
 
@@ -96,7 +97,7 @@ int CSMTools::ScriptCheckStage::setup()
     return mDocument.getData().getScripts().getSize();
 }
 
-void CSMTools::ScriptCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::ScriptCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Script>& record = mDocument.getData().getScripts().getRecord(stage);
 

@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -20,7 +21,7 @@
 
 namespace bpo = boost::program_options;
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     try
     {

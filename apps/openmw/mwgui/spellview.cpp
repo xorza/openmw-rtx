@@ -1,5 +1,7 @@
 #include "spellview.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <MyGUI_FactoryManager.h>
@@ -80,9 +82,9 @@ namespace MWGui
 
         mModel->update();
 
-        int curType = -1;
+        std::int32_t curType = -1;
 
-        const int spellHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t spellHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
         mLines.clear();
         mButtons.clear();
@@ -162,7 +164,7 @@ namespace MWGui
 
                 // match model against line
                 // if don't match, then major change has happened, so do a full update
-                if (mModel->getItemCount() <= static_cast<size_t>(spellIndex))
+                if (mModel->getItemCount() <= static_cast<std::size_t>(spellIndex))
                 {
                     fullUpdateRequired = true;
                     break;
@@ -198,19 +200,19 @@ namespace MWGui
 
     void SpellView::layoutWidgets()
     {
-        int height = 0;
+        std::int32_t height = 0;
         for (LineInfo& line : mLines)
         {
             height += line.mLeftWidget->getHeight();
         }
 
         bool scrollVisible = height > mScrollView->getHeight();
-        int width = mScrollView->getWidth() - (scrollVisible ? 18 : 0);
+        std::int32_t width = mScrollView->getWidth() - (scrollVisible ? 18 : 0);
 
         height = 0;
         for (LineInfo& line : mLines)
         {
-            int lineHeight = line.mLeftWidget->getHeight();
+            std::int32_t lineHeight = line.mLeftWidget->getHeight();
             line.mLeftWidget->setCoord(4, height, width - 8, lineHeight);
             if (line.mRightWidget)
             {
@@ -313,13 +315,13 @@ namespace MWGui
         eventSpellClicked(getSpellModelIndex(sender));
     }
 
-    void SpellView::onMouseWheelMoved(MyGUI::Widget* /*sender*/, int rel)
+    void SpellView::onMouseWheelMoved(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (static_cast<float>(mScrollView->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mScrollView->setViewOffset(MyGUI::IntPoint(0,
-                static_cast<int>(
+                static_cast<std::int32_t>(
                     static_cast<float>(mScrollView->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
@@ -335,14 +337,14 @@ namespace MWGui
             update();
     }
 
-    void SpellView::onControllerButton(const unsigned char button)
+    void SpellView::onControllerButton(const std::uint8_t button)
     {
         if (mButtons.empty())
             return;
 
-        size_t prevFocus = mControllerFocus;
+        std::size_t prevFocus = mControllerFocus;
         MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
-        int delta = 0;
+        std::int32_t delta = 0;
         switch (button)
         {
             case SDL_GAMEPAD_BUTTON_SOUTH:
@@ -376,8 +378,8 @@ namespace MWGui
             case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
             {
                 // Jump to first item in previous group
-                size_t prevGroupIndex = 0;
-                for (size_t groupIndex : mGroupIndices)
+                std::size_t prevGroupIndex = 0;
+                for (std::size_t groupIndex : mGroupIndices)
                 {
                     if (groupIndex >= mControllerFocus)
                         break;
@@ -390,8 +392,8 @@ namespace MWGui
             case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
             {
                 // Jump to first item in next group
-                size_t newFocus = mControllerFocus;
-                for (size_t groupIndex : mGroupIndices)
+                std::size_t newFocus = mControllerFocus;
+                for (std::size_t groupIndex : mGroupIndices)
                 {
                     if (groupIndex > mControllerFocus)
                     {
@@ -417,7 +419,7 @@ namespace MWGui
             updateControllerFocus(mButtons.size(), mControllerFocus);
     }
 
-    void SpellView::updateControllerFocus(size_t prevFocus, size_t newFocus)
+    void SpellView::updateControllerFocus(std::size_t prevFocus, std::size_t newFocus)
     {
         if (mButtons.empty())
             return;
@@ -437,12 +439,12 @@ namespace MWGui
                 focused->onMouseSetFocus(nullptr);
 
                 // Scroll the list to keep the active item in view
-                int line = mButtons[newFocus].second;
+                std::int32_t line = mButtons[newFocus].second;
                 if (line <= 5)
                     mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
                 else
                 {
-                    const int lineHeight = focused->getHeight();
+                    const std::int32_t lineHeight = focused->getHeight();
                     mScrollView->setViewOffset(MyGUI::IntPoint(0, -lineHeight * (line - 5)));
                 }
 

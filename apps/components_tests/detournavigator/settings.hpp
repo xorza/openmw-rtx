@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <limits>
 
 #include <components/detournavigator/settings.hpp>
@@ -32,7 +33,7 @@ namespace DetourNavigator
             result.mRecast.mRegionMergeArea = 400;
             result.mRecast.mRegionMinArea = 64;
             result.mRecast.mTileSize = 64;
-            result.mWaitUntilMinDistanceToPlayer = std::numeric_limits<int>::max();
+            result.mWaitUntilMinDistanceToPlayer = std::numeric_limits<std::int32_t>::max();
             result.mAsyncNavMeshUpdaterThreads = 1;
             result.mMaxNavMeshTilesCacheSize = 1024 * 1024;
             result.mDetour.mMaxPolygonPathSize = 1024;

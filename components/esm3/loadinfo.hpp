@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -36,15 +37,15 @@ namespace ESM
 
         struct DATAstruct
         {
-            int32_t mType = 0; // See Dialogue::Type
+            std::int32_t mType = 0; // See Dialogue::Type
             union
             {
-                int32_t mDisposition = 0; // Used for dialogue responses
-                int32_t mJournalIndex; // Used for journal entries
+                std::int32_t mDisposition = 0; // Used for dialogue responses
+                std::int32_t mJournalIndex; // Used for journal entries
             };
-            signed char mRank = -1; // Rank of NPC
-            signed char mGender = Gender::NA; // See Gender enum
-            signed char mPCrank = -1; // Player rank
+            std::int8_t mRank = -1; // Rank of NPC
+            std::int8_t mGender = Gender::NA; // See Gender enum
+            std::int8_t mPCrank = -1; // Player rank
         }; // 12 bytes
         DATAstruct mData;
 

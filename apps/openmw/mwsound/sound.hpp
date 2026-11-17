@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 
 #include "soundoutput.hpp"
 
@@ -18,13 +19,13 @@ namespace MWSound
     };
 
     // For testing individual PlayMode flags
-    inline int operator&(int a, PlayMode b)
+    inline std::int32_t operator&(std::int32_t a, PlayMode b)
     {
-        return a & static_cast<int>(b);
+        return a & static_cast<std::int32_t>(b);
     }
-    inline int operator&(PlayMode a, PlayMode b)
+    inline std::int32_t operator&(PlayMode a, PlayMode b)
     {
-        return static_cast<int>(a) & static_cast<int>(b);
+        return static_cast<std::int32_t>(a) & static_cast<std::int32_t>(b);
     }
 
     struct SoundParams
@@ -37,7 +38,7 @@ namespace MWSound
         float mPitch = 1.0f;
         float mMinDistance = 1.0f;
         float mMaxDistance = 1000.0f;
-        int mFlags = 0;
+        std::int32_t mFlags = 0;
         float mFadeVolume = 1.0f;
         float mFadeTarget = 0.0f;
         float mFadeStep = 0.0f;
@@ -91,7 +92,7 @@ namespace MWSound
         /// once the fade duration has passed or the target volume has been
         /// reached. If Play_FadeExponential is set, enables the exponential
         /// fade mode (see above).
-        void setFade(float duration, float targetVolume, int flags = 0)
+        void setFade(float duration, float targetVolume, std::int32_t flags = 0)
         {
             // Approximation of log(1%) (i.e., -40 dB).
             constexpr float minus40Decibel = -4.6f;

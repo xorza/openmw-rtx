@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -19,13 +20,13 @@ namespace MWInput
 
         virtual ~BindingsManager();
 
-        std::string_view getActionDescription(int action);
-        std::string getActionKeyBindingName(int action);
-        std::string getActionControllerBindingName(int action);
-        const std::initializer_list<int>& getActionKeySorting();
-        const std::initializer_list<int>& getActionControllerSorting();
+        std::string_view getActionDescription(std::int32_t action);
+        std::string getActionKeyBindingName(std::int32_t action);
+        std::string getActionControllerBindingName(std::int32_t action);
+        const std::initializer_list<std::int32_t>& getActionKeySorting();
+        const std::initializer_list<std::int32_t>& getActionControllerSorting();
 
-        void enableDetectingBindingMode(int action, bool keyboard);
+        void enableDetectingBindingMode(std::int32_t action, bool keyboard);
         bool isDetectingBindingState() const;
 
         void loadKeyDefaults(bool force = false);
@@ -39,10 +40,10 @@ namespace MWInput
 
         void setJoystickDeadZone(float deadZone);
 
-        bool isLeftOrRightButton(int action, bool joystick) const;
+        bool isLeftOrRightButton(std::int32_t action, bool joystick) const;
 
-        bool actionIsActive(int id) const;
-        float getActionValue(int id) const; // returns value in range [0, 1]
+        bool actionIsActive(std::int32_t id) const;
+        float getActionValue(std::int32_t id) const; // returns value in range [0, 1]
 
         SDL_Gamepad* getControllerOrNull() const;
 
@@ -54,15 +55,15 @@ namespace MWInput
         void keyPressed(const SDL_KeyboardEvent& arg);
         void keyReleased(const SDL_KeyboardEvent& arg);
 
-        void controllerAdded(int deviceID, const SDL_GamepadDeviceEvent& arg);
+        void controllerAdded(std::int32_t deviceID, const SDL_GamepadDeviceEvent& arg);
         void controllerRemoved(const SDL_GamepadDeviceEvent& arg);
-        void controllerButtonPressed(int deviceID, const SDL_GamepadButtonEvent& arg);
-        void controllerButtonReleased(int deviceID, const SDL_GamepadButtonEvent& arg);
-        void controllerAxisMoved(int deviceID, const SDL_GamepadAxisEvent& arg);
+        void controllerButtonPressed(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg);
+        void controllerButtonReleased(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg);
+        void controllerAxisMoved(std::int32_t deviceID, const SDL_GamepadAxisEvent& arg);
 
-        SDL_Scancode getKeyBinding(int actionId);
+        SDL_Scancode getKeyBinding(std::int32_t actionId);
 
-        void actionValueChanged(int action, float currentValue, float previousValue);
+        void actionValueChanged(std::int32_t action, float currentValue, float previousValue);
 
         void saveBindings();
 

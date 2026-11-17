@@ -1,5 +1,6 @@
 #include "refcollection.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -19,7 +20,7 @@
 namespace CSMWorld
 {
     template <>
-    void Collection<CellRef>::removeRows(int index, int count)
+    void Collection<CellRef>::removeRows(std::int32_t index, std::int32_t count)
     {
         mRecords.erase(mRecords.begin() + index, mRecords.begin() + index + count);
 
@@ -27,9 +28,10 @@ namespace CSMWorld
     }
 
     template <>
-    void Collection<CellRef>::insertRecord(std::unique_ptr<RecordBase> record, int index, UniversalId::Type type)
+    void Collection<CellRef>::insertRecord(
+        std::unique_ptr<RecordBase> record, std::int32_t index, UniversalId::Type type)
     {
-        int size = static_cast<int>(mRecords.size());
+        auto size = static_cast<std::int32_t>(mRecords.size());
         if (index < 0 || index > size)
             throw std::runtime_error("index out of range");
 
@@ -44,8 +46,8 @@ namespace CSMWorld
     }
 }
 
-void CSMWorld::RefCollection::load(ESM::ESMReader& reader, int cellIndex, bool base,
-    std::map<ESM::RefNum, unsigned int>& cache, CSMDoc::Messages& messages)
+void CSMWorld::RefCollection::load(ESM::ESMReader& reader, std::int32_t cellIndex, bool base,
+    std::map<ESM::RefNum, std::uint32_t>& cache, CSMDoc::Messages& messages)
 {
     Record<Cell> cell = mCells.getRecord(cellIndex);
 
@@ -71,7 +73,7 @@ void CSMWorld::RefCollection::load(ESM::ESMReader& reader, int cellIndex, bool b
         if (cell.get().isExterior())
         {
             // Autocalculate the cell index from coordinates first
-            std::pair<int, int> index = ref.getCellIndex();
+            std::pair<std::int32_t, std::int32_t> index = ref.getCellIndex();
 
             ref.mCell = ESM::RefId::stringRefId(ESM::RefId::esm3ExteriorCell(index.first, index.second).toString());
 
@@ -118,7 +120,7 @@ void CSMWorld::RefCollection::load(ESM::ESMReader& reader, int cellIndex, bool b
                 continue;
             }
 
-            int index = getIntIndex(iter->second);
+            std::int32_t index = getIntIndex(iter->second);
 
             // ensure we have the same record id for setRecord()
             ref.mId = getRecord(index).get().mId;
@@ -149,7 +151,7 @@ void CSMWorld::RefCollection::load(ESM::ESMReader& reader, int cellIndex, bool b
                 continue;
             }
 
-            int index = getIntIndex(iter->second);
+            std::int32_t index = getIntIndex(iter->second);
 
             if (base)
             {
@@ -169,7 +171,7 @@ void CSMWorld::RefCollection::load(ESM::ESMReader& reader, int cellIndex, bool b
         if (iter == cache.end())
         {
             // new reference
-            ref.mIdNum = static_cast<unsigned int>(mNextId); // FIXME: fragile
+            ref.mIdNum = static_cast<std::uint32_t>(mNextId); // FIXME: fragile
             ref.mId = ESM::RefId::stringRefId(getNewId());
 
             if (!base && ref.mRefNum.mIndex > mHighestUsedRefNum)
@@ -186,7 +188,7 @@ void CSMWorld::RefCollection::load(ESM::ESMReader& reader, int cellIndex, bool b
         else
         {
             // old reference -> merge
-            int index = getIntIndex(iter->second);
+            std::int32_t index = getIntIndex(iter->second);
             ref.mId = getRecord(index).get().mId;
             ref.mIdNum = extractIdNum(ref.mId.getRefIdString());
 
@@ -204,24 +206,24 @@ std::string CSMWorld::RefCollection::getNewId()
     return "ref#" + std::to_string(mNextId++);
 }
 
-uint32_t CSMWorld::RefCollection::getNextRefNum()
+std::uint32_t CSMWorld::RefCollection::getNextRefNum()
 {
     return ++mHighestUsedRefNum;
 }
 
-unsigned int CSMWorld::RefCollection::extractIdNum(std::string_view id) const
+std::uint32_t CSMWorld::RefCollection::extractIdNum(std::string_view id) const
 {
     std::string::size_type separator = id.find_last_of('#');
 
     if (separator == std::string::npos)
         throw std::runtime_error("invalid ref ID: " + std::string(id));
 
-    return Misc::StringUtils::toNumeric<unsigned int>(id.substr(separator + 1), 0);
+    return Misc::StringUtils::toNumeric<std::uint32_t>(id.substr(separator + 1), 0);
 }
 
-int CSMWorld::RefCollection::getIntIndex(unsigned int id) const
+std::int32_t CSMWorld::RefCollection::getIntIndex(std::uint32_t id) const
 {
-    int index = searchId(id);
+    std::int32_t index = searchId(id);
 
     if (index == -1)
         throw std::runtime_error("invalid RefNum: " + std::to_string(id));
@@ -229,7 +231,7 @@ int CSMWorld::RefCollection::getIntIndex(unsigned int id) const
     return index;
 }
 
-int CSMWorld::RefCollection::searchId(unsigned int id) const
+std::int32_t CSMWorld::RefCollection::searchId(std::uint32_t id) const
 {
     auto iter = mRefIndex.find(id);
 
@@ -239,7 +241,7 @@ int CSMWorld::RefCollection::searchId(unsigned int id) const
     return iter->second;
 }
 
-void CSMWorld::RefCollection::removeRows(int index, int count)
+void CSMWorld::RefCollection::removeRows(std::int32_t index, std::int32_t count)
 {
     Collection<CellRef>::removeRows(index, count); // erase records only
 
@@ -279,7 +281,7 @@ void CSMWorld::RefCollection::cloneRecord(
     const ESM::RefId& origin, const ESM::RefId& destination, const UniversalId::Type type)
 {
     auto copy = std::make_unique<Record<CellRef>>();
-    int index = getAppendIndex(ESM::RefId(), type);
+    std::int32_t index = getAppendIndex(ESM::RefId(), type);
 
     copy->mModified = getRecord(origin).get();
     copy->mState = RecordBase::State_ModifiedOnly;
@@ -297,24 +299,25 @@ void CSMWorld::RefCollection::cloneRecord(
     insertRecord(std::move(copy), getAppendIndex(destination, type)); // call RefCollection::insertRecord()
 }
 
-int CSMWorld::RefCollection::searchId(const ESM::RefId& id) const
+std::int32_t CSMWorld::RefCollection::searchId(const ESM::RefId& id) const
 {
     return searchId(extractIdNum(id.getRefIdString()));
 }
 
 void CSMWorld::RefCollection::appendRecord(std::unique_ptr<RecordBase> record, UniversalId::Type type)
 {
-    int index = getAppendIndex(/*id*/ ESM::RefId(), type); // for CellRef records id is ignored
+    std::int32_t index = getAppendIndex(/*id*/ ESM::RefId(), type); // for CellRef records id is ignored
 
     mRefIndex.insert(std::make_pair(static_cast<Record<CellRef>*>(record.get())->get().mIdNum, index));
 
     Collection<CellRef>::insertRecord(std::move(record), index, type); // add records only
 }
 
-void CSMWorld::RefCollection::insertRecord(std::unique_ptr<RecordBase> record, int index, UniversalId::Type type)
+void CSMWorld::RefCollection::insertRecord(
+    std::unique_ptr<RecordBase> record, std::int32_t index, UniversalId::Type type)
 {
-    int size = getAppendIndex(/*id*/ ESM::RefId(), type); // for CellRef records id is ignored
-    unsigned int idNum = static_cast<Record<CellRef>*>(record.get())->get().mIdNum;
+    std::int32_t size = getAppendIndex(/*id*/ ESM::RefId(), type); // for CellRef records id is ignored
+    std::uint32_t idNum = static_cast<Record<CellRef>*>(record.get())->get().mIdNum;
 
     Collection<CellRef>::insertRecord(std::move(record), index, type); // add records only
 

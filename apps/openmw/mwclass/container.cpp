@@ -1,5 +1,7 @@
 #include "container.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
@@ -34,7 +36,7 @@ namespace MWClass
     ContainerCustomData::ContainerCustomData(const ESM::Container& container, MWWorld::CellStore* cell)
     {
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        auto seed = static_cast<unsigned int>(Misc::Rng::rollDice(std::numeric_limits<int>::max(), prng));
+        auto seed = static_cast<std::uint32_t>(Misc::Rng::rollDice(std::numeric_limits<std::int32_t>::max(), prng));
         // setting ownership not needed, since taking items from a container inherits the
         // container's owner automatically
         mStore.fillNonRandom(container.mInventory, ESM::RefId(), seed);
@@ -231,7 +233,7 @@ namespace MWClass
         return true;
     }
 
-    MWGui::ToolTipInfo Container::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Container::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Container>* ref = ptr.get<ESM::Container>();
 
@@ -240,7 +242,7 @@ namespace MWClass
         info.caption = MyGUI::TextIterator::toTagsString(MyGUI::UString(name));
 
         std::string text;
-        int lockLevel = ptr.getCellRef().getLockLevel();
+        std::int32_t lockLevel = ptr.getCellRef().getLockLevel();
         if (lockLevel)
         {
             if (ptr.getCellRef().isLocked())
@@ -282,7 +284,8 @@ namespace MWClass
         return !(ref->mBase->mFlags & ESM::Container::Organic);
     }
 
-    void Container::modifyBaseInventory(const ESM::RefId& containerId, const ESM::RefId& itemId, int amount) const
+    void Container::modifyBaseInventory(
+        const ESM::RefId& containerId, const ESM::RefId& itemId, std::int32_t amount) const
     {
         MWMechanics::modifyBaseInventory<ESM::Container>(containerId, itemId, amount);
     }

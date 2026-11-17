@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <utility>
 
@@ -11,9 +12,9 @@
 
 namespace SDLUtil
 {
-    SDL_DisplayID displayAt(int index)
+    SDL_DisplayID displayAt(std::int32_t index)
     {
-        int count = 0;
+        std::int32_t count = 0;
         SDL_DisplayID* displays = SDL_GetDisplays(&count);
         const SDL_DisplayID display = index >= 0 && index < count ? displays[index] : SDL_GetPrimaryDisplay();
         SDL_free(displays);
@@ -23,10 +24,10 @@ namespace SDLUtil
     std::vector<DisplayResolution> displayResolutions(SDL_DisplayID display)
     {
         std::vector<DisplayResolution> resolutions;
-        int count = 0;
+        std::int32_t count = 0;
         SDL_DisplayMode** modes = SDL_GetFullscreenDisplayModes(display, &count);
         resolutions.reserve(static_cast<std::size_t>(count));
-        for (int i = 0; i < count; ++i)
+        for (std::int32_t i = 0; i < count; ++i)
         {
             const SDL_DisplayMode& mode = *modes[i];
             resolutions.push_back({ .mWidth = displayPixels(mode.w, mode.pixel_density),

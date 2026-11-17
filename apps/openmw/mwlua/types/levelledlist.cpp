@@ -1,3 +1,5 @@
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <variant>
 
@@ -30,7 +32,7 @@ namespace
     struct MutableLevelItem
     {
         MutableLevelItemList mList;
-        uint32_t mIndex;
+        std::uint32_t mIndex;
 
         ESM::LevelledListBase::LevelItem& find() { return mList.find().at(mIndex); }
 
@@ -79,7 +81,7 @@ namespace MWLua
                 return value.as<ESM::LevelledListBase::LevelItem>();
             sol::lua_table table = value.as<sol::lua_table>();
             ESM::LevelledListBase::LevelItem out;
-            out.mLevel = table.get_or("level", uint16_t{});
+            out.mLevel = table.get_or("level", std::uint16_t{});
             if (table["id"] != sol::nil)
             {
                 std::string_view id = table["id"].get<std::string_view>();
@@ -90,10 +92,10 @@ namespace MWLua
 
         std::vector<ESM::LevelledListBase::LevelItem> tableToLevelItemList(const sol::table& itemTable)
         {
-            size_t numEffects = itemTable.size();
+            std::size_t numEffects = itemTable.size();
             std::vector<ESM::LevelledListBase::LevelItem> out;
             out.resize(numEffects);
-            for (size_t i = 0; i < numEffects; ++i)
+            for (std::size_t i = 0; i < numEffects; ++i)
             {
                 out[i] = tableToLevelItem(itemTable[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]);
             }
@@ -126,7 +128,7 @@ namespace MWLua
             {
                 record["chanceNone"] = sol::property(std::move(getChanceNone), [](T& rec, float chance) {
                     List& list = rec.find();
-                    list.mChanceNone = static_cast<unsigned char>(std::clamp(chance, 0.f, 1.f) * 100.f);
+                    list.mChanceNone = static_cast<std::uint8_t>(std::clamp(chance, 0.f, 1.f) * 100.f);
                 });
 
                 record[items] = sol::property([](const T& rec) { return MutableLevelItemList{ rec }; },
@@ -146,12 +148,12 @@ namespace MWLua
 
                 record[items] = sol::readonly_property([lua = lua.lua_state()](const List& rec) -> sol::table {
                     sol::table res(lua, sol::create);
-                    for (size_t i = 0; i < rec.mList.size(); ++i)
+                    for (std::size_t i = 0; i < rec.mList.size(); ++i)
                         res[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))] = rec.mList[i];
                     return res;
                 });
 
-                record["getRandomId"] = [](const List& rec, int level) -> ESM::RefId {
+                record["getRandomId"] = [](const List& rec, std::int32_t level) -> ESM::RefId {
                     auto& prng = MWBase::Environment::get().getWorld()->getPrng();
                     constexpr bool creatureList = std::is_same_v<List, ESM::CreatureLevList>;
                     return MWMechanics::getLevelledItem(&rec, creatureList, prng, level);
@@ -175,7 +177,7 @@ namespace MWLua
             addLevListProps(lua, record, "creatures");
         }
 
-        void setFlagProperty(const sol::table& rec, std::string_view key, int32_t& flags, int flag)
+        void setFlagProperty(const sol::table& rec, std::string_view key, std::int32_t& flags, std::int32_t flag)
         {
             if (rec[key] != sol::nil)
             {
@@ -191,14 +193,14 @@ namespace MWLua
             auto listType = lua.new_usertype<MutableLevelItemList>("ESM3_MutableLevelItemList");
             listType[sol::meta_function::length] = [](const MutableLevelItemList& list) { return list.find().size(); };
             listType[sol::meta_function::index]
-                = [](const MutableLevelItemList& list, uint32_t index) -> std::optional<MutableLevelItem> {
+                = [](const MutableLevelItemList& list, std::uint32_t index) -> std::optional<MutableLevelItem> {
                 const auto& entries = list.find();
                 if (index == 0 || index > entries.size())
                     return {};
                 return MutableLevelItem{ list, index - 1 };
             };
             listType[sol::meta_function::new_index]
-                = [](MutableLevelItemList& list, uint32_t i, const sol::object& value) {
+                = [](MutableLevelItemList& list, std::uint32_t i, const sol::object& value) {
                       auto& entries = list.find();
                       if (i == 0 || i > entries.size() + 1)
                           throw std::runtime_error("index out of range");
@@ -244,7 +246,7 @@ namespace MWLua
         if (rec["chanceNone"] != sol::nil)
         {
             float chance = rec["chanceNone"];
-            list.mChanceNone = static_cast<unsigned char>(std::clamp(chance, 0.f, 1.f) * 100.f);
+            list.mChanceNone = static_cast<std::uint8_t>(std::clamp(chance, 0.f, 1.f) * 100.f);
         }
         if (rec["creatures"] != sol::nil)
             list.mList = tableToLevelItemList(rec["creatures"]);
@@ -273,7 +275,7 @@ namespace MWLua
         if (rec["chanceNone"] != sol::nil)
         {
             float chance = rec["chanceNone"];
-            list.mChanceNone = static_cast<unsigned char>(std::clamp(chance, 0.f, 1.f) * 100.f);
+            list.mChanceNone = static_cast<std::uint8_t>(std::clamp(chance, 0.f, 1.f) * 100.f);
         }
         if (rec["items"] != sol::nil)
             list.mList = tableToLevelItemList(rec["items"]);

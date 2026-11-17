@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -56,22 +57,22 @@ namespace MWDialogue
         // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void write(ESM::JournalEntry& entry) const;
 
-        static JournalEntry makeFromQuest(const ESM::RefId& topic, int index);
+        static JournalEntry makeFromQuest(const ESM::RefId& topic, std::int32_t index);
 
-        static const ESM::RefId& idFromIndex(const ESM::RefId& topic, int index);
+        static const ESM::RefId& idFromIndex(const ESM::RefId& topic, std::int32_t index);
     };
 
     /// \brief A quest entry with a timestamp.
     struct StampedJournalEntry : public JournalEntry
     {
-        int mDay;
-        int mMonth;
-        int mDayOfMonth;
+        std::int32_t mDay;
+        std::int32_t mMonth;
+        std::int32_t mDayOfMonth;
 
         StampedJournalEntry();
 
-        StampedJournalEntry(const ESM::RefId& topic, const ESM::RefId& infoId, int day, int month, int dayOfMonth,
-            const MWWorld::Ptr& actor);
+        StampedJournalEntry(const ESM::RefId& topic, const ESM::RefId& infoId, std::int32_t day, std::int32_t month,
+            std::int32_t dayOfMonth, const MWWorld::Ptr& actor);
 
         // NOLINTNEXTLINE(google-explicit-constructor)
         StampedJournalEntry(const ESM::JournalEntry& record);
@@ -80,6 +81,7 @@ namespace MWDialogue
         // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void write(ESM::JournalEntry& entry) const;
 
-        static StampedJournalEntry makeFromQuest(const ESM::RefId& topic, int index, const MWWorld::Ptr& actor);
+        static StampedJournalEntry makeFromQuest(
+            const ESM::RefId& topic, std::int32_t index, const MWWorld::Ptr& actor);
     };
 }

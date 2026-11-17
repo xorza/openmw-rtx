@@ -1,5 +1,7 @@
 #include "heightfield.hpp"
 
+#include <cstdint>
+
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 #include <LinearMath/btTransform.h>
@@ -10,8 +12,9 @@
 
 namespace MWPhysics
 {
-    HeightField::HeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
-        std::shared_ptr<const ESMTerrain::LandObject> holdObject, PhysicsTaskScheduler* scheduler)
+    HeightField::HeightField(const float* heights, std::int32_t x, std::int32_t y, std::int32_t size,
+        std::int32_t verts, float minH, float maxH, std::shared_ptr<const ESMTerrain::LandObject> holdObject,
+        PhysicsTaskScheduler* scheduler)
         : mHoldObject(std::move(holdObject))
         , mTaskScheduler(scheduler)
     {

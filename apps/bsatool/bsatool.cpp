@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -43,7 +44,7 @@ namespace
         bool fullpath{};
     };
 
-    bool parseOptions(int argc, char** argv, Arguments& info)
+    bool parseOptions(std::int32_t argc, char** argv, Arguments& info)
     {
         bpo::options_description desc(R"(Inspect and extract files from Bethesda BSA archives
 
@@ -171,7 +172,7 @@ Allowed options)");
     }
 
     template <typename File>
-    int list(std::unique_ptr<File>& bsa, Arguments& info)
+    std::int32_t list(std::unique_ptr<File>& bsa, Arguments& info)
     {
         // List all files
         const auto& files = bsa->getList();
@@ -194,7 +195,7 @@ Allowed options)");
     }
 
     template <typename File>
-    int extract(std::unique_ptr<File>& bsa, Arguments& info)
+    std::int32_t extract(std::unique_ptr<File>& bsa, Arguments& info)
     {
         auto archivePath = info.extractfile.u8string();
         Misc::StringUtils::replaceAll(archivePath, u8"/", u8"\\");
@@ -254,7 +255,7 @@ Allowed options)");
     }
 
     template <typename File>
-    int extractAll(std::unique_ptr<File>& bsa, Arguments& info)
+    std::int32_t extractAll(std::unique_ptr<File>& bsa, Arguments& info)
     {
         for (const auto& file : bsa->getList())
         {
@@ -289,7 +290,7 @@ Allowed options)");
     }
 
     template <typename File>
-    int add(std::unique_ptr<File>& bsa, Arguments& info)
+    std::int32_t add(std::unique_ptr<File>& bsa, Arguments& info)
     {
         std::fstream stream(info.addfile, std::ios_base::binary | std::ios_base::out | std::ios_base::in);
         bsa->addFile(Files::pathToUnicodeString(info.addfile), stream);
@@ -298,7 +299,7 @@ Allowed options)");
     }
 
     template <typename File>
-    int call(Arguments& info)
+    std::int32_t call(Arguments& info)
     {
         std::unique_ptr<File> bsa = std::make_unique<File>();
         if (info.mode == "create")
@@ -325,7 +326,7 @@ Allowed options)");
     }
 }
 
-int main(int argc, char** argv)
+int main(std::int32_t argc, char** argv)
 {
     try
     {

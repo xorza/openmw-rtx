@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm3/loadinfo.hpp>
 
 namespace MWDialogue
@@ -25,11 +27,11 @@ namespace MWDialogue
 
         ESM::DialogueCondition::Function getFunction() const;
 
-        int getArgument() const;
+        std::int32_t getArgument() const;
 
         Type getType() const;
 
-        bool selectCompare(int value) const;
+        bool selectCompare(std::int32_t value) const;
 
         bool selectCompare(float value) const;
 

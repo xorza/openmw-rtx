@@ -89,9 +89,9 @@ namespace ESM4
 
             ESM::FormId32 sevImpactDataSet;
             ESM::FormId32 explImpactDataSet;
-            uint8_t sevDecalCount;
-            uint8_t explDecalCount;
-            uint16_t Unknown;
+            std::uint8_t sevDecalCount;
+            std::uint8_t explDecalCount;
+            std::uint16_t Unknown;
             float limbReplacementScale;
         };
 #pragma pack(pop)

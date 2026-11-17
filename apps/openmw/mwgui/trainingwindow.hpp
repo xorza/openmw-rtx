@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include "referenceinterface.hpp"
 #include "timeadvancer.hpp"
 #include "waitdialog.hpp"
@@ -38,7 +41,7 @@ namespace MWGui
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onTrainingSelected(MyGUI::Widget* sender);
 
-        void onTrainingProgressChanged(int cur, int total);
+        void onTrainingProgressChanged(std::int32_t cur, std::int32_t total);
         void onTrainingFinished();
 
         // Retrieve the base skill value if the setting 'training skills based on base skill' is set;
@@ -54,7 +57,7 @@ namespace MWGui
         TimeAdvancer mTimeAdvancer;
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 
 }

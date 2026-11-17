@@ -1,6 +1,8 @@
 #include "scalinglayer.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_RenderManager.h>
 
@@ -31,7 +33,7 @@ namespace MyGUIPlatform
 
             void end() override { mTarget->end(); }
 
-            void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count) override
+            void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, std::size_t count) override
             {
                 mTarget->doRender(buffer, texture, count);
             }
@@ -54,14 +56,14 @@ namespace MyGUIPlatform
         };
     }
 
-    MyGUI::ILayerItem* ScalingLayer::getLayerItemByPoint(int left, int top) const
+    MyGUI::ILayerItem* ScalingLayer::getLayerItemByPoint(std::int32_t left, std::int32_t top) const
     {
         screenToLayerCoords(left, top);
 
         return OverlappedLayer::getLayerItemByPoint(left, top);
     }
 
-    void ScalingLayer::screenToLayerCoords(int& left, int& top) const
+    void ScalingLayer::screenToLayerCoords(std::int32_t& left, std::int32_t& top) const
     {
         float scale = getScaleFactor(mViewSize);
         if (scale <= 0.f)
@@ -72,8 +74,8 @@ namespace MyGUIPlatform
         left -= globalViewSize.width / 2;
         top -= globalViewSize.height / 2;
 
-        left = static_cast<int>(static_cast<float>(left) / scale);
-        top = static_cast<int>(static_cast<float>(top) / scale);
+        left = static_cast<std::int32_t>(static_cast<float>(left) / scale);
+        top = static_cast<std::int32_t>(static_cast<float>(top) / scale);
 
         left += mViewSize.width / 2;
         top += mViewSize.height / 2;
@@ -94,7 +96,7 @@ namespace MyGUIPlatform
         return std::min(widthScale, heightScale);
     }
 
-    MyGUI::IntPoint ScalingLayer::getPosition(int left, int top) const
+    MyGUI::IntPoint ScalingLayer::getPosition(std::int32_t left, std::int32_t top) const
     {
         screenToLayerCoords(left, top);
         return MyGUI::IntPoint(left, top);
@@ -105,8 +107,8 @@ namespace MyGUIPlatform
         MyGUI::IntSize globalViewSize = MyGUI::RenderManager::getInstance().getViewSize();
         MyGUI::IntSize viewSize = globalViewSize;
         float scale = getScaleFactor(mViewSize);
-        viewSize.width = static_cast<int>(static_cast<float>(viewSize.width) / scale);
-        viewSize.height = static_cast<int>(static_cast<float>(viewSize.height) / scale);
+        viewSize.width = static_cast<std::int32_t>(static_cast<float>(viewSize.width) / scale);
+        viewSize.height = static_cast<std::int32_t>(static_cast<float>(viewSize.height) / scale);
 
         float hoffset = (static_cast<float>(globalViewSize.width)
                             - static_cast<float>(mViewSize.width) * getScaleFactor(mViewSize))

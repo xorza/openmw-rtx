@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -56,7 +58,8 @@ namespace
         return {};
     }
 
-    int getLineNumber(std::string_view source, std::size_t foundPos, int lineNumber, int offset)
+    std::int32_t getLineNumber(
+        std::string_view source, std::size_t foundPos, std::int32_t lineNumber, std::int32_t offset)
     {
         constexpr std::string_view tag = "#line";
         std::size_t lineDirectivePosition = source.rfind(tag, foundPos);
@@ -65,22 +68,22 @@ namespace
             std::size_t lineNumberStart = lineDirectivePosition + tag.size() + 1;
             std::size_t lineNumberEnd = source.find_first_not_of("0123456789", lineNumberStart);
             std::string_view lineNumberString = source.substr(lineNumberStart, lineNumberEnd - lineNumberStart);
-            lineNumber = Misc::StringUtils::toNumeric<int>(lineNumberString, 2) + offset;
+            lineNumber = Misc::StringUtils::toNumeric<std::int32_t>(lineNumberString, 2) + offset;
         }
         else
         {
             lineDirectivePosition = 0;
         }
-        lineNumber += static_cast<int>(
+        lineNumber += static_cast<std::int32_t>(
             std::ranges::count(source.substr(lineDirectivePosition, foundPos - lineDirectivePosition), '\n'));
         return lineNumber;
     }
 
     bool addLineDirectivesAfterConditionalBlocks(std::string& source)
     {
-        for (size_t position = 0; position < source.length();)
+        for (std::size_t position = 0; position < source.length();)
         {
-            size_t foundPos = source.find("#endif", position);
+            std::size_t foundPos = source.find("#endif", position);
             foundPos = std::min(foundPos, source.find("#elif", position));
             foundPos = std::min(foundPos, source.find("#else", position));
 
@@ -93,7 +96,7 @@ namespace
             if (foundPos == std::string::npos)
                 break;
 
-            int lineNumber = getLineNumber(source, foundPos, 1, -1);
+            std::int32_t lineNumber = getLineNumber(source, foundPos, 1, -1);
 
             source.replace(foundPos, 0, std::format("#line {}\n", lineNumber));
 
@@ -108,7 +111,7 @@ namespace
     // cycleIncludeChecker is the set of files that include this file directly or indirectly, and is intentionally not a
     // reference to allow automatic cleanup.
     bool parseIncludes(const std::filesystem::path& shaderPath, std::string& source, const std::string& fileName,
-        int& fileNumber, std::set<std::filesystem::path> cycleIncludeChecker,
+        std::int32_t& fileNumber, std::set<std::filesystem::path> cycleIncludeChecker,
         std::set<std::filesystem::path>& includedFiles)
     {
         includedFiles.insert(shaderPath / fileName);
@@ -121,16 +124,16 @@ namespace
 
         Misc::StringUtils::replaceAll(source, "\r\n", "\n");
 
-        size_t foundPos = 0;
+        std::size_t foundPos = 0;
         while ((foundPos = source.find("#include")) != std::string::npos)
         {
-            size_t start = source.find('"', foundPos);
+            std::size_t start = source.find('"', foundPos);
             if (start == std::string::npos || start == source.size() - 1)
             {
                 Log(Debug::Error) << "Shader " << fileName << " error: Invalid #include";
                 return false;
             }
-            size_t end = source.find('"', start + 1);
+            std::size_t end = source.find('"', start + 1);
             if (end == std::string::npos)
             {
                 Log(Debug::Error) << "Shader " << fileName << " error: Invalid #include";
@@ -148,7 +151,7 @@ namespace
             std::filesystem::path includePath = shaderPath / includeFilename;
 
             // Determine the line number that will be used for the #line directive following the included source
-            int lineNumber = getLineNumber(source, foundPos, 0, -1);
+            std::int32_t lineNumber = getLineNumber(source, foundPos, 0, -1);
 
             // Include the file recursively
             std::ifstream includeFstream;
@@ -159,7 +162,7 @@ namespace
                                   << std::generic_category().message(errno);
                 return false;
             }
-            int includedFileNumber = fileNumber++;
+            std::int32_t includedFileNumber = fileNumber++;
 
             std::stringstream buffer;
             buffer << includeFstream.rdbuf();
@@ -263,7 +266,7 @@ namespace Shader
                         buffer << stream.rdbuf();
 
                         // parse includes
-                        int fileNumber = 1;
+                        std::int32_t fileNumber = 1;
                         std::string source = buffer.str();
                         if (!addLineDirectivesAfterConditionalBlocks(source)
                             || !parseIncludes(std::filesystem::path(manager.mPath), source, templateName, fileNumber,
@@ -301,11 +304,11 @@ namespace Shader
         mPath = path;
     }
 
-    bool parseForeachDirective(std::string& source, const std::string& templateName, size_t foundPos)
+    bool parseForeachDirective(std::string& source, const std::string& templateName, std::size_t foundPos)
     {
         constexpr std::string_view directiveStart = "$foreach";
-        size_t iterNameStart = foundPos + directiveStart.size() + 1;
-        size_t iterNameEnd = source.find_first_of(" \n\r()[].;,", iterNameStart);
+        std::size_t iterNameStart = foundPos + directiveStart.size() + 1;
+        std::size_t iterNameEnd = source.find_first_of(" \n\r()[].;,", iterNameStart);
         if (iterNameEnd == std::string::npos)
         {
             Log(Debug::Error) << "Shader " << templateName << " error: Unexpected EOF";
@@ -313,8 +316,8 @@ namespace Shader
         }
         std::string iteratorName = "$" + source.substr(iterNameStart, iterNameEnd - iterNameStart);
 
-        size_t listStart = iterNameEnd + 1;
-        size_t listEnd = source.find_first_of("\n\r", listStart);
+        std::size_t listStart = iterNameEnd + 1;
+        std::size_t listEnd = source.find_first_of("\n\r", listStart);
         if (listEnd == std::string::npos)
         {
             Log(Debug::Error) << "Shader " << templateName << " error: Unexpected EOF";
@@ -325,9 +328,9 @@ namespace Shader
         if (!list.empty())
             Misc::StringUtils::split(list, listElements, ",");
 
-        size_t contentStart = source.find_first_not_of("\n\r", listEnd);
+        std::size_t contentStart = source.find_first_not_of("\n\r", listEnd);
         constexpr std::string_view directiveEnd = "$endforeach";
-        size_t contentEnd = source.find(directiveEnd, contentStart);
+        std::size_t contentEnd = source.find(directiveEnd, contentStart);
         if (contentEnd == std::string::npos)
         {
             Log(Debug::Error) << "Shader " << templateName << " error: Unexpected EOF";
@@ -335,15 +338,15 @@ namespace Shader
         }
         std::string_view content = std::string_view(source).substr(contentStart, contentEnd - contentStart);
 
-        size_t overallEnd = contentEnd + directiveEnd.size();
+        std::size_t overallEnd = contentEnd + directiveEnd.size();
 
-        int lineNumber = getLineNumber(source, overallEnd, 2, 0);
+        std::int32_t lineNumber = getLineNumber(source, overallEnd, 2, 0);
 
         std::string replacement;
         for (const std::string& element : listElements)
         {
             std::string contentInstance(content);
-            size_t foundIterator = 0;
+            std::size_t foundIterator = 0;
             while ((foundIterator = contentInstance.find(iteratorName)) != std::string::npos)
                 contentInstance.replace(foundIterator, iteratorName.length(), element);
             replacement += contentInstance;
@@ -354,10 +357,10 @@ namespace Shader
     }
 
     bool parseLinkDirective(
-        std::string& source, std::string& linkTarget, const std::string& templateName, size_t foundPos)
+        std::string& source, std::string& linkTarget, const std::string& templateName, std::size_t foundPos)
     {
-        size_t endPos = foundPos + 5;
-        size_t lineEnd = source.find_first_of('\n', endPos);
+        std::size_t endPos = foundPos + 5;
+        std::size_t lineEnd = source.find_first_of('\n', endPos);
         // If lineEnd = npos, this is the last line, so no need to check
         std::string linkStatement = source.substr(endPos, lineEnd - endPos);
         std::regex linkRegex(R"r(\s*"([^"]+)"\s*)r" // Find any quoted string as the link name -> match[1]
@@ -405,11 +408,11 @@ namespace Shader
         const std::string& templateName)
     {
         const char escapeCharacter = '$';
-        size_t foundPos = 0;
+        std::size_t foundPos = 0;
 
         while ((foundPos = source.find(escapeCharacter, foundPos)) != std::string::npos)
         {
-            size_t endPos = source.find_first_of(" \n\r()[].;,", foundPos);
+            std::size_t endPos = source.find_first_of(" \n\r()[].;,", foundPos);
             if (endPos == std::string::npos)
             {
                 Log(Debug::Error) << "Shader " << templateName << " error: Unexpected EOF";
@@ -443,11 +446,11 @@ namespace Shader
         const ShaderManager::DefineMap& globalDefines, const std::string& templateName)
     {
         const char escapeCharacter = '@';
-        size_t foundPos = 0;
+        std::size_t foundPos = 0;
         std::vector<std::string> forIterators;
         while ((foundPos = source.find(escapeCharacter)) != std::string::npos)
         {
-            size_t endPos = source.find_first_of(" \n\r()[].;,", foundPos);
+            std::size_t endPos = source.find_first_of(" \n\r()[].;,", foundPos);
             if (endPos == std::string::npos)
             {
                 Log(Debug::Error) << "Shader " << templateName << " error: Unexpected EOF";
@@ -459,8 +462,8 @@ namespace Shader
             if (define == "foreach")
             {
                 source.replace(foundPos, 1, "$");
-                size_t iterNameStart = endPos + 1;
-                size_t iterNameEnd = source.find_first_of(" \n\r()[].;,", iterNameStart);
+                std::size_t iterNameStart = endPos + 1;
+                std::size_t iterNameEnd = source.find_first_of(" \n\r()[].;,", iterNameStart);
                 if (iterNameEnd == std::string::npos)
                 {
                     Log(Debug::Error) << "Shader " << templateName << " error: Unexpected EOF";
@@ -541,7 +544,7 @@ namespace Shader
             buffer << stream.rdbuf();
 
             // parse includes
-            int fileNumber = 1;
+            std::int32_t fileNumber = 1;
             std::string source = buffer.str();
             if (!addLineDirectivesAfterConditionalBlocks(source)
                 || !parseIncludes(mPath, source, templateName, fileNumber, {}, insertedPaths))
@@ -566,7 +569,7 @@ namespace Shader
             shader->setShaderSource(shaderSource);
             // Assign a unique prefix to allow the SharedStateManager to compare shaders efficiently.
             // Append shader source filename for debugging.
-            static unsigned int counter = 0;
+            static std::uint32_t counter = 0;
             shader->setName(std::format("{} {}", counter++, templateName));
 
             mHotReloadManager->addShaderFiles(templateName, defines);
@@ -597,7 +600,7 @@ namespace Shader
 
             void apply(osg::State& state) const override;
 
-            void resizeGLObjectBuffers(unsigned int maxSize) override;
+            void resizeGLObjectBuffers(std::uint32_t maxSize) override;
 
         private:
             std::vector<osg::ref_ptr<osg::Uniform>> mSamplers;
@@ -633,7 +636,7 @@ namespace Shader
             return false;
         for (const osg::ref_ptr<osg::Uniform>& sampler : mSamplers)
         {
-            int unit = -1;
+            std::int32_t unit = -1;
             sampler->get(unit);
             const auto it = samplers.find(sampler->getName());
             if (it == samplers.end() || it->second != unit)
@@ -661,7 +664,7 @@ namespace Shader
         applied = pcp;
     }
 
-    void SamplerProgram::resizeGLObjectBuffers(unsigned int maxSize)
+    void SamplerProgram::resizeGLObjectBuffers(std::uint32_t maxSize)
     {
         osg::Program::resizeGLObjectBuffers(maxSize);
         mApplied.resize(maxSize);
@@ -723,7 +726,7 @@ namespace Shader
         // clear out linked dependencies - changing defines may make them obsolete
         for (const auto& [pair, program] : mPrograms)
         {
-            for (unsigned int i = 0; i < program->getNumShaders();)
+            for (std::uint32_t i = 0; i < program->getNumShaders();)
             {
                 if (program->getShader(i) != pair.first && program->getShader(i) != pair.second)
                     program->removeShader(program->getShader(i));
@@ -804,11 +807,11 @@ namespace Shader
                 program->addShader(linkedShader);
     }
 
-    int ShaderManager::reserveGlobalTextureUnits(Slot slot, int count)
+    std::int32_t ShaderManager::reserveGlobalTextureUnits(Slot slot, std::int32_t count)
     {
         // TODO: Reuse units when count increase forces reallocation
         // TODO: Warn if trampling on the ~8 units needed by model textures
-        auto unit = mReservedTextureUnitsBySlot[static_cast<std::size_t>(static_cast<int>(slot))];
+        auto unit = mReservedTextureUnitsBySlot[static_cast<std::size_t>(static_cast<std::int32_t>(slot))];
         if (unit.index >= 0 && unit.count >= count)
             return unit.index;
 
@@ -819,7 +822,7 @@ namespace Shader
         unit.index = mMaxTextureUnits - mReservedTextureUnits;
         unit.count = count;
 
-        mReservedTextureUnitsBySlot[static_cast<std::size_t>(static_cast<int>(slot))] = unit;
+        mReservedTextureUnitsBySlot[static_cast<std::size_t>(static_cast<std::int32_t>(slot))] = unit;
 
         std::string_view slotDescr;
         switch (slot)

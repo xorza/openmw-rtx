@@ -1,14 +1,16 @@
 #pragma once
 
-#include <QAbstractItemModel>
-#include <QModelIndex>
-#include <QUndoCommand>
-#include <QVariant>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <QAbstractItemModel>
+#include <QModelIndex>
+#include <QUndoCommand>
+#include <QVariant>
 
 #include "columnimp.hpp"
 #include "record.hpp"
@@ -65,7 +67,7 @@ namespace CSMWorld
         IdTable& mLands;
         IdTable& mLtexs;
         DataType mOld;
-        int mOldState;
+        std::int32_t mOldState;
         std::vector<std::unique_ptr<RecordBase>> mTouchedTextures;
     };
 
@@ -132,8 +134,8 @@ namespace CSMWorld
 
     class CreateCommand : public QUndoCommand
     {
-        std::map<int, QVariant> mValues;
-        std::map<int, std::pair<int, QVariant>> mNestedValues;
+        std::map<std::int32_t, QVariant> mValues;
+        std::map<std::int32_t, std::pair<std::int32_t, QVariant>> mNestedValues;
         ///< Parameter order: a parent column, a nested column, a data.
         ///< A nested row has index of 0.
 
@@ -151,9 +153,9 @@ namespace CSMWorld
 
         void setType(UniversalId::Type type);
 
-        void addValue(int column, const QVariant& value);
+        void addValue(std::int32_t column, const QVariant& value);
 
-        void addNestedValue(int parentColumn, int nestedColumn, const QVariant& value);
+        void addNestedValue(std::int32_t parentColumn, std::int32_t nestedColumn, const QVariant& value);
 
         void redo() override;
 
@@ -163,7 +165,7 @@ namespace CSMWorld
     class CloneCommand : public CreateCommand
     {
         std::string mIdOrigin;
-        std::vector<std::pair<int, QVariant>> mOverrideValues;
+        std::vector<std::pair<std::int32_t, QVariant>> mOverrideValues;
 
     public:
         explicit CloneCommand(IdTable& model, const std::string& idOrigin, const std::string& idDestination,
@@ -173,7 +175,7 @@ namespace CSMWorld
 
         void undo() override;
 
-        void setOverrideValue(int column, const QVariant& value);
+        void setOverrideValue(std::int32_t column, const QVariant& value);
     };
 
     class RevertCommand : public QUndoCommand
@@ -221,11 +223,11 @@ namespace CSMWorld
     class ReorderRowsCommand : public QUndoCommand
     {
         IdTable& mModel;
-        int mBaseIndex;
-        std::vector<int> mNewOrder;
+        std::int32_t mBaseIndex;
+        std::vector<std::int32_t> mNewOrder;
 
     public:
-        ReorderRowsCommand(IdTable& model, int baseIndex, const std::vector<int>& newOrder);
+        ReorderRowsCommand(IdTable& model, std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder);
 
         void redo() override;
 
@@ -248,13 +250,13 @@ namespace CSMWorld
     class UpdateCellCommand : public QUndoCommand
     {
         IdTable& mModel;
-        int mRow;
+        std::int32_t mRow;
         QModelIndex mIndex;
         QVariant mNew; // invalid, if new cell ID has not been calculated yet
         QVariant mOld;
 
     public:
-        UpdateCellCommand(IdTable& model, int row, QUndoCommand* parent = nullptr);
+        UpdateCellCommand(IdTable& model, std::int32_t row, QUndoCommand* parent = nullptr);
 
         void redo() override;
 
@@ -266,7 +268,7 @@ namespace CSMWorld
         NestedTableWrapperBase* mOld;
 
     public:
-        NestedTableStoring(const IdTree& model, const std::string& id, int parentColumn);
+        NestedTableStoring(const IdTree& model, const std::string& id, std::int32_t parentColumn);
 
         ~NestedTableStoring();
         NestedTableStoring(const NestedTableStoring&) = delete;
@@ -282,16 +284,16 @@ namespace CSMWorld
 
         std::string mId;
 
-        int mParentColumn;
+        std::int32_t mParentColumn;
 
-        int mNestedRow;
+        std::int32_t mNestedRow;
 
         // The command to redo/undo the Modified status of a record
         ModifyCommand* mModifyParentCommand;
 
     public:
-        DeleteNestedCommand(
-            IdTree& model, const std::string& id, int nestedRow, int parentColumn, QUndoCommand* parent = nullptr);
+        DeleteNestedCommand(IdTree& model, const std::string& id, std::int32_t nestedRow, std::int32_t parentColumn,
+            QUndoCommand* parent = nullptr);
 
         void redo() override;
 
@@ -304,16 +306,16 @@ namespace CSMWorld
 
         std::string mId;
 
-        int mNewRow;
+        std::int32_t mNewRow;
 
-        int mParentColumn;
+        std::int32_t mParentColumn;
 
         // The command to redo/undo the Modified status of a record
         ModifyCommand* mModifyParentCommand;
 
     public:
-        AddNestedCommand(
-            IdTree& model, const std::string& id, int nestedRow, int parentColumn, QUndoCommand* parent = nullptr);
+        AddNestedCommand(IdTree& model, const std::string& id, std::int32_t nestedRow, std::int32_t parentColumn,
+            QUndoCommand* parent = nullptr);
 
         void redo() override;
 

@@ -1,5 +1,8 @@
 #include "statesetupdater.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osgUtil/CullVisitor>
@@ -23,7 +26,7 @@ namespace SceneUtil
     {
         if (!mStateSetsUpdate[0])
         {
-            for (int i = 0; i < 2; ++i)
+            for (std::int32_t i = 0; i < 2; ++i)
             {
                 mStateSetsUpdate[static_cast<std::size_t>(i)] = new osg::StateSet(*node->getOrCreateStateSet(),
                     osg::CopyOp::SHALLOW_COPY); // Using SHALLOW_COPY for StateAttributes, if users want to modify it is
@@ -108,12 +111,12 @@ namespace SceneUtil
             mCtrls.emplace_back(osg::clone(ctrl.get(), copyop));
     }
 
-    size_t CompositeStateSetUpdater::getNumControllers()
+    std::size_t CompositeStateSetUpdater::getNumControllers()
     {
         return mCtrls.size();
     }
 
-    StateSetUpdater* CompositeStateSetUpdater::getController(size_t i)
+    StateSetUpdater* CompositeStateSetUpdater::getController(std::size_t i)
     {
         return mCtrls[i];
     }

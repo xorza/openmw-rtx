@@ -143,9 +143,9 @@ namespace MWRender
         /// no switch.
         Rtx::NightDayMode nightDayOf(const WorldState& world)
         {
-            static_assert(static_cast<unsigned int>(Rtx::NightDayMode::Default) == MWWorld::Default
-                && static_cast<unsigned int>(Rtx::NightDayMode::ExteriorNight) == MWWorld::ExteriorNight
-                && static_cast<unsigned int>(Rtx::NightDayMode::InteriorDay) == MWWorld::InteriorDay);
+            static_assert(static_cast<std::uint32_t>(Rtx::NightDayMode::Default) == MWWorld::Default
+                && static_cast<std::uint32_t>(Rtx::NightDayMode::ExteriorNight) == MWWorld::ExteriorNight
+                && static_cast<std::uint32_t>(Rtx::NightDayMode::InteriorDay) == MWWorld::InteriorDay);
 
             if (!world.mNightDayMode.has_value())
                 return Rtx::NightDayMode::Authored;
@@ -182,7 +182,7 @@ namespace MWRender
         /// What the world walk may see: `sWorldTraversal`, without the player or the actors where the eye's
         /// view mask leaves them out. Those two only, because the trace's ray mask hides every other class
         /// the view leaves out, and a walk past an actor would stand it in the class the player keeps on.
-        constexpr osg::Node::NodeMask worldTraversal(const unsigned int view)
+        constexpr osg::Node::NodeMask worldTraversal(const std::uint32_t view)
         {
             constexpr osg::Node::NodeMask walkedByView = Mask_Player | Mask_Actor;
 
@@ -442,7 +442,7 @@ namespace MWRender
         mSeaCentre = stood.isExterior() ? seaCentre(stood.getGridX(), stood.getGridY()) : osg::Vec2f(0.f, 0.f);
     }
 
-    void WorldMirror::setViewMask(const unsigned int view)
+    void WorldMirror::setViewMask(const std::uint32_t view)
     {
         mTraversal = worldTraversal(view);
         mExtractor.setTraversalMask(mTraversal);
@@ -454,7 +454,7 @@ namespace MWRender
 
         // Whatever the loader hides with has to be inside what this mask excludes. A loader nobody has told
         // yet hides with nothing and passes: this catches the engine moving the bit.
-        assert((NifOsg::Loader::getHiddenNodeMask() & ~static_cast<unsigned int>(Mask_UpdateVisitor)) == 0
+        assert((NifOsg::Loader::getHiddenNodeMask() & ~static_cast<std::uint32_t>(Mask_UpdateVisitor)) == 0
             && "the loader hides with a bit the walk's mask does not exclude");
 
         // The world's clock and not this renderer's, or the controllers would run while the game

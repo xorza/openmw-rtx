@@ -26,6 +26,8 @@
 
 #include <cassert>
 #include <cerrno>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <istream>
 #include <system_error>
@@ -110,7 +112,7 @@ namespace Bsa
         {
             if ((mHeader.mFlags & ArchiveFlag_FolderNames) != 0)
             {
-                uint8_t size = 0;
+                std::uint8_t size = 0;
                 input.read(reinterpret_cast<char*>(&size), 1);
                 if (size > 0)
                 {
@@ -200,7 +202,7 @@ namespace Bsa
                 fileStruct.mOffset = fileRecord.mOffset;
                 fileStruct.mNameOffset = 0;
                 fileStruct.mNameSize
-                    = fileRecord.mName.empty() ? 0 : static_cast<uint32_t>(fileRecord.mName.size() - 1);
+                    = fileRecord.mName.empty() ? 0 : static_cast<std::uint32_t>(fileRecord.mName.size() - 1);
                 fileStruct.mNamesBuffer = &fileRecord.mName;
                 mFiles.push_back(fileStruct);
             }
@@ -211,7 +213,7 @@ namespace Bsa
     {
         for (const auto c : str)
         {
-            if (((static_cast<unsigned>(c) >> 7U) & 1U) != 0U)
+            if (((static_cast<std::uint32_t>(c) >> 7U) & 1U) != 0U)
             {
                 fail(std::format("File record {} contains unicode characters, refusing to load.", str));
             }
@@ -248,7 +250,7 @@ namespace Bsa
     Files::IStreamPtr CompressedBSAFile::getFile(const FileStruct* file)
     {
         FileRecord fileRec = getFileRecord(file->name());
-        if (fileRec.mOffset == std::numeric_limits<uint32_t>::max())
+        if (fileRec.mOffset == std::numeric_limits<std::uint32_t>::max())
         {
             fail("File not found: " + std::string(file->name()));
         }
@@ -263,22 +265,22 @@ namespace Bsa
 
     Files::IStreamPtr CompressedBSAFile::getFile(const FileRecord& fileRecord)
     {
-        size_t size = fileRecord.mSize & (static_cast<std::uint32_t>(~FileSizeFlag_Compression));
-        size_t resultSize = size;
+        std::size_t size = fileRecord.mSize & (static_cast<std::uint32_t>(~FileSizeFlag_Compression));
+        std::size_t resultSize = size;
         Files::IStreamPtr streamPtr = openRange(fileRecord.mOffset, size);
         bool compressed = (fileRecord.mSize != size) == ((mHeader.mFlags & ArchiveFlag_Compress) == 0);
         if ((mHeader.mFlags & ArchiveFlag_EmbeddedNames) != 0)
         {
             // Skip over the embedded file name
-            uint8_t length = 0;
+            std::uint8_t length = 0;
             streamPtr->read(reinterpret_cast<char*>(&length), 1);
             streamPtr->ignore(length);
-            size -= length + sizeof(uint8_t);
+            size -= length + sizeof(std::uint8_t);
         }
         if (compressed)
         {
-            streamPtr->read(reinterpret_cast<char*>(&resultSize), sizeof(uint32_t));
-            size -= sizeof(uint32_t);
+            streamPtr->read(reinterpret_cast<char*>(&resultSize), sizeof(std::uint32_t));
+            size -= sizeof(std::uint32_t);
         }
         auto memoryStreamPtr = std::make_unique<MemoryInputStream>(resultSize);
 
@@ -290,7 +292,7 @@ namespace Bsa
             if (mHeader.mVersion != Version_SSE)
             {
                 auto destSize = static_cast<uLongf>(resultSize);
-                int ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData()), &destSize,
+                std::int32_t ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData()), &destSize,
                     reinterpret_cast<Bytef*>(buffer.data()), static_cast<uLong>(buffer.size()));
 
                 if (ec != Z_OK)
@@ -330,24 +332,24 @@ namespace Bsa
     {
         if (str.empty())
             return 0;
-        const auto at = [&](std::size_t i) -> unsigned char {
+        const auto at = [&](std::size_t i) -> std::uint8_t {
             const char c = str[i];
             if (c == '/')
                 return '\\';
-            return static_cast<unsigned char>(c);
+            return static_cast<std::uint8_t>(c);
         };
-        const size_t len = str.length();
-        uint64_t result = at(len - 1);
+        const std::size_t len = str.length();
+        std::uint64_t result = at(len - 1);
         if (len >= 3)
             result |= static_cast<std::uint64_t>(at(len - 2) << 8);
         result |= len << 16;
-        result |= static_cast<uint32_t>(at(0) << 24);
+        result |= static_cast<std::uint32_t>(at(0) << 24);
         if (len >= 4)
         {
-            uint32_t hash = 0;
-            for (size_t i = 1; i <= len - 3; ++i)
+            std::uint32_t hash = 0;
+            for (std::size_t i = 1; i <= len - 3; ++i)
                 hash = hash * 0x1003f + at(i);
-            result += static_cast<uint64_t>(hash) << 32;
+            result += static_cast<std::uint64_t>(hash) << 32;
         }
         if (extension.empty())
             return result;
@@ -359,10 +361,10 @@ namespace Bsa
             result |= 0x8080;
         else if (extension == ".wav")
             result |= 0x80000000;
-        uint32_t hash = 0;
+        std::uint32_t hash = 0;
         for (const char c : extension)
-            hash = hash * 0x1003f + static_cast<unsigned char>(c);
-        result += static_cast<uint64_t>(hash) << 32;
+            hash = hash * 0x1003f + static_cast<std::uint8_t>(c);
+        result += static_cast<std::uint64_t>(hash) << 32;
         return result;
     }
 

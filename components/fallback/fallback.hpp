@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <string_view>
@@ -11,14 +12,14 @@ namespace Fallback
     /// @brief contains settings imported from the Morrowind INI file.
     class Map
     {
-        static std::map<std::string, int, std::less<>> mIntFallbackMap;
+        static std::map<std::string, std::int32_t, std::less<>> mIntFallbackMap;
         static std::map<std::string, float, std::less<>> mFloatFallbackMap;
         static std::map<std::string, std::string, std::less<>> mNonNumericFallbackMap;
 
     public:
         static void init(const std::map<std::string, std::string>& fallback);
 
-        static const std::map<std::string, int, std::less<>>& getIntFallbackMap() { return mIntFallbackMap; }
+        static const std::map<std::string, std::int32_t, std::less<>>& getIntFallbackMap() { return mIntFallbackMap; }
         static const std::map<std::string, float, std::less<>>& getFloatFallbackMap() { return mFloatFallbackMap; }
         static const std::map<std::string, std::string, std::less<>>& getNonNumericFallbackMap()
         {
@@ -27,7 +28,7 @@ namespace Fallback
 
         static std::string_view getString(std::string_view fall);
         static float getFloat(std::string_view fall);
-        static int getInt(std::string_view fall);
+        static std::int32_t getInt(std::string_view fall);
         static bool getBool(std::string_view fall);
         static osg::Vec4f getColour(std::string_view fall);
     };

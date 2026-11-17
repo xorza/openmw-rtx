@@ -17,7 +17,7 @@ namespace Rtx::Dlss::Ngx
 {
     /// The interface version the discovery record and the initialisation call state; NGX refuses a
     /// record from a later one.
-    inline constexpr int sApiVersion = 0x0000015;
+    inline constexpr std::int32_t sApiVersion = 0x0000015;
 
     /// The SDK's success is one and every failure shares the top twelve bits, which is all a
     /// caller needs: the low bits say which failure and go into the log unchanged.
@@ -42,19 +42,19 @@ namespace Rtx::Dlss::Ngx
 
     /// The one feature this backend makes: Ray Reconstruction, which NVIDIA's guide says overrides
     /// Super Resolution wherever it runs (DLSS-RR Integration Guide, 3.2).
-    enum class Feature : int
+    enum class Feature : std::int32_t
     {
         RayReconstruction = 13,
     };
 
-    enum class Engine : int
+    enum class Engine : std::int32_t
     {
         Custom = 0,
     };
 
     /// NGX's own names for the ratios; the renderer's modes are ratios of their own, and the
     /// nearest name is only what the feature's default preset and memory budget are drawn from.
-    enum class Quality : int
+    enum class Quality : std::int32_t
     {
         MaxPerformance = 0,
         Balanced = 1,
@@ -63,36 +63,36 @@ namespace Rtx::Dlss::Ngx
         Dlaa = 5,
     };
 
-    enum class ApplicationKind : int
+    enum class ApplicationKind : std::int32_t
     {
         Application = 0,
         Project = 1,
     };
 
-    enum class ResourceKind : int
+    enum class ResourceKind : std::int32_t
     {
         ImageView = 0,
         Buffer = 1,
     };
 
-    constexpr int sDlssFlagIsHdr = 1 << 0;
-    constexpr int sDlssFlagMotionVectorsLowRes = 1 << 1;
-    constexpr int sDlssFlagDepthInverted = 1 << 3;
+    constexpr std::int32_t sDlssFlagIsHdr = 1 << 0;
+    constexpr std::int32_t sDlssFlagMotionVectorsLowRes = 1 << 1;
+    constexpr std::int32_t sDlssFlagDepthInverted = 1 << 3;
 
     /// `DLSS.Denoise.Mode`'s one value Ray Reconstruction takes: the learned denoiser and upscaler in one.
-    constexpr int sDenoiseModeUnified = 1;
+    constexpr std::int32_t sDenoiseModeUnified = 1;
 
     /// `DLSS.Roughness.Mode`: the roughness read from the normals' fourth component, and not an image
     /// of its own.
-    constexpr unsigned int sRoughnessPacked = 1;
+    constexpr std::uint32_t sRoughnessPacked = 1;
 
     /// `DLSS.Use.HW.Depth`: the depth is a device depth, as a rasterizer writes it, and not a view one.
-    constexpr unsigned int sDepthHardware = 1;
+    constexpr std::uint32_t sDepthHardware = 1;
 
     /// A feature NGX created. Its contents are NGX's; the pointer is only ever handed back.
     struct Handle;
 
-    enum class LoggingLevel : int
+    enum class LoggingLevel : std::int32_t
     {
         Off = 0,
         On = 1,
@@ -103,7 +103,7 @@ namespace Rtx::Dlss::Ngx
     struct PathListInfo
     {
         const wchar_t* const* Path;
-        unsigned int Length;
+        std::uint32_t Length;
     };
 
     struct LoggingInfo
@@ -135,13 +135,14 @@ namespace Rtx::Dlss::Ngx
         union
         {
             ProjectDescription Project;
+            // NOLINTNEXTLINE(google-runtime-int): NGX's type
             unsigned long long ApplicationId;
         } Value;
     };
 
     struct FeatureDiscoveryInfo
     {
-        int SDKVersion;
+        std::int32_t SDKVersion;
         Feature FeatureId;
         ApplicationIdentifier Identifier;
         const wchar_t* ApplicationDataPath;
@@ -154,14 +155,14 @@ namespace Rtx::Dlss::Ngx
         VkImage Image;
         VkImageSubresourceRange SubresourceRange;
         VkFormat Format;
-        unsigned int Width;
-        unsigned int Height;
+        std::uint32_t Width;
+        std::uint32_t Height;
     };
 
     struct BufferInfo
     {
         VkBuffer Buffer;
-        unsigned int SizeInBytes;
+        std::uint32_t SizeInBytes;
     };
 
     struct Resource
@@ -186,20 +187,22 @@ namespace Rtx::Dlss::Ngx
     class Parameter
     {
     public:
+        // NOLINTNEXTLINE(google-runtime-int): NGX's type
         virtual void Set(const char* name, unsigned long long value) = 0;
         virtual void Set(const char* name, float value) = 0;
         virtual void Set(const char* name, double value) = 0;
-        virtual void Set(const char* name, unsigned int value) = 0;
-        virtual void Set(const char* name, int value) = 0;
+        virtual void Set(const char* name, std::uint32_t value) = 0;
+        virtual void Set(const char* name, std::int32_t value) = 0;
         virtual void Set(const char* name, D3D11Resource* value) = 0;
         virtual void Set(const char* name, D3D12Resource* value) = 0;
         virtual void Set(const char* name, void* value) = 0;
 
+        // NOLINTNEXTLINE(google-runtime-int): NGX's type
         virtual Result Get(const char* name, unsigned long long* value) const = 0;
         virtual Result Get(const char* name, float* value) const = 0;
         virtual Result Get(const char* name, double* value) const = 0;
-        virtual Result Get(const char* name, unsigned int* value) const = 0;
-        virtual Result Get(const char* name, int* value) const = 0;
+        virtual Result Get(const char* name, std::uint32_t* value) const = 0;
+        virtual Result Get(const char* name, std::int32_t* value) const = 0;
         virtual Result Get(const char* name, D3D11Resource** value) const = 0;
         virtual Result Get(const char* name, D3D12Resource** value) const = 0;
         virtual Result Get(const char* name, void** value) const = 0;
@@ -246,18 +249,19 @@ namespace Rtx::Dlss::Ngx
         Result (*GetFeatureDeviceExtensionRequirements)(VkInstance, VkPhysicalDevice, const FeatureDiscoveryInfo*,
             std::uint32_t*, VkExtensionProperties**) = nullptr;
         Result (*InitWithProjectId)(const char*, Engine, const char*, const wchar_t*, VkInstance, VkPhysicalDevice,
-            VkDevice, PFN_vkGetInstanceProcAddr, PFN_vkGetDeviceProcAddr, int, const FeatureCommonInfo*) = nullptr;
+            VkDevice, PFN_vkGetInstanceProcAddr, PFN_vkGetDeviceProcAddr, std::int32_t, const FeatureCommonInfo*)
+            = nullptr;
         Result (*GetCapabilityParameters)(Parameter**) = nullptr;
         Result (*AllocateParameters)(Parameter**) = nullptr;
         Result (*DestroyParameters)(Parameter*) = nullptr;
         /// The core's own signature and not the SDK's `Shutdown1(VkDevice)`, as `nvsdk_ngx_vk.h`
         /// warns of: the core writes how many devices still hold NGX through the second argument,
         /// and a caller that passes none has it write through whatever its register held.
-        Result (*Shutdown)(VkDevice, int*) = nullptr;
+        Result (*Shutdown)(VkDevice, std::int32_t*) = nullptr;
         Result (*CreateFeature)(VkCommandBuffer, Feature, Parameter*, Handle**) = nullptr;
         Result (*EvaluateFeature)(VkCommandBuffer, const Handle*, const Parameter*, void*) = nullptr;
         Result (*ReleaseFeature)(Handle*) = nullptr;
-        Result (*RequiredExtensions)(unsigned int*, const char***, unsigned int*, const char***) = nullptr;
+        Result (*RequiredExtensions)(std::uint32_t*, const char***, std::uint32_t*, const char***) = nullptr;
     };
 
     /// The driver's core, loaded once with every entry point above resolved, or null where the
@@ -323,7 +327,7 @@ namespace Rtx::Dlss::Ngx
         VkExtent2D mRender{};
         VkExtent2D mOutput{};
         Quality mQuality = Quality::MaxQuality;
-        int mFlags = 0;
+        std::int32_t mFlags = 0;
     };
 
     /// What one evaluation reads: the noisy frame, its guides and the output, the jitter as NGX names
@@ -379,5 +383,6 @@ namespace Rtx::Dlss::Ngx
 
     /// Asks `capabilities` how much device memory Ray Reconstruction holds, as `NGX_DLSSD_GET_STATS` does.
     /// Fails where the library publishes no such callback.
+    // NOLINTNEXTLINE(google-runtime-int): NGX's type
     Result statsBytes(Parameter& capabilities, unsigned long long& into);
 }

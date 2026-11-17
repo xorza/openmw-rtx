@@ -42,7 +42,7 @@ namespace Platform::Process
     /// This process's command line as UTF-8, from the `argc` and `argv` its `main` was handed: on
     /// Windows from the wide line the system keeps, because `argv` is in the system's code page
     /// there.
-    std::vector<std::string> commandLine(int argc, char** argv);
+    std::vector<std::string> commandLine(std::int32_t argc, char** argv);
 
     /// This process's id, as the system numbers processes: what a reading that names processes
     /// tells this one from the rest by.
@@ -86,7 +86,7 @@ namespace Platform::Process
         std::uint32_t mExitCode = 0;
 
         /// The signal that ended it, on a system that has them. Nought where it exited.
-        int mSignal = 0;
+        std::int32_t mSignal = 0;
 
         bool succeeded() const { return mExitCode == 0 && mSignal == 0; }
 

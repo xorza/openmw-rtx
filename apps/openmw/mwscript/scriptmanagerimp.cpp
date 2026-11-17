@@ -37,7 +37,7 @@ namespace MWScript
                 return MWBase::Environment::get().getWorld()->getGlobalVariableType(name);
             }
 
-            int getGlobalInt(std::string_view name) const override
+            std::int32_t getGlobalInt(std::string_view name) const override
             {
                 return MWBase::Environment::get().getWorld()->getGlobalInt(name);
             }
@@ -47,14 +47,15 @@ namespace MWScript
                 return MWBase::Environment::get().getWorld()->getGlobalFloat(name);
             }
 
-            int getJournalIndex(const ESM::RefId& quest) const override
+            std::int32_t getJournalIndex(const ESM::RefId& quest) const override
             {
                 return MWBase::Environment::get().getJournal()->getJournalIndex(quest);
             }
         };
     }
 
-    ScriptManager::ScriptManager(const MWWorld::ESMStore& store, Compiler::Context& compilerContext, int warningsMode)
+    ScriptManager::ScriptManager(
+        const MWWorld::ESMStore& store, Compiler::Context& compilerContext, std::int32_t warningsMode)
         : mErrorHandler()
         , mStore(store)
         , mCompilerContext(compilerContext)
@@ -221,10 +222,10 @@ namespace MWScript
                             << mVisibilityGates.describe(undecided);
     }
 
-    std::pair<int, int> ScriptManager::compileAll()
+    std::pair<std::int32_t, std::int32_t> ScriptManager::compileAll()
     {
-        int count = 0;
-        int success = 0;
+        std::int32_t count = 0;
+        std::int32_t success = 0;
 
         for (auto& script : mStore.get<ESM::Script>())
         {

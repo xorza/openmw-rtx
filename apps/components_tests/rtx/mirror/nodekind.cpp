@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdint>
 
 #include <gtest/gtest.h>
 
@@ -71,7 +72,7 @@ namespace Rtx
             const NodeKinds kinds;
             const std::array<Named, 11> named = everyKind();
 
-            for (int round = 0; round < 3; ++round)
+            for (std::int32_t round = 0; round < 3; ++round)
                 for (const Named& one : named)
                     EXPECT_EQ(kinds.of(*one.mObject), one.mKind) << "round " << round << " at " << one.mName;
         }

@@ -1,5 +1,10 @@
 #include "launchersettings.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <ranges>
+
 #include <QDebug>
 #include <QDir>
 #include <QMultiMap>
@@ -7,8 +12,6 @@
 #include <QString>
 #include <QStringList>
 #include <QTextStream>
-#include <algorithm>
-#include <ranges>
 
 #include <components/debug/debuglog.hpp>
 
@@ -47,7 +50,7 @@ namespace Config
 #else
             (void)localtime_r(&rawtime, &timeinfo);
 #endif
-            constexpr int base = 10;
+            constexpr std::int32_t base = 10;
             QChar zeroPad('0');
             return QString("%1-%2-%3T%4:%5:%6")
                 .arg(timeinfo.tm_year + 1900, 4)
@@ -74,10 +77,10 @@ namespace Config
             return false;
         }
 
-        bool parseInt(const QString& value, int& out)
+        bool parseInt(const QString& value, std::int32_t& out)
         {
             bool ok = false;
-            const int converted = value.toInt(&ok);
+            const std::int32_t converted = value.toInt(&ok);
             if (ok)
                 out = converted;
             return ok;
@@ -86,7 +89,7 @@ namespace Config
         bool parseProfilePart(
             const QString& key, const QString& value, std::map<QString, LauncherSettings::Profile>& profiles)
         {
-            const int separator = static_cast<int>(key.lastIndexOf('/'));
+            const auto separator = static_cast<std::int32_t>(key.lastIndexOf('/'));
             if (separator == -1)
                 return false;
 
@@ -197,7 +200,7 @@ namespace Config
         }
 
         template <std::size_t size>
-        void writeKeyValue(const char (&key)[size], int value, QTextStream& stream)
+        void writeKeyValue(const char (&key)[size], std::int32_t value, QTextStream& stream)
         {
             stream << key << '=' << value << '\n';
         }
@@ -272,7 +275,7 @@ void Config::LauncherSettings::removeContentList(const QString& value)
     mProfiles.mValues.erase(value);
 
     mProfiles.mUnknown.removeIf([&](const QPair<QString, QString>& keyValue) {
-        const int separator = static_cast<int>(keyValue.first.lastIndexOf('/'));
+        const auto separator = static_cast<std::int32_t>(keyValue.first.lastIndexOf('/'));
         return separator != -1 && keyValue.first.left(separator) == value;
     });
 }

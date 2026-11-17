@@ -36,7 +36,7 @@ namespace Rtx
         {
             std::vector<std::uint32_t> words(text.size() / 4 + 1, 0);
             for (std::size_t at = 0; at < text.size(); ++at)
-                words[at / 4] |= static_cast<std::uint32_t>(static_cast<unsigned char>(text[at])) << (8 * (at % 4));
+                words[at / 4] |= static_cast<std::uint32_t>(static_cast<std::uint8_t>(text[at])) << (8 * (at % 4));
             return words;
         }
 
@@ -183,7 +183,7 @@ namespace Rtx
             std::uint32_t mBound = 0;
             std::vector<Made> mOrder;
             std::map<std::uint32_t, Made> mDefinitions;
-            std::map<std::uint32_t, int> mNoContraction;
+            std::map<std::uint32_t, std::int32_t> mNoContraction;
             std::map<std::uint32_t, float> mConstants;
         };
 
@@ -530,7 +530,7 @@ namespace Rtx
                 {
                     std::string text;
                     for (const std::uint32_t word : made.mOperands)
-                        for (int byte = 0; byte < 4 && ((word >> (8 * byte)) & 0xFFu) != 0; ++byte)
+                        for (std::int32_t byte = 0; byte < 4 && ((word >> (8 * byte)) & 0xFFu) != 0; ++byte)
                             text.push_back(static_cast<char>((word >> (8 * byte)) & 0xFFu));
                     extensions.push_back(text);
                 }
@@ -570,7 +570,7 @@ namespace Rtx
             const std::vector<std::uint32_t> module = writer.finish();
 
             const Decoded guarded = decode(guardFloatArithmetic(module));
-            std::map<std::uint32_t, int> marks;
+            std::map<std::uint32_t, std::int32_t> marks;
             for (const Decoded::Made& made : guarded.mOrder)
                 if (made.mOp == spv::OpDecorateString && made.mOperands[1] == spv::DecorationUserSemantic)
                     ++marks[made.mOperands[0]];

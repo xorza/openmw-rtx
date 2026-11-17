@@ -1,7 +1,9 @@
 #pragma once
 
-#include <QMenu>
+#include <cstdint>
 #include <string>
+
+#include <QMenu>
 
 class QAction;
 class QActionGroup;
@@ -33,9 +35,9 @@ namespace CSVDoc
 
     private slots:
 
-        void profileAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void profileAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
-        void profileInserted(const QModelIndex& parent, int start, int end);
+        void profileInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         void profileChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 

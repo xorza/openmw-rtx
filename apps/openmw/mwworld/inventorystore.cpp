@@ -1,6 +1,8 @@
 #include "inventorystore.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <utility>
 
@@ -33,37 +35,37 @@ void MWWorld::InventoryStore::copySlots(const InventoryStore& store)
 void MWWorld::InventoryStore::initSlots(TSlots& slots)
 {
     slots.reserve(Slots);
-    for (int i = 0; i < Slots; ++i)
+    for (std::int32_t i = 0; i < Slots; ++i)
         slots.push_back(end());
 }
 
 void MWWorld::InventoryStore::storeEquipmentState(
-    const MWWorld::LiveCellRefBase& ref, size_t index, ESM::InventoryState& inventory) const
+    const MWWorld::LiveCellRefBase& ref, std::size_t index, ESM::InventoryState& inventory) const
 {
     MWWorld::ContainerStore::storeEquipmentState(ref, index, inventory);
 
-    for (int32_t i = 0; i < MWWorld::InventoryStore::Slots; ++i)
+    for (std::int32_t i = 0; i < MWWorld::InventoryStore::Slots; ++i)
     {
         if (mSlots[static_cast<std::size_t>(i)].getType() != -1
             && mSlots[static_cast<std::size_t>(i)]->getBase() == &ref)
-            inventory.mEquipmentSlots[static_cast<uint32_t>(index)] = i;
+            inventory.mEquipmentSlots[static_cast<std::uint32_t>(index)] = i;
     }
 }
 
 void MWWorld::InventoryStore::readEquipmentState(
-    const MWWorld::ContainerStoreIterator& iter, size_t index, const ESM::InventoryState& inventory)
+    const MWWorld::ContainerStoreIterator& iter, std::size_t index, const ESM::InventoryState& inventory)
 {
     MWWorld::ContainerStore::readEquipmentState(iter, index, inventory);
 
-    auto found = inventory.mEquipmentSlots.find(static_cast<uint32_t>(index));
+    auto found = inventory.mEquipmentSlots.find(static_cast<std::uint32_t>(index));
     if (found != inventory.mEquipmentSlots.end())
     {
         if (found->second < 0 || found->second >= MWWorld::InventoryStore::Slots)
             throw std::runtime_error("Invalid slot index in inventory state");
 
         // make sure the item can actually be equipped in this slot
-        int32_t slot = found->second;
-        std::pair<std::vector<int>, bool> allowedSlots = iter->getClass().getEquipmentSlots(*iter);
+        std::int32_t slot = found->second;
+        std::pair<std::vector<std::int32_t>, bool> allowedSlots = iter->getClass().getEquipmentSlots(*iter);
         if (allowedSlots.first.empty())
             return;
         if (std::find(allowedSlots.first.begin(), allowedSlots.first.end(), slot) == allowedSlots.first.end())
@@ -72,7 +74,7 @@ void MWWorld::InventoryStore::readEquipmentState(
         // unstack if required
         if (!allowedSlots.second && iter->getCellRef().getCount() > 1)
         {
-            int count = iter->getCellRef().getCount(false);
+            std::int32_t count = iter->getCellRef().getCount(false);
             MWWorld::ContainerStoreIterator newIter = addNewStack(*iter, count > 0 ? 1 : -1);
             iter->getCellRef().setCount(subtractItems(count, 1));
             mSlots[static_cast<std::size_t>(slot)] = newIter;
@@ -121,12 +123,12 @@ MWWorld::InventoryStore& MWWorld::InventoryStore::operator=(InventoryStore&& sto
     mFirstAutoEquip = store.mFirstAutoEquip;
     mSlots.clear();
     std::array<std::ptrdiff_t, Slots> distances{};
-    for (int i = 0; i < Slots; ++i)
+    for (std::int32_t i = 0; i < Slots; ++i)
     {
         distances[static_cast<std::size_t>(i)] = store.index(store.mSlots[static_cast<std::size_t>(i)]);
     }
     ContainerStore::operator=(std::move(store));
-    for (int i = 0; i < Slots; ++i)
+    for (std::int32_t i = 0; i < Slots; ++i)
     {
         if (distances[static_cast<std::size_t>(i)] == -1)
             mSlots.push_back(end());
@@ -137,7 +139,7 @@ MWWorld::InventoryStore& MWWorld::InventoryStore::operator=(InventoryStore&& sto
 }
 
 MWWorld::ContainerStoreIterator MWWorld::InventoryStore::add(
-    const ConstPtr& itemPtr, int count, bool allowAutoEquip, bool resolve)
+    const ConstPtr& itemPtr, std::int32_t count, bool allowAutoEquip, bool resolve)
 {
     const MWWorld::ContainerStoreIterator& retVal
         = MWWorld::ContainerStore::add(itemPtr, count, allowAutoEquip, resolve);
@@ -159,7 +161,7 @@ MWWorld::ContainerStoreIterator MWWorld::InventoryStore::add(
     return retVal;
 }
 
-void MWWorld::InventoryStore::equip(int slot, const ContainerStoreIterator& iterator)
+void MWWorld::InventoryStore::equip(std::int32_t slot, const ContainerStoreIterator& iterator)
 {
     if (iterator == end())
         throw std::runtime_error("can't equip end() iterator, use unequip function instead");
@@ -170,7 +172,7 @@ void MWWorld::InventoryStore::equip(int slot, const ContainerStoreIterator& iter
     if (iterator.getContainerStore() != this)
         throw std::runtime_error("attempt to equip an item that is not in the inventory");
 
-    std::pair<std::vector<int>, bool> slots;
+    std::pair<std::vector<std::int32_t>, bool> slots;
 
     slots = iterator->getClass().getEquipmentSlots(*iterator);
 
@@ -197,7 +199,7 @@ void MWWorld::InventoryStore::equip(int slot, const ContainerStoreIterator& iter
 void MWWorld::InventoryStore::unequipAll()
 {
     mUpdatesEnabled = false;
-    for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+    for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
         unequipSlot(slot);
 
     mUpdatesEnabled = true;
@@ -205,17 +207,17 @@ void MWWorld::InventoryStore::unequipAll()
     fireEquipmentChangedEvent();
 }
 
-MWWorld::ContainerStoreIterator MWWorld::InventoryStore::getSlot(int slot)
+MWWorld::ContainerStoreIterator MWWorld::InventoryStore::getSlot(std::int32_t slot)
 {
     return findSlot(slot);
 }
 
-MWWorld::ConstContainerStoreIterator MWWorld::InventoryStore::getSlot(int slot) const
+MWWorld::ConstContainerStoreIterator MWWorld::InventoryStore::getSlot(std::int32_t slot) const
 {
     return findSlot(slot);
 }
 
-MWWorld::ContainerStoreIterator MWWorld::InventoryStore::findSlot(int slot) const
+MWWorld::ContainerStoreIterator MWWorld::InventoryStore::findSlot(std::int32_t slot) const
 {
     if (slot < 0 || std::cmp_greater_equal(slot, mSlots.size()))
         throw std::runtime_error("slot number out of range");
@@ -238,7 +240,7 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
         // In original game creatures do not autoequip weapon, but we need it for weapon sheathing.
         // The only case when the difference is noticable - when this creature sells weapon.
         // So just disable weapon autoequipping for creatures which sells weapon.
-        int services = actor.getClass().getServices(actor);
+        std::int32_t services = actor.getClass().getServices(actor);
         bool sellsWeapon = services & (ESM::NPC::Weapon | ESM::NPC::MagicItems);
         if (sellsWeapon)
             return;
@@ -252,13 +254,13 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
         ESM::Skill::Marksman,
         ESM::Skill::BluntWeapon,
     };
-    const size_t weaponSkillsLength = sizeof(weaponSkills) / sizeof(weaponSkills[0]);
+    const std::size_t weaponSkillsLength = sizeof(weaponSkills) / sizeof(weaponSkills[0]);
 
     bool weaponSkillVisited[weaponSkillsLength] = { false };
 
     // give arrows/bolt with max damage by default
-    int arrowMax = 0;
-    int boltMax = 0;
+    std::int32_t arrowMax = 0;
+    std::int32_t boltMax = 0;
     ContainerStoreIterator arrow(end());
     ContainerStoreIterator bolt(end());
 
@@ -286,12 +288,12 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
     }
 
     // rate weapon
-    for (int i = 0; std::cmp_less(i, weaponSkillsLength); ++i)
+    for (std::int32_t i = 0; std::cmp_less(i, weaponSkillsLength); ++i)
     {
         float max = 0;
-        int maxWeaponSkill = -1;
+        std::int32_t maxWeaponSkill = -1;
 
-        for (int j = 0; std::cmp_less(j, weaponSkillsLength); ++j)
+        for (std::int32_t j = 0; std::cmp_less(j, weaponSkillsLength); ++j)
         {
             float skillValue = actor.getClass().getSkill(actor, weaponSkills[j]);
             if (skillValue > max && !weaponSkillVisited[j])
@@ -360,7 +362,7 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
 
             if (hasAmmo)
             {
-                std::pair<std::vector<int>, bool> itemsSlots = weapon->getClass().getEquipmentSlots(*weapon);
+                std::pair<std::vector<std::int32_t>, bool> itemsSlots = weapon->getClass().getEquipmentSlots(*weapon);
 
                 if (!itemsSlots.first.empty())
                 {
@@ -372,7 +374,7 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
                         }
                     }
 
-                    int slot = itemsSlots.first.front();
+                    std::int32_t slot = itemsSlots.first.front();
                     slots[static_cast<std::size_t>(slot)] = weapon;
 
                     if (ammotype.empty())
@@ -395,7 +397,7 @@ void MWWorld::InventoryStore::autoEquipArmor(TSlots& slots)
     const MWWorld::Class& actorCls = actor.getClass();
     const bool actorIsNpc = actorCls.isNpc();
 
-    int equipmentTypes = ContainerStore::Type_Armor;
+    std::int32_t equipmentTypes = ContainerStore::Type_Armor;
     float unarmoredRating = 0.f;
     if (actorIsNpc)
     {
@@ -436,14 +438,14 @@ void MWWorld::InventoryStore::autoEquipArmor(TSlots& slots)
         const auto [itemSlots, canStack] = testCls.getEquipmentSlots(test);
 
         // checking if current item pointed by iter can be equipped
-        for (const int slot : itemSlots)
+        for (const std::int32_t slot : itemSlots)
         {
             // check if slot may require swapping if current item is more valuable
             if (slots.at(static_cast<std::size_t>(slot)) != end())
             {
                 Ptr old = *slots.at(static_cast<std::size_t>(slot));
                 const MWWorld::Class& oldCls = old.getClass();
-                unsigned int oldType = old.getType();
+                std::uint32_t oldType = old.getType();
 
                 if (!isArmor)
                 {
@@ -467,8 +469,8 @@ void MWWorld::InventoryStore::autoEquipArmor(TSlots& slots)
                 }
                 else if (oldType == ESM::Armor::sRecordId)
                 {
-                    const int32_t oldArmorType = old.get<ESM::Armor>()->mBase->mData.mType;
-                    const int32_t newArmorType = test.get<ESM::Armor>()->mBase->mData.mType;
+                    const std::int32_t oldArmorType = old.get<ESM::Armor>()->mBase->mData.mType;
+                    const std::int32_t newArmorType = test.get<ESM::Armor>()->mBase->mData.mType;
                     if (oldArmorType == newArmorType)
                     {
                         // For NPCs, compare armor rating; for creatures, compare condition
@@ -564,14 +566,14 @@ bool MWWorld::InventoryStore::stacks(const ConstPtr& ptr1, const ConstPtr& ptr2)
     return true;
 }
 
-int MWWorld::InventoryStore::remove(const Ptr& item, int count, bool equipReplacement, bool resolve)
+std::int32_t MWWorld::InventoryStore::remove(const Ptr& item, std::int32_t count, bool equipReplacement, bool resolve)
 {
-    int retCount = ContainerStore::remove(item, count, equipReplacement, resolve);
+    std::int32_t retCount = ContainerStore::remove(item, count, equipReplacement, resolve);
 
     bool wasEquipped = false;
     if (!item.getCellRef().getCount())
     {
-        for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+        for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
         {
             if (mSlots[static_cast<std::size_t>(slot)] == end())
                 continue;
@@ -604,7 +606,7 @@ int MWWorld::InventoryStore::remove(const Ptr& item, int count, bool equipReplac
     return retCount;
 }
 
-MWWorld::ContainerStoreIterator MWWorld::InventoryStore::unequipSlot(int slot, bool applyUpdates)
+MWWorld::ContainerStoreIterator MWWorld::InventoryStore::unequipSlot(std::int32_t slot, bool applyUpdates)
 {
     if (slot < 0 || std::cmp_greater_equal(slot, mSlots.size()))
         throw std::runtime_error("slot number out of range");
@@ -649,7 +651,7 @@ MWWorld::ContainerStoreIterator MWWorld::InventoryStore::unequipSlot(int slot, b
 
 MWWorld::ContainerStoreIterator MWWorld::InventoryStore::unequipItem(const MWWorld::Ptr& item)
 {
-    for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+    for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
     {
         MWWorld::ContainerStoreIterator equipped = getSlot(slot);
         if (equipped != end() && *equipped == item)
@@ -659,7 +661,7 @@ MWWorld::ContainerStoreIterator MWWorld::InventoryStore::unequipItem(const MWWor
     throw std::runtime_error("attempt to unequip an item that is not currently equipped");
 }
 
-MWWorld::ContainerStoreIterator MWWorld::InventoryStore::unequipItemQuantity(const Ptr& item, int count)
+MWWorld::ContainerStoreIterator MWWorld::InventoryStore::unequipItemQuantity(const Ptr& item, std::int32_t count)
 {
     if (!isEquipped(item))
         throw std::runtime_error("attempt to unequip an item that is not currently equipped");
@@ -721,7 +723,7 @@ void MWWorld::InventoryStore::clear()
 
 bool MWWorld::InventoryStore::isEquipped(const MWWorld::ConstPtr& item)
 {
-    for (int i = 0; i < MWWorld::InventoryStore::Slots; ++i)
+    for (std::int32_t i = 0; i < MWWorld::InventoryStore::Slots; ++i)
     {
         if (getSlot(i) != end() && *getSlot(i) == item)
             return true;
@@ -731,7 +733,7 @@ bool MWWorld::InventoryStore::isEquipped(const MWWorld::ConstPtr& item)
 
 bool MWWorld::InventoryStore::isEquipped(const ESM::RefId& id)
 {
-    for (int i = 0; i < MWWorld::InventoryStore::Slots; ++i)
+    for (std::int32_t i = 0; i < MWWorld::InventoryStore::Slots; ++i)
     {
         if (getSlot(i) != end() && getSlot(i)->getCellRef().getRefId() == id)
             return true;

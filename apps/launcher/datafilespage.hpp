@@ -1,12 +1,14 @@
 #pragma once
 
+#include <condition_variable>
+#include <cstdint>
+#include <mutex>
+#include <thread>
+
 #include <QDir>
 #include <QMenu>
 #include <QStringList>
 #include <QWidget>
-#include <condition_variable>
-#include <mutex>
-#include <thread>
 
 #include <components/process/processinvoker.hpp>
 
@@ -58,18 +60,18 @@ namespace Launcher
 
         QAbstractItemModel* profilesModel() const;
 
-        int profilesIndex() const;
+        std::int32_t profilesIndex() const;
 
         // void writeConfig(QString profile = QString());
         void saveSettings(const QString& profile = "");
         bool loadSettings();
 
     signals:
-        void signalProfileChanged(int index);
+        void signalProfileChanged(std::int32_t index);
         void signalLoadedCellsChanged(QStringList selectedFiles);
 
     public slots:
-        void slotProfileChanged(int index);
+        void slotProfileChanged(std::int32_t index);
 
     private slots:
 
@@ -85,7 +87,7 @@ namespace Launcher
         void sortDirectories();
         void sortArchives();
         void removeDirectory();
-        void moveSources(QListWidget* sourceList, int step);
+        void moveSources(QListWidget* sourceList, std::int32_t step);
 
         void slotShowArchiveContextMenu(const QPoint& pos);
         void slotShowDataFilesContextMenu(const QPoint& pos);
@@ -99,7 +101,7 @@ namespace Launcher
         void killNavMeshTool();
         void readNavMeshToolStdout();
         void readNavMeshToolStderr();
-        void navMeshToolFinished(int exitCode, QProcess::ExitStatus exitStatus);
+        void navMeshToolFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
 
     public:
         /// Content List that is always present
@@ -112,8 +114,8 @@ namespace Launcher
             QByteArray mLogData;
             QByteArray mMessagesData;
             std::map<std::uint64_t, std::string> mWorldspaces;
-            int mCellsCount = 0;
-            int mExpectedMaxProgress = 0;
+            std::int32_t mCellsCount = 0;
+            std::int32_t mExpectedMaxProgress = 0;
         };
 
         MainDialog* mMainDialog;
@@ -141,7 +143,7 @@ namespace Launcher
         std::thread mReloadCellsThread;
         QTimer* mReloadCellsTimer;
 
-        void addArchive(const QString& name, Qt::CheckState selected, int row = -1);
+        void addArchive(const QString& name, Qt::CheckState selected, std::int32_t row = -1);
         void addArchivesFromDir(const QString& path);
         void buildView();
         void buildArchiveContextMenu();
@@ -149,7 +151,7 @@ namespace Launcher
         void buildDirectoryPickerContextMenu();
         void showContextMenu(QMenu* menu, QListWidget* list, const QPoint& pos);
         void setCheckStateForMultiSelectedItems(QListWidget* list, Qt::CheckState checkState);
-        void setProfile(int index, bool savePrevious);
+        void setProfile(std::int32_t index, bool savePrevious);
         void setProfile(const QString& previous, const QString& current, bool savePrevious);
         void removeProfile(const QString& profile);
         bool showDeleteMessageBox(const QString& text);
@@ -159,7 +161,7 @@ namespace Launcher
         void onReloadCellsTimerTimeout();
         void reloadCells();
         void refreshDataFilesView();
-        void updateNavMeshProgress(int minDataSize);
+        void updateNavMeshProgress(std::int32_t minDataSize);
         void slotCopySelectedItemsPaths();
         void slotOpenSelectedItemsPaths();
 

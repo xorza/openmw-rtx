@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <utility>
 
@@ -283,8 +285,8 @@ namespace MWGui
     void WindowManager::initUI()
     {
         // Get size info from the Gui object
-        int w = MyGUI::RenderManager::getInstance().getViewSize().width;
-        int h = MyGUI::RenderManager::getInstance().getViewSize().height;
+        std::int32_t w = MyGUI::RenderManager::getInstance().getViewSize().width;
+        std::int32_t h = MyGUI::RenderManager::getInstance().getViewSize().height;
 
         mTextColours.loadColours();
 
@@ -667,7 +669,7 @@ namespace MWGui
             // This is controlled both by what windows the
             // user has opened/closed (the 'shown' variable) and by what
             // windows we are allowed to show (the 'allowed' var.)
-            int eff = mShown & mAllowed & ~mForceHidden;
+            std::int32_t eff = mShown & mAllowed & ~mForceHidden;
             mMap->setVisible(eff & GW_Map);
             mInventoryWindow->setVisible(eff & GW_Inventory);
             mSpellWindow->setVisible(eff & GW_Magic);
@@ -735,7 +737,7 @@ namespace MWGui
     }
 
     void WindowManager::interactiveMessageBox(
-        std::string_view message, const std::vector<std::string>& buttons, bool block, int defaultFocus)
+        std::string_view message, const std::vector<std::string>& buttons, bool block, std::int32_t defaultFocus)
     {
         mMessageBoxManager->createInteractiveMessageBox(message, buttons, block, defaultFocus);
         updateVisible();
@@ -801,7 +803,7 @@ namespace MWGui
         mMessageBoxManager->removeStaticMessageBox();
     }
 
-    int WindowManager::readPressedButton()
+    std::int32_t WindowManager::readPressedButton()
     {
         return mMessageBoxManager->readPressedButton();
     }
@@ -827,7 +829,7 @@ namespace MWGui
         osg::Quat playerOrientation(-player.getRefData().getPosition().rot[2], osg::Vec3(0, 0, 1));
 
         osg::Vec3f playerdirection;
-        int x = 0, y = 0;
+        std::int32_t x = 0, y = 0;
         float u = NAN, v = NAN;
         mLocalMapRender->updatePlayer(playerPosition, playerOrientation, u, v, x, y, playerdirection);
 
@@ -861,7 +863,8 @@ namespace MWGui
             if (state.mWindows.empty())
                 return nullptr;
 
-            size_t activeIndex = std::clamp<size_t>(mActiveControllerWindows[mode], 0, state.mWindows.size() - 1);
+            std::size_t activeIndex
+                = std::clamp<std::size_t>(mActiveControllerWindows[mode], 0, state.mWindows.size() - 1);
 
             // If the active window is no longer visible, find the next visible window.
             if (!state.mWindows[activeIndex]->isVisible())
@@ -879,16 +882,16 @@ namespace MWGui
             return;
 
         GuiMode mode = mGuiModes.back();
-        size_t winCount = mGuiModeStates[mode].mWindows.size();
+        std::size_t winCount = mGuiModeStates[mode].mWindows.size();
 
-        size_t activeIndex = 0;
+        std::size_t activeIndex = 0;
         if (winCount > 1)
         {
             // Find next/previous visible window
             activeIndex = mActiveControllerWindows[mode];
-            int delta = next ? 1 : -1;
+            std::int32_t delta = next ? 1 : -1;
 
-            for (size_t i = 0; i < winCount; ++i)
+            for (std::size_t i = 0; i < winCount; ++i)
             {
                 activeIndex = wrap(activeIndex, winCount, delta);
                 if (mGuiModeStates[mode].mWindows[activeIndex]->isVisible())
@@ -906,9 +909,9 @@ namespace MWGui
             return;
 
         const GuiMode mode = mGuiModes.back();
-        size_t winCount = mGuiModeStates[mode].mWindows.size();
+        std::size_t winCount = mGuiModeStates[mode].mWindows.size();
 
-        for (size_t i = 0; i < winCount; i++)
+        for (std::size_t i = 0; i < winCount; i++)
         {
             // Set active window last so inactive windows don't stomp on changes it makes, e.g. to tooltips.
             if (i != mActiveControllerWindows[mode])
@@ -918,16 +921,16 @@ namespace MWGui
             mGuiModeStates[mode].mWindows[mActiveControllerWindows[mode]]->setActiveControllerWindow(true);
     }
 
-    void WindowManager::setActiveControllerWindow(GuiMode mode, size_t activeIndex)
+    void WindowManager::setActiveControllerWindow(GuiMode mode, std::size_t activeIndex)
     {
         if (!Settings::gui().mControllerMenus)
             return;
 
-        size_t winCount = mGuiModeStates[mode].mWindows.size();
+        std::size_t winCount = mGuiModeStates[mode].mWindows.size();
         if (winCount == 0)
             return;
 
-        activeIndex = std::clamp<size_t>(activeIndex, 0, winCount - 1);
+        activeIndex = std::clamp<std::size_t>(activeIndex, 0, winCount - 1);
         mActiveControllerWindows[mode] = activeIndex;
 
         reapplyActiveControllerWindow();
@@ -1021,7 +1024,7 @@ namespace MWGui
         // Otherwise we will get message spam when stealing several items via Take All button.
         const MWWorld::Ptr player = MWMechanics::getPlayer();
         const MWWorld::Class& playerCls = player.getClass();
-        int currentBounty = playerCls.getNpcStats(player).getBounty();
+        std::int32_t currentBounty = playerCls.getNpcStats(player).getBounty();
         if (currentBounty != mPlayerBounty)
         {
             if (mPlayerBounty >= 0 && currentBounty > mPlayerBounty)
@@ -1126,7 +1129,7 @@ namespace MWGui
     {
         mToolTips->setFocusObject(focus);
 
-        const int showOwned = Settings::game().mShowOwned;
+        const std::int32_t showOwned = Settings::game().mShowOwned;
         if (mHud && (showOwned == 2 || showOwned == 3))
         {
             bool owned = mToolTips->checkOwned();
@@ -1199,7 +1202,7 @@ namespace MWGui
         if (tagView.starts_with(myGuiPrefix))
         {
             tagView = tagView.substr(myGuiPrefix.length());
-            const size_t commaPos = tagView.find(',');
+            const std::size_t commaPos = tagView.find(',');
             if (commaPos == std::string_view::npos)
                 throw std::runtime_error("Invalid setting tag (expected comma): " + std::string(tagView));
 
@@ -1278,12 +1281,12 @@ namespace MWGui
         }
     }
 
-    void WindowManager::windowResized(int x, int y)
+    void WindowManager::windowResized(std::int32_t x, std::int32_t y)
     {
         layOut();
     }
 
-    void WindowManager::windowSized(int width, int height)
+    void WindowManager::windowSized(std::int32_t width, std::int32_t height)
     {
         // The size the player left a window at: a fullscreen window is the display's size, and a maximized one
         // the desktop's, which a next start would open an unmaximized window at.
@@ -1329,7 +1332,7 @@ namespace MWGui
     void WindowManager::fitFonts()
     {
         const float raster = mFonts->getFit().mRaster;
-        const int fontSize = mFonts->getFontSize();
+        const std::int32_t fontSize = mFonts->getFontSize();
         mFonts->fit(fontFitNow());
 
         if (mFonts->getFontSize() != fontSize)
@@ -1384,8 +1387,8 @@ namespace MWGui
         mGuiPlatform->getRenderManagerPtr()->resizeView(frame.x(), frame.y(), scale);
 
         const MyGUI::IntSize& viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        const int x = viewSize.width;
-        const int y = viewSize.height;
+        const std::int32_t x = viewSize.width;
+        const std::int32_t y = viewSize.height;
 
         sizeVideo(x, y);
 
@@ -1395,10 +1398,10 @@ namespace MWGui
         for (const auto& [window, settings] : mTrackedWindows)
         {
             const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mMaximized : settings.mRegular;
-            window->setPosition(MyGUI::IntPoint(
-                static_cast<int>(rect.mX * static_cast<float>(x)), static_cast<int>(rect.mY * static_cast<float>(y))));
-            window->setSize(MyGUI::IntSize(
-                static_cast<int>(rect.mW * static_cast<float>(x)), static_cast<int>(rect.mH * static_cast<float>(y))));
+            window->setPosition(MyGUI::IntPoint(static_cast<std::int32_t>(rect.mX * static_cast<float>(x)),
+                static_cast<std::int32_t>(rect.mY * static_cast<float>(y))));
+            window->setSize(MyGUI::IntSize(static_cast<std::int32_t>(rect.mW * static_cast<float>(x)),
+                static_cast<std::int32_t>(rect.mH * static_cast<float>(y))));
 
             WindowBase::clampWindowCoordinates(window);
         }
@@ -1585,13 +1588,13 @@ namespace MWGui
         MWBase::Environment::get().getLuaManager()->uiModeChanged(MWWorld::Ptr());
     }
 
-    void WindowManager::goToJail(int days)
+    void WindowManager::goToJail(std::int32_t days)
     {
         pushGuiMode(MWGui::GM_Jail);
         mJailScreen->goToJail(days);
     }
 
-    void WindowManager::setSelectedSpell(const ESM::RefId& spellId, int successChancePercent)
+    void WindowManager::setSelectedSpell(const ESM::RefId& spellId, std::int32_t successChancePercent)
     {
         mSelectedSpell = spellId;
         mSelectedEnchantItem = MWWorld::Ptr();
@@ -1608,7 +1611,7 @@ namespace MWGui
         mSelectedSpell = ESM::RefId();
         const ESM::Enchantment* ench = mStore->get<ESM::Enchantment>().find(item.getClass().getEnchantment(item));
 
-        int chargePercent = static_cast<int>(item.getCellRef().getNormalizedEnchantmentCharge(*ench) * 100);
+        auto chargePercent = static_cast<std::int32_t>(item.getCellRef().getNormalizedEnchantmentCharge(*ench) * 100);
         mHud->setSelectedEnchantItem(item, chargePercent);
         mSpellWindow->setTitle(item.getClass().getName(item));
     }
@@ -1621,10 +1624,10 @@ namespace MWGui
     void WindowManager::setSelectedWeapon(const MWWorld::Ptr& item)
     {
         mSelectedWeapon = item;
-        int durabilityPercent = 100;
+        std::int32_t durabilityPercent = 100;
         if (item.getClass().hasItemHealth(item))
         {
-            durabilityPercent = static_cast<int>(item.getClass().getItemNormalizedHealth(item) * 100);
+            durabilityPercent = static_cast<std::int32_t>(item.getClass().getItemNormalizedHealth(item) * 100);
         }
         mHud->setSelectedWeapon(item, durabilityPercent);
         mInventoryWindow->setTitle(item.getClass().getName(item));
@@ -1655,7 +1658,7 @@ namespace MWGui
         mInventoryWindow->setTitle("#{sSkillHandtohand}");
     }
 
-    void WindowManager::getMousePosition(int& x, int& y)
+    void WindowManager::getMousePosition(std::int32_t& x, std::int32_t& y)
     {
         const MyGUI::IntPoint& pos = MyGUI::InputManager::getInstance().getMousePosition();
         x = pos.left;
@@ -1682,7 +1685,7 @@ namespace MWGui
         return mFonts->getFit().mRaster;
     }
 
-    int WindowManager::getFontSize() const
+    std::int32_t WindowManager::getFontSize() const
     {
         return mFonts->getFontSize();
     }
@@ -1852,7 +1855,7 @@ namespace MWGui
         mQuickKeysMenu->updateActivatedQuickKey();
     }
 
-    void WindowManager::activateQuickKey(int index)
+    void WindowManager::activateQuickKey(std::int32_t index)
     {
         mQuickKeysMenu->activateQuickKey(index);
     }
@@ -1884,7 +1887,7 @@ namespace MWGui
         mWaitDialog->wakeUp();
     }
 
-    void WindowManager::addVisitedLocation(const std::string& name, int x, int y)
+    void WindowManager::addVisitedLocation(const std::string& name, std::int32_t x, std::int32_t y)
     {
         mMap->addVisitedLocation(name, x, y);
     }
@@ -1900,8 +1903,8 @@ namespace MWGui
         onCursorChange(name);
     }
 
-    void WindowManager::createLuaCursor(const std::string& name, const std::string& path, int width, int height,
-        int hotspotX, int hotspotY, double rotation)
+    void WindowManager::createLuaCursor(const std::string& name, const std::string& path, std::int32_t width,
+        std::int32_t height, std::int32_t hotspotX, std::int32_t hotspotY, double rotation)
     {
         const LuaCursor& cursor = mLuaCursors
                                       .insert_or_assign(name,
@@ -2035,10 +2038,10 @@ namespace MWGui
         const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mMaximized : settings.mRegular;
 
         auto* window = layout->mMainWidget->castType<MyGUI::Window>();
-        window->setPosition(MyGUI::IntPoint(static_cast<int>(rect.mX * static_cast<float>(viewSize.width)),
-            static_cast<int>(rect.mY * static_cast<float>(viewSize.height))));
-        window->setSize(MyGUI::IntSize(static_cast<int>(rect.mW * static_cast<float>(viewSize.width)),
-            static_cast<int>(rect.mH * static_cast<float>(viewSize.height))));
+        window->setPosition(MyGUI::IntPoint(static_cast<std::int32_t>(rect.mX * static_cast<float>(viewSize.width)),
+            static_cast<std::int32_t>(rect.mY * static_cast<float>(viewSize.height))));
+        window->setSize(MyGUI::IntSize(static_cast<std::int32_t>(rect.mW * static_cast<float>(viewSize.width)),
+            static_cast<std::int32_t>(rect.mH * static_cast<float>(viewSize.height))));
 
         window->eventWindowChangeCoord += MyGUI::newDelegate(this, &WindowManager::onWindowChangeCoord);
         WindowBase::clampWindowCoordinates(window);
@@ -2057,10 +2060,10 @@ namespace MWGui
         const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mRegular : settings.mMaximized;
 
         MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        const int x = static_cast<int>(rect.mX * static_cast<float>(viewSize.width));
-        const int y = static_cast<int>(rect.mY * static_cast<float>(viewSize.height));
-        const int w = static_cast<int>(rect.mW * static_cast<float>(viewSize.width));
-        const int h = static_cast<int>(rect.mH * static_cast<float>(viewSize.height));
+        const auto x = static_cast<std::int32_t>(rect.mX * static_cast<float>(viewSize.width));
+        const auto y = static_cast<std::int32_t>(rect.mY * static_cast<float>(viewSize.height));
+        const auto w = static_cast<std::int32_t>(rect.mW * static_cast<float>(viewSize.width));
+        const auto h = static_cast<std::int32_t>(rect.mH * static_cast<float>(viewSize.height));
         window->setCoord(x, y, w, h);
 
         settings.mIsMaximized.set(!settings.mIsMaximized.get());
@@ -2142,7 +2145,7 @@ namespace MWGui
         }
     }
 
-    void WindowManager::readRecord(ESM::ESMReader& reader, uint32_t type)
+    void WindowManager::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_GMAP)
             mMap->readRecord(reader, type);
@@ -2163,7 +2166,7 @@ namespace MWGui
         }
     }
 
-    size_t WindowManager::countSavedGameRecords() const
+    std::size_t WindowManager::countSavedGameRecords() const
     {
         return 1 // Global map
             + 1 // QuickKeysMenu
@@ -2245,7 +2248,7 @@ namespace MWGui
         mVideoBackground->setVisible(false);
     }
 
-    void WindowManager::sizeVideo(int screenWidth, int screenHeight)
+    void WindowManager::sizeVideo(std::int32_t screenWidth, std::int32_t screenHeight)
     {
         // Use black bars to correct aspect ratio
         mVideoBackground->setSize(screenWidth, screenHeight);
@@ -2377,14 +2380,14 @@ namespace MWGui
         mScreenFader->fadeIn(time, delay);
     }
 
-    void WindowManager::fadeScreenTo(const int percent, const float time, bool clearQueue, float delay)
+    void WindowManager::fadeScreenTo(const std::int32_t percent, const float time, bool clearQueue, float delay)
     {
         if (clearQueue)
             mScreenFader->clearQueue();
         mScreenFader->fadeTo(percent, time, delay);
     }
 
-    void WindowManager::setBlindness(const int percent)
+    void WindowManager::setBlindness(const std::int32_t percent)
     {
         mBlindnessFader->notifyAlphaChanged(static_cast<float>(percent) / 100.f);
     }
@@ -2572,8 +2575,9 @@ namespace MWGui
         if (!image.valid())
             return false;
 
-        const auto pixels
-            = [scale](int units) { return static_cast<int>(std::lround(static_cast<float>(units) * scale)); };
+        const auto pixels = [scale](std::int32_t units) {
+            return static_cast<std::int32_t>(std::lround(static_cast<float>(units) * scale));
+        };
         mCursorManager->createCursor(name, rotation, image, pixels(hotspot.left), pixels(hotspot.top),
             std::max(1, pixels(size.width)), std::max(1, pixels(size.height)), mCursorFit.mDisplay);
         return true;
@@ -2584,9 +2588,9 @@ namespace MWGui
         {
             MyGUI::ITexture* tex = MyGUI::RenderManager::getInstance().createTexture("white");
             tex->createManual(8, 8, MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8);
-            auto* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
-            for (int x = 0; x < 8; ++x)
-                for (int y = 0; y < 8; ++y)
+            auto* data = reinterpret_cast<std::uint8_t*>(tex->lock(MyGUI::TextureUsage::Write));
+            for (std::int32_t x = 0; x < 8; ++x)
+                for (std::int32_t y = 0; y < 8; ++y)
                 {
                     *(data++) = 255;
                     *(data++) = 255;
@@ -2598,9 +2602,9 @@ namespace MWGui
         {
             MyGUI::ITexture* tex = MyGUI::RenderManager::getInstance().createTexture("black");
             tex->createManual(8, 8, MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8);
-            auto* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
-            for (int x = 0; x < 8; ++x)
-                for (int y = 0; y < 8; ++y)
+            auto* data = reinterpret_cast<std::uint8_t*>(tex->lock(MyGUI::TextureUsage::Write));
+            for (std::int32_t x = 0; x < 8; ++x)
+                for (std::int32_t y = 0; y < 8; ++y)
                 {
                     *(data++) = 0;
                     *(data++) = 0;
@@ -2619,14 +2623,14 @@ namespace MWGui
     void WindowManager::setMenuTransparency(float value)
     {
         MyGUI::ITexture* tex = MyGUI::RenderManager::getInstance().getTexture("transparent");
-        auto* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
-        for (int x = 0; x < 8; ++x)
-            for (int y = 0; y < 8; ++y)
+        auto* data = reinterpret_cast<std::uint8_t*>(tex->lock(MyGUI::TextureUsage::Write));
+        for (std::int32_t x = 0; x < 8; ++x)
+            for (std::int32_t y = 0; y < 8; ++y)
             {
                 *(data++) = 255;
                 *(data++) = 255;
                 *(data++) = 255;
-                *(data++) = static_cast<unsigned char>(value * 255);
+                *(data++) = static_cast<std::uint8_t>(value * 255);
             }
         tex->unlock();
     }
@@ -2651,7 +2655,7 @@ namespace MWGui
         return mTextColours;
     }
 
-    bool WindowManager::injectKeyPress(MyGUI::KeyCode key, unsigned int text, bool repeat)
+    bool WindowManager::injectKeyPress(MyGUI::KeyCode key, std::uint32_t text, bool repeat)
     {
         if (!mKeyboardNavigation->injectKeyPress(key, text, repeat))
         {
@@ -2777,9 +2781,9 @@ namespace MWGui
         return res;
     }
 
-    int WindowManager::getControllerMenuHeight()
+    std::int32_t WindowManager::getControllerMenuHeight()
     {
-        int height = MyGUI::RenderManager::getInstance().getViewSize().height;
+        std::int32_t height = MyGUI::RenderManager::getInstance().getViewSize().height;
         if (mControllerButtonsOverlay != nullptr && mControllerButtonsOverlay->isVisible())
             height -= mControllerButtonsOverlay->getHeight();
         if (mInventoryTabsOverlay != nullptr && mInventoryTabsOverlay->isVisible())

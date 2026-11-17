@@ -1,5 +1,6 @@
 #include "brushdraw.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <utility>
 
@@ -47,8 +48,8 @@ float CSVRender::BrushDraw::getIntersectionHeight(const osg::Vec3d& point)
 {
     osg::Vec3d start = point;
     osg::Vec3d end = point;
-    start.z() = std::numeric_limits<int>::max();
-    end.z() = std::numeric_limits<int>::lowest();
+    start.z() = std::numeric_limits<std::int32_t>::max();
+    end.z() = std::numeric_limits<std::int32_t>::lowest();
     osg::Vec3d direction = end - start;
 
     // Get intersection
@@ -115,7 +116,7 @@ void CSVRender::BrushDraw::buildSquareGeometry(const float& radius, const osg::V
     const float brushOutlineHeight(1.0f);
     const double reach = radius;
     float diameter = radius * 2;
-    int resolution = static_cast<int>(2.f * diameter / mLandSizeFactor); // half a vertex resolution
+    auto resolution = static_cast<std::int32_t>(2.f * diameter / mLandSizeFactor); // half a vertex resolution
     float resAdjustedLandSizeFactor = mLandSizeFactor / 2; // 128
 
     if (resolution > 128) // limit accuracy for performance
@@ -126,10 +127,10 @@ void CSVRender::BrushDraw::buildSquareGeometry(const float& radius, const osg::V
 
     osg::Vec4f lineColor(1.0f, 1.0f, 1.0f, 0.6f);
 
-    for (int i = 0; i < resolution; i++)
+    for (std::int32_t i = 0; i < resolution; i++)
     {
-        int step = static_cast<int>(static_cast<float>(i) * resAdjustedLandSizeFactor);
-        int step2 = static_cast<int>(static_cast<float>(i + 1) * resAdjustedLandSizeFactor);
+        auto step = static_cast<std::int32_t>(static_cast<float>(i) * resAdjustedLandSizeFactor);
+        auto step2 = static_cast<std::int32_t>(static_cast<float>(i + 1) * resAdjustedLandSizeFactor);
 
         osg::Vec3d upHorizontalLinePoint1(point.x() - reach + step, point.y() - reach,
             getIntersectionHeight(osg::Vec3d(point.x() - reach + step, point.y() - reach, point.z()))
@@ -185,12 +186,12 @@ void CSVRender::BrushDraw::buildCircleGeometry(const float& radius, const osg::V
     osg::ref_ptr<osg::Vec3Array> vertices(new osg::Vec3Array());
     osg::ref_ptr<osg::Vec4Array> colors(new osg::Vec4Array());
 
-    const int amountOfPoints = 128;
+    const std::int32_t amountOfPoints = 128;
     const float step((osg::PIf * 2.0f) / static_cast<float>(amountOfPoints));
     const float brushOutlineHeight(1.0f);
     osg::Vec4f lineColor(1.0f, 1.0f, 1.0f, 0.6f);
 
-    for (int i = 0; i < amountOfPoints + 2; i++)
+    for (std::int32_t i = 0; i < amountOfPoints + 2; i++)
     {
         float angle(static_cast<float>(i) * step);
         vertices->push_back(osg::Vec3d(point.x() + static_cast<double>(radius * cosf(angle)),
@@ -219,7 +220,7 @@ void CSVRender::BrushDraw::buildCustomGeometry(const float& radius, const osg::V
     // Not implemented
 }
 
-void CSVRender::BrushDraw::update(osg::Vec3d point, int brushSize, CSVWidget::BrushShape toolShape)
+void CSVRender::BrushDraw::update(osg::Vec3d point, std::int32_t brushSize, CSVWidget::BrushShape toolShape)
 {
     if (mBrushDrawNode->containsNode(mGeometry))
         mBrushDrawNode->removeChild(mGeometry);
@@ -227,7 +228,7 @@ void CSVRender::BrushDraw::update(osg::Vec3d point, int brushSize, CSVWidget::Br
     osg::Vec3d snapToGridPoint = point;
     if (mTextureMode)
     {
-        std::pair<int, int> snapToGridXY = CSMWorld::CellCoordinates::toTextureCoords(point);
+        std::pair<std::int32_t, std::int32_t> snapToGridXY = CSMWorld::CellCoordinates::toTextureCoords(point);
         float offsetToMiddle = mLandSizeFactor * 0.5f;
         snapToGridPoint = osg::Vec3d(
             CSMWorld::CellCoordinates::textureGlobalXToWorldCoords(snapToGridXY.first) + offsetToMiddle,
@@ -235,7 +236,7 @@ void CSVRender::BrushDraw::update(osg::Vec3d point, int brushSize, CSVWidget::Br
     }
     else
     {
-        std::pair<int, int> snapToGridXY = CSMWorld::CellCoordinates::toVertexCoords(point);
+        std::pair<std::int32_t, std::int32_t> snapToGridXY = CSMWorld::CellCoordinates::toVertexCoords(point);
         snapToGridPoint = osg::Vec3d(CSMWorld::CellCoordinates::vertexGlobalToWorldCoords(snapToGridXY.first),
             CSMWorld::CellCoordinates::vertexGlobalToWorldCoords(snapToGridXY.second), point.z());
     }

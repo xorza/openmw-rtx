@@ -1,6 +1,8 @@
 #include "loadscpt.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <numeric>
 #include <optional>
 #include <sstream>
@@ -34,12 +36,12 @@ namespace ESM
 
         void loadVarNames(const SCHD& header, std::vector<std::string>& varNames, ESMReader& esm)
         {
-            uint32_t s = header.mStringTableSize;
+            std::uint32_t s = header.mStringTableSize;
 
             std::vector<char> tmp(s);
             // not using getHExact, vanilla doesn't seem to mind unused bytes at the end
             esm.getSubHeader();
-            uint32_t left = esm.getSubSize();
+            std::uint32_t left = esm.getSubSize();
             if (left < s)
                 esm.fail("SCVR string list is smaller than specified");
             esm.getExact(tmp.data(), s);
@@ -77,7 +79,7 @@ namespace ESM
 
             const char* str = tmp.data();
             const char* const tmpEnd = tmp.data() + tmp.size();
-            for (size_t i = 0; i < varNames.size(); i++)
+            for (std::size_t i = 0; i < varNames.size(); i++)
             {
                 varNames[i] = std::string(str);
                 str += varNames[i].size() + 1;
@@ -139,7 +141,7 @@ namespace ESM
 
                     // compiled script
                     esm.getSubHeader();
-                    uint32_t subSize = esm.getSubSize();
+                    std::uint32_t subSize = esm.getSubSize();
 
                     if (subSize != header->mScriptDataSize)
                     {

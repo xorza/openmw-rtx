@@ -1,5 +1,8 @@
 #include "spellbuyingwindow.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ScrollView.h>
@@ -50,17 +53,17 @@ namespace MWGui
     {
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
-        int price = std::max(1,
-            static_cast<int>(static_cast<float>(MWMechanics::calcSpellCost(spell))
+        std::int32_t price = std::max(1,
+            static_cast<std::int32_t>(static_cast<float>(MWMechanics::calcSpellCost(spell))
                 * store.get<ESM::GameSetting>().find("fSpellValueMult")->mValue.getFloat()));
         price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
         // TODO: refactor to use MyGUI::ListBox
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
         auto* toAdd = mSpellsView->createWidget<MyGUI::Button>(price <= playerGold
                 ? "SandTextButton"
@@ -97,7 +100,7 @@ namespace MWGui
         setPtr(actor, 0);
     }
 
-    void SpellBuyingWindow::setPtr(const MWWorld::Ptr& actor, int startOffset)
+    void SpellBuyingWindow::setPtr(const MWWorld::Ptr& actor, std::int32_t startOffset)
     {
         if (actor.isEmpty() || !actor.getClass().isActor())
             throw std::runtime_error("Invalid argument in SpellBuyingWindow::setPtr");
@@ -171,7 +174,7 @@ namespace MWGui
 
     void SpellBuyingWindow::onSpellButtonClick(MyGUI::Widget* sender)
     {
-        int price = *sender->getUserData<int>();
+        std::int32_t price = *sender->getUserData<std::int32_t>();
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
         if (price > player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId))
@@ -202,7 +205,7 @@ namespace MWGui
     void SpellBuyingWindow::updateLabels()
     {
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
         mPlayerGold->setCaptionWithReplacing("#{sGold}: " + MyGUI::utility::toString(playerGold));
         mPlayerGold->setCoord(8, mPlayerGold->getTop(), mPlayerGold->getTextSize().width, mPlayerGold->getHeight());
@@ -216,13 +219,13 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->exitCurrentGuiMode();
     }
 
-    void SpellBuyingWindow::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void SpellBuyingWindow::onMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (mSpellsView->getViewOffset().top + rel * 0.3 > 0)
             mSpellsView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mSpellsView->setViewOffset(MyGUI::IntPoint(0,
-                static_cast<int>(
+                static_cast<std::int32_t>(
                     static_cast<float>(mSpellsView->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
@@ -273,13 +276,13 @@ namespace MWGui
         if (mControllerFocus < mSpellButtons.size())
         {
             // Scroll the list to keep the active item in view
-            size_t line = mSpellButtons[mControllerFocus].second;
+            std::size_t line = mSpellButtons[mControllerFocus].second;
             if (line <= 5)
                 mSpellsView->setViewOffset(MyGUI::IntPoint(0, 0));
             else
             {
-                const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
-                mSpellsView->setViewOffset(MyGUI::IntPoint(0, -lineHeight * static_cast<int>(line - 5)));
+                const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+                mSpellsView->setViewOffset(MyGUI::IntPoint(0, -lineHeight * static_cast<std::int32_t>(line - 5)));
             }
 
             // Warp the mouse to the selected spell to show the tooltip

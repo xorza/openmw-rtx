@@ -40,7 +40,7 @@ namespace Shader
         {
             std::string bytes = "DDS ";
             const auto word = [&](std::uint32_t value) {
-                for (int shift = 0; shift < 32; shift += 8)
+                for (std::int32_t shift = 0; shift < 32; shift += 8)
                     bytes.push_back(static_cast<char>((value >> shift) & 0xFFu));
             };
 
@@ -52,19 +52,19 @@ namespace Shader
             word(8);
             word(0);
             word(0);
-            for (int reserved = 0; reserved < 11; ++reserved)
+            for (std::int32_t reserved = 0; reserved < 11; ++reserved)
                 word(0);
 
             // The pixel format: a four-character code, and that code.
             word(32);
             word(0x4u);
             bytes += "DXT1";
-            for (int mask = 0; mask < 5; ++mask)
+            for (std::int32_t mask = 0; mask < 5; ++mask)
                 word(0);
 
             // A texture, and nothing past it.
             word(0x1000u);
-            for (int caps = 0; caps < 4; ++caps)
+            for (std::int32_t caps = 0; caps < 4; ++caps)
                 word(0);
 
             bytes.append(8, '\0');
@@ -109,7 +109,7 @@ namespace Shader
             std::string mType;
         };
 
-        Bound boundAt(const osg::StateSet& stateSet, unsigned int unit)
+        Bound boundAt(const osg::StateSet& stateSet, std::uint32_t unit)
         {
             const auto* texture
                 = static_cast<const osg::Texture*>(stateSet.getTextureAttribute(unit, osg::StateAttribute::TEXTURE));
@@ -180,7 +180,7 @@ namespace Shader
                 geode->accept(visitor);
 
                 std::string types;
-                for (unsigned int unit = boundType.empty() ? 1 : 2; unit < stateSet->getTextureAttributeList().size();
+                for (std::uint32_t unit = boundType.empty() ? 1 : 2; unit < stateSet->getTextureAttributeList().size();
                     ++unit)
                 {
                     const Bound bound = boundAt(*stateSet, unit);
@@ -222,7 +222,7 @@ namespace Shader
             positions->push_back(osg::Vec3f(0.0f, 1.0f, 0.0f));
 
             osg::ref_ptr<osg::DrawElementsUShort> triangles = new osg::DrawElementsUShort(GL_TRIANGLES);
-            for (const unsigned short index : std::array<unsigned short, 6>{ 0, 1, 2, 0, 2, 3 })
+            for (const std::uint16_t index : std::array<std::uint16_t, 6>{ 0, 1, 2, 0, 2, 3 })
                 triangles->push_back(index);
 
             osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
@@ -255,10 +255,10 @@ namespace Shader
 
             std::string text;
             for (const osg::Vec4f& tangent : *tangents)
-                text += "(" + std::to_string(static_cast<int>(tangent.x())) + " "
-                    + std::to_string(static_cast<int>(tangent.y())) + " "
-                    + std::to_string(static_cast<int>(tangent.z())) + " "
-                    + std::to_string(static_cast<int>(tangent.w())) + ")";
+                text += "(" + std::to_string(static_cast<std::int32_t>(tangent.x())) + " "
+                    + std::to_string(static_cast<std::int32_t>(tangent.y())) + " "
+                    + std::to_string(static_cast<std::int32_t>(tangent.z())) + " "
+                    + std::to_string(static_cast<std::int32_t>(tangent.w())) + ")";
             return text;
         }
 
@@ -356,9 +356,9 @@ namespace Shader
             // **Which unit's coordinates a unit is read through**, the rule both renderers share:
             // its own, unit nought's, then the first other than the tangents' unit, then none.
             {
-                const auto coordinatesAt = [](std::initializer_list<unsigned int> units, unsigned int unit) {
+                const auto coordinatesAt = [](std::initializer_list<std::uint32_t> units, std::uint32_t unit) {
                     osg::ref_ptr<osg::Geometry> square = makeSquare();
-                    for (const unsigned int at : units)
+                    for (const std::uint32_t at : units)
                         square->setTexCoordArray(at, squareCoordinates(false));
                     return coordinatesFor(*square, unit);
                 };

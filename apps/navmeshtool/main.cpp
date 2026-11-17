@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -133,7 +134,7 @@ namespace NavMeshTool
             return result;
         }
 
-        int runNavMeshTool(int argc, char* argv[])
+        std::int32_t runNavMeshTool(std::int32_t argc, char* argv[])
         {
             Platform::init();
 
@@ -320,7 +321,7 @@ namespace NavMeshTool
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     return Debug::wrapApplication(NavMeshTool::runNavMeshTool, argc, argv, NavMeshTool::applicationName);
 }

@@ -21,14 +21,14 @@ namespace ESM
         // The minimum and maximum cell coordinates
         struct Bounds
         {
-            int32_t mMinX, mMaxX, mMinY, mMaxY;
+            std::int32_t mMinX, mMaxX, mMinY, mMaxY;
         };
 
         Bounds mBounds{};
 
         std::vector<char> mImageData;
 
-        typedef std::pair<int, int> CellId;
+        typedef std::pair<std::int32_t, std::int32_t> CellId;
         std::set<CellId> mMarkers;
 
         void load(ESMReader& esm);

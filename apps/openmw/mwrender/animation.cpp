@@ -137,8 +137,8 @@ namespace
     public:
         void operator()(osg::Switch* node, osg::NodeVisitor* nv)
         {
-            unsigned int state = MWBase::Environment::get().getWorld()->getNightDayMode();
-            const unsigned int newState = node->getNumChildren() > state ? state : 0;
+            std::uint32_t state = MWBase::Environment::get().getWorld()->getNightDayMode();
+            const std::uint32_t newState = node->getNumChildren() > state ? state : 0;
 
             const osg::Switch::ValueList& values = node->getValueList();
             if (newState >= values.size() || !values[newState] || std::count(values.begin(), values.end(), true) != 1)
@@ -435,7 +435,7 @@ namespace
         // Traverse child bones if this is a group
         osg::Group* group = parent->asGroup();
         if (group)
-            for (unsigned int i = 0; i < group->getNumChildren(); ++i)
+            for (std::uint32_t i = 0; i < group->getNumChildren(); ++i)
                 assignBoneBlendCallbackRecursive(controller, group->getChild(i), false);
     }
 }
@@ -587,7 +587,7 @@ namespace MWRender
         removeFromSceneImpl();
     }
 
-    void Animation::setActive(int active)
+    void Animation::setActive(std::int32_t active)
     {
         if (mSkeleton)
             mSkeleton->setActive(static_cast<SceneUtil::Skeleton::ActiveType>(active));
@@ -607,7 +607,7 @@ namespace MWRender
     }
 
     // controllerName is used for Collada animated deforming models
-    size_t Animation::detectBlendMask(const osg::Node* node, const std::string& controllerName) const
+    std::size_t Animation::detectBlendMask(const osg::Node* node, const std::string& controllerName) const
     {
         static const std::string_view sBlendMaskRoots[sNumBlendMasks] = {
             "", /* Lower body / character root */
@@ -619,7 +619,7 @@ namespace MWRender
         while (node != mObjectRoot)
         {
             const std::string& name = node->getName();
-            for (size_t i = 1; i < sNumBlendMasks; i++)
+            for (std::size_t i = 1; i < sNumBlendMasks; i++)
             {
                 if (name == sBlendMaskRoots[i] || controllerName == sBlendMaskRoots[i])
                     return i;
@@ -707,7 +707,7 @@ namespace MWRender
 
             osg::Node* node = found->second;
 
-            size_t blendMask = detectBlendMask(node, entry.second->getName());
+            std::size_t blendMask = detectBlendMask(node, entry.second->getName());
 
             // clone the controller, because each Animation needs its own ControllerSource
             osg::ref_ptr<SceneUtil::KeyframeController> cloned
@@ -882,7 +882,7 @@ namespace MWRender
 
         if (evt.starts_with(groupname) && evt.substr(groupname.size()).starts_with(": "))
         {
-            size_t off = groupname.size() + 2;
+            std::size_t off = groupname.size() + 2;
             if (evt.substr(off) == "loop start")
                 state.mLoopStartTime = key->first;
             else if (evt.substr(off) == "loop stop")
@@ -900,9 +900,9 @@ namespace MWRender
         }
     }
 
-    void Animation::play(std::string_view groupname, const AnimPriority& priority, int blendMask, bool autodisable,
-        float speedmult, std::string_view start, std::string_view stop, float startpoint, uint32_t loops,
-        bool loopfallback)
+    void Animation::play(std::string_view groupname, const AnimPriority& priority, std::int32_t blendMask,
+        bool autodisable, float speedmult, std::string_view start, std::string_view stop, float startpoint,
+        std::uint32_t loops, bool loopfallback)
     {
         if (!mObjectRoot || mAnimSources.empty())
             return;
@@ -1145,7 +1145,7 @@ namespace MWRender
 
         mAccumCtrl = nullptr;
 
-        for (size_t blendMask = 0; blendMask < sNumBlendMasks; blendMask++)
+        for (std::size_t blendMask = 0; blendMask < sNumBlendMasks; blendMask++)
         {
             auto active = mStates.end();
 
@@ -1232,7 +1232,8 @@ namespace MWRender
         return false;
     }
 
-    bool Animation::getInfo(std::string_view groupname, float* complete, float* speedmult, uint32_t* loopcount) const
+    bool Animation::getInfo(
+        std::string_view groupname, float* complete, float* speedmult, std::uint32_t* loopcount) const
     {
         auto iter = mStates.find(groupname);
         if (iter == mStates.end())
@@ -1867,10 +1868,10 @@ namespace MWRender
     {
         for (const auto& state : mStates)
         {
-            if (state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Hit))
-                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Weapon))
-                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Knockdown))
-                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Death)))
+            if (state.second.mPriority.contains(static_cast<std::int32_t>(MWMechanics::Priority_Hit))
+                || state.second.mPriority.contains(static_cast<std::int32_t>(MWMechanics::Priority_Weapon))
+                || state.second.mPriority.contains(static_cast<std::int32_t>(MWMechanics::Priority_Knockdown))
+                || state.second.mPriority.contains(static_cast<std::int32_t>(MWMechanics::Priority_Death)))
                 return false;
         }
         return true;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -54,12 +56,12 @@ namespace DetourNavigator
 
         void removeObject(ObjectId id, const UpdateGuard* guard);
 
-        void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard);
+        void addWater(const osg::Vec2i& cellPosition, std::int32_t cellSize, float level, const UpdateGuard* guard);
 
         void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
 
-        void addHeightfield(
-            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard);
+        void addHeightfield(const osg::Vec2i& cellPosition, std::int32_t cellSize, const HeightfieldShape& shape,
+            const UpdateGuard* guard);
 
         void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
 
@@ -106,7 +108,7 @@ namespace DetourNavigator
 
         struct HeightfieldData
         {
-            int mCellSize{};
+            std::int32_t mCellSize{};
             HeightfieldShape mShape;
             std::optional<TilesPositionsRange> mRange;
             std::size_t mRevision{};
@@ -118,7 +120,7 @@ namespace DetourNavigator
             std::shared_ptr<RecastMesh> mRecastMesh;
         };
 
-        using IndexPoint = boost::geometry::model::point<int, 2, boost::geometry::cs::cartesian>;
+        using IndexPoint = boost::geometry::model::point<std::int32_t, 2, boost::geometry::cs::cartesian>;
         using IndexBox = boost::geometry::model::box<IndexPoint>;
         using ObjectIndexValue = std::pair<IndexBox, ObjectData*>;
         using WaterIndexValue = std::pair<IndexBox, std::map<osg::Vec2i, WaterData>::const_iterator>;

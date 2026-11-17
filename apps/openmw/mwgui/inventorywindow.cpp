@@ -1,6 +1,8 @@
 #include "inventorywindow.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
 
@@ -48,7 +50,7 @@ namespace
     {
         if (item.getClass().getType() != ESM::Weapon::sRecordId)
             return false;
-        std::vector<int> equipmentSlots = item.getClass().getEquipmentSlots(item).first;
+        std::vector<std::int32_t> equipmentSlots = item.getClass().getEquipmentSlots(item).first;
         return (!equipmentSlots.empty() && equipmentSlots.front() == MWWorld::InventoryStore::Slot_CarriedRight);
     }
 
@@ -155,7 +157,7 @@ namespace MWGui
     void InventoryWindow::adjustPanes()
     {
         const float aspect = 0.5; // fixed aspect ratio for the avatar image
-        int leftPaneWidth = static_cast<int>(
+        std::int32_t leftPaneWidth = static_cast<std::int32_t>(
             static_cast<float>((mMainWidget->getSize().height - 44 - mArmorRating->getHeight())) * aspect);
         mLeftPane->setSize(leftPaneWidth, mMainWidget->getSize().height - 44);
         mRightPane->setCoord(mLeftPane->getPosition().left + leftPaneWidth + 4, mRightPane->getPosition().top,
@@ -212,10 +214,10 @@ namespace MWGui
         const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mRegular : settings.mMaximized;
 
         MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        const int x = static_cast<int>(rect.mX * static_cast<float>(viewSize.width));
-        const int y = static_cast<int>(rect.mY * static_cast<float>(viewSize.height));
-        const int w = static_cast<int>(rect.mW * static_cast<float>(viewSize.width));
-        const int h = static_cast<int>(rect.mH * static_cast<float>(viewSize.height));
+        const auto x = static_cast<std::int32_t>(rect.mX * static_cast<float>(viewSize.width));
+        const auto y = static_cast<std::int32_t>(rect.mY * static_cast<float>(viewSize.height));
+        const auto w = static_cast<std::int32_t>(rect.mW * static_cast<float>(viewSize.width));
+        const auto h = static_cast<std::int32_t>(rect.mH * static_cast<float>(viewSize.height));
         auto* window = mMainWidget->castType<MyGUI::Window>();
         window->setCoord(x, y, w, h);
 
@@ -244,10 +246,10 @@ namespace MWGui
         const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mMaximized : settings.mRegular;
 
         MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        MyGUI::IntPoint pos(static_cast<int>(rect.mX * static_cast<float>(viewSize.width)),
-            static_cast<int>(rect.mY * static_cast<float>(viewSize.height)));
-        MyGUI::IntSize size(static_cast<int>(rect.mW * static_cast<float>(viewSize.width)),
-            static_cast<int>(rect.mH * static_cast<float>(viewSize.height)));
+        MyGUI::IntPoint pos(static_cast<std::int32_t>(rect.mX * static_cast<float>(viewSize.width)),
+            static_cast<std::int32_t>(rect.mY * static_cast<float>(viewSize.height)));
+        MyGUI::IntSize size(static_cast<std::int32_t>(rect.mW * static_cast<float>(viewSize.width)),
+            static_cast<std::int32_t>(rect.mH * static_cast<float>(viewSize.height)));
 
         bool needUpdate = (size.width != mMainWidget->getWidth() || size.height != mMainWidget->getHeight());
 
@@ -263,7 +265,7 @@ namespace MWGui
         mItemView->update();
     }
 
-    void InventoryWindow::onResChange(int /*width*/, int /*height*/)
+    void InventoryWindow::onResChange(std::int32_t /*width*/, std::int32_t /*height*/)
     {
         placeForMode();
         updatePreviewSize();
@@ -290,12 +292,12 @@ namespace MWGui
             mDragAndDrop->drop(mTradeModel, mItemView);
     }
 
-    void InventoryWindow::onItemSelected(int index)
+    void InventoryWindow::onItemSelected(std::int32_t index)
     {
         onItemSelectedFromSourceModel(mSortModel->mapToSource(index));
     }
 
-    void InventoryWindow::onItemSelectedFromSourceModel(int index)
+    void InventoryWindow::onItemSelectedFromSourceModel(std::int32_t index)
     {
         if (mDragAndDrop->mIsOnDragAndDrop)
         {
@@ -307,7 +309,7 @@ namespace MWGui
         const ESM::RefId& sound = item.mBase.getClass().getDownSoundId(item.mBase);
 
         MWWorld::Ptr object = item.mBase;
-        size_t count = item.mCount;
+        std::size_t count = item.mCount;
         bool shift = MyGUI::InputManager::getInstance().isShiftPressed();
 
         if (MyGUI::InputManager::getInstance().isControlPressed())
@@ -324,7 +326,8 @@ namespace MWGui
             }
 
             // check if merchant accepts item
-            int services = MWBase::Environment::get().getWindowManager()->getTradeWindow()->getMerchantServices();
+            std::int32_t services
+                = MWBase::Environment::get().getWindowManager()->getTradeWindow()->getMerchantServices();
             if (!object.getClass().canSell(object, services))
             {
                 MWBase::Environment::get().getWindowManager()->playSound(sound);
@@ -358,7 +361,7 @@ namespace MWGui
                 message = "#{sDrop}";
             std::string name{ object.getClass().getName(object) };
             name += MWGui::ToolTips::getSoulString(object.getCellRef());
-            dialog->openCountDialog(name, message, static_cast<int>(count));
+            dialog->openCountDialog(name, message, static_cast<std::int32_t>(count));
             dialog->eventOkClicked.clear();
             if (mTrading || mPendingControllerAction == ControllerAction::Sell)
                 dialog->eventOkClicked += MyGUI::newDelegate(this, &InventoryWindow::sellItem);
@@ -392,7 +395,7 @@ namespace MWGui
         mPendingControllerAction = ControllerAction::None;
     }
 
-    void InventoryWindow::ensureSelectedItemUnequipped(int count)
+    void InventoryWindow::ensureSelectedItemUnequipped(std::int32_t count)
     {
         const ItemStack& item = mTradeModel->getItem(mSelectedItem);
         if (item.mType == ItemStack::Type_Equipped)
@@ -407,12 +410,12 @@ namespace MWGui
                 updateItemView(); // Unequipping can produce a new stack, not yet in the window...
 
                 // newIndex will store the index of the ItemStack the item was stacked on
-                int newIndex = -1;
-                for (size_t i = 0; i < mTradeModel->getItemCount(); ++i)
+                std::int32_t newIndex = -1;
+                for (std::size_t i = 0; i < mTradeModel->getItemCount(); ++i)
                 {
                     if (mTradeModel->getItem(static_cast<ItemModel::ModelIndex>(i)).mBase == newStack)
                     {
-                        newIndex = static_cast<int>(i);
+                        newIndex = static_cast<std::int32_t>(i);
                         break;
                     }
                 }
@@ -427,21 +430,21 @@ namespace MWGui
 
     void InventoryWindow::dragItem(MyGUI::Widget* /*sender*/, std::size_t count)
     {
-        ensureSelectedItemUnequipped(static_cast<int>(count));
+        ensureSelectedItemUnequipped(static_cast<std::int32_t>(count));
         mDragAndDrop->startDrag(mSelectedItem, mSortModel, mTradeModel, mItemView, count);
         notifyContentChanged();
     }
 
     void InventoryWindow::transferItem(MyGUI::Widget* /*sender*/, std::size_t count)
     {
-        ensureSelectedItemUnequipped(static_cast<int>(count));
+        ensureSelectedItemUnequipped(static_cast<std::int32_t>(count));
         mItemTransfer->apply(mTradeModel->getItem(mSelectedItem), count, *mItemView);
         notifyContentChanged();
     }
 
     void InventoryWindow::sellItem(MyGUI::Widget* /*sender*/, std::size_t count)
     {
-        ensureSelectedItemUnequipped(static_cast<int>(count));
+        ensureSelectedItemUnequipped(static_cast<std::int32_t>(count));
         const ItemStack& item = mTradeModel->getItem(mSelectedItem);
         const ESM::RefId& sound = item.mBase.getClass().getUpSoundId(item.mBase);
         MWBase::Environment::get().getWindowManager()->playSound(sound);
@@ -463,7 +466,7 @@ namespace MWGui
         notifyContentChanged();
     }
 
-    void InventoryWindow::dropItem(MyGUI::Widget* sender, size_t count)
+    void InventoryWindow::dropItem(MyGUI::Widget* sender, std::size_t count)
     {
         if (mGuiMode != MWGui::GM_Inventory)
             return;
@@ -479,7 +482,7 @@ namespace MWGui
     void InventoryWindow::equipItem(std::size_t count)
     {
         const ItemStack& item = mTradeModel->getItem(mSelectedItem);
-        ensureSelectedItemUnequipped(static_cast<int>(count));
+        ensureSelectedItemUnequipped(static_cast<std::int32_t>(count));
         // Disable the pick up sound as the item will be used immediately
         mDragAndDrop->startDrag(mSelectedItem, mSortModel, mTradeModel, mItemView, count, false);
         notifyContentChanged();
@@ -557,7 +560,7 @@ namespace MWGui
         if (mPtr.isEmpty())
             return;
 
-        auto rating = MyGUI::utility::toString(static_cast<int>(mPtr.getClass().getArmorRating(mPtr, true)));
+        auto rating = MyGUI::utility::toString(static_cast<std::int32_t>(mPtr.getClass().getArmorRating(mPtr, true)));
         mArmorRating->setCaptionWithReplacing("#{sArmor}: " + rating);
         if (mArmorRating->getTextSize().width > mArmorRating->getSize().width)
             mArmorRating->setCaptionWithReplacing(rating);
@@ -679,7 +682,8 @@ namespace MWGui
 
         MWWorld::InventoryStore& invStore = mPtr.getClass().getInventoryStore(mPtr);
         auto [eqSlots, canStack] = ptr.getClass().getEquipmentSlots(ptr);
-        int useCount = isFromDragAndDrop ? static_cast<int>(mDragAndDrop->mDraggedCount) : ptr.getCellRef().getCount();
+        std::int32_t useCount
+            = isFromDragAndDrop ? static_cast<std::int32_t>(mDragAndDrop->mDraggedCount) : ptr.getCellRef().getCount();
 
         if (!eqSlots.empty())
         {
@@ -691,7 +695,7 @@ namespace MWGui
         action->execute(player, !willEquip);
 
         // Partial equipping
-        int excess = ptr.getCellRef().getCount() - useCount;
+        std::int32_t excess = ptr.getCellRef().getCount() - useCount;
         if (excess > 0 && canStack)
             invStore.unequipItemQuantity(ptr, excess);
 
@@ -739,11 +743,11 @@ namespace MWGui
             if (itemSelected.isEmpty())
                 return;
 
-            for (size_t i = 0; i < mTradeModel->getItemCount(); ++i)
+            for (std::size_t i = 0; i < mTradeModel->getItemCount(); ++i)
             {
                 if (mTradeModel->getItem(static_cast<ItemModel::ModelIndex>(i)).mBase == itemSelected)
                 {
-                    onItemSelectedFromSourceModel(static_cast<int>(i));
+                    onItemSelectedFromSourceModel(static_cast<std::int32_t>(i));
                     return;
                 }
             }
@@ -751,10 +755,10 @@ namespace MWGui
         }
     }
 
-    MWWorld::Ptr InventoryWindow::getAvatarSelectedItem(int x, int y)
+    MWWorld::Ptr InventoryWindow::getAvatarSelectedItem(std::int32_t x, std::int32_t y)
     {
         const osg::Vec2i viewportCoords = mapPreviewWindowToViewport(x, y);
-        int slot = mPreview->getSlotSelected(viewportCoords.x(), viewportCoords.y());
+        std::int32_t slot = mPreview->getSlotSelected(viewportCoords.x(), viewportCoords.y());
 
         if (slot == -1)
             return MWWorld::Ptr();
@@ -775,10 +779,10 @@ namespace MWGui
     {
         MWWorld::Ptr player = MWMechanics::getPlayer();
 
-        int capacity = static_cast<int>(player.getClass().getCapacity(player));
+        auto capacity = static_cast<std::int32_t>(player.getClass().getCapacity(player));
         float encumbrance = player.getClass().getEncumbrance(player);
         mTradeModel->adjustEncumbrance(encumbrance);
-        mEncumbranceBar->setValue(static_cast<int>(std::ceil(encumbrance)), capacity);
+        mEncumbranceBar->setValue(static_cast<std::int32_t>(std::ceil(encumbrance)), capacity);
     }
 
     void InventoryWindow::onFrame(float dt)
@@ -842,7 +846,7 @@ namespace MWGui
         if (!object.getClass().hasToolTip(object))
             return;
 
-        int count = object.getCellRef().getCount();
+        std::int32_t count = object.getCellRef().getCount();
         if (object.getClass().isGold(object))
             count *= object.getClass().getValue(object);
 
@@ -875,7 +879,7 @@ namespace MWGui
 
         // get ModelIndex to the item
         mTradeModel->update();
-        size_t i = 0;
+        std::size_t i = 0;
         for (; i < mTradeModel->getItemCount(); ++i)
         {
             if (mTradeModel->getItem(static_cast<ItemModel::ModelIndex>(i)).mBase == newObject)
@@ -896,7 +900,7 @@ namespace MWGui
         else
         {
             mDragAndDrop->startDrag(
-                static_cast<int>(i), mSortModel, mTradeModel, mItemView, static_cast<std::size_t>(count));
+                static_cast<std::int32_t>(i), mSortModel, mTradeModel, mItemView, static_cast<std::size_t>(count));
         }
 
         MWBase::Environment::get().getWindowManager()->updateSpellWindow();
@@ -928,13 +932,13 @@ namespace MWGui
                 selected = i;
         }
 
-        int incr = next ? 1 : -1;
+        std::int32_t incr = next ? 1 : -1;
         bool found = false;
         ESM::RefId lastId;
         if (selected != -1)
             lastId = model.getItem(selected).mBase.getCellRef().getRefId();
         ItemModel::ModelIndex cycled = selected;
-        for (size_t i = 0; i < model.getItemCount(); ++i)
+        for (std::size_t i = 0; i < model.getItemCount(); ++i)
         {
             cycled += incr;
             cycled = static_cast<ItemModel::ModelIndex>(
@@ -980,20 +984,20 @@ namespace MWGui
         const float scale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
 
         return MyGUI::IntSize(std::min(mPreview->getTextureWidth(),
-                                  static_cast<int>(static_cast<float>(previewWindowSize.width) * scale)),
-            std::min(
-                mPreview->getTextureHeight(), static_cast<int>(static_cast<float>(previewWindowSize.height) * scale)));
+                                  static_cast<std::int32_t>(static_cast<float>(previewWindowSize.width) * scale)),
+            std::min(mPreview->getTextureHeight(),
+                static_cast<std::int32_t>(static_cast<float>(previewWindowSize.height) * scale)));
     }
 
-    osg::Vec2i InventoryWindow::mapPreviewWindowToViewport(int x, int y) const
+    osg::Vec2i InventoryWindow::mapPreviewWindowToViewport(std::int32_t x, std::int32_t y) const
     {
         const MyGUI::IntSize previewWindowSize = mAvatarImage->getSize();
         const float normalisedX = static_cast<float>(x) / std::max(1.f, static_cast<float>(previewWindowSize.width));
         const float normalisedY = static_cast<float>(y) / std::max(1.f, static_cast<float>(previewWindowSize.height));
 
         const MyGUI::IntSize viewport = getPreviewViewportSize();
-        return osg::Vec2i(static_cast<int>(normalisedX * static_cast<float>((viewport.width - 1))),
-            static_cast<int>((1 - normalisedY) * static_cast<float>((viewport.height - 1))));
+        return osg::Vec2i(static_cast<std::int32_t>(normalisedX * static_cast<float>((viewport.width - 1))),
+            static_cast<std::int32_t>((1 - normalisedY) * static_cast<float>((viewport.height - 1))));
     }
 
     ControllerButtons* InventoryWindow::getControllerButtons()
@@ -1119,10 +1123,10 @@ namespace MWGui
             // Fill the screen, or limit to a certain size on large screens. Size chosen to
             // match the size of the stats window.
             MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-            int width = std::min(viewSize.width, 1600);
-            int height = std::min(winMgr->getControllerMenuHeight(), StatsWindow::getIdealHeight());
-            int x = (viewSize.width - width) / 2;
-            int y = (viewSize.height - height) / 2;
+            std::int32_t width = std::min(viewSize.width, 1600);
+            std::int32_t height = std::min(winMgr->getControllerMenuHeight(), StatsWindow::getIdealHeight());
+            std::int32_t x = (viewSize.width - width) / 2;
+            std::int32_t y = (viewSize.height - height) / 2;
 
             auto* window = mMainWidget->castType<MyGUI::Window>();
             window->setCoord(x, active ? y : viewSize.height + 1, width, height);

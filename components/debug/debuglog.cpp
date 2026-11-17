@@ -26,7 +26,7 @@ Log::Log(Debug::Level level)
     if (!sWriteLevel)
         return;
 
-    std::cout << static_cast<unsigned char>(level);
+    std::cout << static_cast<char>(level);
 }
 
 Log::~Log()

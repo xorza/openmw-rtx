@@ -483,15 +483,6 @@ benches are not owed. From item 8 on, a change to what a frame reads owes `./omw
 drm-shim; a hot path owes its allocation test; each item ends with the tours it names. Vanilla's pictures do not move
 in any item.
 
-### 5. Integers
-
-1. **The fork's code normalized**, then **upstream's**.
-2. **`long`, `unsigned long`, `long long` and `L`/`LL` literals by hand** (81 keywords, about 66 literals), each its
-   width: a file offset 64 bits, a C API's own type kept with its reason. Among them the Lua `seek` offset
-   (`mwlua/vfsbindings.cpp`, `sol::optional<long>`), 32 bits on Windows.
-3. **`google-runtime-int` on**, `SignedTypePrefix: std::int`, `UnsignedTypePrefix: std::uint`, `TypeSuffix: _t`, and
-   **`modernize-deprecated-headers`** (21 `<stdint.h>`-style includes).
-
 ### 6. The next clang-tidy checks
 
 The pinned clang-tidy is 23. `clang-tidy --list-checks -checks='*'` is read first: checks move between groups across
@@ -685,6 +676,12 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **4. Includes**: the standard library's category matches case-sensitively, so Qt's `<QDialog>` stands with the other
+  libraries, and `processwin32.cpp` keeps the tree's Windows header in a block ahead of the SDK's.
+- **5. Integers**: a `ull` literal stays, 64 bits on both targets and checked by no lint; `L` only where an API's `long`
+  asks it (`std::lround`, zlib's `crc32`). A cast's declaration became `auto` where `modernize-use-auto` newly reached a
+  fixed width's longer name.
 
 - **3. The normalizer**: `omw format --check` fails a file the rules would change, where the plan named `omw lint`, so
   the check CI's checks job and the gate already run holds it with no second step; it also quotes an own-folder

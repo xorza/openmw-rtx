@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace Interpreter
 {
     class Runtime;
@@ -17,7 +19,7 @@ namespace Interpreter
     class Opcode1
     {
     public:
-        virtual void execute(Runtime& runtime, unsigned int arg0) = 0;
+        virtual void execute(Runtime& runtime, std::uint32_t arg0) = 0;
 
         virtual ~Opcode1() = default;
     };

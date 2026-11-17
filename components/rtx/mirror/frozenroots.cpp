@@ -1,6 +1,8 @@
 #include "frozenroots.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <span>
 #include <utility>
 
@@ -13,7 +15,7 @@ namespace Rtx
     FrozenRoots::Face FrozenRoots::Face::of(const osg::Node& root, const osg::Matrix& world, const std::size_t identity)
     {
         const osg::Group* group = root.asGroup();
-        const unsigned int children = group != nullptr ? group->getNumChildren() : 0;
+        const std::uint32_t children = group != nullptr ? group->getNumChildren() : 0;
         return Face{
             .mWorld = world,
             .mIdentity = identity,
@@ -65,7 +67,7 @@ namespace Rtx
         mUpdate = nullptr;
     }
 
-    void FrozenRoots::meet(Frozen& frozen, const unsigned int walk)
+    void FrozenRoots::meet(Frozen& frozen, const std::uint32_t walk)
     {
         if (mMetBy != walk)
         {
@@ -79,8 +81,8 @@ namespace Rtx
         }
     }
 
-    bool FrozenRoots::pass(
-        const osg::Node& root, const Face& face, const unsigned int walk, const Holders holders, ExtractionStats& stats)
+    bool FrozenRoots::pass(const osg::Node& root, const Face& face, const std::uint32_t walk, const Holders holders,
+        ExtractionStats& stats)
     {
         const auto known = mFrozen.find(&root);
         if (known == mFrozen.end())
@@ -116,7 +118,7 @@ namespace Rtx
         mRecorded.clear();
     }
 
-    void FrozenRoots::end(const osg::Node& root, const Face& face, const bool changeable, const unsigned int walk,
+    void FrozenRoots::end(const osg::Node& root, const Face& face, const bool changeable, const std::uint32_t walk,
         const Holders holders, const std::uint32_t instances)
     {
         mRecording = false;
@@ -177,7 +179,7 @@ namespace Rtx
         holders.mReleased.keep(root);
     }
 
-    void FrozenRoots::thawUnmet(const unsigned int walk, const Holders holders)
+    void FrozenRoots::thawUnmet(const std::uint32_t walk, const Holders holders)
     {
         if (mMetBy != walk || mMet != mFrozen.size())
             boost::unordered::erase_if(mFrozen, [&](auto& frozen) {

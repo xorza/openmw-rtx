@@ -1,6 +1,7 @@
 #include "detourdebugdraw.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <osg/Group>
 #include <osg/PolygonOffset>
@@ -60,23 +61,23 @@ namespace SceneUtil
         begin(toOsgPrimitiveSetMode(prim), size);
     }
 
-    void DebugDraw::vertex(const float* pos, unsigned color)
+    void DebugDraw::vertex(const float* pos, std::uint32_t color)
     {
         vertex(pos[0], pos[1], pos[2], color);
     }
 
-    void DebugDraw::vertex(const float x, const float y, const float z, unsigned color)
+    void DebugDraw::vertex(const float x, const float y, const float z, std::uint32_t color)
     {
         addVertex(osg::Vec3f(x, y, z));
         addColor(SceneUtil::colourFromRGBA(color));
     }
 
-    void DebugDraw::vertex(const float* pos, unsigned color, const float* uv)
+    void DebugDraw::vertex(const float* pos, std::uint32_t color, const float* uv)
     {
         vertex(pos[0], pos[1], pos[2], color, uv[0], uv[1]);
     }
 
-    void DebugDraw::vertex(const float x, const float y, const float z, unsigned color, const float, const float)
+    void DebugDraw::vertex(const float x, const float y, const float z, std::uint32_t color, const float, const float)
     {
         addVertex(osg::Vec3f(x, y, z));
         addColor(SceneUtil::colourFromRGBA(color));
@@ -85,7 +86,7 @@ namespace SceneUtil
     void DebugDraw::end()
     {
         const osg::ref_ptr<osg::DrawArrays> drawArrays
-            = new osg::DrawArrays(mMode, 0, static_cast<int>(mVertices->size()));
+            = new osg::DrawArrays(mMode, 0, static_cast<std::int32_t>(mVertices->size()));
 
         osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
         geometry->setStateSet(mStateSet);

@@ -1,5 +1,7 @@
 #include "objects.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -98,7 +100,7 @@ namespace MWMechanics
     }
 
     bool Objects::playAnimationGroup(
-        const MWWorld::Ptr& ptr, std::string_view groupName, int mode, uint32_t number, bool scripted)
+        const MWWorld::Ptr& ptr, std::string_view groupName, std::int32_t mode, std::uint32_t number, bool scripted)
     {
         const auto iter = mIndex.find(ptr.mRef);
         if (iter != mIndex.end())
@@ -113,7 +115,7 @@ namespace MWMechanics
         }
     }
 
-    bool Objects::playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops,
+    bool Objects::playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, std::uint32_t loops,
         float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop)
     {
         const auto iter = mIndex.find(ptr.mRef);

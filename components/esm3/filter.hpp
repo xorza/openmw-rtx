@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <components/esm/defs.hpp>
@@ -16,7 +17,7 @@ namespace ESM
 
         static constexpr std::string_view getRecordType() { return "Filter"; }
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         std::string mDescription;

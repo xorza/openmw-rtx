@@ -85,7 +85,7 @@ namespace MWRender
                 traverse(node, visitor);
             }
 
-            unsigned int mReached = 0;
+            std::uint32_t mReached = 0;
         };
 
         /// A camera with the world under it, the way a renderer hangs the scene root.
@@ -206,7 +206,7 @@ namespace MWRender
                 {
                     const FrameReport report{ .mUpload = Rtx::SceneUpload{ .mKind = upload }, .mCellsToStand = left };
                     EXPECT_EQ(report.isWhole(), upload == Kind::Placed && left == 0)
-                        << "upload " << static_cast<int>(upload) << ", " << left << " cells to stand";
+                        << "upload " << static_cast<std::int32_t>(upload) << ", " << left << " cells to stand";
                 }
         }
     }

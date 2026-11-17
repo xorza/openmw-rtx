@@ -1,5 +1,7 @@
 #include "racebindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -150,7 +152,7 @@ namespace MWLua
 {
     namespace
     {
-        void setFlagProperty(const sol::table& rec, std::string_view key, int32_t& flags, int flag)
+        void setFlagProperty(const sol::table& rec, std::string_view key, std::int32_t& flags, std::int32_t flag)
         {
             if (rec[key] != sol::nil)
             {
@@ -187,9 +189,9 @@ namespace MWLua
             {
                 auto table = value.as<sol::lua_table>();
                 race.mPowers.mList.clear();
-                const size_t length = table.size();
+                const std::size_t length = table.size();
                 race.mPowers.mList.reserve(length);
-                for (size_t i = 0; i < length; ++i)
+                for (std::size_t i = 0; i < length; ++i)
                 {
                     const ESM::RefId spell = ESM::RefId::deserializeText(
                         table.get<std::string_view>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))));
@@ -206,7 +208,7 @@ namespace MWLua
             else if (value.is<RaceSkills>())
             {
                 const std::array<ESM::Race::SkillBonus, 7>& bonuses = value.as<RaceSkills>().find();
-                for (size_t i = 0; i < race.mData.mBonus.size(); ++i)
+                for (std::size_t i = 0; i < race.mData.mBonus.size(); ++i)
                     race.mData.mBonus[i] = bonuses[i];
             }
             else
@@ -219,7 +221,7 @@ namespace MWLua
                     {
                         const auto& [k, v] = *it;
                         const ESM::RefId skill = ESM::RefId::deserializeText(k.as<std::string_view>());
-                        const int bonus = v.as<int>();
+                        const std::int32_t bonus = v.as<std::int32_t>();
                         entry.mSkill = skill;
                         entry.mBonus = bonus;
                         ++it;
@@ -323,30 +325,31 @@ namespace MWLua
                 auto spellsT = lua.new_usertype<RaceSpells>("ESM3_MutableRaceSpells");
                 spellsT[sol::meta_function::length] = [](const RaceSpells& spells) { return spells.find().size(); };
                 spellsT[sol::meta_function::index]
-                    = [](const RaceSpells& spells, uint32_t index) -> std::optional<ESM::RefId> {
+                    = [](const RaceSpells& spells, std::uint32_t index) -> std::optional<ESM::RefId> {
                     const auto& vec = spells.find();
                     if (index == 0 || index > vec.size())
                         return {};
                     return vec[index - 1];
                 };
-                spellsT[sol::meta_function::new_index] = [](RaceSpells& spells, uint32_t i, const sol::object& value) {
-                    auto& vec = spells.find();
-                    if (i == 0 || i > vec.size() + 1)
-                        throw std::runtime_error("index out of range");
-                    --i;
-                    if (value == sol::nil)
-                    {
-                        if (i >= vec.size())
-                            return;
-                        vec.erase(vec.begin() + i);
-                        return;
-                    }
-                    const ESM::RefId id = ESM::RefId::deserializeText(value.as<std::string_view>());
-                    if (i == vec.size())
-                        vec.push_back(id);
-                    else
-                        vec[i] = id;
-                };
+                spellsT[sol::meta_function::new_index]
+                    = [](RaceSpells& spells, std::uint32_t i, const sol::object& value) {
+                          auto& vec = spells.find();
+                          if (i == 0 || i > vec.size() + 1)
+                              throw std::runtime_error("index out of range");
+                          --i;
+                          if (value == sol::nil)
+                          {
+                              if (i >= vec.size())
+                                  return;
+                              vec.erase(vec.begin() + i);
+                              return;
+                          }
+                          const ESM::RefId id = ESM::RefId::deserializeText(value.as<std::string_view>());
+                          if (i == vec.size())
+                              vec.push_back(id);
+                          else
+                              vec[i] = id;
+                      };
                 spellsT[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();
                 spellsT[sol::meta_function::pairs] = lua["ipairsForArray"].template get<sol::function>();
 
@@ -357,7 +360,7 @@ namespace MWLua
                     });
                 auto skillsT = lua.new_usertype<RaceSkills>("ESM3_MutableRaceSkills");
                 skillsT[sol::meta_function::index]
-                    = [](const RaceSkills& skills, std::string_view index) -> std::optional<int> {
+                    = [](const RaceSkills& skills, std::string_view index) -> std::optional<std::int32_t> {
                     const auto& bonuses = skills.find();
                     const ESM::RefId skill = ESM::RefId::deserializeText(index);
                     if (skill.empty())
@@ -370,7 +373,7 @@ namespace MWLua
                     return {};
                 };
                 skillsT[sol::meta_function::new_index] = [](RaceSkills& skills, std::string_view index,
-                                                             std::optional<int> value) {
+                                                             std::optional<std::int32_t> value) {
                     auto& bonuses = skills.find();
                     const ESM::RefId skill = ESM::RefId::deserializeText(index);
                     if (skill.empty())
@@ -385,8 +388,8 @@ namespace MWLua
                         return;
                     }
                     bool set = false;
-                    size_t firstEmpty = bonuses.size() + 1;
-                    for (size_t i = 0; i < bonuses.size(); ++i)
+                    std::size_t firstEmpty = bonuses.size() + 1;
+                    for (std::size_t i = 0; i < bonuses.size(); ++i)
                     {
                         if (bonuses[i].mSkill == skill)
                         {
@@ -413,8 +416,8 @@ namespace MWLua
                 };
                 skillsT[sol::meta_function::pairs] = [&](sol::this_state ts, const RaceSkills& obj) {
                     return std::make_tuple(
-                        sol::as_function([index = size_t{}](const RaceSkills& skills) mutable
-                                             -> std::pair<std::optional<ESM::RefId>, std::optional<int>> {
+                        sol::as_function([index = std::size_t{}](const RaceSkills& skills) mutable
+                                             -> std::pair<std::optional<ESM::RefId>, std::optional<std::int32_t>> {
                             const auto& bonuses = skills.find();
                             while (index < bonuses.size())
                             {
@@ -476,26 +479,26 @@ namespace MWLua
 
                 auto iAttrT = lua.new_usertype<IndexedMutableRaceAttributes>("ESM3_IndexedMutableRaceAttributes");
                 iAttrT["male"] = sol::property(
-                    [](const IndexedMutableRaceAttributes& attributes) -> std::optional<int> {
+                    [](const IndexedMutableRaceAttributes& attributes) -> std::optional<std::int32_t> {
                         const auto& map = attributes.mRace.find().mData.mAttributeValues;
                         const auto it = map.find(attributes.mAttribute);
                         if (it != map.end())
                             return it->second.mMale;
                         return {};
                     },
-                    [](IndexedMutableRaceAttributes& attributes, int value) {
+                    [](IndexedMutableRaceAttributes& attributes, std::int32_t value) {
                         auto& map = attributes.mRace.find().mData.mAttributeValues;
                         map[attributes.mAttribute].mMale = value;
                     });
                 iAttrT["female"] = sol::property(
-                    [](const IndexedMutableRaceAttributes& attributes) -> std::optional<int> {
+                    [](const IndexedMutableRaceAttributes& attributes) -> std::optional<std::int32_t> {
                         const auto& map = attributes.mRace.find().mData.mAttributeValues;
                         const auto it = map.find(attributes.mAttribute);
                         if (it != map.end())
                             return it->second.mFemale;
                         return {};
                     },
-                    [](IndexedMutableRaceAttributes& attributes, int value) {
+                    [](IndexedMutableRaceAttributes& attributes, std::int32_t value) {
                         auto& map = attributes.mRace.find().mData.mAttributeValues;
                         map[attributes.mAttribute].mFemale = value;
                     });

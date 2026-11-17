@@ -1,6 +1,8 @@
 #include "nifstream.hpp"
 
 #include <cerrno>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <span>
 #include <stdexcept>
@@ -17,7 +19,7 @@ namespace
     // This one should be used if the type cannot be read contiguously
     // (e.g. quaternions)
     template <class T>
-    void readRange(Nif::NIFStream& stream, T* dest, size_t size)
+    void readRange(Nif::NIFStream& stream, T* dest, std::size_t size)
     {
         for (T& value : std::span(dest, size))
             stream.read(value);
@@ -26,8 +28,8 @@ namespace
     // Read a range of elements into a dynamic buffer
     // This one should be used if the type can be read contiguously as an array of a different type
     // (e.g. osg::VecXf can be read as a float array of X elements)
-    template <class elementType, size_t numElements, class T>
-    void readAlignedRange(Files::IStreamPtr& stream, T* dest, size_t size)
+    template <class elementType, std::size_t numElements, class T>
+    void readAlignedRange(Files::IStreamPtr& stream, T* dest, std::size_t size)
     {
         static_assert(std::is_standard_layout_v<T>);
         static_assert(std::alignment_of_v<T> == std::alignment_of_v<elementType>);
@@ -40,22 +42,22 @@ namespace
 namespace Nif
 {
 
-    unsigned int NIFStream::getVersion() const
+    std::uint32_t NIFStream::getVersion() const
     {
         return mReader.getVersion();
     }
 
-    unsigned int NIFStream::getUserVersion() const
+    std::uint32_t NIFStream::getUserVersion() const
     {
         return mReader.getUserVersion();
     }
 
-    unsigned int NIFStream::getBethVersion() const
+    std::uint32_t NIFStream::getBethVersion() const
     {
         return mReader.getBethVersion();
     }
 
-    std::string NIFStream::getSizedString(size_t length)
+    std::string NIFStream::getSizedString(std::size_t length)
     {
         checkStreamSize(length);
         std::string str(length, '\0');
@@ -63,7 +65,7 @@ namespace Nif
         if (mStream->fail())
             throw std::runtime_error(std::format(
                 "Failed to read sized string of {} chars: {}", length, std::generic_category().message(errno)));
-        size_t end = str.find('\0');
+        std::size_t end = str.find('\0');
         if (end != std::string::npos)
             str.erase(end);
         if (mEncoder)
@@ -71,11 +73,11 @@ namespace Nif
         return str;
     }
 
-    void NIFStream::getSizedStrings(std::vector<std::string>& vec, size_t size)
+    void NIFStream::getSizedStrings(std::vector<std::string>& vec, std::size_t size)
     {
         vec.clear();
         vec.reserve(size);
-        for (size_t i = 0; i < size; i++)
+        for (std::size_t i = 0; i < size; i++)
             vec.push_back(getSizedString());
     }
 
@@ -91,7 +93,7 @@ namespace Nif
 
     std::string NIFStream::getStringPalette()
     {
-        size_t size = get<uint32_t>();
+        std::size_t size = get<std::uint32_t>();
         checkStreamSize(size);
         std::string str(size, '\0');
         mStream->read(str.data(), static_cast<std::streamsize>(size));
@@ -171,9 +173,9 @@ namespace Nif
     void NIFStream::read<bool>(bool& data)
     {
         if (getVersion() < generateVersion(4, 1, 0, 0))
-            data = get<int32_t>() != 0;
+            data = get<std::int32_t>() != 0;
         else
-            data = get<int8_t>() != 0;
+            data = get<std::int8_t>() != 0;
     }
 
     template <>
@@ -182,80 +184,80 @@ namespace Nif
         if (getVersion() < generateVersion(20, 1, 0, 1))
             data = getSizedString();
         else
-            data = mReader.getString(get<uint32_t>());
+            data = mReader.getString(get<std::uint32_t>());
     }
 
     template <>
-    void NIFStream::read<osg::Vec2f>(osg::Vec2f* dest, size_t size)
+    void NIFStream::read<osg::Vec2f>(osg::Vec2f* dest, std::size_t size)
     {
         readAlignedRange<float, 2>(mStream, dest, size);
     }
 
     template <>
-    void NIFStream::read<osg::Vec3f>(osg::Vec3f* dest, size_t size)
+    void NIFStream::read<osg::Vec3f>(osg::Vec3f* dest, std::size_t size)
     {
         readAlignedRange<float, 3>(mStream, dest, size);
     }
 
     template <>
-    void NIFStream::read<osg::Vec4f>(osg::Vec4f* dest, size_t size)
+    void NIFStream::read<osg::Vec4f>(osg::Vec4f* dest, std::size_t size)
     {
         readAlignedRange<float, 4>(mStream, dest, size);
     }
 
     template <>
-    void NIFStream::read<Matrix3>(Matrix3* dest, size_t size)
+    void NIFStream::read<Matrix3>(Matrix3* dest, std::size_t size)
     {
         readAlignedRange<float, 9>(mStream, dest, size);
     }
 
     template <>
-    void NIFStream::read<osg::Quat>(osg::Quat* dest, size_t size)
+    void NIFStream::read<osg::Quat>(osg::Quat* dest, std::size_t size)
     {
         readRange(*this, dest, size);
     }
 
     template <>
-    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref* dest, size_t size)
+    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref* dest, std::size_t size)
     {
         readRange(*this, dest, size);
     }
 
     template <>
-    void NIFStream::read<NiTransform>(NiTransform* dest, size_t size)
+    void NIFStream::read<NiTransform>(NiTransform* dest, std::size_t size)
     {
         readRange(*this, dest, size);
     }
 
     template <>
-    void NIFStream::read<NiQuatTransform>(NiQuatTransform* dest, size_t size)
+    void NIFStream::read<NiQuatTransform>(NiQuatTransform* dest, std::size_t size)
     {
         readRange(*this, dest, size);
     }
 
     template <>
-    void NIFStream::read<bool>(bool* dest, size_t size)
+    void NIFStream::read<bool>(bool* dest, std::size_t size)
     {
         if (getVersion() < generateVersion(4, 1, 0, 0))
         {
-            checkStreamSize(size * sizeof(int32_t));
-            std::vector<int32_t> buf(size);
+            checkStreamSize(size * sizeof(std::int32_t));
+            std::vector<std::int32_t> buf(size);
             read(buf.data(), size);
-            for (size_t i = 0; i < size; ++i)
+            for (std::size_t i = 0; i < size; ++i)
                 dest[i] = buf[i] != 0;
         }
         else
         {
-            checkStreamSize(size * sizeof(int8_t));
-            std::vector<int8_t> buf(size);
+            checkStreamSize(size * sizeof(std::int8_t));
+            std::vector<std::int8_t> buf(size);
             read(buf.data(), size);
-            for (size_t i = 0; i < size; ++i)
+            for (std::size_t i = 0; i < size; ++i)
                 dest[i] = buf[i] != 0;
         }
     }
 
     template <>
-    void NIFStream::read<std::string>(std::string* dest, size_t size)
+    void NIFStream::read<std::string>(std::string* dest, std::size_t size)
     {
         if (getVersion() < generateVersion(20, 1, 0, 1))
         {
@@ -265,7 +267,7 @@ namespace Nif
         else
         {
             for (std::string& value : std::span(dest, size))
-                value = mReader.getString(get<uint32_t>());
+                value = mReader.getString(get<std::uint32_t>());
         }
     }
 

@@ -1,6 +1,7 @@
 #include "animblendcontroller.hpp"
 
 #include <cassert>
+#include <cstdint>
 #include <string>
 
 #include <osgAnimation/Bone>
@@ -225,7 +226,7 @@ namespace MWRender
         osg::Group* group = bone->asGroup();
         if (group)
         {
-            for (unsigned int i = 0; i < group->getNumChildren(); ++i)
+            for (std::uint32_t i = 0; i < group->getNumChildren(); ++i)
                 gatherRecursiveBoneTransforms(dynamic_cast<osgAnimation::Bone*>(group->getChild(i)), false);
         }
     }

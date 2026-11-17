@@ -2,6 +2,8 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 
@@ -126,7 +128,7 @@ namespace MWLua
     {
         mConfiguration.init(MWBase::Environment::get().getESMStore()->getLuaScriptsCfg(), reload);
         Log(Debug::Verbose) << "Lua scripts configuration (" << mConfiguration.size() << " scripts):";
-        for (size_t i = 0; i < mConfiguration.size(); ++i)
+        for (std::size_t i = 0; i < mConfiguration.size(); ++i)
             Log(Debug::Verbose) << "#" << i << " " << LuaUtil::scriptCfgToString(mConfiguration[i]);
         mMenuScripts.setAutoStartConf(mConfiguration.getMenuConf());
         mGlobalScripts.setAutoStartConf(mConfiguration.getGlobalConf());
@@ -308,7 +310,7 @@ namespace MWLua
         });
     }
 
-    bool LuaManager::gcStep(int steps)
+    bool LuaManager::gcStep(std::int32_t steps)
     {
         return lua_gc(mLua.unsafeState(), LUA_GCSTEP, steps) == 1;
     }
@@ -327,7 +329,7 @@ namespace MWLua
             mEngineEvents.addToQueue(EngineEvents::OnTeleported{ getId(ptr) });
     }
 
-    void LuaManager::questUpdated(const ESM::RefId& questId, int stage)
+    void LuaManager::questUpdated(const ESM::RefId& questId, std::int32_t stage)
     {
         if (mPlayer.isEmpty())
             return; // The game is not started yet.
@@ -449,7 +451,7 @@ namespace MWLua
         mInputTriggers.clear();
         mQueuedAutoStartedScripts.clear();
         clearObjectCaches(mLua.unsafeState());
-        for (int i = 0; i < 5; ++i)
+        for (std::int32_t i = 0; i < 5; ++i)
             lua_gc(mLua.unsafeState(), LUA_GCCOLLECT, 0);
     }
 
@@ -518,7 +520,7 @@ namespace MWLua
             playerScripts->uiModeChanged(argId, false);
     }
 
-    void LuaManager::viewportResized(int width, int height)
+    void LuaManager::viewportResized(std::int32_t width, std::int32_t height)
     {
         if (!mPlayer.isEmpty())
         {
@@ -530,7 +532,7 @@ namespace MWLua
         mMenuScripts.onViewportResized(width, height);
     }
 
-    void LuaManager::fontSizeChanged(int size)
+    void LuaManager::fontSizeChanged(std::int32_t size)
     {
         if (!mPlayer.isEmpty())
         {
@@ -655,8 +657,8 @@ namespace MWLua
     }
 
     void LuaManager::playAnimation(const MWWorld::Ptr& actor, const std::string& groupname,
-        const MWRender::AnimPriority& priority, int blendMask, bool autodisable, float speedmult,
-        std::string_view start, std::string_view stop, float startpoint, uint32_t loops, bool loopfallback)
+        const MWRender::AnimPriority& priority, std::int32_t blendMask, bool autodisable, float speedmult,
+        std::string_view start, std::string_view stop, float startpoint, std::uint32_t loops, bool loopfallback)
     {
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
             sol::table options = view.newTable();
@@ -670,13 +672,13 @@ namespace MWLua
             options["forceLoop"] = loopfallback;
 
             bool priorityAsTable = false;
-            for (uint32_t i = 1; i < MWRender::sNumBlendMasks; i++)
+            for (std::uint32_t i = 1; i < MWRender::sNumBlendMasks; i++)
                 if (priority[static_cast<MWRender::BoneGroup>(i)] != priority[static_cast<MWRender::BoneGroup>(0)])
                     priorityAsTable = true;
             if (priorityAsTable)
             {
                 sol::table priorityTable = view.newTable();
-                for (uint32_t i = 0; i < MWRender::sNumBlendMasks; i++)
+                for (std::uint32_t i = 0; i < MWRender::sNumBlendMasks; i++)
                     priorityTable[static_cast<MWRender::BoneGroup>(i)] = priority[static_cast<MWRender::BoneGroup>(i)];
                 options["priority"] = priorityTable;
             }
@@ -698,7 +700,7 @@ namespace MWLua
             getId(actor), std::string(groupname), std::string(startKey), std::string(stopKey), time, completion });
     }
 
-    void LuaManager::skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, int useType, float scale)
+    void LuaManager::skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, std::int32_t useType, float scale)
     {
         mEngineEvents.addToQueue(EngineEvents::OnSkillUse{ getId(actor), skillId.serializeText(), useType, scale });
     }
@@ -709,14 +711,14 @@ namespace MWLua
             EngineEvents::OnSkillLevelUp{ getId(actor), skillId.serializeText(), std::string(source) });
     }
 
-    void LuaManager::jailTimeServed(const MWWorld::Ptr& actor, int days)
+    void LuaManager::jailTimeServed(const MWWorld::Ptr& actor, std::int32_t days)
     {
         mEngineEvents.addToQueue(EngineEvents::OnJailTimeServed{ getId(actor), days });
     }
 
     void LuaManager::onHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& weapon,
-        const MWWorld::Ptr& ammo, int attackType, float attackStrength, float attackWindUp, float damage, bool isHealth,
-        const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType sourceType)
+        const MWWorld::Ptr& ammo, std::int32_t attackType, float attackStrength, float attackWindUp, float damage,
+        bool isHealth, const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType sourceType)
     {
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
             sol::table damageTable = view.newTable();
@@ -810,7 +812,7 @@ namespace MWLua
         return localScripts->getActorControls();
     }
 
-    void LuaManager::addCustomLocalScript(const MWWorld::Ptr& ptr, int scriptId, std::string_view initData)
+    void LuaManager::addCustomLocalScript(const MWWorld::Ptr& ptr, std::int32_t scriptId, std::string_view initData)
     {
         LocalScripts* localScripts = ptr.getRefData().getLuaScripts();
         if (!localScripts)
@@ -831,7 +833,7 @@ namespace MWLua
     {
         assert(mInitialized);
         std::shared_ptr<LocalScripts> scripts;
-        const uint32_t type = getLiveCellRefType(ptr.mRef);
+        const std::uint32_t type = getLiveCellRefType(ptr.mRef);
         if (type == ESM::REC_STAT)
             throw std::runtime_error("Lua scripts on static objects are not allowed");
         else if (type == ESM::REC_INTERNAL_PLAYER)
@@ -872,7 +874,7 @@ namespace MWLua
         writer.endRecord(ESM::REC_LUAM);
     }
 
-    void LuaManager::readRecord(ESM::ESMReader& reader, uint32_t type)
+    void LuaManager::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type != ESM::REC_LUAM)
             throw std::runtime_error("ESM::REC_LUAM is expected");
@@ -1052,7 +1054,7 @@ namespace MWLua
         mTeleportPlayerAction = DelayedAction(&mLua, std::move(action), "TeleportPlayer");
     }
 
-    void LuaManager::reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const
+    void LuaManager::reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const
     {
         stats.setAttribute(frameNumber, "Lua UsedMemory", static_cast<double>(mLua.getTotalMemoryUsage()));
     }
@@ -1064,11 +1066,11 @@ namespace MWLua
 
         std::stringstream out;
 
-        constexpr unsigned nameW = 50;
-        constexpr int valueW = 12;
+        constexpr std::uint32_t nameW = 50;
+        constexpr std::int32_t valueW = 12;
 
-        auto outMemSize = [&](size_t bytes) {
-            constexpr size_t limit = 10000;
+        auto outMemSize = [&](std::size_t bytes) {
+            constexpr std::size_t limit = 10000;
             out << std::right << std::setw(valueW - 3);
             if (bytes < limit)
                 out << bytes << " B ";
@@ -1080,7 +1082,7 @@ namespace MWLua
                 out << (bytes / (1024 * 1024 * 1024)) << " GB";
         };
 
-        const uint64_t smallAllocSize = Settings::lua().mSmallAllocMaxSize;
+        const std::uint64_t smallAllocSize = Settings::lua().mSmallAllocMaxSize;
         out << "Total memory usage:";
         outMemSize(mLua.getTotalMemoryUsage());
         out << "\n";
@@ -1144,7 +1146,7 @@ namespace MWLua
         out << std::setw(valueW * 2) << "[for selected object]";
         out << "\n";
 
-        for (size_t i = 0; i < mConfiguration.size(); ++i)
+        for (std::size_t i = 0; i < mConfiguration.size(); ++i)
         {
             bool isGlobal = mConfiguration[i].mFlags & ESM::LuaScriptCfg::sGlobal;
             bool isMenu = mConfiguration[i].mFlags & ESM::LuaScriptCfg::sMenu;
@@ -1154,23 +1156,23 @@ namespace MWLua
             if (mConfiguration[i].mScriptPath.value().size() > nameW)
                 out << "\n " << std::setw(nameW) << ""; // if path is too long, break line
             out << std::right;
-            out << std::setw(valueW) << static_cast<int64_t>(activeStats[i].mAvgInstructionCount);
-            outMemSize(static_cast<size_t>(activeStats[i].mMemoryUsage));
-            outMemSize(mLua.getMemoryUsageByScriptIndex(static_cast<unsigned>(i))
-                - static_cast<uint64_t>(activeStats[i].mMemoryUsage));
+            out << std::setw(valueW) << static_cast<std::int64_t>(activeStats[i].mAvgInstructionCount);
+            outMemSize(static_cast<std::size_t>(activeStats[i].mMemoryUsage));
+            outMemSize(mLua.getMemoryUsageByScriptIndex(static_cast<std::uint32_t>(i))
+                - static_cast<std::uint64_t>(activeStats[i].mMemoryUsage));
 
             if (isGlobal)
                 out << std::setw(valueW * 2) << "NA (global script)";
-            else if (isMenu && (!selectedScripts || !selectedScripts->hasScript(static_cast<int>(i))))
+            else if (isMenu && (!selectedScripts || !selectedScripts->hasScript(static_cast<std::int32_t>(i))))
                 out << std::setw(valueW * 2) << "NA (menu script)";
             else if (selectedPtr.isEmpty())
                 out << std::setw(valueW * 2) << "NA (not selected) ";
-            else if (!selectedScripts || !selectedScripts->hasScript(static_cast<int>(i)))
+            else if (!selectedScripts || !selectedScripts->hasScript(static_cast<std::int32_t>(i)))
                 out << std::setw(valueW * 2) << "NA";
             else
             {
-                out << std::setw(valueW) << static_cast<int64_t>(selectedStats[i].mAvgInstructionCount);
-                outMemSize(static_cast<size_t>(selectedStats[i].mMemoryUsage));
+                out << std::setw(valueW) << static_cast<std::int64_t>(selectedStats[i].mAvgInstructionCount);
+                outMemSize(static_cast<std::size_t>(selectedStats[i].mMemoryUsage));
             }
             out << "\n";
         }

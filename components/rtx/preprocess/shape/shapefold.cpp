@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include <osg/BoundingBox>
@@ -92,8 +94,8 @@ namespace Rtx
     ShapeFold::Corners ShapeFold::canonical(const osg::Vec3f& a, const osg::Vec3f& b, const osg::Vec3f& c)
     {
         const osg::Vec3f* corners[3] = { &a, &b, &c };
-        int least = 0;
-        for (int i = 1; i < 3; ++i)
+        std::int32_t least = 0;
+        for (std::int32_t i = 1; i < 3; ++i)
             if (before(*corners[i], *corners[least]))
                 least = i;
 

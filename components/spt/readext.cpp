@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <stdexcept>
 
@@ -15,7 +17,7 @@ namespace Spt
             SPTTextureMap map;
             while (true)
             {
-                const int32_t section = stream.readSection();
+                const std::int32_t section = stream.readSection();
                 if (section == 70001)
                     return map;
                 if (section < 70002 || section > 70008)
@@ -24,17 +26,17 @@ namespace Spt
             }
         }
 
-        std::vector<SPTTextureMap> readTextureMaps(SPTStream& stream, int32_t countSection)
+        std::vector<SPTTextureMap> readTextureMaps(SPTStream& stream, std::int32_t countSection)
         {
             stream.expectSection(countSection);
-            uint32_t count = 0;
+            std::uint32_t count = 0;
             stream.read(count);
             std::vector<SPTTextureMap> maps;
             // The count is the file's and is not trusted with an allocation: the reservation stops at
             // more maps than a tree carries, and a longer list grows as it is read.
-            constexpr uint32_t maxReserved = 64;
+            constexpr std::uint32_t maxReserved = 64;
             maps.reserve(std::min(count, maxReserved));
-            for (uint32_t i = 0; i < count; ++i)
+            for (std::uint32_t i = 0; i < count; ++i)
                 maps.push_back(readTextureMap(stream));
             return maps;
         }
@@ -42,13 +44,13 @@ namespace Spt
 
     void SPTLeafLodData::read(SPTStream& stream)
     {
-        uint32_t numLods = 0;
+        std::uint32_t numLods = 0;
         stream.read(numLods);
-        for (uint32_t i = 0; i < numLods; ++i)
+        for (std::uint32_t i = 0; i < numLods; ++i)
         {
             std::vector<SPTLeafLodCard>& cards = mLods.emplace_back();
             stream.expectSection(7002);
-            int32_t section = 0;
+            std::int32_t section = 0;
             while ((section = stream.readSection()) != 7003)
             {
                 if (section != 7004)
@@ -82,7 +84,7 @@ namespace Spt
     {
         while (true)
         {
-            const int32_t section = stream.readSection();
+            const std::int32_t section = stream.readSection();
             if (section == 23001)
                 return;
             if (section != 23002)
@@ -108,7 +110,7 @@ namespace Spt
     {
         while (true)
         {
-            const int32_t section = stream.readSection();
+            const std::int32_t section = stream.readSection();
             if (section == 25001)
                 return;
             switch (section)
@@ -141,7 +143,7 @@ namespace Spt
     {
         while (true)
         {
-            const int32_t section = stream.readSection();
+            const std::int32_t section = stream.readSection();
             if (section == 27001)
                 return;
             switch (section)
@@ -171,7 +173,7 @@ namespace Spt
     {
         while (true)
         {
-            const int32_t section = stream.readSection();
+            const std::int32_t section = stream.readSection();
             if (section == 28001)
                 return;
             switch (section)
@@ -195,7 +197,7 @@ namespace Spt
     {
         while (true)
         {
-            const int32_t section = stream.readSection();
+            const std::int32_t section = stream.readSection();
             if (section == 30001)
                 return;
             switch (section)
@@ -234,7 +236,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 50001)
                 return;
             if (section != 50002)
@@ -300,7 +302,7 @@ namespace Spt
     {
         while (true)
         {
-            const int32_t section = stream.readSection();
+            const std::int32_t section = stream.readSection();
             switch (section)
             {
                 case 60001:
@@ -332,18 +334,18 @@ namespace Spt
     void SPTMeshInfo::read(SPTStream& stream)
     {
         stream.expectSection(71001);
-        uint32_t numMeshes = 0;
+        std::uint32_t numMeshes = 0;
         stream.read(numMeshes);
-        for (uint32_t i = 0; i < numMeshes; ++i)
+        for (std::uint32_t i = 0; i < numMeshes; ++i)
         {
             SPTLeafMesh& mesh = mMeshes.emplace_back();
             stream.expectSection(71002);
             stream.expectSection(71003);
             mesh.mName = stream.readIntString();
             stream.expectSection(71004);
-            uint32_t numVertices = 0;
+            std::uint32_t numVertices = 0;
             stream.read(numVertices);
-            for (uint32_t j = 0; j < numVertices; ++j)
+            for (std::uint32_t j = 0; j < numVertices; ++j)
             {
                 SPTLeafMeshVertex& vertex = mesh.mVertices.emplace_back();
                 stream.expectSection(71005);
@@ -360,9 +362,9 @@ namespace Spt
                 stream.expectSection(71011);
             }
             stream.expectSection(71012);
-            uint32_t numIndices = 0;
+            std::uint32_t numIndices = 0;
             stream.read(numIndices);
-            for (uint32_t j = 0; j < numIndices; ++j)
+            for (std::uint32_t j = 0; j < numIndices; ++j)
             {
                 stream.expectSection(71013);
                 stream.read(mesh.mIndices.emplace_back());
@@ -376,7 +378,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 72004)
                 return;
             if (section != 7000)
@@ -412,7 +414,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 73001)
                 return;
             if (section != 73002)
@@ -431,7 +433,7 @@ namespace Spt
     {
         while (true)
         {
-            const int32_t section = stream.readSection();
+            const std::int32_t section = stream.readSection();
             if (section == 75001)
                 return;
             switch (section)

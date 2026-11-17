@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -194,15 +195,15 @@ namespace ESM
         // When working with multiple esX files, we will generate lists of all files that
         //  actually contribute to a specific cell. Therefore, we need to store the index
         //  of the file belonging to this contest. See CellStore::(list/load)refs for details.
-        int index{};
-        std::vector<int> parentFileIndices;
+        std::int32_t index{};
+        std::vector<std::int32_t> parentFileIndices;
 
         // True if subName has been read but not used.
         bool subCached{};
 
         // File position. Only used for stored contexts, not regularly
         // updated within the reader itself.
-        size_t filePos{};
+        std::size_t filePos{};
     };
 
 }

@@ -1,5 +1,6 @@
 #include "creatureanimation.hpp"
 
+#include <cstdint>
 #include <exception>
 #include <memory>
 #include <string>
@@ -115,7 +116,7 @@ namespace MWRender
             updatePart(mShield, MWWorld::InventoryStore::Slot_CarriedLeft);
     }
 
-    void CreatureWeaponAnimation::updatePart(PartHolderPtr& scene, int slot)
+    void CreatureWeaponAnimation::updatePart(PartHolderPtr& scene, std::int32_t slot)
     {
         if (!mObjectRoot)
             return;

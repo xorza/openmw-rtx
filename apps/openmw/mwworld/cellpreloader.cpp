@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <span>
 
@@ -179,7 +181,7 @@ namespace MWWorld
 
         void doWork() override
         {
-            for (unsigned int i = 0; i < mTerrainViews.size() && i < mPreloadPositions.size() && !mAbort; ++i)
+            for (std::uint32_t i = 0; i < mTerrainViews.size() && i < mPreloadPositions.size() && !mAbort; ++i)
             {
                 mTerrainViews[i]->reset();
                 mWorld->preload(mTerrainViews[i].get(), mPreloadPositions[i].mPosition,
@@ -424,7 +426,7 @@ namespace MWWorld
                 mTerrainViews.resize(positions.size());
             else if (mTerrainViews.size() < positions.size())
             {
-                for (size_t i = mTerrainViews.size(); i < positions.size(); ++i)
+                for (std::size_t i = mTerrainViews.size(); i < positions.size(); ++i)
                     mTerrainViews.emplace_back(mTerrain->createView());
             }
 
@@ -476,7 +478,7 @@ namespace MWWorld
         mPreloadCells.clear();
     }
 
-    void CellPreloader::reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const
+    void CellPreloader::reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const
     {
         stats.setAttribute(frameNumber, "CellPreloader Count", static_cast<double>(mPreloadCells.size()));
         stats.setAttribute(frameNumber, "CellPreloader Added", static_cast<double>(mAdded));

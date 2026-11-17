@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <string>
@@ -63,21 +64,21 @@ namespace MWSound
     };
 
     // Used for creating a type mask for SoundManager::pauseSounds and resumeSounds
-    inline int operator~(Type a)
+    inline std::int32_t operator~(Type a)
     {
-        return ~static_cast<int>(a);
+        return ~static_cast<std::int32_t>(a);
     }
-    inline int operator&(Type a, Type b)
+    inline std::int32_t operator&(Type a, Type b)
     {
-        return static_cast<int>(a) & static_cast<int>(b);
+        return static_cast<std::int32_t>(a) & static_cast<std::int32_t>(b);
     }
-    inline int operator&(int a, Type b)
+    inline std::int32_t operator&(std::int32_t a, Type b)
     {
-        return a & static_cast<int>(b);
+        return a & static_cast<std::int32_t>(b);
     }
-    inline int operator|(Type a, Type b)
+    inline std::int32_t operator|(Type a, Type b)
     {
-        return static_cast<int>(a) | static_cast<int>(b);
+        return static_cast<std::int32_t>(a) | static_cast<std::int32_t>(b);
     }
 }
 
@@ -214,7 +215,8 @@ namespace MWBase
         ///< Is the given sound currently playing on the given object?
         ///  If you want to check if sound played with playSound is playing, use empty Ptr
 
-        virtual void pauseSounds(MWSound::BlockerType blocker, int types = static_cast<int>(Type::Mask)) = 0;
+        virtual void pauseSounds(
+            MWSound::BlockerType blocker, std::int32_t types = static_cast<std::int32_t>(Type::Mask)) = 0;
         ///< Pauses all currently playing sounds, including music.
 
         virtual void resumeSounds(MWSound::BlockerType blocker) = 0;

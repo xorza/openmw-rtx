@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 
@@ -16,7 +17,7 @@ namespace BulletHelpers
         {
         }
 
-        void processTriangle(btVector3* triangle, int partId, int triangleIndex) override
+        void processTriangle(btVector3* triangle, std::int32_t partId, std::int32_t triangleIndex) override
         {
             return mImpl(triangle, partId, triangleIndex);
         }

@@ -1,5 +1,7 @@
 #include "lineparser.hpp"
 
+#include <cstdint>
+
 #include <components/esm/refid.hpp>
 #include <components/misc/strings/lower.hpp>
 
@@ -64,7 +66,7 @@ namespace Compiler
     {
     }
 
-    bool LineParser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
+    bool LineParser::parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner)
     {
         if (mAllowExpression && mState == BeginState)
         {
@@ -210,7 +212,7 @@ namespace Compiler
         return Parser::parseName(name, loc, scanner);
     }
 
-    bool LineParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool LineParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (mState == MessageState)
         {
@@ -274,7 +276,7 @@ namespace Compiler
                     }
 
                     std::vector<Interpreter::Type_Code> code;
-                    int optionals = mExprParser.parseArguments(argumentType, scanner, code, keyword);
+                    std::int32_t optionals = mExprParser.parseArguments(argumentType, scanner, code, keyword);
                     mCode.insert(mCode.end(), code.begin(), code.end());
                     extensions->generateInstructionCode(keyword, mCode, mLiterals, mExplicit, optionals);
 
@@ -302,7 +304,7 @@ namespace Compiler
                     else
                     {
                         std::vector<Interpreter::Type_Code> code;
-                        int optionals = mExprParser.parseArguments(argumentType, scanner, code, keyword);
+                        std::int32_t optionals = mExprParser.parseArguments(argumentType, scanner, code, keyword);
                         mCode.insert(mCode.end(), code.begin(), code.end());
                         extensions->generateFunctionCode(keyword, mCode, mLiterals, mExplicit, optionals);
 
@@ -426,7 +428,7 @@ namespace Compiler
         return Parser::parseKeyword(keyword, loc, scanner);
     }
 
-    bool LineParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+    bool LineParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
     {
         if (mState == EndState && code == Scanner::S_open)
         {
@@ -465,9 +467,9 @@ namespace Compiler
                 getErrorHandler().warning("Only 10 message box buttons can be used", loc);
                 mNumButtons = 10;
             }
-            for (unsigned int i = 0; i < mNumButtons; ++i)
+            for (std::uint32_t i = 0; i < mNumButtons; ++i)
                 Generator::pushString(mCode, mLiterals, mPotentialButtons[i]);
-            Generator::message(mCode, mLiterals, mName, static_cast<int>(mNumButtons));
+            Generator::message(mCode, mLiterals, mName, static_cast<std::int32_t>(mNumButtons));
             mPotentialButtons.clear();
             mNumButtons = 0;
             return false;
@@ -498,8 +500,8 @@ namespace Compiler
         mExplicit.clear();
     }
 
-    void GetArgumentsFromMessageFormat::visitedPlaceholder(
-        Placeholder placeholder, int /*flags*/, int /*width*/, int /*precision*/, Notation /*notation*/)
+    void GetArgumentsFromMessageFormat::visitedPlaceholder(Placeholder placeholder, std::int32_t /*flags*/,
+        std::int32_t /*width*/, std::int32_t /*precision*/, Notation /*notation*/)
     {
         switch (placeholder)
         {

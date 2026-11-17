@@ -1,6 +1,8 @@
 #include "cellstore.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
@@ -416,7 +418,7 @@ namespace MWWorld
 
     namespace
     {
-        constexpr bool isESM4ActorRec(unsigned int rec)
+        constexpr bool isESM4ActorRec(std::uint32_t rec)
         {
             return rec == ESM::REC_NPC_4 || rec == ESM::REC_CREA4;
         }
@@ -459,7 +461,7 @@ namespace MWWorld
     // Found by argument-dependent lookup, which an unnamed namespace would hide.
     // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <typename X>
-    static bool operator==(const LiveCellRef<X>& ref, int pRefnum)
+    static bool operator==(const LiveCellRef<X>& ref, std::int32_t pRefnum)
     {
         return (ref.mRef.mRefnum == pRefnum);
     }
@@ -754,7 +756,7 @@ namespace MWWorld
             return; // this is a dynamically generated cell -> skipping.
 
         // Load references from all plugins that do something with this cell.
-        for (size_t i = 0; i < cell.mContextList.size(); i++)
+        for (std::size_t i = 0; i < cell.mContextList.size(); i++)
         {
             try
             {
@@ -840,7 +842,7 @@ namespace MWWorld
             return; // this is a dynamically generated cell -> skipping.
 
         // Load references from all plugins that do something with this cell.
-        for (size_t i = 0; i < cell.mContextList.size(); i++)
+        for (std::size_t i = 0; i < cell.mContextList.size(); i++)
         {
             try
             {
@@ -1057,14 +1059,14 @@ namespace MWWorld
 
         while (reader.isNextSub("OBJE"))
         {
-            unsigned int unused = 0;
+            std::uint32_t unused = 0;
             reader.getHT(unused);
 
             // load the RefID first so we know what type of object it is
             ESM::CellRef cref;
             cref.loadId(reader, true);
 
-            int type = mStore.find(cref.mRefID);
+            std::int32_t type = mStore.find(cref.mRefID);
             if (type == 0)
             {
                 Log(Debug::Warning) << "Dropping reference to " << cref.mRefID << " (object no longer exists)";
@@ -1235,7 +1237,7 @@ namespace MWWorld
     {
         if (mState == State_Loaded)
         {
-            static const int iMonthsToRespawn
+            static const std::int32_t iMonthsToRespawn
                 = mStore.get<ESM::GameSetting>().find("iMonthsToRespawn")->mValue.getInteger();
             if (MWBase::Environment::get().getWorld()->getTimeStamp() - mLastRespawn > 24 * 30 * iMonthsToRespawn)
             {

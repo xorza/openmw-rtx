@@ -1,5 +1,7 @@
 #include "door.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
@@ -254,7 +256,7 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    MWGui::ToolTipInfo Door::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Door::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Door>* ref = ptr.get<ESM::Door>();
 
@@ -274,7 +276,7 @@ namespace MWClass
             }
         }
 
-        int lockLevel = ptr.getCellRef().getLockLevel();
+        std::int32_t lockLevel = ptr.getCellRef().getLockLevel();
         if (lockLevel)
         {
             if (ptr.getCellRef().isLocked())
@@ -358,7 +360,7 @@ namespace MWClass
 
         const DoorCustomData& customData = ptr.getRefData().getCustomData()->asDoorCustomData();
         ESM::DoorState& doorState = state.asDoorState();
-        doorState.mDoorState = static_cast<int>(customData.mDoorState);
+        doorState.mDoorState = static_cast<std::int32_t>(customData.mDoorState);
     }
 
 }

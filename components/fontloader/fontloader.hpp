@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <MyGUI_Types.h>
@@ -32,7 +33,7 @@ namespace Gui
 
         /// In points, which a unit of the interface is: the height a line of its text takes,
         /// `[GUI] font size`. Stated by every fit, so none is made at a size its maker did not name.
-        int mFontSize;
+        std::int32_t mFontSize;
 
         bool operator==(const FontFit& other) const = default;
     };
@@ -73,7 +74,7 @@ namespace Gui
         struct TrueTypeFace
         {
             MyGUI::ResourceTrueTypeFont* mFont = nullptr;
-            int mResolution = 0;
+            std::int32_t mResolution = 0;
 
             bool mBook = false;
 
@@ -82,11 +83,11 @@ namespace Gui
             bool mTabWidthStated = false;
         };
 
-        unsigned int resolutionOf(const TrueTypeFace& face, const FontFit& fit) const;
+        std::uint32_t resolutionOf(const TrueTypeFace& face, const FontFit& fit) const;
 
         /// Rasterizes `face` at `size` and `resolution` the one way every rasterization goes, the
         /// load's included.
-        static void rasterize(const TrueTypeFace& face, int size, unsigned int resolution);
+        static void rasterize(const TrueTypeFace& face, std::int32_t size, std::uint32_t resolution);
 
         ToUTF8::FromType mEncoding;
         const VFS::Manager* mVFS;

@@ -1,5 +1,10 @@
 #include "view.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <filesystem>
+#include <sstream>
+
 #include <QApplication>
 #include <QCloseEvent>
 #include <QMenuBar>
@@ -7,9 +12,6 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
-#include <algorithm>
-#include <filesystem>
-#include <sstream>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/state.hpp>
@@ -485,7 +487,7 @@ void CSVDoc::View::updateActions()
     mMerge->setEnabled(mDocument->getContentFiles().size() > 1 && !(mDocument->getState() & CSMDoc::State_Merging));
 }
 
-CSVDoc::View::View(ViewManager& viewManager, CSMDoc::Document* document, int totalViews)
+CSVDoc::View::View(ViewManager& viewManager, CSMDoc::Document* document, std::int32_t totalViews)
     : mViewManager(viewManager)
     , mDocument(document)
     , mViewIndex(totalViews - 1)
@@ -495,8 +497,8 @@ CSVDoc::View::View(ViewManager& viewManager, CSMDoc::Document* document, int tot
 {
     CSMPrefs::Category& windows = CSMPrefs::State::get()["Windows"];
 
-    int width = std::max(windows["default-width"].toInt(), 300);
-    int height = std::max(windows["default-height"].toInt(), 300);
+    std::int32_t width = std::max(windows["default-width"].toInt(), 300);
+    std::int32_t height = std::max(windows["default-height"].toInt(), 300);
 
     resize(width, height);
 
@@ -542,7 +544,7 @@ CSMDoc::Document* CSVDoc::View::getDocument()
     return mDocument;
 }
 
-void CSVDoc::View::setIndex(int viewIndex, int totalViews)
+void CSVDoc::View::setIndex(std::int32_t viewIndex, std::int32_t totalViews)
 {
     mViewIndex = viewIndex;
     mViewTotal = totalViews;
@@ -554,7 +556,7 @@ void CSVDoc::View::updateDocumentState()
     updateTitle();
     updateActions();
 
-    static const int operations[] = {
+    static const std::int32_t operations[] = {
         CSMDoc::State_Saving,
         CSMDoc::State_Verifying,
         CSMDoc::State_Searching,
@@ -563,9 +565,9 @@ void CSVDoc::View::updateDocumentState()
         -1,
     };
 
-    int state = mDocument->getState();
+    std::int32_t state = mDocument->getState();
 
-    for (int i = 0; operations[i] != -1; ++i)
+    for (std::int32_t i = 0; operations[i] != -1; ++i)
         if (!(state & operations[i]))
             mOperations->quitOperation(operations[i]);
 
@@ -575,7 +577,7 @@ void CSVDoc::View::updateDocumentState()
         (*iter)->setEditLock(state & CSMDoc::State_Locked);
 }
 
-void CSVDoc::View::updateProgress(int current, int max, int type, int threads)
+void CSVDoc::View::updateProgress(std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads)
 {
     mOperations->setProgress(current, max, type, threads);
 }
@@ -634,7 +636,7 @@ void CSVDoc::View::addSubView(const CSMWorld::UniversalId& id, const std::string
     view->setEditLock(mDocument->getState() & CSMDoc::State_Locked);
     mSubViews.append(view); // only after assert
 
-    int minWidth = windows["minimum-width"].toInt();
+    std::int32_t minWidth = windows["minimum-width"].toInt();
     view->setMinimumWidth(minWidth);
 
     view->setStatusBar(mShowStatusBar->isChecked());
@@ -720,7 +722,7 @@ void CSVDoc::View::addSubView(const CSMWorld::UniversalId& id, const std::string
         view->useHint(hint);
 }
 
-void CSVDoc::View::moveScrollBarToEnd(int min, int max)
+void CSVDoc::View::moveScrollBarToEnd(std::int32_t min, std::int32_t max)
 {
     if (mScroll)
     {
@@ -1021,7 +1023,7 @@ void CSVDoc::View::addMetaDataSubView()
     addSubView(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_MetaData, "sys::meta"));
 }
 
-void CSVDoc::View::abortOperation(int type)
+void CSVDoc::View::abortOperation(std::int32_t type)
 {
     mDocument->abortOperation(type);
     updateActions();
@@ -1037,13 +1039,13 @@ void CSVDoc::View::exit()
     emit exitApplicationRequest(this);
 }
 
-void CSVDoc::View::resizeViewWidth(int width)
+void CSVDoc::View::resizeViewWidth(std::int32_t width)
 {
     if (width >= 0)
         resize(width, geometry().height());
 }
 
-void CSVDoc::View::resizeViewHeight(int height)
+void CSVDoc::View::resizeViewHeight(std::int32_t height)
 {
     if (height >= 0)
         resize(geometry().width(), height);
@@ -1100,13 +1102,13 @@ void CSVDoc::View::updateScrollbar()
     else
         rect = this->rect();
 
-    int newWidth = 0;
+    std::int32_t newWidth = 0;
     for (auto& subView : mSubViews)
     {
         newWidth += subView->width();
     }
 
-    int frameWidth = frameGeometry().width() - width();
+    std::int32_t frameWidth = frameGeometry().width() - width();
 
     if ((newWidth + frameWidth) >= rect.width())
         mSubViewWindow.setMinimumWidth(newWidth);
@@ -1119,7 +1121,7 @@ void CSVDoc::View::merge()
     emit mergeDocument(mDocument);
 }
 
-void CSVDoc::View::updateWidth(bool isGrowLimit, int minSubViewWidth)
+void CSVDoc::View::updateWidth(bool isGrowLimit, std::int32_t minSubViewWidth)
 {
     QRect rect;
     if (isGrowLimit)
@@ -1132,8 +1134,8 @@ void CSVDoc::View::updateWidth(bool isGrowLimit, int minSubViewWidth)
 
     if (!mScrollbarOnly && mScroll && mSubViews.size() > 1)
     {
-        int newWidth = width() + minSubViewWidth;
-        int frameWidth = frameGeometry().width() - width();
+        std::int32_t newWidth = width() + minSubViewWidth;
+        std::int32_t frameWidth = frameGeometry().width() - width();
         if (newWidth + frameWidth <= rect.width())
         {
             resize(newWidth, height());
@@ -1183,13 +1185,13 @@ QScreen* CSVDoc::View::getWidgetScreen(const QPoint& position)
     if (screens.isEmpty())
         throw std::runtime_error("No screens available");
 
-    int closestDistance = std::numeric_limits<int>::max();
+    std::int32_t closestDistance = std::numeric_limits<std::int32_t>::max();
     for (QScreen* candidate : screens)
     {
         const QRect geometry = candidate->geometry();
-        const int dx = position.x() - std::clamp(position.x(), geometry.left(), geometry.right());
-        const int dy = position.y() - std::clamp(position.y(), geometry.top(), geometry.bottom());
-        const int distance = dx * dx + dy * dy;
+        const std::int32_t dx = position.x() - std::clamp(position.x(), geometry.left(), geometry.right());
+        const std::int32_t dy = position.y() - std::clamp(position.y(), geometry.top(), geometry.bottom());
+        const std::int32_t distance = dx * dx + dy * dy;
 
         if (distance < closestDistance)
         {

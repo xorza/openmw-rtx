@@ -1,11 +1,13 @@
 #include "mainwizard.hpp"
 
+#include <algorithm>
+#include <cstdint>
+
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QMessageBox>
 #include <QProcess>
-#include <algorithm>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconfigpath.hpp>
@@ -38,7 +40,7 @@ Wizard::MainWizard::MainWizard(Files::ConfigurationManager&& cfgMgr, QWidget* pa
     // Set the property for comboboxes to the text instead of index
     setDefaultProperty("QComboBox", "currentText", "currentIndexChanged");
 
-    connect(mImporterInvoker->getProcess(), qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+    connect(mImporterInvoker->getProcess(), qOverload<std::int32_t, QProcess::ExitStatus>(&QProcess::finished), this,
         &MainWizard::importerFinished);
 
     Log(Debug::Info) << "Started OpenMW Wizard on " << QDateTime::currentDateTime().toString().toUtf8().constData();
@@ -245,7 +247,7 @@ void Wizard::MainWizard::setupPages()
     setStartId(Page_Intro);
 }
 
-void Wizard::MainWizard::importerFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void Wizard::MainWizard::importerFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitCode != 0 || exitStatus == QProcess::CrashExit)
         return;

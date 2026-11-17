@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <set>
 #include <string>
@@ -68,12 +69,12 @@ namespace MWBase
         virtual void toggleControlSwitch(std::string_view sw, bool value) = 0;
         virtual bool getControlSwitch(std::string_view sw) = 0;
 
-        virtual std::string_view getActionDescription(int action) const = 0;
-        virtual std::string getActionKeyBindingName(int action) const = 0;
-        virtual std::string getActionControllerBindingName(int action) const = 0;
-        virtual bool actionIsActive(int action) const = 0;
+        virtual std::string_view getActionDescription(std::int32_t action) const = 0;
+        virtual std::string getActionKeyBindingName(std::int32_t action) const = 0;
+        virtual std::string getActionControllerBindingName(std::int32_t action) const = 0;
+        virtual bool actionIsActive(std::int32_t action) const = 0;
 
-        virtual float getActionValue(int action) const = 0; // returns value in range [0, 1]
+        virtual float getActionValue(std::int32_t action) const = 0; // returns value in range [0, 1]
         virtual bool isControllerButtonPressed(SDL_GamepadButton button) const = 0;
         virtual float getControllerAxisValue(SDL_GamepadAxis axis) const = 0; // returns value in range [-1, 1]
         virtual float getMouseMoveX() const = 0;
@@ -81,13 +82,13 @@ namespace MWBase
         virtual void warpMouseToWidget(MyGUI::Widget* widget) = 0;
 
         /// Actions available for binding to keyboard buttons
-        virtual const std::initializer_list<int>& getActionKeySorting() = 0;
+        virtual const std::initializer_list<std::int32_t>& getActionKeySorting() = 0;
         /// Actions available for binding to controller buttons
-        virtual const std::initializer_list<int>& getActionControllerSorting() = 0;
-        virtual int getNumActions() = 0;
+        virtual const std::initializer_list<std::int32_t>& getActionControllerSorting() = 0;
+        virtual std::int32_t getNumActions() = 0;
         /// If keyboard is true, only pay attention to keyboard events. If false, only pay attention to controller
         /// events (excluding esc)
-        virtual void enableDetectingBindingMode(int action, bool keyboard) = 0;
+        virtual void enableDetectingBindingMode(std::int32_t action, bool keyboard) = 0;
         virtual void resetToDefaultKeyBindings() = 0;
         virtual void resetToDefaultControllerBindings() = 0;
 
@@ -95,17 +96,17 @@ namespace MWBase
         /// @return true if joystick, false otherwise
         virtual bool joystickLastUsed() = 0;
         virtual void setJoystickLastUsed(bool enabled) = 0;
-        virtual std::string getControllerButtonIcon(int button) = 0;
-        virtual std::string getControllerAxisIcon(int axis) = 0;
+        virtual std::string getControllerButtonIcon(std::int32_t button) = 0;
+        virtual std::string getControllerAxisIcon(std::int32_t axis) = 0;
 
-        virtual size_t countSavedGameRecords() const = 0;
+        virtual std::size_t countSavedGameRecords() const = 0;
         virtual void write(ESM::ESMWriter& writer, Loading::Listener& progress) = 0;
-        virtual void readRecord(ESM::ESMReader& reader, uint32_t type) = 0;
+        virtual void readRecord(ESM::ESMReader& reader, std::uint32_t type) = 0;
 
         virtual void resetIdleTime() = 0;
         virtual bool isIdle() const = 0;
 
-        virtual void executeAction(int action) = 0;
+        virtual void executeAction(std::int32_t action) = 0;
 
         virtual bool controlsDisabled() = 0;
 

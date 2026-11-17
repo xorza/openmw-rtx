@@ -404,12 +404,12 @@ namespace Rtx::Testing
             // Three pixels either way, which is three times what the sea carries the pattern in a
             // twelfth of a second. The margin also keeps every shifted read inside the frame rather
             // than wrapping, since the two fields are the same patch of bed.
-            constexpr int sweep = 3;
-            constexpr int inside = static_cast<int>(size) - 2 * sweep;
-            const auto newAfter = [&](int across, int down) {
+            constexpr std::int32_t sweep = 3;
+            constexpr std::int32_t inside = static_cast<std::int32_t>(size) - 2 * sweep;
+            const auto newAfter = [&](std::int32_t across, std::int32_t down) {
                 float apart = 0.0f;
-                for (int y = sweep; y < static_cast<int>(size) - sweep; ++y)
-                    for (int x = sweep; x < static_cast<int>(size) - sweep; ++x)
+                for (std::int32_t y = sweep; y < static_cast<std::int32_t>(size) - sweep; ++y)
+                    for (std::int32_t x = sweep; x < static_cast<std::int32_t>(size) - sweep; ++x)
                     {
                         const float gap
                             = later[static_cast<std::size_t>(y + down) * size + (static_cast<std::size_t>(x + across))]
@@ -423,8 +423,8 @@ namespace Rtx::Testing
 
             const float unshifted = newAfter(0, 0);
             float least = unshifted;
-            for (int down = -sweep; down <= sweep; ++down)
-                for (int across = -sweep; across <= sweep; ++across)
+            for (std::int32_t down = -sweep; down <= sweep; ++down)
+                for (std::int32_t across = -sweep; across <= sweep; ++across)
                     least = std::min(least, newAfter(across, down));
 
             EXPECT_NEAR(unshifted, 0.661f, 0.03f) << "how much of the pattern is new a twelfth later";
@@ -521,7 +521,7 @@ namespace Rtx::Testing
 
             struct Road
             {
-                int mPeak;
+                std::int32_t mPeak;
                 std::size_t mLit;
             };
 
@@ -548,7 +548,7 @@ namespace Rtx::Testing
                 Road found{ .mPeak = 0, .mLit = 0 };
                 for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
                 {
-                    found.mPeak = std::max(found.mPeak, int{ frame.byte(i * 4) });
+                    found.mPeak = std::max(found.mPeak, std::int32_t{ frame.byte(i * 4) });
                     found.mLit += frame.byte(i * 4) > 0 ? 1 : 0;
                 }
                 return found;
@@ -620,8 +620,8 @@ namespace Rtx::Testing
                 {
                     const std::size_t here = (std::size_t{ j } * size + i) * 4;
                     const std::size_t there = (std::size_t{ i } * size + (size - 1 - j)) * 4;
-                    agreeing += std::abs(int{ north[here] } - int{ east[there] }) <= 3 ? 1 : 0;
-                    turnedAway += std::abs(int{ north[here] } - int{ east[here] }) <= 3 ? 1 : 0;
+                    agreeing += std::abs(std::int32_t{ north[here] } - std::int32_t{ east[there] }) <= 3 ? 1 : 0;
+                    turnedAway += std::abs(std::int32_t{ north[here] } - std::int32_t{ east[here] }) <= 3 ? 1 : 0;
                 }
 
             EXPECT_GT(agreeing, std::size_t{ size } * size * 99 / 100) << "the north sea is the east sea turned";
@@ -744,7 +744,7 @@ namespace Rtx::Testing
             const auto differing = [](const std::vector<std::uint8_t>& a, const std::vector<std::uint8_t>& b) {
                 std::size_t count = 0;
                 for (std::size_t i = 0; i < a.size(); i += 4)
-                    count += std::abs(int{ a[i] } - int{ b[i] }) > 2 ? 1 : 0;
+                    count += std::abs(std::int32_t{ a[i] } - std::int32_t{ b[i] }) > 2 ? 1 : 0;
                 return count;
             };
 

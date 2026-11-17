@@ -1,5 +1,6 @@
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <span>
 #include <string>
@@ -148,12 +149,12 @@ namespace
         const std::filesystem::path path = folder / "shared.txt";
         const std::array<std::string, 2> texts{ std::string(1000, 'a'), std::string(2000, 'b') };
 
-        std::array<int, 2> failed{ 0, 0 };
+        std::array<std::int32_t, 2> failed{ 0, 0 };
         {
             std::array<std::jthread, 2> writers;
             for (std::size_t at = 0; at < writers.size(); ++at)
                 writers[at] = std::jthread([&, at] {
-                    for (int write = 0; write < 50; ++write)
+                    for (std::int32_t write = 0; write < 50; ++write)
                         if (!Platform::writeWhole(path, std::string_view(texts[at]), Platform::Durability::Whole)
                                 .isOk())
                             ++failed[at];

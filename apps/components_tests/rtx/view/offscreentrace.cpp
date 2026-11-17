@@ -50,7 +50,7 @@ namespace Rtx
 
         /// The clock a redraw runs on, which has to read differently every time: everything skinned
         /// refuses to move for a traversal number it has already seen.
-        osg::ref_ptr<osg::FrameStamp> stampAt(unsigned int frame)
+        osg::ref_ptr<osg::FrameStamp> stampAt(std::uint32_t frame)
         {
             osg::ref_ptr<osg::FrameStamp> stamp = new osg::FrameStamp;
             stamp->setFrameNumber(frame);
@@ -264,7 +264,7 @@ namespace Rtx
 
             // **And every redraw ends its placement**, so the change lists hold nothing after a hand-over
             // however often the subject changes.
-            for (unsigned int redraw = 4; redraw < 104; ++redraw)
+            for (std::uint32_t redraw = 4; redraw < 104; ++redraw)
             {
                 subject->removeChild(boots);
                 boots = Testing::makeQuad();
@@ -332,7 +332,7 @@ namespace Rtx
 
             const std::uint8_t bytes[] = { 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             file->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             file->setFileName("textures/tx_rain.dds");

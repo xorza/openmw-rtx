@@ -1,4 +1,5 @@
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <format>
@@ -555,7 +556,7 @@ namespace RtxTool
             Files::ConfigurationManager::addCommonOptions(description);
 
             bpo::variables_map variables;
-            bpo::store(bpo::command_line_parser(static_cast<int>(arguments.size()), arguments.data())
+            bpo::store(bpo::command_line_parser(static_cast<std::int32_t>(arguments.size()), arguments.data())
                            .options(description)
                            .run(),
                 variables);

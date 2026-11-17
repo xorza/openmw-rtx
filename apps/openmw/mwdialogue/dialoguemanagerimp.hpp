@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
@@ -27,14 +29,14 @@ namespace MWDialogue
     {
         struct ActorKnownTopicInfo
         {
-            int mFlags;
+            std::int32_t mFlags;
             const ESM::DialInfo* mInfo;
         };
 
         std::set<ESM::RefId> mKnownTopics; // Those are the topics the player knows.
 
         // Modified faction reactions. <Faction1, <Faction2, Difference> >
-        typedef std::map<ESM::RefId, std::map<ESM::RefId, int>> ModFactionReactionMap;
+        typedef std::map<ESM::RefId, std::map<ESM::RefId, std::int32_t>> ModFactionReactionMap;
         ModFactionReactionMap mChangedFactionReaction;
 
         std::map<ESM::RefId, ActorKnownTopicInfo> mActorKnownTopics;
@@ -49,16 +51,16 @@ namespace MWDialogue
         MWWorld::Ptr mActor;
         bool mTalkedTo;
 
-        int mChoice;
+        std::int32_t mChoice;
         ESM::RefId mLastTopic; // last topic ID, lowercase
         bool mIsInChoice;
         bool mGoodbye;
 
-        std::vector<std::pair<std::string, int>> mChoices;
+        std::vector<std::pair<std::string, std::int32_t>> mChoices;
 
-        int mOriginalDisposition;
-        int mCurrentDisposition;
-        int mPermanentDispositionChange;
+        std::int32_t mOriginalDisposition;
+        std::int32_t mCurrentDisposition;
+        std::int32_t mPermanentDispositionChange;
 
         const MWDialogue::KeywordSearch& getKeywordSearch() const;
         std::vector<ESM::RefId> parseTopicIdsFromText(const std::string& text) const;
@@ -87,14 +89,14 @@ namespace MWDialogue
         void executeScript(const std::string& script, const MWWorld::Ptr& actor) override;
 
         std::list<std::string> getAvailableTopics() override;
-        int getTopicFlag(const ESM::RefId& topicId) const override;
+        std::int32_t getTopicFlag(const ESM::RefId& topicId) const override;
 
         bool inJournal(const ESM::RefId& topicId, const ESM::RefId& infoId) const override;
 
         void addTopic(const ESM::RefId& topic) override;
 
-        void addChoice(std::string_view text, int choice) override;
-        const std::vector<std::pair<std::string, int>>& getChoices() const override;
+        void addChoice(std::string_view text, std::int32_t choice) override;
+        const std::vector<std::pair<std::string, std::int32_t>>& getChoices() const override;
 
         bool isGoodbye() const override;
 
@@ -107,28 +109,28 @@ namespace MWDialogue
         // calbacks for the GUI
         void keywordSelected(std::string_view keyword, ResponseCallback* callback) override;
         void goodbyeSelected() override;
-        void questionAnswered(int answer, ResponseCallback* callback) override;
+        void questionAnswered(std::int32_t answer, ResponseCallback* callback) override;
 
-        void persuade(int type, ResponseCallback* callback) override;
+        void persuade(std::int32_t type, ResponseCallback* callback) override;
 
         /// @note Controlled by an option, gets discarded when dialogue ends by default
-        void applyBarterDispositionChange(int delta) override;
+        void applyBarterDispositionChange(std::int32_t delta) override;
 
-        size_t countSavedGameRecords() const override;
+        std::size_t countSavedGameRecords() const override;
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) const override;
 
-        void readRecord(ESM::ESMReader& reader, uint32_t type) override;
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
 
         /// Changes faction1's opinion of faction2 by \a diff.
-        void modFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2, int diff) override;
+        void modFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2, std::int32_t diff) override;
 
-        void setFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2, int absolute) override;
+        void setFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2, std::int32_t absolute) override;
 
         /// @return faction1's opinion of faction2
-        int getFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2) const override;
+        std::int32_t getFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2) const override;
 
-        const std::map<ESM::RefId, int>* getFactionReactionOverrides(const ESM::RefId& faction) const override;
+        const std::map<ESM::RefId, std::int32_t>* getFactionReactionOverrides(const ESM::RefId& faction) const override;
 
         /// Removes the last added topic response for the given actor from the journal
         void clearInfoActor(const MWWorld::Ptr& actor) const override;

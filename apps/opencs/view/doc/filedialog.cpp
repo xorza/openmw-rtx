@@ -1,5 +1,7 @@
 #include "filedialog.hpp"
 
+#include <cstdint>
+
 #include <QDialogButtonBox>
 #include <QPushButton>
 
@@ -97,7 +99,7 @@ void CSVDoc::FileDialog::showDialog(ContentAction action)
     {
         // connections common to both dialog view flavors
         connect(mSelector, &ContentSelectorView::ContentSelector::signalCurrentGamefileIndexChanged, this,
-            qOverload<int>(&FileDialog::slotUpdateAcceptButton));
+            qOverload<std::int32_t>(&FileDialog::slotUpdateAcceptButton));
 
         connect(ui->projectButtonBox, &QDialogButtonBox::rejected, this, &FileDialog::slotRejected);
         mDialogBuilt = true;
@@ -157,7 +159,7 @@ void CSVDoc::FileDialog::slotAddonDataChanged(const QModelIndex& topleft, const 
     slotUpdateAcceptButton(0);
 }
 
-void CSVDoc::FileDialog::slotUpdateAcceptButton(int)
+void CSVDoc::FileDialog::slotUpdateAcceptButton(std::int32_t)
 {
     QString name = "";
 

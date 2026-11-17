@@ -74,8 +74,8 @@ namespace Rtx::Testing
         TEST_F(RtxFrameCostTest, aWarmRendererDrawsAStillFrameWithoutTheHeap)
         {
             constexpr std::uint32_t size = 64;
-            constexpr int warmUpFrames = 16;
-            constexpr int measuredFrames = 32;
+            constexpr std::int32_t warmUpFrames = 16;
+            constexpr std::int32_t measuredFrames = 32;
 
             // What a frame is allowed, and why. Zero is the claim; a constant rather than a literal
             // zero is so that a path which must allocate can be admitted deliberately, with the
@@ -149,11 +149,11 @@ namespace Rtx::Testing
                     renderer.finishFrame();
                 };
 
-                for (int i = 0; i < warmUpFrames; ++i)
+                for (std::int32_t i = 0; i < warmUpFrames; ++i)
                     frame();
 
                 const std::size_t spent = Testing::allocationsIn([&] {
-                    for (int i = 0; i < measuredFrames; ++i)
+                    for (std::int32_t i = 0; i < measuredFrames; ++i)
                         frame();
                 });
 
@@ -183,10 +183,10 @@ namespace Rtx::Testing
                 RendererProbe(renderer).traceFrame(camera, FrameOptions{});
                 renderer.finishFrame();
             };
-            for (int i = 0; i < 32; ++i)
+            for (std::int32_t i = 0; i < 32; ++i)
                 rise();
             EXPECT_EQ(Testing::allocationsIn([&] {
-                for (int i = 0; i < 32; ++i)
+                for (std::int32_t i = 0; i < 32; ++i)
                     rise();
             }),
                 0u)

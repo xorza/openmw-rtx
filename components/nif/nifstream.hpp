@@ -5,6 +5,8 @@
 #include <array>
 #include <cassert>
 #include <cerrno>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <istream>
 #include <stdexcept>
@@ -17,7 +19,6 @@
 #include <osg/Quat>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
-#include <stdint.h>
 
 #include <components/files/istreamptr.hpp>
 #include <components/files/utils.hpp>
@@ -97,17 +98,18 @@ namespace Nif
 
         const Reader& getFile() const { return mReader; }
 
-        unsigned int getVersion() const;
-        unsigned int getUserVersion() const;
-        unsigned int getBethVersion() const;
+        std::uint32_t getVersion() const;
+        std::uint32_t getUserVersion() const;
+        std::uint32_t getBethVersion() const;
 
         /// Convert human-readable version numbers into a number that can be compared.
-        static constexpr uint32_t generateVersion(uint8_t major, uint8_t minor, uint8_t patch, uint8_t rev)
+        static constexpr std::uint32_t generateVersion(
+            std::uint8_t major, std::uint8_t minor, std::uint8_t patch, std::uint8_t rev)
         {
             return static_cast<std::uint32_t>((major << 24) + (minor << 16) + (patch << 8) + rev);
         }
 
-        void skip(size_t size) { mStream->ignore(static_cast<std::streamsize>(size)); }
+        void skip(std::size_t size) { mStream->ignore(static_cast<std::streamsize>(size)); }
 
         /// Read into a single instance of type
         template <class T>
@@ -117,7 +119,7 @@ namespace Nif
         }
 
         /// Read multiple instances of type into an array
-        template <class T, size_t size>
+        template <class T, std::size_t size>
         void readArray(std::array<T, size>& arr)
         {
             readBufferOfType<size>(mStream, arr.data());
@@ -125,14 +127,14 @@ namespace Nif
 
         /// Read instances of type into a dynamic buffer
         template <class T>
-        void read(T* dest, size_t size)
+        void read(T* dest, std::size_t size)
         {
             readDynamicBufferOfType<T>(mStream, dest, size);
         }
 
         /// Read multiple instances of type into a vector
         template <class T>
-        void readVector(std::vector<T>& vec, size_t size)
+        void readVector(std::vector<T>& vec, std::size_t size)
         {
             if (size == 0)
                 return;
@@ -153,16 +155,16 @@ namespace Nif
         }
 
         /// Read a string of the given length
-        std::string getSizedString(size_t length);
+        std::string getSizedString(std::size_t length);
 
         /// Read a string of the length specified in the file
-        std::string getSizedString() { return getSizedString(get<uint32_t>()); }
+        std::string getSizedString() { return getSizedString(get<std::uint32_t>()); }
 
         /// Read a list of strings without using the string table, e.g. the string table itself
-        void getSizedStrings(std::vector<std::string>& vec, size_t size);
+        void getSizedStrings(std::vector<std::string>& vec, std::size_t size);
 
         /// Read a Bethesda header string that uses a byte for length
-        std::string getExportString() { return getSizedString(get<uint8_t>()); }
+        std::string getExportString() { return getSizedString(get<std::uint8_t>()); }
 
         /// Read the version string which doesn't start with a number and ends with "\n"
         std::string getVersionString();
@@ -233,24 +235,24 @@ namespace Nif
     void NIFStream::read<std::string>(std::string& data);
 
     template <>
-    void NIFStream::read<osg::Vec2f>(osg::Vec2f* dest, size_t size);
+    void NIFStream::read<osg::Vec2f>(osg::Vec2f* dest, std::size_t size);
     template <>
-    void NIFStream::read<osg::Vec3f>(osg::Vec3f* dest, size_t size);
+    void NIFStream::read<osg::Vec3f>(osg::Vec3f* dest, std::size_t size);
     template <>
-    void NIFStream::read<osg::Vec4f>(osg::Vec4f* dest, size_t size);
+    void NIFStream::read<osg::Vec4f>(osg::Vec4f* dest, std::size_t size);
     template <>
-    void NIFStream::read<Matrix3>(Matrix3* dest, size_t size);
+    void NIFStream::read<Matrix3>(Matrix3* dest, std::size_t size);
     template <>
-    void NIFStream::read<osg::Quat>(osg::Quat* dest, size_t size);
+    void NIFStream::read<osg::Quat>(osg::Quat* dest, std::size_t size);
     template <>
-    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref* dest, size_t size);
+    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref* dest, std::size_t size);
     template <>
-    void NIFStream::read<NiTransform>(NiTransform* dest, size_t size);
+    void NIFStream::read<NiTransform>(NiTransform* dest, std::size_t size);
     template <>
-    void NIFStream::read<NiQuatTransform>(NiQuatTransform* dest, size_t size);
+    void NIFStream::read<NiQuatTransform>(NiQuatTransform* dest, std::size_t size);
     template <>
-    void NIFStream::read<bool>(bool* dest, size_t size);
+    void NIFStream::read<bool>(bool* dest, std::size_t size);
     template <>
-    void NIFStream::read<std::string>(std::string* dest, size_t size);
+    void NIFStream::read<std::string>(std::string* dest, std::size_t size);
 
 }

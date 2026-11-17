@@ -1,9 +1,11 @@
 #pragma once
 
-#include <QMetaType>
-#include <QRegularExpression>
+#include <cstdint>
 #include <set>
 #include <string>
+
+#include <QMetaType>
+#include <QRegularExpression>
 
 class QModelIndex;
 
@@ -38,13 +40,13 @@ namespace CSMTools
         Type mType;
         std::string mText;
         QRegularExpression mRegExp;
-        int mValue;
+        std::int32_t mValue;
         bool mCase;
-        std::set<int> mColumns;
-        int mIdColumn;
-        int mTypeColumn;
-        int mPaddingBefore;
-        int mPaddingAfter;
+        std::set<std::int32_t> mColumns;
+        std::int32_t mIdColumn;
+        std::int32_t mTypeColumn;
+        std::int32_t mPaddingBefore;
+        std::int32_t mPaddingAfter;
 
         void searchTextCell(const CSMWorld::IdTableBase* model, const QModelIndex& index,
             const CSMWorld::UniversalId& id, bool writable, CSMDoc::Messages& messages) const;
@@ -55,7 +57,7 @@ namespace CSMTools
         void searchRecordStateCell(const CSMWorld::IdTableBase* model, const QModelIndex& index,
             const CSMWorld::UniversalId& id, bool writable, CSMDoc::Messages& messages) const;
 
-        QString formatDescription(const QString& description, int pos, int length) const;
+        QString formatDescription(const QString& description, std::int32_t pos, std::int32_t length) const;
 
         QString flatten(const QString& text) const;
 
@@ -66,7 +68,7 @@ namespace CSMTools
 
         Search(Type type, bool caseSensitive, QRegularExpression value);
 
-        Search(Type type, bool caseSensitive, int value);
+        Search(Type type, bool caseSensitive, std::int32_t value);
 
         // Configure search for the specified model.
         void configure(const CSMWorld::IdTableBase* model);
@@ -74,9 +76,9 @@ namespace CSMTools
         // Search row in \a model and store results in \a messages.
         //
         // \attention *this needs to be configured for \a model.
-        void searchRow(const CSMWorld::IdTableBase* model, int row, CSMDoc::Messages& messages) const;
+        void searchRow(const CSMWorld::IdTableBase* model, std::int32_t row, CSMDoc::Messages& messages) const;
 
-        void setPadding(int before, int after);
+        void setPadding(std::int32_t before, std::int32_t after);
 
         // Configuring *this for the model is not necessary when calling this function.
         void replace(CSMDoc::Document& document, CSMWorld::IdTableBase* model, const CSMWorld::UniversalId& id,

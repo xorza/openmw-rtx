@@ -1,6 +1,8 @@
 #include "infocollection.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>
 
@@ -29,7 +31,7 @@ namespace CSMWorld
 
 void CSMWorld::InfoCollection::load(const Info& value, bool base)
 {
-    const int index = searchId(value.mId);
+    const std::int32_t index = searchId(value.mId);
 
     if (index == -1)
     {
@@ -66,7 +68,7 @@ void CSMWorld::InfoCollection::load(
 
     if (isDeleted)
     {
-        const int index = searchId(id);
+        const std::int32_t index = searchId(id);
 
         if (index == -1)
         {
@@ -100,7 +102,7 @@ void CSMWorld::InfoCollection::load(
 
 void CSMWorld::InfoCollection::sort(const InfoOrderByTopic& infoOrders)
 {
-    std::vector<int> order;
+    std::vector<std::int32_t> order;
     order.reserve(static_cast<std::size_t>(getSize()));
     for (const auto& [topicId, infoOrder] : infoOrders)
         for (const OrderedInfo& info : infoOrder.getOrderedInfo())
@@ -116,17 +118,17 @@ CSMWorld::InfosRecordPtrByTopic CSMWorld::InfoCollection::getInfosByTopic() cons
     return result;
 }
 
-int CSMWorld::InfoCollection::getAppendIndex(const ESM::RefId& id, UniversalId::Type /*type*/) const
+std::int32_t CSMWorld::InfoCollection::getAppendIndex(const ESM::RefId& id, UniversalId::Type /*type*/) const
 {
     const auto lessByTopicId
         = [](std::string_view lhs, const std::unique_ptr<Record<Info>>& rhs) { return lhs < rhs->get().mTopicId; };
     const auto it = std::upper_bound(getRecords().begin(), getRecords().end(), getInfoTopicId(id), lessByTopicId);
-    return static_cast<int>(it - getRecords().begin());
+    return static_cast<std::int32_t>(it - getRecords().begin());
 }
 
-bool CSMWorld::InfoCollection::reorderRows(int baseIndex, const std::vector<int>& newOrder)
+bool CSMWorld::InfoCollection::reorderRows(std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder)
 {
-    const int lastIndex = baseIndex + static_cast<int>(newOrder.size()) - 1;
+    const std::int32_t lastIndex = baseIndex + static_cast<std::int32_t>(newOrder.size()) - 1;
 
     if (lastIndex >= getSize())
         return false;

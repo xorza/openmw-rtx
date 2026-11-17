@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstdint>
+#include <map>
+
 #include <QList>
 #include <QMap>
 #include <QPair>
 #include <QSet>
 #include <QString>
 #include <QStringList>
-#include <map>
 
 class QTextStream;
 
@@ -32,10 +34,10 @@ namespace Config
 
         struct MainWindow
         {
-            int mWidth = 0;
-            int mHeight = 0;
-            int mPosX = 0;
-            int mPosY = 0;
+            std::int32_t mWidth = 0;
+            std::int32_t mHeight = 0;
+            std::int32_t mPosX = 0;
+            std::int32_t mPosY = 0;
         };
 
         struct General

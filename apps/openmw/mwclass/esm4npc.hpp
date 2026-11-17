@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwgui/tooltips.hpp>
 #include <apps/openmw/mwrender/objects.hpp>
 #include <apps/openmw/mwrender/renderinginterface.hpp>
@@ -46,7 +48,7 @@ namespace MWClass
         }
 
         bool hasToolTip(const MWWorld::ConstPtr& ptr) const override { return true; }
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override
         {
             return ESM4Impl::getToolTipInfo(getName(ptr), count);
         }

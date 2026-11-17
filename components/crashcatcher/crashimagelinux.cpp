@@ -5,6 +5,7 @@
 #include <charconv>
 #include <csignal>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <optional>
@@ -41,7 +42,7 @@ namespace Crash
 
         /// **Ends the keeper by `signal`, and leaves no core**: the application wrote the one that
         /// counts, and a second core per crash is what the keeper exists to stop.
-        [[noreturn]] void endBy(int signal)
+        [[noreturn]] void endBy(std::int32_t signal)
         {
             prctl(PR_SET_DUMPABLE, 0);
             static_cast<void>(std::signal(signal, SIG_DFL));
@@ -55,7 +56,7 @@ namespace Crash
 
         /// The application's end as the keeper's own, so whoever started the image reads a crash as
         /// a crash. `_exit`, because the keeper's statics are the application's, copied by the fork.
-        [[noreturn]] void endAs(int status)
+        [[noreturn]] void endAs(std::int32_t status)
         {
             if (WIFEXITED(status))
                 _exit(WEXITSTATUS(status));
@@ -89,7 +90,7 @@ namespace Crash
                 if (std::from_chars(name.data(), name.data() + name.size(), id).ptr != name.data() + name.size())
                     continue;
 
-                const int descriptor = open((entry.path() / "stat").c_str(), O_RDONLY | O_CLOEXEC);
+                const std::int32_t descriptor = open((entry.path() / "stat").c_str(), O_RDONLY | O_CLOEXEC);
                 if (descriptor == -1)
                 {
                     if (errno == ENOENT || errno == ESRCH)
@@ -141,11 +142,11 @@ namespace Crash
             }
             const pid_t keeper = getpid();
             bool applicationEnded = false;
-            int applicationEnd = 0;
+            std::int32_t applicationEnd = 0;
             for (;;)
             {
                 siginfo_t info{};
-                const int signal = sigwaitinfo(&waited, &info);
+                const std::int32_t signal = sigwaitinfo(&waited, &info);
                 if (signal == -1)
                     continue;
 
@@ -162,7 +163,7 @@ namespace Crash
 
                 for (;;)
                 {
-                    int status = 0;
+                    std::int32_t status = 0;
                     const pid_t ended = waitpid(-1, &status, WNOHANG);
                     if (ended == application)
                     {
@@ -188,7 +189,7 @@ namespace Crash
         }
     }
 
-    ProcessStat readProcessStat(const int descriptor) noexcept
+    ProcessStat readProcessStat(const std::int32_t descriptor) noexcept
     {
         // The kernel writes a few hundred bytes, so a text that fills the buffer is not one it wrote.
         std::array<char, 4096> buffer{};
@@ -224,7 +225,7 @@ namespace Crash
         // held for it; the application takes its own mask back.
         sigset_t waited;
         sigemptyset(&waited);
-        for (const int signal : { SIGCHLD, SIGTERM, SIGINT, SIGHUP, SIGQUIT })
+        for (const std::int32_t signal : { SIGCHLD, SIGTERM, SIGINT, SIGHUP, SIGQUIT })
             sigaddset(&waited, signal);
         sigset_t previous;
         static_cast<void>(pthread_sigmask(SIG_BLOCK, &waited, &previous));

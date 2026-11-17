@@ -21,7 +21,7 @@ namespace Crash
     /// Crashpad's handler returned `mResult`: the game is gone.
     struct HandlerReturned
     {
-        int mResult;
+        std::int32_t mResult;
     };
 
     /// The game has been gone for the monitor's last resort and Crashpad's handler has not returned: stuck, as one

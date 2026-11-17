@@ -1,5 +1,8 @@
 #include "box.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_EditText.h>
 
 namespace Gui
@@ -11,7 +14,7 @@ namespace Gui
         {
             if (mExpandDirection.isLeft())
             {
-                int hdiff = getRequestedSize().width - w->getSize().width;
+                std::int32_t hdiff = getRequestedSize().width - w->getSize().width;
                 w->setPosition(w->getPosition() - MyGUI::IntPoint(hdiff, 0));
             }
             w->setSize(getRequestedSize());
@@ -52,10 +55,10 @@ namespace Gui
         }
     }
 
-    int AutoSizedEditBox::getWidth()
+    std::int32_t AutoSizedEditBox::getWidth()
     {
         // If the widget has the one short text line, we can shrink widget to avoid a lot of empty space.
-        int textWidth = mMaxWidth;
+        std::int32_t textWidth = mMaxWidth;
 
         if (mShrink)
         {
@@ -64,7 +67,7 @@ namespace Gui
             // widget to its actual used space.
             if (mWasResized)
             {
-                int maxLineWidth = 0;
+                std::int32_t maxLineWidth = 0;
                 const MyGUI::VectorLineInfo& lines = getSubWidgetText()->castType<MyGUI::EditText>()->getLineInfo();
                 for (const auto& line : lines)
                     maxLineWidth = std::max(maxLineWidth, line.width);
@@ -163,9 +166,9 @@ namespace Gui
     bool Box::_setPropertyImpl(std::string_view key, std::string_view value)
     {
         if (key == "Spacing")
-            mSpacing = MyGUI::utility::parseValue<int>(value);
+            mSpacing = MyGUI::utility::parseValue<std::int32_t>(value);
         else if (key == "Padding")
-            mPadding = MyGUI::utility::parseValue<int>(value);
+            mPadding = MyGUI::utility::parseValue<std::int32_t>(value);
         else if (key == "AutoResize")
             mAutoResize = MyGUI::utility::parseValue<bool>(value);
         else
@@ -176,14 +179,14 @@ namespace Gui
 
     void HBox::align()
     {
-        const size_t count = getChildCount();
-        int hStretchedCount = 0;
-        int totalWidth = 0;
-        int totalHeight = 0;
+        const std::size_t count = getChildCount();
+        std::int32_t hStretchedCount = 0;
+        std::int32_t totalWidth = 0;
+        std::int32_t totalHeight = 0;
         std::vector<std::pair<MyGUI::IntSize, bool>> sizes;
         sizes.resize(count);
 
-        for (size_t i = 0; i < count; ++i)
+        for (std::size_t i = 0; i < count; ++i)
         {
             MyGUI::Widget* w = getChildAt(i);
             bool hstretch = w->getUserString("HStretch") == "true";
@@ -214,14 +217,14 @@ namespace Gui
             && (totalWidth + mPadding * 2 != getClientCoord().width
                 || totalHeight + mPadding * 2 != getClientCoord().height))
         {
-            int xmargin = getSize().width - getClientCoord().width;
-            int ymargin = getSize().height - getClientCoord().height;
+            std::int32_t xmargin = getSize().width - getClientCoord().width;
+            std::int32_t ymargin = getSize().height - getClientCoord().height;
             setSize(MyGUI::IntSize(totalWidth + mPadding * 2 + xmargin, totalHeight + mPadding * 2 + ymargin));
             return;
         }
 
-        int curX = 0;
-        for (size_t i = 0; i < count; ++i)
+        std::int32_t curX = 0;
+        for (std::size_t i = 0; i < count; ++i)
         {
             if (i == 0)
                 curX += mPadding;
@@ -233,14 +236,14 @@ namespace Gui
                 continue;
 
             bool vstretch = w->getUserString("VStretch") == "true";
-            int maxHeight = getClientCoord().height - mPadding * 2;
-            int height = vstretch ? maxHeight : sizes[i].first.height;
+            std::int32_t maxHeight = getClientCoord().height - mPadding * 2;
+            std::int32_t height = vstretch ? maxHeight : sizes[i].first.height;
 
             MyGUI::IntCoord widgetCoord;
             widgetCoord.left = curX;
             widgetCoord.top = mPadding + (getClientCoord().height - mPadding * 2 - height) / 2;
 
-            int width = 0;
+            std::int32_t width = 0;
             if (sizes[i].second)
             {
                 if (hStretchedCount == 0)
@@ -294,7 +297,7 @@ namespace Gui
     MyGUI::IntSize HBox::getRequestedSize()
     {
         MyGUI::IntSize size(0, 0);
-        for (unsigned int i = 0; i < getChildCount(); ++i)
+        for (std::uint32_t i = 0; i < getChildCount(); ++i)
         {
             bool hidden = getChildAt(i)->getUserString("Hidden") == "true";
             if (hidden)
@@ -328,13 +331,13 @@ namespace Gui
 
     void VBox::align()
     {
-        const size_t count = getChildCount();
-        int vStretchedCount = 0;
-        int totalHeight = 0;
-        int totalWidth = 0;
+        const std::size_t count = getChildCount();
+        std::int32_t vStretchedCount = 0;
+        std::int32_t totalHeight = 0;
+        std::int32_t totalWidth = 0;
         std::vector<std::pair<MyGUI::IntSize, bool>> sizes;
         sizes.resize(count);
-        for (size_t i = 0; i < count; ++i)
+        for (std::size_t i = 0; i < count; ++i)
         {
             MyGUI::Widget* w = getChildAt(i);
 
@@ -368,14 +371,14 @@ namespace Gui
             && (totalWidth + mPadding * 2 != getClientCoord().width
                 || totalHeight + mPadding * 2 != getClientCoord().height))
         {
-            int xmargin = getSize().width - getClientCoord().width;
-            int ymargin = getSize().height - getClientCoord().height;
+            std::int32_t xmargin = getSize().width - getClientCoord().width;
+            std::int32_t ymargin = getSize().height - getClientCoord().height;
             setSize(MyGUI::IntSize(totalWidth + mPadding * 2 + xmargin, totalHeight + mPadding * 2 + ymargin));
             return;
         }
 
-        int curY = 0;
-        for (size_t i = 0; i < count; ++i)
+        std::int32_t curY = 0;
+        for (std::size_t i = 0; i < count; ++i)
         {
             if (i == 0)
                 curY += mPadding;
@@ -387,14 +390,14 @@ namespace Gui
                 continue;
 
             bool hstretch = w->getUserString("HStretch") == "true";
-            int maxWidth = getClientCoord().width - mPadding * 2;
-            int width = hstretch ? maxWidth : sizes[i].first.width;
+            std::int32_t maxWidth = getClientCoord().width - mPadding * 2;
+            std::int32_t width = hstretch ? maxWidth : sizes[i].first.width;
 
             MyGUI::IntCoord widgetCoord;
             widgetCoord.top = curY;
             widgetCoord.left = mPadding + (getClientCoord().width - mPadding * 2 - width) / 2;
 
-            int height = 0;
+            std::int32_t height = 0;
             if (sizes[i].second)
             {
                 if (vStretchedCount == 0)
@@ -444,7 +447,7 @@ namespace Gui
     MyGUI::IntSize VBox::getRequestedSize()
     {
         MyGUI::IntSize size(0, 0);
-        for (unsigned int i = 0; i < getChildCount(); ++i)
+        for (std::uint32_t i = 0; i < getChildCount(); ++i)
         {
             bool hidden = getChildAt(i)->getUserString("Hidden") == "true";
             if (hidden)

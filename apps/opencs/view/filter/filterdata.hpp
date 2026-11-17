@@ -1,9 +1,10 @@
 #pragma once
 
-#include <QVariant>
 #include <string>
 #include <variant>
 #include <vector>
+
+#include <QVariant>
 
 namespace CSVFilter
 {

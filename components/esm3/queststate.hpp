@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <components/esm/refid.hpp>
@@ -14,8 +15,8 @@ namespace ESM
     struct QuestState
     {
         ESM::RefId mTopic; // lower case id
-        int32_t mState{};
-        unsigned char mFinished{};
+        std::int32_t mState{};
+        std::uint8_t mFinished{};
 
         void load(ESMReader& esm);
         void save(ESMWriter& esm) const;

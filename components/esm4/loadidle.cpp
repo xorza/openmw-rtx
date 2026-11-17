@@ -26,6 +26,7 @@
 */
 #include "loadidle.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 #include "reader.hpp"
@@ -57,7 +58,7 @@ void ESM4::IdleAnimation::load(ESM4::Reader& reader)
                     case 1: // TES4
                     {
                         // Animation group section
-                        uint8_t dummy = 0;
+                        std::uint8_t dummy = 0;
                         reader.get(dummy);
                         break;
                     }

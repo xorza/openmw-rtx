@@ -1,5 +1,6 @@
 #include "loadskil.hpp"
 
+#include <cstddef>
 #include <cstdint>
 
 #include <components/esm/attr.hpp>
@@ -42,8 +43,8 @@ namespace ESM
     {
         struct EsmSKDTstruct
         {
-            int32_t mAttribute;
-            int32_t mSpecialization;
+            std::int32_t mAttribute;
+            std::int32_t mSpecialization;
             float mUseValue[4];
         };
 
@@ -77,7 +78,7 @@ namespace ESM
 
         bool hasIndex = false;
         bool hasData = false;
-        int32_t index = -1;
+        std::int32_t index = -1;
         while (esm.hasMoreSubs())
         {
             esm.getSubName();
@@ -160,16 +161,16 @@ namespace ESM
         Skill::HandToHand,
     };
 
-    RefId Skill::indexToRefId(int index)
+    RefId Skill::indexToRefId(std::int32_t index)
     {
         if (index < 0 || index >= Length)
             return RefId();
         return sSkills[index];
     }
 
-    int Skill::refIdToIndex(RefId id)
+    std::int32_t Skill::refIdToIndex(RefId id)
     {
-        for (int i = 0; i < Length; ++i)
+        for (std::int32_t i = 0; i < Length; ++i)
         {
             if (sSkills[i] == id)
                 return i;
@@ -186,19 +187,19 @@ namespace ESM
         Skill::Restoration,
     };
 
-    RefId MagicSchool::indexToSkillRefId(int index)
+    RefId MagicSchool::indexToSkillRefId(std::int32_t index)
     {
         if (index < 0 || index >= Length)
             return {};
         return sMagicSchools[static_cast<std::size_t>(index)];
     }
 
-    int MagicSchool::skillRefIdToIndex(RefId id)
+    std::int32_t MagicSchool::skillRefIdToIndex(RefId id)
     {
-        for (size_t i = 0; i < sMagicSchools.size(); ++i)
+        for (std::size_t i = 0; i < sMagicSchools.size(); ++i)
         {
             if (id == sMagicSchools[i])
-                return static_cast<int>(i);
+                return static_cast<std::int32_t>(i);
         }
         return -1;
     }

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <map>
 #include <memory>
@@ -142,9 +143,9 @@ namespace MWSound
     // For combining PlayMode and Type flags
     // Found by argument-dependent lookup, which an unnamed namespace would hide.
     // NOLINTBEGIN(misc-use-anonymous-namespace)
-    static int operator|(PlayMode a, Type b)
+    static std::int32_t operator|(PlayMode a, Type b)
     {
-        return static_cast<int>(a) | static_cast<int>(b);
+        return static_cast<std::int32_t>(a) | static_cast<std::int32_t>(b);
     }
     // NOLINTEND(misc-use-anonymous-namespace)
 
@@ -825,7 +826,7 @@ namespace MWSound
         return false;
     }
 
-    void SoundManager::pauseSounds(BlockerType blocker, int types)
+    void SoundManager::pauseSounds(BlockerType blocker, std::int32_t types)
     {
         if (mOutput->isInitialized())
         {
@@ -843,8 +844,8 @@ namespace MWSound
         if (mOutput->isInitialized())
         {
             mPausedSoundTypes[blocker] = 0;
-            int types = static_cast<int>(Type::Mask);
-            for (int currentBlocker = 0; currentBlocker < BlockerType::MaxCount; currentBlocker++)
+            auto types = static_cast<std::int32_t>(Type::Mask);
+            for (std::int32_t currentBlocker = 0; currentBlocker < BlockerType::MaxCount; currentBlocker++)
             {
                 if (currentBlocker != blocker)
                     types &= ~mPausedSoundTypes[currentBlocker];
@@ -1335,8 +1336,8 @@ namespace MWSound
     // better
     void SoundDecoder::readAll(std::vector<char>& output)
     {
-        size_t total = output.size();
-        size_t got = 0;
+        std::size_t total = output.size();
+        std::size_t got = 0;
 
         output.resize(total + 32768);
         while ((got = read(&output[total], output.size() - total)) > 0)
@@ -1379,7 +1380,7 @@ namespace MWSound
         return "(unknown channel config)";
     }
 
-    size_t framesToBytes(size_t frames, ChannelConfig config, SampleType type)
+    std::size_t framesToBytes(std::size_t frames, ChannelConfig config, SampleType type)
     {
         switch (config)
         {
@@ -1414,7 +1415,7 @@ namespace MWSound
         return frames;
     }
 
-    size_t bytesToFrames(size_t bytes, ChannelConfig config, SampleType type)
+    std::size_t bytesToFrames(std::size_t bytes, ChannelConfig config, SampleType type)
     {
         return bytes / framesToBytes(1, config, type);
     }

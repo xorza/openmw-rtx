@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <source_location>
 #include <stdexcept>
@@ -194,7 +195,7 @@ namespace Rtx::Testing
         /// **`RigGeometry` finds its skeleton here and nowhere else.** It walks the node path
         /// for one, and the pose traversal the mirror uses is handed the drawable on its own —
         /// so a rig that had never been through an update would have nothing to skin against.
-        void update(unsigned int traversal)
+        void update(std::uint32_t traversal)
         {
             osgUtil::UpdateVisitor visitor;
             visitor.setTraversalNumber(traversal);
@@ -241,7 +242,7 @@ namespace Rtx::Testing
     inline void expectRed(
         const osg::Vec3f& colour, float red, std::source_location where = std::source_location::current())
     {
-        const ::testing::ScopedTrace trace(where.file_name(), static_cast<int>(where.line()), "expectRed");
+        const ::testing::ScopedTrace trace(where.file_name(), static_cast<std::int32_t>(where.line()), "expectRed");
 
         EXPECT_NEAR(colour.x(), red, 1e-6f);
         EXPECT_EQ(colour.y(), 0.0f);

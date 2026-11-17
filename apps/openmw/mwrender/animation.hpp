@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <span>
@@ -160,10 +162,10 @@ namespace MWRender
 
             bool mPlaying = false;
             bool mLoopingEnabled = true;
-            uint32_t mLoopCount = 0;
+            std::uint32_t mLoopCount = 0;
 
             AnimPriority mPriority{ 0 };
-            int mBlendMask = 0;
+            std::int32_t mBlendMask = 0;
             bool mAutoDisable = true;
 
             std::string mGroupname;
@@ -173,7 +175,7 @@ namespace MWRender
             float getCompletion() const;
             float getTime() const { return *mTime; }
             void setTime(float time) { *mTime = time; }
-            bool blendMaskContains(size_t blendMask) const { return (mBlendMask & (1 << blendMask)); }
+            bool blendMaskContains(std::size_t blendMask) const { return (mBlendMask & (1 << blendMask)); }
             bool shouldLoop() const { return getTime() >= mLoopStopTime && mLoopingEnabled && mLoopCount > 0; }
         };
 
@@ -258,7 +260,7 @@ namespace MWRender
          */
         void resetActiveGroups();
 
-        size_t detectBlendMask(const osg::Node* node, const std::string& controllerName) const;
+        std::size_t detectBlendMask(const osg::Node* node, const std::string& controllerName) const;
 
         /* Updates the position of the accum root node for the given time, and
          * returns the wanted movement vector from the previous time. */
@@ -335,7 +337,7 @@ namespace MWRender
         /// Set active flag on the object skeleton, if one exists.
         /// @see SceneUtil::Skeleton::setActive
         /// 0 = Inactive, 1 = Active in place, 2 = Active
-        void setActive(int active);
+        void setActive(std::int32_t active);
 
         osg::Group* getOrCreateObjectRoot();
 
@@ -398,8 +400,8 @@ namespace MWRender
          * \param loopFallback Allow looping an animation that has no loop keys, i.e. fall back to use
          *                     the "start" and "stop" keys for looping?
          */
-        void play(std::string_view groupname, const AnimPriority& priority, int blendMask, bool autodisable,
-            float speedmult, std::string_view start, std::string_view stop, float startpoint, uint32_t loops,
+        void play(std::string_view groupname, const AnimPriority& priority, std::int32_t blendMask, bool autodisable,
+            float speedmult, std::string_view start, std::string_view stop, float startpoint, std::uint32_t loops,
             bool loopfallback = false);
 
         /** Adjust the speed multiplier of an already playing animation.
@@ -419,7 +421,7 @@ namespace MWRender
          * \return True if the animation is active, false otherwise.
          */
         bool getInfo(std::string_view groupname, float* complete = nullptr, float* speedmult = nullptr,
-            uint32_t* loopcount = nullptr) const;
+            std::uint32_t* loopcount = nullptr) const;
 
         /// Returns the group name of the animation currently active on that bone group.
         std::string_view getActiveGroup(BoneGroup boneGroup) const;

@@ -1,5 +1,7 @@
 #include "importer.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -271,12 +273,12 @@ MwIniImporter::MwIniImporter()
         nullptr
     };
 
-    for (int i = 0; map[i][0]; i++)
+    for (std::int32_t i = 0; map[i][0]; i++)
     {
         mMergeMap.insert(std::make_pair<std::string, std::string>(map[i][0], map[i][1]));
     }
 
-    for (int i = 0; fallback[i]; i++)
+    for (std::int32_t i = 0; fallback[i]; i++)
     {
         mMergeFallback.emplace_back(fallback[i]);
     }
@@ -315,7 +317,7 @@ MwIniImporter::multistrmap MwIniImporter::loadIniFile(const std::filesystem::pat
 
         if (utf8[0] == '[')
         {
-            int pos = static_cast<int>(utf8.find(']'));
+            auto pos = static_cast<std::int32_t>(utf8.find(']'));
             if (pos < 2)
             {
                 std::cout << "Warning: ini file wrongly formatted (" << utf8 << "). Line ignored." << std::endl;
@@ -332,7 +334,7 @@ MwIniImporter::multistrmap MwIniImporter::loadIniFile(const std::filesystem::pat
             utf8 = utf8.substr(0, commentPos);
         }
 
-        int pos = static_cast<int>(utf8.find('='));
+        auto pos = static_cast<std::int32_t>(utf8.find('='));
         if (pos < 1)
         {
             continue;
@@ -378,7 +380,7 @@ MwIniImporter::multistrmap MwIniImporter::loadCfgFile(const std::filesystem::pat
             continue;
         }
 
-        int pos = static_cast<int>(line.find('='));
+        auto pos = static_cast<std::int32_t>(line.find('='));
         if (pos < 1)
         {
             continue;
@@ -454,7 +456,7 @@ void MwIniImporter::importArchives(multistrmap& cfg, const multistrmap& ini) con
 
     // Search archives listed in ini file
     auto it = ini.begin();
-    for (int i = 0; it != ini.end(); i++)
+    for (std::int32_t i = 0; it != ini.end(); i++)
     {
         std::string archive("Archives:Archive " + std::to_string(i));
 
@@ -549,7 +551,7 @@ void MwIniImporter::importGameFiles(
     dataPaths.push_back(iniFilename.parent_path() /= "Data Files");
 
     auto it = ini.begin();
-    for (int i = 0; it != ini.end(); i++)
+    for (std::int32_t i = 0; it != ini.end(); i++)
     {
         std::string gameFile("Game Files:GameFile" + std::to_string(i));
 

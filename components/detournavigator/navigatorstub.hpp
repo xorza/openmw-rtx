@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "navigator.hpp"
 #include "settings.hpp"
 #include "stats.hpp"
@@ -50,15 +52,15 @@ namespace DetourNavigator
 
         void removeObject(const ObjectId /*id*/, const UpdateGuard* /*guard*/) override {}
 
-        void addWater(const osg::Vec2i& /*cellPosition*/, int /*cellSize*/, float /*level*/,
+        void addWater(const osg::Vec2i& /*cellPosition*/, std::int32_t /*cellSize*/, float /*level*/,
             const UpdateGuard* /*guard*/) override
         {
         }
 
         void removeWater(const osg::Vec2i& /*cellPosition*/, const UpdateGuard* /*guard*/) override {}
 
-        void addHeightfield(const osg::Vec2i& /*cellPosition*/, int /*cellSize*/, const HeightfieldShape& /*height*/,
-            const UpdateGuard* /*guard*/) override
+        void addHeightfield(const osg::Vec2i& /*cellPosition*/, std::int32_t /*cellSize*/,
+            const HeightfieldShape& /*height*/, const UpdateGuard* /*guard*/) override
         {
         }
 

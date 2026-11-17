@@ -54,7 +54,7 @@ namespace SceneUtil
         void setStateSet(
             osg::StateSet* stateset, osg::StateAttribute::OverrideValue overrideValue = osg::StateAttribute::ON) const;
 
-        int compare(const StateAttribute& sa) const override;
+        std::int32_t compare(const StateAttribute& sa) const override;
 
         bool operator==(const Material& other) const;
 

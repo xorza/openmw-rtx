@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <set>
@@ -110,7 +111,7 @@ namespace MWWorld
         float mPredictionTime;
         LowestPoints mLowestPoints;
 
-        int mHalfGridSize = Constants::CellGridRadius;
+        std::int32_t mHalfGridSize = Constants::CellGridRadius;
 
         osg::Vec3f mLastPlayerPos;
 
@@ -210,6 +211,6 @@ namespace MWWorld
         void testExteriorCells();
         void testInteriorCells();
 
-        void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const;
+        void reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const;
     };
 }

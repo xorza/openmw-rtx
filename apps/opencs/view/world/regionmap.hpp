@@ -1,8 +1,9 @@
 #pragma once
 
-#include <QModelIndexList>
 #include <string>
 #include <vector>
+
+#include <QModelIndexList>
 
 #include "dragrecordtable.hpp"
 

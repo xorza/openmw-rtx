@@ -37,7 +37,7 @@ namespace Rtx::Testing
         {
             ASSERT_EQ(read.size(), built.getNumIndices());
             for (std::size_t at = 0; at < read.size(); ++at)
-                ASSERT_EQ(read[at], built.index(static_cast<unsigned int>(at))) << "index " << at;
+                ASSERT_EQ(read[at], built.index(static_cast<std::uint32_t>(at))) << "index " << at;
         }
 
         /// A cell with a land record is the storage's own grid, cut the way `Terrain::BufferCache`
@@ -207,20 +207,20 @@ namespace Rtx::Testing
                 mAlpha->allocateImage(16, 16, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
                 mRgba->allocateImage(16, 16, 1, GL_RGBA, GL_UNSIGNED_BYTE);
 
-                for (int row = 0; row < 16; ++row)
+                for (std::int32_t row = 0; row < 16; ++row)
                 {
-                    unsigned char* alphaRow = mAlpha->data(0, static_cast<unsigned int>(row));
-                    unsigned char* rgbaRow = mRgba->data(0, static_cast<unsigned int>(row));
+                    std::uint8_t* alphaRow = mAlpha->data(0, static_cast<std::uint32_t>(row));
+                    std::uint8_t* rgbaRow = mRgba->data(0, static_cast<std::uint32_t>(row));
 
-                    for (int column = 0; column < 16; ++column)
+                    for (std::int32_t column = 0; column < 16; ++column)
                     {
-                        const auto value = static_cast<unsigned char>(row * 16 + column);
+                        const auto value = static_cast<std::uint8_t>(row * 16 + column);
                         alphaRow[column] = value;
 
                         rgbaRow[column * 4 + 0] = 7;
                         rgbaRow[column * 4 + 1] = 11;
                         rgbaRow[column * 4 + 2] = 13;
-                        rgbaRow[column * 4 + 3] = static_cast<unsigned char>(255 - value);
+                        rgbaRow[column * 4 + 3] = static_cast<std::uint8_t>(255 - value);
                     }
                 }
             }
@@ -261,10 +261,10 @@ namespace Rtx::Testing
                 ASSERT_EQ(layer.mWeights.mCount, 256u);
 
                 const std::span<const float> weights = layer.mWeights.in(std::span<const float>(ground.mWeights));
-                for (int row = 0; row < 16; ++row)
-                    for (int column = 0; column < 16; ++column)
+                for (std::int32_t row = 0; row < 16; ++row)
+                    for (std::int32_t column = 0; column < 16; ++column)
                         ASSERT_EQ(weights[static_cast<std::size_t>(row * 16 + column)],
-                            image.getColor(static_cast<unsigned int>(column), static_cast<unsigned int>(row)).a())
+                            image.getColor(static_cast<std::uint32_t>(column), static_cast<std::uint32_t>(row)).a())
                             << "texel " << column << ", " << row << " of " << image.getPixelFormat();
             };
 

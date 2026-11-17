@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <utility>
+
 #include <QAction>
 #include <QString>
-#include <utility>
 
 #include <apps/opencs/model/world/columnbase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
@@ -25,7 +27,7 @@ namespace CSVWorld
     public:
         TableEditIdAction(const QTableView& table, CSMWorld::Data& data, QWidget* parent = nullptr);
 
-        bool setCell(int row, int column);
+        bool setCell(std::int32_t row, std::int32_t column);
 
         CSMWorld::UniversalId getCurrentId() const;
     };

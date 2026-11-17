@@ -1,5 +1,7 @@
 #include "statstate.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -21,15 +23,15 @@ namespace ESM
         // We changed stats values from integers to floats; ensure backwards compatibility
         if (intFallback)
         {
-            int32_t base = 0;
+            std::int32_t base = 0;
             esm.getHNT(base, "STBA");
             mBase = static_cast<T>(base);
 
-            int32_t mod = 0;
+            std::int32_t mod = 0;
             esm.getHNOT(mod, "STMO");
             mMod = static_cast<T>(mod);
 
-            int32_t current = 0;
+            std::int32_t current = 0;
             esm.getHNOT(current, "STCU");
             mCurrent = static_cast<T>(current);
         }
@@ -74,6 +76,6 @@ namespace ESM
             esm.writeHNT("STPR", mProgress);
     }
 
-    template struct StatState<int>;
+    template struct StatState<std::int32_t>;
     template struct StatState<float>;
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QString>
 #include <QWizard>
 
@@ -18,7 +20,7 @@ namespace Wizard
     public:
         explicit LanguageSelectionPage(QWidget* parent);
 
-        int nextId() const override;
+        std::int32_t nextId() const override;
 
     private:
         MainWizard* mWizard;

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <numbers>
 #include <utility>
@@ -73,7 +74,7 @@ namespace Rtx
         {
             float enter = 0.0f;
             float leave = length;
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
             {
                 if (direction[axis] == 0.0f)
                 {
@@ -143,7 +144,7 @@ namespace Rtx
             for (std::uint32_t at = begin; at < end; ++at)
             {
                 const std::uint32_t t = mOrder[at];
-                for (int which = 0; which < 3; ++which)
+                for (std::int32_t which = 0; which < 3; ++which)
                     built.mBox.expandBy(corner(t, which));
                 centroids.expandBy(mCentroids[t]);
                 weighted += mCentroids[t] * mAreas[t];
@@ -152,7 +153,7 @@ namespace Rtx
             }
             built.mCentre = weighted / area;
             for (std::uint32_t at = begin; at < end; ++at)
-                for (int which = 0; which < 3; ++which)
+                for (std::int32_t which = 0; which < 3; ++which)
                     built.mRadius = std::max(built.mRadius, (corner(mOrder[at], which) - built.mCentre).length());
 
             if (end - begin <= sLeafTriangles)
@@ -164,7 +165,7 @@ namespace Rtx
             }
 
             const osg::Vec3f spread = centroids._max - centroids._min;
-            const int axis
+            const std::int32_t axis
                 = spread.x() >= spread.y() && spread.x() >= spread.z() ? 0 : (spread.y() >= spread.z() ? 1 : 2);
             const std::uint32_t middle = begin + (end - begin) / 2;
             std::nth_element(mOrder.begin() + begin, mOrder.begin() + middle, mOrder.begin() + end,

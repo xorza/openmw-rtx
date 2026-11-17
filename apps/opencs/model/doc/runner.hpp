@@ -1,11 +1,13 @@
 #pragma once
 
-#include <QObject>
-#include <QProcess>
-#include <QTextDocument>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
+
+#include <QObject>
+#include <QProcess>
+#include <QTextDocument>
 
 #include <components/esm3/debugprofile.hpp>
 
@@ -54,7 +56,7 @@ namespace CSMDoc
 
     private slots:
 
-        void finished(int exitCode, QProcess::ExitStatus exitStatus);
+        void finished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
 
         void readyReadStandardOutput();
     };
@@ -72,6 +74,6 @@ namespace CSMDoc
 
     private slots:
 
-        void saveDone(int type, bool failed);
+        void saveDone(std::int32_t type, bool failed);
     };
 }

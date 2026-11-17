@@ -114,7 +114,7 @@ End
             return mFloats.contains(name) ? 'f' : mGlobals.contains(name) ? 's' : ' ';
         }
 
-        int getGlobalInt(std::string_view name) const override
+        std::int32_t getGlobalInt(std::string_view name) const override
         {
             const auto found = mGlobals.find(name);
             return found != mGlobals.end() ? found->second : 0;
@@ -126,7 +126,7 @@ End
             return found != mFloats.end() ? found->second : static_cast<float>(getGlobalInt(name));
         }
 
-        int getJournalIndex(const ESM::RefId& quest) const override
+        std::int32_t getJournalIndex(const ESM::RefId& quest) const override
         {
             const auto found = mJournal.find(quest);
             return found != mJournal.end() ? found->second : 0;
@@ -134,9 +134,9 @@ End
 
         /// Both as the game compares them, without regard to case: a name a script spells in its own
         /// case reads the entry a test wrote in lower case, whatever spelling the process interned first.
-        std::map<std::string, int, Misc::StringUtils::CiComp> mGlobals;
+        std::map<std::string, std::int32_t, Misc::StringUtils::CiComp> mGlobals;
         std::map<std::string, float, Misc::StringUtils::CiComp> mFloats;
-        std::map<ESM::RefId, int> mJournal;
+        std::map<ESM::RefId, std::int32_t> mJournal;
     };
 
     struct Compiled
@@ -238,7 +238,7 @@ End
 
         struct Row
         {
-            int mStronghold;
+            std::int32_t mStronghold;
             GateState mState;
         };
         for (const Row& row : { Row{ 0, GateState::Closed }, Row{ 1, GateState::Open }, Row{ 2, GateState::Closed } })

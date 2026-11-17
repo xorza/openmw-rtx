@@ -39,7 +39,7 @@ namespace RtxTool
                 const std::uint32_t x
                     = sheet.getLeftOf(0) + (right ? ContactSheet::getStride() : 0) + ContactSheet::getThumbnail() / 2;
                 const std::uint32_t y = sheet.getTopOf(0) + ContactSheet::getThumbnail() / 2;
-                return static_cast<int>(sheet.mPixels[(std::size_t{ y } * sheet.mWidth + x) * 4]);
+                return static_cast<std::int32_t>(sheet.mPixels[(std::size_t{ y } * sheet.mWidth + x) * 4]);
             };
 
             EXPECT_EQ(shownAt(painted.mData, false), 255) << "the left half is the texture as it was drawn";
@@ -109,7 +109,7 @@ namespace RtxTool
             const auto shownAt = [&](std::uint32_t index, std::uint32_t x, std::uint32_t y) {
                 const std::size_t at
                     = (std::size_t{ sheet.getTopOf(index) + y } * sheet.mWidth + sheet.getLeftOf(index) + x) * 4;
-                return static_cast<int>(sheet.mPixels[at]);
+                return static_cast<std::int32_t>(sheet.mPixels[at]);
             };
 
             for (const std::uint32_t index : { 0u, 1u })

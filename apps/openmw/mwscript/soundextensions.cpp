@@ -1,5 +1,7 @@
 #include "soundextensions.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/soundmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -164,7 +166,7 @@ namespace MWScript
                 {
                     MWWorld::Ptr ptr = R()(runtime, false);
 
-                    int index = runtime[0].mInteger;
+                    std::int32_t index = runtime[0].mInteger;
                     runtime.pop();
 
                     if (ptr.isEmpty())

@@ -1,12 +1,14 @@
 #include "dialogue.hpp"
 
+#include <cstdint>
+#include <exception>
+#include <utility>
+
 #include <QApplication>
 #include <QListWidgetItem>
 #include <QScreen>
 #include <QSplitter>
 #include <QStackedWidget>
-#include <exception>
-#include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/state.hpp>
@@ -29,7 +31,7 @@ void CSVPrefs::Dialogue::buildCategorySelector(QSplitter* main)
 
     QFontMetrics metrics(QApplication::font(list));
 
-    int maxWidth = 1;
+    std::int32_t maxWidth = 1;
 
     for (auto& entry : CSMPrefs::get())
     {
@@ -126,7 +128,7 @@ void CSVPrefs::Dialogue::selectionChanged(QListWidgetItem* current, QListWidgetI
     {
         std::string key = current->text().toUtf8().data();
 
-        for (int i = 0; i < mContent->count(); ++i)
+        for (std::int32_t i = 0; i < mContent->count(); ++i)
         {
             auto& page = dynamic_cast<PageBase&>(*mContent->widget(i));
 

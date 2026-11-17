@@ -1,6 +1,7 @@
 #include "spelllist.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
@@ -12,7 +13,7 @@
 
 namespace
 {
-    constexpr int sAutoCalc = ESM::REC_NPC_ + 1;
+    constexpr std::int32_t sAutoCalc = ESM::REC_NPC_ + 1;
 
     template <class T>
     const std::vector<ESM::RefId>& getSpellList(ESM::RefId id)
@@ -30,7 +31,7 @@ namespace
         return changed;
     }
 
-    bool withBaseRecord(ESM::RefId id, int type, std::vector<ESM::RefId>& spells, auto&& function)
+    bool withBaseRecord(ESM::RefId id, std::int32_t type, std::vector<ESM::RefId>& spells, auto&& function)
     {
         switch (type)
         {
@@ -48,7 +49,7 @@ namespace
 
 namespace MWMechanics
 {
-    SpellList::SpellList(ESM::RefId id, int type, bool autoCalc)
+    SpellList::SpellList(ESM::RefId id, std::int32_t type, bool autoCalc)
         : mId(id)
         , mType(autoCalc ? sAutoCalc : type)
     {

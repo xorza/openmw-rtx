@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QApplication>
 #include <QEvent>
 
@@ -18,7 +20,7 @@ namespace Platform
         Q_OBJECT
 
     public:
-        Application(int& argc, char* argv[], Look look);
+        Application(std::int32_t& argc, char* argv[], Look look);
 
 #if defined(WIN32)
         void init();

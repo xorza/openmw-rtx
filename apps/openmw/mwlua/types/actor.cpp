@@ -1,4 +1,6 @@
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
@@ -24,13 +26,13 @@
 namespace MWLua
 {
     using EquipmentItem = std::variant<std::string, ObjectId>;
-    using Equipment = std::map<int, EquipmentItem>;
-    static constexpr int sAnySlot = -1;
+    using Equipment = std::map<std::int32_t, EquipmentItem>;
+    static constexpr std::int32_t sAnySlot = -1;
 
     namespace
     {
         std::pair<MWWorld::ContainerStoreIterator, bool> findInInventory(
-            MWWorld::ContainerStore& store, const EquipmentItem& item, int slot, bool isInventoryStore)
+            MWWorld::ContainerStore& store, const EquipmentItem& item, std::int32_t slot, bool isInventoryStore)
         {
             auto oldIt = slot != sAnySlot && isInventoryStore
                 ? static_cast<MWWorld::InventoryStore&>(store).getSlot(slot)
@@ -77,7 +79,7 @@ namespace MWLua
             std::array<bool, MWWorld::InventoryStore::Slots> usedSlots{};
             std::fill(usedSlots.begin(), usedSlots.end(), false);
 
-            auto tryEquipToSlot = [&store, &usedSlots, isPlayer](int slot, const EquipmentItem& item) -> bool {
+            auto tryEquipToSlot = [&store, &usedSlots, isPlayer](std::int32_t slot, const EquipmentItem& item) -> bool {
                 auto [it, alreadyEquipped] = findInInventory(store, item, slot, true);
                 if (alreadyEquipped)
                     return true;
@@ -91,7 +93,7 @@ namespace MWLua
                 if (!requestedSlotIsAllowed)
                 {
                     auto firstAllowed = std::find_if(allowedSlots.begin(), allowedSlots.end(),
-                        [&](int s) { return !usedSlots[static_cast<std::size_t>(s)]; });
+                        [&](std::int32_t s) { return !usedSlots[static_cast<std::size_t>(s)]; });
                     if (firstAllowed == allowedSlots.end())
                     {
                         Log(Debug::Warning) << "No suitable slot for " << itemPtr.toString();
@@ -120,7 +122,7 @@ namespace MWLua
                 return requestedSlotIsAllowed;
             };
 
-            for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+            for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
             {
                 auto oldIt = store.getSlot(slot);
                 auto newIt = equipment.find(slot);
@@ -189,7 +191,8 @@ namespace MWLua
                     { "Weapon", MWMechanics::DrawState::Weapon },
                     { "Spell", MWMechanics::DrawState::Spell },
                 }));
-        actor["EQUIPMENT_SLOT"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(lua,
+        actor["EQUIPMENT_SLOT"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, std::int32_t>(
+            lua,
             { { "Helmet", MWWorld::InventoryStore::Slot_Helmet }, { "Cuirass", MWWorld::InventoryStore::Slot_Cuirass },
                 { "Greaves", MWWorld::InventoryStore::Slot_Greaves },
                 { "LeftPauldron", MWWorld::InventoryStore::Slot_LeftPauldron },
@@ -213,14 +216,14 @@ namespace MWLua
                 throw std::runtime_error("Actor expected");
         };
         actor["stance"] = actor["getStance"]; // for compatibility; should be removed later
-        actor["setStance"] = [](const SelfObject& self, int stance) {
+        actor["setStance"] = [](const SelfObject& self, std::int32_t stance) {
             const MWWorld::Class& cls = self.ptr().getClass();
             if (!cls.isActor())
                 throw std::runtime_error("Actor expected");
             auto& stats = cls.getCreatureStats(self.ptr());
-            if (stance != static_cast<int>(MWMechanics::DrawState::Nothing)
-                && stance != static_cast<int>(MWMechanics::DrawState::Weapon)
-                && stance != static_cast<int>(MWMechanics::DrawState::Spell))
+            if (stance != static_cast<std::int32_t>(MWMechanics::DrawState::Nothing)
+                && stance != static_cast<std::int32_t>(MWMechanics::DrawState::Weapon)
+                && stance != static_cast<std::int32_t>(MWMechanics::DrawState::Spell))
             {
                 throw std::runtime_error("Incorrect stance");
             }
@@ -324,7 +327,7 @@ namespace MWLua
                 return equipment;
 
             MWWorld::InventoryStore& store = ptr.getClass().getInventoryStore(ptr);
-            for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+            for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
             {
                 auto it = store.getSlot(slot);
                 if (it == store.end())
@@ -337,7 +340,7 @@ namespace MWLua
             }
             return equipment;
         };
-        auto getEquipmentFromSlot = [](sol::this_state thisState, const Object& o, int slot) -> sol::object {
+        auto getEquipmentFromSlot = [](sol::this_state thisState, const Object& o, std::int32_t slot) -> sol::object {
             const MWWorld::Ptr& ptr = o.ptr();
             if (!ptr.getClass().hasInventoryStore(ptr))
                 return sol::nil;
@@ -371,7 +374,7 @@ namespace MWLua
             Equipment eqp;
             for (auto& [key, value] : equipment)
             {
-                int slot = LuaUtil::cast<int>(key);
+                std::int32_t slot = LuaUtil::cast<std::int32_t>(key);
                 if (value.is<Object>())
                     eqp[slot] = LuaUtil::cast<Object>(value).id();
                 else
@@ -400,7 +403,7 @@ namespace MWLua
             if (target.getCell()->getCell()->getWorldSpace() != player.getCell()->getCell()->getWorldSpace())
                 return false;
 
-            const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
+            const std::int32_t actorsProcessingRange = Settings::game().mActorsProcessingRange;
             const osg::Vec3f playerPos = player.getRefData().getPosition().asVec3();
 
             const float dist = (playerPos - target.getRefData().getPosition().asVec3()).length2();
@@ -427,12 +430,12 @@ namespace MWLua
             return ptr.getClass().getCapacity(ptr);
         };
 
-        actor["getBarterGold"] = [](const Object& object) -> int {
+        actor["getBarterGold"] = [](const Object& object) -> std::int32_t {
             const MWWorld::Ptr ptr = object.ptr();
             return ptr.getClass().getCreatureStats(ptr).getGoldPool();
         };
 
-        actor["setBarterGold"] = [context](const Object& object, int gold) {
+        actor["setBarterGold"] = [context](const Object& object, std::int32_t gold) {
             if (gold < 0)
                 throw std::runtime_error("Barter gold must be positive");
             if (!object.isGObject() && !object.isSelfObject())

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 
@@ -74,38 +76,38 @@ namespace MWInput
         void toggleControlSwitch(std::string_view sw, bool value) override;
         bool getControlSwitch(std::string_view sw) override;
 
-        std::string_view getActionDescription(int action) const override;
-        std::string getActionKeyBindingName(int action) const override;
-        std::string getActionControllerBindingName(int action) const override;
-        bool actionIsActive(int action) const override;
+        std::string_view getActionDescription(std::int32_t action) const override;
+        std::string getActionKeyBindingName(std::int32_t action) const override;
+        std::string getActionControllerBindingName(std::int32_t action) const override;
+        bool actionIsActive(std::int32_t action) const override;
 
-        float getActionValue(int action) const override;
+        float getActionValue(std::int32_t action) const override;
         bool isControllerButtonPressed(SDL_GamepadButton button) const override;
         float getControllerAxisValue(SDL_GamepadAxis axis) const override;
         float getMouseMoveX() const override;
         float getMouseMoveY() const override;
         void warpMouseToWidget(MyGUI::Widget* widget) override;
 
-        int getNumActions() override { return A_Last; }
-        const std::initializer_list<int>& getActionKeySorting() override;
-        const std::initializer_list<int>& getActionControllerSorting() override;
-        void enableDetectingBindingMode(int action, bool keyboard) override;
+        std::int32_t getNumActions() override { return A_Last; }
+        const std::initializer_list<std::int32_t>& getActionKeySorting() override;
+        const std::initializer_list<std::int32_t>& getActionControllerSorting() override;
+        void enableDetectingBindingMode(std::int32_t action, bool keyboard) override;
         void resetToDefaultKeyBindings() override;
         void resetToDefaultControllerBindings() override;
 
         void setJoystickLastUsed(bool enabled) override;
         bool joystickLastUsed() override;
-        std::string getControllerButtonIcon(int button) override;
-        std::string getControllerAxisIcon(int axis) override;
+        std::string getControllerButtonIcon(std::int32_t button) override;
+        std::string getControllerAxisIcon(std::int32_t axis) override;
 
-        size_t countSavedGameRecords() const override;
+        std::size_t countSavedGameRecords() const override;
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) override;
-        void readRecord(ESM::ESMReader& reader, uint32_t type) override;
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
 
         void resetIdleTime() override;
         bool isIdle() const override;
 
-        void executeAction(int action) override;
+        void executeAction(std::int32_t action) override;
 
         bool controlsDisabled() override { return mControlsDisabled; }
 

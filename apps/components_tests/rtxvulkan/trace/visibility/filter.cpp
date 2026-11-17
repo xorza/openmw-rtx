@@ -1249,15 +1249,15 @@ namespace Rtx::Testing
         TEST_F(RtxSettlingTest, theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow)
         {
             constexpr std::uint32_t size = 64;
-            constexpr int cells = 16;
+            constexpr std::int32_t cells = 16;
             constexpr float extent = 4000.0f;
             constexpr float tilt = 20.0f;
 
             std::vector<osg::Vec3f> positions;
             std::vector<osg::Vec3f> normals;
             std::vector<std::uint32_t> indices;
-            for (int y = 0; y < cells; ++y)
-                for (int x = 0; x < cells; ++x)
+            for (std::int32_t y = 0; y < cells; ++y)
+                for (std::int32_t x = 0; x < cells; ++x)
                 {
                     const float lowX = -extent + 2.0f * extent * static_cast<float>(x) / cells;
                     const float highX = -extent + 2.0f * extent * static_cast<float>(x + 1) / cells;
@@ -1273,7 +1273,7 @@ namespace Rtx::Testing
                     // Coplanar, so nothing here is a step in the geometry; only the normal moves.
                     const float lean = osg::DegreesToRadians((x + y) % 2 == 0 ? tilt : -tilt);
                     const osg::Vec3f leaning(std::sin(lean), 0.0f, std::cos(lean));
-                    for (int corner = 0; corner < 4; ++corner)
+                    for (std::int32_t corner = 0; corner < 4; ++corner)
                         normals.push_back(leaning);
 
                     for (const std::uint32_t offset : sQuadIndices)

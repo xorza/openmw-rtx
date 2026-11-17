@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -39,15 +40,15 @@ namespace
 
         Platform::SharedMemory left = Platform::SharedMemory::create(name, 64);
         ASSERT_NE(left.data(), nullptr);
-        static_cast<unsigned char*>(left.data())[0] = 0xAB;
+        static_cast<std::uint8_t*>(left.data())[0] = 0xAB;
 
         Platform::SharedMemory again = Platform::SharedMemory::create(name, 64);
         ASSERT_NE(again.data(), nullptr) << "a name this user left was not made again";
-        EXPECT_EQ(static_cast<const unsigned char*>(again.data())[0], 0) << "made over what was left, as it stood";
+        EXPECT_EQ(static_cast<const std::uint8_t*>(again.data())[0], 0) << "made over what was left, as it stood";
 
         const Platform::SharedMemory opened = Platform::SharedMemory::open(name, 64);
         ASSERT_NE(opened.data(), nullptr);
-        static_cast<unsigned char*>(opened.data())[1] = 0xCD;
-        EXPECT_EQ(static_cast<const unsigned char*>(again.data())[1], 0xCD) << "the two sides map two pages";
+        static_cast<std::uint8_t*>(opened.data())[1] = 0xCD;
+        EXPECT_EQ(static_cast<const std::uint8_t*>(again.data())[1], 0xCD) << "the two sides map two pages";
     }
 }

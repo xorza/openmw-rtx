@@ -1,5 +1,6 @@
 #include "glground.hpp"
 
+#include <cstdint>
 #include <utility>
 
 #include <osg/Vec2i>
@@ -36,7 +37,7 @@ namespace MWRender
 
     // Upstream's, from RenderingManager::pagingEnableObject. The position and the cell are what
     // this paging finds a reference's chunk by, and no other renderer reads them.
-    bool GlGround::enableReference(const int type, const MWWorld::ConstPtr& ptr, const bool enabled)
+    bool GlGround::enableReference(const std::int32_t type, const MWWorld::ConstPtr& ptr, const bool enabled)
     {
         if (!mObjectPaging)
             return false;
@@ -50,7 +51,7 @@ namespace MWRender
     }
 
     // Upstream's, from RenderingManager::pagingBlacklistObject.
-    void GlGround::blacklistReference(const int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr&)
+    void GlGround::blacklistReference(const std::int32_t type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr&)
     {
         if (!mObjectPaging)
             return;

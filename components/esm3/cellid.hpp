@@ -14,8 +14,8 @@ namespace ESM
     {
         struct CellIndex
         {
-            int32_t mX;
-            int32_t mY;
+            std::int32_t mX;
+            std::int32_t mY;
         };
 
         std::string mWorldspace;

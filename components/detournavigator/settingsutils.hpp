@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include <osg/Vec2f>
 #include <osg/Vec3f>
@@ -52,14 +53,14 @@ namespace DetourNavigator
         return static_cast<float>(settings.mTileSize) * settings.mCellSize;
     }
 
-    inline int getTilePosition(const RecastSettings& settings, float position)
+    inline std::int32_t getTilePosition(const RecastSettings& settings, float position)
     {
         const float v = std::floor(position / getTileSize(settings));
-        if (v < static_cast<float>(std::numeric_limits<int>::min()))
-            return std::numeric_limits<int>::min();
-        if (v > static_cast<float>(std::numeric_limits<int>::max() - 1))
-            return std::numeric_limits<int>::max() - 1;
-        return static_cast<int>(v);
+        if (v < static_cast<float>(std::numeric_limits<std::int32_t>::min()))
+            return std::numeric_limits<std::int32_t>::min();
+        if (v > static_cast<float>(std::numeric_limits<std::int32_t>::max() - 1))
+            return std::numeric_limits<std::int32_t>::max() - 1;
+        return static_cast<std::int32_t>(v);
     }
 
     // Returns integer tile position for position in navmesh coordinates

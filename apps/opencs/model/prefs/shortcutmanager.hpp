@@ -1,11 +1,13 @@
 #pragma once
 
-#include <QKeySequence>
-#include <QObject>
-#include <QString>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <utility>
+
+#include <QKeySequence>
+#include <QObject>
+#include <QString>
 
 namespace CSMPrefs
 {
@@ -29,18 +31,18 @@ namespace CSMPrefs
         bool getSequence(std::string_view name, QKeySequence& sequence) const;
         void setSequence(std::string_view name, const QKeySequence& sequence);
 
-        bool getModifier(std::string_view name, int& modifier) const;
-        void setModifier(std::string_view name, int modifier);
+        bool getModifier(std::string_view name, std::int32_t& modifier) const;
+        void setModifier(std::string_view name, std::int32_t modifier);
 
         std::string convertToString(const QKeySequence& sequence) const;
-        std::string convertToString(int modifier) const;
+        std::string convertToString(std::int32_t modifier) const;
 
-        std::string convertToString(const QKeySequence& sequence, int modifier) const;
+        std::string convertToString(const QKeySequence& sequence, std::int32_t modifier) const;
 
         void convertFromString(std::string_view data, QKeySequence& sequence) const;
-        void convertFromString(std::string_view data, int& modifier) const;
+        void convertFromString(std::string_view data, std::int32_t& modifier) const;
 
-        void convertFromString(std::string_view data, QKeySequence& sequence, int& modifier) const;
+        void convertFromString(std::string_view data, QKeySequence& sequence, std::int32_t& modifier) const;
 
         /// Replaces "{sequence-name}" or "{modifier-name}" with the appropriate text
         QString processToolTip(const QString& toolTip) const;
@@ -49,9 +51,9 @@ namespace CSMPrefs
         // Need a multimap in case multiple shortcuts share the same name
         typedef std::multimap<std::string, Shortcut*, std::less<>> ShortcutMap;
         typedef std::map<std::string, QKeySequence, std::less<>> SequenceMap;
-        typedef std::map<std::string, int, std::less<>> ModifierMap;
-        typedef std::map<int, std::string> NameMap;
-        typedef std::map<std::string, int, std::less<>> KeyMap;
+        typedef std::map<std::string, std::int32_t, std::less<>> ModifierMap;
+        typedef std::map<std::int32_t, std::string> NameMap;
+        typedef std::map<std::string, std::int32_t, std::less<>> KeyMap;
 
         ShortcutMap mShortcuts;
         SequenceMap mSequences;
@@ -64,6 +66,6 @@ namespace CSMPrefs
 
         void createLookupTables();
 
-        static const std::pair<int, const char*> QtKeys[];
+        static const std::pair<std::int32_t, const char*> QtKeys[];
     };
 }

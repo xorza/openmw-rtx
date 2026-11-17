@@ -1,5 +1,7 @@
 #include "dialogue.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <MyGUI_Button.h>
@@ -60,7 +62,7 @@ namespace MWGui
         getWidget(mGoldLabel, "GoldLabel");
         getWidget(mActionsBox, "ActionsBox");
 
-        int totalHeight = 3;
+        std::int32_t totalHeight = 3;
         adjustAction(mAdmireButton, totalHeight);
         adjustAction(mIntimidateButton, totalHeight);
         adjustAction(mTauntButton, totalHeight);
@@ -69,7 +71,7 @@ namespace MWGui
         adjustAction(mBribe1000Button, totalHeight);
         totalHeight += 3;
 
-        int diff = totalHeight - mActionsBox->getSize().height;
+        std::int32_t diff = totalHeight - mActionsBox->getSize().height;
         if (diff > 0)
         {
             auto mainWidgetSize = mMainWidget->getSize();
@@ -92,9 +94,9 @@ namespace MWGui
         mControllerButtons.mB = "#{Interface:Cancel}";
     }
 
-    void PersuasionDialog::adjustAction(MyGUI::Widget* action, int& totalHeight)
+    void PersuasionDialog::adjustAction(MyGUI::Widget* action, std::int32_t& totalHeight)
     {
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         auto currentCoords = action->getCoord();
         action->setCoord(currentCoords.left, totalHeight, currentCoords.width, lineHeight);
         totalHeight += lineHeight;
@@ -132,7 +134,7 @@ namespace MWGui
         center();
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
         mBribe10Button->setEnabled(playerGold >= 10);
         mBribe100Button->setEnabled(playerGold >= 100);
@@ -140,7 +142,7 @@ namespace MWGui
 
         mGoldLabel->setCaptionWithReplacing("#{sGold}: " + MyGUI::utility::toString(playerGold));
 
-        int diff = mGoldLabel->getRequestedSize().width - mInitialGoldLabelWidth;
+        std::int32_t diff = mGoldLabel->getRequestedSize().width - mInitialGoldLabelWidth;
         if (diff > 0)
             mMainWidget->setSize(mInitialMainWidgetWidth + diff, mMainWidget->getSize().height);
         else
@@ -160,7 +162,7 @@ namespace MWGui
             if (mBribe1000Button->getEnabled())
                 mButtons.push_back(mBribe1000Button);
 
-            for (size_t i = 0; i < mButtons.size(); i++)
+            for (std::size_t i = 0; i < mButtons.size(); i++)
                 mButtons[i]->setStateSelected(i == 0);
         }
 
@@ -226,8 +228,8 @@ namespace MWGui
 
         struct Token
         {
-            size_t mStart;
-            size_t mEnd;
+            std::size_t mStart;
+            std::size_t mEnd;
             Link* mTopic;
         };
 
@@ -257,7 +259,7 @@ namespace MWGui
 
         BookTypesetter::Style* textStyle = typesetter->createStyle({}, colors.normal, false);
 
-        size_t i = 0;
+        std::size_t i = 0;
         for (const Token& token : tokens)
         {
             if (i < token.mStart)
@@ -311,7 +313,7 @@ namespace MWGui
     // --------------------------------------------------------------------------------------------------
 
     // Morrowind uses 3 px invisible borders for padding topics
-    static constexpr int sVerticalPadding = 3;
+    static constexpr std::int32_t sVerticalPadding = 3;
 
     DialogueWindow::DialogueWindow()
         : WindowBase("openmw_dialogue_window.layout")
@@ -388,14 +390,14 @@ namespace MWGui
         mCurrentWindowSize = sender->getSize();
     }
 
-    void DialogueWindow::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void DialogueWindow::onMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (!mScrollBar->getVisible() || mScrollBar->getScrollRange() == 0)
             return;
-        const int step = static_cast<int>(0.3f * static_cast<float>(rel));
-        const int newPos = static_cast<int>(mScrollBar->getScrollPosition()) - step;
-        const int maxPos = static_cast<int>(mScrollBar->getScrollRange()) - 1;
-        mScrollBar->setScrollPosition(static_cast<size_t>(std::clamp(newPos, 0, maxPos)));
+        const auto step = static_cast<std::int32_t>(0.3f * static_cast<float>(rel));
+        const std::int32_t newPos = static_cast<std::int32_t>(mScrollBar->getScrollPosition()) - step;
+        const std::int32_t maxPos = static_cast<std::int32_t>(mScrollBar->getScrollRange()) - 1;
+        mScrollBar->setScrollPosition(static_cast<std::size_t>(std::clamp(newPos, 0, maxPos)));
         onScrollbarMoved(mScrollBar, mScrollBar->getScrollPosition());
     }
 
@@ -407,7 +409,7 @@ namespace MWGui
         }
     }
 
-    void DialogueWindow::onSelectListItem(const std::string& topic, int /*id*/)
+    void DialogueWindow::onSelectListItem(const std::string& topic, std::int32_t /*id*/)
     {
         MWBase::DialogueManager* dialogueManager = MWBase::Environment::get().getDialogueManager();
 
@@ -582,7 +584,7 @@ namespace MWGui
         mTopicLinks.clear();
         mKeywordSearch.clear();
 
-        int services = mPtr.getClass().getServices(mPtr);
+        std::int32_t services = mPtr.getClass().getServices(mPtr);
 
         bool travel = (mPtr.getType() == ESM::NPC::sRecordId && !mPtr.get<ESM::NPC>()->mBase->getTransport().empty())
             || (mPtr.getType() == ESM::Creature::sRecordId
@@ -659,7 +661,7 @@ namespace MWGui
         }
 
         std::shared_ptr<BookTypesetter> typesetter = BookTypesetter::create(mHistory->getWidth(),
-            std::numeric_limits<int>::max(), MWBase::Environment::get().getWindowManager()->getFontSize());
+            std::numeric_limits<std::int32_t>::max(), MWBase::Environment::get().getWindowManager()->getFontSize());
 
         for (const auto& text : mHistoryContents)
             text->write(typesetter, mKeywordSearch, mTopicLinks);
@@ -672,7 +674,7 @@ namespace MWGui
         mChoices = MWBase::Environment::get().getDialogueManager()->getChoices();
         mChoiceStyles.clear();
         mControllerChoice = -1; // -1 so you must make a choice (and can't accidentally pick the first answer)
-        for (std::pair<std::string, int>& choice : mChoices)
+        for (std::pair<std::string, std::int32_t>& choice : mChoices)
         {
             auto link = std::make_unique<Choice>(choice.second);
             link->eventChoiceActivated += MyGUI::newDelegate(this, &DialogueWindow::onChoiceActivated);
@@ -711,12 +713,12 @@ namespace MWGui
             updateHistory(true);
         else if (scrollbar)
         {
-            mHistory->setSize(MyGUI::IntSize(mHistory->getWidth(), static_cast<int>(book->getSize().second)));
+            mHistory->setSize(MyGUI::IntSize(mHistory->getWidth(), static_cast<std::int32_t>(book->getSize().second)));
             // Scroll range should be >= 2 to enable scrolling and prevent a crash
-            size_t range = std::max(book->getSize().second - viewHeight, static_cast<size_t>(2));
+            std::size_t range = std::max(book->getSize().second - viewHeight, static_cast<std::size_t>(2));
             mScrollBar->setScrollRange(range);
             mScrollBar->setScrollPosition(range - 1);
-            mScrollBar->setTrackSize(static_cast<int>(static_cast<float>(viewHeight)
+            mScrollBar->setTrackSize(static_cast<std::int32_t>(static_cast<float>(viewHeight)
                 / static_cast<float>(book->getSize().second) * static_cast<float>(mScrollBar->getLineSize())));
             onScrollbarMoved(mScrollBar, range - 1);
         }
@@ -750,7 +752,7 @@ namespace MWGui
         updateTopics();
     }
 
-    void DialogueWindow::onChoiceActivated(int id)
+    void DialogueWindow::onChoiceActivated(std::int32_t id)
     {
         if (mGoodbye)
         {
@@ -768,9 +770,9 @@ namespace MWGui
         resetReference();
     }
 
-    void DialogueWindow::onScrollbarMoved(MyGUI::ScrollBar* sender, size_t pos)
+    void DialogueWindow::onScrollbarMoved(MyGUI::ScrollBar* sender, std::size_t pos)
     {
-        mHistory->setPosition(0, static_cast<int>(pos) * -1);
+        mHistory->setPosition(0, static_cast<std::int32_t>(pos) * -1);
     }
 
     void DialogueWindow::addResponse(std::string_view title, std::string_view text, bool needMargin)
@@ -811,7 +813,7 @@ namespace MWGui
         if (mDispositionBar->getVisible() != dispositionVisible)
         {
             mDispositionBar->setVisible(dispositionVisible);
-            const int offset = (mDispositionBar->getHeight() + 5) * (dispositionVisible ? 1 : -1);
+            const std::int32_t offset = (mDispositionBar->getHeight() + 5) * (dispositionVisible ? 1 : -1);
             mTopicsList->setCoord(mTopicsList->getCoord() + MyGUI::IntCoord(0, offset, 0, -offset));
             redrawTopicsList();
         }
@@ -843,7 +845,8 @@ namespace MWGui
 
         for (const std::string& keyword : mKeywords)
         {
-            int flag = MWBase::Environment::get().getDialogueManager()->getTopicFlag(ESM::RefId::stringRefId(keyword));
+            std::int32_t flag
+                = MWBase::Environment::get().getDialogueManager()->getTopicFlag(ESM::RefId::stringRefId(keyword));
             MyGUI::Button* button = mTopicsList->getItemWidget(keyword);
             const auto oldCaption = button->getCaption();
             const MyGUI::IntSize oldSize = button->getSize();
@@ -893,7 +896,7 @@ namespace MWGui
             && actor.getRefData().getLocals().getIntVar(actor.getClass().getScript(actor), "companion");
     }
 
-    void DialogueWindow::setControllerFocus(size_t index, bool focused)
+    void DialogueWindow::setControllerFocus(std::size_t index, bool focused)
     {
         // List is mTopicsList + "Goodbye" button below the list.
         if (index > mTopicsList->getItemCount())
@@ -916,8 +919,8 @@ namespace MWGui
         if (focused)
         {
             // Scroll the side bar to keep the active item in view
-            int offset = 0;
-            for (int i = 6; std::cmp_less(i, index); i++)
+            std::int32_t offset = 0;
+            for (std::int32_t i = 6; std::cmp_less(i, index); i++)
             {
                 const std::string& keyword = mTopicsList->getItemNameAt(static_cast<std::size_t>(i));
                 if (keyword.empty())
@@ -943,7 +946,8 @@ namespace MWGui
             else if (mControllerFocus == mTopicsList->getItemCount())
                 onGoodbyeActivated();
             else
-                onSelectListItem(mTopicsList->getItemNameAt(mControllerFocus), static_cast<int>(mControllerFocus));
+                onSelectListItem(
+                    mTopicsList->getItemNameAt(mControllerFocus), static_cast<std::int32_t>(mControllerFocus));
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
         else if (arg.button == SDL_GAMEPAD_BUTTON_EAST && mChoices.empty())
@@ -955,7 +959,8 @@ namespace MWGui
             if (!mChoices.empty())
             {
                 // In-dialogue choice (red text)
-                mControllerChoice = std::clamp(mControllerChoice - 1, 0, static_cast<int>(mChoices.size()) - 1);
+                mControllerChoice
+                    = std::clamp(mControllerChoice - 1, 0, static_cast<std::int32_t>(mChoices.size()) - 1);
                 mHistory->setFocusItem(mChoiceStyles.at(static_cast<std::size_t>(mControllerChoice)));
             }
             else
@@ -976,7 +981,8 @@ namespace MWGui
             if (!mChoices.empty())
             {
                 // In-dialogue choice (red text)
-                mControllerChoice = std::clamp(mControllerChoice + 1, 0, static_cast<int>(mChoices.size()) - 1);
+                mControllerChoice
+                    = std::clamp(mControllerChoice + 1, 0, static_cast<std::int32_t>(mChoices.size()) - 1);
                 mHistory->setFocusItem(mChoiceStyles.at(static_cast<std::size_t>(mControllerChoice)));
             }
             else

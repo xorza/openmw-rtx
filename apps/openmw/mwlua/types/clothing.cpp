@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/lua/luastate.hpp>
@@ -45,14 +47,14 @@ namespace
         }
         if (rec["enchantCapacity"] != sol::nil)
             clothing.mData.mEnchant = static_cast<std::uint16_t>(
-                static_cast<int16_t>(std::round(rec["enchantCapacity"].get<float>() * 10)));
+                static_cast<std::int16_t>(std::round(rec["enchantCapacity"].get<float>() * 10)));
         if (rec["weight"] != sol::nil)
             clothing.mData.mWeight = rec["weight"].get<Misc::FiniteFloat>();
         if (rec["value"] != sol::nil)
             clothing.mData.mValue = rec["value"];
         if (rec["type"] != sol::nil)
         {
-            int clothingType = rec["type"].get<int>();
+            std::int32_t clothingType = rec["type"].get<std::int32_t>();
             if (clothingType >= 0 && clothingType <= ESM::Clothing::Amulet)
                 clothing.mData.mType = clothingType;
             else
@@ -68,7 +70,7 @@ namespace MWLua
         clothing["createRecordDraft"] = tableToClothing;
 
         sol::state_view lua = context.sol();
-        clothing["TYPE"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(lua,
+        clothing["TYPE"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, std::int32_t>(lua,
             {
                 { "Amulet", ESM::Clothing::Amulet },
                 { "Belt", ESM::Clothing::Belt },
@@ -99,8 +101,10 @@ namespace MWLua
         record["enchant"] = sol::readonly_property([](const ESM::Clothing& rec) -> ESM::RefId { return rec.mEnchant; });
         record["mwscript"] = sol::readonly_property([](const ESM::Clothing& rec) -> ESM::RefId { return rec.mScript; });
         record["weight"] = sol::readonly_property([](const ESM::Clothing& rec) -> float { return rec.mData.mWeight; });
-        record["value"] = sol::readonly_property([](const ESM::Clothing& rec) -> int { return rec.mData.mValue; });
-        record["type"] = sol::readonly_property([](const ESM::Clothing& rec) -> int { return rec.mData.mType; });
+        record["value"]
+            = sol::readonly_property([](const ESM::Clothing& rec) -> std::int32_t { return rec.mData.mValue; });
+        record["type"]
+            = sol::readonly_property([](const ESM::Clothing& rec) -> std::int32_t { return rec.mData.mType; });
         record["enchantCapacity"] = sol::readonly_property(
             [](const ESM::Clothing& rec) -> float { return static_cast<float>(rec.mData.mEnchant) * 0.1f; });
     }

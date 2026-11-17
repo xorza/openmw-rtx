@@ -1,5 +1,7 @@
 #include "loadlevlist.hpp"
 
+#include <cstdint>
+
 #include <components/esm/defs.hpp>
 
 #include "esmreader.hpp"
@@ -31,7 +33,7 @@ namespace ESM
                     break;
                 case fourCC("INDX"):
                 {
-                    uint32_t length = 0;
+                    std::uint32_t length = 0;
                     esm.getHT(length);
                     mList.resize(length);
 
@@ -87,7 +89,7 @@ namespace ESM
 
         esm.writeHNT("DATA", mFlags);
         esm.writeHNT("NNAM", mChanceNone);
-        esm.writeHNT("INDX", static_cast<uint32_t>(mList.size()));
+        esm.writeHNT("INDX", static_cast<std::uint32_t>(mList.size()));
 
         for (const auto& item : mList)
         {

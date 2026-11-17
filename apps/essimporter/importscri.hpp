@@ -18,8 +18,8 @@ namespace ESSImport
     {
         std::string mScript;
 
-        std::vector<short> mShorts;
-        std::vector<int> mLongs;
+        std::vector<std::int16_t> mShorts;
+        std::vector<std::int32_t> mLongs;
         std::vector<float> mFloats;
 
         void load(ESM::ESMReader& esm);

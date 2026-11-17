@@ -1,5 +1,6 @@
 #include "animationextensions.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 
@@ -34,7 +35,7 @@ namespace MWScript
             class OpPlayAnim : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -56,7 +57,7 @@ namespace MWScript
                     }
 
                     MWBase::Environment::get().getMechanicsManager()->playAnimationGroup(
-                        ptr, group, mode, std::numeric_limits<uint32_t>::max(), true);
+                        ptr, group, mode, std::numeric_limits<std::uint32_t>::max(), true);
                 }
             };
 
@@ -64,7 +65,7 @@ namespace MWScript
             class OpLoopAnim : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 

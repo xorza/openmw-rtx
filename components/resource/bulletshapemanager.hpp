@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <osg/ref_ptr>
@@ -45,7 +46,7 @@ namespace Resource
 
         void clearCache() override;
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
     private:
         /// The shape at `name` built from its file, or null where it has none: `getShape`'s one load.

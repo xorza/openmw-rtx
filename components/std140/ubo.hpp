@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -18,7 +19,7 @@ namespace Std140
     {
         using Value = osg::Matrixf;
         Value mValue;
-        static constexpr size_t sAlign = sizeof(Value);
+        static constexpr std::size_t sAlign = sizeof(Value);
         static constexpr std::string_view sTypeName = "mat4";
     };
 
@@ -26,7 +27,7 @@ namespace Std140
     {
         using Value = osg::Vec4f;
         Value mValue;
-        static constexpr size_t sAlign = sizeof(Value);
+        static constexpr std::size_t sAlign = sizeof(Value);
         static constexpr std::string_view sTypeName = "vec4";
     };
 
@@ -89,9 +90,9 @@ namespace Std140
 
         static_assert((contains<CArgs, Mat4, Vec4, Vec3, Vec2, Float, Int, UInt, Bool>() && ...));
 
-        static constexpr size_t roundUpRemainder(size_t x, size_t multiple)
+        static constexpr std::size_t roundUpRemainder(std::size_t x, std::size_t multiple)
         {
-            size_t remainder = x % multiple;
+            std::size_t remainder = x % multiple;
             if (remainder == 0)
                 return 0;
             return multiple - remainder;
@@ -109,7 +110,7 @@ namespace Std140
         }
 
     public:
-        static constexpr size_t getGPUSize()
+        static constexpr std::size_t getGPUSize()
         {
             std::size_t size = 0;
             ((size += (sizeof(typename CArgs::Value) + roundUpRemainder(size, CArgs::sAlign))), ...);

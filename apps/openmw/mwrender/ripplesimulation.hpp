@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/ref_ptr>
 
 #include <apps/openmw/mwworld/ptr.hpp>
@@ -76,7 +78,7 @@ namespace MWRender
 
         Ripples* mRipples = nullptr;
 
-        int mMaxNumberRipples;
+        std::int32_t mMaxNumberRipples;
     };
 
 }

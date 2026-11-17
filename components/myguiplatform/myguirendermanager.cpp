@@ -1,6 +1,8 @@
 #include "myguirendermanager.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <source_location>
 #include <string>
@@ -29,7 +31,7 @@ namespace
         const std::source_location place = std::source_location::current())
     {
         MyGUI::LogManager::getInstance().log(
-            "Platform", level, message, place.file_name(), static_cast<int>(place.line()));
+            "Platform", level, message, place.file_name(), static_cast<std::int32_t>(place.line()));
     }
 
     /// A broken contract of the platform's: logged as critical, then thrown as MyGUI's own exception, as MyGUI's
@@ -38,6 +40,7 @@ namespace
         const std::string& message, const std::source_location place = std::source_location::current())
     {
         logPlatform(MyGUI::LogLevel::Critical, message, place);
+        // NOLINTNEXTLINE(google-runtime-int): MyGUI's type
         throw MyGUI::Exception(message + "\n", "MyGUI", place.file_name(), static_cast<long>(place.line()));
     }
 }
@@ -213,7 +216,7 @@ namespace MyGUIPlatform
             // optional
             osg::ref_ptr<osg::StateSet> mStateSet;
 
-            size_t mVertexCount{};
+            std::size_t mVertexCount{};
         };
 
         void addBatch(const Batch& batch) { mBatchVector[mWriteTo].push_back(batch); }
@@ -230,13 +233,13 @@ namespace MyGUIPlatform
 
     private:
         // 2 would be enough in most cases, use 4 to get stereo working
-        static const int sNumBuffers = 4;
+        static const std::int32_t sNumBuffers = 4;
 
         // double buffering approach, to avoid the need for synchronization with the draw thread
         std::vector<Batch> mBatchVector[sNumBuffers];
 
-        int mWriteTo;
-        mutable int mReadFrom;
+        std::int32_t mWriteTo;
+        mutable std::int32_t mReadFrom;
 
         osg::ref_ptr<osg::Texture2D> mDummyTexture;
     };
@@ -248,9 +251,9 @@ namespace MyGUIPlatform
             osg::ref_ptr<osg::VertexBufferObject> mBuffer[2];
             osg::ref_ptr<osg::UByteArray> mVertexArray[2];
 
-            size_t mNeedVertexCount;
+            std::size_t mNeedVertexCount;
 
-            unsigned int mCurrentBuffer;
+            std::uint32_t mCurrentBuffer;
             bool mUsed; // has the mCurrentBuffer been submitted to the rendering thread
 
             void destroy();
@@ -265,8 +268,8 @@ namespace MyGUIPlatform
             osg::Array* getVertexArray();
             osg::VertexBufferObject* getVertexBuffer();
 
-            void setVertexCount(size_t count) override;
-            size_t getVertexCount() const override;
+            void setVertexCount(std::size_t count) override;
+            std::size_t getVertexCount() const override;
 
             MyGUI::Vertex* lock() override;
             void unlock() override;
@@ -285,7 +288,7 @@ namespace MyGUIPlatform
         mUsed = true;
     }
 
-    void OSGVertexBuffer::setVertexCount(size_t count)
+    void OSGVertexBuffer::setVertexCount(std::size_t count)
     {
         if (count == mNeedVertexCount)
             return;
@@ -293,7 +296,7 @@ namespace MyGUIPlatform
         mNeedVertexCount = count;
     }
 
-    size_t OSGVertexBuffer::getVertexCount() const
+    std::size_t OSGVertexBuffer::getVertexCount() const
     {
         return mNeedVertexCount;
     }
@@ -327,7 +330,7 @@ namespace MyGUIPlatform
     osg::UByteArray* OSGVertexBuffer::create()
     {
         mVertexArray[mCurrentBuffer]
-            = new osg::UByteArray(static_cast<unsigned int>(mNeedVertexCount * sizeof(MyGUI::Vertex)));
+            = new osg::UByteArray(static_cast<std::uint32_t>(mNeedVertexCount * sizeof(MyGUI::Vertex)));
 
         mBuffer[mCurrentBuffer] = new osg::VertexBufferObject;
         mBuffer[mCurrentBuffer]->setDataVariance(osg::Object::DYNAMIC);
@@ -403,7 +406,7 @@ namespace MyGUIPlatform
         mSceneRoot->addChild(mGuiRoot.get());
 
         osg::ref_ptr<osg::Viewport> vp = mViewer->getCamera()->getViewport();
-        setViewSize(static_cast<int>(vp->width()), static_cast<int>(vp->height()));
+        setViewSize(static_cast<std::int32_t>(vp->width()), static_cast<std::int32_t>(vp->height()));
 
         logPlatform(MyGUI::LogLevel::Info, std::format("{} successfully initialized", getClassTypeName()));
         mIsInitialise = true;
@@ -440,7 +443,7 @@ namespace MyGUIPlatform
         mDrawable->setDataVariance(osg::Object::STATIC);
     }
 
-    void RenderManager::doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count)
+    void RenderManager::doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, std::size_t count)
     {
         Drawable::Batch batch;
         batch.mVertexCount = count;
@@ -477,8 +480,11 @@ namespace MyGUIPlatform
     void RenderManager::update()
     {
         static MyGUI::Timer timer;
+        // NOLINTNEXTLINE(google-runtime-int): MyGUI's type
         static unsigned long lastLime = timer.getMilliseconds();
+        // NOLINTNEXTLINE(google-runtime-int): MyGUI's type
         unsigned long nowTime = timer.getMilliseconds();
+        // NOLINTNEXTLINE(google-runtime-int): MyGUI's type
         unsigned long time = nowTime - lastLime;
 
         onFrameEvent(static_cast<float>(static_cast<double>(time) / 1000));
@@ -495,7 +501,7 @@ namespace MyGUIPlatform
         mUpdate = false;
     }
 
-    void RenderManager::setViewSize(int width, int height)
+    void RenderManager::setViewSize(std::int32_t width, std::int32_t height)
     {
         width = std::max(width, 1);
         height = std::max(height, 1);

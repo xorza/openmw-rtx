@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -81,14 +82,14 @@ namespace Rtx
             const std::vector<Bearing>* mBearings = nullptr;
             std::vector<float> mRates;
 
-            void operator()(unsigned int a, unsigned int b, unsigned int c)
+            void operator()(std::uint32_t a, std::uint32_t b, std::uint32_t c)
             {
                 take(a, b);
                 take(b, c);
                 take(c, a);
             }
 
-            void take(unsigned int i, unsigned int j)
+            void take(std::uint32_t i, std::uint32_t j)
             {
                 if (i >= mBearings->size() || j >= mBearings->size())
                     return;

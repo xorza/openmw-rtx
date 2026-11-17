@@ -1,5 +1,6 @@
 #include "bulletshape.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
@@ -22,7 +23,7 @@ namespace Resource
                 const auto* comp = static_cast<const btCompoundShape*>(shape);
                 std::unique_ptr<btCompoundShape, DeleteCollisionShape> newShape(new btCompoundShape);
 
-                for (int i = 0, n = comp->getNumChildShapes(); i < n; ++i)
+                for (std::int32_t i = 0, n = comp->getNumChildShapes(); i < n; ++i)
                 {
                     auto child = duplicateCollisionShape(comp->getChildShape(i));
                     const btTransform& trans = comp->getChildTransform(i);
@@ -64,7 +65,7 @@ namespace Resource
             if (shape->isCompound())
             {
                 auto* compound = static_cast<btCompoundShape*>(shape);
-                for (int i = 0, n = compound->getNumChildShapes(); i < n; i++)
+                for (std::int32_t i = 0, n = compound->getNumChildShapes(); i < n; i++)
                     if (btCollisionShape* child = compound->getChildShape(i))
                         deleteShape(child);
             }

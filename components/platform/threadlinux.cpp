@@ -1,11 +1,11 @@
 #include "thread.hpp"
 
 #include <chrono>
+#include <ctime>
 #include <string>
 #include <string_view>
 
 #include <pthread.h>
-#include <time.h>
 
 namespace Platform
 {

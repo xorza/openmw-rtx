@@ -309,8 +309,8 @@ namespace Rtx
         std::string_view refused;
 
         mSpriteScratch.clear();
-        const int alive = particles.numParticles();
-        for (int at = 0; at < alive; ++at)
+        const std::int32_t alive = particles.numParticles();
+        for (std::int32_t at = 0; at < alive; ++at)
         {
             const osgParticle::Particle* particle = particles.getParticle(at);
 

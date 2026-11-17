@@ -1,5 +1,10 @@
 #include "reporttable.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <ranges>
+#include <utility>
+
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QHeaderView>
@@ -9,9 +14,6 @@
 #include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
 #include <QTextDocument>
-#include <algorithm>
-#include <ranges>
-#include <utility>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
@@ -143,7 +145,7 @@ void CSVTools::ReportTable::mouseDoubleClickEvent(QMouseEvent* event)
 }
 
 CSVTools::ReportTable::ReportTable(CSMDoc::Document& document, const CSMWorld::UniversalId& id,
-    bool richTextDescription, int refreshState, QWidget* parent)
+    bool richTextDescription, std::int32_t refreshState, QWidget* parent)
     : CSVWorld::DragRecordTable(document, parent)
     , mModel(document.getReport(id))
     , mRefreshAction(nullptr)
@@ -221,15 +223,15 @@ std::vector<CSMWorld::UniversalId> CSVTools::ReportTable::getDraggedRecords() co
     return ids;
 }
 
-std::vector<int> CSVTools::ReportTable::getReplaceIndices(bool selection) const
+std::vector<std::int32_t> CSVTools::ReportTable::getReplaceIndices(bool selection) const
 {
-    std::vector<int> indices;
+    std::vector<std::int32_t> indices;
 
     if (selection)
     {
         QModelIndexList selectedRows = selectionModel()->selectedRows();
 
-        std::vector<int> rows;
+        std::vector<std::int32_t> rows;
 
         for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
         {
@@ -238,7 +240,7 @@ std::vector<int> CSVTools::ReportTable::getReplaceIndices(bool selection) const
 
         std::sort(rows.begin(), rows.end());
 
-        for (int row : rows)
+        for (std::int32_t row : rows)
         {
             QString hint = mModel->data(mModel->index(row, 2)).toString();
 
@@ -248,7 +250,7 @@ std::vector<int> CSVTools::ReportTable::getReplaceIndices(bool selection) const
     }
     else
     {
-        for (int i = 0; i < mModel->rowCount(); ++i)
+        for (std::int32_t i = 0; i < mModel->rowCount(); ++i)
         {
             QString hint = mModel->data(mModel->index(i, 2)).toString();
 
@@ -260,7 +262,7 @@ std::vector<int> CSVTools::ReportTable::getReplaceIndices(bool selection) const
     return indices;
 }
 
-void CSVTools::ReportTable::flagAsReplaced(int index)
+void CSVTools::ReportTable::flagAsReplaced(std::int32_t index)
 {
     mModel->flagAsReplaced(index);
 }
@@ -309,7 +311,7 @@ void CSVTools::ReportTable::showSelection()
 
     for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
     {
-        int row = mProxyModel->mapToSource(*iter).row();
+        std::int32_t row = mProxyModel->mapToSource(*iter).row();
         emit editRequest(mModel->getUniversalId(row), mModel->getHint(row));
     }
 }
@@ -318,7 +320,7 @@ void CSVTools::ReportTable::removeSelection()
 {
     QModelIndexList selectedRows = selectionModel()->selectedRows();
 
-    std::vector<int> rows;
+    std::vector<std::int32_t> rows;
 
     for (QModelIndexList::iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
     {
@@ -327,7 +329,7 @@ void CSVTools::ReportTable::removeSelection()
 
     std::sort(rows.begin(), rows.end());
 
-    for (int row : std::views::reverse(rows))
+    for (std::int32_t row : std::views::reverse(rows))
         mProxyModel->removeRows(row, 1);
 
     selectionModel()->clear();
@@ -338,7 +340,7 @@ void CSVTools::ReportTable::clear()
     mModel->clear();
 }
 
-void CSVTools::ReportTable::stateChanged(int state, CSMDoc::Document* document)
+void CSVTools::ReportTable::stateChanged(std::int32_t state, CSMDoc::Document* document)
 {
     if (mRefreshAction)
         mRefreshAction->setEnabled(!(state & mRefreshState));

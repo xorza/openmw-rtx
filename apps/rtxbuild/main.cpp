@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <span>
 
@@ -8,7 +9,7 @@
 // every step, as `llvm-tblgen` is one generator with a backend a table. It runs in the build alone and no install
 // carries it.
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     return RtxBuild::run(std::span<char* const>(argv, static_cast<std::size_t>(argc)), std::cerr);
 }

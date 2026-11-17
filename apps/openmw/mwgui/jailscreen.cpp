@@ -1,5 +1,7 @@
 #include "jailscreen.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Delegate.h>
 #include <MyGUI_ScrollBar.h>
 
@@ -29,7 +31,7 @@ namespace MWGui
         center();
     }
 
-    void JailScreen::goToJail(int days)
+    void JailScreen::goToJail(std::int32_t days)
     {
         mDays = days;
 
@@ -64,10 +66,10 @@ namespace MWGui
         }
     }
 
-    void JailScreen::onJailProgressChanged(int cur, int /*total*/)
+    void JailScreen::onJailProgressChanged(std::int32_t cur, std::int32_t /*total*/)
     {
         mProgressBar->setScrollPosition(0);
-        mProgressBar->setTrackSize(static_cast<int>(static_cast<float>(cur)
+        mProgressBar->setTrackSize(static_cast<std::int32_t>(static_cast<float>(cur)
             / static_cast<float>(mProgressBar->getScrollRange()) * static_cast<float>(mProgressBar->getLineSize())));
     }
 

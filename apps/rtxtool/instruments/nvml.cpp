@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 
 namespace RtxTool
@@ -10,15 +11,15 @@ namespace RtxTool
     namespace
     {
         /// The driver's own words for how a call went, from `nvml.h`.
-        constexpr int sSuccess = 0;
-        constexpr int sNotSupported = 3;
-        constexpr int sNotFound = 6;
-        constexpr int sInsufficientSize = 7;
+        constexpr std::int32_t sSuccess = 0;
+        constexpr std::int32_t sNotSupported = 3;
+        constexpr std::int32_t sNotFound = 6;
+        constexpr std::int32_t sInsufficientSize = 7;
 
         /// `nvmlClockType_t` and `nvmlTemperatureSensors_t`.
-        constexpr int sGraphicsClock = 0;
-        constexpr int sMemoryClock = 2;
-        constexpr int sGpuSensor = 0;
+        constexpr std::int32_t sGraphicsClock = 0;
+        constexpr std::int32_t sMemoryClock = 2;
+        constexpr std::int32_t sGpuSensor = 0;
 
         /// The two names the driver ships the one library under.
         constexpr std::array<const char*, 2> sLibraryNames{ "libnvidia-ml.so.1", "nvml.dll" };
@@ -88,7 +89,7 @@ namespace RtxTool
         // The samples already held are the point to count from: one a process, the latest, at
         // whatever clock it was taken.
         mScratch.resize(sSamplesReserved);
-        unsigned count = 0;
+        std::uint32_t count = 0;
         // A prime that failed leaves no point to count from, so every sample the driver holds would count.
         const Return primed = fetch(count);
         if (primed != sSuccess)
@@ -110,12 +111,13 @@ namespace RtxTool
 
         // Each field but the core clock is what its own call answered: a refused call must not lose the core clock
         // the frame times are read against.
-        unsigned core = 0;
+        std::uint32_t core = 0;
         if (mClockInfo(mDevice, sGraphicsClock, &core) != sSuccess)
             return GpuClock{};
 
-        unsigned memory = 0;
-        unsigned temperature = 0;
+        std::uint32_t memory = 0;
+        std::uint32_t temperature = 0;
+        // NOLINTNEXTLINE(google-runtime-int): NVML's type
         unsigned long long reasons = 0;
         const bool memoryRead = mClockInfo(mDevice, sMemoryClock, &memory) == sSuccess;
         const bool temperatureRead = mTemperature(mDevice, sGpuSensor, &temperature) == sSuccess;
@@ -125,9 +127,9 @@ namespace RtxTool
             reasonsRead ? std::optional<std::uint64_t>(reasons) : std::nullopt);
     }
 
-    Nvml::Return Nvml::fetch(unsigned& count)
+    Nvml::Return Nvml::fetch(std::uint32_t& count)
     {
-        count = static_cast<unsigned>(mScratch.size());
+        count = static_cast<std::uint32_t>(mScratch.size());
         Return went = mProcessUtilization(mDevice, mScratch.data(), &count, mCursor);
 
         // Asked once more with the room it wanted, which is the one growth this ever pays.
@@ -156,7 +158,7 @@ namespace RtxTool
         if (mProcessUtilization == nullptr)
             return;
 
-        unsigned count = 0;
+        std::uint32_t count = 0;
         if (fetch(count) != sSuccess)
             return;
 
@@ -180,8 +182,8 @@ namespace RtxTool
     void Nvml::nameProcess(const std::uint32_t pid, std::string& into) const
     {
         std::array<char, 512> name{};
-        if (mProcessName == nullptr || mProcessName(pid, name.data(), static_cast<unsigned>(name.size())) != sSuccess
-            || name[0] == '\0')
+        if (mProcessName == nullptr
+            || mProcessName(pid, name.data(), static_cast<std::uint32_t>(name.size())) != sSuccess || name[0] == '\0')
         {
             into = std::format("pid {}", pid);
             return;

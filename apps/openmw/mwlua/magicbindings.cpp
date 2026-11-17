@@ -1,5 +1,7 @@
 #include "magicbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -91,7 +93,7 @@ namespace MWLua
 
             ObjectVariant mActor;
             Iterator mIterator;
-            int mIndex;
+            std::int32_t mIndex;
         };
     }
 
@@ -243,7 +245,7 @@ namespace MWLua
 
         sol::table effect(state, sol::create);
         magicApi["EFFECT_TYPE"] = LuaUtil::makeStrictReadOnly(effect);
-        for (int i = 0; i < ESM::MagicEffect::Length; ++i)
+        for (std::int32_t i = 0; i < ESM::MagicEffect::Length; ++i)
         {
             std::string_view name = ESM::MagicEffect::indexToName(i);
             effect[name] = ESM::MagicEffect::indexToRefId(i).serializeText();
@@ -286,7 +288,7 @@ namespace MWLua
         activeSpellEffectT["id"]
             = sol::readonly_property([](const ESM::ActiveEffect& self) -> ESM::RefId { return self.mEffectId; });
         activeSpellEffectT["index"]
-            = sol::readonly_property([](const ESM::ActiveEffect& self) -> int { return self.mEffectIndex; });
+            = sol::readonly_property([](const ESM::ActiveEffect& self) -> std::int32_t { return self.mEffectIndex; });
         activeSpellEffectT["name"] = sol::readonly_property([](const ESM::ActiveEffect& self) -> std::string {
             return MWMechanics::EffectKey(self.mEffectId, self.getSkillOrAttribute()).toString();
         });
@@ -386,7 +388,7 @@ namespace MWLua
         activeSpellT["effects"]
             = sol::readonly_property([lua = state.lua_state()](const ActiveSpell& activeSpell) -> sol::table {
                   sol::table res(lua, sol::create);
-                  size_t tableIndex = 0;
+                  std::size_t tableIndex = 0;
                   for (const ESM::ActiveEffect& e : activeSpell.mParams.getEffects())
                   {
                       if (!(e.mFlags & ESM::ActiveEffect::Flag_Applied))
@@ -450,9 +452,9 @@ namespace MWLua
         // Override the effect's magnitude range and duration, keeping unspecified values.
         void applyEffectParams(ESM::ENAMstruct& effect, const sol::table& params)
         {
-            effect.mMagnMin = params.get_or<int32_t>("magnitudeMin", effect.mMagnMin);
-            effect.mMagnMax = params.get_or<int32_t>("magnitudeMax", effect.mMagnMax);
-            effect.mDuration = std::max(params.get_or<int32_t>("duration", effect.mDuration), 0);
+            effect.mMagnMin = params.get_or<std::int32_t>("magnitudeMin", effect.mMagnMin);
+            effect.mMagnMax = params.get_or<std::int32_t>("magnitudeMax", effect.mMagnMax);
+            effect.mDuration = std::max(params.get_or<std::int32_t>("duration", effect.mDuration), 0);
         }
 
         std::pair<std::string_view, std::vector<ESM::IndexedENAMstruct>> getNameAndMagicEffects(
@@ -466,12 +468,13 @@ namespace MWLua
                 {
                     if (!entry.is<sol::table>())
                     {
-                        enams.push_back(effectList.mList.at(static_cast<std::size_t>(LuaUtil::cast<int32_t>(entry))));
+                        enams.push_back(
+                            effectList.mList.at(static_cast<std::size_t>(LuaUtil::cast<std::int32_t>(entry))));
                         continue;
                     }
                     sol::table params = entry.as<sol::table>();
                     ESM::IndexedENAMstruct& enam = enams.emplace_back(
-                        effectList.mList.at(static_cast<std::size_t>(LuaUtil::cast<int32_t>(params["index"]))));
+                        effectList.mList.at(static_cast<std::size_t>(LuaUtil::cast<std::int32_t>(params["index"]))));
                     applyEffectParams(enam.mData, params);
                 }
                 return enams;
@@ -500,7 +503,7 @@ namespace MWLua
                         if (!entry.is<sol::table>())
                             throw std::runtime_error("Ingredient effects must be specified as tables");
                         sol::table params = entry.as<sol::table>();
-                        int32_t index = LuaUtil::cast<int32_t>(params["index"]);
+                        std::int32_t index = LuaUtil::cast<std::int32_t>(params["index"]);
                         auto effect = MWMechanics::getIngredientEffect(ingredient, static_cast<std::uint32_t>(index));
                         if (!effect)
                             throw std::runtime_error("Ingredient has no effect at index " + std::to_string(index));
@@ -603,7 +606,7 @@ namespace MWLua
                 resetEnchantItem();
                 if (objPtr == MWBase::Environment::get().getWorld()->getPlayerPtr())
                 {
-                    int chance = static_cast<int>(MWMechanics::getSpellSuccessChance(spellId, objPtr));
+                    auto chance = static_cast<std::int32_t>(MWMechanics::getSpellSuccessChance(spellId, objPtr));
                     MWBase::Environment::get().getWindowManager()->setSelectedSpell(spellId, chance);
                 }
                 else
@@ -627,7 +630,7 @@ namespace MWLua
         };
 
         // #(types.Actor.spells(o))
-        spellsT[sol::meta_function::length] = [](const ActorSpells& spells) -> size_t {
+        spellsT[sol::meta_function::length] = [](const ActorSpells& spells) -> std::size_t {
             if (auto* store = spells.getStore())
                 return store->count();
             return 0;
@@ -635,7 +638,7 @@ namespace MWLua
 
         // types.Actor.spells(o)[i]
         spellsT[sol::meta_function::index] = sol::overload(
-            [](const ActorSpells& spells, size_t index) -> const ESM::Spell* {
+            [](const ActorSpells& spells, std::size_t index) -> const ESM::Spell* {
                 if (auto* store = spells.getStore())
                     if (index <= store->count() && index > 0)
                         return store->at(
@@ -809,7 +812,7 @@ namespace MWLua
                     effect.mMagnitude = 0.f;
                     effect.mMinMagnitude = static_cast<float>(enam.mData.mMagnMin);
                     effect.mMaxMagnitude = static_cast<float>(enam.mData.mMagnMax);
-                    effect.mEffectIndex = static_cast<int32_t>(enam.mIndex);
+                    effect.mEffectIndex = static_cast<std::int32_t>(enam.mIndex);
                     effect.mFlags = ESM::ActiveEffect::Flag_None;
                     if (ignoreReflect)
                         effect.mFlags |= ESM::ActiveEffect::Flag_Ignore_Reflect;
@@ -939,8 +942,8 @@ namespace MWLua
         };
 
         // types.Actor.activeEffects(o):set(value, id, ?arg)
-        activeEffectsT["set"] = [getEffectKey](const ActorActiveEffects& effects, int value, std::string_view idStr,
-                                    sol::optional<std::string_view> argStr) {
+        activeEffectsT["set"] = [getEffectKey](const ActorActiveEffects& effects, std::int32_t value,
+                                    std::string_view idStr, sol::optional<std::string_view> argStr) {
             if (!effects.isActor())
                 return;
 
@@ -948,13 +951,13 @@ namespace MWLua
                 throw std::runtime_error("Local scripts can modify effect only on the actor they are attached to.");
 
             MWMechanics::EffectKey key = getEffectKey(idStr, argStr);
-            int currentValue = static_cast<int>(effects.getStore()->getOrDefault(key).getMagnitude());
+            std::int32_t currentValue = static_cast<std::int32_t>(effects.getStore()->getOrDefault(key).getMagnitude());
             effects.getStore()->modifyBase(key, value - currentValue);
         };
 
         // types.Actor.activeEffects(o):modify(value, id, ?arg)
-        activeEffectsT["modify"] = [getEffectKey](const ActorActiveEffects& effects, int value, std::string_view idStr,
-                                       sol::optional<std::string_view> argStr) {
+        activeEffectsT["modify"] = [getEffectKey](const ActorActiveEffects& effects, std::int32_t value,
+                                       std::string_view idStr, sol::optional<std::string_view> argStr) {
             if (!effects.isActor())
                 return;
 

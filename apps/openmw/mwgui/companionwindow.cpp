@@ -1,6 +1,8 @@
 #include "companionwindow.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
@@ -24,7 +26,7 @@
 namespace
 {
 
-    int getProfit(const MWWorld::Ptr& actor)
+    std::int32_t getProfit(const MWWorld::Ptr& actor)
     {
         const ESM::RefId& script = actor.getClass().getScript(actor);
         if (!script.empty())
@@ -68,7 +70,7 @@ namespace MWGui
         mControllerButtons.mL2 = "#{Interface:Inventory}";
     }
 
-    void CompanionWindow::onItemSelected(int index)
+    void CompanionWindow::onItemSelected(std::int32_t index)
     {
         if (mDragAndDrop->mIsOnDragAndDrop)
         {
@@ -87,7 +89,7 @@ namespace MWGui
         }
 
         MWWorld::Ptr object = item.mBase;
-        size_t count = item.mCount;
+        std::size_t count = item.mCount;
         bool shift = MyGUI::InputManager::getInstance().isShiftPressed();
         if (MyGUI::InputManager::getInstance().isControlPressed())
             count = 1;
@@ -99,7 +101,7 @@ namespace MWGui
             CountDialog* dialog = MWBase::Environment::get().getWindowManager()->getCountDialog();
             std::string name{ object.getClass().getName(object) };
             name += MWGui::ToolTips::getSoulString(object.getCellRef());
-            dialog->openCountDialog(name, "#{sTake}", static_cast<int>(count));
+            dialog->openCountDialog(name, "#{sTake}", static_cast<std::int32_t>(count));
             dialog->eventOkClicked.clear();
             if (Settings::gui().mControllerMenus || MyGUI::InputManager::getInstance().isAltPressed())
                 dialog->eventOkClicked += MyGUI::newDelegate(this, &CompanionWindow::transferItem);
@@ -170,9 +172,9 @@ namespace MWGui
     {
         if (mPtr.isEmpty())
             return;
-        int capacity = static_cast<int>(mPtr.getClass().getCapacity(mPtr));
+        auto capacity = static_cast<std::int32_t>(mPtr.getClass().getCapacity(mPtr));
         float encumbrance = std::ceil(mPtr.getClass().getEncumbrance(mPtr));
-        mEncumbranceBar->setValue(static_cast<int>(encumbrance), capacity);
+        mEncumbranceBar->setValue(static_cast<std::int32_t>(encumbrance), capacity);
 
         if (mModel && mModel->hasProfit(mPtr))
         {
@@ -203,7 +205,7 @@ namespace MWGui
         return true;
     }
 
-    void CompanionWindow::onMessageBoxButtonClicked(int button)
+    void CompanionWindow::onMessageBoxButtonClicked(std::int32_t button)
     {
         if (button == 0)
         {
@@ -246,7 +248,7 @@ namespace MWGui
     {
         if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
-            int index = mItemView->getControllerFocus();
+            std::int32_t index = mItemView->getControllerFocus();
             if (index >= 0 && index < mItemView->getItemCount())
                 onItemSelected(index);
         }

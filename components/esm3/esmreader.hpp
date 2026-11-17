@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <istream>
@@ -28,12 +29,12 @@ namespace ESM
     {
         using type = void;
     };
-    template <class T, size_t N>
+    template <class T, std::size_t N>
     struct GetArray<std::array<T, N>>
     {
         using type = T;
     };
-    template <class T, size_t N>
+    template <class T, std::size_t N>
     struct GetArray<T[N]>
     {
         using type = T;
@@ -59,8 +60,8 @@ namespace ESM
          *
          *************************************************************************/
 
-        int getVer() const { return static_cast<int>(mHeader.mData.version.ui); }
-        int getRecordCount() const { return mHeader.mData.records; }
+        std::int32_t getVer() const { return static_cast<std::int32_t>(mHeader.mData.version.ui); }
+        std::int32_t getRecordCount() const { return mHeader.mData.records; }
         float esmVersionF() const { return (mHeader.mData.version.f); }
         const std::string& getAuthor() const { return mHeader.mData.author; }
         const std::string& getDesc() const { return mHeader.mData.desc; }
@@ -68,7 +69,7 @@ namespace ESM
         const Header& getHeader() const { return mHeader; }
         FormatVersion getFormatVersion() const { return mHeader.mFormatVersion; }
         const NAME& retSubName() const { return mCtx.subName; }
-        uint32_t getSubSize() const { return mCtx.leftSub; }
+        std::uint32_t getSubSize() const { return mCtx.leftSub; }
         const std::filesystem::path& getName() const { return mCtx.filename; }
         bool isOpen() const { return mEsm != nullptr; }
 
@@ -104,24 +105,27 @@ namespace ESM
         void openRaw(const std::filesystem::path& filename);
 
         /// Get the current position in the file. Make sure that the file has been opened!
-        size_t getFileOffset() const { return static_cast<std::size_t>(mEsm->tellg()); }
+        std::size_t getFileOffset() const { return static_cast<std::size_t>(mEsm->tellg()); }
 
         // This is a quick hack for multiple esm/esp files. Each plugin introduces its own
         //  terrain palette, but ESMReader does not pass a reference to the correct plugin
         //  to the individual load() methods. This hack allows to pass this reference
         //  indirectly to the load() method.
-        void setIndex(const int index) { mCtx.index = index; }
-        int getIndex() const { return mCtx.index; }
+        void setIndex(const std::int32_t index) { mCtx.index = index; }
+        std::int32_t getIndex() const { return mCtx.index; }
 
         // Assign parent esX files by tracking their indices in the global list of
         // all files/readers used by the engine. This is required for correct adjustRefNum() results
         // as required for handling moved, deleted and edited CellRefs.
         /// @note Does not validate.
         void resolveParentFileIndices(ReadersCache& readers);
-        const std::vector<int>& getParentFileIndices() const { return mCtx.parentFileIndices; }
+        const std::vector<std::int32_t>& getParentFileIndices() const { return mCtx.parentFileIndices; }
 
         // Used only when loading saves to adjust FormIds if load order was changes.
-        void setContentFileMapping(const std::map<int, int>* mapping) { mContentFileMapping = mapping; }
+        void setContentFileMapping(const std::map<std::int32_t, std::int32_t>* mapping)
+        {
+            mContentFileMapping = mapping;
+        }
 
         // Returns false if content file not found.
         bool applyContentFileMapping(FormId& id);
@@ -145,7 +149,7 @@ namespace ESM
         template <class... Args>
         void getHNT(NAME name, Args&... args)
         {
-            constexpr size_t size = (0 + ... + sizeof(Args));
+            constexpr std::size_t size = (0 + ... + sizeof(Args));
             getSubNameIs(name);
             getSubHeader();
             if (mCtx.leftSub != size)
@@ -175,7 +179,7 @@ namespace ESM
         template <class... Args>
         void getHT(Args&... args)
         {
-            constexpr size_t size = (0 + ... + sizeof(Args));
+            constexpr std::size_t size = (0 + ... + sizeof(Args));
             getSubHeader();
             if (mCtx.leftSub != size)
                 reportSubSizeMismatch(size, mCtx.leftSub);
@@ -210,7 +214,7 @@ namespace ESM
         template <typename T, typename = std::enable_if_t<IsReadable<T>>>
         void skipHT()
         {
-            constexpr size_t size = sizeof(T);
+            constexpr std::size_t size = sizeof(T);
             getSubHeader();
             if (mCtx.leftSub != size)
                 reportSubSizeMismatch(size, mCtx.leftSub);
@@ -300,7 +304,7 @@ namespace ESM
            leftRec to orient yourself inside the record itself.
         */
         void getRecHeader() { getRecHeader(mRecordFlags); }
-        void getRecHeader(uint32_t& flags);
+        void getRecHeader(std::uint32_t& flags);
 
         bool hasMoreRecs() const { return mCtx.leftFile > 0; }
         bool hasMoreSubs() const { return mCtx.leftRec > 0; }
@@ -329,7 +333,7 @@ namespace ESM
         }
 
         void getName(NAME& name) { getT(name.mData); }
-        void getUint(uint32_t& u) { getT(u); }
+        void getUint(std::uint32_t& u) { getT(u); }
 
         std::string getMaybeFixedStringSize(std::size_t size);
 
@@ -357,12 +361,12 @@ namespace ESM
         void setEncoder(ToUTF8::Utf8Encoder* encoder) { mEncoder = encoder; }
 
         /// Get record flags of last record
-        uint32_t getRecordFlags() { return mRecordFlags; }
+        std::uint32_t getRecordFlags() { return mRecordFlags; }
 
-        size_t getFileSize() const { return mFileSize; }
+        std::size_t getFileSize() const { return mFileSize; }
 
     private:
-        [[noreturn]] void reportSubSizeMismatch(size_t want, size_t got)
+        [[noreturn]] void reportSubSizeMismatch(std::size_t want, std::size_t got)
         {
             fail("record size mismatch, requested " + std::to_string(want) + ", got " + std::to_string(got));
         }
@@ -375,7 +379,7 @@ namespace ESM
 
         ESM_Context mCtx;
 
-        uint32_t mRecordFlags;
+        std::uint32_t mRecordFlags;
 
         // Buffer for ESM strings
         std::vector<char> mBuffer;
@@ -384,9 +388,9 @@ namespace ESM
 
         ToUTF8::Utf8Encoder* mEncoder;
 
-        size_t mFileSize;
+        std::size_t mFileSize;
 
-        const std::map<int, int>* mContentFileMapping = nullptr;
+        const std::map<std::int32_t, std::int32_t>* mContentFileMapping = nullptr;
 
     public:
         ActorIdConverter* mActorIdConverter = nullptr;

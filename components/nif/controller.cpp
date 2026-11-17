@@ -1,5 +1,8 @@
 #include "controller.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "data.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 #include "exception.hpp"
 #include "node.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
@@ -12,7 +15,7 @@ namespace Nif
     {
         void readSkinnedShapeGroup(NIFStream& stream, std::vector<NiBoneLODController::SkinInfo>& value)
         {
-            stream.readVectorOfRecords<uint32_t>(value);
+            stream.readVectorOfRecords<std::uint32_t>(value);
         }
     }
 
@@ -91,7 +94,7 @@ namespace Nif
             nif->read(mAccumRootName);
             mTextKeys.read(nif);
         }
-        const auto size = nif->get<uint32_t>();
+        const auto size = nif->get<std::uint32_t>();
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 106))
             nif->read(mArrayGrowBy);
         nif->readVectorOfRecords(size, mControlledBlocks);
@@ -113,7 +116,7 @@ namespace Nif
 
         nif->read(mWeight);
         mTextKeys.read(nif);
-        mExtrapolationMode = static_cast<NiTimeController::ExtrapolationMode>(nif->get<uint32_t>());
+        mExtrapolationMode = static_cast<NiTimeController::ExtrapolationMode>(nif->get<std::uint32_t>());
         nif->read(mFrequency);
         if (nif->getVersion() <= NIFStream::generateVersion(10, 4, 0, 1))
             nif->read(mPhase);
@@ -128,7 +131,7 @@ namespace Nif
             mStringPalette.read(nif);
         else if (nif->getVersion() >= NIFFile::NIFVersion::VER_BGS && nif->getBethVersion() >= 24)
         {
-            const uint16_t size = nif->getBethVersion() >= 29 ? nif->get<uint16_t>() : 1;
+            const std::uint16_t size = nif->getBethVersion() >= 29 ? nif->get<std::uint16_t>() : 1;
             nif->readVectorOfRecords(size, mAnimNotesList);
         }
     }
@@ -195,7 +198,7 @@ namespace Nif
         nif->read(mEmitStopTime);
         if (nif->getVersion() >= NIFStream::generateVersion(3, 3, 0, 13))
         {
-            mResetParticleSystem = nif->get<uint8_t>() != 0;
+            mResetParticleSystem = nif->get<std::uint8_t>() != 0;
             nif->read(mBirthRate);
         }
         nif->read(mLifetime);
@@ -211,7 +214,7 @@ namespace Nif
             nif->read(mSpawnMultiplier);
             nif->read(mSpawnSpeedChaos);
             nif->read(mSpawnDirChaos);
-            const auto numParticles = nif->get<uint16_t>();
+            const auto numParticles = nif->get<std::uint16_t>();
             nif->read(mNumValid);
             nif->readVectorOfRecords(numParticles, mParticles);
             nif->skip(4); // NiEmitterModifier link
@@ -236,7 +239,7 @@ namespace Nif
         NiPoint3InterpController::read(nif);
 
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 0))
-            mMode = static_cast<Mode>(nif->get<uint16_t>());
+            mMode = static_cast<Mode>(nif->get<std::uint16_t>());
         else
             mMode = static_cast<Mode>((mFlags >> 4) & 1);
 
@@ -256,7 +259,7 @@ namespace Nif
         NiPoint3InterpController::read(nif);
 
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 0))
-            mTargetColor = static_cast<TargetColor>(nif->get<uint16_t>());
+            mTargetColor = static_cast<TargetColor>(nif->get<std::uint16_t>());
         else
             mTargetColor = static_cast<TargetColor>((mFlags >> 4) & 3);
 
@@ -349,7 +352,7 @@ namespace Nif
     {
         NiInterpController::read(nif);
 
-        nif->readVectorOfRecords<uint16_t>(mExtraTargets);
+        nif->readVectorOfRecords<std::uint16_t>(mExtraTargets);
     }
 
     void NiMultiTargetTransformController::post(Reader& nif)
@@ -394,13 +397,13 @@ namespace Nif
         NiInterpController::read(nif);
 
         if (nif->getVersion() >= NIFFile::NIFVersion::VER_OB_OLD)
-            mUpdateNormals = nif->get<uint16_t>() & 1;
+            mUpdateNormals = nif->get<std::uint16_t>() & 1;
         mData.read(nif);
 
         if (nif->getVersion() < NIFFile::NIFVersion::VER_MW)
             return;
 
-        mAlwaysActive = nif->get<uint8_t>() != 0;
+        mAlwaysActive = nif->get<std::uint8_t>() != 0;
 
         if (nif->getVersion() <= NIFStream::generateVersion(10, 1, 0, 105))
             return;
@@ -409,14 +412,14 @@ namespace Nif
         {
             readRecordList(nif, mInterpolators);
             if (nif->getVersion() >= NIFStream::generateVersion(10, 2, 0, 0) && nif->getBethVersion() >= 10)
-                nif->skip(std::size_t{ 4 } * nif->get<uint32_t>()); // Unknown
+                nif->skip(std::size_t{ 4 } * nif->get<std::uint32_t>()); // Unknown
             return;
         }
 
-        const auto numInterpolators = nif->get<uint32_t>();
+        const auto numInterpolators = nif->get<std::uint32_t>();
         mInterpolators.reserve(numInterpolators);
         mWeights.reserve(numInterpolators);
-        for (size_t i = 0; i < numInterpolators; ++i)
+        for (std::size_t i = 0; i < numInterpolators; ++i)
         {
             mInterpolators.emplace_back().read(nif);
             nif->read(mWeights.emplace_back());
@@ -450,7 +453,7 @@ namespace Nif
     {
         NiFloatInterpController::read(nif);
 
-        mTexSlot = static_cast<NiTexturingProperty::TextureType>(nif->get<uint32_t>());
+        mTexSlot = static_cast<NiTexturingProperty::TextureType>(nif->get<std::uint32_t>());
         if (nif->getVersion() <= NIFStream::generateVersion(10, 1, 0, 103))
         {
             nif->read(mTimeStart);
@@ -471,7 +474,7 @@ namespace Nif
         NiFloatInterpController::read(nif);
 
         nif->read(mShaderMap);
-        mTexSlot = static_cast<NiTexturingProperty::TextureType>(nif->get<uint32_t>());
+        mTexSlot = static_cast<NiTexturingProperty::TextureType>(nif->get<std::uint32_t>());
         nif->read(mTransformMember);
         if (nif->getVersion() <= NIFStream::generateVersion(10, 1, 0, 103))
             mData.read(nif);
@@ -495,16 +498,16 @@ namespace Nif
         NiTimeController::read(nif);
 
         nif->read(mLOD);
-        const auto nodeGroupsCount = nif->get<uint32_t>();
+        const auto nodeGroupsCount = nif->get<std::uint32_t>();
         mNodeGroups.reserve(nodeGroupsCount);
         nif->read(mNumNodeGroups);
-        for (uint32_t i = 0; i < nodeGroupsCount; ++i)
+        for (std::uint32_t i = 0; i < nodeGroupsCount; ++i)
             readRecordList(nif, mNodeGroups.emplace_back());
 
         if (nif->getBethVersion() != 0 || nif->getVersion() < NIFStream::generateVersion(4, 2, 2, 0))
             return;
 
-        nif->readVectorOfRecords<uint32_t>(readSkinnedShapeGroup, mSkinnedShapeGroups);
+        nif->readVectorOfRecords<std::uint32_t>(readSkinnedShapeGroup, mSkinnedShapeGroups);
         readRecordList(nif, mShapeGroups);
     }
 
@@ -530,7 +533,7 @@ namespace Nif
     {
         NiTimeController::read(nif);
 
-        uint32_t numKeys = 0;
+        std::uint32_t numKeys = 0;
         nif->read(numKeys);
         // Is this possible?
         if (numKeys != 0)
@@ -653,7 +656,7 @@ namespace Nif
         // Unknown
         if (nif->getVersion() <= NIFStream::generateVersion(10, 1, 0, 0))
         {
-            uint8_t numExtraBytes = 0;
+            std::uint8_t numExtraBytes = 0;
             nif->read(numExtraBytes);
             nif->skip(7);
             nif->skip(numExtraBytes);
@@ -734,16 +737,16 @@ namespace Nif
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 112))
         {
             nif->read(mFlags);
-            const auto numItems = nif->get<uint8_t>();
+            const auto numItems = nif->get<std::uint8_t>();
             nif->read(mWeightThreshold);
             if (!(mFlags & Flag_ManagerControlled))
             {
-                mInterpCount = nif->get<uint8_t>();
-                mSingleIndex = nif->get<uint8_t>();
+                mInterpCount = nif->get<std::uint8_t>();
+                mSingleIndex = nif->get<std::uint8_t>();
                 // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
-                mHighPriority = nif->get<int8_t>();
+                mHighPriority = nif->get<std::int8_t>();
                 // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
-                mNextHighPriority = nif->get<int8_t>();
+                mNextHighPriority = nif->get<std::int8_t>();
                 nif->read(mSingleTime);
                 nif->read(mHighWeightsSum);
                 nif->read(mNextHighWeightsSum);
@@ -755,24 +758,24 @@ namespace Nif
 
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 110))
         {
-            nif->readVectorOfRecords<uint8_t>(mItems);
+            nif->readVectorOfRecords<std::uint8_t>(mItems);
             if (nif->get<bool>())
                 mFlags |= Flag_ManagerControlled;
             nif->read(mWeightThreshold);
             if (nif->get<bool>())
                 mFlags |= Flag_OnlyUseHighestWeight;
-            mInterpCount = nif->get<uint8_t>();
-            mSingleIndex = nif->get<uint8_t>();
+            mInterpCount = nif->get<std::uint8_t>();
+            mSingleIndex = nif->get<std::uint8_t>();
             mSingleInterpolator.read(nif);
             nif->read(mSingleTime);
             // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
-            mHighPriority = nif->get<int8_t>();
+            mHighPriority = nif->get<std::int8_t>();
             // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
-            mNextHighPriority = nif->get<int8_t>();
+            mNextHighPriority = nif->get<std::int8_t>();
             return;
         }
 
-        const auto numItems = nif->get<uint16_t>();
+        const auto numItems = nif->get<std::uint16_t>();
         nif->read(mArrayGrowBy);
         nif->readVectorOfRecords(numItems, mItems);
         if (nif->get<bool>())
@@ -805,7 +808,7 @@ namespace Nif
         nif->read(mNormalizedWeight);
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 110))
             // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
-            mPriority = nif->get<int8_t>();
+            mPriority = nif->get<std::int8_t>();
         else
             nif->read(mPriority);
         nif->read(mEaseSpinner);
@@ -893,7 +896,7 @@ namespace Nif
 
     void BSTreadTransfInterpolator::read(NIFStream* nif)
     {
-        nif->readVectorOfRecords<uint32_t>(mTransforms);
+        nif->readVectorOfRecords<std::uint32_t>(mTransforms);
         mData.read(nif);
     }
 

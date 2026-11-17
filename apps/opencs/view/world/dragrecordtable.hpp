@@ -1,7 +1,9 @@
 #pragma once
 
-#include <QTableView>
+#include <cstdint>
 #include <vector>
+
+#include <QTableView>
 
 #include <apps/opencs/model/world/columnbase.hpp>
 
@@ -48,7 +50,7 @@ namespace CSVWorld
 
         void dropEvent(QDropEvent* event) override;
 
-        int sizeHintForColumn(int column) const override;
+        std::int32_t sizeHintForColumn(std::int32_t column) const override;
 
     private:
         CSMWorld::ColumnBase::Display getIndexDisplayType(const QModelIndex& index) const;

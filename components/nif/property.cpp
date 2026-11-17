@@ -1,5 +1,8 @@
 #include "property.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "texture.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 
 namespace Nif
@@ -10,7 +13,7 @@ namespace Nif
         nif->read(mOffset);
         nif->read(mScale);
         nif->read(mRotation);
-        mTransformMethod = static_cast<Method>(nif->get<uint32_t>());
+        mTransformMethod = static_cast<Method>(nif->get<std::uint32_t>());
         nif->read(mOrigin);
     }
 
@@ -30,7 +33,7 @@ namespace Nif
         }
         else
         {
-            uint16_t flags = 0;
+            std::uint16_t flags = 0;
             nif->read(flags);
             mClamp = flags & 0xF;
             mFilter = (flags >> 4) & 0xF;
@@ -70,12 +73,12 @@ namespace Nif
             || nif->getVersion() >= NIFStream::generateVersion(20, 1, 0, 2))
             nif->read(mFlags);
         if (nif->getVersion() <= NIFStream::generateVersion(20, 1, 0, 1))
-            mApplyMode = static_cast<ApplyMode>(nif->get<uint32_t>());
+            mApplyMode = static_cast<ApplyMode>(nif->get<std::uint32_t>());
 
-        const auto texturesSize = nif->get<uint32_t>();
+        const auto texturesSize = nif->get<std::uint32_t>();
 
         mTextures.reserve(texturesSize);
-        for (size_t i = 0; i < texturesSize; i++)
+        for (std::size_t i = 0; i < texturesSize; i++)
         {
             mTextures.emplace_back().read(nif);
 
@@ -90,13 +93,13 @@ namespace Nif
 
         if (nif->getVersion() >= NIFStream::generateVersion(10, 0, 1, 0))
         {
-            const auto sharedTexturesSize = nif->get<uint32_t>();
+            const auto sharedTexturesSize = nif->get<std::uint32_t>();
             mShaderTextures.reserve(sharedTexturesSize);
             mShaderIds.reserve(sharedTexturesSize);
-            for (size_t i = 0; i < sharedTexturesSize; i++)
+            for (std::size_t i = 0; i < sharedTexturesSize; i++)
             {
                 mShaderTextures.emplace_back().read(nif);
-                uint32_t id = 0;
+                std::uint32_t id = 0;
                 if (mShaderTextures[i].mEnabled)
                     nif->read(id);
                 mShaderIds.push_back(id);
@@ -163,26 +166,26 @@ namespace Nif
                 switch (mType)
                 {
                     case 3:
-                        mType = static_cast<uint32_t>(BSLightingShaderType::ShaderType_FaceTint);
+                        mType = static_cast<std::uint32_t>(BSLightingShaderType::ShaderType_FaceTint);
                         break;
                     case 4:
-                        mType = static_cast<uint32_t>(BSLightingShaderType::ShaderType_SkinTint);
+                        mType = static_cast<std::uint32_t>(BSLightingShaderType::ShaderType_SkinTint);
                         break;
                     case 5:
-                        mType = static_cast<uint32_t>(BSLightingShaderType::ShaderType_HairTint);
+                        mType = static_cast<std::uint32_t>(BSLightingShaderType::ShaderType_HairTint);
                         break;
                     case 12:
-                        mType = static_cast<uint32_t>(BSLightingShaderType::ShaderType_EyeEnvmap);
+                        mType = static_cast<std::uint32_t>(BSLightingShaderType::ShaderType_EyeEnvmap);
                         break;
                     case 17:
-                        mType = static_cast<uint32_t>(BSLightingShaderType::ShaderType_Terrain);
+                        mType = static_cast<std::uint32_t>(BSLightingShaderType::ShaderType_Terrain);
                         break;
                     default:
                         break;
                 }
             }
 
-            uint32_t numShaderFlags1 = 0, numShaderFlags2 = 0;
+            std::uint32_t numShaderFlags1 = 0, numShaderFlags2 = 0;
             nif->read(numShaderFlags1);
             if (nif->getBethVersion() >= 152)
                 nif->read(numShaderFlags2);
@@ -239,7 +242,7 @@ namespace Nif
         BSShaderLightingProperty::read(nif);
 
         mFilename = nif->getSizedString();
-        mSkyObjectType = static_cast<SkyObjectType>(nif->get<uint32_t>());
+        mSkyObjectType = static_cast<SkyObjectType>(nif->get<std::uint32_t>());
     }
 
     void TallGrassShaderProperty::read(NIFStream* nif)
@@ -350,12 +353,12 @@ namespace Nif
                 nif->read(mDoTranslucency);
                 if (mDoTranslucency)
                     mTranslucency.read(nif);
-                if (nif->get<uint8_t>() != 0)
+                if (nif->get<std::uint8_t>() != 0)
                 {
-                    const auto size = nif->get<uint32_t>();
+                    const auto size = nif->get<std::uint32_t>();
                     mTextureArrays.reserve(size);
-                    for (uint32_t i = 0; i < size; ++i)
-                        nif->getSizedStrings(mTextureArrays.emplace_back(), nif->get<uint32_t>());
+                    for (std::uint32_t i = 0; i < size; ++i)
+                        nif->getSizedStrings(mTextureArrays.emplace_back(), nif->get<std::uint32_t>());
                 }
             }
             if (nif->getBethVersion() >= NIFFile::BethVersion::BETHVER_STF)
@@ -423,7 +426,7 @@ namespace Nif
         if (nif->getBethVersion() >= NIFFile::BethVersion::BETHVER_STF)
             nif->skip(4); // Unknown
 
-        auto miscParams = nif->get<uint32_t>();
+        auto miscParams = nif->get<std::uint32_t>();
         mClamp = miscParams & 0xFF;
         mLightingInfluence = (miscParams >> 8) & 0xFF;
         mEnvMapMinLOD = (miscParams >> 16) & 0xFF;
@@ -467,7 +470,7 @@ namespace Nif
         BSShaderProperty::read(nif);
 
         mFilename = nif->getSizedString();
-        mSkyObjectType = static_cast<SkyObjectType>(nif->get<uint32_t>());
+        mSkyObjectType = static_cast<SkyObjectType>(nif->get<std::uint32_t>());
     }
 
     void BSWaterShaderProperty::read(NIFStream* nif)
@@ -532,7 +535,7 @@ namespace Nif
     {
         NiProperty::read(nif);
 
-        mEnable = nif->get<uint16_t>() & 1;
+        mEnable = nif->get<std::uint16_t>() & 1;
     }
 
     void NiStencilProperty::read(NIFStream* nif)
@@ -543,14 +546,14 @@ namespace Nif
         {
             if (nif->getVersion() <= NIFFile::NIFVersion::VER_OB_OLD)
                 nif->read(mFlags);
-            mEnabled = nif->get<uint8_t>() != 0;
-            mTestFunction = static_cast<TestFunc>(nif->get<uint32_t>());
+            mEnabled = nif->get<std::uint8_t>() != 0;
+            mTestFunction = static_cast<TestFunc>(nif->get<std::uint32_t>());
             nif->read(mStencilRef);
             nif->read(mStencilMask);
-            mFailAction = static_cast<Action>(nif->get<uint32_t>());
-            mZFailAction = static_cast<Action>(nif->get<uint32_t>());
-            mPassAction = static_cast<Action>(nif->get<uint32_t>());
-            mDrawMode = static_cast<DrawMode>(nif->get<uint32_t>());
+            mFailAction = static_cast<Action>(nif->get<std::uint32_t>());
+            mZFailAction = static_cast<Action>(nif->get<std::uint32_t>());
+            mPassAction = static_cast<Action>(nif->get<std::uint32_t>());
+            mDrawMode = static_cast<DrawMode>(nif->get<std::uint32_t>());
         }
         else
         {
@@ -573,8 +576,8 @@ namespace Nif
         nif->read(mFlags);
         if (nif->getVersion() <= NIFFile::NIFVersion::VER_OB)
         {
-            mVertexMode = static_cast<VertexMode>(nif->get<uint32_t>());
-            mLightingMode = static_cast<LightMode>(nif->get<uint32_t>());
+            mVertexMode = static_cast<VertexMode>(nif->get<std::uint32_t>());
+            mLightingMode = static_cast<LightMode>(nif->get<std::uint32_t>());
         }
         else
         {
@@ -587,7 +590,7 @@ namespace Nif
     {
         NiProperty::read(nif);
 
-        mEnable = nif->get<uint16_t>() & 1;
+        mEnable = nif->get<std::uint16_t>() & 1;
     }
 
     void NiZBufferProperty::read(NIFStream* nif)

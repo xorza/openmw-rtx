@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -120,7 +121,7 @@ namespace
                 return;
             osg::Matrixf worldMat = osg::computeLocalToWorld(nodepaths[0]);
             worldMat.orthoNormalize(worldMat); // scale is already applied on the particle node
-            for (int i = 0; i < partsys->numParticles(); ++i)
+            for (std::int32_t i = 0; i < partsys->numParticles(); ++i)
             {
                 partsys->getParticle(i)->transformPositionVelocity(worldMat);
             }
@@ -138,7 +139,7 @@ namespace
     {
     public:
         /// @param mask The node mask to set on ParticleSystem nodes.
-        explicit InitParticlesVisitor(unsigned int mask)
+        explicit InitParticlesVisitor(std::uint32_t mask)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mMask(mask)
         {
@@ -164,7 +165,7 @@ namespace
         }
 
     private:
-        unsigned int mMask;
+        std::uint32_t mMask;
     };
 
     class ReplaceMaterialVisitor : public osg::NodeVisitor
@@ -223,9 +224,9 @@ namespace Resource
     class SharedStateManager : public osgDB::SharedStateManager
     {
     public:
-        size_t getNumSharedTextures() const { return _sharedTextureList.size(); }
+        std::size_t getNumSharedTextures() const { return _sharedTextureList.size(); }
 
-        size_t getNumSharedStateSets() const { return _sharedStateSetList.size(); }
+        std::size_t getNumSharedStateSets() const { return _sharedStateSetList.size(); }
 
         void clearCache()
         {
@@ -349,7 +350,7 @@ namespace Resource
             void applyStateSet(osg::StateSet* stateset)
             {
                 const osg::StateSet::TextureAttributeList& texAttributes = stateset->getTextureAttributeList();
-                for (unsigned int unit = 0; unit < texAttributes.size(); ++unit)
+                for (std::uint32_t unit = 0; unit < texAttributes.size(); ++unit)
                 {
                     osg::StateAttribute* texture = stateset->getTextureAttribute(unit, osg::StateAttribute::TEXTURE);
                     if (texture)
@@ -652,7 +653,7 @@ namespace Resource
         mOpaqueDepthTex = { std::move(texturePing), std::move(texturePong) };
     }
 
-    osg::ref_ptr<osg::Texture> SceneManager::getOpaqueDepthTex(size_t frame)
+    osg::ref_ptr<osg::Texture> SceneManager::getOpaqueDepthTex(std::size_t frame)
     {
         return mOpaqueDepthTex[frame % 2];
     }
@@ -662,7 +663,7 @@ namespace Resource
         mOpaqueColorTex = { std::move(texturePing), std::move(texturePong) };
     }
 
-    osg::ref_ptr<osg::Texture> SceneManager::getOpaqueColorTex(size_t frame)
+    osg::ref_ptr<osg::Texture> SceneManager::getOpaqueColorTex(std::size_t frame)
     {
         return mOpaqueColorTex[frame % 2];
     }
@@ -771,10 +772,10 @@ namespace Resource
             osgDB::ReaderWriter::ReadResult result = reader->readNode(*source, options);
             if (!result.success())
                 throw std::runtime_error(std::format("Error loading {}: {} code {}", normalizedFilename.value(),
-                    result.message(), static_cast<int>(result.status())));
+                    result.message(), static_cast<std::int32_t>(result.status())));
 
             // Recognize and hide collision node
-            unsigned int hiddenNodeMask = 0;
+            std::uint32_t hiddenNodeMask = 0;
             SceneUtil::FindByNameVisitor nameFinder("Collision");
 
             auto node = result.getNode();
@@ -846,7 +847,7 @@ namespace Resource
 
                             newRiggeometryHolder->setBodyPart(true);
 
-                            for (int i = 0; i < 2; ++i)
+                            for (std::int32_t i = 0; i < 2; ++i)
                             {
                                 if (newRiggeometryHolder->getGeometry(i))
                                     newRiggeometryHolder->getGeometry(i)->setSkeleton(nullptr);
@@ -935,7 +936,7 @@ namespace Resource
 
         osg::ref_ptr<osg::Node> load(VFS::Path::NormalizedView normalizedFilename, const VFS::Manager* vfs,
             Resource::ImageManager* imageManager, Resource::NifFileManager* nifFileManager,
-            Resource::BgsmFileManager* materialMgr, Resource::SptFileManager* sptFileManager, unsigned int& nifVersion)
+            Resource::BgsmFileManager* materialMgr, Resource::SptFileManager* sptFileManager, std::uint32_t& nifVersion)
         {
             const std::string_view ext = Misc::getFileExtension(normalizedFilename.value());
             if (ext == "nif")
@@ -965,7 +966,7 @@ namespace Resource
             }
 
             bool isOperationPermissibleForObjectImplementation(
-                const SceneUtil::Optimizer* optimizer, const osg::Drawable* node, unsigned int option) const override
+                const SceneUtil::Optimizer* optimizer, const osg::Drawable* node, std::uint32_t option) const override
             {
                 if (option & SceneUtil::Optimizer::FLATTEN_STATIC_TRANSFORMS)
                 {
@@ -980,7 +981,7 @@ namespace Resource
             }
 
             bool isOperationPermissibleForObjectImplementation(
-                const SceneUtil::Optimizer* optimizer, const osg::Node* node, unsigned int option) const override
+                const SceneUtil::Optimizer* optimizer, const osg::Node* node, std::uint32_t option) const override
             {
                 if (node->getNumDescriptions() > 0)
                     return false;
@@ -994,7 +995,7 @@ namespace Resource
         };
 
         bool canOptimize(
-            std::string_view filename, unsigned int nifVersion, const SceneManager::BlacklistModelSet& blacklist)
+            std::string_view filename, std::uint32_t nifVersion, const SceneManager::BlacklistModelSet& blacklist)
         {
             if (blacklist.contains(filename))
                 return false;
@@ -1020,11 +1021,11 @@ namespace Resource
             return true;
         }
 
-        unsigned int getOptimizationOptions()
+        std::uint32_t getOptimizationOptions()
         {
             using namespace SceneUtil;
             const char* env = getenv("OPENMW_OPTIMIZE");
-            unsigned int options
+            std::uint32_t options
                 = Optimizer::FLATTEN_STATIC_TRANSFORMS | Optimizer::REMOVE_REDUNDANT_NODES | Optimizer::MERGE_GEOMETRY;
             if (env)
             {
@@ -1079,7 +1080,7 @@ namespace Resource
                 path.changeExtension(meshType);
                 if (mVFS->exists(path))
                 {
-                    unsigned int nifVersion = 0;
+                    std::uint32_t nifVersion = 0;
                     return load(
                         path, mVFS, mImageManager, mNifFileManager, mBgsmFileManager, mSptFileManager, nifVersion);
                 }
@@ -1096,9 +1097,9 @@ namespace Resource
     }
 
     void SceneManager::loadSelectionMarker(
-        const osg::ref_ptr<osg::Group>& parentNode, const char* markerData, long long markerSize) const
+        const osg::ref_ptr<osg::Group>& parentNode, const char* markerData, std::size_t markerSize) const
     {
-        Files::IMemStream file(markerData, static_cast<std::size_t>(markerSize));
+        Files::IMemStream file(markerData, markerSize);
         constexpr VFS::Path::NormalizedView selectionMarker("selectionmarker.osgt");
         parentNode->addChild(loadNonNif(selectionMarker, file, mImageManager));
     }
@@ -1124,7 +1125,7 @@ namespace Resource
         // What a crash while the model is read and readied names, on whichever thread loads it.
         const Crash::NoteScope noted("loading the model \"{}\"", path.value());
         osg::ref_ptr<osg::Node> loaded;
-        unsigned int nifVersion = 0;
+        std::uint32_t nifVersion = 0;
         try
         {
             loaded = load(path, mVFS, mImageManager, mNifFileManager, mBgsmFileManager, mSptFileManager, nifVersion);
@@ -1158,7 +1159,7 @@ namespace Resource
             optimizer.setSharedStateManager(mSharedStateManager, &mSharedStateMutex);
             optimizer.setIsOperationPermissibleForObjectCallback(new CanOptimizeCallback);
 
-            static const unsigned int options = getOptimizationOptions() | SceneUtil::Optimizer::SHARE_DUPLICATE_STATE;
+            static const std::uint32_t options = getOptimizationOptions() | SceneUtil::Optimizer::SHARE_DUPLICATE_STATE;
 
             optimizer.optimize(loaded, options);
         }
@@ -1255,7 +1256,7 @@ namespace Resource
         return mImageManager;
     }
 
-    void SceneManager::setParticleSystemMask(unsigned int mask)
+    void SceneManager::setParticleSystemMask(std::uint32_t mask)
     {
         mParticleSystemMask = mask;
     }
@@ -1330,7 +1331,7 @@ namespace Resource
             osgUtil::IncrementalCompileOperation::CompileSets& sets = mIncrementalCompileOperation->getToCompile();
             for (auto it = sets.begin(); it != sets.end();)
             {
-                int refcount = (*it)->_subgraphToCompile->referenceCount();
+                std::int32_t refcount = (*it)->_subgraphToCompile->referenceCount();
                 if ((*it)->_subgraphToCompile->asDrawable())
                     refcount -= 1; // ref by CompileList.
                 if (refcount <= 2) // ref by ObjectCache + ref by _subgraphToCompile.
@@ -1366,7 +1367,7 @@ namespace Resource
         mSharedStateManager->clearCache();
     }
 
-    void SceneManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void SceneManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         if (mIncrementalCompileOperation)
         {

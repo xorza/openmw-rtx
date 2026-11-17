@@ -1,5 +1,7 @@
 #include "contacttestresultcallback.hpp"
 
+#include <cstdint>
+
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 
 #include <components/misc/convert.hpp>
@@ -9,7 +11,8 @@
 namespace MWPhysics
 {
     btScalar ContactTestResultCallback::addSingleResult(btManifoldPoint& cp, const btCollisionObjectWrapper* col0Wrap,
-        int /*partId0*/, int /*index0*/, const btCollisionObjectWrapper* col1Wrap, int /*partId1*/, int /*index1*/)
+        std::int32_t /*partId0*/, std::int32_t /*index0*/, const btCollisionObjectWrapper* col1Wrap,
+        std::int32_t /*partId1*/, std::int32_t /*index1*/)
     {
         const btCollisionObject* collisionObject = col0Wrap->m_collisionObject;
         if (collisionObject == mTestedAgainst)

@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -25,7 +26,7 @@ namespace MWRender
     namespace
     {
         /// The view mask the game culls its world by.
-        constexpr unsigned int sView = ~(Mask_UpdateVisitor | Mask_SimpleWater);
+        constexpr std::uint32_t sView = ~(Mask_UpdateVisitor | Mask_SimpleWater);
 
         /// A geometry of `positions`, painted `colours` per vertex where there are as many, or the
         /// first over the whole where there is one, drawn as `mode`.
@@ -36,7 +37,7 @@ namespace MWRender
             geometry->setVertexArray(new osg::Vec3Array(positions.begin(), positions.end()));
             geometry->setColorArray(new osg::Vec4Array(colours.begin(), colours.end()),
                 colours.size() == positions.size() ? osg::Array::BIND_PER_VERTEX : osg::Array::BIND_OVERALL);
-            geometry->addPrimitiveSet(new osg::DrawArrays(mode, 0, static_cast<int>(positions.size())));
+            geometry->addPrimitiveSet(new osg::DrawArrays(mode, 0, static_cast<std::int32_t>(positions.size())));
             return geometry;
         }
 

@@ -1,6 +1,7 @@
 #include "precipitationocclusion.hpp"
 
 #include <cassert>
+#include <cstdint>
 
 #include <osgUtil/CullVisitor>
 
@@ -87,7 +88,7 @@ namespace MWRender
         , mRootNode(rootNode)
         , mSceneCamera(camera)
     {
-        constexpr int rttSize = 256;
+        constexpr std::int32_t rttSize = 256;
 
         mDepthTexture = new osg::Texture2D;
         mDepthTexture->setTextureSize(rttSize, rttSize);

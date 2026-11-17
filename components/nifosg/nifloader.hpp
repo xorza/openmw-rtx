@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/ref_ptr>
 
 #include <components/nif/niffile.hpp>
@@ -46,20 +48,20 @@ namespace NifOsg
         /// Set the mask to use for hidden nodes. The default is 0, i.e. updates to those nodes can no longer happen.
         /// If you need to run animations or physics for hidden nodes, you may want to set this to a non-zero mask and
         /// remove exactly that mask from the camera's cull mask.
-        static void setHiddenNodeMask(unsigned int mask);
-        static unsigned int getHiddenNodeMask();
+        static void setHiddenNodeMask(std::uint32_t mask);
+        static std::uint32_t getHiddenNodeMask();
 
         // Set the mask to use for nodes that ignore the crosshair intersection. The default is the default node mask.
         // This is used for NiCollisionSwitch nodes with NiCollisionSwitch state set to disabled.
-        static void setIntersectionDisabledNodeMask(unsigned int mask);
-        static unsigned int getIntersectionDisabledNodeMask();
+        static void setIntersectionDisabledNodeMask(std::uint32_t mask);
+        static std::uint32_t getIntersectionDisabledNodeMask();
 
         static void setSoftEffectEnabled(bool enabled);
         static bool getSoftEffectEnabled();
 
     private:
-        static unsigned int sHiddenNodeMask;
-        static unsigned int sIntersectionDisabledNodeMask;
+        static std::uint32_t sHiddenNodeMask;
+        static std::uint32_t sIntersectionDisabledNodeMask;
         static bool sShowMarkers;
         static bool sSoftEffectEnabled;
     };

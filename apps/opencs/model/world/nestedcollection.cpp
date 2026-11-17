@@ -1,26 +1,27 @@
 #include "nestedcollection.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 #include "columnbase.hpp"
 #include "columns.hpp"
 
-int CSMWorld::NestedCollection::getNestedRowsCount(int row, int column) const
+std::int32_t CSMWorld::NestedCollection::getNestedRowsCount(std::int32_t row, std::int32_t column) const
 {
     return 0;
 }
 
-int CSMWorld::NestedCollection::getNestedColumnsCount(int row, int column) const
+std::int32_t CSMWorld::NestedCollection::getNestedColumnsCount(std::int32_t row, std::int32_t column) const
 {
     return 0;
 }
 
-int CSMWorld::NestedCollection::searchNestedColumnIndex(int parentColumn, Columns::ColumnId id)
+std::int32_t CSMWorld::NestedCollection::searchNestedColumnIndex(std::int32_t parentColumn, Columns::ColumnId id)
 {
     // Assumed that the parentColumn is always a valid index
     const NestableColumn* parent = getNestableColumn(parentColumn);
-    int nestedColumnCount = getNestedColumnsCount(0, parentColumn);
-    for (int i = 0; i < nestedColumnCount; ++i)
+    std::int32_t nestedColumnCount = getNestedColumnsCount(0, parentColumn);
+    for (std::int32_t i = 0; i < nestedColumnCount; ++i)
     {
         if (parent->nestedColumn(i).mColumnId == id)
         {
@@ -30,9 +31,9 @@ int CSMWorld::NestedCollection::searchNestedColumnIndex(int parentColumn, Column
     return -1;
 }
 
-int CSMWorld::NestedCollection::findNestedColumnIndex(int parentColumn, Columns::ColumnId id)
+std::int32_t CSMWorld::NestedCollection::findNestedColumnIndex(std::int32_t parentColumn, Columns::ColumnId id)
 {
-    int index = searchNestedColumnIndex(parentColumn, id);
+    std::int32_t index = searchNestedColumnIndex(parentColumn, id);
     if (index == -1)
     {
         throw std::logic_error("CSMWorld::NestedCollection: No such nested column");

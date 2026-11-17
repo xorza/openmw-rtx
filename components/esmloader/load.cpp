@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <sstream>
@@ -46,7 +47,7 @@ namespace EsmLoader
 
             const ESM::RefId& operator()(const ESM::Cell& v) const { return v.mId; }
 
-            std::pair<int, int> operator()(const ESM::Land& v) const { return std::pair(v.mX, v.mY); }
+            std::pair<std::int32_t, std::int32_t> operator()(const ESM::Land& v) const { return std::pair(v.mX, v.mY); }
 
             template <class T>
             decltype(auto) operator()(const Record<T>& v) const
@@ -59,7 +60,7 @@ namespace EsmLoader
         {
             Records<ESM::Cell> mValues;
             std::map<std::string, std::size_t> mByName;
-            std::map<std::pair<int, int>, std::size_t> mByPosition;
+            std::map<std::pair<std::int32_t, std::int32_t>, std::size_t> mByPosition;
         };
 
         template <class T>
@@ -109,7 +110,7 @@ namespace EsmLoader
             }
             else
             {
-                const std::pair<int, int> position(record.mData.mX, record.mData.mY);
+                const std::pair<std::int32_t, std::int32_t> position(record.mData.mX, record.mData.mY);
                 const auto it = records.mByPosition.find(position);
                 if (it == records.mByPosition.end())
                 {
@@ -231,7 +232,7 @@ namespace EsmLoader
 
                 const ESM::ReadersCache::BusyItem reader = readers.get(i);
                 reader->setEncoder(encoder);
-                reader->setIndex(static_cast<int>(i));
+                reader->setIndex(static_cast<std::int32_t>(i));
                 reader->open(collection.getPath(file));
                 if (query.mLoadCells)
                     reader->resolveParentFileIndices(readers);

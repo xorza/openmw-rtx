@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include <osg/Vec2i>
@@ -46,7 +48,7 @@ namespace MWGui
 
         void pickUpObject(MWWorld::Ptr object);
 
-        MWWorld::Ptr getAvatarSelectedItem(int x, int y);
+        MWWorld::Ptr getAvatarSelectedItem(std::int32_t x, std::int32_t y);
 
         void rebuildAvatar();
 
@@ -67,7 +69,7 @@ namespace MWGui
         /// Placed again where its mode's place falls in the view the interface is now laid out in,
         /// and its preview sized to the frame's pixels the image now covers: both move with the
         /// view and the scale, and only a drag of the window told it of either.
-        void onResChange(int width, int height) override;
+        void onResChange(std::int32_t width, std::int32_t height) override;
 
         void refitText() override;
 
@@ -89,7 +91,7 @@ namespace MWGui
         Misc::NotNullPtr<DragAndDrop> mDragAndDrop;
         Misc::NotNullPtr<ItemTransfer> mItemTransfer;
 
-        int mSelectedItem;
+        std::int32_t mSelectedItem;
 
         MWWorld::Ptr mPtr;
 
@@ -115,8 +117,8 @@ namespace MWGui
 
         GuiMode mGuiMode;
 
-        int mLastXSize;
-        int mLastYSize;
+        std::int32_t mLastXSize;
+        std::int32_t mLastYSize;
 
         std::unique_ptr<MWRender::InventoryPreview> mPreview;
 
@@ -125,8 +127,8 @@ namespace MWGui
 
         void toggleMaximized();
 
-        void onItemSelected(int index);
-        void onItemSelectedFromSourceModel(int index);
+        void onItemSelected(std::int32_t index);
+        void onItemSelectedFromSourceModel(std::int32_t index);
 
         void onBackgroundSelected();
 
@@ -162,12 +164,12 @@ namespace MWGui
         void updateArmorRating();
 
         MyGUI::IntSize getPreviewViewportSize() const;
-        osg::Vec2i mapPreviewWindowToViewport(int x, int y) const;
+        osg::Vec2i mapPreviewWindowToViewport(std::int32_t x, std::int32_t y) const;
 
         void adjustPanes();
 
         /// Unequips count items from mSelectedItem, if it is equipped, and then updates mSelectedItem in case the items
         /// were re-stacked
-        void ensureSelectedItemUnequipped(int count);
+        void ensureSelectedItemUnequipped(std::int32_t count);
     };
 }

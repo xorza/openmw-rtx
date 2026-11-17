@@ -310,9 +310,9 @@ namespace Rtx
                 const std::uint32_t down = std::max(height >> level, 1u);
                 const std::size_t ours = layout.levelBytes(across, down);
                 const auto theirs = [&](std::uint32_t slices) -> std::size_t {
-                    return osg::Image::computeImageSizeInBytes(static_cast<int>(across), static_cast<int>(down),
-                        static_cast<int>(slices), image.getPixelFormat(), image.getDataType(),
-                        static_cast<int>(image.getPacking()));
+                    return osg::Image::computeImageSizeInBytes(static_cast<std::int32_t>(across),
+                        static_cast<std::int32_t>(down), static_cast<std::int32_t>(slices), image.getPixelFormat(),
+                        image.getDataType(), static_cast<std::int32_t>(image.getPacking()));
                 };
 
                 if (image.getMipmapOffset(level) != laid || ours != theirs(1))

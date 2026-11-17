@@ -1,5 +1,8 @@
 #include "loadfact.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/esm/attr.hpp>
 
 #include "esmreader.hpp"
@@ -8,12 +11,12 @@
 
 namespace ESM
 {
-    ESM::RefId& Faction::FADTstruct::getSkill(size_t index, bool)
+    ESM::RefId& Faction::FADTstruct::getSkill(std::size_t index, bool)
     {
         return mSkills.at(index);
     }
 
-    ESM::RefId Faction::FADTstruct::getSkill(size_t index, bool) const
+    ESM::RefId Faction::FADTstruct::getSkill(std::size_t index, bool) const
     {
         return mSkills.at(index);
     }
@@ -41,13 +44,13 @@ namespace ESM
         esm.getSubHeader();
         if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
         {
-            int32_t attributes[2];
+            std::int32_t attributes[2];
             esm.getT(attributes);
             mAttribute[0] = ESM::Attribute::indexToRefId(attributes[0]);
             mAttribute[1] = ESM::Attribute::indexToRefId(attributes[1]);
             for (auto& rank : mRankData)
                 rank.load(esm);
-            int32_t skills[7];
+            std::int32_t skills[7];
             esm.getT(skills);
             for (std::size_t i = 0; i < std::size(skills); ++i)
                 mSkills[i] = ESM::Skill::indexToRefId(skills[i]);
@@ -58,9 +61,9 @@ namespace ESM
             for (auto& rank : mRankData)
                 rank.load(esm);
             esm.getT(mFlags);
-            for (size_t i = 0; i < mAttribute.size() && esm.isNextSub("ATTR"); ++i)
+            for (std::size_t i = 0; i < mAttribute.size() && esm.isNextSub("ATTR"); ++i)
                 mAttribute[i] = esm.getRefId();
-            for (size_t i = 0; i < mSkills.size() && esm.isNextSub("SKIL"); ++i)
+            for (std::size_t i = 0; i < mSkills.size() && esm.isNextSub("SKIL"); ++i)
                 mSkills[i] = esm.getRefId();
         }
     }
@@ -76,7 +79,7 @@ namespace ESM
                 rank.save(esm);
             for (const ESM::RefId& id : mSkills)
             {
-                int32_t skill = ESM::Skill::refIdToIndex(id);
+                std::int32_t skill = ESM::Skill::refIdToIndex(id);
                 esm.writeT(skill);
             }
             esm.writeT(mFlags);
@@ -105,7 +108,7 @@ namespace ESM
         for (auto& rank : mRanks)
             rank.clear();
 
-        size_t rankCounter = 0;
+        std::size_t rankCounter = 0;
         bool hasName = false;
         bool hasData = false;
         while (esm.hasMoreSubs())
@@ -132,7 +135,7 @@ namespace ESM
                 case fourCC("ANAM"):
                 {
                     ESM::RefId faction = esm.getRefId();
-                    int32_t reaction = 0;
+                    std::int32_t reaction = 0;
                     esm.getHNT(reaction, "INTV");
                     // Prefer the lowest reaction in case a faction is listed multiple times
                     auto it = mReactions.find(faction);
@@ -194,7 +197,7 @@ namespace ESM
         mData.mAttribute.fill({});
         mData.mFlags = 0;
 
-        for (size_t i = 0; i < mData.mRankData.size(); ++i)
+        for (std::size_t i = 0; i < mData.mRankData.size(); ++i)
         {
             mData.mRankData[i].blank();
             mRanks[i].clear();

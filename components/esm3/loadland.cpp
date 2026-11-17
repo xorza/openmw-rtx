@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <utility>
@@ -31,17 +32,18 @@ namespace ESM
 
         void transposeTextureData(const std::uint16_t* in, std::uint16_t* out)
         {
-            size_t readPos = 0; // bit ugly, but it works
-            for (size_t y1 = 0; y1 < 4; y1++)
-                for (size_t x1 = 0; x1 < 4; x1++)
-                    for (size_t y2 = 0; y2 < 4; y2++)
-                        for (size_t x2 = 0; x2 < 4; x2++)
+            std::size_t readPos = 0; // bit ugly, but it works
+            for (std::size_t y1 = 0; y1 < 4; y1++)
+                for (std::size_t x1 = 0; x1 < 4; x1++)
+                    for (std::size_t y2 = 0; y2 < 4; y2++)
+                        for (std::size_t x2 = 0; x2 < 4; x2++)
                             out[(y1 * 4 + y2) * 16 + (x1 * 4 + x2)] = in[readPos++];
         }
 
         // Loads data and marks it as loaded. Return true if data is actually loaded from reader, false otherwise
         // including the case when data is already loaded.
-        bool condLoad(ESMReader& reader, int dataTypes, int& targetDataTypes, int dataFlag, auto& in)
+        bool condLoad(
+            ESMReader& reader, std::int32_t dataTypes, std::int32_t& targetDataTypes, std::int32_t dataFlag, auto& in)
         {
             if ((targetDataTypes & dataFlag) == 0 && (dataTypes & dataFlag) != 0)
             {
@@ -159,8 +161,8 @@ namespace ESM
                 offsets.mHeightOffset = mLandData->mHeights[0] / sHeightScale;
 
                 float prevY = mLandData->mHeights[0];
-                size_t number = 0; // avoid multiplication
-                for (unsigned i = 0; i < LandRecordData::sLandSize; ++i)
+                std::size_t number = 0; // avoid multiplication
+                for (std::uint32_t i = 0; i < LandRecordData::sLandSize; ++i)
                 {
                     float diff = (mLandData->mHeights[number] - prevY) / sHeightScale;
                     offsets.mHeightData[number] = static_cast<std::int8_t>(std::lround(diff));
@@ -168,7 +170,7 @@ namespace ESM
                     float prevX = prevY = mLandData->mHeights[number];
                     ++number;
 
-                    for (unsigned j = 1; j < LandRecordData::sLandSize; ++j)
+                    for (std::uint32_t j = 1; j < LandRecordData::sLandSize; ++j)
                     {
                         diff = (mLandData->mHeights[number] - prevX) / sHeightScale;
                         offsets.mHeightData[number] = static_cast<std::int8_t>(std::lround(diff));
@@ -192,7 +194,7 @@ namespace ESM
             }
             if (mDataTypes & Land::DATA_VTEX)
             {
-                uint16_t vtex[LandRecordData::sLandNumTextures];
+                std::uint16_t vtex[LandRecordData::sLandNumTextures];
                 transposeTextureData(mLandData->mTextures.data(), vtex);
                 esm.writeHNT("VTEX", vtex);
             }
@@ -211,7 +213,7 @@ namespace ESM
         mLandData->mHeights.fill(DEFAULT_HEIGHT);
         mLandData->mMinHeight = DEFAULT_HEIGHT;
         mLandData->mMaxHeight = DEFAULT_HEIGHT;
-        for (size_t i = 0; i < LandRecordData::sLandNumVerts; ++i)
+        for (std::size_t i = 0; i < LandRecordData::sLandNumVerts; ++i)
         {
             mLandData->mNormals[i * 3 + 0] = 0;
             mLandData->mNormals[i * 3 + 1] = 0;
@@ -227,7 +229,7 @@ namespace ESM
         mContext.filename.clear();
     }
 
-    void Land::loadData(int dataTypes) const
+    void Land::loadData(std::int32_t dataTypes) const
     {
         if (mLandData == nullptr)
             mLandData = std::make_unique<LandData>();
@@ -235,7 +237,7 @@ namespace ESM
         loadData(dataTypes, *mLandData);
     }
 
-    void Land::loadData(int dataTypes, LandData& data) const
+    void Land::loadData(std::int32_t dataTypes, LandData& data) const
     {
         // Try to load only available data
         dataTypes = dataTypes & mDataTypes;
@@ -265,7 +267,7 @@ namespace ESM
         mLandData = nullptr;
     }
 
-    bool Land::isDataLoaded(int flags) const
+    bool Land::isDataLoaded(std::int32_t flags) const
     {
         return mLandData && (mLandData->mDataLoaded & flags) == flags;
     }
@@ -288,7 +290,7 @@ namespace ESM
         return *this;
     }
 
-    const Land::LandData* Land::getLandData(int flags) const
+    const Land::LandData* Land::getLandData(std::int32_t flags) const
     {
         if (!(flags & mDataTypes))
             return nullptr;
@@ -297,7 +299,7 @@ namespace ESM
         return mLandData.get();
     }
 
-    void Land::add(int flags)
+    void Land::add(std::int32_t flags)
     {
         if (mLandData == nullptr)
             mLandData = std::make_unique<LandData>();
@@ -306,7 +308,7 @@ namespace ESM
         mLandData->mDataLoaded |= flags;
     }
 
-    void loadLandRecordData(int dataTypes, ESMReader& reader, LandRecordData& data)
+    void loadLandRecordData(std::int32_t dataTypes, ESMReader& reader, LandRecordData& data)
     {
         if (reader.isNextSub("VNML"))
             condLoad(reader, dataTypes, data.mDataLoaded, Land::DATA_VNML, data.mNormals);
@@ -319,7 +321,7 @@ namespace ESM
                 data.mMinHeight = std::numeric_limits<float>::max();
                 data.mMaxHeight = -std::numeric_limits<float>::max();
                 float rowOffset = vhgt.mHeightOffset;
-                for (unsigned y = 0; y < LandRecordData::sLandSize; y++)
+                for (std::uint32_t y = 0; y < LandRecordData::sLandSize; y++)
                 {
                     rowOffset += static_cast<float>(
                         vhgt.mHeightData[static_cast<std::size_t>(y * LandRecordData::sLandSize)]);
@@ -330,7 +332,7 @@ namespace ESM
                     data.mMinHeight = std::min(rowOffset * Land::sHeightScale, data.mMinHeight);
 
                     float colOffset = rowOffset;
-                    for (unsigned x = 1; x < LandRecordData::sLandSize; x++)
+                    for (std::uint32_t x = 1; x < LandRecordData::sLandSize; x++)
                     {
                         colOffset += static_cast<float>(vhgt.mHeightData[y * LandRecordData::sLandSize + x]);
                         data.mHeights[x + y * LandRecordData::sLandSize] = colOffset * Land::sHeightScale;

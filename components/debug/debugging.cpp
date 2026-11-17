@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -139,7 +140,7 @@ namespace Debug
             {
                 if (size <= 0)
                     return size;
-                std::string_view msg{ str, static_cast<size_t>(size) };
+                std::string_view msg{ str, static_cast<std::size_t>(size) };
 
                 // Skip debug level marker
                 Level level = All;
@@ -162,18 +163,18 @@ namespace Debug
                     (void)localtime_r(&time, &timeInfo);
 #endif
                     prefixSize = std::strftime(prefix + 1, sizeof(prefix) - 1, "%T", &timeInfo) + 1;
-                    char levelLetter = " EWIVD*"[static_cast<int>(level)];
+                    char levelLetter = " EWIVD*"[static_cast<std::int32_t>(level)];
                     const auto ms
                         = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
                     prefixSize += static_cast<std::size_t>(snprintf(prefix + prefixSize, sizeof(prefix) - prefixSize,
-                        ".%03u %c] ", static_cast<unsigned>(ms % 1000), levelLetter));
+                        ".%03u %c] ", static_cast<std::uint32_t>(ms % 1000), levelLetter));
                 }
 
                 while (!msg.empty())
                 {
                     if (msg[0] == 0)
                         break;
-                    size_t lineSize = 1;
+                    std::size_t lineSize = 1;
                     while (lineSize < msg.size() && msg[lineSize - 1] != '\n')
                         lineSize++;
                     // **One write a line, its stamp with it**: the crash catcher's monitor appends its
@@ -201,7 +202,7 @@ namespace Debug
         protected:
             static Level getLevelMarker(char marker)
             {
-                if (0 <= marker && static_cast<unsigned>(marker) < static_cast<unsigned>(All))
+                if (0 <= marker && static_cast<std::uint32_t>(marker) < static_cast<std::uint32_t>(All))
                     return static_cast<Level>(marker);
                 return All;
             }
@@ -218,14 +219,17 @@ namespace Debug
         public:
             std::streamsize writeImpl(const char* str, std::streamsize size, Level debugLevel)
             {
-                if (size > std::numeric_limits<int>::max())
+                if (size > std::numeric_limits<std::int32_t>::max())
                     OutputDebugStringW(L"Next line truncated...");
                 auto wideSize = MultiByteToWideChar(CP_UTF8, 0, str,
-                    static_cast<int>(std::min<std::streamsize>(size, std::numeric_limits<int>::max())), nullptr, 0);
+                    static_cast<std::int32_t>(
+                        std::min<std::streamsize>(size, std::numeric_limits<std::int32_t>::max())),
+                    nullptr, 0);
                 std::wstring wide(wideSize, L'\0');
                 MultiByteToWideChar(CP_UTF8, 0, str,
-                    static_cast<int>(std::min<std::streamsize>(size, std::numeric_limits<int>::max())), wide.data(),
-                    wideSize);
+                    static_cast<std::int32_t>(
+                        std::min<std::streamsize>(size, std::numeric_limits<std::int32_t>::max())),
+                    wide.data(), wideSize);
                 // Write string to Visual Studio Debug output
                 OutputDebugStringW(wide.c_str());
                 return size;
@@ -467,16 +471,16 @@ namespace Debug
         Crash::setLogFile(logFile);
     }
 
-    int wrapApplication(
-        int (*innerApplication)(int argc, char* argv[]), int argc, char* argv[], std::string_view appName)
+    std::int32_t wrapApplication(std::int32_t (*innerApplication)(std::int32_t argc, char* argv[]), std::int32_t argc,
+        char* argv[], std::string_view appName)
     {
         // Before anything else, because a monitor is this executable doing nothing but that.
-        if (const std::optional<int> monitored = Crash::runMonitorIfAsked(argc, argv))
+        if (const std::optional<std::int32_t> monitored = Crash::runMonitorIfAsked(argc, argv))
             return *monitored;
 
         // The image is kept for a monitor, so only where one will start.
         const char* const disable = std::getenv("OPENMW_DISABLE_CRASH_CATCHER");
-        const bool catches = disable == nullptr || Misc::StringUtils::toNumeric<int>(disable, 0) == 0;
+        const bool catches = disable == nullptr || Misc::StringUtils::toNumeric<std::int32_t>(disable, 0) == 0;
         const std::string_view unkept = catches ? Crash::keepImageMounted() : std::string_view();
 
         // **One rule for both boxes, the crash dialog and the fatal error**: none for whoever started
@@ -484,7 +488,7 @@ namespace Debug
         // stop.
         bool asks = !Platform::Process::startedFromTerminal();
         if (const char* const dialog = std::getenv("OPENMW_CRASH_DIALOG"))
-            asks = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
+            asks = Misc::StringUtils::toNumeric<std::int32_t>(dialog, 1) != 0;
 
 #if defined _WIN32
         (void)attachParentConsole();
@@ -561,7 +565,7 @@ namespace Debug
         // crash test outlasted its two-second limit and was reported as a second hang.
         const auto framesEnd = [] { Crash::setHangLimit(std::chrono::seconds(0)); };
 
-        int ret = 0;
+        std::int32_t ret = 0;
         try
         {
             ret = innerApplication(argc, argv);

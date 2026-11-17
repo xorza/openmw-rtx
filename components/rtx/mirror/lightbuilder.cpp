@@ -74,7 +74,7 @@ namespace Rtx
 
         /// How many bands a flame is the sum of. Four spans a factor of eighteen in rate, which is the
         /// whole of what a flame does: the puffing at the top, and a draught wandering under it.
-        constexpr int sFlameBands = 4;
+        constexpr std::int32_t sFlameBands = 4;
 
         /// `SceneUtil::LightController`'s own numbers, which it spells as literals: the band an
         /// animated light's brightness walks within, as a share of its recorded colour; how far it
@@ -106,14 +106,14 @@ namespace Rtx
         /// once and never kept: a phase rolled at random would put the harness's lamp somewhere
         /// else on every run. Ids are handed out in sequence, so they are scattered by an odd
         /// constant near the golden ratio's share of the word.
-        float lightPhase(int id)
+        float lightPhase(std::int32_t id)
         {
             const std::uint32_t scattered = static_cast<std::uint32_t>(id) * 2654435761u;
             return static_cast<float>(scattered >> 8) * 0x1p-24f;
         }
 
         /// One sine of the ladder: `index` steps this light's phase along, `frequency` is in hertz.
-        float band(double simulationTime, float frequency, float phase, int index)
+        float band(double simulationTime, float frequency, float phase, std::int32_t index)
         {
             // Reduced to one turn in double, before it is narrowed. A session's clock reaches tens
             // of thousands of seconds, and a float holding that many turns at nine hertz has nothing
@@ -137,7 +137,7 @@ namespace Rtx
             float sum = 0.0f;
             float frequency = top;
 
-            for (int i = 0; i < sFlameBands; ++i)
+            for (std::int32_t i = 0; i < sFlameBands; ++i)
             {
                 sum += band(simulationTime, frequency, phase, i);
                 frequency /= sBandRatio;
@@ -229,12 +229,12 @@ namespace Rtx
         const osg::Vec4f ambient = light.getAmbient();
         bool gives = false;
         bool takes = false;
-        for (int channel = 0; channel < 3; ++channel)
+        for (std::int32_t channel = 0; channel < 3; ++channel)
         {
-            gives = gives || diffuse[static_cast<unsigned int>(channel)] > 0.0f
-                || ambient[static_cast<unsigned int>(channel)] > 0.0f;
-            takes = takes || diffuse[static_cast<unsigned int>(channel)] < 0.0f
-                || ambient[static_cast<unsigned int>(channel)] < 0.0f;
+            gives = gives || diffuse[static_cast<std::uint32_t>(channel)] > 0.0f
+                || ambient[static_cast<std::uint32_t>(channel)] > 0.0f;
+            takes = takes || diffuse[static_cast<std::uint32_t>(channel)] < 0.0f
+                || ambient[static_cast<std::uint32_t>(channel)] < 0.0f;
         }
         return gives && !takes;
     }
@@ -255,7 +255,7 @@ namespace Rtx
             && (ambient.x() > 0.0f || ambient.y() > 0.0f || ambient.z() > 0.0f);
     }
 
-    float lightBrightness(SceneUtil::LightController::LightType type, int id, double simulationTime)
+    float lightBrightness(SceneUtil::LightController::LightType type, std::int32_t id, double simulationTime)
     {
         const float phase = lightPhase(id);
 
@@ -383,8 +383,8 @@ namespace Rtx
         return type;
     }
 
-    Result<std::optional<Light>, std::string_view> makeLight(
-        const SceneUtil::LightCommon& record, const osg::Vec3f& position, const double simulationTime, const int id)
+    Result<std::optional<Light>, std::string_view> makeLight(const SceneUtil::LightCommon& record,
+        const osg::Vec3f& position, const double simulationTime, const std::int32_t id)
     {
         if (!castsWherePlaced(record))
             return std::nullopt;

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <limits>
 #include <memory>
@@ -88,7 +90,7 @@ namespace MWRender
         {
             double enter = 0.0;
             double leave = 1.0;
-            for (int axis = 0; axis < 2; ++axis)
+            for (std::int32_t axis = 0; axis < 2; ++axis)
             {
                 const double along = to[axis] - from[axis];
                 if (along == 0.0)
@@ -124,11 +126,13 @@ namespace MWRender
             const osg::Vec2d d = to - from;
             const osg::Vec2d first = from + d * over->x();
             const osg::Vec2d last = from + d * over->y();
-            osg::Vec2i cell(static_cast<int>(std::floor(first.x())), static_cast<int>(std::floor(first.y())));
-            const osg::Vec2i end(static_cast<int>(std::floor(last.x())), static_cast<int>(std::floor(last.y())));
+            osg::Vec2i cell(
+                static_cast<std::int32_t>(std::floor(first.x())), static_cast<std::int32_t>(std::floor(first.y())));
+            const osg::Vec2i end(
+                static_cast<std::int32_t>(std::floor(last.x())), static_cast<std::int32_t>(std::floor(last.y())));
             const osg::Vec2i step(d.x() < 0.0 ? -1 : 1, d.y() < 0.0 ? -1 : 1);
             constexpr double never = std::numeric_limits<double>::infinity();
-            const auto firstCrossing = [&](const int axis) {
+            const auto firstCrossing = [&](const std::int32_t axis) {
                 if (d[axis] == 0.0)
                     return never;
                 const double boundary = step[axis] > 0 ? cell[axis] + 1.0 : static_cast<double>(cell[axis]);
@@ -138,13 +142,13 @@ namespace MWRender
             const osg::Vec2d across(
                 d.x() == 0.0 ? never : 1.0 / std::abs(d.x()), d.y() == 0.0 ? never : 1.0 / std::abs(d.y()));
 
-            const int cells = std::abs(end.x() - cell.x()) + std::abs(end.y() - cell.y()) + 1;
-            for (int crossed = 0; crossed < cells; ++crossed)
+            const std::int32_t cells = std::abs(end.x() - cell.x()) + std::abs(end.y() - cell.y()) + 1;
+            for (std::int32_t crossed = 0; crossed < cells; ++crossed)
             {
                 if (!visit(cell))
                     return;
 
-                const int axis = crossing.x() < crossing.y() ? 0 : 1;
+                const std::int32_t axis = crossing.x() < crossing.y() ? 0 : 1;
                 cell[axis] += step[axis];
                 crossing[axis] += across[axis];
             }
@@ -175,7 +179,7 @@ namespace MWRender
     }
 
     TracedTerrain::TracedTerrain(osg::Group& sceneRoot, osg::Group& worldRoot, Terrain::Storage& storage,
-        Resource::SceneManager& scenes, const StandingGround& distance, const unsigned int nodeMask,
+        Resource::SceneManager& scenes, const StandingGround& distance, const std::uint32_t nodeMask,
         const ESM::RefId worldspace)
         : Terrain::World(&sceneRoot, &storage, nodeMask, worldspace)
         , mNormals(new osg::Vec3Array)
@@ -207,7 +211,7 @@ namespace MWRender
     void TracedTerrain::enable(const bool enabled)
     {
         mAnswer->setNodeMask(enabled ? ~0u : 0u);
-        mStaticsAnswer->setNodeMask(enabled ? static_cast<unsigned int>(Mask_Static) : 0u);
+        mStaticsAnswer->setNodeMask(enabled ? static_cast<std::uint32_t>(Mask_Static) : 0u);
         mBorders->setNodeMask(enabled ? mNodeMask : 0u);
     }
 
@@ -234,7 +238,7 @@ namespace MWRender
         // The triangles `TerrainGrid` draws a cell with, and no stitching flags: the vertex order
         // is `fillVertexBuffers`' own, and the diamond splits each quad the way the game does, so
         // a slope is cut here as it is cut on the screen.
-        const auto verts = static_cast<unsigned int>(mStorage->getCellVertices(mWorldspace));
+        const auto verts = static_cast<std::uint32_t>(mStorage->getCellVertices(mWorldspace));
         grid.mGeometry->setUseDisplayList(false);
         grid.mGeometry->setVertexArray(grid.mPositions);
         grid.mGeometry->addPrimitiveSet(mBuffers.getIndexBuffer(verts, 0));
@@ -265,7 +269,7 @@ namespace MWRender
         grid.mRoot->setPosition(osg::Vec3f(centre.x() * cellSize, centre.y() * cellSize, 0.0f));
     }
 
-    void TracedTerrain::loadCell(const int x, const int y)
+    void TracedTerrain::loadCell(const std::int32_t x, const std::int32_t y)
     {
         const osg::Vec2i cell(x, y);
         if (findGrid(cell) != nullptr)
@@ -279,7 +283,7 @@ namespace MWRender
         mCells.push_back(std::move(grid));
     }
 
-    void TracedTerrain::unloadCell(const int x, const int y)
+    void TracedTerrain::unloadCell(const std::int32_t x, const std::int32_t y)
     {
         CellGrid* const found = findGrid(osg::Vec2i(x, y));
         if (found == nullptr)
@@ -377,8 +381,8 @@ namespace MWRender
         mCarried = 0;
         mAsked.clear();
         walkLand(mLand, mCellSize, segment, 1.0, [&](const osg::Vec2i& crossed) {
-            for (int dy = -1; dy <= 1; ++dy)
-                for (int dx = -1; dx <= 1; ++dx)
+            for (std::int32_t dy = -1; dy <= 1; ++dy)
+                for (std::int32_t dx = -1; dx <= 1; ++dx)
                 {
                     const osg::Vec2i cell(crossed.x() + dx, crossed.y() + dy);
                     // A loaded cell's statics are the game's own nodes, which the visitor meets.

@@ -1,5 +1,8 @@
 #include "bookwindow.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_InputManager.h>
 #include <MyGUI_TextBox.h>
 
@@ -59,8 +62,8 @@ namespace MWGui
         {
             // english button has a 7 pixel wide strip of garbage on its right edge
             mNextPageButton->setSize(64 - 7, mNextPageButton->getSize().height);
-            mNextPageButton->setImageCoord(MyGUI::IntCoord(0, 0, static_cast<int>((64 - 7) * scale),
-                static_cast<int>(static_cast<float>(mNextPageButton->getSize().height) * scale)));
+            mNextPageButton->setImageCoord(MyGUI::IntCoord(0, 0, static_cast<std::int32_t>((64 - 7) * scale),
+                static_cast<std::int32_t>(static_cast<float>(mNextPageButton->getSize().height) * scale)));
         }
 
         mControllerButtons.mL1 = "#{Interface:Prev}";
@@ -70,7 +73,7 @@ namespace MWGui
         center();
     }
 
-    void BookWindow::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void BookWindow::onMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (rel < 0)
             nextPage();

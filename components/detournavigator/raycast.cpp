@@ -1,6 +1,8 @@
 #include "raycast.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
@@ -18,11 +20,11 @@ namespace DetourNavigator
             dtStatusFailed(status) || ref == 0)
             return {};
 
-        const unsigned options = 0;
+        const std::uint32_t options = 0;
         std::array<dtPolyRef, 16> path{};
         dtRaycastHit hit{};
         hit.path = path.data();
-        hit.maxPath = static_cast<int>(path.size());
+        hit.maxPath = static_cast<std::int32_t>(path.size());
         if (dtStatus status = navMeshQuery.raycast(ref, start.ptr(), end.ptr(), &queryFilter, options, &hit);
             dtStatusFailed(status) || hit.pathCount == 0)
             return {};

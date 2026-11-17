@@ -1,5 +1,7 @@
 #include "util.hpp"
 
+#include <cstdint>
+
 #include <osg/Node>
 
 #include <components/misc/resourcehelpers.hpp>
@@ -24,7 +26,7 @@ namespace MWRender
 
             void apply(osg::Node& node) override
             {
-                int index = 0;
+                std::int32_t index = 0;
                 if (node.getUserValue("overrideFx", index))
                 {
                     if (index == 1)

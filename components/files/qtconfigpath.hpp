@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QString>
 
 #include "configurationmanager.hpp"
@@ -16,7 +18,7 @@ namespace Files
     {
         const auto& activePaths = cfgMgr.getActiveConfigPaths();
         QStringList result;
-        result.reserve(static_cast<int>(activePaths.size()));
+        result.reserve(static_cast<std::int32_t>(activePaths.size()));
         for (const auto& path : activePaths)
             result.append(Files::pathToQString(path / openmwCfgFile));
         return result;

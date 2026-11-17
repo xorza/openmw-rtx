@@ -1,5 +1,7 @@
 #include "componentselectionpage.hpp"
 
+#include <cstdint>
+
 #include <QMessageBox>
 #include <QPushButton>
 
@@ -106,7 +108,7 @@ bool Wizard::ComponentSelectionPage::validatePage()
     return true;
 }
 
-int Wizard::ComponentSelectionPage::nextId() const
+std::int32_t Wizard::ComponentSelectionPage::nextId() const
 {
     if constexpr (sInstallsFromDisc)
         if (isCommitPage())

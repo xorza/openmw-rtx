@@ -1,5 +1,7 @@
 #include "fileparser.hpp"
 
+#include <cstdint>
+
 #include <components/misc/strings/algorithm.hpp>
 
 #include "scanner.hpp"
@@ -55,7 +57,7 @@ namespace Compiler
         return Parser::parseName(name, loc, scanner);
     }
 
-    bool FileParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool FileParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (mState == BeginState && keyword == Scanner::K_begin)
         {
@@ -89,7 +91,7 @@ namespace Compiler
         return Parser::parseKeyword(keyword, loc, scanner);
     }
 
-    bool FileParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+    bool FileParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
     {
         if (code == Scanner::S_newline)
         {

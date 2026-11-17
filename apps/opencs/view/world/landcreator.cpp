@@ -1,8 +1,10 @@
 #include "landcreator.hpp"
 
+#include <cstdint>
+#include <limits>
+
 #include <QLabel>
 #include <QSpinBox>
-#include <limits>
 
 #include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
@@ -21,8 +23,8 @@ namespace CSVWorld
         , mX(nullptr)
         , mY(nullptr)
     {
-        const int maxInt = std::numeric_limits<int>::max();
-        const int minInt = std::numeric_limits<int>::min();
+        const std::int32_t maxInt = std::numeric_limits<std::int32_t>::max();
+        const std::int32_t minInt = std::numeric_limits<std::int32_t>::min();
 
         setManualEditing(false);
 
@@ -40,15 +42,15 @@ namespace CSVWorld
         insertBeforeButtons(mYLabel, false);
         insertBeforeButtons(mY, true);
 
-        connect(mX, qOverload<int>(&QSpinBox::valueChanged), this, &LandCreator::coordChanged);
-        connect(mY, qOverload<int>(&QSpinBox::valueChanged), this, &LandCreator::coordChanged);
+        connect(mX, qOverload<std::int32_t>(&QSpinBox::valueChanged), this, &LandCreator::coordChanged);
+        connect(mY, qOverload<std::int32_t>(&QSpinBox::valueChanged), this, &LandCreator::coordChanged);
     }
 
     void LandCreator::cloneMode(const std::string& originId, const CSMWorld::UniversalId::Type type)
     {
         GenericCreator::cloneMode(originId, type);
 
-        int x = 0, y = 0;
+        std::int32_t x = 0, y = 0;
         CSMWorld::Land::parseUniqueRecordId(originId, x, y);
 
         mX->setValue(x);
@@ -120,7 +122,7 @@ namespace CSVWorld
             getUndoStack().push(command.release());
     }
 
-    void LandCreator::coordChanged(int value)
+    void LandCreator::coordChanged(std::int32_t value)
     {
         update();
     }

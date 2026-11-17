@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <ranges>
@@ -31,7 +33,7 @@ namespace VFS
 
 namespace Fx
 {
-    using FlagsType = size_t;
+    using FlagsType = std::size_t;
 
     struct DispatchNode
     {
@@ -134,7 +136,7 @@ namespace Fx
         static VFS::Path::Normalized makeFileName(std::string_view name);
 
         Technique(const VFS::Manager& vfs, Resource::ImageManager& imageManager, VFS::Path::NormalizedView fileName,
-            std::string name, int width, int height, bool ubo, bool supportsNormals);
+            std::string name, std::int32_t width, std::int32_t height, bool ubo, bool supportsNormals);
 
         bool compile();
 
@@ -164,7 +166,7 @@ namespace Fx
 
         std::string_view getVersion() const { return mVersion; }
 
-        int getGLSLVersion() const { return mGLSLVersion; }
+        std::int32_t getGLSLVersion() const { return mGLSLVersion; }
 
         std::string getGLSLProfile() const { return mGLSLProfile; }
 
@@ -230,13 +232,13 @@ namespace Fx
 
         float parseFloat();
 
-        int parseInteger();
+        std::int32_t parseInteger();
 
-        int parseInternalFormat();
+        std::int32_t parseInternalFormat();
 
-        int parseSourceType();
+        std::int32_t parseSourceType();
 
-        int parseSourceFormat();
+        std::int32_t parseSourceFormat();
 
         template <class SrcT, class T>
         void parseWidgetType(Types::Uniform<SrcT>& uniform);
@@ -276,7 +278,7 @@ namespace Fx
         std::string_view mVersion;
 
         std::unordered_set<std::string> mGLSLExtensions;
-        int mGLSLVersion{};
+        std::int32_t mGLSLVersion{};
         std::string mGLSLProfile;
 
         FlagsType mFlags{};
@@ -290,8 +292,8 @@ namespace Fx
         bool mHDR{};
         bool mNormals{};
         bool mLights{};
-        int mWidth;
-        int mHeight;
+        std::int32_t mWidth;
+        std::int32_t mHeight;
 
         RenderTargetMap mRenderTargets;
 

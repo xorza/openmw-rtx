@@ -1,5 +1,7 @@
 #include "firsttexel.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
@@ -33,15 +35,15 @@ namespace Rtx::Testing
         return texel;
     }
 
-    ::testing::AssertionResult isNear(const Texel& got, const Texel& want, const int step)
+    ::testing::AssertionResult isNear(const Texel& got, const Texel& want, const std::int32_t step)
     {
         for (std::size_t channel = 0; channel < got.size(); ++channel)
-            if (std::abs(static_cast<int>(got[channel]) - static_cast<int>(want[channel])) > step)
+            if (std::abs(static_cast<std::int32_t>(got[channel]) - static_cast<std::int32_t>(want[channel])) > step)
                 return ::testing::AssertionFailure()
-                    << "channel " << channel << " is " << static_cast<int>(got[channel]) << " where "
-                    << static_cast<int>(want[channel]) << " was asked, within " << step << " ("
-                    << static_cast<int>(got[0]) << ", " << static_cast<int>(got[1]) << ", " << static_cast<int>(got[2])
-                    << ", " << static_cast<int>(got[3]) << ")";
+                    << "channel " << channel << " is " << static_cast<std::int32_t>(got[channel]) << " where "
+                    << static_cast<std::int32_t>(want[channel]) << " was asked, within " << step << " ("
+                    << static_cast<std::int32_t>(got[0]) << ", " << static_cast<std::int32_t>(got[1]) << ", "
+                    << static_cast<std::int32_t>(got[2]) << ", " << static_cast<std::int32_t>(got[3]) << ")";
         return ::testing::AssertionSuccess();
     }
 }

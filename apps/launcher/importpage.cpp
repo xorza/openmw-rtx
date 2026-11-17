@@ -1,5 +1,7 @@
 #include "importpage.hpp"
 
+#include <cstdint>
+
 #include <QDebug>
 #include <QDir>
 #include <QFileDialog>
@@ -26,12 +28,12 @@ Launcher::ImportPage::ImportPage(const Files::ConfigurationManager& cfg, Config:
 
     connect(mWizardInvoker->getProcess(), &QProcess::started, this, &ImportPage::wizardStarted);
 
-    connect(mWizardInvoker->getProcess(), qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+    connect(mWizardInvoker->getProcess(), qOverload<std::int32_t, QProcess::ExitStatus>(&QProcess::finished), this,
         &ImportPage::wizardFinished);
 
     connect(mImporterInvoker->getProcess(), &QProcess::started, this, &ImportPage::importerStarted);
 
-    connect(mImporterInvoker->getProcess(), qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+    connect(mImporterInvoker->getProcess(), qOverload<std::int32_t, QProcess::ExitStatus>(&QProcess::finished), this,
         &ImportPage::importerFinished);
 
     // Detect Morrowind configuration files
@@ -168,7 +170,7 @@ void Launcher::ImportPage::wizardStarted()
     wizardButton->setEnabled(false);
 }
 
-void Launcher::ImportPage::wizardFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void Launcher::ImportPage::wizardFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitCode != 0 || exitStatus == QProcess::CrashExit)
         return qApp->quit();
@@ -184,7 +186,7 @@ void Launcher::ImportPage::importerStarted()
     importerButton->setEnabled(false);
 }
 
-void Launcher::ImportPage::importerFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void Launcher::ImportPage::importerFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitCode != 0 || exitStatus == QProcess::CrashExit)
     {

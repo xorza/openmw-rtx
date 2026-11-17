@@ -1,6 +1,7 @@
 #include "extensions.hpp"
 
 #include <cassert>
+#include <cstdint>
 #include <stdexcept>
 
 #include "generator.hpp"
@@ -13,7 +14,7 @@ namespace Compiler
     {
     }
 
-    int Extensions::searchKeyword(const std::string& keyword) const
+    std::int32_t Extensions::searchKeyword(const std::string& keyword) const
     {
         auto iter = mKeywords.find(keyword);
         if (iter == mKeywords.end())
@@ -23,7 +24,7 @@ namespace Compiler
     }
 
     bool Extensions::isFunction(
-        int keyword, ScriptReturn& returnType, ScriptArgs& argumentType, bool& explicitReference) const
+        std::int32_t keyword, ScriptReturn& returnType, ScriptArgs& argumentType, bool& explicitReference) const
     {
         auto iter = mFunctions.find(keyword);
         if (iter == mFunctions.end())
@@ -37,7 +38,7 @@ namespace Compiler
         return true;
     }
 
-    bool Extensions::isInstruction(int keyword, ScriptArgs& argumentType, bool& explicitReference) const
+    bool Extensions::isInstruction(std::int32_t keyword, ScriptArgs& argumentType, bool& explicitReference) const
     {
         auto iter = mInstructions.find(keyword);
         if (iter == mInstructions.end())
@@ -50,8 +51,8 @@ namespace Compiler
         return true;
     }
 
-    void Extensions::registerFunction(
-        std::string_view keyword, ScriptReturn returnType, std::string_view argumentType, int code, int codeExplicit)
+    void Extensions::registerFunction(std::string_view keyword, ScriptReturn returnType, std::string_view argumentType,
+        std::int32_t code, std::int32_t codeExplicit)
     {
         Function function;
 
@@ -68,7 +69,7 @@ namespace Compiler
             assert(codeExplicit == -1 || (codeExplicit >= 0x20000 && codeExplicit <= 0x2ffff));
         }
 
-        int keywordIndex = mNextKeywordIndex--;
+        std::int32_t keywordIndex = mNextKeywordIndex--;
 
         mKeywords.emplace(keyword, keywordIndex);
 
@@ -81,7 +82,7 @@ namespace Compiler
     }
 
     void Extensions::registerInstruction(
-        std::string_view keyword, std::string_view argumentType, int code, int codeExplicit)
+        std::string_view keyword, std::string_view argumentType, std::int32_t code, std::int32_t codeExplicit)
     {
         Instruction instruction;
 
@@ -98,7 +99,7 @@ namespace Compiler
             assert(codeExplicit == -1 || (codeExplicit >= 0x20000 && codeExplicit <= 0x2ffff));
         }
 
-        int keywordIndex = mNextKeywordIndex--;
+        std::int32_t keywordIndex = mNextKeywordIndex--;
 
         mKeywords.emplace(keyword, keywordIndex);
 
@@ -109,8 +110,8 @@ namespace Compiler
         mInstructions.emplace(keywordIndex, std::move(instruction));
     }
 
-    void Extensions::generateFunctionCode(int keyword, std::vector<Interpreter::Type_Code>& code, Literals& literals,
-        const std::string& id, int optionalArguments) const
+    void Extensions::generateFunctionCode(std::int32_t keyword, std::vector<Interpreter::Type_Code>& code,
+        Literals& literals, const std::string& id, std::int32_t optionalArguments) const
     {
         assert(optionalArguments >= 0);
 
@@ -126,7 +127,7 @@ namespace Compiler
             if (iter->second.mCodeExplicit == -1)
                 throw std::logic_error("explicit references not supported");
 
-            int index = literals.addString(id);
+            std::int32_t index = literals.addString(id);
             Generator::pushInt(code, literals, index);
         }
 
@@ -137,16 +138,17 @@ namespace Compiler
                 if (optionalArguments >= 256)
                     throw std::logic_error("number of optional arguments is too large for segment 3");
 
-                code.push_back(Generator::segment3(id.empty() ? static_cast<unsigned int>(iter->second.mCode)
-                                                              : static_cast<unsigned int>(iter->second.mCodeExplicit),
-                    static_cast<unsigned int>(optionalArguments)));
+                code.push_back(Generator::segment3(id.empty() ? static_cast<std::uint32_t>(iter->second.mCode)
+                                                              : static_cast<std::uint32_t>(iter->second.mCodeExplicit),
+                    static_cast<std::uint32_t>(optionalArguments)));
 
                 break;
 
             case 5:
 
-                code.push_back(Generator::segment5(id.empty() ? static_cast<unsigned int>(iter->second.mCode)
-                                                              : static_cast<unsigned int>(iter->second.mCodeExplicit)));
+                code.push_back(
+                    Generator::segment5(id.empty() ? static_cast<std::uint32_t>(iter->second.mCode)
+                                                   : static_cast<std::uint32_t>(iter->second.mCodeExplicit)));
 
                 break;
 
@@ -156,8 +158,8 @@ namespace Compiler
         }
     }
 
-    void Extensions::generateInstructionCode(int keyword, std::vector<Interpreter::Type_Code>& code, Literals& literals,
-        const std::string& id, int optionalArguments) const
+    void Extensions::generateInstructionCode(std::int32_t keyword, std::vector<Interpreter::Type_Code>& code,
+        Literals& literals, const std::string& id, std::int32_t optionalArguments) const
     {
         assert(optionalArguments >= 0);
 
@@ -173,7 +175,7 @@ namespace Compiler
             if (iter->second.mCodeExplicit == -1)
                 throw std::logic_error("explicit references not supported");
 
-            int index = literals.addString(id);
+            std::int32_t index = literals.addString(id);
             Generator::pushInt(code, literals, index);
         }
 
@@ -184,16 +186,17 @@ namespace Compiler
                 if (optionalArguments >= 256)
                     throw std::logic_error("number of optional arguments is too large for segment 3");
 
-                code.push_back(Generator::segment3(id.empty() ? static_cast<unsigned int>(iter->second.mCode)
-                                                              : static_cast<unsigned int>(iter->second.mCodeExplicit),
-                    static_cast<unsigned int>(optionalArguments)));
+                code.push_back(Generator::segment3(id.empty() ? static_cast<std::uint32_t>(iter->second.mCode)
+                                                              : static_cast<std::uint32_t>(iter->second.mCodeExplicit),
+                    static_cast<std::uint32_t>(optionalArguments)));
 
                 break;
 
             case 5:
 
-                code.push_back(Generator::segment5(id.empty() ? static_cast<unsigned int>(iter->second.mCode)
-                                                              : static_cast<unsigned int>(iter->second.mCodeExplicit)));
+                code.push_back(
+                    Generator::segment5(id.empty() ? static_cast<std::uint32_t>(iter->second.mCode)
+                                                   : static_cast<std::uint32_t>(iter->second.mCodeExplicit)));
 
                 break;
 

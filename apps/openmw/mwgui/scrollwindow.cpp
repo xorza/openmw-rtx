@@ -1,5 +1,7 @@
 #include "scrollwindow.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_ScrollView.h>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -82,7 +84,7 @@ namespace MWGui
 
     void ScrollWindow::onKeyButtonPressed(MyGUI::Widget* /*sender*/, MyGUI::KeyCode key, MyGUI::Char character)
     {
-        int scroll = 0;
+        std::int32_t scroll = 0;
         if (key == MyGUI::KeyCode::ArrowUp)
             scroll = 40;
         else if (key == MyGUI::KeyCode::ArrowDown)

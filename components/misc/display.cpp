@@ -1,19 +1,20 @@
 #include "display.hpp"
 
+#include <cstdint>
 #include <format>
 #include <numeric>
 #include <string>
 
 namespace Misc
 {
-    std::string getResolutionText(int x, int y)
+    std::string getResolutionText(std::int32_t x, std::int32_t y)
     {
-        int gcd = std::gcd(x, y);
+        std::int32_t gcd = std::gcd(x, y);
         if (gcd == 0)
             return std::string();
 
-        int xaspect = x / gcd;
-        int yaspect = y / gcd;
+        std::int32_t xaspect = x / gcd;
+        std::int32_t yaspect = y / gcd;
 
         // It is unclear how to handle 90-degree screen rotation properly.
         // So far only swap aspects, apply custom formatting logic and then swap back.

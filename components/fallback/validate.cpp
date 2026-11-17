@@ -1,5 +1,7 @@
 #include "validate.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <set>
 #include <string>
 
@@ -247,7 +249,7 @@ bool Fallback::isAllowedUnusedFallbackKey(std::string_view key)
     return allowedKeysUnused.contains(key);
 }
 
-void Fallback::validate(boost::any& v, std::vector<std::string> const& tokens, FallbackMap*, int)
+void Fallback::validate(boost::any& v, std::vector<std::string> const& tokens, FallbackMap*, std::int32_t)
 {
     if (v.empty())
     {
@@ -258,7 +260,7 @@ void Fallback::validate(boost::any& v, std::vector<std::string> const& tokens, F
 
     for (const auto& token : tokens)
     {
-        size_t sep = token.find(',');
+        std::size_t sep = token.find(',');
         if (sep < 1 || sep == token.length() - 1 || sep == std::string::npos)
             throw boost::program_options::validation_error(
                 boost::program_options::validation_error::invalid_option_value);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -25,7 +26,7 @@ namespace MWRender
     class Camera
     {
     public:
-        enum class Mode : int
+        enum class Mode : std::int32_t
         {
             Static = 0,
             FirstPerson = 1,
@@ -108,8 +109,8 @@ namespace MWRender
         void setFirstPersonOffset(const osg::Vec3f& v) { mFirstPersonOffset = v; }
         osg::Vec3f getFirstPersonOffset() const { return mFirstPersonOffset; }
 
-        int getCollisionType() const { return mCollisionType; }
-        void setCollisionType(int collisionType) { mCollisionType = collisionType; }
+        std::int32_t getCollisionType() const { return mCollisionType; }
+        void setCollisionType(std::int32_t collisionType) { mCollisionType = collisionType; }
 
         const osg::Matrixf& getViewMatrix() const { return mViewMatrix; }
         const osg::Matrixf& getProjectionMatrix() const { return mProjectionMatrix; }
@@ -119,7 +120,7 @@ namespace MWRender
         osg::ref_ptr<const osg::Node> mTrackingNode;
         osg::Vec3d mTrackedPosition;
         float mHeightScale;
-        int mCollisionType;
+        std::int32_t mCollisionType;
 
         osg::ref_ptr<osg::Camera> mCamera;
 

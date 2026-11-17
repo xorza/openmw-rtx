@@ -2,6 +2,7 @@
 #include <cerrno>
 #include <charconv>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
@@ -42,6 +43,7 @@ namespace Crash::Monitor
         // `pidfd_open`'s number, which every architecture shares from Linux 5.3 on: AlmaLinux 8's kernel headers,
         // which the release builds against, name `pidfd_send_signal`, backported, and no `SYS_pidfd_open`. A
         // kernel older than 5.3 answers ENOSYS, as it would to the named one.
+        // NOLINTNEXTLINE(google-runtime-int): syscall's number type
         constexpr long sPidfdOpen = 434;
     }
 
@@ -54,7 +56,7 @@ namespace Crash::Monitor
 
     void GameProcess::Closing::close(const Handle hold) noexcept
     {
-        ::close(static_cast<int>(hold));
+        ::close(static_cast<std::int32_t>(hold));
     }
 
     Ending GameProcess::end() const
@@ -63,7 +65,7 @@ namespace Crash::Monitor
         // to whatever process has the id now.
         if (mHold.get() < 0)
             return Ending::Failed;
-        if (syscall(SYS_pidfd_send_signal, static_cast<int>(mHold.get()), SIGKILL, nullptr, 0) == 0)
+        if (syscall(SYS_pidfd_send_signal, static_cast<std::int32_t>(mHold.get()), SIGKILL, nullptr, 0) == 0)
             return Ending::Ended;
         return errno == ESRCH ? Ending::Gone : Ending::Failed;
     }
@@ -78,7 +80,7 @@ namespace Crash::Monitor
         // A pidfd reads as ready once its process has ended.
         if (mHold.get() < 0)
             return true;
-        pollfd polled{ .fd = static_cast<int>(mHold.get()), .events = POLLIN, .revents = 0 };
+        pollfd polled{ .fd = static_cast<std::int32_t>(mHold.get()), .events = POLLIN, .revents = 0 };
         return poll(&polled, 1, 0) != 0;
     }
 
@@ -123,7 +125,7 @@ namespace Crash::Monitor
             }
 
             bool HandleExceptionWithBroker(pid_t client, uid_t user,
-                const crashpad::ExceptionHandlerProtocol::ClientInformation& info, int broker,
+                const crashpad::ExceptionHandlerProtocol::ClientInformation& info, std::int32_t broker,
                 crashpad::UUID* report) override
             {
                 const std::scoped_lock lock(mParts.mReading);
@@ -155,14 +157,14 @@ namespace Crash::Monitor
         }
     }
 
-    int runHandler(std::vector<std::string>& arguments, const HandlerParts& parts)
+    std::int32_t runHandler(std::vector<std::string>& arguments, const HandlerParts& parts)
     {
         // **What `StartHandler` on Linux hands its handler and nothing else**: the database, the
         // annotations, the socket and that it is shared. Anything more is a client this monitor
         // was not built with.
         base::FilePath database;
         std::map<std::string, std::string> annotations;
-        int socket = -1;
+        std::int32_t socket = -1;
         bool shared = false;
         for (std::size_t at = 1; at < arguments.size(); ++at)
         {

@@ -70,13 +70,13 @@ namespace Rtx
             const std::array<std::uint8_t, 16>& bytes, const std::vector<std::uint8_t>& second = {})
         {
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[bytes.size() + second.size()];
+            auto* data = new std::uint8_t[bytes.size() + second.size()];
             std::memcpy(data, bytes.data(), bytes.size());
             if (!second.empty())
                 std::memcpy(data + bytes.size(), second.data(), second.size());
             image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             if (!second.empty())
-                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(bytes.size()) });
+                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<std::uint32_t>(bytes.size()) });
             image->setFileName("textures/tx_guard.dds");
             return image;
         }
@@ -88,7 +88,7 @@ namespace Rtx
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0x1b, 0x6c, 0xb1, 0xe4, //
                 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
                 data, osg::Image::USE_NEW_DELETE);

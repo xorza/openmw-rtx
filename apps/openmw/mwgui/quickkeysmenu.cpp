@@ -1,5 +1,8 @@
 #include "quickkeysmenu.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 #include <MyGUI_Gui.h>
@@ -47,7 +50,7 @@ namespace MWGui
         mOkButton->eventMouseButtonClick += MyGUI::newDelegate(this, &QuickKeysMenu::onOkButtonClicked);
         center();
 
-        for (int i = 0; i < 10; ++i)
+        for (std::int32_t i = 0; i < 10; ++i)
         {
             mKey[static_cast<std::size_t>(i)].index = i + 1;
             getWidget(mKey[static_cast<std::size_t>(i)].button, "QuickKey" + MyGUI::utility::toString(i + 1));
@@ -68,7 +71,7 @@ namespace MWGui
     {
         mActivated = nullptr;
 
-        for (int i = 0; i < 10; ++i)
+        for (std::int32_t i = 0; i < 10; ++i)
         {
             unassign(&mKey[static_cast<std::size_t>(i)]);
         }
@@ -76,7 +79,7 @@ namespace MWGui
         mTemp.clear();
     }
 
-    inline void QuickKeysMenu::validate(int index)
+    inline void QuickKeysMenu::validate(std::int32_t index)
     {
         MWWorld::Ptr player = MWMechanics::getPlayer();
         MWWorld::InventoryStore& store = player.getClass().getInventoryStore(player);
@@ -110,7 +113,7 @@ namespace MWGui
         WindowBase::onOpen();
 
         // Quick key index
-        for (int index = 0; index < 10; ++index)
+        for (std::int32_t index = 0; index < 10; ++index)
         {
             validate(index);
         }
@@ -118,7 +121,7 @@ namespace MWGui
         if (Settings::gui().mControllerMenus)
         {
             mControllerFocus = 0;
-            for (size_t i = 0; i < mKey.size(); i++)
+            for (std::size_t i = 0; i < mKey.size(); i++)
                 mKey[i].button->setControllerFocus(i == mControllerFocus);
         }
     }
@@ -170,8 +173,8 @@ namespace MWGui
 
     void QuickKeysMenu::onQuickKeyButtonClicked(MyGUI::Widget* sender)
     {
-        int index = -1;
-        for (int i = 0; i < 10; ++i)
+        std::int32_t index = -1;
+        for (std::int32_t i = 0; i < 10; ++i)
         {
             if (sender == mKey[static_cast<std::size_t>(i)].button
                 || sender->getParent() == mKey[static_cast<std::size_t>(i)].button)
@@ -291,7 +294,7 @@ namespace MWGui
             scale = static_cast<float>(texture->getHeight()) / 64.f;
 
         mSelected->button->setFrame("textures\\menu_icon_select_magic_magic.dds",
-            MyGUI::IntCoord(0, 0, static_cast<int>(44 * scale), static_cast<int>(44 * scale)));
+            MyGUI::IntCoord(0, 0, static_cast<std::int32_t>(44 * scale), static_cast<std::int32_t>(44 * scale)));
         mSelected->button->setIcon(item);
 
         mSelected->button->setUserString("ToolTipType", "ItemPtr");
@@ -331,7 +334,7 @@ namespace MWGui
         if (texture)
             scale = static_cast<float>(texture->getHeight()) / 64.f;
 
-        const int diameter = static_cast<int>(44 * scale);
+        const auto diameter = static_cast<std::int32_t>(44 * scale);
         mSelected->button->setFrame("textures\\menu_icon_select_magic.dds", MyGUI::IntCoord(0, 0, diameter, diameter));
         mSelected->button->setIcon(iconPath);
 
@@ -353,7 +356,7 @@ namespace MWGui
         activateQuickKey(mActivated->index);
     }
 
-    void QuickKeysMenu::activateQuickKey(int index)
+    void QuickKeysMenu::activateQuickKey(std::int32_t index)
     {
         assert(index >= 1 && index <= 10);
 
@@ -451,7 +454,7 @@ namespace MWGui
 
             store.setSelectedEnchantItem(store.end());
             MWBase::Environment::get().getWindowManager()->setSelectedSpell(
-                spellId, static_cast<int>(MWMechanics::getSpellSuccessChance(spellId, player)));
+                spellId, static_cast<std::int32_t>(MWMechanics::getSpellSuccessChance(spellId, player)));
             MWBase::Environment::get().getWorld()->getPlayer().setDrawState(MWMechanics::DrawState::Spell);
         }
         else if (key->type == ESM::QuickKeys::Type::HandToHand)
@@ -491,7 +494,7 @@ namespace MWGui
                 mControllerFocus++;
         }
 
-        for (size_t i = 0; i < mKey.size(); i++)
+        for (std::size_t i = 0; i < mKey.size(); i++)
             mKey[i].button->setControllerFocus(i == mControllerFocus);
 
         return true;
@@ -514,7 +517,7 @@ namespace MWGui
         mUnassignButton->eventMouseButtonClick += MyGUI::newDelegate(mParent, &QuickKeysMenu::onUnassignButtonClicked);
         mCancelButton->eventMouseButtonClick += MyGUI::newDelegate(mParent, &QuickKeysMenu::onCancelButtonClicked);
 
-        int maxWidth = mLabel->getTextSize().width + 24;
+        std::int32_t maxWidth = mLabel->getTextSize().width + 24;
         maxWidth = std::max(maxWidth, mItemButton->getTextSize().width + 24);
         maxWidth = std::max(maxWidth, mMagicButton->getTextSize().width + 24);
         maxWidth = std::max(maxWidth, mUnassignButton->getTextSize().width + 24);
@@ -578,7 +581,7 @@ namespace MWGui
         ESM::QuickKeys keys;
 
         // NB: The quick key with index 9 always has Hand-to-Hand type and must not be saved
-        for (int i = 0; i < 9; ++i)
+        for (std::int32_t i = 0; i < 9; ++i)
         {
             ItemWidget* button = mKey[static_cast<std::size_t>(i)].button;
 
@@ -612,7 +615,7 @@ namespace MWGui
         writer.endRecord(ESM::REC_KEYS);
     }
 
-    void QuickKeysMenu::readRecord(ESM::ESMReader& reader, uint32_t type)
+    void QuickKeysMenu::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type != ESM::REC_KEYS)
             return;
@@ -630,7 +633,7 @@ namespace MWGui
                 onAssignMagicItem(item);
         };
 
-        int i = 0;
+        std::int32_t i = 0;
         for (ESM::QuickKeys::QuickKey& quickKey : keys.mKeys)
         {
             // NB: The quick key with index 9 always has Hand-to-Hand type and must not be loaded

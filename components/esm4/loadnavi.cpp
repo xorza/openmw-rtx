@@ -26,6 +26,7 @@
 */
 #include "loadnavi.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 #include "reader.hpp"
@@ -144,7 +145,7 @@ void ESM4::Navigation::NavMeshInfo::loadTES5(ESM4::Reader& reader)
         }
     }
 
-    unsigned char island = 0;
+    std::uint8_t island = 0;
     reader.get(island);
     if (island)
     {

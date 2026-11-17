@@ -1,6 +1,7 @@
 #include "navmeshtilestore.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <span>
@@ -31,7 +32,7 @@ namespace DetourNavigator
 
         /// What `PreparedNavMeshData::mUserId` is for a tile the store answered, which the debug view draws
         /// brighter; a tile generated in this session has 0.
-        constexpr unsigned sStoredUserId = 1;
+        constexpr std::uint32_t sStoredUserId = 1;
 
         /// Each value a run of its own, in a fixed order, so no struct's padding reaches the key.
         void addSettings(ContentStore::Digest& digest, const RecastSettings& settings)
@@ -60,7 +61,7 @@ namespace DetourNavigator
             // builder, so two starts that added the objects in two orders key one tile alike.
             const Mesh& mesh = recastMesh.getMesh();
             digest.add(std::span<const float>(mesh.getVertices()));
-            digest.add(std::span<const int>(mesh.getIndices()));
+            digest.add(std::span<const std::int32_t>(mesh.getIndices()));
             digest.add(std::span<const AreaType>(mesh.getAreaTypes()));
 
             digest.add(static_cast<std::uint64_t>(recastMesh.getWater().size()));

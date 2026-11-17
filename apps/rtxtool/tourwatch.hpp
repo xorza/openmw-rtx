@@ -99,7 +99,7 @@ namespace RtxTool
         RestReuse mRestReuse;
 
         /// The columns of the leg's cells a frame stood whole in while the player was there.
-        std::vector<int> mCovered;
+        std::vector<std::int32_t> mCovered;
 
         /// The leg's slow frames, the worst of them and where it stood.
         std::uint32_t mSlow = 0;

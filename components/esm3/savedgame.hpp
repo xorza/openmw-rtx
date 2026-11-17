@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -19,7 +20,7 @@ namespace ESM
 
         std::vector<std::string> mContentFiles;
         std::string mPlayerName;
-        int32_t mPlayerLevel{};
+        std::int32_t mPlayerLevel{};
 
         // ID of class
         ESM::RefId mPlayerClassId;
@@ -33,7 +34,7 @@ namespace ESM
         std::string mDescription;
         std::vector<char> mScreenshot; // raw jpg-encoded data
 
-        int32_t mCurrentDay = 0;
+        std::int32_t mCurrentDay = 0;
         float mCurrentHealth = 0;
         float mMaximumHealth = 0;
 

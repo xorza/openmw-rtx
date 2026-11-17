@@ -1,6 +1,8 @@
 #include "imagemanager.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include <osgDB/Registry>
 
@@ -20,11 +22,11 @@ namespace
     {
         osg::ref_ptr<osg::Image> warningImage = new osg::Image;
 
-        int width = 8, height = 8;
+        std::int32_t width = 8, height = 8;
         warningImage->allocateImage(width, height, 1, GL_RGB, GL_UNSIGNED_BYTE);
         assert(warningImage->isDataContiguous());
-        unsigned char* data = warningImage->data();
-        for (int i = 0; i < width * height; ++i)
+        std::uint8_t* data = warningImage->data();
+        for (std::int32_t i = 0; i < width * height; ++i)
         {
             data[static_cast<std::ptrdiff_t>(3 * i)] = (255);
             data[3 * i + 1] = (0);
@@ -115,20 +117,20 @@ namespace Resource
         if (reader->supportedExtensions().contains("tga"))
         {
             // Morrowind ignores the alpha channel of 16bpp TGA files even when the header says not to
-            unsigned char header[18];
+            std::uint8_t header[18];
             stream->read(reinterpret_cast<char*>(header), 18);
             if (stream->gcount() != 18)
             {
                 Log(Debug::Error) << "Error loading " << path << ": couldn't read TGA header";
                 return mWarningImage;
             }
-            int type = header[2];
-            int depth = 0;
+            std::int32_t type = header[2];
+            std::int32_t depth = 0;
             if (type == 1 || type == 9)
                 depth = header[7];
             else
                 depth = header[16];
-            int alphaBPP = header[17] & 0x0F;
+            std::int32_t alphaBPP = header[17] & 0x0F;
             killAlpha = depth == 16 && alphaBPP == 1;
             stream->seekg(0);
         }
@@ -160,13 +162,13 @@ namespace Resource
                 newImage->setOrigin(image->getOrigin());
                 newImage->allocateImage(image->s(), image->t(), image->r(),
                     image->isImageTranslucent() ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE);
-                for (int s = 0; s < image->s(); ++s)
-                    for (int t = 0; t < image->t(); ++t)
-                        for (int r = 0; r < image->r(); ++r)
-                            newImage->setColor(image->getColor(static_cast<unsigned int>(s),
-                                                   static_cast<unsigned int>(t), static_cast<unsigned int>(r)),
-                                static_cast<unsigned int>(s), static_cast<unsigned int>(t),
-                                static_cast<unsigned int>(r));
+                for (std::int32_t s = 0; s < image->s(); ++s)
+                    for (std::int32_t t = 0; t < image->t(); ++t)
+                        for (std::int32_t r = 0; r < image->r(); ++r)
+                            newImage->setColor(image->getColor(static_cast<std::uint32_t>(s),
+                                                   static_cast<std::uint32_t>(t), static_cast<std::uint32_t>(r)),
+                                static_cast<std::uint32_t>(s), static_cast<std::uint32_t>(t),
+                                static_cast<std::uint32_t>(r));
                 image = newImage;
             }
         }
@@ -177,12 +179,13 @@ namespace Resource
             newImage->setOrigin(image->getOrigin());
             newImage->allocateImage(image->s(), image->t(), image->r(), GL_RGB, GL_UNSIGNED_BYTE);
             // OSG just won't write the alpha as there's nowhere to put it.
-            for (int s = 0; s < image->s(); ++s)
-                for (int t = 0; t < image->t(); ++t)
-                    for (int r = 0; r < image->r(); ++r)
-                        newImage->setColor(image->getColor(static_cast<unsigned int>(s), static_cast<unsigned int>(t),
-                                               static_cast<unsigned int>(r)),
-                            static_cast<unsigned int>(s), static_cast<unsigned int>(t), static_cast<unsigned int>(r));
+            for (std::int32_t s = 0; s < image->s(); ++s)
+                for (std::int32_t t = 0; t < image->t(); ++t)
+                    for (std::int32_t r = 0; r < image->r(); ++r)
+                        newImage->setColor(image->getColor(static_cast<std::uint32_t>(s), static_cast<std::uint32_t>(t),
+                                               static_cast<std::uint32_t>(r)),
+                            static_cast<std::uint32_t>(s), static_cast<std::uint32_t>(t),
+                            static_cast<std::uint32_t>(r));
             image = newImage;
         }
 
@@ -238,7 +241,7 @@ namespace Resource
         return mWarningImage;
     }
 
-    void ImageManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void ImageManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Image", frameNumber, mCache->getStats(), *stats);
     }

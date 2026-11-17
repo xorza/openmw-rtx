@@ -175,7 +175,7 @@ namespace Rtx
         std::map<Key, Entry> mEntries;
         std::size_t mSweepAt = 1024;
         std::deque<Job> mQueue;
-        int mInFlight = 0;
+        std::int32_t mInFlight = 0;
         ContentStats mStats;
 
         /// Each thread's own preprocessor and its thread, last, so the threads are joined before the members they read

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <SDL3/SDL_events.h>
 
 #include <apps/openmw/mwbase/luamanager.hpp>
@@ -41,9 +43,12 @@ namespace MWLua
             return !mConsoleCommandHandlers.mList.empty();
         }
 
-        void onViewportResized(int width, int height) { callEngineHandlers(mViewportResizedHandlers, width, height); }
+        void onViewportResized(std::int32_t width, std::int32_t height)
+        {
+            callEngineHandlers(mViewportResizedHandlers, width, height);
+        }
 
-        void onFontSizeChanged(int size) { callEngineHandlers(mFontSizeChanged, size); }
+        void onFontSizeChanged(std::int32_t size) { callEngineHandlers(mFontSizeChanged, size); }
 
         void uiModeChanged() { callEngineHandlers(mUiModeChanged); }
 

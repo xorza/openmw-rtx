@@ -60,7 +60,7 @@ namespace Crash
             {
             }
 
-            bool MemorySnapshotDelegateRead(void* data, size_t size) override
+            bool MemorySnapshotDelegateRead(void* data, std::size_t size) override
             {
                 const auto* const bytes = static_cast<const std::uint8_t*>(data);
                 mInto.assign(bytes, bytes + size);
@@ -129,7 +129,7 @@ namespace Crash
             {
             }
 
-            size_t StreamDataSize() override { return mText.size(); }
+            std::size_t StreamDataSize() override { return mText.size(); }
 
             bool ReadStreamData(Delegate* delegate) override
             {

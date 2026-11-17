@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <components/misc/result.hpp>
@@ -37,7 +38,7 @@ namespace RtxTool
 
         /// The days passed a new game starts on: the content's own `DaysPassed` global, from which a
         /// stop's day is counted, 16 Last Seed in Morrowind.
-        int newGameDaysPassed();
+        std::int32_t newGameDaysPassed();
 
         /// Tells the renderer that nothing before this frame describes where it now stands.
         void forgetHistory();

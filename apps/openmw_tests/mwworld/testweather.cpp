@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 
 #include <gtest/gtest.h>
 
@@ -83,12 +84,13 @@ namespace MWWorld
             EXPECT_GE(moon.calculateState(after).mPhaseEighths, 1.0f) << "the new one, just begun";
 
             float last = moon.calculateState(TimeStamp()).mPhaseEighths;
-            for (int hour = 1; hour < 72 * 24; ++hour)
+            for (std::int32_t hour = 1; hour < 72 * 24; ++hour)
             {
                 TimeStamp at;
                 at += static_cast<float>(hour);
                 const MWRender::MoonState state = moon.calculateState(at);
-                EXPECT_EQ(static_cast<int>(state.mPhaseEighths), static_cast<int>(state.mPhase)) << "hour " << hour;
+                EXPECT_EQ(static_cast<std::int32_t>(state.mPhaseEighths), static_cast<std::int32_t>(state.mPhase))
+                    << "hour " << hour;
 
                 // A third of a phase a day at most, give or take where the change hour falls.
                 const float moved = std::fmod(state.mPhaseEighths - last + 8.0f, 8.0f);
@@ -837,7 +839,7 @@ namespace MWWorld
 
             // The moon appears an hour earlier for three consecutive days
             const float appearanceTimes[] = { 2.0f + 17.0f / 60.0f, 1.0f + 17.0f / 60.0f, 0.0f + 17.0f / 60.0f };
-            int day = 9;
+            std::int32_t day = 9;
             for (float hour : appearanceTimes)
             {
                 TimeStamp before, after;
@@ -1276,7 +1278,7 @@ namespace MWWorld
                     dailyIncrement, fadeStartAngle, fadeEndAngle, moonShadowEarlyFadeAngle, sunriseHour, sunsetHour);
 
             // A moon with negative non-zero speed never rises throughout the day.
-            for (int minute = 0; minute < 24 * 60; ++minute)
+            for (std::int32_t minute = 0; minute < 24 * 60; ++minute)
             {
                 TimeStamp time;
                 time += (24.0f * 3 + static_cast<float>(minute) / 60.0f);
@@ -1335,7 +1337,7 @@ namespace MWWorld
                     dailyIncrement, fadeStartAngle, fadeEndAngle, moonShadowEarlyFadeAngle, sunriseHour, sunsetHour);
 
             // An early fade angle > fade end angle leaves no unlit angle, so this moon is never fully transparent.
-            for (int minute = 0; minute < 24 * 60; ++minute)
+            for (std::int32_t minute = 0; minute < 24 * 60; ++minute)
             {
                 TimeStamp time;
                 time += (24.0f * 3 + static_cast<float>(minute) / 60.0f);

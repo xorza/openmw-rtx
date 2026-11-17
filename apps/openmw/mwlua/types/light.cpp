@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/color.hpp>
 #include <components/misc/finitevalues.hpp>
@@ -16,7 +18,7 @@ namespace sol
 
 namespace
 {
-    void setRecordFlag(const sol::table& rec, std::string_view key, int flag, ESM::Light& record)
+    void setRecordFlag(const sol::table& rec, std::string_view key, std::int32_t flag, ESM::Light& record)
     {
         if (auto luaFlag = rec[key]; luaFlag != sol::nil)
         {
@@ -119,7 +121,7 @@ namespace MWLua
             if (color.is<Misc::Color>())
                 light.mData.mColor = color.as<Misc::Color>().toRGBA();
             else
-                light.mData.mColor = color.as<uint32_t>();
+                light.mData.mColor = color.as<std::uint32_t>();
         }
         setRecordFlag(rec, "isCarriable", ESM::Light::Carry, light);
         setRecordFlag(rec, "isDynamic", ESM::Light::Dynamic, light);

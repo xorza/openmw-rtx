@@ -118,7 +118,7 @@ namespace
                 const std::size_t kept = Platform::Process::keepToPerformanceCores();
                 std::thread after(wait);
 
-                int failure = 0;
+                std::int32_t failure = 0;
                 if (kept != (performance.has_value() ? performance->size() : 0))
                     failure = 1;
 

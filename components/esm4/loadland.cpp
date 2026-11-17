@@ -217,6 +217,6 @@ void ESM4::Land::load(ESM4::Reader& reader)
     {
         // not sure if it happens here as well, if so just ignore
         Log(Debug::Verbose) << "ESM4::Land VTXT empty layer " << layer.texture.layerIndex << " quad "
-                            << static_cast<unsigned>(layer.texture.quadrant);
+                            << static_cast<std::uint32_t>(layer.texture.quadrant);
     }
 }

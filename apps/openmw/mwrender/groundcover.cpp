@@ -1,5 +1,7 @@
 #include "groundcover.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <span>
 
 #include <osg/AlphaFunc>
@@ -77,9 +79,9 @@ namespace MWRender
                     return true;
 
                 osg::Vec3 lookVector = cullVisitor.getLookVectorLocal();
-                unsigned int bbCornerFar
+                std::uint32_t bbCornerFar
                     = (lookVector.x() >= 0 ? 1 : 0) | (lookVector.y() >= 0 ? 2 : 0) | (lookVector.z() >= 0 ? 4 : 0);
-                unsigned int bbCornerNear = (~bbCornerFar) & 7;
+                std::uint32_t bbCornerNear = (~bbCornerFar) & 7;
                 value_type dNear = distance(boundingBox.corner(bbCornerNear), matrix);
                 value_type dFar = distance(boundingBox.corner(bbCornerFar), matrix);
 
@@ -111,9 +113,9 @@ namespace MWRender
                             {
                                 osg::Matrix fullMatrix = instanceMatrix * matrix;
                                 osg::Vec3d instanceLookVector(-fullMatrix(0, 2), -fullMatrix(1, 2), -fullMatrix(2, 2));
-                                unsigned int instanceBbCornerFar = (instanceLookVector.x() >= 0 ? 1 : 0)
+                                std::uint32_t instanceBbCornerFar = (instanceLookVector.x() >= 0 ? 1 : 0)
                                     | (instanceLookVector.y() >= 0 ? 2 : 0) | (instanceLookVector.z() >= 0 ? 4 : 0);
-                                unsigned int instanceBbCornerNear = (~instanceBbCornerFar) & 7;
+                                std::uint32_t instanceBbCornerNear = (~instanceBbCornerFar) & 7;
                                 value_type instanceDNear
                                     = distance(mInstanceBounds.corner(instanceBbCornerNear), fullMatrix);
                                 value_type instanceDFar
@@ -151,9 +153,9 @@ namespace MWRender
                             {
                                 osg::Matrix fullMatrix = instanceMatrix * matrix;
                                 osg::Vec3d instanceLookVector(-fullMatrix(0, 2), -fullMatrix(1, 2), -fullMatrix(2, 2));
-                                unsigned int instanceBbCornerFar = (instanceLookVector.x() >= 0 ? 1 : 0)
+                                std::uint32_t instanceBbCornerFar = (instanceLookVector.x() >= 0 ? 1 : 0)
                                     | (instanceLookVector.y() >= 0 ? 2 : 0) | (instanceLookVector.z() >= 0 ? 4 : 0);
-                                unsigned int instanceBbCornerNear = (~instanceBbCornerFar) & 7;
+                                std::uint32_t instanceBbCornerNear = (~instanceBbCornerFar) & 7;
                                 value_type instanceDNear
                                     = distance(mInstanceBounds.corner(instanceBbCornerNear), fullMatrix);
                                 value_type instanceDFar
@@ -207,7 +209,7 @@ namespace MWRender
 
             void apply(osg::Group& group) override
             {
-                for (unsigned int i = 0; i < group.getNumChildren();)
+                for (std::uint32_t i = 0; i < group.getNumChildren();)
                 {
                     if (group.getChild(i)->asDrawable() && !group.getChild(i)->asGeometry())
                         group.removeChild(i);
@@ -219,16 +221,17 @@ namespace MWRender
 
             void apply(osg::Geometry& geom) override
             {
-                for (unsigned int i = 0; i < geom.getNumPrimitiveSets(); ++i)
+                for (std::uint32_t i = 0; i < geom.getNumPrimitiveSets(); ++i)
                 {
-                    geom.getPrimitiveSet(i)->setNumInstances(static_cast<int>(mInstances.size()));
+                    geom.getPrimitiveSet(i)->setNumInstances(static_cast<std::int32_t>(mInstances.size()));
                 }
 
-                osg::ref_ptr<osg::Vec4Array> transforms = new osg::Vec4Array(static_cast<unsigned>(mInstances.size()));
+                osg::ref_ptr<osg::Vec4Array> transforms
+                    = new osg::Vec4Array(static_cast<std::uint32_t>(mInstances.size()));
                 osg::BoundingBox box;
                 osg::BoundingBox originalBox = geom.getBoundingBox();
                 float radius = GroundcoverShapes::reach(originalBox);
-                for (unsigned int i = 0; i < transforms->getNumElements(); i++)
+                for (std::uint32_t i = 0; i < transforms->getNumElements(); i++)
                 {
                     osg::Vec3f pos(mInstances[i].mPos.asVec3());
                     osg::Vec3f relativePos = pos - mChunkPosition;
@@ -242,8 +245,9 @@ namespace MWRender
 
                 geom.setInitialBound(box);
 
-                osg::ref_ptr<osg::Vec3Array> rotations = new osg::Vec3Array(static_cast<unsigned>(mInstances.size()));
-                for (unsigned int i = 0; i < rotations->getNumElements(); i++)
+                osg::ref_ptr<osg::Vec3Array> rotations
+                    = new osg::Vec3Array(static_cast<std::uint32_t>(mInstances.size()));
+                for (std::uint32_t i = 0; i < rotations->getNumElements(); i++)
                 {
                     (*rotations)[i] = mInstances[i].mPos.asRotationVec3();
                 }
@@ -300,8 +304,8 @@ namespace MWRender
         }
     }
 
-    osg::ref_ptr<osg::Node> Groundcover::getChunk(float size, const osg::Vec2f& center, unsigned char lod,
-        unsigned int lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
+    osg::ref_ptr<osg::Node> Groundcover::getChunk(float size, const osg::Vec2f& center, std::uint8_t lod,
+        std::uint32_t lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
     {
         if (lod > getMaxLodLevel())
             return nullptr;
@@ -355,12 +359,13 @@ namespace MWRender
         osg::Vec2f maxBound = (center + osg::Vec2f(size / 2.f, size / 2.f));
         DensityCalculator calculator(mDensity);
         ESM::ReadersCache readers;
-        osg::Vec2i startCell = osg::Vec2i(static_cast<int>(std::floor(center.x() - size / 2.f)),
-            static_cast<int>(std::floor(center.y() - size / 2.f)));
-        for (int cellX = startCell.x(); static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size; ++cellX)
+        osg::Vec2i startCell = osg::Vec2i(static_cast<std::int32_t>(std::floor(center.x() - size / 2.f)),
+            static_cast<std::int32_t>(std::floor(center.y() - size / 2.f)));
+        for (std::int32_t cellX = startCell.x(); static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size;
+            ++cellX)
         {
-            for (int cellY = startCell.y(); static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size;
-                ++cellY)
+            for (std::int32_t cellY = startCell.y();
+                static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size; ++cellY)
             {
                 ESM::Cell cell;
                 mGroundcoverStore.initCell(cell, cellX, cellY);
@@ -369,7 +374,7 @@ namespace MWRender
 
                 calculator.reset();
                 std::map<ESM::RefNum, ESM::CellRef> refs;
-                for (size_t i = 0; i < cell.mContextList.size(); ++i)
+                for (std::size_t i = 0; i < cell.mContextList.size(); ++i)
                 {
                     const auto index = static_cast<std::size_t>(cell.mContextList[i].index);
                     const ESM::ReadersCache::BusyItem reader = readers.get(index);
@@ -444,12 +449,12 @@ namespace MWRender
         return group;
     }
 
-    unsigned int Groundcover::getNodeMask()
+    std::uint32_t Groundcover::getNodeMask()
     {
         return Mask_Groundcover;
     }
 
-    void Groundcover::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void Groundcover::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Groundcover Chunk", frameNumber, mCache->getStats(), *stats);
     }

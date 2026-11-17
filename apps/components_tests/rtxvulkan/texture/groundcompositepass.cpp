@@ -140,25 +140,25 @@ namespace Rtx
             /// The byte the bake owes texel `x` of a row, in `channel`, with the ladder read at
             /// level `grey`: the mask ramps at `u * 2 - 0.5` held to the unit, so the second layer
             /// weighs that and the first the rest, red under grey.
-            static int expected(std::uint32_t x, std::size_t channel, std::uint8_t grey)
+            static std::int32_t expected(std::uint32_t x, std::size_t channel, std::uint8_t grey)
             {
                 const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(sExtent);
                 const float second = std::clamp(u * 2.0f - 0.5f, 0.0f, 1.0f);
                 const float ladder = second * static_cast<float>(grey) / 255.0f;
                 const float linear = channel == 0 ? (1.0f - second) + ladder : ladder;
-                return static_cast<int>(std::lround(toEncoded(linear) * 255.0f));
+                return static_cast<std::int32_t>(std::lround(toEncoded(linear) * 255.0f));
             }
 
             /// The byte the gloss owes texel `x` of a row, in `channel`, with the ladder read at
             /// level `grey`: the share of the weight on the ladder, the only layer that reflects,
             /// and the roughness over both, the red a Lambert layer counted at one.
-            static int expectedGloss(std::uint32_t x, std::size_t channel, std::uint8_t grey)
+            static std::int32_t expectedGloss(std::uint32_t x, std::size_t channel, std::uint8_t grey)
             {
                 const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(sExtent);
                 const float second = std::clamp(u * 2.0f - 0.5f, 0.0f, 1.0f);
                 const float gloss[4]{ second, (1.0f - second) + second * static_cast<float>(grey) / 255.0f, 0.0f,
                     1.0f };
-                return static_cast<int>(std::lround(gloss[channel] * 255.0f));
+                return static_cast<std::int32_t>(std::lround(gloss[channel] * 255.0f));
             }
         };
 
@@ -202,17 +202,17 @@ namespace Rtx
                     for (std::size_t channel = 0; channel < 4; ++channel)
                     {
                         const std::size_t at = (std::size_t{ y } * sExtent + x) * 4 + channel;
-                        const int wantOnce = channel == 3 ? 255 : expected(x, channel, 40);
-                        const int wantSixteen = channel == 3 ? 255 : expected(x, channel, 70);
-                        EXPECT_NEAR(int{ once[at] }, wantOnce, 1)
+                        const std::int32_t wantOnce = channel == 3 ? 255 : expected(x, channel, 40);
+                        const std::int32_t wantSixteen = channel == 3 ? 255 : expected(x, channel, 70);
+                        EXPECT_NEAR(std::int32_t{ once[at] }, wantOnce, 1)
                             << "tiled once at " << x << ", " << y << " channel " << channel;
-                        EXPECT_NEAR(int{ sixteen[at] }, wantSixteen, 1)
+                        EXPECT_NEAR(std::int32_t{ sixteen[at] }, wantSixteen, 1)
                             << "tiled sixteen times at " << x << ", " << y << " channel " << channel;
-                        EXPECT_NEAR(int{ glossOnce[at] }, expectedGloss(x, channel, 40), 1)
+                        EXPECT_NEAR(std::int32_t{ glossOnce[at] }, expectedGloss(x, channel, 40), 1)
                             << "gloss tiled once at " << x << ", " << y << " channel " << channel;
-                        EXPECT_NEAR(int{ glossSixteen[at] }, expectedGloss(x, channel, 70), 1)
+                        EXPECT_NEAR(std::int32_t{ glossSixteen[at] }, expectedGloss(x, channel, 70), 1)
                             << "gloss tiled sixteen times at " << x << ", " << y << " channel " << channel;
-                        EXPECT_EQ(int{ glossStandingIn[at] }, channel == 0 || channel == 2 ? 0 : 255)
+                        EXPECT_EQ(std::int32_t{ glossStandingIn[at] }, channel == 0 || channel == 2 ? 0 : 255)
                             << "gloss of a ladder that stands in at " << x << ", " << y << " channel " << channel;
                     }
 
@@ -220,23 +220,23 @@ namespace Rtx
             // 0.00098, all red, 255 and 0; texel 511 is all ladder, grey 40 encoded `1.055 * (40/255)^(1/2.4) - 0.055
             // = 0.43259`, or 110 of 255; texel 255 is u = 0.49902, 0.49805 of the ladder and 0.50195 of the red, red
             // 0.50195 + 0.49805 * 0.15686 = 0.58008 encoded 0.78581, or 200, and green 0.07812 encoded 0.30967, or 79.
-            EXPECT_EQ(int{ once[0] }, 255);
-            EXPECT_EQ(int{ once[1] }, 0);
-            EXPECT_NEAR(int{ once[511 * 4] }, 110, 1);
-            EXPECT_NEAR(int{ once[511 * 4 + 1] }, 110, 1);
-            EXPECT_NEAR(int{ once[255 * 4] }, 200, 1);
-            EXPECT_NEAR(int{ once[255 * 4 + 1] }, 79, 1);
+            EXPECT_EQ(std::int32_t{ once[0] }, 255);
+            EXPECT_EQ(std::int32_t{ once[1] }, 0);
+            EXPECT_NEAR(std::int32_t{ once[511 * 4] }, 110, 1);
+            EXPECT_NEAR(std::int32_t{ once[511 * 4 + 1] }, 110, 1);
+            EXPECT_NEAR(std::int32_t{ once[255 * 4] }, 200, 1);
+            EXPECT_NEAR(std::int32_t{ once[255 * 4 + 1] }, 79, 1);
 
             // The gloss at the same three: texel 0 reflects nothing at a roughness of one, 0 and
             // 255; texel 511 is all ladder, 255 and 40; texel 255 reflects 0.49805, or 127, at
             // 0.50195 + 0.49805 * 0.15686 = 0.58008, or 148.
-            EXPECT_EQ(int{ glossOnce[0] }, 0);
-            EXPECT_EQ(int{ glossOnce[1] }, 255);
-            EXPECT_EQ(int{ glossOnce[511 * 4] }, 255);
-            EXPECT_NEAR(int{ glossOnce[511 * 4 + 1] }, 40, 1);
-            EXPECT_NEAR(int{ glossOnce[255 * 4] }, 127, 1);
-            EXPECT_NEAR(int{ glossOnce[255 * 4 + 1] }, 148, 1);
-            EXPECT_EQ(int{ glossOnce[511 * 4 + 2] }, 0) << "the gloss's blue holds nothing";
+            EXPECT_EQ(std::int32_t{ glossOnce[0] }, 0);
+            EXPECT_EQ(std::int32_t{ glossOnce[1] }, 255);
+            EXPECT_EQ(std::int32_t{ glossOnce[511 * 4] }, 255);
+            EXPECT_NEAR(std::int32_t{ glossOnce[511 * 4 + 1] }, 40, 1);
+            EXPECT_NEAR(std::int32_t{ glossOnce[255 * 4] }, 127, 1);
+            EXPECT_NEAR(std::int32_t{ glossOnce[255 * 4 + 1] }, 148, 1);
+            EXPECT_EQ(std::int32_t{ glossOnce[511 * 4 + 2] }, 0) << "the gloss's blue holds nothing";
         }
     }
 }

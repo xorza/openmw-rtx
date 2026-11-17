@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <list>
 #include <map>
 #include <string>
@@ -97,11 +99,11 @@ namespace MWWorld
 
         std::vector<MWWorld::Ptr> getAll(ESM::RefId id, ESM::RefId worldSpace = {}, bool searchUnloaded = false);
 
-        size_t countSavedGameRecords() const;
+        std::size_t countSavedGameRecords() const;
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) const;
 
-        bool readRecord(ESM::ESMReader& reader, uint32_t type);
+        bool readRecord(ESM::ESMReader& reader, std::uint32_t type);
 
     private:
         struct GetCellStoreCallback;

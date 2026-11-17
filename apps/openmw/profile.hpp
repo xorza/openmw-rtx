@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -115,7 +116,7 @@ namespace OMW
     {
     public:
         explicit ScopedProfile(
-            Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats)
+            Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats)
             : mScopeStart(Misc::FrameClock::now())
             , mStatsEpoch(statsEpoch)
             , mFrameNumber(frameNumber)
@@ -142,7 +143,7 @@ namespace OMW
     private:
         const Misc::FrameClock::time_point mScopeStart;
         const Misc::FrameClock::time_point mStatsEpoch;
-        const unsigned int mFrameNumber;
+        const std::uint32_t mFrameNumber;
         Misc::FrameStats& mStats;
     };
 }

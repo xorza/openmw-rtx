@@ -1,5 +1,6 @@
 #include "factioncheck.hpp"
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <utility>
@@ -19,14 +20,14 @@ CSMTools::FactionCheckStage::FactionCheckStage(const CSMWorld::IdCollection<ESM:
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::FactionCheckStage::setup()
+std::int32_t CSMTools::FactionCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mFactions.getSize();
 }
 
-void CSMTools::FactionCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::FactionCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Faction>& record = mFactions.getRecord(stage);
 
@@ -43,7 +44,7 @@ void CSMTools::FactionCheckStage::perform(int stage, CSMDoc::Messages& messages)
         messages.add(id, "Name is missing", "", CSMDoc::Message::Severity_Error);
 
     // test for invalid attributes
-    std::map<ESM::RefId, int> attributeCount;
+    std::map<ESM::RefId, std::int32_t> attributeCount;
     for (auto attribute : faction.mData.mAttribute)
     {
         if (!attribute.empty())
@@ -61,7 +62,7 @@ void CSMTools::FactionCheckStage::perform(int stage, CSMDoc::Messages& messages)
     }
 
     // test for non-unique skill
-    std::map<ESM::RefId, int> skills; // ID, number of occurrences
+    std::map<ESM::RefId, std::int32_t> skills; // ID, number of occurrences
 
     for (const ESM::RefId& skill : faction.mData.mSkills)
         if (!skill.empty())

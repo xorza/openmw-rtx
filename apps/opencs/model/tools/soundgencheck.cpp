@@ -1,5 +1,6 @@
 #include "soundgencheck.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -23,14 +24,14 @@ CSMTools::SoundGenCheckStage::SoundGenCheckStage(const CSMWorld::IdCollection<ES
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::SoundGenCheckStage::setup()
+std::int32_t CSMTools::SoundGenCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mSoundGens.getSize();
 }
 
-void CSMTools::SoundGenCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::SoundGenCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::SoundGenerator>& record = mSoundGens.getRecord(stage);
 

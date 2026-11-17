@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -50,7 +51,7 @@ namespace Fx
         private:
             void drop();
             void advance();
-            unsigned char head();
+            std::uint8_t head();
             bool peekChar(char c);
 
             Token scanToken();

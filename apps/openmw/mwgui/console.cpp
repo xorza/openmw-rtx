@@ -1,5 +1,7 @@
 #include "console.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <regex>
@@ -153,7 +155,7 @@ namespace MWGui
         }
     }
 
-    Console::Console(int w, int h, bool consoleOnlyScripts, Files::ConfigurationManager& cfgMgr)
+    Console::Console(std::int32_t w, std::int32_t h, bool consoleOnlyScripts, Files::ConfigurationManager& cfgMgr)
         : WindowBase("openmw_console.layout")
         , mCaseSensitiveSearch(false)
         , mRegExSearch(false)
@@ -292,12 +294,12 @@ namespace MWGui
                 auto caption = mCommandLine->getOnlyText();
                 if (caption.empty())
                     return;
-                size_t max = mCommandLine->getTextCursor();
+                std::size_t max = mCommandLine->getTextCursor();
                 while (max > 0 && (isWhitespace(caption[max - 1]) || caption[max - 1] == '>'))
                     max--;
                 while (max > 0 && !isWhitespace(caption[max - 1]) && caption[max - 1] != '>')
                     max--;
-                size_t length = mCommandLine->getTextCursor() - max;
+                std::size_t length = mCommandLine->getTextCursor() - max;
                 if (length > 0)
                 {
                     caption.erase(max, length);
@@ -327,7 +329,7 @@ namespace MWGui
             // List candidates if repeatedly pressing tab
             if (oldCaption == newCaption && !matches.empty())
             {
-                int i = 0;
+                std::int32_t i = 0;
                 printOK({});
                 for (std::string& match : matches)
                 {
@@ -477,8 +479,8 @@ namespace MWGui
                                                      : Utf8Stream::lowerCaseUtf8(mHistory->getOnlyText().asUTF8()) };
 
         // Setup default search range
-        size_t firstIndex{ 0 };
-        size_t lastIndex{ historyText.length() };
+        std::size_t firstIndex{ 0 };
+        std::size_t lastIndex{ historyText.length() };
 
         // If this isn't the first search, adjust the range based on the previous occurrence.
         if (mCurrentOccurrenceIndex != std::string::npos)
@@ -522,7 +524,7 @@ namespace MWGui
     }
 
     void Console::findInHistoryText(const std::string& historyText, const SearchDirection direction,
-        const size_t firstIndex, const size_t lastIndex)
+        const std::size_t firstIndex, const std::size_t lastIndex)
     {
         if (lastIndex <= firstIndex)
         {
@@ -542,7 +544,7 @@ namespace MWGui
     }
 
     void Console::findWithRegex(const std::string& historyText, const SearchDirection direction,
-        const size_t firstIndex, const size_t lastIndex)
+        const std::size_t firstIndex, const std::size_t lastIndex)
     {
         // Search text for regex match in given interval
         const std::regex pattern{ mCurrentSearchTerm };
@@ -576,10 +578,10 @@ namespace MWGui
     }
 
     void Console::findWithStringSearch(const std::string& historyText, const SearchDirection direction,
-        const size_t firstIndex, const size_t lastIndex)
+        const std::size_t firstIndex, const std::size_t lastIndex)
     {
         // Search in given text interval for search term
-        const size_t substringLength = lastIndex - firstIndex;
+        const std::size_t substringLength = lastIndex - firstIndex;
         const std::string_view historyTextView((historyText.c_str() + firstIndex), substringLength);
         if (direction == SearchDirection::Forward)
         {
@@ -601,7 +603,7 @@ namespace MWGui
             mCurrentOccurrenceLength = 0;
         }
     }
-    void Console::markOccurrence(const size_t textPosition, const size_t length)
+    void Console::markOccurrence(const std::size_t textPosition, const std::size_t length)
     {
         if (textPosition == 0 && length == 0)
         {
@@ -611,12 +613,12 @@ namespace MWGui
         }
 
         const auto historyText = mHistory->getOnlyText();
-        const size_t upperLimit = std::min(historyText.length(), textPosition);
+        const std::size_t upperLimit = std::min(historyText.length(), textPosition);
 
         // Since MyGUI::EditBox.setVScrollPosition() works on pixels instead of text positions
         // we need to calculate the actual pixel position by counting lines.
-        size_t lineNumber = 0;
-        for (size_t i = 0; i < upperLimit; i++)
+        std::size_t lineNumber = 0;
+        for (std::size_t i = 0; i < upperLimit; i++)
         {
             if (historyText[i] == '\n')
             {
@@ -643,7 +645,7 @@ namespace MWGui
         /* Does the input string contain things that don't have to be completed? If yes erase them. */
 
         /* Erase a possible call to an explicit reference. */
-        size_t explicitPos = tmp.find("->");
+        std::size_t explicitPos = tmp.find("->");
         if (explicitPos != std::string::npos)
         {
             tmp.erase(0, explicitPos + 2);
@@ -652,7 +654,7 @@ namespace MWGui
         /* Are there quotation marks? */
         if (tmp.find('"') != std::string::npos)
         {
-            int numquotes = 0;
+            std::int32_t numquotes = 0;
             for (std::string::iterator it = tmp.begin(); it < tmp.end(); ++it)
             {
                 if (*it == '"')
@@ -667,7 +669,7 @@ namespace MWGui
             }
             else
             {
-                const size_t pos = tmp.rfind(' ');
+                const std::size_t pos = tmp.rfind(' ');
                 if (pos != std::string::npos && pos > tmp.rfind('"'))
                 {
                     tmp.erase(0, tmp.rfind(' ') + 1);
@@ -682,7 +684,7 @@ namespace MWGui
         /* No quotation marks. Are there spaces?*/
         else
         {
-            size_t rpos = tmp.rfind(' ');
+            std::size_t rpos = tmp.rfind(' ');
             if (rpos != std::string::npos)
             {
                 if (rpos == 0)
@@ -760,7 +762,7 @@ namespace MWGui
         }
 
         /* Check if all matching strings match further than input. If yes complete to this match. */
-        size_t i = tmp.length();
+        std::size_t i = tmp.length();
 
         for (auto iter = matches.front().begin() + static_cast<std::ptrdiff_t>(tmp.length());
             iter < matches.front().end(); ++iter, ++i)
@@ -832,7 +834,7 @@ namespace MWGui
     void Console::initConsoleHistory()
     {
         const auto filePath = mCfgMgr.getUserConfigPath() / "console_history.txt";
-        const size_t retrievalLimit = Settings::general().mConsoleHistoryBufferSize;
+        const std::size_t retrievalLimit = Settings::general().mConsoleHistoryBufferSize;
 
         // Read the previous session's commands from the file
         if (retrievalLimit > 0)

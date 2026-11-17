@@ -1,5 +1,7 @@
 #include "vartypedelegate.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
@@ -19,7 +21,8 @@ namespace CSMWorld
     class CommandDispatcher;
 }
 
-void CSVWorld::VarTypeDelegate::addCommands(QAbstractItemModel* model, const QModelIndex& index, int type) const
+void CSVWorld::VarTypeDelegate::addCommands(
+    QAbstractItemModel* model, const QModelIndex& index, std::int32_t type) const
 {
     QModelIndex next = model->index(index.row(), index.column() + 1);
 
@@ -57,7 +60,7 @@ void CSVWorld::VarTypeDelegate::addCommands(QAbstractItemModel* model, const QMo
     macro.push(new CSMWorld::ModifyCommand(*model, next, value));
 }
 
-CSVWorld::VarTypeDelegate::VarTypeDelegate(const std::vector<std::pair<int, QString>>& values,
+CSVWorld::VarTypeDelegate::VarTypeDelegate(const std::vector<std::pair<std::int32_t, QString>>& values,
     CSMWorld::CommandDispatcher* dispatcher, CSMDoc::Document& document, QObject* parent)
     : EnumDelegate(values, dispatcher, document, parent)
 {
@@ -87,9 +90,10 @@ CSVWorld::CommandDelegate* CSVWorld::VarTypeDelegateFactory::makeDelegate(
 
 void CSVWorld::VarTypeDelegateFactory::add(ESM::VarType type)
 {
-    std::vector<std::pair<int, std::string>> enums = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_ValueType);
+    std::vector<std::pair<std::int32_t, std::string>> enums
+        = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_ValueType);
 
-    if (static_cast<size_t>(type) >= enums.size())
+    if (static_cast<std::size_t>(type) >= enums.size())
         throw std::logic_error("Unsupported variable type");
 
     mValues.emplace_back(type, QString::fromUtf8(enums[type].second.c_str()));

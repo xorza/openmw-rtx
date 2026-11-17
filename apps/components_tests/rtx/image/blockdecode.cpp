@@ -11,10 +11,10 @@ namespace Rtx
 {
     namespace
     {
-        std::vector<std::byte> bytesOf(std::initializer_list<int> values)
+        std::vector<std::byte> bytesOf(std::initializer_list<std::int32_t> values)
         {
             std::vector<std::byte> bytes;
-            for (const int value : values)
+            for (const std::int32_t value : values)
                 bytes.push_back(static_cast<std::byte>(value));
             return bytes;
         }

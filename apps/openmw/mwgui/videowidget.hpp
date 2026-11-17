@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <MyGUI_Widget.h>
@@ -34,8 +35,8 @@ namespace MWGui
 
         void playVideo(const std::string& video);
 
-        int getVideoWidth();
-        int getVideoHeight();
+        std::int32_t getVideoWidth();
+        std::int32_t getVideoHeight();
 
         /// @return Is the video still playing?
         bool update();

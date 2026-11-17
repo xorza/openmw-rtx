@@ -54,7 +54,8 @@ namespace MyGUIRtx
         mLocked = false;
     }
 
-    void Texture::createManual(int width, int height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format)
+    void Texture::createManual(
+        std::int32_t width, std::int32_t height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format)
     {
         // MyGUI asks its formats of the game's interface code, which asks none this backend does not draw.
         const std::size_t elements = elementsOf(format);

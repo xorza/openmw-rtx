@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -21,10 +22,11 @@ namespace MWMechanics
     public:
         /** The Actor will escort the specified actor to the position x, y, z until they reach their position, or
            they run out of time \implement AiEscort **/
-        AiEscort(ESM::RefNum actor, std::string_view cellId, int duration, float x, float y, float z, bool repeat);
-        /// Implementation of AiEscort/AiEscortCell
         AiEscort(
-            const ESM::RefId& actorId, std::string_view cellId, int duration, float x, float y, float z, bool repeat);
+            ESM::RefNum actor, std::string_view cellId, std::int32_t duration, float x, float y, float z, bool repeat);
+        /// Implementation of AiEscort/AiEscortCell
+        AiEscort(const ESM::RefId& actorId, std::string_view cellId, std::int32_t duration, float x, float y, float z,
+            bool repeat);
 
         explicit AiEscort(const ESM::AiSequence::AiEscort* escort);
 

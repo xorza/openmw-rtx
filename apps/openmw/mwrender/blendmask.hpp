@@ -16,5 +16,5 @@ namespace MWRender
         BlendMask_All = BlendMask_LowerBody | BlendMask_UpperBody
     };
     /* This is the number of *discrete* blend masks. */
-    static constexpr size_t sNumBlendMasks = 4;
+    static constexpr std::size_t sNumBlendMasks = 4;
 }

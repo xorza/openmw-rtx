@@ -1,5 +1,6 @@
 #include "manager.hpp"
 
+#include <cstdint>
 #include <set>
 
 #include <components/debug/debuglog.hpp>
@@ -61,7 +62,7 @@ namespace L10n
     {
         icu::Locale fallbackLocale = ctx.getFallbackLocale();
         ctx.setPreferredLocales(mPreferredLocales);
-        int localeCount = 0;
+        std::int32_t localeCount = 0;
         bool fallbackLocaleInPreferred = false;
         for (const icu::Locale& loc : ctx.getPreferredLocales())
         {

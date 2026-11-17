@@ -362,7 +362,7 @@ namespace Rtx
             /// to change its defaults — a glow's end, a glow's new colour — and the node's own
             /// update consumes that before the walk applies it here, so the state set held here
             /// hears it by the number alone.
-            std::array<unsigned int, sMostUpdaters> mGenerations{};
+            std::array<std::uint32_t, sMostUpdaters> mGenerations{};
             HeldChains mChains;
         };
 

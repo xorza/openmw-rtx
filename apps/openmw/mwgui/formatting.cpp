@@ -1,6 +1,8 @@
 #include "formatting.hpp"
 
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <MyGUI_EditText.h>
@@ -38,8 +40,8 @@ namespace MWGui::Formatting
         {
             // vanilla game does not show any text after the last EOL tag.
             const std::string lowerText = Misc::StringUtils::lowerCase(mText);
-            size_t brIndex = lowerText.rfind("<br>");
-            size_t pIndex = lowerText.rfind("<p>");
+            std::size_t brIndex = lowerText.rfind("<br>");
+            std::size_t pIndex = lowerText.rfind("<p>");
             mPlainTextEnd = 0;
             if (brIndex != pIndex)
             {
@@ -89,8 +91,8 @@ namespace MWGui::Formatting
             }
             if (ch == '<')
             {
-                const size_t tagStart = mIndex + 1;
-                const size_t tagEnd = mText.find('>', tagStart);
+                const std::size_t tagStart = mIndex + 1;
+                const std::size_t tagEnd = mText.find('>', tagStart);
                 if (tagEnd == std::string::npos)
                     throw std::runtime_error("BookTextParser Error: Tag is not terminated");
                 parseTag(mText.substr(tagStart, tagEnd - tagStart));
@@ -163,7 +165,7 @@ namespace MWGui::Formatting
 
     void BookTextParser::parseTag(std::string tag)
     {
-        size_t tagNameEndPos = tag.find(' ');
+        std::size_t tagNameEndPos = tag.find(' ');
         mAttributes.clear();
         mTag = tag.substr(0, tagNameEndPos);
         Misc::StringUtils::lowerCaseInPlace(mTag);
@@ -183,7 +185,7 @@ namespace MWGui::Formatting
 
         while (!tag.empty())
         {
-            size_t sepPos = tag.find('=');
+            std::size_t sepPos = tag.find('=');
             if (sepPos == std::string::npos)
                 return;
 
@@ -198,7 +200,7 @@ namespace MWGui::Formatting
 
             if (tag[0] == '"' || tag[0] == '\'')
             {
-                size_t quoteEndPos = tag.find(tag[0], 1);
+                std::size_t quoteEndPos = tag.find(tag[0], 1);
                 if (quoteEndPos == std::string::npos)
                     throw std::runtime_error("BookTextParser Error: Missing end quote in tag");
                 value = tag.substr(1, quoteEndPos - 1);
@@ -206,7 +208,7 @@ namespace MWGui::Formatting
             }
             else
             {
-                size_t valEndPos = tag.find(' ');
+                std::size_t valEndPos = tag.find(' ');
                 if (valEndPos == std::string::npos)
                 {
                     value = tag;
@@ -225,7 +227,7 @@ namespace MWGui::Formatting
 
     /* BookFormatter */
     Paginator::Pages BookFormatter::markupToWidget(MyGUI::Widget* parent, const std::string& markup,
-        const int pageWidth, const int pageHeight, bool shrinkTextAtLastTag)
+        const std::int32_t pageWidth, const std::int32_t pageHeight, bool shrinkTextAtLastTag)
     {
         Paginator pag(pageWidth, pageHeight);
 
@@ -321,10 +323,10 @@ namespace MWGui::Formatting
                     auto srcIt = attr.find("src");
                     if (srcIt == attr.end())
                         continue;
-                    int width = 0;
+                    std::int32_t width = 0;
                     if (auto widthIt = attr.find("width"); widthIt != attr.end())
                         width = MyGUI::utility::parseInt(widthIt->second);
-                    int height = 0;
+                    std::int32_t height = 0;
                     if (auto heightIt = attr.find("height"); heightIt != attr.end())
                         height = MyGUI::utility::parseInt(heightIt->second);
 
@@ -423,7 +425,7 @@ namespace MWGui::Formatting
         if (it != attr.end())
         {
             const auto& colorString = it->second;
-            unsigned int color = 0;
+            std::uint32_t color = 0;
             std::from_chars(colorString.data(), colorString.data() + colorString.size(), color, 16);
 
             mTextStyle.mColour = MyGUI::Colour(static_cast<float>((color >> 16 & 0xFF)) / 255.f,
@@ -453,10 +455,10 @@ namespace MWGui::Formatting
 
     void GraphicElement::paginate()
     {
-        int newTop = mPaginator.getCurrentTop() + getHeight();
+        std::int32_t newTop = mPaginator.getCurrentTop() + getHeight();
         while (newTop - mPaginator.getStartTop() > mPaginator.getPageHeight())
         {
-            int newStartTop = pageSplit();
+            std::int32_t newStartTop = pageSplit();
             mPaginator << Paginator::Page(mPaginator.getStartTop(), newStartTop);
             mPaginator.setStartTop(newStartTop);
         }
@@ -464,7 +466,7 @@ namespace MWGui::Formatting
         mPaginator.setCurrentTop(newTop);
     }
 
-    int GraphicElement::pageSplit()
+    std::int32_t GraphicElement::pageSplit()
     {
         return mPaginator.getStartTop() + mPaginator.getPageHeight();
     }
@@ -492,27 +494,27 @@ namespace MWGui::Formatting
         mEditBox = box;
     }
 
-    int TextElement::getHeight()
+    std::int32_t TextElement::getHeight()
     {
         return mEditBox->getTextSize().height;
     }
 
-    int TextElement::pageSplit()
+    std::int32_t TextElement::pageSplit()
     {
         // split lines
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize();
-        unsigned int lastLine = (static_cast<unsigned int>(
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize();
+        std::uint32_t lastLine = (static_cast<std::uint32_t>(
             mPaginator.getStartTop() + mPaginator.getPageHeight() - mPaginator.getCurrentTop()));
         if (lineHeight > 0)
-            lastLine /= static_cast<unsigned int>(lineHeight);
-        int ret = static_cast<int>(
-            static_cast<unsigned int>(mPaginator.getCurrentTop()) + lastLine * static_cast<unsigned int>(lineHeight));
+            lastLine /= static_cast<std::uint32_t>(lineHeight);
+        auto ret = static_cast<std::int32_t>(
+            static_cast<std::uint32_t>(mPaginator.getCurrentTop()) + lastLine * static_cast<std::uint32_t>(lineHeight));
 
         // first empty lines that would go to the next page should be ignored
         mPaginator.setIgnoreLeadingEmptyLines(true);
 
         const MyGUI::VectorLineInfo& lines = mEditBox->getSubWidgetText()->castType<MyGUI::EditText>()->getLineInfo();
-        for (size_t i = lastLine; i < lines.size(); ++i)
+        for (std::size_t i = lastLine; i < lines.size(); ++i)
         {
             if (lines[i].width == 0)
                 ret += lineHeight;
@@ -527,11 +529,11 @@ namespace MWGui::Formatting
 
     /* ImageElement */
     ImageElement::ImageElement(MyGUI::Widget* parent, Paginator& pag, const BlockStyle& blockStyle,
-        const std::string& src, int width, int height)
+        const std::string& src, std::int32_t width, std::int32_t height)
         : GraphicElement(parent, pag, blockStyle)
         , mImageHeight(height)
     {
-        int left = 0;
+        std::int32_t left = 0;
         if (mBlockStyle.mAlign.isHCenter())
             left += (pag.getPageWidth() - width) / 2;
         else if (mBlockStyle.mAlign.isLeft())
@@ -547,12 +549,12 @@ namespace MWGui::Formatting
         mImageBox->setProperty("NeedMouse", "false");
     }
 
-    int ImageElement::getHeight()
+    std::int32_t ImageElement::getHeight()
     {
         return mImageHeight;
     }
 
-    int ImageElement::pageSplit()
+    std::int32_t ImageElement::pageSplit()
     {
         // if the image is larger than the page, fall back to the default pageSplit implementation
         if (mImageHeight > mPaginator.getPageHeight())

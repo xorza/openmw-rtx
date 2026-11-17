@@ -1,5 +1,7 @@
 #include "dialoguestate.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -18,7 +20,7 @@ namespace ESM
             while (esm.isNextSub("REA2"))
             {
                 ESM::RefId faction2 = esm.getRefId();
-                int reaction = 0;
+                std::int32_t reaction = 0;
                 esm.getHNT(reaction, "INTV");
                 mChangedFactionReaction[faction][faction2] = reaction;
             }

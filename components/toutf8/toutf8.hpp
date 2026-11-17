@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <span>
 #include <string>
@@ -45,12 +47,12 @@ namespace ToUTF8
 
     private:
         inline std::pair<std::size_t, bool> getLength(std::string_view input) const;
-        inline void copyFromArray(unsigned char chp, char*& out) const;
+        inline void copyFromArray(std::uint8_t chp, char*& out) const;
         inline std::pair<std::size_t, bool> getLengthLegacyEnc(std::string_view input) const;
         inline void copyFromArrayLegacyEnc(
             std::string_view::iterator& chp, std::string_view::iterator end, char*& out) const;
 
-        const std::span<const signed char> mTranslationArray;
+        const std::span<const std::int8_t> mTranslationArray;
     };
 
     class Utf8Encoder

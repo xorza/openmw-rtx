@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <osg/Matrixf>
 
@@ -42,18 +44,18 @@ namespace MWMechanics
 
     namespace
     {
-        constexpr int countBeforeReset = 10;
+        constexpr std::int32_t countBeforeReset = 10;
         constexpr float idlePositionCheckInterval = 1.5f;
 
         // to prevent overcrowding
-        constexpr unsigned destinationTolerance = 64;
+        constexpr std::uint32_t destinationTolerance = 64;
 
         // distance must be long enough that NPC will need to move to get there.
-        constexpr unsigned minimumWanderDistance = destinationTolerance * 2;
+        constexpr std::uint32_t minimumWanderDistance = destinationTolerance * 2;
 
         constexpr std::size_t maxIdleSize = 8;
 
-        inline int getCountBeforeReset(const MWWorld::ConstPtr& actor)
+        inline std::int32_t getCountBeforeReset(const MWWorld::ConstPtr& actor)
         {
             if (actor.getClass().isPureWaterCreature(actor) || actor.getClass().isPureFlyingCreature(actor))
                 return 1;
@@ -81,7 +83,7 @@ namespace MWMechanics
             const auto visibleDestination
                 = (isWaterCreature || isFlyingCreature ? destination : destination + osg::Vec3f(0, 0, halfExtents.z()))
                 + direction * std::max(halfExtents.x(), std::max(halfExtents.y(), halfExtents.z()));
-            const int mask = MWPhysics::CollisionType_World | MWPhysics::CollisionType_HeightMap
+            const std::int32_t mask = MWPhysics::CollisionType_World | MWPhysics::CollisionType_HeightMap
                 | MWPhysics::CollisionType_Door | MWPhysics::CollisionType_Actor;
             return MWBase::Environment::get()
                 .getWorld()
@@ -97,16 +99,16 @@ namespace MWMechanics
             movementSettings.mPosition[1] = 0;
         }
 
-        std::vector<unsigned char> getInitialIdle(const std::vector<unsigned char>& idle)
+        std::vector<std::uint8_t> getInitialIdle(const std::vector<std::uint8_t>& idle)
         {
-            std::vector<unsigned char> result(maxIdleSize, 0);
+            std::vector<std::uint8_t> result(maxIdleSize, 0);
             std::copy_n(idle.begin(), std::min(maxIdleSize, idle.size()), result.begin());
             return result;
         }
 
-        std::vector<unsigned char> getInitialIdle(const unsigned char (&idle)[maxIdleSize])
+        std::vector<std::uint8_t> getInitialIdle(const std::uint8_t (&idle)[maxIdleSize])
         {
-            return std::vector<unsigned char>(std::begin(idle), std::end(idle));
+            return std::vector<std::uint8_t>(std::begin(idle), std::end(idle));
         }
 
         void trimAllowedPositions(const std::deque<osg::Vec3f>& path, std::vector<osg::Vec3f>& allowedPositions)
@@ -152,10 +154,11 @@ namespace MWMechanics
     {
     }
 
-    AiWander::AiWander(int distance, int duration, int timeOfDay, const std::vector<unsigned char>& idle, bool repeat)
+    AiWander::AiWander(std::int32_t distance, std::int32_t duration, std::int32_t timeOfDay,
+        const std::vector<std::uint8_t>& idle, bool repeat)
         : TypedAiPackage<AiWander>(repeat)
-        , mDistance(static_cast<unsigned>(std::max(0, distance)))
-        , mDuration(static_cast<unsigned>(std::max(0, duration)))
+        , mDistance(static_cast<std::uint32_t>(std::max(0, distance)))
+        , mDuration(static_cast<std::uint32_t>(std::max(0, duration)))
         , mRemainingDuration(static_cast<float>(duration))
         , mTimeOfDay(timeOfDay)
         , mIdle(getInitialIdle(idle))
@@ -308,7 +311,7 @@ namespace MWMechanics
             // Typically want to idle for a short time before the next wander
             if (Misc::Rng::rollDice(100, prng) >= 92 && storage.mState != AiWanderStorage::Wander_Walking)
             {
-                wanderNearStart(actor, storage, static_cast<int>(mDistance));
+                wanderNearStart(actor, storage, static_cast<std::int32_t>(mDistance));
             }
 
             storage.mCanWanderAlongPathGrid = false;
@@ -320,7 +323,7 @@ namespace MWMechanics
             // Typically want to idle for a short time before the next wander
             if (Misc::Rng::rollDice(100, prng) >= 96)
             {
-                wanderNearStart(actor, storage, static_cast<int>(mDistance));
+                wanderNearStart(actor, storage, static_cast<std::int32_t>(mDistance));
             }
             else
             {
@@ -379,7 +382,7 @@ namespace MWMechanics
     /*
      * Commands actor to walk to a random location near original spawn location.
      */
-    void AiWander::wanderNearStart(const MWWorld::Ptr& actor, AiWanderStorage& storage, int wanderDistance)
+    void AiWander::wanderNearStart(const MWWorld::Ptr& actor, AiWanderStorage& storage, std::int32_t wanderDistance)
     {
         const auto currentPosition = actor.getRefData().getPosition().asVec3();
 
@@ -478,7 +481,7 @@ namespace MWMechanics
         MWWorld::MovementDirectionFlags supportedMovementDirections, AiWanderStorage& storage)
     {
         // Attempt to fast forward to the next state instead of remaining in an intermediate state for a frame
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
             switch (storage.mState)
             {
@@ -581,7 +584,7 @@ namespace MWMechanics
         if (actor.getClass().getCurrentSpeed(actor) > 0)
             return;
 
-        unsigned short idleAnimation = getRandomIdle();
+        std::uint16_t idleAnimation = getRandomIdle();
         storage.mIdleAnimation = idleAnimation;
 
         if (!idleAnimation && mDistance)
@@ -719,7 +722,7 @@ namespace MWMechanics
         mHasDestination = false;
     }
 
-    bool AiWander::playIdle(const MWWorld::Ptr& actor, unsigned short idleSelect)
+    bool AiWander::playIdle(const MWWorld::Ptr& actor, std::uint16_t idleSelect)
     {
         if ((GroupIndex_MinIdle <= idleSelect) && (idleSelect <= GroupIndex_MaxIdle))
         {
@@ -734,7 +737,7 @@ namespace MWMechanics
         }
     }
 
-    bool AiWander::checkIdle(const MWWorld::Ptr& actor, unsigned short idleSelect)
+    bool AiWander::checkIdle(const MWWorld::Ptr& actor, std::uint16_t idleSelect)
     {
         if ((GroupIndex_MinIdle <= idleSelect) && (idleSelect <= GroupIndex_MaxIdle))
         {
@@ -747,7 +750,7 @@ namespace MWMechanics
         }
     }
 
-    unsigned short AiWander::getRandomIdle() const
+    std::uint16_t AiWander::getRandomIdle() const
     {
         MWBase::World* world = MWBase::Environment::get().getWorld();
         static const float fIdleChanceMultiplier
@@ -755,14 +758,14 @@ namespace MWMechanics
         if (Misc::Rng::rollClosedProbability(world->getPrng()) > fIdleChanceMultiplier)
             return 0;
 
-        unsigned short newIdle = 0;
+        std::uint16_t newIdle = 0;
         float maxRoll = 0.f;
-        for (size_t i = 0; i < mIdle.size(); i++)
+        for (std::size_t i = 0; i < mIdle.size(); i++)
         {
             float roll = Misc::Rng::rollClosedProbability(world->getPrng()) * 100.f;
             if (roll <= static_cast<float>(mIdle[i]) && roll > maxRoll)
             {
-                newIdle = static_cast<unsigned short>(GroupIndex_MinIdle + i);
+                newIdle = static_cast<std::uint16_t>(GroupIndex_MinIdle + i);
                 maxRoll = roll;
             }
         }
@@ -785,7 +788,7 @@ namespace MWMechanics
             return;
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        size_t index = Misc::Rng::rollDice(storage.mAllowedPositions.size(), prng);
+        std::size_t index = Misc::Rng::rollDice(storage.mAllowedPositions.size(), prng);
         const osg::Vec3f worldDest = storage.mAllowedPositions[index];
         const Misc::CoordinateConverter converter = Misc::makeCoordinateConverter(*actor.getCell()->getCell());
         osg::Vec3f dest = converter.toLocalVec3(worldDest);
@@ -807,7 +810,7 @@ namespace MWMechanics
             // AI will try to move the NPC towards every neighboring node until suitable place will be found
             while (!points.empty())
             {
-                size_t randomIndex = Misc::Rng::rollDice(points.size(), prng);
+                std::size_t randomIndex = Misc::Rng::rollDice(points.size(), prng);
                 const ESM::Pathgrid::Point& connDest = points[randomIndex];
 
                 // add an offset towards random neighboring node
@@ -815,7 +818,7 @@ namespace MWMechanics
                 const float length = dir.length();
                 dir.normalize();
 
-                for (int j = 1; j <= 3; j++)
+                for (std::int32_t j = 1; j <= 3; j++)
                 {
                     // move for 5-15% towards random neighboring node
                     dest = dest + dir * (static_cast<float>(j * 5) * length / 100.f);
@@ -860,7 +863,7 @@ namespace MWMechanics
         if (pathgrid == nullptr || pathgrid->mPoints.empty())
             return;
 
-        const size_t index = Misc::getClosestPoint(*pathgrid, dest);
+        const std::size_t index = Misc::getClosestPoint(*pathgrid, dest);
 
         getPathGridGraph(pathgrid).getNeighbouringPoints(index, points);
     }
@@ -898,8 +901,8 @@ namespace MWMechanics
             // mAllowedPositions for this actor with pathgrid point indexes based on mDistance
             // and if the point is connected to the closest current point
             // NOTE: mPoints is in local coordinates
-            size_t pointIndex = 0;
-            for (size_t counter = 0; counter < pathgrid->mPoints.size(); counter++)
+            std::size_t pointIndex = 0;
+            for (std::size_t counter = 0; counter < pathgrid->mPoints.size(); counter++)
             {
                 const osg::Vec3f nodePos = Misc::Convert::makeOsgVec3f(pathgrid->mPoints[counter]);
                 if ((npcPos - nodePos).length2() <= static_cast<float>(mDistance * mDistance)
@@ -928,7 +931,7 @@ namespace MWMechanics
     // additional points for NPC to wander to are:
     // 1. NPC's initial location
     // 2. Partway along the path between the point and its connected points.
-    void AiWander::addNonPathGridAllowedPoints(const ESM::Pathgrid* pathGrid, size_t pointIndex,
+    void AiWander::addNonPathGridAllowedPoints(const ESM::Pathgrid* pathGrid, std::size_t pointIndex,
         AiWanderStorage& storage, const Misc::CoordinateConverter& converter)
     {
         for (const auto& edge : pathGrid->mEdges)
@@ -949,10 +952,10 @@ namespace MWMechanics
         float length = delta.length();
         delta.normalize();
 
-        unsigned distance = std::max(mDistance / 2, minimumWanderDistance);
+        std::uint32_t distance = std::max(mDistance / 2, minimumWanderDistance);
 
         // must not travel longer than distance between waypoints or NPC goes past waypoint
-        distance = std::min(distance, static_cast<unsigned>(length));
+        distance = std::min(distance, static_cast<std::uint32_t>(length));
         delta *= static_cast<float>(distance);
         storage.mAllowedPositions.push_back(vectorStart + delta);
     }
@@ -960,8 +963,8 @@ namespace MWMechanics
     void AiWander::setCurrentPositionToClosestAllowedPosition(AiWanderStorage& storage)
     {
         float distanceToClosestPosition = std::numeric_limits<float>::max();
-        size_t index = 0;
-        for (size_t i = 0; i < storage.mAllowedPositions.size(); ++i)
+        std::size_t index = 0;
+        for (std::size_t i = 0; i < storage.mAllowedPositions.size(); ++i)
         {
             const osg::Vec3f position = storage.mAllowedPositions[i];
             const float tempDist = (mInitialActorPosition - position).length2();
@@ -984,12 +987,12 @@ namespace MWMechanics
             remainingDuration = static_cast<float>(mDuration);
 
         auto wander = std::make_unique<ESM::AiSequence::AiWander>();
-        wander->mData.mDistance = static_cast<int16_t>(mDistance);
-        wander->mData.mDuration = static_cast<int16_t>(mDuration);
-        wander->mData.mTimeOfDay = static_cast<uint8_t>(mTimeOfDay);
+        wander->mData.mDistance = static_cast<std::int16_t>(mDistance);
+        wander->mData.mDuration = static_cast<std::int16_t>(mDuration);
+        wander->mData.mTimeOfDay = static_cast<std::uint8_t>(mTimeOfDay);
         wander->mDurationData.mRemainingDuration = remainingDuration;
         assert(mIdle.size() == 8);
-        for (int i = 0; i < 8; ++i)
+        for (std::int32_t i = 0; i < 8; ++i)
             wander->mData.mIdle[i] = mIdle[static_cast<std::size_t>(i)];
         wander->mData.mShouldRepeat = mOptions.mRepeat;
         wander->mStoredInitialActorPosition = mStoredInitialActorPosition;
@@ -1004,8 +1007,8 @@ namespace MWMechanics
 
     AiWander::AiWander(const ESM::AiSequence::AiWander* wander)
         : TypedAiPackage<AiWander>(makeDefaultOptions().withRepeat(wander->mData.mShouldRepeat != 0))
-        , mDistance(static_cast<unsigned>(std::max(static_cast<short>(0), wander->mData.mDistance)))
-        , mDuration(static_cast<unsigned>(std::max(static_cast<short>(0), wander->mData.mDuration)))
+        , mDistance(static_cast<std::uint32_t>(std::max(static_cast<std::int16_t>(0), wander->mData.mDistance)))
+        , mDuration(static_cast<std::uint32_t>(std::max(static_cast<std::int16_t>(0), wander->mData.mDuration)))
         , mRemainingDuration(wander->mDurationData.mRemainingDuration)
         , mTimeOfDay(wander->mData.mTimeOfDay)
         , mIdle(getInitialIdle(wander->mData.mIdle))

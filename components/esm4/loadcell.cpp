@@ -27,6 +27,7 @@
 #include "loadcell.hpp"
 
 #include <cfloat> // IWYU pragma: keep: FLT_MAX, for GCC
+#include <cstdint>
 #include <stdexcept>
 
 #include "grouptype.hpp"
@@ -95,7 +96,7 @@ void ESM4::Cell::load(ESM4::Reader& reader)
                 //        0x2 - Force Hide Land Quad 2
                 //        0x4 - Force Hide Land Quad 3
                 //        0x8 - Force Hide Land Quad 4
-                uint32_t flags = 0;
+                std::uint32_t flags = 0;
                 reader.get(mX);
                 reader.get(mY);
                 if (subHdr.dataSize == 12)
@@ -103,7 +104,7 @@ void ESM4::Cell::load(ESM4::Reader& reader)
 
                 // Remember cell grid for later (loading LAND, NAVM which should be CELL temporary children)
                 // Note that grids only apply for external cells.  For interior cells use the cell's formid.
-                reader.setCurrCellGrid(Grid{ static_cast<int16_t>(mX), static_cast<int16_t>(mY) });
+                reader.setCurrCellGrid(Grid{ static_cast<std::int16_t>(mX), static_cast<std::int16_t>(mY) });
 
                 break;
             }

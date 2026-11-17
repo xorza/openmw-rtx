@@ -1,28 +1,30 @@
 #include "literals.hpp"
 
+#include <cstdint>
+
 namespace Compiler
 {
-    int Literals::addInteger(Interpreter::Type_Integer value)
+    std::int32_t Literals::addInteger(Interpreter::Type_Integer value)
     {
-        int index = static_cast<int>(mIntegers.size());
+        auto index = static_cast<std::int32_t>(mIntegers.size());
 
         mIntegers.push_back(value);
 
         return index;
     }
 
-    int Literals::addFloat(Interpreter::Type_Float value)
+    std::int32_t Literals::addFloat(Interpreter::Type_Float value)
     {
-        int index = static_cast<int>(mFloats.size());
+        auto index = static_cast<std::int32_t>(mFloats.size());
 
         mFloats.push_back(value);
 
         return index;
     }
 
-    int Literals::addString(const std::string& value)
+    std::int32_t Literals::addString(const std::string& value)
     {
-        int index = static_cast<int>(mStrings.size());
+        auto index = static_cast<std::int32_t>(mStrings.size());
 
         mStrings.push_back(value);
 

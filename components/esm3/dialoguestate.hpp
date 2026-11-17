@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -19,7 +20,7 @@ namespace ESM
         std::vector<ESM::RefId> mKnownTopics;
 
         // must be lower case faction IDs
-        std::map<ESM::RefId, std::map<ESM::RefId, int>> mChangedFactionReaction;
+        std::map<ESM::RefId, std::map<ESM::RefId, std::int32_t>> mChangedFactionReaction;
 
         void load(ESMReader& esm);
         void save(ESMWriter& esm) const;

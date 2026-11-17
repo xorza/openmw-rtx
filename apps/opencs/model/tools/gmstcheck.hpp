@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/stage.hpp>
@@ -24,10 +25,10 @@ namespace CSMTools
     public:
         explicit GmstCheckStage(const CSMWorld::IdCollection<ESM::GameSetting>& gameSettings);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages
 
     private:

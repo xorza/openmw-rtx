@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <mutex>
 
 #include <components/esm/esmterrain.hpp>
@@ -41,10 +43,10 @@ namespace ESMTerrain
     {
     public:
         LandObject() = default;
-        LandObject(const ESM::Land& land, int loadFlags);
-        LandObject(const ESM4::Land& land, int loadFlags);
+        LandObject(const ESM::Land& land, std::int32_t loadFlags);
+        LandObject(const ESM4::Land& land, std::int32_t loadFlags);
 
-        const ESM::LandData* getData(int flags) const
+        const ESM::LandData* getData(std::int32_t flags) const
         {
             if ((mData.getLoadFlags() & flags) != flags)
                 return nullptr;
@@ -52,7 +54,7 @@ namespace ESMTerrain
             return &mData;
         }
 
-        int getPlugin() const { return mData.getPlugin(); }
+        std::int32_t getPlugin() const { return mData.getPlugin(); }
 
         const Terrain::LayerInfo& getEsm4DefaultLayerInfo() const { return mEsm4DefaultLayerInfo; }
 
@@ -65,7 +67,7 @@ namespace ESMTerrain
     // Since plugins can define new texture palettes, we need to know the plugin index too
     // in order to retrieve the correct texture name.
     // pair  <texture id, plugin id>
-    using UniqueTextureId = std::pair<std::uint16_t, int>;
+    using UniqueTextureId = std::pair<std::uint16_t, std::int32_t>;
 
     /// @brief Feeds data from ESM terrain records (ESM::Land, ESM::LandTexture)
     ///        into the terrain component, converting it on the fly as needed.
@@ -78,7 +80,7 @@ namespace ESMTerrain
 
         // Not implemented in this class, because we need different Store implementations for game and editor
         virtual std::shared_ptr<const LandObject> getLand(ESM::ExteriorCellLocation cellLocation) = 0;
-        virtual const VFS::Path::Normalized* getLandTexture(std::uint16_t index, int plugin) = 0;
+        virtual const VFS::Path::Normalized* getLandTexture(std::uint16_t index, std::int32_t plugin) = 0;
 
         // Not implemented in this class because requires ESMStore
         virtual const ESM4::LandTexture* getEsm4LandTexture(ESM::RefId ltexId) const { return nullptr; }
@@ -108,7 +110,7 @@ namespace ESMTerrain
         /// @param positions buffer to write vertices
         /// @param normals buffer to write vertex normals
         /// @param colours buffer to write vertex colours
-        void fillVertexBuffers(int lodLevel, float size, const osg::Vec2f& center, ESM::RefId worldspace,
+        void fillVertexBuffers(std::int32_t lodLevel, float size, const osg::Vec2f& center, ESM::RefId worldspace,
             osg::Vec3Array& positions, osg::Vec3Array& normals, osg::Vec4ubArray& colours) override;
 
         /// Create textures holding layer blend values for a terrain chunk.
@@ -128,17 +130,17 @@ namespace ESMTerrain
         float getCellWorldSize(ESM::RefId worldspace) override;
 
         /// Get the number of vertices on one side for each cell. Should be (power of two)+1
-        int getCellVertices(ESM::RefId worldspace) override;
+        std::int32_t getCellVertices(ESM::RefId worldspace) override;
 
-        int getTextureTileCount(float chunkSize, ESM::RefId worldspace) override;
+        std::int32_t getTextureTileCount(float chunkSize, ESM::RefId worldspace) override;
 
         /// The files a ground layer of `texture` is drawn with: its diffuse, or the specular map that
         /// stands for it, and its normal map, as the auto-use settings find them beside it. Thread-safe.
         Terrain::LayerInfo getLayerInfo(VFS::Path::NormalizedView texture);
 
-        float getVertexHeight(const ESM::LandData* data, int x, int y)
+        float getVertexHeight(const ESM::LandData* data, std::int32_t x, std::int32_t y)
         {
-            const int landSize = data->getLandSize();
+            const std::int32_t landSize = data->getLandSize();
             assert(x < landSize);
             assert(y < landSize);
             return data->getHeights()[static_cast<std::size_t>(y) * static_cast<std::size_t>(landSize)
@@ -148,18 +150,19 @@ namespace ESMTerrain
     private:
         const VFS::Manager* mVFS;
 
-        inline void fixNormal(
-            osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache);
-        inline void fixColour(
-            osg::Vec4ub& color, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache);
-        inline void averageNormal(
-            osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache);
+        inline void fixNormal(osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, std::int32_t col,
+            std::int32_t row, LandCache& cache);
+        inline void fixColour(osg::Vec4ub& color, ESM::ExteriorCellLocation cellLocation, std::int32_t col,
+            std::int32_t row, LandCache& cache);
+        inline void averageNormal(osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, std::int32_t col,
+            std::int32_t row, LandCache& cache);
 
         inline const LandObject* getLand(ESM::ExteriorCellLocation cellLocation, LandCache& cache);
 
         virtual bool useAlteration() const { return false; }
-        virtual void adjustColor(int col, int row, const ESM::LandData* heightData, osg::Vec4ub& color) const;
-        virtual float getAlteredHeight(int col, int row) const;
+        virtual void adjustColor(
+            std::int32_t col, std::int32_t row, const ESM::LandData* heightData, osg::Vec4ub& color) const;
+        virtual float getAlteredHeight(std::int32_t col, std::int32_t row) const;
 
         VFS::Path::Normalized getTextureName(UniqueTextureId id);
 

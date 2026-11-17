@@ -1,5 +1,7 @@
 #include "ingredient.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
@@ -58,7 +60,7 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    int Ingredient::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Ingredient::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Ingredient>* ref = ptr.get<ESM::Ingredient>();
 
@@ -95,7 +97,7 @@ namespace MWClass
         return ref->mBase->mIcon.getNormalized();
     }
 
-    MWGui::ToolTipInfo Ingredient::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Ingredient::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Ingredient>* ref = ptr.get<ESM::Ingredient>();
 
@@ -125,7 +127,7 @@ namespace MWClass
                                                   ->mValue.getFloat();
 
         MWGui::Widgets::SpellEffectList list;
-        for (int i = 0; i < 4; ++i)
+        for (std::int32_t i = 0; i < 4; ++i)
         {
             if (ref->mBase->mData.mEffectID[i].empty())
                 continue;
@@ -152,7 +154,7 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
-    bool Ingredient::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Ingredient::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::Ingredients) != 0;
     }

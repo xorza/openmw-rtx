@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -35,11 +36,11 @@ namespace LuaUtil::InputAction
     class MultiTree
     {
     public:
-        using Node = size_t;
+        using Node = std::size_t;
 
         Node insert();
         bool multiEdge(Node target, const std::vector<Node>& source);
-        size_t size() const { return mParents.size(); }
+        std::size_t size() const { return mParents.size(); }
 
         template <typename Function> // Function = void(Node)
         void traverse(Function callback) const;
@@ -62,7 +63,7 @@ namespace LuaUtil::InputAction
     public:
         using ConstIterator = std::vector<Info>::const_iterator;
         void insert(const Info& info);
-        size_t size() const { return mKeys.size(); }
+        std::size_t size() const { return mKeys.size(); }
         std::optional<std::string> firstKey() const { return mKeys.empty() ? std::nullopt : std::optional(mKeys[0]); }
         std::optional<std::string> nextKey(std::string_view key) const;
         std::optional<Info> operator[](std::string_view actionKey);
@@ -128,7 +129,7 @@ namespace LuaUtil::InputTrigger
         void clear(bool force = false);
 
     private:
-        using Id = size_t;
+        using Id = std::size_t;
         Id safeIdByKey(std::string_view key);
         std::unordered_map<std::string, Id, Misc::StringUtils::StringHash, std::equal_to<>> mIds;
         std::vector<Info> mInfo;

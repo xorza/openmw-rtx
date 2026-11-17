@@ -31,7 +31,7 @@ namespace Gui
 {
     namespace
     {
-        MyGUI::TextBox* makeText(std::string_view font, int top)
+        MyGUI::TextBox* makeText(std::string_view font, std::int32_t top)
         {
             auto* const text = MyGUI::Gui::getInstance().createWidget<MyGUI::TextBox>(
                 "SandText", MyGUI::IntCoord(10, top, 300, 30), MyGUI::Align::Default, "Windows");
@@ -57,7 +57,7 @@ namespace Gui
 
             std::vector<MyGUI::TextBox*> texts;
             texts.reserve(3);
-            for (int at = 0; at < 3; ++at)
+            for (std::int32_t at = 0; at < 3; ++at)
                 texts.push_back(makeText("DefaultFont", 10 + 40 * at));
             EXPECT_EQ(gui.getFonts().getTexts().size(), before + 3);
 

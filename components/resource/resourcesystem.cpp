@@ -1,6 +1,7 @@
 #include "resourcesystem.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <components/platform/memory.hpp>
 
@@ -119,7 +120,7 @@ namespace Resource
         return mVFS;
     }
 
-    void ResourceSystem::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void ResourceSystem::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         for (auto resourceManager : mResourceManagers)
             resourceManager->reportStats(frameNumber, stats);

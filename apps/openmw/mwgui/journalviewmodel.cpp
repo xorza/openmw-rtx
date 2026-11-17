@@ -1,5 +1,6 @@
 #include "journalviewmodel.hpp"
 
+#include <cstddef>
 #include <unordered_map>
 
 #include <MyGUI_LanguageManager.h>
@@ -83,8 +84,8 @@ namespace MWGui
 
             struct Token
             {
-                size_t mStart;
-                size_t mEnd;
+                std::size_t mStart;
+                std::size_t mEnd;
                 const MWDialogue::Topic* mTopic;
             };
 
@@ -133,11 +134,12 @@ namespace MWGui
                 return mText;
             }
 
-            void visitSpans(std::function<void(const MWDialogue::Topic*, size_t, size_t)> visitor) const override
+            void visitSpans(
+                std::function<void(const MWDialogue::Topic*, std::size_t, std::size_t)> visitor) const override
             {
                 ensureLoaded();
 
-                size_t i = 0;
+                std::size_t i = 0;
                 for (const Token& token : mTokens)
                 {
                     if (i < token.mStart)

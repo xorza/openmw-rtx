@@ -257,7 +257,7 @@ namespace Rtx
                 0, 0, 0, 0 //
             };
             osg::ref_ptr<osg::Image> file = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             file->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             file->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
@@ -329,7 +329,7 @@ namespace Rtx
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
             image->setInternalTextureFormat(GL_RGBA8);
-            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(0));
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(0));
             image->setFileName(std::string(path));
             return image;
         }
@@ -1080,7 +1080,7 @@ namespace Rtx
             // The drag: the placements are thrown away and the same body walked back in, which is
             // what `SceneExtractor` does when its identity maps recognise every drawable — it places
             // and adds nothing.
-            for (int frame = 0; frame < 3; ++frame)
+            for (std::int32_t frame = 0; frame < 3; ++frame)
             {
                 doll.clearPlacement();
                 doll.addInstance(Rtx::MeshInstance{ .mMesh = body.mMesh, .mMaterial = body.mMaterial });

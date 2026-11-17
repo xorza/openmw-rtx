@@ -1,5 +1,6 @@
 /// Program to test .nif files both on the FileSystem and in BSA archives.
 
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <iostream>
@@ -232,7 +233,7 @@ namespace
         }
     }
 
-    bool parseOptions(int argc, char** argv, Files::PathContainer& files, Files::PathContainer& archives,
+    bool parseOptions(std::int32_t argc, char** argv, Files::PathContainer& files, Files::PathContainer& archives,
         bool& writeDebugLog, bool& quiet)
     {
         bpo::options_description desc(
@@ -287,7 +288,7 @@ Allowed options)");
     }
 }
 
-int main(int argc, char** argv)
+int main(std::int32_t argc, char** argv)
 {
     Files::PathContainer files, sources;
     bool writeDebugLog = false;

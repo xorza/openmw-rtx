@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QWizard>
 
 #include "ui_installationtargetpage.h"
@@ -19,7 +21,7 @@ namespace Wizard
     public:
         InstallationTargetPage(QWidget* parent, const Files::ConfigurationManager& cfg);
 
-        int nextId() const override;
+        std::int32_t nextId() const override;
         bool validatePage() override;
 
     private slots:

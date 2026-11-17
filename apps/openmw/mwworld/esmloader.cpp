@@ -1,5 +1,7 @@
 #include "esmloader.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -29,7 +31,7 @@ namespace MWWorld
     {
     }
 
-    void EsmLoader::load(const std::filesystem::path& filepath, int& index, Loading::Listener* listener)
+    void EsmLoader::load(const std::filesystem::path& filepath, std::int32_t& index, Loading::Listener* listener)
     {
 
         auto stream = Files::openBinaryInputFileStream(filepath);
@@ -46,7 +48,7 @@ namespace MWWorld
                 reader->open(filepath);
                 reader->resolveParentFileIndices(mReaders);
 
-                const std::vector<int>& parentIndices = reader->getParentFileIndices();
+                const std::vector<std::int32_t>& parentIndices = reader->getParentFileIndices();
                 assert(reader->getGameFiles().size() == parentIndices.size());
                 for (std::size_t i = 0, n = parentIndices.size(); i < n; ++i)
                     if (parentIndices[i] == reader->getIndex())

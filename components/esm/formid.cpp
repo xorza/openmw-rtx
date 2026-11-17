@@ -1,6 +1,8 @@
 #include "formid.hpp"
 
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 std::string ESM::FormId::toString(std::string_view prefix) const
@@ -9,17 +11,17 @@ std::string ESM::FormId::toString(std::string_view prefix) const
     res.resize(prefix.length() + 20);
     std::memcpy(res.data(), prefix.data(), prefix.size());
     char* buf = res.data() + prefix.size();
-    uint64_t value = 0;
+    std::uint64_t value = 0;
     if (hasContentFile())
     {
         if ((mIndex & 0xff000000) != 0)
             throw std::invalid_argument("Invalid FormId index value: " + std::to_string(mIndex));
-        value = mIndex | (static_cast<uint64_t>(mContentFile) << 24);
+        value = mIndex | (static_cast<std::uint64_t>(mContentFile) << 24);
     }
     else
     {
         *(buf++) = '@';
-        value = mIndex | (static_cast<uint64_t>(-mContentFile - 1) << 32);
+        value = mIndex | (static_cast<std::uint64_t>(-mContentFile - 1) << 32);
     }
     *(buf++) = '0';
     *(buf++) = 'x';
@@ -30,7 +32,7 @@ std::string ESM::FormId::toString(std::string_view prefix) const
     return res;
 }
 
-uint32_t ESM::FormId::toUint32() const
+std::uint32_t ESM::FormId::toUint32() const
 {
     if (isSet() && !hasContentFile())
         throw std::runtime_error("Generated FormId can not be converted to 32bit format");

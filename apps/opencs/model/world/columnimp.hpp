@@ -1,15 +1,16 @@
 #pragma once
 
-#include <QString>
-#include <QVariant>
-#include <QVector>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
+#include <QString>
+#include <QVariant>
+#include <QVector>
 #include <osg/Math>
 
 #include <components/esm/attr.hpp>
@@ -93,9 +94,9 @@ namespace CSMWorld
         QVariant get(const Record<ESXRecordT>& record) const override
         {
             if (record.mState == Record<ESXRecordT>::State_Erased)
-                return static_cast<int>(Record<ESXRecordT>::State_Deleted);
+                return static_cast<std::int32_t>(Record<ESXRecordT>::State_Deleted);
 
-            return static_cast<int>(record.mState);
+            return static_cast<std::int32_t>(record.mState);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -111,9 +112,9 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct FixedRecordTypeColumn : public Column<ESXRecordT>
     {
-        int mType;
+        std::int32_t mType;
 
-        explicit FixedRecordTypeColumn(int type)
+        explicit FixedRecordTypeColumn(std::int32_t type)
             : Column<ESXRecordT>(Columns::ColumnId_RecordType, ColumnBase::Display_Integer, 0)
             , mType(type)
         {
@@ -136,7 +137,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mValue.getType());
+            return static_cast<std::int32_t>(record.get().mValue.getType());
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -265,9 +266,9 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct UseValueColumn : public Column<ESXRecordT>
     {
-        int mIndex;
+        std::int32_t mIndex;
 
-        explicit UseValueColumn(int index)
+        explicit UseValueColumn(std::int32_t index)
             : Column<ESXRecordT>(Columns::ColumnId_UseValue1 + index, ColumnBase::Display_Float)
             , mIndex(index)
         {
@@ -368,9 +369,9 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct AttributesColumn : public Column<ESXRecordT>
     {
-        int mIndex;
+        std::int32_t mIndex;
 
-        explicit AttributesColumn(int index)
+        explicit AttributesColumn(std::int32_t index)
             : Column<ESXRecordT>(Columns::ColumnId_Attribute1 + index, ColumnBase::Display_Attribute)
             , mIndex(index)
         {
@@ -396,10 +397,10 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct SkillsColumn : public Column<ESXRecordT>
     {
-        int mIndex;
+        std::int32_t mIndex;
         bool mMajor;
 
-        explicit SkillsColumn(int index, bool typePrefix = false, bool major = false)
+        explicit SkillsColumn(std::int32_t index, bool typePrefix = false, bool major = false)
             : Column<ESXRecordT>((typePrefix ? (major ? Columns::ColumnId_MajorSkill1 : Columns::ColumnId_MinorSkill1)
                                              : Columns::ColumnId_Skill1)
                       + index,
@@ -422,7 +423,7 @@ namespace CSMWorld
                 ESXRecordT record2 = record.get();
 
                 record2.mData.getSkill(static_cast<std::size_t>(mIndex), mMajor)
-                    = ESM::Skill::indexToRefId(static_cast<int>(*index));
+                    = ESM::Skill::indexToRefId(static_cast<std::int32_t>(*index));
 
                 record.setModified(record2);
             }
@@ -483,11 +484,11 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct FlagColumn : public Column<ESXRecordT>
     {
-        int mMask;
+        std::int32_t mMask;
         bool mInverted;
 
-        FlagColumn(int columnId, int mask, int flags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue,
-            bool inverted = false)
+        FlagColumn(std::int32_t columnId, std::int32_t mask,
+            std::int32_t flags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue, bool inverted = false)
             : Column<ESXRecordT>(columnId, ColumnBase::Display_Boolean, flags)
             , mMask(mask)
             , mInverted(inverted)
@@ -508,7 +509,7 @@ namespace CSMWorld
         {
             ESXRecordT record2 = record.get();
 
-            int flags = record2.mData.mFlags & ~mMask;
+            std::int32_t flags = record2.mData.mFlags & ~mMask;
 
             if ((data.toInt() != 0) != mInverted)
                 flags |= mMask;
@@ -524,10 +525,10 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct FlagColumn2 : public Column<ESXRecordT>
     {
-        int mMask;
+        std::int32_t mMask;
         bool mInverted;
 
-        FlagColumn2(int columnId, int mask, bool inverted = false)
+        FlagColumn2(std::int32_t columnId, std::int32_t mask, bool inverted = false)
             : Column<ESXRecordT>(columnId, ColumnBase::Display_Boolean)
             , mMask(mask)
             , mInverted(inverted)
@@ -536,7 +537,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            bool flag = (static_cast<int>(record.get().mFlags) & mMask) != 0;
+            bool flag = (static_cast<std::int32_t>(record.get().mFlags) & mMask) != 0;
 
             if (mInverted)
                 flag = !flag;
@@ -548,7 +549,7 @@ namespace CSMWorld
         {
             ESXRecordT record2 = record.get();
 
-            int flags = static_cast<int>(record2.mFlags) & ~mMask;
+            std::int32_t flags = static_cast<std::int32_t>(record2.mFlags) & ~mMask;
 
             if ((data.toInt() != 0) != mInverted)
                 flags |= mMask;
@@ -638,7 +639,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            int value = 0;
+            std::int32_t value = 0;
 
             switch (mType)
             {
@@ -658,7 +659,7 @@ namespace CSMWorld
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
         {
-            int value = data.toInt();
+            std::int32_t value = data.toInt();
 
             if (value < 0)
                 value = 0;
@@ -670,13 +671,13 @@ namespace CSMWorld
             switch (mType)
             {
                 case Type_Volume:
-                    record2.mData.mVolume = static_cast<unsigned char>(value);
+                    record2.mData.mVolume = static_cast<std::uint8_t>(value);
                     break;
                 case Type_MinRange:
-                    record2.mData.mMinRange = static_cast<unsigned char>(value);
+                    record2.mData.mMinRange = static_cast<std::uint8_t>(value);
                     break;
                 case Type_MaxRange:
-                    record2.mData.mMaxRange = static_cast<unsigned char>(value);
+                    record2.mData.mMaxRange = static_cast<std::uint8_t>(value);
                     break;
             }
 
@@ -1143,7 +1144,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct TeleportColumn : public Column<ESXRecordT>
     {
-        explicit TeleportColumn(int flags)
+        explicit TeleportColumn(std::int32_t flags)
             : Column<ESXRecordT>(Columns::ColumnId_Teleport, ColumnBase::Display_Boolean, flags)
         {
         }
@@ -1194,7 +1195,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct IsLockedColumn : public Column<ESXRecordT>
     {
-        explicit IsLockedColumn(int flags)
+        explicit IsLockedColumn(std::int32_t flags)
             : Column<ESXRecordT>(Columns::ColumnId_IsLocked, ColumnBase::Display_Boolean, flags)
         {
         }
@@ -1317,10 +1318,10 @@ namespace CSMWorld
     struct PosColumn : public Column<ESXRecordT>
     {
         ESM::Position ESXRecordT::* mPosition;
-        int mIndex;
+        std::int32_t mIndex;
         bool mIsDoor;
 
-        PosColumn(ESM::Position ESXRecordT::* position, int index, bool door)
+        PosColumn(ESM::Position ESXRecordT::* position, std::int32_t index, bool door)
             : Column<ESXRecordT>((door ? Columns::ColumnId_DoorPositionXPos : Columns::ColumnId_PositionXPos) + index,
                   ColumnBase::Display_Float)
             , mPosition(position)
@@ -1355,10 +1356,10 @@ namespace CSMWorld
     struct RotColumn : public Column<ESXRecordT>
     {
         ESM::Position ESXRecordT::* mPosition;
-        int mIndex;
+        std::int32_t mIndex;
         bool mIsDoor;
 
-        RotColumn(ESM::Position ESXRecordT::* position, int index, bool door)
+        RotColumn(ESM::Position ESXRecordT::* position, std::int32_t index, bool door)
             : Column<ESXRecordT>((door ? Columns::ColumnId_DoorPositionXRot : Columns::ColumnId_PositionXRot) + index,
                   ColumnBase::Display_Double)
             , mPosition(position)
@@ -1398,7 +1399,10 @@ namespace CSMWorld
         {
         }
 
-        QVariant get(const Record<ESXRecordT>& record) const override { return static_cast<int>(record.get().mType); }
+        QVariant get(const Record<ESXRecordT>& record) const override
+        {
+            return static_cast<std::int32_t>(record.get().mType);
+        }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
         {
@@ -1424,7 +1428,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mQuestStatus);
+            return static_cast<std::int32_t>(record.get().mQuestStatus);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -1667,13 +1671,13 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mData.mRank);
+            return static_cast<std::int32_t>(record.get().mData.mRank);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
         {
             ESXRecordT record2 = record.get();
-            record2.mData.mRank = static_cast<signed char>(data.toInt());
+            record2.mData.mRank = static_cast<std::int8_t>(data.toInt());
             record.setModified(record2);
         }
 
@@ -1690,13 +1694,13 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mData.mPCrank);
+            return static_cast<std::int32_t>(record.get().mData.mPCrank);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
         {
             ESXRecordT record2 = record.get();
-            record2.mData.mPCrank = static_cast<signed char>(data.toInt());
+            record2.mData.mPCrank = static_cast<std::int8_t>(data.toInt());
             record.setModified(record2);
         }
 
@@ -1713,7 +1717,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mData.mGender);
+            return static_cast<std::int32_t>(record.get().mData.mGender);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -1771,7 +1775,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mData.mType);
+            return static_cast<std::int32_t>(record.get().mData.mType);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -1885,7 +1889,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mData.mPart);
+            return static_cast<std::int32_t>(record.get().mData.mPart);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -1903,14 +1907,14 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct MeshTypeColumn : public Column<ESXRecordT>
     {
-        explicit MeshTypeColumn(int flags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
+        explicit MeshTypeColumn(std::int32_t flags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
             : Column<ESXRecordT>(Columns::ColumnId_MeshType, ColumnBase::Display_MeshType, flags)
         {
         }
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mData.mType);
+            return static_cast<std::int32_t>(record.get().mData.mType);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -1960,7 +1964,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mRefNumCounter);
+            return static_cast<std::int32_t>(record.get().mRefNumCounter);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -1987,7 +1991,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return static_cast<int>(record.get().mRefNum.mIndex);
+            return static_cast<std::int32_t>(record.get().mRefNum.mIndex);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -2062,7 +2066,10 @@ namespace CSMWorld
         {
         }
 
-        QVariant get(const Record<ESXRecordT>& record) const override { return static_cast<int>(record.get().mType); }
+        QVariant get(const Record<ESXRecordT>& record) const override
+        {
+            return static_cast<std::int32_t>(record.get().mType);
+        }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
         {
@@ -2391,7 +2398,7 @@ namespace CSMWorld
 
     struct LandNormalsColumn : public Column<Land>
     {
-        using DataType = QVector<signed char>;
+        using DataType = QVector<std::int8_t>;
 
         LandNormalsColumn();
 
@@ -2413,7 +2420,7 @@ namespace CSMWorld
 
     struct LandColoursColumn : public Column<Land>
     {
-        using DataType = QVector<unsigned char>;
+        using DataType = QVector<std::uint8_t>;
 
         LandColoursColumn();
 
@@ -2424,7 +2431,7 @@ namespace CSMWorld
 
     struct LandTexturesColumn : public Column<Land>
     {
-        using DataType = QVector<uint16_t>;
+        using DataType = QVector<std::uint16_t>;
 
         LandTexturesColumn();
 

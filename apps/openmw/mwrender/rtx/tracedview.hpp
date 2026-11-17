@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include <osg/Matrixd>
@@ -58,7 +59,7 @@ namespace MWRender
         ~TracedView() override;
 
         void setView(const osg::Matrixd& view) override { mTrace.setView(view); }
-        void setExtent(int width, int height) override;
+        void setExtent(std::int32_t width, std::int32_t height) override;
         void sceneChanged() override;
         void redraw() override;
 

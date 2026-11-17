@@ -1,5 +1,7 @@
 #include "projectilestate.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -21,7 +23,7 @@ namespace ESM
         esm.getHNT("QUAT", mOrientation.mValues);
         if (esm.getFormatVersion() <= MaxActorIdSaveGameFormatVersion)
         {
-            mCaster.mIndex = static_cast<uint32_t>(-1);
+            mCaster.mIndex = static_cast<std::uint32_t>(-1);
             esm.getHNT(mCaster.mIndex, "ACTO");
         }
         else

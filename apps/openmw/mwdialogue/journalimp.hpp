@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <apps/openmw/mwbase/journal.hpp>
 
 #include "quest.hpp"
@@ -29,14 +32,14 @@ namespace MWDialogue
         Quest& getOrStartQuest(const ESM::RefId& id) override;
         ///< Gets the quest requested. Attempts to create it and inserts it in quests if it is not yet started.
 
-        void addEntry(const ESM::RefId& id, int index, const MWWorld::Ptr& actor) override;
+        void addEntry(const ESM::RefId& id, std::int32_t index, const MWWorld::Ptr& actor) override;
         ///< Add a journal entry.
         /// @param actor Used as context for replacing of escape sequences (%name, etc).
 
-        void setJournalIndex(const ESM::RefId& id, int index) override;
+        void setJournalIndex(const ESM::RefId& id, std::int32_t index) override;
         ///< Set the journal index without adding an entry.
 
-        int getJournalIndex(const ESM::RefId& id) const override;
+        std::int32_t getJournalIndex(const ESM::RefId& id) const override;
         ///< Get the journal index.
 
         void addTopic(const ESM::RefId& topicId, const ESM::RefId& infoId, const MWWorld::Ptr& actor) override;
@@ -52,10 +55,10 @@ namespace MWDialogue
 
         const TQuestContainer& getQuests() const override { return mQuests; }
 
-        size_t countSavedGameRecords() const override;
+        std::size_t countSavedGameRecords() const override;
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) const override;
 
-        void readRecord(ESM::ESMReader& reader, uint32_t type) override;
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
     };
 }

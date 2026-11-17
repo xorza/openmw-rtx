@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <unordered_map>
@@ -54,7 +55,7 @@ namespace Resource
         /// a model's textures asks.
         osg::ref_ptr<osg::Image> getModelImage(VFS::Path::NormalizedView path);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
     private:
         /// The image at `path` read from the files, or the warning image where none reads: `getImage`'s one load.

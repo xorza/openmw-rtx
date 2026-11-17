@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 
 namespace SceneUtil
 {
@@ -69,7 +70,7 @@ namespace SceneUtil
         return std::find(formats.cbegin(), formats.cend(), format) != formats.cend();
     }
 
-    int getColorFormatChannelCount(GLenum format)
+    std::int32_t getColorFormatChannelCount(GLenum format)
     {
         static constexpr std::array<GLenum, 21> formats = {
             GL_RGBA,

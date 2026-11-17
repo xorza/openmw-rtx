@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <gtest/gtest.h>
 
 #include <osg/Matrixf>
@@ -178,9 +180,9 @@ namespace
 
         for (const auto& t : { resTable, resReadonlyTable })
         {
-            EXPECT_EQ(t.get<int>("aa"), 1);
+            EXPECT_EQ(t.get<std::int32_t>("aa"), 1);
             EXPECT_EQ(t.get<bool>("ab"), true);
-            EXPECT_EQ(t.get<sol::table>("nested").get<int>("aa"), 2);
+            EXPECT_EQ(t.get<sol::table>("nested").get<std::int32_t>("aa"), 2);
             EXPECT_EQ(t.get<sol::table>("nested").get<std::string>("bb"), "something");
             EXPECT_DOUBLE_EQ(t.get<sol::table>("nested").get<double>(5), -0.5);
             EXPECT_EQ(t.get<osg::Vec2f>(1), osg::Vec2f(1, 2));
@@ -201,7 +203,7 @@ namespace
     };
     struct TestStruct2
     {
-        int a, b;
+        std::int32_t a, b;
     };
 
     class TestSerializer final : public LuaUtil::UserdataSerializer

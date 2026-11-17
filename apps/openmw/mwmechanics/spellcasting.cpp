@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -105,7 +106,7 @@ namespace MWMechanics
             }
             // Get the actors in range of the effect
             std::vector<MWWorld::Ptr> objects;
-            static const int unitsPerFoot = static_cast<int>(std::ceil(Constants::UnitsPerFoot));
+            static const auto unitsPerFoot = static_cast<std::int32_t>(std::ceil(Constants::UnitsPerFoot));
             MWBase::Environment::get().getMechanicsManager()->getObjectsInRange(
                 mHitPosition, static_cast<float>(effectInfo.mData.mArea * unitsPerFoot), objects);
             for (const MWWorld::Ptr& affected : objects)
@@ -256,13 +257,13 @@ namespace MWMechanics
             ESM::WeaponType::Class weapclass = MWMechanics::getWeaponType(type)->mWeaponClass;
             isProjectile = (weapclass == ESM::WeaponType::Thrown || weapclass == ESM::WeaponType::Ammo);
         }
-        int type = enchantment->mData.mType;
+        std::int32_t type = enchantment->mData.mType;
 
         // Check if there's enough charge left
         if (!godmode
             && (type == ESM::Enchantment::WhenUsed || (!isProjectile && type == ESM::Enchantment::WhenStrikes)))
         {
-            int castCost = getEffectiveEnchantmentCastCost(*enchantment, mCaster);
+            std::int32_t castCost = getEffectiveEnchantmentCastCost(*enchantment, mCaster);
 
             if (item.getCellRef().getEnchantmentCharge() == -1)
                 item.getCellRef().setEnchantmentCharge(

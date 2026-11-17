@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -47,7 +48,7 @@ namespace Gui
             MyGUI::InputManager& input = MyGUI::InputManager::getInstance();
             input.injectMouseMove(22, 7, 0);
             input.injectMousePress(22, 7, MyGUI::MouseButton::Left);
-            for (int x = 40; x <= 120; x += 20)
+            for (std::int32_t x = 40; x <= 120; x += 20)
                 input.injectMouseMove(x, 7, 0);
             ASSERT_GT(bar.mMoved.size(), 1u) << "the drag did not move the bar";
             EXPECT_TRUE(bar.mSettled.empty()) << "settled while the drag went on";

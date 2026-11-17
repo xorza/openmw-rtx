@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <type_traits>
 
@@ -37,7 +38,7 @@ namespace Misc
             {
                 const std::size_t piece = std::min<std::size_t>(bytes.size(), INT_MAX);
                 const DigestWords seed = mWords;
-                MurmurHash3_x64_128(bytes.data(), static_cast<int>(piece), seed.data(), mWords.data());
+                MurmurHash3_x64_128(bytes.data(), static_cast<std::int32_t>(piece), seed.data(), mWords.data());
                 bytes = bytes.subspan(piece);
             } while (!bytes.empty());
         }

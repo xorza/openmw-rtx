@@ -1,5 +1,6 @@
 #include "water.hpp"
 
+#include <cstdint>
 #include <sstream>
 
 #include <osg/ClipNode>
@@ -230,7 +231,7 @@ namespace MWRender
     class Reflection : public SceneUtil::RTTNode
     {
     public:
-        Reflection(uint32_t rttSize, bool isInterior)
+        Reflection(std::uint32_t rttSize, bool isInterior)
             : RTTNode(rttSize, rttSize, 0, false, 0, StereoAwareness::Aware, shouldAddMSAAIntermediateTarget())
         {
             setInterior(isInterior);
@@ -294,11 +295,11 @@ namespace MWRender
         }
 
     private:
-        unsigned int calcNodeMask()
+        std::uint32_t calcNodeMask()
         {
-            int reflectionDetail = Settings::water().mReflectionDetail;
+            std::int32_t reflectionDetail = Settings::water().mReflectionDetail;
             reflectionDetail = std::clamp(reflectionDetail, mInterior ? 2 : 0, 5);
-            unsigned int extraMask = 0;
+            std::uint32_t extraMask = 0;
             if (reflectionDetail >= 1)
                 extraMask |= Mask_Terrain;
             if (reflectionDetail >= 2)
@@ -433,7 +434,7 @@ namespace MWRender
 
         if (Settings::water().mShader)
         {
-            const auto rttSize = static_cast<unsigned int>(Settings::water().mRttSize);
+            const auto rttSize = static_cast<std::uint32_t>(Settings::water().mRttSize);
 
             mReflection = new Reflection(rttSize, mInterior);
             mReflection->setWaterLevel(mTop);
@@ -479,9 +480,9 @@ namespace MWRender
 
         // Add animated textures
         std::vector<osg::ref_ptr<osg::Texture2D>> textures;
-        const int frameCount = std::clamp(Fallback::Map::getInt("Water_SurfaceFrameCount"), 0, 320);
+        const std::int32_t frameCount = std::clamp(Fallback::Map::getInt("Water_SurfaceFrameCount"), 0, 320);
         std::string_view texture = Fallback::Map::getString("Water_SurfaceTexture");
-        for (int i = 0; i < frameCount; ++i)
+        for (std::int32_t i = 0; i < frameCount; ++i)
         {
             std::ostringstream texname;
             texname << "textures/water/" << texture << std::setw(2) << std::setfill('0') << i << ".dds";
@@ -561,10 +562,10 @@ namespace MWRender
             {
                 auto* cv = static_cast<osgUtil::CullVisitor*>(nv);
                 stateset->setTextureAttribute(1, mReflection->getColorTexture(cv), osg::StateAttribute::ON);
-                stateset->setTextureAttribute(static_cast<unsigned int>(mOpaqueColorTextureUnit),
+                stateset->setTextureAttribute(static_cast<std::uint32_t>(mOpaqueColorTextureUnit),
                     mResourceSystem->getSceneManager()->getOpaqueColorTex(cv->getTraversalNumber()),
                     osg::StateAttribute::ON);
-                stateset->setTextureAttribute(static_cast<unsigned int>(mOpaqueDepthTextureUnit),
+                stateset->setTextureAttribute(static_cast<std::uint32_t>(mOpaqueDepthTextureUnit),
                     mResourceSystem->getSceneManager()->getOpaqueDepthTex(cv->getTraversalNumber()),
                     osg::StateAttribute::ON);
 
@@ -582,8 +583,8 @@ namespace MWRender
             osg::ref_ptr<osg::Program> mProgram;
             osg::ref_ptr<osg::Texture2D> mNormalMap;
             Resource::ResourceSystem* mResourceSystem;
-            int mOpaqueDepthTextureUnit;
-            int mOpaqueColorTextureUnit;
+            std::int32_t mOpaqueDepthTextureUnit;
+            std::int32_t mOpaqueColorTextureUnit;
         };
     }
 
@@ -591,7 +592,7 @@ namespace MWRender
     {
         // use a define map to conditionally compile the shader
         std::map<std::string, std::string> defineMap;
-        const int rippleDetail = Settings::water().mRainRippleDetail;
+        const std::int32_t rippleDetail = Settings::water().mRainRippleDetail;
         defineMap["waterRefraction"] = std::string(Settings::water().mRefraction ? "1" : "0");
         defineMap["rainRippleDetail"] = std::to_string(rippleDetail);
         defineMap["rippleMapWorldScale"] = std::to_string(RipplesSurface::sWorldScaleFactor);
@@ -643,9 +644,9 @@ namespace MWRender
 
     void Water::listAssetsToPreload(std::vector<VFS::Path::Normalized>& textures)
     {
-        const int frameCount = std::clamp(Fallback::Map::getInt("Water_SurfaceFrameCount"), 0, 320);
+        const std::int32_t frameCount = std::clamp(Fallback::Map::getInt("Water_SurfaceFrameCount"), 0, 320);
         std::string_view texture = Fallback::Map::getString("Water_SurfaceTexture");
-        for (int i = 0; i < frameCount; ++i)
+        for (std::int32_t i = 0; i < frameCount; ++i)
         {
             std::ostringstream texname;
             texname << "textures/water/" << texture << std::setw(2) << std::setfill('0') << i << ".dds";
@@ -733,7 +734,7 @@ namespace MWRender
         return pos.z() < mTop && mToggled && mEnabled;
     }
 
-    osg::Vec3f Water::getSceneNodeCoordinates(int gridX, int gridY)
+    osg::Vec3f Water::getSceneNodeCoordinates(std::int32_t gridX, std::int32_t gridY)
     {
         // A whole-number division on purpose.
         // NOLINTNEXTLINE(bugprone-integer-division)

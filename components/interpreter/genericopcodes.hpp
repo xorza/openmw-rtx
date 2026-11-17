@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "opcodes.hpp"
 #include "runtime.hpp"
 
@@ -8,7 +10,7 @@ namespace Interpreter
     class OpPushInt : public Opcode1
     {
     public:
-        void execute(Runtime& runtime, unsigned int arg0) override { runtime.push(static_cast<Type_Integer>(arg0)); }
+        void execute(Runtime& runtime, std::uint32_t arg0) override { runtime.push(static_cast<Type_Integer>(arg0)); }
     };
 
     class OpIntToFloat : public Opcode0

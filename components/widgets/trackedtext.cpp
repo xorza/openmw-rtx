@@ -1,5 +1,7 @@
 #include "trackedtext.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Widget.h>
 
 #include "box.hpp"
@@ -14,7 +16,7 @@ namespace Gui
     }
 
     template <class Text>
-    void Tracked<Text>::setFontHeight(int height)
+    void Tracked<Text>::setFontHeight(std::int32_t height)
     {
         Text::setFontHeight(height);
         keepInterfaceHeight();

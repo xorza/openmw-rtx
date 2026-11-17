@@ -1,12 +1,14 @@
 #include "scriptedit.hpp"
 
+#include <cstdint>
+#include <vector>
+
 #include <QApplication>
 #include <QDragEnterEvent>
 #include <QMenu>
 #include <QPainter>
 #include <QString>
 #include <QTextDocumentFragment>
-#include <vector>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
@@ -327,29 +329,29 @@ void CSVWorld::ScriptEdit::updateHighlighting()
     mHighlighter->rehighlight();
 }
 
-int CSVWorld::ScriptEdit::lineNumberAreaWidth()
+std::int32_t CSVWorld::ScriptEdit::lineNumberAreaWidth()
 {
     if (!mShowLineNum)
         return 0;
 
-    int digits = 1;
-    int max = qMax(1, blockCount());
+    std::int32_t digits = 1;
+    std::int32_t max = qMax(1, blockCount());
     while (max >= 10)
     {
         max /= 10;
         ++digits;
     }
 
-    int space = 3 + fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits;
+    std::int32_t space = 3 + fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits;
     return space;
 }
 
-void CSVWorld::ScriptEdit::updateLineNumberAreaWidth(int /* newBlockCount */)
+void CSVWorld::ScriptEdit::updateLineNumberAreaWidth(std::int32_t /* newBlockCount */)
 {
     setViewportMargins(lineNumberAreaWidth(), 0, 0, 0);
 }
 
-void CSVWorld::ScriptEdit::updateLineNumberArea(const QRect& rect, int dy)
+void CSVWorld::ScriptEdit::updateLineNumberArea(const QRect& rect, std::int32_t dy)
 {
     if (dy)
         mLineNumberArea->scroll(0, dy);
@@ -456,16 +458,16 @@ void CSVWorld::ScriptEdit::lineNumberAreaPaintEvent(QPaintEvent* event)
     QPainter painter(mLineNumberArea);
 
     QTextBlock block = firstVisibleBlock();
-    int blockNumber = block.blockNumber();
-    int top = static_cast<int>(blockBoundingGeometry(block).translated(contentOffset()).top());
-    int bottom = top + static_cast<int>(blockBoundingRect(block).height());
+    std::int32_t blockNumber = block.blockNumber();
+    std::int32_t top = static_cast<std::int32_t>(blockBoundingGeometry(block).translated(contentOffset()).top());
+    std::int32_t bottom = top + static_cast<std::int32_t>(blockBoundingRect(block).height());
 
-    int startBlock = textCursor().blockNumber();
-    int endBlock = textCursor().blockNumber();
+    std::int32_t startBlock = textCursor().blockNumber();
+    std::int32_t endBlock = textCursor().blockNumber();
     if (textCursor().hasSelection())
     {
         QString str = textCursor().selection().toPlainText();
-        int offset = static_cast<int>(str.count("\n"));
+        std::int32_t offset = static_cast<std::int32_t>(str.count("\n"));
         if (textCursor().position() < textCursor().anchor())
             endBlock += offset;
         else
@@ -500,7 +502,7 @@ void CSVWorld::ScriptEdit::lineNumberAreaPaintEvent(QPaintEvent* event)
 
         block = block.next();
         top = bottom;
-        bottom = top + static_cast<int>(blockBoundingRect(block).height());
+        bottom = top + static_cast<std::int32_t>(blockBoundingRect(block).height());
         ++blockNumber;
     }
 }

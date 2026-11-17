@@ -1,5 +1,6 @@
 #include "scripttest.hpp"
 
+#include <cstdint>
 #include <memory>
 #include <sstream>
 
@@ -23,7 +24,7 @@
 namespace
 {
 
-    bool test(const MWWorld::Ptr& actor, const ESM::DialInfo& info, int& compiled, int& total,
+    bool test(const MWWorld::Ptr& actor, const ESM::DialInfo& info, std::int32_t& compiled, std::int32_t& total,
         const Compiler::Extensions* extensions, const MWScript::CompilerContext& context,
         Compiler::StreamErrorHandler& errorHandler)
     {
@@ -83,9 +84,10 @@ namespace MWDialogue
     namespace ScriptTest
     {
 
-        std::pair<int, int> compileAll(const Compiler::Extensions* extensions, int warningsMode)
+        std::pair<std::int32_t, std::int32_t> compileAll(
+            const Compiler::Extensions* extensions, std::int32_t warningsMode)
         {
-            int compiled = 0, total = 0;
+            std::int32_t compiled = 0, total = 0;
             const auto& store = *MWBase::Environment::get().getESMStore();
 
             MWScript::CompilerContext compilerContext(MWScript::CompilerContext::Type_Dialogue);

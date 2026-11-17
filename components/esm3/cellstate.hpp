@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm/defs.hpp>
 #include <components/esm/refid.hpp>
 
@@ -19,7 +21,7 @@ namespace ESM
         bool mIsInterior = false;
         float mWaterLevel = 0;
 
-        int32_t mHasFogOfWar = 0; // Do we have fog of war state (0 or 1)? (see fogstate.hpp)
+        std::int32_t mHasFogOfWar = 0; // Do we have fog of war state (0 or 1)? (see fogstate.hpp)
 
         TimeStamp mLastRespawn{};
 

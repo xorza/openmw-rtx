@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 namespace MWBase
 {
-    using RotationFlags = unsigned short;
+    using RotationFlags = std::uint16_t;
 
     enum RotationFlag : RotationFlags
     {

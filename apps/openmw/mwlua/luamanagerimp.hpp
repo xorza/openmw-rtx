@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <set>
@@ -65,7 +66,7 @@ namespace MWLua
         //
         // Returns true if the step finished a collection cycle. Touches the Lua state:
         // never run concurrently with anything else that does.
-        bool gcStep(int steps);
+        bool gcStep(std::int32_t steps);
 
         // \brief Executes latency-critical and scene graph related Lua logic.
         //
@@ -102,16 +103,16 @@ namespace MWLua
             const osg::Quat& rotation) override;
         void animationTextKey(const MWWorld::Ptr& actor, const std::string& key) override;
         void playAnimation(const MWWorld::Ptr& actor, const std::string& groupname,
-            const MWRender::AnimPriority& priority, int blendMask, bool autodisable, float speedmult,
-            std::string_view start, std::string_view stop, float startpoint, uint32_t loops,
+            const MWRender::AnimPriority& priority, std::int32_t blendMask, bool autodisable, float speedmult,
+            std::string_view start, std::string_view stop, float startpoint, std::uint32_t loops,
             bool loopfallback) override;
         void animationEnded(const MWWorld::Ptr& actor, std::string_view groupname, float time, float completion,
             std::string_view startKey, std::string_view stopKey) override;
-        void skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, int useType, float scale) override;
+        void skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, std::int32_t useType, float scale) override;
         void skillLevelUp(const MWWorld::Ptr& actor, ESM::RefId skillId, std::string_view source) override;
-        void jailTimeServed(const MWWorld::Ptr& actor, int days) override;
+        void jailTimeServed(const MWWorld::Ptr& actor, std::int32_t days) override;
         void onHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& weapon,
-            const MWWorld::Ptr& ammo, int attackType, float attackStrength, float attackWindUp, float damage,
+            const MWWorld::Ptr& ammo, std::int32_t attackType, float attackStrength, float attackWindUp, float damage,
             bool isHealth, const osg::Vec3f& hitPos, bool successful,
             MWMechanics::DamageSourceType sourceType) override;
         void exteriorCreated(MWWorld::CellStore& cell) override
@@ -119,10 +120,10 @@ namespace MWLua
             mEngineEvents.addToQueue(EngineEvents::OnNewExterior{ cell });
         }
         void objectTeleported(const MWWorld::Ptr& ptr) override;
-        void questUpdated(const ESM::RefId& questId, int stage) override;
+        void questUpdated(const ESM::RefId& questId, std::int32_t stage) override;
         void uiModeChanged(const MWWorld::Ptr& arg) override;
-        void viewportResized(int width, int height) override;
-        void fontSizeChanged(int size) override;
+        void viewportResized(std::int32_t width, std::int32_t height) override;
+        void fontSizeChanged(std::int32_t size) override;
         void actorDied(const MWWorld::Ptr& actor) override;
         void onDialogueResponse(
             const MWWorld::Ptr& actor, const ESM::DialInfo& info, const ESM::Dialogue& record) override;
@@ -138,7 +139,7 @@ namespace MWLua
         void setupPlayer(const MWWorld::Ptr& ptr) override; // Should be called once after each "clear".
 
         // Used only in Lua bindings
-        void addCustomLocalScript(const MWWorld::Ptr&, int scriptId, std::string_view initData);
+        void addCustomLocalScript(const MWWorld::Ptr&, std::int32_t scriptId, std::string_view initData);
         void addUIMessage(
             std::string_view message, MWGui::ShowInDialogueMode mode = MWGui::ShowInDialogueMode_IfPossible)
         {
@@ -159,14 +160,17 @@ namespace MWLua
         void saveLocalScripts(const MWWorld::Ptr& ptr, ESM::LuaScripts& data) override;
 
         // Loading from a save
-        void readRecord(ESM::ESMReader& reader, uint32_t type) override;
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
         void loadLocalScripts(const MWWorld::Ptr& ptr, const ESM::LuaScripts& data) override;
-        void setContentFileMapping(const std::map<int, int>& mapping) override { mContentFileMapping = mapping; }
+        void setContentFileMapping(const std::map<std::int32_t, std::int32_t>& mapping) override
+        {
+            mContentFileMapping = mapping;
+        }
 
         // At the end of the next `synchronizedUpdate` drops script cache and reloads all scripts.
         // Calls `onSave` and `onLoad` for every script.
         void reloadAllScripts() override { mReloadAllScriptsRequested = true; }
-        void seedRandom(unsigned seed) override { mLua.seedRandom(seed); }
+        void seedRandom(std::uint32_t seed) override { mLua.seedRandom(seed); }
 
         void handleConsoleCommand(
             const std::string& consoleMode, const std::string& command, const MWWorld::Ptr& selectedPtr) override;
@@ -192,7 +196,7 @@ namespace MWLua
 
         bool isProcessingInputEvents() const { return mProcessingInputEvents; }
 
-        void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const;
+        void reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const;
         std::string formatResourceUsageStats() const override;
 
         LuaUtil::InputAction::Registry& inputActions() { return mInputActions; }
@@ -242,7 +246,7 @@ namespace MWLua
         std::unique_ptr<LuaUtil::UserdataSerializer> mGlobalSerializer;
         std::unique_ptr<LuaUtil::UserdataSerializer> mLocalSerializer;
 
-        std::map<int, int> mContentFileMapping;
+        std::map<std::int32_t, std::int32_t> mContentFileMapping;
         std::unique_ptr<LuaUtil::UserdataSerializer> mGlobalLoader;
         std::unique_ptr<LuaUtil::UserdataSerializer> mLocalLoader;
 

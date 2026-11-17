@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <optional>
@@ -50,7 +51,7 @@ namespace RtxTool
 
         /// The physics worker threads, where the run takes the game's own threaded physics; nothing for the frame's
         /// own thread, so a run is the same run twice (`applyHostedSettings`).
-        std::optional<int> mPhysicsThreads{};
+        std::optional<std::int32_t> mPhysicsThreads{};
     };
 
     /// Where a verb writes its pictures: `--out`, or a directory named for the verb.

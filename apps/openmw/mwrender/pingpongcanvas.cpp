@@ -1,6 +1,8 @@
 #include "pingpongcanvas.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include <components/shader/shadermanager.hpp>
 #include <components/stereo/multiview.hpp>
@@ -80,7 +82,7 @@ namespace MWRender
         osg::Geometry::drawImplementation(renderInfo);
     }
 
-    void PingPongCanvas::resizeGLObjectBuffers(unsigned int maxSize)
+    void PingPongCanvas::resizeGLObjectBuffers(std::uint32_t maxSize)
     {
         osg::Geometry::resizeGLObjectBuffers(maxSize);
         mEmptyUniformStacks.resize(maxSize);
@@ -119,13 +121,13 @@ namespace MWRender
         emptyUniformStacks.clear();
         osg::GLExtensions* ext = state.get<osg::GLExtensions>();
 
-        size_t frameId = state.getFrameStamp()->getFrameNumber() % 2;
+        std::size_t frameId = state.getFrameStamp()->getFrameNumber() % 2;
 
-        std::vector<size_t> filtered;
+        std::vector<std::size_t> filtered;
 
         filtered.reserve(mPasses.size());
 
-        for (size_t i = 0; i < mPasses.size(); ++i)
+        for (std::size_t i = 0; i < mPasses.size(); ++i)
         {
             const auto& node = mPasses[i];
 
@@ -169,7 +171,7 @@ namespace MWRender
             return;
         }
 
-        const unsigned int handle = mFbos[0] ? mFbos[0]->getHandle(state.getContextID()) : 0;
+        const std::uint32_t handle = mFbos[0] ? mFbos[0]->getHandle(state.getContextID()) : 0;
 
         if (handle == 0 || mDirty)
         {
@@ -207,7 +209,7 @@ namespace MWRender
             mDirty = false;
         }
 
-        constexpr std::array<std::array<int, 2>, 3> buffers
+        constexpr std::array<std::array<std::int32_t, 2>, 3> buffers
             = { { { GL_COLOR_ATTACHMENT1_EXT, GL_COLOR_ATTACHMENT2_EXT },
                 { GL_COLOR_ATTACHMENT0_EXT, GL_COLOR_ATTACHMENT2_EXT },
                 { GL_COLOR_ATTACHMENT0_EXT, GL_COLOR_ATTACHMENT1_EXT } } };
@@ -228,15 +230,15 @@ namespace MWRender
         const bool gammaResolve = mInverseGamma != 1.0f && !Stereo::getMultiview();
         bool resolved = false;
 
-        int lastDraw = 0;
-        int lastShader = 0;
+        std::int32_t lastDraw = 0;
+        std::int32_t lastShader = 0;
 
-        unsigned int lastApplied = handle;
+        std::uint32_t lastApplied = handle;
 
-        const unsigned int cid = state.getContextID();
+        const std::uint32_t cid = state.getContextID();
 
         const osg::ref_ptr<osg::FrameBufferObject>& destinationFbo = mDestinationFBO ? mDestinationFBO : nullptr;
-        unsigned int destinationHandle = destinationFbo ? destinationFbo->getHandle(cid) : 0;
+        std::uint32_t destinationHandle = destinationFbo ? destinationFbo->getHandle(cid) : 0;
 
         auto bindDestinationFbo = [&]() {
             if (destinationFbo)
@@ -269,7 +271,7 @@ namespace MWRender
             attachment.mTarget->setTextureSize(w, h);
             if (attachment.mMipMap)
                 attachment.mTarget->setNumMipmapLevels(
-                    static_cast<unsigned int>(osg::Image::computeNumberOfMipmapLevels(w, h)));
+                    static_cast<std::uint32_t>(osg::Image::computeNumberOfMipmapLevels(w, h)));
             attachment.mTarget->dirtyTextureObject();
 
             osg::ref_ptr<osg::FrameBufferObject> fbo = new osg::FrameBufferObject;
@@ -292,7 +294,7 @@ namespace MWRender
             }
         }
 
-        for (const size_t& index : filtered)
+        for (const std::size_t& index : filtered)
         {
             const auto& node = mPasses[index];
 
@@ -312,7 +314,7 @@ namespace MWRender
             state.pushStateSet(node.mRootStateSet);
             state.apply();
 
-            for (size_t passIndex = 0; passIndex < node.mPasses.size(); ++passIndex)
+            for (std::size_t passIndex = 0; passIndex < node.mPasses.size(); ++passIndex)
             {
                 if (mRenderViewport)
                     mRenderViewport->apply(state);

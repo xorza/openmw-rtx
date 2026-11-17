@@ -1,5 +1,7 @@
 #include "particle.hpp"
 
+#include <cstdint>
+
 #include "data.hpp"
 
 namespace Nif
@@ -46,7 +48,7 @@ namespace Nif
         if (nif->getVersion() >= NIFStream::generateVersion(3, 3, 0, 13))
             nif->read(mDecay);
         nif->read(mForce);
-        mType = static_cast<ForceType>(nif->get<uint32_t>());
+        mType = static_cast<ForceType>(nif->get<std::uint32_t>());
         nif->read(mPosition);
         nif->read(mDirection);
     }
@@ -59,8 +61,8 @@ namespace Nif
         nif->read(mDuration);
         nif->read(mStrength);
         nif->read(mStartTime);
-        mDecayType = static_cast<DecayType>(nif->get<uint32_t>());
-        mSymmetryType = static_cast<SymmetryType>(nif->get<uint32_t>());
+        mDecayType = static_cast<DecayType>(nif->get<std::uint32_t>());
+        mSymmetryType = static_cast<SymmetryType>(nif->get<std::uint32_t>());
         nif->read(mPosition);
         nif->read(mDirection);
     }
@@ -116,7 +118,7 @@ namespace Nif
             nif->read(mNumParticles);
         bool isBs202 = nif->getVersion() == NIFFile::NIFVersion::VER_BGS && nif->getBethVersion() != 0;
 
-        uint16_t numRadii = 1;
+        std::uint16_t numRadii = 1;
         if (nif->getVersion() > NIFStream::generateVersion(10, 0, 1, 0))
             numRadii = (nif->get<bool>() && !isBs202) ? mNumVertices : 0;
         nif->readVector(mRadii, numRadii);
@@ -137,9 +139,9 @@ namespace Nif
                 if (isBs202)
                 {
                     nif->read(mHasTextureIndices);
-                    uint32_t numSubtextureOffsets = 0;
+                    std::uint32_t numSubtextureOffsets = 0;
                     if (nif->getBethVersion() <= NIFFile::BethVersion::BETHVER_FO3)
-                        numSubtextureOffsets = nif->get<uint8_t>();
+                        numSubtextureOffsets = nif->get<std::uint8_t>();
                     else
                         nif->read(numSubtextureOffsets);
                     nif->readVector(mSubtextureOffsets, numSubtextureOffsets);
@@ -250,7 +252,7 @@ namespace Nif
         {
             nif->read(mDefaultPoolSize);
             nif->read(mFillPoolsOnLoad);
-            nif->readVector(mGenerations, nif->get<uint32_t>());
+            nif->readVector(mGenerations, nif->get<std::uint32_t>());
         }
         mParticleMeshes.read(nif);
     }
@@ -275,7 +277,7 @@ namespace Nif
     void NiPSysModifier::read(NIFStream* nif)
     {
         nif->read(mName);
-        mOrder = static_cast<NiPSysModifierOrder>(nif->get<uint32_t>());
+        mOrder = static_cast<NiPSysModifierOrder>(nif->get<std::uint32_t>());
         mTarget.read(nif);
         nif->read(mActive);
     }
@@ -308,8 +310,8 @@ namespace Nif
         nif->read(mBombAxis);
         nif->read(mRange);
         nif->read(mStrength);
-        mDecayType = static_cast<DecayType>(nif->get<uint32_t>());
-        mSymmetryType = static_cast<SymmetryType>(nif->get<uint32_t>());
+        mDecayType = static_cast<DecayType>(nif->get<std::uint32_t>());
+        mSymmetryType = static_cast<SymmetryType>(nif->get<std::uint32_t>());
     }
 
     void NiPSysBombModifier::post(Reader& nif)
@@ -366,7 +368,7 @@ namespace Nif
         nif->read(mGravityAxis);
         nif->read(mDecay);
         nif->read(mStrength);
-        mForceType = static_cast<ForceType>(nif->get<uint32_t>());
+        mForceType = static_cast<ForceType>(nif->get<std::uint32_t>());
         nif->read(mTurbulence);
         nif->read(mTurbulenceScale);
 
@@ -512,7 +514,7 @@ namespace Nif
     {
         NiPSysModifier::read(nif);
 
-        nif->readVector(mScales, nif->get<uint32_t>());
+        nif->readVector(mScales, nif->get<std::uint32_t>());
     }
 
     void BSPSysSimpleColorModifier::read(NIFStream* nif)
@@ -678,7 +680,7 @@ namespace Nif
         mFloatKeyList = std::make_shared<FloatKeyMap>();
         mFloatKeyList->read(nif);
         mVisKeyList = std::make_shared<BoolKeyMap>();
-        nif->readVectorOfRecords<uint32_t>(readKeyMapPair<float, bool>, mVisKeyList->mKeys);
+        nif->readVectorOfRecords<std::uint32_t>(readKeyMapPair<float, bool>, mVisKeyList->mKeys);
     }
 
     void NiPSysCollider::read(NIFStream* nif)

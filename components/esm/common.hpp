@@ -43,7 +43,7 @@ namespace ESM
 
     inline std::string printName(const std::uint32_t typeId)
     {
-        unsigned char typeName[4];
+        std::uint8_t typeName[4];
         typeName[0] = typeId & 0xff;
         typeName[1] = (typeId >> 8) & 0xff;
         typeName[2] = (typeId >> 16) & 0xff;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QObject>
 #include <QThread>
 
@@ -32,15 +34,15 @@ namespace CSMDoc
 
     private slots:
 
-        void doneSlot(int type, bool failed);
+        void doneSlot(std::int32_t type, bool failed);
 
     signals:
 
-        void progress(int current, int max, int type);
+        void progress(std::int32_t current, std::int32_t max, std::int32_t type);
 
-        void reportMessage(const CSMDoc::Message& message, int type);
+        void reportMessage(const CSMDoc::Message& message, std::int32_t type);
 
-        void done(int type, bool failed);
+        void done(std::int32_t type, bool failed);
 
         void abortSignal();
     };

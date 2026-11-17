@@ -1,5 +1,9 @@
 #include "datadisplaydelegate.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+
 #include <QApplication>
 #include <QIcon>
 #include <QPainter>
@@ -7,7 +11,6 @@
 #include <QSize>
 #include <QString>
 #include <QStyle>
-#include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
@@ -98,7 +101,7 @@ void CSVWorld::DataDisplayDelegate::setIconSize(const QSize& size)
     buildPixmaps();
 }
 
-void CSVWorld::DataDisplayDelegate::setTextLeftOffset(int offset)
+void CSVWorld::DataDisplayDelegate::setTextLeftOffset(std::int32_t offset)
 {
     mTextLeftOffset = offset;
 }
@@ -107,7 +110,7 @@ QSize CSVWorld::DataDisplayDelegate::sizeHint(const QStyleOptionViewItem& option
 {
     QSize size = EnumDelegate::sizeHint(option, index);
 
-    int valueIndex = getValueIndex(index);
+    std::int32_t valueIndex = getValueIndex(index);
     if (valueIndex != -1)
     {
         if (mDisplayMode == Mode_IconOnly)
@@ -137,7 +140,7 @@ void CSVWorld::DataDisplayDelegate::paint(
         EnumDelegate::paint(painter, option, index);
     else
     {
-        int valueIndex = getValueIndex(index);
+        std::int32_t valueIndex = getValueIndex(index);
         if (valueIndex != -1)
         {
             paintIcon(painter, option, valueIndex);
@@ -147,7 +150,8 @@ void CSVWorld::DataDisplayDelegate::paint(
     painter->restore();
 }
 
-void CSVWorld::DataDisplayDelegate::paintIcon(QPainter* painter, const QStyleOptionViewItem& option, int index) const
+void CSVWorld::DataDisplayDelegate::paintIcon(
+    QPainter* painter, const QStyleOptionViewItem& option, std::int32_t index) const
 {
     QRect iconRect = option.rect;
     QRect textRect = iconRect;
@@ -187,7 +191,8 @@ void CSVWorld::DataDisplayDelegate::settingChanged(const CSMPrefs::Setting* sett
         updateDisplayMode(setting->toString());
 }
 
-void CSVWorld::DataDisplayDelegateFactory::add(int enumValue, const QString& enumName, const QString& iconFilename)
+void CSVWorld::DataDisplayDelegateFactory::add(
+    std::int32_t enumValue, const QString& enumName, const QString& iconFilename)
 {
     EnumDelegateFactory::add(enumValue, enumName);
 

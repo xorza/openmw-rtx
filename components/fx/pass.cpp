@@ -1,5 +1,7 @@
 #include "pass.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <string>
 
@@ -292,7 +294,7 @@ float omw_EstimateFogCoverageFromUV(vec2 uv)
                   { "@fragBinding", mLegacyGLSL ? "" : "out vec4 omw_FragColor;" } };
 
         for (const auto& [define, value] : defines)
-            for (size_t pos = header.find(define); pos != std::string::npos; pos = header.find(define))
+            for (std::size_t pos = header.find(define); pos != std::string::npos; pos = header.find(define))
                 header.replace(pos, define.size(), value);
 
         for (const auto& target : mRenderTargets)
@@ -321,7 +323,8 @@ float omw_EstimateFogCoverageFromUV(vec2 uv)
         }
 
         if (mUBO)
-            program->addBindUniformBlock("_data", static_cast<int>(Resource::SceneManager::UBOBinding::PostProcessor));
+            program->addBindUniformBlock(
+                "_data", static_cast<std::int32_t>(Resource::SceneManager::UBOBinding::PostProcessor));
 
         program->setName(name);
 

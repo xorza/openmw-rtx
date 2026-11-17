@@ -1,6 +1,8 @@
 #include "vfsbindings.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 
 #include <sol/object.hpp>
 
@@ -51,7 +53,7 @@ namespace MWLua
                 "Error when handling '" + self.mFileName + "': invalid seek direction: '" + std::string(whence) + "'.");
         }
 
-        size_t getBytesLeftInStream(Files::IStreamPtr& file)
+        std::size_t getBytesLeftInStream(Files::IStreamPtr& file)
         {
             auto oldPos = file->tellg();
             file->seekg(0, std::ios_base::end);
@@ -61,7 +63,7 @@ namespace MWLua
             return static_cast<std::size_t>(newPos - oldPos);
         }
 
-        void printLargeDataMessage(FileHandle& file, size_t size)
+        void printLargeDataMessage(FileHandle& file, std::size_t size)
         {
             if (!file.mFilePtr || !Settings::lua().mLuaDebug || size < sFileSizeWarningThreshold)
                 return;
@@ -101,7 +103,7 @@ namespace MWLua
             return sol::nil;
         }
 
-        sol::object readCharactersFromFile(lua_State* lua, FileHandle& file, size_t count)
+        sol::object readCharactersFromFile(lua_State* lua, FileHandle& file, std::size_t count)
         {
             if (count <= 0 && file.mFilePtr->peek() != EOF)
                 return sol::make_object<std::string>(lua, std::string());
@@ -174,7 +176,7 @@ namespace MWLua
             return "FileHandle{'" + self.mFileName + "'" + (!self.mFilePtr ? ", closed" : "") + "}";
         };
         fileHandle["seek"] = sol::overload(
-            [](sol::this_state lua, FileHandle& self, std::string_view whence, sol::optional<long> offset) {
+            [](sol::this_state lua, FileHandle& self, std::string_view whence, sol::optional<std::int64_t> offset) {
                 validateFile(self);
 
                 auto off = static_cast<std::streamoff>(offset.value_or(0));
@@ -182,7 +184,7 @@ namespace MWLua
 
                 return seek(lua, self, dir, off);
             },
-            [](sol::this_state lua, FileHandle& self, sol::optional<long> offset) {
+            [](sol::this_state lua, FileHandle& self, sol::optional<std::int64_t> offset) {
                 validateFile(self);
 
                 auto off = static_cast<std::streamoff>(offset.value_or(0));
@@ -251,7 +253,7 @@ namespace MWLua
             }
 
             bool success = true;
-            size_t i = 0;
+            std::size_t i = 0;
             for (i = 0; i < args.size() && success; i++)
             {
                 if (args[static_cast<std::ptrdiff_t>(i)].is<std::string_view>())
@@ -285,9 +287,9 @@ namespace MWLua
                     throw std::runtime_error("Error when handling '" + self.mFileName + "': bad argument #"
                         + std::to_string(i + 1) + " to 'read' (invalid format)");
                 }
-                else if (args[static_cast<std::ptrdiff_t>(i)].is<int>())
+                else if (args[static_cast<std::ptrdiff_t>(i)].is<std::int32_t>())
                 {
-                    int number = args[static_cast<std::ptrdiff_t>(i)].as<int>();
+                    std::int32_t number = args[static_cast<std::ptrdiff_t>(i)].as<std::int32_t>();
                     auto result = readCharactersFromFile(lua, self, static_cast<std::size_t>(number));
                     values.push_back(result);
                     if (result == sol::nil)

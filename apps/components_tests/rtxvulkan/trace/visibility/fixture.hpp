@@ -679,7 +679,8 @@ namespace Rtx::Testing
             const osg::Vec3f& irradiance, float fade = 1.0f,
             std::source_location where = std::source_location::current())
         {
-            const ::testing::ScopedTrace trace(where.file_name(), static_cast<int>(where.line()), "litThroughPane");
+            const ::testing::ScopedTrace trace(
+                where.file_name(), static_cast<std::int32_t>(where.line()), "litThroughPane");
 
             constexpr std::uint32_t size = 33;
 
@@ -708,7 +709,8 @@ namespace Rtx::Testing
         std::uint8_t litThroughStack(std::span<const osg::Vec4f> layers, const osg::Vec3f& irradiance,
             std::source_location where = std::source_location::current())
         {
-            const ::testing::ScopedTrace trace(where.file_name(), static_cast<int>(where.line()), "litThroughStack");
+            const ::testing::ScopedTrace trace(
+                where.file_name(), static_cast<std::int32_t>(where.line()), "litThroughStack");
 
             constexpr std::uint32_t size = 33;
 
@@ -745,7 +747,8 @@ namespace Rtx::Testing
             const std::function<void(SceneDesc&, std::span<const osg::Vec3f, 4>)>& place, bool lookAtIt,
             std::source_location where = std::source_location::current())
         {
-            const ::testing::ScopedTrace trace(where.file_name(), static_cast<int>(where.line()), "paneOverWall");
+            const ::testing::ScopedTrace trace(
+                where.file_name(), static_cast<std::int32_t>(where.line()), "paneOverWall");
 
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);

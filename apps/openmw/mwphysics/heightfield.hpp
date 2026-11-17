@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 class btCollisionObject;
@@ -19,8 +20,9 @@ namespace MWPhysics
     public:
         void operator=(const HeightField&) = delete;
         HeightField(const HeightField&) = delete;
-        HeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
-            std::shared_ptr<const ESMTerrain::LandObject> holdObject, PhysicsTaskScheduler* scheduler);
+        HeightField(const float* heights, std::int32_t x, std::int32_t y, std::int32_t size, std::int32_t verts,
+            float minH, float maxH, std::shared_ptr<const ESMTerrain::LandObject> holdObject,
+            PhysicsTaskScheduler* scheduler);
         ~HeightField();
 
         btCollisionObject* getCollisionObject();

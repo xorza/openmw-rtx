@@ -4,7 +4,7 @@
 #include <type_traits>
 
 #ifdef WIN32
-#include <stdio.h>
+#include <cstdio>
 #endif
 
 namespace Platform

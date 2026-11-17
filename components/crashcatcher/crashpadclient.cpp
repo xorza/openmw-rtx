@@ -238,7 +238,7 @@ namespace Crash
             catcher().mPage.setReportPath(Files::pathToUnicodeString(folder));
     }
 
-    void reachedEnd(int code)
+    void reachedEnd(std::int32_t code)
     {
         if (Client::isInstalled())
             catcher().mPage.setEnd(code);

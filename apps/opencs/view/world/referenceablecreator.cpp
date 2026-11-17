@@ -1,8 +1,10 @@
 #include "referenceablecreator.hpp"
 
+#include <cstdint>
+#include <vector>
+
 #include <QComboBox>
 #include <QLabel>
-#include <vector>
 
 #include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
@@ -39,14 +41,14 @@ CSVWorld::ReferenceableCreator::ReferenceableCreator(
         CSMWorld::UniversalId id2(type, "");
 
         mType->addItem(Misc::ScalableIcon::load(id2.getIcon().c_str()), id2.getTypeName().c_str(),
-            static_cast<int>(id2.getType()));
+            static_cast<std::int32_t>(id2.getType()));
     }
 
     mType->model()->sort(0);
 
     insertBeforeButtons(mType, false);
 
-    connect(mType, qOverload<int>(&QComboBox::currentIndexChanged), this, &ReferenceableCreator::setType);
+    connect(mType, qOverload<std::int32_t>(&QComboBox::currentIndexChanged), this, &ReferenceableCreator::setType);
 }
 
 void CSVWorld::ReferenceableCreator::reset()
@@ -55,7 +57,7 @@ void CSVWorld::ReferenceableCreator::reset()
     GenericCreator::reset();
 }
 
-void CSVWorld::ReferenceableCreator::setType(int index)
+void CSVWorld::ReferenceableCreator::setType(std::int32_t index)
 {
     // container items have name limit of 32 characters
     std::string text = mType->currentText().toStdString();
@@ -72,7 +74,7 @@ void CSVWorld::ReferenceableCreator::setType(int index)
 void CSVWorld::ReferenceableCreator::cloneMode(const std::string& originId, const CSMWorld::UniversalId::Type type)
 {
     GenericCreator::cloneMode(originId, type);
-    mType->setCurrentIndex(mType->findData(static_cast<int>(type)));
+    mType->setCurrentIndex(mType->findData(static_cast<std::int32_t>(type)));
 }
 
 void CSVWorld::ReferenceableCreator::toggleWidgets(bool active)

@@ -1,6 +1,8 @@
 #include "loadcell.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <string>
 
@@ -17,7 +19,7 @@ namespace ESM
         ///< Translate 8bit/24bit code (stored in refNum.mIndex) into a proper refNum
         void adjustRefNum(RefNum& refNum, const ESMReader& reader)
         {
-            uint32_t local = (refNum.mIndex & 0xff000000) >> 24;
+            std::uint32_t local = (refNum.mIndex & 0xff000000) >> 24;
 
             // If we have an index value that does not make sense, assume that it was an addition
             // by the present plugin (but a faulty one)
@@ -79,7 +81,7 @@ namespace ESM
         return mId;
     }
 
-    ESM::RefId Cell::generateIdForCell(bool exterior, std::string_view cellName, int x, int y)
+    ESM::RefId Cell::generateIdForCell(bool exterior, std::string_view cellName, std::int32_t x, std::int32_t y)
     {
         if (!exterior)
         {
@@ -141,7 +143,7 @@ namespace ESM
             {
                 case fourCC("INTV"):
                 {
-                    int32_t waterl = 0;
+                    std::int32_t waterl = 0;
                     esm.getHT(waterl);
                     mHasWaterHeightSub = true;
                     mWater = static_cast<float>(waterl);
@@ -228,13 +230,13 @@ namespace ESM
         }
     }
 
-    void Cell::saveTempMarker(ESMWriter& esm, int32_t tempCount) const
+    void Cell::saveTempMarker(ESMWriter& esm, std::int32_t tempCount) const
     {
         if (tempCount != 0)
             esm.writeHNT("NAM0", tempCount);
     }
 
-    void Cell::restore(ESMReader& esm, size_t iCtx) const
+    void Cell::restore(ESMReader& esm, std::size_t iCtx) const
     {
         esm.restoreContext(mContextList.at(iCtx));
     }

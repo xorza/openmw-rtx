@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -33,7 +34,7 @@ namespace Shader
     /// The name a shader reads the texture at `unit` by: its `SceneUtil::TextureType`, or
     /// `diffuseMap` at unit nought where that is neither in `sDefaultTextures` nor
     /// `normalHeightMap`. Good for as long as the state set is.
-    std::string_view textureNameAt(const osg::StateSet& stateSet, const osg::Texture& texture, unsigned int unit);
+    std::string_view textureNameAt(const osg::StateSet& stateSet, const osg::Texture& texture, std::uint32_t unit);
 
     /// `node`'s state set to change: the node's own where it has none yet, and a shallow copy set on
     /// the node where it has one, because that one may be shared or already drawn.
@@ -60,12 +61,12 @@ namespace Shader
     struct AttachedMaps
     {
         const osg::Texture* mNormalMap = nullptr;
-        int mNormalUnit = -1;
+        std::int32_t mNormalUnit = -1;
 
         /// Whether the normal map is the `_nh` file, which carries height in its alpha.
         bool mNormalHeight = false;
 
-        int mSpecularUnit = -1;
+        std::int32_t mSpecularUnit = -1;
     };
 
     /// Adds the maps `diffuseMap`'s file name leads to under `rules`, where the state set has none of
@@ -90,17 +91,17 @@ namespace Shader
 
     /// The texture unit whose coordinate array holds a geometry's tangents, which is where
     /// `ShaderVisitor` puts them and where `SceneUtil::RigGeometry` poses them from.
-    inline constexpr unsigned int sTangentUnit = 7;
+    inline constexpr std::uint32_t sTangentUnit = 7;
 
     /// The unit whose coordinates `geometry`'s unit `unit` is read through: its own, or unit nought's,
     /// or the first other than `sTangentUnit` (whose array holds tangents once built). Nothing where the
     /// geometry has no coordinates. The one rule for both renderers (`ShaderVisitor::adjustGeometry` and
     /// `MapVisitor`).
-    std::optional<unsigned int> coordinatesFor(const osg::Geometry& geometry, unsigned int unit);
+    std::optional<std::uint32_t> coordinatesFor(const osg::Geometry& geometry, std::uint32_t unit);
 
     /// Builds `geometry`'s tangents at `sTangentUnit` with `osgUtil::TangentSpaceGenerator`, from
     /// the coordinates at `unit`, which the caller found it has.
-    void generateTangents(osg::Geometry& geometry, unsigned int unit);
+    void generateTangents(osg::Geometry& geometry, std::uint32_t unit);
 
     /// What a renderer that runs no `ShaderVisitor` still needs of it: the companion maps and the
     /// tangents a normal map is read through, by the same rules over the same state sets, so both
@@ -130,6 +131,6 @@ namespace Shader
         /// The unit of the normal map in force at the node being visited, or -1 where there is
         /// none: set by the nearest state set that binds one and carried down to what it shades, as
         /// the shader visitor carries its requirements.
-        int mNormalUnit = -1;
+        std::int32_t mNormalUnit = -1;
     };
 }

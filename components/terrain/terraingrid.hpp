@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 
 #include <osg/Vec2f>
@@ -26,18 +27,18 @@ namespace Terrain
     {
     public:
         explicit TerrainGrid(osg::Group* parent, osg::Group* compileRoot, Resource::ResourceSystem* resourceSystem,
-            Storage* storage, unsigned int nodeMask, ESM::RefId worldspace, double expiryDelay,
-            unsigned int preCompileMask = ~0u, unsigned int borderMask = 0);
-        TerrainGrid(osg::Group* parent, Storage* storage, ESM::RefId worldspace, unsigned int nodeMask = ~0u);
+            Storage* storage, std::uint32_t nodeMask, ESM::RefId worldspace, double expiryDelay,
+            std::uint32_t preCompileMask = ~0u, std::uint32_t borderMask = 0);
+        TerrainGrid(osg::Group* parent, Storage* storage, ESM::RefId worldspace, std::uint32_t nodeMask = ~0u);
         ~TerrainGrid() override;
 
-        void cacheCell(View* view, int x, int y) override;
+        void cacheCell(View* view, std::int32_t x, std::int32_t y) override;
 
         /// @note Not thread safe.
-        void loadCell(int x, int y) override;
+        void loadCell(std::int32_t x, std::int32_t y) override;
 
         /// @note Not thread safe.
-        void unloadCell(int x, int y) override;
+        void unloadCell(std::int32_t x, std::int32_t y) override;
 
         std::unique_ptr<View> createView() override;
 
@@ -49,7 +50,7 @@ namespace Terrain
         void updateWaterCulling();
 
         // split each ESM::Cell into mNumSplits*mNumSplits terrain chunks
-        unsigned int mNumSplits;
+        std::uint32_t mNumSplits;
 
         CellBorder::CellGrid mGrid;
     };

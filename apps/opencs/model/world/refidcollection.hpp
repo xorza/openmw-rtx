@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QVariant>
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <memory>
@@ -8,6 +8,8 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include <QVariant>
 
 #include "collectionbase.hpp"
 #include "columnbase.hpp"
@@ -38,8 +40,8 @@ namespace CSMWorld
         bool mUserEditable;
 
     public:
-        RefIdColumn(int columnId, Display displayType, int flag = Flag_Table | Flag_Dialogue, bool editable = true,
-            bool userEditable = true);
+        RefIdColumn(std::int32_t columnId, Display displayType, std::int32_t flag = Flag_Table | Flag_Dialogue,
+            bool editable = true, bool userEditable = true);
 
         bool isEditable() const override;
 
@@ -66,21 +68,21 @@ namespace CSMWorld
 
         ~RefIdCollection() override;
 
-        int getSize() const override;
+        std::int32_t getSize() const override;
 
-        ESM::RefId getId(int index) const override;
+        ESM::RefId getId(std::int32_t index) const override;
 
-        int getIndex(const ESM::RefId& id) const override;
+        std::int32_t getIndex(const ESM::RefId& id) const override;
 
-        int getColumns() const override;
+        std::int32_t getColumns() const override;
 
-        const ColumnBase& getColumn(int column) const override;
+        const ColumnBase& getColumn(std::int32_t column) const override;
 
-        QVariant getData(int index, int column) const override;
+        QVariant getData(std::int32_t index, std::int32_t column) const override;
 
-        void setData(int index, int column, const QVariant& data) override;
+        void setData(std::int32_t index, std::int32_t column, const QVariant& data) override;
 
-        void removeRows(int index, int count) override;
+        void removeRows(std::int32_t index, std::int32_t count) override;
 
         void cloneRecord(
             const ESM::RefId& origin, const ESM::RefId& destination, const UniversalId::Type type) override;
@@ -90,11 +92,11 @@ namespace CSMWorld
         void appendBlankRecord(const ESM::RefId& id, UniversalId::Type type) override;
         ///< \param type Will be ignored, unless the collection supports multiple record types
 
-        int searchId(const ESM::RefId& id) const override;
+        std::int32_t searchId(const ESM::RefId& id) const override;
         ////< Search record with \a id.
         /// \return index of record (if found) or -1 (not found)
 
-        void replace(int index, std::unique_ptr<RecordBase> record) override;
+        void replace(std::int32_t index, std::unique_ptr<RecordBase> record) override;
         ///< If the record type does not match, an exception is thrown.
         ///
         /// \attention \a record must not change the ID.
@@ -106,11 +108,11 @@ namespace CSMWorld
 
         const RecordBase& getRecord(const ESM::RefId& id) const override;
 
-        const RecordBase& getRecord(int index) const override;
+        const RecordBase& getRecord(std::int32_t index) const override;
 
         void load(ESM::ESMReader& reader, bool base, UniversalId::Type type);
 
-        int getAppendIndex(const ESM::RefId& id, UniversalId::Type type) const override;
+        std::int32_t getAppendIndex(const ESM::RefId& id, UniversalId::Type type) const override;
         ///< \param type Will be ignored, unless the collection supports multiple record types
 
         std::vector<ESM::RefId> getIds(bool listDeleted) const override;
@@ -118,33 +120,35 @@ namespace CSMWorld
         ///
         /// \param listDeleted include deleted record in the list
 
-        bool reorderRows(int baseIndex, const std::vector<int>& newOrder) override;
+        bool reorderRows(std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder) override;
         ///< Reorder the rows [baseIndex, baseIndex+newOrder.size()) according to the indices
         /// given in \a newOrder (baseIndex+newOrder[0] specifies the new index of row baseIndex).
         ///
         /// \return Success?
 
-        QVariant getNestedData(int row, int column, int subRow, int subColumn) const override;
+        QVariant getNestedData(
+            std::int32_t row, std::int32_t column, std::int32_t subRow, std::int32_t subColumn) const override;
 
-        NestedTableWrapperBase* nestedTable(int row, int column) const override;
+        NestedTableWrapperBase* nestedTable(std::int32_t row, std::int32_t column) const override;
 
-        void setNestedTable(int row, int column, const NestedTableWrapperBase& nestedTable) override;
+        void setNestedTable(std::int32_t row, std::int32_t column, const NestedTableWrapperBase& nestedTable) override;
 
-        int getNestedRowsCount(int row, int column) const override;
+        std::int32_t getNestedRowsCount(std::int32_t row, std::int32_t column) const override;
 
-        int getNestedColumnsCount(int row, int column) const override;
+        std::int32_t getNestedColumnsCount(std::int32_t row, std::int32_t column) const override;
 
-        NestableColumn* getNestableColumn(int column) override;
+        NestableColumn* getNestableColumn(std::int32_t column) override;
 
-        void setNestedData(int row, int column, const QVariant& data, int subRow, int subColumn) override;
+        void setNestedData(std::int32_t row, std::int32_t column, const QVariant& data, std::int32_t subRow,
+            std::int32_t subColumn) override;
 
-        void removeNestedRows(int row, int column, int subRow) override;
+        void removeNestedRows(std::int32_t row, std::int32_t column, std::int32_t subRow) override;
 
-        void addNestedRow(int row, int col, int position) override;
+        void addNestedRow(std::int32_t row, std::int32_t col, std::int32_t position) override;
 
-        void save(int index, ESM::ESMWriter& writer) const;
+        void save(std::int32_t index, ESM::ESMWriter& writer) const;
 
         const RefIdData& getDataSet() const; // I can't figure out a better name for this one :(
-        void copyTo(int index, RefIdCollection& target) const;
+        void copyTo(std::int32_t index, RefIdCollection& target) const;
     };
 }

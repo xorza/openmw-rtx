@@ -1,6 +1,7 @@
 #include "creature.hpp"
 
 #include <cmath>
+#include <cstdint>
 
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
@@ -196,7 +197,7 @@ namespace MWClass
         {
             const auto& invStore
                 = static_cast<const MWWorld::InventoryStore&>(*customData->asCreatureCustomData().mContainerStore);
-            for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+            for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
             {
                 MWWorld::ConstContainerStoreIterator equipped = invStore.getSlot(slot);
                 if (equipped != invStore.end())
@@ -252,7 +253,7 @@ namespace MWClass
         return static_cast<float>(Misc::Rng::roll0to99(world->getPrng())) < hitchance;
     }
 
-    void Creature::hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, int type,
+    void Creature::hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, std::int32_t type,
         const MWWorld::Ptr& victim, const osg::Vec3f& hitPosition, bool success) const
     {
         MWMechanics::CreatureStats& stats = getCreatureStats(ptr);
@@ -291,7 +292,7 @@ namespace MWClass
         }
 
         MWWorld::LiveCellRef<ESM::Creature>* ref = ptr.get<ESM::Creature>();
-        int min = 0, max = 0;
+        std::int32_t min = 0, max = 0;
         switch (type)
         {
             case 0:
@@ -313,7 +314,7 @@ namespace MWClass
         bool healthdmg = true;
         if (!weapon.isEmpty())
         {
-            const unsigned char* attack = nullptr;
+            const std::uint8_t* attack = nullptr;
             if (type == ESM::Weapon::AT_Chop)
                 attack = weapon.get<ESM::Weapon>()->mBase->mData.mChop.data();
             else if (type == ESM::Weapon::AT_Slash)
@@ -545,7 +546,7 @@ namespace MWClass
         return !aiSeq.isInCombat() || aiSeq.isFleeing();
     }
 
-    MWGui::ToolTipInfo Creature::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Creature::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Creature>* ref = ptr.get<ESM::Creature>();
 
@@ -571,7 +572,7 @@ namespace MWClass
         return stats.getAttribute(ESM::Attribute::Strength).getModified() * 5;
     }
 
-    int Creature::getServices(const MWWorld::ConstPtr& actor) const
+    std::int32_t Creature::getServices(const MWWorld::ConstPtr& actor) const
     {
         return actor.get<ESM::Creature>()->mBase->mAiData.mServices;
     }
@@ -584,7 +585,7 @@ namespace MWClass
 
     ESM::RefId Creature::getSoundIdFromSndGen(const MWWorld::Ptr& ptr, std::string_view name) const
     {
-        int type = getSndGenTypeFromName(ptr, name);
+        std::int32_t type = getSndGenTypeFromName(ptr, name);
         if (type < 0)
             return ESM::RefId();
 
@@ -671,7 +672,7 @@ namespace MWClass
         return isFlagBitSet(ptr, static_cast<ESM::Creature::Flags>(ESM::Creature::Walks | ESM::Creature::Bipedal));
     }
 
-    int Creature::getSndGenTypeFromName(const MWWorld::Ptr& ptr, std::string_view name)
+    std::int32_t Creature::getSndGenTypeFromName(const MWWorld::Ptr& ptr, std::string_view name)
     {
         if (name == "left")
         {
@@ -790,7 +791,7 @@ namespace MWClass
         customData.mCreatureStats.writeState(creatureState.mCreatureStats);
     }
 
-    int Creature::getBaseGold(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Creature::getBaseGold(const MWWorld::ConstPtr& ptr) const
     {
         return ptr.get<ESM::Creature>()->mBase->mData.mGold;
     }
@@ -838,7 +839,7 @@ namespace MWClass
         }
     }
 
-    int Creature::getBaseFightRating(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Creature::getBaseFightRating(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Creature>* ref = ptr.get<ESM::Creature>();
         return ref->mBase->mAiData.mFight;
@@ -850,12 +851,12 @@ namespace MWClass
         scale *= ref->mBase->mScale;
     }
 
-    void Creature::setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, int value) const
+    void Creature::setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, std::int32_t value) const
     {
-        MWMechanics::setBaseAISetting<ESM::Creature>(id, setting, static_cast<unsigned char>(value));
+        MWMechanics::setBaseAISetting<ESM::Creature>(id, setting, static_cast<std::uint8_t>(value));
     }
 
-    void Creature::modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, int amount) const
+    void Creature::modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, std::int32_t amount) const
     {
         MWMechanics::modifyBaseInventory<ESM::Creature>(actorId, itemId, amount);
     }

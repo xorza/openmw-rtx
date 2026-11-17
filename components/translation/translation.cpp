@@ -1,5 +1,6 @@
 #include "translation.hpp"
 
+#include <cstddef>
 #include <fstream>
 
 #include <components/misc/pathhelpers.hpp>
@@ -52,7 +53,7 @@ namespace Translation
             {
                 const std::string_view utf8 = mEncoder->getUtf8(line);
 
-                size_t tabPos = utf8.find('\t');
+                std::size_t tabPos = utf8.find('\t');
                 if (tabPos != std::string::npos && tabPos > 0 && tabPos < utf8.size() - 1)
                 {
                     const std::string_view key = utf8.substr(0, tabPos);

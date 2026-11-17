@@ -154,7 +154,7 @@ namespace MWRender
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
-        void windowResized(int x, int y, int width, int height) noexcept override;
+        void windowResized(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) noexcept override;
 
         void advance(double simulationTime) noexcept override;
         void updateTraversal() noexcept override;
@@ -187,7 +187,7 @@ namespace MWRender
         /// the content is read: `Rtx::Renderer::awaitKernels`; and the content's preparation beside it.
         void prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener) override;
 
-        void capture(osg::Image& image, int width, int height) noexcept override;
+        void capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept override;
         void saveScreenshot() noexcept override;
 
         /// A present mode: off is mailbox rather than immediate, and adaptive is relaxed FIFO.

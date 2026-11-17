@@ -105,7 +105,7 @@ namespace
 
     void updateAnisotropyComboBox(MyGUI::ComboBox* box)
     {
-        const int anisotropy = Settings::general().mAnisotropy;
+        const std::int32_t anisotropy = Settings::general().mAnisotropy;
         if (anisotropy <= 1)
             box->setIndexSelected(0);
         else if (anisotropy <= 2)
@@ -203,21 +203,23 @@ namespace MWGui
                     value = std::clamp(value, min, max);
                     value = (value - min) / (max - min);
 
-                    scroll->setScrollPosition(
-                        static_cast<size_t>(std::round(value * static_cast<float>((scroll->getScrollRange() - 1)))));
+                    scroll->setScrollPosition(static_cast<std::size_t>(
+                        std::round(value * static_cast<float>((scroll->getScrollRange() - 1)))));
                 }
                 else if (valueType == "Integer")
                 {
-                    int min = 0, max = 0;
+                    std::int32_t min = 0, max = 0;
                     getSettingMinMax(scroll, min, max);
-                    const int value = Settings::get<int>(getSettingCategory(current), getSettingName(current));
+                    const std::int32_t value
+                        = Settings::get<std::int32_t>(getSettingCategory(current), getSettingName(current));
                     argNames.emplace_back("value");
                     args.emplace_back(value);
-                    scroll->setScrollPosition(static_cast<size_t>(std::clamp(value, min, max) - min));
+                    scroll->setScrollPosition(static_cast<std::size_t>(std::clamp(value, min, max) - min));
                 }
                 else
                 {
-                    const int value = Settings::get<int>(getSettingCategory(current), getSettingName(current));
+                    const std::int32_t value
+                        = Settings::get<std::int32_t>(getSettingCategory(current), getSettingName(current));
                     argNames.emplace_back("value");
                     args.emplace_back(value);
                     scroll->setScrollPosition(static_cast<std::size_t>(value));
@@ -264,7 +266,7 @@ namespace MWGui
         : WindowBase("openmw_settings_window.layout")
         , mUpscalers(upscalers)
         , mKeyboardMode(true)
-        , mCurrentPage(static_cast<size_t>(-1))
+        , mCurrentPage(static_cast<std::size_t>(-1))
         , mCfgMgr(cfgMgr)
     {
         // One cell to a step, over the range the setting's own category states
@@ -278,7 +280,7 @@ namespace MWGui
 
         // One ray to a step, up to the most the trace keeps a landing's list for
         getWidget(mRayTracingBounceRays, "RayTracingBounceRaysSlider");
-        constexpr int mostRays = Settings::RTXCategory::sMaxBounceRays;
+        constexpr std::int32_t mostRays = Settings::RTXCategory::sMaxBounceRays;
         mRayTracingBounceRays->setUserString("SettingMin", "1");
         mRayTracingBounceRays->setUserString("SettingMax", MyGUI::utility::toString(mostRays));
         mRayTracingBounceRays->setScrollRange(static_cast<std::size_t>(mostRays));
@@ -408,7 +410,7 @@ namespace MWGui
             MyGUI::LanguageManager::getInstance().replaceTags("#{Interface:None}"), std::string());
         mSecondaryLanguage->setIndexSelected(0);
 
-        size_t i = 0;
+        std::size_t i = 0;
         for (const auto& language : availableLanguages)
         {
             icu::Locale locale(language.c_str());
@@ -434,7 +436,7 @@ namespace MWGui
         mControllerButtons.mLStick = "#{Interface:Mouse}";
     }
 
-    void SettingsWindow::onTabChanged(MyGUI::TabControl* /*sender*/, size_t /*index*/)
+    void SettingsWindow::onTabChanged(MyGUI::TabControl* /*sender*/, std::size_t /*index*/)
     {
         resetScrollbars();
     }
@@ -444,7 +446,7 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->toggleSettingsWindow();
     }
 
-    void SettingsWindow::onResolutionSelected(MyGUI::ListBox* /*sender*/, size_t index)
+    void SettingsWindow::onResolutionSelected(MyGUI::ListBox* /*sender*/, std::size_t index)
     {
         if (index == MyGUI::ITEM_NONE)
             return;
@@ -459,7 +461,8 @@ namespace MWGui
 
     void SettingsWindow::onResolutionAccept()
     {
-        auto resolution = mResolutionList->getItemDataAt<std::pair<int, int>>(mResolutionList->getIndexSelected());
+        auto resolution = mResolutionList->getItemDataAt<std::pair<std::int32_t, std::int32_t>>(
+            mResolutionList->getIndexSelected());
         if (resolution)
         {
             Settings::video().mResolutionX.set(resolution->first);
@@ -480,12 +483,12 @@ namespace MWGui
 
         // A side of nought is Native, whatever the other
         const bool native = Settings::video().mResolutionX == 0 || Settings::video().mResolutionY == 0;
-        const int currentX = native ? 0 : Settings::video().mResolutionX.get();
-        const int currentY = native ? 0 : Settings::video().mResolutionY.get();
+        const std::int32_t currentX = native ? 0 : Settings::video().mResolutionX.get();
+        const std::int32_t currentY = native ? 0 : Settings::video().mResolutionY.get();
 
-        for (size_t i = 0; i < mResolutionList->getItemCount(); ++i)
+        for (std::size_t i = 0; i < mResolutionList->getItemCount(); ++i)
         {
-            auto resolution = mResolutionList->getItemDataAt<std::pair<int, int>>(i);
+            auto resolution = mResolutionList->getItemDataAt<std::pair<std::int32_t, std::int32_t>>(i);
             if (resolution && resolution->first == currentX && resolution->second == currentY)
             {
                 mResolutionList->setIndexSelected(i);
@@ -494,7 +497,7 @@ namespace MWGui
         }
     }
 
-    void SettingsWindow::onLanguageChanged(size_t langPriority, MyGUI::ComboBox* sender, size_t pos)
+    void SettingsWindow::onLanguageChanged(std::size_t langPriority, MyGUI::ComboBox* sender, std::size_t pos)
     {
         if (pos == MyGUI::ITEM_NONE)
             return;
@@ -523,7 +526,7 @@ namespace MWGui
             "#{OMWEngine:ChangeRequiresRestart}", { "#{Interface:OK}" }, true);
     }
 
-    void SettingsWindow::onVSyncModeChanged(MyGUI::ComboBox* sender, size_t pos)
+    void SettingsWindow::onVSyncModeChanged(MyGUI::ComboBox* sender, std::size_t pos)
     {
         if (pos == MyGUI::ITEM_NONE)
             return;
@@ -532,7 +535,7 @@ namespace MWGui
         apply();
     }
 
-    void SettingsWindow::onRayTracingUpscaleChanged(MyGUI::ComboBox* sender, size_t pos)
+    void SettingsWindow::onRayTracingUpscaleChanged(MyGUI::ComboBox* sender, std::size_t pos)
     {
         const std::optional<Rtx::Upscale> chosen = Rtx::menuValue(Rtx::sUpscaleMenu, pos);
         if (!chosen.has_value())
@@ -542,7 +545,7 @@ namespace MWGui
         apply();
     }
 
-    void SettingsWindow::onRayTracingUpscalerChanged(MyGUI::ComboBox* sender, size_t pos)
+    void SettingsWindow::onRayTracingUpscalerChanged(MyGUI::ComboBox* sender, std::size_t pos)
     {
         if (pos >= mUpscalers.size())
             return;
@@ -557,7 +560,7 @@ namespace MWGui
             "#{OMWEngine:ChangeRequiresRestart}", { "#{Interface:OK}" }, true);
     }
 
-    void SettingsWindow::onWindowModeChanged(MyGUI::ComboBox* sender, size_t pos)
+    void SettingsWindow::onWindowModeChanged(MyGUI::ComboBox* sender, std::size_t pos)
     {
         if (pos == MyGUI::ITEM_NONE)
             return;
@@ -597,7 +600,7 @@ namespace MWGui
         }
     }
 
-    void SettingsWindow::onAnisotropyChanged(MyGUI::ComboBox* /*sender*/, size_t pos)
+    void SettingsWindow::onAnisotropyChanged(MyGUI::ComboBox* /*sender*/, std::size_t pos)
     {
         if (pos == MyGUI::ITEM_NONE)
             return;
@@ -628,13 +631,13 @@ namespace MWGui
         apply();
     }
 
-    void SettingsWindow::onResChange(int /*width*/, int /*height*/)
+    void SettingsWindow::onResChange(std::int32_t /*width*/, std::int32_t /*height*/)
     {
         center();
         highlightCurrentResolution();
     }
 
-    void SettingsWindow::onSliderChangePosition(MyGUI::ScrollBar* scroller, size_t pos)
+    void SettingsWindow::onSliderChangePosition(MyGUI::ScrollBar* scroller, std::size_t pos)
     {
         if (getSettingType(scroller) != "Slider")
             return;
@@ -646,13 +649,13 @@ namespace MWGui
             apply();
     }
 
-    void SettingsWindow::onSliderSettled(MyGUI::ScrollBar* scroller, size_t pos)
+    void SettingsWindow::onSliderSettled(MyGUI::ScrollBar* scroller, std::size_t pos)
     {
         takeSliderPosition(scroller, pos, true);
         apply();
     }
 
-    void SettingsWindow::takeSliderPosition(MyGUI::ScrollBar* scroller, size_t pos, bool write)
+    void SettingsWindow::takeSliderPosition(MyGUI::ScrollBar* scroller, std::size_t pos, bool write)
     {
         std::vector<icu::UnicodeString> argNames;
         std::vector<icu::Formattable> args;
@@ -680,19 +683,19 @@ namespace MWGui
         }
         else if (valueType == "Integer")
         {
-            int min = 0, max = 0;
+            std::int32_t min = 0, max = 0;
             getSettingMinMax(scroller, min, max);
-            const int value = min + static_cast<int>(pos);
+            const std::int32_t value = min + static_cast<std::int32_t>(pos);
             if (write)
-                Settings::get<int>(getSettingCategory(scroller), getSettingName(scroller)).set(value);
+                Settings::get<std::int32_t>(getSettingCategory(scroller), getSettingName(scroller)).set(value);
             argNames.emplace_back("value");
             args.emplace_back(value);
         }
         else
         {
-            int intValue = static_cast<int>(pos);
+            auto intValue = static_cast<std::int32_t>(pos);
             if (write)
-                Settings::get<int>(getSettingCategory(scroller), getSettingName(scroller)).set(intValue);
+                Settings::get<std::int32_t>(getSettingCategory(scroller), getSettingName(scroller)).set(intValue);
             argNames.emplace_back("value");
             args.emplace_back(intValue);
         }
@@ -742,7 +745,7 @@ namespace MWGui
         const auto& actions
             = mKeyboardMode ? inputManager->getActionKeySorting() : inputManager->getActionControllerSorting();
 
-        for (const int& action : actions)
+        for (const std::int32_t& action : actions)
         {
             std::string desc{ inputManager->getActionDescription(action) };
             if (desc.empty())
@@ -784,7 +787,7 @@ namespace MWGui
 
     void SettingsWindow::updateVSyncModeSettings()
     {
-        mVSyncModeList->setIndexSelected(static_cast<size_t>(Settings::video().mVsyncMode));
+        mVSyncModeList->setIndexSelected(static_cast<std::size_t>(Settings::video().mVsyncMode));
     }
 
     void SettingsWindow::updateRayTracingSettings()
@@ -811,15 +814,15 @@ namespace MWGui
 
     void SettingsWindow::layoutControlsBox()
     {
-        const int h = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
-        const int w = mControlsBox->getWidth() - 28;
-        const int noWidgetsInRow = 2;
-        const int totalH = static_cast<int>(mControlsBox->getChildCount() / noWidgetsInRow) * h;
+        const std::int32_t h = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t w = mControlsBox->getWidth() - 28;
+        const std::int32_t noWidgetsInRow = 2;
+        const std::int32_t totalH = static_cast<std::int32_t>(mControlsBox->getChildCount() / noWidgetsInRow) * h;
 
-        for (size_t i = 0; i < mControlsBox->getChildCount(); i++)
+        for (std::size_t i = 0; i < mControlsBox->getChildCount(); i++)
         {
             MyGUI::Widget* widget = mControlsBox->getChildAt(i);
-            widget->setCoord(0, static_cast<int>(i / noWidgetsInRow * static_cast<std::size_t>(h)), w, h);
+            widget->setCoord(0, static_cast<std::int32_t>(i / noWidgetsInRow * static_cast<std::size_t>(h)), w, h);
         }
 
         // Canvas size must be expressed with VScroll disabled, otherwise MyGUI would expand the scroll area when the
@@ -838,10 +841,10 @@ namespace MWGui
 
         struct WeightedPage
         {
-            size_t mIndex;
+            std::size_t mIndex;
             std::string mName;
-            size_t mNameWeight;
-            size_t mHintWeight;
+            std::size_t mNameWeight;
+            std::size_t mHintWeight;
 
             constexpr bool operator<(const WeightedPage& rhs) const
             {
@@ -856,11 +859,11 @@ namespace MWGui
         const std::vector<std::string> patternArray = generatePatternArray(mScriptFilter->getCaption());
         std::vector<WeightedPage> weightedPages;
         weightedPages.reserve(LuaUi::scriptSettingsPageCount());
-        for (size_t i = 0; i < LuaUi::scriptSettingsPageCount(); ++i)
+        for (std::size_t i = 0; i < LuaUi::scriptSettingsPageCount(); ++i)
         {
             LuaUi::ScriptSettingsPage page = LuaUi::scriptSettingsPageAt(i);
-            size_t nameWeight = weightedSearch(page.mName, patternArray);
-            size_t hintWeight = weightedSearch(page.mSearchHints, patternArray);
+            std::size_t nameWeight = weightedSearch(page.mName, patternArray);
+            std::size_t hintWeight = weightedSearch(page.mSearchHints, patternArray);
             if ((nameWeight + hintWeight) > 0)
                 weightedPages.push_back({ i, page.mName, nameWeight, hintWeight });
         }
@@ -883,20 +886,20 @@ namespace MWGui
         renderScriptSettings();
     }
 
-    void SettingsWindow::onScriptListSelection(MyGUI::ListBox*, size_t index)
+    void SettingsWindow::onScriptListSelection(MyGUI::ListBox*, std::size_t index)
     {
         mScriptAdapter->detach();
-        mCurrentPage = static_cast<size_t>(-1);
+        mCurrentPage = static_cast<std::size_t>(-1);
         if (index < mScriptList->getItemCount())
         {
-            mCurrentPage = *mScriptList->getItemDataAt<size_t>(index);
+            mCurrentPage = *mScriptList->getItemDataAt<std::size_t>(index);
             LuaUi::attachPageAt(mCurrentPage, mScriptAdapter);
         }
     }
 
     void SettingsWindow::onRebindAction(MyGUI::Widget* sender)
     {
-        int actionId = *sender->getUserData<int>();
+        std::int32_t actionId = *sender->getUserData<std::int32_t>();
 
         sender->castType<MyGUI::Button>()->setCaptionWithReplacing("#{Interface:None}");
 
@@ -906,13 +909,13 @@ namespace MWGui
         MWBase::Environment::get().getInputManager()->enableDetectingBindingMode(actionId, mKeyboardMode);
     }
 
-    void SettingsWindow::onInputTabMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void SettingsWindow::onInputTabMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (static_cast<float>(mControlsBox->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mControlsBox->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mControlsBox->setViewOffset(MyGUI::IntPoint(0,
-                static_cast<int>(
+                static_cast<std::int32_t>(
                     static_cast<float>(mControlsBox->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
@@ -965,15 +968,15 @@ namespace MWGui
         auto minSize = window->getMinSize();
 
         // Window should be at minimum wide enough to show all tabs.
-        int tabBarWidth = 0;
-        for (uint32_t i = 0; i < mSettingsTab->getItemCount(); i++)
+        std::int32_t tabBarWidth = 0;
+        for (std::uint32_t i = 0; i < mSettingsTab->getItemCount(); i++)
         {
             tabBarWidth += mSettingsTab->getButtonWidthAt(i);
         }
 
         // Need to include window margins
-        int margins = mMainWidget->getWidth() - mSettingsTab->getWidth();
-        int minimumWindowWidth = tabBarWidth + margins;
+        std::int32_t margins = mMainWidget->getWidth() - mSettingsTab->getWidth();
+        std::int32_t minimumWindowWidth = tabBarWidth + margins;
 
         if (minimumWindowWidth > minSize.width)
         {
@@ -1000,7 +1003,7 @@ namespace MWGui
         }
         else if (arg.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)
         {
-            size_t index = mSettingsTab->getIndexSelected();
+            std::size_t index = mSettingsTab->getIndexSelected();
             index = wrap(index, mSettingsTab->getItemCount(), -1);
             mSettingsTab->setIndexSelected(index);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
@@ -1008,7 +1011,7 @@ namespace MWGui
         }
         else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)
         {
-            size_t index = mSettingsTab->getIndexSelected();
+            std::size_t index = mSettingsTab->getIndexSelected();
             index = wrap(index, mSettingsTab->getItemCount(), 1);
             mSettingsTab->setIndexSelected(index);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));

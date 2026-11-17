@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include "alignment.hpp"
@@ -27,7 +28,7 @@ namespace LuaUi
         MyGUI::IntSize mChildrenSize;
         Alignment mAlign{};
         Alignment mArrange{};
-        int mGap{};
+        std::int32_t mGap{};
         bool mWrap{};
 
         template <typename T>

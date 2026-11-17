@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -30,7 +31,7 @@ namespace Gui
         }
 
         /// Every visible line's height and its top, in the list's client.
-        void expectLinesAt(MyGUI::ListBox& list, int height, int offset)
+        void expectLinesAt(MyGUI::ListBox& list, std::int32_t height, std::int32_t offset)
         {
             MyGUI::Widget* const client = list.getClientWidget();
             std::size_t shown = 0;
@@ -40,7 +41,7 @@ namespace Gui
                 if (!line->getVisible())
                     continue;
                 EXPECT_EQ(line->getHeight(), height) << "line " << at;
-                EXPECT_EQ(line->getTop(), static_cast<int>(at) * height - offset) << "line " << at;
+                EXPECT_EQ(line->getTop(), static_cast<std::int32_t>(at) * height - offset) << "line " << at;
                 ++shown;
             }
             EXPECT_GT(shown, 0u) << "the list shows no line";

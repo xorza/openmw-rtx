@@ -1,5 +1,7 @@
 #include "skillcheck.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -17,14 +19,14 @@ CSMTools::SkillCheckStage::SkillCheckStage(const CSMWorld::IdCollection<ESM::Ski
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::SkillCheckStage::setup()
+std::int32_t CSMTools::SkillCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mSkills.getSize();
 }
 
-void CSMTools::SkillCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::SkillCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Skill>& record = mSkills.getRecord(stage);
 
@@ -39,7 +41,7 @@ void CSMTools::SkillCheckStage::perform(int stage, CSMDoc::Messages& messages)
     if (skill.mDescription.empty())
         messages.add(id, "Description is missing", "", CSMDoc::Message::Severity_Warning);
 
-    for (int i = 0; i < 4; ++i)
+    for (std::int32_t i = 0; i < 4; ++i)
         if (skill.mData.mUseValue[static_cast<std::size_t>(i)] < 0)
         {
             messages.add(id, "Use value #" + std::to_string(i) + " is negative", "", CSMDoc::Message::Severity_Error);

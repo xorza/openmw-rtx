@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <ranges>
 #include <stdexcept>
@@ -499,7 +501,7 @@ std::vector<MWWorld::Ptr> MWWorld::WorldModel::getAll(ESM::RefId id, ESM::RefId 
     return result;
 }
 
-size_t MWWorld::WorldModel::countSavedGameRecords() const
+std::size_t MWWorld::WorldModel::countSavedGameRecords() const
 {
     return static_cast<std::size_t>(
         std::count_if(mCells.begin(), mCells.end(), [](const auto& v) { return v.second.hasState(); }));
@@ -537,7 +539,7 @@ public:
     }
 };
 
-bool MWWorld::WorldModel::readRecord(ESM::ESMReader& reader, uint32_t type)
+bool MWWorld::WorldModel::readRecord(ESM::ESMReader& reader, std::uint32_t type)
 {
     if (type == ESM::REC_CSTA)
     {

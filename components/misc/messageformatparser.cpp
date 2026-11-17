@@ -1,15 +1,17 @@
 #include "messageformatparser.hpp"
 
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
 
 namespace
 {
-    int parseNumber(std::size_t& i, std::string_view m, int fallback)
+    std::int32_t parseNumber(std::size_t& i, std::string_view m, std::int32_t fallback)
     {
         if (i < m.size() && m[i] >= '0' && m[i] <= '9')
         {
             const char* start = m.data() + i;
-            int parsed = 0;
+            std::int32_t parsed = 0;
             auto [ptr, ec] = std::from_chars(start, m.data() + m.size(), parsed);
             i += static_cast<std::size_t>(ptr - start);
             if (ec == std::errc())
@@ -40,7 +42,7 @@ namespace Misc
                 continue;
             }
 
-            int flags = None;
+            std::int32_t flags = None;
             while (i < m.size())
             {
                 if (m[i] == '-')
@@ -58,11 +60,11 @@ namespace Misc
                 ++i;
             }
 
-            int width = parseNumber(i, m, -1);
+            std::int32_t width = parseNumber(i, m, -1);
 
             if (i < m.size())
             {
-                int precision = -1;
+                std::int32_t precision = -1;
                 if (m[i] == '.')
                 {
                     ++i;

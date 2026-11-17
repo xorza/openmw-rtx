@@ -93,17 +93,17 @@ namespace MWRender
         void requestMap(const MWWorld::CellStore* cell);
 
         void addCell(MWWorld::CellStore* cell);
-        void removeExteriorCell(int x, int y);
+        void removeExteriorCell(std::int32_t x, std::int32_t y);
 
         void removeCell(MWWorld::CellStore* cell);
 
         /// The picture of this segment, for a widget to show, or null where the cell has not been mapped. Shared,
         /// so that a widget still showing it keeps it alive after the segment has been dropped or redrawn into a
         /// new view.
-        std::shared_ptr<OffscreenView> getMapView(int x, int y);
+        std::shared_ptr<OffscreenView> getMapView(std::int32_t x, std::int32_t y);
 
         /// The fog of war over this segment, for a widget to show, or null where it has none.
-        std::unique_ptr<MyGUI::ITexture> makeFogOfWarGuiTexture(int x, int y);
+        std::unique_ptr<MyGUI::ITexture> makeFogOfWarGuiTexture(std::int32_t x, std::int32_t y);
 
         /// The renderer the tiles are drawn by, which the world map's overlay is made by too
         Renderer& getRenderer() { return mRenderer; }
@@ -117,8 +117,8 @@ namespace MWRender
          * @remarks This is used to draw a "fog of war" effect
          * to hide areas on the map the player has not discovered yet.
          */
-        void updatePlayer(const osg::Vec3f& position, const osg::Quat& orientation, float& u, float& v, int& x, int& y,
-            osg::Vec3f& direction);
+        void updatePlayer(const osg::Vec3f& position, const osg::Quat& orientation, float& u, float& v, std::int32_t& x,
+            std::int32_t& y, osg::Vec3f& direction);
 
         /**
          * Save the fog of war for this cell to its CellStore.
@@ -129,14 +129,14 @@ namespace MWRender
         /**
          * Get the interior map texture index and normalized position on this texture, given a world position
          */
-        void worldToInteriorMapPosition(osg::Vec2f pos, float& nX, float& nY, int& x, int& y) const;
+        void worldToInteriorMapPosition(osg::Vec2f pos, float& nX, float& nY, std::int32_t& x, std::int32_t& y) const;
 
-        osg::Vec2f interiorMapToWorldPosition(float nX, float nY, int x, int y) const;
+        osg::Vec2f interiorMapToWorldPosition(float nX, float nY, std::int32_t x, std::int32_t y) const;
 
         /**
          * Check if a given position is explored by the player (i.e. not obscured by fog of war)
          */
-        bool isPositionExplored(float nX, float nY, int x, int y);
+        bool isPositionExplored(float nX, float nY, std::int32_t x, std::int32_t y);
 
         MyGUI::IntRect getInteriorGrid() const;
 
@@ -174,27 +174,27 @@ namespace MWRender
 
             // What mView was described with; another range or resolution rebuilds it
             DepthRange mRange;
-            int mResolution = 0;
+            std::int32_t mResolution = 0;
 
             osg::ref_ptr<SceneUtil::PaintedTexture> mFogOfWarTexture;
             osg::ref_ptr<osg::Image> mFogOfWarImage;
         };
 
-        typedef std::map<std::pair<int, int>, MapSegment> SegmentMap;
+        typedef std::map<std::pair<std::int32_t, std::int32_t>, MapSegment> SegmentMap;
         SegmentMap mExteriorSegments;
         SegmentMap mInteriorSegments;
 
         /// A tile's side in pixels: the setting's at the interface's raster as it is now, so a tile
         /// drawn after a scale or a display moved is as sharp as the text beside it.
-        int mapResolution() const;
+        std::int32_t mapResolution() const;
 
         // the dynamic texture is a bottleneck, so don't set this too high
-        static const int sFogOfWarResolution = 32;
+        static const std::int32_t sFogOfWarResolution = 32;
 
         // size of a map segment (for exteriors, 1 cell)
-        int mMapWorldSize;
+        std::int32_t mMapWorldSize;
 
-        int mCellDistance;
+        std::int32_t mCellDistance;
 
         float mAngle;
         osg::Vec2f rotatePoint(const osg::Vec2f& point, const osg::Vec2f& center, const float angle) const;
@@ -202,14 +202,14 @@ namespace MWRender
         void requestExteriorMap(const MWWorld::CellStore* cell, MapSegment& segment);
         void requestInteriorMap(const MWWorld::CellStore* cell);
 
-        void draw(
-            int segmentX, int segmentY, float left, float top, const osg::Vec3d& upVector, const DepthRange& range);
+        void draw(std::int32_t segmentX, std::int32_t segmentY, float left, float top, const osg::Vec3d& upVector,
+            const DepthRange& range);
 
         osg::BoundingBox mBounds;
         osg::Vec2f mCenter;
         bool mInterior;
 
-        std::uint8_t getExteriorNeighbourFlags(int cellX, int cellY) const;
+        std::uint8_t getExteriorNeighbourFlags(std::int32_t cellX, std::int32_t cellY) const;
     };
 
 }

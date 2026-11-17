@@ -1,5 +1,7 @@
 #include "tracedground.hpp"
 
+#include <cstdint>
+
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwworld/cell.hpp>
@@ -26,7 +28,7 @@ namespace MWRender
     }
 
     TracedGround::TracedGround(
-        const GroundSpec& spec, Resource::SceneManager& scenes, const unsigned int nodeMask, Rtx::CellRing& ring)
+        const GroundSpec& spec, Resource::SceneManager& scenes, const std::uint32_t nodeMask, Rtx::CellRing& ring)
         : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, *this, nodeMask, spec.mWorldspace)
         , mRing(ring)
     {
@@ -42,13 +44,14 @@ namespace MWRender
         return mRing.placementsIn(cell);
     }
 
-    bool TracedGround::enableReference(int type, const MWWorld::ConstPtr& ptr, const bool enabled)
+    bool TracedGround::enableReference(std::int32_t type, const MWWorld::ConstPtr& ptr, const bool enabled)
     {
         mRing.setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);
         return false;
     }
 
-    void TracedGround::blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now)
+    void TracedGround::blacklistReference(
+        std::int32_t type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now)
     {
         const ESM::RefNum refnum = now.getCellRef().getRefNum();
         if (now.getCellRef().getCount() == 0)

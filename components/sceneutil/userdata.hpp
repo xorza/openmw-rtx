@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 
 #include <osg/CopyOp>
@@ -52,7 +53,7 @@ namespace SceneUtil
         osg::UserDataContainer* container = object.getUserDataContainer();
         if (container == nullptr)
             return nullptr;
-        for (unsigned int i = 0; i < container->getNumUserObjects(); ++i)
+        for (std::uint32_t i = 0; i < container->getNumUserObjects(); ++i)
             if (auto* data = dynamic_cast<UserData<T>*>(container->getUserObject(i)))
                 return &data->mValue;
         return nullptr;
@@ -67,7 +68,7 @@ namespace SceneUtil
         osg::UserDataContainer* container = object.getUserDataContainer();
         if (container == nullptr)
             return;
-        for (unsigned int i = 0; i < container->getNumUserObjects(); ++i)
+        for (std::uint32_t i = 0; i < container->getNumUserObjects(); ++i)
             if (auto* data = dynamic_cast<UserData<T>*>(container->getUserObject(i)))
                 f(data->mValue);
     }

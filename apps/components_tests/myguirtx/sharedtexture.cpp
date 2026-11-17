@@ -1,5 +1,6 @@
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -25,10 +26,11 @@ namespace MyGUIRtx
     {
         /// A packed RGBA picture whose bytes count up from `first`, so every byte sent says which
         /// picture and which place it came from.
-        osg::ref_ptr<osg::Image> makePicture(const int width, const int height, const std::uint8_t first)
+        osg::ref_ptr<osg::Image> makePicture(
+            const std::int32_t width, const std::int32_t height, const std::uint8_t first)
         {
             osg::ref_ptr<osg::Image> image = Rtx::Testing::makeImage("", width, height);
-            for (unsigned int at = 0; at < image->getTotalSizeInBytes(); ++at)
+            for (std::uint32_t at = 0; at < image->getTotalSizeInBytes(); ++at)
                 image->data()[at] = static_cast<std::uint8_t>(first + at);
             return image;
         }
@@ -65,7 +67,7 @@ namespace MyGUIRtx
             EXPECT_EQ(renderer.mGuiSent, 1u);
 
             // The second of three rows, 16 bytes in: what a comparison would have sent alone.
-            for (int x = 0; x < 16; ++x)
+            for (std::int32_t x = 0; x < 16; ++x)
                 first->data(0, 1)[x] = 200;
             first->dirty();
             mirror.refresh();
@@ -94,7 +96,7 @@ namespace MyGUIRtx
             // Three channels, as a save's thumbnail is: each byte read as n / 255 and written back
             // as n / 255 * 255 + 0.5 rounded down, which is n, beside an opaque alpha.
             const osg::ref_ptr<osg::Image> rgb = Rtx::Testing::makeImage("", 2, 1, GL_RGB, GL_UNSIGNED_BYTE);
-            for (unsigned int at = 0; at < 6; ++at)
+            for (std::uint32_t at = 0; at < 6; ++at)
                 rgb->data()[at] = static_cast<std::uint8_t>(10 * (at + 1));
             texture->setImage(rgb);
             mirror.refresh();
@@ -127,25 +129,25 @@ namespace MyGUIRtx
         /// picture, which is no bytes, goes through `getColor` itself.
         TEST(RtxSharedTextureTest, aPictureIsSentAsItsColoursReadInEveryFormat)
         {
-            constexpr int width = 3;
-            constexpr int height = 2;
+            constexpr std::int32_t width = 3;
+            constexpr std::int32_t height = 2;
             const std::array<GLenum, 6> formats{ GL_RGBA, GL_BGRA, GL_RGB, GL_BGR, GL_LUMINANCE, GL_LUMINANCE_ALPHA };
             for (const GLenum format : formats)
             {
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->allocateImage(width, height, 1, format, GL_UNSIGNED_BYTE, 4);
-                for (unsigned int at = 0; at < image->getTotalSizeInBytes(); ++at)
+                for (std::uint32_t at = 0; at < image->getTotalSizeInBytes(); ++at)
                     image->data()[at] = static_cast<std::uint8_t>(17 + 37 * at);
 
                 std::vector<std::uint8_t> read;
-                for (int y = 0; y < height; ++y)
-                    for (int x = 0; x < width; ++x)
+                for (std::int32_t y = 0; y < height; ++y)
+                    for (std::int32_t x = 0; x < width; ++x)
                     {
                         const osg::Vec4f colour
-                            = image->getColor(static_cast<unsigned int>(x), static_cast<unsigned int>(y));
-                        for (int channel = 0; channel < 4; ++channel)
+                            = image->getColor(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y));
+                        for (std::int32_t channel = 0; channel < 4; ++channel)
                             read.push_back(static_cast<std::uint8_t>(
-                                std::lround(colour[static_cast<unsigned int>(channel)] * 255.0f)));
+                                std::lround(colour[static_cast<std::uint32_t>(channel)] * 255.0f)));
                     }
 
                 Rtx::Testing::CountingRenderer renderer;
@@ -156,7 +158,7 @@ namespace MyGUIRtx
 
             osg::ref_ptr<osg::Image> floats = Rtx::Testing::makeImage("", width, height, GL_RGBA, GL_FLOAT);
             auto* values = reinterpret_cast<float*>(floats->data());
-            for (int at = 0; at < width * height * 4; ++at)
+            for (std::int32_t at = 0; at < width * height * 4; ++at)
                 values[at] = static_cast<float>(at) / 23.0f;
             Rtx::Testing::CountingRenderer renderer;
             const osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D(floats);

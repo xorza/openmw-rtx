@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm3/animationstate.hpp>
 #include <components/esm3/creaturestats.hpp>
 #include <components/esm3/loadskil.hpp>
@@ -11,7 +13,7 @@ namespace ESSImport
 {
 
     // OpenMW uses Health,Magicka,Fatigue, MW uses Health,Fatigue,Magicka
-    int translateDynamicIndex(int mwIndex);
+    std::int32_t translateDynamicIndex(std::int32_t mwIndex);
 
     void convertACDT(const ACDT& acdt, ESM::CreatureStats& cStats);
     void convertACSC(const ACSC& acsc, ESM::CreatureStats& cStats);

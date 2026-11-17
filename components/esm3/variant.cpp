@@ -1,5 +1,6 @@
 #include "variant.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 #include "esmreader.hpp"
@@ -9,15 +10,15 @@ namespace ESM
 {
     namespace
     {
-        constexpr uint32_t STRV = fourCC("STRV");
-        constexpr uint32_t INTV = fourCC("INTV");
-        constexpr uint32_t FLTV = fourCC("FLTV");
-        constexpr uint32_t STTV = fourCC("STTV");
+        constexpr std::uint32_t STRV = fourCC("STRV");
+        constexpr std::uint32_t INTV = fourCC("INTV");
+        constexpr std::uint32_t FLTV = fourCC("FLTV");
+        constexpr std::uint32_t STTV = fourCC("STTV");
 
         template <typename T, bool orDefault = false>
         struct GetValue
         {
-            constexpr T operator()(int32_t value) const { return static_cast<T>(value); }
+            constexpr T operator()(std::int32_t value) const { return static_cast<T>(value); }
 
             constexpr T operator()(float value) const { return static_cast<T>(value); }
 
@@ -41,7 +42,7 @@ namespace ESM
             {
             }
 
-            void operator()(int32_t& value) const { value = static_cast<int32_t>(mValue); }
+            void operator()(std::int32_t& value) const { value = static_cast<std::int32_t>(mValue); }
 
             void operator()(float& value) const { value = static_cast<float>(mValue); }
 
@@ -58,9 +59,9 @@ namespace ESM
         return std::get<std::string>(mData);
     }
 
-    int32_t Variant::getInteger() const
+    std::int32_t Variant::getInteger() const
     {
-        return std::visit(GetValue<int32_t>{}, mData);
+        return std::visit(GetValue<std::int32_t>{}, mData);
     }
 
     float Variant::getFloat() const
@@ -194,17 +195,17 @@ namespace ESM
 
             case VT_Short:
 
-                stream << "variant short: " << std::get<int32_t>(mData);
+                stream << "variant short: " << std::get<std::int32_t>(mData);
                 break;
 
             case VT_Int:
 
-                stream << "variant int: " << std::get<int32_t>(mData);
+                stream << "variant int: " << std::get<std::int32_t>(mData);
                 break;
 
             case VT_Long:
 
-                stream << "variant long: " << std::get<int32_t>(mData);
+                stream << "variant long: " << std::get<std::int32_t>(mData);
                 break;
 
             case VT_Float:
@@ -233,7 +234,7 @@ namespace ESM
                 case VT_Short:
                 case VT_Int:
                 case VT_Long:
-                    mData = std::visit(GetValue<int, true>{}, mData);
+                    mData = std::visit(GetValue<std::int32_t, true>{}, mData);
                     break;
 
                 case VT_Float:
@@ -259,7 +260,7 @@ namespace ESM
         std::get<std::string>(mData) = std::move(value);
     }
 
-    void Variant::setInteger(int32_t value)
+    void Variant::setInteger(std::int32_t value)
     {
         std::visit(SetValue(value), mData);
     }

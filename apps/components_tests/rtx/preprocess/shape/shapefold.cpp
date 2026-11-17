@@ -278,7 +278,7 @@ namespace Rtx
             static std::array<osg::Vec3f, 3> spelling(const osg::Vec3f& a, const osg::Vec3f& b, const osg::Vec3f& c)
             {
                 std::array<osg::Vec3f, 3> rotated{ a, b, c };
-                for (int turn = 0; turn < 2; ++turn)
+                for (std::int32_t turn = 0; turn < 2; ++turn)
                     if (lower(rotated[1], rotated[0]) || lower(rotated[2], rotated[0]))
                         rotated = { rotated[1], rotated[2], rotated[0] };
 
@@ -362,7 +362,7 @@ namespace Rtx
                     // NOLINTNEXTLINE(bugprone-integer-division)
                     positions.push_back(osg::Vec3f(static_cast<float>(at % 3), static_cast<float>(at / 3), 0.0f));
 
-                for (int attempt = 0; attempt < 200; ++attempt)
+                for (std::int32_t attempt = 0; attempt < 200; ++attempt)
                 {
                     const std::size_t count = 1 + random() % 24;
 

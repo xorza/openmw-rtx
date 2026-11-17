@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <sol/sol.hpp>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -24,7 +26,7 @@ namespace MWLua
             sol::state_view lua = context.sol();
             sol::table providedServices(lua, sol::create);
 
-            int services = rec.mAiData.mServices;
+            std::int32_t services = rec.mAiData.mServices;
             if constexpr (std::is_same_v<T, ESM::NPC>)
             {
                 if (rec.mFlags & ESM::NPC::Autocalc)
@@ -45,7 +47,7 @@ namespace MWLua
             sol::table travelDests(lua, sol::create);
             if (!rec.getTransport().empty())
             {
-                int index = 1;
+                std::int32_t index = 1;
                 for (const auto& dest : rec.getTransport())
                 {
                     sol::table travelDest(lua, sol::create);

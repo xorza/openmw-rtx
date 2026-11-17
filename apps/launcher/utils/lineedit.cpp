@@ -1,5 +1,7 @@
 #include "lineedit.hpp"
 
+#include <cstdint>
+
 LineEdit::LineEdit(QWidget* parent)
     : QLineEdit(parent)
 {
@@ -20,7 +22,7 @@ void LineEdit::setupClearButton()
 void LineEdit::resizeEvent(QResizeEvent*)
 {
     QSize sz = mClearButton->sizeHint();
-    int frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
+    std::int32_t frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
     mClearButton->move(rect().right() - frameWidth - sz.width(), (rect().bottom() + 1 - sz.height()) / 2);
 }
 

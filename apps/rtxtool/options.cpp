@@ -906,7 +906,7 @@ namespace RtxTool
             bpo::value<Files::MaybeQuotedPath>()->default_value(Files::MaybeQuotedPath(), ""),
             "start from this savegame rather than from a new game");
 
-        option(sFramed, "random-seed", number(anyNumber<unsigned int>())->default_value(42),
+        option(sFramed, "random-seed", number(anyNumber<std::uint32_t>())->default_value(42),
             "seed the world's random draws, so two runs of one build draw the same world");
 
         Files::ConfigurationManager::addCommonOptions(result.mDescription);
@@ -947,7 +947,7 @@ namespace RtxTool
             : verb == Verb::Tour    ? sTourFrame
                                     : parseSize(text("size"));
         frame.mFieldOfView = real("fov");
-        frame.mDay = { variables["day"].as<int>(), named("day") };
+        frame.mDay = { variables["day"].as<std::int32_t>(), named("day") };
         if (const Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
             throw std::runtime_error(std::format("--day={} {}", frame.mDay.mValue, checked.error()));
         frame.mUpscale = { Rtx::sUpscaleNames.require(text("upscale"), "an upscale mode"), named("upscale") };
@@ -1018,8 +1018,8 @@ namespace RtxTool
             .mHud = on("hud"),
             .mSpellHands = on("spell-hands"),
             .mVanity = on("vanity"),
-            .mNightEye = variables["night-eye"].as<int>(),
-            .mRandomSeed = variables["random-seed"].as<unsigned int>(),
+            .mNightEye = variables["night-eye"].as<std::int32_t>(),
+            .mRandomSeed = variables["random-seed"].as<std::uint32_t>(),
         };
 
         // Each says how long a stop runs, which is one answer.

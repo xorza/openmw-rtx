@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
+#include <vector>
+
 #include <QAbstractTableModel>
 #include <QModelIndex>
 #include <QVariant>
-#include <string>
-#include <vector>
 
 #include <apps/opencs/model/doc/messages.hpp>
 
@@ -30,34 +32,35 @@ namespace CSMTools
         };
 
         // Configurable columns
-        int mColumnDescription;
-        int mColumnField;
-        int mColumnSeverity;
+        std::int32_t mColumnDescription;
+        std::int32_t mColumnField;
+        std::int32_t mColumnSeverity;
 
     public:
         explicit ReportModel(bool fieldColumn = false, bool severityColumn = true);
 
-        int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+        std::int32_t rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
-        int columnCount(const QModelIndex& parent = QModelIndex()) const override;
+        std::int32_t columnCount(const QModelIndex& parent = QModelIndex()) const override;
 
-        QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+        QVariant data(const QModelIndex& index, std::int32_t role = Qt::DisplayRole) const override;
 
-        QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
+        QVariant headerData(
+            std::int32_t section, Qt::Orientation orientation, std::int32_t role = Qt::DisplayRole) const override;
 
-        bool removeRows(int row, int count, const QModelIndex& parent = QModelIndex()) override;
+        bool removeRows(std::int32_t row, std::int32_t count, const QModelIndex& parent = QModelIndex()) override;
 
         void add(const CSMDoc::Message& message);
 
-        void flagAsReplaced(int index);
+        void flagAsReplaced(std::int32_t index);
 
-        const CSMWorld::UniversalId& getUniversalId(int row) const;
+        const CSMWorld::UniversalId& getUniversalId(std::int32_t row) const;
 
-        std::string getHint(int row) const;
+        std::string getHint(std::int32_t row) const;
 
         void clear();
 
         // Return number of messages with Error or SeriousError severity.
-        int countErrors() const;
+        std::int32_t countErrors() const;
     };
 }

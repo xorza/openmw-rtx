@@ -19,9 +19,10 @@ namespace Settings
 
         SettingValue<bool> mDistantTerrain{ mIndex, "Terrain", "distant terrain" };
         SettingValue<float> mLodFactor{ mIndex, "Terrain", "lod factor", makeMaxStrictSanitizerFloat(0) };
-        SettingValue<int> mVertexLodMod{ mIndex, "Terrain", "vertex lod mod" };
-        SettingValue<int> mCompositeMapLevel{ mIndex, "Terrain", "composite map level", makeMaxSanitizerInt(-3) };
-        SettingValue<int> mCompositeMapResolution{ mIndex, "Terrain", "composite map resolution",
+        SettingValue<std::int32_t> mVertexLodMod{ mIndex, "Terrain", "vertex lod mod" };
+        SettingValue<std::int32_t> mCompositeMapLevel{ mIndex, "Terrain", "composite map level",
+            makeMaxSanitizerInt(-3) };
+        SettingValue<std::int32_t> mCompositeMapResolution{ mIndex, "Terrain", "composite map resolution",
             makeMaxSanitizerInt(1) };
         SettingValue<float> mMaxCompositeGeometrySize{ mIndex, "Terrain", "max composite geometry size",
             makeMaxSanitizerFloat(1) };

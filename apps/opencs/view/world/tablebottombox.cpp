@@ -1,11 +1,13 @@
 #include "tablebottombox.hpp"
 
+#include <cstdint>
+#include <sstream>
+
 #include <QEvent>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QStackedLayout>
 #include <QStatusBar>
-#include <sstream>
 
 #include <components/debug/debuglog.hpp>
 
@@ -21,7 +23,7 @@ namespace
 void CSVWorld::TableBottomBox::updateSize()
 {
     // Make sure that the size of the bottom box is determined by the currently visible widget
-    for (int i = 0; i < mLayout->count(); ++i)
+    for (std::int32_t i = 0; i < mLayout->count(); ++i)
     {
         QSizePolicy::Policy verPolicy = QSizePolicy::Ignored;
         if (mLayout->widget(i) == mLayout->currentWidget())
@@ -49,7 +51,7 @@ void CSVWorld::TableBottomBox::updateStatus()
 
         bool first = true;
 
-        for (int i = 0; i < 4; ++i)
+        for (std::int32_t i = 0; i < 4; ++i)
         {
             if (mStatusCount[i] > 0)
             {
@@ -93,7 +95,7 @@ CSVWorld::TableBottomBox::TableBottomBox(const CreatorFactoryBase& creatorFactor
     , mRow(0)
     , mColumn(0)
 {
-    for (int& i : mStatusCount)
+    for (std::int32_t& i : mStatusCount)
         i = 0;
 
     setVisible(false);
@@ -201,7 +203,7 @@ void CSVWorld::TableBottomBox::requestDone()
     mEditMode = EditMode_None;
 }
 
-void CSVWorld::TableBottomBox::currentWidgetChanged(int /*index*/)
+void CSVWorld::TableBottomBox::currentWidgetChanged(std::int32_t /*index*/)
 {
     updateSize();
 }
@@ -212,7 +214,7 @@ void CSVWorld::TableBottomBox::setStatusMessage(const QString& message)
     updateStatus();
 }
 
-void CSVWorld::TableBottomBox::selectionSizeChanged(int size)
+void CSVWorld::TableBottomBox::selectionSizeChanged(std::int32_t size)
 {
     if (mStatusCount[3] != size)
     {
@@ -222,7 +224,7 @@ void CSVWorld::TableBottomBox::selectionSizeChanged(int size)
     }
 }
 
-void CSVWorld::TableBottomBox::tableSizeChanged(int size, int deleted, int modified)
+void CSVWorld::TableBottomBox::tableSizeChanged(std::int32_t size, std::int32_t deleted, std::int32_t modified)
 {
     bool changed = false;
 
@@ -251,7 +253,7 @@ void CSVWorld::TableBottomBox::tableSizeChanged(int size, int deleted, int modif
     }
 }
 
-void CSVWorld::TableBottomBox::positionChanged(int row, int column)
+void CSVWorld::TableBottomBox::positionChanged(std::int32_t row, std::int32_t column)
 {
     mRow = row;
     mColumn = column;

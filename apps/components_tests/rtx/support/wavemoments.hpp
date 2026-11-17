@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 
 #include <osg/Vec2f>
 
@@ -18,9 +19,9 @@ namespace Rtx::Testing
     inline osg::Vec2f waveVectorAt(const WaveCascade& cascade, std::size_t at)
     {
         const float step = Shaders::TAU / cascade.mTile.mExtent;
-        const int half = static_cast<int>(cascade.mTile.mGrid) / 2;
-        const int row = static_cast<int>(at / cascade.mTile.mGrid) - half;
-        const int column = static_cast<int>(at % cascade.mTile.mGrid) - half;
+        const std::int32_t half = static_cast<std::int32_t>(cascade.mTile.mGrid) / 2;
+        const std::int32_t row = static_cast<std::int32_t>(at / cascade.mTile.mGrid) - half;
+        const std::int32_t column = static_cast<std::int32_t>(at % cascade.mTile.mGrid) - half;
 
         return osg::Vec2f(step * static_cast<float>(column), step * static_cast<float>(row));
     }
@@ -34,7 +35,7 @@ namespace Rtx::Testing
     ///
     /// **Summed in double**, as the code it checks sums: a quarter of a million terms in float lose
     /// the last of each to the total's rounding.
-    inline float momentOf(const WaveCascade& cascade, int power)
+    inline float momentOf(const WaveCascade& cascade, std::int32_t power)
     {
         double total = 0.0;
         for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)

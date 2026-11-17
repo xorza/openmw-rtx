@@ -56,7 +56,7 @@ def _normalize(sources: list[str], check: bool) -> int:
         return 0
     exists = normalize.Exists()
     failed = 0
-    for name in sources:
+    for name in filter(normalize.applies, sources):
         path = ROOT / name
         text = _read(path)
         try:

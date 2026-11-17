@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 
 #include <components/misc/windows.hpp>
@@ -40,7 +41,7 @@ namespace Platform::WholeFileSystem
                 }
             }();
             return IoError{ .mFailure = failure,
-                .mCode = std::error_code(static_cast<int>(code), std::system_category()) };
+                .mCode = std::error_code(static_cast<std::int32_t>(code), std::system_category()) };
         }
 
         Err<IoError> lastError()
@@ -54,7 +55,7 @@ namespace Platform::WholeFileSystem
         /// How often a rename refused because another process holds the target is tried, and how
         /// long apart: an indexer or a virus scanner opens a file it saw change and lets it go
         /// within milliseconds, as PostgreSQL's `pgrename` and Python's `atomicwrites` find.
-        constexpr int sReplaceTries = 10;
+        constexpr std::int32_t sReplaceTries = 10;
         constexpr DWORD sReplaceWaitMs = 20;
     }
 
@@ -137,7 +138,7 @@ namespace Platform::WholeFileSystem
         // **`MOVEFILE_WRITE_THROUGH` for a synced write**: it returns once the rename is on the disk,
         // which is what a folder's sync gives on POSIX, and Windows has no folder sync.
         const DWORD flags = MOVEFILE_REPLACE_EXISTING | (synced ? MOVEFILE_WRITE_THROUGH : 0);
-        for (int tried = 1;; ++tried)
+        for (std::int32_t tried = 1;; ++tried)
         {
             if (MoveFileExW(from.c_str(), to.c_str(), flags))
                 return {};

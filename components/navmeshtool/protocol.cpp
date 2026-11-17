@@ -1,5 +1,6 @@
 #include "protocol.hpp"
 
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
@@ -23,7 +24,7 @@ namespace NavMeshTool
                     stream << '\'' << v << '\'';
                 else
                     stream << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(2)
-                           << static_cast<int>(v);
+                           << static_cast<std::int32_t>(v);
                 stream << ' ';
             }
             return stream.str();

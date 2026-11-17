@@ -1,5 +1,6 @@
 #include "timestamp.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
@@ -9,7 +10,7 @@
 
 namespace MWWorld
 {
-    TimeStamp::TimeStamp(float hour, int day)
+    TimeStamp::TimeStamp(float hour, std::int32_t day)
         : mHour(hour)
         , mDay(day)
     {
@@ -22,7 +23,7 @@ namespace MWWorld
         return mHour;
     }
 
-    int TimeStamp::getDay() const
+    std::int32_t TimeStamp::getDay() const
     {
         return mDay;
     }
@@ -91,7 +92,7 @@ namespace MWWorld
         if (left < right)
             return -(right - left);
 
-        int days = left.getDay() - right.getDay();
+        std::int32_t days = left.getDay() - right.getDay();
 
         double hours = 0;
 

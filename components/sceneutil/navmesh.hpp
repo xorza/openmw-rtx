@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/ref_ptr>
 
 class dtNavMesh;
@@ -18,7 +20,7 @@ namespace DetourNavigator
 
 namespace SceneUtil
 {
-    enum NavMeshTileDrawFlags : unsigned char
+    enum NavMeshTileDrawFlags : std::uint8_t
     {
         NavMeshTileDrawFlagsOffMeshConnections = 1,
         NavMeshTileDrawFlagsClosedList = 1 << 1,
@@ -28,5 +30,5 @@ namespace SceneUtil
 
     osg::ref_ptr<osg::Group> createNavMeshTileGroup(const dtNavMesh& navMesh, const dtMeshTile& meshTile,
         const DetourNavigator::Settings& settings, const osg::ref_ptr<osg::StateSet>& debugDrawStateSet,
-        unsigned char flags, unsigned minSalt, unsigned maxSalt);
+        std::uint8_t flags, std::uint32_t minSalt, std::uint32_t maxSalt);
 }

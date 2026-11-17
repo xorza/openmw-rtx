@@ -1,6 +1,8 @@
 #include "levelupdialog.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
@@ -27,8 +29,8 @@
 
 namespace
 {
-    constexpr unsigned int sMaxCoins = 3;
-    constexpr int sColumnOffsets[] = { 32, 218 };
+    constexpr std::uint32_t sMaxCoins = 3;
+    constexpr std::int32_t sColumnOffsets[] = { 32, 218 };
 }
 namespace MWGui
 {
@@ -47,13 +49,13 @@ namespace MWGui
 
         {
             const auto& store = MWBase::Environment::get().getESMStore()->get<ESM::Attribute>();
-            mPerCol = static_cast<size_t>(
+            mPerCol = static_cast<std::size_t>(
                 std::ceil(static_cast<float>(store.getSize()) / static_cast<float>(std::size(sColumnOffsets))));
-            size_t i = 0;
+            std::size_t i = 0;
             for (const ESM::Attribute& attribute : store)
             {
-                const int offset = sColumnOffsets[i / mPerCol];
-                const int row = static_cast<int>(i % mPerCol);
+                const std::int32_t offset = sColumnOffsets[i / mPerCol];
+                const auto row = static_cast<std::int32_t>(i % mPerCol);
                 Widgets widgets{};
                 widgets.mMultiplier = mAssignWidget->createWidget<MyGUI::TextBox>(
                     "SandTextVCenter", { offset, 20 * row, 100, 20 }, MyGUI::Align::Default);
@@ -76,13 +78,13 @@ namespace MWGui
             }
 
             mAssignWidget->setVisibleVScroll(false);
-            mAssignWidget->setCanvasSize(MyGUI::IntSize(
-                mAssignWidget->getWidth(), std::max(mAssignWidget->getHeight(), static_cast<int>(20 * mPerCol))));
+            mAssignWidget->setCanvasSize(MyGUI::IntSize(mAssignWidget->getWidth(),
+                std::max(mAssignWidget->getHeight(), static_cast<std::int32_t>(20 * mPerCol))));
             mAssignWidget->setVisibleVScroll(true);
             mAssignWidget->setViewOffset(MyGUI::IntPoint());
         }
 
-        for (unsigned int i = 0; i < sMaxCoins; ++i)
+        for (std::uint32_t i = 0; i < sMaxCoins; ++i)
         {
             auto* image = mCoinBox->createWidget<MyGUI::ImageBox>(
                 "ImageBox", MyGUI::IntCoord(0, 0, 16, 16), MyGUI::Align::Default);
@@ -110,7 +112,7 @@ namespace MWGui
 
         for (const ESM::Attribute& attribute : MWBase::Environment::get().getESMStore()->get<ESM::Attribute>())
         {
-            int val = static_cast<int>(creatureStats.getAttribute(attribute.mId).getBase());
+            auto val = static_cast<std::int32_t>(creatureStats.getAttribute(attribute.mId).getBase());
             if (std::find(mSpentAttributes.begin(), mSpentAttributes.end(), attribute.mId) != mSpentAttributes.end())
             {
                 val += pcStats.getLevelupAttributeMultiplier(attribute.mId);
@@ -124,10 +126,10 @@ namespace MWGui
 
     void LevelupDialog::resetCoins()
     {
-        constexpr int coinSpacing = 33;
-        int curX = static_cast<int>(static_cast<unsigned int>(mCoinBox->getWidth() / 2)
+        constexpr std::int32_t coinSpacing = 33;
+        auto curX = static_cast<std::int32_t>(static_cast<std::uint32_t>(mCoinBox->getWidth() / 2)
             - (coinSpacing * (mCoinCount - 1) + 16 * mCoinCount) / 2);
-        for (unsigned int i = 0; i < sMaxCoins; ++i)
+        for (std::uint32_t i = 0; i < sMaxCoins; ++i)
         {
             MyGUI::ImageBox* image = mCoins[i];
             image->detachFromWidget();
@@ -146,7 +148,7 @@ namespace MWGui
     void LevelupDialog::assignCoins()
     {
         resetCoins();
-        for (size_t i = 0; i < mSpentAttributes.size(); ++i)
+        for (std::size_t i = 0; i < mSpentAttributes.size(); ++i)
         {
             MyGUI::ImageBox* image = mCoins[i];
             image->detachFromWidget();
@@ -155,7 +157,7 @@ namespace MWGui
             const auto& attribute = mSpentAttributes[i];
             const auto& widgets = mAttributeWidgets[attribute];
 
-            const int xdiff = widgets.mMultiplier->getCaption().empty() ? 0 : 20;
+            const std::int32_t xdiff = widgets.mMultiplier->getCaption().empty() ? 0 : 20;
             const auto* hbox = widgets.mButton->getParent();
 
             MyGUI::IntPoint pos = hbox->getPosition();
@@ -180,7 +182,7 @@ namespace MWGui
                     pcStats.getSkillIncreasesForSpecialization(ESM::Class::Specialization::Magic),
                     pcStats.getSkillIncreasesForSpecialization(ESM::Class::Specialization::Stealth))));
 
-        int level = creatureStats.getLevel() + 1;
+        std::int32_t level = creatureStats.getLevel() + 1;
         mLevelText->setCaptionWithReplacing("#{sLevelUpMenu1} " + MyGUI::utility::toString(level));
 
         std::string_view levelupdescription;
@@ -191,7 +193,7 @@ namespace MWGui
 
         mLevelDescription->setCaption(MyGUI::UString(levelupdescription));
 
-        unsigned int availableAttributes = 0;
+        std::uint32_t availableAttributes = 0;
         for (const ESM::Attribute& attribute : MWBase::Environment::get().getESMStore()->get<ESM::Attribute>())
         {
             const auto& widgets = mAttributeWidgets[attribute.mId];
@@ -201,8 +203,8 @@ namespace MWGui
                 widgets.mValue->setEnabled(true);
                 availableAttributes++;
 
-                int mult = pcStats.getLevelupAttributeMultiplier(attribute.mId);
-                mult = std::min(mult, static_cast<int>(100 - pcStats.getAttribute(attribute.mId).getBase()));
+                std::int32_t mult = pcStats.getLevelupAttributeMultiplier(attribute.mId);
+                mult = std::min(mult, static_cast<std::int32_t>(100 - pcStats.getAttribute(attribute.mId).getBase()));
                 if (mult <= 1)
                     widgets.mMultiplier->setCaption({});
                 else
@@ -229,7 +231,7 @@ namespace MWGui
         if (Settings::gui().mControllerMenus)
         {
             mControllerFocus = 0;
-            for (size_t i = 0; i < mAttributeButtons.size(); i++)
+            for (std::size_t i = 0; i < mAttributeButtons.size(); i++)
                 mAttributeButtons[i]->setStateSelected(i == 0);
         }
 
@@ -247,7 +249,7 @@ namespace MWGui
         else
         {
             // increase attributes
-            for (unsigned int i = 0; i < mCoinCount; ++i)
+            for (std::uint32_t i = 0; i < mCoinCount; ++i)
             {
                 MWMechanics::AttributeValue attribute = pcStats.getAttribute(mSpentAttributes[i]);
                 attribute.setBase(attribute.getBase()
@@ -282,17 +284,20 @@ namespace MWGui
     }
 
     std::string_view LevelupDialog::getLevelupClassImage(
-        const int combatIncreases, const int magicIncreases, const int stealthIncreases)
+        const std::int32_t combatIncreases, const std::int32_t magicIncreases, const std::int32_t stealthIncreases)
     {
         std::string_view ret = "acrobat";
 
-        int total = combatIncreases + magicIncreases + stealthIncreases;
+        std::int32_t total = combatIncreases + magicIncreases + stealthIncreases;
         if (total == 0)
             return ret;
 
-        int combatFraction = static_cast<int>(static_cast<float>(combatIncreases) / static_cast<float>(total) * 10.f);
-        int magicFraction = static_cast<int>(static_cast<float>(magicIncreases) / static_cast<float>(total) * 10.f);
-        int stealthFraction = static_cast<int>(static_cast<float>(stealthIncreases) / static_cast<float>(total) * 10.f);
+        auto combatFraction
+            = static_cast<std::int32_t>(static_cast<float>(combatIncreases) / static_cast<float>(total) * 10.f);
+        auto magicFraction
+            = static_cast<std::int32_t>(static_cast<float>(magicIncreases) / static_cast<float>(total) * 10.f);
+        auto stealthFraction
+            = static_cast<std::int32_t>(static_cast<float>(stealthIncreases) / static_cast<float>(total) * 10.f);
 
         if (combatFraction > 7)
             ret = "warrior";

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "typedaipackage.hpp"
 
 namespace MWMechanics
@@ -32,7 +34,7 @@ namespace MWMechanics
         float mDuration;
         const MWWorld::ConstPtr mDoorPtr;
         osg::Vec3f mLastPos;
-        int mDirection;
+        std::int32_t mDirection;
 
         bool isStuck(const osg::Vec3f& actorPos) const;
 

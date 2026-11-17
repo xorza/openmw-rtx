@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 
@@ -36,12 +38,12 @@ namespace DetourNavigator
 
         void addAgent(const AgentBounds& agentBounds);
 
-        void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard);
+        void addWater(const osg::Vec2i& cellPosition, std::int32_t cellSize, float level, const UpdateGuard* guard);
 
         void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
 
-        void addHeightfield(
-            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard);
+        void addHeightfield(const osg::Vec2i& cellPosition, std::int32_t cellSize, const HeightfieldShape& shape,
+            const UpdateGuard* guard);
 
         void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
 
@@ -66,7 +68,7 @@ namespace DetourNavigator
 
     private:
         const Settings& mSettings;
-        const int mMaxRadius;
+        const std::int32_t mMaxRadius;
         ESM::RefId mWorldspace;
         std::optional<CellGridBounds> mCellGridBounds;
         TileCachedRecastMeshManager mRecastMeshManager;

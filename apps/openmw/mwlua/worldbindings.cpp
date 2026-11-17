@@ -1,5 +1,8 @@
 #include "worldbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <apps/openmw/mwbase/statemanager.hpp>
@@ -113,7 +116,7 @@ namespace MWLua
                 return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(
                     ESM::RefId::deserializeText(stringId), /*forceLoad=*/false) };
             };
-            api["getExteriorCell"] = [](int x, int y, const sol::object& cellOrName) {
+            api["getExteriorCell"] = [](std::int32_t x, std::int32_t y, const sol::object& cellOrName) {
                 ESM::RefId worldspace;
                 if (cellOrName.is<GCell>())
                     worldspace = cellOrName.as<GCell>().mStore->getCell()->getWorldSpace();
@@ -138,7 +141,7 @@ namespace MWLua
                 return cells3Store->getSize() + cells4Store->getSize();
             };
             cells[sol::meta_function::index]
-                = [cells3Store, cells4Store](const CellsStore&, size_t index) -> sol::optional<GCell> {
+                = [cells3Store, cells4Store](const CellsStore&, std::size_t index) -> sol::optional<GCell> {
                 if (index > cells3Store->getSize() + cells4Store->getSize() || index == 0)
                     return sol::nullopt;
 
@@ -185,7 +188,8 @@ namespace MWLua
                 objList.mIds->push_back(getId(object));
             return objList;
         };
-        api["createObject"] = [lua = context.mLua](std::string_view recordId, sol::optional<int> count) -> GObject {
+        api["createObject"]
+            = [lua = context.mLua](std::string_view recordId, sol::optional<std::int32_t> count) -> GObject {
             checkGameInitialized(lua);
             MWWorld::ManualRef mref(*MWBase::Environment::get().getESMStore(), ESM::RefId::deserializeText(recordId));
             const MWWorld::Ptr& ptr = mref.getPtr();

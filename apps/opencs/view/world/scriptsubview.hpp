@@ -1,7 +1,9 @@
 #pragma once
 
-#include <QVBoxLayout>
+#include <cstdint>
 #include <string>
+
+#include <QVBoxLayout>
 
 #include <apps/opencs/model/world/commanddispatcher.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
@@ -41,9 +43,9 @@ namespace CSVWorld
         ScriptEdit* mEditor;
         CSMDoc::Document& mDocument;
         CSMWorld::IdTable* mModel;
-        int mColumn;
-        int mIdColumn;
-        int mStateColumn;
+        std::int32_t mColumn;
+        std::int32_t mIdColumn;
+        std::int32_t mStateColumn;
         TableBottomBox* mBottom;
         RecordButtonBar* mButtons;
         CSMWorld::CommandDispatcher mCommandDispatcher;
@@ -51,7 +53,7 @@ namespace CSVWorld
         QSplitter* mMain;
         ScriptErrorTable* mErrors;
         QTimer* mCompileDelay;
-        int mErrorHeight;
+        std::int32_t mErrorHeight;
 
     private:
         void addButtonBar();
@@ -79,7 +81,7 @@ namespace CSVWorld
 
         void dataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void rowsAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void rowsAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
     private slots:
 
@@ -87,11 +89,11 @@ namespace CSVWorld
 
         void updateStatusBar();
 
-        void switchToRow(int row);
+        void switchToRow(std::int32_t row);
 
         void switchToId(const std::string& id);
 
-        void highlightError(int line, int column);
+        void highlightError(std::int32_t line, std::int32_t column);
 
         void updateRequest();
     };

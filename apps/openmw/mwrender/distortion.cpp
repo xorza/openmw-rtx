@@ -1,5 +1,7 @@
 #include "distortion.hpp"
 
+#include <cstdint>
+
 #include <osg/FrameBufferObject>
 
 #include "postprocessor.hpp"
@@ -10,7 +12,7 @@ namespace MWRender
         osgUtil::RenderBin* bin, osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous)
     {
         osg::State* state = renderInfo.getState();
-        unsigned frameId = state->getFrameStamp()->getFrameNumber() % 2;
+        std::uint32_t frameId = state->getFrameStamp()->getFrameNumber() % 2;
 
         auto* postProcessor = dynamic_cast<PostProcessor*>(renderInfo.getCurrentCamera()->getUserData());
 

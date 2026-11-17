@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <components/interpreter/types.hpp>
@@ -27,9 +28,9 @@ namespace Compiler
         bool mRefOp;
         bool mMemberOp;
 
-        static int getPriority(char op);
+        static std::int32_t getPriority(char op);
 
-        char getOperandType(int index = 0) const;
+        char getOperandType(std::int32_t index = 0) const;
 
         char getOperator() const;
 
@@ -43,7 +44,7 @@ namespace Compiler
 
         void pop();
 
-        void pushIntegerLiteral(int value);
+        void pushIntegerLiteral(std::int32_t value);
 
         void pushFloatLiteral(float value);
 
@@ -51,7 +52,7 @@ namespace Compiler
 
         void close();
 
-        int parseArguments(const std::string& arguments, Scanner& scanner);
+        std::int32_t parseArguments(const std::string& arguments, Scanner& scanner);
 
         bool handleMemberAccess(const std::string& name);
 
@@ -65,7 +66,7 @@ namespace Compiler
         char getType() const;
         ///< Return type of parsed expression ('l' integer, 'f' float)
 
-        bool parseInt(int value, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle an int token.
         /// \return fetch another token?
 
@@ -77,11 +78,11 @@ namespace Compiler
         ///< Handle a name token.
         /// \return fetch another token?
 
-        bool parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a keyword token.
         /// \return fetch another token?
 
-        bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a special character token.
         /// \return fetch another token?
 
@@ -92,8 +93,8 @@ namespace Compiler
         ///< Generate code for parsed expression.
         /// \return Type ('l': integer, 'f': float)
 
-        int parseArguments(const std::string& arguments, Scanner& scanner, std::vector<Interpreter::Type_Code>& code,
-            int ignoreKeyword = -1, bool expectNames = false);
+        std::int32_t parseArguments(const std::string& arguments, Scanner& scanner,
+            std::vector<Interpreter::Type_Code>& code, std::int32_t ignoreKeyword = -1, bool expectNames = false);
         ///< Parse sequence of arguments specified by \a arguments.
         /// \param arguments Uses ScriptArgs typedef
         /// \see Compiler::ScriptArgs

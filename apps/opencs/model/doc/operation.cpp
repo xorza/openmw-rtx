@@ -1,8 +1,10 @@
 #include "operation.hpp"
 
-#include <QCoreApplication>
+#include <cstdint>
 #include <exception>
 #include <vector>
+
+#include <QCoreApplication>
 
 #include <apps/opencs/model/world/universalid.hpp>
 #include <components/debug/debuglog.hpp>
@@ -53,7 +55,7 @@ void CSMDoc::Operation::prepareStages()
 
 CSMDoc::Operation::Operation(State type, bool finalAlways)
     : mType(type)
-    , mStages(std::vector<std::pair<Stage*, int>>())
+    , mStages(std::vector<std::pair<Stage*, std::int32_t>>())
     , mCurrentStage(mStages.begin())
     , mCurrentStep(0)
     , mCurrentStepTotal(0)

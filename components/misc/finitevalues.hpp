@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -27,7 +28,7 @@ namespace Misc
 
             if constexpr (isVecType)
             {
-                for (int i = 0; i < T::num_components; ++i)
+                for (std::int32_t i = 0; i < T::num_components; ++i)
                     if (!std::isfinite(v[i]))
                         throw std::invalid_argument("Vector must contain finite numbers");
             }
@@ -58,7 +59,7 @@ namespace sol
 {
     template <class Handler, class T>
     bool sol_lua_check(
-        types<Misc::FiniteValue<T>>, lua_State* state, int index, Handler&& handler, stack::record& tracking)
+        types<Misc::FiniteValue<T>>, lua_State* state, std::int32_t index, Handler&& handler, stack::record& tracking)
     {
         bool success = stack::check<T>(state, lua_absindex(state, index), std::forward<Handler>(handler));
         tracking.use(1);
@@ -67,7 +68,7 @@ namespace sol
 
     template <class T>
     static Misc::FiniteValue<T> sol_lua_get(
-        types<Misc::FiniteValue<T>>, lua_State* state, int index, stack::record& tracking)
+        types<Misc::FiniteValue<T>>, lua_State* state, std::int32_t index, stack::record& tracking)
     {
         T value = stack::get<T>(state, lua_absindex(state, index));
         tracking.use(1);

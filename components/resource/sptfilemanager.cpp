@@ -1,5 +1,6 @@
 #include "sptfilemanager.hpp"
 
+#include <cstdint>
 #include <memory>
 
 #include <components/spt/file.hpp>
@@ -24,7 +25,7 @@ namespace Resource
         return file;
     }
 
-    void SptFileManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void SptFileManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("SPT", frameNumber, mCache->getStats(), *stats);
     }

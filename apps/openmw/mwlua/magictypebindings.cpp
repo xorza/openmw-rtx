@@ -1,5 +1,7 @@
 #include "magictypebindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <variant>
 
@@ -35,7 +37,7 @@ namespace
     struct MutableENAMstruct
     {
         MutableEffectsList mList;
-        uint32_t mIndex;
+        std::uint32_t mIndex;
 
         ESM::IndexedENAMstruct& find() { return mList.find().mList.at(mIndex); }
 
@@ -108,7 +110,7 @@ namespace MWLua
             {
                 type["effects"] = sol::readonly_property([lua = lua.lua_state()](const T& rec) -> sol::table {
                     sol::table res(lua, sol::create);
-                    for (size_t i = 0; i < rec.mEffects.mList.size(); ++i)
+                    for (std::size_t i = 0; i < rec.mEffects.mList.size(); ++i)
                         res[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]
                             = rec.mEffects.mList[i]; // ESM::IndexedENAMstruct (effect params)
                     return res;
@@ -207,14 +209,14 @@ namespace MWLua
             listType[sol::meta_function::length]
                 = [](const MutableEffectsList& list) { return list.find().mList.size(); };
             listType[sol::meta_function::index]
-                = [](const MutableEffectsList& list, uint32_t index) -> std::optional<MutableENAMstruct> {
+                = [](const MutableEffectsList& list, std::uint32_t index) -> std::optional<MutableENAMstruct> {
                 const ESM::EffectList& effects = list.find();
                 if (index == 0 || index > effects.mList.size())
                     return {};
                 return MutableENAMstruct{ list, index - 1 };
             };
             listType[sol::meta_function::new_index]
-                = [](MutableEffectsList& list, uint32_t i, const sol::object& value) {
+                = [](MutableEffectsList& list, std::uint32_t i, const sol::object& value) {
                       ESM::EffectList& effects = list.find();
                       if (i == 0 || i > effects.mList.size() + 1)
                           throw std::runtime_error("index out of range");
@@ -287,7 +289,7 @@ namespace MWLua
             addEffectsProperty(lua, record);
         }
 
-        void setFlagProperty(const sol::table& rec, std::string_view key, int32_t& flags, int flag)
+        void setFlagProperty(const sol::table& rec, std::string_view key, std::int32_t& flags, std::int32_t flag)
         {
             if (rec[key] != sol::nil)
             {
@@ -298,7 +300,7 @@ namespace MWLua
             }
         }
 
-        void setReverseFlagProperty(const sol::table& rec, std::string_view key, int32_t& flags, int flag)
+        void setReverseFlagProperty(const sol::table& rec, std::string_view key, std::int32_t& flags, std::int32_t flag)
         {
             if (rec[key] != sol::nil)
             {
@@ -311,9 +313,9 @@ namespace MWLua
 
         void assignColor(ESM::MagicEffect& effect, const Misc::Color& color)
         {
-            effect.mData.mRed = std::clamp(static_cast<int32_t>(color.r() * 255), 0, 255);
-            effect.mData.mGreen = std::clamp(static_cast<int32_t>(color.g() * 255), 0, 255);
-            effect.mData.mBlue = std::clamp(static_cast<int32_t>(color.b() * 255), 0, 255);
+            effect.mData.mRed = std::clamp(static_cast<std::int32_t>(color.r() * 255), 0, 255);
+            effect.mData.mGreen = std::clamp(static_cast<std::int32_t>(color.g() * 255), 0, 255);
+            effect.mData.mBlue = std::clamp(static_cast<std::int32_t>(color.b() * 255), 0, 255);
         }
 
         template <class T>
@@ -472,10 +474,10 @@ namespace MWLua
 
     ESM::EffectList tableToEffectList(const sol::table& effectsTable)
     {
-        size_t numEffects = effectsTable.size();
+        std::size_t numEffects = effectsTable.size();
         ESM::EffectList out;
         out.mList.resize(numEffects);
-        for (size_t i = 0; i < numEffects; ++i)
+        for (std::size_t i = 0; i < numEffects; ++i)
         {
             out.mList[i] = tableToEnamStruct(effectsTable[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]);
         }

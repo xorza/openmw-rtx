@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <exception>
 #include <functional>
 #include <source_location>
@@ -16,7 +17,8 @@ namespace Testing
     inline void expectError(const std::function<void()>& call, std::string_view part,
         const std::source_location place = std::source_location::current())
     {
-        const ::testing::ScopedTrace trace(place.file_name(), static_cast<int>(place.line()), "expected an error");
+        const ::testing::ScopedTrace trace(
+            place.file_name(), static_cast<std::int32_t>(place.line()), "expected an error");
         try
         {
             call();

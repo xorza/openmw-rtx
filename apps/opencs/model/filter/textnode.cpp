@@ -1,14 +1,17 @@
 #include "textnode.hpp"
 
-#include <QRegularExpression>
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
 
+#include <QRegularExpression>
+
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/idtablebase.hpp>
 
-CSMFilter::TextNode::TextNode(int columnId, std::string text)
+CSMFilter::TextNode::TextNode(std::int32_t columnId, std::string text)
     : mColumnId(columnId)
     , mText(std::move(text))
     , mRegExp(QRegularExpression::anchoredPattern(QString::fromUtf8(mText.c_str())),
@@ -16,7 +19,8 @@ CSMFilter::TextNode::TextNode(int columnId, std::string text)
 {
 }
 
-bool CSMFilter::TextNode::test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const
+bool CSMFilter::TextNode::test(
+    const CSMWorld::IdTableBase& table, std::int32_t row, const std::map<std::int32_t, std::int32_t>& columns) const
 {
     const auto iter = columns.find(mColumnId);
 
@@ -39,9 +43,9 @@ bool CSMFilter::TextNode::test(const CSMWorld::IdTableBase& table, int row, cons
     else if ((data.typeId() == QMetaType::Int || data.typeId() == QMetaType::UInt)
         && CSMWorld::Columns::hasEnums(static_cast<CSMWorld::Columns::ColumnId>(mColumnId)))
     {
-        int value = data.toInt();
+        std::int32_t value = data.toInt();
 
-        std::vector<std::pair<int, std::string>> enums
+        std::vector<std::pair<std::int32_t, std::string>> enums
             = CSMWorld::Columns::getEnums(static_cast<CSMWorld::Columns::ColumnId>(mColumnId));
 
         if (value >= 0 && std::cmp_less(value, enums.size()))
@@ -62,9 +66,9 @@ bool CSMFilter::TextNode::test(const CSMWorld::IdTableBase& table, int row, cons
     return match.hasMatch();
 }
 
-std::vector<int> CSMFilter::TextNode::getReferencedColumns() const
+std::vector<std::int32_t> CSMFilter::TextNode::getReferencedColumns() const
 {
-    return std::vector<int>(1, mColumnId);
+    return std::vector<std::int32_t>(1, mColumnId);
 }
 
 std::string CSMFilter::TextNode::toString(bool numericColumns) const

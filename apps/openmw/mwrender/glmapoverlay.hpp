@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <vector>
@@ -62,7 +63,7 @@ namespace MWRender
         /// within an update callback.
         void cleanupCameras();
 
-        bool copyResult(osg::Camera* cam, unsigned int frame);
+        bool copyResult(osg::Camera* cam, std::uint32_t frame);
 
         /// Mark a camera for cleanup in the next update. For internal use only.
         void markForRemoval(osg::Camera* camera);
@@ -71,7 +72,7 @@ namespace MWRender
         /// Request rendering a 2d quad onto mOverlayTexture.
         /// x, y, width and height are the destination coordinates (top-left coordinate origin)
         /// @param cpuCopy copy the resulting render onto mOverlayImage as well?
-        void requestOverlayTextureUpdate(int x, int y, int width, int height,
+        void requestOverlayTextureUpdate(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height,
             const osg::ref_ptr<osg::Texture2D>& texture, bool clear, bool cpuCopy, float srcLeft = 0.f,
             float srcTop = 0.f, float srcRight = 1.f, float srcBottom = 1.f);
 
@@ -80,8 +81,8 @@ namespace MWRender
         GlRenderer& mRenderer;
         Resource::ResourceSystem& mResources;
 
-        int mWidth;
-        int mHeight;
+        std::int32_t mWidth;
+        std::int32_t mHeight;
 
         osg::ref_ptr<osg::Group> mRoot;
 
@@ -93,9 +94,9 @@ namespace MWRender
         struct ImageDest
         {
             osg::ref_ptr<osg::Image> mImage;
-            int mX = 0;
-            int mY = 0;
-            unsigned int mFrameDone = 0;
+            std::int32_t mX = 0;
+            std::int32_t mY = 0;
+            std::uint32_t mFrameDone = 0;
         };
 
         typedef std::map<osg::ref_ptr<osg::Camera>, ImageDest> ImageDestMap;

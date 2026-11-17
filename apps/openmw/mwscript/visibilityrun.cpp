@@ -35,7 +35,7 @@ namespace MWScript
         /// What a script may ask whose answer only a frame of an active cell has: whether the
         /// reference was activated, whether the player changed cells, and whether a sound plays. A
         /// run answers each one way, and `VisibilityRun::run` tries every way the script asked for.
-        enum class Event : unsigned
+        enum class Event : std::uint32_t
         {
             Activated,
             CellChanged,
@@ -56,7 +56,7 @@ namespace MWScript
             /// Starts `way` from every local at nought, nothing written, nothing named, and the
             /// reference standing.
             RunContext(const VisibilityScript& script, const VisibilityReads& reads,
-                std::vector<VisibilityInput>& inputs, VisibilityWay& way, unsigned events)
+                std::vector<VisibilityInput>& inputs, VisibilityWay& way, std::uint32_t events)
                 : mEvents(events)
                 , mWrittenOutside(script.mWrittenOutside)
                 , mReads(reads)
@@ -88,19 +88,19 @@ namespace MWScript
                     named.push_back(VisibilityNamed{ .mName = name, .mState = state });
             }
 
-            int ask(Event event)
+            std::int32_t ask(Event event)
             {
-                const unsigned bit = 1u << static_cast<unsigned>(event);
+                const std::uint32_t bit = 1u << static_cast<std::uint32_t>(event);
                 mAsked |= bit;
                 return (mEvents & bit) != 0 ? 1 : 0;
             }
 
             /// Which events the run asked, one bit each.
-            unsigned getAsked() const { return mAsked; }
+            std::uint32_t getAsked() const { return mAsked; }
 
-            int readJournal(const ESM::RefId& quest)
+            std::int32_t readJournal(const ESM::RefId& quest)
             {
-                const int index = mReads.getJournalIndex(quest);
+                const std::int32_t index = mReads.getJournalIndex(quest);
                 note(VisibilityInput{
                     .mSource = VisibilitySource::Journal, .mId = quest, .mValue = static_cast<double>(index) });
                 return index;
@@ -108,30 +108,30 @@ namespace MWScript
 
             ESM::RefId getTarget() const override { return ESM::RefId(); }
 
-            int getLocalShort(int index) const override
+            std::int32_t getLocalShort(std::int32_t index) const override
             {
                 readLocal('s', index);
                 return mWay.mShorts.at(static_cast<std::size_t>(index));
             }
-            int getLocalLong(int index) const override
+            std::int32_t getLocalLong(std::int32_t index) const override
             {
                 readLocal('l', index);
                 return mWay.mLongs.at(static_cast<std::size_t>(index));
             }
-            float getLocalFloat(int index) const override
+            float getLocalFloat(std::int32_t index) const override
             {
                 readLocal('f', index);
                 return mWay.mFloats.at(static_cast<std::size_t>(index));
             }
-            void setLocalShort(int index, int value) override
+            void setLocalShort(std::int32_t index, std::int32_t value) override
             {
                 mWay.mShorts.at(static_cast<std::size_t>(index)) = value;
             }
-            void setLocalLong(int index, int value) override
+            void setLocalLong(std::int32_t index, std::int32_t value) override
             {
                 mWay.mLongs.at(static_cast<std::size_t>(index)) = value;
             }
-            void setLocalFloat(int index, float value) override
+            void setLocalFloat(std::int32_t index, float value) override
             {
                 mWay.mFloats.at(static_cast<std::size_t>(index)) = value;
             }
@@ -141,11 +141,17 @@ namespace MWScript
             void messageBox(std::string_view, const std::vector<std::string>&) override {}
             void report(const std::string&) override {}
 
-            int getGlobalShort(std::string_view name) const override { return static_cast<int>(readGlobal(name)); }
-            int getGlobalLong(std::string_view name) const override { return static_cast<int>(readGlobal(name)); }
+            std::int32_t getGlobalShort(std::string_view name) const override
+            {
+                return static_cast<std::int32_t>(readGlobal(name));
+            }
+            std::int32_t getGlobalLong(std::string_view name) const override
+            {
+                return static_cast<std::int32_t>(readGlobal(name));
+            }
             float getGlobalFloat(std::string_view name) const override { return static_cast<float>(readGlobal(name)); }
-            void setGlobalShort(std::string_view name, int value) override { writeGlobal(name, value); }
-            void setGlobalLong(std::string_view name, int value) override { writeGlobal(name, value); }
+            void setGlobalShort(std::string_view name, std::int32_t value) override { writeGlobal(name, value); }
+            void setGlobalLong(std::string_view name, std::int32_t value) override { writeGlobal(name, value); }
             void setGlobalFloat(std::string_view name, float value) override { writeGlobal(name, value); }
 
             std::vector<std::string> getGlobals() const override { throw Undecided(); }
@@ -163,21 +169,21 @@ namespace MWScript
             std::string_view getPCClass() const override { return {}; }
             std::string_view getPCRank() const override { return {}; }
             std::string_view getPCNextRank() const override { return {}; }
-            int getPCBounty() const override { return 0; }
+            std::int32_t getPCBounty() const override { return 0; }
             std::string_view getCurrentCellName() const override { return {}; }
 
             // Another script's variables: a state the run has no inputs for.
-            int getMemberShort(ESM::RefId, std::string_view, bool) const override { throw Undecided(); }
-            int getMemberLong(ESM::RefId, std::string_view, bool) const override { throw Undecided(); }
+            std::int32_t getMemberShort(ESM::RefId, std::string_view, bool) const override { throw Undecided(); }
+            std::int32_t getMemberLong(ESM::RefId, std::string_view, bool) const override { throw Undecided(); }
             float getMemberFloat(ESM::RefId, std::string_view, bool) const override { throw Undecided(); }
-            void setMemberShort(ESM::RefId, std::string_view, int, bool) override { throw Undecided(); }
-            void setMemberLong(ESM::RefId, std::string_view, int, bool) override { throw Undecided(); }
+            void setMemberShort(ESM::RefId, std::string_view, std::int32_t, bool) override { throw Undecided(); }
+            void setMemberLong(ESM::RefId, std::string_view, std::int32_t, bool) override { throw Undecided(); }
             void setMemberFloat(ESM::RefId, std::string_view, float, bool) override { throw Undecided(); }
 
         private:
             /// **A local something outside the script writes is a state the run has no input for**,
             /// as another script's variable is: the run's nought is not what the reference holds.
-            void readLocal(char type, int index) const
+            void readLocal(char type, std::int32_t index) const
             {
                 const VisibilityLocal local{ .mType = type, .mIndex = index };
                 if (std::find(mWrittenOutside.begin(), mWrittenOutside.end(), local) != mWrittenOutside.end())
@@ -220,8 +226,8 @@ namespace MWScript
                     mWay.mWritten.push_back(global);
             }
 
-            unsigned mEvents = 0;
-            unsigned mAsked = 0;
+            std::uint32_t mEvents = 0;
+            std::uint32_t mAsked = 0;
 
             std::span<const VisibilityLocal> mWrittenOutside;
             const VisibilityReads& mReads;
@@ -302,13 +308,13 @@ namespace MWScript
         /// An instruction that is the game's to carry out once the reference's cell is active — a
         /// sound, a global script stopped — and says nothing of whether the reference stands:
         /// only its `Arguments` are taken off the stack, as the game's own takes them.
-        template <int Arguments>
+        template <std::int32_t Arguments>
         class OpNothing final : public Interpreter::Opcode0
         {
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                for (int at = 0; at < Arguments; ++at)
+                for (std::int32_t at = 0; at < Arguments; ++at)
                     runtime.pop();
             }
         };
@@ -350,16 +356,16 @@ namespace MWScript
         // a script that asks whether it was activated only to show a message stands the same either way, one
         // that takes itself down when activated stands by a history only its cell has. A path under one
         // answer can ask an event the others did not, so ways are tried until no run asks anything new.
-        constexpr unsigned ways = 1u << static_cast<unsigned>(Event::Count);
+        constexpr std::uint32_t ways = 1u << static_cast<std::uint32_t>(Event::Count);
         std::uint32_t tried = 0;
-        unsigned asked = 0;
+        std::uint32_t asked = 0;
         std::optional<bool> answer;
         // Kept on after the reference's own answer is lost, for the names that may still agree.
         Terrain::GateState own = Terrain::GateState::Open;
-        for (unsigned before = ~0u; before != asked;)
+        for (std::uint32_t before = ~0u; before != asked;)
         {
             before = asked;
-            for (unsigned events = 0; events < ways; ++events)
+            for (std::uint32_t events = 0; events < ways; ++events)
             {
                 if ((events & ~asked) != 0 || (tried & (1u << events)) != 0)
                     continue;

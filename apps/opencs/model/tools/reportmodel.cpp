@@ -1,5 +1,7 @@
 #include "reportmodel.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 
@@ -11,7 +13,7 @@ CSMTools::ReportModel::ReportModel(bool fieldColumn, bool severityColumn)
     : mColumnField(-1)
     , mColumnSeverity(-1)
 {
-    int index = 3;
+    std::int32_t index = 3;
 
     if (severityColumn)
         mColumnSeverity = index++;
@@ -22,15 +24,15 @@ CSMTools::ReportModel::ReportModel(bool fieldColumn, bool severityColumn)
     mColumnDescription = index;
 }
 
-int CSMTools::ReportModel::rowCount(const QModelIndex& parent) const
+std::int32_t CSMTools::ReportModel::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
 
-    return static_cast<int>(mRows.size());
+    return static_cast<std::int32_t>(mRows.size());
 }
 
-int CSMTools::ReportModel::columnCount(const QModelIndex& parent) const
+std::int32_t CSMTools::ReportModel::columnCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
@@ -38,7 +40,7 @@ int CSMTools::ReportModel::columnCount(const QModelIndex& parent) const
     return mColumnDescription + 1;
 }
 
-QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
+QVariant CSMTools::ReportModel::data(const QModelIndex& index, std::int32_t role) const
 {
     if (role != Qt::DisplayRole && role != Qt::UserRole)
         return QVariant();
@@ -50,7 +52,7 @@ QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
             if (role == Qt::UserRole)
                 return QString::fromUtf8(mRows.at(static_cast<std::size_t>(index.row())).mId.getTypeName().c_str());
             else
-                return static_cast<int>(mRows.at(static_cast<std::size_t>(index.row())).mId.getType());
+                return static_cast<std::int32_t>(mRows.at(static_cast<std::size_t>(index.row())).mId.getType());
 
         case Column_Id:
         {
@@ -88,7 +90,7 @@ QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
         std::istringstream stream(mRows.at(static_cast<std::size_t>(index.row())).mHint);
 
         char type = 0, ignore = 0;
-        int fieldIndex = 0;
+        std::int32_t fieldIndex = 0;
 
         if ((stream >> type >> ignore >> fieldIndex) && (type == 'r' || type == 'R'))
         {
@@ -107,7 +109,7 @@ QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
     return QVariant();
 }
 
-QVariant CSMTools::ReportModel::headerData(int section, Qt::Orientation orientation, int role) const
+QVariant CSMTools::ReportModel::headerData(std::int32_t section, Qt::Orientation orientation, std::int32_t role) const
 {
     if (role != Qt::DisplayRole)
         return QVariant();
@@ -137,7 +139,7 @@ QVariant CSMTools::ReportModel::headerData(int section, Qt::Orientation orientat
     return "-";
 }
 
-bool CSMTools::ReportModel::removeRows(int row, int count, const QModelIndex& parent)
+bool CSMTools::ReportModel::removeRows(std::int32_t row, std::int32_t count, const QModelIndex& parent)
 {
     if (parent.isValid())
         return false;
@@ -156,14 +158,14 @@ bool CSMTools::ReportModel::removeRows(int row, int count, const QModelIndex& pa
 
 void CSMTools::ReportModel::add(const CSMDoc::Message& message)
 {
-    beginInsertRows(QModelIndex(), static_cast<int>(mRows.size()), static_cast<int>(mRows.size()));
+    beginInsertRows(QModelIndex(), static_cast<std::int32_t>(mRows.size()), static_cast<std::int32_t>(mRows.size()));
 
     mRows.push_back(message);
 
     endInsertRows();
 }
 
-void CSMTools::ReportModel::flagAsReplaced(int index)
+void CSMTools::ReportModel::flagAsReplaced(std::int32_t index)
 {
     CSMDoc::Message& line = mRows.at(static_cast<std::size_t>(index));
     std::string hint = line.mHint;
@@ -178,12 +180,12 @@ void CSMTools::ReportModel::flagAsReplaced(int index)
     emit dataChanged(this->index(index, 0), this->index(index, columnCount()));
 }
 
-const CSMWorld::UniversalId& CSMTools::ReportModel::getUniversalId(int row) const
+const CSMWorld::UniversalId& CSMTools::ReportModel::getUniversalId(std::int32_t row) const
 {
     return mRows.at(static_cast<std::size_t>(row)).mId;
 }
 
-std::string CSMTools::ReportModel::getHint(int row) const
+std::string CSMTools::ReportModel::getHint(std::int32_t row) const
 {
     return mRows.at(static_cast<std::size_t>(row)).mHint;
 }
@@ -192,15 +194,15 @@ void CSMTools::ReportModel::clear()
 {
     if (!mRows.empty())
     {
-        beginRemoveRows(QModelIndex(), 0, static_cast<int>(mRows.size()) - 1);
+        beginRemoveRows(QModelIndex(), 0, static_cast<std::int32_t>(mRows.size()) - 1);
         mRows.clear();
         endRemoveRows();
     }
 }
 
-int CSMTools::ReportModel::countErrors() const
+std::int32_t CSMTools::ReportModel::countErrors() const
 {
-    int count = 0;
+    std::int32_t count = 0;
 
     for (const auto& row : mRows)
         if (row.mSeverity == CSMDoc::Message::Severity_Error || row.mSeverity == CSMDoc::Message::Severity_SeriousError)

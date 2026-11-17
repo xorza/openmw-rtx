@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <deque>
 
 #include <apps/openmw/mwrender/animation.hpp>
@@ -131,7 +132,7 @@ namespace MWMechanics
         struct AnimationQueueEntry
         {
             std::string mGroup;
-            uint32_t mLoopCount{};
+            std::uint32_t mLoopCount{};
             float mTime{};
             bool mLooping{};
             bool mScripted{};
@@ -234,7 +235,7 @@ namespace MWMechanics
 
         /// choose a random animation group with \a prefix and numeric suffix
         /// @param num if non-nullptr, the chosen animation number will be written here
-        std::string chooseRandomGroup(const std::string& prefix, int* num = nullptr) const;
+        std::string chooseRandomGroup(const std::string& prefix, std::int32_t* num = nullptr) const;
 
         bool updateCarriedLeftVisible(ESM::RefId weaptype) const;
 
@@ -253,9 +254,9 @@ namespace MWMechanics
 
         void unpersistAnimationState();
 
-        void playBlendedAnimation(const std::string& groupname, const MWRender::AnimPriority& priority, int blendMask,
-            bool autodisable, float speedmult, std::string_view start, std::string_view stop, float startpoint,
-            uint32_t loops, bool loopfallback = false) const;
+        void playBlendedAnimation(const std::string& groupname, const MWRender::AnimPriority& priority,
+            std::int32_t blendMask, bool autodisable, float speedmult, std::string_view start, std::string_view stop,
+            float startpoint, std::uint32_t loops, bool loopfallback = false) const;
 
     public:
         CharacterController(const MWWorld::Ptr& ptr, MWRender::Animation& anim);
@@ -282,9 +283,9 @@ namespace MWMechanics
         void onClose() const;
 
         void persistAnimationState() const;
-        bool playGroup(std::string_view groupname, int mode, uint32_t count, bool scripted = false);
+        bool playGroup(std::string_view groupname, std::int32_t mode, std::uint32_t count, bool scripted = false);
         bool playGroupLua(std::string_view groupname, float speed, std::string_view startKey, std::string_view stopKey,
-            uint32_t loops, bool forceLoop);
+            std::uint32_t loops, bool forceLoop);
         void enableLuaAnimations(bool enable);
         void skipAnim();
         bool isAnimPlaying(std::string_view groupName) const;
@@ -329,7 +330,7 @@ namespace MWMechanics
         float getAttackStrength() const;
 
         /// @see Animation::setActive
-        void setActive(int active) const;
+        void setActive(std::int32_t active) const;
 
         /// Make this character turn its head towards \a target. To turn off head tracking, pass an empty Ptr.
         void setHeadTrackTarget(const MWWorld::ConstPtr& target);

@@ -1,6 +1,7 @@
 #include "variantimp.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
@@ -17,11 +18,11 @@ namespace ESM
         {
             // float to int conversions for values outside T's valid range are UB. This code produces a result
             // equivalent to static_cast<T>(value) on x86 without invoking UB.
-            constexpr auto min = static_cast<double>(std::numeric_limits<int32_t>::lowest());
-            constexpr auto max = static_cast<double>(std::numeric_limits<int32_t>::max());
+            constexpr auto min = static_cast<double>(std::numeric_limits<std::int32_t>::lowest());
+            constexpr auto max = static_cast<double>(std::numeric_limits<std::int32_t>::max());
             if (std::isnan(value) || value < min || value > max)
-                return static_cast<T>(std::numeric_limits<int32_t>::lowest());
-            return static_cast<T>(static_cast<int32_t>(value));
+                return static_cast<T>(std::numeric_limits<std::int32_t>::lowest());
+            return static_cast<T>(static_cast<std::int32_t>(value));
         }
     }
 
@@ -61,7 +62,7 @@ namespace ESM
         esm.writeHNString("STRV", in);
     }
 
-    void readESMVariantValue(ESMReader& esm, Variant::Format format, VarType type, int32_t& out)
+    void readESMVariantValue(ESMReader& esm, Variant::Format format, VarType type, std::int32_t& out)
     {
         if (type != VT_Short && type != VT_Long && type != VT_Int)
             throw std::logic_error("not an integer type");
@@ -72,9 +73,9 @@ namespace ESM
             esm.getHNT(value, "FLTV");
 
             if (type == VT_Short)
-                out = floatCast<int16_t>(value);
+                out = floatCast<std::int16_t>(value);
             else if (type == VT_Long)
-                out = floatCast<int32_t>(value);
+                out = floatCast<std::int32_t>(value);
             else
                 esm.fail("unsupported global variable integer type");
         }
@@ -94,7 +95,7 @@ namespace ESM
         {
             if (type == VT_Short)
             {
-                int16_t value = 0;
+                std::int16_t value = 0;
                 esm.getHT(value);
                 out = value;
             }
@@ -107,7 +108,7 @@ namespace ESM
         }
     }
 
-    void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, int32_t in)
+    void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, std::int32_t in)
     {
         if (type != VT_Short && type != VT_Long && type != VT_Int)
             throw std::logic_error("not an integer type");
@@ -138,7 +139,7 @@ namespace ESM
         else if (format == Variant::Format_Local)
         {
             if (type == VT_Short)
-                esm.writeHNT("STTV", static_cast<int16_t>(in));
+                esm.writeHNT("STTV", static_cast<std::int16_t>(in));
             else if (type == VT_Int)
                 esm.writeHNT("INTV", in);
             else

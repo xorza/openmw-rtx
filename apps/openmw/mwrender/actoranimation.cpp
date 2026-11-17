@@ -1,5 +1,6 @@
 #include "actoranimation.hpp"
 
+#include <cstdint>
 #include <utility>
 
 #include <osg/Group>
@@ -427,12 +428,12 @@ namespace MWRender
         // Special case for throwing weapons - they do not use ammo, but they stack themselves
         bool suitableAmmo = false;
         MWWorld::ConstContainerStoreIterator ammo = weapon;
-        unsigned int ammoCount = 0;
+        std::uint32_t ammoCount = 0;
         const ESM::RefId type = weapon->get<ESM::Weapon>()->mBase->mData.mType;
         const auto& weaponType = MWMechanics::getWeaponType(type);
         if (weaponType->mWeaponClass == ESM::WeaponType::Thrown)
         {
-            ammoCount = static_cast<unsigned int>(ammo->getCellRef().getCount());
+            ammoCount = static_cast<std::uint32_t>(ammo->getCellRef().getCount());
             osg::Group* throwingWeaponNode = getBoneByName(weaponType->mAttachBone);
             if (throwingWeaponNode && throwingWeaponNode->getNumChildren())
                 ammoCount--;
@@ -445,7 +446,7 @@ namespace MWRender
             if (ammo == inv.end())
                 return;
 
-            ammoCount = static_cast<unsigned int>(ammo->getCellRef().getCount());
+            ammoCount = static_cast<std::uint32_t>(ammo->getCellRef().getCount());
             bool arrowAttached = isArrowAttached();
             if (arrowAttached)
                 ammoCount--;
@@ -460,7 +461,7 @@ namespace MWRender
         ammoCount = std::min(ammoCount, ammoNode->getNumChildren());
 
         // Remove existing ammo nodes
-        for (unsigned int i = 0; i < ammoNode->getNumChildren(); ++i)
+        for (std::uint32_t i = 0; i < ammoNode->getNumChildren(); ++i)
         {
             osg::ref_ptr<osg::Group> arrowNode = ammoNode->getChild(i)->asGroup();
             if (!arrowNode->getNumChildren())
@@ -473,7 +474,7 @@ namespace MWRender
         // Add new ones
         osg::Vec4f glowColor = ammo->getClass().getEnchantmentColor(*ammo);
         const VFS::Path::Normalized model(ammo->getClass().getCorrectedModel(*ammo));
-        for (unsigned int i = 0; i < ammoCount; ++i)
+        for (std::uint32_t i = 0; i < ammoCount; ++i)
         {
             osg::ref_ptr<osg::Group> arrowNode = ammoNode->getChild(i)->asGroup();
             osg::ref_ptr<osg::Node> arrow = mResourceSystem->getSceneManager()->getInstance(model, arrowNode);
@@ -482,7 +483,7 @@ namespace MWRender
         }
     }
 
-    void ActorAnimation::itemAdded(const MWWorld::ConstPtr& item, int /*count*/)
+    void ActorAnimation::itemAdded(const MWWorld::ConstPtr& item, std::int32_t /*count*/)
     {
         if (item.getType() == ESM::Light::sRecordId)
         {
@@ -513,7 +514,7 @@ namespace MWRender
             updateQuiver();
     }
 
-    void ActorAnimation::itemRemoved(const MWWorld::ConstPtr& item, int /*count*/)
+    void ActorAnimation::itemRemoved(const MWWorld::ConstPtr& item, std::int32_t /*count*/)
     {
         if (item.getType() == ESM::Light::sRecordId)
         {

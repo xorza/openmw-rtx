@@ -1,5 +1,6 @@
 #include "idcompletiondelegate.hpp"
 
+#include <cstdint>
 #include <memory>
 
 #include <apps/opencs/model/doc/document.hpp>
@@ -40,7 +41,7 @@ QWidget* CSVWorld::IdCompletionDelegate::createEditor(QWidget* parent, const QSt
     if (display == CSMWorld::ColumnBase::Display_InfoCondVar)
     {
         QModelIndex sibling = index.sibling(index.row(), 0);
-        int conditionFunction = sibling.model()->data(sibling, Qt::EditRole).toInt();
+        std::int32_t conditionFunction = sibling.model()->data(sibling, Qt::EditRole).toInt();
 
         switch (conditionFunction)
         {

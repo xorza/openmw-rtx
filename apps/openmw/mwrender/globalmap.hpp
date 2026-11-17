@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -45,14 +46,14 @@ namespace MWRender
 
         void render();
 
-        int getWidth() const { return mWidth; }
-        int getHeight() const { return mHeight; }
+        std::int32_t getWidth() const { return mWidth; }
+        std::int32_t getHeight() const { return mHeight; }
 
         void worldPosToImageSpace(float x, float z, float& imageX, float& imageY);
 
         /// Paints the local map's picture of a cell into the overlay, where the local map has one:
         /// a cell it has not been asked for paints nothing.
-        void exploreCell(int cellX, int cellY, LocalMap& localMap);
+        void exploreCell(std::int32_t cellX, std::int32_t cellY, LocalMap& localMap);
 
         /// Clears the overlay
         void clear();
@@ -84,10 +85,10 @@ namespace MWRender
         std::shared_ptr<CreateMapWorkItem> mWorkItem;
         std::shared_ptr<WritePng> mWritePng;
 
-        int mWidth;
-        int mHeight;
+        std::int32_t mWidth;
+        std::int32_t mHeight;
 
-        int mMinX, mMaxX, mMinY, mMaxY;
+        std::int32_t mMinX, mMaxX, mMinY, mMaxY;
     };
 
 }

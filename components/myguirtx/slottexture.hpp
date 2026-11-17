@@ -30,8 +30,8 @@ namespace MyGUIRtx
 
         const std::string& getName() const override { return mName; }
 
-        int getWidth() const override { return mWidth; }
-        int getHeight() const override { return mHeight; }
+        std::int32_t getWidth() const override { return mWidth; }
+        std::int32_t getHeight() const override { return mHeight; }
 
         void saveToFile(const std::string& fname) override;
 
@@ -54,10 +54,10 @@ namespace MyGUIRtx
         /// A slot of this size, replacing whatever was held. The renderer may refuse it — a side past
         /// the device's — and the size is held all the same, so the refusal is asked once a size
         /// (`isSized`) and every write after it does nothing (`write`): the texture draws as nothing.
-        void take(int width, int height);
+        void take(std::int32_t width, std::int32_t height);
 
         /// Whether the size held is `width` by `height`, its slot taken or refused.
-        bool isSized(int width, int height) const { return mWidth == width && mHeight == height; }
+        bool isSized(std::int32_t width, std::int32_t height) const { return mWidth == width && mHeight == height; }
 
         /// Lends `region` of the slot, hands its bytes to `fill`, and sends them; nothing at all
         /// where the renderer refused the slot.
@@ -90,7 +90,7 @@ namespace MyGUIRtx
 
         std::string mName;
         Rtx::GuiSlot mSlot;
-        int mWidth = 0;
-        int mHeight = 0;
+        std::int32_t mWidth = 0;
+        std::int32_t mHeight = 0;
     };
 }

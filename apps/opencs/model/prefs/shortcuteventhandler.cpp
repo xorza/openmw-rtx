@@ -1,11 +1,13 @@
 #include "shortcuteventhandler.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+
 #include <QEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QWidget>
-#include <algorithm>
-#include <cassert>
 
 #include "shortcut.hpp"
 
@@ -160,10 +162,10 @@ namespace CSMPrefs
                 if (shortcut->getActivationStatus() != Shortcut::AS_Inactive)
                     continue;
 
-                int pos = shortcut->getPosition();
-                int lastPos = shortcut->getLastPosition();
+                std::int32_t pos = shortcut->getPosition();
+                std::int32_t lastPos = shortcut->getLastPosition();
                 MatchResult result = match(keyCombination.keyboardModifiers(), keyCombination.key(),
-                    static_cast<unsigned int>(shortcut->getSequence()[static_cast<uint>(pos)].toCombined()));
+                    static_cast<std::uint32_t>(shortcut->getSequence()[static_cast<uint>(pos)].toCombined()));
 
                 if (result == Matches_WithMod || result == Matches_NoMod)
                 {
@@ -222,7 +224,7 @@ namespace CSMPrefs
                 if (checkModifier(keyCombination, shortcut, false))
                     used = true;
 
-                int pos = shortcut->getPosition();
+                std::int32_t pos = shortcut->getPosition();
                 MatchResult result
                     = match(0, keyCombination.key(), shortcut->getSequence()[static_cast<uint>(pos)].key());
 
@@ -260,7 +262,7 @@ namespace CSMPrefs
             return false;
 
         MatchResult result = match(keyCombination.keyboardModifiers(), keyCombination.key(),
-            static_cast<unsigned int>(shortcut->getModifier()));
+            static_cast<std::uint32_t>(shortcut->getModifier()));
         bool used = false;
 
         if (result != Matches_Not)
@@ -292,7 +294,7 @@ namespace CSMPrefs
     }
 
     ShortcutEventHandler::MatchResult ShortcutEventHandler::match(
-        unsigned int mod, unsigned int button, unsigned int value)
+        std::uint32_t mod, std::uint32_t button, std::uint32_t value)
     {
         if ((mod | button) == value)
         {

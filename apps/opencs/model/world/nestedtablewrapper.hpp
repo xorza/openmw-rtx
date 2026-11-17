@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <utility>
 
 namespace CSMWorld
@@ -8,7 +9,7 @@ namespace CSMWorld
     {
         virtual ~NestedTableWrapperBase() = default;
 
-        virtual size_t size() const = 0;
+        virtual std::size_t size() const = 0;
     };
 
     template <typename NestedTable>
@@ -23,7 +24,7 @@ namespace CSMWorld
 
         ~NestedTableWrapper() override = default;
 
-        size_t size() const override
+        std::size_t size() const override
         {
             return mNestedTable.size(); // i hope that this will be enough
         }

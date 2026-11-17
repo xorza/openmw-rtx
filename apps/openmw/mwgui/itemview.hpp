@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_Widget.h>
 
 #include "itemmodel.hpp"
@@ -33,9 +35,9 @@ namespace MWGui
         void resetScrollBars();
 
         void setActiveControllerWindow(bool active);
-        int getControllerFocus() { return mControllerFocus; }
-        int getItemCount() { return mItemCount; }
-        void onControllerButton(const unsigned char button);
+        std::int32_t getControllerFocus() { return mControllerFocus; }
+        std::int32_t getItemCount() { return mItemCount; }
+        void onControllerButton(const std::uint8_t button);
 
     private:
         void initialiseOverride() override;
@@ -47,16 +49,16 @@ namespace MWGui
 
         void onSelectedItem(MyGUI::Widget* sender);
         void onSelectedBackground(MyGUI::Widget* sender);
-        void onMouseWheelMoved(MyGUI::Widget* sender, int rel);
+        void onMouseWheelMoved(MyGUI::Widget* sender, std::int32_t rel);
 
         std::unique_ptr<ItemModel> mModel;
         MyGUI::ScrollView* mScrollView;
 
-        int mItemCount = 0;
-        int mRows = 1;
-        int mControllerFocus = 0;
+        std::int32_t mItemCount = 0;
+        std::int32_t mRows = 1;
+        std::int32_t mControllerFocus = 0;
         bool mControllerActiveWindow;
-        void updateControllerFocus(int prevFocus, int newFocus);
+        void updateControllerFocus(std::int32_t prevFocus, std::int32_t newFocus);
     };
 
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwworld/ptr.hpp>
 
 #include "layout.hpp"
@@ -30,11 +32,11 @@ namespace MWGui
         std::string text;
         std::string extra;
         std::string icon;
-        int imageSize;
+        std::int32_t imageSize;
 
         // enchantment (for cloth, armor, weapons)
         ESM::RefId enchant;
-        int remainingEnchantCharge;
+        std::int32_t remainingEnchantCharge;
 
         // effects (for potions, ingredients)
         Widgets::SpellEffectList effects;
@@ -68,16 +70,16 @@ namespace MWGui
 
         static std::string getWeightString(const float weight, std::string_view prefix);
         static std::string getPercentString(const float value, std::string_view prefix);
-        static std::string getValueString(const int value, std::string_view prefix);
+        static std::string getValueString(const std::int32_t value, std::string_view prefix);
         ///< @return "prefix: value" or "" if value is 0
 
         static std::string getMiscString(std::string_view text, std::string_view prefix);
         ///< @return "prefix: text" or "" if text is empty
 
         static std::string toString(const float value);
-        static std::string toString(const int value);
+        static std::string toString(const std::int32_t value);
 
-        static std::string getCountString(const int value);
+        static std::string getCountString(const std::int32_t value);
         ///< @return blank string if count is 1, or else " (value)"
 
         static std::string getSoulString(const MWWorld::CellRef& cellref);
@@ -93,7 +95,7 @@ namespace MWGui
         // system knows what to show in case this widget is hovered
         static void createSkillToolTip(MyGUI::Widget* widget, ESM::RefId skillId);
         static void createAttributeToolTip(MyGUI::Widget* widget, ESM::RefId attributeId);
-        static void createSpecializationToolTip(MyGUI::Widget* widget, std::string_view name, int specId);
+        static void createSpecializationToolTip(MyGUI::Widget* widget, std::string_view name, std::int32_t specId);
         static void createBirthsignToolTip(MyGUI::Widget* widget, const ESM::RefId& birthsignId);
         static void createRaceToolTip(MyGUI::Widget* widget, const ESM::Race* playerRace);
         static void createClassToolTip(MyGUI::Widget* widget, const ESM::Class& playerClass);
@@ -107,7 +109,7 @@ namespace MWGui
 
         MWWorld::Ptr mFocusObject;
 
-        MyGUI::IntSize getToolTipViaPtr(int count, bool image = true, bool isOwned = false);
+        MyGUI::IntSize getToolTipViaPtr(std::int32_t count, bool image = true, bool isOwned = false);
         ///< @return requested tooltip size
 
         MyGUI::IntSize createToolTip(const ToolTipInfo& info, bool isOwned = false);
@@ -120,12 +122,12 @@ namespace MWGui
         /// Adjust position for a tooltip so that it doesn't leave the screen and does not obscure the mouse cursor
         void position(MyGUI::IntPoint& position, MyGUI::IntSize size, MyGUI::IntSize viewportSize);
 
-        int mHorizontalScrollIndex;
+        std::int32_t mHorizontalScrollIndex;
 
         float mRemainingDelay; // remaining time until tooltip will show
 
-        int mLastMouseX;
-        int mLastMouseY;
+        std::int32_t mLastMouseX;
+        std::int32_t mLastMouseY;
 
         bool mEnabled;
 

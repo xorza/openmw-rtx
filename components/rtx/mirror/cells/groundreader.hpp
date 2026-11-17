@@ -52,18 +52,18 @@ namespace Rtx
 
         /// Cell texture coordinates to a layer's diffuse texture, which tiles `tileCount` times
         /// across the cell: what `LayerTexMat` in `components/terrain/material.cpp` attaches.
-        static osg::Vec4f diffuseTransform(int tileCount);
+        static osg::Vec4f diffuseTransform(std::int32_t tileCount);
 
         /// Cell texture coordinates to a layer's blend map, for a map of `tileCount` tiles a side
         /// doubled to match the original game's: what `BlendmapTexMat` attaches, as `uv * xy + zw`.
         /// Derived, because the class that states it is private to `material.cpp`, and a test
         /// asserts the numbers so a change there is a failure here rather than a drift.
-        static osg::Vec4f maskTransform(int tileCount);
+        static osg::Vec4f maskTransform(std::int32_t tileCount);
 
     private:
         /// Copies the game's own index and corner buffers for a grid `verts` a side, so that a cell
         /// spans a plain array rather than an `osg::DrawElements` of one of two widths.
-        static void copyGrid(Terrain::BufferCache& buffers, unsigned int verts, std::vector<std::uint32_t>& indices,
+        static void copyGrid(Terrain::BufferCache& buffers, std::uint32_t verts, std::vector<std::uint32_t>& indices,
             std::vector<osg::Vec2f>& corners);
 
         Terrain::Storage& mStorage;
@@ -71,7 +71,7 @@ namespace Rtx
 
         float mCellSize = 0.0f;
         std::size_t mVerts = 0;
-        int mTileCount = 0;
+        std::int32_t mTileCount = 0;
         bool mEsm4 = false;
 
         /// A cell's grid, and the quad a cell with no land record stands as. Built once: every cell

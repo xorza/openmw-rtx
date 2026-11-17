@@ -1,5 +1,7 @@
 #include "aicombataction.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -23,7 +25,7 @@ namespace MWMechanics
 {
     namespace
     {
-        float suggestCombatRange(int rangeTypes)
+        float suggestCombatRange(std::int32_t rangeTypes)
         {
             static const float fCombatDistance = MWBase::Environment::get()
                                                      .getESMStore()
@@ -62,7 +64,7 @@ namespace MWMechanics
     float ActionSpell::getCombatRange(bool& isRanged) const
     {
         const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().find(mSpellId);
-        int types = getRangeTypes(spell->mEffects);
+        std::int32_t types = getRangeTypes(spell->mEffects);
 
         isRanged = (types & RangeTypes::Target) | (types & RangeTypes::Self);
         return suggestCombatRange(types);
@@ -79,7 +81,7 @@ namespace MWMechanics
     {
         const ESM::Enchantment* enchantment = MWBase::Environment::get().getESMStore()->get<ESM::Enchantment>().find(
             mItem->getClass().getEnchantment(*mItem));
-        int types = getRangeTypes(enchantment->mEffects);
+        std::int32_t types = getRangeTypes(enchantment->mEffects);
 
         isRanged = (types & RangeTypes::Target) | (types & RangeTypes::Self);
         return suggestCombatRange(types);
@@ -459,7 +461,7 @@ namespace MWMechanics
         const MWWorld::Store<ESM::GameSetting>& gmst
             = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();
 
-        const int flee = stats.getAiSetting(AiSetting::Flee).getModified();
+        const std::int32_t flee = stats.getAiSetting(AiSetting::Flee).getModified();
         if (flee >= 100)
             return static_cast<float>(flee);
 
@@ -469,13 +471,13 @@ namespace MWMechanics
         float healthPercentage = stats.getHealth().getRatio(false);
         float rating = (1.0f - healthPercentage) * fAIFleeHealthMult + static_cast<float>(flee) * fAIFleeFleeMult;
 
-        static const int iWereWolfLevelToAttack = gmst.find("iWereWolfLevelToAttack")->mValue.getInteger();
+        static const std::int32_t iWereWolfLevelToAttack = gmst.find("iWereWolfLevelToAttack")->mValue.getInteger();
 
         if (actor.getClass().isNpc() && enemy.getClass().isNpc())
         {
             if (enemy.getClass().getNpcStats(enemy).isWerewolf() && stats.getLevel() < iWereWolfLevelToAttack)
             {
-                static const int iWereWolfFleeMod = gmst.find("iWereWolfFleeMod")->mValue.getInteger();
+                static const std::int32_t iWereWolfFleeMod = gmst.find("iWereWolfFleeMod")->mValue.getInteger();
                 rating = static_cast<float>(iWereWolfFleeMod);
             }
         }

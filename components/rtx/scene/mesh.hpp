@@ -142,7 +142,7 @@ namespace Rtx
         {
             osg::BoundingBoxf placed;
             if (box.valid())
-                for (unsigned int corner = 0; corner < 8; ++corner)
+                for (std::uint32_t corner = 0; corner < 8; ++corner)
                     placed.expandBy(box.corner(corner) * mTransform);
 
             return placed;

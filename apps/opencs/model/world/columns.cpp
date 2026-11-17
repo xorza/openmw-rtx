@@ -1,5 +1,6 @@
 #include "columns.hpp"
 
+#include <cstdint>
 #include <string_view>
 
 #include <components/fallback/fallback.hpp>
@@ -16,7 +17,7 @@ namespace CSMWorld
         {
             struct ColumnDesc
             {
-                int mId;
+                std::int32_t mId;
                 const char* mName;
             };
         }
@@ -391,16 +392,16 @@ namespace CSMWorld
 
 std::string CSMWorld::Columns::getName(ColumnId column)
 {
-    for (int i = 0; sNames[i].mName; ++i)
+    for (std::int32_t i = 0; sNames[i].mName; ++i)
         if (column == sNames[i].mId)
             return sNames[i].mName;
 
     return "";
 }
 
-int CSMWorld::Columns::getId(const std::string& name)
+std::int32_t CSMWorld::Columns::getId(const std::string& name)
 {
-    for (int i = 0; sNames[i].mName; ++i)
+    for (std::int32_t i = 0; sNames[i].mName; ++i)
         if (Misc::StringUtils::ciEqual(std::string_view(sNames[i].mName), name))
             return sNames[i].mId;
 
@@ -574,16 +575,16 @@ bool CSMWorld::Columns::hasEnums(ColumnId column)
     return getEnumNames(column) != nullptr || column == ColumnId_RecordType;
 }
 
-std::vector<std::pair<int, std::string>> CSMWorld::Columns::getEnums(ColumnId column)
+std::vector<std::pair<std::int32_t, std::string>> CSMWorld::Columns::getEnums(ColumnId column)
 {
-    std::vector<std::pair<int, std::string>> enums;
+    std::vector<std::pair<std::int32_t, std::string>> enums;
 
     if (const char** table = getEnumNames(column))
-        for (int i = 0; table[i]; ++i)
+        for (std::int32_t i = 0; table[i]; ++i)
             enums.emplace_back(i, table[i]);
     else if (column == ColumnId_BloodType)
     {
-        for (int i = 0; i < 8; i++)
+        for (std::int32_t i = 0; i < 8; i++)
         {
             std::string_view bloodName = Fallback::Map::getString("Blood_Texture_Name_" + std::to_string(i));
             if (!bloodName.empty())
@@ -594,7 +595,7 @@ std::vector<std::pair<int, std::string>> CSMWorld::Columns::getEnums(ColumnId co
     {
         enums.emplace_back(UniversalId::Type_None, ""); // none
 
-        for (int i = UniversalId::Type_None + 1; i < UniversalId::NumberOfTypes; ++i)
+        for (std::int32_t i = UniversalId::Type_None + 1; i < UniversalId::NumberOfTypes; ++i)
             enums.emplace_back(i, UniversalId(static_cast<UniversalId::Type>(i)).getTypeName());
     }
 

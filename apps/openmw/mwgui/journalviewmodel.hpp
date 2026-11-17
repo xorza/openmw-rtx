@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -35,7 +36,8 @@ namespace MWGui
             /// Visits each subset of text in the body, delivering the beginning
             /// and end of the span relative to the body, and a valid topic ID if
             /// the span represents a keyword, or zero if not.
-            virtual void visitSpans(std::function<void(const MWDialogue::Topic*, size_t, size_t)> visitor) const = 0;
+            virtual void visitSpans(
+                std::function<void(const MWDialogue::Topic*, std::size_t, std::size_t)> visitor) const = 0;
 
             virtual ~Entry() = default;
         };

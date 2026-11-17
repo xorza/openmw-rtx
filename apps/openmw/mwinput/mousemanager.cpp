@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_InputManager.h>
@@ -48,7 +49,7 @@ namespace MWInput
     MyGUI::IntPoint MouseManager::cursorPoint() const
     {
         const osg::Vec2f cursor = cursorInInterface();
-        return MyGUI::IntPoint(static_cast<int>(cursor.x()), static_cast<int>(cursor.y()));
+        return MyGUI::IntPoint(static_cast<std::int32_t>(cursor.x()), static_cast<std::int32_t>(cursor.y()));
     }
 
     void MouseManager::placeCursor(const osg::Vec2f position)
@@ -77,7 +78,7 @@ namespace MWInput
             mGuiCursor = mRenderer.getPresentation().toFrame(osg::Vec2f(arg.x, arg.y));
 
             if (arg.zrel != 0)
-                mMouseWheel = static_cast<int>(arg.z);
+                mMouseWheel = static_cast<std::int32_t>(arg.z);
 
             const MyGUI::IntPoint cursor = cursorPoint();
             MyGUI::InputManager::getInstance().injectMouseMove(cursor.left, cursor.top, mMouseWheel);
@@ -287,7 +288,7 @@ namespace MWInput
     void MouseManager::injectMouseMove(float xMove, float yMove, float mouseWheelMove)
     {
         placeCursor(cursorInInterface() + osg::Vec2f(xMove, yMove));
-        mMouseWheel += static_cast<int>(mouseWheelMove);
+        mMouseWheel += static_cast<std::int32_t>(mouseWheelMove);
 
         const MyGUI::IntPoint cursor = cursorPoint();
         MyGUI::InputManager::getInstance().injectMouseMove(cursor.left, cursor.top, mMouseWheel);

@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -226,9 +228,9 @@ CUSTOM: customdata.lua
             mCfg.init(std::move(cfg), false);
         }
 
-        int getId(VFS::Path::NormalizedView path) const
+        std::int32_t getId(VFS::Path::NormalizedView path) const
         {
-            const std::optional<int> id = mCfg.findId(path);
+            const std::optional<std::int32_t> id = mCfg.findId(path);
             if (!id.has_value())
                 throw std::invalid_argument("Script id is not found: " + std::string(path.value()));
             return *id;
@@ -345,7 +347,7 @@ CUSTOM: customdata.lua
         }
         {
             testing::internal::CaptureStdout();
-            const int stopEventScriptId = getId(stopEventPath);
+            const std::int32_t stopEventScriptId = getId(stopEventPath);
             EXPECT_TRUE(scripts.hasScript(stopEventScriptId));
             scripts.removeScript(stopEventScriptId);
             EXPECT_FALSE(scripts.hasScript(stopEventScriptId));
@@ -386,9 +388,9 @@ CUSTOM: customdata.lua
     {
         LuaUtil::ScriptsContainer scripts(&mLua, "Test");
         scripts.setAutoStartConf(mCfg.getLocalConf(ESM::REC_CREA, ESM::RefId(), ESM::RefNum()));
-        const int addIfaceId = getId(testInterfacePath);
-        const int overrideIfaceId = getId(overrideInterfacePath);
-        const int useIfaceId = getId(useInterfacePath);
+        const std::int32_t addIfaceId = getId(testInterfacePath);
+        const std::int32_t overrideIfaceId = getId(overrideInterfacePath);
+        const std::int32_t useIfaceId = getId(useInterfacePath);
 
         testing::internal::CaptureStdout();
         scripts.addAutoStartedScripts();
@@ -459,19 +461,19 @@ CUSTOM: customdata.lua
     {
         using TimerType = LuaUtil::ScriptsContainer::TimerType;
         LuaUtil::ScriptsContainer scripts(&mLua, "Test");
-        const int test1Id = getId(test1Path);
-        const int test2Id = getId(test2Path);
+        const std::int32_t test1Id = getId(test1Path);
+        const std::int32_t test2Id = getId(test2Path);
 
         testing::internal::CaptureStdout();
         EXPECT_TRUE(scripts.addCustomScript(test1Id));
         EXPECT_TRUE(scripts.addCustomScript(test2Id));
         EXPECT_EQ(internal::GetCapturedStdout(), "");
 
-        int counter1 = 0, counter2 = 0, counter3 = 0, counter4 = 0;
+        std::int32_t counter1 = 0, counter2 = 0, counter3 = 0, counter4 = 0;
         sol::function fn1 = sol::make_object(mLua.unsafeState(), [&]() { counter1++; });
         sol::function fn2 = sol::make_object(mLua.unsafeState(), [&]() { counter2++; });
-        sol::function fn3 = sol::make_object(mLua.unsafeState(), [&](int d) { counter3 += d; });
-        sol::function fn4 = sol::make_object(mLua.unsafeState(), [&](int d) { counter4 += d; });
+        sol::function fn3 = sol::make_object(mLua.unsafeState(), [&](std::int32_t d) { counter3 += d; });
+        sol::function fn4 = sol::make_object(mLua.unsafeState(), [&](std::int32_t d) { counter4 += d; });
 
         scripts.registerTimerCallback(test1Id, "A", fn3);
         scripts.registerTimerCallback(test1Id, "B", fn4);
@@ -537,7 +539,7 @@ CUSTOM: customdata.lua
         EXPECT_EQ(counter4, 25);
 
         // Test REAL_TIME timers
-        int counter5 = 0, counter6 = 0;
+        std::int32_t counter5 = 0, counter6 = 0;
         sol::function fn5 = sol::make_object(mLua.unsafeState(), [&]() { counter5++; });
         sol::function fn6 = sol::make_object(mLua.unsafeState(), [&]() { counter6++; });
 
@@ -604,7 +606,7 @@ CUSTOM: customdata.lua
         mLua.protectedCall([&](LuaUtil::LuaView& lua) {
             scripts1.receiveEvent("Set", LuaUtil::serialize(lua.sol().create_table_with("x", 3, "y", 2, "z", 1)));
             testing::internal::CaptureStdout();
-            for (int i = 0; i < 600; ++i)
+            for (std::int32_t i = 0; i < 600; ++i)
                 tracker.unloadInactiveScripts(lua);
             EXPECT_EQ(tracker.size(), 0);
             scripts1.receiveEvent("Set", LuaUtil::serialize(lua.sol().create_table_with("x", 10, "y", 20, "z", 30)));
@@ -617,7 +619,7 @@ CUSTOM: customdata.lua
         scripts1.save(data);
         EXPECT_EQ(tracker.size(), 1);
         mLua.protectedCall([&](LuaUtil::LuaView& lua) {
-            for (int i = 0; i < 600; ++i)
+            for (std::int32_t i = 0; i < 600; ++i)
                 tracker.unloadInactiveScripts(lua);
         });
         EXPECT_EQ(tracker.size(), 0);
@@ -630,7 +632,7 @@ CUSTOM: customdata.lua
         LuaUtil::ScriptTracker tracker;
         LuaUtil::ScriptsContainer scripts1(&mLua, "Test", &tracker, false);
         LuaUtil::BasicSerializer serializer1;
-        LuaUtil::BasicSerializer serializer2([](int contentFileIndex) -> int {
+        LuaUtil::BasicSerializer serializer2([](std::int32_t contentFileIndex) -> std::int32_t {
             if (contentFileIndex == 12)
                 return 34;
             else if (contentFileIndex == 37)
@@ -649,7 +651,7 @@ CUSTOM: customdata.lua
 
             EXPECT_TRUE(scripts1.addCustomScript(*mCfg.findId(customDataPath), serialized));
             EXPECT_EQ(tracker.size(), 1);
-            for (int i = 0; i < 600; ++i)
+            for (std::int32_t i = 0; i < 600; ++i)
                 tracker.unloadInactiveScripts(lua);
             EXPECT_EQ(tracker.size(), 0);
             scripts1.receiveEvent("WakeUp", {});
@@ -685,7 +687,7 @@ CUSTOM: customdata.lua
         LuaUtil::ScriptsContainer scripts1(&mLua, "Test");
         scripts1.setAutoStartConf(mCfg.getLocalConf(ESM::REC_NPC_, ESM::RefId(), ESM::RefNum()));
         scripts1.addAutoStartedScripts();
-        const int scriptId = getId(test1Path);
+        const std::int32_t scriptId = getId(test1Path);
         EXPECT_TRUE(scripts1.addCustomScript(scriptId));
 
         ESM::LuaScripts data;
@@ -703,7 +705,7 @@ CUSTOM: test1.lua
         scripts2.setAutoStartConf(mCfg.getLocalConf(ESM::REC_NPC_, ESM::RefId(), ESM::RefNum()));
         scripts2.load(data);
 
-        const int newScriptId = getId(test1Path);
+        const std::int32_t newScriptId = getId(test1Path);
         EXPECT_NE(scriptId, newScriptId);
         EXPECT_EQ(newScriptId, 2);
         EXPECT_TRUE(scripts2.hasScript(newScriptId));

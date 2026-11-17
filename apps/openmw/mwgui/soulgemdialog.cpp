@@ -1,5 +1,7 @@
 #include "soulgemdialog.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
 
@@ -18,7 +20,7 @@ namespace MWGui
         mManager->eventButtonPressed += MyGUI::newDelegate(this, &SoulgemDialog::onButtonPressed);
     }
 
-    void SoulgemDialog::onButtonPressed(int button)
+    void SoulgemDialog::onButtonPressed(std::int32_t button)
     {
         if (button == 0)
         {

@@ -23,12 +23,12 @@ namespace Resource
     {
         using namespace ::testing;
 
-        using ObjectCache = GenericObjectCache<int, osg::ref_ptr<osg::Object>>;
+        using ObjectCache = GenericObjectCache<std::int32_t, osg::ref_ptr<osg::Object>>;
         using StringObjectCache = GenericObjectCache<std::string, osg::ref_ptr<osg::Object>>;
 
         // The point of the value type parameter: a type that derives from nothing at all
         // is cacheable, and expiry still knows whether anything outside holds it.
-        using SharedCache = GenericObjectCache<int, std::shared_ptr<const std::string>>;
+        using SharedCache = GenericObjectCache<std::int32_t, std::shared_ptr<const std::string>>;
         using LoadedString = Loaded<std::shared_ptr<const std::string>>;
 
         TEST(ResourceGenericObjectCacheTest, getRefFromObjectCacheShouldReturnNullptrByDefault)
@@ -91,7 +91,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, shouldStoreValues)
         {
             ObjectCache cache;
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
             EXPECT_EQ(cache.getRefFromObjectCache(key), value);
@@ -100,7 +100,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, shouldStoreNullptrValues)
         {
             ObjectCache cache;
-            const int key = 42;
+            const std::int32_t key = 42;
             cache.addEntryToObjectCache(key, nullptr);
             EXPECT_THAT(cache.getRefFromObjectCacheOrNone(key), Optional(nullptr));
         }
@@ -109,7 +109,7 @@ namespace Resource
         {
             ObjectCache cache;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value, 0);
             value = nullptr;
@@ -124,7 +124,7 @@ namespace Resource
         {
             ObjectCache cache;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value1(new Object);
             osg::ref_ptr<Object> value2(new Object);
             cache.addEntryToObjectCache(key, value1);
@@ -140,7 +140,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 2;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             cache.addEntryToObjectCache(key, nullptr, referenceTime + expiryDelay);
 
             cache.update(referenceTime, expiryDelay);
@@ -160,7 +160,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 1;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
             value = nullptr;
@@ -181,7 +181,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 1;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
 
@@ -199,7 +199,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 2;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
             value = nullptr;
@@ -218,7 +218,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 2;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             cache.addEntryToObjectCache(key, nullptr);
 
             cache.update(referenceTime + expiryDelay, expiryDelay);
@@ -235,7 +235,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 2;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             cache.addEntryToObjectCache(key, nullptr);
 
             cache.update(referenceTime, expiryDelay);
@@ -259,7 +259,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, shouldSupportRemovingItems)
         {
             ObjectCache cache;
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
             ASSERT_EQ(cache.getRefFromObjectCache(key), value);
@@ -271,8 +271,8 @@ namespace Resource
         {
             ObjectCache cache;
 
-            const int key1 = 42;
-            const int key2 = 13;
+            const std::int32_t key1 = 42;
+            const std::int32_t key2 = 13;
             osg::ref_ptr<Object> value1(new Object);
             osg::ref_ptr<Object> value2(new Object);
             cache.addEntryToObjectCache(key1, value1);
@@ -298,8 +298,8 @@ namespace Resource
             cache.addEntryToObjectCache(2, value2);
             cache.addEntryToObjectCache(3, value3);
 
-            std::vector<std::pair<int, osg::Object*>> actual;
-            cache.call([&](int key, osg::Object* value) { actual.emplace_back(key, value); });
+            std::vector<std::pair<std::int32_t, osg::Object*>> actual;
+            cache.call([&](std::int32_t key, osg::Object* value) { actual.emplace_back(key, value); });
 
             EXPECT_THAT(actual, ElementsAre(Pair(1, value1.get()), Pair(2, value2.get()), Pair(3, value3.get())));
         }
@@ -448,7 +448,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, getOrLoadLoadsAKeyOnceForEveryThreadAskingAtOnce)
         {
             SharedCache cache;
-            std::atomic<int> loads = 0;
+            std::atomic<std::int32_t> loads = 0;
             const auto load = [&] {
                 ++loads;
                 EXPECT_TRUE(awaitWithin([&] { return cache.getStats().mCoalesced == 7; }));
@@ -487,7 +487,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, getOrLoadAnswersAThrowingLoadToItsWaitersAndLoadsAgainAfter)
         {
             SharedCache cache;
-            std::atomic<int> loads = 0;
+            std::atomic<std::int32_t> loads = 0;
             const auto failing = [&]() -> LoadedString {
                 ++loads;
                 EXPECT_TRUE(awaitWithin([&] { return cache.getStats().mCoalesced == 1; }));
@@ -541,7 +541,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, getOrLoadLoadsTwoKeysInParallel)
         {
             SharedCache cache;
-            std::atomic<int> started = 0;
+            std::atomic<std::int32_t> started = 0;
             const auto load = [&] {
                 ++started;
                 EXPECT_TRUE(awaitWithin([&] { return started == 2; })) << "one key's load waited on the other's";
@@ -611,7 +611,7 @@ namespace Resource
             // The same three under a budget of 120 keep all three: the budget is what decides.
             CacheBudget roomy(120);
             SharedCache kept(roomy);
-            for (const int key : { 1, 2, 3 })
+            for (const std::int32_t key : { 1, 2, 3 })
                 kept.getOrLoad(key, loadOf(40));
             EXPECT_EQ(kept.getStats().mSize, 3);
             EXPECT_EQ(kept.getStats().mExpired, 0);
@@ -750,12 +750,12 @@ namespace Resource
         /// so the budget holds 20,000 at the most, where one counted gone first wraps it round past 2^63.
         TEST(ResourceGenericObjectCacheTest, aClearBesideALoadNeverTakesFromTheBudgetWhatItWasNotGiven)
         {
-            constexpr int sLoads = 20000;
+            constexpr std::int32_t sLoads = 20000;
             CacheBudget budget(CacheBudget::sUnbounded);
             SharedCache cache(budget);
             std::atomic<bool> loaded = false;
             std::jthread loader([&] {
-                for (int key = 0; key < sLoads; ++key)
+                for (std::int32_t key = 0; key < sLoads; ++key)
                     cache.getOrLoad(key, loadOf(1));
                 loaded = true;
             });

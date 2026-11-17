@@ -1,7 +1,9 @@
 #include "referencecreator.hpp"
 
-#include <QLabel>
+#include <cstdint>
 #include <memory>
+
+#include <QLabel>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
@@ -24,8 +26,8 @@ std::string CSVWorld::ReferenceCreator::getId() const
 void CSVWorld::ReferenceCreator::configureCreateCommand(CSMWorld::CreateCommand& command) const
 {
     // Set cellID
-    int cellIdColumn = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()))
-                           .findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+    std::int32_t cellIdColumn = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()))
+                                    .findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
 
     command.addValue(cellIdColumn, mCell->text());
 }
@@ -87,7 +89,7 @@ void CSVWorld::ReferenceCreator::cloneMode(const std::string& originId, const CS
     CSMWorld::IdTable& referenceTable
         = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(CSMWorld::UniversalId::Type_References));
 
-    int cellIdColumn = referenceTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+    std::int32_t cellIdColumn = referenceTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
 
     mCell->setText(referenceTable.data(referenceTable.getModelIndex(originId, cellIdColumn)).toString());
 

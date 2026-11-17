@@ -2,6 +2,7 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -66,7 +67,7 @@ namespace RtxTool
 
         private:
             std::filesystem::path mPath;
-            int mHandle = -1;
+            std::int32_t mHandle = -1;
         };
 
         /// **A write the fifo takes part of is named by what it took**: a reader that reads nothing
@@ -127,7 +128,7 @@ namespace RtxTool
             const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "perf-control-late-test";
             ASSERT_EQ(::mkfifo(path.c_str(), 0600), 0);
 
-            int reader = -1;
+            std::int32_t reader = -1;
             std::thread perf([&] {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 reader = ::open(path.c_str(), O_RDONLY | O_NONBLOCK);

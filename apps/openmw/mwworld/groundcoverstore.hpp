@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -38,7 +39,7 @@ namespace MWWorld
     {
     private:
         std::map<ESM::RefId, VFS::Path::Normalized> mMeshCache;
-        std::map<std::pair<int, int>, std::vector<ESM::ESM_Context>> mCellContexts;
+        std::map<std::pair<std::int32_t, std::int32_t>, std::vector<ESM::ESM_Context>> mCellContexts;
 
     public:
         void init(const Store<ESM::Static>& statics, const Files::Collections& fileCollections,
@@ -53,6 +54,6 @@ namespace MWWorld
             return it->second;
         }
 
-        void initCell(ESM::Cell& cell, int cellX, int cellY) const;
+        void initCell(ESM::Cell& cell, std::int32_t cellX, std::int32_t cellY) const;
     };
 }

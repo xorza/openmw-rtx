@@ -4,6 +4,8 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <mutex>
 #include <span>
@@ -257,7 +259,7 @@ namespace Rtx
                     {
                         const osg::Vec3f& colour = mBand[std::size_t{ y - row } * level.mWidth + x];
                         const std::size_t into = mLevels[at].texelOffset(x, y, sTexel);
-                        for (int channel = 0; channel < 3; ++channel)
+                        for (std::int32_t channel = 0; channel < 3; ++channel)
                             mTexels[into + static_cast<std::size_t>(channel)] = unitByte(colour[channel]);
                         mTexels[into + 3] = static_cast<std::byte>(mAlpha.at(at, x, y));
                     }
@@ -286,8 +288,8 @@ namespace Rtx
                     for (const std::uint32_t dy : { 0u, 1u, 2u })
                         for (const std::uint32_t dx : { 0u, 1u, 2u })
                         {
-                            const float weight
-                                = across.mWeights[static_cast<int>(dx)] * down.mWeights[static_cast<int>(dy)];
+                            const float weight = across.mWeights[static_cast<std::int32_t>(dx)]
+                                * down.mWeights[static_cast<std::int32_t>(dy)];
                             const std::uint32_t sx = std::min(across.mFirst + dx, above.mWidth - 1);
                             const std::uint32_t sy = std::min(down.mFirst + dy, above.mHeight - 1);
                             const std::size_t from = above.texelOffset(sx, sy, sTexel);
@@ -311,7 +313,7 @@ namespace Rtx
 
                     const osg::Vec3f mean = coverage && painted > 0.0f ? weighed / painted : even;
                     const std::size_t into = level.texelOffset(x, y, sTexel);
-                    for (int channel = 0; channel < 3; ++channel)
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
                         mTexels[into + static_cast<std::size_t>(channel)]
                             = encoded ? curve.encodedByte(mean[channel]) : unitByte(mean[channel]);
                     mTexels[into + 3] = unitByte(painted);
@@ -346,11 +348,11 @@ namespace Rtx
                     const float factor = paintedLight(painted, mColumns[x], row);
                     const std::size_t into = level.texelOffset(x, y, sTexel);
                     osg::Vec3f light;
-                    for (int channel = 0; channel < 3; ++channel)
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
                         light[channel] = curve.toLinear(
                             std::to_integer<std::uint8_t>(mTexels[into + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f divided = Rtx::delit(light, factor);
-                    for (int channel = 0; channel < 3; ++channel)
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
                         mTexels[into + static_cast<std::size_t>(channel)] = curve.encodedByte(divided[channel]);
                 }
             }
@@ -429,7 +431,8 @@ namespace Rtx
                     for (const std::uint32_t dy : { 0u, 1u, 2u })
                         for (const std::uint32_t dx : { 0u, 1u, 2u })
                             boxed[lane] += rows[dy][std::min(across.mFirst + dx, above.mWidth - 1)]
-                                * (across.mWeights[static_cast<int>(dx)] * down.mWeights[static_cast<int>(dy)]);
+                                * (across.mWeights[static_cast<std::int32_t>(dx)]
+                                    * down.mWeights[static_cast<std::int32_t>(dy)]);
                     means.mX[lane] = boxed[lane].x();
                     means.mY[lane] = boxed[lane].y();
                     means.mZ[lane] = boxed[lane].z();

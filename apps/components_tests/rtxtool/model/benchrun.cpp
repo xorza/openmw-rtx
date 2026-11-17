@@ -177,7 +177,7 @@ namespace RtxTool
             const std::span<const Check> every = everyCheck();
             EXPECT_EQ(every.size(), 16u);
             for (const Check check : every)
-                EXPECT_FALSE(checkName(check).empty()) << static_cast<int>(check);
+                EXPECT_FALSE(checkName(check).empty()) << static_cast<std::int32_t>(check);
 
             Stop still;
             still.mStand.mEye = osg::Vec3f(1.0f, 2.0f, 3.0f);
@@ -294,7 +294,7 @@ namespace RtxTool
 
             const std::string outside = ": - | - | - | - | - | - | - | - | -\n";
             std::string above;
-            for (const int y : { -4, -3, -2, -1 })
+            for (const std::int32_t y : { -4, -3, -2, -1 })
                 above += std::format("  y {}{}", y, outside);
             const std::string below = "  y 1" + outside + "  y 2" + outside + "  y 3" + outside + "  y 4" + outside;
             EXPECT_EQ(describeNotFiniteFrame(kept),

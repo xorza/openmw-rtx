@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <string_view>
 
 #include <MyGUI_ImageBox.h>
@@ -17,7 +18,7 @@ namespace MWGui
     public:
         ControllerButtonsOverlay();
 
-        int getHeight();
+        std::int32_t getHeight();
         void setButtons(ControllerButtons* buttons);
 
         enum Button
@@ -78,6 +79,6 @@ namespace MWGui
         Gui::HBox* mHBox{};
 
         void setIcon(MyGUI::ImageBox* image, const std::string& imagePath);
-        int updateButton(Button button, const std::string& buttonStr);
+        std::int32_t updateButton(Button button, const std::string& buttonStr);
     };
 }

@@ -1,9 +1,11 @@
 #include "idcompletionmanager.hpp"
 
-#include <QAbstractItemModel>
-#include <QCompleter>
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
+
+#include <QAbstractItemModel>
+#include <QCompleter>
 
 #include <apps/opencs/view/widget/completerpopup.hpp>
 
@@ -101,7 +103,7 @@ void CSMWorld::IdCompletionManager::generateCompleters(CSMWorld::Data& data)
         auto* table = dynamic_cast<CSMWorld::IdTableBase*>(model);
         if (table != nullptr)
         {
-            int idColumn = table->searchColumnIndex(CSMWorld::Columns::ColumnId_Id);
+            std::int32_t idColumn = table->searchColumnIndex(CSMWorld::Columns::ColumnId_Id);
             if (idColumn != -1)
             {
                 std::shared_ptr<QCompleter> completer = std::make_shared<QCompleter>(table);

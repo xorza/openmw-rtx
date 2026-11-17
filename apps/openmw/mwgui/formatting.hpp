@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 
 #include <MyGUI_Colour.h>
@@ -21,7 +23,7 @@ namespace MWGui
 
             MyGUI::Colour mColour;
             std::string mFont;
-            int mTextSize;
+            std::int32_t mTextSize;
         };
 
         struct BlockStyle
@@ -63,7 +65,7 @@ namespace MWGui
             void flushBuffer();
             void parseTag(std::string tag);
 
-            size_t mIndex;
+            std::size_t mIndex;
             std::string mText;
             std::string mReadyText;
 
@@ -75,16 +77,16 @@ namespace MWGui
             std::map<std::string, Events> mTagTypes;
             std::string mBuffer;
 
-            size_t mPlainTextEnd;
+            std::size_t mPlainTextEnd;
         };
 
         class Paginator
         {
         public:
-            typedef std::pair<int, int> Page;
+            typedef std::pair<std::int32_t, std::int32_t> Page;
             typedef std::vector<Page> Pages;
 
-            Paginator(int pageWidth, int pageHeight)
+            Paginator(std::int32_t pageWidth, std::int32_t pageHeight)
                 : mStartTop(0)
                 , mCurrentTop(0)
                 , mPageWidth(pageWidth)
@@ -93,15 +95,15 @@ namespace MWGui
             {
             }
 
-            int getStartTop() const { return mStartTop; }
-            int getCurrentTop() const { return mCurrentTop; }
-            int getPageWidth() const { return mPageWidth; }
-            int getPageHeight() const { return mPageHeight; }
+            std::int32_t getStartTop() const { return mStartTop; }
+            std::int32_t getCurrentTop() const { return mCurrentTop; }
+            std::int32_t getPageWidth() const { return mPageWidth; }
+            std::int32_t getPageHeight() const { return mPageHeight; }
             bool getIgnoreLeadingEmptyLines() const { return mIgnoreLeadingEmptyLines; }
             Pages getPages() const { return mPages; }
 
-            void setStartTop(int top) { mStartTop = top; }
-            void setCurrentTop(int top) { mCurrentTop = top; }
+            void setStartTop(std::int32_t top) { mStartTop = top; }
+            void setCurrentTop(std::int32_t top) { mCurrentTop = top; }
             void setIgnoreLeadingEmptyLines(bool ignore) { mIgnoreLeadingEmptyLines = ignore; }
 
             Paginator& operator<<(const Page& page)
@@ -111,8 +113,8 @@ namespace MWGui
             }
 
         private:
-            int mStartTop, mCurrentTop;
-            int mPageWidth, mPageHeight;
+            std::int32_t mStartTop, mCurrentTop;
+            std::int32_t mPageWidth, mPageHeight;
             bool mIgnoreLeadingEmptyLines;
             Pages mPages;
         };
@@ -121,8 +123,8 @@ namespace MWGui
         class BookFormatter
         {
         public:
-            Paginator::Pages markupToWidget(MyGUI::Widget* parent, const std::string& markup, const int pageWidth,
-                const int pageHeight, bool shrinkTextAtLastTag);
+            Paginator::Pages markupToWidget(MyGUI::Widget* parent, const std::string& markup,
+                const std::int32_t pageWidth, const std::int32_t pageHeight, bool shrinkTextAtLastTag);
             Paginator::Pages markupToWidget(MyGUI::Widget* parent, const std::string& markup, bool shrinkTextAtLastTag);
 
         private:
@@ -139,9 +141,9 @@ namespace MWGui
         {
         public:
             GraphicElement(MyGUI::Widget* parent, Paginator& pag, const BlockStyle& blockStyle);
-            virtual int getHeight() = 0;
+            virtual std::int32_t getHeight() = 0;
             virtual void paginate();
-            virtual int pageSplit();
+            virtual std::int32_t pageSplit();
 
         protected:
             virtual ~GraphicElement() = default;
@@ -155,11 +157,11 @@ namespace MWGui
         public:
             TextElement(MyGUI::Widget* parent, Paginator& pag, const BlockStyle& blockStyle, TextStyle textStyle,
                 const std::string& text);
-            int getHeight() override;
-            int pageSplit() override;
+            std::int32_t getHeight() override;
+            std::int32_t pageSplit() override;
 
         private:
-            int currentFontHeight() const;
+            std::int32_t currentFontHeight() const;
             TextStyle mTextStyle;
             Gui::EditBox* mEditBox;
         };
@@ -168,12 +170,12 @@ namespace MWGui
         {
         public:
             ImageElement(MyGUI::Widget* parent, Paginator& pag, const BlockStyle& blockStyle, const std::string& src,
-                int width, int height);
-            int getHeight() override;
-            int pageSplit() override;
+                std::int32_t width, std::int32_t height);
+            std::int32_t getHeight() override;
+            std::int32_t pageSplit() override;
 
         private:
-            int mImageHeight;
+            std::int32_t mImageHeight;
             MyGUI::ImageBox* mImageBox;
         };
     }

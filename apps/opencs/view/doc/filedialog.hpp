@@ -1,8 +1,10 @@
 #pragma once
 
-#include <QDialog>
+#include <cstdint>
 #include <filesystem>
 #include <vector>
+
+#include <QDialog>
 
 #include "adjusterwidget.hpp"
 #include "pathmetatype.hpp"
@@ -61,13 +63,13 @@ namespace CSVDoc
         void signalOpenFiles(const std::filesystem::path& path);
         void signalCreateNewFile(const std::filesystem::path& path);
 
-        void signalUpdateAcceptButton(bool, int);
+        void signalUpdateAcceptButton(bool, std::int32_t);
 
     private slots:
 
         void slotNewFile();
         void slotOpenFile();
-        void slotUpdateAcceptButton(int);
+        void slotUpdateAcceptButton(std::int32_t);
         void slotUpdateAcceptButton(const QString&, bool);
         void slotRejected();
         void slotAddonDataChanged(const QModelIndex& topleft, const QModelIndex& bottomright);

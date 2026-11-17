@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -122,7 +123,7 @@ namespace
 
         bool collectStats(const std::string& category) const override { return mStats->collectStats(category); }
 
-        void setAttribute(unsigned int frameNumber, const std::string& name, double value) override
+        void setAttribute(std::uint32_t frameNumber, const std::string& name, double value) override
         {
             mStats->setAttribute(frameNumber, name, value);
         }
@@ -145,7 +146,7 @@ void OMW::Engine::executeLocalScripts()
     }
 }
 
-bool OMW::Engine::frame(unsigned frameNumber, float frametime)
+bool OMW::Engine::frame(std::uint32_t frameNumber, float frametime)
 {
     const osg::Timer* const timer = osg::Timer::instance();
     // Stats times are relative to the renderer's start tick, so express it on the clock the subsystems use
@@ -661,14 +662,14 @@ void OMW::Engine::prepareEngine()
     // scripts
     if (mCompileAll)
     {
-        std::pair<int, int> result = mScriptManager->compileAll();
+        std::pair<std::int32_t, std::int32_t> result = mScriptManager->compileAll();
         if (result.first)
             Log(Debug::Info) << "compiled " << result.second << " of " << result.first << " scripts ("
                              << 100 * static_cast<double>(result.second) / result.first << "%)";
     }
     if (mCompileAllDialogue)
     {
-        std::pair<int, int> result = MWDialogue::ScriptTest::compileAll(&mExtensions, mWarningsMode);
+        std::pair<std::int32_t, std::int32_t> result = MWDialogue::ScriptTest::compileAll(&mExtensions, mWarningsMode);
         if (result.first)
             Log(Debug::Info) << "compiled " << result.second << " of " << result.first << " dialogue scripts ("
                              << 100 * static_cast<double>(result.second) / result.first << "%)";
@@ -685,7 +686,7 @@ void OMW::Engine::go()
     assert(!mContentFiles.empty());
 
     Log(Debug::Info) << "OSG version: " << osgGetVersion();
-    const int sdlVersion = SDL_GetVersion();
+    const std::int32_t sdlVersion = SDL_GetVersion();
     Log(Debug::Info) << "SDL version: " << SDL_VERSIONNUM_MAJOR(sdlVersion) << "." << SDL_VERSIONNUM_MINOR(sdlVersion)
                      << "." << SDL_VERSIONNUM_MICRO(sdlVersion);
 
@@ -762,7 +763,7 @@ void OMW::Engine::go()
 
         mRenderer->advance(timeManager.getRenderingSimulationTime());
 
-        const unsigned frameNumber = mRenderer->getFrameStamp().getFrameNumber();
+        const std::uint32_t frameNumber = mRenderer->getFrameStamp().getFrameNumber();
 
         if (!frame(frameNumber, static_cast<float>(dt)))
         {
@@ -815,12 +816,12 @@ void OMW::Engine::setStartupScript(const std::filesystem::path& path)
     mStartupScript = path;
 }
 
-void OMW::Engine::setActivationDistanceOverride(int distance)
+void OMW::Engine::setActivationDistanceOverride(std::int32_t distance)
 {
     mActivationDistanceOverride = distance;
 }
 
-void OMW::Engine::setWarningsMode(int mode)
+void OMW::Engine::setWarningsMode(std::int32_t mode)
 {
     mWarningsMode = mode;
 }
@@ -835,7 +836,7 @@ void OMW::Engine::setSaveGameFile(const std::filesystem::path& savegame)
     mSaveGameFile = savegame;
 }
 
-void OMW::Engine::setRandomSeed(unsigned int seed)
+void OMW::Engine::setRandomSeed(std::uint32_t seed)
 {
     mRandomSeed = seed;
 }

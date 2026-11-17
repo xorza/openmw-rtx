@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cerrno>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 
 #include <fcntl.h>
@@ -15,14 +17,14 @@ namespace Platform::WholeFileSystem
     {
         struct Descriptor
         {
-            using Handle = int;
+            using Handle = std::int32_t;
             static constexpr Handle sNone = -1;
             static void close(Handle descriptor) noexcept { ::close(descriptor); }
         };
 
         using HeldDescriptor = UniqueHold<Descriptor>;
 
-        IoError errorOf(const int code)
+        IoError errorOf(const std::int32_t code)
         {
             const auto failure = [code] {
                 switch (code)
@@ -102,7 +104,7 @@ namespace Platform::WholeFileSystem
         const std::span<const std::span<const std::byte>> parts, const bool synced,
         const std::filesystem::path& replacing)
     {
-        const int descriptor = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666);
+        const std::int32_t descriptor = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666);
         if (descriptor < 0)
             return lastError();
 

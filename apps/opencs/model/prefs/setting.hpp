@@ -1,9 +1,11 @@
 #pragma once
 
-#include <QMutexLocker>
-#include <QObject>
+#include <cstdint>
 #include <string>
 #include <utility>
+
+#include <QMutexLocker>
+#include <QObject>
 
 #include <components/settings/settingvalue.hpp>
 
@@ -77,7 +79,7 @@ namespace CSMPrefs
 
         const QString& getLabel() const { return mLabel; }
 
-        int toInt() const { return getValueImpl<int>(); }
+        std::int32_t toInt() const { return getValueImpl<std::int32_t>(); }
 
         double toDouble() const { return getValueImpl<double>(); }
 

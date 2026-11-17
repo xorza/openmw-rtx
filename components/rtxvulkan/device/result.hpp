@@ -71,7 +71,7 @@ namespace Rtx
 
     /// How many times an enumeration may be told the driver's list is longer than it just said,
     /// bounded for the reason `sPatience` is.
-    inline constexpr int sEnumerationTries = 4;
+    inline constexpr std::int32_t sEnumerationTries = 4;
 
     /// The two-call enumeration every Vulkan list query is made of, asked until the driver has
     /// nothing left to add: `VK_INCOMPLETE` is a legal answer to the second call. `check` raises
@@ -87,7 +87,7 @@ namespace Rtx
     {
         std::vector<T> into;
 
-        for (int asked = 0; asked < sEnumerationTries; ++asked)
+        for (std::int32_t asked = 0; asked < sEnumerationTries; ++asked)
         {
             std::uint32_t count = 0;
             check(enumerate(&count, nullptr), call);

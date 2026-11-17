@@ -1,5 +1,7 @@
 #include <atomic>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -32,7 +34,7 @@ namespace
     void addHeightFieldPlane(
         TileCachedRecastMeshManager& recastMeshManager, const osg::Vec2i cellPosition = osg::Vec2i(0, 0))
     {
-        const int cellSize = 8192;
+        const std::int32_t cellSize = 8192;
         recastMeshManager.addHeightfield(cellPosition, cellSize, HeightfieldPlane{ 0 }, nullptr);
     }
 
@@ -286,8 +288,8 @@ namespace
 
         std::map<TilePosition, ChangeType> changedTiles;
 
-        for (int x = -3; x <= 3; ++x)
-            for (int y = -3; y <= 3; ++y)
+        for (std::int32_t x = -3; x <= 3; ++x)
+            for (std::int32_t y = -3; y <= 3; ++y)
                 changedTiles.emplace(TilePosition{ x, y }, ChangeType::update);
 
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
@@ -434,7 +436,7 @@ namespace
         const TilePosition mChangedTile{ 0, 0 };
         const std::chrono::steady_clock::time_point mProcessTime{};
         const TilePosition mPlayerTile{ 0, 0 };
-        const int mMaxTiles = 9;
+        const std::int32_t mMaxTiles = 9;
     };
 
     TEST_F(DetourNavigatorSpatialJobQueueTest, should_store_multiple_jobs_per_tile)

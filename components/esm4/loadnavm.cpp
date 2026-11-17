@@ -26,6 +26,8 @@
 */
 #include "loadnavm.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <stdexcept>
 
@@ -104,7 +106,7 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
     if (count)
     {
         coverTriangles.resize(count);
-        for (unsigned short& coverTriangle : coverTriangles)
+        for (std::uint16_t& coverTriangle : coverTriangles)
         {
             reader.get(coverTriangle);
         }
@@ -124,13 +126,13 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
 
     // FIXME: should check remaining size here
     // there are divisor^2 segments, each segment is a vector of triangle indices
-    for (unsigned int i = 0; i < divisor * divisor; ++i)
+    for (std::uint32_t i = 0; i < divisor * divisor; ++i)
     {
         reader.get(count); // NOTE: count may be zero
 
         std::vector<std::uint16_t> indices;
         indices.resize(count);
-        for (unsigned short& indice : indices)
+        for (std::uint16_t& indice : indices)
         {
             reader.get(indice);
         }

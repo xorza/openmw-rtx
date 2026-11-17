@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "timeadvancer.hpp"
 #include "windowbase.hpp"
 
@@ -9,7 +11,7 @@ namespace MWGui
     {
     public:
         JailScreen();
-        void goToJail(int days);
+        void goToJail(std::int32_t days);
 
         void onFrame(float dt) override;
 
@@ -18,13 +20,13 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "JailScreen"; }
 
     private:
-        int mDays;
+        std::int32_t mDays;
 
         float mFadeTimeRemaining;
 
         MyGUI::ScrollBar* mProgressBar{};
 
-        void onJailProgressChanged(int cur, int total);
+        void onJailProgressChanged(std::int32_t cur, std::int32_t total);
         void onJailFinished();
 
         TimeAdvancer mTimeAdvancer;

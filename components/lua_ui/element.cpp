@@ -1,5 +1,8 @@
 #include "element.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Gui.h>
 
 #include <components/settings/values.hpp>
@@ -30,7 +33,7 @@ namespace LuaUi
 
         const std::string defaultWidgetType = "LuaWidget";
 
-        constexpr uint64_t maxDepth = 250;
+        constexpr std::uint64_t maxDepth = 250;
 
         std::string widgetType(const sol::table& layout)
         {
@@ -92,7 +95,7 @@ namespace LuaUi
             root->updateCoord();
         }
 
-        WidgetExtension* pluckElementRoot(const sol::object& child, uint64_t depth)
+        WidgetExtension* pluckElementRoot(const sol::object& child, std::uint64_t depth)
         {
             const std::shared_ptr<Element>& element = child.as<std::shared_ptr<Element>>();
             if (element->mState == Element::Destroyed || element->mState == Element::Destroy)
@@ -105,11 +108,11 @@ namespace LuaUi
             return root;
         }
 
-        WidgetExtension* createWidget(const sol::table& layout, bool isRoot, uint64_t depth);
-        void updateWidget(WidgetExtension* ext, const sol::table& layout, uint64_t depth);
+        WidgetExtension* createWidget(const sol::table& layout, bool isRoot, std::uint64_t depth);
+        void updateWidget(WidgetExtension* ext, const sol::table& layout, std::uint64_t depth);
 
         std::vector<WidgetExtension*> updateContent(
-            const std::vector<WidgetExtension*>& children, const sol::object& contentObj, uint64_t depth)
+            const std::vector<WidgetExtension*>& children, const sol::object& contentObj, std::uint64_t depth)
         {
             ++depth;
             std::vector<WidgetExtension*> result;
@@ -121,9 +124,9 @@ namespace LuaUi
             }
             ContentView content(LuaUtil::cast<sol::table>(contentObj));
             result.resize(content.size());
-            size_t minSize = std::min(children.size(), content.size());
+            std::size_t minSize = std::min(children.size(), content.size());
             std::vector<WidgetExtension*> toDestroy;
-            for (size_t i = 0; i < minSize; i++)
+            for (std::size_t i = 0; i < minSize; i++)
             {
                 WidgetExtension* ext = children[i];
                 sol::object child = content.at(i);
@@ -149,7 +152,7 @@ namespace LuaUi
                     result[i] = ext;
                 }
             }
-            for (size_t i = minSize; i < content.size(); i++)
+            for (std::size_t i = minSize; i < content.size(); i++)
             {
                 sol::object child = content.at(i);
                 if (child.is<Element>())
@@ -158,14 +161,14 @@ namespace LuaUi
                     result[i] = createWidget(child.as<sol::table>(), false, depth);
             }
             // Don't destroy anything until element creation has had a chance to throw
-            for (size_t i = minSize; i < children.size(); i++)
+            for (std::size_t i = minSize; i < children.size(); i++)
                 destroyChild(children[i]);
             for (WidgetExtension* ext : toDestroy)
                 destroyChild(ext);
             return result;
         }
 
-        void setTemplate(WidgetExtension* ext, const sol::object& templateLayout, uint64_t depth)
+        void setTemplate(WidgetExtension* ext, const sol::object& templateLayout, std::uint64_t depth)
         {
             ++depth;
             sol::object props = LuaUtil::getFieldOrNil(templateLayout, LayoutKeys::props);
@@ -193,7 +196,7 @@ namespace LuaUi
             });
         }
 
-        WidgetExtension* createWidget(const sol::table& layout, bool isRoot, uint64_t depth)
+        WidgetExtension* createWidget(const sol::table& layout, bool isRoot, std::uint64_t depth)
         {
             static auto widgetTypeMap = widgetTypeToName();
             std::string type = widgetType(layout);
@@ -213,7 +216,7 @@ namespace LuaUi
             return ext;
         }
 
-        void updateWidget(WidgetExtension* ext, const sol::table& layout, uint64_t depth)
+        void updateWidget(WidgetExtension* ext, const sol::table& layout, std::uint64_t depth)
         {
             if (depth >= maxDepth)
                 throw std::runtime_error("Maximum layout depth exceeded, probably caused by a circular reference");
@@ -279,7 +282,7 @@ namespace LuaUi
         return LayoutKeys::allKeys;
     }
 
-    void Element::create(uint64_t depth)
+    void Element::create(std::uint64_t depth)
     {
         if (mState == New)
         {

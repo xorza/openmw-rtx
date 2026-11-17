@@ -32,6 +32,8 @@ either expressed or implied, of the FreeBSD Project.
 
 #include "gldebug.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <memory>
 #include <utility>
@@ -136,7 +138,7 @@ namespace Debug
     {
         OpenThreads::ScopedLock<OpenThreads::Mutex> lock(mMutex);
 
-        unsigned int contextID = graphicsContext->getState()->getContextID();
+        std::uint32_t contextID = graphicsContext->getState()->getContextID();
 
         typedef void(GL_APIENTRY * DEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
             const GLchar* message, const void* userParam);
@@ -217,19 +219,19 @@ namespace Debug
         auto& attributeVec = state.getAttributeVec(this);
         auto& lastAppliedStack = sLastAppliedStack[state.getContextID()];
 
-        size_t firstNonMatch = 0;
+        std::size_t firstNonMatch = 0;
         while (firstNonMatch < lastAppliedStack.size()
             && ((firstNonMatch < attributeVec.size()
                     && lastAppliedStack[firstNonMatch] == attributeVec[firstNonMatch].first)
                 || lastAppliedStack[firstNonMatch] == this))
             firstNonMatch++;
 
-        for (size_t i = lastAppliedStack.size(); i > firstNonMatch; --i)
+        for (std::size_t i = lastAppliedStack.size(); i > firstNonMatch; --i)
             lastAppliedStack[i - 1]->pop(state);
         lastAppliedStack.resize(firstNonMatch);
 
         lastAppliedStack.reserve(attributeVec.size());
-        for (size_t i = firstNonMatch; i < attributeVec.size(); ++i)
+        for (std::size_t i = firstNonMatch; i < attributeVec.size(); ++i)
         {
             const auto* group = static_cast<const DebugGroup*>(attributeVec[i].first);
             group->push(state);
@@ -242,7 +244,7 @@ namespace Debug
         }
     }
 
-    int DebugGroup::compare(const StateAttribute& sa) const
+    std::int32_t DebugGroup::compare(const StateAttribute& sa) const
     {
         // NOLINTNEXTLINE(modernize-use-auto): OSG's macro declares the type it is handed, which `auto` cannot be.
         COMPARE_StateAttribute_Types(DebugGroup, sa);
@@ -280,6 +282,6 @@ namespace Debug
             PushDebugGroup::sInstance->glPopDebugGroup();
     }
 
-    std::map<unsigned int, std::vector<const DebugGroup*>> DebugGroup::sLastAppliedStack{};
+    std::map<std::uint32_t, std::vector<const DebugGroup*>> DebugGroup::sLastAppliedStack{};
 
 }

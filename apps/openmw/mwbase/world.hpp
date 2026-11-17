@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -132,7 +133,7 @@ namespace MWBase
 
         virtual ~World() = default;
 
-        virtual void setRandomSeed(uint32_t seed) = 0;
+        virtual void setRandomSeed(std::uint32_t seed) = 0;
         ///< \param seed The seed used when starting a new game.
 
         virtual void startNewGame(bool bypass) = 0;
@@ -140,12 +141,12 @@ namespace MWBase
 
         virtual void clear() = 0;
 
-        virtual size_t countSavedGameRecords() const = 0;
-        virtual size_t countSavedGameCells() const = 0;
+        virtual std::size_t countSavedGameRecords() const = 0;
+        virtual std::size_t countSavedGameCells() const = 0;
 
         virtual void write(ESM::ESMWriter& writer, Loading::Listener& listener) const = 0;
 
-        virtual void readRecord(ESM::ESMReader& reader, uint32_t type) = 0;
+        virtual void readRecord(ESM::ESMReader& reader, std::uint32_t type) = 0;
 
         virtual void useDeathCamera() = 0;
 
@@ -175,13 +176,13 @@ namespace MWBase
         virtual void getDoorMarkers(MWWorld::CellStore& cell, std::vector<DoorMarker>& out) = 0;
         ///< get a list of teleport door markers for a given cell, to be displayed on the local map
 
-        virtual void setGlobalInt(MWWorld::GlobalVariableName name, int value) = 0;
+        virtual void setGlobalInt(MWWorld::GlobalVariableName name, std::int32_t value) = 0;
         ///< Set value independently from real type.
 
         virtual void setGlobalFloat(MWWorld::GlobalVariableName name, float value) = 0;
         ///< Set value independently from real type.
 
-        virtual int getGlobalInt(MWWorld::GlobalVariableName name) const = 0;
+        virtual std::int32_t getGlobalInt(MWWorld::GlobalVariableName name) const = 0;
         ///< Get value independently from real type.
 
         virtual float getGlobalFloat(MWWorld::GlobalVariableName name) const = 0;
@@ -232,11 +233,11 @@ namespace MWBase
 
         virtual MWWorld::WeatherStore& getAllWeather() const = 0;
 
-        virtual int getCurrentWeatherScriptId() const = 0;
+        virtual std::int32_t getCurrentWeatherScriptId() const = 0;
 
         virtual const MWWorld::Weather* getCurrentWeather() const = 0;
 
-        virtual int getNextWeatherScriptId() const = 0;
+        virtual std::int32_t getNextWeatherScriptId() const = 0;
 
         virtual const MWWorld::Weather* getNextWeather() const = 0;
 
@@ -245,18 +246,18 @@ namespace MWBase
         /// What the weather manager settled about the sky, for whatever draws it.
         virtual const MWRender::SkyState& getSkyState() const = 0;
 
-        virtual unsigned int getNightDayMode() const = 0;
+        virtual std::uint32_t getNightDayMode() const = 0;
 
-        virtual int getMasserPhase() const = 0;
+        virtual std::int32_t getMasserPhase() const = 0;
 
-        virtual int getSecundaPhase() const = 0;
+        virtual std::int32_t getSecundaPhase() const = 0;
 
         virtual std::vector<MWWorld::Moon> getCurrentMoons() const = 0;
 
         virtual void setMoonColour(bool red) = 0;
 
-        virtual void modRegion(ESM::RefId regionid, const std::map<ESM::RefId, uint8_t>& chances) = 0;
-        virtual const std::map<ESM::RefId, uint8_t>& getRegionWeatherChances(ESM::RefId regionid) const = 0;
+        virtual void modRegion(ESM::RefId regionid, const std::map<ESM::RefId, std::uint8_t>& chances) = 0;
+        virtual const std::map<ESM::RefId, std::uint8_t>& getRegionWeatherChances(ESM::RefId regionid) const = 0;
 
         virtual void changeToInteriorCell(std::string_view cellName, const ESM::Position& position,
             bool adjustPlayerPos, bool changeEvent = true) = 0;
@@ -309,7 +310,7 @@ namespace MWBase
         ///< Place an object. Makes a copy of the Ptr.
 
         virtual MWWorld::Ptr safePlaceObject(const MWWorld::ConstPtr& ptr, const MWWorld::ConstPtr& referenceObject,
-            MWWorld::CellStore* referenceCell, int direction, float distance) = 0;
+            MWWorld::CellStore* referenceCell, std::int32_t direction, float distance) = 0;
         ///< Place an object in a safe place next to \a referenceObject. \a direction and \a distance specify the wanted
         ///< placement
         /// relative to \a referenceObject (but the object may be placed somewhere else if the wanted location is
@@ -340,7 +341,7 @@ namespace MWBase
         ///< \return Resulting mode
 
         virtual MWWorld::Ptr placeObject(
-            const MWWorld::Ptr& object, float cursorX, float cursorY, int amount, bool copy = true) = 0;
+            const MWWorld::Ptr& object, float cursorX, float cursorY, std::int32_t amount, bool copy = true) = 0;
         ///< copy and place an object into the gameworld at the specified cursor position
         /// @param object
         /// @param cursor X (relative 0-1)
@@ -348,7 +349,7 @@ namespace MWBase
         /// @param number of objects to place
 
         virtual MWWorld::Ptr dropObjectOnGround(
-            const MWWorld::Ptr& actor, const MWWorld::Ptr& object, int amount, bool copy = true) = 0;
+            const MWWorld::Ptr& actor, const MWWorld::Ptr& object, std::int32_t amount, bool copy = true) = 0;
         ///< copy and place an object into the gameworld at the given actor's position
         /// @param actor giving the dropped object position
         /// @param object
@@ -434,7 +435,7 @@ namespace MWBase
         };
 
         /// check if the player is allowed to rest
-        virtual int canRest() const = 0;
+        virtual std::int32_t canRest() const = 0;
 
         /// \todo Probably shouldn't be here
         virtual MWRender::Animation* getAnimation(const MWWorld::Ptr& ptr) = 0;
@@ -443,7 +444,7 @@ namespace MWBase
 
         /// \todo this does not belong here
         /// Take a screenshot of w*h, not including the GUI, encoded as JPEG. Empty on failure.
-        virtual std::vector<char> screenshot(int w, int h) = 0;
+        virtual std::vector<char> screenshot(std::int32_t w, std::int32_t h) = 0;
 
         /// Find default position inside exterior cell specified by name
         /// \return empty RefId if exterior with given name not exists, the cell's RefId otherwise
@@ -599,7 +600,7 @@ namespace MWBase
 
         virtual bool isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const osg::Vec3f& position) const = 0;
 
-        virtual void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const = 0;
+        virtual void reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const = 0;
 
         virtual std::vector<MWWorld::Ptr> getAll(const ESM::RefId& id) = 0;
 

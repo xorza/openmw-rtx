@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -30,7 +31,7 @@ namespace MWPhysics
     {
     public:
         Object(const MWWorld::Ptr& ptr, std::shared_ptr<Resource::BulletShapeInstance> shapeInstance,
-            const osg::Quat& rotation, int collisionType, PhysicsTaskScheduler* scheduler);
+            const osg::Quat& rotation, std::int32_t collisionType, PhysicsTaskScheduler* scheduler);
         ~Object() override;
 
         const std::shared_ptr<Resource::BulletShapeInstance>& getShapeInstance() const;
@@ -52,7 +53,7 @@ namespace MWPhysics
 
     private:
         std::shared_ptr<Resource::BulletShapeInstance> mShapeInstance;
-        std::map<int, osg::NodePath> mRecordIndexToNodePath;
+        std::map<std::int32_t, osg::NodePath> mRecordIndexToNodePath;
         bool mSolid;
         btVector3 mScale;
         osg::Vec3f mPosition;

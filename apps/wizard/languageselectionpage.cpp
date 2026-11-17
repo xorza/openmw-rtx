@@ -1,5 +1,7 @@
 #include "languageselectionpage.hpp"
 
+#include <cstdint>
+
 #include <components/misc/scalableicon.hpp>
 
 #include "mainwizard.hpp"
@@ -26,7 +28,7 @@ Wizard::LanguageSelectionPage::LanguageSelectionPage(QWidget* parent)
     }
 }
 
-int Wizard::LanguageSelectionPage::nextId() const
+std::int32_t Wizard::LanguageSelectionPage::nextId() const
 {
     if (!field(QStringLiteral("installation.retailDisc")).toBool())
     {

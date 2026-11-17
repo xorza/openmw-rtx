@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <iosfwd>
 #include <map>
 #include <set>
@@ -18,7 +20,7 @@ namespace DetourNavigator
 {
     struct Settings;
 
-    enum class UpdateNavMeshStatus : unsigned
+    enum class UpdateNavMeshStatus : std::uint32_t
     {
         ignored = 0,
         removed = 1 << 0,
@@ -33,7 +35,7 @@ namespace DetourNavigator
 
     inline bool isSuccess(UpdateNavMeshStatus value)
     {
-        return (static_cast<unsigned>(value) & static_cast<unsigned>(UpdateNavMeshStatus::failed)) == 0;
+        return (static_cast<std::uint32_t>(value) & static_cast<std::uint32_t>(UpdateNavMeshStatus::failed)) == 0;
     }
 
     std::ostream& operator<<(std::ostream& stream, UpdateNavMeshStatus value);
@@ -91,12 +93,14 @@ namespace DetourNavigator
 
         void set(UpdateNavMeshStatus value)
         {
-            mResult = static_cast<UpdateNavMeshStatus>(static_cast<unsigned>(mResult) | static_cast<unsigned>(value));
+            mResult = static_cast<UpdateNavMeshStatus>(
+                static_cast<std::uint32_t>(mResult) | static_cast<std::uint32_t>(value));
         }
 
         void unset(UpdateNavMeshStatus value)
         {
-            mResult = static_cast<UpdateNavMeshStatus>(static_cast<unsigned>(mResult) & ~static_cast<unsigned>(value));
+            mResult = static_cast<UpdateNavMeshStatus>(
+                static_cast<std::uint32_t>(mResult) & ~static_cast<std::uint32_t>(value));
         }
     };
 

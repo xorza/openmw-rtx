@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "windowbase.hpp"
@@ -49,7 +50,7 @@ namespace MWGui
 
         void onItemClicked(MyGUI::Widget* sender, const MWWorld::Ptr& item);
         void onCancel(MyGUI::Widget* sender);
-        void onMouseWheel(MyGUI::Widget* sender, int rel);
+        void onMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };

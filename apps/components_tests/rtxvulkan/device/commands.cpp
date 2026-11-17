@@ -261,7 +261,7 @@ namespace Rtx
             // Carried and waited for, so every block is free again, and a batch after the busiest
             // stretch makes none however many times it comes.
             pool.finishDeferred();
-            for (int round = 0; round < 3; ++round)
+            for (std::int32_t round = 0; round < 3; ++round)
             {
                 Batch again(pool);
                 copyOut(again);

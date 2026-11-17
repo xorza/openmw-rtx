@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 #include <osg/GL>
@@ -33,22 +34,25 @@ namespace MWRender
             const float fracU = u - flooredU;
             const float fracV = v - flooredV;
 
-            const auto clamped = [](float at, int extent) { return std::clamp(static_cast<int>(at), 0, extent - 1); };
+            const auto clamped = [](float at, std::int32_t extent) {
+                return std::clamp(static_cast<std::int32_t>(at), 0, extent - 1);
+            };
 
-            const int left = area.mX + clamped(flooredU, area.mWidth);
-            const int right = area.mX + clamped(flooredU + 1.0f, area.mWidth);
-            const int bottom = area.mY + clamped(flooredV, area.mHeight);
-            const int top = area.mY + clamped(flooredV + 1.0f, area.mHeight);
+            const std::int32_t left = area.mX + clamped(flooredU, area.mWidth);
+            const std::int32_t right = area.mX + clamped(flooredU + 1.0f, area.mWidth);
+            const std::int32_t bottom = area.mY + clamped(flooredV, area.mHeight);
+            const std::int32_t top = area.mY + clamped(flooredV + 1.0f, area.mHeight);
 
             const std::uint8_t* lowerLeft
-                = image.data(static_cast<unsigned int>(left), static_cast<unsigned int>(bottom));
+                = image.data(static_cast<std::uint32_t>(left), static_cast<std::uint32_t>(bottom));
             const std::uint8_t* lowerRight
-                = image.data(static_cast<unsigned int>(right), static_cast<unsigned int>(bottom));
-            const std::uint8_t* upperLeft = image.data(static_cast<unsigned int>(left), static_cast<unsigned int>(top));
+                = image.data(static_cast<std::uint32_t>(right), static_cast<std::uint32_t>(bottom));
+            const std::uint8_t* upperLeft
+                = image.data(static_cast<std::uint32_t>(left), static_cast<std::uint32_t>(top));
             const std::uint8_t* upperRight
-                = image.data(static_cast<unsigned int>(right), static_cast<unsigned int>(top));
+                = image.data(static_cast<std::uint32_t>(right), static_cast<std::uint32_t>(top));
 
-            for (int channel = 0; channel < 4; ++channel)
+            for (std::int32_t channel = 0; channel < 4; ++channel)
             {
                 const float lower
                     = std::lerp(static_cast<float>(lowerLeft[channel]), static_cast<float>(lowerRight[channel]), fracU);
@@ -77,21 +81,21 @@ namespace MWRender
         const std::size_t alphaBits = landAlpha.getPixelSizeInBits();
         const std::size_t alphaRow = landAlpha.getRowStepInBytes();
 
-        const int width = destination.mWidth;
-        const int height = destination.mHeight;
+        const std::int32_t width = destination.mWidth;
+        const std::int32_t height = destination.mHeight;
         const std::size_t stride = static_cast<std::size_t>(width) * 4;
         scratch.resize(stride * static_cast<std::size_t>(height));
 
-        for (int y = 0; y < height; ++y)
+        for (std::int32_t y = 0; y < height; ++y)
         {
-            for (int x = 0; x < width; ++x)
+            for (std::int32_t x = 0; x < width; ++x)
             {
                 std::uint8_t sampled[4];
                 sampleBilinear(tile, (static_cast<float>(x) + 0.5f) / static_cast<float>(width),
                     (static_cast<float>(y) + 0.5f) / static_cast<float>(height), sampled);
 
                 // One texel of the mask per pixel of the overlay
-                const unsigned int mask = alpha[static_cast<std::size_t>(destination.mX + x) * alphaBits / 8
+                const std::uint32_t mask = alpha[static_cast<std::size_t>(destination.mX + x) * alphaBits / 8
                     + static_cast<std::size_t>(destination.mY + y) * alphaRow];
                 std::uint8_t* out
                     = scratch.data() + static_cast<std::size_t>(y) * stride + static_cast<std::ptrdiff_t>(x * 4);
@@ -103,17 +107,17 @@ namespace MWRender
         }
 
         bool changed = false;
-        for (int y = 0; y < height && !changed; ++y)
-            changed = std::memcmp(into.data(static_cast<unsigned int>(destination.mX),
-                                      static_cast<unsigned int>(destination.mY + y)),
+        for (std::int32_t y = 0; y < height && !changed; ++y)
+            changed = std::memcmp(into.data(static_cast<std::uint32_t>(destination.mX),
+                                      static_cast<std::uint32_t>(destination.mY + y)),
                           scratch.data() + static_cast<std::size_t>(y) * stride, stride)
                 != 0;
         if (!changed)
             return false;
 
-        for (int y = 0; y < height; ++y)
+        for (std::int32_t y = 0; y < height; ++y)
             std::memcpy(
-                into.data(static_cast<unsigned int>(destination.mX), static_cast<unsigned int>(destination.mY + y)),
+                into.data(static_cast<std::uint32_t>(destination.mX), static_cast<std::uint32_t>(destination.mY + y)),
                 scratch.data() + static_cast<std::size_t>(y) * stride, stride);
 
         return true;
@@ -127,16 +131,16 @@ namespace MWRender
         const float acrossU = static_cast<float>(source.mWidth) / static_cast<float>(target.mWidth);
         const float acrossV = static_cast<float>(source.mHeight) / static_cast<float>(target.mHeight);
 
-        for (int y = 0; y < target.mHeight; ++y)
+        for (std::int32_t y = 0; y < target.mHeight; ++y)
         {
             const float v = (static_cast<float>(y) + 0.5f) * acrossV - 0.5f;
 
-            for (int x = 0; x < target.mWidth; ++x)
+            for (std::int32_t x = 0; x < target.mWidth; ++x)
             {
                 const float u = (static_cast<float>(x) + 0.5f) * acrossU - 0.5f;
 
                 filterTexel(from, source, u, v,
-                    into.data(static_cast<unsigned int>(target.mX + x), static_cast<unsigned int>(target.mY + y)));
+                    into.data(static_cast<std::uint32_t>(target.mX + x), static_cast<std::uint32_t>(target.mY + y)));
             }
         }
     }
@@ -149,10 +153,10 @@ namespace MWRender
         osg::ref_ptr<osg::Image> converted = new osg::Image;
         converted->allocateImage(image->s(), image->t(), 1, GL_RGBA, GL_UNSIGNED_BYTE);
 
-        for (int y = 0; y < image->t(); ++y)
-            for (int x = 0; x < image->s(); ++x)
-                converted->setColor(image->getColor(static_cast<unsigned int>(x), static_cast<unsigned int>(y)),
-                    static_cast<unsigned int>(x), static_cast<unsigned int>(y));
+        for (std::int32_t y = 0; y < image->t(); ++y)
+            for (std::int32_t x = 0; x < image->s(); ++x)
+                converted->setColor(image->getColor(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)),
+                    static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y));
 
         return converted;
     }

@@ -32,9 +32,9 @@ namespace Rtx
         std::vector<std::uint32_t> runIn(const LightGrid& grid, std::uint32_t cell, std::uint32_t key)
         {
             const Shaders::GpuLightCell& held = grid.getCells()[cell];
-            const auto first = grid.getList().begin() + held.mFirst[static_cast<int>(key)];
+            const auto first = grid.getList().begin() + held.mFirst[static_cast<std::int32_t>(key)];
 
-            return std::vector<std::uint32_t>(first, first + held.mCount[static_cast<int>(key)]);
+            return std::vector<std::uint32_t>(first, first + held.mCount[static_cast<std::int32_t>(key)]);
         }
 
         std::vector<std::uint32_t> lampsIn(const LightGrid& grid, std::uint32_t x, std::uint32_t y, std::uint32_t z)
@@ -495,7 +495,7 @@ namespace Rtx
                 light.mPosition = osg::Vec3f(next(500.0f, 3596.0f), next(500.0f, 3596.0f), next(400.0f, 624.0f));
                 light.mReach = next(50.0f, 400.0f);
             };
-            for (int lamp = 0; lamp < 30; ++lamp)
+            for (std::int32_t lamp = 0; lamp < 30; ++lamp)
                 place(lights.emplace_back());
 
             const auto runsOf = [](const LightGrid& grid) {
@@ -511,9 +511,9 @@ namespace Rtx
             std::vector<std::vector<std::uint32_t>> had = runsOf(grid);
             std::size_t madeAgain = 0;
             std::size_t traded = 0;
-            for (int step = 0; step < 300; ++step)
+            for (std::int32_t step = 0; step < 300; ++step)
             {
-                for (int moves = 0; moves < 4; ++moves)
+                for (std::int32_t moves = 0; moves < 4; ++moves)
                 {
                     Light& light = lights[2 + static_cast<std::size_t>(next(0.0f, 30.0f))];
                     const float roll = next(0.0f, 1.0f);

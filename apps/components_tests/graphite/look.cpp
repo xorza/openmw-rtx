@@ -1,10 +1,10 @@
+#include <gtest/gtest.h>
+
 #include <QApplication>
 #include <QFont>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QStyle>
-
-#include <gtest/gtest.h>
 
 #include <components/graphite/look.hpp>
 #include <components/graphite/palette.hpp>

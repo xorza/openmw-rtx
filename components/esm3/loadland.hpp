@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 
@@ -45,8 +46,8 @@ namespace ESM
         std::int32_t mY = 0;
 
         // Plugin index, used to reference the correct material palette.
-        int getPlugin() const { return mContext.index; }
-        void setPlugin(int index) { mContext.index = index; }
+        std::int32_t getPlugin() const { return mContext.index; }
+        void setPlugin(std::int32_t index) { mContext.index = index; }
 
         // File context. This allows the ESM reader to be 'reset' to this
         // location later when we are ready to load the full data set.
@@ -54,7 +55,7 @@ namespace ESM
         // in which case the filename will be empty.
         ESM_Context mContext;
 
-        int mDataTypes = 0;
+        std::int32_t mDataTypes = 0;
 
         enum
         {
@@ -73,24 +74,24 @@ namespace ESM
         };
 
         // default height to use in case there is no Land record
-        static constexpr int DEFAULT_HEIGHT = -2048;
+        static constexpr std::int32_t DEFAULT_HEIGHT = -2048;
 
         // number of vertices per side
-        static constexpr int LAND_SIZE = LandRecordData::sLandSize;
+        static constexpr std::int32_t LAND_SIZE = LandRecordData::sLandSize;
 
         // cell terrain size in world coords
-        static constexpr int REAL_SIZE = Constants::CellSizeInUnits;
+        static constexpr std::int32_t REAL_SIZE = Constants::CellSizeInUnits;
 
         // total number of vertices
-        static constexpr int LAND_NUM_VERTS = LandRecordData::sLandNumVerts;
+        static constexpr std::int32_t LAND_NUM_VERTS = LandRecordData::sLandNumVerts;
 
-        static constexpr int sHeightScale = 8;
+        static constexpr std::int32_t sHeightScale = 8;
 
         // number of textures per side of land
-        static constexpr int LAND_TEXTURE_SIZE = LandRecordData::sLandTextureSize;
+        static constexpr std::int32_t LAND_TEXTURE_SIZE = LandRecordData::sLandTextureSize;
 
         // total number of textures per land
-        static constexpr int LAND_NUM_TEXTURES = LandRecordData::sLandNumTextures;
+        static constexpr std::int32_t LAND_NUM_TEXTURES = LandRecordData::sLandNumTextures;
 
         static constexpr std::size_t sGlobalMapLodSizeSqrt = 9;
 
@@ -108,9 +109,9 @@ namespace ESM
 
         void blank();
 
-        void loadData(int dataTypes) const;
+        void loadData(std::int32_t dataTypes) const;
 
-        void loadData(int dataTypes, LandData& data) const;
+        void loadData(std::int32_t dataTypes, LandData& data) const;
 
         /**
          * Frees memory allocated for mLandData
@@ -118,12 +119,12 @@ namespace ESM
         void unloadData();
 
         /// Check if given data type is loaded
-        bool isDataLoaded(int flags) const;
+        bool isDataLoaded(std::int32_t flags) const;
 
         /// Return land data with at least the data types specified in \a flags loaded (if they
         /// are available). Will return a 0-pointer if there is no data for any of the
         /// specified types.
-        const LandData* getLandData(int flags) const;
+        const LandData* getLandData(std::int32_t flags) const;
 
         /// Return land data without loading first anything. Can return a 0-pointer.
         const LandData* getLandData() const { return mLandData.get(); }
@@ -134,10 +135,10 @@ namespace ESM
         /// \attention Must not be called on objects that aren't fully loaded.
         ///
         /// \note Added data fields will be uninitialised
-        void add(int flags);
+        void add(std::int32_t flags);
     };
 
-    void loadLandRecordData(int dataTypes, ESMReader& reader, LandRecordData& data);
+    void loadLandRecordData(std::int32_t dataTypes, ESMReader& reader, LandRecordData& data);
 
     void generateWnam(const std::array<float, LandRecordData::sLandNumVerts>& heights,
         std::array<std::int8_t, Land::sGlobalMapLodSize>& wnam);

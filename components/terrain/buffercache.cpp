@@ -1,6 +1,8 @@
 #include "buffercache.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include <osg/PrimitiveSet>
 
@@ -10,26 +12,26 @@ namespace
 {
 
     template <typename IndexArrayType>
-    osg::ref_ptr<IndexArrayType> createIndexBuffer(unsigned int flags, unsigned int verts)
+    osg::ref_ptr<IndexArrayType> createIndexBuffer(std::uint32_t flags, std::uint32_t verts)
     {
         using IndexType = IndexArrayType::value_type;
         // LOD level n means every 2^n-th vertex is kept, but we currently handle LOD elsewhere.
-        size_t lodLevel = 0; //(flags >> (4*4));
+        std::size_t lodLevel = 0; //(flags >> (4*4));
 
-        size_t lodDeltas[4];
-        for (int i = 0; i < 4; ++i)
+        std::size_t lodDeltas[4];
+        for (std::int32_t i = 0; i < 4; ++i)
             lodDeltas[i] = (flags >> (4 * i)) & (0xf);
 
         bool anyDeltas = (lodDeltas[Terrain::North] || lodDeltas[Terrain::South] || lodDeltas[Terrain::West]
             || lodDeltas[Terrain::East]);
 
-        size_t increment = size_t{ 1 } << lodLevel;
+        std::size_t increment = std::size_t{ 1 } << lodLevel;
         assert(increment < verts);
 
         osg::ref_ptr<IndexArrayType> indices(new IndexArrayType(osg::PrimitiveSet::TRIANGLES));
         indices->reserve(static_cast<std::size_t>((verts - 1) * (verts - 1) * 2) * 3 / increment);
 
-        size_t rowStart = 0, colStart = 0, rowEnd = verts - 1, colEnd = verts - 1;
+        std::size_t rowStart = 0, colStart = 0, rowEnd = verts - 1, colEnd = verts - 1;
         // If any edge needs stitching we'll skip all edges at this point,
         // mainly because stitching one edge would have an effect on corners and on the adjacent edges
         if (anyDeltas)
@@ -39,9 +41,9 @@ namespace
             rowEnd -= increment;
             rowStart += increment;
         }
-        for (size_t row = rowStart; row < rowEnd; row += increment)
+        for (std::size_t row = rowStart; row < rowEnd; row += increment)
         {
-            for (size_t col = colStart; col < colEnd; col += increment)
+            for (std::size_t col = colStart; col < colEnd; col += increment)
             {
                 // diamond pattern
                 if ((row + col % 2) % 2 == 1)
@@ -67,16 +69,16 @@ namespace
             }
         }
 
-        size_t innerStep = increment;
+        std::size_t innerStep = increment;
         if (anyDeltas)
         {
             // Now configure LOD transitions at the edges - this is pretty tedious,
             // and some very long and boring code, but it works great
 
             // South
-            size_t row = 0;
-            size_t outerStep = size_t{ 1 } << (lodDeltas[Terrain::South] + lodLevel);
-            for (size_t col = 0; col < verts - 1; col += outerStep)
+            std::size_t row = 0;
+            std::size_t outerStep = std::size_t{ 1 } << (lodDeltas[Terrain::South] + lodLevel);
+            for (std::size_t col = 0; col < verts - 1; col += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * col + row));
                 indices->push_back(static_cast<IndexType>(verts * (col + outerStep) + row));
@@ -86,7 +88,7 @@ namespace
                 else
                     indices->push_back(static_cast<IndexType>(verts * (col + outerStep) + row + innerStep));
 
-                for (size_t i = 0; i < outerStep; i += innerStep)
+                for (std::size_t i = 0; i < outerStep; i += innerStep)
                 {
                     // Make sure not to touch the left or right edges
                     if (col + i == 0 || col + i == verts - 1 - innerStep)
@@ -99,8 +101,8 @@ namespace
 
             // North
             row = verts - 1;
-            outerStep = size_t{ 1 } << (lodDeltas[Terrain::North] + lodLevel);
-            for (size_t col = 0; col < verts - 1; col += outerStep)
+            outerStep = std::size_t{ 1 } << (lodDeltas[Terrain::North] + lodLevel);
+            for (std::size_t col = 0; col < verts - 1; col += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * (col + outerStep) + row));
                 indices->push_back(static_cast<IndexType>(verts * col + row));
@@ -110,7 +112,7 @@ namespace
                 else
                     indices->push_back(static_cast<IndexType>(verts * col + row - innerStep));
 
-                for (size_t i = 0; i < outerStep; i += innerStep)
+                for (std::size_t i = 0; i < outerStep; i += innerStep)
                 {
                     // Make sure not to touch the left or right edges
                     if (col + i == 0 || col + i == verts - 1 - innerStep)
@@ -122,8 +124,8 @@ namespace
             }
 
             // West
-            size_t col = 0;
-            outerStep = size_t{ 1 } << (lodDeltas[Terrain::West] + lodLevel);
+            std::size_t col = 0;
+            outerStep = std::size_t{ 1 } << (lodDeltas[Terrain::West] + lodLevel);
             for (row = 0; row < verts - 1; row += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * col + row + outerStep));
@@ -134,7 +136,7 @@ namespace
                 else
                     indices->push_back(static_cast<IndexType>(verts * (col + innerStep) + row + outerStep));
 
-                for (size_t i = 0; i < outerStep; i += innerStep)
+                for (std::size_t i = 0; i < outerStep; i += innerStep)
                 {
                     // Make sure not to touch the top or bottom edges
                     if (row + i == 0 || row + i == verts - 1 - innerStep)
@@ -147,7 +149,7 @@ namespace
 
             // East
             col = verts - 1;
-            outerStep = size_t{ 1 } << (lodDeltas[Terrain::East] + lodLevel);
+            outerStep = std::size_t{ 1 } << (lodDeltas[Terrain::East] + lodLevel);
             for (row = 0; row < verts - 1; row += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * col + row));
@@ -158,7 +160,7 @@ namespace
                 else
                     indices->push_back(static_cast<IndexType>(verts * (col - innerStep) + row));
 
-                for (size_t i = 0; i < outerStep; i += innerStep)
+                for (std::size_t i = 0; i < outerStep; i += innerStep)
                 {
                     // Make sure not to touch the top or bottom edges
                     if (row + i == 0 || row + i == verts - 1 - innerStep)
@@ -178,22 +180,22 @@ namespace
 namespace Terrain
 {
 
-    osg::ref_ptr<osg::Vec2Array> BufferCache::getUVBuffer(unsigned int numVerts)
+    osg::ref_ptr<osg::Vec2Array> BufferCache::getUVBuffer(std::uint32_t numVerts)
     {
         std::scoped_lock lock(mUvBufferMutex);
-        if (mUvBufferMap.contains(static_cast<int>(numVerts)))
+        if (mUvBufferMap.contains(static_cast<std::int32_t>(numVerts)))
         {
-            return mUvBufferMap[static_cast<int>(numVerts)];
+            return mUvBufferMap[static_cast<std::int32_t>(numVerts)];
         }
 
-        int vertexCount = static_cast<int>(numVerts * numVerts);
+        auto vertexCount = static_cast<std::int32_t>(numVerts * numVerts);
 
         osg::ref_ptr<osg::Vec2Array> uvs(new osg::Vec2Array(osg::Array::BIND_PER_VERTEX));
         uvs->reserve(static_cast<std::size_t>(vertexCount));
 
-        for (unsigned int col = 0; col < numVerts; ++col)
+        for (std::uint32_t col = 0; col < numVerts; ++col)
         {
-            for (unsigned int row = 0; row < numVerts; ++row)
+            for (std::uint32_t row = 0; row < numVerts; ++row)
             {
                 const float u = static_cast<float>(col) / static_cast<float>(numVerts - 1);
                 const float v = static_cast<float>(row) / static_cast<float>(numVerts - 1);
@@ -204,13 +206,13 @@ namespace Terrain
         // Assign a VBO here to enable state sharing between different Geometries.
         uvs->setVertexBufferObject(new osg::VertexBufferObject);
 
-        mUvBufferMap[static_cast<int>(numVerts)] = uvs;
+        mUvBufferMap[static_cast<std::int32_t>(numVerts)] = uvs;
         return uvs;
     }
 
-    osg::ref_ptr<osg::DrawElements> BufferCache::getIndexBuffer(unsigned int numVerts, unsigned int flags)
+    osg::ref_ptr<osg::DrawElements> BufferCache::getIndexBuffer(std::uint32_t numVerts, std::uint32_t flags)
     {
-        std::pair<int, int> id = std::make_pair(numVerts, flags);
+        std::pair<std::int32_t, std::int32_t> id = std::make_pair(numVerts, flags);
         std::scoped_lock lock(mIndexBufferMutex);
 
         if (mIndexBufferMap.contains(id))

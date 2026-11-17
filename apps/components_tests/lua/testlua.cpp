@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -106,7 +107,7 @@ return {
         std::stringstream buf;
         buf << "return function()\n";
         buf << "  x = {}\n";
-        for (int i = 0; i < 1000; ++i)
+        for (std::int32_t i = 0; i < 1000; ++i)
             buf << "  x[" << i * 2 << "] = " << i << "\n";
         buf << "  return x\n";
         buf << "end\n";
@@ -141,16 +142,16 @@ return {
         const VFS::Path::Normalized path(counterPath);
         sol::table script1 = mLua.runInNewSandbox(path);
 
-        EXPECT_EQ(LuaUtil::call(script1["get"]).get<int>(), 42);
+        EXPECT_EQ(LuaUtil::call(script1["get"]).get<std::int32_t>(), 42);
         LuaUtil::call(script1["inc"], 3);
-        EXPECT_EQ(LuaUtil::call(script1["get"]).get<int>(), 45);
+        EXPECT_EQ(LuaUtil::call(script1["get"]).get<std::int32_t>(), 45);
 
         sol::table script2 = mLua.runInNewSandbox(path);
-        EXPECT_EQ(LuaUtil::call(script2["get"]).get<int>(), 42);
+        EXPECT_EQ(LuaUtil::call(script2["get"]).get<std::int32_t>(), 42);
         LuaUtil::call(script2["inc"], 1);
-        EXPECT_EQ(LuaUtil::call(script2["get"]).get<int>(), 43);
+        EXPECT_EQ(LuaUtil::call(script2["get"]).get<std::int32_t>(), 43);
 
-        EXPECT_EQ(LuaUtil::call(script1["get"]).get<int>(), 45);
+        EXPECT_EQ(LuaUtil::call(script1["get"]).get<std::int32_t>(), 45);
     }
 
     // **The host seeds `math.random`, and a script cannot**: one seed is one sequence however often it
@@ -159,15 +160,15 @@ return {
     {
         sol::table script = mLua.runInNewSandbox(VFS::Path::Normalized(testsPath));
         const auto draws = [&] {
-            std::vector<int> drawn;
+            std::vector<std::int32_t> drawn;
             drawn.reserve(3);
-            for (int i = 0; i < 3; ++i)
-                drawn.push_back(LuaUtil::call(script["draw"]).get<int>());
+            for (std::int32_t i = 0; i < 3; ++i)
+                drawn.push_back(LuaUtil::call(script["draw"]).get<std::int32_t>());
             return drawn;
         };
 
         mLua.seedRandom(7);
-        const std::vector<int> seven = draws();
+        const std::vector<std::int32_t> seven = draws();
         mLua.seedRandom(7);
         EXPECT_EQ(draws(), seven);
 
@@ -189,8 +190,8 @@ return {
 
     TEST_F(LuaStateTest, Cast)
     {
-        EXPECT_EQ(LuaUtil::cast<int>(sol::make_object(mLua.unsafeState(), 3.14)), 3);
-        Testing::expectError([&] { return LuaUtil::cast<int>(sol::make_object(mLua.unsafeState(), "3.14")); },
+        EXPECT_EQ(LuaUtil::cast<std::int32_t>(sol::make_object(mLua.unsafeState(), 3.14)), 3);
+        Testing::expectError([&] { return LuaUtil::cast<std::int32_t>(sol::make_object(mLua.unsafeState(), "3.14")); },
             "Value \"\"3.14\"\" can not be casted to int");
         Testing::expectError(
             [&] { return LuaUtil::cast<std::string_view>(sol::make_object(mLua.unsafeState(), sol::nil)); },
@@ -220,13 +221,13 @@ return {
         EXPECT_FLOAT_EQ(
             LuaUtil::call(script["sin"], 1).get<float>(), -LuaUtil::call(script["requireMathSin"], -1).get<float>());
 
-        EXPECT_EQ(LuaUtil::call(script["useCounter"]).get<int>(), 43);
-        EXPECT_EQ(LuaUtil::call(script["useCounter"]).get<int>(), 44);
+        EXPECT_EQ(LuaUtil::call(script["useCounter"]).get<std::int32_t>(), 43);
+        EXPECT_EQ(LuaUtil::call(script["useCounter"]).get<std::int32_t>(), 44);
         {
             sol::table script2 = mLua.runInNewSandbox(path);
-            EXPECT_EQ(LuaUtil::call(script2["useCounter"]).get<int>(), 43);
+            EXPECT_EQ(LuaUtil::call(script2["useCounter"]).get<std::int32_t>(), 43);
         }
-        EXPECT_EQ(LuaUtil::call(script["useCounter"]).get<int>(), 45);
+        EXPECT_EQ(LuaUtil::call(script["useCounter"]).get<std::int32_t>(), 45);
 
         Testing::expectError([&] { return LuaUtil::call(script["incorrectRequire"]); }, "module not found: counter");
     }
@@ -237,7 +238,7 @@ return {
         sol::table script = mLua.runInNewSandbox(path);
 
         // rawset itself is allowed
-        EXPECT_EQ(LuaUtil::call(script["callRawset"]).get<int>(), 3);
+        EXPECT_EQ(LuaUtil::call(script["callRawset"]).get<std::int32_t>(), 3);
 
         // but read-only object can not be modified even with rawset
         Testing::expectError([&] { return LuaUtil::call(script["rawsetSystemLib"]); },
@@ -253,9 +254,9 @@ return {
         const VFS::Path::Normalized path("bbb/tests.lua");
         sol::table script = mLua.runInNewSandbox(path);
 
-        EXPECT_EQ(LuaUtil::call(script["iteratePlain"]).get<int>(), 66);
-        EXPECT_EQ(LuaUtil::call(script["honoursCustomPairs"]).get<int>(), 9);
-        EXPECT_EQ(LuaUtil::call(script["iterateHiddenMetatable"]).get<int>(), 18);
+        EXPECT_EQ(LuaUtil::call(script["iteratePlain"]).get<std::int32_t>(), 66);
+        EXPECT_EQ(LuaUtil::call(script["honoursCustomPairs"]).get<std::int32_t>(), 9);
+        EXPECT_EQ(LuaUtil::call(script["iterateHiddenMetatable"]).get<std::int32_t>(), 18);
 
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
             sol::table hash = LuaUtil::makeReadOnly(view.sol().create_table_with("a", 1, "b", 2, "c", 3));
@@ -263,12 +264,12 @@ return {
 
             auto readOnly = LuaUtil::call(script["iterateReadOnly"], hash);
             EXPECT_EQ(readOnly.get<std::string>(0), "a,b,c");
-            EXPECT_EQ(readOnly.get<int>(1), 6);
-            EXPECT_EQ(readOnly.get<int>(2), 0);
+            EXPECT_EQ(readOnly.get<std::int32_t>(1), 6);
+            EXPECT_EQ(readOnly.get<std::int32_t>(2), 0);
 
             auto readOnlyArray = LuaUtil::call(script["iterateReadOnlyArray"], array);
-            EXPECT_EQ(readOnlyArray.get<int>(0), 60);
-            EXPECT_EQ(readOnlyArray.get<int>(1), 3);
+            EXPECT_EQ(readOnlyArray.get<std::int32_t>(0), 60);
+            EXPECT_EQ(readOnlyArray.get<std::int32_t>(1), 3);
 
             EXPECT_TRUE(LuaUtil::call(script["readOnlyIterationStateIsGuarded"], hash).get<bool>());
         });
@@ -311,12 +312,12 @@ return {
 
             sol::table script1 = lua.runInNewSandbox(path, "", { { "test.api", api1 } });
 
-            lua.addCommonPackage("sqrlib", view.sol().create_table_with("sqr", [](int x) { return x * x; }));
+            lua.addCommonPackage("sqrlib", view.sol().create_table_with("sqr", [](std::int32_t x) { return x * x; }));
 
             sol::table script2 = lua.runInNewSandbox(path, "", { { "test.api", api2 } });
 
             Testing::expectError([&] { return LuaUtil::call(script1["sqr"], 3); }, "module not found: sqrlib");
-            EXPECT_EQ(LuaUtil::call(script2["sqr"], 3).get<int>(), 9);
+            EXPECT_EQ(LuaUtil::call(script2["sqr"], 3).get<std::int32_t>(), 9);
 
             EXPECT_EQ(LuaUtil::call(script1["apiName"]).get<std::string>(), "api1");
             EXPECT_EQ(LuaUtil::call(script2["apiName"]).get<std::string>(), "api2");
@@ -331,19 +332,19 @@ return {
     TEST_F(LuaStateTest, RemovedScriptsGarbageCollecting)
     {
         auto getMem = [&] {
-            for (int i = 0; i < 5; ++i)
+            for (std::int32_t i = 0; i < 5; ++i)
                 lua_gc(mLua.unsafeState(), LUA_GCCOLLECT, 0);
             return mLua.getTotalMemoryUsage();
         };
-        int64_t memWithScript = 0;
+        std::int64_t memWithScript = 0;
         const VFS::Path::Normalized path("requireBig.lua");
         {
             sol::object s = mLua.runInNewSandbox(path);
-            memWithScript = static_cast<int64_t>(getMem());
+            memWithScript = static_cast<std::int64_t>(getMem());
         }
-        for (int i = 0; i < 100; ++i) // run many times to make small memory leaks visible
+        for (std::int32_t i = 0; i < 100; ++i) // run many times to make small memory leaks visible
             mLua.runInNewSandbox(path);
-        auto memWithoutScript = static_cast<int64_t>(getMem());
+        auto memWithoutScript = static_cast<std::int64_t>(getMem());
         // At this moment all instances of the script should be garbage-collected.
         EXPECT_LT(memWithoutScript, memWithScript);
     }

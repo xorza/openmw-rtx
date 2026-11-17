@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
@@ -10,7 +11,7 @@ namespace SerializationTesting
 {
     struct Pod
     {
-        int mInt = 42;
+        std::int32_t mInt = 42;
         double mDouble = 3.14;
 
         friend bool operator==(const Pod& l, const Pod& r)
@@ -29,7 +30,7 @@ namespace SerializationTesting
 
     struct Composite
     {
-        short mFloatArray[3] = { 0 };
+        std::int16_t mFloatArray[3] = { 0 };
         std::vector<std::int32_t> mIntVector;
         std::vector<Enum> mEnumVector;
         std::vector<Pod> mPodVector;

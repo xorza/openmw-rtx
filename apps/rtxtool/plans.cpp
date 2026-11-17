@@ -202,8 +202,8 @@ namespace RtxTool
         request.mStops = std::move(stops);
         request.mSetup = std::move(framed.mSetup);
         // The frame at the window's size, so the frame is shown pixel for pixel.
-        request.mSetup.mWindowPixels
-            = osg::Vec2i(static_cast<int>(framed.mWindow.mWidth), static_cast<int>(framed.mWindow.mHeight));
+        request.mSetup.mWindowPixels = osg::Vec2i(
+            static_cast<std::int32_t>(framed.mWindow.mWidth), static_cast<std::int32_t>(framed.mWindow.mHeight));
         request.mStep = framed.mStep;
         request.mPlayed = policy.mPlayed;
         request.mKeptFrames = outOf(command);

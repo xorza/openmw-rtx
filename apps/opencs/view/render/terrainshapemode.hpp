@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -96,7 +97,7 @@ namespace CSVRender
         bool secondarySelectStartDrag(const QPoint& pos) override;
 
         /// Handle shape edit behavior during dragging
-        void drag(const QPoint& pos, int diffX, int diffY, double speedFactor) override;
+        void drag(const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor) override;
 
         /// End shape editing command macro
         void dragCompleted(const QPoint& pos) override;
@@ -104,7 +105,7 @@ namespace CSVRender
         /// Cancel shape editing, and reset all pending changes
         void dragAborted() override;
 
-        void dragWheel(int diff, double speedFactor) override;
+        void dragWheel(std::int32_t diff, double speedFactor) override;
         void dragMoveEvent(QDragMoveEvent* event) override;
         void mouseMoveEvent(QMouseEvent* event) override;
 
@@ -121,36 +122,38 @@ namespace CSVRender
         void applyTerrainEditChanges();
 
         /// Handle brush mechanics for shape editing
-        void editTerrainShapeGrid(const std::pair<int, int>& vertexCoords, bool dragOperation);
+        void editTerrainShapeGrid(const std::pair<std::int32_t, std::int32_t>& vertexCoords, bool dragOperation);
 
         /// Calculate height, when aiming for bump-shaped terrain change
-        float calculateBumpShape(float distance, int radius, float height);
+        float calculateBumpShape(float distance, std::int32_t radius, float height);
 
         /// set the target height for flatten tool
         void setFlattenToolTargetHeight(const WorldspaceHitResult& hit);
 
         /// Do a single height alteration for transient shape edit map
-        void alterHeight(const CSMWorld::CellCoordinates& cellCoords, int inCellX, int inCellY, float alteredHeight,
-            bool useTool = true);
+        void alterHeight(const CSMWorld::CellCoordinates& cellCoords, std::int32_t inCellX, std::int32_t inCellY,
+            float alteredHeight, bool useTool = true);
 
         /// Do a single smoothing height alteration for transient shape edit map
-        void smoothHeight(const CSMWorld::CellCoordinates& cellCoords, int inCellX, int inCellY, int toolStrength);
+        void smoothHeight(const CSMWorld::CellCoordinates& cellCoords, std::int32_t inCellX, std::int32_t inCellY,
+            std::int32_t toolStrength);
 
         /// Do a single flattening height alteration for transient shape edit map
-        void flattenHeight(
-            const CSMWorld::CellCoordinates& cellCoords, int inCellX, int inCellY, int toolStrength, int targetHeight);
+        void flattenHeight(const CSMWorld::CellCoordinates& cellCoords, std::int32_t inCellX, std::int32_t inCellY,
+            std::int32_t toolStrength, std::int32_t targetHeight);
 
         /// Do a single equalize alteration for transient shape edit map
-        void equalizeHeight(const CSMWorld::CellCoordinates& cellCoords, int inCellX, int inCellY, int targetHeight);
+        void equalizeHeight(const CSMWorld::CellCoordinates& cellCoords, std::int32_t inCellX, std::int32_t inCellY,
+            std::int32_t targetHeight);
 
         /// Get altered height values around one vertex
-        void updateKeyHeightValues(const CSMWorld::CellCoordinates& cellCoords, int inCellX, int inCellY,
-            float* thisHeight, float* thisAlteredHeight, float* leftHeight, float* leftAlteredHeight, float* upHeight,
-            float* upAlteredHeight, float* rightHeight, float* rightAlteredHeight, float* downHeight,
-            float* downAlteredHeight);
+        void updateKeyHeightValues(const CSMWorld::CellCoordinates& cellCoords, std::int32_t inCellX,
+            std::int32_t inCellY, float* thisHeight, float* thisAlteredHeight, float* leftHeight,
+            float* leftAlteredHeight, float* upHeight, float* upAlteredHeight, float* rightHeight,
+            float* rightAlteredHeight, float* downHeight, float* downAlteredHeight);
 
         /// Limit steepness based on either X or Y and return false if steepness is limited
-        void compareAndLimit(const CSMWorld::CellCoordinates& cellCoords, int inCellX, int inCellY,
+        void compareAndLimit(const CSMWorld::CellCoordinates& cellCoords, std::int32_t inCellX, std::int32_t inCellY,
             const float* limitedAlteredHeightXAxis, const float* limitedAlteredHeightYAxis,
             bool* steepnessIsWithinLimits);
 
@@ -159,13 +162,14 @@ namespace CSVRender
         bool limitAlteredHeights(const CSMWorld::CellCoordinates& cellCoords, bool reverseMode = false);
 
         /// Check if global selection coordinate belongs to cell in view
-        bool isInCellSelection(int globalSelectionX, int globalSelectionY);
+        bool isInCellSelection(std::int32_t globalSelectionX, std::int32_t globalSelectionY);
 
         /// Select vertex at global selection coordinate
-        void handleSelection(int globalSelectionX, int globalSelectionY, std::vector<std::pair<int, int>>* selections);
+        void handleSelection(std::int32_t globalSelectionX, std::int32_t globalSelectionY,
+            std::vector<std::pair<std::int32_t, std::int32_t>>* selections);
 
         /// Handle brush mechanics for terrain shape selection
-        void selectTerrainShapes(const std::pair<int, int>& vertexCoords, unsigned char selectMode);
+        void selectTerrainShapes(const std::pair<std::int32_t, std::int32_t>& vertexCoords, std::uint8_t selectMode);
 
         /// Push terrain shape edits to command macro
         void pushEditToCommand(const CSMWorld::LandHeightsColumn::DataType& newLandGrid, CSMDoc::Document& document,
@@ -195,28 +199,28 @@ namespace CSVRender
         void fixEdges(CSMWorld::CellCoordinates cellCoords);
 
         std::string mBrushTexture;
-        int mBrushSize = 1;
+        std::int32_t mBrushSize = 1;
         CSVWidget::BrushShape mBrushShape = CSVWidget::BrushShape_Point;
         std::unique_ptr<BrushDraw> mBrushDraw;
-        std::vector<std::pair<int, int>> mCustomBrushShape;
+        std::vector<std::pair<std::int32_t, std::int32_t>> mCustomBrushShape;
         CSVWidget::SceneToolShapeBrush* mShapeBrushScenetool = nullptr;
-        int mDragMode = InteractionType_None;
+        std::int32_t mDragMode = InteractionType_None;
         osg::Group* mParentNode;
         bool mIsEditing = false;
         std::shared_ptr<TerrainSelection> mTerrainShapeSelection;
-        int mTotalDiffY = 0;
+        std::int32_t mTotalDiffY = 0;
         std::vector<CSMWorld::CellCoordinates> mAlteredCells;
         osg::Vec3d mEditingPos;
-        int mShapeEditTool = ShapeEditTool_Drag;
-        int mShapeEditToolStrength = 8;
-        int mTargetHeight = 0;
+        std::int32_t mShapeEditTool = ShapeEditTool_Drag;
+        std::int32_t mShapeEditToolStrength = 8;
+        std::int32_t mTargetHeight = 0;
 
         PagedWorldspaceWidget& getPagedWorldspaceWidget();
 
     public slots:
-        void setBrushSize(int brushSize);
+        void setBrushSize(std::int32_t brushSize);
         void setBrushShape(CSVWidget::BrushShape brushShape);
-        void setShapeEditTool(int shapeEditTool);
-        void setShapeEditToolStrength(int shapeEditToolStrength);
+        void setShapeEditTool(std::int32_t shapeEditTool);
+        void setShapeEditToolStrength(std::int32_t shapeEditToolStrength);
     };
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
@@ -32,7 +33,7 @@ namespace Misc
         VFS::Path::Normalized correctBigIconPath(VFS::Path::NormalizedView resPath, const VFS::Manager& vfs);
         VFS::Path::Normalized correctBookartPath(VFS::Path::NormalizedView resPath, const VFS::Manager& vfs);
         VFS::Path::Normalized correctBookartPath(
-            VFS::Path::NormalizedView resPath, int width, int height, const VFS::Manager& vfs);
+            VFS::Path::NormalizedView resPath, std::int32_t width, std::int32_t height, const VFS::Manager& vfs);
         /// Use "xfoo.nif" instead of "foo.nif" if "xfoo.kf" is available
         /// Note that if "xfoo.nif" is actually unavailable, we can't fall back to "foo.nif". :(
         VFS::Path::Normalized correctActorModelPath(VFS::Path::NormalizedView resPath, const VFS::Manager* vfs);
@@ -58,6 +59,6 @@ namespace Misc
         bool isHiddenMarker(const ESM::RefId& id);
 
         VFS::Path::Normalized getLODMeshName(ESM::GameFormat gameFormat, VFS::Path::NormalizedView resPath,
-            const VFS::Manager& vfs, unsigned char lod = 0);
+            const VFS::Manager& vfs, std::uint8_t lod = 0);
     }
 }

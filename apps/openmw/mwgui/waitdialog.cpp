@@ -1,5 +1,7 @@
 #include "waitdialog.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 
 #include <MyGUI_ProgressBar.h>
@@ -37,7 +39,7 @@ namespace MWGui
         center();
     }
 
-    void WaitDialogProgressBar::setProgress(int cur, int total)
+    void WaitDialogProgressBar::setProgress(std::int32_t cur, std::int32_t total)
     {
         mProgressBar->setProgressRange(static_cast<std::size_t>(total));
         mProgressBar->setProgressPosition(static_cast<std::size_t>(cur));
@@ -82,7 +84,7 @@ namespace MWGui
 
     void WaitDialog::setPtr(const MWWorld::Ptr& ptr)
     {
-        const int restFlags = MWBase::Environment::get().getWorld()->canRest();
+        const std::int32_t restFlags = MWBase::Environment::get().getWorld()->canRest();
 
         const bool underwater = (restFlags & MWBase::World::Rest_PlayerIsUnderwater) != 0;
         // Resting in air is allowed if you're using a bed
@@ -164,7 +166,7 @@ namespace MWGui
 
     void WaitDialog::onUntilHealedButtonClicked(MyGUI::Widget* /*sender*/)
     {
-        int autoHours = MWBase::Environment::get().getMechanicsManager()->getHoursToRest();
+        std::int32_t autoHours = MWBase::Environment::get().getMechanicsManager()->getHoursToRest();
 
         startWaiting(autoHours);
     }
@@ -174,7 +176,7 @@ namespace MWGui
         startWaiting(mManualHours);
     }
 
-    void WaitDialog::startWaiting(int hoursToWait)
+    void WaitDialog::startWaiting(std::int32_t hoursToWait)
     {
         if (Settings::saves().mAutosave) // autosaves when enabled
             MWBase::Environment::get().getStateManager()->quickSave("Autosave");
@@ -198,15 +200,15 @@ namespace MWGui
                 if (!region->mSleepList.empty())
                 {
                     // figure out if player will be woken while sleeping
-                    int x = Misc::Rng::rollDice(hoursToWait, world->getPrng());
+                    std::int32_t x = Misc::Rng::rollDice(hoursToWait, world->getPrng());
                     float fSleepRandMod
                         = world->getStore().get<ESM::GameSetting>().find("fSleepRandMod")->mValue.getFloat();
                     if (static_cast<float>(x) < fSleepRandMod * static_cast<float>(hoursToWait))
                     {
                         float fSleepRestMod
                             = world->getStore().get<ESM::GameSetting>().find("fSleepRestMod")->mValue.getFloat();
-                        int interruptAtHoursRemaining
-                            = static_cast<int>(fSleepRestMod * static_cast<float>(hoursToWait));
+                        auto interruptAtHoursRemaining
+                            = static_cast<std::int32_t>(fSleepRestMod * static_cast<float>(hoursToWait));
                         if (interruptAtHoursRemaining != 0)
                         {
                             mInterruptAt = hoursToWait - interruptAtHoursRemaining;
@@ -225,10 +227,10 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->removeGuiMode(GM_Rest);
     }
 
-    void WaitDialog::onHourSliderChangedPosition(MyGUI::ScrollBar* sender, size_t position)
+    void WaitDialog::onHourSliderChangedPosition(MyGUI::ScrollBar* sender, std::size_t position)
     {
         mHourText->setCaptionWithReplacing(std::format("{} #{{sRestMenu2}}", position + 1));
-        mManualHours = static_cast<int>(position + 1);
+        mManualHours = static_cast<std::int32_t>(position + 1);
         MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mWaitButton);
     }
 
@@ -239,13 +241,13 @@ namespace MWGui
                 std::min(mHourSlider->getScrollPosition() + 1, mHourSlider->getScrollRange() - 1));
         else if (key == MyGUI::KeyCode::ArrowDown)
             mHourSlider->setScrollPosition(
-                static_cast<std::size_t>(std::max(static_cast<int>(mHourSlider->getScrollPosition()) - 1, 0)));
+                static_cast<std::size_t>(std::max(static_cast<std::int32_t>(mHourSlider->getScrollPosition()) - 1, 0)));
         else
             return;
         onHourSliderChangedPosition(mHourSlider, mHourSlider->getScrollPosition());
     }
 
-    void WaitDialog::onWaitingProgressChanged(int cur, int total)
+    void WaitDialog::onWaitingProgressChanged(std::int32_t cur, std::int32_t total)
     {
         mProgressBar.setProgress(cur, total);
         MWBase::Environment::get().getMechanicsManager()->rest(1, mSleeping);

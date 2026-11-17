@@ -1,5 +1,6 @@
 #include "node.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <ranges>
 
@@ -21,30 +22,30 @@ namespace
     {
         // FIXME: copying vertices/indices individually is unreasonable
         const std::vector<osg::Vec3f>& vertices = data.mVertices;
-        mesh.preallocateVertices(static_cast<int>(vertices.size()));
+        mesh.preallocateVertices(static_cast<std::int32_t>(vertices.size()));
         for (const osg::Vec3f& vertex : vertices)
             mesh.findOrAddVertex(Misc::Convert::toBullet(vertex), false);
 
-        mesh.preallocateIndices(static_cast<int>(data.mNumTriangles) * 3);
+        mesh.preallocateIndices(static_cast<std::int32_t>(data.mNumTriangles) * 3);
     }
 
-    void trianglesToBtTriangleMesh(btTriangleMesh& mesh, const std::vector<unsigned short>& triangles)
+    void trianglesToBtTriangleMesh(btTriangleMesh& mesh, const std::vector<std::uint16_t>& triangles)
     {
         for (std::size_t i = 0; i < triangles.size(); i += 3)
             mesh.addTriangleIndices(triangles[i + 0], triangles[i + 1], triangles[i + 2]);
     }
 
-    void stripsToBtTriangleMesh(btTriangleMesh& mesh, const std::vector<std::vector<unsigned short>>& strips)
+    void stripsToBtTriangleMesh(btTriangleMesh& mesh, const std::vector<std::vector<std::uint16_t>>& strips)
     {
         for (const auto& strip : strips)
         {
             if (strip.size() < 3)
                 continue;
 
-            unsigned short a = 0;
-            unsigned short b = strip[0];
-            unsigned short c = strip[1];
-            for (size_t i = 2; i < strip.size(); i++)
+            std::uint16_t a = 0;
+            std::uint16_t b = strip[0];
+            std::uint16_t c = strip[1];
+            for (std::size_t i = 2; i < strip.size(); i++)
             {
                 a = b;
                 b = c;
@@ -116,7 +117,7 @@ namespace Nif
             }
             case UNION_BV:
             {
-                nif->readVectorOfRecords<uint32_t>(mChildren);
+                nif->readVectorOfRecords<std::uint32_t>(mChildren);
                 break;
             }
             case HALFSPACE_BV:
@@ -139,7 +140,7 @@ namespace Nif
         NiObjectNET::read(nif);
 
         if (nif->getBethVersion() <= 26)
-            mFlags = nif->get<uint16_t>();
+            mFlags = nif->get<std::uint16_t>();
         else
             nif->read(mFlags);
         nif->read(mTransform.mTranslation);
@@ -237,7 +238,7 @@ namespace Nif
             return;
         std::uint32_t numNames = 0;
         if (nif->getVersion() >= NIFStream::generateVersion(20, 2, 0, 5))
-            numNames = nif->get<uint32_t>();
+            numNames = nif->get<std::uint32_t>();
         else if (nif->getVersion() <= NIFStream::generateVersion(20, 1, 0, 3))
             numNames = nif->get<bool>();
         nif->readVector(mNames, numNames);
@@ -308,8 +309,8 @@ namespace Nif
         if (mData.empty() || mData->mVertices.empty())
             return nullptr;
 
-        std::vector<const std::vector<unsigned short>*> triangleLists;
-        std::vector<const std::vector<std::vector<unsigned short>>*> stripsLists;
+        std::vector<const std::vector<std::uint16_t>*> triangleLists;
+        std::vector<const std::vector<std::vector<std::uint16_t>>*> stripsLists;
         auto data = static_cast<const NiTriShapeData*>(mData.getPtr());
         const Nif::NiSkinPartition* partitions = nullptr;
         if (!mSkin.empty())
@@ -350,8 +351,8 @@ namespace Nif
         if (mData.empty() || mData->mVertices.empty())
             return nullptr;
 
-        std::vector<const std::vector<unsigned short>*> triangleLists;
-        std::vector<const std::vector<std::vector<unsigned short>>*> stripsLists;
+        std::vector<const std::vector<std::uint16_t>*> triangleLists;
+        std::vector<const std::vector<std::vector<std::uint16_t>>*> stripsLists;
         auto data = static_cast<const NiTriStripsData*>(mData.getPtr());
         const Nif::NiSkinPartition* partitions = nullptr;
         if (!mSkin.empty())
@@ -407,7 +408,7 @@ namespace Nif
     {
         NiTriShape::read(nif);
 
-        nif->readVectorOfRecords<uint32_t>(mSegments);
+        nif->readVectorOfRecords<std::uint32_t>(mSegments);
     }
 
     void BSLODTriShape::read(NIFStream* nif)
@@ -477,7 +478,7 @@ namespace Nif
         if (nif->getVersion() >= NIFFile::NIFVersion::VER_MW)
             nif->read(mLODCenter);
 
-        nif->readVectorOfRecords<uint32_t>(mLODLevels);
+        nif->readVectorOfRecords<std::uint32_t>(mLODLevels);
     }
 
     void NiFltAnimationNode::read(NIFStream* nif)
@@ -491,7 +492,7 @@ namespace Nif
     {
         NiNode::read(nif);
 
-        mMode = static_cast<SortingMode>(nif->get<uint32_t>());
+        mMode = static_cast<SortingMode>(nif->get<std::uint32_t>());
         if (nif->getVersion() <= NIFStream::generateVersion(20, 0, 0, 3))
             mSubSorter.read(nif);
     }
@@ -508,7 +509,7 @@ namespace Nif
         NiNode::read(nif);
 
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 0))
-            mMode = static_cast<BillboardMode>(nif->get<uint16_t>() & 0x7);
+            mMode = static_cast<BillboardMode>(nif->get<std::uint16_t>() & 0x7);
         else
             mMode = static_cast<BillboardMode>((mFlags >> 5) & 0x3);
     }
@@ -516,9 +517,9 @@ namespace Nif
     void NiDefaultAVObjectPalette::read(NIFStream* nif)
     {
         mScene.read(nif);
-        uint32_t numObjects = 0;
+        std::uint32_t numObjects = 0;
         nif->read(numObjects);
-        for (uint32_t i = 0; i < numObjects; i++)
+        for (std::uint32_t i = 0; i < numObjects; i++)
             mObjects[nif->getSizedString()].read(nif);
     }
 
@@ -551,7 +552,7 @@ namespace Nif
 
         mMultiBound.read(nif);
         if (nif->getBethVersion() >= NIFFile::BethVersion::BETHVER_SKY)
-            mCullingType = static_cast<BSCPCullingType>(nif->get<uint32_t>());
+            mCullingType = static_cast<BSCPCullingType>(nif->get<std::uint32_t>());
     }
 
     void BSMultiBoundNode::post(Reader& nif)
@@ -574,17 +575,17 @@ namespace Nif
         mAlphaProperty.read(nif);
         mVertDesc.read(nif);
 
-        size_t numTriangleIndices = 0;
+        std::size_t numTriangleIndices = 0;
         if (nif->getBethVersion() >= NIFFile::BethVersion::BETHVER_FO4)
-            numTriangleIndices = static_cast<std::size_t>(nif->get<uint32_t>()) * 3;
+            numTriangleIndices = static_cast<std::size_t>(nif->get<std::uint32_t>()) * 3;
         else
-            numTriangleIndices = static_cast<std::size_t>(nif->get<uint16_t>()) * 3;
+            numTriangleIndices = static_cast<std::size_t>(nif->get<std::uint16_t>()) * 3;
         nif->read(mNumVertices);
         mVertData.reserve(mNumVertices);
         nif->read(mDataSize);
         if (mDataSize > 0)
         {
-            for (uint16_t i = 0; i < mNumVertices; ++i)
+            for (std::uint16_t i = 0; i < mNumVertices; ++i)
                 mVertData.emplace_back().read(nif, mVertDesc.mFlags);
             nif->readVector(mTriangles, numTriangleIndices);
         }
@@ -642,30 +643,30 @@ namespace Nif
         nif->read(mStartIndex);
         nif->read(mNumPrimitives);
         nif->read(mParentArrayIndex);
-        nif->readVectorOfRecords<uint32_t>(mSubSegments);
+        nif->readVectorOfRecords<std::uint32_t>(mSubSegments);
     }
 
     void BSSubIndexTriShape::SubSegmentDataRecord::read(NIFStream* nif)
     {
         nif->read(mUserSlotID);
         nif->read(mMaterial);
-        nif->readVector(mExtraData, nif->get<uint32_t>());
+        nif->readVector(mExtraData, nif->get<std::uint32_t>());
     }
 
     void BSSubIndexTriShape::SubSegmentData::read(NIFStream* nif)
     {
-        uint32_t numArrayIndices = 0;
+        std::uint32_t numArrayIndices = 0;
         nif->read(numArrayIndices);
-        const auto numRecords = nif->get<uint32_t>();
+        const auto numRecords = nif->get<std::uint32_t>();
         nif->readVector(mArrayIndices, numArrayIndices);
         nif->readVectorOfRecords(numRecords, mDataRecords);
-        mSSFFile = nif->getSizedString(nif->get<uint16_t>());
+        mSSFFile = nif->getSizedString(nif->get<std::uint16_t>());
     }
 
     void BSSubIndexTriShape::Segmentation::read(NIFStream* nif)
     {
         nif->read(mNumPrimitives);
-        const auto numSegments = nif->get<uint32_t>();
+        const auto numSegments = nif->get<std::uint32_t>();
         nif->read(mNumTotalSegments);
         nif->readVectorOfRecords(numSegments, mSegments);
         if (numSegments < mNumTotalSegments)
@@ -677,31 +678,31 @@ namespace Nif
         BSTriShape::read(nif);
 
         if (nif->getBethVersion() == NIFFile::BethVersion::BETHVER_SSE)
-            nif->readVectorOfRecords<uint32_t>(mSegments);
+            nif->readVectorOfRecords<std::uint32_t>(mSegments);
         else if (nif->getBethVersion() >= NIFFile::BethVersion::BETHVER_FO4 && mDataSize > 0)
             mSegmentation.read(nif);
     }
 
     void BSVertexDesc::read(NIFStream* nif)
     {
-        uint64_t data = 0;
+        std::uint64_t data = 0;
         nif->read(data);
         mVertexDataSize = (data & 0xF) >> 0x00;
         mDynamicVertexSize = (data & 0xF0) >> 0x04;
         mUV1Offset = (data & 0xF00) >> 0x08;
         mUV2Offset = (data & 0xF000) >> 0x0C;
-        mNormalOffset = static_cast<uint8_t>((data & 0xF0000) >> 0x10);
-        mTangentOffset = static_cast<uint8_t>((data & 0xF00000) >> 0x14);
+        mNormalOffset = static_cast<std::uint8_t>((data & 0xF0000) >> 0x10);
+        mTangentOffset = static_cast<std::uint8_t>((data & 0xF00000) >> 0x14);
         mColorOffset = (data & 0xF000000) >> 0x18;
         mSkinningDataOffset = (data & 0xF0000000) >> 0x1C;
-        mLandscapeDataOffset = static_cast<uint8_t>((data & 0xF00000000) >> 0x20);
-        mEyeDataOffset = static_cast<uint8_t>((data & 0xF000000000) >> 0x24);
-        mFlags = static_cast<uint16_t>((data & 0xFFF00000000000) >> 0x2C);
+        mLandscapeDataOffset = static_cast<std::uint8_t>((data & 0xF00000000) >> 0x20);
+        mEyeDataOffset = static_cast<std::uint8_t>((data & 0xF000000000) >> 0x24);
+        mFlags = static_cast<std::uint16_t>((data & 0xFFF00000000000) >> 0x2C);
         if (nif->getBethVersion() == NIFFile::BethVersion::BETHVER_SSE)
             mFlags |= BSVertexDesc::VertexAttribute::Full_Precision;
     }
 
-    void BSVertexData::read(NIFStream* nif, uint16_t flags)
+    void BSVertexData::read(NIFStream* nif, std::uint16_t flags)
     {
         bool fullPrecision = flags & BSVertexDesc::VertexAttribute::Full_Precision;
         bool hasVertex = flags & BSVertexDesc::VertexAttribute::Vertex;
@@ -778,24 +779,24 @@ namespace Nif
     void BSDistantObjectInstance::read(NIFStream* nif)
     {
         mResourceID.read(nif);
-        nif->skip(std::size_t{ 12 } * nif->get<uint32_t>()); // Unknown data
-        nif->readVectorOfRecords<uint32_t>(readBSDistantObjectInstanceTransform, mTransforms);
+        nif->skip(std::size_t{ 12 } * nif->get<std::uint32_t>()); // Unknown data
+        nif->readVectorOfRecords<std::uint32_t>(readBSDistantObjectInstanceTransform, mTransforms);
     }
 
     void BSShaderTextureArray::read(NIFStream* nif)
     {
         nif->skip(1); // Unknown
-        const auto numArrays = nif->get<uint32_t>();
+        const auto numArrays = nif->get<std::uint32_t>();
         mTextureArrays.reserve(numArrays);
-        for (uint32_t i = 0; i < numArrays; ++i)
-            nif->getSizedStrings(mTextureArrays.emplace_back(), nif->get<uint32_t>());
+        for (std::uint32_t i = 0; i < numArrays; ++i)
+            nif->getSizedStrings(mTextureArrays.emplace_back(), nif->get<std::uint32_t>());
     }
 
     void BSDistantObjectInstancedNode::read(NIFStream* nif)
     {
         BSMultiBoundNode::read(nif);
 
-        nif->readVectorOfRecords<uint32_t>(mInstances);
+        nif->readVectorOfRecords<std::uint32_t>(mInstances);
         for (BSShaderTextureArray& textureArray : mShaderTextureArrays)
             textureArray.read(nif);
     }

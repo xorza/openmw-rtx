@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QProcess>
 #include <QWizard>
 
@@ -70,7 +72,7 @@ namespace Wizard
 
     private slots:
 
-        void importerFinished(int exitCode, QProcess::ExitStatus exitStatus);
+        void importerFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
 
         void accept() override;
         void reject() override;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
@@ -48,7 +49,7 @@ namespace MWMechanics
         // Note usually this would be int, but applying partial resistance might introduce a decimal point.
         float mModifier;
 
-        int mBase;
+        std::int32_t mBase;
 
     public:
         /// Get the total magnitude including base and modifier.
@@ -58,9 +59,9 @@ namespace MWMechanics
         float getModifier() const;
 
         /// Change mBase by \a diff
-        void modifyBase(int diff);
-        void setBase(int base);
-        int getBase() const;
+        void modifyBase(std::int32_t diff);
+        void setBase(std::int32_t base);
+        std::int32_t getBase() const;
 
         EffectParam();
 
@@ -108,7 +109,7 @@ namespace MWMechanics
 
         void add(const EffectKey& key, const EffectParam& param);
 
-        void modifyBase(const EffectKey& key, int diff);
+        void modifyBase(const EffectKey& key, std::int32_t diff);
 
         EffectParam getOrDefault(const EffectKey& key) const;
         EffectParam getOrDefault(ESM::RefId effectId) const;

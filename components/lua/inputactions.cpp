@@ -1,5 +1,6 @@
 #include "inputactions.hpp"
 
+#include <cstddef>
 #include <queue>
 
 #include <components/debug/debuglog.hpp>
@@ -30,7 +31,7 @@ namespace LuaUtil
 
         MultiTree::Node MultiTree::insert()
         {
-            size_t nextId = size();
+            std::size_t nextId = size();
             mChildren.push_back({});
             mParents.push_back({});
             return nextId;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "base.hpp"
 
 namespace Nif
@@ -11,7 +13,7 @@ namespace Nif
 
     struct NiSourceTexture : public NiTexture
     {
-        enum class PixelLayout : uint32_t
+        enum class PixelLayout : std::uint32_t
         {
             Palette = 0,
             HighColor = 1,
@@ -21,14 +23,14 @@ namespace Nif
             Default = 5,
         };
 
-        enum class MipMapFormat : uint32_t
+        enum class MipMapFormat : std::uint32_t
         {
             No = 0,
             Yes = 1,
             Default = 2,
         };
 
-        enum class AlphaFormat : uint32_t
+        enum class AlphaFormat : std::uint32_t
         {
             None = 0,
             Binary = 1,
@@ -60,7 +62,7 @@ namespace Nif
 
     struct BSShaderTextureSet : public Record
     {
-        enum class TextureType : uint32_t
+        enum class TextureType : std::uint32_t
         {
             Base = 0,
             Normal = 1,

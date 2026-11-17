@@ -1,5 +1,8 @@
 #include "luminancecalculator.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/misc/mathutil.hpp>
 #include <components/settings/values.hpp>
 #include <components/shader/shadermanager.hpp>
@@ -72,18 +75,18 @@ namespace MWRender
 
     void LuminanceCalculator::compile()
     {
-        int mipmapLevels = osg::Image::computeNumberOfMipmapLevels(mWidth, mHeight);
+        std::int32_t mipmapLevels = osg::Image::computeNumberOfMipmapLevels(mWidth, mHeight);
 
         for (auto& buffer : mBuffers)
         {
             buffer.mipmappedSceneLuminanceTex->setTextureSize(mWidth, mHeight);
-            buffer.mipmappedSceneLuminanceTex->setNumMipmapLevels(static_cast<unsigned int>(mipmapLevels));
+            buffer.mipmappedSceneLuminanceTex->setNumMipmapLevels(static_cast<std::uint32_t>(mipmapLevels));
             buffer.mipmappedSceneLuminanceTex->dirtyTextureObject();
 
             buffer.resolveSceneLumFbo = new osg::FrameBufferObject;
             buffer.resolveSceneLumFbo->setAttachment(osg::FrameBufferObject::BufferComponent::COLOR_BUFFER0,
                 osg::FrameBufferAttachment(
-                    buffer.mipmappedSceneLuminanceTex, static_cast<unsigned int>(mipmapLevels - 1)));
+                    buffer.mipmappedSceneLuminanceTex, static_cast<std::uint32_t>(mipmapLevels - 1)));
 
             buffer.sceneLumFbo = new osg::FrameBufferObject;
             buffer.sceneLumFbo->setAttachment(osg::FrameBufferObject::BufferComponent::COLOR_BUFFER0,
@@ -94,7 +97,7 @@ namespace MWRender
     }
 
     void LuminanceCalculator::draw(const PingPongCanvas& canvas, osg::RenderInfo& renderInfo, osg::State& state,
-        osg::GLExtensions* ext, size_t frameId)
+        osg::GLExtensions* ext, std::size_t frameId)
     {
         if (!mEnabled)
             return;
@@ -137,14 +140,14 @@ namespace MWRender
             GL_FRAMEBUFFER_EXT, state.getGraphicsContext() ? state.getGraphicsContext()->getDefaultFboId() : 0);
     }
 
-    osg::ref_ptr<osg::Texture2D> LuminanceCalculator::getLuminanceTexture(size_t frameId) const
+    osg::ref_ptr<osg::Texture2D> LuminanceCalculator::getLuminanceTexture(std::size_t frameId) const
     {
         return mBuffers[frameId].luminanceTex;
     }
 
-    void LuminanceCalculator::dirty(int w, int h)
+    void LuminanceCalculator::dirty(std::int32_t w, std::int32_t h)
     {
-        constexpr int minSize = 64;
+        constexpr std::int32_t minSize = 64;
 
         mWidth = std::max(minSize, Misc::nextPowerOfTwo(w) / 2);
         mHeight = std::max(minSize, Misc::nextPowerOfTwo(h) / 2);

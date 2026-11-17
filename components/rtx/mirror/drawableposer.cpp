@@ -1,5 +1,7 @@
 #include "drawableposer.hpp"
 
+#include <cstdint>
+
 #include <osg/Drawable>
 
 #include <components/sceneutil/riggeometry.hpp>
@@ -24,7 +26,7 @@ namespace Rtx
         {
             mFrame = frame.getFrameNumber();
 
-            const unsigned int number = mTraversals.next();
+            const std::uint32_t number = mTraversals.next();
             mCull.setTraversalNumber(number);
             mStamp->setFrameNumber(number);
             mStamp->setReferenceTime(frame.getReferenceTime());

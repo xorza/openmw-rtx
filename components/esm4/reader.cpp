@@ -23,6 +23,8 @@
 #include "reader.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <optional>
@@ -51,7 +53,7 @@ namespace ESM4
         using FormId = ESM::FormId;
         using FormId32 = ESM::FormId32;
 
-        std::string getError(const std::string& header, const int errorCode, const char* msg)
+        std::string getError(const std::string& header, const std::int32_t errorCode, const char* msg)
         {
             return header + ": code " + std::to_string(errorCode) + ", " + std::string(msg != nullptr ? msg : "(null)");
         }
@@ -68,7 +70,8 @@ namespace ESM4
                     return ".DLSTRINGS";
             }
 
-            throw std::logic_error("Unsupported LocalizedStringType: " + std::to_string(static_cast<int>(type)));
+            throw std::logic_error(
+                "Unsupported LocalizedStringType: " + std::to_string(static_cast<std::int32_t>(type)));
         }
 
         struct InflateEnd
@@ -85,12 +88,12 @@ namespace ESM4
             stream.avail_in = static_cast<uInt>(compressed.size());
             stream.avail_out = static_cast<uInt>(decompressed.size());
 
-            if (const int ec = inflateInit(&stream); ec != Z_OK)
+            if (const std::int32_t ec = inflateInit(&stream); ec != Z_OK)
                 return getError("inflateInit error", ec, stream.msg);
 
             const std::unique_ptr<z_stream, InflateEnd> streamPtr(&stream);
 
-            if (const int ec = inflate(&stream, Z_NO_FLUSH); ec != Z_STREAM_END)
+            if (const std::int32_t ec = inflate(&stream, Z_NO_FLUSH); ec != Z_STREAM_END)
                 return getError("inflate error", ec, stream.msg);
 
             return std::nullopt;
@@ -101,7 +104,7 @@ namespace ESM4
         {
             z_stream stream{};
 
-            if (const int ec = inflateInit(&stream); ec != Z_OK)
+            if (const std::int32_t ec = inflateInit(&stream); ec != Z_OK)
                 return getError("inflateInit error", ec, stream.msg);
 
             const std::unique_ptr<z_stream, InflateEnd> streamPtr(&stream);
@@ -114,7 +117,7 @@ namespace ESM4
                 stream.avail_in = static_cast<uInt>(std::min(blockSize, compressed.size()));
                 stream.next_out = reinterpret_cast<Bytef*>(decompressed.data());
                 stream.avail_out = static_cast<uInt>(std::min(blockSize, decompressed.size()));
-                const int ec = inflate(&stream, Z_NO_FLUSH);
+                const std::int32_t ec = inflate(&stream, Z_NO_FLUSH);
                 if (ec == Z_STREAM_END)
                     break;
                 if (ec != Z_OK)
@@ -570,12 +573,12 @@ namespace ESM4
             {
                 std::ostringstream ss;
                 char* data = memoryStreamPtr->getRawData();
-                for (unsigned int i = 0; i < uncompressedSize; ++i)
+                for (std::uint32_t i = 0; i < uncompressedSize; ++i)
                 {
                     if (data[i] > 64 && data[i] < 91)
                         ss << data[i] << " ";
                     else
-                        ss << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(data[i]);
+                        ss << std::setfill('0') << std::setw(2) << std::hex << static_cast<std::int32_t>(data[i]);
                     if ((i & 0x000f) == 0xf)
                         ss << "\n";
                     else if (i < uncompressedSize - 1)
@@ -756,10 +759,10 @@ namespace ESM4
         return mCtx.currCellGrid;
     }
 
-    void Reader::updateModIndices(const std::map<std::string, int>& fileToModIndex)
+    void Reader::updateModIndices(const std::map<std::string, std::int32_t>& fileToModIndex)
     {
         mCtx.parentFileIndices.resize(mHeader.mMaster.size());
-        for (unsigned int i = 0; i < mHeader.mMaster.size(); ++i)
+        for (std::uint32_t i = 0; i < mHeader.mMaster.size(); ++i)
         {
             // locate the position of the dependency in already loaded files
             auto it = fileToModIndex.find(Misc::StringUtils::lowerCase(mHeader.mMaster[i].name));
@@ -784,9 +787,10 @@ namespace ESM4
     void Reader::adjustFormId(FormId& id) const
     {
         if (id.hasContentFile() && std::cmp_less(id.mContentFile, mCtx.parentFileIndices.size()))
-            id.mContentFile = static_cast<int32_t>(mCtx.parentFileIndices[static_cast<std::size_t>(id.mContentFile)]);
+            id.mContentFile
+                = static_cast<std::int32_t>(mCtx.parentFileIndices[static_cast<std::size_t>(id.mContentFile)]);
         else
-            id.mContentFile = static_cast<int32_t>(mCtx.modIndex);
+            id.mContentFile = static_cast<std::int32_t>(mCtx.modIndex);
     }
 
     void Reader::adjustFormId(FormId32& id) const

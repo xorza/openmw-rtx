@@ -2,6 +2,8 @@
 
 #include <array>
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -65,7 +67,7 @@ namespace Rtx
         /// The role a sampler uniform gives `unit`, or nothing where none names it. The terrain
         /// binds its layers this way — `diffuseMap = 0`, `normalMap = 2` — with no `TextureType`
         /// beside them.
-        std::optional<TextureRole> roleBySampler(const osg::StateSet& stateSet, const unsigned int unit)
+        std::optional<TextureRole> roleBySampler(const osg::StateSet& stateSet, const std::uint32_t unit)
         {
             for (const auto& [name, uniform] : stateSet.getUniformList())
             {
@@ -73,7 +75,7 @@ namespace Rtx
                 if (candidate == nullptr || candidate->getType() != osg::Uniform::INT)
                     continue;
 
-                int bound = -1;
+                std::int32_t bound = -1;
                 if (!candidate->get(bound) || std::cmp_not_equal(bound, unit))
                     continue;
 
@@ -350,7 +352,7 @@ namespace Rtx
         }
 
         void readTransform(
-            const osg::StateSet& stateSet, const unsigned int unit, SurfaceDescription& material, SurfaceLocks& locks)
+            const osg::StateSet& stateSet, const std::uint32_t unit, SurfaceDescription& material, SurfaceLocks& locks)
         {
             constexpr std::string_view prefix = "texMat";
             std::array<char, prefix.size() + 10> name{};
@@ -403,9 +405,9 @@ namespace Rtx
             said = true;
         }
 
-        std::optional<unsigned int> diffuseUnit;
+        std::optional<std::uint32_t> diffuseUnit;
         const osg::StateSet::TextureAttributeList& units = stateSet.getTextureAttributeList();
-        for (unsigned int unit = 0; unit < units.size(); ++unit)
+        for (std::uint32_t unit = 0; unit < units.size(); ++unit)
         {
             const osg::StateSet::RefAttributePair* pair
                 = stateSet.getTextureAttributePair(unit, osg::StateAttribute::TEXTURE);

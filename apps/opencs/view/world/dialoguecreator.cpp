@@ -1,5 +1,7 @@
 #include "dialoguecreator.hpp"
 
+#include <cstdint>
+
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/commands.hpp>
@@ -13,14 +15,14 @@ class QUndoStack;
 
 void CSVWorld::DialogueCreator::configureCreateCommand(CSMWorld::CreateCommand& command) const
 {
-    int index = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()))
-                    .findColumnIndex(CSMWorld::Columns::ColumnId_DialogueType);
+    std::int32_t index = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()))
+                             .findColumnIndex(CSMWorld::Columns::ColumnId_DialogueType);
 
     command.addValue(index, mType);
 }
 
 CSVWorld::DialogueCreator::DialogueCreator(
-    CSMWorld::Data& worldData, QUndoStack& undoStack, const CSMWorld::UniversalId& id, int type)
+    CSMWorld::Data& worldData, QUndoStack& undoStack, const CSMWorld::UniversalId& id, std::int32_t type)
     : GenericCreator(worldData, undoStack, id, true)
     , mType(type)
 {

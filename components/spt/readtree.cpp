@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <sstream>
 #include <stdexcept>
@@ -30,11 +32,11 @@ namespace Spt
             if (openBrace != '{')
                 throw std::runtime_error(std::format("Invalid curve data: expected '{{', got '{}'", openBrace));
 
-            int32_t numPoints{};
+            std::int32_t numPoints{};
             ss >> numPoints;
             if (!ss)
                 throw std::runtime_error("Invalid curve data: missing control point count");
-            for (int32_t i = 0; i < numPoints; ++i)
+            for (std::int32_t i = 0; i < numPoints; ++i)
             {
                 ControlPoint cp;
                 ss >> cp.mPosX >> cp.mPosY >> cp.mTanX >> cp.mTanY >> cp.mTanLen;
@@ -74,7 +76,7 @@ namespace Spt
         if (t >= mPoints.back().mPosX)
             return remap(mPoints.back().mPosY);
 
-        size_t i = 0;
+        std::size_t i = 0;
         for (; i + 1 < mPoints.size(); ++i)
             if (t <= mPoints[i + 1].mPosX)
                 break;
@@ -88,7 +90,7 @@ namespace Spt
 
         // Bisect for the s where bezierX(s) == t (x assumed monotonic in segment).
         float lo = 0.0f, hi = 1.0f, s = 0.5f;
-        for (int it = 0; it < 24; ++it)
+        for (std::int32_t it = 0; it < 24; ++it)
         {
             s = 0.5f * (lo + hi);
             if (cubicBezier(p0x, p1x, p2x, p3x, s) < t)
@@ -101,7 +103,7 @@ namespace Spt
 
     namespace
     {
-        void readBezierSection(SPTLevelData& level, SPTStream& stream, int32_t section)
+        void readBezierSection(SPTLevelData& level, SPTStream& stream, std::int32_t section)
         {
             switch (section)
             {
@@ -169,7 +171,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 1017)
                 return;
             readBezierSection(*this, stream, section);
@@ -182,7 +184,7 @@ namespace Spt
         {
             while (true)
             {
-                int32_t section = stream.readSection();
+                std::int32_t section = stream.readSection();
                 if (section == 1008)
                     return;
                 switch (section)
@@ -222,7 +224,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 1005)
                 return;
             switch (section)
@@ -263,7 +265,7 @@ namespace Spt
                 case 1009:
                     while (true)
                     {
-                        int32_t inner = stream.readSection();
+                        std::int32_t inner = stream.readSection();
                         if (inner == 1010)
                             break;
                         switch (inner)
@@ -293,7 +295,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 14001)
                 return;
             switch (section)
@@ -323,7 +325,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 13001)
                 return;
             switch (section)
@@ -383,7 +385,7 @@ namespace Spt
         }
     }
 
-    bool SPTSupplementalBranchLevel::readField(SPTStream& stream, int32_t section)
+    bool SPTSupplementalBranchLevel::readField(SPTStream& stream, std::int32_t section)
     {
         switch (section)
         {
@@ -456,7 +458,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 26001)
                 return;
             if (section != 26002)
@@ -473,7 +475,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             switch (section)
             {
                 case 40001:

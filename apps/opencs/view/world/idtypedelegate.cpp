@@ -1,5 +1,6 @@
 #include "idtypedelegate.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/world/universalid.hpp>
@@ -27,7 +28,7 @@ CSVWorld::IdTypeDelegate::IdTypeDelegate(const ValueList& values, const IconList
 
 CSVWorld::IdTypeDelegateFactory::IdTypeDelegateFactory()
 {
-    for (int i = 0; i < CSMWorld::UniversalId::NumberOfTypes; ++i)
+    for (std::int32_t i = 0; i < CSMWorld::UniversalId::NumberOfTypes; ++i)
     {
         CSMWorld::UniversalId id(static_cast<CSMWorld::UniversalId::Type>(i));
 

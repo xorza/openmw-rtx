@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <list>
 #include <map>
 #include <string>
@@ -44,10 +46,10 @@ namespace MWMechanics
         bool onOpen(const MWWorld::Ptr& ptr);
         void onClose(const MWWorld::Ptr& ptr);
 
-        bool playAnimationGroup(
-            const MWWorld::Ptr& ptr, std::string_view groupName, int mode, uint32_t number, bool scripted = false);
-        bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops, float speed,
-            std::string_view startKey, std::string_view stopKey, bool forceLoop);
+        bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, std::int32_t mode,
+            std::uint32_t number, bool scripted = false);
+        bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, std::uint32_t loops,
+            float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop);
         void enableLuaAnimations(const MWWorld::Ptr& ptr, bool enable);
         void skipAnimation(const MWWorld::Ptr& ptr);
         void persistAnimationStates();

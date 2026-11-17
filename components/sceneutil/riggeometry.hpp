@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <span>
 #include <string_view>
@@ -46,7 +48,7 @@ namespace SceneUtil
             osg::Matrixf mInvBindMatrix;
         };
 
-        using BoneWeight = std::pair<size_t, float>;
+        using BoneWeight = std::pair<std::size_t, float>;
         using BoneWeights = std::vector<BoneWeight>;
 
         void setBoneInfo(std::vector<BoneInfo>&& bones);
@@ -89,7 +91,7 @@ namespace SceneUtil
         void updateBounds(osg::NodeVisitor* nv);
 
         osg::ref_ptr<osg::Geometry> mGeometry[2];
-        osg::Geometry* getGeometry(unsigned int frame) const;
+        osg::Geometry* getGeometry(std::uint32_t frame) const;
 
         osg::ref_ptr<osg::Geometry> mSourceGeometry;
         osg::ref_ptr<const osg::Vec4Array> mSourceTangents;
@@ -98,7 +100,7 @@ namespace SceneUtil
         osg::ref_ptr<osg::RefMatrix> mSkinToSkelMatrix;
 
     public:
-        using VertexList = std::vector<unsigned short>;
+        using VertexList = std::vector<std::uint16_t>;
         struct InfluenceData
         {
             std::vector<BoneInfo> mBones;
@@ -119,7 +121,7 @@ namespace SceneUtil
         std::shared_ptr<InfluenceData> mData;
         std::vector<Bone*> mNodes;
 
-        unsigned int mLastFrameNumber{ 0 };
+        std::uint32_t mLastFrameNumber{ 0 };
         bool mBoundsFirstFrame{ true };
 
         bool initFromParentSkeleton(osg::NodeVisitor* nv);

@@ -1,5 +1,7 @@
 #include "extra.hpp"
 
+#include <cstdint>
+
 namespace Nif
 {
     void NiExtraData::read(NIFStream* nif)
@@ -13,7 +15,7 @@ namespace Nif
     {
         Extra::read(nif);
 
-        nif->getSizedStrings(mData, nif->get<uint32_t>());
+        nif->getSizedStrings(mData, nif->get<std::uint32_t>());
     }
 
     void NiTextKeyExtraData::TextKey::read(NIFStream* nif)
@@ -26,14 +28,14 @@ namespace Nif
     {
         Extra::read(nif);
 
-        nif->readVectorOfRecords<uint32_t>(mList);
+        nif->readVectorOfRecords<std::uint32_t>(mList);
     }
 
     void NiVertWeightsExtraData::read(NIFStream* nif)
     {
         Extra::read(nif);
 
-        nif->skip(nif->get<uint16_t>() * sizeof(float)); // vertex weights I guess
+        nif->skip(nif->get<std::uint16_t>() * sizeof(float)); // vertex weights I guess
     }
 
     void BSBound::read(NIFStream* nif)
@@ -65,18 +67,18 @@ namespace Nif
         Extra::read(nif);
 
         if (nif->getBethVersion() <= NIFFile::BethVersion::BETHVER_FO3)
-            nif->readVectorOfRecords<uint32_t>(mLegacyMarkers);
+            nif->readVectorOfRecords<std::uint32_t>(mLegacyMarkers);
         else
-            nif->readVectorOfRecords<uint32_t>(mMarkers);
+            nif->readVectorOfRecords<std::uint32_t>(mMarkers);
     }
 
     void BSInvMarker::read(NIFStream* nif)
     {
         Extra::read(nif);
 
-        float rotX = static_cast<float>(nif->get<uint16_t>()) / 1000.f;
-        float rotY = static_cast<float>(nif->get<uint16_t>()) / 1000.f;
-        float rotZ = static_cast<float>(nif->get<uint16_t>()) / 1000.f;
+        float rotX = static_cast<float>(nif->get<std::uint16_t>()) / 1000.f;
+        float rotY = static_cast<float>(nif->get<std::uint16_t>()) / 1000.f;
+        float rotZ = static_cast<float>(nif->get<std::uint16_t>()) / 1000.f;
         mRotation = osg::Quat(rotX, osg::X_AXIS, rotY, osg::Y_AXIS, rotZ, osg::Z_AXIS);
         nif->read(mScale);
     }
@@ -93,7 +95,7 @@ namespace Nif
     {
         Extra::read(nif);
 
-        nif->readVectorOfRecords<uint32_t>(mData);
+        nif->readVectorOfRecords<std::uint32_t>(mData);
     }
 
     void BSBoneLODExtraData::BoneLOD::read(NIFStream* nif)
@@ -106,23 +108,23 @@ namespace Nif
     {
         NiFloatExtraData::read(nif);
 
-        nif->readVectorOfRecords<uint16_t>(mBlocks);
+        nif->readVectorOfRecords<std::uint16_t>(mBlocks);
     }
 
     void BSDecalPlacementVectorExtraData::Block::read(NIFStream* nif)
     {
-        nif->readVector(mPoints, nif->get<uint16_t>());
+        nif->readVector(mPoints, nif->get<std::uint16_t>());
         nif->readVector(mNormals, mPoints.size());
     }
 
     void BSClothExtraData::read(NIFStream* nif)
     {
-        nif->readVector(mData, nif->get<uint32_t>());
+        nif->readVector(mData, nif->get<std::uint32_t>());
     }
 
     void BSCollisionQueryProxyExtraData::read(NIFStream* nif)
     {
-        nif->readVector(mData, nif->get<uint32_t>());
+        nif->readVector(mData, nif->get<std::uint32_t>());
     }
 
     void BSConnectPoint::Point::read(NIFStream* nif)
@@ -138,7 +140,7 @@ namespace Nif
     {
         NiExtraData::read(nif);
 
-        nif->readVectorOfRecords<uint32_t>(mPoints);
+        nif->readVectorOfRecords<std::uint32_t>(mPoints);
     }
 
     void BSConnectPoint::Children::read(NIFStream* nif)
@@ -146,7 +148,7 @@ namespace Nif
         NiExtraData::read(nif);
 
         nif->read(mSkinned);
-        nif->getSizedStrings(mPointNames, nif->get<uint32_t>());
+        nif->getSizedStrings(mPointNames, nif->get<std::uint32_t>());
     }
 
     void BSPackedGeomDataCombined::read(NIFStream* nif)
@@ -172,7 +174,7 @@ namespace Nif
         nif->read(mLOD1TriOffset);
         nif->read(mLOD2TriCount);
         nif->read(mLOD2TriOffset);
-        nif->readVectorOfRecords<uint32_t>(mCombined);
+        nif->readVectorOfRecords<std::uint32_t>(mCombined);
         mVertexDesc.read(nif);
     }
 
@@ -185,7 +187,7 @@ namespace Nif
         nif->read(mNumTriangles);
         nif->read(mFlags1);
         nif->read(mFlags2);
-        nif->readVectorOfRecords<uint32_t>(mObjects);
+        nif->readVectorOfRecords<std::uint32_t>(mObjects);
         nif->readVectorOfRecords(mObjects.size(), mObjectData);
     }
 

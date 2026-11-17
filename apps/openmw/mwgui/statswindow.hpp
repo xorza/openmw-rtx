@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm/attr.hpp>
 #include <components/esm/refid.hpp>
 
@@ -11,11 +13,11 @@ namespace MWGui
     class StatsWindow : public WindowPinnableBase, public NoDrop, public StatsListener
     {
     public:
-        typedef std::map<ESM::RefId, int> FactionList;
+        typedef std::map<ESM::RefId, std::int32_t> FactionList;
 
         /// It would be nice to measure these, but for now they're hardcoded.
-        static int getIdealHeight() { return 750; }
-        static int getIdealWidth() { return 600; }
+        static std::int32_t getIdealHeight() { return 750; }
+        static std::int32_t getIdealWidth() { return 600; }
 
         explicit StatsWindow(DragAndDrop* drag);
 
@@ -24,24 +26,24 @@ namespace MWGui
 
         void refitText() override { mChanged = true; }
 
-        void setBar(const std::string& name, const std::string& tname, int val, int max);
+        void setBar(const std::string& name, const std::string& tname, std::int32_t val, std::int32_t max);
         void setPlayerName(const std::string& playerName);
 
         /// Set value for the given ID.
         void setAttribute(ESM::RefId id, const MWMechanics::AttributeValue& value) override;
         void setValue(std::string_view id, const MWMechanics::DynamicStat<float>& value) override;
         void setValue(std::string_view id, const std::string& value) override;
-        void setValue(std::string_view id, int value) override;
+        void setValue(std::string_view id, std::int32_t value) override;
         void setValue(ESM::RefId id, const MWMechanics::SkillValue& value) override;
         void configureSkills(std::span<const ESM::RefId> major, std::span<const ESM::RefId> minor) override;
 
-        void setReputation(int reputation)
+        void setReputation(std::int32_t reputation)
         {
             if (reputation != mReputation)
                 mChanged = true;
             this->mReputation = reputation;
         }
-        void setBounty(int bounty)
+        void setBounty(std::int32_t bounty)
         {
             if (bounty != mBounty)
                 mChanged = true;
@@ -71,7 +73,7 @@ namespace MWGui
         void setBirthSign(const ESM::RefId& signId);
 
         void onWindowResize(MyGUI::Window* window);
-        void onMouseWheel(MyGUI::Widget* sender, int rel);
+        void onMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
 
         MyGUI::Widget* mLeftPane{};
         MyGUI::Widget* mRightPane{};
@@ -85,12 +87,12 @@ namespace MWGui
         std::map<std::string, MyGUI::Widget*> mFactionWidgetMap;
         FactionList mFactions; ///< Stores a list of factions and the current rank
         ESM::RefId mBirthSignId;
-        int mReputation, mBounty;
+        std::int32_t mReputation, mBounty;
         std::vector<MyGUI::Widget*> mSkillWidgets; //< Skills and other information
         std::set<ESM::RefId> mExpelled;
 
         bool mChanged;
-        const int mMinFullWidth;
+        const std::int32_t mMinFullWidth;
 
     protected:
         void onPinToggled() override;

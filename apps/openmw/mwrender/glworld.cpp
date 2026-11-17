@@ -1,5 +1,6 @@
 #include "glworld.hpp"
 
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -91,9 +92,9 @@ namespace
         bool mDoThreadUnsafeOps = false;
     };
 
-    unsigned int getIndoorShadowCastingMask()
+    std::uint32_t getIndoorShadowCastingMask()
     {
-        unsigned int mask = MWRender::Mask_Scene;
+        std::uint32_t mask = MWRender::Mask_Scene;
         if (Settings::shadows().mActorShadows)
             mask |= MWRender::Mask_Actor;
         if (Settings::shadows().mPlayerShadows)
@@ -101,9 +102,9 @@ namespace
         return mask;
     }
 
-    unsigned int getOutdoorShadowCastingMask()
+    std::uint32_t getOutdoorShadowCastingMask()
     {
-        unsigned int mask = getIndoorShadowCastingMask();
+        std::uint32_t mask = getIndoorShadowCastingMask();
         if (Settings::shadows().mObjectShadows)
             mask |= (MWRender::Mask_Object | MWRender::Mask_Static);
         if (Settings::shadows().mTerrainShadows)
@@ -213,7 +214,7 @@ namespace MWRender
 
         if (skyBlending)
         {
-            int skyTextureUnit
+            std::int32_t skyTextureUnit
                 = scene.getShaderManager().reserveGlobalTextureUnits(Shader::ShaderManager::Slot::SkyTexture);
             mPerViewUniformStateUpdater->enableSkyRTT(skyTextureUnit, mSky->getSkyRTT());
         }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -23,15 +24,15 @@ namespace ESM
 
     struct LevelledListBase
     {
-        int32_t mFlags{};
-        unsigned char mChanceNone{}; // Chance that none are selected (0-100)
-        uint32_t mRecordFlags{};
+        std::int32_t mFlags{};
+        std::uint8_t mChanceNone{}; // Chance that none are selected (0-100)
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         struct LevelItem
         {
             RefId mId;
-            uint16_t mLevel{};
+            std::uint16_t mLevel{};
         };
 
         std::vector<LevelItem> mList;

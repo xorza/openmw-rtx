@@ -1,5 +1,7 @@
 #include "groundcoverstore.hpp"
 
+#include <cstdint>
+
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/readerscache.hpp>
@@ -48,7 +50,7 @@ namespace MWWorld
         }
     }
 
-    void GroundcoverStore::initCell(ESM::Cell& cell, int cellX, int cellY) const
+    void GroundcoverStore::initCell(ESM::Cell& cell, std::int32_t cellX, std::int32_t cellY) const
     {
         cell.blank();
 

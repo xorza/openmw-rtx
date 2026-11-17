@@ -1,5 +1,11 @@
 #include "regionmap.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <set>
+#include <sstream>
+
 #include <QAbstractItemModel>
 #include <QAction>
 #include <QBrush>
@@ -8,10 +14,6 @@
 #include <QItemSelectionModel>
 #include <QMenu>
 #include <QTableView>
-#include <algorithm>
-#include <iterator>
-#include <set>
-#include <sstream>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columns.hpp>
@@ -38,7 +40,7 @@ void CSVWorld::RegionMap::contextMenuEvent(QContextMenuEvent* event)
     if (!getMissingRegionCells().empty())
         menu.addAction(mSelectRegionsAction);
 
-    int selectedNonExistentCells = static_cast<int>(getSelectedCells(false, true).size());
+    std::int32_t selectedNonExistentCells = static_cast<std::int32_t>(getSelectedCells(false, true).size());
 
     if (selectedNonExistentCells > 0)
     {
@@ -77,16 +79,16 @@ QModelIndexList CSVWorld::RegionMap::getUnselectedCells() const
 {
     const QAbstractItemModel* model = QTableView::model();
 
-    int rows = model->rowCount();
-    int columns = model->columnCount();
+    std::int32_t rows = model->rowCount();
+    std::int32_t columns = model->columnCount();
 
     QModelIndexList selected = selectionModel()->selectedIndexes();
     std::sort(selected.begin(), selected.end());
 
     QModelIndexList all;
 
-    for (int y = 0; y < rows; ++y)
-        for (int x = 0; x < columns; ++x)
+    for (std::int32_t y = 0; y < rows; ++y)
+        for (std::int32_t x = 0; x < columns; ++x)
         {
             QModelIndex index = model->index(y, x);
             if (model->data(index, Qt::BackgroundRole) != QBrush(Qt::DiagCrossPattern))
@@ -224,7 +226,7 @@ CSVWorld::RegionMap::RegionMap(const CSMWorld::UniversalId& universalId, CSMDoc:
     setAcceptDrops(true);
 
     // Make columns square incase QSizeHint doesnt apply
-    for (int column = 0; column < this->model()->columnCount(); ++column)
+    for (std::int32_t column = 0; column < this->model()->columnCount(); ++column)
         this->setColumnWidth(column, this->rowHeight(0));
 }
 

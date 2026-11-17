@@ -1,6 +1,8 @@
 #include "widgets.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 
 #include <MyGUI_Button.h>
@@ -146,7 +148,7 @@ namespace MWGui::Widgets
         {
             float modified = mValue.getModified();
             float base = mValue.getBase();
-            mAttributeValueWidget->setCaption(MyGUI::utility::toString(static_cast<int>(modified)));
+            mAttributeValueWidget->setCaption(MyGUI::utility::toString(static_cast<std::int32_t>(modified)));
             if (modified > base)
                 mAttributeValueWidget->_setWidgetState("increased");
             else if (modified < base)
@@ -200,7 +202,7 @@ namespace MWGui::Widgets
     }
 
     void MWSpell::createEffectWidgets(
-        std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator, MyGUI::IntCoord& coord, int flags)
+        std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator, MyGUI::IntCoord& coord, std::int32_t flags)
     {
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
@@ -270,13 +272,13 @@ namespace MWGui::Widgets
         updateWidgets();
     }
 
-    void MWEffectList::createEffectWidgets(
-        std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator, MyGUI::IntCoord& coord, bool center, int flags)
+    void MWEffectList::createEffectWidgets(std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator,
+        MyGUI::IntCoord& coord, bool center, std::int32_t flags)
     {
         // We don't know the width of all the elements beforehand, so we do it in
         // 2 steps: first, create all widgets and check their width....
         MWSpellEffectPtr effect = nullptr;
-        int maxwidth = coord.width;
+        std::int32_t maxwidth = coord.width;
 
         for (auto& effectInfo : mEffectList)
         {
@@ -296,7 +298,7 @@ namespace MWGui::Widgets
         {
             effect = effectWidget->castType<MWSpellEffect>();
             bool needcenter = center && (maxwidth > effect->getRequestedWidth());
-            int diff = maxwidth - effect->getRequestedWidth();
+            std::int32_t diff = maxwidth - effect->getRequestedWidth();
             if (needcenter)
             {
                 effect->setCoord(
@@ -503,7 +505,7 @@ namespace MWGui::Widgets
     {
     }
 
-    void MWDynamicStat::setValue(int cur, int max)
+    void MWDynamicStat::setValue(std::int32_t cur, std::int32_t max)
     {
         mValue = cur;
         mMax = max;

@@ -313,11 +313,11 @@ namespace Rtx::Testing
                 const Frame frame = shoot(scene, {}, wallCamera(size, bright), size);
                 EXPECT_GT(frame.mHits, 0u);
 
-                return int{ frame.byte(centreValueOf(size)) };
+                return std::int32_t{ frame.byte(centreValueOf(size)) };
             };
 
             EXPECT_EQ(throughShell(false), 111) << "the far wall of a shell was drawn";
-            EXPECT_EQ(throughShell(true), int{ litThroughStack({}, bright * 0.25f) })
+            EXPECT_EQ(throughShell(true), std::int32_t{ litThroughStack({}, bright * 0.25f) })
                 << "and a surface the content draws from both faces is still two layers";
         }
 
@@ -619,7 +619,7 @@ namespace Rtx::Testing
             // red, so its green is zero, and the grey wall's albedo of 0.5 encodes to
             // 1.055 * 0.5^(1/2.4) - 0.055 = 0.73536, or 187.5 of 255 — which is why the grey is the
             // one value here given a byte of room.
-            constexpr int wallGrey = 188;
+            constexpr std::int32_t wallGrey = 188;
 
             const std::vector<std::uint8_t> cutout = render(AlphaMode::Cutout, 0.5f);
             ASSERT_EQ(cutout.size(), std::size_t{ size } * size * 4);
@@ -936,8 +936,8 @@ namespace Rtx::Testing
             // crossing y = -25 at x = 15.
             Light aside = lamp;
             aside.mPosition = osg::Vec3f(30.0f, -50.0f, 0.0f);
-            const int clear = render(aside, osg::Vec3f(), false);
-            const int darkened = render(aside, osg::Vec3f(), false, 0, std::span(&taking, 1));
+            const std::int32_t clear = render(aside, osg::Vec3f(), false);
+            const std::int32_t darkened = render(aside, osg::Vec3f(), false, 0, std::span(&taking, 1));
             EXPECT_LT(darkened, clear) << "the darkening did not reach the wall";
             EXPECT_EQ(render(aside, osg::Vec3f(), true, 0, std::span(&taking, 1)), darkened)
                 << "the quad shadowed a lamp that takes light away";
@@ -976,7 +976,7 @@ namespace Rtx::Testing
             };
 
             const std::vector<float> first = carry(-600.0f, true);
-            for (int at = -3; at < 4; ++at)
+            for (std::int32_t at = -3; at < 4; ++at)
                 carry(150.0f * static_cast<float>(at), false);
             const std::vector<float> one = carry(600.0f, false);
             const std::vector<float> other = carry(600.0f, false);
@@ -1419,7 +1419,7 @@ namespace Rtx::Testing
             // roughness, and the reflectance of a metal, which is its base colour.
             const osg::Vec3f shownNormal = lit(0, true, SurfaceView::Normal);
             const osg::Vec3f wantedNormal = mapped * 0.5f + osg::Vec3f(0.5f, 0.5f, 0.5f);
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
                 EXPECT_NEAR(shownNormal[axis], wantedNormal[axis], 1e-5f) << axis;
             EXPECT_EQ(lit(0, false, SurfaceView::Roughness), osg::Vec3f(roughness, roughness, roughness));
             EXPECT_EQ(lit(255, false, SurfaceView::Specular), osg::Vec3f(base, base, base));
@@ -1603,7 +1603,7 @@ namespace Rtx::Testing
             // Where square on reads with no epsilon, found where a step of the epsilon lands inside
             // the first level: below it the loss is nought, and past it all.
             float inside = std::numeric_limits<float>::quiet_NaN();
-            for (int half = -24; half <= 24 && std::isnan(inside); ++half)
+            for (std::int32_t half = -24; half <= 24 && std::isnan(inside); ++half)
             {
                 const float step = static_cast<float>(half) / 2.0f;
                 if (const float level = levelRead(0.0f, step, 16); level > 0.05f && level < 0.95f)
@@ -2981,9 +2981,10 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto [mean, spread] = measure(first, channel);
-                const float range = zenith[static_cast<int>(channel)] - horizon[static_cast<int>(channel)];
-                const float byTheCosine = 0.5f * (horizon[static_cast<int>(channel)] + range * 0.5f);
-                const float ifDrawnEvenly = 0.5f * (horizon[static_cast<int>(channel)] + range * 0.376775f);
+                const float range
+                    = zenith[static_cast<std::int32_t>(channel)] - horizon[static_cast<std::int32_t>(channel)];
+                const float byTheCosine = 0.5f * (horizon[static_cast<std::int32_t>(channel)] + range * 0.5f);
+                const float ifDrawnEvenly = 0.5f * (horizon[static_cast<std::int32_t>(channel)] + range * 0.376775f);
 
                 // One sRGB step at a quarter brightness is 0.004 of linear — a 255th divided by the
                 // curve's slope there — and it swamps the sampling standard error, which over 4096
@@ -3040,9 +3041,10 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto [mean, spread] = measure(converged, channel);
-                const float range = zenith[static_cast<int>(channel)] - horizon[static_cast<int>(channel)];
+                const float range
+                    = zenith[static_cast<std::int32_t>(channel)] - horizon[static_cast<std::int32_t>(channel)];
 
-                EXPECT_NEAR(mean, 0.5f * (horizon[static_cast<int>(channel)] + range * 0.5f), 0.0002f)
+                EXPECT_NEAR(mean, 0.5f * (horizon[static_cast<std::int32_t>(channel)] + range * 0.5f), 0.0002f)
                     << "channel " << channel << " keeps its mean when averaged";
 
                 const float alone = 0.5f * std::abs(range) * 0.188144f;

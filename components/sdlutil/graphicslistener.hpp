@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace SDLUtil
 {
     /// What a key did: went down, came again while held, which the system repeats until the key
@@ -24,10 +26,10 @@ namespace SDLUtil
 
         /// F1 to F12, as `index` nought to eleven — with no Alt held, which is the window
         /// manager's. The game's own bindings see the key as well.
-        virtual void functionKey(int index, KeyChange change) {}
+        virtual void functionKey(std::int32_t index, KeyChange change) {}
 
         /// The window's drawable size changed. In pixels, and never nought by nought, which is a
         /// window that was minimised.
-        virtual void windowResized(int x, int y, int width, int height) {}
+        virtual void windowResized(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) {}
     };
 }

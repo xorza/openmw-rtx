@@ -1,5 +1,6 @@
 #include "savingstate.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <utility>
 
@@ -68,7 +69,7 @@ bool CSMDoc::SavingState::isProjectFile() const
     return mProjectFile;
 }
 
-const std::deque<int>* CSMDoc::SavingState::findSubRecord(const ESM::RefId& refId) const
+const std::deque<std::int32_t>* CSMDoc::SavingState::findSubRecord(const ESM::RefId& refId) const
 {
     const auto it = mSubRecords.find(refId);
     if (it == mSubRecords.end())
@@ -76,7 +77,7 @@ const std::deque<int>* CSMDoc::SavingState::findSubRecord(const ESM::RefId& refI
     return &it->second;
 }
 
-std::deque<int>& CSMDoc::SavingState::getOrInsertSubRecord(const ESM::RefId& refId)
+std::deque<std::int32_t>& CSMDoc::SavingState::getOrInsertSubRecord(const ESM::RefId& refId)
 {
     return mSubRecords[refId];
 }

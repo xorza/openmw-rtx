@@ -1,5 +1,6 @@
 #include "repair.hpp"
 
+#include <cstdint>
 #include <iomanip>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -72,7 +73,7 @@ namespace MWGui
     {
         MWWorld::LiveCellRef<ESM::Repair>* ref = mRepair.getTool().get<ESM::Repair>();
 
-        int uses = mRepair.getTool().getClass().getItemHealth(mRepair.getTool());
+        std::int32_t uses = mRepair.getTool().getClass().getItemHealth(mRepair.getTool());
 
         float quality = ref->mBase->mData.mQuality;
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <span>
@@ -156,7 +157,7 @@ namespace MWRender
 
         /// What the eye sees of the world, `Renderer::worldViewMask`: the world walk leaves the player's own
         /// model and the actors out where the mask does, as the rasterizer culls them.
-        void setViewMask(unsigned int view);
+        void setViewMask(std::uint32_t view);
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
         Rtx::SceneDesc& getScene() { return mScene; }

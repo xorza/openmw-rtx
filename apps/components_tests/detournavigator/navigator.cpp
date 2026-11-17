@@ -1,5 +1,7 @@
 #include <array>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <limits>
 #include <memory>
@@ -47,7 +49,7 @@ namespace
     using namespace DetourNavigator;
     using namespace DetourNavigator::Tests;
 
-    constexpr int heightfieldTileSize = ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1);
+    constexpr std::int32_t heightfieldTileSize = ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1);
 
     struct DetourNavigatorNavigatorTest : Test
     {
@@ -95,10 +97,10 @@ namespace
 
     template <std::size_t size>
     std::unique_ptr<btHeightfieldTerrainShape> makeSquareHeightfieldTerrainShape(
-        const std::array<btScalar, size>& values, btScalar heightScale = 1, int upAxis = 2,
+        const std::array<btScalar, size>& values, btScalar heightScale = 1, std::int32_t upAxis = 2,
         PHY_ScalarType heightDataType = PHY_FLOAT, bool flipQuadEdges = false)
     {
-        const int width = static_cast<int>(std::sqrt(size));
+        const auto width = static_cast<std::int32_t>(std::sqrt(size));
         const auto [minHeight, maxHeight] = getMinMaxHeight(values);
         return std::make_unique<btHeightfieldTerrainShape>(
             width, width, values.data(), heightScale, minHeight, maxHeight, upAxis, heightDataType, flipQuadEdges);
@@ -140,7 +142,8 @@ namespace
         std::shared_ptr<const Resource::BulletShapeInstance> mInstance;
     };
 
-    btVector3 getHeightfieldShift(const osg::Vec2i& cellPosition, int cellSize, float minHeight, float maxHeight)
+    btVector3 getHeightfieldShift(
+        const osg::Vec2i& cellPosition, std::int32_t cellSize, float minHeight, float maxHeight)
     {
         return BulletHelpers::getHeightfieldShift(cellPosition.x(), cellPosition.x(), cellSize, minHeight, maxHeight);
     }
@@ -171,7 +174,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, update_then_find_path_should_return_path)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         auto updateGuard = mNavigator->makeUpdateGuard();
@@ -193,7 +196,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, find_path_to_the_start_position_should_contain_single_point)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         auto updateGuard = mNavigator->makeUpdateGuard();
@@ -215,7 +218,7 @@ namespace
             mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         CollisionShapeInstance compound(std::make_unique<btCompoundShape>());
         compound.shape().addChildShape(
@@ -260,7 +263,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, update_changed_object_should_change_navmesh)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         CollisionShapeInstance compound(std::make_unique<btCompoundShape>());
         compound.shape().addChildShape(
@@ -339,7 +342,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, only_one_heightfield_per_cell_is_allowed)
     {
         const HeightfieldSurface surface1 = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize1 = heightfieldTileSize * static_cast<int>(surface1.mSize - 1);
+        const std::int32_t cellSize1 = heightfieldTileSize * static_cast<std::int32_t>(surface1.mSize - 1);
 
         const std::array<float, 5 * 5> heightfieldData2{ {
             -25, -25, -25, -25, -25, // row 0
@@ -349,7 +352,7 @@ namespace
             -25, -25, -25, -25, -25 // row 4
         } };
         const HeightfieldSurface surface2 = makeSquareHeightfieldSurface(heightfieldData2);
-        const int cellSize2 = heightfieldTileSize * static_cast<int>(surface2.mSize - 1);
+        const std::int32_t cellSize2 = heightfieldTileSize * static_cast<std::int32_t>(surface2.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize1, surface1, nullptr);
@@ -415,7 +418,7 @@ namespace
             0, -50, -100, -100, -100 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addWater(mCellPosition, cellSize, 300, nullptr);
@@ -449,7 +452,7 @@ namespace
             0, 0, 0, 0, 0, 0, 0 // row 6
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addWater(mCellPosition, cellSize, -25, nullptr);
@@ -483,11 +486,11 @@ namespace
             0, 0, 0, 0, 0, 0, 0 // row 6
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
-        mNavigator->addWater(mCellPosition, std::numeric_limits<int>::max(), -25, nullptr);
+        mNavigator->addWater(mCellPosition, std::numeric_limits<std::int32_t>::max(), -25, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -516,7 +519,7 @@ namespace
             0, 0, 0, 0, 0, 0, 0 // row 6
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addWater(mCellPosition, cellSize, -25, nullptr);
@@ -569,7 +572,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, update_heightfield_remove_and_update_then_find_path_should_return_path)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
@@ -605,7 +608,7 @@ namespace
             0, -25, -100, -100, -100, -100 // row 5
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
@@ -633,7 +636,7 @@ namespace
             mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
         const btVector3 shift = getHeightfieldShift(mCellPosition, cellSize, surface.mMinHeight, surface.mMaxHeight);
 
         std::vector<CollisionShapeInstance<btBoxShape>> boxes;
@@ -725,7 +728,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, update_then_raycast_should_return_position)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
@@ -744,7 +747,7 @@ namespace
         update_for_oscillating_object_that_does_not_change_navmesh_should_not_trigger_navmesh_update)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         CollisionShapeInstance oscillatingBox(std::make_unique<btBoxShape>(btVector3(20, 20, 20)));
         const btVector3 oscillatingBoxShapePosition(288, 288, 400);
@@ -766,7 +769,7 @@ namespace
         ASSERT_EQ(navMeshes.size(), 1);
         ASSERT_EQ(navMeshes.begin()->second->lockConst()->getVersion(), expectedVersion);
 
-        for (int n = 0; n < 10; ++n)
+        for (std::int32_t n = 0; n < 10; ++n)
         {
             const btTransform transform(
                 btQuaternion(btVector3(0, 0, 1), n * 2 * osg::PI / 10), oscillatingBoxShapePosition);
@@ -783,7 +786,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, should_provide_path_over_flat_heightfield)
     {
         const HeightfieldPlane plane{ 100 };
-        const int cellSize = heightfieldTileSize * 4;
+        const std::int32_t cellSize = heightfieldTileSize * 4;
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, plane, nullptr);
@@ -802,7 +805,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, for_not_reachable_destination_find_path_should_provide_partial_path)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         CollisionShapeInstance compound(std::make_unique<btCompoundShape>());
         compound.shape().addChildShape(btTransform(btMatrix3x3::getIdentity(), btVector3(204, -204, 0)),
@@ -827,7 +830,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, end_tolerance_should_extent_available_destinations)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         CollisionShapeInstance compound(std::make_unique<btCompoundShape>());
         compound.shape().addChildShape(btTransform(btMatrix3x3::getIdentity(), btVector3(204, -204, 0)),
@@ -853,9 +856,9 @@ namespace
 
     TEST_F(DetourNavigatorNavigatorTest, only_one_water_per_cell_is_allowed)
     {
-        const int cellSize1 = 100;
+        const std::int32_t cellSize1 = 100;
         const float level1 = 1;
-        const int cellSize2 = 200;
+        const std::int32_t cellSize2 = 200;
         const float level2 = 2;
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
@@ -988,7 +991,7 @@ namespace
             0, 0, 0, 0, 0 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
@@ -1020,7 +1023,7 @@ namespace
             0, 0, 0, 0, 0 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
@@ -1052,7 +1055,7 @@ namespace
             0, 0, 0, 0, 0 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
@@ -1089,7 +1092,7 @@ namespace
             0, 0, 0, 0, 0 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
@@ -1153,7 +1156,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, find_nearest_nav_mesh_position_should_return_nav_mesh_position)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         auto updateGuard = mNavigator->makeUpdateGuard();
@@ -1171,7 +1174,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, find_nearest_nav_mesh_position_should_return_nullopt_when_too_far)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         auto updateGuard = mNavigator->makeUpdateGuard();
@@ -1189,7 +1192,7 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, find_nearest_nav_mesh_position_should_return_nullopt_when_flags_do_not_match)
     {
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         auto updateGuard = mNavigator->makeUpdateGuard();
@@ -1252,7 +1255,7 @@ namespace
         } };
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
-        const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+        const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         auto updateGuard = mNavigator->makeUpdateGuard();
@@ -1434,7 +1437,7 @@ namespace
                 .mMinHeight = -1,
                 .mMaxHeight = 1,
             };
-            const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
+            const std::int32_t cellSize = heightfieldTileSize * static_cast<std::int32_t>(surface.mSize - 1);
             navigator.addHeightfield(cellPosition, cellSize, surface, nullptr);
         }
     };
@@ -1445,7 +1448,7 @@ namespace
         {
             const osg::Vec2i cellPosition(0, 0);
             const HeightfieldPlane plane{ .mHeight = 0 };
-            const int cellSize = 8192;
+            const std::int32_t cellSize = 8192;
             navigator.addHeightfield(cellPosition, cellSize, plane, nullptr);
         }
     };
@@ -1456,7 +1459,7 @@ namespace
         {
             const osg::Vec2i cellPosition(0, 0);
             const float level = 0;
-            const int cellSize = 8192;
+            const std::int32_t cellSize = 8192;
             navigator.addWater(cellPosition, cellSize, level, nullptr);
         }
     };

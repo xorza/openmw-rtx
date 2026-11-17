@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include <components/misc/rng.hpp>
@@ -14,7 +15,7 @@ namespace MWMechanics
 {
 
     /// @return ID of resulting item, or empty if none
-    ESM::RefId getLevelledItem(
-        const ESM::LevelledListBase* levItem, bool creature, Misc::Rng::Generator& prng, std::optional<int> level = {});
+    ESM::RefId getLevelledItem(const ESM::LevelledListBase* levItem, bool creature, Misc::Rng::Generator& prng,
+        std::optional<std::int32_t> level = {});
 
 }

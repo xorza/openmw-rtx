@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace MWClass
@@ -32,10 +34,10 @@ namespace MWClass
         ESM::RefId getScript(const MWWorld::ConstPtr& ptr) const override;
         ///< Return name of the script attached to ptr
 
-        int getValue(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getValue(const MWWorld::ConstPtr& ptr) const override;
         ///< Return trade value of the object. Throws an exception, if the object can't be traded.
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
         const ESM::RefId& getUpSoundId(const MWWorld::ConstPtr& ptr) const override;
@@ -52,6 +54,6 @@ namespace MWClass
 
         VFS::Path::NormalizedView getModel(const MWWorld::ConstPtr& ptr) const override;
 
-        bool canSell(const MWWorld::ConstPtr& item, int npcServices) const override;
+        bool canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const override;
     };
 }

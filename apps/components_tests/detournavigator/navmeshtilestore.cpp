@@ -69,7 +69,7 @@ namespace DetourNavigator
         void addLand(TileCachedRecastMeshManager& manager, const TileInput& input)
         {
             manager.setWorldspace(input.mWorldspace, nullptr);
-            const int cellSize = 8192;
+            const std::int32_t cellSize = 8192;
             manager.addHeightfield(osg::Vec2i(0, 0), cellSize,
                 HeightfieldSurface{ .mHeights = input.mHeights.data(), .mSize = 2, .mMinHeight = 0, .mMaxHeight = 30 },
                 nullptr);

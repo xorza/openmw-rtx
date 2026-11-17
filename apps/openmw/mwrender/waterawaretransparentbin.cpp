@@ -1,5 +1,8 @@
 #include "waterawaretransparentbin.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/BoundingBox>
 #include <osg/ClipPlane>
 #include <osg/Plane>
@@ -21,7 +24,7 @@ namespace
         const osg::BoundingBox& localBound = leaf->_drawable->getBoundingBox();
 
         osg::BoundingBox bound;
-        for (unsigned int i = 0; i < 8; ++i)
+        for (std::uint32_t i = 0; i < 8; ++i)
             bound.expandBy(localBound.corner(i) * localToWorld);
 
         return bound;

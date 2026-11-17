@@ -26,7 +26,7 @@ namespace RtxBuild
     {
         struct Ran
         {
-            int mStatus;
+            std::int32_t mStatus;
             std::string mErrors;
         };
 
@@ -39,7 +39,7 @@ namespace RtxBuild
             for (std::string& word : words)
                 line.push_back(word.data());
             std::ostringstream errors;
-            const int status = run(line, errors);
+            const std::int32_t status = run(line, errors);
             return Ran{ status, errors.str() };
         }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 #include <variant>
 
@@ -15,7 +16,7 @@ namespace Fx
         struct Integer
         {
             inline static constexpr std::string_view mRepresentation = "integer";
-            int mValue = 0;
+            std::int32_t mValue = 0;
         };
         struct Boolean
         {

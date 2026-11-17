@@ -1,5 +1,7 @@
 #include "coloreditor.hpp"
 
+#include <cstdint>
+
 #include <QGuiApplication>
 #include <QPainter>
 #include <QScreen>
@@ -14,7 +16,7 @@ CSVWidget::ColorEditor::ColorEditor(const QColor& color, QWidget* parent, const 
     setColor(color);
 }
 
-CSVWidget::ColorEditor::ColorEditor(const int colorInt, QWidget* parent, const bool popupOnStart)
+CSVWidget::ColorEditor::ColorEditor(const std::int32_t colorInt, QWidget* parent, const bool popupOnStart)
     : ColorEditor(parent, popupOnStart)
 {
     setColor(colorInt);
@@ -58,7 +60,7 @@ QColor CSVWidget::ColorEditor::color() const
     return mColor;
 }
 
-int CSVWidget::ColorEditor::colorInt() const
+std::int32_t CSVWidget::ColorEditor::colorInt() const
 {
     return (mColor.blue() << 16) | (mColor.green() << 8) | (mColor.red());
 }
@@ -69,7 +71,7 @@ void CSVWidget::ColorEditor::setColor(const QColor& color)
     update();
 }
 
-void CSVWidget::ColorEditor::setColor(const int colorInt)
+void CSVWidget::ColorEditor::setColor(const std::int32_t colorInt)
 {
     // Color RGB values are stored in given integer.
     // First byte is red, second byte is green, third byte is blue.
@@ -96,7 +98,7 @@ QPoint CSVWidget::ColorEditor::calculatePopupPosition()
     QRect screenGeometry = QGuiApplication::primaryScreen()->geometry();
 
     // Center the popup horizontally relative to the editor
-    int localPopupX = (editorGeometry.width() - popupGeometry.width()) / 2;
+    std::int32_t localPopupX = (editorGeometry.width() - popupGeometry.width()) / 2;
     // Popup position need to be specified in global coords
     QPoint popupPosition = mapToGlobal(QPoint(localPopupX, editorGeometry.height()));
 

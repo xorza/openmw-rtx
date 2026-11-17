@@ -1,5 +1,8 @@
 #include "data.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/debug/debuglog.hpp>
 
 #include "exception.hpp"
@@ -17,14 +20,14 @@ namespace Nif
             stream.read(weight);
         }
 
-        void readNiTriShapeDataMatchGroup(NIFStream& stream, std::vector<unsigned short>& value)
+        void readNiTriShapeDataMatchGroup(NIFStream& stream, std::vector<std::uint16_t>& value)
         {
-            stream.readVector(value, stream.get<uint16_t>());
+            stream.readVector(value, stream.get<std::uint16_t>());
         }
 
         struct ReadNiGeometryDataUVSet
         {
-            uint16_t mNumVertices;
+            std::uint16_t mNumVertices;
 
             void operator()(NIFStream& stream, std::vector<osg::Vec2f>& value) const
             {
@@ -41,7 +44,7 @@ namespace Nif
                 stream.read(value.mTransform);
                 stream.read(value.mBoundSphere);
 
-                const auto numVertices = stream.get<uint16_t>();
+                const auto numVertices = stream.get<std::uint16_t>();
 
                 if (!mHasVertexWeights)
                     return;
@@ -52,7 +55,7 @@ namespace Nif
 
         struct ReadNiMorphDataMorphData
         {
-            uint32_t mNumVerts;
+            std::uint32_t mNumVerts;
 
             void operator()(NIFStream& stream, NiMorphData::MorphData& value) const
             {
@@ -72,8 +75,8 @@ namespace Nif
                 if (!value.mValid)
                     return;
                 stream.read(value.mBlockSize);
-                stream.readVector(value.mBlockOffsets, stream.get<uint32_t>());
-                stream.readVector(value.mDataSizes, stream.get<uint32_t>());
+                stream.readVector(value.mBlockOffsets, stream.get<std::uint32_t>());
+                stream.readVector(value.mDataSizes, stream.get<std::uint32_t>());
                 stream.readVector(value.mData, value.mDataSizes.size() * value.mBlockSize);
                 if (!mBSPacked)
                     return;
@@ -142,7 +145,7 @@ namespace Nif
 
         // In 4.0.0.2 the flags field corresponds to the number of UV sets.
         // In later revisions the part that corresponds to the number is narrower.
-        uint16_t numUVs = mDataFlags;
+        std::uint16_t numUVs = mDataFlags;
         if (nif->getVersion() > NIFFile::NIFVersion::VER_MW)
         {
             numUVs &= DataFlag_NumUVsMask;
@@ -177,26 +180,26 @@ namespace Nif
     {
         NiTriBasedGeomData::read(nif);
 
-        uint32_t numIndices = 0;
+        std::uint32_t numIndices = 0;
         nif->read(numIndices);
         if (nif->getVersion() > NIFFile::NIFVersion::VER_OB_OLD && !nif->get<bool>())
             numIndices = 0;
         nif->readVector(mTriangles, numIndices);
-        nif->readVectorOfRecords<uint16_t>(readNiTriShapeDataMatchGroup, mMatchGroups);
+        nif->readVectorOfRecords<std::uint16_t>(readNiTriShapeDataMatchGroup, mMatchGroups);
     }
 
     void NiTriStripsData::read(NIFStream* nif)
     {
         NiTriBasedGeomData::read(nif);
 
-        uint16_t numStrips = 0;
+        std::uint16_t numStrips = 0;
         nif->read(numStrips);
-        std::vector<uint16_t> lengths;
+        std::vector<std::uint16_t> lengths;
         nif->readVector(lengths, numStrips);
         if (nif->getVersion() <= NIFFile::NIFVersion::VER_OB_OLD || nif->get<bool>())
         {
             mStrips.reserve(numStrips);
-            for (size_t i = 0; i < numStrips; ++i)
+            for (std::size_t i = 0; i < numStrips; ++i)
                 nif->readVector(mStrips.emplace_back(), lengths[i]);
         }
     }
@@ -205,7 +208,7 @@ namespace Nif
     {
         NiGeometryData::read(nif);
 
-        std::vector<uint8_t> flags;
+        std::vector<std::uint8_t> flags;
         nif->readVector(flags, mNumVertices);
         // Can't construct a line from a single vertex.
         if (mNumVertices < 2)
@@ -213,7 +216,7 @@ namespace Nif
         // There can't be more than 2 indices for each vertex
         mLines.reserve(static_cast<std::size_t>(mNumVertices) * 2);
         // Convert connectivity flags into usable geometry. The last element needs special handling.
-        for (uint16_t i = 0; i < mNumVertices - 1; ++i)
+        for (std::uint16_t i = 0; i < mNumVertices - 1; ++i)
         {
             if (flags[i] & 1)
             {
@@ -253,7 +256,7 @@ namespace Nif
 
     void NiPixelFormat::read(NIFStream* nif)
     {
-        mFormat = static_cast<Format>(nif->get<uint32_t>());
+        mFormat = static_cast<Format>(nif->get<std::uint32_t>());
         if (nif->getVersion() <= NIFStream::generateVersion(10, 4, 0, 1))
         {
             nif->readArray(mColorMasks);
@@ -264,22 +267,22 @@ namespace Nif
         }
         else
         {
-            mBitsPerPixel = nif->get<uint8_t>();
+            mBitsPerPixel = nif->get<std::uint8_t>();
             nif->read(mRendererHint);
             nif->read(mExtraData);
             nif->read(mFlags);
             nif->read(mPixelTiling);
             if (nif->getVersion() >= NIFStream::generateVersion(20, 3, 0, 4))
                 nif->read(mUseSrgb);
-            for (int i = 0; i < 4; i++)
+            for (std::int32_t i = 0; i < 4; i++)
                 mChannels[static_cast<std::size_t>(i)].read(nif);
         }
     }
 
     void NiPixelFormat::ChannelData::read(NIFStream* nif)
     {
-        mType = static_cast<Type>(nif->get<uint32_t>());
-        mConvention = static_cast<Convention>(nif->get<uint32_t>());
+        mType = static_cast<Type>(nif->get<std::uint32_t>());
+        mConvention = static_cast<Convention>(nif->get<std::uint32_t>());
         nif->read(mBitsPerChannel);
         nif->read(mSigned);
     }
@@ -295,10 +298,10 @@ namespace Nif
     {
         mPixelFormat.read(nif);
         mPalette.read(nif);
-        const auto mipmapsCount = nif->get<uint32_t>();
+        const auto mipmapsCount = nif->get<std::uint32_t>();
         nif->read(mBytesPerPixel);
         nif->readVectorOfRecords(mipmapsCount, mMipmaps);
-        const auto numPixels = nif->get<uint32_t>();
+        const auto numPixels = nif->get<std::uint32_t>();
         if (nif->getVersion() >= NIFStream::generateVersion(10, 4, 0, 2))
             nif->read(mNumFaces);
         nif->readVector(mData, static_cast<std::size_t>(numPixels) * mNumFaces);
@@ -319,11 +322,11 @@ namespace Nif
     {
         const auto readPair = [](NIFStream& stream, std::pair<float, bool>& value) {
             stream.read(value.first);
-            value.second = stream.get<uint8_t>() != 0;
+            value.second = stream.get<std::uint8_t>() != 0;
         };
 
         std::vector<std::pair<float, bool>> keys;
-        nif->readVectorOfRecords<uint32_t>(readPair, keys);
+        nif->readVectorOfRecords<std::uint32_t>(readPair, keys);
         mKeys = std::make_shared<std::vector<std::pair<float, bool>>>(std::move(keys));
     }
 
@@ -378,7 +381,7 @@ namespace Nif
     {
         NiSkinInstance::read(nif);
 
-        nif->readVectorOfRecords<uint32_t>(mParts);
+        nif->readVectorOfRecords<std::uint32_t>(mParts);
     }
 
     void BSSkinInstance::read(NIFStream* nif)
@@ -386,7 +389,7 @@ namespace Nif
         mRoot.read(nif);
         mData.read(nif);
         readRecordList(nif, mBones);
-        nif->readVector(mScales, nif->get<uint32_t>());
+        nif->readVector(mScales, nif->get<std::uint32_t>());
     }
 
     void BSSkinInstance::post(Reader& nif)
@@ -412,7 +415,7 @@ namespace Nif
     {
         nif->read(mTransform);
 
-        const auto numBones = nif->get<uint32_t>();
+        const auto numBones = nif->get<std::uint32_t>();
         bool hasVertexWeights = true;
         if (nif->getVersion() >= NIFFile::NIFVersion::VER_MW)
         {
@@ -440,12 +443,12 @@ namespace Nif
 
     void BSSkinBoneData::read(NIFStream* nif)
     {
-        nif->readVectorOfRecords<uint32_t>(mBones);
+        nif->readVectorOfRecords<std::uint32_t>(mBones);
     }
 
     void NiSkinPartition::read(NIFStream* nif)
     {
-        const auto numPartitions = nif->get<uint32_t>();
+        const auto numPartitions = nif->get<std::uint32_t>();
 
         if (nif->getBethVersion() == NIFFile::BethVersion::BETHVER_SSE)
         {
@@ -453,9 +456,9 @@ namespace Nif
             nif->read(mVertexSize);
             mVertexDesc.read(nif);
 
-            uint32_t numVertices = mDataSize / mVertexSize;
+            std::uint32_t numVertices = mDataSize / mVertexSize;
             mVertexData.reserve(numVertices);
-            for (uint32_t i = 0; i < numVertices; ++i)
+            for (std::uint32_t i = 0; i < numVertices; ++i)
                 mVertexData.emplace_back().read(nif, mVertexDesc.mFlags);
         }
 
@@ -464,7 +467,7 @@ namespace Nif
 
     void NiSkinPartition::Partition::read(NIFStream* nif)
     {
-        uint16_t numVertices = 0, numTriangles = 0, numBones = 0, numStrips = 0, bonesPerVertex = 0;
+        std::uint16_t numVertices = 0, numTriangles = 0, numBones = 0, numStrips = 0, bonesPerVertex = 0;
         nif->read(numVertices);
         nif->read(numTriangles);
         nif->read(numBones);
@@ -475,22 +478,22 @@ namespace Nif
         if (!hasPresenceFlags || nif->get<bool>())
             nif->readVector(mVertexMap, numVertices);
         if (!hasPresenceFlags || nif->get<bool>())
-            nif->readVector(mWeights, static_cast<size_t>(numVertices) * bonesPerVertex);
-        std::vector<unsigned short> stripLengths;
+            nif->readVector(mWeights, static_cast<std::size_t>(numVertices) * bonesPerVertex);
+        std::vector<std::uint16_t> stripLengths;
         nif->readVector(stripLengths, numStrips);
         if (!hasPresenceFlags || nif->get<bool>())
         {
             if (numStrips)
             {
                 mStrips.reserve(numStrips);
-                for (size_t i = 0; i < numStrips; ++i)
+                for (std::size_t i = 0; i < numStrips; ++i)
                     nif->readVector(mStrips.emplace_back(), stripLengths[i]);
             }
             else
                 nif->readVector(mTriangles, static_cast<std::size_t>(numTriangles) * 3);
         }
-        if (nif->get<uint8_t>() != 0)
-            nif->readVector(mBoneIndices, static_cast<size_t>(numVertices) * bonesPerVertex);
+        if (nif->get<std::uint8_t>() != 0)
+            nif->readVector(mBoneIndices, static_cast<std::size_t>(numVertices) * bonesPerVertex);
         if (nif->getBethVersion() > NIFFile::BethVersion::BETHVER_FO3)
         {
             nif->read(mLODLevel);
@@ -515,7 +518,7 @@ namespace Nif
             else if (!mTriangles.empty())
             {
                 mTrueTriangles = mTriangles;
-                for (unsigned short& index : mTrueTriangles)
+                for (std::uint16_t& index : mTrueTriangles)
                     index = mVertexMap[index];
             }
         }
@@ -523,8 +526,8 @@ namespace Nif
 
     void NiMorphData::read(NIFStream* nif)
     {
-        const auto numMorphs = nif->get<uint32_t>();
-        const auto numVerts = nif->get<uint32_t>();
+        const auto numMorphs = nif->get<std::uint32_t>();
+        const auto numVerts = nif->get<std::uint32_t>();
         nif->read(mRelativeTargets);
 
         const ReadNiMorphDataMorphData readMorph{ .mNumVerts = numVerts };
@@ -538,7 +541,7 @@ namespace Nif
         if (mRotations->mInterpolationType == InterpolationType_XYZ)
         {
             if (nif->getVersion() <= NIFStream::generateVersion(10, 1, 0, 0))
-                mAxisOrder = static_cast<AxisOrder>(nif->get<uint32_t>());
+                mAxisOrder = static_cast<AxisOrder>(nif->get<std::uint32_t>());
             mXRotations = std::make_shared<FloatKeyMap>();
             mYRotations = std::make_shared<FloatKeyMap>();
             mZRotations = std::make_shared<FloatKeyMap>();
@@ -554,12 +557,12 @@ namespace Nif
 
     void NiPalette::read(NIFStream* nif)
     {
-        const bool useAlpha = nif->get<uint8_t>() != 0;
-        const uint32_t alphaMask = useAlpha ? 0 : 0xFF000000;
-        const auto numEntries = nif->get<uint32_t>();
-        for (uint32_t i = 0; i < numEntries; i++)
+        const bool useAlpha = nif->get<std::uint8_t>() != 0;
+        const std::uint32_t alphaMask = useAlpha ? 0 : 0xFF000000;
+        const auto numEntries = nif->get<std::uint32_t>();
+        for (std::uint32_t i = 0; i < numEntries; i++)
         {
-            const auto color = nif->get<uint32_t>();
+            const auto color = nif->get<std::uint32_t>();
             // Indices past 255 are always unused
             if (i < 256)
                 mColors[i] = color | alphaMask;
@@ -569,7 +572,7 @@ namespace Nif
     void NiStringPalette::read(NIFStream* nif)
     {
         mPalette = nif->getStringPalette();
-        if (nif->get<uint32_t>() != mPalette.size())
+        if (nif->get<std::uint32_t>() != mPalette.size())
             Log(Debug::Warning) << "NIFFile Warning: Failed size check in NiStringPalette. File: "
                                 << nif->getFile().getFilename();
     }
@@ -582,8 +585,8 @@ namespace Nif
 
     void NiBSplineData::read(NIFStream* nif)
     {
-        nif->readVector(mFloatControlPoints, nif->get<uint32_t>());
-        nif->readVector(mCompactControlPoints, nif->get<uint32_t>());
+        nif->readVector(mFloatControlPoints, nif->get<std::uint32_t>());
+        nif->readVector(mCompactControlPoints, nif->get<std::uint32_t>());
     }
 
     void NiBSplineBasisData::read(NIFStream* nif)
@@ -594,10 +597,10 @@ namespace Nif
     void NiAdditionalGeometryData::read(NIFStream* nif)
     {
         nif->read(mNumVertices);
-        nif->readVectorOfRecords<uint32_t>(mBlockInfos);
+        nif->readVectorOfRecords<std::uint32_t>(mBlockInfos);
         const ReadNiAdditionalGeometryDataDataBlock readDataBlock{ .mBSPacked
             = mRecordType == RC_BSPackedAdditionalGeometryData };
-        nif->readVectorOfRecords<uint32_t>(readDataBlock, mBlocks);
+        nif->readVectorOfRecords<std::uint32_t>(readDataBlock, mBlocks);
     }
 
     void NiAdditionalGeometryData::DataStream::read(NIFStream* nif)
@@ -641,7 +644,7 @@ namespace Nif
 
     void BSAnimNote::read(NIFStream* nif)
     {
-        mType = static_cast<Type>(nif->get<uint32_t>());
+        mType = static_cast<Type>(nif->get<std::uint32_t>());
         nif->read(mTime);
         if (mType == Type::GrabIK)
         {
@@ -656,7 +659,7 @@ namespace Nif
 
     void BSAnimNotes::read(NIFStream* nif)
     {
-        nif->readVectorOfRecords<uint16_t>(mList);
+        nif->readVectorOfRecords<std::uint16_t>(mList);
     }
 
     void BSAnimNotes::post(Reader& nif)

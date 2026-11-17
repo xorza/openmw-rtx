@@ -1,11 +1,13 @@
 #include "scenesubview.hpp"
 
+#include <cassert>
+#include <cstdint>
+#include <sstream>
+
 #include <QHBoxLayout>
 #include <QMargins>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <cassert>
-#include <sstream>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
@@ -158,7 +160,7 @@ void CSVWorld::SceneSubView::cellSelectionChanged(const CSMWorld::CellSelection&
 {
     setUniversalId(
         CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Scene, ESM::Cell::sDefaultWorldspaceId.getValue()));
-    int size = selection.getSize();
+    std::int32_t size = selection.getSize();
 
     std::ostringstream stream;
     stream << "Scene: " << getUniversalId().getId();

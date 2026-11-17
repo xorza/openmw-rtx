@@ -1,7 +1,9 @@
 #include "searchsubview.hpp"
 
-#include <QVBoxLayout>
+#include <cstdint>
 #include <ranges>
+
+#include <QVBoxLayout>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/state.hpp>
@@ -24,7 +26,7 @@ void CSVTools::SearchSubView::replace(bool selection)
     if (!mAllowReplace)
         return;
 
-    std::vector<int> indices = mTable->getReplaceIndices(selection);
+    std::vector<std::int32_t> indices = mTable->getReplaceIndices(selection);
     if (indices.empty())
         return;
 
@@ -39,7 +41,7 @@ void CSVTools::SearchSubView::replace(bool selection)
 
     // We are running through the indices in reverse order to avoid messing up multiple results
     // in a single string.
-    for (int indice : std::views::reverse(indices))
+    for (std::int32_t indice : std::views::reverse(indices))
     {
         const CSMWorld::UniversalId& id = model->getUniversalId(indice);
 
@@ -121,7 +123,7 @@ void CSVTools::SearchSubView::setStatusBar(bool show)
     mBottom->setStatusBar(show);
 }
 
-void CSVTools::SearchSubView::stateChanged(int state, CSMDoc::Document* document)
+void CSVTools::SearchSubView::stateChanged(std::int32_t state, CSMDoc::Document* document)
 {
     mSearchBox.setSearchMode(!(state & CSMDoc::State_Searching));
 }
@@ -149,12 +151,12 @@ void CSVTools::SearchSubView::replaceAllRequest()
 
 void CSVTools::SearchSubView::tableSizeUpdate()
 {
-    int resultCount = mDocument.getReport(getUniversalId())->rowCount();
+    std::int32_t resultCount = mDocument.getReport(getUniversalId())->rowCount();
     mBottom->tableSizeChanged(resultCount, 0, 0);
     mSearchBox.setSearchResultCount(resultCount);
 }
 
-void CSVTools::SearchSubView::operationDone(int type, bool failed)
+void CSVTools::SearchSubView::operationDone(std::int32_t type, bool failed)
 {
     if (type == CSMDoc::State_Searching && !failed && !mDocument.getReport(getUniversalId())->rowCount())
     {

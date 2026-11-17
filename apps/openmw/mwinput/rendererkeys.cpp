@@ -1,5 +1,6 @@
 #include "rendererkeys.hpp"
 
+#include <cstdint>
 #include <string_view>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -19,7 +20,7 @@ namespace MWInput
         mRenderer.beginEvents();
     }
 
-    void RendererKeys::functionKey(const int index, const SDLUtil::KeyChange change)
+    void RendererKeys::functionKey(const std::int32_t index, const SDLUtil::KeyChange change)
     {
         // F3 and F4: the indices count from F1. A declined key is told once, as it goes down, and the renderer
         // hears none of it.
@@ -36,7 +37,8 @@ namespace MWInput
         mRenderer.functionKey(index, change);
     }
 
-    void RendererKeys::windowResized(const int x, const int y, const int width, const int height)
+    void RendererKeys::windowResized(
+        const std::int32_t x, const std::int32_t y, const std::int32_t width, const std::int32_t height)
     {
         mRenderer.windowResized(x, y, width, height);
     }

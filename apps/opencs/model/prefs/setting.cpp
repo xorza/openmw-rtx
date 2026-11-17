@@ -1,9 +1,10 @@
 
 #include "setting.hpp"
 
+#include <utility>
+
 #include <QColor>
 #include <QMutexLocker>
-#include <utility>
 
 #include <components/settings/settingvalue.hpp>
 

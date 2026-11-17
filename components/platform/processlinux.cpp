@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <sched.h>
+// NOLINTNEXTLINE(modernize-deprecated-headers): POSIX's `kill`, which <csignal> need not declare
 #include <signal.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -64,7 +65,7 @@ namespace Platform::Process
         return path;
     }
 
-    std::vector<std::string> commandLine(const int argc, char** const argv)
+    std::vector<std::string> commandLine(const std::int32_t argc, char** const argv)
     {
         return std::vector<std::string>(argv, argv + argc);
     }
@@ -211,7 +212,7 @@ namespace Platform::Process
     {
         // Runs the command line its caller built.
         // NOLINTNEXTLINE(bugprone-command-processor)
-        const int status = std::system(line.c_str());
+        const std::int32_t status = std::system(line.c_str());
 
         // No shell at all: what a shell answers for a command it could not run.
         if (status == -1)

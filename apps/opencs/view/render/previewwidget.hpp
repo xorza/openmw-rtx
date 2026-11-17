@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include "object.hpp"
@@ -37,11 +38,11 @@ namespace CSVRender
 
         void referenceableDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void referenceableAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         void referenceDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void referenceAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void referenceAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         void assetTablesChanged();
     };

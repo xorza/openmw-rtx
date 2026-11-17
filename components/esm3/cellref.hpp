@@ -49,7 +49,7 @@ namespace ESM
         ESM::RefId mFaction;
 
         // PC faction rank required to use the item. Sometimes is -1, which means "any rank".
-        int32_t mFactionRank{};
+        std::int32_t mFactionRank{};
 
         // For weapon or armor, this is the remaining item health.
         // For tools (lockpicks, probes, repair hammer) it is the remaining uses.
@@ -57,7 +57,7 @@ namespace ESM
         // This could be -1 if the charge was not touched yet (i.e. full).
         union
         {
-            int32_t mChargeInt{}; // Used by everything except lights
+            std::int32_t mChargeInt{}; // Used by everything except lights
             float mChargeFloat; // Used only by lights
         };
         float mChargeIntRemainder{}; // Fractional part of mChargeInt
@@ -65,7 +65,7 @@ namespace ESM
         // Remaining enchantment charge. This could be -1 if the charge was not touched yet (i.e. full).
         float mEnchantmentCharge{};
 
-        int32_t mCount{};
+        std::int32_t mCount{};
 
         // For doors - true if this door teleports to somewhere else, false
         // if it should open through animation.
@@ -78,14 +78,14 @@ namespace ESM
         std::string mDestCell;
 
         // Lock level for doors and containers
-        int32_t mLockLevel{};
+        std::int32_t mLockLevel{};
         bool mIsLocked{};
         ESM::RefId mKey, mTrap; // Key and trap ID names, if any
 
         // This corresponds to the "Reference Blocked" checkbox in the construction set,
         // which prevents editing that reference.
         // -1 is not blocked, otherwise it is blocked.
-        signed char mReferenceBlocked{};
+        std::int8_t mReferenceBlocked{};
 
         // Position and rotation of this object within the cell
         Position mPos;

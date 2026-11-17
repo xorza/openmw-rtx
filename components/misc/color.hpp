@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <osg/Vec4>
@@ -25,11 +26,11 @@ namespace Misc
         std::string toString() const;
 
         static Color fromHex(std::string_view hex);
-        static Color fromRGB(unsigned int value);
+        static Color fromRGB(std::uint32_t value);
         static Color fromVec(osg::Vec4f value);
 
         std::string toHex() const;
-        unsigned int toRGBA() const { return mValue.asRGBA(); }
+        std::uint32_t toRGBA() const { return mValue.asRGBA(); }
         osg::Vec4f toVec() const { return mValue; }
 
         friend bool operator==(const Color& l, const Color& r);

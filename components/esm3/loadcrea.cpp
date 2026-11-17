@@ -1,6 +1,8 @@
 #include "loadcrea.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/concepts.hpp>
@@ -14,21 +16,21 @@ namespace ESM
     {
         struct EsmNPDTstruct
         {
-            int32_t mType;
-            int32_t mLevel;
-            std::array<int32_t, Attribute::Length> mAttributes;
-            int32_t mHealth, mMana, mFatigue;
-            int32_t mSoul;
-            int32_t mCombat, mMagic, mStealth;
-            int32_t mAttack[6];
-            int32_t mGold;
+            std::int32_t mType;
+            std::int32_t mLevel;
+            std::array<std::int32_t, Attribute::Length> mAttributes;
+            std::int32_t mHealth, mMana, mFatigue;
+            std::int32_t mSoul;
+            std::int32_t mCombat, mMagic, mStealth;
+            std::int32_t mAttack[6];
+            std::int32_t mGold;
         };
 
         void toBinary(const Creature::NPDTstruct& src, EsmNPDTstruct& dst)
         {
             dst.mType = src.mType;
             dst.mLevel = src.mLevel;
-            for (int i = 0; i < ESM::Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
             {
                 const ESM::RefId id = ESM::Attribute::indexToRefId(i);
                 dst.mAttributes[static_cast<std::size_t>(i)] = src.getAttribute(id);
@@ -50,7 +52,7 @@ namespace ESM
             dst.mType = src.mType;
             dst.mLevel = src.mLevel;
             dst.mAttributes.clear();
-            for (int i = 0; i < ESM::Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
             {
                 const ESM::RefId id = ESM::Attribute::indexToRefId(i);
                 dst.mAttributes.emplace(id, src.mAttributes[static_cast<std::size_t>(i)]);
@@ -138,7 +140,7 @@ namespace ESM
                         while (esm.isNextSub("ATTR"))
                         {
                             esm.getSubHeader();
-                            int32_t value = 0;
+                            std::int32_t value = 0;
                             esm.getT(value);
                             ESM::RefId attribute = esm.getRefId(esm.getSubSize() - sizeof(value));
                             mData.mAttributes.emplace(attribute, value);
@@ -149,7 +151,7 @@ namespace ESM
                 }
                 case fourCC("FLAG"):
                 {
-                    int flags = 0;
+                    std::int32_t flags = 0;
                     esm.getHT(flags);
                     mFlags = flags & 0xFF;
                     mBloodType = ((flags >> 8) & 0xFF) >> 2;
@@ -187,7 +189,7 @@ namespace ESM
                 case fourCC("INDX"):
                 {
                     // seems to occur only in .ESS files, unsure of purpose
-                    int index = 0;
+                    std::int32_t index = 0;
                     esm.getHT(index);
                     Log(Debug::Warning) << "Creature::load: Unhandled INDX " << index;
                     break;
@@ -262,7 +264,7 @@ namespace ESM
         mData.mHealth = mData.mMana = mData.mFatigue = 0;
         mData.mSoul = 0;
         mData.mCombat = mData.mMagic = mData.mStealth = 0;
-        for (int& i : mData.mAttack)
+        for (std::int32_t& i : mData.mAttack)
             i = 0;
         mData.mGold = 0;
         mBloodType = 0;
@@ -286,7 +288,7 @@ namespace ESM
         return mTransport.mList;
     }
 
-    int32_t Creature::NPDTstruct::getAttribute(ESM::RefId id) const
+    std::int32_t Creature::NPDTstruct::getAttribute(ESM::RefId id) const
     {
         const auto it = mAttributes.find(id);
         if (it != mAttributes.end())

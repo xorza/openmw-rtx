@@ -19,15 +19,15 @@ namespace Settings
     {
         using WithIndex::WithIndex;
 
-        SettingValue<int> mResolutionX{ mIndex, "Video", "resolution x", makeMaxSanitizerInt(0) };
-        SettingValue<int> mResolutionY{ mIndex, "Video", "resolution y", makeMaxSanitizerInt(0) };
-        SettingValue<int> mWindowWidth{ mIndex, "Video", "window width", makeMaxSanitizerInt(1) };
-        SettingValue<int> mWindowHeight{ mIndex, "Video", "window height", makeMaxSanitizerInt(1) };
+        SettingValue<std::int32_t> mResolutionX{ mIndex, "Video", "resolution x", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mResolutionY{ mIndex, "Video", "resolution y", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mWindowWidth{ mIndex, "Video", "window width", makeMaxSanitizerInt(1) };
+        SettingValue<std::int32_t> mWindowHeight{ mIndex, "Video", "window height", makeMaxSanitizerInt(1) };
         SettingValue<WindowMode> mWindowMode{ mIndex, "Video", "window mode" };
-        SettingValue<int> mScreen{ mIndex, "Video", "screen", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mScreen{ mIndex, "Video", "screen", makeMaxSanitizerInt(0) };
         SettingValue<bool> mMinimizeOnFocusLoss{ mIndex, "Video", "minimize on focus loss" };
         SettingValue<bool> mWindowBorder{ mIndex, "Video", "window border" };
-        SettingValue<int> mAntialiasing{ mIndex, "Video", "antialiasing", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mAntialiasing{ mIndex, "Video", "antialiasing", makeMaxSanitizerInt(0) };
         SettingValue<SDLUtil::VSyncMode> mVsyncMode{ mIndex, "Video", "vsync mode" };
         SettingValue<float> mFramerateLimit{ mIndex, "Video", "framerate limit", makeMaxSanitizerFloat(0) };
         SettingValue<float> mGamma{ mIndex, "Video", "gamma", makeMaxStrictSanitizerFloat(0) };

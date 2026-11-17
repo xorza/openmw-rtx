@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -50,10 +51,10 @@ namespace CSMTools
     public:
         explicit ScriptCheckStage(const CSMDoc::Document& document);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this tage will be appended to \a messages.
     };
 }

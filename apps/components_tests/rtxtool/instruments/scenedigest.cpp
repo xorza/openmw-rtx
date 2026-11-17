@@ -44,7 +44,7 @@ namespace RtxTool
             std::vector<osg::Vec3f> positions;
             std::vector<osg::Vec3f> normals;
             std::vector<osg::Vec2f> texCoords;
-            for (int corner = 0; corner < 8; ++corner)
+            for (std::int32_t corner = 0; corner < 8; ++corner)
             {
                 const float x = (corner & 1) != 0 ? 143.0f : 124.0f;
                 positions.emplace_back(
@@ -78,7 +78,7 @@ namespace RtxTool
             const Rtx::Index wearing = scene.addMaterial(material);
 
             const osg::Matrixf stood = osg::Matrixf::translate(10.0f, 20.0f, 30.0f);
-            for (int which = 0; which < 2; ++which)
+            for (std::int32_t which = 0; which < 2; ++which)
             {
                 const bool mirrored = (which == 0) == mirroredFirst;
                 Rtx::MeshInstance instance;
@@ -480,7 +480,7 @@ namespace RtxTool
                     const auto part = static_cast<ScenePart>(at);
                     EXPECT_EQ(plain[at] != changed[at],
                         part == ScenePart::Content || std::ranges::find(columns, part) != columns.end())
-                        << nameOf(part) << " under field " << static_cast<int>(field);
+                        << nameOf(part) << " under field " << static_cast<std::int32_t>(field);
                 }
             }
 

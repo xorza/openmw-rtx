@@ -1,5 +1,8 @@
 #include "widgets.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/widgets/box.hpp>
 
 namespace
@@ -8,11 +11,11 @@ namespace
     void createVectorWidget(
         const std::shared_ptr<Fx::Types::UniformBase>& uniform, MyGUI::Widget* client, Fx::Widgets::UniformBase* base)
     {
-        int height = client->getHeight();
+        std::int32_t height = client->getHeight();
         base->setSize(base->getSize().width, (base->getSize().height - height) + (height * T::num_components));
         client->setSize(client->getSize().width, height * T::num_components);
 
-        for (int i = 0; i < T::num_components; ++i)
+        for (std::int32_t i = 0; i < T::num_components; ++i)
         {
             auto* widget = client->createWidget<WidgetT>(
                 "MW_ValueEditNumber", { 0, height * i, client->getWidth(), height }, MyGUI::Align::Default);
@@ -63,7 +66,7 @@ namespace Fx
         void EditChoice::setValue(const T& value)
         {
             // Update the combo view
-            for (size_t i = 0; i < this->mChoices->getItemCount(); i++)
+            for (std::size_t i = 0; i < this->mChoices->getItemCount(); i++)
             {
                 if (*this->mChoices->getItemDataAt<T>(i) == value)
                 {
@@ -75,7 +78,7 @@ namespace Fx
             mUniform->template setValue<T>(value);
         }
 
-        void EditChoice::notifyComboBoxChanged(MyGUI::ComboBox* sender, size_t pos)
+        void EditChoice::notifyComboBoxChanged(MyGUI::ComboBox* sender, std::size_t pos)
         {
             std::visit(
                 [this, sender, pos](auto&& data) {
@@ -90,7 +93,7 @@ namespace Fx
             std::visit(
                 [this](auto&& data) {
                     using T = typename std::decay_t<decltype(data)>::value_type;
-                    size_t index = 0;
+                    std::size_t index = 0;
                     for (const auto& choice : data.mChoices)
                     {
                         this->mChoices->addItem(choice.mLabel, choice.mValue);
@@ -177,7 +180,7 @@ namespace Fx
                             widget->setData(uniform);
                             mBases.emplace_back(widget);
                         }
-                        else if constexpr (std::is_same_v<T, int>)
+                        else if constexpr (std::is_same_v<T, std::int32_t>)
                         {
                             auto* widget = mClient->createWidget<EditNumberInt>("MW_ValueEditNumber",
                                 { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch);

@@ -613,7 +613,7 @@ namespace Rtx::Testing
             const osg::ref_ptr<osg::Node> quad = makeQuad();
             quad->getOrCreateStateSet();
 
-            const auto statingFront = [](osg::FrontFace::Mode mode, unsigned int flags = osg::StateAttribute::ON) {
+            const auto statingFront = [](osg::FrontFace::Mode mode, std::uint32_t flags = osg::StateAttribute::ON) {
                 osg::ref_ptr<osg::Group> group = new osg::Group;
                 group->getOrCreateStateSet()->setAttribute(new osg::FrontFace(mode), flags);
                 return group;

@@ -1,5 +1,7 @@
 #include "navmeshmanager.hpp"
 
+#include <cstdint>
+
 #include <DetourNavMesh.h>
 #include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
 
@@ -36,12 +38,12 @@ namespace DetourNavigator
 {
     namespace
     {
-        int getMaxRadius(int maxTiles)
+        std::int32_t getMaxRadius(std::int32_t maxTiles)
         {
-            return static_cast<int>(std::ceil(std::sqrt(static_cast<float>(maxTiles) / osg::PIf) + 1));
+            return static_cast<std::int32_t>(std::ceil(std::sqrt(static_cast<float>(maxTiles) / osg::PIf) + 1));
         }
 
-        TilesPositionsRange makeRange(const TilePosition& center, int radius)
+        TilesPositionsRange makeRange(const TilePosition& center, std::int32_t radius)
         {
             return TilesPositionsRange{
                 .mBegin = center - TilePosition(radius, radius),
@@ -49,7 +51,7 @@ namespace DetourNavigator
             };
         }
 
-        osg::Vec2f getMinCellGridPosition(const osg::Vec2i& center, int offset, float cellSize)
+        osg::Vec2f getMinCellGridPosition(const osg::Vec2i& center, std::int32_t offset, float cellSize)
         {
             const osg::Vec2i cell = center + osg::Vec2i(offset, offset);
             return osg::Vec2f(static_cast<float>(cell.x()) * cellSize, static_cast<float>(cell.y()) * cellSize);
@@ -68,7 +70,7 @@ namespace DetourNavigator
         }
 
         TilesPositionsRange makeRange(const Settings& settings, ESM::RefId worldspace,
-            const std::optional<CellGridBounds>& bounds, int radius, const TilePosition& center)
+            const std::optional<CellGridBounds>& bounds, std::int32_t radius, const TilePosition& center)
         {
             TilesPositionsRange result = makeRange(center, radius);
             if (bounds.has_value())
@@ -125,7 +127,8 @@ namespace DetourNavigator
         mRecastMeshManager.removeObject(id, guard);
     }
 
-    void NavMeshManager::addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard)
+    void NavMeshManager::addWater(
+        const osg::Vec2i& cellPosition, std::int32_t cellSize, float level, const UpdateGuard* guard)
     {
         mRecastMeshManager.addWater(cellPosition, cellSize, level, guard);
     }
@@ -136,7 +139,7 @@ namespace DetourNavigator
     }
 
     void NavMeshManager::addHeightfield(
-        const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
+        const osg::Vec2i& cellPosition, std::int32_t cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
     {
         mRecastMeshManager.addHeightfield(cellPosition, cellSize, shape, guard);
     }
@@ -209,7 +212,7 @@ namespace DetourNavigator
         const std::map<osg::Vec2i, ChangeType>& changedTiles)
     {
         std::map<osg::Vec2i, ChangeType> tilesToPost;
-        const int maxTiles = mSettings.mMaxTilesNumber;
+        const std::int32_t maxTiles = mSettings.mMaxTilesNumber;
         for (const auto& [k, v] : changedTiles)
             if (shouldAddTile(k, playerTile, maxTiles))
                 tilesToPost.emplace(k, v);

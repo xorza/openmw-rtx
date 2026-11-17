@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -20,7 +21,7 @@ namespace Rtx
     {
         /// A table that hands its rows' protected half to the test, as a table's own `add` and drop
         /// call it.
-        struct HeldInts : HeldRows<int>
+        struct HeldInts : HeldRows<std::int32_t>
         {
             using HeldRows::dropRow;
             using HeldRows::freeRow;
@@ -67,13 +68,13 @@ namespace Rtx
 
         struct Keyed
         {
-            int mKey = 0;
-            int mValue = 0;
+            std::int32_t mKey = 0;
+            std::int32_t mValue = 0;
         };
 
         struct KeyOfKeyed
         {
-            int operator()(const Keyed& row) const { return row.mKey; }
+            std::int32_t operator()(const Keyed& row) const { return row.mKey; }
         };
 
         /// **One comparator orders the rows and finds them by the key alone**, so a `flat_set` of
@@ -81,12 +82,12 @@ namespace Rtx
         /// on both sides, a key on either, and a key against a key: the four shapes a set asks.
         TEST(RtxKeyedLessTest, rowsAreOrderedAndFoundByTheKeyInsideThem)
         {
-            boost::container::flat_set<Keyed, KeyedLess<int, KeyOfKeyed>, std::vector<Keyed>> rows;
-            for (const int key : { 3, 1, 5, 4, 2 })
+            boost::container::flat_set<Keyed, KeyedLess<std::int32_t, KeyOfKeyed>, std::vector<Keyed>> rows;
+            for (const std::int32_t key : { 3, 1, 5, 4, 2 })
                 rows.insert(Keyed{ .mKey = key, .mValue = key * 10 });
 
             ASSERT_EQ(rows.size(), 5u);
-            int expected = 1;
+            std::int32_t expected = 1;
             for (const Keyed& row : rows)
                 EXPECT_EQ(row.mKey, expected++) << "the rows are not in the key's order";
 
@@ -110,7 +111,7 @@ namespace Rtx
         TEST(RtxScratchTest, aBufferKeepsItsRoomUpToTwiceWhatItHoldsAndNoMore)
         {
             const auto roomAfter = [](const std::size_t held) {
-                std::vector<int> buffer;
+                std::vector<std::int32_t> buffer;
                 buffer.reserve(8);
                 EXPECT_EQ(buffer.capacity(), 8u);
                 buffer.resize(held);
@@ -123,20 +124,20 @@ namespace Rtx
             EXPECT_EQ(roomAfter(3), 0u) << "eight is more than twice three";
             EXPECT_EQ(roomAfter(0), 0u);
 
-            std::vector<int> none;
+            std::vector<std::int32_t> none;
             dropSlack(none);
             EXPECT_EQ(none.capacity(), 0u);
         }
 
         struct Reading : Lent
         {
-            int mValue = 0;
+            std::int32_t mValue = 0;
 
             void reuse() { reuseKeeping(*this); }
         };
 
         /// Fills a reading with `value`, for a take.
-        auto valued(const int value)
+        auto valued(const std::int32_t value)
         {
             return [value](Reading& reading) { reading.mValue = value; };
         }
@@ -148,11 +149,11 @@ namespace Rtx
         /// elements' room: the assignment of an empty initializer list.
         TEST(RtxScratchTest, aBufferLetGoOfHoldsNoRoom)
         {
-            std::vector<int> braced(100);
+            std::vector<std::int32_t> braced(100);
             braced = {};
             EXPECT_EQ(braced.capacity(), 100u) << "a brace list gave its room back, and this proves nothing";
 
-            std::vector<int> held(100);
+            std::vector<std::int32_t> held(100);
             letGoOf(held);
             EXPECT_TRUE(held.empty());
             EXPECT_EQ(held.capacity(), 0u);
@@ -197,7 +198,7 @@ namespace Rtx
             std::vector<Reading*> taken;
             taken.reserve(1000);
             EXPECT_LT(Testing::allocationsIn([&] {
-                for (int at = 0; at < 1000; ++at)
+                for (std::int32_t at = 0; at < 1000; ++at)
                     taken.push_back(&spares.take(valued(at)));
             }),
                 1000u + 40u)
@@ -210,13 +211,13 @@ namespace Rtx
                 0u)
                 << "a give-back reached the heap";
 
-            Recycled<std::vector<int>> recycled;
-            std::vector<std::vector<int>> out;
+            Recycled<std::vector<std::int32_t>> recycled;
+            std::vector<std::vector<std::int32_t>> out;
             out.reserve(100);
-            for (int at = 0; at < 100; ++at)
+            for (std::int32_t at = 0; at < 100; ++at)
                 out.push_back(recycled.take());
             EXPECT_EQ(Testing::allocationsIn([&] {
-                for (std::vector<int>& value : out)
+                for (std::vector<std::int32_t>& value : out)
                     recycled.give(std::move(value));
             }),
                 0u)

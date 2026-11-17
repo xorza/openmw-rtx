@@ -1,5 +1,6 @@
 #include "security.hpp"
 
+#include <cstdint>
 #include <string_view>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -36,11 +37,11 @@ namespace MWMechanics
         if (lock.getCellRef().getLockLevel() <= 0 || !lock.getClass().hasToolTip(lock))
             return;
 
-        int uses = lockpick.getClass().getItemHealth(lockpick);
+        std::int32_t uses = lockpick.getClass().getItemHealth(lockpick);
         if (uses == 0)
             return;
 
-        int lockStrength = lock.getCellRef().getLockLevel();
+        std::int32_t lockStrength = lock.getCellRef().getLockLevel();
 
         float pickQuality = lockpick.get<ESM::Lockpick>()->mBase->mData.mQuality;
 
@@ -84,7 +85,7 @@ namespace MWMechanics
         if (trap.getCellRef().getTrap().empty())
             return;
 
-        int uses = probe.getClass().getItemHealth(probe);
+        std::int32_t uses = probe.getClass().getItemHealth(probe);
         if (uses == 0)
             return;
 
@@ -92,7 +93,7 @@ namespace MWMechanics
 
         const ESM::Spell* trapSpell
             = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().find(trap.getCellRef().getTrap());
-        int trapSpellPoints = MWMechanics::calcSpellCost(*trapSpell);
+        std::int32_t trapSpellPoints = MWMechanics::calcSpellCost(*trapSpell);
 
         float fTrapCostMult = MWBase::Environment::get()
                                   .getESMStore()

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 
@@ -30,9 +31,9 @@ namespace Terrain
     {
     public:
         QuadTreeWorld(osg::Group* parent, osg::Group* compileRoot, Resource::ResourceSystem* resourceSystem,
-            Storage* storage, unsigned int nodeMask, unsigned int preCompileMask, unsigned int borderMask,
-            int compMapResolution, float compMapLevel, float lodFactor, int vertexLodMod, float maxCompGeometrySize,
-            bool debugChunks, ESM::RefId worldspace, double expiryDelay);
+            Storage* storage, std::uint32_t nodeMask, std::uint32_t preCompileMask, std::uint32_t borderMask,
+            std::int32_t compMapResolution, float compMapLevel, float lodFactor, std::int32_t vertexLodMod,
+            float maxCompGeometrySize, bool debugChunks, ESM::RefId worldspace, double expiryDelay);
 
         ~QuadTreeWorld() override;
 
@@ -42,18 +43,18 @@ namespace Terrain
 
         void setViewDistance(float distance) override;
 
-        void cacheCell(View* view, int x, int y) override {}
+        void cacheCell(View* view, std::int32_t x, std::int32_t y) override {}
         /// @note Not thread safe.
-        void loadCell(int x, int y) override;
+        void loadCell(std::int32_t x, std::int32_t y) override;
         /// @note Not thread safe.
-        void unloadCell(int x, int y) override;
+        void unloadCell(std::int32_t x, std::int32_t y) override;
 
         std::unique_ptr<View> createView() override;
         void preload(View* view, const osg::Vec3f& viewPoint, const osg::Vec4i& cellgrid, std::atomic<bool>& abort,
             Loading::Reporter& reporter) override;
         void rebuildViews() override;
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) override;
 
         class ChunkManager
         {
@@ -65,23 +66,23 @@ namespace Terrain
             {
                 mWorldspace = worldspace;
             }
-            virtual osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, unsigned char lod,
-                unsigned int lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile) = 0;
-            virtual unsigned int getNodeMask() { return 0; }
+            virtual osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, std::uint8_t lod,
+                std::uint32_t lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile) = 0;
+            virtual std::uint32_t getNodeMask() { return 0; }
 
             void setViewDistance(float viewDistance) { mViewDistance = viewDistance; }
             float getViewDistance() const { return mViewDistance; }
 
             // Automatically set by addChunkManager based on getViewDistance()
-            unsigned int getMaxLodLevel() const { return mMaxLodLevel; }
-            void setMaxLodLevel(unsigned int level) { mMaxLodLevel = level; }
+            std::uint32_t getMaxLodLevel() const { return mMaxLodLevel; }
+            void setMaxLodLevel(std::uint32_t level) { mMaxLodLevel = level; }
 
         protected:
             ESM::RefId mWorldspace = ESM::RefId();
 
         private:
             float mViewDistance = 0.f;
-            unsigned int mMaxLodLevel = ~0u;
+            std::uint32_t mMaxLodLevel = ~0u;
         };
         void addChunkManager(ChunkManager*);
 
@@ -99,7 +100,7 @@ namespace Terrain
         std::mutex mQuadTreeMutex;
         bool mQuadTreeBuilt;
         float mLodFactor;
-        int mVertexLodMod;
+        std::int32_t mVertexLodMod;
         float mViewDistance;
         float mMinSize;
         bool mDebugTerrainChunks;

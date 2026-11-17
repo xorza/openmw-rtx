@@ -1,5 +1,6 @@
 #include "magiceffectcheck.hpp"
 
+#include <cstdint>
 #include <format>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -42,14 +43,14 @@ CSMTools::MagicEffectCheckStage::MagicEffectCheckStage(const CSMWorld::IdCollect
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::MagicEffectCheckStage::setup()
+std::int32_t CSMTools::MagicEffectCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mMagicEffects.getSize();
 }
 
-void CSMTools::MagicEffectCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::MagicEffectCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::MagicEffect>& record = mMagicEffects.getRecord(stage);
 

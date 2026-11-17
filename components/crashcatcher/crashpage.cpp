@@ -56,7 +56,7 @@ namespace Crash
         std::atomic_ref(page->mMonitorAnswer).store(static_cast<std::uint32_t>(answer), std::memory_order_release);
     }
 
-    void SharedPage::setEnd(const int code) const
+    void SharedPage::setEnd(const std::int32_t code) const
     {
         Heartbeat* const page = get();
         if (page == nullptr)
@@ -65,12 +65,12 @@ namespace Crash
         std::atomic_ref(page->mEnd).store(sEndReached, std::memory_order_release);
     }
 
-    std::optional<int> SharedPage::getEnd() const
+    std::optional<std::int32_t> SharedPage::getEnd() const
     {
         Heartbeat* const page = get();
         if (page == nullptr || std::atomic_ref(page->mEnd).load(std::memory_order_acquire) != sEndReached)
             return std::nullopt;
-        return static_cast<int>(std::atomic_ref(page->mExitCode).load(std::memory_order_relaxed));
+        return static_cast<std::int32_t>(std::atomic_ref(page->mExitCode).load(std::memory_order_relaxed));
     }
 
     SharedPage SharedPage::open(std::uint32_t process)

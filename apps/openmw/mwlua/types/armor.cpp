@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <components/esm3/loadarmo.hpp>
 #include <components/lua/luastate.hpp>
@@ -48,7 +50,7 @@ namespace
             armor.mData.mValue = rec["value"];
         if (rec["type"] != sol::nil)
         {
-            int armorType = rec["type"].get<int>();
+            std::int32_t armorType = rec["type"].get<std::int32_t>();
             if (armorType >= 0 && armorType <= ESM::Armor::RBracer)
                 armor.mData.mType = armorType;
             else
@@ -59,7 +61,7 @@ namespace
         if (rec["baseArmor"] != sol::nil)
             armor.mData.mArmor = rec["baseArmor"];
         if (rec["enchantCapacity"] != sol::nil)
-            armor.mData.mEnchant = static_cast<int32_t>(std::round(rec["enchantCapacity"].get<float>() * 10));
+            armor.mData.mEnchant = static_cast<std::int32_t>(std::round(rec["enchantCapacity"].get<float>() * 10));
 
         return armor;
     }
@@ -70,7 +72,7 @@ namespace MWLua
     void addArmorBindings(sol::table armor, const Context& context)
     {
         sol::state_view lua = context.sol();
-        armor["TYPE"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(lua,
+        armor["TYPE"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, std::int32_t>(lua,
             {
                 { "Helmet", ESM::Armor::Helmet },
                 { "Cuirass", ESM::Armor::Cuirass },
@@ -103,10 +105,13 @@ namespace MWLua
         record["enchant"] = sol::readonly_property([](const ESM::Armor& rec) -> ESM::RefId { return rec.mEnchant; });
         record["mwscript"] = sol::readonly_property([](const ESM::Armor& rec) -> ESM::RefId { return rec.mScript; });
         record["weight"] = sol::readonly_property([](const ESM::Armor& rec) -> float { return rec.mData.mWeight; });
-        record["value"] = sol::readonly_property([](const ESM::Armor& rec) -> int { return rec.mData.mValue; });
-        record["type"] = sol::readonly_property([](const ESM::Armor& rec) -> int { return rec.mData.mType; });
-        record["health"] = sol::readonly_property([](const ESM::Armor& rec) -> int { return rec.mData.mHealth; });
-        record["baseArmor"] = sol::readonly_property([](const ESM::Armor& rec) -> int { return rec.mData.mArmor; });
+        record["value"]
+            = sol::readonly_property([](const ESM::Armor& rec) -> std::int32_t { return rec.mData.mValue; });
+        record["type"] = sol::readonly_property([](const ESM::Armor& rec) -> std::int32_t { return rec.mData.mType; });
+        record["health"]
+            = sol::readonly_property([](const ESM::Armor& rec) -> std::int32_t { return rec.mData.mHealth; });
+        record["baseArmor"]
+            = sol::readonly_property([](const ESM::Armor& rec) -> std::int32_t { return rec.mData.mArmor; });
         record["enchantCapacity"] = sol::readonly_property(
             [](const ESM::Armor& rec) -> float { return static_cast<float>(rec.mData.mEnchant) * 0.1f; });
     }

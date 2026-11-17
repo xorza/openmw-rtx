@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 
 namespace DetourNavigator
@@ -41,7 +43,7 @@ namespace DetourNavigator
         T* mBegin;
         T* mEnd;
 
-        constexpr explicit Span(T* data, int size) noexcept
+        constexpr explicit Span(T* data, std::int32_t size) noexcept
             : mBegin(data)
             , mEnd(data + static_cast<std::size_t>(size))
         {

@@ -1,3 +1,6 @@
+#include <cstddef>
+#include <cstdint>
+
 #include <apps/openmw/mwbase/dialoguemanager.hpp>
 #include <apps/openmw/mwbase/inputmanager.hpp>
 #include <apps/openmw/mwbase/journal.hpp>
@@ -133,8 +136,8 @@ namespace MWLua
         {
             auto journalBindingsClass = lua.new_usertype<MWBase::Journal>("MWDialogue_Journal");
             journalBindingsClass[sol::meta_function::to_string] = [](const MWBase::Journal& store) {
-                const size_t numberOfTopics = store.getTopics().size();
-                const size_t numberOfJournalEntries = store.getEntries().size();
+                const std::size_t numberOfTopics = store.getTopics().size();
+                const std::size_t numberOfJournalEntries = store.getEntries().size();
                 return "{MWDialogue_Journal: " + std::to_string(numberOfTopics) + " topic entries, "
                     + std::to_string(numberOfJournalEntries) + " journal entries}";
             };
@@ -148,7 +151,7 @@ namespace MWLua
         {
             auto topicsBindingsClass = lua.new_usertype<MWLua::Topics>("MWDialogue_Journal_Topics");
             topicsBindingsClass[sol::meta_function::to_string] = [journal](const MWLua::Topics& topicEntriesStore) {
-                const size_t numberOfTopics = journal->getTopics().size();
+                const std::size_t numberOfTopics = journal->getTopics().size();
                 return "{MWDialogue_Journal_Topics: " + std::to_string(numberOfTopics) + " topics}";
             };
             topicsBindingsClass[sol::meta_function::index]
@@ -160,7 +163,7 @@ namespace MWLua
                 return &it->second;
             };
             topicsBindingsClass[sol::meta_function::length]
-                = [journal](const MWLua::Topics&) -> size_t { return journal->getTopics().size(); };
+                = [journal](const MWLua::Topics&) -> std::size_t { return journal->getTopics().size(); };
             topicsBindingsClass[sol::meta_function::pairs] = [journal](const MWLua::Topics&) {
                 auto iterator = journal->getTopics().begin();
                 return sol::as_function(
@@ -203,7 +206,7 @@ namespace MWLua
                 return topic.size();
             };
             topicEntriesBindingsClass[sol::meta_function::index]
-                = [journal](const MWLua::TopicEntries& topicEntries, size_t index) -> const MWDialogue::Entry* {
+                = [journal](const MWLua::TopicEntries& topicEntries, std::size_t index) -> const MWDialogue::Entry* {
                 const MWDialogue::Topic& topic = getTopicDataOrThrow(topicEntries.mTopicId, journal);
 
                 if (index == 0 || index > topic.size())
@@ -234,14 +237,14 @@ namespace MWLua
             auto journalEntriesBindingsClass
                 = lua.new_usertype<MWLua::JournalEntries>("MWDialogue_Journal_WrittenEntries");
             journalEntriesBindingsClass[sol::meta_function::to_string] = [journal](const MWLua::JournalEntries&) {
-                const size_t numberOfEntries = journal->getEntries().size();
+                const std::size_t numberOfEntries = journal->getEntries().size();
                 return "{MWDialogue_Journal_WrittenEntries: " + std::to_string(numberOfEntries)
                     + " journal text entries}";
             };
             journalEntriesBindingsClass[sol::meta_function::length]
                 = [journal](const MWLua::JournalEntries&) { return journal->getEntries().size(); };
             journalEntriesBindingsClass[sol::meta_function::index]
-                = [journal](const MWLua::JournalEntries&, size_t index) -> const MWDialogue::StampedJournalEntry* {
+                = [journal](const MWLua::JournalEntries&, std::size_t index) -> const MWDialogue::StampedJournalEntry* {
                 if (index == 0 || index > journal->getEntries().size())
                     return nullptr;
                 index = static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
@@ -323,7 +326,7 @@ namespace MWLua
             std::vector<ESM::RefId> ids;
             for (const auto& [id, _] : journal->getQuests())
                 ids.push_back(id);
-            size_t i = 0;
+            std::size_t i = 0;
             return [ids = std::move(ids), i,
                        allowChanges = self.mMutable]() mutable -> sol::optional<std::tuple<std::string, Quest>> {
                 if (i >= ids.size())
@@ -337,13 +340,13 @@ namespace MWLua
         quest[sol::meta_function::to_string]
             = [](const Quest& self) { return "Quest[" + self.mQuestId.serializeText() + "]"; };
 
-        auto getQuestStage = [journal](const Quest& self) -> int {
+        auto getQuestStage = [journal](const Quest& self) -> std::int32_t {
             const MWDialogue::Quest* questPtr = journal->getQuestOrNull(self.mQuestId);
             if (questPtr == nullptr)
                 return 0;
             return journal->getJournalIndex(self.mQuestId);
         };
-        auto setQuestStage = [context](const Quest& self, int stage) {
+        auto setQuestStage = [context](const Quest& self, std::int32_t stage) {
             if (!self.mMutable)
                 throw std::runtime_error("Value can only be changed in global or player scripts!");
             context.mLuaManager->addAction(
@@ -369,7 +372,7 @@ namespace MWLua
                     [q, finished, journal] { journal->getOrStartQuest(q.mQuestId).setFinished(finished); },
                     "setQuestFinishedAction");
             });
-        quest["addJournalEntry"] = [context](const Quest& q, int stage, sol::optional<GObject> actor) {
+        quest["addJournalEntry"] = [context](const Quest& q, std::int32_t stage, sol::optional<GObject> actor) {
             if (!q.mMutable)
                 throw std::runtime_error("Can only be used in global or player scripts!");
             // The journal mwscript function has a try function here, we will make the lua function throw an
@@ -438,11 +441,11 @@ namespace MWLua
             context.mLuaEvents->addMenuEvent({ std::move(eventName), LuaUtil::serialize(eventData) });
         };
 
-        player["getCrimeLevel"] = [](const Object& o) -> int {
+        player["getCrimeLevel"] = [](const Object& o) -> std::int32_t {
             const MWWorld::Class& cls = o.ptr().getClass();
             return cls.getNpcStats(o.ptr()).getBounty();
         };
-        player["setCrimeLevel"] = [](const Object& o, int amount) {
+        player["setCrimeLevel"] = [](const Object& o, std::int32_t amount) {
             verifyPlayer(o);
             if (!o.isGObject())
                 throw std::runtime_error("Only global scripts can change crime level");
@@ -456,34 +459,35 @@ namespace MWLua
         };
 
         player["OFFENSE_TYPE"]
-            = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(context.sol(),
+            = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, std::int32_t>(context.sol(),
                 { { "Theft", MWBase::MechanicsManager::OffenseType::OT_Theft },
                     { "Assault", MWBase::MechanicsManager::OffenseType::OT_Assault },
                     { "Murder", MWBase::MechanicsManager::OffenseType::OT_Murder },
                     { "Trespassing", MWBase::MechanicsManager::OffenseType::OT_Trespassing },
                     { "SleepingInOwnedBed", MWBase::MechanicsManager::OffenseType::OT_SleepingInOwnedBed },
                     { "Pickpocket", MWBase::MechanicsManager::OffenseType::OT_Pickpocket } }));
-        player["_runStandardCommitCrime"] = [](const Object& o, const sol::optional<Object>& victim, int type,
-                                                std::string_view faction, int arg = 0, bool victimAware = false) {
-            verifyPlayer(o);
-            if (victim.has_value() && !victim->ptrOrEmpty().isEmpty())
-                verifyNpc(victim->ptrOrEmpty().getClass());
-            if (!o.isGObject())
-                throw std::runtime_error("Only global scripts can commit crime");
-            if (type < 0 || type > MWBase::MechanicsManager::OffenseType::OT_Pickpocket)
-                throw std::runtime_error("Invalid offense type");
+        player["_runStandardCommitCrime"]
+            = [](const Object& o, const sol::optional<Object>& victim, std::int32_t type, std::string_view faction,
+                  std::int32_t arg = 0, bool victimAware = false) {
+                  verifyPlayer(o);
+                  if (victim.has_value() && !victim->ptrOrEmpty().isEmpty())
+                      verifyNpc(victim->ptrOrEmpty().getClass());
+                  if (!o.isGObject())
+                      throw std::runtime_error("Only global scripts can commit crime");
+                  if (type < 0 || type > MWBase::MechanicsManager::OffenseType::OT_Pickpocket)
+                      throw std::runtime_error("Invalid offense type");
 
-            ESM::RefId factionId = parseFactionId(faction);
-            // If the faction is provided but not found, error out
-            if (!faction.empty() && factionId == ESM::RefId())
-                throw std::runtime_error("Faction does not exist");
+                  ESM::RefId factionId = parseFactionId(faction);
+                  // If the faction is provided but not found, error out
+                  if (!faction.empty() && factionId == ESM::RefId())
+                      throw std::runtime_error("Faction does not exist");
 
-            MWWorld::Ptr victimObj = nullptr;
-            if (victim.has_value())
-                victimObj = victim->ptrOrEmpty();
-            return MWBase::Environment::get().getMechanicsManager()->commitCrime(o.ptr(), victimObj,
-                static_cast<MWBase::MechanicsManager::OffenseType>(type), factionId, arg, victimAware);
-        };
+                  MWWorld::Ptr victimObj = nullptr;
+                  if (victim.has_value())
+                      victimObj = victim->ptrOrEmpty();
+                  return MWBase::Environment::get().getMechanicsManager()->commitCrime(o.ptr(), victimObj,
+                      static_cast<MWBase::MechanicsManager::OffenseType>(type), factionId, arg, victimAware);
+              };
 
         player["birthSigns"] = initBirthSignRecordBindings(context);
         player["getBirthSign"] = [](const Object& object) -> std::string {

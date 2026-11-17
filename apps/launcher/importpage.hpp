@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/process/processinvoker.hpp>
 
 #include "maindialog.hpp"
@@ -41,10 +43,10 @@ namespace Launcher
         void on_browseButton_clicked();
 
         void wizardStarted();
-        void wizardFinished(int exitCode, QProcess::ExitStatus exitStatus);
+        void wizardFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
 
         void importerStarted();
-        void importerFinished(int exitCode, QProcess::ExitStatus exitStatus);
+        void importerFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
 
     private:
         Process::ProcessInvoker* mWizardInvoker;

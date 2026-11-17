@@ -1,5 +1,6 @@
 #include "result.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <volk.h>
@@ -88,7 +89,7 @@ namespace Rtx
             message += " failed: ";
             message += resultName(result);
             message += " (";
-            message += std::to_string(static_cast<int>(result));
+            message += std::to_string(static_cast<std::int32_t>(result));
             message += ')';
             return message;
         }

@@ -1,5 +1,6 @@
 #include "livecellref.hpp"
 
+#include <cstdint>
 #include <sstream>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -16,21 +17,21 @@
 
 namespace MWWorld
 {
-    LiveCellRefBase::LiveCellRefBase(unsigned int type, const ESM::CellRef& cref)
+    LiveCellRefBase::LiveCellRefBase(std::uint32_t type, const ESM::CellRef& cref)
         : mClass(&Class::get(type))
         , mRef(cref)
         , mData(cref)
     {
     }
 
-    LiveCellRefBase::LiveCellRefBase(unsigned int type, const ESM4::Reference& cref)
+    LiveCellRefBase::LiveCellRefBase(std::uint32_t type, const ESM4::Reference& cref)
         : mClass(&Class::get(type))
         , mRef(cref)
         , mData(cref)
     {
     }
 
-    LiveCellRefBase::LiveCellRefBase(unsigned int type, const ESM4::ActorCharacter& cref)
+    LiveCellRefBase::LiveCellRefBase(std::uint32_t type, const ESM4::ActorCharacter& cref)
         : mClass(&Class::get(type))
         , mRef(cref)
         , mData(cref)
@@ -120,7 +121,7 @@ namespace MWWorld
         return true;
     }
 
-    unsigned int LiveCellRefBase::getType() const
+    std::uint32_t LiveCellRefBase::getType() const
     {
         return mClass->getType();
     }

@@ -1,6 +1,8 @@
 #include "groundreader.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <osg/Array>
@@ -35,19 +37,19 @@ namespace Rtx
                 // divide here would move the picture by a bit and the scene digests with it.
                 constexpr float perByte = 1.0f / 255.0f;
 
-                for (int row = 0; row < image.t(); ++row)
+                for (std::int32_t row = 0; row < image.t(); ++row)
                 {
-                    const unsigned char* along = image.data(0, static_cast<unsigned int>(row));
-                    for (int column = 0; column < image.s(); ++column)
+                    const std::uint8_t* along = image.data(0, static_cast<std::uint32_t>(row));
+                    for (std::int32_t column = 0; column < image.s(); ++column)
                         weights.push_back(static_cast<float>(along[column]) * perByte);
                 }
                 return;
             }
 
-            for (int row = 0; row < image.t(); ++row)
-                for (int column = 0; column < image.s(); ++column)
+            for (std::int32_t row = 0; row < image.t(); ++row)
+                for (std::int32_t column = 0; column < image.s(); ++column)
                     weights.push_back(
-                        image.getColor(static_cast<unsigned int>(column), static_cast<unsigned int>(row)).a());
+                        image.getColor(static_cast<std::uint32_t>(column), static_cast<std::uint32_t>(row)).a());
         }
     }
 
@@ -60,17 +62,17 @@ namespace Rtx
         , mEsm4(ESM::isEsm4Ext(worldspace))
     {
         Terrain::BufferCache buffers;
-        copyGrid(buffers, static_cast<unsigned int>(mVerts), mGridIndices, mGridCorners);
+        copyGrid(buffers, static_cast<std::uint32_t>(mVerts), mGridIndices, mGridCorners);
         copyGrid(buffers, 2, mQuadIndices, mQuadCorners);
     }
 
-    osg::Vec4f GroundReader::diffuseTransform(const int tileCount)
+    osg::Vec4f GroundReader::diffuseTransform(const std::int32_t tileCount)
     {
         const auto tiles = static_cast<float>(tileCount);
         return osg::Vec4f(tiles, tiles, 0.0f, 0.0f);
     }
 
-    osg::Vec4f GroundReader::maskTransform(const int tileCount)
+    osg::Vec4f GroundReader::maskTransform(const std::int32_t tileCount)
     {
         const auto tiles = static_cast<float>(tileCount);
         const float scale = tiles / (tiles + 1.0f);
@@ -81,7 +83,7 @@ namespace Rtx
         return osg::Vec4f(scale, scale, (nudge - 0.5f) * scale + 0.5f, (-nudge - 0.5f) * scale + 0.5f);
     }
 
-    void GroundReader::copyGrid(Terrain::BufferCache& buffers, const unsigned int verts,
+    void GroundReader::copyGrid(Terrain::BufferCache& buffers, const std::uint32_t verts,
         std::vector<std::uint32_t>& indices, std::vector<osg::Vec2f>& corners)
     {
         // The rasterizer's own triangles and corners, with no stitching flags: a vertex is
@@ -91,7 +93,7 @@ namespace Rtx
         const osg::ref_ptr<osg::DrawElements> triangles = buffers.getIndexBuffer(verts, 0);
         indices.clear();
         indices.reserve(triangles->getNumIndices());
-        for (unsigned int at = 0; at < triangles->getNumIndices(); ++at)
+        for (std::uint32_t at = 0; at < triangles->getNumIndices(); ++at)
             indices.push_back(triangles->index(at));
 
         const osg::ref_ptr<osg::Vec2Array> uvs = buffers.getUVBuffer(verts);

@@ -1,9 +1,11 @@
 #include "infotableproxymodel.hpp"
 
+#include <cstdint>
+#include <string>
+
 #include <QModelIndex>
 #include <QObject>
 #include <QString>
-#include <string>
 
 #include <components/misc/strings/lower.hpp>
 
@@ -56,12 +58,12 @@ bool CSMWorld::InfoTableProxyModel::lessThan(const QModelIndex& left, const QMod
     return IdTableProxyModel::lessThan(first, second);
 }
 
-int CSMWorld::InfoTableProxyModel::getFirstInfoRow(int currentRow) const
+std::int32_t CSMWorld::InfoTableProxyModel::getFirstInfoRow(std::int32_t currentRow) const
 {
     Q_ASSERT(mSourceModel != nullptr);
 
-    int row = currentRow;
-    int column = mInfoColumnIndex;
+    std::int32_t row = currentRow;
+    std::int32_t column = mInfoColumnIndex;
     QString info = toLower(mSourceModel->data(mSourceModel->index(row, column)).toString());
 
     if (mFirstRowCache.contains(info))
@@ -79,12 +81,14 @@ int CSMWorld::InfoTableProxyModel::getFirstInfoRow(int currentRow) const
     return row;
 }
 
-void CSMWorld::InfoTableProxyModel::sourceRowsRemoved(const QModelIndex& /*parent*/, int /*start*/, int /*end*/)
+void CSMWorld::InfoTableProxyModel::sourceRowsRemoved(
+    const QModelIndex& /*parent*/, std::int32_t /*start*/, std::int32_t /*end*/)
 {
     mFirstRowCache.clear();
 }
 
-void CSMWorld::InfoTableProxyModel::sourceRowsInserted(const QModelIndex& parent, int /*start*/, int end)
+void CSMWorld::InfoTableProxyModel::sourceRowsInserted(
+    const QModelIndex& parent, std::int32_t /*start*/, std::int32_t end)
 {
     if (!parent.isValid())
     {
@@ -101,7 +105,7 @@ void CSMWorld::InfoTableProxyModel::sourceDataChanged(const QModelIndex& topLeft
     {
         // Now the topic of the last added row is set,
         // so we can re-sort the model to ensure the corrent position of this row
-        int column = sortColumn();
+        std::int32_t column = sortColumn();
         Qt::SortOrder order = sortOrder();
         sort(mInfoColumnIndex); // Restore the correct position of an added row
         sort(column, order); // Restore the original sort order

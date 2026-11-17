@@ -1,5 +1,7 @@
 #include "sky.hpp"
 
+#include <cstdint>
+
 #include <osg/Depth>
 #include <osg/PositionAttitudeTransform>
 #include <osgParticle/ModularEmitter>
@@ -68,13 +70,13 @@ namespace
                 toLocal.invert(toWorld);
             }
 
-            for (int i = 0; i < ps->numParticles(); ++i)
+            for (std::int32_t i = 0; i < ps->numParticles(); ++i)
             {
                 osgParticle::Particle* p = ps->getParticle(i);
                 p->setPosition(toWorld.preMult(p->getPosition()));
                 p->setPosition(p->getPosition() - positionDifference);
 
-                for (int j = 0; j < 3; ++j) // wrap-around in all 3 dimensions
+                for (std::int32_t j = 0; j < 3; ++j) // wrap-around in all 3 dimensions
                 {
                     osg::Vec3 pos = p->getPosition();
 
@@ -201,8 +203,8 @@ namespace
     {
     public:
         SkyRTT(osg::Vec2f size, osg::Group* earlyRenderBinRoot)
-            : RTTNode(static_cast<std::uint32_t>(static_cast<int>(size.x())),
-                  static_cast<std::uint32_t>(static_cast<int>(size.y())), 0, false, 1, StereoAwareness::Aware,
+            : RTTNode(static_cast<std::uint32_t>(static_cast<std::int32_t>(size.x())),
+                  static_cast<std::uint32_t>(static_cast<std::int32_t>(size.y())), 0, false, 1, StereoAwareness::Aware,
                   MWRender::shouldAddMSAAIntermediateTarget())
             , mEarlyRenderBinRoot(earlyRenderBinRoot)
         {
@@ -692,7 +694,7 @@ namespace MWRender
                     program->setParticleSystem(ps);
                     mParticleNode->addChild(program);
 
-                    for (int particleIndex = 0; particleIndex < ps->numParticles(); ++particleIndex)
+                    for (std::int32_t particleIndex = 0; particleIndex < ps->numParticles(); ++particleIndex)
                     {
                         ps->getParticle(particleIndex)
                             ->setAlphaRange(osgParticle::rangef(mPrecipitationAlpha, mPrecipitationAlpha));

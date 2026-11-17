@@ -1,5 +1,7 @@
 #include "application.hpp"
 
+#include <cstdint>
+
 #include <QFile>
 #include <QOperatingSystemVersion>
 #include <QStyle>
@@ -36,7 +38,7 @@ namespace Platform
         }
     }
 
-    Application::Application(int& argc, char* argv[], const Look look)
+    Application::Application(std::int32_t& argc, char* argv[], const Look look)
         : QApplication(argc, argv)
     {
         qInstallMessageHandler(qtMessageHandler);

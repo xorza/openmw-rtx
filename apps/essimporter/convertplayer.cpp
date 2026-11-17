@@ -1,6 +1,8 @@
 #include "convertplayer.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/constants.hpp>
@@ -24,13 +26,13 @@ namespace ESSImport
             faction.mReputation = essFaction.mReputation;
             out.mObject.mNpcStats.mFactions[ESM::RefId::stringRefId(essFaction.mFactionName.toString())] = faction;
         }
-        for (size_t i = 0; i < out.mObject.mNpcStats.mSpecIncreases.size(); ++i)
+        for (std::size_t i = 0; i < out.mObject.mNpcStats.mSpecIncreases.size(); ++i)
             out.mObject.mNpcStats.mSpecIncreases[i] = pcdt.mPNAM.mSpecIncreases[i];
-        for (int i = 0; i < ESM::Attribute::Length; ++i)
+        for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
             out.mObject.mNpcStats.mSkillIncrease[ESM::Attribute::indexToRefId(i)] = pcdt.mPNAM.mSkillIncreases[i];
-        for (int i = 0; i < ESM::Skill::Length; ++i)
+        for (std::int32_t i = 0; i < ESM::Skill::Length; ++i)
             out.mObject.mNpcStats.mSkills[ESM::Skill::indexToRefId(i)].mProgress = pcdt.mPNAM.mSkillProgress[i];
-        out.mObject.mNpcStats.mLevelProgress = static_cast<int32_t>(pcdt.mPNAM.mLevelProgress);
+        out.mObject.mNpcStats.mLevelProgress = static_cast<std::int32_t>(pcdt.mPNAM.mLevelProgress);
 
         if (pcdt.mPNAM.mPlayerFlags & PCDT::PlayerFlags_WeaponDrawn)
             out.mObject.mCreatureStats.mDrawState = 1;

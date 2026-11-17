@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <limits>
 #include <string_view>
 
@@ -49,7 +50,7 @@ namespace Misc
     struct FrameBounds
     {
         osg::Vec2i mSmallest{ 1, 1 };
-        osg::Vec2i mLargest{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
+        osg::Vec2i mLargest{ std::numeric_limits<std::int32_t>::max(), std::numeric_limits<std::int32_t>::max() };
 
         /// `frame` with each side held inside the bounds on its own: a frame asked outside them is
         /// drawn at the nearest one the renderer can draw, and its aspect goes where it must.

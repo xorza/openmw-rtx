@@ -1,11 +1,12 @@
 #include "collisionshapetype.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
 namespace DetourNavigator
 {
-    CollisionShapeType toCollisionShapeType(int value)
+    CollisionShapeType toCollisionShapeType(std::int32_t value)
     {
         switch (static_cast<CollisionShapeType>(value))
         {

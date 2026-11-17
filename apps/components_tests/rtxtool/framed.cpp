@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -151,8 +152,8 @@ namespace RtxTool
             Settings::VideoCategory& video = Settings::video();
             const float limit = video.mFramerateLimit;
             const SDLUtil::VSyncMode sync = video.mVsyncMode;
-            const int width = video.mResolutionX;
-            const int height = video.mResolutionY;
+            const std::int32_t width = video.mResolutionX;
+            const std::int32_t height = video.mResolutionY;
             const Settings::WindowMode mode = video.mWindowMode;
             const float fieldOfView = Settings::camera().mFieldOfView;
             video.mFramerateLimit.set(72.0f);

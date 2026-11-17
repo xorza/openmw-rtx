@@ -1,6 +1,7 @@
 #include "quadtreenode.hpp"
 
 #include <cassert>
+#include <cstdint>
 
 #include "defs.hpp"
 #include "viewdata.hpp"
@@ -36,7 +37,7 @@ namespace Terrain
         ChildDirection reflect(ChildDirection dir, Direction dir2)
         {
             assert(dir != Root);
-            const int lookupTable[4][4] = {
+            const std::int32_t lookupTable[4][4] = {
                 // NW  NE  SW  SE
                 { SW, SE, NW, NE }, // N
                 { NE, NW, SE, SW }, // E
@@ -103,10 +104,10 @@ namespace Terrain
 
     void QuadTreeNode::initNeighbours()
     {
-        for (int i = 0; i < 4; ++i)
+        for (std::int32_t i = 0; i < 4; ++i)
             mNeighbours[i] = searchNeighbour(this, static_cast<Direction>(i));
 
-        for (unsigned int i = 0; i < getNumChildren(); ++i)
+        for (std::uint32_t i = 0; i < getNumChildren(); ++i)
             getChild(i)->initNeighbours();
     }
 
@@ -119,7 +120,7 @@ namespace Terrain
             return;
         else if (lodResult == LodCallback::Deeper && getNumChildren())
         {
-            for (unsigned int i = 0; i < getNumChildren(); ++i)
+            for (std::uint32_t i = 0; i < getNumChildren(); ++i)
                 getChild(i)->traverseNodes(vd, viewPoint, lodCallback);
         }
         else

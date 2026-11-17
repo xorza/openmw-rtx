@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/ref_ptr>
 
 #include "guirendermanager.hpp"
@@ -108,7 +111,7 @@ namespace MyGUIPlatform
         /** @see IRenderTarget::end */
         void end() override;
         /** @see IRenderTarget::doRender */
-        void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count) override;
+        void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, std::size_t count) override;
 
         /** specify a StateSet to inject for rendering. The StateSet will be used by future doRender calls until you
          * reset it to nullptr again. */
@@ -120,7 +123,7 @@ namespace MyGUIPlatform
         /** @see IRenderTarget::getInfo */
         const MyGUI::RenderTargetInfo& getInfo() const override { return mInfo; }
 
-        void setViewSize(int width, int height) override;
+        void setViewSize(std::int32_t width, std::int32_t height) override;
 
         void registerShader(const std::string& shaderName, const std::string& vertexProgramFile,
             const std::string& fragmentProgramFile) override;

@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 
 #include <gtest/gtest.h>
@@ -535,7 +536,7 @@ namespace Rtx::Testing
             // 300 actors with no flame against the world's room of 256 glows: each asks for none.
             ASSERT_LT(sWorldExtractorRoom.mEffects, 300u);
             osg::ref_ptr<osg::Group> town = new osg::Group;
-            for (int at = 0; at < 300; ++at)
+            for (std::int32_t at = 0; at < 300; ++at)
             {
                 osg::ref_ptr<osg::Group> bystander = new osg::Group;
                 bystander->setNodeMask(sActor);
@@ -578,7 +579,7 @@ namespace Rtx::Testing
 
             // A slow pulse turns once in two seconds. Eight samples across it put one within an
             // eighth of a turn of an end, so the deepest is at least `0.75 * 0.375` from the middle.
-            for (int i = 0; i < 8; ++i)
+            for (std::int32_t i = 0; i < 8; ++i)
             {
                 const float lit = litAt(static_cast<double>(i) * 0.25);
 

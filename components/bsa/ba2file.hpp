@@ -5,8 +5,8 @@
 
 namespace Bsa
 {
-    uint32_t generateHash(std::string_view name);
-    uint32_t generateExtensionHash(std::string_view extension);
+    std::uint32_t generateHash(std::string_view name);
+    std::uint32_t generateExtensionHash(std::string_view extension);
 
     enum class BA2Version : std::uint32_t
     {

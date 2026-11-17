@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <concepts>
+#include <cstdint>
 #include <random>
 #include <string_view>
 
@@ -19,10 +20,10 @@ namespace Misc::Rng
     void deserialize(std::string_view data, Generator& prng);
 
     /// returns default seed for RNG
-    unsigned int generateDefaultSeed();
+    std::uint32_t generateDefaultSeed();
 
     /// seed the RNG
-    void init(unsigned int seed = generateDefaultSeed());
+    void init(std::uint32_t seed = generateDefaultSeed());
 
     /// return value in range [0.0f, 1.0f)  <- note open upper range.
     float rollProbability(Generator& prng = getGenerator());
@@ -38,7 +39,7 @@ namespace Misc::Rng
     }
 
     /// return value in range [0, 99]
-    inline int roll0to99(Generator& prng = getGenerator())
+    inline std::int32_t roll0to99(Generator& prng = getGenerator())
     {
         return rollDice(100, prng);
     }

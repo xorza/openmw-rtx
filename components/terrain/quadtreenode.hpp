@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Group>
 
 #include "defs.hpp"
@@ -46,8 +48,8 @@ namespace Terrain
         inline QuadTreeNode* getParent() { return mParent; }
         // Hides the base's member on purpose: it is called through the derived type.
         // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
-        inline QuadTreeNode* getChild(unsigned int i) { return static_cast<QuadTreeNode*>(Group::getChild(i)); }
-        inline unsigned int getNumChildren() const override { return static_cast<unsigned int>(_children.size()); }
+        inline QuadTreeNode* getChild(std::uint32_t i) { return static_cast<QuadTreeNode*>(Group::getChild(i)); }
+        inline std::uint32_t getNumChildren() const override { return static_cast<std::uint32_t>(_children.size()); }
 
         // osg::Group::addChild() does a lot of unrelated stuff, but we just really want to add a child node.
         void addChildNode(QuadTreeNode* child)

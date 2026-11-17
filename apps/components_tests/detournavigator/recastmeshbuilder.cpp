@@ -1,5 +1,7 @@
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -69,7 +71,7 @@ namespace
         RecastMeshBuilder builder(mBounds);
         const auto recastMesh = std::move(builder).create(mVersion);
         EXPECT_EQ(recastMesh->getMesh().getVertices(), std::vector<float>());
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>());
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>());
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>());
     }
 
@@ -89,7 +91,7 @@ namespace
                 1, -1, 0 // vertex 2
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 1, 0 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 1, 0 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground }));
     }
 
@@ -109,7 +111,7 @@ namespace
                 2, 0, 3 // vertex 2
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 1, 0 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 1, 0 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground }));
     }
 
@@ -128,7 +130,7 @@ namespace
                 0.5, 0.5, 0 // vertex 3
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 0, 1, 2, 2, 1, 3 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 0, 1, 2, 2, 1, 3 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground, AreaType_ground }));
     }
 
@@ -151,7 +153,7 @@ namespace
             }))
             << recastMesh->getMesh().getVertices();
         EXPECT_EQ(recastMesh->getMesh().getIndices(),
-            std::vector<int>({
+            std::vector<std::int32_t>({
                 0, 1, 5, // triangle 0
                 0, 2, 3, // triangle 1
                 0, 4, 6, // triangle 2
@@ -202,7 +204,7 @@ namespace
             }))
             << recastMesh->getMesh().getVertices();
         EXPECT_EQ(recastMesh->getMesh().getIndices(),
-            std::vector<int>({
+            std::vector<std::int32_t>({
                 0, 2, 8, // triangle 0
                 0, 3, 5, // triangle 1
                 0, 6, 9, // triangle 2
@@ -240,7 +242,7 @@ namespace
                 2, 0, 3 // vertex 2
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 1, 0 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 1, 0 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground }));
     }
 
@@ -263,7 +265,7 @@ namespace
                 3, 2, 12 // vertex 2
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 1, 0 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 1, 0 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground }));
     }
 
@@ -286,7 +288,7 @@ namespace
                 1, -1, 0 // vertex 5
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 1, 0, 5, 4, 3 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 1, 0, 5, 4, 3 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>(2, AreaType_ground));
     }
 
@@ -308,7 +310,7 @@ namespace
                 -2, -3, 0 // vertex 2
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 1, 0 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 1, 0 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground }));
     }
 
@@ -333,7 +335,7 @@ namespace
                     0, -3.535533905029296875f, 0.707106769084930419921875f // vertex 2
                 })))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 1, 2, 0 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 1, 2, 0 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground }));
     }
 
@@ -358,7 +360,7 @@ namespace
                     -3.535533905029296875f, 0, 0.707106769084930419921875f // vertex 2
                 })))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 1, 2, 0 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 1, 2, 0 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground }));
     }
 
@@ -383,7 +385,7 @@ namespace
                     1.41421353816986083984375f, 1.1102230246251565404236316680908203125e-16f, 0 // vertex 2
                 })))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 0, 1 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 0, 1 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground }));
     }
 
@@ -409,7 +411,7 @@ namespace
                 1, -1, 0 // vertex 5
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 1, 0, 5, 4, 3 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 1, 0, 5, 4, 3 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_null, AreaType_ground }));
     }
 
@@ -440,14 +442,14 @@ namespace
                 1, 1, 0 // vertex 3
             }))
             << recastMesh->getMesh().getVertices();
-        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<int>({ 2, 1, 0, 2, 1, 3 }));
+        EXPECT_EQ(recastMesh->getMesh().getIndices(), std::vector<std::int32_t>({ 2, 1, 0, 2, 1, 3 }));
         EXPECT_EQ(recastMesh->getMesh().getAreaTypes(), std::vector<AreaType>({ AreaType_ground, AreaType_ground }));
     }
 
     TEST_F(DetourNavigatorRecastMeshBuilderTest, add_flat_heightfield_should_add_intersection)
     {
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 1000;
+        const std::int32_t cellSize = 1000;
         const float height = 10;
         mBounds.mMin = osg::Vec2f(100, 100);
         RecastMeshBuilder builder(mBounds);
@@ -468,7 +470,7 @@ namespace
             6, 7, 8 // row 2
         } };
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 1000;
+        const std::int32_t cellSize = 1000;
         const float minHeight = 0;
         const float maxHeight = 8;
         RecastMeshBuilder builder(mBounds);
@@ -496,7 +498,7 @@ namespace
             6, 7, 8 // row 2
         } };
         const osg::Vec2i cellPosition(1, 2);
-        const int cellSize = 1000;
+        const std::int32_t cellSize = 1000;
         const float minHeight = 0;
         const float maxHeight = 8;
         RecastMeshBuilder builder(maxCellTileBounds(cellPosition, cellSize));
@@ -524,7 +526,7 @@ namespace
             6, 7, 8 // row 2
         } };
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 1000;
+        const std::int32_t cellSize = 1000;
         const float minHeight = 0;
         const float maxHeight = 8;
         mBounds.mMin = osg::Vec2f(750, 750);

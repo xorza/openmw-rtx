@@ -1,7 +1,9 @@
 #pragma once
 
-#include <QWizardPage>
+#include <cstdint>
 #include <memory>
+
+#include <QWizardPage>
 
 #include <apps/wizard/unshield/unshieldworker.hpp>
 
@@ -27,7 +29,7 @@ namespace Wizard
         InstallationPage(QWidget* parent, Config::GameSettings& gameSettings);
         ~InstallationPage() override;
 
-        int nextId() const override;
+        std::int32_t nextId() const override;
         bool isComplete() const override;
 
     private:

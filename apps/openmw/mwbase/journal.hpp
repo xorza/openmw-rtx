@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -49,14 +50,14 @@ namespace MWBase
         virtual MWDialogue::Quest* getQuestOrNull(const ESM::RefId& id) = 0;
         ///< Gets a pointer to the requested quest. Will return nullptr if the quest has not been started.
 
-        virtual void addEntry(const ESM::RefId& id, int index, const MWWorld::Ptr& actor) = 0;
+        virtual void addEntry(const ESM::RefId& id, std::int32_t index, const MWWorld::Ptr& actor) = 0;
         ///< Add a journal entry.
         /// @param actor Used as context for replacing of escape sequences (%name, etc).
 
-        virtual void setJournalIndex(const ESM::RefId& id, int index) = 0;
+        virtual void setJournalIndex(const ESM::RefId& id, std::int32_t index) = 0;
         ///< Set the journal index without adding an entry.
 
-        virtual int getJournalIndex(const ESM::RefId& id) const = 0;
+        virtual std::int32_t getJournalIndex(const ESM::RefId& id) const = 0;
         ///< Get the journal index.
 
         virtual void addTopic(const ESM::RefId& topicId, const ESM::RefId& infoId, const MWWorld::Ptr& actor) = 0;
@@ -72,10 +73,10 @@ namespace MWBase
 
         virtual const TQuestContainer& getQuests() const = 0;
 
-        virtual size_t countSavedGameRecords() const = 0;
+        virtual std::size_t countSavedGameRecords() const = 0;
 
         virtual void write(ESM::ESMWriter& writer, Loading::Listener& progress) const = 0;
 
-        virtual void readRecord(ESM::ESMReader& reader, uint32_t type) = 0;
+        virtual void readRecord(ESM::ESMReader& reader, std::uint32_t type) = 0;
     };
 }

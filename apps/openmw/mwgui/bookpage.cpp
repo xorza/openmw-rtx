@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <utility>
 
@@ -18,7 +20,7 @@
 namespace
 {
     /// A glyph's metrics in the layout units of a book typeset at `fontSize`, which its font is set at.
-    std::optional<MyGUI::GlyphInfo> getGlyphInfo(MyGUI::IFont* font, MyGUI::Char ch, int fontSize)
+    std::optional<MyGUI::GlyphInfo> getGlyphInfo(MyGUI::IFont* font, MyGUI::Char ch, std::int32_t fontSize)
     {
         const MyGUI::GlyphInfo* gi = font->getGlyphInfo(ch);
         if (!gi)
@@ -77,7 +79,7 @@ namespace
     // No-break spaces (0x00A0, 0x202F, 0xFEFF - normal, narrow, zero width)
     // are ignored here for obvious reasons
     // Figure space (0x2007) is not a breaking space either
-    bool ucsBreakingSpace(int codePoint)
+    bool ucsBreakingSpace(std::int32_t codePoint)
     {
         switch (codePoint)
         {
@@ -154,8 +156,8 @@ namespace MWGui
         {
             StyleImpl* mStyle{};
             Range mRange;
-            int mLeft{}, mRight{};
-            int mPrintableChars{};
+            std::int32_t mLeft{}, mRight{};
+            std::int32_t mPrintableChars{};
         };
 
         struct Line
@@ -174,7 +176,7 @@ namespace MWGui
 
         // Holds "top" and "bottom" vertical coordinates in the source text.
         // A page is basically a "window" into a portion of the source text, similar to a ScrollView.
-        typedef std::pair<int, int> Page;
+        typedef std::pair<std::int32_t, std::int32_t> Page;
 
         std::vector<Page> mPages;
         Sections mSections;
@@ -184,15 +186,16 @@ namespace MWGui
 
         /// The interface's font size it is typeset at, and drawn at: a page that shows it after a
         /// fit to another size has dropped it (`PageDisplay::drop`).
-        const int mFontSize;
+        const std::int32_t mFontSize;
 
-        explicit TypesetBookImpl(int fontSize)
+        explicit TypesetBookImpl(std::int32_t fontSize)
             : mFontSize(fontSize)
         {
             assert(fontSize > 0 && "a book typeset at no size");
         }
 
-        void setColour(size_t section, size_t line, size_t run, const MyGUI::Colour& colour) const override
+        void setColour(
+            std::size_t section, std::size_t line, std::size_t run, const MyGUI::Colour& colour) const override
         {
             if (section >= mSections.size())
                 return;
@@ -216,15 +219,15 @@ namespace MWGui
             return Range(content.data(), content.data() + content.size());
         }
 
-        size_t pageCount() const override { return mPages.size(); }
+        std::size_t pageCount() const override { return mPages.size(); }
 
-        std::pair<unsigned int, unsigned int> getSize() const override
+        std::pair<std::uint32_t, std::uint32_t> getSize() const override
         {
             return std::make_pair(mRect.width(), mRect.height());
         }
 
         template <typename Visitor>
-        void visitRuns(int top, int bottom, MyGUI::IFont* font, Visitor const& visitor) const
+        void visitRuns(std::int32_t top, std::int32_t bottom, MyGUI::IFont* font, Visitor const& visitor) const
         {
             for (const Section& section : mSections)
             {
@@ -244,22 +247,22 @@ namespace MWGui
         }
 
         template <typename Visitor>
-        void visitRuns(int top, int bottom, Visitor const& visitor) const
+        void visitRuns(std::int32_t top, std::int32_t bottom, Visitor const& visitor) const
         {
             visitRuns(top, bottom, nullptr, visitor);
         }
 
         /// hit test with a margin for error. only hits on interactive text fragments are reported.
-        StyleImpl* hitTestWithMargin(int left, int top)
+        StyleImpl* hitTestWithMargin(std::int32_t left, std::int32_t top)
         {
             StyleImpl* hit = hitTest(left, top);
             if (hit && hit->mInteractiveId != 0)
                 return hit;
 
-            const int maxMargin = 10;
-            for (int margin = 1; margin < maxMargin; ++margin)
+            const std::int32_t maxMargin = 10;
+            for (std::int32_t margin = 1; margin < maxMargin; ++margin)
             {
-                for (int i = 0; i < 4; ++i)
+                for (std::int32_t i = 0; i < 4; ++i)
                 {
                     if (i == 0)
                         hit = hitTest(left, top - margin);
@@ -277,21 +280,21 @@ namespace MWGui
             return nullptr;
         }
 
-        StyleImpl* hitTest(int left, int top) const
+        StyleImpl* hitTest(std::int32_t left, std::int32_t top) const
         {
             for (const Section& section : mSections)
             {
                 if (top < section.mRect.top || top >= section.mRect.bottom)
                     continue;
 
-                int left1 = left - section.mRect.left;
+                std::int32_t left1 = left - section.mRect.left;
 
                 for (const Line& line : section.mLines)
                 {
                     if (top < line.mRect.top || top >= line.mRect.bottom)
                         continue;
 
-                    int left2 = left1 - line.mRect.left;
+                    std::int32_t left2 = left1 - line.mRect.left;
 
                     for (const Run& run : line.mRuns)
                     {
@@ -324,9 +327,9 @@ namespace MWGui
             StyleImpl* mStyle;
             Utf8Stream::Point mBegin;
             Utf8Stream::Point mEnd;
-            int mWidth;
+            std::int32_t mWidth;
 
-            PartialText(StyleImpl* style, Utf8Stream::Point begin, Utf8Stream::Point end, int width)
+            PartialText(StyleImpl* style, Utf8Stream::Point begin, Utf8Stream::Point end, std::int32_t width)
                 : mStyle(style)
                 , mBegin(begin)
                 , mEnd(end)
@@ -335,8 +338,8 @@ namespace MWGui
             }
         };
 
-        int mPageWidth;
-        int mPageHeight;
+        std::int32_t mPageWidth;
+        std::int32_t mPageHeight;
 
         std::shared_ptr<TypesetBookImpl> mBook;
         Section* mSection;
@@ -350,7 +353,7 @@ namespace MWGui
         TypesetBookImpl::Content const* mCurrentContent;
         Alignment mCurrentAlignment;
 
-        Typesetter(int width, int height, int fontSize)
+        Typesetter(std::int32_t width, std::int32_t height, std::int32_t fontSize)
             : mPageWidth(width)
             , mPageHeight(height)
             , mSection(nullptr)
@@ -440,7 +443,7 @@ namespace MWGui
             mCurrentContent = contentHandle;
         }
 
-        void write(Style* style, size_t begin, size_t end) override
+        void write(Style* style, std::size_t begin, std::size_t end) override
         {
             assert(mCurrentContent != nullptr);
             assert(end <= mCurrentContent->size());
@@ -462,7 +465,7 @@ namespace MWGui
             mLine = nullptr;
         }
 
-        void sectionBreak(int margin) override
+        void sectionBreak(std::int32_t margin) override
         {
             add_partial_text();
 
@@ -487,8 +490,8 @@ namespace MWGui
 
         std::shared_ptr<TypesetBook> complete() override
         {
-            int curPageStart = 0;
-            int curPageStop = 0;
+            std::int32_t curPageStart = 0;
+            std::int32_t curPageStop = 0;
 
             add_partial_text();
 
@@ -498,8 +501,8 @@ namespace MWGui
                 // apply alignment to individual lines...
                 for (Line& line : i->mLines)
                 {
-                    int width = line.mRect.width();
-                    int excess = mPageWidth - width;
+                    std::int32_t width = line.mRect.width();
+                    std::int32_t excess = mPageWidth - width;
 
                     switch (*sa)
                     {
@@ -524,11 +527,11 @@ namespace MWGui
                     curPageStop = i->mRect.top;
                 }
 
-                int spaceLeft = mPageHeight - (curPageStop - curPageStart);
-                int sectionHeight = i->mRect.height();
+                std::int32_t spaceLeft = mPageHeight - (curPageStop - curPageStart);
+                std::int32_t sectionHeight = i->mRect.height();
 
                 // This is NOT equal to i->mRect.height(), which doesn't account for section breaks.
-                int spaceRequired = (i->mRect.bottom - curPageStop);
+                std::int32_t spaceRequired = (i->mRect.bottom - curPageStop);
                 if (curPageStart == curPageStop) // If this is a new page, the section break is not needed
                     spaceRequired = i->mRect.height();
 
@@ -558,11 +561,11 @@ namespace MWGui
                     curPageStop = i->mRect.bottom;
 
                     // split section
-                    int sectionHeightLeft = sectionHeight;
+                    std::int32_t sectionHeightLeft = sectionHeight;
                     while (sectionHeightLeft >= mPageHeight)
                     {
                         // Adjust to the top of the first line that does not fit on the current page anymore
-                        int splitPos = curPageStop;
+                        std::int32_t splitPos = curPageStop;
                         for (const Line& line : i->mLines)
                         {
                             if (line.mRect.bottom > curPageStart + mPageHeight)
@@ -601,31 +604,31 @@ namespace MWGui
                     continue;
                 }
 
-                if (ucsBreakingSpace(static_cast<int>(stream.peek())) && !mPartialWord.empty())
+                if (ucsBreakingSpace(static_cast<std::int32_t>(stream.peek())) && !mPartialWord.empty())
                     add_partial_text();
 
-                int wordWidth = 0;
-                int spaceWidth = 0;
+                std::int32_t wordWidth = 0;
+                std::int32_t spaceWidth = 0;
 
                 Utf8Stream::Point lead = stream.current();
 
-                while (
-                    !stream.eof() && !ucsLineBreak(stream.peek()) && ucsBreakingSpace(static_cast<int>(stream.peek())))
+                while (!stream.eof() && !ucsLineBreak(stream.peek())
+                    && ucsBreakingSpace(static_cast<std::int32_t>(stream.peek())))
                 {
                     std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek(), mBook->mFontSize);
                     if (info)
-                        spaceWidth += static_cast<int>(info->advance + info->bearingX);
+                        spaceWidth += static_cast<std::int32_t>(info->advance + info->bearingX);
                     stream.consume();
                 }
 
                 Utf8Stream::Point origin = stream.current();
 
-                while (
-                    !stream.eof() && !ucsLineBreak(stream.peek()) && !ucsBreakingSpace(static_cast<int>(stream.peek())))
+                while (!stream.eof() && !ucsLineBreak(stream.peek())
+                    && !ucsBreakingSpace(static_cast<std::int32_t>(stream.peek())))
                 {
                     std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek(), mBook->mFontSize);
                     if (info)
-                        wordWidth += static_cast<int>(info->advance + info->bearingX);
+                        wordWidth += static_cast<std::int32_t>(info->advance + info->bearingX);
                     stream.consume();
                 }
 
@@ -646,16 +649,16 @@ namespace MWGui
             if (mPartialWhitespace.empty() && mPartialWord.empty())
                 return;
 
-            const int fontHeight = mBook->mFontSize;
-            int spaceWidth = 0;
-            int wordWidth = 0;
+            const std::int32_t fontHeight = mBook->mFontSize;
+            std::int32_t spaceWidth = 0;
+            std::int32_t wordWidth = 0;
 
             for (const PartialText& partialText : mPartialWhitespace)
                 spaceWidth += partialText.mWidth;
             for (const PartialText& partialText : mPartialWord)
                 wordWidth += partialText.mWidth;
 
-            int left = mLine ? mLine->mRect.right : 0;
+            std::int32_t left = mLine ? mLine->mRect.right : 0;
 
             if (left + spaceWidth + wordWidth > mPageWidth)
             {
@@ -667,7 +670,7 @@ namespace MWGui
             {
                 for (const PartialText& partialText : mPartialWhitespace)
                 {
-                    int top = mLine ? mLine->mRect.top : mBook->mRect.bottom;
+                    std::int32_t top = mLine ? mLine->mRect.top : mBook->mRect.bottom;
 
                     appendRun(partialText.mStyle, partialText.mBegin, partialText.mEnd, 0, left + partialText.mWidth,
                         top + fontHeight);
@@ -678,8 +681,8 @@ namespace MWGui
 
             for (const PartialText& partialText : mPartialWord)
             {
-                int top = mLine ? mLine->mRect.top : mBook->mRect.bottom;
-                const int numChars = static_cast<int>(partialText.mEnd - partialText.mBegin);
+                std::int32_t top = mLine ? mLine->mRect.top : mBook->mRect.bottom;
+                const auto numChars = static_cast<std::int32_t>(partialText.mEnd - partialText.mBegin);
                 appendRun(partialText.mStyle, partialText.mBegin, partialText.mEnd, numChars, left + partialText.mWidth,
                     top + fontHeight);
 
@@ -690,7 +693,8 @@ namespace MWGui
             mPartialWord.clear();
         }
 
-        void appendRun(StyleImpl* style, Utf8Stream::Point begin, Utf8Stream::Point end, int pc, int right, int bottom)
+        void appendRun(StyleImpl* style, Utf8Stream::Point begin, Utf8Stream::Point end, std::int32_t pc,
+            std::int32_t right, std::int32_t bottom)
         {
             if (mSection == nullptr)
             {
@@ -721,7 +725,7 @@ namespace MWGui
 
             if (mRun == nullptr || mRun->mStyle != style || mRun->mRange.second != begin)
             {
-                int left = mRun ? mRun->mRight : mLine->mRect.left;
+                std::int32_t left = mRun ? mRun->mRight : mLine->mRect.left;
 
                 mLine->mRuns.push_back(Run());
                 mRun = &mLine->mRuns.back();
@@ -742,7 +746,8 @@ namespace MWGui
         }
     };
 
-    std::shared_ptr<BookTypesetter> BookTypesetter::create(int pageWidth, int pageHeight, int fontSize)
+    std::shared_ptr<BookTypesetter> BookTypesetter::create(
+        std::int32_t pageWidth, std::int32_t pageHeight, std::int32_t fontSize)
     {
         return std::make_shared<TypesetBookImpl::Typesetter>(pageWidth, pageHeight, fontSize);
     }
@@ -832,16 +837,16 @@ namespace MWGui
         struct GlyphStream
         {
             float mZ;
-            uint32_t mC;
+            std::uint32_t mC;
             MyGUI::IFont* mFont;
-            int mFontSize;
+            std::int32_t mFontSize;
             MyGUI::FloatPoint mOrigin;
             MyGUI::FloatPoint mCursor;
             MyGUI::Vertex* mVertices;
             RenderXform mRenderXform;
             MyGUI::VertexColourType mVertexColourType;
 
-            explicit GlyphStream(MyGUI::IFont* font, int fontSize, float left, float top, float z,
+            explicit GlyphStream(MyGUI::IFont* font, std::int32_t fontSize, float left, float top, float z,
                 MyGUI::Vertex* vertices, RenderXform const& renderXform)
                 : mZ(z)
                 , mC(0)
@@ -887,7 +892,7 @@ namespace MWGui
                 if (mRenderXform.clip(vr, tr))
                     quad(vr, tr);
 
-                mCursor.left += static_cast<float>(static_cast<int>(info->bearingX + info->advance));
+                mCursor.left += static_cast<float>(static_cast<std::int32_t>(info->bearingX + info->advance));
             }
 
             void emitSpace(MyGUI::Char ch)
@@ -895,7 +900,7 @@ namespace MWGui
                 std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch, mFontSize);
 
                 if (info)
-                    mCursor.left += static_cast<float>(static_cast<int>(info->bearingX + info->advance));
+                    mCursor.left += static_cast<float>(static_cast<std::int32_t>(info->bearingX + info->advance));
             }
 
         private:
@@ -930,12 +935,12 @@ namespace MWGui
         MYGUI_RTTI_DERIVED(PageDisplay)
     protected:
         bool mIsPageReset{};
-        size_t mPage{};
+        std::size_t mPage{};
 
         struct TextFormat : ISubWidget
         {
             MyGUI::IFont* mFont;
-            int mCountVertex;
+            std::int32_t mCountVertex;
             MyGUI::ITexture* mTexture;
             MyGUI::RenderItem* mRenderItem;
             PageDisplay* mDisplay;
@@ -985,15 +990,15 @@ namespace MWGui
             mPage = 0;
         }
 
-        void setPage(size_t page)
+        void setPage(std::size_t page)
         {
             mIsPageReset = false;
             mPage = page;
         }
 
-        bool isPageDifferent(size_t page) { return mIsPageReset || (mPage != page); }
+        bool isPageDifferent(std::size_t page) { return mIsPageReset || (mPage != page); }
 
-        std::optional<MyGUI::IntPoint> getAdjustedPos(int left, int top, bool move = false)
+        std::optional<MyGUI::IntPoint> getAdjustedPos(std::int32_t left, std::int32_t top, bool move = false)
         {
             if (!mBook)
                 return {};
@@ -1011,8 +1016,8 @@ namespace MWGui
     public:
         typedef std::map<MyGUI::IFont*, std::unique_ptr<TextFormat>> ActiveTextFormats;
 
-        int mViewTop;
-        int mViewBottom;
+        std::int32_t mViewTop;
+        std::int32_t mViewBottom;
 
         TypesetBookImpl::StyleImpl* mFocusItem;
         bool mItemActive;
@@ -1065,7 +1070,7 @@ namespace MWGui
             mItemActive = false;
         }
 
-        void onMouseMove(int left, int top)
+        void onMouseMove(std::int32_t left, std::int32_t top)
         {
             TypesetBookImpl::StyleImpl* hit = nullptr;
             if (auto pos = getAdjustedPos(left, top, true))
@@ -1097,7 +1102,7 @@ namespace MWGui
             }
         }
 
-        void onMouseButtonPressed(int left, int top, MyGUI::MouseButton id)
+        void onMouseButtonPressed(std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
         {
             auto pos = getAdjustedPos(left, top);
 
@@ -1112,7 +1117,7 @@ namespace MWGui
             }
         }
 
-        void onMouseButtonReleased(int left, int top, MyGUI::MouseButton id)
+        void onMouseButtonReleased(std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
         {
             auto pos = getAdjustedPos(left, top);
 
@@ -1150,7 +1155,7 @@ namespace MWGui
                 mRetypesetter->refit();
         }
 
-        void showPage(const std::shared_ptr<TypesetBook>& book, size_t newPage)
+        void showPage(const std::shared_ptr<TypesetBook>& book, std::size_t newPage)
         {
             std::shared_ptr<TypesetBookImpl> newBook = std::dynamic_pointer_cast<TypesetBookImpl>(book);
             assert((newBook == nullptr || mRetypesetter != nullptr)
@@ -1342,8 +1347,9 @@ namespace MWGui
             GlyphStream glyphStream(textFormat.mFont, mBook->mFontSize, static_cast<float>(mCoord.left),
                 static_cast<float>(mCoord.top - mViewTop), z /*mNode->getNodeDepth()*/, vertices, renderXform);
 
-            const int visitTop = std::max(mViewTop, mViewTop + static_cast<int>(renderXform.clipTop));
-            const int visitBottom = std::min(mViewBottom, mViewTop + static_cast<int>(renderXform.clipBottom));
+            const std::int32_t visitTop = std::max(mViewTop, mViewTop + static_cast<std::int32_t>(renderXform.clipTop));
+            const std::int32_t visitBottom
+                = std::min(mViewBottom, mViewTop + static_cast<std::int32_t>(renderXform.clipBottom));
 
             mBook->visitRuns(visitTop, visitBottom, textFormat.mFont, RenderRun(this, glyphStream));
 
@@ -1390,7 +1396,10 @@ namespace MWGui
         {
         }
 
-        void showPage(std::shared_ptr<TypesetBook> book, size_t page) override { mPageDisplay->showPage(book, page); }
+        void showPage(std::shared_ptr<TypesetBook> book, std::size_t page) override
+        {
+            mPageDisplay->showPage(book, page);
+        }
 
         void adviseLinkClicked(std::function<void(TypesetBook::InteractiveId)> linkClicked) override
         {
@@ -1435,14 +1444,14 @@ namespace MWGui
             mPageDisplay->onMouseLostFocus();
         }
 
-        void onMouseMove(int left, int top) override { mPageDisplay->onMouseMove(left, top); }
+        void onMouseMove(std::int32_t left, std::int32_t top) override { mPageDisplay->onMouseMove(left, top); }
 
-        void onMouseButtonPressed(int left, int top, MyGUI::MouseButton id) override
+        void onMouseButtonPressed(std::int32_t left, std::int32_t top, MyGUI::MouseButton id) override
         {
             mPageDisplay->onMouseButtonPressed(left, top, id);
         }
 
-        void onMouseButtonReleased(int left, int top, MyGUI::MouseButton id) override
+        void onMouseButtonReleased(std::int32_t left, std::int32_t top, MyGUI::MouseButton id) override
         {
             mPageDisplay->onMouseButtonReleased(left, top, id);
         }

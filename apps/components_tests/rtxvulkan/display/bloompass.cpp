@@ -234,11 +234,11 @@ namespace Rtx
         {
             const Device& device = getDevice();
 
-            constexpr int size = 8;
-            constexpr int half = size / 2;
+            constexpr std::int32_t size = 8;
+            constexpr std::int32_t half = size / 2;
             std::vector<float> frame(std::size_t{ size } * size * 4);
-            for (int y = 0; y < size; ++y)
-                for (int x = 0; x < size; ++x)
+            for (std::int32_t y = 0; y < size; ++y)
+                for (std::int32_t x = 0; x < size; ++x)
                 {
                     float* const texel = &frame[(static_cast<std::size_t>(y) * size + static_cast<std::size_t>(x)) * 4];
                     texel[0] = static_cast<float>((x * 5 + y * 3) % 8) / 8.0f;
@@ -248,23 +248,23 @@ namespace Rtx
                 }
             frame[(std::size_t{ 3 } * size + 4) * 4] = 50.0f;
 
-            const auto at = [&](int x, int y, int channel) {
+            const auto at = [&](std::int32_t x, std::int32_t y, std::int32_t channel) {
                 x = std::clamp(x, 0, size - 1);
                 y = std::clamp(y, 0, size - 1);
                 return frame[(static_cast<std::size_t>(y) * size + static_cast<std::size_t>(x)) * 4
                     + static_cast<std::size_t>(channel)];
             };
             // A tap on the corner at `(x, y)` in texels: the four texels around it.
-            const auto tap = [&](int x, int y, int channel) {
+            const auto tap = [&](std::int32_t x, std::int32_t y, std::int32_t channel) {
                 return 0.25f
                     * (at(x - 1, y - 1, channel) + at(x, y - 1, channel) + at(x - 1, y, channel) + at(x, y, channel));
             };
-            const auto halved = [&](int px, int py, int channel, float exposure) {
-                const int cx = 2 * px + 1;
-                const int cy = 2 * py + 1;
+            const auto halved = [&](std::int32_t px, std::int32_t py, std::int32_t channel, float exposure) {
+                const std::int32_t cx = 2 * px + 1;
+                const std::int32_t cy = 2 * py + 1;
                 struct Square
                 {
-                    std::array<std::array<int, 2>, 4> mTaps;
+                    std::array<std::array<std::int32_t, 2>, 4> mTaps;
                     float mShare;
                 };
                 const std::array<Square, 5> squares{ {
@@ -280,7 +280,7 @@ namespace Rtx
                 {
                     std::array<float, 3> mean{};
                     for (const auto& [dx, dy] : square.mTaps)
-                        for (int c = 0; c < 3; ++c)
+                        for (std::int32_t c = 0; c < 3; ++c)
                             mean[static_cast<std::size_t>(c)] += 0.25f * tap(cx + dx, cy + dy, c);
                     const float luminance = 0.2126f * mean[0] + 0.7152f * mean[1] + 0.0722f * mean[2];
                     const float weight = square.mShare / (1.0f + luminance * exposure);
@@ -297,9 +297,9 @@ namespace Rtx
                 ASSERT_EQ(run.mBloom.getLevelCount(), 1u);
                 const std::vector<float> level = run.over(device, frame);
                 ASSERT_EQ(level.size(), std::size_t{ half } * half * 4);
-                for (int py = 0; py < half; ++py)
-                    for (int px = 0; px < half; ++px)
-                        for (int c = 0; c < 3; ++c)
+                for (std::int32_t py = 0; py < half; ++py)
+                    for (std::int32_t px = 0; px < half; ++px)
+                        for (std::int32_t c = 0; c < 3; ++c)
                         {
                             const float expected = halved(px, py, c, exposure);
                             EXPECT_NEAR(level[(static_cast<std::size_t>(py) * half + static_cast<std::size_t>(px)) * 4
@@ -308,8 +308,8 @@ namespace Rtx
                                 << "texel " << px << ", " << py << " channel " << c << " at an exposure of "
                                 << exposure;
                         }
-                for (int py = 0; py < half; ++py)
-                    for (int px = 0; px < half; ++px)
+                for (std::int32_t py = 0; py < half; ++py)
+                    for (std::int32_t px = 0; px < half; ++px)
                         if (px != 2 || py != 1)
                             beside[exposure > 0.0f ? 1 : 0] += halved(px, py, 0, exposure);
             }

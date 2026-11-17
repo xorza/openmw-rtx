@@ -1,5 +1,7 @@
 #include "itemwidget.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_RenderManager.h>
@@ -16,7 +18,7 @@
 
 namespace
 {
-    std::string getCountString(int count)
+    std::string getCountString(std::int32_t count)
     {
         if (count == 1)
             return {};
@@ -98,7 +100,7 @@ namespace MWGui
             mControllerBorder->setVisible(focus);
     }
 
-    void ItemWidget::setCount(int count)
+    void ItemWidget::setCount(std::int32_t count)
     {
         if (!mText)
             return;
@@ -207,10 +209,11 @@ namespace MWGui
                 scale = found->second;
         }
 
-        const int diameter = static_cast<int>(44 * scale);
+        const auto diameter = static_cast<std::int32_t>(44 * scale);
         if (state == Barter && !isMagic)
             setFrame(backgroundTex,
-                MyGUI::IntCoord(static_cast<int>(2 * scale), static_cast<int>(2 * scale), diameter, diameter));
+                MyGUI::IntCoord(
+                    static_cast<std::int32_t>(2 * scale), static_cast<std::int32_t>(2 * scale), diameter, diameter));
         else
             setFrame(backgroundTex, MyGUI::IntCoord(0, 0, diameter, diameter));
 

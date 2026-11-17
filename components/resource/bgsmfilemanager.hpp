@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/bgsm/file.hpp>
 
 #include "resourcemanager.hpp"
@@ -18,7 +20,7 @@ namespace Resource
         /// Retrieve a material file from the cache or load it from the VFS if not cached yet.
         Bgsm::MaterialFilePtr get(VFS::Path::NormalizedView name);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
     };
 
 }

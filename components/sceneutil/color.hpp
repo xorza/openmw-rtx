@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/GraphicsThread>
 
 // After OpenSceneGraph's headers, which include the system's <GL/gl.h> that Khronos's extension header builds on:
@@ -10,7 +12,7 @@ namespace SceneUtil
 {
     bool isColorFormat(GLenum format);
     bool isFloatingPointColorFormat(GLenum format);
-    int getColorFormatChannelCount(GLenum format);
+    std::int32_t getColorFormatChannelCount(GLenum format);
     void getColorFormatSourceFormatAndType(GLenum internalFormat, GLenum& sourceFormat, GLenum& sourceType);
 
     namespace Color

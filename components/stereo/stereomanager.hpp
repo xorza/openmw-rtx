@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <memory>
 
 #include <osg/Camera>
@@ -99,8 +100,8 @@ namespace Stereo
         //! Set the cull callback on the appropriate camera object
         void setCullCallback(const osg::ref_ptr<osg::NodeCallback>& cb);
 
-        osg::Matrixd computeEyeProjection(int view, bool reverseZ) const;
-        osg::Matrixd computeEyeViewOffset(int view) const;
+        osg::Matrixd computeEyeProjection(std::int32_t view, bool reverseZ) const;
+        osg::Matrixd computeEyeViewOffset(std::int32_t view) const;
 
         const std::shared_ptr<MultiviewFramebuffer>& multiviewFramebuffer() { return mMultiviewFramebuffer; }
 

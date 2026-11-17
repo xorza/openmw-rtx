@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <gtest/gtest.h>
 
 #include <osg/Array>
@@ -78,7 +80,7 @@ namespace
     struct AsTheGamePermits final : SceneUtil::Optimizer::IsOperationPermissibleForObjectCallback
     {
         bool isOperationPermissibleForObjectImplementation(
-            const SceneUtil::Optimizer*, const osg::Node*, unsigned int) const override
+            const SceneUtil::Optimizer*, const osg::Node*, std::uint32_t) const override
         {
             return true;
         }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -30,7 +31,7 @@ namespace ESM
         static const RefId Endurance;
         static const RefId Personality;
         static const RefId Luck;
-        static constexpr int Length = 8;
+        static constexpr std::int32_t Length = 8;
 
         RefId mId;
         std::string mName, mDescription;
@@ -42,7 +43,7 @@ namespace ESM
 
         void blank();
 
-        static RefId indexToRefId(int index);
-        static int refIdToIndex(RefId id);
+        static RefId indexToRefId(std::int32_t index);
+        static std::int32_t refIdToIndex(RefId id);
     };
 }

@@ -1,5 +1,10 @@
 #include "style.hpp"
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <tuple>
+
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
 #include <QColor>
@@ -16,9 +21,6 @@
 #include <QStyleFactory>
 #include <QStyleOption>
 #include <QTabBar>
-#include <algorithm>
-#include <array>
-#include <tuple>
 
 #include "glyphs.hpp"
 #include "palette.hpp"
@@ -36,33 +38,33 @@ namespace Graphite
         constexpr qreal sLine = 2.0;
 
         /// palantir's toggle box and combo chevron.
-        constexpr int sToggleSide = 16;
+        constexpr std::int32_t sToggleSide = 16;
         constexpr qreal sChevronWidth = 10.0;
         constexpr qreal sChevronHeight = 6.0;
 
         /// palantir's scroll bar: an 8 px pill, and the gap of 4 between it and what it scrolls.
-        constexpr int sScrollThickness = 8;
-        constexpr int sScrollGap = 4;
-        constexpr int sScrollThumbLeast = 24;
+        constexpr std::int32_t sScrollThickness = 8;
+        constexpr std::int32_t sScrollGap = 4;
+        constexpr std::int32_t sScrollThumbLeast = 24;
 
         /// A row's padding above and below a control's text: 6 px, by the user's decision, where palantir's `space.sm`
         /// of 8 stood a row taller than the launcher wanted.
-        constexpr int sRowPadding = 6;
+        constexpr std::int32_t sRowPadding = 6;
 
         /// A check box's or a radio's padding above and below its text, by the user's decision: a column of them
         /// stood looser than the fields around it at a row's.
-        constexpr int sTogglePadding = 4;
+        constexpr std::int32_t sTogglePadding = 4;
 
         /// Where a field's text starts, palantir's field inset `space.sm`, and the 2 px `QLineEdit` and a
         /// combo box's label already add inside the rectangle the style hands them.
-        constexpr int sFieldInset = 8;
-        constexpr int sEditMargin = 2;
-        constexpr int sLabelMargin = 1;
+        constexpr std::int32_t sFieldInset = 8;
+        constexpr std::int32_t sEditMargin = 2;
+        constexpr std::int32_t sLabelMargin = 1;
 
         /// The column at a combo box's or a spin box's far end its chevrons stand in: a chevron with a field's
         /// inset either side, so the text stops as far short of it as it starts in from the near end, and the two
         /// boxes' columns are one width.
-        constexpr int sArrowColumn = static_cast<int>(sChevronWidth) + 2 * sFieldInset;
+        constexpr std::int32_t sArrowColumn = static_cast<std::int32_t>(sChevronWidth) + 2 * sFieldInset;
 
         /// The accent's pill that marks what is in use, Fluent 2's selection indicator: 3 px across, held 6 px
         /// off a row's ends.
@@ -72,24 +74,24 @@ namespace Graphite
         /// A view's row padding above and below its text, palantir's chip inset `space.xs`, and how far in
         /// from the row's ends what it shows starts, its check box, icon or text, clear of the selected row's
         /// pill: a field's inset.
-        constexpr int sItemPadding = 4;
-        constexpr int sItemInset = sFieldInset;
+        constexpr std::int32_t sItemPadding = 4;
+        constexpr std::int32_t sItemInset = sFieldInset;
 
-        constexpr int sLayoutMargin = 12;
-        constexpr int sLayoutSpacing = 8;
+        constexpr std::int32_t sLayoutMargin = 12;
+        constexpr std::int32_t sLayoutSpacing = 8;
 
         /// A push button's padding either side of its text, palantir's button inset `space.md`.
-        constexpr int sButtonPadding = 12;
+        constexpr std::int32_t sButtonPadding = 12;
 
         /// palantir's menu padding, `space.xs`, above its first row and below its last.
-        constexpr int sMenuPadding = 4;
+        constexpr std::int32_t sMenuPadding = 4;
 
         /// A menu row's inset from its menu's sides, palantir's `space.xs`.
-        constexpr int sMenuRowInset = 4;
+        constexpr std::int32_t sMenuRowInset = 4;
 
         constexpr QRgb sNone = qRgba(0, 0, 0, 0);
 
-        QRgb withAlpha(QRgb colour, int alpha)
+        QRgb withAlpha(QRgb colour, std::int32_t alpha)
         {
             return qRgba(qRed(colour), qGreen(colour), qBlue(colour), alpha);
         }
@@ -257,7 +259,7 @@ namespace Graphite
             pen.setJoinStyle(Qt::RoundJoin);
             painter.setPen(pen);
             painter.setBrush(Qt::NoBrush);
-            painter.drawPolyline(points.data(), static_cast<int>(points.size()));
+            painter.drawPolyline(points.data(), static_cast<std::int32_t>(points.size()));
         }
 
         /// The check box's mark, palantir's two strokes in a box of `sToggleSide`, or the dash a partly
@@ -278,18 +280,18 @@ namespace Graphite
             }
             const std::array<QPointF, 3> points{ box.topLeft() + QPointF(4.0, 8.5) * scale,
                 box.topLeft() + QPointF(7.0, 11.5) * scale, box.topLeft() + QPointF(12.0, 5.0) * scale };
-            painter.drawPolyline(points.data(), static_cast<int>(points.size()));
+            painter.drawPolyline(points.data(), static_cast<std::int32_t>(points.size()));
         }
 
         /// A control's height: its text, `sRowPadding` above and below, and a hairline each side.
-        int rowHeight(const QStyleOption& option)
+        std::int32_t rowHeight(const QStyleOption& option)
         {
-            return option.fontMetrics.height() + 2 * sRowPadding + 2 * static_cast<int>(sHairline);
+            return option.fontMetrics.height() + 2 * sRowPadding + 2 * static_cast<std::int32_t>(sHairline);
         }
 
         /// A check box's or a radio's height: its text and `sTogglePadding` above and below, a row less what a
         /// toggle has no edge or fill to need. Centred in a field's row beside it, its text stands on the field's.
-        int toggleHeight(const QStyleOption& option)
+        std::int32_t toggleHeight(const QStyleOption& option)
         {
             return option.fontMetrics.height() + 2 * sTogglePadding;
         }
@@ -301,8 +303,8 @@ namespace Graphite
             const auto* spin = qstyleoption_cast<const QStyleOptionSpinBox*>(&option);
             const bool arrows = spin == nullptr || spin->buttonSymbols != QAbstractSpinBox::NoButtons;
             const QRect& rect = option.rect;
-            const int column = arrows ? sArrowColumn : 0;
-            const int half = rect.height() / 2;
+            const std::int32_t column = arrows ? sArrowColumn : 0;
+            const std::int32_t half = rect.height() / 2;
             QRect laidOut;
             switch (part)
             {
@@ -676,9 +678,9 @@ namespace Graphite
                 if (thumb.isEmpty() || bar->minimum == bar->maximum)
                     return;
                 const bool onThumb = bar->activeSubControls.testFlag(SC_ScrollBarSlider);
-                const int alpha = onThumb && has(*option, State_Sunken) ? 217
-                    : onThumb && has(*option, State_MouseOver)          ? 166
-                                                                        : 115;
+                const std::int32_t alpha = onThumb && has(*option, State_Sunken) ? 217
+                    : onThumb && has(*option, State_MouseOver)                   ? 166
+                                                                                 : 115;
                 const QRgb fill = withAlpha(sDark.mTextMuted, alpha);
                 const qreal side = std::min(thumb.width(), thumb.height());
                 paint(*painter, thumb, side / 2.0, { fill, sNone });
@@ -741,7 +743,7 @@ namespace Graphite
         QProxyStyle::drawComplexControl(control, option, painter, widget);
     }
 
-    int Style::pixelMetric(PixelMetric metric, const QStyleOption* option, const QWidget* widget) const
+    std::int32_t Style::pixelMetric(PixelMetric metric, const QStyleOption* option, const QWidget* widget) const
     {
         switch (metric)
         {
@@ -798,7 +800,7 @@ namespace Graphite
         {
             // From the field's inset to the chevron's column, the text placed where a line edit's is.
             const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option);
-            const int inset = sFieldInset - (combo != nullptr && combo->editable ? sEditMargin : sLabelMargin);
+            const std::int32_t inset = sFieldInset - (combo != nullptr && combo->editable ? sEditMargin : sLabelMargin);
             const QRect& rect = option->rect;
             const QRect field(
                 rect.left() + inset, rect.top() + 1, rect.width() - sArrowColumn - inset, rect.height() - 2);
@@ -812,18 +814,19 @@ namespace Graphite
         // on the far side of the gap from what the bar scrolls.
         const QRect& rect = option->rect;
         const bool horizontal = bar->orientation == Qt::Horizontal;
-        const int length = horizontal ? rect.width() : rect.height();
-        int thumbLength = length;
+        const std::int32_t length = horizontal ? rect.width() : rect.height();
+        std::int32_t thumbLength = length;
         if (bar->maximum != bar->minimum)
         {
             const qint64 range = static_cast<qint64>(bar->maximum) - bar->minimum;
-            thumbLength = static_cast<int>(static_cast<qint64>(bar->pageStep) * length / (range + bar->pageStep));
+            thumbLength
+                = static_cast<std::int32_t>(static_cast<qint64>(bar->pageStep) * length / (range + bar->pageStep));
             thumbLength = std::clamp(thumbLength, std::min(sScrollThumbLeast, length), length);
         }
-        const int thumbStart = sliderPositionFromValue(
+        const std::int32_t thumbStart = sliderPositionFromValue(
             bar->minimum, bar->maximum, bar->sliderPosition, length - thumbLength, bar->upsideDown);
 
-        const auto across = [&](int start, int extent) {
+        const auto across = [&](std::int32_t start, std::int32_t extent) {
             return horizontal ? QRect(rect.left() + start, rect.top() + sScrollGap, extent, sScrollThickness)
                               : QRect(rect.left() + sScrollGap, rect.top() + start, sScrollThickness, extent);
         };
@@ -855,7 +858,7 @@ namespace Graphite
         // A label held to the top of its cell names a field of several rows, and its text stands on the line the
         // first row's does: the row's padding and its edge further down.
         if (auto* label = qobject_cast<QLabel*>(widget); label != nullptr && label->alignment().testFlag(Qt::AlignTop))
-            label->setContentsMargins(0, sRowPadding + static_cast<int>(sHairline), 0, 0);
+            label->setContentsMargins(0, sRowPadding + static_cast<std::int32_t>(sHairline), 0, 0);
     }
 
     QIcon Style::standardIcon(StandardPixmap icon, const QStyleOption* option, const QWidget* widget) const
@@ -883,7 +886,7 @@ namespace Graphite
         const auto* frame = qstyleoption_cast<const QStyleOptionFrame*>(option);
         if (element == SE_LineEditContents && frame != nullptr && frame->lineWidth > 0)
         {
-            const int inset = sFieldInset - sEditMargin;
+            const std::int32_t inset = sFieldInset - sEditMargin;
             return option->rect.adjusted(inset, 1, -inset, -1);
         }
         return QProxyStyle::subElementRect(element, option, widget);
@@ -908,8 +911,8 @@ namespace Graphite
                         return;
                     Option laidOut = *control;
                     laidOut.rect = QRect(QPoint(0, 0), size);
-                    const int fusion = baseStyle()->subControlRect(kind, &laidOut, field, widget).width();
-                    const int ours = subControlRect(kind, &laidOut, field, widget).width();
+                    const std::int32_t fusion = baseStyle()->subControlRect(kind, &laidOut, field, widget).width();
+                    const std::int32_t ours = subControlRect(kind, &laidOut, field, widget).width();
                     size.rwidth() += std::max(0, fusion - ours);
                 };
                 if (type == CT_ComboBox)
@@ -926,8 +929,8 @@ namespace Graphite
             }
             // A push button pads its text `sButtonPadding` either side, never narrower than Fusion's.
             case CT_PushButton:
-                size.setWidth(
-                    std::max(size.width(), contents.width() + 2 * sButtonPadding + 2 * static_cast<int>(sHairline)));
+                size.setWidth(std::max(
+                    size.width(), contents.width() + 2 * sButtonPadding + 2 * static_cast<std::int32_t>(sHairline)));
                 size.setHeight(std::max(size.height(), rowHeight(*option)));
                 return size;
             case CT_LineEdit:
@@ -943,7 +946,7 @@ namespace Graphite
                 const auto* tool = qstyleoption_cast<const QStyleOptionToolButton*>(option);
                 if (tool == nullptr || tool->toolButtonStyle != Qt::ToolButtonIconOnly)
                     return size;
-                const int side = std::max({ size.width(), size.height(), rowHeight(*option) });
+                const std::int32_t side = std::max({ size.width(), size.height(), rowHeight(*option) });
                 return { side, side };
             }
             case CT_ItemViewItem:
@@ -954,7 +957,7 @@ namespace Graphite
         }
     }
 
-    int Style::styleHint(
+    std::int32_t Style::styleHint(
         StyleHint hint, const QStyleOption* option, const QWidget* widget, QStyleHintReturn* returnData) const
     {
         switch (hint)

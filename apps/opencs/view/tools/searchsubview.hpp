@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/opencs/model/tools/search.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
@@ -46,7 +48,7 @@ namespace CSVTools
 
     private slots:
 
-        void stateChanged(int state, CSMDoc::Document* document);
+        void stateChanged(std::int32_t state, CSMDoc::Document* document);
 
         void startSearch(const CSMTools::Search& search);
 
@@ -56,6 +58,6 @@ namespace CSVTools
 
         void tableSizeUpdate();
 
-        void operationDone(int type, bool failed);
+        void operationDone(std::int32_t type, bool failed);
     };
 }

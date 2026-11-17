@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 
 namespace MWWorld
@@ -15,19 +16,19 @@ namespace MWWorld
             if (hours < 0)
                 throw std::runtime_error("Negative hours is not supported Duration");
 
-            return Duration(
-                static_cast<int>(hours / 24), static_cast<float>(std::min(std::fmod(hours, 24), maxFloatHour)));
+            return Duration(static_cast<std::int32_t>(hours / 24),
+                static_cast<float>(std::min(std::fmod(hours, 24), maxFloatHour)));
         }
 
-        int getDays() const { return mDays; }
+        std::int32_t getDays() const { return mDays; }
 
         float getHours() const { return mHours; }
 
     private:
-        int mDays;
+        std::int32_t mDays;
         float mHours;
 
-        explicit Duration(int days, float hours)
+        explicit Duration(std::int32_t days, float hours)
             : mDays(days)
             , mHours(hours)
         {

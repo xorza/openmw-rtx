@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <iomanip>
 #include <limits>
@@ -66,7 +68,7 @@ namespace testing
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const DetourNavigatorTesting::Wrapper<int>& value)
+    inline testing::Message& Message::operator<<(const DetourNavigatorTesting::Wrapper<std::int32_t>& value)
     {
         return (*this) << value.mValue;
     }
@@ -96,7 +98,7 @@ namespace testing
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const std::vector<int>& value)
+    inline testing::Message& Message::operator<<(const std::vector<std::int32_t>& value)
     {
         return DetourNavigatorTesting::writeRange(*this, value, 3);
     }

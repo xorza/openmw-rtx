@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <span>
@@ -66,7 +67,7 @@ namespace MWScript
         std::vector<GateChange> mGateChanges;
 
     public:
-        ScriptManager(const MWWorld::ESMStore& store, Compiler::Context& compilerContext, int warningsMode);
+        ScriptManager(const MWWorld::ESMStore& store, Compiler::Context& compilerContext, std::int32_t warningsMode);
 
         void clear() override;
 
@@ -77,7 +78,7 @@ namespace MWScript
         ///< Compile script with the given namen
         /// \return Success?
 
-        std::pair<int, int> compileAll() override;
+        std::pair<std::int32_t, std::int32_t> compileAll() override;
         ///< Compile all scripts
         /// \return count, success
 

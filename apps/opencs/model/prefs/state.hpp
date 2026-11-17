@@ -1,9 +1,11 @@
 #pragma once
 
-#include <QMutex>
-#include <QObject>
+#include <cstdint>
 #include <map>
 #include <string>
+
+#include <QMutex>
+#include <QObject>
 
 #include <components/files/configurationmanager.hpp>
 
@@ -60,7 +62,7 @@ namespace CSMPrefs
 
         void declareCategory(const std::string& key);
 
-        IntSetting& declareInt(Settings::SettingValue<int>& value, const QString& label);
+        IntSetting& declareInt(Settings::SettingValue<std::int32_t>& value, const QString& label);
 
         DoubleSetting& declareDouble(Settings::SettingValue<double>& value, const QString& label);
 

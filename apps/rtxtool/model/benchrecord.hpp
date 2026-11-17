@@ -258,7 +258,7 @@ namespace RtxTool
 
     /// The minute of the day `hour` is nearest to, in `[0, 1440)`: the one `describeHour` spells,
     /// for the title, which writes it without a string.
-    int minuteOfDay(float hour);
+    std::int32_t minuteOfDay(float hour);
 
     /// One place as the report prints it: what it stood in, what it was built out of, the four
     /// distributions, the device's own account, the clock and the frame rate.

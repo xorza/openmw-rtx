@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <stdexcept>
 #include <typeinfo>
@@ -32,7 +34,7 @@ namespace Nif
 
         union
         {
-            intptr_t mIndex;
+            std::intptr_t mIndex;
             X* mPtr;
         };
 
@@ -69,7 +71,7 @@ namespace Nif
             assert(mIndex == -2);
 
             // Store the index for later
-            const auto index = nif->get<int32_t>();
+            const auto index = nif->get<std::int32_t>();
             if (index < -1)
                 throw std::runtime_error(std::format("Invalid index: {}", index));
 
@@ -151,7 +153,7 @@ namespace Nif
     template <class T>
     void readRecordList(NIFStream* nif, RecordListT<T>& list)
     {
-        nif->readVectorOfRecords<uint32_t>(list);
+        nif->readVectorOfRecords<std::uint32_t>(list);
     }
 
     template <class T>

@@ -1,5 +1,7 @@
 #include "pickpocket.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwworld/class.hpp>
@@ -34,31 +36,31 @@ namespace MWMechanics
         float t = 2 * x - y;
 
         auto pcSneak = mThief.getClass().getSkill(mThief, ESM::Skill::Sneak);
-        int iPickMinChance = MWBase::Environment::get()
-                                 .getESMStore()
-                                 ->get<ESM::GameSetting>()
-                                 .find("iPickMinChance")
-                                 ->mValue.getInteger();
-        int iPickMaxChance = MWBase::Environment::get()
-                                 .getESMStore()
-                                 ->get<ESM::GameSetting>()
-                                 .find("iPickMaxChance")
-                                 ->mValue.getInteger();
+        std::int32_t iPickMinChance = MWBase::Environment::get()
+                                          .getESMStore()
+                                          ->get<ESM::GameSetting>()
+                                          .find("iPickMinChance")
+                                          ->mValue.getInteger();
+        std::int32_t iPickMaxChance = MWBase::Environment::get()
+                                          .getESMStore()
+                                          ->get<ESM::GameSetting>()
+                                          .find("iPickMaxChance")
+                                          ->mValue.getInteger();
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        int roll = Misc::Rng::roll0to99(prng);
+        std::int32_t roll = Misc::Rng::roll0to99(prng);
         if (t < pcSneak / static_cast<float>(iPickMinChance))
         {
-            return (roll > static_cast<int>(pcSneak / static_cast<float>(iPickMinChance)));
+            return (roll > static_cast<std::int32_t>(pcSneak / static_cast<float>(iPickMinChance)));
         }
         else
         {
             t = std::min(static_cast<float>(iPickMaxChance), t);
-            return (roll > static_cast<int>(t));
+            return (roll > static_cast<std::int32_t>(t));
         }
     }
 
-    bool Pickpocket::pick(const MWWorld::Ptr& item, int count)
+    bool Pickpocket::pick(const MWWorld::Ptr& item, std::int32_t count)
     {
         float stackValue = static_cast<float>(item.getClass().getValue(item) * count);
         float fPickPocketMod = MWBase::Environment::get()

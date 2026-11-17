@@ -11,5 +11,5 @@ namespace DetourNavigator
         Cylinder = 2,
     };
 
-    CollisionShapeType toCollisionShapeType(int value);
+    CollisionShapeType toCollisionShapeType(std::int32_t value);
 }

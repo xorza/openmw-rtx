@@ -1,5 +1,7 @@
 #include "videowidget.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_RenderManager.h>
 #include <osg-ffmpeg-videoplayer/videoplayer.hpp>
 #include <osg/Texture2D>
@@ -54,12 +56,12 @@ namespace MWGui
         getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 0.f, 1.f, 1.f));
     }
 
-    int VideoWidget::getVideoWidth()
+    std::int32_t VideoWidget::getVideoWidth()
     {
         return mPlayer->getVideoWidth();
     }
 
-    int VideoWidget::getVideoHeight()
+    std::int32_t VideoWidget::getVideoHeight()
     {
         return mPlayer->getVideoHeight();
     }
@@ -109,8 +111,10 @@ namespace MWGui
         {
             double imageaspect = static_cast<double>(getVideoWidth()) / getVideoHeight();
 
-            int leftPadding = std::max(0, static_cast<int>(screenSize.width - screenSize.height * imageaspect) / 2);
-            int topPadding = std::max(0, static_cast<int>(screenSize.height - screenSize.width / imageaspect) / 2);
+            std::int32_t leftPadding
+                = std::max(0, static_cast<std::int32_t>(screenSize.width - screenSize.height * imageaspect) / 2);
+            std::int32_t topPadding
+                = std::max(0, static_cast<std::int32_t>(screenSize.height - screenSize.width / imageaspect) / 2);
 
             setCoord(leftPadding, topPadding, screenSize.width - leftPadding * 2, screenSize.height - topPadding * 2);
         }

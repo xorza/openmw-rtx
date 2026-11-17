@@ -1,5 +1,7 @@
 #include "guiextensions.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
@@ -154,9 +156,9 @@ namespace MWScript
             class OpMenuTest : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
-                    int arg = 0;
+                    std::int32_t arg = 0;
                     if (arg0 > 0)
                     {
                         arg = runtime[0].mInteger;

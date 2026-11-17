@@ -1,5 +1,8 @@
 #include "merchantrepair.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ScrollView.h>
@@ -44,26 +47,26 @@ namespace MWGui
             MyGUI::Gui::getInstance().destroyWidget(mList->getChildAt(0));
         mButtons.clear();
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
-        int currentY = 0;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        std::int32_t currentY = 0;
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
         MWWorld::ContainerStore& store = player.getClass().getContainerStore(player);
-        int categories = MWWorld::ContainerStore::Type_Weapon | MWWorld::ContainerStore::Type_Armor;
-        std::vector<std::tuple<std::string, int, MWWorld::Ptr>> items;
+        std::int32_t categories = MWWorld::ContainerStore::Type_Weapon | MWWorld::ContainerStore::Type_Armor;
+        std::vector<std::tuple<std::string, std::int32_t, MWWorld::Ptr>> items;
 
         for (MWWorld::ContainerStoreIterator iter(store.begin(categories)); iter != store.end(); ++iter)
         {
             if (iter->getClass().hasItemHealth(*iter))
             {
-                int maxDurability = iter->getClass().getItemMaxHealth(*iter);
-                int durability = iter->getClass().getItemHealth(*iter);
+                std::int32_t maxDurability = iter->getClass().getItemMaxHealth(*iter);
+                std::int32_t durability = iter->getClass().getItemHealth(*iter);
                 if (maxDurability <= durability || maxDurability == 0)
                     continue;
 
-                int basePrice = iter->getClass().getValue(*iter);
+                std::int32_t basePrice = iter->getClass().getValue(*iter);
                 float fRepairMult = MWBase::Environment::get()
                                         .getESMStore()
                                         ->get<ESM::GameSetting>()
@@ -71,13 +74,14 @@ namespace MWGui
                                         ->mValue.getFloat();
 
                 float p = static_cast<float>(std::max(1, basePrice));
-                float r = static_cast<float>(std::max(1, static_cast<int>(static_cast<float>(maxDurability) / p)));
+                float r
+                    = static_cast<float>(std::max(1, static_cast<std::int32_t>(static_cast<float>(maxDurability) / p)));
 
-                int x = static_cast<int>(static_cast<float>((maxDurability - durability)) / r);
-                x = static_cast<int>(fRepairMult * static_cast<float>(x));
+                auto x = static_cast<std::int32_t>(static_cast<float>((maxDurability - durability)) / r);
+                x = static_cast<std::int32_t>(fRepairMult * static_cast<float>(x));
                 x = std::max(1, x);
 
-                int price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mActor, x, true);
+                std::int32_t price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mActor, x, true);
 
                 std::string name{ iter->getClass().getName(*iter) };
                 name += "  - " + MyGUI::utility::toString(price)
@@ -126,13 +130,14 @@ namespace MWGui
         mGoldLabel->setCaptionWithReplacing("#{sGold}: " + MyGUI::utility::toString(playerGold));
     }
 
-    void MerchantRepair::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void MerchantRepair::onMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (static_cast<float>(mList->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mList->setViewOffset(MyGUI::IntPoint(0, 0));
         else
-            mList->setViewOffset(MyGUI::IntPoint(
-                0, static_cast<int>(static_cast<float>(mList->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
+            mList->setViewOffset(MyGUI::IntPoint(0,
+                static_cast<std::int32_t>(
+                    static_cast<float>(mList->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
     void MerchantRepair::onOpen()
@@ -146,7 +151,7 @@ namespace MWGui
     {
         MWWorld::Ptr player = MWMechanics::getPlayer();
 
-        int price = MyGUI::utility::parseInt(sender->getUserString("Price"));
+        std::int32_t price = MyGUI::utility::parseInt(sender->getUserString("Price"));
         if (price > player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId))
             return;
 
@@ -205,13 +210,13 @@ namespace MWGui
         // Scroll the list to keep the active item in view
         if (mControllerFocus < mButtons.size())
         {
-            size_t line = mButtons[mControllerFocus].second;
+            std::size_t line = mButtons[mControllerFocus].second;
             if (line <= 5)
                 mList->setViewOffset(MyGUI::IntPoint(0, 0));
             else
             {
-                const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
-                mList->setViewOffset(MyGUI::IntPoint(0, -lineHeight * static_cast<int>(line - 5)));
+                const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+                mList->setViewOffset(MyGUI::IntPoint(0, -lineHeight * static_cast<std::int32_t>(line - 5)));
             }
         }
 

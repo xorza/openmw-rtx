@@ -1,5 +1,7 @@
 #include "selectionmode.hpp"
 
+#include <cstdint>
+
 #include <QAction>
 #include <QMenu>
 
@@ -15,7 +17,7 @@ namespace CSVWidget
 namespace CSVRender
 {
     SelectionMode::SelectionMode(
-        CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget, unsigned int interactionMask)
+        CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget, std::uint32_t interactionMask)
         : SceneToolMode(parent, "Selection mode")
         , mWorldspaceWidget(worldspaceWidget)
         , mInteractionMask(interactionMask)
@@ -75,16 +77,16 @@ namespace CSVRender
 
     void SelectionMode::selectAll()
     {
-        getWorldspaceWidget().selectAll(static_cast<int>(mInteractionMask));
+        getWorldspaceWidget().selectAll(static_cast<std::int32_t>(mInteractionMask));
     }
 
     void SelectionMode::clearSelection()
     {
-        getWorldspaceWidget().clearSelection(static_cast<int>(mInteractionMask));
+        getWorldspaceWidget().clearSelection(static_cast<std::int32_t>(mInteractionMask));
     }
 
     void SelectionMode::invertSelection()
     {
-        getWorldspaceWidget().invertSelection(static_cast<int>(mInteractionMask));
+        getWorldspaceWidget().invertSelection(static_cast<std::int32_t>(mInteractionMask));
     }
 }

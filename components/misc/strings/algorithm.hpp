@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -47,7 +48,7 @@ namespace Misc::StringUtils
         return ciEqual(value.substr(0, prefix.size()), prefix);
     }
 
-    inline int ciCompareLen(std::string_view x, std::string_view y, std::size_t len)
+    inline std::int32_t ciCompareLen(std::string_view x, std::string_view y, std::size_t len)
     {
         std::string_view::const_iterator xit = x.begin();
         std::string_view::const_iterator yit = y.begin();
@@ -60,7 +61,7 @@ namespace Misc::StringUtils
 
             left = toLower(left);
             right = toLower(right);
-            int res = left - right;
+            std::int32_t res = left - right;
             if (res != 0)
                 return (res > 0) ? 1 : -1;
         }
@@ -109,8 +110,8 @@ namespace Misc::StringUtils
     struct StringHash
     {
         using is_transparent = void;
-        [[nodiscard]] size_t operator()(std::string_view sv) const { return std::hash<std::string_view>{}(sv); }
-        [[nodiscard]] size_t operator()(const std::string& s) const { return std::hash<std::string>{}(s); }
+        [[nodiscard]] std::size_t operator()(std::string_view sv) const { return std::hash<std::string_view>{}(sv); }
+        [[nodiscard]] std::size_t operator()(const std::string& s) const { return std::hash<std::string>{}(s); }
     };
 
     /** @brief Replaces all occurrences of a string in another string.
@@ -160,7 +161,7 @@ namespace Misc::StringUtils
     {
         const auto notSpace = [](char ch) {
             // TODO Do we care about multibyte whitespace?
-            return !std::isspace(static_cast<unsigned char>(ch));
+            return !std::isspace(static_cast<std::uint8_t>(ch));
         };
         // left trim
         s.erase(s.begin(), std::find_if(s.begin(), s.end(), notSpace));

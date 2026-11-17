@@ -1,5 +1,7 @@
 #include "cellbindings.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -165,7 +167,7 @@ namespace MWLua
                               ok = false;
                           else
                           {
-                              uint32_t typeId = ids[*type];
+                              std::uint32_t typeId = ids[*type];
                               switch (typeId)
                               {
                                   case ESM::REC_INTERNAL_PLAYER:

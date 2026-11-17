@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <vector>
 
@@ -9,14 +10,14 @@ namespace ESM
 {
     class ActorIdConverter
     {
-        std::vector<std::pair<ESM::RefNum&, int>> mToConvert;
+        std::vector<std::pair<ESM::RefNum&, std::int32_t>> mToConvert;
 
     public:
-        std::map<int, ESM::RefNum> mMappings;
-        std::vector<int> mGraveyard;
+        std::map<std::int32_t, ESM::RefNum> mMappings;
+        std::vector<std::int32_t> mGraveyard;
 
         void apply();
 
-        void convert(ESM::RefNum& refNum, int actorId);
+        void convert(ESM::RefNum& refNum, std::int32_t actorId);
     };
 }

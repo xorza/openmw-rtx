@@ -28,7 +28,7 @@ namespace LuaUtil
 
 // ADL-based customization point for sol2 to automatically convert ESM::RefId
 // Empty RefIds are converted to nil, non-empty ones are serialized to strings
-inline int sol_lua_push(sol::types<ESM::RefId>, lua_State* state, const ESM::RefId& id)
+inline std::int32_t sol_lua_push(sol::types<ESM::RefId>, lua_State* state, const ESM::RefId& id)
 {
     if (id.empty())
         return sol::stack::push(state, sol::lua_nil);

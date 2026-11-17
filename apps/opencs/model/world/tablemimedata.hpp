@@ -1,10 +1,10 @@
 #pragma once
 
-#include <QModelIndex>
-#include <QStringList>
 #include <string>
 #include <vector>
 
+#include <QModelIndex>
+#include <QStringList>
 #include <QtCore/QMimeData>
 
 #include "columnbase.hpp"

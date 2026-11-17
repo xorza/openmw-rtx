@@ -59,7 +59,7 @@ namespace ContentStore
         /// Past `Store::sResidentMost`, so the store reads it from its file and not from memory.
         constexpr std::size_t sLarge = 5000;
 
-        Misc::ByteBuffer payloadOf(std::size_t bytes, unsigned seed)
+        Misc::ByteBuffer payloadOf(std::size_t bytes, std::uint32_t seed)
         {
             Misc::ByteBuffer payload(bytes);
             for (std::size_t at = 0; at < bytes; ++at)

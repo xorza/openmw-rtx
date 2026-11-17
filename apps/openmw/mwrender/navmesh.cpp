@@ -1,6 +1,8 @@
 #include "navmesh.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <utility>
 
@@ -109,8 +111,8 @@ namespace MWRender
                 return;
 
             std::vector<std::pair<DetourNavigator::TilePosition, Version>> existingTiles;
-            unsigned minSalt = std::numeric_limits<unsigned>::max();
-            unsigned maxSalt = 0;
+            std::uint32_t minSalt = std::numeric_limits<std::uint32_t>::max();
+            std::uint32_t maxSalt = 0;
 
             navMeshPtr->lockConst()->forEachUsedTile(
                 [&](const TilePosition& position, const Version& version, const dtMeshTile& meshTile) {
@@ -132,7 +134,7 @@ namespace MWRender
 
             std::vector<std::pair<TilePosition, Tile>> updatedTiles;
 
-            const unsigned char flags = SceneUtil::NavMeshTileDrawFlagsOffMeshConnections
+            const std::uint8_t flags = SceneUtil::NavMeshTileDrawFlagsOffMeshConnections
                 | SceneUtil::NavMeshTileDrawFlagsClosedList
                 | (mMode == Settings::NavMeshRenderMode::UpdateFrequency ? SceneUtil::NavMeshTileDrawFlagsHeat : 0);
 

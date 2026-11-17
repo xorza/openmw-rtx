@@ -1,5 +1,7 @@
 #include "actionequip.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwmechanics/actorutil.hpp>
@@ -45,7 +47,7 @@ namespace MWWorld
         }
 
         // slots that this item can be equipped in
-        std::pair<std::vector<int>, bool> slots = getTarget().getClass().getEquipmentSlots(getTarget());
+        std::pair<std::vector<std::int32_t>, bool> slots = getTarget().getClass().getEquipmentSlots(getTarget());
         if (slots.first.empty())
             return;
 

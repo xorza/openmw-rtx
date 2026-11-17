@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -23,16 +24,16 @@ namespace CSVWorld
     class VarTypeDelegate : public EnumDelegate
     {
     private:
-        void addCommands(QAbstractItemModel* model, const QModelIndex& index, int type) const override;
+        void addCommands(QAbstractItemModel* model, const QModelIndex& index, std::int32_t type) const override;
 
     public:
-        VarTypeDelegate(const std::vector<std::pair<int, QString>>& values, CSMWorld::CommandDispatcher* dispatcher,
-            CSMDoc::Document& document, QObject* parent);
+        VarTypeDelegate(const std::vector<std::pair<std::int32_t, QString>>& values,
+            CSMWorld::CommandDispatcher* dispatcher, CSMDoc::Document& document, QObject* parent);
     };
 
     class VarTypeDelegateFactory : public CommandDelegateFactory
     {
-        std::vector<std::pair<int, QString>> mValues;
+        std::vector<std::pair<std::int32_t, QString>> mValues;
 
     public:
         explicit VarTypeDelegateFactory(ESM::VarType type0 = ESM::VT_Unknown, ESM::VarType type1 = ESM::VT_Unknown,

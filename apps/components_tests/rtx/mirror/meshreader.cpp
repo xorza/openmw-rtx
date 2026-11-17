@@ -348,7 +348,7 @@ namespace Rtx::Testing
             // What `NifOsg` builds from a `NiGeometryData`: four floats a vertex.
             osg::ref_ptr<osg::Geometry> floats = makeQuad();
             osg::ref_ptr<osg::Vec4Array> asFloats = new osg::Vec4Array;
-            for (int at = 0; at < 4; ++at)
+            for (std::int32_t at = 0; at < 4; ++at)
                 asFloats->push_back(osg::Vec4f(64.0f / 255.0f, 128.0f / 255.0f, 1.0f, 1.0f));
             floats->setColorArray(asFloats, osg::Array::BIND_PER_VERTEX);
 
@@ -366,7 +366,7 @@ namespace Rtx::Testing
             // What a `BSTriShape` and `Terrain::Storage` build: one byte a channel.
             osg::ref_ptr<osg::Geometry> bytes = makeQuad();
             osg::ref_ptr<osg::Vec4ubArray> asBytes = new osg::Vec4ubArray;
-            for (int at = 0; at < 4; ++at)
+            for (std::int32_t at = 0; at < 4; ++at)
                 asBytes->push_back(osg::Vec4ub(64, 128, 255, 255));
             bytes->setColorArray(asBytes, osg::Array::BIND_PER_VERTEX);
 
@@ -428,7 +428,7 @@ namespace Rtx::Testing
         TEST(RtxMeshReaderTest, anArrayThatDoesNotMatchTheVerticesRefusesTheFaceAndSaysWhich)
         {
             const auto pairs = [](std::size_t count) {
-                osg::ref_ptr<osg::Vec2Array> array = new osg::Vec2Array(static_cast<unsigned int>(count));
+                osg::ref_ptr<osg::Vec2Array> array = new osg::Vec2Array(static_cast<std::uint32_t>(count));
                 return array;
             };
 

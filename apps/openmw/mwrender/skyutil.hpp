@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Matrixf>
 #include <osg/Texture2D>
 #include <osg/Transform>
@@ -77,7 +79,7 @@ namespace MWRender
         float getRainDiameter() const;
         float getRainMinHeight() const;
         float getRainMaxHeight() const;
-        int getRainMaxRaindrops() const;
+        std::int32_t getRainMaxRaindrops() const;
         bool getIsStorm() const;
         bool getOcclusionEnabled() const;
         bool getRipplesEnabled() const;
@@ -203,7 +205,8 @@ namespace MWRender
     class CelestialBody
     {
     public:
-        CelestialBody(osg::Group* parentNode, float scaleFactor, int numUvSets, unsigned int visibleMask = ~0u);
+        CelestialBody(
+            osg::Group* parentNode, float scaleFactor, std::int32_t numUvSets, std::uint32_t visibleMask = ~0u);
 
         virtual ~CelestialBody() = default;
 
@@ -212,7 +215,7 @@ namespace MWRender
         void setVisible(bool visible);
 
     protected:
-        unsigned int mVisibleMask;
+        std::uint32_t mVisibleMask;
         static const float mDistance;
         osg::ref_ptr<osg::PositionAttitudeTransform> mTransform;
         osg::ref_ptr<osg::Geometry> mGeom;
@@ -285,7 +288,7 @@ namespace MWRender
     class RainCounter : public osgParticle::ConstantRateCounter
     {
     public:
-        int numParticlesToCreate(double dt) const override;
+        std::int32_t numParticlesToCreate(double dt) const override;
     };
 
     class RainShooter : public osgParticle::Shooter

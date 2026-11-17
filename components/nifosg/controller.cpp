@@ -1,5 +1,8 @@
 #include "controller.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/MatrixTransform>
 #include <osg/Texture2D>
 
@@ -49,7 +52,7 @@ namespace NifOsg
                 float remainder = (cycles - std::floor(cycles)) * delta;
 
                 // Even number of cycles?
-                if ((static_cast<int>(std::fabs(std::floor(cycles))) % 2) == 0)
+                if ((static_cast<std::int32_t>(std::fabs(std::floor(cycles))) % 2) == 0)
                     return mStartTime + remainder;
 
                 return mStopTime - remainder;
@@ -259,7 +262,7 @@ namespace NifOsg
             if (mKeyFrames.size() <= 1)
                 return;
             float input = getInputValue(nv);
-            unsigned int i = 1;
+            std::uint32_t i = 1;
             for (auto it = mKeyFrames.begin() + 1; it != mKeyFrames.end(); ++it, ++i)
             {
                 float val = 0;
@@ -280,7 +283,7 @@ namespace NifOsg
         }
     }
 
-    UVController::UVController(const Nif::NiUVData* data, const std::set<unsigned int>& textureUnits)
+    UVController::UVController(const Nif::NiUVData* data, const std::set<std::uint32_t>& textureUnits)
         : mUTrans(data->mKeyList[0], 0.f)
         , mVTrans(data->mKeyList[1], 0.f)
         , mUScale(data->mKeyList[2], 1.f)
@@ -303,7 +306,7 @@ namespace NifOsg
 
     void UVController::setDefaults(osg::StateSet* stateset)
     {
-        for (unsigned int unit : mTextureUnits)
+        for (std::uint32_t unit : mTextureUnits)
             SceneUtil::setupTexMatForStateSet(*stateset, unit, osg::Matrixf{});
     }
 
@@ -324,12 +327,12 @@ namespace NifOsg
             mat.preMultTranslate(-uvOrigin);
             mat.setTrans(mat.getTrans() + uvTrans);
 
-            for (unsigned int unit : mTextureUnits)
+            for (std::uint32_t unit : mTextureUnits)
                 SceneUtil::setupTexMatForStateSet(*stateset, unit, mat);
         }
     }
 
-    VisController::VisController(const Nif::NiVisController* ctrl, unsigned int mask)
+    VisController::VisController(const Nif::NiVisController* ctrl, std::uint32_t mask)
         : mMask(mask)
     {
         if (!ctrl->mInterpolator.empty())
@@ -374,7 +377,7 @@ namespace NifOsg
         if (hasInput())
         {
             bool vis = calculate(getInputValue(nv));
-            node->setNodeMask(vis ? static_cast<unsigned int>(~0) : mMask);
+            node->setNodeMask(vis ? static_cast<std::uint32_t>(~0) : mMask);
         }
         traverse(node, nv);
     }
@@ -539,7 +542,8 @@ namespace NifOsg
             mData = static_cast<const Nif::NiFloatInterpolator*>(ctrl->mInterpolator.getPtr());
     }
 
-    FlipController::FlipController(int texSlot, float delta, const std::vector<osg::ref_ptr<osg::Texture2D>>& textures)
+    FlipController::FlipController(
+        std::int32_t texSlot, float delta, const std::vector<osg::ref_ptr<osg::Texture2D>>& textures)
         : mTexSlot(texSlot)
         , mDelta(delta)
         , mTextures(textures)
@@ -560,15 +564,16 @@ namespace NifOsg
     {
         if (hasInput() && !mTextures.empty())
         {
-            int curTexture = 0;
+            std::int32_t curTexture = 0;
             if (mDelta != 0)
-                curTexture = static_cast<int>(
-                    static_cast<std::size_t>(static_cast<int>(getInputValue(nv) / mDelta)) % mTextures.size());
+                curTexture = static_cast<std::int32_t>(
+                    static_cast<std::size_t>(static_cast<std::int32_t>(getInputValue(nv) / mDelta)) % mTextures.size());
             else
-                curTexture = static_cast<int>(
-                    static_cast<std::size_t>(static_cast<int>(mData.interpKey(getInputValue(nv)))) % mTextures.size());
+                curTexture = static_cast<std::int32_t>(
+                    static_cast<std::size_t>(static_cast<std::int32_t>(mData.interpKey(getInputValue(nv))))
+                    % mTextures.size());
             stateset->setTextureAttribute(
-                static_cast<unsigned int>(mTexSlot), mTextures[static_cast<std::size_t>(curTexture)]);
+                static_cast<std::uint32_t>(mTexSlot), mTextures[static_cast<std::size_t>(curTexture)]);
         }
     }
 

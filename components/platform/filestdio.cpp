@@ -1,11 +1,12 @@
 #include "file.hpp"
 
 #include <cassert>
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <stdexcept>
 #include <string>
-
-#include <errno.h>
-#include <string.h>
 
 #include <components/files/conversion.hpp>
 
@@ -16,10 +17,10 @@ namespace Platform::File
     {
         assert(handle != Handle::Invalid);
 
-        return reinterpret_cast<FILE*>(static_cast<intptr_t>(handle));
+        return reinterpret_cast<FILE*>(static_cast<std::intptr_t>(handle));
     }
 
-    static int getNativeSeekType(SeekType seek)
+    static std::int32_t getNativeSeekType(SeekType seek)
     {
         if (seek == SeekType::Begin)
             return SEEK_SET;
@@ -38,7 +39,7 @@ namespace Platform::File
             throw std::system_error(errno, std::generic_category(),
                 std::string("Failed to open '") + Files::pathToUnicodeString(filename) + "' for reading");
         }
-        return static_cast<Handle>(reinterpret_cast<intptr_t>(handle));
+        return static_cast<Handle>(reinterpret_cast<std::intptr_t>(handle));
     }
 
     void close(Handle handle)
@@ -47,7 +48,7 @@ namespace Platform::File
         fclose(nativeHandle);
     }
 
-    void seek(Handle handle, size_t position, SeekType type /*= SeekType::Begin*/)
+    void seek(Handle handle, std::size_t position, SeekType type /*= SeekType::Begin*/)
     {
         const auto nativeHandle = getNativeHandle(handle);
         const auto nativeSeekType = getNativeSeekType(type);
@@ -57,7 +58,7 @@ namespace Platform::File
         }
     }
 
-    size_t size(Handle handle)
+    std::size_t size(Handle handle)
     {
         auto nativeHandle = getNativeHandle(handle);
 
@@ -66,32 +67,33 @@ namespace Platform::File
         const auto fileSize = tell(handle);
         seek(handle, oldPos, SeekType::Begin);
 
-        return static_cast<size_t>(fileSize);
+        return static_cast<std::size_t>(fileSize);
     }
 
-    size_t tell(Handle handle)
+    std::size_t tell(Handle handle)
     {
         auto nativeHandle = getNativeHandle(handle);
 
+        // NOLINTNEXTLINE(google-runtime-int): ftell's type
         long position = ftell(nativeHandle);
         if (position == -1)
         {
             throw std::system_error(errno, std::generic_category(), std::string("An ftell() call failed"));
         }
-        return static_cast<size_t>(position);
+        return static_cast<std::size_t>(position);
     }
 
-    size_t read(Handle handle, void* data, size_t size)
+    std::size_t read(Handle handle, void* data, std::size_t size)
     {
         auto nativeHandle = getNativeHandle(handle);
 
-        int amount = fread(data, 1, size, nativeHandle);
+        std::int32_t amount = fread(data, 1, size, nativeHandle);
         if (amount == 0 && ferror(nativeHandle))
         {
             throw std::system_error(errno, std::generic_category(),
                 std::string("An attempt to read ") + std::to_string(size) + " bytes failed");
         }
-        return static_cast<size_t>(amount);
+        return static_cast<std::size_t>(amount);
     }
 
 }

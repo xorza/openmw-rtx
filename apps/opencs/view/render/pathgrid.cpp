@@ -1,6 +1,8 @@
 #include "pathgrid.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <set>
 
@@ -17,7 +19,6 @@
 #include <osg/StateSet>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
-#include <stddef.h>
 
 #include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
@@ -113,7 +114,7 @@ namespace CSVRender
 
         recreateGeometry();
 
-        int index = mData.getCells().searchId(mId);
+        std::int32_t index = mData.getCells().searchId(mId);
         if (index != -1)
         {
             const CSMWorld::Cell& cell = mData.getCells().getRecord(index).get();
@@ -153,7 +154,7 @@ namespace CSVRender
         const CSMWorld::Pathgrid* source = getPathgridSource();
         if (source)
         {
-            for (unsigned short i = 0; i < static_cast<unsigned short>(source->mPoints.size()); ++i)
+            for (std::uint16_t i = 0; i < static_cast<std::uint16_t>(source->mPoints.size()); ++i)
                 mSelected.push_back(i);
 
             createSelectedGeometry(*source);
@@ -164,7 +165,7 @@ namespace CSVRender
         }
     }
 
-    void Pathgrid::toggleSelected(unsigned short node)
+    void Pathgrid::toggleSelected(std::uint16_t node)
     {
         auto searchResult = std::find(mSelected.begin(), mSelected.end(), node);
         if (searchResult != mSelected.end())
@@ -187,7 +188,7 @@ namespace CSVRender
         const CSMWorld::Pathgrid* source = getPathgridSource();
         if (source)
         {
-            for (unsigned short i = 0; i < static_cast<unsigned short>(source->mPoints.size()); ++i)
+            for (std::uint16_t i = 0; i < static_cast<std::uint16_t>(source->mPoints.size()); ++i)
             {
                 if (std::find(temp.begin(), temp.end(), i) == temp.end())
                     mSelected.push_back(i);
@@ -215,12 +216,12 @@ namespace CSVRender
         recreateGeometry();
     }
 
-    void Pathgrid::setDragOrigin(unsigned short node)
+    void Pathgrid::setDragOrigin(std::uint16_t node)
     {
         mDragOrigin = node;
     }
 
-    void Pathgrid::setDragEndpoint(unsigned short node)
+    void Pathgrid::setDragEndpoint(std::uint16_t node)
     {
         const CSMWorld::Pathgrid* source = getPathgridSource();
         if (source)
@@ -270,24 +271,24 @@ namespace CSVRender
         {
             osg::Vec3d localCoords = worldPos - mBaseNode->getPosition();
 
-            int posX = clampToCell(static_cast<int>(localCoords.x()));
-            int posY = clampToCell(static_cast<int>(localCoords.y()));
-            int posZ = clampToCell(static_cast<int>(localCoords.z()));
+            std::int32_t posX = clampToCell(static_cast<std::int32_t>(localCoords.x()));
+            std::int32_t posY = clampToCell(static_cast<std::int32_t>(localCoords.y()));
+            std::int32_t posZ = clampToCell(static_cast<std::int32_t>(localCoords.z()));
 
-            int recordIndex = mPathgridCollection.getIndex(mId);
-            int parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
+            std::int32_t recordIndex = mPathgridCollection.getIndex(mId);
+            std::int32_t parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
 
-            int posXColumn
+            std::int32_t posXColumn
                 = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridPosX);
 
-            int posYColumn
+            std::int32_t posYColumn
                 = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridPosY);
 
-            int posZColumn
+            std::int32_t posZColumn
                 = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridPosZ);
 
             QModelIndex parent = model->index(recordIndex, parentColumn);
-            int row = static_cast<int>(source->mPoints.size());
+            auto row = static_cast<std::int32_t>(source->mPoints.size());
 
             // Add node to end of list
             commands.push(new CSMWorld::AddNestedCommand(*model, idString, row, parentColumn));
@@ -297,7 +298,7 @@ namespace CSVRender
         }
         else
         {
-            int index = mPathgridCollection.searchId(mId);
+            std::int32_t index = mPathgridCollection.searchId(mId);
             if (index == -1)
             {
                 // Does not exist
@@ -310,18 +311,19 @@ namespace CSVRender
                 // Deleted, so revert and remove all data
                 commands.push(new CSMWorld::RevertCommand(*model, idString));
 
-                int parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
-                for (size_t row = source->mPoints.size(); row > 0; --row)
+                std::int32_t parentColumn
+                    = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
+                for (std::size_t row = source->mPoints.size(); row > 0; --row)
                 {
-                    commands.push(
-                        new CSMWorld::DeleteNestedCommand(*model, idString, static_cast<int>(row - 1), parentColumn));
+                    commands.push(new CSMWorld::DeleteNestedCommand(
+                        *model, idString, static_cast<std::int32_t>(row - 1), parentColumn));
                 }
 
                 parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridEdges);
-                for (size_t row = source->mEdges.size(); row > 0; --row)
+                for (std::size_t row = source->mEdges.size(); row > 0; --row)
                 {
-                    commands.push(
-                        new CSMWorld::DeleteNestedCommand(*model, idString, static_cast<int>(row - 1), parentColumn));
+                    commands.push(new CSMWorld::DeleteNestedCommand(
+                        *model, idString, static_cast<std::int32_t>(row - 1), parentColumn));
                 }
             }
         }
@@ -334,22 +336,22 @@ namespace CSVRender
         {
             osg::Vec3d localCoords = mMoveOffset;
 
-            int offsetX = static_cast<int>(localCoords.x());
-            int offsetY = static_cast<int>(localCoords.y());
-            int offsetZ = static_cast<int>(localCoords.z());
+            auto offsetX = static_cast<std::int32_t>(localCoords.x());
+            auto offsetY = static_cast<std::int32_t>(localCoords.y());
+            auto offsetZ = static_cast<std::int32_t>(localCoords.z());
 
             QAbstractItemModel* model = mData.getTableModel(CSMWorld::UniversalId::Type_Pathgrids);
 
-            int recordIndex = mPathgridCollection.getIndex(mId);
-            int parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
+            std::int32_t recordIndex = mPathgridCollection.getIndex(mId);
+            std::int32_t parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
 
-            int posXColumn
+            std::int32_t posXColumn
                 = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridPosX);
 
-            int posYColumn
+            std::int32_t posYColumn
                 = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridPosY);
 
-            int posZColumn
+            std::int32_t posZColumn
                 = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridPosZ);
 
             QModelIndex parent = model->index(recordIndex, parentColumn);
@@ -357,7 +359,7 @@ namespace CSVRender
             for (const auto& selected : mSelected)
             {
                 const CSMWorld::Pathgrid::Point& point = source->mPoints[selected];
-                int row = static_cast<int>(selected);
+                auto row = static_cast<std::int32_t>(selected);
 
                 commands.push(new CSMWorld::ModifyCommand(
                     *model, model->index(row, posXColumn, parent), clampToCell(point.mX + offsetX)));
@@ -371,7 +373,7 @@ namespace CSVRender
         }
     }
 
-    void Pathgrid::applyEdge(CSMWorld::CommandMacro& commands, unsigned short node1, unsigned short node2)
+    void Pathgrid::applyEdge(CSMWorld::CommandMacro& commands, std::uint16_t node1, std::uint16_t node2)
     {
         const CSMWorld::Pathgrid* source = getPathgridSource();
         if (source)
@@ -380,7 +382,7 @@ namespace CSVRender
         }
     }
 
-    void Pathgrid::applyEdges(CSMWorld::CommandMacro& commands, unsigned short node)
+    void Pathgrid::applyEdges(CSMWorld::CommandMacro& commands, std::uint16_t node)
     {
         const CSMWorld::Pathgrid* source = getPathgridSource();
         if (source)
@@ -401,41 +403,41 @@ namespace CSVRender
                 = &dynamic_cast<CSMWorld::IdTree&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Pathgrids));
 
             // Want to remove nodes from end of list first
-            std::sort(mSelected.begin(), mSelected.end(), std::greater<int>());
+            std::sort(mSelected.begin(), mSelected.end(), std::greater<std::int32_t>());
 
-            int recordIndex = mPathgridCollection.getIndex(mId);
-            int parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
+            std::int32_t recordIndex = mPathgridCollection.getIndex(mId);
+            std::int32_t parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
 
-            for (unsigned short& row : mSelected)
+            for (std::uint16_t& row : mSelected)
             {
                 commands.push(new CSMWorld::DeleteNestedCommand(
-                    *model, mId.getRefIdString(), static_cast<int>(row), parentColumn));
+                    *model, mId.getRefIdString(), static_cast<std::int32_t>(row), parentColumn));
             }
 
             // Fix/remove edges
-            std::set<int, std::greater<int>> edgeRowsToRemove;
+            std::set<std::int32_t, std::greater<std::int32_t>> edgeRowsToRemove;
 
             parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridEdges);
 
-            int edge0Column
+            std::int32_t edge0Column
                 = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridEdge0);
 
-            int edge1Column
+            std::int32_t edge1Column
                 = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridEdge1);
 
             QModelIndex parent = model->index(recordIndex, parentColumn);
 
-            for (size_t edge = 0; edge < source->mEdges.size(); ++edge)
+            for (std::size_t edge = 0; edge < source->mEdges.size(); ++edge)
             {
-                size_t adjustment0 = 0;
-                size_t adjustment1 = 0;
+                std::size_t adjustment0 = 0;
+                std::size_t adjustment1 = 0;
 
                 // Determine necessary adjustment
                 for (const auto point : mSelected)
                 {
                     if (source->mEdges[edge].mV0 == point || source->mEdges[edge].mV1 == point)
                     {
-                        edgeRowsToRemove.insert(static_cast<int>(edge));
+                        edgeRowsToRemove.insert(static_cast<std::int32_t>(edge));
 
                         adjustment0 = 0; // No need to adjust, its getting removed
                         adjustment1 = 0;
@@ -451,16 +453,16 @@ namespace CSVRender
 
                 if (adjustment0 != 0)
                 {
-                    int adjustedEdge = static_cast<int>(source->mEdges[edge].mV0 - adjustment0);
+                    auto adjustedEdge = static_cast<std::int32_t>(source->mEdges[edge].mV0 - adjustment0);
                     commands.push(new CSMWorld::ModifyCommand(
-                        *model, model->index(static_cast<int>(edge), edge0Column, parent), adjustedEdge));
+                        *model, model->index(static_cast<std::int32_t>(edge), edge0Column, parent), adjustedEdge));
                 }
 
                 if (adjustment1 != 0)
                 {
-                    int adjustedEdge = static_cast<int>(source->mEdges[edge].mV1 - adjustment1);
+                    auto adjustedEdge = static_cast<std::int32_t>(source->mEdges[edge].mV1 - adjustment1);
                     commands.push(new CSMWorld::ModifyCommand(
-                        *model, model->index(static_cast<int>(edge), edge1Column, parent), adjustedEdge));
+                        *model, model->index(static_cast<std::int32_t>(edge), edge1Column, parent), adjustedEdge));
                 }
             }
 
@@ -479,12 +481,12 @@ namespace CSVRender
         if (source)
         {
             // Want to remove from end of row first
-            std::set<int, std::greater<int>> rowsToRemove;
-            for (size_t i = 0; i <= mSelected.size(); ++i)
+            std::set<std::int32_t, std::greater<std::int32_t>> rowsToRemove;
+            for (std::size_t i = 0; i <= mSelected.size(); ++i)
             {
-                for (size_t j = i + 1; j < mSelected.size(); ++j)
+                for (std::size_t j = i + 1; j < mSelected.size(); ++j)
                 {
-                    int row = edgeExists(*source, mSelected[i], mSelected[j]);
+                    std::int32_t row = edgeExists(*source, mSelected[i], mSelected[j]);
                     if (row != -1)
                     {
                         rowsToRemove.insert(row);
@@ -500,9 +502,9 @@ namespace CSVRender
 
             CSMWorld::IdTree* model
                 = &dynamic_cast<CSMWorld::IdTree&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Pathgrids));
-            int parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridEdges);
+            std::int32_t parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridEdges);
 
-            std::set<int, std::greater<int>>::iterator row;
+            std::set<std::int32_t, std::greater<std::int32_t>>::iterator row;
             for (row = rowsToRemove.begin(); row != rowsToRemove.end(); ++row)
             {
                 commands.push(new CSMWorld::DeleteNestedCommand(*model, mId.getRefIdString(), *row, parentColumn));
@@ -551,7 +553,7 @@ namespace CSVRender
             {
                 temp = *source;
 
-                for (unsigned short& it : mSelected)
+                for (std::uint16_t& it : mSelected)
                 {
                     temp.mPoints[it].mX = static_cast<std::int32_t>(temp.mPoints[it].mX + mMoveOffset.x());
                     temp.mPoints[it].mY = static_cast<std::int32_t>(temp.mPoints[it].mY + mMoveOffset.y());
@@ -648,7 +650,7 @@ namespace CSVRender
 
     const CSMWorld::Pathgrid* Pathgrid::getPathgridSource()
     {
-        int index = mPathgridCollection.searchId(mId);
+        std::int32_t index = mPathgridCollection.searchId(mId);
         if (index != -1 && !mPathgridCollection.getRecord(index).isDeleted())
         {
             return &mPathgridCollection.getRecord(index).get();
@@ -657,34 +659,34 @@ namespace CSVRender
         return nullptr;
     }
 
-    int Pathgrid::edgeExists(const CSMWorld::Pathgrid& source, unsigned short node1, unsigned short node2)
+    std::int32_t Pathgrid::edgeExists(const CSMWorld::Pathgrid& source, std::uint16_t node1, std::uint16_t node2)
     {
-        for (size_t i = 0; i < source.mEdges.size(); ++i)
+        for (std::size_t i = 0; i < source.mEdges.size(); ++i)
         {
             if (source.mEdges[i].mV0 == node1 && source.mEdges[i].mV1 == node2)
-                return static_cast<int>(i);
+                return static_cast<std::int32_t>(i);
         }
 
         return -1;
     }
 
     void Pathgrid::addEdge(
-        CSMWorld::CommandMacro& commands, const CSMWorld::Pathgrid& source, unsigned short node1, unsigned short node2)
+        CSMWorld::CommandMacro& commands, const CSMWorld::Pathgrid& source, std::uint16_t node1, std::uint16_t node2)
     {
         CSMWorld::IdTree* model
             = &dynamic_cast<CSMWorld::IdTree&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Pathgrids));
 
-        int recordIndex = mPathgridCollection.getIndex(mId);
-        int parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridEdges);
+        std::int32_t recordIndex = mPathgridCollection.getIndex(mId);
+        std::int32_t parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridEdges);
 
-        int edge0Column
+        std::int32_t edge0Column
             = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridEdge0);
 
-        int edge1Column
+        std::int32_t edge1Column
             = mPathgridCollection.searchNestedColumnIndex(parentColumn, CSMWorld::Columns::ColumnId_PathgridEdge1);
 
         QModelIndex parent = model->index(recordIndex, parentColumn);
-        int row = static_cast<int>(source.mEdges.size());
+        auto row = static_cast<std::int32_t>(source.mEdges.size());
 
         if (edgeExists(source, node1, node2) == -1)
         {
@@ -702,9 +704,9 @@ namespace CSVRender
         }
     }
 
-    int Pathgrid::clampToCell(int v)
+    std::int32_t Pathgrid::clampToCell(std::int32_t v)
     {
-        const int cellExtent = ESM::Land::REAL_SIZE;
+        const std::int32_t cellExtent = ESM::Land::REAL_SIZE;
 
         // Each branch states its own case, kept apart to be read and changed as its own.
         // NOLINTBEGIN(bugprone-branch-clone)

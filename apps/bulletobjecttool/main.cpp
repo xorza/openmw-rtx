@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <iomanip>
 #include <ios>
@@ -103,7 +104,7 @@ namespace
         }
     };
 
-    int runBulletObjectTool(int argc, char* argv[])
+    std::int32_t runBulletObjectTool(std::int32_t argc, char* argv[])
     {
         Platform::init();
 
@@ -201,7 +202,7 @@ namespace
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     return Debug::wrapApplication(runBulletObjectTool, argc, argv, applicationName);
 }

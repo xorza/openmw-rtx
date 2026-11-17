@@ -268,10 +268,10 @@ namespace Rtx::Testing
             }
 
             ASSERT_EQ(upscaled.size(), plain.size());
-            int worst = 0;
+            std::int32_t worst = 0;
             for (std::size_t at = 0; at < plain.size(); ++at)
                 if (at % 4 != 3)
-                    worst = std::max(worst, std::abs(int{ upscaled[at] } - int{ plain[at] }));
+                    worst = std::max(worst, std::abs(std::int32_t{ upscaled[at] } - std::int32_t{ plain[at] }));
             EXPECT_LE(worst, 1) << "an even floor came out of the upscaler uneven";
         }
 
@@ -295,7 +295,7 @@ namespace Rtx::Testing
 
             const auto sceneOf = [&](bool withPost) {
                 SceneDesc scene;
-                for (int at = -20; at < 20; ++at)
+                for (std::int32_t at = -20; at < 20; ++at)
                 {
                     const float left = 100.0f * static_cast<float>(at);
                     addQuad(scene,
@@ -339,13 +339,13 @@ namespace Rtx::Testing
             const std::vector<std::uint8_t> bare = run(sceneOf(false));
             const std::vector<std::uint8_t> withPost = run(sceneOf(true));
             ASSERT_EQ(withPost.size(), bare.size());
-            int worst = 0;
+            std::int32_t worst = 0;
             for (std::uint32_t y = 0; y < size; ++y)
                 for (std::uint32_t x = size - band; x < size; ++x)
                     for (std::uint32_t c = 0; c < 3; ++c)
                     {
                         const std::size_t at = (y * size + x) * 4 + c;
-                        worst = std::max(worst, std::abs(int{ withPost[at] } - int{ bare[at] }));
+                        worst = std::max(worst, std::abs(std::int32_t{ withPost[at] } - std::int32_t{ bare[at] }));
                     }
             EXPECT_LE(worst, 1) << "the post at the left edge moved the right edge's picture";
         }

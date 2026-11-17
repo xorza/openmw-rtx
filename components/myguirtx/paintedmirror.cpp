@@ -43,9 +43,9 @@ namespace MyGUIRtx
         // asserts, so a row is one copy.
         write(rows, [&](const std::span<std::uint8_t> into) {
             const std::size_t rowBytes = static_cast<std::size_t>(region.mWidth) * 4;
-            for (int row = 0; row < region.mHeight; ++row)
+            for (std::int32_t row = 0; row < region.mHeight; ++row)
                 std::memcpy(into.data() + rowBytes * static_cast<std::size_t>(row),
-                    image.data(static_cast<unsigned int>(region.mX), static_cast<unsigned int>(region.mY + row)),
+                    image.data(static_cast<std::uint32_t>(region.mX), static_cast<std::uint32_t>(region.mY + row)),
                     rowBytes);
         });
         mSent = true;

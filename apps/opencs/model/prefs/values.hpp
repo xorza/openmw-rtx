@@ -1,12 +1,15 @@
 #pragma once
 
-#include <Qt>
-#include <QtGlobal>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+
+#include <Qt>
+#include <QtGlobal>
 
 #include <components/settings/sanitizer.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -84,13 +87,13 @@ namespace CSMPrefs
             EnumValueView{ "Open Left", "New subviews open to the left of existing ones." },
         };
 
-        Settings::SettingValue<int> mDefaultWidth{ mIndex, sName, "default-width", 800 };
-        Settings::SettingValue<int> mDefaultHeight{ mIndex, sName, "default-height", 600 };
+        Settings::SettingValue<std::int32_t> mDefaultWidth{ mIndex, sName, "default-width", 800 };
+        Settings::SettingValue<std::int32_t> mDefaultHeight{ mIndex, sName, "default-height", 600 };
         Settings::SettingValue<bool> mShowStatusbar{ mIndex, sName, "show-statusbar", true };
         Settings::SettingValue<bool> mReuse{ mIndex, sName, "reuse", true };
-        Settings::SettingValue<int> mMaxSubviews{ mIndex, sName, "max-subviews", 256 };
+        Settings::SettingValue<std::int32_t> mMaxSubviews{ mIndex, sName, "max-subviews", 256 };
         Settings::SettingValue<bool> mHideSubview{ mIndex, sName, "hide-subview", false };
-        Settings::SettingValue<int> mMinimumWidth{ mIndex, sName, "minimum-width", 325 };
+        Settings::SettingValue<std::int32_t> mMinimumWidth{ mIndex, sName, "minimum-width", 325 };
         EnumSettingValue mMainwindowScrollbar{ mIndex, sName, "mainwindow-scrollbar", sMainwindowScrollbarValues, 0 };
         Settings::SettingValue<bool> mGrowLimit{ mIndex, sName, "grow-limit", false };
         EnumSettingValue mSubviewOpenDirection{ mIndex, sName, "subview-open-direction", sSubviewOpenDirectionValues,
@@ -143,7 +146,7 @@ namespace CSMPrefs
         EnumSettingValue mJumpToAdded{ mIndex, sName, "jump-to-added", sJumpAndSelectValues, 0 };
         Settings::SettingValue<bool> mExtendedConfig{ mIndex, sName, "extended-config", false };
         Settings::SettingValue<bool> mSubviewNewWindow{ mIndex, sName, "subview-new-window", false };
-        Settings::SettingValue<int> mFilterDelay{ mIndex, sName, "filter-delay", 500 };
+        Settings::SettingValue<std::int32_t> mFilterDelay{ mIndex, sName, "filter-delay", 500 };
     };
 
     struct IdDialoguesCategory : Settings::WithIndex
@@ -183,8 +186,8 @@ namespace CSMPrefs
 
         static constexpr std::string_view sName = "Search & Replace";
 
-        Settings::SettingValue<int> mCharBefore{ mIndex, sName, "char-before", 10 };
-        Settings::SettingValue<int> mCharAfter{ mIndex, sName, "char-after", 10 };
+        Settings::SettingValue<std::int32_t> mCharBefore{ mIndex, sName, "char-before", 10 };
+        Settings::SettingValue<std::int32_t> mCharAfter{ mIndex, sName, "char-after", 10 };
         Settings::SettingValue<bool> mAutoDelete{ mIndex, sName, "auto-delete", true };
     };
 
@@ -203,11 +206,11 @@ namespace CSMPrefs
         Settings::SettingValue<bool> mShowLinenum{ mIndex, sName, "show-linenum", true };
         Settings::SettingValue<bool> mWrapLines{ mIndex, sName, "wrap-lines", false };
         Settings::SettingValue<bool> mMonoFont{ mIndex, sName, "mono-font", true };
-        Settings::SettingValue<int> mTabWidth{ mIndex, sName, "tab-width", 4 };
+        Settings::SettingValue<std::int32_t> mTabWidth{ mIndex, sName, "tab-width", 4 };
         EnumSettingValue mWarnings{ mIndex, sName, "warnings", sWarningValues, 1 };
         Settings::SettingValue<bool> mToolbar{ mIndex, sName, "toolbar", true };
-        Settings::SettingValue<int> mCompileDelay{ mIndex, sName, "compile-delay", 100 };
-        Settings::SettingValue<int> mErrorHeight{ mIndex, sName, "error-height", 100 };
+        Settings::SettingValue<std::int32_t> mCompileDelay{ mIndex, sName, "compile-delay", 100 };
+        Settings::SettingValue<std::int32_t> mErrorHeight{ mIndex, sName, "error-height", 100 };
         Settings::SettingValue<bool> mHighlightOccurrences{ mIndex, sName, "highlight-occurrences", true };
         Settings::SettingValue<std::string> mColourHighlight{ mIndex, sName, "colour-highlight", "lightcyan" };
         Settings::SettingValue<std::string> mColourInt{ mIndex, sName, "colour-int", "#aa55ff" };
@@ -259,10 +262,10 @@ namespace CSMPrefs
 
         static constexpr std::string_view sName = "Rendering";
 
-        Settings::SettingValue<int> mFramerateLimit{ mIndex, sName, "framerate-limit", 60 };
-        Settings::SettingValue<int> mCameraFov{ mIndex, sName, "camera-fov", 90 };
+        Settings::SettingValue<std::int32_t> mFramerateLimit{ mIndex, sName, "framerate-limit", 60 };
+        Settings::SettingValue<std::int32_t> mCameraFov{ mIndex, sName, "camera-fov", 90 };
         Settings::SettingValue<bool> mCameraOrtho{ mIndex, sName, "camera-ortho", false };
-        Settings::SettingValue<int> mCameraOrthoSize{ mIndex, sName, "camera-ortho-size", 100 };
+        Settings::SettingValue<std::int32_t> mCameraOrthoSize{ mIndex, sName, "camera-ortho-size", 100 };
         Settings::SettingValue<double> mObjectMarkerScale{ mIndex, sName, "object-marker-scale", 5.0 };
         Settings::SettingValue<bool> mSceneUseGradient{ mIndex, sName, "scene-use-gradient", true };
         Settings::SettingValue<std::string> mSceneDayBackgroundColour{ mIndex, sName, "scene-day-background-colour",
@@ -288,7 +291,7 @@ namespace CSMPrefs
 
         Settings::SettingValue<bool> mScene{ mIndex, sName, "scene", true };
         Settings::SettingValue<bool> mSceneHideBasic{ mIndex, sName, "scene-hide-basic", false };
-        Settings::SettingValue<int> mSceneDelay{ mIndex, sName, "scene-delay", 500 };
+        Settings::SettingValue<std::int32_t> mSceneDelay{ mIndex, sName, "scene-delay", 500 };
     };
 
     struct SceneEditingCategory : Settings::WithIndex
@@ -329,15 +332,15 @@ namespace CSMPrefs
         Settings::SettingValue<double> mGridsnapMovement{ mIndex, sName, "gridsnap-movement", 16 };
         Settings::SettingValue<double> mGridsnapRotation{ mIndex, sName, "gridsnap-rotation", 15 };
         Settings::SettingValue<double> mGridsnapScale{ mIndex, sName, "gridsnap-scale", 0.25 };
-        Settings::SettingValue<int> mDistance{ mIndex, sName, "distance", 50 };
+        Settings::SettingValue<std::int32_t> mDistance{ mIndex, sName, "distance", 50 };
         EnumSettingValue mOutsideDrop{ mIndex, sName, "outside-drop", sInsertOutsideCellValues, 0 };
         EnumSettingValue mOutsideVisibleDrop{ mIndex, sName, "outside-visible-drop", sInsertOutsideVisibleCellValues,
             0 };
         EnumSettingValue mOutsideLandedit{ mIndex, sName, "outside-landedit", sLandEditOutsideCellValues, 0 };
         EnumSettingValue mOutsideVisibleLandedit{ mIndex, sName, "outside-visible-landedit",
             sLandEditOutsideVisibleCellValues, 0 };
-        Settings::SettingValue<int> mTexturebrushMaximumsize{ mIndex, sName, "texturebrush-maximumsize", 50 };
-        Settings::SettingValue<int> mShapebrushMaximumsize{ mIndex, sName, "shapebrush-maximumsize", 100 };
+        Settings::SettingValue<std::int32_t> mTexturebrushMaximumsize{ mIndex, sName, "texturebrush-maximumsize", 50 };
+        Settings::SettingValue<std::int32_t> mShapebrushMaximumsize{ mIndex, sName, "shapebrush-maximumsize", 100 };
         Settings::SettingValue<bool> mLandeditPostSmoothpainting{ mIndex, sName, "landedit-post-smoothpainting",
             false };
         Settings::SettingValue<double> mLandeditPostSmoothstrength{ mIndex, sName, "landedit-post-smoothstrength",

@@ -288,6 +288,13 @@ and upstream's two Lua storage tests writing there.
   quoted path of another folder spelled from the root (`"../mwbase/world.hpp"` is `<apps/openmw/mwbase/world.hpp>`),
   which `omw format` writes and `omw merge-file` writes on upstream's side too: 1,528 sources. Cost: a merge's
   conflicts stay where the edits overlap, as the merge driver lays out both sides first.
+- Every integer type as `<cstdint>`'s fixed widths, `std::`-qualified (AGENTS.md, "Fixed-width integers",
+  2026-11-17): 2,019 sources rewritten by `omw format`, which `omw merge-file` applies to upstream's side, and held by
+  `google-runtime-int` and `modernize-deprecated-headers`. Each `long` chosen by hand: the Lua `seek` offset is
+  `std::int64_t`, which ends its 32 bits on Windows; a code point `std::uint32_t`; an API's own `long` kept with its
+  reason. The editor's queued scroll calls its slot through a lambda, not a string. A declaration a cast initialises
+  is `auto` (`modernize-use-auto`, which a type name of five letters or more now reaches). Cost: a conflict with an
+  upstream edit only where it overlaps the fork's, as the merge driver rewrites upstream's side first.
 
 **The build** (`docs/build.md`). Cost: a conflict with every upstream change to a CMake list, an option, a found package
 or the install, which the merge places in this layout:

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <string>
 
 #include <components/esm/path.hpp>
@@ -39,18 +40,18 @@ namespace ESM
         struct WPDTstruct
         {
             float mWeight{};
-            int32_t mValue{};
+            std::int32_t mValue{};
             RefId mType;
-            uint16_t mHealth{};
+            std::uint16_t mHealth{};
             float mSpeed{}, mReach{};
-            uint16_t mEnchant{}; // Enchantment points. The real value is mEnchant/10.f
-            std::array<unsigned char, 2> mChop{}, mSlash{}, mThrust{}; // Min and max
-            int32_t mFlags{};
+            std::uint16_t mEnchant{}; // Enchantment points. The real value is mEnchant/10.f
+            std::array<std::uint8_t, 2> mChop{}, mSlash{}, mThrust{}; // Min and max
+            std::int32_t mFlags{};
         }; // 32 bytes
 
         WPDTstruct mData;
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mEnchant, mScript;
         std::string mName;
         Path mModel;
@@ -59,8 +60,8 @@ namespace ESM
         void load(ESMReader& esm, bool& isDeleted);
         void save(ESMWriter& esm, bool isDeleted = false) const;
 
-        static RefId indexToRefId(int index);
-        static int refIdToIndex(RefId id);
+        static RefId indexToRefId(std::int32_t index);
+        static std::int32_t refIdToIndex(RefId id);
 
         void blank();
         ///< Set record to default state (does not touch the ID).
@@ -115,13 +116,13 @@ namespace ESM
         ESM::RefId mSkill;
         Class mWeaponClass = Melee;
         ESM::RefId mAmmoType;
-        int mFlags = 0;
+        std::int32_t mFlags = 0;
 
         WeaponType() = default;
 
         WeaponType(RefId id, std::string shortGroup, std::string longGroup, const std::string& soundId,
             std::string attachBone, std::string sheathingBone, ESM::RefId skill, Class weaponClass, ESM::RefId ammoType,
-            int flags)
+            std::int32_t flags)
             : mId(id)
             , mShortGroup(std::move(shortGroup))
             , mLongGroup(std::move(longGroup))

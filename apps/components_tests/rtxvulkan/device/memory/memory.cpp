@@ -124,7 +124,7 @@ namespace Rtx
 
             std::vector<Bound> held;
             held.reserve(1000);
-            for (int at = 0; at < 1000; ++at)
+            for (std::int32_t at = 0; at < 1000; ++at)
                 held.push_back(bind(getDevice(), 2048, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
 
             // At most one, and not exactly one: a test that ran before this may have left a block
@@ -197,13 +197,13 @@ namespace Rtx
             for (const MemoryUse use : { MemoryUse::Essential, MemoryUse::Structure })
             {
                 std::vector<Bound> held;
-                for (int at = 0; at < 16; ++at)
+                for (std::int32_t at = 0; at < 16; ++at)
                 {
                     std::optional<Bound> bound
                         = tryBind(device, sSmall, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use, sOwed);
                     ASSERT_TRUE(bound.has_value());
                     EXPECT_EQ(bound->mMemory.getOffset() % sOwed, 0u)
-                        << "a buffer started off the alignment its use owes, as use " << static_cast<int>(use);
+                        << "a buffer started off the alignment its use owes, as use " << static_cast<std::int32_t>(use);
                     held.push_back(std::move(*bound));
                 }
             }
@@ -216,7 +216,7 @@ namespace Rtx
                 = device.getPhysicalDevice().getProperties().mProperties2.properties.limits.bufferImageGranularity;
             std::vector<Bound> packed;
             packed.reserve(64);
-            for (int at = 0; at < 64; ++at)
+            for (std::int32_t at = 0; at < 64; ++at)
                 packed.push_back(bind(device, sSmall, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
 
             std::vector<std::pair<VkDeviceMemory, VkDeviceSize>> places;
@@ -256,7 +256,7 @@ namespace Rtx
             auto* const one = static_cast<std::uint8_t*>(first.mMemory.map());
             auto* const other = static_cast<std::uint8_t*>(second.mMemory.map());
 
-            for (int at = 0; at < 1024; ++at)
+            for (std::int32_t at = 0; at < 1024; ++at)
             {
                 one[at] = 0x11;
                 other[at] = 0x22;
@@ -357,7 +357,7 @@ namespace Rtx
 
             std::vector<Bound> held;
             held.reserve(3);
-            for (int at = 0; at < 3; ++at)
+            for (std::int32_t at = 0; at < 3; ++at)
                 held.push_back(bind(getDevice(), alone, staging));
 
             const std::size_t grown = memory.getBlockCount();

@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
+
 #include <QFont>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QTimer>
 #include <QVector>
 #include <QWidget>
-#include <string>
 
 #include <apps/opencs/model/world/universalid.hpp>
 
@@ -57,14 +59,14 @@ namespace CSVWorld
         friend class ChangeLock;
 
     private:
-        int mChangeLocked;
+        std::int32_t mChangeLocked;
         ScriptHighlighter* mHighlighter;
         QTimer mUpdateTimer;
         bool mShowLineNum;
         LineNumberArea* mLineNumberArea;
         QFont mDefaultFont;
         QFont mMonoFont;
-        int mTabCharCount;
+        std::int32_t mTabCharCount;
         bool mMarkOccurrences;
         QAction* mCommentAction;
         QAction* mUncommentAction;
@@ -82,7 +84,7 @@ namespace CSVWorld
         bool isChangeLocked() const;
 
         void lineNumberAreaPaintEvent(QPaintEvent* event);
-        int lineNumberAreaWidth();
+        std::int32_t lineNumberAreaWidth();
         void showLineNum(bool show);
 
     protected:
@@ -120,9 +122,9 @@ namespace CSVWorld
 
         void updateHighlighting();
 
-        void updateLineNumberAreaWidth(int newBlockCount);
+        void updateLineNumberAreaWidth(std::int32_t newBlockCount);
 
-        void updateLineNumberArea(const QRect&, int);
+        void updateLineNumberArea(const QRect&, std::int32_t);
 
         void markOccurrences();
 

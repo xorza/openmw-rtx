@@ -1,5 +1,8 @@
 #include "globalscripts.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/scriptmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -213,7 +216,7 @@ namespace MWScript
         }
     }
 
-    size_t GlobalScripts::countSavedGameRecords() const
+    std::size_t GlobalScripts::countSavedGameRecords() const
     {
         return mScripts.size();
     }
@@ -236,7 +239,7 @@ namespace MWScript
         }
     }
 
-    bool GlobalScripts::readRecord(ESM::ESMReader& reader, uint32_t type)
+    bool GlobalScripts::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_GSCR)
         {

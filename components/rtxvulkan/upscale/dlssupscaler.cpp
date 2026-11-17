@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <memory>
@@ -73,7 +74,7 @@ namespace Rtx
         /// trace samples a different subpixel, so the vectors are not marked jittered, which would have NGX subtract a
         /// jitter delta that is not there. Depth is reversed and colour is linear HDR. No exposure flag: Ray
         /// Reconstruction supports none (DLSS-RR Integration Guide, 3.7).
-        constexpr int sCreateFlags
+        constexpr std::int32_t sCreateFlags
             = Ngx::sDlssFlagIsHdr | Ngx::sDlssFlagMotionVectorsLowRes | Ngx::sDlssFlagDepthInverted;
 
         /// Where each image `declareShared` declares stands in the arena's run, in its order.
@@ -134,18 +135,18 @@ namespace Rtx
         /// names NGX's result, and only what a missing or unusable library may cause asks for one.
         std::string refusalOf(const Ngx::Parameter& capabilities)
         {
-            int needsDriver = 0;
+            std::int32_t needsDriver = 0;
             if (Ngx::succeeded(capabilities.Get(Ngx::sRayReconstructionNeedsUpdatedDriver, &needsDriver))
                 && needsDriver != 0)
             {
-                unsigned int major = 0;
-                unsigned int minor = 0;
+                std::uint32_t major = 0;
+                std::uint32_t minor = 0;
                 capabilities.Get(Ngx::sRayReconstructionMinDriverMajor, &major);
                 capabilities.Get(Ngx::sRayReconstructionMinDriverMinor, &minor);
                 return std::format("NVIDIA DLSS needs a newer graphics driver, {}.{} or later", major, minor);
             }
 
-            int started = 0;
+            std::int32_t started = 0;
             if (Ngx::succeeded(capabilities.Get(Ngx::sRayReconstructionFeatureInitResult, &started)) && started != 0
                 && Ngx::failed(static_cast<Ngx::Result>(static_cast<std::uint32_t>(started))))
                 return "NVIDIA DLSS could not start on this card: "
@@ -212,7 +213,7 @@ namespace Rtx
 
             ~Session()
             {
-                int remaining = 0;
+                std::int32_t remaining = 0;
                 mApi.Shutdown(mDevice, &remaining);
             }
 
@@ -320,13 +321,14 @@ namespace Rtx
             // (5.2.6) has them: a map NGX fills with every capability is not one to carry through
             // every frame's evaluation. The capability map stays, read only where a feature is made,
             // since the optimal settings' and the stats' callbacks are published on it alone.
-            int available = 0;
+            std::int32_t available = 0;
             if (const Ngx::Result queried = mCapabilities.get().Get(Ngx::sRayReconstructionAvailable, &available);
                 Ngx::failed(queried) || available == 0)
                 throw UpscalerRefused(refusalOf(mCapabilities.get()));
 
             // **A library that cannot say what its features hold is refused here**, where `auto` can
             // still fall back, and not at the first resize, whose reserve counts what they hold.
+            // NOLINTNEXTLINE(google-runtime-int): NGX's type
             unsigned long long held = 0;
             if (const Ngx::Result stated = Ngx::statsBytes(mCapabilities.get(), held); Ngx::failed(stated))
                 throw UpscalerRefused("NVIDIA DLSS's library does not state what its features hold: "
@@ -490,7 +492,9 @@ namespace Rtx
     {
         // **The stats after the feature stands less the stats before it**, since NGX's stats are what
         // every one of its features holds: a feature standing beside this one is not this one's.
+        // NOLINTNEXTLINE(google-runtime-int): NGX's type
         unsigned long long before = 0;
+        // NOLINTNEXTLINE(google-runtime-int): NGX's type
         unsigned long long after = 0;
         Ngx::Parameter& capabilities = mContext->mCapabilities.get();
         const Ngx::Result was = Ngx::statsBytes(capabilities, before);

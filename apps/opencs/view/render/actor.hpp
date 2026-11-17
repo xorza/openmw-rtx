@@ -1,9 +1,9 @@
 #pragma once
 
-#include <QObject>
 #include <string>
 #include <string_view>
 
+#include <QObject>
 #include <osg/Group>
 #include <osg/PositionAttitudeTransform>
 #include <osg/ref_ptr>

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <list>
 #include <map>
 #include <set>
@@ -96,13 +98,13 @@ namespace MWMechanics
 
         void restoreDynamicStats(const MWWorld::Ptr& ptr, double hours, bool sleep) const;
 
-        int getHoursToRest(const MWWorld::Ptr& ptr) const;
+        std::int32_t getHoursToRest(const MWWorld::Ptr& ptr) const;
         ///< Calculate how many hours the given actor needs to rest in order to be fully healed
 
         void fastForwardAi() const;
         ///< Simulate the passing of time
 
-        int countDeaths(const ESM::RefId& id) const;
+        std::int32_t countDeaths(const ESM::RefId& id) const;
         ///< Return the number of deaths for actors with the given ID.
 
         bool isAttackPreparing(const MWWorld::Ptr& ptr) const;
@@ -114,10 +116,10 @@ namespace MWMechanics
 
         void forceStateUpdate(const MWWorld::Ptr& ptr) const;
 
-        bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, int mode, uint32_t number,
-            bool scripted = false) const;
-        bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops, float speed,
-            std::string_view startKey, std::string_view stopKey, bool forceLoop);
+        bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, std::int32_t mode,
+            std::uint32_t number, bool scripted = false) const;
+        bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, std::uint32_t loops,
+            float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop);
         void enableLuaAnimations(const MWWorld::Ptr& ptr, bool enable);
         void skipAnimation(const MWWorld::Ptr& ptr) const;
         bool checkAnimationPlaying(const MWWorld::Ptr& ptr, std::string_view groupName) const;
@@ -143,8 +145,8 @@ namespace MWMechanics
             const MWWorld::Ptr& actor, std::set<MWWorld::Ptr>& out, bool excludeInfighting = false) const;
 
         /// Get the list of AiFollow::mFollowIndex for all actors following this target
-        std::vector<int> getActorsFollowingIndices(const MWWorld::Ptr& actor) const;
-        std::map<int, MWWorld::Ptr> getActorsFollowingByIndex(const MWWorld::Ptr& actor) const;
+        std::vector<std::int32_t> getActorsFollowingIndices(const MWWorld::Ptr& actor) const;
+        std::map<std::int32_t, MWWorld::Ptr> getActorsFollowingByIndex(const MWWorld::Ptr& actor) const;
 
         /// Returns the list of actors which are fighting the given actor
         /**ie AiCombat is active and the target is the actor **/
@@ -155,7 +157,7 @@ namespace MWMechanics
 
         void write(ESM::ESMWriter& writer, Loading::Listener& listener) const;
 
-        void readRecord(ESM::ESMReader& reader, uint32_t type);
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type);
 
         void clear(); // Clear death counter
 
@@ -163,12 +165,12 @@ namespace MWMechanics
         bool isReadyToBlock(const MWWorld::Ptr& ptr) const;
         bool isAttackingOrSpell(const MWWorld::Ptr& ptr) const;
 
-        int getGreetingTimer(const MWWorld::Ptr& ptr) const;
+        std::int32_t getGreetingTimer(const MWWorld::Ptr& ptr) const;
         float getAngleToPlayer(const MWWorld::Ptr& ptr) const;
         GreetingState getGreetingState(const MWWorld::Ptr& ptr) const;
 
     private:
-        std::map<ESM::RefId, int> mDeathCount;
+        std::map<ESM::RefId, std::int32_t> mDeathCount;
         std::list<Actor> mActors;
         std::map<const MWWorld::LiveCellRefBase*, std::list<Actor>::iterator> mIndex;
         // We should add a delay between summoned creature death and its corpse despawning

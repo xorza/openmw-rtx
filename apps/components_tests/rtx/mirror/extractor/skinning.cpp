@@ -267,7 +267,7 @@ namespace Rtx::Testing
 
             // Four, because the gate needs three traversals to pass before it can trip: a run of
             // two would pass with the walk saying nothing at all.
-            for (unsigned int frame = 1; frame <= 4; ++frame)
+            for (std::uint32_t frame = 1; frame <= 4; ++frame)
             {
                 rigged.update(frame);
 
@@ -308,7 +308,7 @@ namespace Rtx::Testing
             // runs, while the mirror goes on placing the actor and names no structure to refit.
             rigged.mSkeleton->setActive(SceneUtil::Skeleton::Inactive);
 
-            for (unsigned int traversal = 2; traversal <= 4; ++traversal)
+            for (std::uint32_t traversal = 2; traversal <= 4; ++traversal)
             {
                 rigged.update(traversal);
 

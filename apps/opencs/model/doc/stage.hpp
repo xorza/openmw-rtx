@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace CSMDoc
 {
     class Messages;
@@ -8,10 +10,10 @@ namespace CSMDoc
     public:
         virtual ~Stage() = default;
 
-        virtual int setup() = 0;
+        virtual std::int32_t setup() = 0;
         ///< \return number of steps
 
-        virtual void perform(int stage, Messages& messages) = 0;
+        virtual void perform(std::int32_t stage, Messages& messages) = 0;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 }

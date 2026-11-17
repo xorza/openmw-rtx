@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -65,7 +67,7 @@ namespace MWPhysics
         std::array<const Actor*, 2> mRawActors{};
         bool mResult;
         bool mStale;
-        int mAge;
+        std::int32_t mAge;
     };
     bool operator==(const LOSRequest& lhs, const LOSRequest& rhs) noexcept;
 
@@ -88,7 +90,7 @@ namespace MWPhysics
         const float mWaterlevel;
         const float mHalfExtentsZ;
         float mOldHeight;
-        unsigned int mStuckFrames;
+        std::uint32_t mStuckFrames;
         const bool mFlying;
         const bool mWasOnGround;
         const bool mIsAquatic;
@@ -155,13 +157,13 @@ namespace MWPhysics
         void disableWater();
 
         void addObject(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, const osg::Quat& rotation,
-            int collisionType = CollisionType_World);
+            std::int32_t collisionType = CollisionType_World);
         void addActor(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh);
 
-        int addProjectile(
+        std::int32_t addProjectile(
             const MWWorld::Ptr& caster, const osg::Vec3f& position, VFS::Path::NormalizedView mesh, bool computeRadius);
-        void setCaster(int projectileId, const MWWorld::Ptr& caster);
-        void removeProjectile(const int projectileId);
+        void setCaster(std::int32_t projectileId, const MWWorld::Ptr& caster);
+        void removeProjectile(const std::int32_t projectileId);
 
         void updatePtr(const MWWorld::Ptr& old, const MWWorld::Ptr& updated);
 
@@ -170,7 +172,7 @@ namespace MWPhysics
 
         const Object* getObject(const MWWorld::ConstPtr& ptr) const;
 
-        Projectile* getProjectile(int projectileId) const;
+        Projectile* getProjectile(std::int32_t projectileId) const;
 
         // Object or Actor
         void remove(const MWWorld::Ptr& ptr);
@@ -179,38 +181,38 @@ namespace MWPhysics
         void updateRotation(const MWWorld::Ptr& ptr, const osg::Quat& rotate);
         void updatePosition(const MWWorld::Ptr& ptr);
 
-        void addHeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
-            std::shared_ptr<const ESMTerrain::LandObject> holdObject);
+        void addHeightField(const float* heights, std::int32_t x, std::int32_t y, std::int32_t size, std::int32_t verts,
+            float minH, float maxH, std::shared_ptr<const ESMTerrain::LandObject> holdObject);
 
-        void removeHeightField(int x, int y);
+        void removeHeightField(std::int32_t x, std::int32_t y);
 
-        const HeightField* getHeightField(int x, int y) const;
+        const HeightField* getHeightField(std::int32_t x, std::int32_t y) const;
 
         bool toggleCollisionMode();
 
         /// Determine new position based on all queued movements, then clear the list.
         void stepSimulation(float dt, bool skipSimulation, Misc::FrameClock::time_point statsEpoch,
-            unsigned int frameNumber, Misc::FrameStats& stats);
+            std::uint32_t frameNumber, Misc::FrameStats& stats);
 
         /// Apply new positions to actors
         void moveActors();
         void debugDraw();
 
-        std::vector<MWWorld::Ptr> getCollisions(const MWWorld::ConstPtr& ptr, int collisionGroup,
-            int collisionMask) const; ///< get handles this object collides with
+        std::vector<MWWorld::Ptr> getCollisions(const MWWorld::ConstPtr& ptr, std::int32_t collisionGroup,
+            std::int32_t collisionMask) const; ///< get handles this object collides with
         std::vector<ContactPoint> getCollisionsPoints(
-            const MWWorld::ConstPtr& ptr, int collisionGroup, int collisionMask) const;
+            const MWWorld::ConstPtr& ptr, std::int32_t collisionGroup, std::int32_t collisionMask) const;
         osg::Vec3f traceDown(const MWWorld::Ptr& ptr, const osg::Vec3f& position, float maxHeight);
 
         /// @param ignore Optional, a list of Ptr to ignore in the list of results. targets are actors to filter for,
         /// ignoring all other actors.
         RayCastingResult castRay(const osg::Vec3f& from, const osg::Vec3f& to,
             const std::vector<MWWorld::ConstPtr>& ignore = {}, const std::vector<MWWorld::Ptr>& targets = {},
-            int mask = CollisionType_Default, int group = 0xff) const override;
+            std::int32_t mask = CollisionType_Default, std::int32_t group = 0xff) const override;
         using RayCastingInterface::castRay;
 
         RayCastingResult castSphere(const osg::Vec3f& from, const osg::Vec3f& to, float radius,
-            int mask = CollisionType_Default, int group = 0xff) const override;
+            std::int32_t mask = CollisionType_Default, std::int32_t group = 0xff) const override;
 
         /// Return true if actor1 can see actor2.
         bool getLineOfSight(const MWWorld::ConstPtr& actor1, const MWWorld::ConstPtr& actor2) const override;
@@ -280,7 +282,7 @@ namespace MWPhysics
         bool isAreaOccupiedByOtherActor(
             const MWWorld::LiveCellRefBase* actor, const osg::Vec3f& position, float radius) const;
 
-        void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const;
+        void reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const;
         void reportCollision(const btVector3& position, const btVector3& normal);
 
         float mPhysicsDt;
@@ -306,17 +308,17 @@ namespace MWPhysics
 
         ActorMap mActors;
 
-        using ProjectileMap = std::map<int, std::shared_ptr<Projectile>>;
+        using ProjectileMap = std::map<std::int32_t, std::shared_ptr<Projectile>>;
         ProjectileMap mProjectiles;
 
-        using HeightFieldMap = std::map<std::pair<int, int>, std::unique_ptr<HeightField>>;
+        using HeightFieldMap = std::map<std::pair<std::int32_t, std::int32_t>, std::unique_ptr<HeightField>>;
         HeightFieldMap mHeightFields;
 
         bool mDebugDrawEnabled;
 
         float mTimeAccum;
 
-        unsigned int mProjectileId;
+        std::uint32_t mProjectileId;
 
         float mWaterHeight;
         bool mWaterEnabled;

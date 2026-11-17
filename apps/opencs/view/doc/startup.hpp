@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QWidget>
 
 class QGridLayout;
@@ -15,8 +17,8 @@ namespace CSVDoc
         Q_OBJECT
 
     private:
-        int mWidth;
-        int mColumn;
+        std::int32_t mWidth;
+        std::int32_t mColumn;
         QGridLayout* mLayout{};
 
         QPushButton* addButton(const QString& label, const QString& icon);

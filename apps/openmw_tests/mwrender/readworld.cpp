@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include <gtest/gtest.h>
@@ -304,7 +305,7 @@ namespace MWRender
 
             const osg::Vec3f scatter = readFrom(standing).mWaterScatter;
             const osg::Vec3f shipped = Rtx::Shaders::WATER_SCATTER_SHIPPED;
-            for (int channel = 0; channel < 3; ++channel)
+            for (std::int32_t channel = 0; channel < 3; ++channel)
                 EXPECT_FLOAT_EQ(scatter[channel], shipped[channel]) << channel;
         }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <MyGUI_KeyCode.h>
@@ -12,9 +13,9 @@ namespace MyGUI
 
 namespace SDLUtil
 {
-    std::string sdlControllerButtonToString(int button);
+    std::string sdlControllerButtonToString(std::int32_t button);
 
-    std::string sdlControllerAxisToString(int axis);
+    std::string sdlControllerAxisToString(std::int32_t axis);
 
     MyGUI::MouseButton sdlMouseButtonToMyGui(Uint8 button);
     Uint8 myGuiMouseButtonToSdl(MyGUI::MouseButton button);

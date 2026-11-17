@@ -1,14 +1,16 @@
 #include "operation.hpp"
 
-#include <QHBoxLayout>
-#include <QProgressBar>
-#include <QPushButton>
+#include <cstdint>
 #include <sstream>
 #include <string>
 
+#include <QHBoxLayout>
+#include <QProgressBar>
+#include <QPushButton>
+
 #include <apps/opencs/model/doc/state.hpp>
 
-void CSVDoc::Operation::updateLabel(int threads)
+void CSVDoc::Operation::updateLabel(std::int32_t threads)
 {
     if (threads == -1 || ((threads == 0) != mStalling))
     {
@@ -48,7 +50,7 @@ void CSVDoc::Operation::updateLabel(int threads)
     }
 }
 
-CSVDoc::Operation::Operation(int type, QWidget* parent)
+CSVDoc::Operation::Operation(std::int32_t type, QWidget* parent)
     : mType(type)
     , mStalling(false)
 {
@@ -80,19 +82,19 @@ void CSVDoc::Operation::initWidgets()
     connect(mAbortButton, &QPushButton::clicked, this, qOverload<>(&Operation::abortOperation));
 }
 
-void CSVDoc::Operation::setProgress(int current, int max, int threads)
+void CSVDoc::Operation::setProgress(std::int32_t current, std::int32_t max, std::int32_t threads)
 {
     updateLabel(threads);
     mProgressBar->setRange(0, max);
     mProgressBar->setValue(current);
 }
 
-int CSVDoc::Operation::getType() const
+std::int32_t CSVDoc::Operation::getType() const
 {
     return mType;
 }
 
-void CSVDoc::Operation::setBarColor(int type)
+void CSVDoc::Operation::setBarColor(std::int32_t type)
 {
     QString style
         = "QProgressBar {"

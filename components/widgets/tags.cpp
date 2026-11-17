@@ -1,5 +1,7 @@
 #include "tags.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Colour.h>
 
 #include <components/fallback/fallback.hpp>
@@ -22,8 +24,8 @@ namespace Gui
                 throw std::runtime_error("Unknown fallback name: " + fallbackName);
 
             std::string ret[3];
-            unsigned int j = 0;
-            for (unsigned int i = 0; i < str.length(); ++i)
+            std::uint32_t j = 0;
+            for (std::uint32_t i = 0; i < str.length(); ++i)
             {
                 if (str[i] == ',')
                     j++;
@@ -45,8 +47,8 @@ namespace Gui
                 throw std::runtime_error("Unknown fallback name: " + fallbackName);
 
             std::string ret[3];
-            unsigned int j = 0;
-            for (unsigned int i = 0; i < str.length(); ++i)
+            std::uint32_t j = 0;
+            for (std::uint32_t i = 0; i < str.length(); ++i)
             {
                 if (str[i] == ',')
                     j++;

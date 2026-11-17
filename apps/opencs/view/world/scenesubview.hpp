@@ -1,8 +1,9 @@
 #pragma once
 
-#include <QHBoxLayout>
 #include <string>
 #include <vector>
+
+#include <QHBoxLayout>
 
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/doc/subview.hpp>

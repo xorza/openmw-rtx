@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -49,7 +50,7 @@ namespace Rtx
             }
 
             /// Moves the bone `along` x and runs the update the game runs before a ray is cast.
-            void moveTo(float along, unsigned int traversal)
+            void moveTo(float along, std::uint32_t traversal)
             {
                 mBone->setMatrix(osg::Matrix::translate(along, 0.0, 0.0));
                 osgUtil::UpdateVisitor visitor;

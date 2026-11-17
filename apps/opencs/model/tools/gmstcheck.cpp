@@ -1,8 +1,8 @@
 #include "gmstcheck.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
-
-#include <stddef.h>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
@@ -20,14 +20,14 @@ CSMTools::GmstCheckStage::GmstCheckStage(const CSMWorld::IdCollection<ESM::GameS
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::GmstCheckStage::setup()
+std::int32_t CSMTools::GmstCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mGameSettings.getSize();
 }
 
-void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::GmstCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::GameSetting>& record = mGameSettings.getRecord(stage);
 
@@ -47,7 +47,7 @@ void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
     // optimization - compare it to lists based on naming convention (f-float,i-int,s-string)
     if (gmst.mId.startsWith("f"))
     {
-        for (size_t i = 0; i < CSMWorld::DefaultGmsts::FloatCount; ++i)
+        for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::FloatCount; ++i)
         {
             if (gmst.mId == ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Floats[i]))
             {
@@ -74,7 +74,7 @@ void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
     }
     else if (gmst.mId.startsWith("i"))
     {
-        for (size_t i = 0; i < CSMWorld::DefaultGmsts::IntCount; ++i)
+        for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::IntCount; ++i)
         {
             if (gmst.mId == ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Ints[i]))
             {
@@ -101,7 +101,7 @@ void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
     }
     else if (gmst.mId.startsWith("s"))
     {
-        for (size_t i = 0; i < CSMWorld::DefaultGmsts::StringCount; ++i)
+        for (std::size_t i = 0; i < CSMWorld::DefaultGmsts::StringCount; ++i)
         {
             if (gmst.mId == ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Strings[i]))
             {

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_ScrollView.h>
 
 namespace Gui
@@ -14,7 +17,7 @@ namespace Gui
     public:
         MWList();
 
-        typedef MyGUI::delegates::MultiDelegate<const std::string&, int> EventHandle_StringInt;
+        typedef MyGUI::delegates::MultiDelegate<const std::string&, std::int32_t> EventHandle_StringInt;
         typedef MyGUI::delegates::MultiDelegate<MyGUI::Widget*> EventHandle_Widget;
 
         /**
@@ -35,19 +38,19 @@ namespace Gui
         void adjustSize();
 
         void sort();
-        void addItem(std::string_view name, int verticalPadding = 0);
+        void addItem(std::string_view name, std::int32_t verticalPadding = 0);
         void addSeparator(); ///< add a seperator between the current and the next item.
         void removeItem(const std::string& name);
-        size_t getItemCount();
-        const std::string& getItemNameAt(size_t at); ///< \attention if there are separators, this method will return ""
-                                                     ///< at the place where the separator is
+        std::size_t getItemCount();
+        const std::string& getItemNameAt(std::size_t at); ///< \attention if there are separators, this method will
+                                                          ///< return "" at the place where the separator is
         void clear();
 
         MyGUI::Button* getItemWidget(std::string_view name);
         ///< get widget for an item name, useful to set up tooltip
 
         void scrollToTop();
-        void setViewOffset(int offset);
+        void setViewOffset(std::int32_t offset);
 
         void setPropertyOverride(std::string_view key, std::string_view value) override;
 
@@ -56,7 +59,7 @@ namespace Gui
 
         void redraw(bool scrollbarShown = false);
 
-        void onMouseWheelMoved(MyGUI::Widget* sender, int rel);
+        void onMouseWheelMoved(MyGUI::Widget* sender, std::int32_t rel);
         void onItemSelected(MyGUI::Widget* sender);
 
     private:
@@ -67,9 +70,9 @@ namespace Gui
         struct ListItemData
         {
             std::string mName;
-            int mVPadding;
+            std::int32_t mVPadding;
 
-            ListItemData(std::string_view name, int verticalPadding)
+            ListItemData(std::string_view name, std::int32_t verticalPadding)
                 : mName(name)
                 , mVPadding(verticalPadding)
             {
@@ -77,6 +80,6 @@ namespace Gui
         };
         std::vector<ListItemData> mItems;
 
-        int mItemHeight; // height of all items
+        std::int32_t mItemHeight; // height of all items
     };
 }

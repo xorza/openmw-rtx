@@ -1,5 +1,7 @@
 #include "localscripts.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 
@@ -143,10 +145,10 @@ namespace MWLua
                   if (p.getTypeId() == MWMechanics::AiPackageTypeId::Wander)
                   {
                       sol::table idles(lua, sol::create);
-                      const std::vector<unsigned char>& idle = static_cast<const MWMechanics::AiWander&>(p).getIdle();
+                      const std::vector<std::uint8_t>& idle = static_cast<const MWMechanics::AiWander&>(p).getIdle();
                       if (!idle.empty())
                       {
-                          for (size_t i = 0; i < idle.size(); ++i)
+                          for (std::size_t i = 0; i < idle.size(); ++i)
                           {
                               std::string_view groupName = MWMechanics::AiWander::getIdleGroupName(i);
                               idles[groupName] = idle[i];
@@ -217,7 +219,7 @@ namespace MWLua
                                         const osg::Vec3f& dest, bool repeat, bool cancelOther) {
             const MWWorld::Ptr& ptr = self.ptr();
             MWMechanics::AiSequence& ai = ptr.getClass().getCreatureStats(ptr).getAiSequence();
-            int gameHoursDuration = static_cast<int>(std::ceil(duration / 3600.0));
+            auto gameHoursDuration = static_cast<std::int32_t>(std::ceil(duration / 3600.0));
             auto* esmCell = cell.mStore->getCell();
             std::string_view cellNameId;
             if (!esmCell->isExterior())
@@ -226,14 +228,14 @@ namespace MWLua
                          getId(target.ptr()), cellNameId, gameHoursDuration, dest.x(), dest.y(), dest.z(), repeat),
                 ptr, cancelOther);
         };
-        selfAPI["_startAiWander"] = [](SelfObject& self, int distance, int duration, const sol::table& luaIdle,
-                                        bool repeat, bool cancelOther) {
+        selfAPI["_startAiWander"] = [](SelfObject& self, std::int32_t distance, std::int32_t duration,
+                                        const sol::table& luaIdle, bool repeat, bool cancelOther) {
             const MWWorld::Ptr& ptr = self.ptr();
             MWMechanics::AiSequence& ai = ptr.getClass().getCreatureStats(ptr).getAiSequence();
-            std::vector<unsigned char> idle;
+            std::vector<std::uint8_t> idle;
             // Lua index starts at 1
-            for (size_t i = 1; i <= luaIdle.size(); i++)
-                idle.emplace_back(luaIdle.get<unsigned char>(i));
+            for (std::size_t i = 1; i <= luaIdle.size(); i++)
+                idle.emplace_back(luaIdle.get<std::uint8_t>(i));
             ai.stack(MWMechanics::AiWander(distance, duration, 0, idle, repeat), ptr, cancelOther);
         };
         selfAPI["_startAiTravel"] = [](SelfObject& self, const osg::Vec3f& target, bool repeat, bool cancelOther) {

@@ -1,5 +1,7 @@
 #include "repair.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
@@ -55,7 +57,7 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    int Repair::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Repair::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Repair>* ref = ptr.get<ESM::Repair>();
 
@@ -86,14 +88,14 @@ namespace MWClass
         return true;
     }
 
-    int Repair::getItemMaxHealth(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Repair::getItemMaxHealth(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Repair>* ref = ptr.get<ESM::Repair>();
 
         return ref->mBase->mData.mUses;
     }
 
-    MWGui::ToolTipInfo Repair::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Repair::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Repair>* ref = ptr.get<ESM::Repair>();
 
@@ -104,7 +106,7 @@ namespace MWClass
 
         std::string text;
 
-        int remainingUses = getItemHealth(ptr);
+        std::int32_t remainingUses = getItemHealth(ptr);
 
         text += "\n#{sUses}: " + MWGui::ToolTips::toString(remainingUses);
         text += "\n#{sQuality}: " + MWGui::ToolTips::toString(ref->mBase->mData.mQuality);
@@ -134,7 +136,7 @@ namespace MWClass
         return std::make_unique<MWWorld::ActionRepair>(ptr, force);
     }
 
-    bool Repair::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Repair::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::RepairItem) != 0;
     }

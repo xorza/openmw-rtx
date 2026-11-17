@@ -1,5 +1,6 @@
 #include "fallback.hpp"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -11,7 +12,7 @@
 
 namespace Fallback
 {
-    std::map<std::string, int, std::less<>> Map::mIntFallbackMap;
+    std::map<std::string, std::int32_t, std::less<>> Map::mIntFallbackMap;
     std::map<std::string, float, std::less<>> Map::mFloatFallbackMap;
     std::map<std::string, std::string, std::less<>> Map::mNonNumericFallbackMap;
 
@@ -20,7 +21,7 @@ namespace Fallback
         for (const auto& [key, value] : fallback)
         {
             if (isAllowedIntFallbackKey(key))
-                mIntFallbackMap.emplace(key, Misc::StringUtils::toNumeric<int>(value, 0));
+                mIntFallbackMap.emplace(key, Misc::StringUtils::toNumeric<std::int32_t>(value, 0));
             else if (isAllowedFloatFallbackKey(key))
                 mFloatFallbackMap.emplace(key, Misc::StringUtils::toNumeric<float>(value, 0.0f));
             else if (isAllowedNonNumericFallbackKey(key))
@@ -54,7 +55,7 @@ namespace Fallback
         return it->second;
     }
 
-    int Map::getInt(std::string_view fall)
+    std::int32_t Map::getInt(std::string_view fall)
     {
         const auto it = mIntFallbackMap.find(fall);
         if (it == mIntFallbackMap.end())

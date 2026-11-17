@@ -239,7 +239,7 @@ namespace Rtx
             const VkDeviceSize settled = mTable.getCopyBytes(FrameSlot{ 0 });
             ASSERT_GE(settled, 64 * sizeof(TestRow));
 
-            for (int frame = 0; frame < 8; ++frame)
+            for (std::int32_t frame = 0; frame < 8; ++frame)
             {
                 mTable.write(1).mValue = static_cast<std::uint32_t>(frame);
                 sync(0);

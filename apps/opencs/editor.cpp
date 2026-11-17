@@ -1,15 +1,16 @@
 #include "editor.hpp"
 
+#include <cstdint>
+#include <exception>
+#include <filesystem>
+#include <system_error>
+
 #include <QApplication>
 #include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMessageBox>
 #include <QRegularExpression>
-#include <exception>
-#include <filesystem>
-#include <system_error>
-
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/value_semantic.hpp>
 
@@ -39,7 +40,7 @@
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
-CS::Editor::Editor(int argc, char** argv)
+CS::Editor::Editor(std::int32_t argc, char** argv)
     : mConfigVariables(readConfiguration())
     , mSettingsState(mCfgMgr)
     , mDocumentManager(mCfgMgr)
@@ -409,7 +410,7 @@ void CS::Editor::connectToIPCServer()
     mClientSocket->close();
 }
 
-int CS::Editor::run()
+std::int32_t CS::Editor::run()
 {
     if (mLocal.empty())
         return 1;

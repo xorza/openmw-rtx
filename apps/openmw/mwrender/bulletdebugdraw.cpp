@@ -1,6 +1,7 @@
 #include "bulletdebugdraw.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <osg/Geometry>
 #include <osg/Group>
@@ -181,7 +182,7 @@ namespace MWRender
         Log(Debug::Warning) << warningString;
     }
 
-    void DebugDrawer::setDebugMode(int isOn)
+    void DebugDrawer::setDebugMode(std::int32_t isOn)
     {
         mDebugOn = (isOn != 0);
 
@@ -191,7 +192,7 @@ namespace MWRender
             createGeometry();
     }
 
-    int DebugDrawer::getDebugMode() const
+    std::int32_t DebugDrawer::getDebugMode() const
     {
         return mDebugOn;
     }

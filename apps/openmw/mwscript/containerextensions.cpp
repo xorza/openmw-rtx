@@ -33,7 +33,8 @@
 
 namespace
 {
-    void addToStore(const MWWorld::Ptr& itemPtr, int count, MWWorld::ContainerStore& store, bool resolve = true)
+    void addToStore(
+        const MWWorld::Ptr& itemPtr, std::int32_t count, MWWorld::ContainerStore& store, bool resolve = true)
     {
         if (itemPtr.getClass().getScript(itemPtr).empty())
         {
@@ -42,12 +43,13 @@ namespace
         else
         {
             // Adding just one item per time to make sure there isn't a stack of scripted items
-            for (int i = 0; i < count; i++)
+            for (std::int32_t i = 0; i < count; i++)
                 store.add(itemPtr, 1, true, resolve);
         }
     }
 
-    void addRandomToStore(const MWWorld::Ptr& itemPtr, int count, MWWorld::ContainerStore& store, bool topLevel = true)
+    void addRandomToStore(
+        const MWWorld::Ptr& itemPtr, std::int32_t count, MWWorld::ContainerStore& store, bool topLevel = true)
     {
         if (itemPtr.getType() == ESM::ItemLevList::sRecordId)
         {
@@ -55,7 +57,7 @@ namespace
 
             if (topLevel && count > 1 && levItemList->mFlags & ESM::ItemLevList::Each)
             {
-                for (int i = 0; i < count; i++)
+                for (std::int32_t i = 0; i < count; i++)
                     addRandomToStore(itemPtr, 1, store, true);
             }
             else
@@ -101,7 +103,7 @@ namespace MWScript
                     }
 
                     if (count < 0)
-                        count = static_cast<uint16_t>(count);
+                        count = static_cast<std::uint16_t>(count);
 
                     // no-op
                     if (count == 0)
@@ -232,7 +234,7 @@ namespace MWScript
                     }
 
                     if (count < 0)
-                        count = static_cast<uint16_t>(count);
+                        count = static_cast<std::uint16_t>(count);
 
                     // no-op
                     if (count == 0)
@@ -282,7 +284,7 @@ namespace MWScript
                         }
                     }
 
-                    int numRemoved = store.remove(item, count);
+                    std::int32_t numRemoved = store.remove(item, count);
 
                     // Spawn a messagebox (only for items removed from player's inventory)
                     if ((numRemoved > 0) && (ptr == MWMechanics::getPlayer()))
@@ -365,7 +367,7 @@ namespace MWScript
                     Interpreter::Type_Integer location = runtime[0].mInteger;
                     runtime.pop();
 
-                    int slot = 0;
+                    std::int32_t slot = 0;
                     switch (location)
                     {
                         case 0:
@@ -438,7 +440,7 @@ namespace MWScript
                     runtime.pop();
 
                     const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
-                    for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+                    for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
                     {
                         MWWorld::ConstContainerStoreIterator it = invStore.getSlot(slot);
                         if (it != invStore.end() && it->getCellRef().getRefId() == item)
@@ -462,7 +464,7 @@ namespace MWScript
                     ESM::RefId name = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
 
-                    int count = 0;
+                    std::int32_t count = 0;
                     const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
                     for (MWWorld::ConstContainerStoreIterator it
                         = invStore.cbegin(MWWorld::ContainerStore::Type_Miscellaneous);

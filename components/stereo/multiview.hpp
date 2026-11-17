@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <memory>
 
 #include <osg/Camera>
@@ -33,48 +34,48 @@ namespace Stereo
 
     //! Use the provided context to check what extensions are supported and configure use of multiview based on
     //! extensions and settings.
-    void configureExtensions(unsigned int contextID, bool enableMultiview);
+    void configureExtensions(std::uint32_t contextID, bool enableMultiview);
 
     //! Sets the appropriate vertex buffer hint on OSG's display settings if needed
     void setVertexBufferHint(bool enableMultiview, bool allowDisplayListsForMultiview);
 
     //! Creates a Texture2D as a texture view into a Texture2DArray
     osg::ref_ptr<osg::Texture2D> createTextureView_Texture2DFromTexture2DArray(
-        osg::Texture2DArray* textureArray, int layer);
+        osg::Texture2DArray* textureArray, std::int32_t layer);
 
     //! Class that manages the specifics of GL_OVR_Multiview aware framebuffers, separating the layers into separate
     //! framebuffers, and disabling
     class MultiviewFramebuffer
     {
     public:
-        MultiviewFramebuffer(int width, int height, int samples);
+        MultiviewFramebuffer(std::int32_t width, std::int32_t height, std::int32_t samples);
         ~MultiviewFramebuffer();
 
         void attachColorComponent(GLint sourceFormat, GLint sourceType, GLint internalFormat);
         void attachDepthComponent(GLint sourceFormat, GLint sourceType, GLint internalFormat);
 
         osg::FrameBufferObject* multiviewFbo();
-        osg::FrameBufferObject* layerFbo(int i);
-        osg::FrameBufferObject* layerMsaaFbo(int i);
+        osg::FrameBufferObject* layerFbo(std::int32_t i);
+        osg::FrameBufferObject* layerMsaaFbo(std::int32_t i);
         osg::Texture2DArray* multiviewColorBuffer();
         osg::Texture2DArray* multiviewDepthBuffer();
-        osg::Texture2D* layerColorBuffer(int i);
-        osg::Texture2D* layerDepthBuffer(int i);
+        osg::Texture2D* layerColorBuffer(std::int32_t i);
+        osg::Texture2D* layerDepthBuffer(std::int32_t i);
 
         void attachTo(osg::Camera* camera);
         void detachFrom(osg::Camera* camera);
 
-        int width() const { return mWidth; }
-        int height() const { return mHeight; }
-        int samples() const { return mSamples; }
+        std::int32_t width() const { return mWidth; }
+        std::int32_t height() const { return mHeight; }
+        std::int32_t samples() const { return mSamples; }
 
     private:
         osg::Texture2D* createTexture(GLint sourceFormat, GLint sourceType, GLint internalFormat);
         osg::Texture2DArray* createTextureArray(GLint sourceFormat, GLint sourceType, GLint internalFormat);
 
-        int mWidth;
-        int mHeight;
-        int mSamples;
+        std::int32_t mWidth;
+        std::int32_t mHeight;
+        std::int32_t mSamples;
         bool mMultiview;
         osg::ref_ptr<UpdateRenderStagesCallback> mCullCallback;
         osg::ref_ptr<osg::FrameBufferObject> mMultiviewFbo;
@@ -95,11 +96,12 @@ namespace Stereo
 
     //! Sets the width/height of a texture by first down-casting it to the appropriate type. Sets depth to 2 always for
     //! Texture2DArray and Texture2DMultisampleArray.
-    void setMultiviewCompatibleTextureSize(osg::Texture* tex, int w, int h);
+    void setMultiviewCompatibleTextureSize(osg::Texture* tex, std::int32_t w, std::int32_t h);
 
     //! Creates a texture (Texture2D, Texture2DMultisample, Texture2DArray, or Texture2DMultisampleArray) based on
     //! multiview settings and sample count.
-    osg::ref_ptr<osg::Texture> createMultiviewCompatibleTexture(int width, int height, int samples);
+    osg::ref_ptr<osg::Texture> createMultiviewCompatibleTexture(
+        std::int32_t width, std::int32_t height, std::int32_t samples);
 
     //! Returns a framebuffer attachment from the texture, returning a multiview attachment if the texture is one of
     //! Texture2DArray or Texture2DMultisampleArray
@@ -107,7 +109,7 @@ namespace Stereo
 
     //! If OSG has multiview, returns the magic number used to tell OSG to create a multiview attachment. Otherwise
     //! returns 0.
-    unsigned int osgFaceControlledByMultiviewShader();
+    std::uint32_t osgFaceControlledByMultiviewShader();
 
     //! Implements resolving a multisamples multiview framebuffer. Does not automatically reflect changes to the fbo
     //! attachments, must call dirty() when the fbo attachments change.
@@ -137,8 +139,8 @@ namespace Stereo
 
         GLbitfield mBlitMask;
         bool mDirtyLayers = true;
-        int mWidth = -1;
-        int mHeight = -1;
+        std::int32_t mWidth = -1;
+        std::int32_t mHeight = -1;
     };
 
     //! Wrapper for osg::CullSettings::InitialFrustumCallback, to avoid exposing osg multiview interfaces outside of

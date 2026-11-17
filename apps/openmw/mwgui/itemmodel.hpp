@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include <apps/openmw/mwworld/ptr.hpp>
@@ -12,7 +14,7 @@ namespace MWGui
     /// @brief A single item stack managed by an item model
     struct ItemStack
     {
-        ItemStack(const MWWorld::Ptr& base, ItemModel* creator, size_t count);
+        ItemStack(const MWWorld::Ptr& base, ItemModel* creator, std::size_t count);
         ItemStack();
         ///< like operator==, only without checking mType
 
@@ -29,10 +31,10 @@ namespace MWGui
             Flag_Enchanted = (1 << 0),
             Flag_Bound = (1 << 1)
         };
-        int mFlags;
+        std::int32_t mFlags;
 
         ItemModel* mCreator;
-        size_t mCount;
+        std::size_t mCount;
         MWWorld::Ptr mBase;
     };
 
@@ -47,14 +49,14 @@ namespace MWGui
         ItemModel();
         virtual ~ItemModel() = default;
 
-        typedef int ModelIndex; // -1 means invalid index
+        typedef std::int32_t ModelIndex; // -1 means invalid index
 
         /// Throws for invalid index or out of range index
         virtual ItemStack getItem(ModelIndex index) = 0;
 
         /// The number of items in the model, this specifies the range of indices you can pass to
         /// the getItem function (but this range is only valid until the next call to update())
-        virtual size_t getItemCount() = 0;
+        virtual std::size_t getItemCount() = 0;
 
         /// Returns an invalid index if the item was not found
         virtual ModelIndex getIndex(const ItemStack& item) = 0;
@@ -65,20 +67,20 @@ namespace MWGui
         /// Move items from this model to \a otherModel.
         /// @note Derived implementations may return an empty Ptr if the move was unsuccessful.
         virtual MWWorld::Ptr moveItem(
-            const ItemStack& item, size_t count, ItemModel* otherModel, bool allowAutoEquip = true);
+            const ItemStack& item, std::size_t count, ItemModel* otherModel, bool allowAutoEquip = true);
 
         /// Is the player allowed to use items from this item model? (default true)
         virtual bool allowedToUseItems() const;
         virtual void onClose() {}
-        virtual bool onDropItem(const MWWorld::Ptr& item, int count);
-        virtual bool onTakeItem(const MWWorld::Ptr& item, int count);
+        virtual bool onDropItem(const MWWorld::Ptr& item, std::int32_t count);
+        virtual bool onTakeItem(const MWWorld::Ptr& item, std::int32_t count);
 
         virtual bool usesContainer(const MWWorld::Ptr& container) = 0;
 
     protected:
-        virtual MWWorld::Ptr addItem(const ItemStack& item, size_t count, bool allowAutoEquip = true) = 0;
-        virtual MWWorld::Ptr copyItem(const ItemStack& item, size_t count, bool allowAutoEquip = true) = 0;
-        virtual void removeItem(const ItemStack& item, size_t count) = 0;
+        virtual MWWorld::Ptr addItem(const ItemStack& item, std::size_t count, bool allowAutoEquip = true) = 0;
+        virtual MWWorld::Ptr copyItem(const ItemStack& item, std::size_t count, bool allowAutoEquip = true) = 0;
+        virtual void removeItem(const ItemStack& item, std::size_t count) = 0;
         friend class ProxyItemModel;
 
     private:
@@ -95,8 +97,8 @@ namespace MWGui
         bool allowedToUseItems() const override;
 
         void onClose() override;
-        bool onDropItem(const MWWorld::Ptr& item, int count) override;
-        bool onTakeItem(const MWWorld::Ptr& item, int count) override;
+        bool onDropItem(const MWWorld::Ptr& item, std::int32_t count) override;
+        bool onTakeItem(const MWWorld::Ptr& item, std::int32_t count) override;
 
         ModelIndex getIndex(const ItemStack& item) override;
 
@@ -109,9 +111,9 @@ namespace MWGui
         bool usesContainer(const MWWorld::Ptr& container) override;
 
     protected:
-        MWWorld::Ptr addItem(const ItemStack& item, size_t count, bool allowAutoEquip = true) override;
-        MWWorld::Ptr copyItem(const ItemStack& item, size_t count, bool allowAutoEquip = true) override;
-        void removeItem(const ItemStack& item, size_t count) override;
+        MWWorld::Ptr addItem(const ItemStack& item, std::size_t count, bool allowAutoEquip = true) override;
+        MWWorld::Ptr copyItem(const ItemStack& item, std::size_t count, bool allowAutoEquip = true) override;
+        void removeItem(const ItemStack& item, std::size_t count) override;
 
     protected:
         std::unique_ptr<ItemModel> mSourceModel;

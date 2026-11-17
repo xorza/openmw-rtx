@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 
 #include <osg/ref_ptr>
@@ -35,8 +36,8 @@ namespace MWRender
             const MWWorld::Ptr& ptr, osg::ref_ptr<osg::Group> parentNode, Resource::ResourceSystem* resourceSystem);
         ~ActorAnimation() override;
 
-        void itemAdded(const MWWorld::ConstPtr& item, int count) override;
-        void itemRemoved(const MWWorld::ConstPtr& item, int count) override;
+        void itemAdded(const MWWorld::ConstPtr& item, std::int32_t count) override;
+        void itemRemoved(const MWWorld::ConstPtr& item, std::int32_t count) override;
         virtual bool isArrowAttached() const { return false; }
         bool useShieldAnimations() const override;
         bool updateCarriedLeftVisible(ESM::RefId weaptype) const override;

@@ -1,5 +1,7 @@
 #include "weaponpriority.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwworld/class.hpp>
@@ -106,7 +108,7 @@ namespace MWMechanics
             const ESM::Enchantment* enchantment = world->getStore().get<ESM::Enchantment>().find(weapon->mEnchant);
             if (enchantment->mData.mType == ESM::Enchantment::WhenStrikes)
             {
-                int castCost = getEffectiveEnchantmentCastCost(*enchantment, actor);
+                std::int32_t castCost = getEffectiveEnchantmentCastCost(*enchantment, actor);
                 float charge = item.getCellRef().getEnchantmentCharge();
 
                 if (charge == -1 || charge >= static_cast<float>(castCost) || weapclass == ESM::WeaponType::Thrown
@@ -115,10 +117,10 @@ namespace MWMechanics
             }
         }
 
-        int value = 50;
+        std::int32_t value = 50;
         ESM::RefId skill = item.getClass().getEquipmentSkill(item);
         if (!skill.empty())
-            value = static_cast<int>(actor.getClass().getSkill(actor, skill));
+            value = static_cast<std::int32_t>(actor.getClass().getSkill(actor, skill));
         // Prefer hand-to-hand if our skill is 0 (presumably due to magic)
         if (value <= 0)
             return 0.f;

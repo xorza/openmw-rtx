@@ -1,10 +1,13 @@
 #include "enumsetting.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+
 #include <QComboBox>
 #include <QLabel>
 #include <QMutexLocker>
 #include <QString>
-#include <algorithm>
 
 #include "category.hpp"
 #include "setting.hpp"
@@ -34,11 +37,11 @@ CSMPrefs::SettingWidgets CSMPrefs::EnumSetting::makeWidgets(QWidget* parent)
     {
         const EnumValueView& v = mValues[i];
 
-        mWidget->addItem(QString::fromUtf8(v.mValue.data(), static_cast<int>(v.mValue.size())));
+        mWidget->addItem(QString::fromUtf8(v.mValue.data(), static_cast<std::int32_t>(v.mValue.size())));
 
         if (!v.mTooltip.empty())
-            mWidget->setItemData(static_cast<int>(i),
-                QString::fromUtf8(v.mTooltip.data(), static_cast<int>(v.mTooltip.size())), Qt::ToolTipRole);
+            mWidget->setItemData(static_cast<std::int32_t>(i),
+                QString::fromUtf8(v.mTooltip.data(), static_cast<std::int32_t>(v.mTooltip.size())), Qt::ToolTipRole);
     }
 
     const std::string value = getValue();
@@ -46,7 +49,7 @@ CSMPrefs::SettingWidgets CSMPrefs::EnumSetting::makeWidgets(QWidget* parent)
         std::find_if(mValues.begin(), mValues.end(), [&](const EnumValueView& v) { return v.mValue == value; })
         - mValues.begin());
 
-    mWidget->setCurrentIndex(static_cast<int>(index));
+    mWidget->setCurrentIndex(static_cast<std::int32_t>(index));
 
     if (!mTooltip.empty())
     {
@@ -54,7 +57,7 @@ CSMPrefs::SettingWidgets CSMPrefs::EnumSetting::makeWidgets(QWidget* parent)
         label->setToolTip(tooltip);
     }
 
-    connect(mWidget, qOverload<int>(&QComboBox::currentIndexChanged), this, &EnumSetting::valueChanged);
+    connect(mWidget, qOverload<std::int32_t>(&QComboBox::currentIndexChanged), this, &EnumSetting::valueChanged);
 
     return SettingWidgets{ .mLabel = label, .mInput = mWidget };
 }
@@ -65,7 +68,7 @@ void CSMPrefs::EnumSetting::updateWidget()
         mWidget->setCurrentIndex(mWidget->findText(QString::fromStdString(getValue())));
 }
 
-void CSMPrefs::EnumSetting::valueChanged(int value)
+void CSMPrefs::EnumSetting::valueChanged(std::int32_t value)
 {
     if (value < 0 || static_cast<std::size_t>(value) >= mValues.size())
         throw std::logic_error("Invalid enum setting \"" + getKey() + "\" value index: " + std::to_string(value));

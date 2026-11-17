@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <set>
 #include <type_traits>
 
@@ -126,7 +127,7 @@ namespace NifOsg
     private:
         template <typename ValueType>
         ValueType interpolate(
-            const Nif::KeyT<ValueType>& a, const Nif::KeyT<ValueType>& b, float fraction, unsigned int type) const
+            const Nif::KeyT<ValueType>& a, const Nif::KeyT<ValueType>& b, float fraction, std::uint32_t type) const
         {
             switch (type)
             {
@@ -155,7 +156,7 @@ namespace NifOsg
             }
         }
         osg::Quat interpolate(
-            const Nif::KeyT<osg::Quat>& a, const Nif::KeyT<osg::Quat>& b, float fraction, unsigned int type) const
+            const Nif::KeyT<osg::Quat>& a, const Nif::KeyT<osg::Quat>& b, float fraction, std::uint32_t type) const
         {
             switch (type)
             {
@@ -267,7 +268,7 @@ namespace NifOsg
     public:
         UVController() = default;
         UVController(const UVController&, const osg::CopyOp&);
-        UVController(const Nif::NiUVData* data, const std::set<unsigned int>& textureUnits);
+        UVController(const Nif::NiUVData* data, const std::set<std::uint32_t>& textureUnits);
 
         META_Object(NifOsg, UVController)
 
@@ -279,7 +280,7 @@ namespace NifOsg
         FloatInterpolator mVTrans;
         FloatInterpolator mUScale;
         FloatInterpolator mVScale;
-        std::set<unsigned int> mTextureUnits;
+        std::set<std::uint32_t> mTextureUnits;
     };
 
     class VisController : public SceneUtil::NodeCallback<VisController>, public SceneUtil::Controller
@@ -287,12 +288,12 @@ namespace NifOsg
     private:
         std::shared_ptr<std::vector<std::pair<float, bool>>> mData;
         BoolInterpolator mInterpolator;
-        unsigned int mMask{ 0u };
+        std::uint32_t mMask{ 0u };
 
         bool calculate(float time) const;
 
     public:
-        VisController(const Nif::NiVisController* ctrl, unsigned int mask);
+        VisController(const Nif::NiVisController* ctrl, std::uint32_t mask);
         VisController();
         VisController(const VisController& copy, const osg::CopyOp& copyop);
 
@@ -359,14 +360,14 @@ namespace NifOsg
     class FlipController : public SceneUtil::StateSetUpdater, public SceneUtil::Controller
     {
     private:
-        int mTexSlot{ 0 };
+        std::int32_t mTexSlot{ 0 };
         float mDelta{ 0.f };
         std::vector<osg::ref_ptr<osg::Texture2D>> mTextures;
         FloatInterpolator mData;
 
     public:
         FlipController(const Nif::NiFlipController* ctrl, const std::vector<osg::ref_ptr<osg::Texture2D>>& textures);
-        FlipController(int texSlot, float delta, const std::vector<osg::ref_ptr<osg::Texture2D>>& textures);
+        FlipController(std::int32_t texSlot, float delta, const std::vector<osg::ref_ptr<osg::Texture2D>>& textures);
         FlipController() = default;
         FlipController(const FlipController& copy, const osg::CopyOp& copyop);
 
@@ -410,7 +411,7 @@ namespace NifOsg
     private:
         Vec3Interpolator mPath;
         FloatInterpolator mPercent;
-        int mFlags{ 0 };
+        std::int32_t mFlags{ 0 };
 
         float getPercent(float time) const;
     };
@@ -432,7 +433,7 @@ namespace NifOsg
         void remapTargets(const SceneUtil::CopyOp& copyop) override;
 
     private:
-        uint16_t mFlags{ 0 };
+        std::uint16_t mFlags{ 0 };
         osg::observer_ptr<osg::Group> mTarget;
     };
 

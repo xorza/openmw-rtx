@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <apps/openmw/mwworld/ptr.hpp>
 
 #include "windowbase.hpp"
@@ -23,14 +26,14 @@ namespace MWGui
         MyGUI::Button* mOkButton{};
         MyGUI::TextBox* mGoldLabel{};
         /// List of enabled/repairable items and their index in the full list.
-        std::vector<std::pair<MyGUI::Button*, size_t>> mButtons;
+        std::vector<std::pair<MyGUI::Button*, std::size_t>> mButtons;
 
         MWWorld::Ptr mActor;
 
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
 
     protected:
-        void onMouseWheel(MyGUI::Widget* sender, int rel);
+        void onMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
         void onRepairButtonClick(MyGUI::Widget* sender);
         void onOkButtonClick(MyGUI::Widget* sender);
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;

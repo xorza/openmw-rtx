@@ -19,7 +19,7 @@
 namespace Terrain
 {
     /// Which references one walk of a cell's records collects, as a set of the two kinds.
-    enum class RefKinds : unsigned int
+    enum class RefKinds : std::uint32_t
     {
         /// What a chunk stands: the record types the paging draws, which is what makes a distant
         /// hillside look the same under both renderers.
@@ -35,7 +35,7 @@ namespace Terrain
 
     constexpr bool holds(RefKinds set, RefKinds one)
     {
-        return (static_cast<unsigned int>(set) & static_cast<unsigned int>(one)) != 0;
+        return (static_cast<std::uint32_t>(set) & static_cast<std::uint32_t>(one)) != 0;
     }
 
     /// What a walk of the content files says of each reference, in the order the files stack, reduced

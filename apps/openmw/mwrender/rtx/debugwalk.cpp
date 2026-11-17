@@ -1,6 +1,7 @@
 #include "debugwalk.hpp"
 
 #include <cstddef>
+#include <cstdint>
 
 #include <osg/Array>
 #include <osg/Drawable>
@@ -66,7 +67,7 @@ namespace MWRender
 
             DebugWalk::Drawn mDrawn;
 
-            Rtx::DebugVertex vertexAt(const unsigned int index) const
+            Rtx::DebugVertex vertexAt(const std::uint32_t index) const
             {
                 osg::Vec4f colour = mPainted->at(index);
                 if (!mDrawn.mBlends)
@@ -78,15 +79,15 @@ namespace MWRender
                 };
             }
 
-            void operator()(unsigned int) const {}
+            void operator()(std::uint32_t) const {}
 
-            void operator()(const unsigned int a, const unsigned int b) const
+            void operator()(const std::uint32_t a, const std::uint32_t b) const
             {
                 mLines->push_back(vertexAt(a));
                 mLines->push_back(vertexAt(b));
             }
 
-            void operator()(const unsigned int a, const unsigned int b, const unsigned int c) const
+            void operator()(const std::uint32_t a, const std::uint32_t b, const std::uint32_t c) const
             {
                 if (mDrawn.mEdges)
                 {
@@ -103,7 +104,7 @@ namespace MWRender
 
             /// A quad as its outline under `LINE`, as OpenGL draws one, and no diagonal.
             void operator()(
-                const unsigned int a, const unsigned int b, const unsigned int c, const unsigned int d) const
+                const std::uint32_t a, const std::uint32_t b, const std::uint32_t c, const std::uint32_t d) const
             {
                 if (mDrawn.mEdges)
                 {
@@ -125,7 +126,7 @@ namespace MWRender
     {
     }
 
-    Rtx::DebugLines DebugWalk::walk(osg::Node& root, const unsigned int view)
+    Rtx::DebugLines DebugWalk::walk(osg::Node& root, const std::uint32_t view)
     {
         setTraversalMask(view & ~Mask_Scene);
         mLines.clear();

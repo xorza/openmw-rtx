@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 
 #include <MyGUI_EditText.h>
@@ -24,7 +25,7 @@ namespace Gui
         }
 
         void setFontName(std::string_view name) override;
-        void setFontHeight(int height) override;
+        void setFontHeight(std::int32_t height) override;
 
         /// Takes its font again, and its registry's text height where it has none of its own, and
         /// has a widget sized to its text size itself again.

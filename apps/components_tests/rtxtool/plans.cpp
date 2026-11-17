@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -226,7 +227,7 @@ namespace RtxTool
             ASSERT_TRUE(run.mPreload.has_value());
             EXPECT_FLOAT_EQ(run.mPreload->mDistance, 1000.0f * 12000.0f / 337.5f);
             EXPECT_EQ(run.mPreload->mThreads,
-                std::min(16, std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1)));
+                std::min(16, std::max(1, static_cast<std::int32_t>(std::thread::hardware_concurrency()) - 1)));
             EXPECT_EQ(run.mPreload->mCacheMin, 12) << "the shipped least, so what expired makes room";
             EXPECT_EQ(run.mPreload->mCacheMax, 50)
                 << "the grid and its ring, 25, around where the player is and will be";

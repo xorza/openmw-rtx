@@ -1,5 +1,7 @@
 #include "aiescort.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -20,7 +22,8 @@
 
 namespace MWMechanics
 {
-    AiEscort::AiEscort(ESM::RefNum actor, std::string_view cellId, int duration, float x, float y, float z, bool repeat)
+    AiEscort::AiEscort(
+        ESM::RefNum actor, std::string_view cellId, std::int32_t duration, float x, float y, float z, bool repeat)
         : TypedAiPackage<AiEscort>(repeat)
         , mCellId(cellId)
         , mX(x)
@@ -32,8 +35,8 @@ namespace MWMechanics
         mTargetActor = actor;
     }
 
-    AiEscort::AiEscort(
-        const ESM::RefId& actorId, std::string_view cellId, int duration, float x, float y, float z, bool repeat)
+    AiEscort::AiEscort(const ESM::RefId& actorId, std::string_view cellId, std::int32_t duration, float x, float y,
+        float z, bool repeat)
         : TypedAiPackage<AiEscort>(repeat)
         , mCellId(cellId)
         , mX(x)
@@ -135,7 +138,7 @@ namespace MWMechanics
         escort->mData.mX = mX;
         escort->mData.mY = mY;
         escort->mData.mZ = mZ;
-        escort->mData.mDuration = static_cast<int16_t>(mDuration);
+        escort->mData.mDuration = static_cast<std::int16_t>(mDuration);
         escort->mTargetId = mTargetActorRefId;
         escort->mTargetActor = mTargetActor;
         escort->mRemainingDuration = mRemainingDuration;

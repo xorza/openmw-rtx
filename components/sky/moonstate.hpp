@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace Sky
 {
     /// Where a moon stands and how much of it is lit, at one moment. `MWWorld::MoonModel` computes
@@ -23,7 +25,7 @@ namespace Sky
             Unspecified
         };
 
-        static constexpr unsigned int phaseToInt(Phase phase)
+        static constexpr std::uint32_t phaseToInt(Phase phase)
         {
             switch (phase)
             {

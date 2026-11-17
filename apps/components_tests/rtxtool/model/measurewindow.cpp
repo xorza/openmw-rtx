@@ -204,7 +204,7 @@ namespace RtxTool
         /// nothing, having no cell before it. A crossing that appended closes as no rebuild.
         TEST(RtxMeasureWindowTest, aCrossingClosesWithTheSpanOfTheFrameThatCrossed)
         {
-            const int cells[2]{};
+            const std::int32_t cells[2]{};
             MeasureWindow window(0, 30, false);
             const auto at = [&](const void* cell, double frameMs, bool rebuilt, double walkMs = 0.0) {
                 WindowFrame frame = standing(0, frameMs);

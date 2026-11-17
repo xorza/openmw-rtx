@@ -1,5 +1,7 @@
 #include "tableeditidaction.hpp"
 
+#include <cstdint>
+
 #include <QTableView>
 
 #include <apps/opencs/model/world/data.hpp>
@@ -14,7 +16,7 @@ CSVWorld::TableEditIdAction::TableEditIdAction(const QTableView& table, CSMWorld
 {
 }
 
-bool CSVWorld::TableEditIdAction::setCell(int row, int column)
+bool CSVWorld::TableEditIdAction::setCell(std::int32_t row, std::int32_t column)
 {
     QModelIndex index = mTable.model()->index(row, column);
     if (!index.isValid())

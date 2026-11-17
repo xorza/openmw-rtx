@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <map>
 #include <memory>
@@ -63,7 +65,7 @@ namespace MWRender
     namespace
     {
         // The paging's own kinds unless a caller names others: what a chunk stands, and never a light
-        bool typeFilter(int type, bool far, Terrain::RefKinds kinds = Terrain::RefKinds::Paged)
+        bool typeFilter(std::int32_t type, bool far, Terrain::RefKinds kinds = Terrain::RefKinds::Paged)
         {
             if (type == ESM::REC_LIGH)
                 return Terrain::holds(kinds, Terrain::RefKinds::Lit);
@@ -98,7 +100,7 @@ namespace MWRender
             return record->mModel.getNormalized();
         }
 
-        VFS::Path::Normalized getModel(int type, ESM::RefId id, const MWWorld::ESMStore& store)
+        VFS::Path::Normalized getModel(std::int32_t type, ESM::RefId id, const MWWorld::ESMStore& store)
         {
             switch (type)
             {
@@ -128,8 +130,8 @@ namespace MWRender
         }
     }
 
-    osg::ref_ptr<osg::Node> ObjectPaging::getChunk(float size, const osg::Vec2f& center, unsigned char /*lod*/,
-        unsigned int lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
+    osg::ref_ptr<osg::Node> ObjectPaging::getChunk(float size, const osg::Vec2f& center, std::uint8_t /*lod*/,
+        std::uint32_t lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
     {
         if (activeGrid && !mActiveGrid)
             return nullptr;
@@ -139,7 +141,7 @@ namespace MWRender
         if (const osg::ref_ptr<osg::Object> obj = mCache->getRefFromObjectCache(id))
             return static_cast<osg::Node*>(obj.get());
 
-        const auto lod = static_cast<unsigned char>(lodFlags >> (4 * 4));
+        const auto lod = static_cast<std::uint8_t>(lodFlags >> (4 * 4));
         osg::ref_ptr<osg::Node> node = createChunk(size, center, activeGrid, viewPoint, compile, lod);
         mCache->addEntryToObjectCache(id, node.get());
         return node;
@@ -151,12 +153,12 @@ namespace MWRender
         {
         public:
             bool isOperationPermissibleForObjectImplementation(
-                const SceneUtil::Optimizer* optimizer, const osg::Drawable* node, unsigned int option) const override
+                const SceneUtil::Optimizer* optimizer, const osg::Drawable* node, std::uint32_t option) const override
             {
                 return true;
             }
             bool isOperationPermissibleForObjectImplementation(
-                const SceneUtil::Optimizer* optimizer, const osg::Node* node, unsigned int option) const override
+                const SceneUtil::Optimizer* optimizer, const osg::Node* node, std::uint32_t option) const override
             {
                 return (node->getDataVariance() != osg::Object::DYNAMIC);
             }
@@ -199,7 +201,7 @@ namespace MWRender
                     attachTo->addChild(operator()(toCopy));
                 else
                 {
-                    for (unsigned int i = 0; i < groupToCopy->getNumChildren(); ++i)
+                    for (std::uint32_t i = 0; i < groupToCopy->getNumChildren(); ++i)
                         attachTo->addChild(operator()(groupToCopy->getChild(i)));
                 }
             }
@@ -220,7 +222,7 @@ namespace MWRender
                 if (const osg::Switch* sw = node->asSwitch())
                 {
                     auto* n = new osg::Group;
-                    for (unsigned int i = 0; i < sw->getNumChildren(); ++i)
+                    for (std::uint32_t i = 0; i < sw->getNumChildren(); ++i)
                         if (sw->getValue(i))
                             n->addChild(operator()(sw->getChild(i)));
                     n->setDataVariance(osg::Object::STATIC);
@@ -229,7 +231,7 @@ namespace MWRender
                 if (const auto* lod = dynamic_cast<const osg::LOD*>(node))
                 {
                     std::vector<std::pair<osg::ref_ptr<osg::Node>, LODRange>> children;
-                    for (unsigned int i = 0; i < lod->getNumChildren(); ++i)
+                    for (std::uint32_t i = 0; i < lod->getNumChildren(); ++i)
                         if (const auto r = intersection(lod->getRangeList()[i], mDistances); !empty(r))
                             children.emplace_back(operator()(lod->getChild(i)), lod->getRangeList()[i]);
                     if (children.empty())
@@ -254,7 +256,7 @@ namespace MWRender
                 {
                     auto* n = new osg::Group;
                     n->addChild(operator()(
-                        sq->getChild(sq->getValue() != -1 ? static_cast<unsigned int>(sq->getValue()) : 0)));
+                        sq->getChild(sq->getValue() != -1 ? static_cast<std::uint32_t>(sq->getValue()) : 0)));
                     n->setDataVariance(osg::Object::STATIC);
                     return n;
                 }
@@ -266,7 +268,7 @@ namespace MWRender
                         auto* n = new osg::MatrixTransform();
                         n->setMatrix(autoTransform->computeMatrix(nullptr));
 
-                        for (unsigned int i = 0; i < autoTransform->getNumChildren(); ++i)
+                        for (std::uint32_t i = 0; i < autoTransform->getNumChildren(); ++i)
                             if (osg::Node* clonedChild = operator()(autoTransform->getChild(i)))
                                 n->addChild(clonedChild);
 
@@ -343,11 +345,11 @@ namespace MWRender
                 setTraversalMask(analyzeMask);
             }
 
-            typedef std::unordered_map<osg::StateSet*, unsigned int> StateSetCounter;
+            typedef std::unordered_map<osg::StateSet*, std::uint32_t> StateSetCounter;
             struct Result
             {
                 StateSetCounter mStateSetCounter;
-                unsigned int mNumVerts = 0;
+                std::uint32_t mNumVerts = 0;
             };
 
             void apply(osg::Node& node) override
@@ -357,21 +359,21 @@ namespace MWRender
 
                 if (osg::Switch* sw = node.asSwitch())
                 {
-                    for (unsigned int i = 0; i < sw->getNumChildren(); ++i)
+                    for (std::uint32_t i = 0; i < sw->getNumChildren(); ++i)
                         if (sw->getValue(i))
                             traverse(*sw->getChild(i));
                     return;
                 }
                 if (auto* lod = dynamic_cast<osg::LOD*>(&node))
                 {
-                    for (unsigned int i = 0; i < lod->getNumChildren(); ++i)
+                    for (std::uint32_t i = 0; i < lod->getNumChildren(); ++i)
                         if (const auto r = intersection(lod->getRangeList()[i], mDistances); !empty(r))
                             traverse(*lod->getChild(i));
                     return;
                 }
                 if (auto* sq = dynamic_cast<osg::Sequence*>(&node))
                 {
-                    traverse(*sq->getChild(sq->getValue() != -1 ? static_cast<unsigned int>(sq->getValue()) : 0));
+                    traverse(*sq->getChild(sq->getValue() != -1 ? static_cast<std::uint32_t>(sq->getValue()) : 0));
                     return;
                 }
 
@@ -517,16 +519,16 @@ namespace MWRender
         void visitESM3References(float size, const osg::Vec2i& startCell, const StaticRecords& records,
             Terrain::RefKinds kinds, ESM::ReadersCache& readers, Sink& refs)
         {
-            for (int cellX = startCell.x(); static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size;
-                ++cellX)
+            for (std::int32_t cellX = startCell.x();
+                static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size; ++cellX)
             {
-                for (int cellY = startCell.y(); static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size;
-                    ++cellY)
+                for (std::int32_t cellY = startCell.y();
+                    static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size; ++cellY)
                 {
                     const ESM::Cell* cell = records.searchExterior(cellX, cellY);
                     if (!cell)
                         continue;
-                    for (size_t i = 0; i < cell->mContextList.size(); ++i)
+                    for (std::size_t i = 0; i < cell->mContextList.size(); ++i)
                     {
                         try
                         {
@@ -547,7 +549,7 @@ namespace MWRender
                                     != cell->mMovedRefs.end())
                                     continue;
 
-                                int type = records.findType(ref.mRefID);
+                                std::int32_t type = records.findType(ref.mRefID);
                                 if (!typeFilter(type, size >= 2, kinds))
                                     continue;
                                 if (deleted)
@@ -572,7 +574,7 @@ namespace MWRender
                             refs.erase(ref.mRefNum);
                             continue;
                         }
-                        int type = records.findType(ref.mRefID);
+                        std::int32_t type = records.findType(ref.mRefID);
                         if (!typeFilter(type, size >= 2, kinds))
                             continue;
                         refs.assign(ref.mRefNum, makePagedCellRef(ref));
@@ -595,11 +597,11 @@ namespace MWRender
             float size, const osg::Vec2i& startCell, ESM::RefId worldspace, Terrain::RefKinds kinds, Sink& refs)
         {
             const auto& store = MWBase::Environment::get().getWorld()->getStore();
-            for (int cellX = startCell.x(); static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size;
-                ++cellX)
+            for (std::int32_t cellX = startCell.x();
+                static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size; ++cellX)
             {
-                for (int cellY = startCell.y(); static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size;
-                    ++cellY)
+                for (std::int32_t cellY = startCell.y();
+                    static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size; ++cellY)
                 {
                     const ESM4::Cell* cell
                         = store.get<ESM4::Cell>().searchExterior(ESM::ExteriorCellLocation(cellX, cellY, worldspace));
@@ -609,7 +611,7 @@ namespace MWRender
                     {
                         if (ref4->mFlags & ESM4::Rec_Disabled)
                             continue;
-                        int type = store.findStatic(ref4->mBaseObj);
+                        std::int32_t type = store.findStatic(ref4->mBaseObj);
                         if (!typeFilter(type, size >= 2, kinds))
                             continue;
                         if (!ref4->mEsp.parent.isZeroOrUnset())
@@ -649,10 +651,10 @@ namespace MWRender
     }
 
     osg::ref_ptr<osg::Node> ObjectPaging::createChunk(float size, const osg::Vec2f& center, bool activeGrid,
-        const osg::Vec3f& viewPoint, bool compile, unsigned char lod)
+        const osg::Vec3f& viewPoint, bool compile, std::uint8_t lod)
     {
-        const osg::Vec2i startCell(static_cast<int>(std::floor(center.x() - size / 2.f)),
-            static_cast<int>(std::floor(center.y() - size / 2.f)));
+        const osg::Vec2i startCell(static_cast<std::int32_t>(std::floor(center.x() - size / 2.f)),
+            static_cast<std::int32_t>(std::floor(center.y() - size / 2.f)));
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
         const MWWorld::ESMStore& store = world.getStore();
 
@@ -685,9 +687,9 @@ namespace MWRender
         const osg::Vec2f minBound = (center - osg::Vec2f(size / 2.f, size / 2.f));
         const osg::Vec2f maxBound = (center + osg::Vec2f(size / 2.f, size / 2.f));
         const osg::Vec2i floorMinBound(
-            static_cast<int>(std::floor(minBound.x())), static_cast<int>(std::floor(minBound.y())));
+            static_cast<std::int32_t>(std::floor(minBound.x())), static_cast<std::int32_t>(std::floor(minBound.y())));
         const osg::Vec2i ceilMaxBound(
-            static_cast<int>(std::ceil(maxBound.x())), static_cast<int>(std::ceil(maxBound.y())));
+            static_cast<std::int32_t>(std::ceil(maxBound.x())), static_cast<std::int32_t>(std::ceil(maxBound.y())));
         struct InstanceList
         {
             std::vector<const PagedCellRef*> mInstances;
@@ -704,7 +706,7 @@ namespace MWRender
         // Since ObjectPaging does not handle VisController, we can just ignore both types of nodes.
         constexpr auto copyMask = ~Mask_UpdateVisitor;
 
-        const int cellSize = getCellSize(mWorldspace);
+        const std::int32_t cellSize = getCellSize(mWorldspace);
         const float smallestDistanceToChunk = (size > 1 / 8.f) ? (size * static_cast<float>(cellSize)) : 0.f;
         const float higherDistanceToChunk
             = activeGrid ? static_cast<float>(((size < 1) ? 5 : 3) * cellSize) * size + 1 : smallestDistanceToChunk + 1;
@@ -737,7 +739,7 @@ namespace MWRender
             if (Misc::ResourceHelpers::isHiddenMarker(ref.mRefId))
                 continue;
 
-            const int type = store.findStatic(ref.mRefId);
+            const std::int32_t type = store.findStatic(ref.mRefId);
             VFS::Path::Normalized model = getModel(type, ref.mRefId, store);
             if (model.empty())
                 continue;
@@ -846,7 +848,7 @@ namespace MWRender
             const float minSizeMergeFactor2 = (1 - factor2) * mMinSizeMergeFactor + factor2;
             const float minSizeMerged = minSizeMergeFactor2 > 0 ? mMinSize * minSizeMergeFactor2 : mMinSize;
 
-            unsigned int numinstances = 0;
+            std::uint32_t numinstances = 0;
             for (const PagedCellRef* refPtr : pair.second.mInstances)
             {
                 const PagedCellRef& ref = *refPtr;
@@ -920,7 +922,7 @@ namespace MWRender
 
                 if (pair.second.mNeedCompile)
                 {
-                    int mode = osgUtil::GLObjectsVisitor::COMPILE_STATE_ATTRIBUTES;
+                    std::int32_t mode = osgUtil::GLObjectsVisitor::COMPILE_STATE_ATTRIBUTES;
                     if (!merge)
                         mode |= osgUtil::GLObjectsVisitor::COMPILE_DISPLAY_LISTS;
                     stateToCompile._mode = static_cast<osgUtil::GLObjectsVisitor::Mode>(mode);
@@ -940,7 +942,7 @@ namespace MWRender
                 optimizer.setMergeAlphaBlending(true);
             }
             optimizer.setIsOperationPermissibleForObjectCallback(new CanOptimizeCallback);
-            const unsigned int options = SceneUtil::Optimizer::FLATTEN_STATIC_TRANSFORMS
+            const std::uint32_t options = SceneUtil::Optimizer::FLATTEN_STATIC_TRANSFORMS
                 | SceneUtil::Optimizer::REMOVE_REDUNDANT_NODES | SceneUtil::Optimizer::MERGE_GEOMETRY;
 
             optimizer.optimize(mergeGroup, options);
@@ -982,7 +984,7 @@ namespace MWRender
         return group;
     }
 
-    unsigned int ObjectPaging::getNodeMask()
+    std::uint32_t ObjectPaging::getNodeMask()
     {
         return Mask_Static;
     }
@@ -1031,7 +1033,7 @@ namespace MWRender
     }
 
     bool ObjectPaging::enableObject(
-        int type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell, bool enabled)
+        std::int32_t type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell, bool enabled)
     {
         if (!typeFilter(type, false))
             return false;
@@ -1055,7 +1057,8 @@ namespace MWRender
         return true;
     }
 
-    bool ObjectPaging::blacklistObject(int type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell)
+    bool ObjectPaging::blacklistObject(
+        std::int32_t type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell)
     {
         if (!typeFilter(type, false))
             return false;
@@ -1138,13 +1141,13 @@ namespace MWRender
         out.erase(std::unique(out.begin(), out.end()), out.end());
     }
 
-    void ObjectPaging::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void ObjectPaging::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Object Chunk", frameNumber, mCache->getStats(), *stats);
     }
 
     // Defined here because the walk it wraps is file-local
-    bool ObjectStorage::handsOver(const int type)
+    bool ObjectStorage::handsOver(const std::int32_t type)
     {
         return typeFilter(type, false, Terrain::RefKinds::Both);
     }
@@ -1189,12 +1192,12 @@ namespace MWRender
         return StaticRecords(MWBase::Environment::get().getWorld()->getStore());
     }
 
-    int StaticRecords::findType(const ESM::RefId& id) const
+    std::int32_t StaticRecords::findType(const ESM::RefId& id) const
     {
         return mStore.findStatic(id);
     }
 
-    const ESM::Cell* StaticRecords::searchExterior(const int x, const int y) const
+    const ESM::Cell* StaticRecords::searchExterior(const std::int32_t x, const std::int32_t y) const
     {
         return mStore.get<ESM::Cell>().searchStatic(x, y);
     }
@@ -1208,7 +1211,7 @@ namespace MWRender
         return SceneUtil::LightCommon(*found);
     }
 
-    VFS::Path::Normalized StaticRecords::getModel(const int type, const ESM::RefId& id) const
+    VFS::Path::Normalized StaticRecords::getModel(const std::int32_t type, const ESM::RefId& id) const
     {
         // Apart from the paging's own answer, which never meets a lamp: `REC_LIGH` is no paged type.
         if (type == ESM::REC_LIGH)

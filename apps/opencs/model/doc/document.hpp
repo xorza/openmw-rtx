@@ -1,11 +1,13 @@
 #pragma once
 
-#include <QObject>
-#include <QUndoStack>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <QObject>
+#include <QUndoStack>
 
 #include <apps/opencs/model/tools/tools.hpp>
 #include <apps/opencs/model/world/data.hpp>
@@ -94,7 +96,7 @@ namespace CSMDoc
 
         QUndoStack& getUndoStack();
 
-        int getState() const;
+        std::int32_t getState() const;
 
         const std::filesystem::path& getResourceDir() const;
 
@@ -119,7 +121,7 @@ namespace CSMDoc
 
         void runMerge(std::unique_ptr<CSMDoc::Document> target);
 
-        void abortOperation(int type);
+        void abortOperation(std::int32_t type);
 
         const CSMWorld::Data& getData() const;
 
@@ -140,28 +142,29 @@ namespace CSMDoc
 
     signals:
 
-        void stateChanged(int state, CSMDoc::Document* document);
+        void stateChanged(std::int32_t state, CSMDoc::Document* document);
 
-        void progress(int current, int max, int type, int threads, CSMDoc::Document* document);
+        void progress(std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads,
+            CSMDoc::Document* document);
 
         /// \attention When this signal is emitted, *this hands over the ownership of the
         /// document. This signal must be handled to avoid a leak.
         void mergeDone(CSMDoc::Document* document);
 
-        void operationDone(int type, bool failed);
+        void operationDone(std::int32_t type, bool failed);
 
     private slots:
 
         void modificationStateChanged(bool clean);
 
-        void reportMessage(const CSMDoc::Message& message, int type);
+        void reportMessage(const CSMDoc::Message& message, std::int32_t type);
 
-        void operationDone2(int type, bool failed);
+        void operationDone2(std::int32_t type, bool failed);
 
         void runStateChanged();
 
     public slots:
 
-        void progress(int current, int max, int type);
+        void progress(std::int32_t current, std::int32_t max, std::int32_t type);
     };
 }

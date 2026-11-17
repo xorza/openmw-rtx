@@ -1,6 +1,7 @@
 #include "attach.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <stdexcept>
 #include <vector>
 
@@ -98,7 +99,7 @@ namespace SceneUtil
                 target->setUserDataContainer(osg::clone(source, osg::CopyOp::SHALLOW_COPY));
             else
             {
-                for (unsigned int i = 0; i < source->getNumUserObjects(); ++i)
+                for (std::uint32_t i = 0; i < source->getNumUserObjects(); ++i)
                     target->getUserDataContainer()->addUserObject(
                         osg::clone(source->getUserObject(i), osg::CopyOp::SHALLOW_COPY));
             }

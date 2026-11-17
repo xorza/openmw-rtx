@@ -1,6 +1,7 @@
 #include "instancerecord.hpp"
 
 #include <cstddef>
+#include <cstdint>
 
 #include <osg/Matrixd>
 #include <osg/Vec3f>
@@ -42,9 +43,9 @@ namespace Rtx
     Transform3x4 toTransform3x4(const osg::Matrixf& matrix)
     {
         Transform3x4 result{};
-        for (int row = 0; row < 3; ++row)
+        for (std::int32_t row = 0; row < 3; ++row)
         {
-            for (int column = 0; column < 3; ++column)
+            for (std::int32_t column = 0; column < 3; ++column)
                 result.mRows[row][column] = matrix(column, row);
 
             result.mRows[row][3] = matrix(3, row);
@@ -57,7 +58,7 @@ namespace Rtx
         const Transform3x4 rows = toTransform3x4(matrix);
 
         Shaders::GpuBone bone;
-        for (int row = 0; row < 3; ++row)
+        for (std::int32_t row = 0; row < 3; ++row)
             bone.mRows[row]
                 = osg::Vec4f(rows.mRows[row][0], rows.mRows[row][1], rows.mRows[row][2], rows.mRows[row][3]);
 
@@ -69,7 +70,7 @@ namespace Rtx
         /// Whether `placement` turns space inside out: a negative determinant of its linear part.
         bool mirrors(const osg::Matrixf& placement)
         {
-            const auto at = [&](int row, int column) { return double{ placement(row, column) }; };
+            const auto at = [&](std::int32_t row, std::int32_t column) { return double{ placement(row, column) }; };
             const double determinant = at(0, 0) * (at(1, 1) * at(2, 2) - at(1, 2) * at(2, 1))
                 - at(0, 1) * (at(1, 0) * at(2, 2) - at(1, 2) * at(2, 0))
                 + at(0, 2) * (at(1, 0) * at(2, 1) - at(1, 1) * at(2, 0));

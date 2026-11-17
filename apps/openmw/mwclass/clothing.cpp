@@ -1,5 +1,7 @@
 #include "clothing.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
@@ -58,11 +60,11 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    std::pair<std::vector<int>, bool> Clothing::getEquipmentSlots(const MWWorld::ConstPtr& ptr) const
+    std::pair<std::vector<std::int32_t>, bool> Clothing::getEquipmentSlots(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Clothing>* ref = ptr.get<ESM::Clothing>();
 
-        std::vector<int> slots;
+        std::vector<std::int32_t> slots;
 
         if (ref->mBase->mData.mType == ESM::Clothing::Ring)
         {
@@ -71,17 +73,18 @@ namespace MWClass
         }
         else
         {
-            const int size = 9;
+            const std::int32_t size = 9;
 
-            static const int sMapping[size][2] = { { ESM::Clothing::Shirt, MWWorld::InventoryStore::Slot_Shirt },
-                { ESM::Clothing::Belt, MWWorld::InventoryStore::Slot_Belt },
-                { ESM::Clothing::Robe, MWWorld::InventoryStore::Slot_Robe },
-                { ESM::Clothing::Pants, MWWorld::InventoryStore::Slot_Pants },
-                { ESM::Clothing::Shoes, MWWorld::InventoryStore::Slot_Boots },
-                { ESM::Clothing::LGlove, MWWorld::InventoryStore::Slot_LeftGauntlet },
-                { ESM::Clothing::RGlove, MWWorld::InventoryStore::Slot_RightGauntlet },
-                { ESM::Clothing::Skirt, MWWorld::InventoryStore::Slot_Skirt },
-                { ESM::Clothing::Amulet, MWWorld::InventoryStore::Slot_Amulet } };
+            static const std::int32_t sMapping[size][2]
+                = { { ESM::Clothing::Shirt, MWWorld::InventoryStore::Slot_Shirt },
+                      { ESM::Clothing::Belt, MWWorld::InventoryStore::Slot_Belt },
+                      { ESM::Clothing::Robe, MWWorld::InventoryStore::Slot_Robe },
+                      { ESM::Clothing::Pants, MWWorld::InventoryStore::Slot_Pants },
+                      { ESM::Clothing::Shoes, MWWorld::InventoryStore::Slot_Boots },
+                      { ESM::Clothing::LGlove, MWWorld::InventoryStore::Slot_LeftGauntlet },
+                      { ESM::Clothing::RGlove, MWWorld::InventoryStore::Slot_RightGauntlet },
+                      { ESM::Clothing::Skirt, MWWorld::InventoryStore::Slot_Skirt },
+                      { ESM::Clothing::Amulet, MWWorld::InventoryStore::Slot_Amulet } };
 
             for (auto entry : sMapping)
                 if (entry[0] == ref->mBase->mData.mType)
@@ -104,7 +107,7 @@ namespace MWClass
         return {};
     }
 
-    int Clothing::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Clothing::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Clothing>* ref = ptr.get<ESM::Clothing>();
 
@@ -142,7 +145,7 @@ namespace MWClass
         return ref->mBase->mIcon.getNormalized();
     }
 
-    MWGui::ToolTipInfo Clothing::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Clothing::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Clothing>* ref = ptr.get<ESM::Clothing>();
 
@@ -164,7 +167,7 @@ namespace MWClass
 
         info.enchant = ref->mBase->mEnchant;
         if (!info.enchant.empty())
-            info.remainingEnchantCharge = static_cast<int>(ptr.getCellRef().getEnchantmentCharge());
+            info.remainingEnchantCharge = static_cast<std::int32_t>(ptr.getCellRef().getEnchantmentCharge());
 
         info.text = std::move(text);
 
@@ -178,25 +181,25 @@ namespace MWClass
         return ref->mBase->mEnchant;
     }
 
-    const ESM::RefId& Clothing::applyEnchantment(
-        const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId, int enchCharge, const std::string& newName) const
+    const ESM::RefId& Clothing::applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId,
+        std::int32_t enchCharge, const std::string& newName) const
     {
         const MWWorld::LiveCellRef<ESM::Clothing>* ref = ptr.get<ESM::Clothing>();
 
         ESM::Clothing newItem = *ref->mBase;
         newItem.mId = ESM::RefId();
         newItem.mName = newName;
-        newItem.mData.mEnchant = static_cast<uint16_t>(enchCharge);
+        newItem.mData.mEnchant = static_cast<std::uint16_t>(enchCharge);
         newItem.mEnchant = enchId;
         const ESM::Clothing* record = MWBase::Environment::get().getESMStore()->insert(newItem);
         return record->mId;
     }
 
-    std::pair<int, std::string_view> Clothing::canBeEquipped(
+    std::pair<std::int32_t, std::string_view> Clothing::canBeEquipped(
         const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const
     {
         // slots that this item can be equipped in
-        std::pair<std::vector<int>, bool> slots = getEquipmentSlots(ptr);
+        std::pair<std::vector<std::int32_t>, bool> slots = getEquipmentSlots(ptr);
 
         if (slots.first.empty())
             return { 0, {} };
@@ -240,14 +243,14 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
-    int Clothing::getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Clothing::getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Clothing>* ref = ptr.get<ESM::Clothing>();
 
         return ref->mBase->mData.mEnchant;
     }
 
-    bool Clothing::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Clothing::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::Clothing)
             || ((npcServices & ESM::NPC::MagicItems) && !getEnchantment(item).empty());

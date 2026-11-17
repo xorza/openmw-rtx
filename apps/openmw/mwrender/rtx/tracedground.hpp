@@ -36,7 +36,7 @@ namespace MWRender
     {
     public:
         TracedGround(
-            const GroundSpec& spec, Resource::SceneManager& scenes, unsigned int nodeMask, Rtx::CellRing& ring);
+            const GroundSpec& spec, Resource::SceneManager& scenes, std::uint32_t nodeMask, Rtx::CellRing& ring);
 
         Terrain::World& getTerrain() override { return mTerrain; }
 
@@ -44,11 +44,12 @@ namespace MWRender
         /// own walk, so the game has nothing to rebuild here. The rest of what the reference says
         /// is the paging's, and the seam's default answers the two questions a ring has no cache
         /// and no grid for.
-        bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) override;
+        bool enableReference(std::int32_t type, const MWWorld::ConstPtr& ptr, bool enabled) override;
 
         /// Where the game holds the reference now, to the ring (`CellPlacer::moveReference`), or
         /// that it is gone, where the game deleted it.
-        void blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) override;
+        void blacklistReference(
+            std::int32_t type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) override;
         void setGate(std::uint32_t gate, Terrain::GateState state) override;
 
         void clear() override;

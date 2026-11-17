@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace MWClass
@@ -32,22 +34,22 @@ namespace MWClass
         bool hasItemHealth(const MWWorld::ConstPtr& ptr) const override;
         ///< \return Item health data available?
 
-        int getItemMaxHealth(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getItemMaxHealth(const MWWorld::ConstPtr& ptr) const override;
         ///< Return item max health or throw an exception, if class does not have item health
 
         ESM::RefId getScript(const MWWorld::ConstPtr& ptr) const override;
         ///< Return name of the script attached to ptr
 
-        std::pair<std::vector<int>, bool> getEquipmentSlots(const MWWorld::ConstPtr& ptr) const override;
+        std::pair<std::vector<std::int32_t>, bool> getEquipmentSlots(const MWWorld::ConstPtr& ptr) const override;
         ///< \return first: Return IDs of the slot this object can be equipped in; second: can object
         /// stay stacked when equipped?
 
         ESM::RefId getEquipmentSkill(const MWWorld::ConstPtr& ptr, bool useLuaInterfaceIfAvailable) const override;
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
-        int getValue(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getValue(const MWWorld::ConstPtr& ptr) const override;
         ///< Return trade value of the object. Throws an exception, if the object can't be traded.
 
         const ESM::RefId& getUpSoundId(const MWWorld::ConstPtr& ptr) const override;
@@ -62,11 +64,11 @@ namespace MWClass
         ESM::RefId getEnchantment(const MWWorld::ConstPtr& ptr) const override;
         ///< @return the enchantment ID if the object is enchanted, otherwise an empty string
 
-        const ESM::RefId& applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId, int enchCharge,
-            const std::string& newName) const override;
+        const ESM::RefId& applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId,
+            std::int32_t enchCharge, const std::string& newName) const override;
         ///< Creates a new record using \a ptr as template, with the given name and the given enchantment applied to it.
 
-        std::pair<int, std::string_view> canBeEquipped(
+        std::pair<std::int32_t, std::string_view> canBeEquipped(
             const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const override;
         ///< Return 0 if player cannot equip item. 1 if can equip. 2 if it's twohanded weapon. 3 if twohanded weapon
         ///< conflicts with that. \n
@@ -77,9 +79,9 @@ namespace MWClass
 
         VFS::Path::NormalizedView getModel(const MWWorld::ConstPtr& ptr) const override;
 
-        int getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const override;
 
-        bool canSell(const MWWorld::ConstPtr& item, int npcServices) const override;
+        bool canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const override;
 
         /// Get the effective armor rating, factoring in the actor's skills, for the given armor.
         float getSkillAdjustedArmorRating(

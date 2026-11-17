@@ -55,14 +55,14 @@ namespace ESM
 
         struct BYDTstruct
         {
-            unsigned char mPart; // mesh part
-            unsigned char mVampire; // boolean
-            unsigned char mFlags;
-            unsigned char mType; // mesh type
+            std::uint8_t mPart; // mesh part
+            std::uint8_t mVampire; // boolean
+            std::uint8_t mFlags;
+            std::uint8_t mType; // mesh type
         };
 
         BYDTstruct mData{};
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mRace;
         Path mModel;
 

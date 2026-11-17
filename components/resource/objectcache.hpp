@@ -61,12 +61,14 @@ namespace Resource
     // children, so a second refcount over the same object would be a bug, not a
     // design choice.
     template <class T>
+    // NOLINTNEXTLINE(google-runtime-int): use_count's type
     long useCount(const std::shared_ptr<T>& value)
     {
         return value.use_count();
     }
 
     template <class T>
+    // NOLINTNEXTLINE(google-runtime-int): use_count's type
     long useCount(const osg::ref_ptr<T>& value)
     {
         // nullptr is a storable value, so this has to answer for it; shared_ptr's

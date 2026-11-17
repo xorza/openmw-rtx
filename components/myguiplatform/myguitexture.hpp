@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <span>
 
@@ -31,10 +33,10 @@ namespace MyGUIPlatform
         osg::ref_ptr<osg::StateSet> mInjectState;
         MyGUI::PixelFormat mFormat;
         MyGUI::TextureUsage mUsage;
-        size_t mNumElemBytes;
+        std::size_t mNumElemBytes;
 
-        int mWidth;
-        int mHeight;
+        std::int32_t mWidth;
+        std::int32_t mHeight;
 
     public:
         OSGTexture(std::string name, Resource::ImageManager* imageManager);
@@ -47,7 +49,8 @@ namespace MyGUIPlatform
 
         const std::string& getName() const override { return mName; }
 
-        void createManual(int width, int height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format) override;
+        void createManual(
+            std::int32_t width, std::int32_t height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format) override;
         void loadFromFile(const std::string& fname) override;
         void saveToFile(const std::string& fname) override;
 
@@ -57,12 +60,12 @@ namespace MyGUIPlatform
         void unlock() override;
         bool isLocked() const override { return mLockedImage.valid(); }
 
-        int getWidth() const override { return mWidth; }
-        int getHeight() const override { return mHeight; }
+        std::int32_t getWidth() const override { return mWidth; }
+        std::int32_t getHeight() const override { return mHeight; }
 
         MyGUI::PixelFormat getFormat() const override { return mFormat; }
         MyGUI::TextureUsage getUsage() const override { return mUsage; }
-        size_t getNumElemBytes() const override { return mNumElemBytes; }
+        std::size_t getNumElemBytes() const override { return mNumElemBytes; }
 
         MyGUI::IRenderTarget* getRenderTarget() override;
 

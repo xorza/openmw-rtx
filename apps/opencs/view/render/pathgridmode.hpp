@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include "editmode.hpp"
@@ -40,7 +41,7 @@ namespace CSVRender
 
         bool secondaryEditStartDrag(const QPoint& pos) override;
 
-        void drag(const QPoint& pos, int diffX, int diffY, double speedFactor) override;
+        void drag(const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor) override;
 
         void dragCompleted(const QPoint& pos) override;
 
@@ -58,7 +59,7 @@ namespace CSVRender
 
         DragMode mDragMode;
         std::string mLastId, mEdgeId;
-        unsigned short mFromNode;
+        std::uint16_t mFromNode;
 
         PathgridSelectionMode* mSelectionMode;
 

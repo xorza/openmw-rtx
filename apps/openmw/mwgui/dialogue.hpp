@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>
 
@@ -54,8 +56,8 @@ namespace MWGui
     private:
         std::unique_ptr<ResponseCallback> mCallback;
 
-        int mInitialGoldLabelWidth;
-        int mInitialMainWidgetWidth;
+        std::int32_t mInitialGoldLabelWidth;
+        std::int32_t mInitialMainWidgetWidth;
 
         MyGUI::Button* mCancelButton{};
         MyGUI::Button* mAdmireButton{};
@@ -68,9 +70,9 @@ namespace MWGui
         Gui::AutoSizedTextBox* mGoldLabel{};
 
         std::vector<MyGUI::Button*> mButtons;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
 
-        void adjustAction(MyGUI::Widget* action, int& totalHeight);
+        void adjustAction(MyGUI::Widget* action, std::int32_t& totalHeight);
 
         void onCancel(MyGUI::Widget* sender);
         void onPersuade(MyGUI::Widget* sender);
@@ -95,12 +97,12 @@ namespace MWGui
 
     struct Choice : Link
     {
-        MyGUI::delegates::MultiDelegate<int> eventChoiceActivated;
-        explicit Choice(int id)
+        MyGUI::delegates::MultiDelegate<std::int32_t> eventChoiceActivated;
+        explicit Choice(std::int32_t id)
             : mChoiceId(id)
         {
         }
-        int mChoiceId;
+        std::int32_t mChoiceId;
         void activated() override;
     };
 
@@ -168,15 +170,15 @@ namespace MWGui
         bool isCompanion(const MWWorld::Ptr& actor);
         bool isCompanion();
 
-        void onSelectListItem(const std::string& topic, int id);
+        void onSelectListItem(const std::string& topic, std::int32_t id);
         void onByeClicked(MyGUI::Widget* sender);
-        void onMouseWheel(MyGUI::Widget* sender, int rel);
+        void onMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
         void onWindowResize(MyGUI::Window* sender);
         void onTopicActivated(const std::string& topicId);
-        void onChoiceActivated(int id);
+        void onChoiceActivated(std::int32_t id);
         void onGoodbyeActivated();
 
-        void onScrollbarMoved(MyGUI::ScrollBar* sender, size_t pos);
+        void onScrollbarMoved(MyGUI::ScrollBar* sender, std::size_t pos);
 
         void updateHistory(bool scrollbar = false);
 
@@ -194,7 +196,7 @@ namespace MWGui
         std::list<std::string> mKeywords;
 
         std::vector<std::unique_ptr<DialogueText>> mHistoryContents;
-        std::vector<std::pair<std::string, int>> mChoices;
+        std::vector<std::pair<std::string, std::int32_t>> mChoices;
         std::vector<BookTypesetter::Style*> mChoiceStyles;
         bool mGoodbye;
 
@@ -219,9 +221,9 @@ namespace MWGui
         std::unique_ptr<ResponseCallback> mCallback;
         std::unique_ptr<ResponseCallback> mGreetingCallback;
 
-        void setControllerFocus(size_t index, bool focused);
-        size_t mControllerFocus = 0;
-        int mControllerChoice = -1;
+        void setControllerFocus(std::size_t index, bool focused);
+        std::size_t mControllerFocus = 0;
+        std::int32_t mControllerChoice = -1;
 
         void updateTopicFormat();
     };

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include <apps/opencs/model/doc/stage.hpp>
@@ -21,8 +23,8 @@ namespace CSMTools
 {
     struct Point
     {
-        unsigned char mConnectionNum;
-        std::vector<size_t> mOtherIndex;
+        std::uint8_t mConnectionNum;
+        std::vector<std::size_t> mOtherIndex;
         Point()
             : mConnectionNum(0)
             , mOtherIndex(0)
@@ -38,8 +40,8 @@ namespace CSMTools
     public:
         explicit PathgridCheckStage(const CSMWorld::SubCellCollection<CSMWorld::Pathgrid>& pathgrids);
 
-        int setup() override;
+        std::int32_t setup() override;
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
     };
 }

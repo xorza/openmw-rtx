@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <optional>
@@ -120,7 +121,7 @@ namespace RtxTool
         crossSky(stop, seconds);
     }
 
-    void CameraDriver::turnSkyBy(const Stop& stop, const int steps, const bool atOnce)
+    void CameraDriver::turnSkyBy(const Stop& stop, const std::int32_t steps, const bool atOnce)
     {
         if (stop.mSchedule.mTrack.has_value())
         {
@@ -231,7 +232,7 @@ namespace RtxTool
         return Fallback::Map::getFloat(std::format("Weather_{}_Transition_Delta", Rtx::nameOf(weather)));
     }
 
-    int CameraDriver::chanceOf(const ESM::Region& region, const Rtx::Weather weather)
+    std::int32_t CameraDriver::chanceOf(const ESM::Region& region, const Rtx::Weather weather)
     {
         const auto found = region.mData.mProbabilities.find(ESM::Weather::indexToRefId(Rtx::scriptIdOf(weather)));
         return found != region.mData.mProbabilities.end() ? found->second : 0;
@@ -378,11 +379,11 @@ namespace RtxTool
         world.moveObjectBy(player, eye - osg::Vec3f(stood.pos[0], stood.pos[1], stood.pos[2]), true);
     }
 
-    void CameraDriver::showInView(const unsigned int classes, const bool shown)
+    void CameraDriver::showInView(const std::uint32_t classes, const bool shown)
     {
         MWRender::Renderer& renderer = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer();
-        const unsigned int mask = renderer.getViewMask();
-        const unsigned int wanted = shown ? mask | classes : mask & ~classes;
+        const std::uint32_t mask = renderer.getViewMask();
+        const std::uint32_t wanted = shown ? mask | classes : mask & ~classes;
         if (wanted != mask)
             renderer.setViewMask(wanted);
     }

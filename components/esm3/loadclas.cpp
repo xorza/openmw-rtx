@@ -1,5 +1,8 @@
 #include "loadclas.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/esm/attr.hpp>
 #include <components/esm/defs.hpp>
 #include <components/misc/concepts.hpp>
@@ -18,11 +21,11 @@ namespace ESM
     {
         struct EsmCLDTstruct
         {
-            std::array<int32_t, 2> mAttribute;
-            int32_t mSpecialization;
-            std::array<std::array<int32_t, 2>, 5> mSkills;
+            std::array<std::int32_t, 2> mAttribute;
+            std::int32_t mSpecialization;
+            std::array<std::array<std::int32_t, 2>, 5> mSkills;
             char mIsPlayable;
-            int32_t mServices;
+            std::int32_t mServices;
         };
 
         void toBinary(const Class::CLDTstruct& src, EsmCLDTstruct& dst)

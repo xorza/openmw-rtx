@@ -23,6 +23,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <istream>
 #include <map>
@@ -210,9 +211,9 @@ namespace ESM4
 
         const std::vector<ESM::MasterData>& getGameFiles() const { return mHeader.mMaster; }
 
-        inline int getRecordCount() const { return mHeader.mData.records; }
+        inline std::int32_t getRecordCount() const { return mHeader.mData.records; }
         inline std::string getAuthor() const { return mHeader.mAuthor; }
-        inline int getFormat() const { return 0; } // prob. not relevant for ESM4
+        inline std::int32_t getFormat() const { return 0; } // prob. not relevant for ESM4
         inline std::string getDesc() const { return mHeader.mDesc; }
 
         inline std::filesystem::path getFileName() const { return mCtx.filename; } // not used
@@ -257,12 +258,12 @@ namespace ESM4
         // NOTE: must be called before calling getRecordHeader()
         void setRecHeaderSize(const std::size_t size);
 
-        inline unsigned int esmVersion() const { return mHeader.mData.version.ui; }
+        inline std::uint32_t esmVersion() const { return mHeader.mData.version.ui; }
         inline float esmVersionF() const { return mHeader.mData.version.f; }
-        inline unsigned int numRecords() const { return static_cast<unsigned int>(mHeader.mData.records); }
+        inline std::uint32_t numRecords() const { return static_cast<std::uint32_t>(mHeader.mData.records); }
 
         inline bool hasFormVersion() const { return mCtx.recHeaderSize == sizeof(RecordHeader); }
-        inline unsigned int formVersion() const { return mCtx.recordHeader.record.version; }
+        inline std::uint32_t formVersion() const { return mCtx.recordHeader.record.version; }
 
         // The form version in the file's header record, if any
         inline std::optional<std::uint16_t> headerFormVersion() const { return mHeaderFormVersion; }
@@ -284,7 +285,7 @@ namespace ESM4
         // The object setting up this reader needs to supply the file's load order index
         // so that the formId's in this file can be adjusted with the file (i.e. mod) index.
         void setModIndex(std::uint32_t index) { mCtx.modIndex = index; }
-        void updateModIndices(const std::map<std::string, int>& fileToModIndex);
+        void updateModIndices(const std::map<std::string, std::int32_t>& fileToModIndex);
 
         // Maybe should throw an exception if called when not valid?
         const CellGrid& currCellGrid() const;
@@ -387,7 +388,7 @@ namespace ESM4
         void exitGroupCheck();
 
         // for debugging only
-        size_t stackSize() const { return mCtx.groupStack.size(); }
+        std::size_t stackSize() const { return mCtx.groupStack.size(); }
 
         // Used for error handling
         [[noreturn]] void fail(const std::string& msg);

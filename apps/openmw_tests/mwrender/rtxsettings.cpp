@@ -113,15 +113,15 @@ namespace MWRender
         /// registry clamps to the range; a harness's line holds anything.
         TEST(RtxSettingsTest, aCountOfBounceRaysOutsideItsRangeIsRefused)
         {
-            constexpr int most = static_cast<int>(Rtx::Shaders::MAX_BOUNCE_RAYS);
-            for (const int rays : { 0, -1, most + 1 })
+            constexpr auto most = static_cast<std::int32_t>(Rtx::Shaders::MAX_BOUNCE_RAYS);
+            for (const std::int32_t rays : { 0, -1, most + 1 })
             {
                 RtxSettingValues values = valid();
                 values.mBounceRays = rays;
                 EXPECT_THROW(RtxSettings::derive(values), Rtx::InputError) << rays;
             }
 
-            for (const int rays : { 1, most })
+            for (const std::int32_t rays : { 1, most })
             {
                 RtxSettingValues values = valid();
                 values.mBounceRays = rays;

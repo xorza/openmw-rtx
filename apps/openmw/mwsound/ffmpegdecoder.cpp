@@ -1,6 +1,8 @@
 #include "ffmpegdecoder.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <stdexcept>
@@ -38,7 +40,7 @@ namespace MWSound
         av_frame_free(&ptr);
     }
 
-    int FFmpegDecoder::readPacket(void* userData, uint8_t* buf, int bufSize)
+    std::int32_t FFmpegDecoder::readPacket(void* userData, std::uint8_t* buf, std::int32_t bufSize)
     {
         try
         {
@@ -50,12 +52,12 @@ namespace MWSound
             std::streamsize count = stream.gcount();
             if (count == 0)
                 return AVERROR_EOF;
-            if (count > std::numeric_limits<int>::max())
+            if (count > std::numeric_limits<std::int32_t>::max())
                 return AVERROR_BUG;
             for (const auto& [offset, value] : self.mPatchedBytes)
                 if (offset >= pos && offset < pos + count)
-                    buf[offset - pos] = static_cast<uint8_t>(value);
-            return static_cast<int>(count);
+                    buf[offset - pos] = static_cast<std::uint8_t>(value);
+            return static_cast<std::int32_t>(count);
         }
         catch (std::exception&)
         {
@@ -63,13 +65,13 @@ namespace MWSound
         }
     }
 
-    int FFmpegDecoder::writePacket(void*, const uint8_t*, int)
+    std::int32_t FFmpegDecoder::writePacket(void*, const std::uint8_t*, std::int32_t)
     {
         Log(Debug::Error) << "can't write to read-only stream";
         return -1;
     }
 
-    int64_t FFmpegDecoder::seek(void* userData, int64_t offset, int whence)
+    std::int64_t FFmpegDecoder::seek(void* userData, std::int64_t offset, std::int32_t whence)
     {
         FFmpegDecoder& self = *static_cast<FFmpegDecoder*>(userData);
         std::istream& stream = *self.mDataStream;
@@ -80,11 +82,11 @@ namespace MWSound
 
         if (whence == AVSEEK_SIZE)
         {
-            size_t prev = static_cast<std::size_t>(stream.tellg());
+            std::size_t prev = static_cast<std::size_t>(stream.tellg());
             stream.seekg(0, std::ios_base::end);
-            size_t size = static_cast<std::size_t>(stream.tellg());
+            std::size_t size = static_cast<std::size_t>(stream.tellg());
             stream.seekg(static_cast<std::streamoff>(prev), std::ios_base::beg);
-            return static_cast<int64_t>(size - static_cast<std::size_t>(self.mStreamBase));
+            return static_cast<std::int64_t>(size - static_cast<std::size_t>(self.mStreamBase));
         }
 
         if (whence == SEEK_SET)
@@ -135,7 +137,7 @@ namespace MWSound
         do
         {
             /* Decode some data, and check for errors */
-            int ret = avcodec_receive_frame(mCodecCtx.get(), mFrame.get());
+            std::int32_t ret = avcodec_receive_frame(mCodecCtx.get(), mFrame.get());
             if (ret == AVERROR(EAGAIN))
             {
                 if (mPacket.size == 0 && !getNextPacket())
@@ -167,8 +169,8 @@ namespace MWSound
                         mDataBufLen = mFrame->nb_samples;
                 }
 
-                if (swr_convert(mSwr, &mDataBuf, mFrame->nb_samples, const_cast<const uint8_t**>(mFrame->extended_data),
-                        mFrame->nb_samples)
+                if (swr_convert(mSwr, &mDataBuf, mFrame->nb_samples,
+                        const_cast<const std::uint8_t**>(mFrame->extended_data), mFrame->nb_samples)
                     < 0)
                 {
                     return false;
@@ -184,9 +186,9 @@ namespace MWSound
         return true;
     }
 
-    size_t FFmpegDecoder::readAVAudioData(void* data, size_t length)
+    std::size_t FFmpegDecoder::readAVAudioData(void* data, std::size_t length)
     {
-        size_t dec = 0;
+        std::size_t dec = 0;
 
         while (dec < length)
         {
@@ -202,7 +204,7 @@ namespace MWSound
 
             /* Get the amount of bytes remaining to be written, and clamp to
              * the amount of decoded data we have */
-            size_t rem = std::min<size_t>(length - dec, mFrameSize - mFramePos);
+            std::size_t rem = std::min<std::size_t>(length - dec, mFrameSize - mFramePos);
 
             /* Copy the data to the app's buffer and increment */
             memcpy(data, mFrameData[0] + mFramePos, rem);
@@ -219,7 +221,7 @@ namespace MWSound
     {
         AVStream** findAudioStream(AVFormatContext& ctx)
         {
-            for (unsigned j = 0; j < ctx.nb_streams; j++)
+            for (std::uint32_t j = 0; j < ctx.nb_streams; j++)
                 if (ctx.streams[j]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
                     return &ctx.streams[j];
             return nullptr;
@@ -228,7 +230,7 @@ namespace MWSound
         bool hasCompleteAudioParameters(const AVStream& stream)
         {
             const AVCodecParameters& par = *stream.codecpar;
-            const int channels = par.ch_layout.nb_channels;
+            const std::int32_t channels = par.ch_layout.nb_channels;
             return par.codec_id != AV_CODEC_ID_NONE && par.sample_rate > 0 && channels > 0;
         }
 
@@ -259,8 +261,8 @@ namespace MWSound
         // A real IO buffer is required: with a named input format the demuxer
         // reads through it directly, and a zero-size buffer fails the open
         // (the probed path tolerates it, which hid this).
-        constexpr int ioBufferSize = 8192;
-        auto* ioBuffer = static_cast<unsigned char*>(av_malloc(ioBufferSize));
+        constexpr std::int32_t ioBufferSize = 8192;
+        auto* ioBuffer = static_cast<std::uint8_t*>(av_malloc(ioBufferSize));
         if (ioBuffer == nullptr)
             throw std::runtime_error("Failed to allocate AVIO buffer");
         ioCtx.reset(avio_alloc_context(ioBuffer, ioBufferSize, 0, this, readPacket, writePacket, seek));
@@ -316,7 +318,7 @@ namespace MWSound
         const std::streamoff fileSize = stream.tellg();
         stream.seekg(0);
 
-        unsigned char header[10];
+        std::uint8_t header[10];
         stream.read(reinterpret_cast<char*>(header), sizeof(header));
         if (stream.gcount() == sizeof(header))
         {
@@ -344,11 +346,11 @@ namespace MWSound
                 // headers with the type relabelled to PADDING makes the
                 // demuxer seek over the art instead of reading it. Only the
                 // served bytes change; the file is never written.
-                constexpr unsigned char picture = 6;
-                constexpr unsigned char padding = 1;
+                constexpr std::uint8_t picture = 6;
+                constexpr std::uint8_t padding = 1;
                 std::streamoff pos = 4;
                 stream.seekg(pos);
-                unsigned char block[4];
+                std::uint8_t block[4];
                 while (pos < fileSize)
                 {
                     stream.read(reinterpret_cast<char*>(block), sizeof(block));
@@ -482,7 +484,7 @@ namespace MWSound
         return mFormatCtx->url;
     }
 
-    void FFmpegDecoder::getInfo(int* samplerate, ChannelConfig* chans, SampleType* type)
+    void FFmpegDecoder::getInfo(std::int32_t* samplerate, ChannelConfig* chans, SampleType* type)
     {
         if (!mStream)
             throw std::runtime_error("No audio stream info");
@@ -553,13 +555,13 @@ namespace MWSound
                 nullptr); // log context
             if (!mSwr)
                 throw std::runtime_error("Couldn't allocate SwrContext");
-            int init = swr_init(mSwr);
+            std::int32_t init = swr_init(mSwr);
             if (init < 0)
                 throw std::runtime_error("Couldn't initialize SwrContext: " + std::to_string(init));
         }
     }
 
-    size_t FFmpegDecoder::read(char* buffer, size_t bytes)
+    std::size_t FFmpegDecoder::read(char* buffer, std::size_t bytes)
     {
         if (!mStream)
         {
@@ -579,14 +581,14 @@ namespace MWSound
 
         while (getAVAudioData())
         {
-            size_t got = static_cast<std::size_t>(mFrame->nb_samples * mOutputChannelLayout.nb_channels)
+            std::size_t got = static_cast<std::size_t>(mFrame->nb_samples * mOutputChannelLayout.nb_channels)
                 * static_cast<std::size_t>(av_get_bytes_per_sample(mOutputSampleFormat));
             const char* inbuf = reinterpret_cast<char*>(mFrameData[0]);
             output.insert(output.end(), inbuf, inbuf + got);
         }
     }
 
-    size_t FFmpegDecoder::getSampleOffset()
+    std::size_t FFmpegDecoder::getSampleOffset()
     {
         std::size_t delay = (mFrameSize - mFramePos) / static_cast<std::size_t>(mOutputChannelLayout.nb_channels)
             / static_cast<std::size_t>(av_get_bytes_per_sample(mOutputSampleFormat));

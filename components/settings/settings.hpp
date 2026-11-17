@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <set>
 #include <string>
@@ -61,11 +63,13 @@ namespace Settings
         static CategorySettingVector getPendingChanges(const CategorySettingVector& filter);
         ///< returns the list of changed settings intersecting with the filter
 
-        static int getInt(std::string_view setting, std::string_view category);
+        static std::int32_t getInt(std::string_view setting, std::string_view category);
         static std::uint64_t getUInt64(std::string_view setting, std::string_view category);
         static std::size_t getSize(std::string_view setting, std::string_view category);
-        static unsigned getUnsigned(std::string_view setting, std::string_view category);
+        static std::uint32_t getUnsigned(std::string_view setting, std::string_view category);
+        // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
         static unsigned long getUnsignedLong(std::string_view setting, std::string_view category);
+        // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
         static unsigned long long getUnsignedLongLong(std::string_view setting, std::string_view category);
         static float getFloat(std::string_view setting, std::string_view category);
         static double getDouble(std::string_view setting, std::string_view category);
@@ -91,7 +95,7 @@ namespace Settings
             return getImpl<T>(setting, category);
         }
 
-        static void setInt(std::string_view setting, std::string_view category, int value);
+        static void setInt(std::string_view setting, std::string_view category, std::int32_t value);
         static void setUInt64(std::string_view setting, std::string_view category, std::uint64_t value);
         static void setFloat(std::string_view setting, std::string_view category, float value);
         static void setDouble(std::string_view setting, std::string_view category, double value);
@@ -102,9 +106,11 @@ namespace Settings
         static void setVector2(std::string_view setting, std::string_view category, osg::Vec2f value);
         static void setVector3(std::string_view setting, std::string_view category, osg::Vec3f value);
 
-        static void set(std::string_view setting, std::string_view category, int value);
-        static void set(std::string_view setting, std::string_view category, unsigned value);
+        static void set(std::string_view setting, std::string_view category, std::int32_t value);
+        static void set(std::string_view setting, std::string_view category, std::uint32_t value);
+        // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
         static void set(std::string_view setting, std::string_view category, unsigned long value);
+        // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
         static void set(std::string_view setting, std::string_view category, unsigned long long value);
         static void set(std::string_view setting, std::string_view category, float value);
         static void set(std::string_view setting, std::string_view category, double value);
@@ -131,24 +137,26 @@ namespace Settings
     };
 
     template <>
-    inline int Manager::getImpl<int>(std::string_view setting, std::string_view category)
+    inline std::int32_t Manager::getImpl<std::int32_t>(std::string_view setting, std::string_view category)
     {
         return getInt(setting, category);
     }
 
     template <>
-    inline unsigned Manager::getImpl<unsigned>(std::string_view setting, std::string_view category)
+    inline std::uint32_t Manager::getImpl<std::uint32_t>(std::string_view setting, std::string_view category)
     {
         return getUnsigned(setting, category);
     }
 
     template <>
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     inline unsigned long Manager::getImpl<unsigned long>(std::string_view setting, std::string_view category)
     {
         return getUnsignedLong(setting, category);
     }
 
     template <>
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     inline unsigned long long Manager::getImpl<unsigned long long>(std::string_view setting, std::string_view category)
     {
         return getUnsignedLongLong(setting, category);
@@ -229,7 +237,7 @@ namespace Settings
     template <>
     inline HrtfMode Manager::getImpl<HrtfMode>(std::string_view setting, std::string_view category)
     {
-        const int value = getInt(setting, category);
+        const std::int32_t value = getInt(setting, category);
         if (value < 0)
             return HrtfMode::Auto;
         if (value > 0)
@@ -240,7 +248,7 @@ namespace Settings
     template <>
     inline WindowMode Manager::getImpl<WindowMode>(std::string_view setting, std::string_view category)
     {
-        const int value = getInt(setting, category);
+        const std::int32_t value = getInt(setting, category);
         if (value < 0 || 2 < value)
             return WindowMode::Fullscreen;
         return static_cast<WindowMode>(value);
@@ -249,7 +257,7 @@ namespace Settings
     template <>
     inline SDLUtil::VSyncMode Manager::getImpl<SDLUtil::VSyncMode>(std::string_view setting, std::string_view category)
     {
-        const int value = getInt(setting, category);
+        const std::int32_t value = getInt(setting, category);
         if (value < 0 || 2 < value)
             return SDLUtil::VSyncMode::Disabled;
         return static_cast<SDLUtil::VSyncMode>(value);

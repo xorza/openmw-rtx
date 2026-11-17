@@ -1,5 +1,8 @@
 #include "stateupdater.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/BufferIndexBinding>
 #include <osg/BufferObject>
 
@@ -24,9 +27,9 @@ namespace Fx
                 = new osg::BufferTemplate<UniformData::BufferType>();
             data->setBufferObject(ubo);
 
-            osg::ref_ptr<osg::UniformBufferBinding> ubb
-                = new osg::UniformBufferBinding(static_cast<int>(Resource::SceneManager::UBOBinding::PostProcessor),
-                    data, 0, static_cast<std::ptrdiff_t>(mData.getGPUSize()));
+            osg::ref_ptr<osg::UniformBufferBinding> ubb = new osg::UniformBufferBinding(
+                static_cast<std::int32_t>(Resource::SceneManager::UBOBinding::PostProcessor), data, 0,
+                static_cast<std::ptrdiff_t>(mData.getGPUSize()));
 
             stateset->setAttributeAndModes(ubb, osg::StateAttribute::ON);
         }
@@ -48,7 +51,7 @@ namespace Fx
         {
             auto* ubb = dynamic_cast<osg::UniformBufferBinding*>(
                 stateset->getAttribute(osg::StateAttribute::UNIFORMBUFFERBINDING,
-                    static_cast<int>(Resource::SceneManager::UBOBinding::PostProcessor)));
+                    static_cast<std::int32_t>(Resource::SceneManager::UBOBinding::PostProcessor)));
             if (!ubb)
                 throw std::runtime_error("StateUpdater::apply: failed to get an UniformBufferBinding!");
 

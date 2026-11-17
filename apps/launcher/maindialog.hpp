@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/config/gamesettings.hpp>
 #include <components/config/launchersettings.hpp>
 #include <components/process/processinvoker.hpp>
@@ -61,7 +63,7 @@ namespace Launcher
 
     private slots:
         void wizardStarted();
-        void wizardFinished(int exitCode, QProcess::ExitStatus exitStatus);
+        void wizardFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
 
     private:
         bool setup();

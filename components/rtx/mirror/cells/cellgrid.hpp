@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Vec2f>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
@@ -75,8 +77,8 @@ namespace Rtx
         {
             const osg::Vec2i low = cellOf(eye - osg::Vec3f(radius, radius, 0.0f));
             const osg::Vec2i high = cellOf(eye + osg::Vec3f(radius, radius, 0.0f));
-            for (int x = low.x(); x <= high.x(); ++x)
-                for (int y = low.y(); y <= high.y(); ++y)
+            for (std::int32_t x = low.x(); x <= high.x(); ++x)
+                for (std::int32_t y = low.y(); y <= high.y(); ++y)
                 {
                     const osg::Vec2i cell(x, y);
                     if (withinReach(cell, eye, radius))

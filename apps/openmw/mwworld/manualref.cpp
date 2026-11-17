@@ -1,5 +1,7 @@
 #include "manualref.hpp"
 
+#include <cstdint>
+
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
@@ -110,7 +112,7 @@ namespace
     }
 }
 
-MWWorld::ManualRef::ManualRef(const MWWorld::ESMStore& store, const ESM::RefId& name, const int count)
+MWWorld::ManualRef::ManualRef(const MWWorld::ESMStore& store, const ESM::RefId& name, const std::int32_t count)
 {
     auto cb = [&](const auto& typedStore) { create(typedStore, name, mRef, mPtr); };
     visitRefStore(store, name, cb);
@@ -118,7 +120,7 @@ MWWorld::ManualRef::ManualRef(const MWWorld::ESMStore& store, const ESM::RefId& 
     mPtr.getCellRef().setCount(count);
 }
 
-MWWorld::ManualRef::ManualRef(const ESMStore& store, const Ptr& templatePtr, const int count)
+MWWorld::ManualRef::ManualRef(const ESMStore& store, const Ptr& templatePtr, const std::int32_t count)
 {
     auto cb = [&](const auto& typedStore) { create(typedStore, templatePtr, mRef, mPtr); };
     visitRefStore(store, templatePtr.getCellRef().getRefId(), cb);

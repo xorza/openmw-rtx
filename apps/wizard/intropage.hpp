@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QWizard>
 
 #include "ui_intropage.h"
@@ -14,7 +16,7 @@ namespace Wizard
     public:
         explicit IntroPage(QWidget* parent);
 
-        int nextId() const override;
+        std::int32_t nextId() const override;
 
     private:
         MainWizard* mWizard;

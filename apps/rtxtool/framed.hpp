@@ -107,7 +107,7 @@ namespace RtxTool
         std::optional<float> mStep = sStepSeconds;
 
         /// Which day, counted from the one a new game begins on. Only the moons read it.
-        int mDay = 0;
+        std::int32_t mDay = 0;
     };
 
     /// What a setting is where nobody has set it: the shipped defaults, out of the `defaults.bin` beside the
@@ -157,9 +157,9 @@ namespace RtxTool
     struct CellPreload
     {
         float mDistance = 0.0f;
-        int mThreads = 0;
-        int mCacheMin = 0;
-        int mCacheMax = 0;
+        std::int32_t mThreads = 0;
+        std::int32_t mCacheMin = 0;
+        std::int32_t mCacheMax = 0;
 
         void writeSettings() const;
     };

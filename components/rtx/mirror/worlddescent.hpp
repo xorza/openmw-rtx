@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <utility>
 
 #include <osg/Group>
@@ -18,11 +19,11 @@ namespace Rtx
     /// not taken as the first child, because `NifOsg` cuts overlapping ranges apart and a child can then stand in the
     /// list more than once. Read only as far as both lists reach, because a record can state more levels than it has
     /// children.
-    inline unsigned int nearestLevel(const osg::LOD& levels)
+    inline std::uint32_t nearestLevel(const osg::LOD& levels)
     {
-        unsigned int nearest = 0;
-        const unsigned int ranged = std::min(levels.getNumRanges(), levels.getNumChildren());
-        for (unsigned int at = 1; at < ranged; ++at)
+        std::uint32_t nearest = 0;
+        const std::uint32_t ranged = std::min(levels.getNumRanges(), levels.getNumChildren());
+        for (std::uint32_t at = 1; at < ranged; ++at)
             if (levels.getMinRange(at) < levels.getMinRange(nearest))
                 nearest = at;
 
@@ -38,7 +39,7 @@ namespace Rtx
         if (children == nullptr)
             return;
 
-        for (unsigned int at = 0; at < children->getNumChildren(); ++at)
+        for (std::uint32_t at = 0; at < children->getNumChildren(); ++at)
         {
             enterChild(at);
             children->getChild(at)->accept(visitor);
@@ -62,7 +63,7 @@ namespace Rtx
     {
         if (osg::Switch* branches = node.asSwitch())
         {
-            for (unsigned int at = 0; at < branches->getNumChildren(); ++at)
+            for (std::uint32_t at = 0; at < branches->getNumChildren(); ++at)
                 if (branches->getValue(at))
                 {
                     enterChild(at);
@@ -76,11 +77,11 @@ namespace Rtx
         {
             stepSequence(*frames);
 
-            const int shown = frames->getValue();
+            const std::int32_t shown = frames->getValue();
             if (shown >= 0 && std::cmp_less(shown, frames->getNumChildren()))
             {
-                enterChild(static_cast<unsigned int>(shown));
-                frames->getChild(static_cast<unsigned int>(shown))->accept(visitor);
+                enterChild(static_cast<std::uint32_t>(shown));
+                frames->getChild(static_cast<std::uint32_t>(shown))->accept(visitor);
             }
 
             return;
@@ -90,7 +91,7 @@ namespace Rtx
         {
             if (levels->getNumChildren() > 0)
             {
-                const unsigned int nearest = nearestLevel(*levels);
+                const std::uint32_t nearest = nearestLevel(*levels);
                 enterChild(nearest);
                 levels->getChild(nearest)->accept(visitor);
             }

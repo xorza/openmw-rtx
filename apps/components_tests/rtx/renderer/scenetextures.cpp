@@ -292,13 +292,13 @@ namespace Rtx
         /// description refuses before it reads.
         TEST(RtxSceneTexturesTest, levelsLaidPastWhatALevelsOffsetReachesAreRefused)
         {
-            constexpr int side = 32768;
-            unsigned char unread = 0;
+            constexpr std::int32_t side = 32768;
+            std::uint8_t unread = 0;
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("textures/tx_vast.dds");
             image->setImage(
                 side, side, 1, GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, &unread, osg::Image::NO_DELETE);
-            image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(side) * side });
+            image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<std::uint32_t>(side) * side });
 
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
@@ -338,15 +338,15 @@ namespace Rtx
         {
             const auto makeVolume = [](GLenum pixelFormat, GLenum type, std::size_t texel) {
                 const std::size_t total = (64 + 64 + 16 + 4) / 4 * texel;
-                auto* bytes = new unsigned char[total];
+                auto* bytes = new std::uint8_t[total];
                 for (std::size_t at = 0; at < total; ++at)
-                    bytes[at] = static_cast<unsigned char>(at);
+                    bytes[at] = static_cast<std::uint8_t>(at);
 
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->setFileName("textures/tx_volume.dds");
                 image->setImage(4, 4, 2, GL_RGBA, pixelFormat, type, bytes, osg::Image::USE_NEW_DELETE);
                 image->setMipmapLevels(osg::Image::MipmapDataType{
-                    static_cast<unsigned int>(32 * texel), static_cast<unsigned int>(36 * texel) });
+                    static_cast<std::uint32_t>(32 * texel), static_cast<std::uint32_t>(36 * texel) });
                 return image;
             };
 
@@ -442,7 +442,7 @@ namespace Rtx
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("textures/tx_deep.dds");
             image->setImage(
-                4, 4, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new unsigned char[sBytes], osg::Image::USE_NEW_DELETE);
+                4, 4, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new std::uint8_t[sBytes], osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(osg::Image::MipmapDataType{ 64, 80, 84, 88 });
             ASSERT_EQ(image->getNumMipmapLevels(), 5u) << "the header's count, which is what this is about";
 
@@ -464,11 +464,11 @@ namespace Rtx
         /// the two levels' offsets are nought and eight bytes.
         osg::ref_ptr<osg::Image> makeSixteenBit(GLenum type, GLint internal, const std::array<std::uint16_t, 5>& words)
         {
-            auto* bytes = new unsigned char[words.size() * 2];
+            auto* bytes = new std::uint8_t[words.size() * 2];
             for (std::size_t at = 0; at < words.size(); ++at)
             {
-                bytes[at * 2] = static_cast<unsigned char>(words[at] & 0xFF);
-                bytes[at * 2 + 1] = static_cast<unsigned char>(words[at] >> 8);
+                bytes[at * 2] = static_cast<std::uint8_t>(words[at] & 0xFF);
+                bytes[at * 2 + 1] = static_cast<std::uint8_t>(words[at] >> 8);
             }
 
             osg::ref_ptr<osg::Image> image = new osg::Image;
@@ -618,13 +618,13 @@ namespace Rtx
 
             for (const Case& one : cases)
             {
-                auto* bytes = new unsigned char[one.mFile.size()];
+                auto* bytes = new std::uint8_t[one.mFile.size()];
                 std::copy(one.mFile.begin(), one.mFile.end(), bytes);
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->setFileName("textures/tx_bytes.tga");
                 image->setImage(2, 2, 1, static_cast<GLint>(one.mPixelFormat), one.mPixelFormat, one.mType, bytes,
                     osg::Image::USE_NEW_DELETE, 1);
-                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(4 * one.mBytes) });
+                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<std::uint32_t>(4 * one.mBytes) });
 
                 std::vector<Rtx::MipLevel> levels;
                 std::vector<std::byte> texels;
@@ -657,7 +657,7 @@ namespace Rtx
 
             osg::ref_ptr<osg::Image> padded = new osg::Image;
             padded->setFileName("textures/tx_padded.dds");
-            padded->setImage(3, 1, 1, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, new unsigned char[8],
+            padded->setImage(3, 1, 1, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, new std::uint8_t[8],
                 osg::Image::USE_NEW_DELETE, 4);
             const Result<Rtx::TextureData, std::string> rows
                 = describeImage(*padded, Rtx::TextureEncoding::Colour, levels, texels);
@@ -672,7 +672,7 @@ namespace Rtx
             osg::ref_ptr<osg::Image> shifted = new osg::Image;
             shifted->setFileName("textures/tx_shifted.dds");
             shifted->setImage(
-                2, 2, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new unsigned char[24], osg::Image::USE_NEW_DELETE);
+                2, 2, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new std::uint8_t[24], osg::Image::USE_NEW_DELETE);
             shifted->setMipmapLevels(osg::Image::MipmapDataType{ 20 });
             const Result<Rtx::TextureData, std::string> offset
                 = describeImage(*shifted, Rtx::TextureEncoding::Colour, levels, texels);
@@ -878,7 +878,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
 
             osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
-            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
 
             Rtx::SceneDesc scene;
             Testing::addModel(scene, path, image);
@@ -905,7 +905,7 @@ namespace Rtx
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::copy(std::begin(bytes), std::end(bytes), data);
             image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
                 data, osg::Image::USE_NEW_DELETE);
@@ -944,7 +944,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView path("textures/tx_two_n.dds");
             osg::ref_ptr<osg::Image> image
                 = Testing::makeImage("", 4, 4, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
-            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(0));
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(0));
             image->setFileName(std::string(path.value()));
 
             Rtx::SceneDesc scene;
@@ -973,10 +973,10 @@ namespace Rtx
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_ore_spec.dds|textures/tx_ore.dds");
             osg::ref_ptr<osg::Image> specular = Testing::makeImage("", 2, 2);
-            std::fill_n(specular->data(), 16, static_cast<unsigned char>(128));
+            std::fill_n(specular->data(), 16, static_cast<std::uint8_t>(128));
             specular->setFileName("textures/tx_ore_spec.dds");
             osg::ref_ptr<osg::Image> diffuse = Testing::makeImage("", 2, 2);
-            std::fill_n(diffuse->data(), 16, static_cast<unsigned char>(128));
+            std::fill_n(diffuse->data(), 16, static_cast<std::uint8_t>(128));
             diffuse->setFileName("textures/tx_ore.dds");
 
             Rtx::SceneDesc scene;
@@ -1004,7 +1004,7 @@ namespace Rtx
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
             osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
-            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
 
             constexpr VFS::Path::NormalizedView widenedPath("textures/tx_rgb.dds");
             osg::ref_ptr<osg::Image> widened = Testing::makeImage(widenedPath.value(), 2, 2, GL_RGB, GL_UNSIGNED_BYTE);

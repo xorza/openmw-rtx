@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/settings/settings.hpp>
@@ -31,7 +34,8 @@ namespace MWMechanics
         Actors mActors;
 
         typedef std::pair<ESM::RefId, bool> Owner; // < Owner id, bool isFaction >
-        typedef std::map<Owner, int> OwnerMap; // < Owner, number of stolen items with this id from this owner >
+        typedef std::map<Owner, std::int32_t>
+            OwnerMap; // < Owner, number of stolen items with this id from this owner >
         typedef std::map<ESM::RefId, OwnerMap> StolenItemsMap;
         StolenItemsMap mStolenItems;
 
@@ -81,21 +85,21 @@ namespace MWMechanics
         ///< If the player is sleeping or waiting, this should be called every hour.
         /// @param sleep is the player sleeping or waiting?
 
-        int getHoursToRest() const override;
+        std::int32_t getHoursToRest() const override;
         ///< Calculate how many hours the player needs to rest in order to be fully healed
 
-        int getBarterOffer(const MWWorld::Ptr& ptr, int basePrice, bool buying) override;
+        std::int32_t getBarterOffer(const MWWorld::Ptr& ptr, std::int32_t basePrice, bool buying) override;
         ///< This is used by every service to determine the price of objects given the trading skills of the player and
         ///< NPC.
 
-        int getDerivedDisposition(const MWWorld::Ptr& ptr, bool clamp = true) override;
+        std::int32_t getDerivedDisposition(const MWWorld::Ptr& ptr, bool clamp = true) override;
         ///< Calculate the diposition of an NPC toward the player.
 
-        int countDeaths(const ESM::RefId& id) const override;
+        std::int32_t countDeaths(const ESM::RefId& id) const override;
         ///< Return the number of deaths for actors with the given ID.
 
-        void getPersuasionDispositionChange(
-            const MWWorld::Ptr& npc, PersuasionType type, bool& success, int& tempChange, int& permChange) override;
+        void getPersuasionDispositionChange(const MWWorld::Ptr& npc, PersuasionType type, bool& success,
+            std::int32_t& tempChange, std::int32_t& permChange) override;
         ///< Perform a persuasion action on NPC
 
         /// Check if \a observer is potentially aware of \a ptr. Does not do a line of sight check!
@@ -115,7 +119,7 @@ namespace MWMechanics
          * @return was the crime seen?
          */
         bool commitCrime(const MWWorld::Ptr& player, const MWWorld::Ptr& victim, OffenseType type,
-            const ESM::RefId& factionId = ESM::RefId(), int arg = 0, bool victimAware = false) override;
+            const ESM::RefId& factionId = ESM::RefId(), std::int32_t arg = 0, bool victimAware = false) override;
         /// @return false if the attack was considered a "friendly hit" and forgiven
         bool actorAttacked(const MWWorld::Ptr& target, const MWWorld::Ptr& attacker) override;
 
@@ -125,8 +129,8 @@ namespace MWMechanics
 
         /// Utility to check if taking this item is illegal and calling commitCrime if so
         /// @param container The container the item is in; may be empty for an item in the world
-        void itemTaken(const MWWorld::Ptr& ptr, const MWWorld::Ptr& item, const MWWorld::Ptr& container, int count,
-            bool alarm = true) override;
+        void itemTaken(const MWWorld::Ptr& ptr, const MWWorld::Ptr& item, const MWWorld::Ptr& container,
+            std::int32_t count, bool alarm = true) override;
         /// Utility to check if unlocking this object is illegal and calling commitCrime if so
         void unlockAttempted(const MWWorld::Ptr& ptr, const MWWorld::Ptr& item) override;
         /// Attempt sleeping in a bed. If this is illegal, call commitCrime.
@@ -137,10 +141,10 @@ namespace MWMechanics
 
         /// Attempt to play an animation group
         /// @return Success or error
-        bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, int mode, uint32_t number,
-            bool scripted = false) override;
-        bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops, float speed,
-            std::string_view startKey, std::string_view stopKey, bool forceLoop) override;
+        bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, std::int32_t mode,
+            std::uint32_t number, bool scripted = false) override;
+        bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, std::uint32_t loops,
+            float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop) override;
         void enableLuaAnimations(const MWWorld::Ptr& ptr, bool enable) override;
         void skipAnimation(const MWWorld::Ptr& ptr) override;
         bool checkAnimationPlaying(const MWWorld::Ptr& ptr, std::string_view groupName) override;
@@ -160,8 +164,8 @@ namespace MWMechanics
 
         std::vector<MWWorld::Ptr> getActorsSidingWith(const MWWorld::Ptr& actor) override;
         std::vector<MWWorld::Ptr> getActorsFollowing(const MWWorld::Ptr& actor) override;
-        std::vector<int> getActorsFollowingIndices(const MWWorld::Ptr& actor) override;
-        std::map<int, MWWorld::Ptr> getActorsFollowingByIndex(const MWWorld::Ptr& actor) override;
+        std::vector<std::int32_t> getActorsFollowingIndices(const MWWorld::Ptr& actor) override;
+        std::map<std::int32_t, MWWorld::Ptr> getActorsFollowingByIndex(const MWWorld::Ptr& actor) override;
 
         std::vector<MWWorld::Ptr> getActorsFighting(const MWWorld::Ptr& actor) override;
         std::vector<MWWorld::Ptr> getEnemiesNearby(const MWWorld::Ptr& actor) override;
@@ -179,11 +183,11 @@ namespace MWMechanics
         bool onOpen(const MWWorld::Ptr& ptr) override;
         void onClose(const MWWorld::Ptr& ptr) override;
 
-        size_t countSavedGameRecords() const override;
+        std::size_t countSavedGameRecords() const override;
 
         void write(ESM::ESMWriter& writer, Loading::Listener& listener) const override;
 
-        void readRecord(ESM::ESMReader& reader, uint32_t type) override;
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
 
         void clear() override;
 
@@ -209,7 +213,7 @@ namespace MWMechanics
 
         /// List the owners that the player has stolen this item from (the owner can be an NPC or a faction).
         /// <Owner, item count>
-        std::vector<std::pair<ESM::RefId, int>> getStolenItemOwners(const ESM::RefId& itemid) override;
+        std::vector<std::pair<ESM::RefId, std::int32_t>> getStolenItemOwners(const ESM::RefId& itemid) override;
 
         /// Has the player stolen this item from the given owner?
         bool isItemStolenFrom(const ESM::RefId& itemid, const MWWorld::Ptr& ptr) override;
@@ -224,16 +228,16 @@ namespace MWMechanics
 
         void cleanupSummonedCreature(ESM::RefNum creature) override;
 
-        void confiscateStolenItemToOwner(
-            const MWWorld::Ptr& player, const MWWorld::Ptr& item, const MWWorld::Ptr& victim, int count) override;
+        void confiscateStolenItemToOwner(const MWWorld::Ptr& player, const MWWorld::Ptr& item,
+            const MWWorld::Ptr& victim, std::int32_t count) override;
 
         bool isAttackPreparing(const MWWorld::Ptr& ptr) override;
         bool isRunning(const MWWorld::Ptr& ptr) override;
         bool isSneaking(const MWWorld::Ptr& ptr) override;
 
-        void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const override;
+        void reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const override;
 
-        int getGreetingTimer(const MWWorld::Ptr& ptr) const override;
+        std::int32_t getGreetingTimer(const MWWorld::Ptr& ptr) const override;
         float getAngleToPlayer(const MWWorld::Ptr& ptr) const override;
         GreetingState getGreetingState(const MWWorld::Ptr& ptr) const override;
         void fastForwardAi() const override;
@@ -244,6 +248,6 @@ namespace MWMechanics
             const MWWorld::Ptr& actor, const MWWorld::Ptr& victim, std::set<MWWorld::Ptr>& playerFollowers);
 
         bool reportCrime(const MWWorld::Ptr& player, const MWWorld::Ptr& victim, OffenseType type,
-            const ESM::RefId& factionId, int arg = 0);
+            const ESM::RefId& factionId, std::int32_t arg = 0);
     };
 }

@@ -73,7 +73,7 @@ namespace RtxTool
         /// negative, round and round. A weather `rolled` does not hold — what a save or the console
         /// can leave a region under — is before its first going on and after its last going back,
         /// so the first step lands on an end. `rolled` must hold one weather at least.
-        std::size_t stepAmong(std::span<const Rtx::Weather> rolled, int steps) const;
+        std::size_t stepAmong(std::span<const Rtx::Weather> rolled, std::int32_t steps) const;
 
     private:
         Rtx::Weather mFrom = Rtx::Weather::Clear;

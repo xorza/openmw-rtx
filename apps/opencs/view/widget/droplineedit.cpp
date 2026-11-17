@@ -1,7 +1,8 @@
 #include "droplineedit.hpp"
 
-#include <QDropEvent>
 #include <string>
+
+#include <QDropEvent>
 
 #include <apps/opencs/model/world/columnbase.hpp>
 #include <apps/opencs/model/world/tablemimedata.hpp>

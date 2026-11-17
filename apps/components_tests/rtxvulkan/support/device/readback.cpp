@@ -25,8 +25,8 @@ namespace Rtx::Testing
         float fromHalf(std::uint16_t bits)
         {
             const float sign = (bits & 0x8000u) != 0 ? -1.0f : 1.0f;
-            const int exponent = (bits >> 10) & 0x1f;
-            const int mantissa = bits & 0x3ff;
+            const std::int32_t exponent = (bits >> 10) & 0x1f;
+            const std::int32_t mantissa = bits & 0x3ff;
 
             if (exponent == 0)
                 return sign * std::ldexp(static_cast<float>(mantissa), -24);

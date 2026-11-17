@@ -1,11 +1,12 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include <QAbstractItemModel>
 #include <QModelIndex>
 #include <QObject>
 #include <QVariant>
-#include <string>
-#include <vector>
 
 #include "universalid.hpp"
 

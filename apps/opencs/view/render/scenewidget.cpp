@@ -1,11 +1,13 @@
 #include "scenewidget.hpp"
 
-#include <QLayout>
-#include <QMouseEvent>
-#include <QSurfaceFormat>
+#include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <limits>
 
+#include <QLayout>
+#include <QMouseEvent>
+#include <QSurfaceFormat>
 #include <osg/Array>
 #include <osg/Camera>
 #include <osg/GL>
@@ -54,7 +56,7 @@ namespace
     class DayNightSwitchVisitor : public osg::NodeVisitor
     {
     public:
-        explicit DayNightSwitchVisitor(int index)
+        explicit DayNightSwitchVisitor(std::int32_t index)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mIndex(index)
         {
@@ -62,16 +64,16 @@ namespace
 
         void apply(osg::Switch& switchNode) override
         {
-            constexpr auto noIndex = static_cast<unsigned>(-1);
+            constexpr auto noIndex = static_cast<std::uint32_t>(-1);
 
-            unsigned initialIndex = noIndex;
+            std::uint32_t initialIndex = noIndex;
             if (!switchNode.getUserValue("initialIndex", initialIndex))
             {
-                for (size_t i = 0; i < switchNode.getValueList().size(); ++i)
+                for (std::size_t i = 0; i < switchNode.getValueList().size(); ++i)
                 {
                     if (switchNode.getValueList()[i])
                     {
-                        initialIndex = static_cast<unsigned>(i);
+                        initialIndex = static_cast<std::uint32_t>(i);
                         break;
                     }
                 }
@@ -83,7 +85,7 @@ namespace
             if (CSMPrefs::get()["Rendering"]["scene-day-night-switch-nodes"].isTrue())
             {
                 if (switchNode.getName() == Constants::NightDayLabel)
-                    switchNode.setSingleChildOn(static_cast<unsigned int>(mIndex));
+                    switchNode.setSingleChildOn(static_cast<std::uint32_t>(mIndex));
             }
             else if (initialIndex != noIndex)
             {
@@ -94,7 +96,7 @@ namespace
         }
 
     private:
-        int mIndex;
+        std::int32_t mIndex;
     };
 }
 
@@ -124,7 +126,7 @@ namespace CSVRender
 
         mRenderer->setRealizeOperation(new SceneUtil::GetGLExtensionsOperation());
 
-        int frameRateLimit = CSMPrefs::get()["Rendering"]["framerate-limit"].toInt();
+        std::int32_t frameRateLimit = CSMPrefs::get()["Rendering"]["framerate-limit"].toInt();
         mRenderer->setRunMaxFrameRate(frameRateLimit);
         mRenderer->setUseConfigureAffinity(false);
 
@@ -206,7 +208,7 @@ namespace CSVRender
         mView->requestRedraw();
     }
 
-    void RenderWidget::setVisibilityMask(unsigned int mask)
+    void RenderWidget::setVisibilityMask(std::uint32_t mask)
     {
         mView->getCamera()->setCullMask(mask | Mask_ParticleSystem | Mask_Lighting);
     }
@@ -326,8 +328,8 @@ namespace CSVRender
 
         // Opaque, as the 1.0f the colours were written with before they became bytes meant, and not 1 of 255.
         const auto opaqueBytes = [](const QColor& colour) {
-            return osg::Vec4ub(static_cast<unsigned char>(colour.red()), static_cast<unsigned char>(colour.green()),
-                static_cast<unsigned char>(colour.blue()), std::numeric_limits<unsigned char>::max());
+            return osg::Vec4ub(static_cast<std::uint8_t>(colour.red()), static_cast<std::uint8_t>(colour.green()),
+                static_cast<std::uint8_t>(colour.blue()), std::numeric_limits<std::uint8_t>::max());
         };
         osg::ref_ptr<osg::Vec4ubArray> colours = new osg::Vec4ubArray;
         colours->push_back(opaqueBytes(gradientColour));
@@ -373,7 +375,7 @@ namespace CSVRender
 
     void SceneWidget::setLighting(LightingMode mode)
     {
-        int index = 0;
+        std::int32_t index = 0;
         osg::Vec4f ambient(mDefaultAmbient);
         osg::Vec4f diffuse(1.f, 1.f, 1.f, 1.f);
 
@@ -510,7 +512,7 @@ namespace CSVRender
     {
         QPointF pos = event->position();
         mCurrentCamControl->handleMouseMoveEvent(
-            static_cast<int>(pos.x() - mPrevMouse.x()), static_cast<int>(pos.y() - mPrevMouse.y()));
+            static_cast<std::int32_t>(pos.x() - mPrevMouse.x()), static_cast<std::int32_t>(pos.y() - mPrevMouse.y()));
 
         mPrevMouse = pos;
     }

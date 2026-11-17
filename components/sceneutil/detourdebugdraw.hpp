@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <DebugDraw.h>
 #include <osg/Geometry>
 
@@ -24,14 +26,14 @@ namespace SceneUtil
 
         void begin(duDebugDrawPrimitives prim, float size) override;
 
-        void vertex(const float* pos, unsigned int color) override;
+        void vertex(const float* pos, std::uint32_t color) override;
 
-        void vertex(const float x, const float y, const float z, unsigned int color) override;
+        void vertex(const float x, const float y, const float z, std::uint32_t color) override;
 
-        void vertex(const float* pos, unsigned int color, const float* uv) override;
+        void vertex(const float* pos, std::uint32_t color, const float* uv) override;
 
         void vertex(
-            const float x, const float y, const float z, unsigned int color, const float u, const float v) override;
+            const float x, const float y, const float z, std::uint32_t color, const float u, const float v) override;
 
         void end() override;
 

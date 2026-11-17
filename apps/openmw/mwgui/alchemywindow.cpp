@@ -1,5 +1,8 @@
 #include "alchemywindow.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_ComboBox.h>
 #include <MyGUI_ControllerManager.h>
@@ -117,12 +120,12 @@ namespace MWGui
     void AlchemyWindow::onCreateButtonClicked(MyGUI::Widget* /*sender*/)
     {
         mAlchemy->setPotionName(mNameEdit->getCaption());
-        int count = mAlchemy->countPotionsToBrew();
+        std::int32_t count = mAlchemy->countPotionsToBrew();
         count = std::min(count, mBrewCountEdit->getValue());
         createPotions(count);
     }
 
-    void AlchemyWindow::createPotions(int count)
+    void AlchemyWindow::createPotions(std::int32_t count)
     {
         MWMechanics::Alchemy::Result result = mAlchemy->create(mNameEdit->getCaption(), count);
         MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
@@ -154,7 +157,7 @@ namespace MWGui
         }
 
         // remove ingredient slots that have been fully used up
-        for (size_t i = 0; i < mIngredients.size(); ++i)
+        for (std::size_t i = 0; i < mIngredients.size(); ++i)
             if (mIngredients[i]->isUserString("ToolTipType"))
             {
                 MWWorld::Ptr ingred = *mIngredients[i]->getUserData<MWWorld::Ptr>();
@@ -211,7 +214,7 @@ namespace MWGui
     void AlchemyWindow::updateFilters()
     {
         std::set<std::string> itemNames, itemEffects;
-        for (size_t i = 0; i < mModel->getItemCount(); ++i)
+        for (std::size_t i = 0; i < mModel->getItemCount(); ++i)
         {
             MWWorld::Ptr item = mModel->getItem(static_cast<ItemModel::ModelIndex>(i)).mBase;
             if (item.getType() != ESM::Ingredient::sRecordId)
@@ -256,7 +259,7 @@ namespace MWGui
         mItemView->update();
     }
 
-    void AlchemyWindow::onFilterChanged(MyGUI::ComboBox* sender, size_t index)
+    void AlchemyWindow::onFilterChanged(MyGUI::ComboBox* sender, std::size_t index)
     {
         // ignore spurious event fired when one edit the content after selection.
         // onFilterEdited will handle it.
@@ -285,7 +288,7 @@ namespace MWGui
         mNameEdit->setCaption({});
         mBrewCountEdit->setValue(1);
 
-        size_t index = 0;
+        std::size_t index = 0;
         for (auto iter = mAlchemy->beginTools(); iter != mAlchemy->endTools() && index < mApparatus.size();
             ++iter, ++index)
         {
@@ -320,7 +323,7 @@ namespace MWGui
     {
         mItemSelectionDialog->setVisible(false);
 
-        int32_t index = item.get<ESM::Apparatus>()->mBase->mData.mType;
+        std::int32_t index = item.get<ESM::Apparatus>()->mBase->mData.mType;
         const auto& widget = mApparatus[static_cast<std::size_t>(index)];
 
         widget->setItem(item);
@@ -375,7 +378,7 @@ namespace MWGui
             mItemSelectionDialog->eventDialogCanceled += MyGUI::newDelegate(this, &AlchemyWindow::onItemCancel);
             mItemSelectionDialog->setVisible(true);
             mItemSelectionDialog->openContainer(MWMechanics::getPlayer());
-            mItemSelectionDialog->getSortModel()->setApparatusTypeFilter(static_cast<int32_t>(i));
+            mItemSelectionDialog->getSortModel()->setApparatusTypeFilter(static_cast<std::int32_t>(i));
             mItemSelectionDialog->setFilter(SortFilterItemModel::Filter_OnlyAlchemyTools);
         }
         else
@@ -394,10 +397,10 @@ namespace MWGui
         update();
     }
 
-    void AlchemyWindow::onSelectedItem(int index)
+    void AlchemyWindow::onSelectedItem(std::int32_t index)
     {
         MWWorld::Ptr item = mSortModel->getItem(index).mBase;
-        int res = mAlchemy->addIngredient(item);
+        std::int32_t res = mAlchemy->addIngredient(item);
 
         if (res != -1)
         {
@@ -420,7 +423,7 @@ namespace MWGui
         mSortModel->clearDragItems();
 
         auto it = mAlchemy->beginIngredients();
-        for (int i = 0; i < 4; ++i)
+        for (std::int32_t i = 0; i < 4; ++i)
         {
             ItemWidget* ingredient = mIngredients[static_cast<std::size_t>(i)];
 
@@ -454,7 +457,7 @@ namespace MWGui
 
         std::vector<MWMechanics::EffectKey> effectIds = mAlchemy->listEffects();
         Widgets::SpellEffectList list;
-        unsigned int effectIndex = 0;
+        std::uint32_t effectIndex = 0;
         for (const MWMechanics::EffectKey& effectKey : effectIds)
         {
             Widgets::SpellEffectParams params;
@@ -498,13 +501,15 @@ namespace MWGui
         MyGUI::ControllerManager::getInstance().addItem(widget, controller);
     }
 
-    void AlchemyWindow::onIncreaseButtonPressed(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id)
+    void AlchemyWindow::onIncreaseButtonPressed(
+        MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         addRepeatController(sender);
         onIncreaseButtonTriggered();
     }
 
-    void AlchemyWindow::onDecreaseButtonPressed(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id)
+    void AlchemyWindow::onDecreaseButtonPressed(
+        MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         addRepeatController(sender);
         onDecreaseButtonTriggered();
@@ -518,22 +523,23 @@ namespace MWGui
             onDecreaseButtonTriggered();
     }
 
-    void AlchemyWindow::onCountButtonReleased(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id)
+    void AlchemyWindow::onCountButtonReleased(
+        MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         MyGUI::ControllerManager::getInstance().removeItem(sender);
     }
 
-    void AlchemyWindow::onCountValueChanged(int value)
+    void AlchemyWindow::onCountValueChanged(std::int32_t value)
     {
         mBrewCountEdit->setValue(std::abs(value));
     }
 
     void AlchemyWindow::onIncreaseButtonTriggered()
     {
-        int currentCount = mBrewCountEdit->getValue();
+        std::int32_t currentCount = mBrewCountEdit->getValue();
 
         // prevent overflows
-        if (currentCount == std::numeric_limits<int>::max())
+        if (currentCount == std::numeric_limits<std::int32_t>::max())
             return;
 
         mBrewCountEdit->setValue(currentCount + 1);
@@ -541,7 +547,7 @@ namespace MWGui
 
     void AlchemyWindow::onDecreaseButtonTriggered()
     {
-        int currentCount = mBrewCountEdit->getValue();
+        std::int32_t currentCount = mBrewCountEdit->getValue();
         if (currentCount > 1)
             mBrewCountEdit->setValue(currentCount - 1);
     }
@@ -552,7 +558,7 @@ namespace MWGui
         {
             // Select the highlighted entry in the combo box and close it. List is closed by focusing on another
             // widget.
-            size_t index = mFilterValue->getIndexSelected();
+            std::size_t index = mFilterValue->getIndexSelected();
             mFilterValue->setIndexSelected(index);
             onFilterChanged(mFilterValue, index);
             MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mNameEdit);
@@ -588,7 +594,7 @@ namespace MWGui
         if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             // Remove active ingredients or close the window, starting with right-most slot.
-            for (size_t i = mIngredients.size(); i > 0; --i)
+            for (std::size_t i = mIngredients.size(); i > 0; --i)
             {
                 if (mIngredients[i - 1]->isUserString("ToolTipType"))
                 {

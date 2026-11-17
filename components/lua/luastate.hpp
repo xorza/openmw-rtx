@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <typeinfo>
@@ -25,14 +27,14 @@ namespace LuaUtil
     struct ScriptId
     {
         ScriptsContainer* mContainer = nullptr;
-        int mIndex = -1; // index in LuaUtil::ScriptsConfiguration
+        std::int32_t mIndex = -1; // index in LuaUtil::ScriptsConfiguration
     };
 
     struct LuaStateSettings
     {
-        uint64_t mInstructionLimit = 0; // 0 is unlimited
-        uint64_t mMemoryLimit = 0; // 0 is unlimited
-        uint64_t mSmallAllocMaxSize = 1024 * 1024; // big default value efficiently disables memory tracking
+        std::uint64_t mInstructionLimit = 0; // 0 is unlimited
+        std::uint64_t mMemoryLimit = 0; // 0 is unlimited
+        std::uint64_t mSmallAllocMaxSize = 1024 * 1024; // big default value efficiently disables memory tracking
         bool mLogMemoryUsage = false;
     };
 
@@ -52,7 +54,7 @@ namespace LuaUtil
         LuaView& operator=(const LuaView&) = delete;
 
         template <class Function>
-        friend int invokeProtectedCall(lua_State*, Function&&);
+        friend std::int32_t invokeProtectedCall(lua_State*, Function&&);
         // Returns underlying sol::state.
         sol::state_view& sol() { return mSol; }
 
@@ -72,7 +74,7 @@ namespace LuaUtil
     // Pushing to the stack from outside a Lua context crashes the engine if no memory can be allocated to grow the
     // stack
     template <class Function>
-    [[nodiscard]] int invokeProtectedCall(lua_State* luaState, Function&& function)
+    [[nodiscard]] std::int32_t invokeProtectedCall(lua_State* luaState, Function&& function)
     {
         if (!lua_checkstack(luaState, 2))
             return LUA_ERRMEM;
@@ -89,7 +91,7 @@ namespace LuaUtil
     template <class Lambda>
     void protectedCall(lua_State* luaState, Lambda&& f)
     {
-        int result = invokeProtectedCall(luaState, std::forward<Lambda>(f));
+        std::int32_t result = invokeProtectedCall(luaState, std::forward<Lambda>(f));
         switch (result)
         {
             case LUA_OK:
@@ -172,9 +174,9 @@ namespace LuaUtil
         sol::function loadFromVFS(const VFS::Path::Normalized& path);
         sol::environment newInternalLibEnvironment();
 
-        uint64_t getTotalMemoryUsage() const { return mSol.memory_used(); }
-        uint64_t getSmallAllocMemoryUsage() const { return mSmallAllocMemoryUsage; }
-        uint64_t getMemoryUsageByScriptIndex(unsigned id) const
+        std::uint64_t getTotalMemoryUsage() const { return mSol.memory_used(); }
+        std::uint64_t getSmallAllocMemoryUsage() const { return mSmallAllocMemoryUsage; }
+        std::uint64_t getMemoryUsageByScriptIndex(std::uint32_t id) const
         {
             return id < mMemoryUsage.size() ? static_cast<std::uint64_t>(mMemoryUsage[id]) : 0;
         }
@@ -183,7 +185,7 @@ namespace LuaUtil
 
         // Seeds `math.random`, which no script can: the engine seeds it from the clock, and a host
         // that replays a run seeds it where it seeds the world's generators.
-        void seedRandom(unsigned seed);
+        void seedRandom(std::uint32_t seed);
 
         // Note: Lua profiler can not be re-enabled after disabling.
         static void disableProfiler() { sProfilerEnabled = false; }
@@ -200,25 +202,25 @@ namespace LuaUtil
 
         sol::function loadScriptAndCache(const VFS::Path::Normalized& path);
         static void countHook(lua_State* state, lua_Debug* ar);
-        static void* trackingAllocator(void* ud, void* ptr, size_t osize, size_t nsize);
+        static void* trackingAllocator(void* ud, void* ptr, std::size_t osize, std::size_t nsize);
 
         static LuaStatePtr createLuaRuntime(LuaState* luaState);
 
         struct AllocOwner
         {
             std::shared_ptr<ScriptsContainer*> mContainer;
-            int mScriptIndex;
+            std::int32_t mScriptIndex;
         };
 
         const LuaStateSettings mSettings;
 
         // Needed to track resource usage per script, must be initialized before mLuaHolder.
         std::vector<ScriptId> mActiveScriptIdStack;
-        uint64_t mWatchdogInstructionCounter = 0;
+        std::uint64_t mWatchdogInstructionCounter = 0;
         std::map<void*, AllocOwner> mBigAllocOwners;
-        uint64_t mTotalMemoryUsage = 0;
-        uint64_t mSmallAllocMemoryUsage = 0;
-        std::vector<int64_t> mMemoryUsage;
+        std::uint64_t mTotalMemoryUsage = 0;
+        std::uint64_t mSmallAllocMemoryUsage = 0;
+        std::vector<std::int64_t> mMemoryUsage;
 
         // Must be declared before mSol and all sol-related objects. Then on exit it will be destructed the last.
         LuaStatePtr mLuaState;

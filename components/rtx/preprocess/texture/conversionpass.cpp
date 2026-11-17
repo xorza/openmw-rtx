@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string>
 
@@ -83,7 +85,7 @@ namespace Rtx
             = (specular - osg::Vec3f(dielectric, dielectric, dielectric) * (1.0f - metal)) / std::max(metal, sEpsilon);
         const float blend = metal * metal;
         osg::Vec3f base = fromDiffuse * (1.0f - blend) + fromSpecular * blend;
-        for (int channel = 0; channel < 3; ++channel)
+        for (std::int32_t channel = 0; channel < 3; ++channel)
             base[channel] = std::clamp(base[channel], 0.0f, 1.0f);
         return ConvertedTexel{ .mBase = base, .mMetal = metal };
     }
@@ -185,7 +187,7 @@ namespace Rtx
 
                     const std::size_t from = (std::size_t{ dy } * lit.mWidth + dx) * 4;
                     osg::Vec3f light;
-                    for (int channel = 0; channel < 3; ++channel)
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
                         light[channel] = curve.toLinear(
                             std::to_integer<std::uint8_t>(delit[from + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f highlight = toLinear(mHighlights[std::size_t{ sy } * shine.mWidth + sx]);
@@ -194,7 +196,7 @@ namespace Rtx
                     const std::size_t into = (std::size_t{ y } * own.mWidth + x) * 4;
                     if (colour)
                     {
-                        for (int channel = 0; channel < 3; ++channel)
+                        for (std::int32_t channel = 0; channel < 3; ++channel)
                             mConverted[into + static_cast<std::size_t>(channel)]
                                 = curve.encodedByte(converted.mBase[channel]);
                         mConverted[into + 3] = delit[from + 3];

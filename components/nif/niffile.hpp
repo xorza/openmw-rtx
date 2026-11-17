@@ -3,6 +3,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -136,7 +137,7 @@ namespace Nif
         void parse(Files::IStreamPtr&& stream);
 
         /// Get a given record
-        Record* getRecord(size_t index) const { return mRecords.at(index).get(); }
+        Record* getRecord(std::size_t index) const { return mRecords.at(index).get(); }
 
         /// Get a given string from the file's string table
         std::string getString(std::uint32_t index) const;

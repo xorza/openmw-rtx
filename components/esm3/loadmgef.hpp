@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <string_view>
@@ -25,7 +26,7 @@ namespace ESM
         /// Return a string descriptor for this record type. Currently used for debugging / error logs only.
         static std::string_view getRecordType() { return "MagicEffect"; }
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         enum Flags
@@ -74,9 +75,9 @@ namespace ESM
         {
             RefId mSchool; // Skill id
             float mBaseCost{};
-            int32_t mFlags{};
+            std::int32_t mFlags{};
             // Glow color for enchanted items with this effect
-            int32_t mRed{}, mGreen{}, mBlue{};
+            std::int32_t mRed{}, mGreen{}, mBlue{};
 
             float mUnknown1{}; // Called "Size X" in CS
             float mSpeed{}; // Speed of fired projectile
@@ -258,14 +259,14 @@ namespace ESM
         static const StringRefId SummonCreature04;
         static const StringRefId SummonCreature05;
 
-        static constexpr int Length = 143;
+        static constexpr std::int32_t Length = 143;
 
         static std::string_view refIdToGmstString(RefId effectId);
         static RefId effectGmstIdToRefId(std::string_view gmstId);
 
-        static RefId indexToRefId(int index);
-        static int refIdToIndex(RefId effectId);
+        static RefId indexToRefId(std::int32_t index);
+        static std::int32_t refIdToIndex(RefId effectId);
 
-        static std::string_view indexToName(int index);
+        static std::string_view indexToName(std::int32_t index);
     };
 }

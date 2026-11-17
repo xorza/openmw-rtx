@@ -1,5 +1,7 @@
 #include "activator.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
@@ -87,7 +89,7 @@ namespace MWClass
         return !getName(ptr).empty();
     }
 
-    MWGui::ToolTipInfo Activator::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Activator::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Activator>* ref = ptr.get<ESM::Activator>();
 
@@ -136,7 +138,7 @@ namespace MWClass
             }
         }
 
-        const int type = getSndGenTypeFromName(name);
+        const std::int32_t type = getSndGenTypeFromName(name);
 
         std::vector<const ESM::SoundGenerator*> fallbacksounds;
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
@@ -170,7 +172,7 @@ namespace MWClass
         return ESM::RefId();
     }
 
-    int Activator::getSndGenTypeFromName(std::string_view name)
+    std::int32_t Activator::getSndGenTypeFromName(std::string_view name)
     {
         if (name == "left")
             return ESM::SoundGenerator::LeftFoot;

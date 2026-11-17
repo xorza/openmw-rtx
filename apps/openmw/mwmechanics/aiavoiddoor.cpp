@@ -1,5 +1,7 @@
 #include "aiavoiddoor.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -11,7 +13,7 @@
 #include "movement.hpp"
 #include "steering.hpp"
 
-static const int MAX_DIRECTIONS = 4;
+static const std::int32_t MAX_DIRECTIONS = 4;
 
 MWMechanics::AiAvoidDoor::AiAvoidDoor(const MWWorld::ConstPtr& doorPtr)
     : mDuration(1)

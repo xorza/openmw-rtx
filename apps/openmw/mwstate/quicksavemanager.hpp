@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include "character.hpp"
@@ -9,8 +10,8 @@ namespace MWState
     class QuickSaveManager
     {
         std::string mSaveName;
-        unsigned int mMaxSaves;
-        unsigned int mSlotsVisited;
+        std::uint32_t mMaxSaves;
+        std::uint32_t mSlotsVisited;
         const Slot* mOldestSlotVisited;
 
     private:
@@ -18,7 +19,7 @@ namespace MWState
         bool isOldestSave(const Slot* compare) const;
 
     public:
-        QuickSaveManager(std::string& saveName, unsigned int maxSaves);
+        QuickSaveManager(std::string& saveName, std::uint32_t maxSaves);
         ///< A utility class to manage multiple quicksave slots
         ///
         /// \param saveName The name of the save ("QuickSave", "AutoSave", etc)

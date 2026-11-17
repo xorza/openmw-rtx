@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
@@ -201,7 +202,7 @@ namespace Rtx::Testing
             EXPECT_TRUE(modesOf({ Default, ExteriorNight, InteriorDay, Authored }).isEvery());
             EXPECT_FALSE(modesOf({ Default, ExteriorNight, InteriorDay }).isEvery());
 
-            const auto dayNight = [](std::initializer_list<osg::Node*> children, unsigned int opensOn) {
+            const auto dayNight = [](std::initializer_list<osg::Node*> children, std::uint32_t opensOn) {
                 osg::ref_ptr<osg::Switch> branches = new osg::Switch;
                 branches->setName(Constants::NightDayLabel);
                 for (osg::Node* child : children)
@@ -324,7 +325,7 @@ namespace Rtx::Testing
         TEST(RtxTemplateWalkTest, aWalksKeysAreItsVersions)
         {
             osg::ref_ptr<osg::Image> normals = makeImage("textures/tx_rock_n.dds", 2, 2);
-            std::fill_n(normals->data(), normals->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+            std::fill_n(normals->data(), normals->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
 
             osg::ref_ptr<osg::Group> root = new osg::Group;
             osg::ref_ptr<osg::Geometry> painted = makeQuad();

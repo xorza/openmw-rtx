@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string_view>
 
@@ -42,7 +44,7 @@ namespace
         const VFS::Path::Normalized mSound;
     };
 
-    constexpr std::array<std::size_t, 3> getIndices(int order)
+    constexpr std::array<std::size_t, 3> getIndices(std::int32_t order)
     {
         switch (order)
         {
@@ -61,7 +63,7 @@ namespace
         }
     }
 
-    Step generateClassSteps(int number)
+    Step generateClassSteps(std::int32_t number)
     {
         number++;
 
@@ -75,7 +77,7 @@ namespace
         };
 
         // randomize order in which responses are displayed
-        const int order = Misc::Rng::rollDice(6);
+        const std::int32_t order = Misc::Rng::rollDice(6);
         const std::array<std::size_t, 3> indices = getIndices(order);
 
         return Step{
@@ -326,7 +328,7 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Birth);
     }
 
-    void CharacterCreation::onReviewActivateDialog(int parDialog)
+    void CharacterCreation::onReviewActivateDialog(std::int32_t parDialog)
     {
         MWBase::Environment::get().getWindowManager()->removeDialog(std::move(mReviewDialog));
         mCreationStage = CSE_ReviewNext;
@@ -384,7 +386,7 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Class);
     }
 
-    void CharacterCreation::onClassChoice(int index)
+    void CharacterCreation::onClassChoice(std::int32_t index)
     {
         MWBase::Environment::get().getWindowManager()->removeDialog(std::move(mClassChoiceDialog));
 
@@ -493,16 +495,16 @@ namespace MWGui
 
             std::vector<ESM::RefId> attributes = mCreateClassDialog->getFavoriteAttributes();
             assert(attributes.size() >= createdClass.mData.mAttribute.size());
-            for (size_t i = 0; i < createdClass.mData.mAttribute.size(); ++i)
+            for (std::size_t i = 0; i < createdClass.mData.mAttribute.size(); ++i)
                 createdClass.mData.mAttribute[i] = attributes[i];
 
             std::vector<ESM::RefId> majorSkills = mCreateClassDialog->getMajorSkills();
             std::vector<ESM::RefId> minorSkills = mCreateClassDialog->getMinorSkills();
             assert(majorSkills.size() >= createdClass.mData.mMajorSkills.size());
             assert(minorSkills.size() >= createdClass.mData.mMinorSkills.size());
-            for (size_t i = 0; i < createdClass.mData.mMajorSkills.size(); ++i)
+            for (std::size_t i = 0; i < createdClass.mData.mMajorSkills.size(); ++i)
                 createdClass.mData.mMajorSkills[i] = majorSkills[i];
-            for (size_t i = 0; i < createdClass.mData.mMinorSkills.size(); ++i)
+            for (std::size_t i = 0; i < createdClass.mData.mMinorSkills.size(); ++i)
                 createdClass.mData.mMinorSkills[i] = minorSkills[i];
 
             MWBase::Environment::get().getMechanicsManager()->setPlayerClass(createdClass);
@@ -529,7 +531,7 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Class);
     }
 
-    void CharacterCreation::onClassQuestionChosen(int index)
+    void CharacterCreation::onClassQuestionChosen(std::int32_t index)
     {
         MWBase::Environment::get().getSoundManager()->stopSay();
 
@@ -557,9 +559,9 @@ namespace MWGui
     {
         if (mGenerateClassStep == 10)
         {
-            unsigned combat = mGenerateClassSpecializations[0];
-            unsigned magic = mGenerateClassSpecializations[1];
-            unsigned stealth = mGenerateClassSpecializations[2];
+            std::uint32_t combat = mGenerateClassSpecializations[0];
+            std::uint32_t magic = mGenerateClassSpecializations[1];
+            std::uint32_t stealth = mGenerateClassSpecializations[2];
             std::string_view className;
             if (combat > 7)
             {
@@ -671,7 +673,7 @@ namespace MWGui
 
         mGenerateClassQuestionDialog = std::make_unique<InfoBoxDialog>();
 
-        const Step step = generateClassSteps(static_cast<int>(mGenerateClassStep));
+        const Step step = generateClassSteps(static_cast<std::int32_t>(mGenerateClassStep));
         mGenerateClassResponses[0] = step.mResponses[0].mSpecialization;
         mGenerateClassResponses[1] = step.mResponses[1].mSpecialization;
         mGenerateClassResponses[2] = step.mResponses[2].mSpecialization;
@@ -718,7 +720,7 @@ namespace MWGui
 
     CharacterCreation::~CharacterCreation() = default;
 
-    void CharacterCreation::handleDialogDone(CSE currentStage, int nextMode)
+    void CharacterCreation::handleDialogDone(CSE currentStage, std::int32_t nextMode)
     {
         MWBase::Environment::get().getWindowManager()->popGuiMode();
         if (mCreationStage == CSE_ReviewNext)

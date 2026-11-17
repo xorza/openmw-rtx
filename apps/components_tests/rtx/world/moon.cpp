@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -86,7 +87,7 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> portrait = Testing::makeImage("", 2, 2);
             for (std::size_t texel = 0; texel < 4; ++texel)
             {
-                unsigned char* const at = portrait->data() + texel * 4;
+                std::uint8_t* const at = portrait->data() + texel * 4;
                 at[0] = 255;
                 at[1] = 0;
                 at[2] = 0;
@@ -236,7 +237,7 @@ namespace Rtx
 
             // And it keeps climbing into itself, with no step anywhere along the way.
             float below = 0.0f;
-            for (int step = 1; step <= 90; ++step)
+            for (std::int32_t step = 1; step <= 90; ++step)
             {
                 const MoonPlacement at
                     = placeMoon(configured(), Moon::Masser, static_cast<float>(step), 35.0f, 0.0f, /*alpha=*/1.0f);
@@ -310,7 +311,7 @@ namespace Rtx
                 return describeMoon(moon, towardSun);
             };
             const auto expectNear = [](const osg::Vec3f& got, const osg::Vec3f& expected, std::string_view what) {
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(got[axis], expected[axis], 1e-6f) << what << ", axis " << axis;
             };
 

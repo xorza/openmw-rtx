@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/shader/shadermanager.hpp>
 
 namespace osg
@@ -30,15 +32,15 @@ namespace SceneUtil
         static const ShadowManager& instance();
 
         explicit ShadowManager(const osg::ref_ptr<osg::Group>& sceneRoot, const osg::ref_ptr<osg::Group>& rootNode,
-            unsigned int outdoorShadowCastingMask, unsigned int indoorShadowCastingMask, unsigned int worldMask,
+            std::uint32_t outdoorShadowCastingMask, std::uint32_t indoorShadowCastingMask, std::uint32_t worldMask,
             const Settings::ShadowsCategory& settings, Shader::ShaderManager& shaderManager);
         ~ShadowManager();
         ShadowManager(const ShadowManager&) = delete;
         ShadowManager& operator=(const ShadowManager&) = delete;
 
         void setupShadowSettings(const Settings::ShadowsCategory& settings, Shader::ShaderManager& shaderManager);
-        void setOutdoorShadowCastingMask(unsigned int mask);
-        void setIndoorShadowCastingMask(unsigned int mask);
+        void setOutdoorShadowCastingMask(std::uint32_t mask);
+        void setIndoorShadowCastingMask(std::uint32_t mask);
 
         void setupShaders(Shader::ShaderManager& shaderManager) const;
 
@@ -59,7 +61,7 @@ namespace SceneUtil
         osg::ref_ptr<osgShadow::ShadowSettings> mShadowSettings;
         osg::ref_ptr<MWShadowTechnique> mShadowTechnique;
 
-        unsigned int mOutdoorShadowCastingMask;
-        unsigned int mIndoorShadowCastingMask;
+        std::uint32_t mOutdoorShadowCastingMask;
+        std::uint32_t mIndoorShadowCastingMask;
     };
 }

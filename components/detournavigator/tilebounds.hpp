@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <tuple>
 
@@ -52,7 +53,7 @@ namespace DetourNavigator
         return TileBounds{ osg::Vec2f(minX, minY), osg::Vec2f(maxX, maxY) };
     }
 
-    inline TileBounds maxCellTileBounds(const osg::Vec2i& position, int size)
+    inline TileBounds maxCellTileBounds(const osg::Vec2i& position, std::int32_t size)
     {
         return TileBounds{ osg::Vec2f(static_cast<float>(position.x()), static_cast<float>(position.y()))
                 * static_cast<float>(size),

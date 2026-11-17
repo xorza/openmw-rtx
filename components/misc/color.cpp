@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <system_error>
 
@@ -27,10 +29,10 @@ namespace Misc
             throw std::logic_error(std::string("Invalid hex color: ") += hex);
         Color col;
         col.mValue.a() = 1;
-        for (unsigned i = 0; i < 3; i++)
+        for (std::uint32_t i = 0; i < 3; i++)
         {
             auto sub = hex.substr(static_cast<std::size_t>(i) * 2, 2);
-            unsigned char v = 0;
+            std::uint8_t v = 0;
             auto [_, ec] = std::from_chars(sub.data(), sub.data() + sub.size(), v, 16);
             if (ec != std::errc())
                 throw std::logic_error(std::string("Invalid hex color: ") += hex);
@@ -39,7 +41,7 @@ namespace Misc
         return col;
     }
 
-    Color Color::fromRGB(unsigned int value)
+    Color Color::fromRGB(std::uint32_t value)
     {
         return Color(SceneUtil::colourFromRGB(value));
     }
@@ -52,9 +54,9 @@ namespace Misc
     std::string Color::toHex() const
     {
         std::string result(6, '0');
-        for (unsigned i = 0; i < 3; i++)
+        for (std::uint32_t i = 0; i < 3; i++)
         {
-            int b = static_cast<int>(mValue[i] * 255.0f);
+            auto b = static_cast<std::int32_t>(mValue[i] * 255.0f);
             char* start = result.data() + static_cast<std::size_t>(i * 2);
             if (b < 16)
                 start++;

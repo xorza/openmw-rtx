@@ -1,5 +1,7 @@
 #include "itemchargeview.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <set>
 
 #include <MyGUI_FactoryManager.h>
@@ -68,7 +70,7 @@ namespace MWGui
         Lines lines;
         std::set<Lines::const_iterator> visitedLines;
 
-        for (size_t i = 0; i < mModel->getItemCount(); ++i)
+        for (std::size_t i = 0; i < mModel->getItemCount(); ++i)
         {
             ItemStack stack = mModel->getItem(static_cast<ItemModel::ModelIndex>(i));
 
@@ -138,7 +140,7 @@ namespace MWGui
 
     void ItemChargeView::layoutWidgets()
     {
-        int currentY = 0;
+        std::int32_t currentY = 0;
 
         for (Line& line : mLines)
         {
@@ -214,7 +216,7 @@ namespace MWGui
                     break;
 
                 line.mCharge->setVisible(true);
-                line.mCharge->setValue(static_cast<int>(line.mItemPtr.getCellRef().getEnchantmentCharge()),
+                line.mCharge->setValue(static_cast<std::int32_t>(line.mItemPtr.getCellRef().getEnchantmentCharge()),
                     MWMechanics::getEnchantmentCharge(*ench));
                 break;
         }
@@ -225,22 +227,22 @@ namespace MWGui
         eventItemClicked(this, *sender->getUserData<MWWorld::Ptr>());
     }
 
-    void ItemChargeView::onMouseWheelMoved(MyGUI::Widget* /*sender*/, int rel)
+    void ItemChargeView::onMouseWheelMoved(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (static_cast<float>(mScrollView->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mScrollView->setViewOffset(MyGUI::IntPoint(0,
-                static_cast<int>(
+                static_cast<std::int32_t>(
                     static_cast<float>(mScrollView->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
-    void ItemChargeView::onControllerButton(const unsigned char button)
+    void ItemChargeView::onControllerButton(const std::uint8_t button)
     {
         if (mLines.empty())
             return;
 
-        size_t prevFocus = mControllerFocus;
+        std::size_t prevFocus = mControllerFocus;
 
         if (button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
@@ -257,7 +259,7 @@ namespace MWGui
             updateControllerFocus(prevFocus, mControllerFocus);
     }
 
-    void ItemChargeView::updateControllerFocus(size_t prevFocus, size_t newFocus)
+    void ItemChargeView::updateControllerFocus(std::size_t prevFocus, std::size_t newFocus)
     {
         if (mLines.empty())
             return;
@@ -279,7 +281,7 @@ namespace MWGui
             if (newFocus <= 3)
                 mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
             else
-                mScrollView->setViewOffset(MyGUI::IntPoint(0, -55 * static_cast<int>(newFocus - 3)));
+                mScrollView->setViewOffset(MyGUI::IntPoint(0, -55 * static_cast<std::int32_t>(newFocus - 3)));
         }
     }
 }

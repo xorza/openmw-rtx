@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include "itemmodel.hpp"
 
 namespace MWGui
@@ -14,16 +17,16 @@ namespace MWGui
 
         bool allowedToUseItems() const override;
         ItemStack getItem(ModelIndex index) override;
-        size_t getItemCount() override;
+        std::size_t getItemCount() override;
         void update() override;
         void onClose() override;
-        bool onDropItem(const MWWorld::Ptr& item, int count) override;
-        bool onTakeItem(const MWWorld::Ptr& item, int count) override;
+        bool onDropItem(const MWWorld::Ptr& item, std::int32_t count) override;
+        bool onTakeItem(const MWWorld::Ptr& item, std::int32_t count) override;
 
     protected:
         MWWorld::Ptr mActor;
         bool mPickpocketDetected;
-        bool stealItem(const MWWorld::Ptr& item, int count);
+        bool stealItem(const MWWorld::Ptr& item, std::int32_t count);
 
     private:
         std::vector<ItemStack> mHiddenItems;

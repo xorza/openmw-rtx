@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/world/universalid.hpp>
@@ -49,8 +50,8 @@ namespace CSVWorld
 
     private slots:
 
-        void setType(int index);
+        void setType(std::int32_t index);
 
-        void valueChanged(int index);
+        void valueChanged(std::int32_t index);
     };
 }

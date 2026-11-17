@@ -17,7 +17,7 @@ namespace ESM
 
     struct LuaScriptCfg
     {
-        using Flags = uint32_t;
+        using Flags = std::uint32_t;
         static constexpr Flags sGlobal = 1ull << 0; // start as a global script
         static constexpr Flags sCustom = 1ull << 1; // local; can be attached/detached by a global script
         static constexpr Flags sPlayer = 1ull << 2; // auto attach to players
@@ -33,7 +33,7 @@ namespace ESM
         Flags mFlags{}; // bitwise OR of Flags.
 
         // Auto attach as a local script to objects of specific types (i.e. Container, Door, Activator, etc.)
-        std::vector<uint32_t> mTypes; // values are ESM::RecNameInts
+        std::vector<std::uint32_t> mTypes; // values are ESM::RecNameInts
 
         // Auto attach as a local script to objects with specific recordIds (i.e. specific door type, or an unique NPC)
         struct PerRecordCfg
@@ -50,8 +50,8 @@ namespace ESM
         struct PerRefCfg
         {
             bool mAttach{}; // true - attach, false - don't attach (overrides previous attach)
-            uint32_t mRefnumIndex{};
-            int32_t mRefnumContentFile{};
+            std::uint32_t mRefnumIndex{};
+            std::int32_t mRefnumContentFile{};
             // Initialization data for this specific refnum. If empty than LuaScriptCfg::mInitializationData is used.
             std::string mInitializationData;
         };
@@ -74,7 +74,7 @@ namespace ESM
 
     struct LuaTimer
     {
-        enum class Type : unsigned char
+        enum class Type : std::uint8_t
         {
             SIMULATION_TIME = 0,
             GAME_TIME = 1,
@@ -89,7 +89,7 @@ namespace ESM
 
     struct LuaScript
     {
-        int32_t mScriptId{};
+        std::int32_t mScriptId{};
         std::string mData; // Serialized Lua table. It is a binary data. Can contain '\0'.
         std::vector<LuaTimer> mTimers;
     };

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <mutex>
@@ -87,8 +89,8 @@ namespace MWSound
 
         std::vector<std::string> enumerateHrtf() override;
 
-        std::pair<Sound_Handle, size_t> loadSound(VFS::Path::NormalizedView fname) override;
-        size_t unloadSound(Sound_Handle data) override;
+        std::pair<Sound_Handle, std::size_t> loadSound(VFS::Path::NormalizedView fname) override;
+        std::size_t unloadSound(Sound_Handle data) override;
 
         bool playSound(Sound* sound, Sound_Handle data, float offset) override;
         bool playSound3D(Sound* sound, Sound_Handle data, float offset) override;
@@ -111,8 +113,8 @@ namespace MWSound
         void updateListener(const osg::Vec3f& pos, const osg::Vec3f& atdir, const osg::Vec3f& updir,
             const osg::Vec3f& vel, Environment env) override;
 
-        void pauseSounds(int types) override;
-        void resumeSounds(int types) override;
+        void pauseSounds(std::int32_t types) override;
+        void resumeSounds(std::int32_t types) override;
 
         void pauseActiveDevice() override;
         void resumeActiveDevice() override;

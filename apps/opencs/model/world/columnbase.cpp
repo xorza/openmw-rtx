@@ -1,8 +1,11 @@
 #include "columnbase.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "columns.hpp"
 
-CSMWorld::ColumnBase::ColumnBase(int columnId, Display displayType, int flags)
+CSMWorld::ColumnBase::ColumnBase(std::int32_t columnId, Display displayType, std::int32_t flags)
     : mColumnId(columnId)
     , mFlags(flags)
     , mDisplayType(displayType)
@@ -19,7 +22,7 @@ std::string CSMWorld::ColumnBase::getTitle() const
     return Columns::getName(static_cast<Columns::ColumnId>(mColumnId));
 }
 
-int CSMWorld::ColumnBase::getId() const
+std::int32_t CSMWorld::ColumnBase::getId() const
 {
     return mColumnId;
 }
@@ -94,7 +97,7 @@ bool CSMWorld::ColumnBase::isId(Display display)
         Display_None,
     };
 
-    for (int i = 0; ids[i] != Display_None; ++i)
+    for (std::int32_t i = 0; ids[i] != Display_None; ++i)
         if (ids[i] == display)
             return true;
 
@@ -117,7 +120,7 @@ void CSMWorld::NestableColumn::addColumn(CSMWorld::NestableColumn* column)
     mNestedColumns.push_back(column);
 }
 
-const CSMWorld::ColumnBase& CSMWorld::NestableColumn::nestedColumn(int subColumn) const
+const CSMWorld::ColumnBase& CSMWorld::NestableColumn::nestedColumn(std::int32_t subColumn) const
 {
     if (mNestedColumns.empty())
         throw std::logic_error("Tried to access nested column of the non-nest column");
@@ -125,7 +128,8 @@ const CSMWorld::ColumnBase& CSMWorld::NestableColumn::nestedColumn(int subColumn
     return *mNestedColumns.at(static_cast<std::size_t>(subColumn));
 }
 
-CSMWorld::NestableColumn::NestableColumn(int columnId, CSMWorld::ColumnBase::Display displayType, int flag)
+CSMWorld::NestableColumn::NestableColumn(
+    std::int32_t columnId, CSMWorld::ColumnBase::Display displayType, std::int32_t flag)
     : CSMWorld::ColumnBase(columnId, displayType, flag)
 {
 }
@@ -144,7 +148,7 @@ bool CSMWorld::NestableColumn::hasChildren() const
 }
 
 CSMWorld::NestedChildColumn::NestedChildColumn(
-    int id, CSMWorld::ColumnBase::Display display, int flags, bool isEditable)
+    std::int32_t id, CSMWorld::ColumnBase::Display display, std::int32_t flags, bool isEditable)
     : NestableColumn(id, display, flags)
     , mIsEditable(isEditable)
 {

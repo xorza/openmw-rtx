@@ -1,5 +1,12 @@
 #include "contentmodel.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <unordered_set>
+
 #include <QDataStream>
 #include <QDebug>
 #include <QDir>
@@ -7,11 +14,6 @@
 #include <QFont>
 #include <QIODevice>
 #include <QProgressDialog>
-#include <algorithm>
-#include <fstream>
-#include <memory>
-#include <stdexcept>
-#include <unordered_set>
 
 #include <components/esm/format.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -47,7 +49,7 @@ void ContentSelectorModel::ContentModel::setEncoding(const QString& encoding)
     mEncoding = encoding;
 }
 
-int ContentSelectorModel::ContentModel::columnCount(const QModelIndex& parent) const
+std::int32_t ContentSelectorModel::ContentModel::columnCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
@@ -55,15 +57,15 @@ int ContentSelectorModel::ContentModel::columnCount(const QModelIndex& parent) c
     return mColumnCount;
 }
 
-int ContentSelectorModel::ContentModel::rowCount(const QModelIndex& parent) const
+std::int32_t ContentSelectorModel::ContentModel::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
 
-    return static_cast<int>(mFiles.size());
+    return static_cast<std::int32_t>(mFiles.size());
 }
 
-const ContentSelectorModel::EsmFile* ContentSelectorModel::ContentModel::item(int row) const
+const ContentSelectorModel::EsmFile* ContentSelectorModel::ContentModel::item(std::int32_t row) const
 {
     if (row >= 0 && row < mFiles.size())
         return mFiles.at(row);
@@ -71,7 +73,7 @@ const ContentSelectorModel::EsmFile* ContentSelectorModel::ContentModel::item(in
     return nullptr;
 }
 
-ContentSelectorModel::EsmFile* ContentSelectorModel::ContentModel::item(int row)
+ContentSelectorModel::EsmFile* ContentSelectorModel::ContentModel::item(std::int32_t row)
 {
     if (row >= 0 && row < mFiles.count())
         return mFiles.at(row);
@@ -95,7 +97,7 @@ QModelIndex ContentSelectorModel::ContentModel::indexFromItem(const EsmFile* ite
     auto* const nonConstFilePtr = const_cast<EsmFile*>(item);
 
     if (item)
-        return index(static_cast<int>(mFiles.indexOf(nonConstFilePtr)), 0);
+        return index(static_cast<std::int32_t>(mFiles.indexOf(nonConstFilePtr)), 0);
 
     return QModelIndex();
 }
@@ -139,7 +141,7 @@ Qt::ItemFlags ContentSelectorModel::ContentModel::flags(const QModelIndex& index
     return Qt::NoItemFlags;
 }
 
-QVariant ContentSelectorModel::ContentModel::data(const QModelIndex& index, int role) const
+QVariant ContentSelectorModel::ContentModel::data(const QModelIndex& index, std::int32_t role) const
 {
     if (!index.isValid())
         return QVariant();
@@ -152,7 +154,7 @@ QVariant ContentSelectorModel::ContentModel::data(const QModelIndex& index, int 
     if (!file)
         return QVariant();
 
-    const int column = index.column();
+    const std::int32_t column = index.column();
 
     switch (role)
     {
@@ -236,7 +238,7 @@ QVariant ContentSelectorModel::ContentModel::data(const QModelIndex& index, int 
     return QVariant();
 }
 
-bool ContentSelectorModel::ContentModel::setData(const QModelIndex& index, const QVariant& value, int role)
+bool ContentSelectorModel::ContentModel::setData(const QModelIndex& index, const QVariant& value, std::int32_t role)
 {
     if (!index.isValid())
         return false;
@@ -248,10 +250,10 @@ bool ContentSelectorModel::ContentModel::setData(const QModelIndex& index, const
         {
             QStringList list = value.toStringList();
 
-            for (int i = 0; i < EsmFile::FileProperty_GameFile; i++)
+            for (std::int32_t i = 0; i < EsmFile::FileProperty_GameFile; i++)
                 file->setFileProperty(static_cast<EsmFile::FileProperty>(i), list.at(i));
 
-            for (int i = EsmFile::FileProperty_GameFile; i < list.size(); i++)
+            for (std::int32_t i = EsmFile::FileProperty_GameFile; i < list.size(); i++)
                 file->setFileProperty(EsmFile::FileProperty_GameFile, list.at(i));
 
             emit dataChanged(index, index);
@@ -263,7 +265,7 @@ bool ContentSelectorModel::ContentModel::setData(const QModelIndex& index, const
         }
         case Qt::CheckStateRole:
         {
-            int checkValue = value.toInt();
+            std::int32_t checkValue = value.toInt();
             if (checkValue == Qt::Checked)
                 return isChecked(file) || setCheckState(file, true);
             if (checkValue == Qt::Unchecked)
@@ -277,12 +279,12 @@ bool ContentSelectorModel::ContentModel::setData(const QModelIndex& index, const
     return false;
 }
 
-bool ContentSelectorModel::ContentModel::insertRows(int position, int rows, const QModelIndex& parent)
+bool ContentSelectorModel::ContentModel::insertRows(std::int32_t position, std::int32_t rows, const QModelIndex& parent)
 {
     return false;
 }
 
-bool ContentSelectorModel::ContentModel::removeRows(int position, int rows, const QModelIndex& parent)
+bool ContentSelectorModel::ContentModel::removeRows(std::int32_t position, std::int32_t rows, const QModelIndex& parent)
 {
     return false;
 }
@@ -317,7 +319,7 @@ QMimeData* ContentSelectorModel::ContentModel::mimeData(const QModelIndexList& i
 }
 
 bool ContentSelectorModel::ContentModel::dropMimeData(
-    const QMimeData* data, Qt::DropAction action, int row, int column, const QModelIndex& parent)
+    const QMimeData* data, Qt::DropAction action, std::int32_t row, std::int32_t column, const QModelIndex& parent)
 {
     if (action == Qt::IgnoreAction)
         return true;
@@ -328,7 +330,7 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
     if (!data->hasFormat(mMimeType))
         return false;
 
-    int beginRow = rowCount();
+    std::int32_t beginRow = rowCount();
 
     if (row != -1)
         beginRow = row;
@@ -336,7 +338,7 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
     else if (parent.isValid())
         beginRow = parent.row();
 
-    int firstModifiable = 0;
+    std::int32_t firstModifiable = 0;
     while (item(firstModifiable)->builtIn() || item(firstModifiable)->fromAnotherConfigFile())
         ++firstModifiable;
 
@@ -349,16 +351,16 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
     std::vector<EsmFile*> toMove;
     while (!stream.atEnd())
     {
-        int sourceRow = 0;
+        std::int32_t sourceRow = 0;
         stream >> sourceRow;
         toMove.emplace_back(mFiles.at(sourceRow));
     }
-    int minRow = static_cast<int>(mFiles.size());
-    int maxRow = 0;
+    auto minRow = static_cast<std::int32_t>(mFiles.size());
+    std::int32_t maxRow = 0;
     for (EsmFile* file : toMove)
     {
-        int from = static_cast<int>(mFiles.indexOf(file));
-        int to = beginRow;
+        auto from = static_cast<std::int32_t>(mFiles.indexOf(file));
+        std::int32_t to = beginRow;
         if (from < beginRow)
             to--;
         else if (from > beginRow)
@@ -376,11 +378,12 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
 
 void ContentSelectorModel::ContentModel::addFile(EsmFile* file)
 {
-    beginInsertRows(QModelIndex(), static_cast<int>(mFiles.count()), static_cast<int>(mFiles.count()));
+    beginInsertRows(
+        QModelIndex(), static_cast<std::int32_t>(mFiles.count()), static_cast<std::int32_t>(mFiles.count()));
     mFiles.append(file);
     endInsertRows();
 
-    QModelIndex idx = index(static_cast<int>(mFiles.size() - 2), 0, QModelIndex());
+    QModelIndex idx = index(static_cast<std::int32_t>(mFiles.size() - 2), 0, QModelIndex());
 
     emit dataChanged(idx, idx);
 }
@@ -507,7 +510,7 @@ bool ContentSelectorModel::ContentModel::containsDataFiles(const QString& path)
 
 void ContentSelectorModel::ContentModel::clearFiles()
 {
-    const int filesCount = static_cast<int>(mFiles.count());
+    const auto filesCount = static_cast<std::int32_t>(mFiles.count());
 
     if (filesCount > 0)
     {
@@ -559,7 +562,7 @@ void ContentSelectorModel::ContentModel::sortFiles()
     for (const auto& filename : mNonUserContent)
     {
         const EsmFile* file = item(filename);
-        int filePosition = indexFromItem(file).row();
+        std::int32_t filePosition = indexFromItem(file).row();
         if (filePosition >= 0)
             mFiles.move(filePosition, firstModifiable++);
         else
@@ -578,13 +581,13 @@ void ContentSelectorModel::ContentModel::sortFiles()
 
     // Dependency sort
     std::unordered_set<const EsmFile*> moved;
-    for (int i = static_cast<int>(mFiles.size() - 1); i > firstModifiable;)
+    for (auto i = static_cast<std::int32_t>(mFiles.size() - 1); i > firstModifiable;)
     {
         const auto file = mFiles.at(i);
         if (!moved.contains(file))
         {
-            int index = -1;
-            for (int j = static_cast<int>(firstModifiable); j < i; ++j)
+            std::int32_t index = -1;
+            for (auto j = static_cast<std::int32_t>(firstModifiable); j < i; ++j)
             {
                 const EsmFile* addonFile = mFiles.at(j);
                 const QStringList& gameFiles = addonFile->gameFiles();
@@ -652,7 +655,7 @@ void ContentSelectorModel::ContentModel::setNonUserContent(const QStringList& fi
 
 bool ContentSelectorModel::ContentModel::isLoadOrderError(const EsmFile* file) const
 {
-    int index = indexFromItem(file).row();
+    std::int32_t index = indexFromItem(file).row();
     auto errors = checkForLoadOrderErrors(file, index);
     return !errors.empty();
 }
@@ -672,11 +675,11 @@ QStringList ContentSelectorModel::ContentModel::userFilesInOrder() const
 
 void ContentSelectorModel::ContentModel::setContentList(const QStringList& fileList, bool orderOnly)
 {
-    QProgressDialog progressDialog("Setting content list", {}, 0, static_cast<int>(fileList.size()));
+    QProgressDialog progressDialog("Setting content list", {}, 0, static_cast<std::int32_t>(fileList.size()));
     progressDialog.setWindowModality(Qt::WindowModal);
     progressDialog.setValue(0);
 
-    int previousPosition = -1;
+    std::int32_t previousPosition = -1;
     for (qsizetype i = 0, n = fileList.size(); i < n; ++i)
     {
         const EsmFile* file = item(fileList[i]);
@@ -688,7 +691,7 @@ void ContentSelectorModel::ContentModel::setContentList(const QStringList& fileL
             // setCheckState already gracefully handles builtIn and fromAnotherConfigFile
             // as necessary, move plug-ins in visible list to match sequence of supplied filelist
             // FIXME: setCheckState also does tons of other things which we don't want to happen
-            int filePosition = indexFromItem(file).row();
+            std::int32_t filePosition = indexFromItem(file).row();
             if (filePosition < previousPosition)
             {
                 mFiles.move(filePosition, previousPosition);
@@ -699,14 +702,14 @@ void ContentSelectorModel::ContentModel::setContentList(const QStringList& fileL
             }
         }
 
-        progressDialog.setValue(static_cast<int>(i + 1));
+        progressDialog.setValue(static_cast<std::int32_t>(i + 1));
     }
 
     refreshModel();
 }
 
 QList<ContentSelectorModel::LoadOrderError> ContentSelectorModel::ContentModel::checkForLoadOrderErrors(
-    const EsmFile* file, int row) const
+    const EsmFile* file, std::int32_t row) const
 {
     QList<LoadOrderError> errors = QList<LoadOrderError>();
     for (const QString& dependentfileName : file->gameFiles())
@@ -743,7 +746,7 @@ QList<ContentSelectorModel::LoadOrderError> ContentSelectorModel::ContentModel::
 
 QString ContentSelectorModel::ContentModel::toolTip(const EsmFile* file) const
 {
-    int index = indexFromItem(file).row();
+    std::int32_t index = indexFromItem(file).row();
     auto errors = checkForLoadOrderErrors(file, index);
     if (!errors.empty())
     {
@@ -766,7 +769,7 @@ QString ContentSelectorModel::ContentModel::toolTip(const EsmFile* file) const
     }
 }
 
-void ContentSelectorModel::ContentModel::refreshModel(std::initializer_list<int> roles)
+void ContentSelectorModel::ContentModel::refreshModel(std::initializer_list<std::int32_t> roles)
 {
     emit dataChanged(index(0, 0), index(rowCount() - 1, 0), roles);
 }

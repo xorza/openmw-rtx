@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -23,11 +24,11 @@ namespace MWGui
     /// the book page widget.
     struct TypesetBook
     {
-        using Content = std::vector<uint8_t>;
-        typedef intptr_t InteractiveId;
+        using Content = std::vector<std::uint8_t>;
+        typedef std::intptr_t InteractiveId;
 
         /// Returns the number of pages in the document.
-        virtual size_t pageCount() const = 0;
+        virtual std::size_t pageCount() const = 0;
 
         /// Return the area covered by the document. The first
         /// integer is the maximum with of any line. This is not
@@ -35,10 +36,11 @@ namespace MWGui
         /// it is the largest distance from the left edge to the
         /// right edge. The second integer is the height of all
         /// text combined prior to pagination.
-        virtual std::pair<unsigned int, unsigned int> getSize() const = 0;
+        virtual std::pair<std::uint32_t, std::uint32_t> getSize() const = 0;
 
         /// Used to highlight journal indices
-        virtual void setColour(size_t section, size_t line, size_t run, const MyGUI::Colour& colour) const = 0;
+        virtual void setColour(
+            std::size_t section, std::size_t line, std::size_t run, const MyGUI::Colour& colour) const = 0;
 
         virtual ~TypesetBook() = default;
     };
@@ -64,7 +66,8 @@ namespace MWGui
         /// A factory function for creating the default implementation of a book typesetter
         /// @param fontSize the interface's font size, which the book is typeset and drawn at
         /// (`MWBase::WindowManager::getFontSize`).
-        static std::shared_ptr<BookTypesetter> create(int pageWidth, int pageHeight, int fontSize);
+        static std::shared_ptr<BookTypesetter> create(
+            std::int32_t pageWidth, std::int32_t pageHeight, std::int32_t fontSize);
 
         /// Create a simple text style consisting of a font and a text color.
         virtual Style* createStyle(const std::string& fontName, const MyGUI::Colour& colour, bool useBookFont = true)
@@ -86,7 +89,7 @@ namespace MWGui
         /// to begin when additional text is inserted. Pagination attempts to keep
         /// sections together on a single page. The margin parameter adds additional space
         /// before the next line of text.
-        virtual void sectionBreak(int margin = 0) = 0;
+        virtual void sectionBreak(std::int32_t margin = 0) = 0;
 
         /// Changes the alignment for the current section of text.
         virtual void setSectionAlignment(Alignment sectionAlignment) = 0;
@@ -104,7 +107,7 @@ namespace MWGui
 
         /// Layout a span of the selected content block into the document
         /// using the specified style.
-        virtual void write(Style* style, size_t begin, size_t end) = 0;
+        virtual void write(Style* style, std::size_t begin, std::size_t end) = 0;
 
         /// Finalize the document layout, and return a pointer to it.
         virtual std::shared_ptr<TypesetBook> complete() = 0;
@@ -145,7 +148,7 @@ namespace MWGui
         using ClickCallback = std::function<void(TypesetBook::InteractiveId)>;
 
         /// Make the widget display the specified page from the specified book.
-        virtual void showPage(std::shared_ptr<TypesetBook> book, size_t page) = 0;
+        virtual void showPage(std::shared_ptr<TypesetBook> book, std::size_t page) = 0;
 
         /// Set the callback for a clicking a hyper-link in the document.
         virtual void adviseLinkClicked(ClickCallback callback) = 0;

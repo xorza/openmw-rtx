@@ -1,6 +1,7 @@
 #include "automaps.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
@@ -32,9 +33,9 @@ namespace Shader
     {
         /// The unit past both what the state set the caller read lists and what the one written to
         /// does: the same object, or a copy of it that the maps added before were written into.
-        int nextFreeUnit(const osg::StateSet::TextureAttributeList& units, const osg::StateSet& writable)
+        std::int32_t nextFreeUnit(const osg::StateSet::TextureAttributeList& units, const osg::StateSet& writable)
         {
-            return static_cast<int>(std::max(units.size(), writable.getTextureAttributeList().size()));
+            return static_cast<std::int32_t>(std::max(units.size(), writable.getTextureAttributeList().size()));
         }
 
         /// The texture a companion map is bound as: the diffuse map's addressing and filtering over
@@ -75,7 +76,7 @@ namespace Shader
             into.push_back(companionPath(std::string(diffuse), rules.mSpecularMapPattern).value());
     }
 
-    std::string_view textureNameAt(const osg::StateSet& stateSet, const osg::Texture& texture, unsigned int unit)
+    std::string_view textureNameAt(const osg::StateSet& stateSet, const osg::Texture& texture, std::uint32_t unit)
     {
         const std::string_view name = SceneUtil::getTextureType(stateSet, texture, unit);
         if ((name.empty() || !isTextureNameRecognized(name)) && unit == 0)
@@ -136,9 +137,9 @@ namespace Shader
 
                 if (!writable)
                     writable = getWritableStateSet(node);
-                const int unit = nextFreeUnit(units, *writable);
-                writable->setTextureAttribute(static_cast<unsigned int>(unit), texture, osg::StateAttribute::ON);
-                writable->setTextureAttribute(static_cast<unsigned int>(unit),
+                const std::int32_t unit = nextFreeUnit(units, *writable);
+                writable->setTextureAttribute(static_cast<std::uint32_t>(unit), texture, osg::StateAttribute::ON);
+                writable->setTextureAttribute(static_cast<std::uint32_t>(unit),
                     new SceneUtil::TextureType(normalHeight ? "normalHeightMap" : "normalMap"),
                     osg::StateAttribute::ON);
 
@@ -160,9 +161,9 @@ namespace Shader
                 // After the normal map, which the state set written to now lists.
                 if (!writable)
                     writable = getWritableStateSet(node);
-                const int unit = nextFreeUnit(units, *writable);
-                writable->setTextureAttribute(static_cast<unsigned int>(unit), texture, osg::StateAttribute::ON);
-                writable->setTextureAttribute(static_cast<unsigned int>(unit),
+                const std::int32_t unit = nextFreeUnit(units, *writable);
+                writable->setTextureAttribute(static_cast<std::uint32_t>(unit), texture, osg::StateAttribute::ON);
+                writable->setTextureAttribute(static_cast<std::uint32_t>(unit),
                     new SceneUtil::TextureType("specularMap"), osg::StateAttribute::ON);
 
                 attached.mSpecularUnit = unit;
@@ -214,7 +215,7 @@ namespace Shader
 
     void MapVisitor::apply(osg::Node& node)
     {
-        const int above = mNormalUnit;
+        const std::int32_t above = mNormalUnit;
         attach(node);
         traverse(node);
         mNormalUnit = above;
@@ -222,7 +223,7 @@ namespace Shader
 
     void MapVisitor::apply(osg::Drawable& drawable)
     {
-        const int above = mNormalUnit;
+        const std::int32_t above = mNormalUnit;
         attach(drawable);
 
         // A skinned or morphed drawable's tangents belong on its source geometry: `RigGeometry`
@@ -247,10 +248,10 @@ namespace Shader
         const osg::Texture* normalMap = nullptr;
         const osg::Texture* specularMap = nullptr;
         const osg::Texture* bumpMap = nullptr;
-        int normalUnit = -1;
+        std::int32_t normalUnit = -1;
 
         const osg::StateSet::TextureAttributeList& units = stateSet->getTextureAttributeList();
-        for (unsigned int unit = 0; unit < units.size(); ++unit)
+        for (std::uint32_t unit = 0; unit < units.size(); ++unit)
         {
             const osg::StateAttribute* attribute = stateSet->getTextureAttribute(unit, osg::StateAttribute::TEXTURE);
             const osg::Texture* texture = attribute != nullptr ? attribute->asTexture() : nullptr;
@@ -263,7 +264,7 @@ namespace Shader
             else if (name == "normalMap" || name == "normalHeightMap")
             {
                 normalMap = texture;
-                normalUnit = static_cast<int>(unit);
+                normalUnit = static_cast<std::int32_t>(unit);
             }
             else if (name == "specularMap")
                 specularMap = texture;
@@ -287,7 +288,7 @@ namespace Shader
 
     bool MapVisitor::buildTangents(osg::Geometry& geometry) const
     {
-        const std::optional<unsigned int> unit = coordinatesFor(geometry, static_cast<unsigned int>(mNormalUnit));
+        const std::optional<std::uint32_t> unit = coordinatesFor(geometry, static_cast<std::uint32_t>(mNormalUnit));
         if (!unit.has_value())
             return false;
 
@@ -295,7 +296,7 @@ namespace Shader
         return true;
     }
 
-    std::optional<unsigned int> coordinatesFor(const osg::Geometry& geometry, const unsigned int unit)
+    std::optional<std::uint32_t> coordinatesFor(const osg::Geometry& geometry, const std::uint32_t unit)
     {
         if (geometry.getTexCoordArray(unit) != nullptr)
             return unit;
@@ -303,16 +304,16 @@ namespace Shader
             return 0u;
 
         const osg::Geometry::ArrayList& arrays = geometry.getTexCoordArrayList();
-        for (unsigned int found = 0; found < arrays.size(); ++found)
+        for (std::uint32_t found = 0; found < arrays.size(); ++found)
             if (found != sTangentUnit && arrays[found] != nullptr)
                 return found;
         return std::nullopt;
     }
 
-    void generateTangents(osg::Geometry& geometry, const unsigned int unit)
+    void generateTangents(osg::Geometry& geometry, const std::uint32_t unit)
     {
         osg::ref_ptr<osgUtil::TangentSpaceGenerator> generator(new osgUtil::TangentSpaceGenerator);
-        generator->generate(&geometry, static_cast<int>(unit));
+        generator->generate(&geometry, static_cast<std::int32_t>(unit));
         geometry.setTexCoordArray(sTangentUnit, generator->getTangentArray(), osg::Array::BIND_PER_VERTEX);
     }
 }

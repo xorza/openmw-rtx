@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QWidget>
 
 class QVBoxLayout;
@@ -13,14 +15,14 @@ namespace CSVWidget
         Q_OBJECT
 
         QVBoxLayout* mLayout;
-        int mButtonSize;
-        int mIconSize;
+        std::int32_t mButtonSize;
+        std::int32_t mIconSize;
 
     protected:
         void focusInEvent(QFocusEvent* event) override;
 
     public:
-        explicit SceneToolbar(int buttonSize, QWidget* parent = nullptr);
+        explicit SceneToolbar(std::int32_t buttonSize, QWidget* parent = nullptr);
 
         /// If insertPoint==0, insert \a tool at the end of the scrollbar. Otherwise
         /// insert tool after \a insertPoint.
@@ -28,9 +30,9 @@ namespace CSVWidget
 
         void removeTool(SceneTool* tool);
 
-        int getButtonSize() const;
+        std::int32_t getButtonSize() const;
 
-        int getIconSize() const;
+        std::int32_t getIconSize() const;
 
     signals:
 

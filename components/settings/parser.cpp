@@ -1,5 +1,6 @@
 #include "parser.hpp"
 
+#include <cstddef>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -42,7 +43,7 @@ void Settings::SettingsFileParser::loadSettingsFile(
         std::string line;
         std::getline(stream.get(), line);
 
-        size_t i = 0;
+        std::size_t i = 0;
         if (!skipWhiteSpace(i, line))
             continue;
 
@@ -51,7 +52,7 @@ void Settings::SettingsFileParser::loadSettingsFile(
 
         if (line[i] == '[')
         {
-            size_t end = line.find(']', i);
+            std::size_t end = line.find(']', i);
             if (end == std::string::npos)
                 fail("unterminated category");
 
@@ -66,14 +67,14 @@ void Settings::SettingsFileParser::loadSettingsFile(
         if (currentCategory.empty())
             fail("empty category name");
 
-        size_t settingEnd = line.find('=', i);
+        std::size_t settingEnd = line.find('=', i);
         if (settingEnd == std::string::npos)
             fail("unterminated setting name");
 
         std::string setting = line.substr(i, (settingEnd - i));
         Misc::StringUtils::trim(setting);
 
-        size_t valueBegin = settingEnd + 1;
+        std::size_t valueBegin = settingEnd + 1;
         std::string value = line.substr(valueBegin);
         Misc::StringUtils::trim(value);
 
@@ -126,7 +127,7 @@ void Settings::SettingsFileParser::saveSettingsFile(
         std::getline(istream, line);
 
         // The current character position in the line.
-        size_t i = 0;
+        std::size_t i = 0;
 
         // An empty line was queued.
         if (emptyLineQueued)
@@ -161,7 +162,7 @@ void Settings::SettingsFileParser::saveSettingsFile(
         // Category heading.
         if (line[i] == '[')
         {
-            size_t end = line.find(']', i);
+            std::size_t end = line.find(']', i);
             // This should never happen unless the player edited the file while playing.
             if (end == std::string::npos)
             {
@@ -217,7 +218,7 @@ void Settings::SettingsFileParser::saveSettingsFile(
         }
 
         // Which setting was at this location in the input file?
-        size_t settingEnd = line.find('=', i);
+        std::size_t settingEnd = line.find('=', i);
         // This should never happen unless the player edited the file while playing.
         if (settingEnd == std::string::npos)
         {
@@ -229,7 +230,7 @@ void Settings::SettingsFileParser::saveSettingsFile(
         Misc::StringUtils::trim(setting);
 
         // Get the existing value so we can see if we've changed it.
-        size_t valueBegin = settingEnd + 1;
+        std::size_t valueBegin = settingEnd + 1;
         std::string value = line.substr(valueBegin);
         Misc::StringUtils::trim(value);
 
@@ -347,7 +348,7 @@ void Settings::SettingsFileParser::saveSettingsFile(
     }
 }
 
-bool Settings::SettingsFileParser::skipWhiteSpace(size_t& i, std::string& str)
+bool Settings::SettingsFileParser::skipWhiteSpace(std::size_t& i, std::string& str)
 {
     while (i < str.size() && std::isspace(str[i], std::locale::classic()))
     {

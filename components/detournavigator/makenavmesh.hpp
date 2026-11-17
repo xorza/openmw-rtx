@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <span>
 
@@ -30,7 +31,7 @@ namespace DetourNavigator
         return getLength(lhs - rhs);
     }
 
-    inline bool shouldAddTile(const TilePosition& changedTile, const TilePosition& playerTile, int maxTiles)
+    inline bool shouldAddTile(const TilePosition& changedTile, const TilePosition& playerTile, std::int32_t maxTiles)
     {
         const auto expectedTilesCount = std::ceil(osg::PI * osg::square(getDistance(changedTile, playerTile)));
         return expectedTilesCount <= maxTiles;

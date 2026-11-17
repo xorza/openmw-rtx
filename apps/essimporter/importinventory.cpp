@@ -1,5 +1,7 @@
 #include "importinventory.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <components/esm3/esmreader.hpp>
@@ -21,14 +23,14 @@ namespace ESSImport
             item.mLockLevel = 0;
             item.mChargeIntRemainder = 0;
 
-            auto itemCount = static_cast<unsigned int>(std::abs(item.mCount));
+            auto itemCount = static_cast<std::uint32_t>(std::abs(item.mCount));
             bool separateStacks = false;
-            for (unsigned int i = 0; i < itemCount; ++i)
+            for (std::uint32_t i = 0; i < itemCount; ++i)
             {
                 bool newStack = esm.isNextSub("XIDX");
                 if (newStack)
                 {
-                    uint32_t idx = 0;
+                    std::uint32_t idx = 0;
                     esm.getHT(idx);
                     separateStacks = true;
                     item.mCount = 1;
@@ -40,7 +42,7 @@ namespace ESSImport
                 bool isDeleted = false;
                 item.ESM::CellRef::loadData(esm, isDeleted);
 
-                int32_t charge = -1;
+                std::int32_t charge = -1;
                 esm.getHNOT(charge, "XHLT");
                 item.mChargeInt = charge;
 
@@ -60,7 +62,7 @@ namespace ESSImport
             // this is currently not handled properly.
 
             esm.getSubHeader();
-            int32_t itemIndex = 0; // index of the item in the NPCO list
+            std::int32_t itemIndex = 0; // index of the item in the NPCO list
             esm.getT(itemIndex);
 
             if (itemIndex < 0 || std::cmp_greater_equal(itemIndex, mItems.size()))
@@ -68,7 +70,7 @@ namespace ESSImport
 
             // appears to be a relative index for only the *possible* slots this item can be equipped in,
             // i.e. 0 most of the time
-            int32_t slotIndex = 0;
+            std::int32_t slotIndex = 0;
             esm.getT(slotIndex);
 
             mItems[static_cast<std::size_t>(itemIndex)].mRelativeEquipmentSlot = slotIndex;

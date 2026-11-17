@@ -1,5 +1,7 @@
 #include "enchanting.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -50,7 +52,7 @@ namespace MWMechanics
         mEffectList = effectList;
     }
 
-    int Enchanting::getCastStyle() const
+    std::int32_t Enchanting::getCastStyle() const
     {
         return mCastStyle;
     }
@@ -89,7 +91,7 @@ namespace MWMechanics
 
         enchantment.mEffects = mEffectList;
 
-        int count = getEnchantItemsCount();
+        std::int32_t count = getEnchantItemsCount();
 
         if (mCastStyle == ESM::Enchantment::ConstantEffect)
             enchantment.mData.mCharge = 0;
@@ -200,9 +202,9 @@ namespace MWMechanics
         for (const ESM::IndexedENAMstruct& effect : mEffectList.mList)
         {
             float baseCost = (store.get<ESM::MagicEffect>().find(effect.mData.mEffectID))->mData.mBaseCost;
-            int magMin = std::max(1, effect.mData.mMagnMin);
-            int magMax = std::max(1, effect.mData.mMagnMax);
-            int area = std::max(1, effect.mData.mArea);
+            std::int32_t magMin = std::max(1, effect.mData.mMagnMin);
+            std::int32_t magMax = std::max(1, effect.mData.mMagnMax);
+            std::int32_t area = std::max(1, effect.mData.mArea);
             auto duration = static_cast<float>(effect.mData.mDuration);
             if (mCastStyle == ESM::Enchantment::ConstantEffect)
                 duration = fEnchantmentConstantDurationMult;
@@ -251,7 +253,7 @@ namespace MWMechanics
 
             bool mismatch = false;
 
-            for (int i = 0; std::cmp_less(i, iter->mEffects.mList.size()); ++i)
+            for (std::int32_t i = 0; std::cmp_less(i, iter->mEffects.mList.size()); ++i)
             {
                 if (iter->mEffects.mList[static_cast<std::size_t>(i)]
                     != toFind.mEffects.mList[static_cast<std::size_t>(i)])
@@ -268,22 +270,22 @@ namespace MWMechanics
         return nullptr;
     }
 
-    int Enchanting::getBaseCastCost() const
+    std::int32_t Enchanting::getBaseCastCost() const
     {
         if (mCastStyle == ESM::Enchantment::ConstantEffect)
             return 0;
 
-        return static_cast<int>(getEnchantPoints(false));
+        return static_cast<std::int32_t>(getEnchantPoints(false));
     }
 
-    int Enchanting::getEffectiveCastCost() const
+    std::int32_t Enchanting::getEffectiveCastCost() const
     {
-        int baseCost = getBaseCastCost();
+        std::int32_t baseCost = getBaseCastCost();
         MWWorld::Ptr player = getPlayer();
         return getEffectiveEnchantmentCastCost(static_cast<float>(baseCost), player);
     }
 
-    int Enchanting::getEnchantPrice(int count) const
+    std::int32_t Enchanting::getEnchantPrice(std::int32_t count) const
     {
         if (mEnchanter.isEmpty())
             return 0;
@@ -299,13 +301,13 @@ namespace MWMechanics
                                    ->get<ESM::GameSetting>()
                                    .find("fEnchantmentValueMult")
                                    ->mValue.getFloat();
-        int price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(
-            mEnchanter, static_cast<int>(finalEffectCost * priceMultipler), true);
-        price *= static_cast<int>(static_cast<float>(count) * getTypeMultiplier());
+        std::int32_t price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(
+            mEnchanter, static_cast<std::int32_t>(finalEffectCost * priceMultipler), true);
+        price *= static_cast<std::int32_t>(static_cast<float>(count) * getTypeMultiplier());
         return std::max(1, price);
     }
 
-    int Enchanting::getGemCharge() const
+    std::int32_t Enchanting::getGemCharge() const
     {
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
         if (soulEmpty())
@@ -319,14 +321,14 @@ namespace MWMechanics
             return 0;
     }
 
-    int Enchanting::getMaxEnchantValue() const
+    std::int32_t Enchanting::getMaxEnchantValue() const
     {
         if (itemEmpty())
             return 0;
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
-        return static_cast<int>(static_cast<float>(mOldItemPtr.getClass().getEnchantmentPoints(mOldItemPtr))
+        return static_cast<std::int32_t>(static_cast<float>(mOldItemPtr.getClass().getEnchantmentPoints(mOldItemPtr))
             * store.get<ESM::GameSetting>().find("fEnchantmentMult")->mValue.getFloat());
     }
     bool Enchanting::soulEmpty() const
@@ -351,7 +353,7 @@ namespace MWMechanics
         mCastStyle = ESM::Enchantment::CastOnce;
     }
 
-    int Enchanting::getEnchantChance() const
+    std::int32_t Enchanting::getEnchantChance() const
     {
         const CreatureStats& stats = mEnchanter.getClass().getCreatureStats(mEnchanter);
         const MWWorld::Store<ESM::GameSetting>& gmst
@@ -370,12 +372,12 @@ namespace MWMechanics
         if (mCastStyle == ESM::Enchantment::ConstantEffect)
             x *= fEnchantmentConstantChanceMult;
 
-        return static_cast<int>(x);
+        return static_cast<std::int32_t>(x);
     }
 
-    int Enchanting::getEnchantItemsCount() const
+    std::int32_t Enchanting::getEnchantItemsCount() const
     {
-        int count = 1;
+        std::int32_t count = 1;
         float enchantPoints = getEnchantPoints();
         if (!mWeaponType.empty() && enchantPoints > 0)
         {
@@ -384,7 +386,7 @@ namespace MWMechanics
             {
                 MWWorld::Ptr player = getPlayer();
                 count = player.getClass().getContainerStore(player).count(mOldItemPtr.getCellRef().getRefId());
-                count = std::clamp(static_cast<int>(static_cast<float>(getGemCharge())
+                count = std::clamp(static_cast<std::int32_t>(static_cast<float>(getGemCharge())
                                        * Settings::game().mProjectilesEnchantMultiplier / enchantPoints),
                     1, count);
             }
@@ -405,12 +407,12 @@ namespace MWMechanics
         return 1.f;
     }
 
-    void Enchanting::payForEnchantment(int count) const
+    void Enchanting::payForEnchantment(std::int32_t count) const
     {
         const MWWorld::Ptr& player = getPlayer();
         MWWorld::ContainerStore& store = player.getClass().getContainerStore(player);
 
-        int price = getEnchantPrice(count);
+        std::int32_t price = getEnchantPrice(count);
         store.remove(MWWorld::ContainerStore::sGoldId, price);
 
         // add gold to NPC trading gold pool

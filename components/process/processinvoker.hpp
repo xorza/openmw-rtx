@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QProcess>
 #include <QString>
 #include <QStringList>
@@ -40,6 +42,6 @@ namespace Process
 
     private slots:
         void processError(QProcess::ProcessError error);
-        void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
+        void processFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
     };
 }

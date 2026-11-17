@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdlib>
 
 #include <gtest/gtest.h>
@@ -47,14 +48,14 @@ namespace
         // The same C library stream twice, on purpose: a draw the placer took shows as the next number moved.
         Misc::Rng::init(7);
         std::srand(3); // NOLINT(bugprone-random-generator-seed)
-        const int untouched = std::rand(); // NOLINT(cert-msc50-cpp): the stream the placer must leave alone
+        const std::int32_t untouched = std::rand(); // NOLINT(cert-msc50-cpp): the stream the placer must leave alone
         std::srand(3); // NOLINT(bugprone-random-generator-seed)
         EXPECT_EQ(placeOne(*placer), expected);
         EXPECT_EQ(std::rand(), untouched) << "the placer drew from the C library's generator"; // NOLINT(cert-msc50-cpp)
 
         // The C library's stream drawn from between: the same place.
         Misc::Rng::init(7);
-        for (int draw = 0; draw < 5; ++draw)
+        for (std::int32_t draw = 0; draw < 5; ++draw)
             std::rand(); // NOLINT(cert-msc50-cpp)
         EXPECT_EQ(placeOne(*placer), expected);
 

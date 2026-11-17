@@ -1,5 +1,6 @@
 #include "types.hpp"
 
+#include <cstdint>
 #include <utility>
 
 #include <components/lua/luastate.hpp>
@@ -109,7 +110,7 @@ namespace MWLua
         };
     }
 
-    unsigned int getLiveCellRefType(const MWWorld::LiveCellRefBase* ref)
+    std::uint32_t getLiveCellRefType(const MWWorld::LiveCellRefBase* ref)
     {
         if (ref == nullptr)
             throw std::runtime_error("Can't get type name from an empty object.");
@@ -191,7 +192,7 @@ namespace MWLua
                 table[sol::metatable_key] = baseMeta;
             }
             table["objectIsInstance"] = [types = std::move(recTypes)](const Object& o) {
-                unsigned int type = getLiveCellRefType(o.ptr().mRef);
+                std::uint32_t type = getLiveCellRefType(o.ptr().mRef);
                 for (ESM::RecNameInts t : types)
                     if (t == type)
                         return true;

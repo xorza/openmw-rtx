@@ -63,7 +63,7 @@ namespace ESM4
     // The cells need to be organised under world spaces.
     struct Cell
     {
-        static constexpr int sSize = Constants::ESM4CellSizeInUnits;
+        static constexpr std::int32_t sSize = Constants::ESM4CellSizeInUnits;
 
         ESM::RefId mId; // from the header
         std::uint32_t mFlags = 0; // from the header, see enum type RecordFlag for details
@@ -107,8 +107,8 @@ namespace ESM4
 
         static constexpr ESM::RecNameInts sRecordId = ESM::REC_CELL4;
 
-        int getGridX() const { return mX; }
-        int getGridY() const { return mY; }
+        std::int32_t getGridX() const { return mX; }
+        std::int32_t getGridY() const { return mY; }
         bool isExterior() const { return !(mCellFlags & CELL_Interior); }
         ESM::ExteriorCellLocation getExteriorCellLocation() const
         {

@@ -1,5 +1,7 @@
 #include "spellcreationdialog.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <MyGUI_Button.h>
@@ -225,8 +227,8 @@ namespace MWGui
 
     void EditEffectDialog::updateBoxes()
     {
-        static int startY = mMagnitudeBox->getPosition().top;
-        int curY = startY;
+        static std::int32_t startY = mMagnitudeBox->getPosition().top;
+        std::int32_t curY = startY;
 
         mMagnitudeBox->setVisible(false);
         mDurationBox->setVisible(false);
@@ -335,17 +337,17 @@ namespace MWGui
         eventEffectModified(mEffect);
     }
 
-    void EditEffectDialog::onMagnitudeMinChanged(MyGUI::ScrollBar* sender, size_t pos)
+    void EditEffectDialog::onMagnitudeMinChanged(MyGUI::ScrollBar* sender, std::size_t pos)
     {
         mMagnitudeMinValue->setCaption(MyGUI::utility::toString(pos + 1));
-        mEffect.mMagnMin = static_cast<int32_t>(pos + 1);
+        mEffect.mMagnMin = static_cast<std::int32_t>(pos + 1);
 
         // trigger the check again (see below)
         onMagnitudeMaxChanged(mMagnitudeMaxSlider, mMagnitudeMaxSlider->getScrollPosition());
         eventEffectModified(mEffect);
     }
 
-    void EditEffectDialog::onMagnitudeMaxChanged(MyGUI::ScrollBar* sender, size_t pos)
+    void EditEffectDialog::onMagnitudeMaxChanged(MyGUI::ScrollBar* sender, std::size_t pos)
     {
         // make sure the max value is actually larger or equal than the min value
         auto magnMin = static_cast<std::size_t>(
@@ -356,7 +358,7 @@ namespace MWGui
             sender->setScrollPosition(pos);
         }
 
-        mEffect.mMagnMax = static_cast<int32_t>(pos + 1);
+        mEffect.mMagnMax = static_cast<std::int32_t>(pos + 1);
         const std::string to{ MWBase::Environment::get().getWindowManager()->getGameSettingString("sTo", "-") };
 
         mMagnitudeMaxValue->setCaption(to + " " + MyGUI::utility::toString(pos + 1));
@@ -364,24 +366,24 @@ namespace MWGui
         eventEffectModified(mEffect);
     }
 
-    void EditEffectDialog::onDurationChanged(MyGUI::ScrollBar* sender, size_t pos)
+    void EditEffectDialog::onDurationChanged(MyGUI::ScrollBar* sender, std::size_t pos)
     {
         mDurationValue->setCaption(MyGUI::utility::toString(pos + 1));
-        mEffect.mDuration = static_cast<int32_t>(pos + 1);
+        mEffect.mDuration = static_cast<std::int32_t>(pos + 1);
         eventEffectModified(mEffect);
     }
 
-    void EditEffectDialog::onAreaChanged(MyGUI::ScrollBar* sender, size_t pos)
+    void EditEffectDialog::onAreaChanged(MyGUI::ScrollBar* sender, std::size_t pos)
     {
         mAreaValue->setCaption(MyGUI::utility::toString(pos));
-        mEffect.mArea = static_cast<int32_t>(pos);
+        mEffect.mArea = static_cast<std::int32_t>(pos);
         eventEffectModified(mEffect);
     }
 
     bool EditEffectDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        int prevFocus = mControllerFocus;
-        mControllerFocus = std::clamp(mControllerFocus, 0, static_cast<int>(mButtons.size()) - 1);
+        std::int32_t prevFocus = mControllerFocus;
+        mControllerFocus = std::clamp(mControllerFocus, 0, static_cast<std::int32_t>(mButtons.size()) - 1);
         MyGUI::TextBox* button = mButtons[static_cast<std::size_t>(mControllerFocus)];
 
         if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
@@ -406,7 +408,7 @@ namespace MWGui
         else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             if (mControllerFocus == 0)
-                mControllerFocus = static_cast<int>(mButtons.size()) - 2;
+                mControllerFocus = static_cast<std::int32_t>(mButtons.size()) - 2;
             else if (button == mCancelButton && mDeleteButton->getVisible())
                 mControllerFocus -= 3;
             else if (button == mCancelButton || (button == mOkButton && mDeleteButton->getVisible()))
@@ -540,7 +542,7 @@ namespace MWGui
         return true;
     }
 
-    void EditEffectDialog::updateControllerFocus(int prevFocus, int newFocus)
+    void EditEffectDialog::updateControllerFocus(std::int32_t prevFocus, std::int32_t newFocus)
     {
         const TextColours& textColours{ MWBase::Environment::get().getWindowManager()->getTextColours() };
 
@@ -613,7 +615,7 @@ namespace MWGui
         mNameEdit->setCaption({});
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
         mPlayerGold->setCaptionWithReplacing(MyGUI::utility::toString(playerGold));
 
         startEditing();
@@ -645,9 +647,9 @@ namespace MWGui
         }
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
-        int price = MyGUI::utility::parseInt(mPriceLabel->getCaption());
+        std::int32_t price = MyGUI::utility::parseInt(mPriceLabel->getCaption());
         if (price > playerGold)
         {
             MWBase::Environment::get().getWindowManager()->messageBox("#{sNotifyMessage18}");
@@ -717,23 +719,23 @@ namespace MWGui
         }
 
         mSpell.mEffects.populate(mEffects);
-        mSpell.mData.mCost = static_cast<int>(y);
+        mSpell.mData.mCost = static_cast<std::int32_t>(y);
         mSpell.mData.mType = ESM::Spell::ST_Spell;
         mSpell.mData.mFlags = 0;
         mSpell.mRecordFlags = 0;
 
-        mMagickaCost->setCaption(MyGUI::utility::toString(static_cast<int>(y)));
+        mMagickaCost->setCaption(MyGUI::utility::toString(static_cast<std::int32_t>(y)));
 
         float fSpellMakingValueMult = store.get<ESM::GameSetting>().find("fSpellMakingValueMult")->mValue.getFloat();
 
-        int price = std::max(1, static_cast<int>(y * fSpellMakingValueMult));
+        std::int32_t price = std::max(1, static_cast<std::int32_t>(y * fSpellMakingValueMult));
         price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
         mPriceLabel->setCaption(MyGUI::utility::toString(price));
 
         float chance = MWMechanics::calcSpellBaseSuccessChance(&mSpell, MWMechanics::getPlayer(), nullptr);
 
-        int intChance = std::min(100, static_cast<int>(chance));
+        std::int32_t intChance = std::min(100, static_cast<std::int32_t>(chance));
         mSuccessChance->setCaption(MyGUI::utility::toString(intChance));
     }
 
@@ -795,7 +797,7 @@ namespace MWGui
                     effectInfo.mData.mEffectID);
 
                 // skip effects that do not allow spellmaking/enchanting
-                int requiredFlags
+                std::int32_t requiredFlags
                     = (mType == Spellmaking) ? ESM::MagicEffect::AllowSpellmaking : ESM::MagicEffect::AllowEnchanting;
                 if (!(effect->mData.mFlags & requiredFlags))
                     continue;
@@ -809,7 +811,7 @@ namespace MWGui
 
         mAvailableEffectsList->clear();
 
-        int i = 0;
+        std::int32_t i = 0;
         for (const auto effect : knownEffects)
         {
             mAvailableEffectsList->addItem(effect->mName);
@@ -891,7 +893,7 @@ namespace MWGui
             return;
         }
 
-        int buttonId = *sender->getUserData<int>();
+        std::int32_t buttonId = *sender->getUserData<std::int32_t>();
         mSelectedKnownEffectId = mButtonMapping[buttonId];
 
         const ESM::MagicEffect* effect
@@ -956,7 +958,7 @@ namespace MWGui
         MyGUI::IntSize size(0, 0);
 
         mEffectButtons.clear();
-        int i = 0;
+        std::int32_t i = 0;
         for (const ESM::ENAMstruct& effectInfo : mEffects)
         {
             Widgets::SpellEffectParams params;
@@ -1004,14 +1006,14 @@ namespace MWGui
     void EffectEditorBase::onEffectAdded(ESM::ENAMstruct effect)
     {
         mEffects.push_back(effect);
-        mSelectedEffect = static_cast<int>(mEffects.size() - 1);
+        mSelectedEffect = static_cast<std::int32_t>(mEffects.size() - 1);
 
         updateEffectsView();
     }
 
     void EffectEditorBase::onEditEffect(MyGUI::Widget* sender)
     {
-        int id = *sender->getUserData<int>();
+        std::int32_t id = *sender->getUserData<std::int32_t>();
 
         mSelectedEffect = id;
 
@@ -1112,8 +1114,8 @@ namespace MWGui
             mAvailableEffectsList->setViewOffset(0);
         else
         {
-            const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 3;
-            mAvailableEffectsList->setViewOffset(-lineHeight * static_cast<int>(mAvailableFocus - 5));
+            const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 3;
+            mAvailableEffectsList->setViewOffset(-lineHeight * static_cast<std::int32_t>(mAvailableFocus - 5));
         }
 
         if (!mRightColumn && mAvailableFocus < mAvailableButtons.size())

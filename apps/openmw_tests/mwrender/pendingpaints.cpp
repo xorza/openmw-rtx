@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -30,7 +31,7 @@ namespace MWRender
             osg::ref_ptr<osg::Image> mPicture = new osg::Image;
             bool mLanded = false;
             bool mAbandoned = false;
-            int mCopiesAsked = 0;
+            std::int32_t mCopiesAsked = 0;
         };
 
         struct Painted

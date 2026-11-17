@@ -1,5 +1,7 @@
 #include "gettilespositions.hpp"
 
+#include <cstdint>
+
 #include <BulletCollision/CollisionShapes/btCollisionShape.h>
 
 #include <components/misc/convert.hpp>
@@ -49,9 +51,9 @@ namespace DetourNavigator
     }
 
     TilesPositionsRange makeTilesPositionsRange(
-        const int cellSize, const btVector3& shift, const RecastSettings& settings)
+        const std::int32_t cellSize, const btVector3& shift, const RecastSettings& settings)
     {
-        const int halfCellSize = cellSize / 2;
+        const std::int32_t halfCellSize = cellSize / 2;
         const btTransform transform(btMatrix3x3::getIdentity(), shift);
         btVector3 aabbMin = transform(btVector3(-halfCellSize, -halfCellSize, 0));
         btVector3 aabbMax = transform(btVector3(halfCellSize, halfCellSize, 0));
@@ -67,12 +69,12 @@ namespace DetourNavigator
 
     TilesPositionsRange getIntersection(const TilesPositionsRange& a, const TilesPositionsRange& b) noexcept
     {
-        const int beginX = std::max(a.mBegin.x(), b.mBegin.x());
-        const int endX = std::min(a.mEnd.x(), b.mEnd.x());
+        const std::int32_t beginX = std::max(a.mBegin.x(), b.mBegin.x());
+        const std::int32_t endX = std::min(a.mEnd.x(), b.mEnd.x());
         if (beginX > endX)
             return {};
-        const int beginY = std::max(a.mBegin.y(), b.mBegin.y());
-        const int endY = std::min(a.mEnd.y(), b.mEnd.y());
+        const std::int32_t beginY = std::max(a.mBegin.y(), b.mBegin.y());
+        const std::int32_t endY = std::min(a.mEnd.y(), b.mEnd.y());
         if (beginY > endY)
             return {};
         return TilesPositionsRange{ TilePosition(beginX, beginY), TilePosition(endX, endY) };
@@ -80,10 +82,10 @@ namespace DetourNavigator
 
     TilesPositionsRange getUnion(const TilesPositionsRange& a, const TilesPositionsRange& b) noexcept
     {
-        const int beginX = std::min(a.mBegin.x(), b.mBegin.x());
-        const int endX = std::max(a.mEnd.x(), b.mEnd.x());
-        const int beginY = std::min(a.mBegin.y(), b.mBegin.y());
-        const int endY = std::max(a.mEnd.y(), b.mEnd.y());
+        const std::int32_t beginX = std::min(a.mBegin.x(), b.mBegin.x());
+        const std::int32_t endX = std::max(a.mEnd.x(), b.mEnd.x());
+        const std::int32_t beginY = std::min(a.mBegin.y(), b.mBegin.y());
+        const std::int32_t endY = std::max(a.mEnd.y(), b.mEnd.y());
         return TilesPositionsRange{ .mBegin = TilePosition(beginX, beginY), .mEnd = TilePosition(endX, endY) };
     }
 }

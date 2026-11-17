@@ -326,7 +326,7 @@ namespace Rtx
             const std::array<float, 2> lunar{ 0.773207f, 0.0f };
             for (std::size_t moon = 0; moon < litFrom.size(); ++moon)
             {
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(constants.mMoons[moon].mLitFrom[axis], litFrom[moon][axis], 1e-6f)
                         << "moon " << moon << ", axis " << axis;
                 EXPECT_NEAR(constants.mMoons[moon].mLunar, lunar[moon], 1e-5f) << "moon " << moon;
@@ -476,7 +476,7 @@ namespace Rtx
                 {
                     const long double turned = moved[axis] / tile;
                     const long double expected = turned - std::floor(turned);
-                    EXPECT_NEAR(far[scale][static_cast<int>(axis)], static_cast<float>(expected), 1e-6f)
+                    EXPECT_NEAR(far[scale][static_cast<std::int32_t>(axis)], static_cast<float>(expected), 1e-6f)
                         << "scale " << scale << ", axis " << axis;
                 }
             }

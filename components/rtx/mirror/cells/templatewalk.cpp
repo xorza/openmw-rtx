@@ -43,7 +43,7 @@ namespace Rtx
 
         /// The modes child `at` of a day-night switch is shown in: each of the game's where
         /// `DayNightCallback` picks it, and `Authored` where it is the child the file opens on.
-        NightDayModes shownIn(const osg::Switch& branches, const unsigned int at)
+        NightDayModes shownIn(const osg::Switch& branches, const std::uint32_t at)
         {
             NightDayModes shown{ .mBits = 0 };
             if (branches.getValue(at))
@@ -52,7 +52,7 @@ namespace Rtx
             for (const NightDayMode mode :
                 { NightDayMode::Default, NightDayMode::ExteriorNight, NightDayMode::InteriorDay })
             {
-                const auto index = static_cast<unsigned int>(mode);
+                const auto index = static_cast<std::uint32_t>(mode);
                 if ((branches.getNumChildren() > index ? index : 0u) == at)
                     shown = shown | NightDayModes::only(mode);
             }
@@ -211,12 +211,12 @@ namespace Rtx
         osg::Switch* const branches = node.asSwitch();
         if (branches == nullptr || branches->getName() != Constants::NightDayLabel)
         {
-            descendInWorld(node, mKinds.of(node), *this, [](osg::Sequence&) {}, [](unsigned int) {});
+            descendInWorld(node, mKinds.of(node), *this, [](osg::Sequence&) {}, [](std::uint32_t) {});
             return;
         }
 
         const NightDayModes above = mModes;
-        for (unsigned int at = 0; at < branches->getNumChildren(); ++at)
+        for (std::uint32_t at = 0; at < branches->getNumChildren(); ++at)
         {
             // A branch no mode shows — past the third, and not the one the file opens on — would
             // be read to stand never.

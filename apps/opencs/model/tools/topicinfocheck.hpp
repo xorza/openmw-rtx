@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <set>
 #include <string>
 
@@ -47,10 +48,10 @@ namespace CSMTools
             const CSMWorld::IdCollection<ESM::Dialogue>& topics, const CSMWorld::RefIdData& referencables,
             const CSMWorld::Resources& soundFiles);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages
 
     private:
@@ -77,7 +78,7 @@ namespace CSMTools
         bool verifyActor(const ESM::RefId& actor, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages);
         bool verifyCell(const std::string& cell, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages);
         bool verifyFactionRank(
-            const ESM::RefId& name, int rank, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages);
+            const ESM::RefId& name, std::int32_t rank, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages);
         bool verifyItem(const ESM::RefId& item, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages);
         bool verifySelectStruct(
             const ESM::DialogueCondition& select, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages);

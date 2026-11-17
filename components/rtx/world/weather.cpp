@@ -1,5 +1,6 @@
 #include "weather.hpp"
 
+#include <cstdint>
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
@@ -16,7 +17,7 @@ namespace Rtx
         return weatherOfScriptId(ESM::Weather::refIdToIndex(ESM::RefId::stringRefId(name)));
     }
 
-    std::optional<Weather> weatherOfScriptId(const int id)
+    std::optional<Weather> weatherOfScriptId(const std::int32_t id)
     {
         if (id < 0 || std::cmp_greater_equal(id, sWeatherCount))
             return std::nullopt;
@@ -29,7 +30,7 @@ namespace Rtx
         Crash::contract(weather < Weather::Count, "a weather past the ten");
 
         // The table's own interned spelling, which outlives every caller.
-        const ESM::RefId id = ESM::Weather::indexToRefId(static_cast<int>(weather));
+        const ESM::RefId id = ESM::Weather::indexToRefId(static_cast<std::int32_t>(weather));
         const auto* const named = id.getIf<ESM::StringRefId>();
         Crash::contract(named != nullptr, "a weather ESM::Weather does not name by a string");
         return named->getValue();

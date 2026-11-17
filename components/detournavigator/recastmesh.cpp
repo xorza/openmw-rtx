@@ -1,12 +1,13 @@
 #include "recastmesh.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include "exceptions.hpp"
 
 namespace DetourNavigator
 {
-    Mesh::Mesh(std::vector<int>&& indices, std::vector<float>&& vertices, std::vector<AreaType>&& areaTypes)
+    Mesh::Mesh(std::vector<std::int32_t>&& indices, std::vector<float>&& vertices, std::vector<AreaType>&& areaTypes)
     {
         if (indices.size() / 3 != areaTypes.size())
             throw InvalidArgument("Number of flags doesn't match number of triangles: triangles="

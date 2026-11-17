@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -235,7 +236,7 @@ namespace MWRender
         float mRainMinHeight;
         float mRainMaxHeight;
         float mRainEntranceSpeed;
-        int mRainMaxRaindrops;
+        std::int32_t mRainMaxRaindrops;
         float mWindSpeed;
 
         float mPrecipitationAlpha;

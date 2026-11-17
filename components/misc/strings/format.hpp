@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cerrno>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
@@ -51,7 +53,7 @@ namespace Misc::StringUtils
         template <typename... Args>
         std::string format(const char* fmt, Args const&... args)
         {
-            const int size = std::snprintf(nullptr, 0, fmt, argument(args)...);
+            const std::int32_t size = std::snprintf(nullptr, 0, fmt, argument(args)...);
             if (size < 0)
                 throw std::system_error(errno, std::generic_category(), "Failed to compute resulting string size");
             // Note: snprintf also writes a trailing null character. We should remove it.

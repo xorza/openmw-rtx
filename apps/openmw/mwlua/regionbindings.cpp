@@ -1,6 +1,7 @@
 #include "regionbindings.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <apps/openmw/mwworld/weather.hpp>
 #include <components/esm3/loadregn.hpp>
@@ -45,7 +46,7 @@ namespace MWLua
         regionT["id"] = sol::readonly_property([](const ESM::Region& rec) { return rec.mId.serializeText(); });
         regionT["name"] = sol::readonly_property([](const ESM::Region& rec) -> std::string_view { return rec.mName; });
         regionT["mapColor"] = sol::readonly_property([](const ESM::Region& rec) -> Misc::Color {
-            return Misc::Color::fromRGB(static_cast<unsigned int>(rec.mMapColor));
+            return Misc::Color::fromRGB(static_cast<std::uint32_t>(rec.mMapColor));
         });
         regionT["sleepList"]
             = sol::readonly_property([](const ESM::Region& rec) -> ESM::RefId { return rec.mSleepList; });
@@ -64,12 +65,12 @@ namespace MWLua
             }
             return LuaUtil::makeReadOnly(res);
         });
-        regionT["setProbability"] = [](const ESM::Region& rec, std::string_view weatherId, int value) {
+        regionT["setProbability"] = [](const ESM::Region& rec, std::string_view weatherId, std::int32_t value) {
             MWBase::World* world = MWBase::Environment::get().getWorld();
             ESM::RefId id = ESM::RefId::deserializeText(weatherId);
             const MWWorld::Weather* weather = world->getAllWeather().find(id);
             auto chances = world->getRegionWeatherChances(rec.mId);
-            chances[weather->mId] = static_cast<uint8_t>(std::clamp(value, 0, 100));
+            chances[weather->mId] = static_cast<std::uint8_t>(std::clamp(value, 0, 100));
             world->modRegion(rec.mId, chances);
         };
         auto resetProbability = [](const ESM::Region& rec) {

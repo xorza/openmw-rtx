@@ -1,5 +1,7 @@
 #include "globalcreator.hpp"
 
+#include <cstdint>
+
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
@@ -16,8 +18,8 @@ namespace CSVWorld
     {
         auto* table = static_cast<CSMWorld::IdTable*>(getData().getTableModel(getCollectionId()));
 
-        int index = table->findColumnIndex(CSMWorld::Columns::ColumnId_ValueType);
-        int type = static_cast<int>(ESM::VT_Float);
+        std::int32_t index = table->findColumnIndex(CSMWorld::Columns::ColumnId_ValueType);
+        auto type = static_cast<std::int32_t>(ESM::VT_Float);
 
         command.addValue(index, type);
     }

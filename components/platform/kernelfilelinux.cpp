@@ -2,13 +2,14 @@
 
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 
 #include <fcntl.h>
 #include <unistd.h>
 
 namespace Platform::KernelFile
 {
-    Read readOpened(const int descriptor, const std::span<char> buffer) noexcept
+    Read readOpened(const std::int32_t descriptor, const std::span<char> buffer) noexcept
     {
         std::size_t length = 0;
         while (length < buffer.size())
@@ -26,7 +27,7 @@ namespace Platform::KernelFile
 
     std::optional<std::string_view> read(const char* const path, const std::span<char> buffer) noexcept
     {
-        const int descriptor = open(path, O_RDONLY | O_CLOEXEC);
+        const std::int32_t descriptor = open(path, O_RDONLY | O_CLOEXEC);
         if (descriptor == -1)
             return std::nullopt;
         const Read whole = readOpened(descriptor, buffer);

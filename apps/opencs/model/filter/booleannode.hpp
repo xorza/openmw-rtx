@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -22,7 +23,8 @@ namespace CSMFilter
         {
         }
 
-        bool test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const override
+        bool test(const CSMWorld::IdTableBase& table, std::int32_t row,
+            const std::map<std::int32_t, std::int32_t>& columns) const override
         {
             return mTrue;
         }

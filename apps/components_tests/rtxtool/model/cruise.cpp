@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -106,7 +107,7 @@ namespace RtxTool
             EXPECT_NEAR(arriving, 5.0, 1e-6) << "the speed the key is passed at";
 
             const CruiseJoins own{ .mTo = 10.0 };
-            for (int half = 0; half <= 24; ++half)
+            for (std::int32_t half = 0; half <= 24; ++half)
             {
                 const double at = static_cast<double>(half) / 2.0;
                 EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, at, own), cruise.coveredAt(sFromRest, 12.0, at))

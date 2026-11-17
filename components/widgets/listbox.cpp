@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include <MyGUI_Button.h>
@@ -27,25 +28,25 @@ namespace Gui
 
         struct HeightLine
         {
-            using Type = int MyGUI::ListBox::*;
+            using Type = std::int32_t MyGUI::ListBox::*;
             friend constexpr Type reached(HeightLine);
         };
 
         struct TopIndex
         {
-            using Type = int MyGUI::ListBox::*;
+            using Type = std::int32_t MyGUI::ListBox::*;
             friend constexpr Type reached(TopIndex);
         };
 
         struct OffsetTop
         {
-            using Type = int MyGUI::ListBox::*;
+            using Type = std::int32_t MyGUI::ListBox::*;
             friend constexpr Type reached(OffsetTop);
         };
 
         struct RangeIndex
         {
-            using Type = int MyGUI::ListBox::*;
+            using Type = std::int32_t MyGUI::ListBox::*;
             friend constexpr Type reached(RangeIndex);
         };
 
@@ -69,7 +70,7 @@ namespace Gui
         template struct Reach<Lines, &MyGUI::ListBox::mWidgetLines>;
 
         /// A line of text, and the pixel above and below it the skins were given.
-        int lineHeightOf(const FontUsers& users)
+        std::int32_t lineHeightOf(const FontUsers& users)
         {
             return users.getTextHeight() + 2;
         }
@@ -90,14 +91,14 @@ namespace Gui
             setItemHeight(lineHeightOf(getUsers()));
     }
 
-    void ListBox::setItemHeight(int height)
+    void ListBox::setItemHeight(std::int32_t height)
     {
         height = std::max(1, height);
-        int& heightLine = this->*reached(HeightLine{});
+        std::int32_t& heightLine = this->*reached(HeightLine{});
         if (heightLine == height)
             return;
 
-        const int position = this->*reached(TopIndex{}) * heightLine + this->*reached(OffsetTop{});
+        const std::int32_t position = this->*reached(TopIndex{}) * heightLine + this->*reached(OffsetTop{});
         heightLine = height;
 
         if (MyGUI::ScrollBar* const scroll = this->*reached(Scroll{}); scroll != nullptr)
@@ -111,7 +112,7 @@ namespace Gui
         updateLine(true);
     }
 
-    int ListBox::getItemHeight() const
+    std::int32_t ListBox::getItemHeight() const
     {
         return this->*reached(HeightLine{});
     }

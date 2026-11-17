@@ -1,5 +1,7 @@
 #include "resourcehelpers.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <string_view>
 
@@ -158,7 +160,7 @@ VFS::Path::Normalized Misc::ResourceHelpers::correctBookartPath(
 }
 
 VFS::Path::Normalized Misc::ResourceHelpers::correctBookartPath(
-    VFS::Path::NormalizedView resPath, int width, int height, const VFS::Manager& vfs)
+    VFS::Path::NormalizedView resPath, std::int32_t width, std::int32_t height, const VFS::Manager& vfs)
 {
     VFS::Path::Normalized image = correctBookartPath(resPath, vfs);
 
@@ -297,10 +299,10 @@ namespace
 }
 
 VFS::Path::Normalized Misc::ResourceHelpers::getLODMeshName(
-    ESM::GameFormat gameFormat, VFS::Path::NormalizedView resPath, const VFS::Manager& vfs, unsigned char lod)
+    ESM::GameFormat gameFormat, VFS::Path::NormalizedView resPath, const VFS::Manager& vfs, std::uint8_t lod)
 {
     const std::string_view distantMeshPattern = getDistantMeshPattern(gameFormat);
-    for (int l = lod; l >= 0; --l)
+    for (std::int32_t l = lod; l >= 0; --l)
     {
         std::stringstream patern;
         patern << distantMeshPattern << "_" << l;

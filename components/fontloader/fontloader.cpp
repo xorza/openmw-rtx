@@ -4,6 +4,8 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <iterator>
 #include <memory>
@@ -71,14 +73,14 @@ namespace
         return {};
     }
 
-    unsigned long utf8ToUnicode(std::string_view utf8)
+    std::uint32_t utf8ToUnicode(std::string_view utf8)
     {
         if (utf8.empty())
             return 0;
-        size_t i = 0;
-        unsigned long unicode = 0;
-        size_t numbytes = 0;
-        auto ch = static_cast<unsigned char>(utf8[i++]);
+        std::size_t i = 0;
+        std::uint32_t unicode = 0;
+        std::size_t numbytes = 0;
+        auto ch = static_cast<std::uint8_t>(utf8[i++]);
         if (ch <= 0x7F)
         {
             unicode = ch;
@@ -110,9 +112,9 @@ namespace
             throw std::logic_error("not a UTF-8 string");
         }
         // NOLINTEND(bugprone-branch-clone)
-        for (size_t j = 0; j < numbytes; ++j)
+        for (std::size_t j = 0; j < numbytes; ++j)
         {
-            ch = static_cast<unsigned char>(utf8[i++]);
+            ch = static_cast<std::uint8_t>(utf8[i++]);
             if (ch < 0x80 || ch > 0xBF)
                 throw std::logic_error("not a UTF-8 string");
             unicode <<= 6;
@@ -127,7 +129,7 @@ namespace
     }
 
     /// This is a hack for Polish font
-    unsigned char mapUtf8Char(unsigned char c)
+    std::uint8_t mapUtf8Char(std::uint8_t c)
     {
         switch (c)
         {
@@ -202,7 +204,7 @@ namespace
     // getUnicode includes various hacks for dealing with Morrowind's .fnt files that are *mostly*
     // in the expected win12XX encoding, but also have randomly swapped characters sometimes.
     // Looks like the Morrowind developers found standard encodings too boring and threw in some twists for fun.
-    unsigned long getUnicode(unsigned char c, ToUTF8::Utf8Encoder& encoder, ToUTF8::FromType encoding)
+    std::uint32_t getUnicode(std::uint8_t c, ToUTF8::Utf8Encoder& encoder, ToUTF8::FromType encoding)
     {
         if (encoding == ToUTF8::WINDOWS_1250) // Hack for polish font
         {
@@ -347,7 +349,7 @@ namespace Gui
         }
         sourceNode->setAttribute("value", source.value());
 
-        int resolution = 70;
+        std::int32_t resolution = 70;
         MyGUI::xml::ElementPtr resolutionNode = getProperty(resourceNode.current(), "Resolution");
         if (resolutionNode == nullptr)
         {
@@ -427,7 +429,7 @@ namespace Gui
         if (!stream.good())
             fail(stream, path, "File too small to be a valid font");
 
-        int one = 0;
+        std::int32_t one = 0;
         stream.read(reinterpret_cast<char*>(&one), sizeof(one));
         if (!stream.good())
             fail(stream, path, "File too small to be a valid font");
@@ -461,11 +463,11 @@ namespace Gui
 
         Files::IStreamPtr bitmapFile = mVFS->get(bitmapPath);
 
-        int width = 0;
-        bitmapFile->read(reinterpret_cast<char*>(&width), sizeof(int));
+        std::int32_t width = 0;
+        bitmapFile->read(reinterpret_cast<char*>(&width), sizeof(std::int32_t));
 
-        int height = 0;
-        bitmapFile->read(reinterpret_cast<char*>(&height), sizeof(int));
+        std::int32_t height = 0;
+        bitmapFile->read(reinterpret_cast<char*>(&height), sizeof(std::int32_t));
 
         if (!bitmapFile->good())
             fail(*bitmapFile, bitmapPath, "File too small to be a valid bitmap");
@@ -496,7 +498,7 @@ namespace Gui
 
         MyGUI::ITexture* texture = MyGUI::RenderManager::getInstance().createTexture(bitmapPath);
         texture->createManual(width, height, MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8A8);
-        auto* texData = reinterpret_cast<unsigned char*>(texture->lock(MyGUI::TextureUsage::Write));
+        auto* texData = reinterpret_cast<std::uint8_t*>(texture->lock(MyGUI::TextureUsage::Write));
         memcpy(texData, textureData.data(), textureData.size());
         texture->unlock();
 
@@ -517,8 +519,8 @@ namespace Gui
         // Fall back from unavailable Win-1252 encoding symbols to similar characters available in CP-437 game fonts
         // Generally, that is, as this tries to follow Morrowind's interesting substitution logic
 
-        using FallbackIndex = unsigned int;
-        using UnicodeIndex = unsigned int;
+        using FallbackIndex = std::uint32_t;
+        using UnicodeIndex = std::uint32_t;
         std::multimap<FallbackIndex, UnicodeIndex> additional;
 
         // Some symbols must not be shown altogether
@@ -641,7 +643,7 @@ namespace Gui
         // Underscore, use for NotDefined marker (used for glyphs not existing in the font)
         additional.emplace(95, MyGUI::FontCodeType::NotDefined);
 
-        for (unsigned i = 0; i < 256; i++)
+        for (std::uint32_t i = 0; i < 256; i++)
         {
             float x1 = data[i].mTopLeft.x * static_cast<float>(width);
             float y1 = data[i].mTopLeft.y * static_cast<float>(height);
@@ -649,7 +651,7 @@ namespace Gui
             float h = data[i].mBottomLeft.y * static_cast<float>(height) - y1;
 
             ToUTF8::Utf8Encoder encoder(mEncoding);
-            unsigned long unicodeVal = getUnicode(static_cast<unsigned char>(i), encoder, mEncoding);
+            std::uint32_t unicodeVal = getUnicode(static_cast<std::uint8_t>(i), encoder, mEncoding);
             const std::string coord = MyGUI::utility::toString(x1) + " " + MyGUI::utility::toString(y1) + " "
                 + MyGUI::utility::toString(w) + " " + MyGUI::utility::toString(h);
             float advance = data[i].mWidth + data[i].mKerningRight;
@@ -658,7 +660,8 @@ namespace Gui
                 advance = std::numeric_limits<float>::min();
             const std::string bearing = MyGUI::utility::toString(data[i].mKerningLeft) + ' '
                 + MyGUI::utility::toString((fontSize - data[i].mAscent));
-            const MyGUI::IntSize size(static_cast<int>(data[i].mWidth), static_cast<int>(data[i].mHeight));
+            const MyGUI::IntSize size(
+                static_cast<std::int32_t>(data[i].mWidth), static_cast<std::int32_t>(data[i].mHeight));
 
             MyGUI::xml::ElementPtr code = codes->createChild("Code");
             code->addAttribute("index", unicodeVal);
@@ -721,7 +724,7 @@ namespace Gui
         bool rasterized = false;
         for (const TrueTypeFace& face : mFaces)
         {
-            const unsigned int resolution = resolutionOf(face, mFit);
+            const std::uint32_t resolution = resolutionOf(face, mFit);
             if (mFit.mFontSize == was.mFontSize && resolution == resolutionOf(face, was))
                 continue;
 
@@ -731,7 +734,7 @@ namespace Gui
         return rasterized;
     }
 
-    void FontLoader::rasterize(const TrueTypeFace& face, const int size, const unsigned int resolution)
+    void FontLoader::rasterize(const TrueTypeFace& face, const std::int32_t size, const std::uint32_t resolution)
     {
         face.mFont->setSize(static_cast<float>(size));
         face.mFont->setResolution(resolution);
@@ -755,7 +758,7 @@ namespace Gui
         face.mFont->textureInvalidate(face.mFont->getTextureFont());
     }
 
-    unsigned int FontLoader::resolutionOf(const TrueTypeFace& face, const FontFit& fit) const
+    std::uint32_t FontLoader::resolutionOf(const TrueTypeFace& face, const FontFit& fit) const
     {
         assert(fit.mRaster > 0.0f && "an interface no pixel draws");
 
@@ -772,8 +775,8 @@ namespace Gui
         // **At least a pixel an em, however small a view is**: FreeType refuses a face sized under
         // one, and MyGUI throws where it is refused. A point is a 72nd of an inch.
         assert(fit.mFontSize > 0 && "a font sized at nothing");
-        const auto fewest = static_cast<unsigned int>((72 + fit.mFontSize - 1) / fit.mFontSize);
-        return std::max(fewest, static_cast<unsigned int>(wanted));
+        const auto fewest = static_cast<std::uint32_t>((72 + fit.mFontSize - 1) / fit.mFontSize);
+        return std::max(fewest, static_cast<std::uint32_t>(wanted));
     }
 
     std::string_view FontLoader::getFontForFace(std::string_view face)

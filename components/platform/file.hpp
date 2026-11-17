@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 
 namespace Platform::File
 {
 
-    enum class Handle : intptr_t
+    enum class Handle : std::intptr_t
     {
         Invalid = -1
     };
@@ -22,18 +24,18 @@ namespace Platform::File
 
     void close(Handle handle);
 
-    size_t size(Handle handle);
+    std::size_t size(Handle handle);
 
-    void seek(Handle handle, size_t position, SeekType type = SeekType::Begin);
-    size_t tell(Handle handle);
+    void seek(Handle handle, std::size_t position, SeekType type = SeekType::Begin);
+    std::size_t tell(Handle handle);
 
-    size_t read(Handle handle, void* data, size_t size);
+    std::size_t read(Handle handle, void* data, std::size_t size);
 
     /// Reads up to `size` bytes at `offset` into `data`, whatever the handle's own position: what any number of
     /// threads may do at once through one handle (POSIX `pread`, Windows `ReadFile` with the offset in an
     /// `OVERLAPPED`). Where the handle's position stands after is the system's, which Windows moves and POSIX
     /// leaves, so a handle read at an offset is read no other way. Fewer bytes than asked only at the file's end.
-    size_t readAt(Handle handle, size_t offset, void* data, size_t size);
+    std::size_t readAt(Handle handle, std::size_t offset, void* data, std::size_t size);
 
     class ScopedHandle
     {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <variant>
 #include <vector>
@@ -38,8 +39,8 @@ namespace ESM
         std::variant<RefId, RefNum> mArg; // skill, attribute, or summon
         float mDuration{};
         float mTimeLeft{};
-        int32_t mEffectIndex{};
-        int32_t mFlags{};
+        std::int32_t mEffectIndex{};
+        std::int32_t mFlags{};
 
         RefId getSkillOrAttribute() const;
         RefNum getActor() const;
@@ -48,7 +49,7 @@ namespace ESM
     // format 0, saved games only
     struct ActiveSpells
     {
-        enum Flags : uint32_t
+        enum Flags : std::uint32_t
         {
             Flag_None = 0,
             Flag_Temporary = 1 << 0, //!< Effect will end automatically once its duration ends.
@@ -70,7 +71,7 @@ namespace ESM
             RefNum mCaster;
             RefNum mItem;
             Flags mFlags{};
-            int32_t mWorsenings{};
+            std::int32_t mWorsenings{};
             TimeStamp mNextWorsening{};
         };
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <set>
 
@@ -50,9 +51,9 @@ namespace Terrain
         /// @param nodeMask mask for the terrain root
         /// @param preCompileMask mask for pre compiling textures
         explicit World(osg::Group* parent, osg::Group* compileRoot, Resource::ResourceSystem* resourceSystem,
-            Storage* storage, unsigned int nodeMask, unsigned int preCompileMask, unsigned int borderMask,
+            Storage* storage, std::uint32_t nodeMask, std::uint32_t preCompileMask, std::uint32_t borderMask,
             ESM::RefId worldspace, double expiryDelay);
-        World(osg::Group* parent, Storage* storage, unsigned int nodeMask, ESM::RefId worldspace);
+        World(osg::Group* parent, Storage* storage, std::uint32_t nodeMask, ESM::RefId worldspace);
         virtual ~World();
 
         /// See CompositeMapRenderer::setTargetFrameRate
@@ -70,15 +71,15 @@ namespace Terrain
 
         /// Load a terrain cell and store it in the View for later use.
         /// @note Thread safe.
-        virtual void cacheCell(View* view, int x, int y) {}
+        virtual void cacheCell(View* view, std::int32_t x, std::int32_t y) {}
 
         /// Load the cell into the scene graph.
         /// @note Not thread safe.
-        virtual void loadCell(int x, int y);
+        virtual void loadCell(std::int32_t x, std::int32_t y);
 
         /// Remove the cell from the scene graph.
         /// @note Not thread safe.
-        virtual void unloadCell(int x, int y);
+        virtual void unloadCell(std::int32_t x, std::int32_t y);
 
         virtual void enable(bool enabled) {}
 
@@ -98,7 +99,7 @@ namespace Terrain
 
         virtual void rebuildViews() {}
 
-        virtual void reportStats(unsigned int frameNumber, osg::Stats* stats) {}
+        virtual void reportStats(std::uint32_t frameNumber, osg::Stats* stats) {}
 
         virtual void setViewDistance(float distance) {}
 
@@ -107,7 +108,7 @@ namespace Terrain
         Storage* getStorage() { return mStorage; }
 
         void enableHeightCullCallback(bool enable);
-        osg::Callback* getHeightCullCallback(float highz, unsigned int mask);
+        osg::Callback* getHeightCullCallback(float highz, std::uint32_t mask);
 
         void setActiveGrid(const osg::Vec4i& grid) { mActiveGrid = grid; }
 
@@ -131,7 +132,7 @@ namespace Terrain
 
         bool mBorderVisible;
 
-        std::set<std::pair<int, int>> mLoadedCells;
+        std::set<std::pair<std::int32_t, std::int32_t>> mLoadedCells;
         osg::ref_ptr<HeightCullCallback> mHeightCullCallback;
 
         osg::Vec4i mActiveGrid;

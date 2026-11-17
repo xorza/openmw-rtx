@@ -1,5 +1,8 @@
 #include "serialization.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/Matrixf>
 #include <osg/Quat>
 #include <osg/Vec2f>
@@ -15,7 +18,7 @@
 namespace LuaUtil
 {
 
-    constexpr unsigned char FORMAT_VERSION = 0;
+    constexpr std::uint8_t FORMAT_VERSION = 0;
 
     namespace
     {
@@ -38,9 +41,9 @@ namespace LuaUtil
         };
     }
 
-    constexpr unsigned char SHORT_STRING_FLAG = 0x20; // 0b001SSSSS. SSSSS = string length
-    constexpr unsigned char CUSTOM_FULL_FLAG = 0x40; // 0b01TTTTTT + 32bit dataSize
-    constexpr unsigned char CUSTOM_COMPACT_FLAG = 0x80; // 0b1SSSSTTT. SSSS = dataSize, TTT = (typeName size - 1)
+    constexpr std::uint8_t SHORT_STRING_FLAG = 0x20; // 0b001SSSSS. SSSSS = string length
+    constexpr std::uint8_t CUSTOM_FULL_FLAG = 0x40; // 0b01TTTTTT + 32bit dataSize
+    constexpr std::uint8_t CUSTOM_COMPACT_FLAG = 0x80; // 0b1SSSSTTT. SSSS = dataSize, TTT = (typeName size - 1)
 
     namespace
     {
@@ -76,30 +79,30 @@ namespace LuaUtil
             else
             {
                 appendType(out, SerializedType::LONG_STRING);
-                appendValue<uint32_t>(out, static_cast<uint32_t>(str.size()));
+                appendValue<std::uint32_t>(out, static_cast<std::uint32_t>(str.size()));
             }
             out.append(str.data(), str.size());
         }
 
-        void appendData(BinaryData& out, const void* data, size_t dataSize)
+        void appendData(BinaryData& out, const void* data, std::size_t dataSize)
         {
             out.append(reinterpret_cast<const char*>(data), dataSize);
         }
     }
 
-    void UserdataSerializer::append(BinaryData& out, std::string_view typeName, const void* data, size_t dataSize)
+    void UserdataSerializer::append(BinaryData& out, std::string_view typeName, const void* data, std::size_t dataSize)
     {
         assert(!typeName.empty() && typeName.size() <= 64);
         if (typeName.size() <= 8 && dataSize < 16)
         { // Compact form: 0b1SSSSTTT. SSSS = dataSize, TTT = (typeName size - 1).
-            auto t = static_cast<unsigned char>(CUSTOM_COMPACT_FLAG | (dataSize << 3) | (typeName.size() - 1));
+            auto t = static_cast<std::uint8_t>(CUSTOM_COMPACT_FLAG | (dataSize << 3) | (typeName.size() - 1));
             out.push_back(static_cast<char>(t));
         }
         else
         { // Full form: 0b01TTTTTT + 32bit dataSize.
-            auto t = static_cast<unsigned char>(CUSTOM_FULL_FLAG | (typeName.size() - 1));
+            auto t = static_cast<std::uint8_t>(CUSTOM_FULL_FLAG | (typeName.size() - 1));
             out.push_back(static_cast<char>(t));
-            appendValue<uint32_t>(out, static_cast<uint32_t>(dataSize));
+            appendValue<std::uint32_t>(out, static_cast<std::uint32_t>(dataSize));
         }
         out.append(typeName.data(), typeName.size());
         appendData(out, data, dataSize);
@@ -166,8 +169,8 @@ namespace LuaUtil
             {
                 appendType(out, SerializedType::TRANSFORM_M);
                 osg::Matrixf matrix = data.as<TransformM>().mM;
-                for (int i = 0; i < 4; i++)
-                    for (int j = 0; j < 4; j++)
+                for (std::int32_t i = 0; i < 4; i++)
+                    for (std::int32_t j = 0; j < 4; j++)
                         appendValue<double>(out, matrix(i, j));
                 return;
             }
@@ -175,7 +178,7 @@ namespace LuaUtil
             {
                 appendType(out, SerializedType::TRANSFORM_Q);
                 osg::Quat quat = data.as<TransformQ>().mQ;
-                for (int i = 0; i < 4; i++)
+                for (std::int32_t i = 0; i < 4; i++)
                     appendValue<double>(out, quat[i]);
                 return;
             }
@@ -205,8 +208,8 @@ namespace LuaUtil
                 throw std::runtime_error("Value is not serializable.");
         }
 
-        void serialize(
-            BinaryData& out, const sol::object& obj, const UserdataSerializer* customSerializer, int recursionCounter)
+        void serialize(BinaryData& out, const sol::object& obj, const UserdataSerializer* customSerializer,
+            std::int32_t recursionCounter)
         {
             if (obj.get_type() == sol::type::lightuserdata)
                 throw std::runtime_error("Light userdata is not allowed to be serialized.");
@@ -250,11 +253,11 @@ namespace LuaUtil
         {
             if (binaryData.empty())
                 throw std::runtime_error("Unexpected end of serialized data.");
-            auto type = static_cast<unsigned char>(binaryData[0]);
+            auto type = static_cast<std::uint8_t>(binaryData[0]);
             binaryData = binaryData.substr(1);
             if (type & (CUSTOM_COMPACT_FLAG | CUSTOM_FULL_FLAG))
             {
-                size_t typeNameSize = 0, dataSize = 0;
+                std::size_t typeNameSize = 0, dataSize = 0;
                 if (type & CUSTOM_COMPACT_FLAG)
                 { // Compact form: 0b1SSSSTTT. SSSS = dataSize, TTT = (typeName size - 1).
                     typeNameSize = (type & 7) + 1;
@@ -263,7 +266,7 @@ namespace LuaUtil
                 else
                 { // Full form: 0b01TTTTTT + 32bit dataSize.
                     typeNameSize = (type & 63) + 1;
-                    dataSize = getValue<uint32_t>(binaryData);
+                    dataSize = getValue<std::uint32_t>(binaryData);
                 }
                 std::string_view typeName = binaryData.substr(0, typeNameSize);
                 std::string_view data = binaryData.substr(typeNameSize, dataSize);
@@ -274,7 +277,7 @@ namespace LuaUtil
             }
             if (type & SHORT_STRING_FLAG)
             {
-                size_t size = type & 0x1f;
+                std::size_t size = type & 0x1f;
                 sol::stack::push<std::string_view>(lua, binaryData.substr(0, size));
                 binaryData = binaryData.substr(size);
                 return;
@@ -289,7 +292,7 @@ namespace LuaUtil
                     return;
                 case SerializedType::LONG_STRING:
                 {
-                    auto size = getValue<uint32_t>(binaryData);
+                    auto size = getValue<std::uint32_t>(binaryData);
                     sol::stack::push<std::string_view>(lua, binaryData.substr(0, size));
                     binaryData = binaryData.substr(size);
                     return;
@@ -330,8 +333,8 @@ namespace LuaUtil
                 case SerializedType::TRANSFORM_M:
                 {
                     osg::Matrixf mat;
-                    for (int i = 0; i < 4; i++)
-                        for (int j = 0; j < 4; j++)
+                    for (std::int32_t i = 0; i < 4; i++)
+                        for (std::int32_t j = 0; j < 4; j++)
                             mat(i, j) = static_cast<float>(getValue<double>(binaryData));
                     sol::stack::push<TransformM>(lua, asTransform(mat));
                     return;
@@ -339,7 +342,7 @@ namespace LuaUtil
                 case SerializedType::TRANSFORM_Q:
                 {
                     osg::Quat q;
-                    for (int i = 0; i < 4; i++)
+                    for (std::int32_t i = 0; i < 4; i++)
                         q[i] = getValue<double>(binaryData);
                     sol::stack::push<TransformQ>(lua, asTransform(q));
                     return;
@@ -384,7 +387,7 @@ namespace LuaUtil
             return sol::make_object(lua, sol::nil);
         if (binaryData[0] != FORMAT_VERSION)
             throw std::runtime_error("Incorrect version of Lua serialization format: "
-                + std::to_string(static_cast<unsigned>(binaryData[0])));
+                + std::to_string(static_cast<std::uint32_t>(binaryData[0])));
         binaryData = binaryData.substr(1);
         deserializeImpl(lua, binaryData, customSerializer, readOnly);
         if (!binaryData.empty())

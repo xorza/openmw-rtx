@@ -1,3 +1,5 @@
+#include <cstddef>
+#include <cstdint>
 #include <random>
 
 #include <gtest/gtest.h>
@@ -18,14 +20,14 @@ namespace
     using namespace DetourNavigator::Tests;
 
     template <class T, class Random>
-    void generateRecastArray(T*& values, size_t size, Random& random)
+    void generateRecastArray(T*& values, std::size_t size, Random& random)
     {
         values = static_cast<T*>(permRecastAlloc(size * sizeof(T)));
         generateRange(values, values + static_cast<std::ptrdiff_t>(size), random);
     }
 
     template <class Random>
-    void generate(rcPolyMesh& value, int size, Random& random)
+    void generate(rcPolyMesh& value, std::int32_t size, Random& random)
     {
         value.nverts = size;
         value.maxpolys = size;
@@ -45,7 +47,7 @@ namespace
     }
 
     template <class Random>
-    void generate(rcPolyMeshDetail& value, int size, Random& random)
+    void generate(rcPolyMeshDetail& value, std::int32_t size, Random& random)
     {
         value.nmeshes = size;
         value.nverts = size;
@@ -56,7 +58,7 @@ namespace
     }
 
     template <class Random>
-    void generate(PreparedNavMeshData& value, int size, Random& random)
+    void generate(PreparedNavMeshData& value, std::int32_t size, Random& random)
     {
         generateValue(value.mUserId, random);
         generateValue(value.mCellHeight, random);
@@ -65,7 +67,7 @@ namespace
         generate(value.mPolyMeshDetail, size, random);
     }
 
-    std::unique_ptr<PreparedNavMeshData> makePeparedNavMeshData(int size)
+    std::unique_ptr<PreparedNavMeshData> makePeparedNavMeshData(std::int32_t size)
     {
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
@@ -82,7 +84,7 @@ namespace
 
     Mesh makeMesh()
     {
-        std::vector<int> indices{ { 0, 1, 2 } };
+        std::vector<std::int32_t> indices{ { 0, 1, 2 } };
         std::vector<float> vertices{ { 0, 0, 0, 1, 0, 0, 1, 1, 0 } };
         std::vector<AreaType> areaTypes{ 1, AreaType_ground };
         return Mesh(std::move(indices), std::move(vertices), std::move(areaTypes));

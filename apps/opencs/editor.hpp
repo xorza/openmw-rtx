@@ -1,14 +1,15 @@
 #pragma once
 
-#include <QLockFile>
-#include <QObject>
-#include <QString>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include <QLockFile>
+#include <QObject>
+#include <QString>
 #include <boost/program_options/variables_map.hpp>
 
 #include <apps/opencs/model/doc/documentmanager.hpp>
@@ -70,13 +71,13 @@ namespace CS
         Editor& operator=(const Editor&);
 
     public:
-        Editor(int argc, char** argv);
+        Editor(std::int32_t argc, char** argv);
         ~Editor() override;
 
         bool makeIPCServer();
         void connectToIPCServer();
 
-        int run();
+        std::int32_t run();
         ///< \return error status
 
     private slots:

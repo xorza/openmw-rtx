@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <BulletCollision/CollisionDispatch/btCollisionWorld.h>
@@ -19,8 +20,9 @@ namespace MWPhysics
         {
         }
 
-        btScalar addSingleResult(btManifoldPoint& cp, const btCollisionObjectWrapper* col0Wrap, int partId0, int index0,
-            const btCollisionObjectWrapper* col1Wrap, int partId1, int index1) override;
+        btScalar addSingleResult(btManifoldPoint& cp, const btCollisionObjectWrapper* col0Wrap, std::int32_t partId0,
+            std::int32_t index0, const btCollisionObjectWrapper* col1Wrap, std::int32_t partId1,
+            std::int32_t index1) override;
 
         std::vector<ContactPoint> mResult;
 

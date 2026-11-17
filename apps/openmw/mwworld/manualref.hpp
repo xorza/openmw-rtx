@@ -1,6 +1,7 @@
 #pragma once
 
 #include <any>
+#include <cstdint>
 
 #include "ptr.hpp"
 
@@ -15,8 +16,9 @@ namespace MWWorld
         Ptr mPtr;
 
     public:
-        explicit ManualRef(const MWWorld::ESMStore& store, const ESM::RefId& name, const int count = 1);
-        explicit ManualRef(const MWWorld::ESMStore& store, const MWWorld::Ptr& templatePtr, const int count = 1);
+        explicit ManualRef(const MWWorld::ESMStore& store, const ESM::RefId& name, const std::int32_t count = 1);
+        explicit ManualRef(
+            const MWWorld::ESMStore& store, const MWWorld::Ptr& templatePtr, const std::int32_t count = 1);
 
         ManualRef(const ManualRef&) = delete;
         ManualRef& operator=(const ManualRef&) = delete;

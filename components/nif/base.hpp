@@ -1,6 +1,8 @@
 /// This file holds the main classes of NIF Records used by everything else.
 #pragma once
 
+#include <cstdint>
+
 #include "recordptr.hpp"
 
 namespace Nif
@@ -12,7 +14,7 @@ namespace Nif
     {
         std::string mName;
         ExtraPtr mNext; // Next extra data record in the list
-        uint32_t mRecordSize{ 0u };
+        std::uint32_t mRecordSize{ 0u };
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override { mNext.post(nif); }
@@ -34,7 +36,7 @@ namespace Nif
         };
 
         NiTimeControllerPtr mNext;
-        uint16_t mFlags{};
+        std::uint16_t mFlags{};
         float mFrequency{}, mPhase{};
         float mTimeStart{}, mTimeStop{};
         NiObjectNETPtr mTarget;

@@ -1,5 +1,8 @@
 #include "debugdraw.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/Array>
 #include <osg/Drawable>
 #include <osg/GLExtensions>
@@ -36,11 +39,11 @@ namespace
 
         osg::Vec2i indexPos[] = { osg::Vec2i(0, 0), osg::Vec2i(1, 0), osg::Vec2i(1, 1), osg::Vec2i(0, 1) };
 
-        for (int i = 0; i < 4; i++)
+        for (std::int32_t i = 0; i < 4; i++)
         {
             osg::Vec3 vert1 = osg::Vec3(
                 static_cast<float>(indexPos[i].x()) - 0.5f, static_cast<float>(indexPos[i].y()) - 0.5f, 0.5f);
-            int next = (i + 1) % 4;
+            std::int32_t next = (i + 1) % 4;
             osg::Vec3 vert2 = osg::Vec3(
                 static_cast<float>(indexPos[next].x()) - 0.5f, static_cast<float>(indexPos[next].y()) - 0.5f, 0.5f);
 
@@ -84,7 +87,7 @@ namespace
             u[(axis + 1) % 3] = 1.0;
             v[(axis + 2) % 3] = 1.0;
 
-            for (int iPoint = 0; iPoint < 4; iPoint++)
+            for (std::int32_t iPoint = 0; iPoint < 4; iPoint++)
             {
                 float iu = iPoint % 2 == 1
                     ? floatDir
@@ -99,13 +102,13 @@ namespace
             GLushort startVertex(iFace * 4);
             GLushort newFace1[]
                 = { startVertex, static_cast<GLushort>(startVertex + 1u), static_cast<GLushort>(startVertex + 2u) };
-            for (unsigned short i : newFace1)
+            for (std::uint16_t i : newFace1)
             {
                 indices->push_back(i);
             }
             GLushort newFace2[] = { static_cast<GLushort>(startVertex + 2u), static_cast<GLushort>(startVertex + 1u),
                 static_cast<GLushort>(startVertex + 3u) };
-            for (unsigned short i : newFace2)
+            for (std::uint16_t i : newFace2)
             {
                 indices->push_back(i);
             }
@@ -115,20 +118,20 @@ namespace
         geom.addPrimitiveSet(indices);
     }
 
-    void generateCylinder(osg::Geometry& geom, float radius, float height, int subdiv)
+    void generateCylinder(osg::Geometry& geom, float radius, float height, std::int32_t subdiv)
     {
         osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
         osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
         osg::ref_ptr<osg::DrawElementsUShort> indices
             = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
-        int vertexCount = subdiv * 4 + 2; // 2 discs + top and bottom + 2 center
+        std::int32_t vertexCount = subdiv * 4 + 2; // 2 discs + top and bottom + 2 center
         indices->reserve(static_cast<std::size_t>(vertexCount));
-        int iVertex = 0;
+        std::int32_t iVertex = 0;
 
-        int beginTop = iVertex;
+        std::int32_t beginTop = iVertex;
         auto topNormal = osg::Vec3(0., 0., 1.);
         // top disk
-        for (int i = 0; i < subdiv; i++)
+        for (std::int32_t i = 0; i < subdiv; i++)
         {
             float theta = (static_cast<float>(i) / static_cast<float>(subdiv)) * osg::PIf * 2.f;
             osg::Vec3 pos = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
@@ -154,7 +157,7 @@ namespace
         }
         // bottom disk
         auto beginBot = iVertex;
-        for (int i = 0; i < subdiv; i++)
+        for (std::int32_t i = 0; i < subdiv; i++)
         {
             float theta = static_cast<float>(i) / static_cast<float>(subdiv) * osg::PIf * 2.f;
             osg::Vec3 pos = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
@@ -165,8 +168,8 @@ namespace
             iVertex += 1;
         }
         // sides
-        int beginSide = iVertex;
-        for (int i = 0; i < subdiv; i++)
+        std::int32_t beginSide = iVertex;
+        for (std::int32_t i = 0; i < subdiv; i++)
         {
             float theta = static_cast<float>(i) / static_cast<float>(subdiv) * osg::PIf * 2.f;
             osg::Vec3 normal = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
@@ -184,7 +187,7 @@ namespace
         }
 
         // create triangles sides
-        for (int i = 0; i < subdiv; i++)
+        for (std::int32_t i = 0; i < subdiv; i++)
         {
             auto nextVert = (i + 1) % subdiv;
             auto v1 = static_cast<GLushort>(beginSide + 2 * i);
@@ -199,7 +202,7 @@ namespace
             indices->push_back(v3);
             indices->push_back(v1);
         }
-        for (int i = 0; i < subdiv; i++)
+        for (std::int32_t i = 0; i < subdiv; i++)
         {
             auto nextVert = (i + 1) % subdiv;
             auto top1 = static_cast<GLushort>(beginTop + i);
@@ -222,22 +225,22 @@ namespace
         geom.addPrimitiveSet(indices);
     }
 
-    void generateSphere(osg::Geometry& geom, float radius, int segments, int rings)
+    void generateSphere(osg::Geometry& geom, float radius, std::int32_t segments, std::int32_t rings)
     {
         osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
         osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
         osg::ref_ptr<osg::DrawElementsUShort> indices
             = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
-        int vertexCount = segments * (rings + 1);
+        std::int32_t vertexCount = segments * (rings + 1);
         vertices->reserve(static_cast<std::size_t>(vertexCount));
         normals->reserve(static_cast<std::size_t>(vertexCount));
-        int indexCount = segments * rings * 2 * 3;
+        std::int32_t indexCount = segments * rings * 2 * 3;
         indices->reserve(static_cast<std::size_t>(indexCount));
 
-        for (int i = 0; i <= rings; ++i)
+        for (std::int32_t i = 0; i <= rings; ++i)
         {
             float phi = (static_cast<float>(i) / static_cast<float>(rings)) * osg::PIf;
-            for (int j = 0; j < segments; ++j)
+            for (std::int32_t j = 0; j < segments; ++j)
             {
                 float theta = (static_cast<float>(j) / static_cast<float>(segments)) * osg::PIf * 2.f;
                 auto pos = sphereCoordToCartesian(theta, phi, radius);
@@ -247,12 +250,12 @@ namespace
             }
         }
 
-        for (int i = 0; i < rings; ++i)
+        for (std::int32_t i = 0; i < rings; ++i)
         {
-            int ringTopBase = i * segments;
-            int ringBottomBase = ringTopBase + segments;
+            std::int32_t ringTopBase = i * segments;
+            std::int32_t ringBottomBase = ringTopBase + segments;
 
-            for (int j = 0; j < segments; ++j)
+            for (std::int32_t j = 0; j < segments; ++j)
             {
                 auto v1 = static_cast<GLushort>(ringTopBase + j);
                 auto v2 = static_cast<GLushort>(ringTopBase + (j + 1) % segments);
@@ -274,14 +277,14 @@ namespace
         geom.addPrimitiveSet(indices);
     }
 
-    int getIndexBufferReadFromFrame(const unsigned int& nFrame)
+    std::int32_t getIndexBufferReadFromFrame(const std::uint32_t& nFrame)
     {
-        return static_cast<int>(nFrame % 2);
+        return static_cast<std::int32_t>(nFrame % 2);
     }
 
-    int getIndexBufferWriteFromFrame(const unsigned int& nFrame)
+    std::int32_t getIndexBufferWriteFromFrame(const std::uint32_t& nFrame)
     {
-        return static_cast<int>((nFrame + 1) % 2);
+        return static_cast<std::int32_t>((nFrame + 1) % 2);
     }
 }
 
@@ -462,7 +465,7 @@ void Debug::DebugDrawer::addDrawCall(const DrawCall& draw)
 
 void Debug::DebugDrawer::addLine(const osg::Vec3& start, const osg::Vec3& end, const osg::Vec3 color)
 {
-    const int indexWrite = getIndexBufferWriteFromFrame(mCurrentFrame);
+    const std::int32_t indexWrite = getIndexBufferWriteFromFrame(mCurrentFrame);
     const auto& lines = mCustomDebugDrawer[static_cast<std::size_t>(indexWrite)]->mLinesToDraw;
     auto vertices = static_cast<osg::Vec3Array*>(lines->getVertexArray());
     auto colors = static_cast<osg::Vec3Array*>(lines->getNormalArray());

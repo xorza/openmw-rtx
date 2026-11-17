@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
+
 #include <QComboBox>
 #include <QDialog>
 #include <QMenu>
 #include <QToolButton>
-#include <memory>
 
 #include <components/contentselector/model/contentmodel.hpp>
 
@@ -67,18 +69,18 @@ namespace ContentSelectorView
         void buildGameFileView();
         void buildAddonView();
         void buildContextMenu();
-        void setGameFileSelected(int index, bool selected);
+        void setGameFileSelected(std::int32_t index, bool selected);
         void setCheckStateForMultiSelectedItems(Qt::CheckState checkState);
 
     signals:
-        void signalCurrentGamefileIndexChanged(int);
+        void signalCurrentGamefileIndexChanged(std::int32_t);
 
         void signalAddonDataChanged(const QModelIndex& topleft, const QModelIndex& bottomright);
         void signalSelectedFilesChanged(QStringList selectedFiles);
 
     private slots:
 
-        void slotCurrentGameFileIndexChanged(int index);
+        void slotCurrentGameFileIndexChanged(std::int32_t index);
         void slotAddonTableItemActivated(const QModelIndex& index);
         void slotShowContextMenu(const QPoint& pos);
         void slotCheckMultiSelectedItems();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <components/esm/defs.hpp>
@@ -22,14 +23,14 @@ namespace ESM
         struct Data
         {
             float mWeight;
-            int32_t mValue;
+            std::int32_t mValue;
 
-            int32_t mUses;
+            std::int32_t mUses;
             float mQuality;
         }; // Size = 16
 
         Data mData{};
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mScript;
         std::string mName;
         Path mModel;

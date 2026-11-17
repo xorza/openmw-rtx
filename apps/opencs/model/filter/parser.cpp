@@ -2,6 +2,8 @@
 
 #include <cctype>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -25,12 +27,12 @@ namespace
 {
     bool isAlpha(char c)
     {
-        return std::isalpha(static_cast<unsigned char>(c));
+        return std::isalpha(static_cast<std::uint8_t>(c));
     }
 
     bool isDigit(char c)
     {
-        return std::isdigit(static_cast<unsigned char>(c));
+        return std::isdigit(static_cast<std::uint8_t>(c));
     }
 }
 
@@ -142,7 +144,7 @@ CSMFilter::Token CSMFilter::Parser::getStringToken()
 {
     std::string string;
 
-    int size = static_cast<int>(mInput.size());
+    auto size = static_cast<std::int32_t>(mInput.size());
 
     for (; mIndex < size; ++mIndex)
     {
@@ -186,7 +188,7 @@ CSMFilter::Token CSMFilter::Parser::getNumberToken()
 {
     std::string string;
 
-    int size = static_cast<int>(mInput.size());
+    auto size = static_cast<std::int32_t>(mInput.size());
 
     bool hasDecimalPoint = false;
     bool hasDigit = false;
@@ -239,7 +241,7 @@ CSMFilter::Token CSMFilter::Parser::checkKeywords(const Token& token)
 
     std::string string = Misc::StringUtils::lowerCase(token.mString);
 
-    for (int i = 0; sKeywords[i]; ++i)
+    for (std::int32_t i = 0; sKeywords[i]; ++i)
         if (sKeywords[i] == string || (string.size() == 1 && sKeywords[i][0] == string[0]))
             return Token(static_cast<Token::Type>(i + Token::Type_Keyword_True), token.mString);
 
@@ -248,7 +250,7 @@ CSMFilter::Token CSMFilter::Parser::checkKeywords(const Token& token)
 
 CSMFilter::Token CSMFilter::Parser::getNextToken()
 {
-    int size = static_cast<int>(mInput.size());
+    auto size = static_cast<std::int32_t>(mInput.size());
 
     char c = 0;
 
@@ -415,12 +417,12 @@ std::shared_ptr<CSMFilter::Node> CSMFilter::Parser::parseText()
         return std::shared_ptr<Node>();
 
     // parse column ID
-    int columnId = -1;
+    std::int32_t columnId = -1;
 
     if (token.mType == Token::Type_Number)
     {
-        if (static_cast<int>(token.mNumber) == token.mNumber)
-            columnId = static_cast<int>(token.mNumber);
+        if (static_cast<std::int32_t>(token.mNumber) == token.mNumber)
+            columnId = static_cast<std::int32_t>(token.mNumber);
     }
     else if (token.isString())
     {
@@ -482,12 +484,12 @@ std::shared_ptr<CSMFilter::Node> CSMFilter::Parser::parseValue()
         return std::shared_ptr<Node>();
 
     // parse column ID
-    int columnId = -1;
+    std::int32_t columnId = -1;
 
     if (token.mType == Token::Type_Number)
     {
-        if (static_cast<int>(token.mNumber) == token.mNumber)
-            columnId = static_cast<int>(token.mNumber);
+        if (static_cast<std::int32_t>(token.mNumber) == token.mNumber)
+            columnId = static_cast<std::int32_t>(token.mNumber);
     }
     else if (token.isString())
     {
@@ -654,7 +656,7 @@ bool CSMFilter::Parser::parse(const std::string& filter, bool allowPredefined)
             return false;
         }
 
-        const int index = mData.getFilters().searchId(ESM::RefId::stringRefId(token.mString));
+        const std::int32_t index = mData.getFilters().searchId(ESM::RefId::stringRefId(token.mString));
 
         if (index == -1)
         {

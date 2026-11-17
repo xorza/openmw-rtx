@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace ESM
@@ -8,16 +9,16 @@ namespace ESM
     struct LandRecordData
     {
         // number of vertices per side
-        static constexpr unsigned sLandSize = 65;
+        static constexpr std::uint32_t sLandSize = 65;
 
         // total number of vertices
-        static constexpr unsigned sLandNumVerts = sLandSize * sLandSize;
+        static constexpr std::uint32_t sLandNumVerts = sLandSize * sLandSize;
 
         // number of textures per side of land
-        static constexpr unsigned sLandTextureSize = 16;
+        static constexpr std::uint32_t sLandTextureSize = 16;
 
         // total number of textures per land
-        static constexpr unsigned sLandNumTextures = sLandTextureSize * sLandTextureSize;
+        static constexpr std::uint32_t sLandNumTextures = sLandTextureSize * sLandTextureSize;
 
         // Height in world space for each vertex
         std::array<float, sLandNumVerts> mHeights{};
@@ -35,6 +36,6 @@ namespace ESM
         // 24-bit RGB color for each vertex
         std::array<std::uint8_t, std::size_t{ 3 } * sLandNumVerts> mColours{};
 
-        int mDataLoaded = 0;
+        std::int32_t mDataLoaded = 0;
     };
 }

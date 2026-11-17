@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <osg/BlendFunc>
 #include <osg/ColorMask>
@@ -43,7 +45,7 @@ namespace
         Sunglare,
     };
 
-    osg::ref_ptr<osg::Geometry> createTexturedQuad(int numUvSets = 1, float scale = 1.f)
+    osg::ref_ptr<osg::Geometry> createTexturedQuad(std::int32_t numUvSets = 1, float scale = 1.f)
     {
         osg::ref_ptr<osg::Geometry> geom = new osg::Geometry;
 
@@ -66,8 +68,8 @@ namespace
         colors->push_back(osg::Vec4(1.f, 1.f, 1.f, 1.f));
         geom->setColorArray(colors, osg::Array::BIND_OVERALL);
 
-        for (int i = 0; i < numUvSets; ++i)
-            geom->setTexCoordArray(static_cast<unsigned int>(i), texcoords, osg::Array::BIND_PER_VERTEX);
+        for (std::int32_t i = 0; i < numUvSets; ++i)
+            geom->setTexCoordArray(static_cast<std::uint32_t>(i), texcoords, osg::Array::BIND_PER_VERTEX);
 
         geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::QUADS, 0, 4));
 
@@ -152,7 +154,7 @@ namespace MWRender
         return {};
     }
 
-    int WeatherResult::getRainMaxRaindrops() const
+    std::int32_t WeatherResult::getRainMaxRaindrops() const
     {
         if (mWeather)
             return mWeather->mRainMaxRaindrops;
@@ -217,8 +219,9 @@ namespace MWRender
 
     float OcclusionCallback::getVisibleRatio(osg::Camera* camera)
     {
-        int visible = static_cast<int>(mOcclusionQueryVisiblePixels->getQueryGeometry()->getNumPixels(camera));
-        int total = static_cast<int>(mOcclusionQueryTotalPixels->getQueryGeometry()->getNumPixels(camera));
+        auto visible
+            = static_cast<std::int32_t>(mOcclusionQueryVisiblePixels->getQueryGeometry()->getNumPixels(camera));
+        auto total = static_cast<std::int32_t>(mOcclusionQueryTotalPixels->getQueryGeometry()->getNumPixels(camera));
 
         float visibleRatio = 0.f;
         if (total > 0)
@@ -332,8 +335,8 @@ namespace MWRender
             // multiplies the result by two, then finally gets clamped by the fixed function pipeline. With the default
             // INI settings, only the red component gets clamped, so the resulting color looks more orange than red.
             mColor *= 2;
-            for (int i = 0; i < 3; ++i)
-                mColor[static_cast<unsigned int>(i)] = std::min(1.f, mColor[static_cast<unsigned int>(i)]);
+            for (std::int32_t i = 0; i < 3; ++i)
+                mColor[static_cast<std::uint32_t>(i)] = std::min(1.f, mColor[static_cast<std::uint32_t>(i)]);
         }
 
         void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
@@ -407,7 +410,7 @@ namespace MWRender
 
         void setDefaults(osg::StateSet* stateset) override
         {
-            stateset->addUniform(new osg::Uniform("pass", static_cast<int>(Pass::Moon)));
+            stateset->addUniform(new osg::Uniform("pass", static_cast<std::int32_t>(Pass::Moon)));
             stateset->setTextureAttribute(0, mPhaseTex);
             stateset->setTextureAttribute(1, mCircleTex);
             stateset->addUniform(new osg::Uniform("moonBlend", osg::Vec4f{}));
@@ -458,15 +461,15 @@ namespace MWRender
                 // XXX have to remove unwanted culling plane of the water reflection camera
 
                 // Remove all planes that aren't from the standard frustum
-                unsigned int numPlanes = 4;
+                std::uint32_t numPlanes = 4;
                 if (cv->getCullingMode() & osg::CullSettings::NEAR_PLANE_CULLING)
                     ++numPlanes;
                 if (cv->getCullingMode() & osg::CullSettings::FAR_PLANE_CULLING)
                     ++numPlanes;
 
-                unsigned int mask = 0x1;
-                unsigned int resultMask = cv->getProjectionCullingStack().back().getFrustum().getResultMask();
-                for (unsigned int i = 0; i < cv->getProjectionCullingStack().back().getFrustum().getPlaneList().size();
+                std::uint32_t mask = 0x1;
+                std::uint32_t resultMask = cv->getProjectionCullingStack().back().getFrustum().getResultMask();
+                for (std::uint32_t i = 0; i < cv->getProjectionCullingStack().back().getFrustum().getPlaneList().size();
                     ++i)
                 {
                     if (i >= numPlanes)
@@ -499,7 +502,7 @@ namespace MWRender
 
     void AtmosphereUpdater::setDefaults(osg::StateSet* stateset)
     {
-        stateset->addUniform(new osg::Uniform("pass", static_cast<int>(Pass::Atmosphere)));
+        stateset->addUniform(new osg::Uniform("pass", static_cast<std::int32_t>(Pass::Atmosphere)));
         stateset->addUniform(new osg::Uniform("diffuseColor", mEmissionColor));
     }
 
@@ -524,7 +527,7 @@ namespace MWRender
     void AtmosphereNightUpdater::setDefaults(osg::StateSet* stateset)
     {
         stateset->addUniform(new osg::Uniform("opacity", 0.f));
-        stateset->addUniform(new osg::Uniform("pass", static_cast<int>(Pass::Atmosphere_Night)));
+        stateset->addUniform(new osg::Uniform("pass", static_cast<std::int32_t>(Pass::Atmosphere_Night)));
     }
 
     void AtmosphereNightUpdater::apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/)
@@ -564,7 +567,7 @@ namespace MWRender
         stateset->setTextureAttribute(0, mTexture, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
         stateset->addUniform(new osg::Uniform("opacity", 1.f));
-        stateset->addUniform(new osg::Uniform("pass", static_cast<int>(Pass::Clouds)));
+        stateset->addUniform(new osg::Uniform("pass", static_cast<std::int32_t>(Pass::Clouds)));
         stateset->addUniform(new osg::Uniform("diffuseColor", mEmissionColor));
     }
 
@@ -600,11 +603,11 @@ namespace MWRender
                     std::array<osg::Matrix, 2> projectionMatrices;
                     auto& sm = Stereo::Manager::instance();
 
-                    for (int view : { 0, 1 })
+                    for (std::int32_t view : { 0, 1 })
                     {
                         auto projectionMatrix = sm.computeEyeProjection(view, SceneUtil::AutoDepth::isReversed());
                         auto viewOffsetMatrix = sm.computeEyeViewOffset(view);
-                        for (int col : { 0, 1, 2 })
+                        for (std::int32_t col : { 0, 1, 2 })
                             viewOffsetMatrix(3, col) = 0;
 
                         projectionMatrices[static_cast<std::size_t>(view)] = viewOffsetMatrix * projectionMatrix;
@@ -710,7 +713,8 @@ namespace MWRender
 
     const float CelestialBody::mDistance = 1000.0f;
 
-    CelestialBody::CelestialBody(osg::Group* parentNode, float scaleFactor, int numUvSets, unsigned int visibleMask)
+    CelestialBody::CelestialBody(
+        osg::Group* parentNode, float scaleFactor, std::int32_t numUvSets, std::uint32_t visibleMask)
         : mVisibleMask(visibleMask)
     {
         mGeom = createTexturedQuad(numUvSets);
@@ -745,7 +749,7 @@ namespace MWRender
         mGeom->getOrCreateStateSet()->setTextureAttribute(0, sunTex);
         mGeom->getOrCreateStateSet()->setTextureAttribute(
             0, new SceneUtil::TextureType("diffuseMap"), osg::StateAttribute::ON);
-        mGeom->getOrCreateStateSet()->addUniform(new osg::Uniform("pass", static_cast<int>(Pass::Sun)));
+        mGeom->getOrCreateStateSet()->addUniform(new osg::Uniform("pass", static_cast<std::int32_t>(Pass::Sun)));
 
         osg::ref_ptr<osg::Group> queryNode = new osg::Group;
         // Need to render after the world geometry so we can correctly test for occlusions
@@ -754,7 +758,7 @@ namespace MWRender
         stateset->setNestRenderBins(false);
         stateset->setTextureAttribute(0, sunTex);
         stateset->setTextureAttribute(0, new SceneUtil::TextureType("diffuseMap"), osg::StateAttribute::ON);
-        stateset->addUniform(new osg::Uniform("pass", static_cast<int>(Pass::Sunflash_Query)));
+        stateset->addUniform(new osg::Uniform("pass", static_cast<std::int32_t>(Pass::Sunflash_Query)));
 
         // Disable writing to the color buffer. We are using this geometry for visibility tests only.
         osg::ref_ptr<osg::ColorMask> colormask = new osg::ColorMask(0, 0, 0, 0);
@@ -889,7 +893,7 @@ namespace MWRender
         stateset->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
         stateset->setRenderBinDetails(RenderBin_SunGlare, "RenderBin");
         stateset->setNestRenderBins(false);
-        stateset->addUniform(new osg::Uniform("pass", static_cast<int>(Pass::Sun)));
+        stateset->addUniform(new osg::Uniform("pass", static_cast<std::int32_t>(Pass::Sun)));
 
         mSunFlashNode = group;
 
@@ -928,7 +932,7 @@ namespace MWRender
         stateset->setRenderBinDetails(RenderBin_SunGlare, "RenderBin");
         stateset->setNestRenderBins(false);
         stateset->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
-        stateset->addUniform(new osg::Uniform("pass", static_cast<int>(Pass::Sunglare)));
+        stateset->addUniform(new osg::Uniform("pass", static_cast<std::int32_t>(Pass::Sunglare)));
 
         // set up additive blending
         osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
@@ -1066,7 +1070,7 @@ namespace MWRender
         }
     }
 
-    int RainCounter::numParticlesToCreate(double dt) const
+    std::int32_t RainCounter::numParticlesToCreate(double dt) const
     {
         // limit dt to avoid large particle emissions if there are jumps in the simulation time
         // 0.2 seconds is the same cap as used in Engine's frame loop
@@ -1114,7 +1118,7 @@ namespace MWRender
     void ModVertexAlphaVisitor::apply(osg::Geometry& geometry)
     {
         osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array(geometry.getVertexArray()->getNumElements());
-        for (unsigned int i = 0; i < colors->size(); ++i)
+        for (std::uint32_t i = 0; i < colors->size(); ++i)
         {
             float alpha = 1.f;
 

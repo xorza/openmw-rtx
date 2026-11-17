@@ -1,5 +1,7 @@
 #include "esm4npc.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwworld/customdata.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm4/loadarmo.hpp>
@@ -19,7 +21,7 @@ namespace MWClass
     {
         template <class LevelledRecord, class TargetRecord>
         std::vector<const TargetRecord*> withBaseTemplates(
-            const TargetRecord* rec, int level = MWClass::ESM4Impl::sDefaultLevel)
+            const TargetRecord* rec, std::int32_t level = MWClass::ESM4Impl::sDefaultLevel)
         {
             std::vector<const TargetRecord*> res{ rec };
             while (true)
@@ -32,7 +34,7 @@ namespace MWClass
             }
         }
 
-        const ESM4::Npc* chooseTemplate(const std::vector<const ESM4::Npc*>& recs, uint16_t flag)
+        const ESM4::Npc* chooseTemplate(const std::vector<const ESM4::Npc*>& recs, std::uint16_t flag)
         {
             for (const auto* rec : recs)
             {

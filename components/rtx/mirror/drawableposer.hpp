@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include <osg/FrameStamp>
@@ -46,6 +47,6 @@ namespace Rtx
         osg::ref_ptr<osg::FrameStamp> mStamp = new osg::FrameStamp;
 
         /// The frame the number in `mCull` was taken for, or nothing before the first.
-        std::optional<unsigned int> mFrame;
+        std::optional<std::uint32_t> mFrame;
     };
 }

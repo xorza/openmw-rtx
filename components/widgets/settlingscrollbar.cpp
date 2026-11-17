@@ -1,6 +1,7 @@
 #include "settlingscrollbar.hpp"
 
 #include <array>
+#include <cstdint>
 
 #include <MyGUI_Button.h>
 
@@ -21,18 +22,18 @@ namespace Gui
             mWidgetTrack->eventMouseWheel += MyGUI::newDelegate(this, &SettlingScrollBar::notifyWheel);
     }
 
-    void SettlingScrollBar::onMouseWheel(int rel)
+    void SettlingScrollBar::onMouseWheel(std::int32_t rel)
     {
         ScrollBar::onMouseWheel(rel);
         settle();
     }
 
-    void SettlingScrollBar::notifyReleased(MyGUI::Widget*, int, int, MyGUI::MouseButton)
+    void SettlingScrollBar::notifyReleased(MyGUI::Widget*, std::int32_t, std::int32_t, MyGUI::MouseButton)
     {
         settle();
     }
 
-    void SettlingScrollBar::notifyWheel(MyGUI::Widget*, int)
+    void SettlingScrollBar::notifyWheel(MyGUI::Widget*, std::int32_t)
     {
         settle();
     }

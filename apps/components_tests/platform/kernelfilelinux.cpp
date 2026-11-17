@@ -1,5 +1,6 @@
 #include <array>
 #include <cerrno>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -17,9 +18,9 @@
 namespace
 {
     /// `text` as a descriptor reads it: the read end of a pipe whose write end is closed.
-    int descriptorOf(const std::string_view text)
+    std::int32_t descriptorOf(const std::string_view text)
     {
-        int ends[2];
+        std::int32_t ends[2];
         EXPECT_EQ(pipe(ends), 0);
         EXPECT_EQ(write(ends[1], text.data(), text.size()), static_cast<ssize_t>(text.size()));
         close(ends[1]);
@@ -36,14 +37,14 @@ namespace
                  std::pair{ std::string_view("abc"), 0 }, std::pair{ std::string_view("abcd"), EFBIG } })
         {
             SCOPED_TRACE(text);
-            const int descriptor = descriptorOf(text);
+            const std::int32_t descriptor = descriptorOf(text);
             const Platform::KernelFile::Read read = Platform::KernelFile::readOpened(descriptor, buffer);
             close(descriptor);
             EXPECT_EQ(read.mText, text);
             EXPECT_EQ(read.mError, error);
         }
 
-        const int folder = open(std::filesystem::temp_directory_path().c_str(), O_RDONLY | O_CLOEXEC);
+        const std::int32_t folder = open(std::filesystem::temp_directory_path().c_str(), O_RDONLY | O_CLOEXEC);
         ASSERT_NE(folder, -1);
         const Platform::KernelFile::Read read = Platform::KernelFile::readOpened(folder, buffer);
         close(folder);

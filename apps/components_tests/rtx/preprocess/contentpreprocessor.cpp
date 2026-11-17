@@ -85,7 +85,7 @@ namespace Rtx
         }
 
         /// `width` by `height` of loose RGBA8, mid grey and opaque, with no chain.
-        osg::ref_ptr<osg::Image> makeLoose(int width, int height)
+        osg::ref_ptr<osg::Image> makeLoose(std::int32_t width, std::int32_t height)
         {
             osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/tx_loose.dds", width, height);
             std::memset(image->data(), 128, image->getTotalSizeInBytes());
@@ -102,13 +102,14 @@ namespace Rtx
             for (std::uint32_t level = 0; level < levels; ++level)
             {
                 if (level > 0)
-                    offsets.push_back(static_cast<unsigned int>(bytes));
+                    offsets.push_back(static_cast<std::uint32_t>(bytes));
                 bytes += layout.levelBytes(std::max(width >> level, 1u), std::max(height >> level, 1u));
             }
-            auto* data = new unsigned char[bytes]();
+            auto* data = new std::uint8_t[bytes]();
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
-                GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setImage(static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), 1,
+                GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data,
+                osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(offsets);
             image->setFileName("textures/tx_block.dds");
             return image;
@@ -158,14 +159,14 @@ namespace Rtx
                 content.chain(input, made);
                 const ChainScratch predicted = ChainPass::scratchOf(input);
                 const ChainScratch held = heldBy(content, made);
-                const auto encoding = static_cast<int>(tried.mEncoding);
+                const auto encoding = static_cast<std::int32_t>(tried.mEncoding);
                 EXPECT_TRUE(held.within(predicted)) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Texels], tried.mTexels) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Band], tried.mBand) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Ring], tried.mRing) << encoding;
                 for (const ChainBuffer exact : { ChainBuffer::File, ChainBuffer::Alpha, ChainBuffer::Texels,
                          ChainBuffer::Band, ChainBuffer::Ring, ChainBuffer::Columns })
-                    EXPECT_EQ(held[exact], predicted[exact]) << encoding << " " << static_cast<int>(exact);
+                    EXPECT_EQ(held[exact], predicted[exact]) << encoding << " " << static_cast<std::int32_t>(exact);
                 EXPECT_EQ(held[ChainBuffer::Payload], 0u) << "the store frees the payload";
             }
 
@@ -182,9 +183,9 @@ namespace Rtx
                 ContentPreprocessor content(nullptr);
                 MadeChain made;
                 content.convert(input, made);
-                ASSERT_NE(made.mForm, ChainForm::Stands) << static_cast<int>(encoding);
+                ASSERT_NE(made.mForm, ChainForm::Stands) << static_cast<std::int32_t>(encoding);
                 EXPECT_TRUE(heldBy(content, made).within(ConversionPass::scratchOf(input)))
-                    << static_cast<int>(encoding);
+                    << static_cast<std::int32_t>(encoding);
             }
 
             ContentPreprocessor content(nullptr);
@@ -737,7 +738,7 @@ namespace Rtx
                 store.write(digest.getKey(), storeKindOf(ContentPassId::Chain), ChainPass::sVersion, payload,
                     ContentStore::Reach::Disk);
                 ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-                for (int ask = 0; ask < 2; ++ask)
+                for (std::int32_t ask = 0; ask < 2; ++ask)
                 {
                     MadeChain made;
                     content.chain(input, made);

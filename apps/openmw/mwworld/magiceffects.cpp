@@ -82,15 +82,15 @@ namespace MWWorld
             params.mNextWorsening = ESM::TimeStamp();
             for (const auto& enam : spell->mEffects.mList)
             {
-                if (!oldParams.mPurgedEffects.contains(static_cast<int>(enam.mIndex)))
+                if (!oldParams.mPurgedEffects.contains(static_cast<std::int32_t>(enam.mIndex)))
                 {
                     ESM::ActiveEffect effect;
                     effect.mEffectId = enam.mData.mEffectID;
                     effect.mArg = MWMechanics::EffectKey(enam.mData).mArg;
                     effect.mDuration = -1;
                     effect.mTimeLeft = -1;
-                    effect.mEffectIndex = static_cast<int32_t>(enam.mIndex);
-                    auto rand = oldParams.mEffectRands.find(static_cast<int>(enam.mIndex));
+                    effect.mEffectIndex = static_cast<std::int32_t>(enam.mIndex);
+                    auto rand = oldParams.mEffectRands.find(static_cast<std::int32_t>(enam.mIndex));
                     if (rand != oldParams.mEffectRands.end())
                     {
                         float magnitude = static_cast<float>((enam.mData.mMagnMax - enam.mData.mMagnMin)) * rand->second
@@ -118,7 +118,7 @@ namespace MWWorld
         for (std::size_t i = 0; i < inventory.mItems.size(); ++i)
         {
             ESM::ObjectState& item = inventory.mItems[i];
-            auto slot = inventory.mEquipmentSlots.find(static_cast<uint32_t>(i));
+            auto slot = inventory.mEquipmentSlots.find(static_cast<std::uint32_t>(i));
             if (slot != inventory.mEquipmentSlots.end())
             {
                 MWBase::Environment::get().getWorldModel()->assignSaveFileRefNum(item.mRef);
@@ -171,7 +171,7 @@ namespace MWWorld
                 effect.mArg = MWMechanics::EffectKey(enam.mData).mArg;
                 effect.mDuration = -1;
                 effect.mTimeLeft = -1;
-                effect.mEffectIndex = static_cast<int32_t>(enam.mIndex);
+                effect.mEffectIndex = static_cast<std::int32_t>(enam.mIndex);
                 // Prevent recalculation of resistances and don't reflect or absorb the effect
                 effect.mFlags = ESM::ActiveEffect::Flag_Ignore_Resistances | ESM::ActiveEffect::Flag_Ignore_Reflect
                     | ESM::ActiveEffect::Flag_Ignore_SpellAbsorption;
@@ -192,7 +192,7 @@ namespace MWWorld
             if (it != creatureStats.mActiveSpells.mSpells.end())
             {
                 it->mNextWorsening = spell.second.mNextWorsening;
-                int worsenings = 0;
+                std::int32_t worsenings = 0;
                 for (const auto& worsening : spell.second.mWorsenings)
                     worsenings = std::max(worsening, worsenings);
                 it->mWorsenings = worsenings;
@@ -211,7 +211,8 @@ namespace MWWorld
                     {
                         if (effect.mEffectId == key.mEffectId && effect.mEffectIndex == key.mEffectIndex)
                         {
-                            effect.mArg = ESM::RefNum{ .mIndex = static_cast<uint32_t>(actorId), .mContentFile = -1 };
+                            effect.mArg
+                                = ESM::RefNum{ .mIndex = static_cast<std::uint32_t>(actorId), .mContentFile = -1 };
                             effect.mFlags |= ESM::ActiveEffect::Flag_Applied | ESM::ActiveEffect::Flag_Remove;
                             found = true;
                             break;

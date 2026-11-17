@@ -2,6 +2,8 @@
 
 #include <cctype>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <format>
 #include <limits>
@@ -136,9 +138,9 @@ namespace Fx
             mColumn++;
         }
 
-        unsigned char Lexer::head()
+        std::uint8_t Lexer::head()
         {
-            return static_cast<unsigned char>(*mHead);
+            return static_cast<std::uint8_t>(*mHead);
         }
 
         bool Lexer::peekChar(char c)
@@ -321,9 +323,10 @@ namespace Fx
             {
                 // This is supposed to be an int, but that doesn't mean it can fit in one. A double past int's range
                 // converts to no int at all, which Clang assumes never happens, so the range is held first.
-                if (buffer < std::numeric_limits<int>::min() || buffer > std::numeric_limits<int>::max())
+                if (buffer < std::numeric_limits<std::int32_t>::min()
+                    || buffer > std::numeric_limits<std::int32_t>::max())
                     error("number out of range");
-                int intValue = static_cast<int>(buffer);
+                auto intValue = static_cast<std::int32_t>(buffer);
                 if (intValue != buffer)
                     error("number out of range");
                 return Integer{ intValue };

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwworld/inventorystore.hpp>
 
 #include "actoranimation.hpp"
@@ -42,7 +44,7 @@ namespace MWRender
 
         void updateParts();
 
-        void updatePart(PartHolderPtr& scene, int slot);
+        void updatePart(PartHolderPtr& scene, std::int32_t slot);
 
         void attachArrow() override;
         void detachArrow() override;

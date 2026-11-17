@@ -1,5 +1,6 @@
 #include "navigatorimpl.hpp"
 
+#include <cstdint>
 #include <utility>
 
 #include <components/esm3/loadpgrd.hpp>
@@ -108,7 +109,8 @@ namespace DetourNavigator
         mNavMeshManager.removeOffMeshConnections(id);
     }
 
-    void NavigatorImpl::addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard)
+    void NavigatorImpl::addWater(
+        const osg::Vec2i& cellPosition, std::int32_t cellSize, float level, const UpdateGuard* guard)
     {
         mNavMeshManager.addWater(cellPosition, cellSize, level, guard);
     }
@@ -119,7 +121,7 @@ namespace DetourNavigator
     }
 
     void NavigatorImpl::addHeightfield(
-        const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
+        const osg::Vec2i& cellPosition, std::int32_t cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
     {
         mNavMeshManager.addHeightfield(cellPosition, cellSize, shape, guard);
     }

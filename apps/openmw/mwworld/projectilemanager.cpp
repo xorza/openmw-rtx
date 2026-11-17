@@ -1,5 +1,7 @@
 #include "projectilemanager.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <memory>
 #include <optional>
@@ -95,7 +97,7 @@ namespace
 
         // Estimate the flight time to the current position, then refine it once using the predicted position
         osg::Vec3f predicted = target.mPosition;
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
             const osg::Vec2f offset(predicted.x() - launchPos.x(), predicted.y() - launchPos.y());
             const float flightTime = offset.length() / projectileSpeed;
@@ -123,7 +125,7 @@ namespace
             effects = &ench->mEffects;
         }
 
-        int count = 0;
+        std::int32_t count = 0;
         speed = 0.0f;
         ESM::EffectList projectileEffects;
         for (const ESM::IndexedENAMstruct& effect : effects->mList)
@@ -188,7 +190,7 @@ namespace
                 = MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().find(enam.mData.mEffectID);
             lightDiffuseColor += magicEffect->getColor();
         }
-        size_t numberOfEffects = effects.mList.size();
+        std::size_t numberOfEffects = effects.mList.size();
         lightDiffuseColor /= static_cast<float>(numberOfEffects);
 
         return lightDiffuseColor;
@@ -283,7 +285,7 @@ namespace MWWorld
 
         if (state.mIdMagic.size() > 1)
         {
-            for (size_t iter = 1; iter != state.mIdMagic.size(); ++iter)
+            for (std::size_t iter = 1; iter != state.mIdMagic.size(); ++iter)
             {
                 std::ostringstream nodeName;
                 nodeName << "Dummy" << std::setw(2) << std::setfill('0') << iter;
@@ -753,7 +755,7 @@ namespace MWWorld
         }
     }
 
-    bool ProjectileManager::readRecord(ESM::ESMReader& reader, uint32_t type)
+    bool ProjectileManager::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_PROJ)
         {
@@ -857,7 +859,7 @@ namespace MWWorld
         return false;
     }
 
-    size_t ProjectileManager::countSavedGameRecords() const
+    std::size_t ProjectileManager::countSavedGameRecords() const
     {
         return mMagicBolts.size() + mProjectiles.size();
     }
@@ -868,9 +870,10 @@ namespace MWWorld
         if (reader.mActorIdConverter)
         {
             for (ProjectileState& projectile : mProjectiles)
-                reader.mActorIdConverter->convert(projectile.mCaster, static_cast<int>(projectile.mCaster.mIndex));
+                reader.mActorIdConverter->convert(
+                    projectile.mCaster, static_cast<std::int32_t>(projectile.mCaster.mIndex));
             for (MagicBoltState& bolt : mMagicBolts)
-                reader.mActorIdConverter->convert(bolt.mCaster, static_cast<int>(bolt.mCaster.mIndex));
+                reader.mActorIdConverter->convert(bolt.mCaster, static_cast<std::int32_t>(bolt.mCaster.mIndex));
         }
     }
 

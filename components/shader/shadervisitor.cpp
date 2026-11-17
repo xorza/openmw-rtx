@@ -1,5 +1,6 @@
 #include "shadervisitor.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <set>
 #include <unordered_map>
@@ -79,17 +80,17 @@ namespace Shader
                 setAttributeAndModes(attribute.get());
             }
 
-            void setTextureAttribute(int unit, osg::StateAttribute::TypeMemberPair typeMemberPair)
+            void setTextureAttribute(std::int32_t unit, osg::StateAttribute::TypeMemberPair typeMemberPair)
             {
-                mTextureAttributes[static_cast<unsigned int>(unit)].emplace(typeMemberPair);
+                mTextureAttributes[static_cast<std::uint32_t>(unit)].emplace(typeMemberPair);
             }
 
-            void setTextureAttribute(unsigned int unit, const osg::StateAttribute* attribute)
+            void setTextureAttribute(std::uint32_t unit, const osg::StateAttribute* attribute)
             {
                 mTextureAttributes[unit].emplace(attribute->getTypeMemberPair());
             }
             template <typename T>
-            void setTextureAttribute(unsigned int unit, osg::ref_ptr<T> attribute)
+            void setTextureAttribute(std::uint32_t unit, osg::ref_ptr<T> attribute)
             {
                 setTextureAttribute(unit, attribute.get());
             }
@@ -100,13 +101,13 @@ namespace Shader
             {
                 return mAttributes.contains(typeMemberPair);
             }
-            bool hasAttribute(osg::StateAttribute::Type type, unsigned int member)
+            bool hasAttribute(osg::StateAttribute::Type type, std::uint32_t member)
             {
                 return hasAttribute(osg::StateAttribute::TypeMemberPair(type, member));
             }
 
             const std::set<osg::StateAttribute::TypeMemberPair>& getAttributes() { return mAttributes; }
-            const std::unordered_map<unsigned int, std::set<osg::StateAttribute::TypeMemberPair>>&
+            const std::unordered_map<std::uint32_t, std::set<osg::StateAttribute::TypeMemberPair>>&
             getTextureAttributes()
             {
                 return mTextureAttributes;
@@ -140,7 +141,7 @@ namespace Shader
             std::unordered_set<std::string> mUniforms;
             ModeSet mModes;
             AttributeSet mAttributes;
-            std::unordered_map<unsigned int, AttributeSet> mTextureAttributes;
+            std::unordered_map<std::uint32_t, AttributeSet> mTextureAttributes;
         };
     }
 
@@ -212,7 +213,7 @@ namespace Shader
 
         void updateRemovedState(osg::UserDataContainer& userData, osg::StateSet* removedState)
         {
-            unsigned int index = userData.getUserObjectIndex("removedState");
+            std::uint32_t index = userData.getUserObjectIndex("removedState");
             if (index < userData.getNumUserObjects())
                 userData.setUserObject(index, removedState);
             else
@@ -230,7 +231,7 @@ namespace Shader
 
         void updateAddedState(osg::UserDataContainer& userData, AddedState* addedState)
         {
-            unsigned int index = userData.getUserObjectIndex("addedState");
+            std::uint32_t index = userData.getUserObjectIndex("addedState");
             if (index < userData.getNumUserObjects())
                 userData.setUserObject(index, addedState);
             else
@@ -259,7 +260,7 @@ namespace Shader
             const osg::Texture* normalMap = nullptr;
             const osg::Texture* specularMap = nullptr;
             const osg::Texture* bumpMap = nullptr;
-            for (unsigned int unit = 0; unit < texAttributes.size(); ++unit)
+            for (std::uint32_t unit = 0; unit < texAttributes.size(); ++unit)
             {
                 const osg::StateAttribute* attr = stateset->getTextureAttribute(unit, osg::StateAttribute::TEXTURE);
                 if (attr)
@@ -277,20 +278,20 @@ namespace Shader
 
                         if (!texName.empty())
                         {
-                            mRequirements.back().mTextures[static_cast<int>(unit)] = texName;
+                            mRequirements.back().mTextures[static_cast<std::int32_t>(unit)] = texName;
                             if (texName == "normalMap")
                             {
-                                mRequirements.back().mTexStageRequiringTangents = static_cast<int>(unit);
+                                mRequirements.back().mTexStageRequiringTangents = static_cast<std::int32_t>(unit);
                                 normalMap = texture;
                             }
                             else if (texName == "diffuseMap")
                             {
-                                int applyMode = 0;
+                                std::int32_t applyMode = 0;
                                 // Oblivion parallax
                                 if (node.getUserValue("applyMode", applyMode) && applyMode == 4)
                                 {
                                     mRequirements.back().mDiffuseHeight = true;
-                                    mRequirements.back().mTexStageRequiringTangents = static_cast<int>(unit);
+                                    mRequirements.back().mTexStageRequiringTangents = static_cast<std::int32_t>(unit);
                                 }
                                 diffuseMap = texture;
                             }
@@ -388,7 +389,7 @@ namespace Shader
             }
         }
 
-        unsigned int alphaBlend = stateset->getMode(GL_BLEND);
+        std::uint32_t alphaBlend = stateset->getMode(GL_BLEND);
         if (alphaBlend != osg::StateAttribute::INHERIT
             && (!mRequirements.back().mAlphaBlendOverridden || alphaBlend & osg::StateAttribute::PROTECTED))
         {
@@ -538,7 +539,7 @@ namespace Shader
 
         if (reqs.mSoftParticles)
         {
-            const int unitSoftEffect
+            const std::int32_t unitSoftEffect
                 = mShaderManager.reserveGlobalTextureUnits(Shader::ShaderManager::Slot::OpaqueDepthTexture);
             writableStateSet->addUniform(new osg::Uniform("opaqueDepthTex", unitSoftEffect));
             addedState->addUniform("opaqueDepthTex");
@@ -603,7 +604,7 @@ namespace Shader
             // if there are none at all, bail.
             // the TangentSpaceGenerator would bail, but getTangentArray would give an empty array, which is enough to
             // bypass null checks, but feeds the driver a bad pointer
-            const std::optional<unsigned int> first = coordinatesFor(sourceGeometry, 0);
+            const std::optional<std::uint32_t> first = coordinatesFor(sourceGeometry, 0);
             if (!first.has_value())
                 return changed;
             if (*first != 0)
@@ -611,17 +612,17 @@ namespace Shader
 
             for (const auto& [unit, name] : reqs.mTextures)
             {
-                if (sourceGeometry.getTexCoordArray(static_cast<unsigned int>(unit)) == nullptr)
+                if (sourceGeometry.getTexCoordArray(static_cast<std::uint32_t>(unit)) == nullptr)
                 {
                     sourceGeometry.setTexCoordArray(
-                        static_cast<unsigned int>(unit), sourceGeometry.getTexCoordArray(0));
+                        static_cast<std::uint32_t>(unit), sourceGeometry.getTexCoordArray(0));
                     changed = true;
                 }
             }
 
             if (reqs.mTexStageRequiringTangents != -1)
             {
-                generateTangents(sourceGeometry, static_cast<unsigned int>(reqs.mTexStageRequiringTangents));
+                generateTangents(sourceGeometry, static_cast<std::uint32_t>(reqs.mTexStageRequiringTangents));
                 changed = true;
             }
         }
@@ -726,7 +727,7 @@ namespace Shader
                     writableUserData = writableStateSet->getUserDataContainer();
                 else
                     writableUserData = getWritableUserDataContainer(*writableStateSet);
-                unsigned int index = writableUserData->getUserObjectIndex("removedState");
+                std::uint32_t index = writableUserData->getUserObjectIndex("removedState");
                 writableUserData->removeUserObject(index);
 
                 for (const auto& [mode, value] : removedState->getModeList())

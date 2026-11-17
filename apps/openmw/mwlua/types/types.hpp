@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <sol/sol.hpp>
 
 #include <apps/openmw/mwlua/context.hpp>
@@ -14,7 +16,7 @@ namespace MWLua
     // We use this "fixed" type in Lua because we don't want to expose the weirdness of Morrowind internals to our API.
     // TODO: Implement https://gitlab.com/OpenMW/openmw/-/issues/6617 and make `MWWorld::PtrBase::getType` work the
     // same as `getLiveCellRefType`.
-    unsigned int getLiveCellRefType(const MWWorld::LiveCellRefBase* ref);
+    std::uint32_t getLiveCellRefType(const MWWorld::LiveCellRefBase* ref);
 
     std::string_view getLuaObjectTypeName(ESM::RecNameInts type, std::string_view fallback = "Unknown");
     std::string_view getLuaObjectTypeName(const MWWorld::Ptr& ptr);

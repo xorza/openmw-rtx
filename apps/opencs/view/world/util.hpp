@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <map>
+
 #include <QAbstractTableModel>
 #include <QStyledItemDelegate>
-#include <map>
 
 #include <apps/opencs/model/world/columnbase.hpp>
 
@@ -37,13 +39,13 @@ namespace CSVWorld
     public:
         explicit NastyTableModelHack(QAbstractItemModel& model);
 
-        int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+        std::int32_t rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
-        int columnCount(const QModelIndex& parent = QModelIndex()) const override;
+        std::int32_t columnCount(const QModelIndex& parent = QModelIndex()) const override;
 
-        QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+        QVariant data(const QModelIndex& index, std::int32_t role = Qt::DisplayRole) const override;
 
-        bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
+        bool setData(const QModelIndex& index, const QVariant& value, std::int32_t role = Qt::EditRole) override;
 
         QVariant getData() const;
     };

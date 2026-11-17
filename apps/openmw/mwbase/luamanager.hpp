@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <string>
@@ -83,27 +85,28 @@ namespace MWBase
         virtual void useItem(const MWWorld::Ptr& object, const MWWorld::Ptr& actor, bool force) = 0;
         virtual void animationTextKey(const MWWorld::Ptr& actor, const std::string& key) = 0;
         virtual void playAnimation(const MWWorld::Ptr& object, const std::string& groupname,
-            const MWRender::AnimPriority& priority, int blendMask, bool autodisable, float speedmult,
-            std::string_view start, std::string_view stop, float startpoint, uint32_t loops, bool loopfallback) = 0;
+            const MWRender::AnimPriority& priority, std::int32_t blendMask, bool autodisable, float speedmult,
+            std::string_view start, std::string_view stop, float startpoint, std::uint32_t loops, bool loopfallback)
+            = 0;
         virtual void animationEnded(const MWWorld::Ptr& actor, std::string_view groupname, float time, float completion,
             std::string_view startKey, std::string_view stopKey) = 0;
-        virtual void jailTimeServed(const MWWorld::Ptr& actor, int days) = 0;
+        virtual void jailTimeServed(const MWWorld::Ptr& actor, std::int32_t days) = 0;
         virtual void skillLevelUp(const MWWorld::Ptr& actor, ESM::RefId skillId, std::string_view source) = 0;
-        virtual void skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, int useType, float scale) = 0;
+        virtual void skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, std::int32_t useType, float scale) = 0;
         virtual void onHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& weapon,
-            const MWWorld::Ptr& ammo, int attackType, float attackStrength, float attackWindUp, float damage,
+            const MWWorld::Ptr& ammo, std::int32_t attackType, float attackStrength, float attackWindUp, float damage,
             bool isHealth, const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType) = 0;
         virtual void exteriorCreated(MWWorld::CellStore& cell) = 0;
         virtual void actorDied(const MWWorld::Ptr& actor) = 0;
         virtual void onDialogueResponse(
             const MWWorld::Ptr& actor, const ESM::DialInfo& info, const ESM::Dialogue& record) = 0;
-        virtual void questUpdated(const ESM::RefId& questId, int stage) = 0;
+        virtual void questUpdated(const ESM::RefId& questId, std::int32_t stage) = 0;
         // `arg` is either forwarded from MWGui::pushGuiMode or empty
         virtual void uiModeChanged(const MWWorld::Ptr& arg) = 0;
-        virtual void viewportResized(int width, int height) = 0;
+        virtual void viewportResized(std::int32_t width, std::int32_t height) = 0;
         /// The interface's font size moved (`MWBase::WindowManager::getFontSize`): `omw/mwui`'s templates
         /// take it.
-        virtual void fontSizeChanged(int size) = 0;
+        virtual void fontSizeChanged(std::int32_t size) = 0;
         virtual void savePermanentStorage(const std::filesystem::path& userConfigPath) = 0;
         virtual void applyMagicEffects(ESM::RefId id, const MWWorld::Ptr& caster, ESM::RefNum item,
             const MWWorld::Ptr& target, const std::vector<ESM::IndexedENAMstruct>& effects, bool ignoreReflect,
@@ -119,8 +122,8 @@ namespace MWBase
         {
             struct WheelChange
             {
-                int x;
-                int y;
+                std::int32_t x;
+                std::int32_t y;
             };
 
             enum
@@ -137,7 +140,7 @@ namespace MWBase
                 MouseButtonReleased,
                 MouseWheel,
             } mType{};
-            std::variant<SDL_KeyboardEvent, int, SDLUtil::TouchEvent, WheelChange> mValue;
+            std::variant<SDL_KeyboardEvent, std::int32_t, SDLUtil::TouchEvent, WheelChange> mValue;
         };
         virtual void inputEvent(const InputEvent& event) = 0;
 
@@ -162,7 +165,7 @@ namespace MWBase
         virtual void setupPlayer(const MWWorld::Ptr&) = 0;
 
         // Saving
-        size_t countSavedGameRecords() const { return 1; }
+        std::size_t countSavedGameRecords() const { return 1; }
         virtual void write(ESM::ESMWriter& writer, Loading::Listener& progress) = 0;
         virtual void saveLocalScripts(const MWWorld::Ptr& ptr, ESM::LuaScripts& data) = 0;
 
@@ -170,17 +173,17 @@ namespace MWBase
         virtual void applyDelayedActions() = 0;
 
         // Loading from a save
-        virtual void readRecord(ESM::ESMReader& reader, uint32_t type) = 0;
+        virtual void readRecord(ESM::ESMReader& reader, std::uint32_t type) = 0;
         virtual void loadLocalScripts(const MWWorld::Ptr& ptr, const ESM::LuaScripts& data) = 0;
 
         // Should be called before loading. The map is used to fix refnums if the order of content files was changed.
-        virtual void setContentFileMapping(const std::map<int, int>&) = 0;
+        virtual void setContentFileMapping(const std::map<std::int32_t, std::int32_t>&) = 0;
 
         // Drops script cache and reloads all scripts. Calls `onSave` and `onLoad` for every script.
         virtual void reloadAllScripts() = 0;
 
         // Seeds the scripts' `math.random` (`LuaUtil::LuaState::seedRandom`). Not while an update runs.
-        virtual void seedRandom(unsigned seed) = 0;
+        virtual void seedRandom(std::uint32_t seed) = 0;
 
         virtual void handleConsoleCommand(
             const std::string& consoleMode, const std::string& command, const MWWorld::Ptr& selectedPtr) = 0;

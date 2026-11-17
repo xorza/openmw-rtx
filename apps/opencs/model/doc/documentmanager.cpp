@@ -1,9 +1,10 @@
 #include "documentmanager.hpp"
 
-#include <QWaitCondition>
 #include <algorithm>
 #include <filesystem>
 #include <stdexcept>
+
+#include <QWaitCondition>
 
 #include <components/files/configurationmanager.hpp>
 

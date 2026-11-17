@@ -1,5 +1,6 @@
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -52,7 +53,7 @@ namespace Rtx
             patch->setVertexArray(vertices);
             patch->setTexCoordArray(0, coords, osg::Array::BIND_PER_VERTEX);
             osg::ref_ptr<osg::DrawElementsUShort> triangles = new osg::DrawElementsUShort(GL_TRIANGLES);
-            for (const unsigned short index : std::array<unsigned short, 6>{ 0, 1, 2, 0, 2, 3 })
+            for (const std::uint16_t index : std::array<std::uint16_t, 6>{ 0, 1, 2, 0, 2, 3 })
                 triangles->push_back(index);
             patch->addPrimitiveSet(triangles);
             return patch;
@@ -60,10 +61,10 @@ namespace Rtx
 
         /// A state set binding a sheet of `file` on the first unit: four grey texels, which the
         /// upload takes.
-        osg::ref_ptr<osg::StateSet> binding(const std::string& file, unsigned int flags = osg::StateAttribute::ON)
+        osg::ref_ptr<osg::StateSet> binding(const std::string& file, std::uint32_t flags = osg::StateAttribute::ON)
         {
             osg::ref_ptr<osg::Image> image = Testing::makeImage("", 2, 2);
-            for (int at = 0; at < 16; ++at)
+            for (std::int32_t at = 0; at < 16; ++at)
                 image->data()[at] = 128;
             image->setFileName(file);
 
@@ -158,10 +159,10 @@ namespace Rtx
         TEST(RtxNightSkyTest, aFieldsTileIsAWholeNumberOfThemAroundTheSky)
         {
             constexpr float rate = 1.3f;
-            constexpr int columns = 16;
+            constexpr std::int32_t columns = 16;
             osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
             osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
-            for (int column = 0; column <= columns; ++column)
+            for (std::int32_t column = 0; column <= columns; ++column)
                 for (const float elevation : { 0.1f, 1.4f })
                 {
                     const float azimuth = 2.0f * osg::PIf * static_cast<float>(column) / columns;
@@ -175,9 +176,9 @@ namespace Rtx
             band->setVertexArray(vertices);
             band->setTexCoordArray(0, coords, osg::Array::BIND_PER_VERTEX);
             osg::ref_ptr<osg::DrawElementsUShort> triangles = new osg::DrawElementsUShort(GL_TRIANGLES);
-            for (int column = 0; column < columns; ++column)
-                for (const int corner : { 0, 2, 3, 0, 3, 1 })
-                    triangles->push_back(static_cast<unsigned short>(2 * column + corner));
+            for (std::int32_t column = 0; column < columns; ++column)
+                for (const std::int32_t corner : { 0, 2, 3, 0, 3, 1 })
+                    triangles->push_back(static_cast<std::uint16_t>(2 * column + corner));
             band->addPrimitiveSet(triangles);
             band->setStateSet(binding("textures/stars.dds"));
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "keyedge.hpp"
 
 namespace RtxTool
@@ -9,7 +11,7 @@ namespace RtxTool
     /// asks for the weather at once rather than for a crossing into it.
     struct SkyPress
     {
-        int mSteps = 0;
+        std::int32_t mSteps = 0;
         bool mAtOnce = false;
     };
 

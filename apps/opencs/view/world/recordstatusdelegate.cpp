@@ -1,5 +1,7 @@
 #include "recordstatusdelegate.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,13 +37,13 @@ CSVWorld::CommandDelegate* CSVWorld::RecordStatusDelegateFactory::makeDelegate(
 
 CSVWorld::RecordStatusDelegateFactory::RecordStatusDelegateFactory()
 {
-    std::vector<std::pair<int, std::string>> enums
+    std::vector<std::pair<std::int32_t, std::string>> enums
         = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_Modification);
 
     static const char* sIcons[]
         = { ":list-base", ":list-modified", ":list-added", ":list-removed", ":list-removed", nullptr };
 
-    for (int i = 0; sIcons[i]; ++i)
+    for (std::int32_t i = 0; sIcons[i]; ++i)
     {
         auto& enumPair = enums.at(static_cast<std::size_t>(i));
         add(enumPair.first, enumPair.second.c_str(), sIcons[i]);

@@ -34,7 +34,7 @@ namespace Resource
         });
     }
 
-    void NifFileManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void NifFileManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Nif", frameNumber, mCache->getStats(), *stats);
     }

@@ -1,5 +1,7 @@
 #include "importpage.hpp"
 
+#include <cstdint>
+
 #include "mainwizard.hpp"
 
 Wizard::ImportPage::ImportPage(QWidget* parent)
@@ -14,7 +16,7 @@ Wizard::ImportPage::ImportPage(QWidget* parent)
     registerField(QStringLiteral("installation.import-fonts"), fontsCheckBox);
 }
 
-int Wizard::ImportPage::nextId() const
+std::int32_t Wizard::ImportPage::nextId() const
 {
     return MainWizard::Page_Conclusion;
 }

@@ -1,5 +1,7 @@
 #include "sensormanager.hpp"
 
+#include <cstdint>
+
 #include <components/debug/debuglog.hpp>
 #include <components/settings/values.hpp>
 
@@ -74,9 +76,9 @@ namespace MWInput
     {
         if (Settings::input().mEnableGyroscope)
         {
-            int numSensors = 0;
+            std::int32_t numSensors = 0;
             SDL_SensorID* sensors = SDL_GetSensors(&numSensors);
-            for (int i = 0; i < numSensors; ++i)
+            for (std::int32_t i = 0; i < numSensors; ++i)
             {
                 const SDL_SensorID id = sensors[i];
                 if (SDL_GetSensorTypeForID(id) == SDL_SENSOR_GYRO)

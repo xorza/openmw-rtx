@@ -1,5 +1,7 @@
 #include "importklst.hpp"
 
+#include <cstdint>
+
 #include <components/esm3/esmreader.hpp>
 
 namespace ESSImport
@@ -10,7 +12,7 @@ namespace ESSImport
         while (esm.isNextSub("KNAM"))
         {
             ESM::RefId refId = esm.getRefId();
-            int32_t count = 0;
+            std::int32_t count = 0;
             esm.getHNT(count, "CNAM");
             mKillCounter[refId] = count;
         }

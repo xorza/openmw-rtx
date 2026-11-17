@@ -30,7 +30,7 @@ namespace RtxTool
     {
         void appendBigEndian(std::string& bytes, const std::uint32_t value)
         {
-            for (int shift = 24; shift >= 0; shift -= 8)
+            for (std::int32_t shift = 24; shift >= 0; shift -= 8)
                 bytes += static_cast<char>((value >> shift) & 0xffu);
         }
 
@@ -90,7 +90,7 @@ namespace RtxTool
         // The one conversion of a traced picture to OpenSceneGraph's rows, at its own size.
         const osg::ref_ptr<osg::Image> image
             = Rtx::frameImage(Rtx::TracedFrame{ .mWidth = width, .mHeight = height, .mPixels = pixels },
-                static_cast<int>(width), static_cast<int>(height), Rtx::RowOrder::BottomFirst);
+                static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), Rtx::RowOrder::BottomFirst);
         Crash::contract(image != nullptr, "a picture written from fewer pixels than its size");
         return writeImage(path, *image, description);
     }
@@ -104,9 +104,10 @@ namespace RtxTool
 
         // OSG's rows start at the bottom, as `frameImage` turns an eight-bit picture's.
         const osg::ref_ptr<osg::Image> image = new osg::Image;
-        image->allocateImage(static_cast<int>(width), static_cast<int>(height), 1, GL_RGBA, GL_UNSIGNED_SHORT);
+        image->allocateImage(
+            static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), 1, GL_RGBA, GL_UNSIGNED_SHORT);
         for (std::uint32_t y = 0; y < height; ++y)
-            std::memcpy(image->data(0, static_cast<unsigned int>(static_cast<int>(height - 1 - y))),
+            std::memcpy(image->data(0, static_cast<std::uint32_t>(static_cast<std::int32_t>(height - 1 - y))),
                 samples.data() + row * y, row * sizeof(std::uint16_t));
         return writeImage(path, *image, description);
     }
@@ -120,7 +121,9 @@ namespace RtxTool
         if (image == nullptr || image->s() <= 0 || image->t() <= 0)
             return Err{ Files::pathToUnicodeString(path) + " does not decode" };
 
-        const int channels = image->getPixelFormat() == GL_RGBA ? 4 : image->getPixelFormat() == GL_RGB ? 3 : 0;
+        const std::int32_t channels = image->getPixelFormat() == GL_RGBA ? 4
+            : image->getPixelFormat() == GL_RGB                          ? 3
+                                                                         : 0;
         const GLenum type = image->getDataType();
         if ((type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT) || channels == 0)
             return Err{ Files::pathToUnicodeString(path) + " is not eight- or sixteen-bit RGB or RGBA" };
@@ -131,12 +134,12 @@ namespace RtxTool
         // Back the way `writePng` sent them: OSG's first row is the bottom one.
         for (std::uint32_t y = 0; y < read.mHeight; ++y)
         {
-            const unsigned char* row
-                = image->data(0, static_cast<unsigned int>(static_cast<int>(read.mHeight - 1 - y)));
+            const std::uint8_t* row
+                = image->data(0, static_cast<std::uint32_t>(static_cast<std::int32_t>(read.mHeight - 1 - y)));
             std::uint16_t* into = read.mSamples.data() + std::size_t{ y } * read.mWidth * 4;
 
             for (std::uint32_t x = 0; x < read.mWidth; ++x)
-                for (int channel = 0; channel < 4; ++channel)
+                for (std::int32_t channel = 0; channel < 4; ++channel)
                 {
                     const std::size_t from
                         = std::size_t{ x } * static_cast<std::size_t>(channels) + static_cast<std::size_t>(channel);

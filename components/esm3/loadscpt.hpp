@@ -25,7 +25,7 @@ namespace ESM
         /// Return a string descriptor for this record type. Currently used for debugging / error logs only.
         static std::string_view getRecordType() { return "Script"; }
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         std::uint32_t mNumShorts{};
@@ -38,7 +38,7 @@ namespace ESM
 
         /// Bytecode generated from script-precompiling in the editor.
         /// \warning Do not use this field. OpenCS currently does not precompile scripts.
-        std::vector<unsigned char> mScriptData;
+        std::vector<std::uint8_t> mScriptData;
 
         /// Script source code
         std::string mScriptText;

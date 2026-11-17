@@ -256,7 +256,7 @@ namespace ContentStore
         Misc::Monitor mMonitor;
         std::deque<Task> mQueue;
         std::size_t mQueuedBytes = 0;
-        int mInFlight = 0;
+        std::int32_t mInFlight = 0;
         std::unordered_set<Key, KeyHash> mStamped;
         std::unordered_map<Key, Resident, KeyHash> mResident;
         std::size_t mResidentBytes = 0;

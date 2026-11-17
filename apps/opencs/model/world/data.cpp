@@ -1,9 +1,12 @@
 #include "data.hpp"
 
-#include <QAbstractItemModel>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
+
+#include <QAbstractItemModel>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <components/debug/debuglog.hpp>
@@ -64,7 +67,7 @@ namespace CSMWorld
             if (topicInfoOrder == infoOrders.end())
                 return;
 
-            std::vector<int> erasedRecords;
+            std::vector<std::int32_t> erasedRecords;
 
             for (const OrderedInfo& info : topicInfoOrder->second.getOrderedInfo())
             {
@@ -116,11 +119,11 @@ void CSMWorld::Data::appendIds(std::vector<ESM::RefId>& ids, const CollectionBas
     ids.insert(ids.end(), ids2.begin(), ids2.end());
 }
 
-int CSMWorld::Data::count(RecordBase::State state, const CollectionBase& collection)
+std::int32_t CSMWorld::Data::count(RecordBase::State state, const CollectionBase& collection)
 {
-    int number = 0;
+    std::int32_t number = 0;
 
-    for (int i = 0; i < collection.getSize(); ++i)
+    for (std::int32_t i = 0; i < collection.getSize(); ++i)
         if (collection.getRecord(i).mState == state)
             ++number;
 
@@ -165,7 +168,7 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, Files::PathContainer dataPaths,
 
     mResourceSystem->getSceneManager()->setShaderPath(resDir / "shaders");
 
-    int index = 0;
+    std::int32_t index = 0;
 
     mGlobals.addColumn(new StringIdColumn<ESM::Global>);
     mGlobals.addColumn(new RecordStateColumn<ESM::Global>);
@@ -184,7 +187,7 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, Files::PathContainer dataPaths,
     mSkills.addColumn(new FixedRecordTypeColumn<ESM::Skill>(UniversalId::Type_Skill));
     mSkills.addColumn(new AttributeColumn<ESM::Skill>);
     mSkills.addColumn(new SpecialisationColumn<ESM::Skill>);
-    for (int i = 0; i < 4; ++i)
+    for (std::int32_t i = 0; i < 4; ++i)
         mSkills.addColumn(new UseValueColumn<ESM::Skill>(i));
     mSkills.addColumn(new DescriptionColumn<ESM::Skill>);
 
@@ -195,9 +198,9 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, Files::PathContainer dataPaths,
     mClasses.addColumn(new AttributesColumn<ESM::Class>(0));
     mClasses.addColumn(new AttributesColumn<ESM::Class>(1));
     mClasses.addColumn(new SpecialisationColumn<ESM::Class>);
-    for (int i = 0; i < 5; ++i)
+    for (std::int32_t i = 0; i < 5; ++i)
         mClasses.addColumn(new SkillsColumn<ESM::Class>(i, true, true));
-    for (int i = 0; i < 5; ++i)
+    for (std::int32_t i = 0; i < 5; ++i)
         mClasses.addColumn(new SkillsColumn<ESM::Class>(i, true, false));
     mClasses.addColumn(new PlayableColumn<ESM::Class>);
     mClasses.addColumn(new DescriptionColumn<ESM::Class>);
@@ -209,7 +212,7 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, Files::PathContainer dataPaths,
     mFactions.addColumn(new AttributesColumn<ESM::Faction>(0));
     mFactions.addColumn(new AttributesColumn<ESM::Faction>(1));
     mFactions.addColumn(new HiddenColumn<ESM::Faction>);
-    for (int i = 0; i < 7; ++i)
+    for (std::int32_t i = 0; i < 7; ++i)
         mFactions.addColumn(new SkillsColumn<ESM::Faction>(i));
     // Faction Reactions
     mFactions.addColumn(new NestedParentColumn<ESM::Faction>(Columns::ColumnId_FactionReactions));
@@ -481,7 +484,7 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, Files::PathContainer dataPaths,
     mBodyParts.addColumn(new FlagColumn<ESM::BodyPart>(Columns::ColumnId_Playable, ESM::BodyPart::BPF_NotPlayable,
         ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue, true));
 
-    int meshTypeFlags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue | ColumnBase::Flag_Dialogue_Refresh;
+    std::int32_t meshTypeFlags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue | ColumnBase::Flag_Dialogue_Refresh;
     auto* meshTypeColumn = new MeshTypeColumn<ESM::BodyPart>(meshTypeFlags);
     mBodyParts.addColumn(meshTypeColumn);
     mBodyParts.addColumn(new ModelColumn<ESM::BodyPart>);
@@ -1038,9 +1041,9 @@ void CSMWorld::Data::merge()
     mGlobals.merge();
 }
 
-int CSMWorld::Data::getTotalRecords(const std::vector<std::filesystem::path>& files)
+std::int32_t CSMWorld::Data::getTotalRecords(const std::vector<std::filesystem::path>& files)
 {
-    int records = 0;
+    std::int32_t records = 0;
 
     std::unique_ptr<ESM::ESMReader> reader = std::make_unique<ESM::ESMReader>();
 
@@ -1057,7 +1060,7 @@ int CSMWorld::Data::getTotalRecords(const std::vector<std::filesystem::path>& fi
     return records;
 }
 
-int CSMWorld::Data::startLoading(const std::filesystem::path& path, bool base, bool project)
+std::int32_t CSMWorld::Data::startLoading(const std::filesystem::path& path, bool base, bool project)
 {
     Log(Debug::Info) << "Loading content file " << path;
 
@@ -1137,7 +1140,7 @@ bool CSMWorld::Data::continueLoading(CSMDoc::Messages& messages)
     if (!reader->isOpen())
         throw std::logic_error("can't continue loading, because no load has been started");
     reader->setEncoder(&mEncoder);
-    reader->setIndex(static_cast<int>(mReaderIndex - 1));
+    reader->setIndex(static_cast<std::int32_t>(mReaderIndex - 1));
     reader->resolveParentFileIndices(mReaders);
 
     if (!reader->hasMoreRecs())
@@ -1218,7 +1221,7 @@ bool CSMWorld::Data::continueLoading(CSMDoc::Messages& messages)
 
         case ESM::REC_CELL:
         {
-            int index = mCells.load(*reader, mBase);
+            std::int32_t index = mCells.load(*reader, mBase);
             if (index < 0 || index >= mCells.getSize())
             {
                 // log an error and continue loading the refs to the last loaded cell
@@ -1425,7 +1428,7 @@ bool CSMWorld::Data::hasId(const std::string& id) const
         || getReferenceables().searchId(refId) != -1;
 }
 
-int CSMWorld::Data::count(RecordBase::State state) const
+std::int32_t CSMWorld::Data::count(RecordBase::State state) const
 {
     return count(state, mGlobals) + count(state, mGmsts) + count(state, mSkills) + count(state, mClasses)
         + count(state, mFactions) + count(state, mRaces) + count(state, mSounds) + count(state, mScripts)
@@ -1472,9 +1475,9 @@ void CSMWorld::Data::assetsChanged()
     const UniversalId assetTableIds[] = { UniversalId::Type_Meshes, UniversalId::Type_Icons, UniversalId::Type_Musics,
         UniversalId::Type_SoundsRes, UniversalId::Type_Textures, UniversalId::Type_Videos };
 
-    size_t numAssetTables = sizeof(assetTableIds) / sizeof(UniversalId);
+    std::size_t numAssetTables = sizeof(assetTableIds) / sizeof(UniversalId);
 
-    for (size_t i = 0; i < numAssetTables; ++i)
+    for (std::size_t i = 0; i < numAssetTables; ++i)
     {
         auto* table = static_cast<ResourceTable*>(getTableModel(assetTableIds[i]));
         table->beginReset();
@@ -1483,7 +1486,7 @@ void CSMWorld::Data::assetsChanged()
     // Trigger recreation
     mResourcesManager.recreateResources();
 
-    for (size_t i = 0; i < numAssetTables; ++i)
+    for (std::size_t i = 0; i < numAssetTables; ++i)
     {
         auto* table = static_cast<ResourceTable*>(getTableModel(assetTableIds[i]));
         table->endReset();
@@ -1501,7 +1504,7 @@ void CSMWorld::Data::dataChanged(const QModelIndex& topLeft, const QModelIndex& 
         emit idListChanged();
 }
 
-void CSMWorld::Data::rowsChanged(const QModelIndex& parent, int start, int end)
+void CSMWorld::Data::rowsChanged(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     emit idListChanged();
 }

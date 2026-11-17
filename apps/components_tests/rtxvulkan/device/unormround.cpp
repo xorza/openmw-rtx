@@ -259,7 +259,7 @@ namespace Rtx
             // NOLINTNEXTLINE(bugprone-random-generator-seed)
             std::mt19937 draws(20261009u);
             std::uniform_real_distribution<float> inUnit(0.0f, 1.0f);
-            for (int i = 0; i < 4096; ++i)
+            for (std::int32_t i = 0; i < 4096; ++i)
                 add(inUnit(draws));
 
             std::uniform_int_distribution<std::uint32_t> anyWord(0u, 0xffffffu);

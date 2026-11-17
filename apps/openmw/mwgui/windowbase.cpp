@@ -1,5 +1,8 @@
 #include "windowbase.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
@@ -13,13 +16,13 @@
 
 using namespace MWGui;
 
-size_t MWGui::wrap(size_t index, size_t max, int delta)
+std::size_t MWGui::wrap(std::size_t index, std::size_t max, std::int32_t delta)
 {
     if (max == 0)
         return 0;
     if (delta >= 0)
     {
-        auto absDelta = static_cast<unsigned>(delta);
+        auto absDelta = static_cast<std::uint32_t>(delta);
         // Each branch states its own case, kept apart to be read and changed as its own.
         // NOLINTBEGIN(bugprone-branch-clone)
         if (absDelta >= max)
@@ -29,14 +32,14 @@ size_t MWGui::wrap(size_t index, size_t max, int delta)
         // NOLINTEND(bugprone-branch-clone)
         return index + absDelta;
     }
-    auto absDelta = static_cast<size_t>(-static_cast<ptrdiff_t>(delta));
+    auto absDelta = static_cast<std::size_t>(-static_cast<std::ptrdiff_t>(delta));
     index = std::min(index, max);
     if (index >= absDelta)
         return index - absDelta;
     return max - 1;
 }
 
-void MWGui::setControllerFocus(const std::vector<MyGUI::Button*>& buttons, size_t index, bool focused)
+void MWGui::setControllerFocus(const std::vector<MyGUI::Button*>& buttons, std::size_t index, bool focused)
 {
     if (index < buttons.size())
         buttons[index]->setStateSelected(focused);
@@ -116,10 +119,10 @@ void WindowBase::clampWindowCoordinates(MyGUI::Window* window)
     if (minSize.width > viewSize.width || minSize.height > viewSize.height)
         return;
 
-    int left = std::max(0, window->getPosition().left);
-    int top = std::max(0, window->getPosition().top);
-    int width = std::clamp(window->getSize().width, 0, viewSize.width);
-    int height = std::clamp(window->getSize().height, 0, viewSize.height);
+    std::int32_t left = std::max(0, window->getPosition().left);
+    std::int32_t top = std::max(0, window->getPosition().top);
+    std::int32_t width = std::clamp(window->getSize().width, 0, viewSize.width);
+    std::int32_t height = std::clamp(window->getSize().height, 0, viewSize.height);
     if (left + width > viewSize.width)
         left = viewSize.width - width;
 
@@ -210,15 +213,15 @@ float BookWindowBase::adjustButton(std::string_view name)
     WindowBase::getWidget(button, name);
     MyGUI::IntSize requested = button->getRequestedSize();
     float scale = static_cast<float>(requested.height) / static_cast<float>(button->getSize().height);
-    MyGUI::IntSize newSize(static_cast<int>(static_cast<float>(requested.width) / scale),
-        static_cast<int>(static_cast<float>(requested.height) / scale));
+    MyGUI::IntSize newSize(static_cast<std::int32_t>(static_cast<float>(requested.width) / scale),
+        static_cast<std::int32_t>(static_cast<float>(requested.height) / scale));
     button->setSize(newSize);
 
     if (button->getAlign().isRight())
     {
         MyGUI::IntSize diff = (button->getSize() - requested);
-        diff.width = static_cast<int>(static_cast<float>(diff.width) / scale);
-        diff.height = static_cast<int>(static_cast<float>(diff.height) / scale);
+        diff.width = static_cast<std::int32_t>(static_cast<float>(diff.width) / scale);
+        diff.height = static_cast<std::int32_t>(static_cast<float>(diff.height) / scale);
         button->setPosition(button->getPosition() + MyGUI::IntPoint(diff.width, 0));
     }
 

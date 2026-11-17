@@ -1,13 +1,15 @@
 #pragma once
 
-#include <QMutex>
-#include <QObject>
-#include <QWaitCondition>
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <QMutex>
+#include <QObject>
+#include <QWaitCondition>
 
 class QTimer;
 
@@ -21,8 +23,8 @@ namespace CSMDoc
 
         struct Stage
         {
-            int mFile = 0;
-            int mRecordsLoaded = 0;
+            std::int32_t mFile = 0;
+            std::int32_t mRecordsLoaded = 0;
             bool mRecordsLeft = false;
         };
 
@@ -65,9 +67,9 @@ namespace CSMDoc
         ///< Document load has been interrupted either because of a call to abortLoading
         /// or a problem during loading). In the former case error will be an empty string.
 
-        void nextStage(CSMDoc::Document* document, const std::string& name, int totalRecords);
+        void nextStage(CSMDoc::Document* document, const std::string& name, std::int32_t totalRecords);
 
-        void nextRecord(CSMDoc::Document* document, int records);
+        void nextRecord(CSMDoc::Document* document, std::int32_t records);
         ///< \note This signal is only given once per group of records. The group size is
         /// approximately the total number of records divided by the steps value of the
         /// previous nextStage signal.

@@ -1,12 +1,14 @@
 #include "stats.hpp"
 
+#include <cstdint>
+
 #include <components/misc/framestats.hpp>
 
 namespace DetourNavigator
 {
     namespace
     {
-        void reportStats(const AsyncNavMeshUpdaterStats& stats, unsigned int frameNumber, Misc::FrameStats& out)
+        void reportStats(const AsyncNavMeshUpdaterStats& stats, std::uint32_t frameNumber, Misc::FrameStats& out)
         {
             out.setAttribute(frameNumber, "NavMesh Jobs", static_cast<double>(stats.mJobs));
             out.setAttribute(frameNumber, "NavMesh Removing", static_cast<double>(stats.mWaiting.mRemoving));
@@ -31,7 +33,8 @@ namespace DetourNavigator
             out.setAttribute(frameNumber, "NavMesh Cache Hit", static_cast<double>(stats.mCache.mHitCount));
         }
 
-        void reportStats(const TileCachedRecastMeshManagerStats& stats, unsigned int frameNumber, Misc::FrameStats& out)
+        void reportStats(
+            const TileCachedRecastMeshManagerStats& stats, std::uint32_t frameNumber, Misc::FrameStats& out)
         {
             out.setAttribute(frameNumber, "NavMesh Recast Tiles", static_cast<double>(stats.mTiles));
             out.setAttribute(frameNumber, "NavMesh Recast Objects", static_cast<double>(stats.mObjects));
@@ -40,7 +43,7 @@ namespace DetourNavigator
         }
     }
 
-    void reportStats(const Stats& stats, unsigned int frameNumber, Misc::FrameStats& out)
+    void reportStats(const Stats& stats, std::uint32_t frameNumber, Misc::FrameStats& out)
     {
         reportStats(stats.mUpdater, frameNumber, out);
         reportStats(stats.mRecast, frameNumber, out);

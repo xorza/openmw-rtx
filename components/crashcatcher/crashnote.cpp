@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <string_view>
 #include <type_traits>
@@ -100,7 +101,7 @@ namespace Crash
         {
             for (std::size_t back = 1; back <= std::min<std::size_t>(4, text.size()); ++back)
             {
-                const auto byte = static_cast<unsigned char>(text[text.size() - back]);
+                const auto byte = static_cast<std::uint8_t>(text[text.size() - back]);
                 if ((byte & 0xC0) == 0x80)
                     continue;
                 const std::size_t needs = byte >= 0xF0 ? 4 : byte >= 0xE0 ? 3 : byte >= 0xC0 ? 2 : 1;

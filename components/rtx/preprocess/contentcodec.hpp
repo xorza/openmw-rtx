@@ -111,7 +111,7 @@ namespace Rtx
         static void encode(const MeanTexel& mean, Misc::ByteBuffer& into)
         {
             for (const osg::Vec3f& colour : { mean.mColour, mean.mWhole })
-                for (int channel = 0; channel < 3; ++channel)
+                for (std::int32_t channel = 0; channel < 3; ++channel)
                     ContentBytes::put(into, colour[channel]);
             ContentBytes::put(into, mean.mAlpha);
         }
@@ -119,7 +119,7 @@ namespace Rtx
         static bool decode(std::span<const std::byte> from, MeanTexel& mean)
         {
             for (osg::Vec3f* colour : { &mean.mColour, &mean.mWhole })
-                for (int channel = 0; channel < 3; ++channel)
+                for (std::int32_t channel = 0; channel < 3; ++channel)
                     if (!ContentBytes::take(from, (*colour)[channel]))
                         return false;
             return ContentBytes::take(from, mean.mAlpha) && from.empty();

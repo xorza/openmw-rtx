@@ -1,6 +1,7 @@
 #include "cellref.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 
 #include <components/debug/debuglog.hpp>
@@ -10,7 +11,7 @@
 
 namespace
 {
-    constexpr int ZeroLock = std::numeric_limits<int>::max();
+    constexpr std::int32_t ZeroLock = std::numeric_limits<std::int32_t>::max();
 }
 
 namespace ESM
@@ -232,7 +233,7 @@ namespace ESM
         {
             if (mIsLocked)
             {
-                int lockLevel = mLockLevel;
+                std::int32_t lockLevel = mLockLevel;
                 if (lockLevel == 0)
                     lockLevel = ZeroLock;
                 esm.writeHNT("FLTV", lockLevel);
@@ -270,7 +271,7 @@ namespace ESM
         mReferenceBlocked = -1;
         mTeleport = false;
 
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
         {
             mDoorDest.pos[i] = 0;
             mDoorDest.rot[i] = 0;

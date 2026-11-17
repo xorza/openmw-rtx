@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace CSVRender
 {
 
@@ -7,7 +9,7 @@ namespace CSVRender
     /// @note See the respective file in OpenMW (apps/openmw/mwrender/vismask.hpp)
     /// for general usage hints about node masks.
     /// @copydoc MWRender::VisMask
-    enum Mask : unsigned int
+    enum Mask : std::uint32_t
     {
         // elements that are part of the actual scene
         Mask_Hidden = 0x0,

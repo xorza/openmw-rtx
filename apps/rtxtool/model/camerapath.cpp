@@ -1,6 +1,8 @@
 #include "camerapath.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <components/crashcatcher/crash.hpp>
 
@@ -21,7 +23,7 @@ namespace RtxTool
 
         /// How deep the halving goes before it takes what it has: two to the thirtieth pieces, far
         /// past where a cubic's speed stops changing between two of them.
-        constexpr int sMaximumDepth = 30;
+        constexpr std::int32_t sMaximumDepth = 30;
 
         /// How close a point found by length stands to the length asked for, in world units.
         constexpr double sPointTolerance = 1e-6;
@@ -38,7 +40,8 @@ namespace RtxTool
         }
 
         template <class Speed>
-        double integrate(const Speed& speed, const double from, const double to, const double whole, const int depth)
+        double integrate(
+            const Speed& speed, const double from, const double to, const double whole, const std::int32_t depth)
         {
             const double middle = 0.5 * (from + to);
             const double left = gaussLegendre(speed, from, middle);
@@ -136,7 +139,7 @@ namespace RtxTool
         double low = 0.0;
         double high = 1.0;
         double u = along / piece.mLength;
-        for (int step = 0; step < 64; ++step)
+        for (std::int32_t step = 0; step < 64; ++step)
         {
             const double error = piece.lengthTo(u) - along;
             if (std::abs(error) <= sPointTolerance)

@@ -1,5 +1,7 @@
 #include "boolsetting.hpp"
 
+#include <cstdint>
+
 #include <QCheckBox>
 #include <QMutexLocker>
 
@@ -44,7 +46,7 @@ void CSMPrefs::BoolSetting::updateWidget()
     }
 }
 
-void CSMPrefs::BoolSetting::valueChanged(int value)
+void CSMPrefs::BoolSetting::valueChanged(std::int32_t value)
 {
     setValue(value != Qt::Unchecked);
     getParent()->getState()->update(*this);

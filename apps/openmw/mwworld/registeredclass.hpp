@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "class.hpp"
 
 namespace MWWorld
@@ -17,7 +19,7 @@ namespace MWWorld
     private:
         friend Derived;
 
-        explicit RegisteredClass(unsigned type)
+        explicit RegisteredClass(std::uint32_t type)
             : Base(type)
         {
         }

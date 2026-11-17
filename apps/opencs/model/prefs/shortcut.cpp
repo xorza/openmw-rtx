@@ -1,9 +1,11 @@
 #include "shortcut.hpp"
 
+#include <cassert>
+#include <cstdint>
+#include <exception>
+
 #include <QAction>
 #include <QWidget>
-#include <cassert>
-#include <exception>
 
 #include <components/debug/debuglog.hpp>
 
@@ -108,17 +110,17 @@ namespace CSMPrefs
         return mSequence;
     }
 
-    int Shortcut::getModifier() const
+    std::int32_t Shortcut::getModifier() const
     {
         return mModifier;
     }
 
-    int Shortcut::getPosition() const
+    std::int32_t Shortcut::getPosition() const
     {
         return mCurrentPos;
     }
 
-    int Shortcut::getLastPosition() const
+    std::int32_t Shortcut::getLastPosition() const
     {
         return mLastPos;
     }
@@ -150,12 +152,12 @@ namespace CSMPrefs
         }
     }
 
-    void Shortcut::setModifier(int modifier)
+    void Shortcut::setModifier(std::int32_t modifier)
     {
         mModifier = modifier;
     }
 
-    void Shortcut::setPosition(int pos)
+    void Shortcut::setPosition(std::int32_t pos)
     {
         mCurrentPos = pos;
     }

@@ -1,6 +1,8 @@
 #pragma once
 
-extern int GuiFontHeight;
+#include <cstdint>
+
+extern std::int32_t GuiFontHeight;
 
 namespace Gui
 {

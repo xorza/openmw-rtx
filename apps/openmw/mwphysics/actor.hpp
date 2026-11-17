@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
 
@@ -137,8 +138,8 @@ namespace MWPhysics
         MWWorld::Ptr getStandingOnPtr() const;
         void setStandingOnPtr(const MWWorld::Ptr& ptr);
 
-        unsigned int getStuckFrames() const { return mStuckFrames; }
-        void setStuckFrames(unsigned int frames) { mStuckFrames = frames; }
+        std::uint32_t getStuckFrames() const { return mStuckFrames; }
+        void setStuckFrames(std::uint32_t frames) { mStuckFrames = frames; }
 
         const osg::Vec3f& getLastStuckPosition() const { return mLastStuckPosition; }
         void setLastStuckPosition(osg::Vec3f position) { mLastStuckPosition = position; }
@@ -155,8 +156,8 @@ namespace MWPhysics
         MWWorld::Ptr mStandingOnPtr;
         /// Removes then re-adds the collision object to the dynamics world
         void updateCollisionMask();
-        void addCollisionMask(int collisionMask);
-        int getCollisionMask() const;
+        void addCollisionMask(std::int32_t collisionMask);
+        std::int32_t getCollisionMask() const;
 
         /// Returns the mesh translation, scaled and rotated as necessary
         osg::Vec3f getScaledMeshTranslation() const;
@@ -182,7 +183,7 @@ namespace MWPhysics
         bool mSkipSimulation = true;
         mutable std::mutex mPositionMutex;
 
-        unsigned int mStuckFrames;
+        std::uint32_t mStuckFrames;
         osg::Vec3f mLastStuckPosition;
 
         osg::Vec3f mForce;

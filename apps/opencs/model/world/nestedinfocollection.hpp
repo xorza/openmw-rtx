@@ -1,8 +1,10 @@
 #pragma once
 
-#include <QVariant>
+#include <cstdint>
 #include <map>
 #include <utility>
+
+#include <QVariant>
 
 #include "infocollection.hpp"
 #include "nestedcollection.hpp"
@@ -27,24 +29,26 @@ namespace CSMWorld
         NestedInfoCollection() = default;
         ~NestedInfoCollection() override;
 
-        void addNestedRow(int row, int column, int position) override;
+        void addNestedRow(std::int32_t row, std::int32_t column, std::int32_t position) override;
 
-        void removeNestedRows(int row, int column, int subRow) override;
+        void removeNestedRows(std::int32_t row, std::int32_t column, std::int32_t subRow) override;
 
-        QVariant getNestedData(int row, int column, int subRow, int subColumn) const override;
+        QVariant getNestedData(
+            std::int32_t row, std::int32_t column, std::int32_t subRow, std::int32_t subColumn) const override;
 
-        void setNestedData(int row, int column, const QVariant& data, int subRow, int subColumn) override;
+        void setNestedData(std::int32_t row, std::int32_t column, const QVariant& data, std::int32_t subRow,
+            std::int32_t subColumn) override;
 
-        NestedTableWrapperBase* nestedTable(int row, int column) const override;
+        NestedTableWrapperBase* nestedTable(std::int32_t row, std::int32_t column) const override;
 
-        void setNestedTable(int row, int column, const NestedTableWrapperBase& nestedTable) override;
+        void setNestedTable(std::int32_t row, std::int32_t column, const NestedTableWrapperBase& nestedTable) override;
 
-        int getNestedRowsCount(int row, int column) const override;
+        std::int32_t getNestedRowsCount(std::int32_t row, std::int32_t column) const override;
 
-        int getNestedColumnsCount(int row, int column) const override;
+        std::int32_t getNestedColumnsCount(std::int32_t row, std::int32_t column) const override;
 
         // this method is inherited from NestedCollection, not from Collection<Info>
-        NestableColumn* getNestableColumn(int column) override;
+        NestableColumn* getNestableColumn(std::int32_t column) override;
 
         void addAdapter(std::pair<const ColumnBase*, NestedColumnAdapter<Info>*> adapter);
     };

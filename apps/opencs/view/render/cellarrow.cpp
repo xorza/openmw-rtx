@@ -1,5 +1,7 @@
 #include "cellarrow.hpp"
 
+#include <cstdint>
+
 #include <osg/Array>
 #include <osg/GL>
 #include <osg/Geometry>
@@ -78,11 +80,11 @@ QString CSVRender::CellArrowTag::getToolTip(bool hideBasics, const WorldspaceHit
 void CSVRender::CellArrow::adjustTransform()
 {
     // position
-    const int cellSize = Constants::CellSizeInUnits;
-    const int offset = cellSize / 2 + 600;
+    const std::int32_t cellSize = Constants::CellSizeInUnits;
+    const std::int32_t offset = cellSize / 2 + 600;
 
-    int x = mCoordinates.getX() * cellSize + cellSize / 2;
-    int y = mCoordinates.getY() * cellSize + cellSize / 2;
+    std::int32_t x = mCoordinates.getX() * cellSize + cellSize / 2;
+    std::int32_t y = mCoordinates.getY() * cellSize + cellSize / 2;
 
     float xr = 0;
     float yr = 0;
@@ -125,13 +127,13 @@ void CSVRender::CellArrow::buildShape()
 {
     osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
 
-    const int arrowWidth = 2700;
-    const int arrowLength = 1350;
-    const int arrowHeight = 300;
+    const std::int32_t arrowWidth = 2700;
+    const std::int32_t arrowLength = 1350;
+    const std::int32_t arrowHeight = 300;
 
     auto* vertices = new osg::Vec3Array;
-    for (int i2 = 0; i2 < 2; ++i2)
-        for (int i = 0; i < 2; ++i)
+    for (std::int32_t i2 = 0; i2 < 2; ++i2)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
             float height = i ? -arrowHeight / 2 : arrowHeight / 2;
             // A whole-number division on purpose.
@@ -187,9 +189,9 @@ void CSVRender::CellArrow::buildShape()
 
     auto* colours = new osg::Vec4Array;
 
-    for (int i = 0; i < 6; ++i)
+    for (std::int32_t i = 0; i < 6; ++i)
         colours->push_back(osg::Vec4f(0.11f, 0.6f, 0.95f, 1.0f));
-    for (int i = 0; i < 6; ++i)
+    for (std::int32_t i = 0; i < 6; ++i)
         colours->push_back(osg::Vec4f(0.08f, 0.44f, 0.7f, 1.0f));
 
     geometry->setColorArray(colours, osg::Array::BIND_PER_VERTEX);

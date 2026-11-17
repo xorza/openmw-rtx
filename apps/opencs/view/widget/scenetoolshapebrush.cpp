@@ -1,5 +1,8 @@
 #include "scenetoolshapebrush.hpp"
 
+#include <cstdint>
+#include <utility>
+
 #include <QButtonGroup>
 #include <QComboBox>
 #include <QDragEnterEvent>
@@ -15,7 +18,6 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
@@ -52,7 +54,7 @@ CSVWidget::ShapeBrushSizeControls::ShapeBrushSizeControls(const QString& title, 
     layoutSliderSize->addWidget(mBrushSizeSpinBox);
 
     connect(mBrushSizeSlider, &QSlider::valueChanged, mBrushSizeSpinBox, &QSpinBox::setValue);
-    connect(mBrushSizeSpinBox, qOverload<int>(&QSpinBox::valueChanged), mBrushSizeSlider, &QSlider::setValue);
+    connect(mBrushSizeSpinBox, qOverload<std::int32_t>(&QSpinBox::valueChanged), mBrushSizeSlider, &QSlider::setValue);
 
     setLayout(layoutSliderSize);
 }
@@ -143,7 +145,7 @@ void CSVWidget::ShapeBrushWindow::configureButtonInitialSettings(QPushButton* bu
     button->setCheckable(true);
 }
 
-void CSVWidget::ShapeBrushWindow::setBrushSize(int brushSize)
+void CSVWidget::ShapeBrushWindow::setBrushSize(std::int32_t brushSize)
 {
     mBrushSize = brushSize;
     emit passBrushSize(mBrushSize);

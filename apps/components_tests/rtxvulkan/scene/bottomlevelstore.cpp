@@ -41,19 +41,19 @@ namespace Rtx
     {
         /// A level grid of `side` quads a side at height `z`: a cell's ground at sixty-four, which
         /// is large enough that a tight copy of its structure is smaller than the loose one.
-        Index addGrid(SceneDesc& scene, const unsigned side, const float z)
+        Index addGrid(SceneDesc& scene, const std::uint32_t side, const float z)
         {
             std::vector<osg::Vec3f> positions;
             std::vector<osg::Vec3f> normals;
             std::vector<std::uint32_t> indices;
-            for (unsigned y = 0; y <= side; ++y)
-                for (unsigned x = 0; x <= side; ++x)
+            for (std::uint32_t y = 0; y <= side; ++y)
+                for (std::uint32_t x = 0; x <= side; ++x)
                 {
                     positions.emplace_back(static_cast<float>(x), static_cast<float>(y), z);
                     normals.emplace_back(0.0f, 0.0f, 1.0f);
                 }
-            for (unsigned y = 0; y < side; ++y)
-                for (unsigned x = 0; x < side; ++x)
+            for (std::uint32_t y = 0; y < side; ++y)
+                for (std::uint32_t x = 0; x < side; ++x)
                 {
                     const std::uint32_t corner = y * (side + 1) + x;
                     indices.insert(indices.end(),

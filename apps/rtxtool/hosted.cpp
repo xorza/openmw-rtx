@@ -1,6 +1,7 @@
 #include "hosted.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <ostream>
 #include <set>
@@ -110,7 +111,7 @@ namespace RtxTool
         // Taken before the request is handed to the session that owns it from here on.
         const bool played = request.mPlayed;
 
-        const unsigned int seed = request.mRandomSeed;
+        const std::uint32_t seed = request.mRandomSeed;
 
         // **Built before the engine and read after it.** A run that ends its last stop and a window
         // somebody closes both have to be reported, and only the first ever reaches `finish` — so

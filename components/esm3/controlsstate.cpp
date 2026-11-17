@@ -1,5 +1,7 @@
 #include "controlsstate.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -19,7 +21,7 @@ namespace ESM
 
     void ControlsState::load(ESMReader& esm)
     {
-        int flags = 0;
+        std::int32_t flags = 0;
         esm.getHNT(flags, "CFLG");
 
         mViewSwitchDisabled = flags & ViewSwitchDisabled;
@@ -33,7 +35,7 @@ namespace ESM
 
     void ControlsState::save(ESMWriter& esm) const
     {
-        int flags = 0;
+        std::int32_t flags = 0;
         if (mViewSwitchDisabled)
             flags |= ViewSwitchDisabled;
         if (mControlsDisabled)

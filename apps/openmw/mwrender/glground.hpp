@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -33,8 +34,9 @@ namespace MWRender
 
         Terrain::World& getTerrain() override { return *mTerrain; }
 
-        bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) override;
-        void blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) override;
+        bool enableReference(std::int32_t type, const MWWorld::ConstPtr& ptr, bool enabled) override;
+        void blacklistReference(
+            std::int32_t type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) override;
         bool unlockCache() override;
         void collectPagedRefnums(const osg::Vec4i& activeGrid, std::vector<ESM::RefNum>& out) override;
         void clear() override;

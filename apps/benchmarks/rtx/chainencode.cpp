@@ -229,8 +229,8 @@ namespace Rtx
                     for (std::size_t texel = 0; texel < decoded.size() / 4; ++texel)
                         for (std::size_t channel = 0; channel < mChannels; ++channel)
                         {
-                            const int lost = int{ decoded[texel * 4 + channel] }
-                                - std::to_integer<int>(built[texel * 4 + channel]);
+                            const std::int32_t lost = std::int32_t{ decoded[texel * 4 + channel] }
+                                - std::to_integer<std::int32_t>(built[texel * 4 + channel]);
                             squares += static_cast<std::uint64_t>(lost * lost);
                         }
                 }
@@ -477,7 +477,7 @@ namespace Rtx
             for (std::uint32_t across = width, down = height;; across /= 2, down /= 2)
             {
                 if (!file.empty())
-                    offsets.push_back(static_cast<unsigned int>(file.size()));
+                    offsets.push_back(static_cast<std::uint32_t>(file.size()));
                 for (std::uint32_t by = 0; by < down / 4; ++by)
                     for (std::uint32_t bx = 0; bx < across / 4; ++bx)
                     {
@@ -512,10 +512,11 @@ namespace Rtx
             }
 
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* const data = new unsigned char[file.size()];
+            auto* const data = new std::uint8_t[file.size()];
             std::memcpy(data, file.data(), file.size());
-            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
-                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setImage(static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), 1,
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data,
+                osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(offsets);
             return image;
         }
@@ -525,19 +526,19 @@ namespace Rtx
         template <class TexelAt>
         osg::ref_ptr<const osg::Image> makeLoose(std::uint32_t side, const TexelAt& texelAt)
         {
-            auto* const data = new unsigned char[std::size_t{ side } * side * 4];
+            auto* const data = new std::uint8_t[std::size_t{ side } * side * 4];
             for (std::uint32_t y = 0; y < side; ++y)
                 for (std::uint32_t x = 0; x < side; ++x)
                 {
                     const std::array<float, 4> texel = texelAt(x, y);
                     for (std::size_t channel = 0; channel < 4; ++channel)
                         data[(std::size_t{ y } * side + x) * 4 + channel]
-                            = static_cast<unsigned char>(std::lround(std::clamp(texel[channel], 0.0f, 1.0f) * 255.0f));
+                            = static_cast<std::uint8_t>(std::lround(std::clamp(texel[channel], 0.0f, 1.0f) * 255.0f));
                 }
 
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setImage(static_cast<int>(side), static_cast<int>(side), 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE,
-                data, osg::Image::USE_NEW_DELETE);
+            image->setImage(static_cast<std::int32_t>(side), static_cast<std::int32_t>(side), 1, GL_RGBA8, GL_RGBA,
+                GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             return image;
         }
 
@@ -689,7 +690,7 @@ namespace Rtx
 
 // An exception here ends the process, which is what this function means.
 // NOLINTNEXTLINE(bugprone-exception-escape)
-int main(int argc, char** argv)
+int main(std::int32_t argc, char** argv)
 {
     benchmark::Initialize(&argc, argv);
     if (benchmark::ReportUnrecognizedArguments(argc, argv))

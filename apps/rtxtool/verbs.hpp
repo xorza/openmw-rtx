@@ -55,12 +55,12 @@ namespace RtxTool
         constexpr bool operator==(const VerbSet&) const = default;
 
     private:
-        static constexpr std::uint16_t sEvery = (1u << static_cast<unsigned>(Verb::Count)) - 1;
-        static_assert(static_cast<unsigned>(Verb::Count) <= 16, "a command past the set's bits");
+        static constexpr std::uint16_t sEvery = (1u << static_cast<std::uint32_t>(Verb::Count)) - 1;
+        static_assert(static_cast<std::uint32_t>(Verb::Count) <= 16, "a command past the set's bits");
 
         static constexpr std::uint16_t bitOf(const Verb verb)
         {
-            return static_cast<std::uint16_t>(1u << static_cast<unsigned>(verb));
+            return static_cast<std::uint16_t>(1u << static_cast<std::uint32_t>(verb));
         }
 
         constexpr explicit VerbSet(const std::uint16_t bits)

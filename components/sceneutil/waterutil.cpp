@@ -1,5 +1,7 @@
 #include "waterutil.hpp"
 
+#include <cstdint>
+
 #include <osg/Depth>
 #include <osg/Geometry>
 #include <osg/StateSet>
@@ -18,7 +20,7 @@ namespace SceneUtil
         };
     }
 
-    osg::ref_ptr<osg::Geometry> createWaterGeometry(float size, int segments, float textureRepeats)
+    osg::ref_ptr<osg::Geometry> createWaterGeometry(float size, std::int32_t segments, float textureRepeats)
     {
         osg::ref_ptr<osg::Vec3Array> verts(new osg::Vec3Array);
         osg::ref_ptr<osg::Vec2Array> texcoords(new osg::Vec2Array);
@@ -27,9 +29,9 @@ namespace SceneUtil
         // a paged solution would be even better
         const float step = size / static_cast<float>(segments);
         const float texCoordStep = textureRepeats / static_cast<float>(segments);
-        for (int x = 0; x < segments; ++x)
+        for (std::int32_t x = 0; x < segments; ++x)
         {
-            for (int y = 0; y < segments; ++y)
+            for (std::int32_t y = 0; y < segments; ++y)
             {
                 float x1 = -size / 2.f + static_cast<float>(x) * step;
                 float y1 = -size / 2.f + static_cast<float>(y) * step;
@@ -68,7 +70,7 @@ namespace SceneUtil
         return waterGeom;
     }
 
-    osg::ref_ptr<osg::StateSet> createSimpleWaterStateSet(float alpha, int renderBin)
+    osg::ref_ptr<osg::StateSet> createSimpleWaterStateSet(float alpha, std::int32_t renderBin)
     {
         osg::ref_ptr<osg::StateSet> stateset(new osg::StateSet);
 

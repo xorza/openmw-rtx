@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "blendmask.hpp"
 #include "bonegroup.hpp"
 
@@ -11,32 +13,32 @@ namespace MWRender
         /// Convenience constructor, initialises all priorities to the same value.
         // One priority converts to the same priority for every part of a group.
         // NOLINTNEXTLINE(google-explicit-constructor)
-        AnimPriority(int priority)
+        AnimPriority(std::int32_t priority)
         {
-            for (int& i : mPriority)
+            for (std::int32_t& i : mPriority)
                 i = priority;
         }
 
         bool operator==(const AnimPriority& other) const
         {
-            for (unsigned int i = 0; i < sNumBlendMasks; ++i)
+            for (std::uint32_t i = 0; i < sNumBlendMasks; ++i)
                 if (other.mPriority[i] != mPriority[i])
                     return false;
             return true;
         }
 
-        int& operator[](BoneGroup n) { return mPriority[n]; }
+        std::int32_t& operator[](BoneGroup n) { return mPriority[n]; }
 
-        const int& operator[](BoneGroup n) const { return mPriority[n]; }
+        const std::int32_t& operator[](BoneGroup n) const { return mPriority[n]; }
 
-        bool contains(int priority) const
+        bool contains(std::int32_t priority) const
         {
-            for (int i : mPriority)
+            for (std::int32_t i : mPriority)
                 if (priority == i)
                     return true;
             return false;
         }
 
-        int mPriority[sNumBlendMasks]{};
+        std::int32_t mPriority[sNumBlendMasks]{};
     };
 }

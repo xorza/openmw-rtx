@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -81,7 +82,7 @@ namespace CSVRender
         bool primarySelectStartDrag(const QPoint& pos) override;
 
         /// Handle vertex paint edit behavior during dragging
-        void drag(const QPoint& pos, int diffX, int diffY, double speedFactor) override;
+        void drag(const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor) override;
 
         /// End vertex paint editing command macro
         void dragCompleted(const QPoint& pos) override;
@@ -89,7 +90,7 @@ namespace CSVRender
         /// Cancel vertex paint editing, and reset all pending changes
         void dragAborted() override;
 
-        void dragWheel(int diff, double speedFactor) override;
+        void dragWheel(std::int32_t diff, double speedFactor) override;
         void dragMoveEvent(QDragMoveEvent* event) override;
         void mouseMoveEvent(QMouseEvent* event) override;
 
@@ -98,10 +99,11 @@ namespace CSVRender
         void endVertexPaintEditing();
 
         /// Handle brush mechanics for colour editing
-        void editVertexColourGrid(const std::pair<int, int>& vertexCoords, bool dragOperation);
+        void editVertexColourGrid(const std::pair<std::int32_t, std::int32_t>& vertexCoords, bool dragOperation);
 
         /// Alter one pixel's colour
-        void alterColour(CSMWorld::LandColoursColumn::DataType& landColorsNew, int inCellX, int inCellY);
+        void alterColour(
+            CSMWorld::LandColoursColumn::DataType& landColorsNew, std::int32_t inCellX, std::int32_t inCellY);
 
         /// Push terrain vertex colour edits to command macro
         void pushEditToCommand(const CSMWorld::LandColoursColumn::DataType& newLandColours, CSMDoc::Document& document,
@@ -111,21 +113,21 @@ namespace CSVRender
         /// automated land changes)
         bool allowLandColourEditing(const std::string& cellId, bool useTool = true);
 
-        int mBrushSize = 1;
+        std::int32_t mBrushSize = 1;
         CSVWidget::BrushShape mBrushShape = CSVWidget::BrushShape_Point;
         std::unique_ptr<BrushDraw> mBrushDraw;
         CSVWidget::SceneToolVertexPaintBrush* mVertexPaintBrushScenetool = nullptr;
-        int mDragMode = InteractionType_None;
+        std::int32_t mDragMode = InteractionType_None;
         osg::Group* mParentNode;
         bool mIsEditing = false;
-        int mVertexPaintEditTool = VertexPaintEditTool_Replace;
+        std::int32_t mVertexPaintEditTool = VertexPaintEditTool_Replace;
         QColor mVertexPaintEditToolColor;
         bool mRestoreMode = false;
 
     public slots:
-        void setBrushSize(int brushSize);
+        void setBrushSize(std::int32_t brushSize);
         void setBrushShape(CSVWidget::BrushShape brushShape);
-        void setVertexPaintEditTool(int shapeEditTool);
+        void setVertexPaintEditTool(std::int32_t shapeEditTool);
         void setVertexPaintColor(const QColor& color);
     };
 }

@@ -1,6 +1,7 @@
 #include "pathgrid.hpp"
 
 #include <cassert>
+#include <cstdint>
 
 #include <osg/Geometry>
 #include <osg/Group>
@@ -46,7 +47,7 @@ namespace MWRender
         }
     }
 
-    bool Pathgrid::toggleRenderMode(int mode)
+    bool Pathgrid::toggleRenderMode(std::int32_t mode)
     {
         switch (mode)
         {

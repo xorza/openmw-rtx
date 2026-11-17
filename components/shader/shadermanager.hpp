@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -43,7 +45,7 @@ namespace Shader
         osg::ref_ptr<osg::Shader> getShader(std::string templateName, const DefineMap& defines = {},
             std::optional<osg::Shader::Type> type = std::nullopt);
 
-        typedef std::map<std::string, int> SamplerBindingMap;
+        typedef std::map<std::string, std::int32_t> SamplerBindingMap;
 
         /// @param samplers Sampler uniforms to bind once per linked program instead of on every stateset.
         osg::ref_ptr<osg::Program> getProgram(const std::string& templateName, const DefineMap& defines = {},
@@ -74,9 +76,9 @@ namespace Shader
         bool createSourceFromTemplate(std::string& source, std::vector<std::string>& linkedShaderTemplateNames,
             const std::string& templateName, const ShaderManager::DefineMap& defines);
 
-        void setMaxTextureUnits(int maxTextureUnits) { mMaxTextureUnits = maxTextureUnits; }
-        int getMaxTextureUnits() const { return mMaxTextureUnits; }
-        int getAvailableTextureUnits() const { return mMaxTextureUnits - mReservedTextureUnits; }
+        void setMaxTextureUnits(std::int32_t maxTextureUnits) { mMaxTextureUnits = maxTextureUnits; }
+        std::int32_t getMaxTextureUnits() const { return mMaxTextureUnits; }
+        std::int32_t getAvailableTextureUnits() const { return mMaxTextureUnits - mReservedTextureUnits; }
 
         enum class Slot
         {
@@ -87,7 +89,7 @@ namespace Shader
             SLOT_COUNT
         };
 
-        int reserveGlobalTextureUnits(Slot slot, int count = 1);
+        std::int32_t reserveGlobalTextureUnits(Slot slot, std::int32_t count = 1);
 
         void update(osgViewer::Viewer& viewer);
         void setHotReloadEnabled(bool value);
@@ -124,20 +126,20 @@ namespace Shader
 
         osg::ref_ptr<const osg::Program> mProgramTemplate;
 
-        int mMaxTextureUnits = 0;
-        int mReservedTextureUnits = 0;
+        std::int32_t mMaxTextureUnits = 0;
+        std::int32_t mReservedTextureUnits = 0;
         std::unique_ptr<HotReloadManager> mHotReloadManager;
         struct ReservedTextureUnits
         {
-            int index = -1;
-            int count = 0;
+            std::int32_t index = -1;
+            std::int32_t count = 0;
         };
-        std::array<ReservedTextureUnits, static_cast<int>(Slot::SLOT_COUNT)> mReservedTextureUnitsBySlot = {};
+        std::array<ReservedTextureUnits, static_cast<std::int32_t>(Slot::SLOT_COUNT)> mReservedTextureUnitsBySlot = {};
     };
 
-    bool parseForeachDirective(std::string& source, const std::string& templateName, size_t foundPos);
+    bool parseForeachDirective(std::string& source, const std::string& templateName, std::size_t foundPos);
     bool parseLinkDirective(
-        std::string& source, std::string& linkTarget, const std::string& templateName, size_t foundPos);
+        std::string& source, std::string& linkTarget, const std::string& templateName, std::size_t foundPos);
 
     bool parseDefines(std::string& source, const ShaderManager::DefineMap& defines,
         const ShaderManager::DefineMap& globalDefines, const std::string& templateName);

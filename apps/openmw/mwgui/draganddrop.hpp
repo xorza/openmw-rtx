@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 #include "itemmodel.hpp"
 #include "itemwidget.hpp"
@@ -29,7 +30,7 @@ namespace MWGui
 
         DragAndDrop();
 
-        void startDrag(int index, SortFilterItemModel* sortModel, ItemModel* sourceModel, ItemView* sourceView,
+        void startDrag(std::int32_t index, SortFilterItemModel* sortModel, ItemModel* sourceModel, ItemView* sourceView,
             std::size_t count, bool playSound = true);
         void drop(ItemModel* targetModel, ItemView* targetView, bool playSound = true);
         void update();

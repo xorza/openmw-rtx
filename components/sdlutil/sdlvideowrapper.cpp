@@ -1,6 +1,7 @@
 #include "sdlvideowrapper.hpp"
 
 #include <cmath>
+#include <cstdint>
 
 #include <SDL3/SDL_video.h>
 
@@ -15,8 +16,8 @@ namespace SDLUtil
         {
             // Resize breaks the sdl window in some cases; see issue: #5539
             SDL_Rect rect{};
-            int w = 0;
-            int h = 0;
+            std::int32_t w = 0;
+            std::int32_t h = 0;
             SDL_GetDisplayBounds(SDL_GetDisplayForWindow(window), &rect);
 
             // SDL3 sizes a window when the system gets round to it, and the size asked for a moment
@@ -24,8 +25,8 @@ namespace SDLUtil
             SDL_SyncWindow(window);
             SDL_GetWindowSize(window, &w, &h);
 
-            int x = rect.x;
-            int y = rect.y;
+            std::int32_t x = rect.x;
+            std::int32_t y = rect.y;
 
             // Center dimensions that do not fill the screen
             if (w < rect.w)
@@ -37,9 +38,9 @@ namespace SDLUtil
         }
     }
 
-    int windowPoints(int pixels, float density)
+    std::int32_t windowPoints(std::int32_t pixels, float density)
     {
-        return static_cast<int>(std::lround(static_cast<double>(pixels) / static_cast<double>(density)));
+        return static_cast<std::int32_t>(std::lround(static_cast<double>(pixels) / static_cast<double>(density)));
     }
 
     float pixelDensity(SDL_Window* window)
@@ -54,9 +55,9 @@ namespace SDLUtil
         return scale > 0.f ? scale : 1.f;
     }
 
-    int displayPixels(int points, float density)
+    std::int32_t displayPixels(std::int32_t points, float density)
     {
-        return static_cast<int>(std::lround(static_cast<double>(points) * static_cast<double>(density)));
+        return static_cast<std::int32_t>(std::lround(static_cast<double>(points) * static_cast<double>(density)));
     }
 
     bool isWindowShown(SDL_WindowFlags flags)
@@ -69,7 +70,8 @@ namespace SDLUtil
         return (flags & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_MINIMIZED | SDL_WINDOW_FULLSCREEN)) == 0;
     }
 
-    void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder)
+    void setVideoMode(
+        SDL_Window* window, std::int32_t width, std::int32_t height, Settings::WindowMode windowMode, bool windowBorder)
     {
         SDL_SetWindowFullscreen(window, false);
 

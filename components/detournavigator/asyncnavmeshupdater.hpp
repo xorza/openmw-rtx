@@ -3,6 +3,8 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <iosfwd>
 #include <list>
@@ -83,10 +85,10 @@ namespace DetourNavigator
 
         std::optional<JobIt> pop(TilePosition playerTile);
 
-        void update(TilePosition playerTile, int maxTiles, std::vector<JobIt>& removing);
+        void update(TilePosition playerTile, std::int32_t maxTiles, std::vector<JobIt>& removing);
 
     private:
-        using IndexPoint = boost::geometry::model::point<int, 2, boost::geometry::cs::cartesian>;
+        using IndexPoint = boost::geometry::model::point<std::int32_t, 2, boost::geometry::cs::cartesian>;
         using UpdatingMap = std::map<TilePosition, std::deque<JobIt>>;
         using IndexValue = std::pair<IndexPoint, UpdatingMap::iterator>;
 
@@ -115,7 +117,7 @@ namespace DetourNavigator
 
         std::optional<JobIt> pop(TilePosition playerTile, std::chrono::steady_clock::time_point now);
 
-        void update(TilePosition playerTile, int maxTiles, std::chrono::steady_clock::time_point now);
+        void update(TilePosition playerTile, std::int32_t maxTiles, std::chrono::steady_clock::time_point now);
 
     private:
         std::vector<JobIt> mRemoving;

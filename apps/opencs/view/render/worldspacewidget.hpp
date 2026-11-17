@@ -1,10 +1,11 @@
 #pragma once
 
-#include <QPoint>
-#include <QTimer>
+#include <cstdint>
 #include <string>
 #include <vector>
 
+#include <QPoint>
+#include <QTimer>
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
@@ -60,7 +61,7 @@ namespace CSVRender
     {
         bool hit;
         osg::ref_ptr<TagBase> tag;
-        unsigned int index0, index1, index2; // indices of mesh vertices
+        std::uint32_t index0, index1, index2; // indices of mesh vertices
         osg::Vec3d worldPos;
     };
 
@@ -71,14 +72,14 @@ namespace CSVRender
         CSVWidget::SceneToolToggle2* mSceneElements;
         CSVWidget::SceneToolRun* mRun;
         CSMDoc::Document& mDocument;
-        unsigned int mInteractionMask;
+        std::uint32_t mInteractionMask;
         CSVWidget::SceneToolMode* mEditMode;
         CSVWidget::SceneToolMode* mCameraMode{};
         bool mLocked;
-        int mDragMode;
+        std::int32_t mDragMode;
         bool mDragging;
-        int mDragX;
-        int mDragY;
+        std::int32_t mDragX;
+        std::int32_t mDragY;
         bool mSpeedMode;
         double mDragFactor;
         double mDragWheelFactor;
@@ -86,8 +87,8 @@ namespace CSVRender
         QTimer mToolTipDelayTimer;
         QPoint mToolTipPos;
         bool mShowToolTips;
-        int mToolTipDelay;
-        int mSelectedNavigationMode;
+        std::int32_t mToolTipDelay;
+        std::int32_t mSelectedNavigationMode;
 
     public:
         enum DropType
@@ -150,15 +151,15 @@ namespace CSVRender
         /// \return Drop handled?
         virtual bool handleDrop(const std::vector<CSMWorld::UniversalId>& data, DropType type);
 
-        virtual unsigned int getVisibilityMask() const;
+        virtual std::uint32_t getVisibilityMask() const;
 
         /// \note This function will implicitly add elements that are independent of the
         /// selected edit mode.
-        virtual void setInteractionMask(unsigned int mask);
+        virtual void setInteractionMask(std::uint32_t mask);
 
         /// \note This function will only return those elements that are both visible and
         /// marked for interaction.
-        unsigned int getInteractionMask() const;
+        std::uint32_t getInteractionMask() const;
 
         virtual void setEditLock(bool locked);
 
@@ -166,19 +167,19 @@ namespace CSVRender
         const CSMDoc::Document& getDocument() const;
 
         /// \param elementMask Elements to be affected by the clear operation
-        virtual void clearSelection(int elementMask) = 0;
+        virtual void clearSelection(std::int32_t elementMask) = 0;
 
         /// \param elementMask Elements to be affected by the select operation
-        virtual void invertSelection(int elementMask) = 0;
+        virtual void invertSelection(std::int32_t elementMask) = 0;
 
         /// \param elementMask Elements to be affected by the select operation
-        virtual void selectAll(int elementMask) = 0;
+        virtual void selectAll(std::int32_t elementMask) = 0;
 
         // Select everything that references the same ID as at least one of the elements
         // already selected
         //
         /// \param elementMask Elements to be affected by the select operation
-        virtual void selectAllWithSameParentId(int elementMask) = 0;
+        virtual void selectAllWithSameParentId(std::int32_t elementMask) = 0;
 
         virtual void selectInsideCube(const osg::Vec3d& pointA, const osg::Vec3d& pointB, DragMode dragMode) = 0;
 
@@ -188,13 +189,14 @@ namespace CSVRender
         std::optional<WorldspaceHitResult> checkTag(
             const osgUtil::LineSegmentIntersector::Intersection& intersection) const;
 
-        std::tuple<osg::Vec3d, osg::Vec3d, osg::Vec3d> getStartEndDirection(int pointX, int pointY) const;
+        std::tuple<osg::Vec3d, osg::Vec3d, osg::Vec3d> getStartEndDirection(
+            std::int32_t pointX, std::int32_t pointY) const;
 
         /// Return the next intersection with scene elements matched by
         /// \a interactionMask based on \a localPos and the camera vector.
         /// If there is no such intersection, instead a point "in front" of \a localPos will be
         /// returned.
-        WorldspaceHitResult mousePick(const QPoint& localPos, unsigned int interactionMask) const;
+        WorldspaceHitResult mousePick(const QPoint& localPos, std::uint32_t interactionMask) const;
 
         virtual std::string getCellId(const osg::Vec3f& point) const = 0;
 
@@ -203,20 +205,20 @@ namespace CSVRender
 
         virtual Cell* getCell(const CSMWorld::CellCoordinates& coords) const = 0;
 
-        virtual osg::ref_ptr<TagBase> getSnapTarget(unsigned int elementMask) const = 0;
+        virtual osg::ref_ptr<TagBase> getSnapTarget(std::uint32_t elementMask) const = 0;
 
-        virtual std::vector<osg::ref_ptr<TagBase>> getSelection(unsigned int elementMask) const = 0;
+        virtual std::vector<osg::ref_ptr<TagBase>> getSelection(std::uint32_t elementMask) const = 0;
 
         virtual void selectGroup(const std::vector<std::string>&) const = 0;
 
         virtual void unhideAll() const = 0;
 
-        virtual std::vector<osg::ref_ptr<TagBase>> getEdited(unsigned int elementMask) const = 0;
+        virtual std::vector<osg::ref_ptr<TagBase>> getEdited(std::uint32_t elementMask) const = 0;
 
-        virtual void setSubMode(int subMode, unsigned int elementMask) = 0;
+        virtual void setSubMode(std::int32_t subMode, std::uint32_t elementMask) = 0;
 
         /// Erase all overrides and restore the visual representation to its true state.
-        virtual void reset(unsigned int elementMask) = 0;
+        virtual void reset(std::uint32_t elementMask) = 0;
 
         EditMode* getEditMode();
 
@@ -263,7 +265,7 @@ namespace CSVRender
     private:
         bool hitBehindMarker(const osg::Vec3d& hitPos) const;
 
-        void handleMarkerHighlight(const int x, const int y);
+        void handleMarkerHighlight(const std::int32_t x, const std::int32_t y);
 
         void dragEnterEvent(QDragEnterEvent* event) override;
 
@@ -287,27 +289,27 @@ namespace CSVRender
 
         virtual void referenceableDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight) = 0;
 
-        virtual void referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end) = 0;
+        virtual void referenceableAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end) = 0;
 
-        virtual void referenceableAdded(const QModelIndex& index, int start, int end) = 0;
+        virtual void referenceableAdded(const QModelIndex& index, std::int32_t start, std::int32_t end) = 0;
 
         virtual void referenceDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight) = 0;
 
-        virtual void referenceAboutToBeRemoved(const QModelIndex& parent, int start, int end) = 0;
+        virtual void referenceAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end) = 0;
 
-        virtual void referenceAdded(const QModelIndex& index, int start, int end) = 0;
+        virtual void referenceAdded(const QModelIndex& index, std::int32_t start, std::int32_t end) = 0;
 
         virtual void pathgridDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight) = 0;
 
-        virtual void pathgridAboutToBeRemoved(const QModelIndex& parent, int start, int end) = 0;
+        virtual void pathgridAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end) = 0;
 
-        virtual void pathgridAdded(const QModelIndex& parent, int start, int end) = 0;
+        virtual void pathgridAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end) = 0;
 
         virtual void runRequest(const std::string& profile);
 
         void debugProfileDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void debugProfileAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void debugProfileAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         void editModeChanged(const std::string& id);
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_Delegate.h>
 
 namespace MWGui
@@ -9,16 +11,16 @@ namespace MWGui
     public:
         TimeAdvancer();
 
-        void run(int hours, int interruptAt = -1);
+        void run(std::int32_t hours, std::int32_t interruptAt = -1);
         void stop();
         void onFrame(float dt);
 
-        int getHours() const;
+        std::int32_t getHours() const;
         bool isRunning() const;
 
         // signals
         typedef MyGUI::delegates::MultiDelegate<> EventHandle_Void;
-        typedef MyGUI::delegates::MultiDelegate<int, int> EventHandle_IntInt;
+        typedef MyGUI::delegates::MultiDelegate<std::int32_t, std::int32_t> EventHandle_IntInt;
 
         EventHandle_IntInt eventProgressChanged;
         EventHandle_Void eventInterrupted;
@@ -27,9 +29,9 @@ namespace MWGui
     private:
         bool mRunning;
 
-        int mCurHour;
-        int mHours;
-        int mInterruptAt;
+        std::int32_t mCurHour;
+        std::int32_t mHours;
+        std::int32_t mInterruptAt;
 
         float mRemainingTime;
     };

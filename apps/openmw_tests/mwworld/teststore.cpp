@@ -70,7 +70,7 @@ namespace
             readContentFiles();
 
             // load the content files
-            int index = 0;
+            std::int32_t index = 0;
             ESM::Dialogue* dialogue = nullptr;
             for (const auto& mContentFile : mContentFiles)
             {
@@ -349,7 +349,7 @@ namespace
     }
 
     template <typename T>
-    unsigned int hasSameRecordId(const MWWorld::Store<T>& store, ESM::RecNameInts recName)
+    std::uint32_t hasSameRecordId(const MWWorld::Store<T>& store, ESM::RecNameInts recName)
     {
         if constexpr (MWWorld::HasRecordId<T>)
         {
@@ -366,9 +366,9 @@ namespace
     {
         if constexpr (MWWorld::HasRecordId<T>)
         {
-            const unsigned int recordIdCount
+            const std::uint32_t recordIdCount
                 = std::apply([](auto&&... x) { return (hasSameRecordId(x, T::sRecordId) + ...); }, stores);
-            ASSERT_EQ(recordIdCount, static_cast<unsigned int>(1))
+            ASSERT_EQ(recordIdCount, static_cast<std::uint32_t>(1))
                 << "The same RecNameInt is used twice ESM::REC_" << ESM::getRecNameString(T::sRecordId).toStringView();
         }
     }
@@ -441,7 +441,7 @@ namespace
     {
         using RecordType = TypeParam;
 
-        const int index = 3;
+        const std::int32_t index = 3;
         const std::string stringId = "foobar";
         decltype(RecordType::mId) refId;
         if constexpr (ESM::HasIndex<RecordType> && !std::is_same_v<RecordType, ESM::LandTexture>)
@@ -674,7 +674,7 @@ namespace
         return stream;
     }
 
-    void loadEsmStore(int index, std::unique_ptr<std::istream>&& stream, MWWorld::ESMStore& esmStore)
+    void loadEsmStore(std::int32_t index, std::unique_ptr<std::istream>&& stream, MWWorld::ESMStore& esmStore)
     {
         ESM::ESMReader reader;
         ESM::Dialogue* dialogue = nullptr;

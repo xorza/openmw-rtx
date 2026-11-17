@@ -484,7 +484,7 @@ namespace Rtx::Testing
             const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
             emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
-            for (unsigned int frame = 1; frame <= 2; ++frame)
+            for (std::uint32_t frame = 1; frame <= 2; ++frame)
             {
                 mScene.clearPlacement();
                 walk(*plume.mRoot, 0, frame);
@@ -496,7 +496,7 @@ namespace Rtx::Testing
             // **One slot, which the sprite takes, and the bake is refused on its own terms**: the
             // sprite draws lit flat, and the bake is not asked again until the table frees more.
             holds.dropTexture(9);
-            for (unsigned int frame = 3; frame <= 4; ++frame)
+            for (std::uint32_t frame = 3; frame <= 4; ++frame)
             {
                 mScene.clearPlacement();
                 walk(*plume.mRoot, 0, frame);
@@ -718,7 +718,7 @@ namespace Rtx::Testing
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
 
                 // The first turn only starts the clock; the second emits and integrates.
-                for (int turn = 0; turn < 2; ++turn)
+                for (std::int32_t turn = 0; turn < 2; ++turn)
                 {
                     scene.clearPlacement();
                     extractor.setSimulationTime(0.1 * (turn + 1), 0.1);
@@ -825,7 +825,7 @@ namespace Rtx::Testing
 
             // Two of the three turns emit — the first only starts the clock.
             std::uint32_t seen = 0;
-            for (int turn = 0; turn < 3; ++turn)
+            for (std::int32_t turn = 0; turn < 3; ++turn)
             {
                 runWorld(0.1);
                 seen = walk(*plume.mRoot).mSprites;

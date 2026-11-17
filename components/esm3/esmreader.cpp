@@ -83,8 +83,8 @@ namespace ESM
         for (const Header::MasterData& mast : getGameFiles())
         {
             const std::string& fname = mast.name;
-            int index = getIndex();
-            for (int i = 0; i < getIndex(); i++)
+            std::int32_t index = getIndex();
+            for (std::int32_t i = 0; i < getIndex(); i++)
             {
                 if (readers.getFileSize(static_cast<std::size_t>(i)) == 0)
                     continue; // Content file in non-ESM format
@@ -385,9 +385,9 @@ namespace ESM
         mCtx.subCached = false;
     }
 
-    void ESMReader::getRecHeader(uint32_t& flags)
+    void ESMReader::getRecHeader(std::uint32_t& flags)
     {
-        if (std::cmp_less(mCtx.leftFile, 3 * sizeof(uint32_t)))
+        if (std::cmp_less(mCtx.leftFile, 3 * sizeof(std::uint32_t)))
             fail("End of file while reading record header");
 
         std::uint32_t leftRec = 0;
@@ -395,7 +395,7 @@ namespace ESM
         mCtx.leftRec = static_cast<std::streamsize>(leftRec);
         getUint(flags); // This header entry is always zero
         getUint(flags);
-        mCtx.leftFile -= 3 * sizeof(uint32_t);
+        mCtx.leftFile -= 3 * sizeof(std::uint32_t);
 
         // Check that sizes add up
         if (mCtx.leftFile < mCtx.leftRec)
@@ -517,14 +517,14 @@ namespace ESM
             }
             case RefIdType::ESM3ExteriorCell:
             {
-                int32_t x = 0, y = 0;
+                std::int32_t x = 0, y = 0;
                 getT(x);
                 getT(y);
                 return RefId::esm3ExteriorCell(x, y);
             }
         }
 
-        fail("Unsupported RefIdType: " + std::to_string(static_cast<unsigned>(refIdType)));
+        fail("Unsupported RefIdType: " + std::to_string(static_cast<std::uint32_t>(refIdType)));
     }
 
     [[noreturn]] void ESMReader::fail(std::string_view msg)

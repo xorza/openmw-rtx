@@ -130,7 +130,7 @@ namespace MWWorld
         // was derived by setting the Flash Decrement to 0.1 and measuring how long each value took to decay to 0.
         // TODO: Determine the distribution of each distance to see if it's evenly weighted.
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        auto distance = static_cast<unsigned int>(Misc::Rng::rollDice(4, prng));
+        auto distance = static_cast<std::uint32_t>(Misc::Rng::rollDice(4, prng));
         // Flash brightness appears additive, since if multiple strikes occur, it takes longer for it to decay to 0.
         mFlashBrightness += 1 - (static_cast<float>(distance) * 0.25f);
         MWBase::Environment::get().getSoundManager()->playSound(mThunderSoundID[distance], 1.0, 1.0);
@@ -196,7 +196,7 @@ namespace MWWorld
         return state;
     }
 
-    void RegionWeather::setChances(const std::map<ESM::RefId, uint8_t>& chances, const WeatherStore& store)
+    void RegionWeather::setChances(const std::map<ESM::RefId, std::uint8_t>& chances, const WeatherStore& store)
     {
         mChances = chances;
 
@@ -207,7 +207,7 @@ namespace MWWorld
         }
     }
 
-    uint8_t RegionWeather::getChance(ESM::RefId weather) const
+    std::uint8_t RegionWeather::getChance(ESM::RefId weather) const
     {
         const auto found = mChances.find(weather);
         if (found != mChances.end())
@@ -238,8 +238,8 @@ namespace MWWorld
         // If chances A and B has values 30 and 70 then by generating 100 numbers 1..100, 30% will be lesser or equal 30
         // and 70% will be greater than 30 (in theory).
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        unsigned int chance = Misc::Rng::rollDice(100u, prng) + 1u; // 1..100
-        unsigned int sum = 0;
+        std::uint32_t chance = Misc::Rng::rollDice(100u, prng) + 1u; // 1..100
+        std::uint32_t sum = 0;
         for (const Weather* weather : store)
         {
             sum += getChance(weather->mId);
@@ -318,10 +318,10 @@ namespace MWWorld
     {
         // The moon changes to the next day's rise hour when it's out of sight, so each day depends
         // on the previous. We calculate an extra cycle to make the cached cycle accurate.
-        constexpr int firstDay = 1 - sDaysPerCycle;
+        constexpr std::int32_t firstDay = 1 - sDaysPerCycle;
         float currentRiseHour = riseHour(firstDay);
 
-        for (int day = firstDay + 1; day <= sDaysPerCycle; ++day)
+        for (std::int32_t day = firstDay + 1; day <= sDaysPerCycle; ++day)
         {
             float nextRiseHour = riseHour(day);
             float handover = handoverHour(currentRiseHour, nextRiseHour);
@@ -364,14 +364,14 @@ namespace MWWorld
         return hour < 0.0f ? hour + 24.0f : hour;
     }
 
-    inline int MoonModel::dayOfCycle(int gameDay)
+    inline std::int32_t MoonModel::dayOfCycle(std::int32_t gameDay)
     {
         // Get the current day's placement in the cycle.
-        int day = (gameDay - 1) % sDaysPerCycle;
+        std::int32_t day = (gameDay - 1) % sDaysPerCycle;
         return day < 0 ? day + sDaysPerCycle : day;
     }
 
-    float MoonModel::riseHour(int gameDay) const
+    float MoonModel::riseHour(std::int32_t gameDay) const
     {
         if (mDailyIncrement == 0.0f)
             return 0.0f;
@@ -455,13 +455,13 @@ namespace MWWorld
         return std::abs(rotationFromHorizon) < 180.0f ? rotationFromHorizon : 0.0f;
     }
 
-    inline MWRender::MoonState::Phase MoonModel::phase(int gameDay, bool postHandover)
+    inline MWRender::MoonState::Phase MoonModel::phase(std::int32_t gameDay, bool postHandover)
     {
         // Morrowind starts with a full moon on 16 Last Seed and then begins to wane 17 Last Seed, working on a 3 day
         // phase cycle.
 
         // The phase changes when the active rise hour changes.
-        int phaseDay = postHandover ? gameDay + 1 : gameDay;
+        std::int32_t phaseDay = postHandover ? gameDay + 1 : gameDay;
 
         return static_cast<MWRender::MoonState::Phase>((phaseDay / sDaysPerPhase) % sPhasesPerCycle);
     }
@@ -471,20 +471,20 @@ namespace MWWorld
         // `phase` moves on by one on each day `d` with `d % 3 == 2`, once the hour reaches that day's
         // handover, and at the next midnight where the day has none: the first moment `d + 1` is the
         // phase day. Counted in days from the last such change to the next.
-        const int day = gameTime.getDay();
+        const std::int32_t day = gameTime.getDay();
         const float now = static_cast<float>(day) + gameTime.getHour() / 24.0f;
-        const auto changeAt = [this](int changeDay) {
+        const auto changeAt = [this](std::int32_t changeDay) {
             const float handover = mCycle[dayOfCycle(changeDay)].mHandoverHour;
             return static_cast<float>(changeDay) + std::min(handover, 24.0f) / 24.0f;
         };
 
-        int last = day - (day + 1) % sDaysPerPhase;
+        std::int32_t last = day - (day + 1) % sDaysPerPhase;
         if (changeAt(last) > now)
             last -= sDaysPerPhase;
 
         const float from = changeAt(last);
         const float run = (now - from) / (changeAt(last + sDaysPerPhase) - from);
-        const int index = (((last + 1) / sDaysPerPhase) % sPhasesPerCycle + sPhasesPerCycle) % sPhasesPerCycle;
+        const std::int32_t index = (((last + 1) / sDaysPerPhase) % sPhasesPerCycle + sPhasesPerCycle) % sPhasesPerCycle;
         return std::fmod(static_cast<float>(index) + std::clamp(run, 0.0f, 1.0f), static_cast<float>(sPhasesPerCycle));
     }
 
@@ -629,7 +629,7 @@ namespace MWWorld
         return { makeMoon("Masser", mMasser, time), makeMoon("Secunda", mSecunda, time) };
     }
 
-    unsigned int WeatherManager::getMoonPhase(const std::size_t index, const TimeStamp& time) const
+    std::uint32_t WeatherManager::getMoonPhase(const std::size_t index, const TimeStamp& time) const
     {
         assert(index < 2 && "a moon Morrowind has not got");
         const MWRender::MoonState seen
@@ -739,7 +739,7 @@ namespace MWWorld
         mHeld = true;
     }
 
-    void WeatherManager::modRegion(ESM::RefId regionID, const std::map<ESM::RefId, uint8_t>& chances)
+    void WeatherManager::modRegion(ESM::RefId regionID, const std::map<ESM::RefId, std::uint8_t>& chances)
     {
         // Sets the region's probability for various weather patterns. Note that this appears to be saved permanently.
         // In Morrowind, this seems to have the following behavior when applied to the current region:
@@ -757,7 +757,7 @@ namespace MWWorld
         }
     }
 
-    const std::map<ESM::RefId, uint8_t>& WeatherManager::getRegionChances(ESM::RefId regionID) const
+    const std::map<ESM::RefId, std::uint8_t>& WeatherManager::getRegionChances(ESM::RefId regionID) const
     {
         return mRegions.at(regionID).getChances();
     }
@@ -1058,7 +1058,7 @@ namespace MWWorld
         writer.endRecord(ESM::REC_WTHR);
     }
 
-    bool WeatherManager::readRecord(ESM::ESMReader& reader, uint32_t type)
+    bool WeatherManager::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (ESM::REC_WTHR == type)
         {
@@ -1323,9 +1323,9 @@ namespace MWWorld
             // can't use the INI color as is, have to replicate the above nonsense.
             result.mSunDiscColor
                 = result.mSunDiscColor + osg::componentMultiply(result.mSunDiscColor, result.mAmbientColor);
-            for (int i = 0; i < 3; ++i)
-                result.mSunDiscColor[static_cast<unsigned int>(i)]
-                    = std::min(1.f, result.mSunDiscColor[static_cast<unsigned int>(i)]);
+            for (std::int32_t i = 0; i < 3; ++i)
+                result.mSunDiscColor[static_cast<std::uint32_t>(i)]
+                    = std::min(1.f, result.mSunDiscColor[static_cast<std::uint32_t>(i)]);
         }
         else
             result.mSunDiscColor = osg::Vec4f(1, 1, 1, 1);

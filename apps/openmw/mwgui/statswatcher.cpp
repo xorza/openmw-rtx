@@ -1,5 +1,6 @@
 #include "statswatcher.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -161,7 +162,7 @@ namespace MWGui
             listener->setValue(id, value);
     }
 
-    void StatsWatcher::setValue(std::string_view id, int value)
+    void StatsWatcher::setValue(std::string_view id, std::int32_t value)
     {
         for (StatsListener* listener : mListeners)
             listener->setValue(id, value);

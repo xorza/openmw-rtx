@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include <MyGUI_Types.h>
@@ -76,7 +77,7 @@ namespace MWInput
         /// would point at another widget after the interface is laid out at another scale, until
         /// the mouse moved.
         osg::Vec2f mGuiCursor;
-        int mMouseWheel;
+        std::int32_t mMouseWheel;
         bool mMouseLookEnabled;
         bool mGuiCursorEnabled;
         MWBase::CursorMode mCursorMode;

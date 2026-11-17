@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <stdexcept>
@@ -104,7 +105,7 @@ namespace Rtx::Testing
             EXPECT_EQ(first.mMeshesAdded, 1u);
             EXPECT_EQ(first.mInstances, 1u);
 
-            for (int again = 0; again < 3; ++again)
+            for (std::int32_t again = 0; again < 3; ++again)
             {
                 const ExtractionStats passed = frame();
                 EXPECT_EQ(passed.mMeshesReused, 0u) << "a frozen reference was walked";
@@ -144,7 +145,7 @@ namespace Rtx::Testing
             reference->addChild(nowhere);
 
             EXPECT_EQ(frame().mInstances, 1u);
-            for (int again = 0; again < 3; ++again)
+            for (std::int32_t again = 0; again < 3; ++again)
             {
                 const ExtractionStats passed = frame();
                 EXPECT_EQ(passed.mPassedFrozen, 1u) << "the reference did not freeze";
@@ -171,7 +172,7 @@ namespace Rtx::Testing
             reference->addChild(wire);
 
             EXPECT_EQ(frame().mInstances, 1u);
-            for (int again = 0; again < 3; ++again)
+            for (std::int32_t again = 0; again < 3; ++again)
             {
                 const ExtractionStats passed = frame();
                 EXPECT_EQ(passed.mPassedFrozen, 2u) << "the reference did not freeze";
@@ -211,7 +212,7 @@ namespace Rtx::Testing
                 make(*reference);
 
                 frame();
-                for (int again = 0; again < 2; ++again)
+                for (std::int32_t again = 0; again < 2; ++again)
                     EXPECT_GT(frame().mMeshesReused, 0u) << what << " froze";
 
                 mCell->removeChild(reference);
@@ -280,7 +281,7 @@ namespace Rtx::Testing
             frame();
             ASSERT_EQ(frame().mMeshesReused, 0u) << "a still reference froze";
 
-            for (int step = 1; step <= 4; ++step)
+            for (std::int32_t step = 1; step <= 4; ++step)
             {
                 reference->setMatrix(osg::Matrix::translate(static_cast<float>(step), 0.0f, 0.0f));
                 EXPECT_EQ(frame().mMeshesReused, 1u) << "step " << step << " passed a moving reference";
@@ -307,7 +308,7 @@ namespace Rtx::Testing
             reference->addChild(hidden);
 
             frame();
-            for (int again = 0; again < 2; ++again)
+            for (std::int32_t again = 0; again < 2; ++again)
             {
                 EXPECT_EQ(frame().mMeshesReused, 1u) << "a root with a hidden controller under it froze";
                 EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u) << "the hidden part stood";
@@ -408,7 +409,7 @@ namespace Rtx::Testing
             /// How many roots the table holds before a new one moves every entry.
             static std::size_t tableRoom()
             {
-                boost::unordered_flat_map<int, int> alike;
+                boost::unordered_flat_map<std::int32_t, std::int32_t> alike;
                 alike.reserve(sRoom);
                 return alike.max_load();
             }

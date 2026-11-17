@@ -1,8 +1,10 @@
 #pragma once
 
-#include <QWidget>
+#include <cstdint>
 #include <string>
 #include <vector>
+
+#include <QWidget>
 
 #include <apps/opencs/model/world/universalid.hpp>
 
@@ -36,7 +38,7 @@ namespace CSVWorld
         bool mShowStatusBar;
         QLabel* mStatus;
         QStatusBar* mStatusBar;
-        int mStatusCount[4]{};
+        std::int32_t mStatusCount[4]{};
 
         EditMode mEditMode;
         Creator* mCreator;
@@ -44,8 +46,8 @@ namespace CSVWorld
 
         QStackedLayout* mLayout;
         bool mHasPosition;
-        int mRow;
-        int mColumn;
+        std::int32_t mRow;
+        std::int32_t mColumn;
         QString mStatusMessage;
 
     private:
@@ -92,18 +94,18 @@ namespace CSVWorld
         void requestDone();
         ///< \note This slot being called does not imply success.
 
-        void currentWidgetChanged(int index);
+        void currentWidgetChanged(std::int32_t index);
 
     public slots:
 
-        void selectionSizeChanged(int size);
+        void selectionSizeChanged(std::int32_t size);
 
-        void tableSizeChanged(int size, int deleted, int modified);
+        void tableSizeChanged(std::int32_t size, std::int32_t deleted, std::int32_t modified);
         ///< \param size Number of not deleted records
         /// \param deleted Number of deleted records
         /// \param modified Number of added and modified records
 
-        void positionChanged(int row, int column);
+        void positionChanged(std::int32_t row, std::int32_t column);
 
         void noMorePosition();
 

@@ -1,6 +1,8 @@
 #include "globalmap.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -67,8 +69,9 @@ namespace MWRender
     class CreateMapWorkItem : public SceneUtil::WorkItem
     {
     public:
-        CreateMapWorkItem(int width, int height, int minX, int minY, int maxX, int maxY, int cellSize,
-            const MWWorld::Store<ESM::Land>& landStore, osg::ref_ptr<osg::Image> colorLut)
+        CreateMapWorkItem(std::int32_t width, std::int32_t height, std::int32_t minX, std::int32_t minY,
+            std::int32_t maxX, std::int32_t maxY, std::int32_t cellSize, const MWWorld::Store<ESM::Land>& landStore,
+            osg::ref_ptr<osg::Image> colorLut)
             : mWidth(width)
             , mHeight(height)
             , mMinX(minX)
@@ -89,40 +92,40 @@ namespace MWRender
             osg::ref_ptr<osg::Image> alphaImage = new osg::Image;
             alphaImage->allocateImage(mWidth, mHeight, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
 
-            for (int x = mMinX; x <= mMaxX; ++x)
+            for (std::int32_t x = mMinX; x <= mMaxX; ++x)
             {
-                for (int y = mMinY; y <= mMaxY; ++y)
+                for (std::int32_t y = mMinY; y <= mMaxY; ++y)
                 {
                     const ESM::Land* land = mLandStore.search(x, y);
 
-                    for (int cellY = 0; cellY < mCellSize; ++cellY)
+                    for (std::int32_t cellY = 0; cellY < mCellSize; ++cellY)
                     {
-                        for (int cellX = 0; cellX < mCellSize; ++cellX)
+                        for (std::int32_t cellX = 0; cellX < mCellSize; ++cellX)
                         {
-                            int vertexX = (cellX * 9) / mCellSize; // 0..8
-                            int vertexY = (cellY * 9) / mCellSize; // 0..8
+                            std::int32_t vertexX = (cellX * 9) / mCellSize; // 0..8
+                            std::int32_t vertexY = (cellY * 9) / mCellSize; // 0..8
 
-                            int texelX = (x - mMinX) * mCellSize + cellX;
-                            int texelY = (y - mMinY) * mCellSize + cellY;
+                            std::int32_t texelX = (x - mMinX) * mCellSize + cellX;
+                            std::int32_t texelY = (y - mMinY) * mCellSize + cellY;
 
-                            int lutIndex = 0;
+                            std::int32_t lutIndex = 0;
                             // Converting [-128; 127] WNAM range to [0; 255] index
                             if (land != nullptr && (land->mDataTypes & ESM::Land::DATA_WNAM))
-                                lutIndex = static_cast<int>(land->mWnam[static_cast<std::size_t>(vertexY) * 9
+                                lutIndex = static_cast<std::int32_t>(land->mWnam[static_cast<std::size_t>(vertexY) * 9
                                                + static_cast<std::size_t>(vertexX)])
                                     + 128;
 
                             // Use getColor to handle all pixel format conversions automatically
-                            osg::Vec4 color = mColorLut->getColor(static_cast<unsigned int>(lutIndex), 0);
+                            osg::Vec4 color = mColorLut->getColor(static_cast<std::uint32_t>(lutIndex), 0);
 
                             // Use setColor to write to output images
                             image->setColor(
-                                color, static_cast<unsigned int>(texelX), static_cast<unsigned int>(texelY));
+                                color, static_cast<std::uint32_t>(texelX), static_cast<std::uint32_t>(texelY));
 
                             // Set alpha based on lutIndex threshold
                             osg::Vec4 alpha(0.0f, 0.0f, 0.0f, lutIndex < 128 ? 0.0f : 1.0f);
                             alphaImage->setColor(
-                                alpha, static_cast<unsigned int>(texelX), static_cast<unsigned int>(texelY));
+                                alpha, static_cast<std::uint32_t>(texelX), static_cast<std::uint32_t>(texelY));
                         }
                     }
                 }
@@ -139,9 +142,9 @@ namespace MWRender
             mAlphaImage = alphaImage;
         }
 
-        int mWidth, mHeight;
-        int mMinX, mMinY, mMaxX, mMaxY;
-        int mCellSize;
+        std::int32_t mWidth, mHeight;
+        std::int32_t mMinX, mMinY, mMaxX, mMaxY;
+        std::int32_t mCellSize;
         const MWWorld::Store<ESM::Land>& mLandStore;
         osg::ref_ptr<osg::Image> mColorLut;
 
@@ -194,7 +197,7 @@ namespace MWRender
             mMaxY = std::max(it->getGridY(), mMaxY);
         }
 
-        const int cellSize = Settings::map().mGlobalMapCellSize;
+        const std::int32_t cellSize = Settings::map().mGlobalMapCellSize;
 
         mWidth = cellSize * (mMaxX - mMinX + 1);
         mHeight = cellSize * (mMaxY - mMinY + 1);
@@ -228,7 +231,7 @@ namespace MWRender
             * static_cast<float>(getHeight());
     }
 
-    void GlobalMap::exploreCell(int cellX, int cellY, LocalMap& localMap)
+    void GlobalMap::exploreCell(std::int32_t cellX, std::int32_t cellY, LocalMap& localMap)
     {
         ensureLoaded();
 
@@ -236,9 +239,9 @@ namespace MWRender
         if (!tile)
             return;
 
-        const int cellSize = Settings::map().mGlobalMapCellSize;
-        const int originX = (cellX - mMinX) * cellSize;
-        const int originY = (cellY - mMinY) * cellSize;
+        const std::int32_t cellSize = Settings::map().mGlobalMapCellSize;
+        const std::int32_t originX = (cellX - mMinX) * cellSize;
+        const std::int32_t originY = (cellY - mMinY) * cellSize;
 
         if (cellX > mMaxX || cellX < mMinX || cellY > mMaxY || cellY < mMinY)
             return;
@@ -277,9 +280,9 @@ namespace MWRender
     {
         struct Box
         {
-            int mLeft, mTop, mRight, mBottom;
+            std::int32_t mLeft, mTop, mRight, mBottom;
 
-            Box(int left, int top, int right, int bottom)
+            Box(std::int32_t left, std::int32_t top, std::int32_t right, std::int32_t bottom)
                 : mLeft(left)
                 , mTop(top)
                 , mRight(right)
@@ -327,30 +330,30 @@ namespace MWRender
         }
 
         osg::ref_ptr<osg::Image> image = result.getImage();
-        int imageWidth = image->s();
-        int imageHeight = image->t();
+        std::int32_t imageWidth = image->s();
+        std::int32_t imageHeight = image->t();
 
-        int xLength = (bounds.mMaxX - bounds.mMinX + 1);
-        int yLength = (bounds.mMaxY - bounds.mMinY + 1);
+        std::int32_t xLength = (bounds.mMaxX - bounds.mMinX + 1);
+        std::int32_t yLength = (bounds.mMaxY - bounds.mMinY + 1);
 
         // Size of one cell in image space
-        int cellImageSizeSrc = imageWidth / xLength;
+        std::int32_t cellImageSizeSrc = imageWidth / xLength;
         if ((imageHeight / yLength) != cellImageSizeSrc)
             throw std::runtime_error("cell size must be quadratic");
 
         // If cell bounds of the currently loaded content and the loaded savegame do not match,
         // we need to resize source/dest boxes to accommodate
         // This means nonexisting cells will be dropped silently
-        const int cellImageSizeDst = Settings::map().mGlobalMapCellSize;
+        const std::int32_t cellImageSizeDst = Settings::map().mGlobalMapCellSize;
 
         // Completely off-screen? -> no need to blit anything
         if (bounds.mMaxX < mMinX || bounds.mMaxY < mMinY || bounds.mMinX > mMaxX || bounds.mMinY > mMaxY)
             return;
 
-        int leftDiff = (mMinX - bounds.mMinX);
-        int topDiff = (bounds.mMaxY - mMaxY);
-        int rightDiff = (bounds.mMaxX - mMaxX);
-        int bottomDiff = (mMinY - bounds.mMinY);
+        std::int32_t leftDiff = (mMinX - bounds.mMinX);
+        std::int32_t topDiff = (bounds.mMaxY - mMaxY);
+        std::int32_t rightDiff = (bounds.mMaxX - mMaxX);
+        std::int32_t bottomDiff = (mMinY - bounds.mMinY);
 
         Box srcBox(std::max(0, leftDiff * cellImageSizeSrc), std::max(0, topDiff * cellImageSizeSrc),
             std::min(imageWidth, imageWidth - rightDiff * cellImageSizeSrc),
@@ -369,8 +372,8 @@ namespace MWRender
             // Dimensions don't match. This could mean a changed map region, or a changed map resolution.
             // In the latter case, we'll want filtering.
             // The boxes above count rows from the top; the overlay's rectangles count them from the bottom.
-            const int srcHeight = srcBox.mBottom - srcBox.mTop;
-            const int destHeight = destBox.mBottom - destBox.mTop;
+            const std::int32_t srcHeight = srcBox.mBottom - srcBox.mTop;
+            const std::int32_t destHeight = destBox.mBottom - destBox.mTop;
             mOverlay->paintImage(SceneUtil::ImageRegion{ destBox.mLeft, mHeight - destBox.mBottom,
                                      destBox.mRight - destBox.mLeft, destHeight },
                 std::move(image),

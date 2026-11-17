@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
 #include <sol/forward.hpp>
@@ -40,7 +42,7 @@ namespace MWLua
         };
         storeT[sol::meta_function::length] = [](const StoreT& self) { return self.getSize(); };
         storeT[sol::meta_function::index] = sol::overload(
-            [](const StoreT& self, size_t index) -> const T* {
+            [](const StoreT& self, std::size_t index) -> const T* {
                 if (index == 0 || index > self.getSize())
                     return nullptr;
                 return self.at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));

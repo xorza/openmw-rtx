@@ -1,6 +1,8 @@
 #include "loadnpc.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include <components/misc/concepts.hpp>
 
@@ -13,12 +15,12 @@ namespace ESM
     {
         struct EsmNPDTstruct52
         {
-            int16_t mLevel{};
-            std::array<unsigned char, Attribute::Length> mAttributes{};
-            std::array<unsigned char, Skill::Length> mSkills{};
-            uint16_t mHealth{}, mMana{}, mFatigue{};
-            unsigned char mDisposition{}, mReputation{}, mRank{};
-            int32_t mGold{};
+            std::int16_t mLevel{};
+            std::array<std::uint8_t, Attribute::Length> mAttributes{};
+            std::array<std::uint8_t, Skill::Length> mSkills{};
+            std::uint16_t mHealth{}, mMana{}, mFatigue{};
+            std::uint8_t mDisposition{}, mReputation{}, mRank{};
+            std::int32_t mGold{};
         };
 
         struct NPDTstruct12
@@ -29,9 +31,9 @@ namespace ESM
         void toBinary(const NPC::NPDTstruct52& src, EsmNPDTstruct52& dst)
         {
             dst.mLevel = src.mLevel;
-            for (int i = 0; i < Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < Attribute::Length; ++i)
                 dst.mAttributes[static_cast<std::size_t>(i)] = src.getAttribute(ESM::Attribute::indexToRefId(i));
-            for (int i = 0; i < Skill::Length; ++i)
+            for (std::int32_t i = 0; i < Skill::Length; ++i)
                 dst.mSkills[static_cast<std::size_t>(i)] = src.getSkill(ESM::Skill::indexToRefId(i));
             dst.mHealth = src.mHealth;
             dst.mMana = src.mMana;
@@ -46,9 +48,9 @@ namespace ESM
         {
             dst.mLevel = src.mLevel;
             dst.mAttributes.clear();
-            for (int i = 0; i < Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < Attribute::Length; ++i)
                 dst.mAttributes.emplace(ESM::Attribute::indexToRefId(i), src.mAttributes[static_cast<std::size_t>(i)]);
-            for (int i = 0; i < Skill::Length; ++i)
+            for (std::int32_t i = 0; i < Skill::Length; ++i)
                 dst.mSkills.emplace(ESM::Skill::indexToRefId(i), src.mSkills[static_cast<std::size_t>(i)]);
             dst.mHealth = src.mHealth;
             dst.mMana = src.mMana;
@@ -59,7 +61,7 @@ namespace ESM
             dst.mGold = src.mGold;
         }
 
-        void writeBaseStats(ESMWriter& esm, NAME name, const std::map<ESM::RefId, unsigned char>& stats)
+        void writeBaseStats(ESMWriter& esm, NAME name, const std::map<ESM::RefId, std::uint8_t>& stats)
         {
             for (const auto& [stat, value] : stats)
             {
@@ -72,12 +74,12 @@ namespace ESM
             }
         }
 
-        void readBaseStats(ESMReader& esm, NAME name, std::map<ESM::RefId, unsigned char>& stats)
+        void readBaseStats(ESMReader& esm, NAME name, std::map<ESM::RefId, std::uint8_t>& stats)
         {
             while (esm.isNextSub(name))
             {
                 esm.getSubHeader();
-                unsigned char value = 0;
+                std::uint8_t value = 0;
                 esm.getT(value);
                 ESM::RefId stat = esm.getRefId(esm.getSubSize() - sizeof(value));
                 stats.emplace(stat, value);
@@ -197,7 +199,7 @@ namespace ESM
                 case fourCC("FLAG"):
                 {
                     hasFlags = true;
-                    int32_t flags = 0;
+                    std::int32_t flags = 0;
                     esm.getHT(flags);
                     mFlags = flags & 0xFF;
                     mBloodType = ((flags >> 8) & 0xFF) >> 2;
@@ -340,7 +342,7 @@ namespace ESM
         mNpdt.mGold = 0;
     }
 
-    int NPC::getFactionRank() const
+    std::int32_t NPC::getFactionRank() const
     {
         if (mFaction.empty())
             return -1;
@@ -353,7 +355,7 @@ namespace ESM
         return mTransport.mList;
     }
 
-    unsigned char NPC::NPDTstruct52::getAttribute(ESM::RefId id) const
+    std::uint8_t NPC::NPDTstruct52::getAttribute(ESM::RefId id) const
     {
         const auto it = mAttributes.find(id);
         if (it == mAttributes.end())
@@ -361,7 +363,7 @@ namespace ESM
         return it->second;
     }
 
-    unsigned char NPC::NPDTstruct52::getSkill(ESM::RefId id) const
+    std::uint8_t NPC::NPDTstruct52::getSkill(ESM::RefId id) const
     {
         const auto it = mSkills.find(id);
         if (it == mSkills.end())

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <ios>
@@ -96,7 +97,7 @@
 namespace
 {
     /// What the cull and the update masks are left at while a screen covers the world.
-    constexpr unsigned int sCoveredCullMask = MWRender::Mask_GUI | MWRender::Mask_PreCompile;
+    constexpr std::uint32_t sCoveredCullMask = MWRender::Mask_GUI | MWRender::Mask_PreCompile;
 
     void initStatsHandler(Resource::Profiler& profiler)
     {
@@ -140,7 +141,7 @@ namespace
             glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &mMaxTextureImageUnits);
         }
 
-        int getMaxTextureImageUnits() const
+        std::int32_t getMaxTextureImageUnits() const
         {
             if (mMaxTextureImageUnits == 0)
                 throw std::logic_error("mMaxTextureImageUnits is not initialized");
@@ -148,7 +149,7 @@ namespace
         }
 
     private:
-        int mMaxTextureImageUnits = 0;
+        std::int32_t mMaxTextureImageUnits = 0;
     };
 }
 
@@ -394,7 +395,7 @@ namespace MWRender
         mViewer->setSceneData(&root);
     }
 
-    void GlRenderer::cull(unsigned int mask)
+    void GlRenderer::cull(std::uint32_t mask)
     {
         // The stereo pair goes with the one whatever the mode: both are no-ops in mono.
         mViewer->getCamera()->setCullMask(mask);
@@ -433,7 +434,7 @@ namespace MWRender
 
         // Every frame this renderer stamps, a loading screen's included, dumped once when its
         // figures have landed.
-        const unsigned frameNumber = mViewer->getFrameStamp()->getFrameNumber();
+        const std::uint32_t frameNumber = mViewer->getFrameStamp()->getFrameNumber();
         if (mStatsFile.is_open() && frameNumber >= sStatsReportDelay)
             reportStats(frameNumber - sStatsReportDelay);
     }
@@ -505,8 +506,8 @@ namespace MWRender
         {
             const osg::Viewport* viewPort
                 = Crash::notNull(renderInfo.getCurrentCamera(), "a draw with no camera")->getViewport();
-            int w = static_cast<int>(viewPort->width());
-            int h = static_cast<int>(viewPort->height());
+            auto w = static_cast<std::int32_t>(viewPort->width());
+            auto h = static_cast<std::int32_t>(viewPort->height());
             readFrom(*renderInfo.getState(), mSource.get());
             mTexture->copyTexImage2D(*renderInfo.getState(), 0, 0, w, h);
             readFrom(*renderInfo.getState(), nullptr);
@@ -611,10 +612,10 @@ namespace MWRender
         const double expiryDelay = Settings::cells().mCacheExpiryDelay;
         if (distantTerrain || wantsGroundcover)
         {
-            const int compMapResolution = Settings::terrain().mCompositeMapResolution;
-            const int compMapPower = Settings::terrain().mCompositeMapLevel;
+            const std::int32_t compMapResolution = Settings::terrain().mCompositeMapResolution;
+            const std::int32_t compMapPower = Settings::terrain().mCompositeMapLevel;
             const auto compMapLevel = static_cast<float>(std::pow(2, compMapPower));
-            const int vertexLodMod = Settings::terrain().mVertexLodMod;
+            const std::int32_t vertexLodMod = Settings::terrain().mVertexLodMod;
             const float maxCompGeometrySize = Settings::terrain().mMaxCompositeGeometrySize;
             const bool debugChunks = Settings::terrain().mDebugChunks;
             auto quadTreeWorld = std::make_unique<Terrain::QuadTreeWorld>(sceneRoot, rootNode, resourceSystem, storage,
@@ -703,7 +704,7 @@ namespace MWRender
         }
     }
 
-    void GlRenderer::capture(osg::Image& image, int width, int height)
+    void GlRenderer::capture(osg::Image& image, std::int32_t width, std::int32_t height)
     {
         mScreenshotManager->screenshot(&image, width, height);
     }
@@ -908,17 +909,18 @@ namespace MWRender
         mViewer->getEventQueue()->frame(0.f);
     }
 
-    void GlRenderer::functionKey(const int index, const SDLUtil::KeyChange change)
+    void GlRenderer::functionKey(const std::int32_t index, const SDLUtil::KeyChange change)
     {
         // A repeat is a press, as upstream's wrapper handed OpenSceneGraph every key down.
-        const int key = osgGA::GUIEventAdapter::KEY_F1 + index;
+        const std::int32_t key = osgGA::GUIEventAdapter::KEY_F1 + index;
         if (change == SDLUtil::KeyChange::Released)
             mViewer->getEventQueue()->keyRelease(key);
         else
             mViewer->getEventQueue()->keyPress(key);
     }
 
-    void GlRenderer::windowResized(const int x, const int y, const int width, const int height)
+    void GlRenderer::windowResized(
+        const std::int32_t x, const std::int32_t y, const std::int32_t width, const std::int32_t height)
     {
         mWindow->getGraphics().resized(x, y, width, height);
         mViewer->getEventQueue()->windowResize(x, y, width, height);
@@ -1068,7 +1070,7 @@ namespace MWRender
             Resource::collectStatistics(*mViewer);
     }
 
-    void GlRenderer::reportStats(unsigned frameNumber)
+    void GlRenderer::reportStats(std::uint32_t frameNumber)
     {
         mViewer->getViewerStats()->report(mStatsFile, frameNumber);
         osgViewer::Viewer::Cameras cameras;

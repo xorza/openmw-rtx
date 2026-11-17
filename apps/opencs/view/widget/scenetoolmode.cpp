@@ -1,12 +1,13 @@
 #include "scenetoolmode.hpp"
 
+#include <utility>
+
 #include <QContextMenuEvent>
 #include <QEvent>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QMenu>
-#include <utility>
 
 #include <components/misc/scalableicon.hpp>
 

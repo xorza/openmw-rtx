@@ -1,5 +1,8 @@
 #include "loadmgef.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/misc/strings/algorithm.hpp>
 
 #include "esmreader.hpp"
@@ -10,19 +13,19 @@ namespace ESM
 {
     namespace
     {
-        const int NumberOfHardcodedFlags = 143;
-        const int HardcodedFlags[NumberOfHardcodedFlags] = { 0x11c8, 0x11c0, 0x11c8, 0x11e0, 0x11e0, 0x11e0, 0x11e0,
-            0x11d0, 0x11c0, 0x11c0, 0x11e0, 0x11c0, 0x11184, 0x11184, 0x1f0, 0x1f0, 0x1f0, 0x11d2, 0x11f0, 0x11d0,
-            0x11d0, 0x11d1, 0x1d2, 0x1f0, 0x1d0, 0x1d0, 0x1d1, 0x1f0, 0x11d0, 0x11d0, 0x11d0, 0x11d0, 0x11d0, 0x11d0,
-            0x11d0, 0x11d0, 0x11d0, 0x1d0, 0x1d0, 0x11c8, 0x31c0, 0x11c0, 0x11c0, 0x11c0, 0x1180, 0x11d8, 0x11d8,
-            0x11d0, 0x11d0, 0x11180, 0x11180, 0x11180, 0x11180, 0x11180, 0x11180, 0x11180, 0x11180, 0x11c4, 0x111b8,
-            0x1040, 0x104c, 0x104c, 0x104c, 0x104c, 0x1040, 0x1040, 0x1040, 0x11c0, 0x11c0, 0x1cc, 0x1cc, 0x1cc, 0x1cc,
-            0x1cc, 0x1c2, 0x1c0, 0x1c0, 0x1c0, 0x1c1, 0x11c2, 0x11c0, 0x11c0, 0x11c0, 0x11c1, 0x11c0, 0x21192, 0x20190,
-            0x20190, 0x20190, 0x21191, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0,
-            0x1c0, 0x11190, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048,
-            0x9048, 0x9048, 0x9048, 0x9048, 0x11c0, 0x1180, 0x1180, 0x5048, 0x5048, 0x5048, 0x5048, 0x5048, 0x5048,
-            0x1188, 0x5048, 0x5048, 0x5048, 0x5048, 0x5048, 0x1048, 0x104c, 0x1048, 0x40, 0x11c8, 0x1048, 0x1048,
-            0x1048, 0x1048, 0x1048, 0x1048 };
+        const std::int32_t NumberOfHardcodedFlags = 143;
+        const std::int32_t HardcodedFlags[NumberOfHardcodedFlags] = { 0x11c8, 0x11c0, 0x11c8, 0x11e0, 0x11e0, 0x11e0,
+            0x11e0, 0x11d0, 0x11c0, 0x11c0, 0x11e0, 0x11c0, 0x11184, 0x11184, 0x1f0, 0x1f0, 0x1f0, 0x11d2, 0x11f0,
+            0x11d0, 0x11d0, 0x11d1, 0x1d2, 0x1f0, 0x1d0, 0x1d0, 0x1d1, 0x1f0, 0x11d0, 0x11d0, 0x11d0, 0x11d0, 0x11d0,
+            0x11d0, 0x11d0, 0x11d0, 0x11d0, 0x1d0, 0x1d0, 0x11c8, 0x31c0, 0x11c0, 0x11c0, 0x11c0, 0x1180, 0x11d8,
+            0x11d8, 0x11d0, 0x11d0, 0x11180, 0x11180, 0x11180, 0x11180, 0x11180, 0x11180, 0x11180, 0x11180, 0x11c4,
+            0x111b8, 0x1040, 0x104c, 0x104c, 0x104c, 0x104c, 0x1040, 0x1040, 0x1040, 0x11c0, 0x11c0, 0x1cc, 0x1cc,
+            0x1cc, 0x1cc, 0x1cc, 0x1c2, 0x1c0, 0x1c0, 0x1c0, 0x1c1, 0x11c2, 0x11c0, 0x11c0, 0x11c0, 0x11c1, 0x11c0,
+            0x21192, 0x20190, 0x20190, 0x20190, 0x21191, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0, 0x11c0,
+            0x11c0, 0x11c0, 0x1c0, 0x11190, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048,
+            0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x9048, 0x11c0, 0x1180, 0x1180, 0x5048, 0x5048, 0x5048, 0x5048,
+            0x5048, 0x5048, 0x1188, 0x5048, 0x5048, 0x5048, 0x5048, 0x5048, 0x1048, 0x104c, 0x1048, 0x40, 0x11c8,
+            0x1048, 0x1048, 0x1048, 0x1048, 0x1048, 0x1048 };
     }
 
     const StringRefId MagicEffect::WaterBreathing("WaterBreathing");
@@ -178,7 +181,7 @@ namespace ESM
         isDeleted = false; // MagicEffect record can't be deleted now (may be changed in the future)
         mRecordFlags = esm.getRecordFlags();
 
-        int32_t index = -1;
+        std::int32_t index = -1;
         esm.getHNT(index, "INDX");
         if (index < 0 || index >= Length)
             esm.fail("Invalid Index!");
@@ -187,7 +190,7 @@ namespace ESM
 
         esm.getSubNameIs("MEDT");
         esm.getSubHeader();
-        int32_t school = 0;
+        std::int32_t school = 0;
         esm.getT(school);
         mData.mSchool = MagicSchool::indexToSkillRefId(school);
         esm.getT(mData.mBaseCost);
@@ -734,24 +737,24 @@ namespace ESM
     namespace
     {
         template <typename Collection, typename Comparator = std::less<typename Collection::value_type>>
-        std::map<typename Collection::value_type, int, Comparator> initToIndexMap(
+        std::map<typename Collection::value_type, std::int32_t, Comparator> initToIndexMap(
             const Collection& data, Comparator comp = Comparator())
         {
-            std::map<typename Collection::value_type, int, Comparator> map(comp);
-            for (size_t i = 0; i < data.size(); ++i)
-                map[data[i]] = static_cast<int>(i);
+            std::map<typename Collection::value_type, std::int32_t, Comparator> map(comp);
+            for (std::size_t i = 0; i < data.size(); ++i)
+                map[data[i]] = static_cast<std::int32_t>(i);
             return map;
         }
     }
 
-    const std::map<std::string_view, int, Misc::StringUtils::CiComp> sGmstEffectIdToIndexMap
+    const std::map<std::string_view, std::int32_t, Misc::StringUtils::CiComp> sGmstEffectIdToIndexMap
         = initToIndexMap(sGmstEffectIds, Misc::StringUtils::CiComp());
 
-    const std::map<RefId, int> sMagicEffectIdToIndexMap = initToIndexMap(sMagicEffectIds);
+    const std::map<RefId, std::int32_t> sMagicEffectIdToIndexMap = initToIndexMap(sMagicEffectIds);
 
     MagicEffect::MagnitudeDisplayType MagicEffect::getMagnitudeDisplayType() const
     {
-        int index = refIdToIndex(mId);
+        std::int32_t index = refIdToIndex(mId);
         if (mData.mFlags & NoMagnitude)
             return MDT_None;
         if (index == 84)
@@ -804,7 +807,7 @@ namespace ESM
 
     std::string_view MagicEffect::refIdToGmstString(RefId effectId)
     {
-        int index = refIdToIndex(effectId);
+        std::int32_t index = refIdToIndex(effectId);
         if (index < 0 || index >= Length)
             return {};
         return sGmstEffectIds[static_cast<std::size_t>(index)];
@@ -818,14 +821,14 @@ namespace ESM
         return sMagicEffectIds[static_cast<std::size_t>(it->second)];
     }
 
-    RefId MagicEffect::indexToRefId(int index)
+    RefId MagicEffect::indexToRefId(std::int32_t index)
     {
         if (index < 0 || index >= Length)
             return {};
         return sMagicEffectIds[static_cast<std::size_t>(index)];
     }
 
-    int MagicEffect::refIdToIndex(RefId effectId)
+    std::int32_t MagicEffect::refIdToIndex(RefId effectId)
     {
         const auto it = sMagicEffectIdToIndexMap.find(effectId);
         if (it != sMagicEffectIdToIndexMap.end())
@@ -833,7 +836,7 @@ namespace ESM
         return -1;
     }
 
-    std::string_view MagicEffect::indexToName(int index)
+    std::string_view MagicEffect::indexToName(std::int32_t index)
     {
         if (index < 0 || index >= Length)
             return {};

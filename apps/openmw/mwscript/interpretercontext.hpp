@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 
@@ -37,7 +38,7 @@ namespace MWScript
         ///< \a id is changed to the respective script ID, if \a id wasn't a script ID before
 
         /// Throws an exception if local variable can't be found.
-        int findLocalVariableIndex(const ESM::RefId& scriptId, std::string_view name, char type) const;
+        std::int32_t findLocalVariableIndex(const ESM::RefId& scriptId, std::string_view name, char type) const;
 
     public:
         explicit InterpreterContext(std::shared_ptr<GlobalScriptDesc> globalScriptDesc);
@@ -47,17 +48,17 @@ namespace MWScript
 
         ESM::RefId getTarget() const override;
 
-        int getLocalShort(int index) const override;
+        std::int32_t getLocalShort(std::int32_t index) const override;
 
-        int getLocalLong(int index) const override;
+        std::int32_t getLocalLong(std::int32_t index) const override;
 
-        float getLocalFloat(int index) const override;
+        float getLocalFloat(std::int32_t index) const override;
 
-        void setLocalShort(int index, int value) override;
+        void setLocalShort(std::int32_t index, std::int32_t value) override;
 
-        void setLocalLong(int index, int value) override;
+        void setLocalLong(std::int32_t index, std::int32_t value) override;
 
-        void setLocalFloat(int index, float value) override;
+        void setLocalFloat(std::int32_t index, float value) override;
 
         using Interpreter::Context::messageBox;
 
@@ -66,15 +67,15 @@ namespace MWScript
         void report(const std::string& message) override;
         ///< By default, do nothing.
 
-        int getGlobalShort(std::string_view name) const override;
+        std::int32_t getGlobalShort(std::string_view name) const override;
 
-        int getGlobalLong(std::string_view name) const override;
+        std::int32_t getGlobalLong(std::string_view name) const override;
 
         float getGlobalFloat(std::string_view name) const override;
 
-        void setGlobalShort(std::string_view name, int value) override;
+        void setGlobalShort(std::string_view name, std::int32_t value) override;
 
-        void setGlobalLong(std::string_view name, int value) override;
+        void setGlobalLong(std::string_view name, std::int32_t value) override;
 
         void setGlobalFloat(std::string_view name, float value) override;
 
@@ -104,22 +105,22 @@ namespace MWScript
 
         std::string_view getPCNextRank() const override;
 
-        int getPCBounty() const override;
+        std::int32_t getPCBounty() const override;
 
         std::string_view getCurrentCellName() const override;
 
         void executeActivation(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor);
         ///< Execute the activation action for this ptr. If ptr is mActivated, mark activation as handled.
 
-        int getMemberShort(ESM::RefId id, std::string_view name, bool global) const override;
+        std::int32_t getMemberShort(ESM::RefId id, std::string_view name, bool global) const override;
 
-        int getMemberLong(ESM::RefId id, std::string_view name, bool global) const override;
+        std::int32_t getMemberLong(ESM::RefId id, std::string_view name, bool global) const override;
 
         float getMemberFloat(ESM::RefId id, std::string_view name, bool global) const override;
 
-        void setMemberShort(ESM::RefId id, std::string_view name, int value, bool global) override;
+        void setMemberShort(ESM::RefId id, std::string_view name, std::int32_t value, bool global) override;
 
-        void setMemberLong(ESM::RefId id, std::string_view name, int value, bool global) override;
+        void setMemberLong(ESM::RefId id, std::string_view name, std::int32_t value, bool global) override;
 
         void setMemberFloat(ESM::RefId id, std::string_view name, float value, bool global) override;
 

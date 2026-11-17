@@ -35,7 +35,7 @@ namespace Rtx::Testing
     {
         float low = 0.1f;
         float high = 0.5f;
-        for (int step = 0; step < 40; ++step)
+        for (std::int32_t step = 0; step < 40; ++step)
         {
             const float middle = 0.5f * (low + high);
             (displayedLevel(middle) < level ? low : high) = middle;

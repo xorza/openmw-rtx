@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <initializer_list>
 #include <memory>
@@ -55,7 +56,7 @@ namespace
         /// A book on the stack, and what typesets it: again where the fonts were rasterized again.
         struct DisplayState
         {
-            size_t mPage;
+            std::size_t mPage;
             std::function<std::shared_ptr<MWGui::TypesetBook>()> mTypeset;
             std::shared_ptr<MWGui::TypesetBook> mBook;
         };
@@ -173,8 +174,8 @@ namespace
             {
                 // english button has a 7 pixel wide strip of garbage on its right edge
                 nextButton->setSize(64 - 7, nextButton->getSize().height);
-                nextButton->setImageCoord(MyGUI::IntCoord(0, 0, static_cast<int>((64 - 7) * nextButtonScale),
-                    static_cast<int>(static_cast<float>(nextButton->getSize().height) * nextButtonScale)));
+                nextButton->setImageCoord(MyGUI::IntCoord(0, 0, static_cast<std::int32_t>((64 - 7) * nextButtonScale),
+                    static_cast<std::int32_t>(static_cast<float>(nextButton->getSize().height) * nextButtonScale)));
             }
 
             if (!questList)
@@ -207,9 +208,9 @@ namespace
                 adjustButton(OptionsBTN);
                 adjustButton(QuestsBTN);
                 adjustButton(TopicsBTN);
-                int topicsWidth = getWidget<MyGUI::Widget>(TopicsBTN)->getSize().width;
-                int cancelLeft = getWidget<MyGUI::Widget>(CancelBTN)->getPosition().left;
-                int cancelRight = getWidget<MyGUI::Widget>(CancelBTN)->getPosition().left
+                std::int32_t topicsWidth = getWidget<MyGUI::Widget>(TopicsBTN)->getSize().width;
+                std::int32_t cancelLeft = getWidget<MyGUI::Widget>(CancelBTN)->getPosition().left;
+                std::int32_t cancelRight = getWidget<MyGUI::Widget>(CancelBTN)->getPosition().left
                     + getWidget<MyGUI::Widget>(CancelBTN)->getSize().width;
 
                 getWidget<MyGUI::Widget>(QuestsBTN)->setPosition(
@@ -226,7 +227,7 @@ namespace
                 }
                 else
                 {
-                    int questLeft = getWidget<MyGUI::Widget>(QuestsBTN)->getPosition().left;
+                    std::int32_t questLeft = getWidget<MyGUI::Widget>(QuestsBTN)->getPosition().left;
                     getWidget<MyGUI::Widget>(TopicsBTN)->setPosition(
                         questLeft - topicsWidth, getWidget<MyGUI::Widget>(TopicsBTN)->getPosition().top);
                 }
@@ -259,7 +260,7 @@ namespace
             // fast forward to the last page
             if (!mStates.empty())
             {
-                size_t& page = mStates.top().mPage;
+                std::size_t& page = mStates.top().mPage;
                 page = mStates.top().mBook->pageCount() - 1;
                 if (page % 2)
                     --page;
@@ -369,9 +370,9 @@ namespace
             for (auto& state : std::views::reverse(states))
             {
                 state.mBook = state.mTypeset();
-                const size_t pages = state.mBook->pageCount();
+                const std::size_t pages = state.mBook->pageCount();
                 if (state.mPage >= pages)
-                    state.mPage = pages == 0 ? 0 : (pages - 1) & ~size_t{ 1 };
+                    state.mPage = pages == 0 ? 0 : (pages - 1) & ~std::size_t{ 1 };
                 mStates.push(std::move(state));
             }
 
@@ -400,8 +401,8 @@ namespace
         void updateShowingPages()
         {
             std::shared_ptr<MWGui::TypesetBook> book;
-            size_t page = 0;
-            size_t relPages = 0;
+            std::size_t page = 0;
+            std::size_t relPages = 0;
 
             if (!mStates.empty())
             {
@@ -478,7 +479,7 @@ namespace
             MWBase::Environment::get().getWindowManager()->updateControllerButtonsOverlay();
         }
 
-        void notifyTopicSelected(const std::string& topicIdString, int id)
+        void notifyTopicSelected(const std::string& topicIdString, std::int32_t id)
         {
             ESM::RefId topic = ESM::RefId::stringRefId(topicIdString);
             const MWBase::Journal* journal = MWBase::Environment::get().getJournal();
@@ -487,7 +488,7 @@ namespace
                 notifyTopicClicked(it->second);
         }
 
-        void notifyQuestClicked(const std::string& name, int id)
+        void notifyQuestClicked(const std::string& name, std::int32_t id)
         {
             auto typeset = [this, name = std::string(name)] { return createQuestBook(name); };
             if (mStates.size() > 1)
@@ -541,10 +542,10 @@ namespace
             MWBase::Environment::get().getWindowManager()->updateControllerButtonsOverlay();
         }
 
-        void addControllerButtons(Gui::MWList* list, size_t selectedIndex)
+        void addControllerButtons(Gui::MWList* list, std::size_t selectedIndex)
         {
             mButtons.clear();
-            for (size_t i = 0; i < list->getItemCount(); i++)
+            for (std::size_t i = 0; i < list->getItemCount(); i++)
             {
                 MyGUI::Button* listItem = list->getItemWidget(list->getItemNameAt(i));
                 if (listItem)
@@ -697,7 +698,7 @@ namespace
             winMgr->popGuiMode();
         }
 
-        void notifyMouseWheel(MyGUI::Widget* sender, int rel)
+        void notifyMouseWheel(MyGUI::Widget* sender, std::int32_t rel)
         {
             if (rel < 0)
                 notifyNextPage(sender);
@@ -711,7 +712,7 @@ namespace
                 return;
             if (!mStates.empty())
             {
-                size_t& page = mStates.top().mPage;
+                std::size_t& page = mStates.top().mPage;
                 std::shared_ptr<MWGui::TypesetBook> book = mStates.top().mBook;
 
                 if (page + 2 < book->pageCount())
@@ -730,7 +731,7 @@ namespace
                 return;
             if (!mStates.empty())
             {
-                size_t& page = mStates.top().mPage;
+                std::size_t& page = mStates.top().mPage;
 
                 if (page >= 2)
                 {
@@ -766,17 +767,17 @@ namespace
 
         void setIndexControllerFocus(bool focused)
         {
-            size_t col = mSelectedIndex / mIndexRowCount;
-            size_t row = mSelectedIndex % mIndexRowCount;
+            std::size_t col = mSelectedIndex / mIndexRowCount;
+            std::size_t row = mSelectedIndex % mIndexRowCount;
             mTopicIndexBook->setColour(col, row, 0, focused ? MWGui::journalHeaderColour : MyGUI::Colour::Black);
         }
 
-        void moveSelectedIndex(int offset)
+        void moveSelectedIndex(std::int32_t offset)
         {
             setIndexControllerFocus(false);
 
-            int numChars = mEncoding == ToUTF8::WINDOWS_1251 ? 30 : 26;
-            size_t col = mSelectedIndex / mIndexRowCount;
+            std::int32_t numChars = mEncoding == ToUTF8::WINDOWS_1251 ? 30 : 26;
+            std::size_t col = mSelectedIndex / mIndexRowCount;
 
             if (offset == -1) // Up
             {
@@ -828,13 +829,13 @@ namespace
                 {
                     // Choose an index. Cyrillic capital A is a 0xd090 in UTF-8.
                     // Words can not be started with characters 26 or 28.
-                    int russianOffset = 0xd090;
+                    std::int32_t russianOffset = 0xd090;
                     if (mSelectedIndex >= 26)
                         russianOffset++;
                     if (mSelectedIndex >= 27)
                         russianOffset++; // 27, not 28, because of skipping char 26
                     bool isRussian = (mEncoding == ToUTF8::WINDOWS_1251);
-                    size_t ch
+                    std::size_t ch
                         = isRussian ? mSelectedIndex + static_cast<std::size_t>(russianOffset) : mSelectedIndex + 'A';
                     notifyIndexLinkClicked(static_cast<Utf8Stream::UnicodeChar>(ch));
                 }
@@ -906,9 +907,9 @@ namespace
                     moveSelectedIndex(1);
             }
             else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT && !mQuestMode && !mTopicsMode)
-                moveSelectedIndex(-static_cast<int>(mIndexRowCount));
+                moveSelectedIndex(-static_cast<std::int32_t>(mIndexRowCount));
             else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT && !mQuestMode && !mTopicsMode)
-                moveSelectedIndex(static_cast<int>(mIndexRowCount));
+                moveSelectedIndex(static_cast<std::int32_t>(mIndexRowCount));
             else if (arg.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER && (mQuestMode || mTopicsMode))
             {
                 // Scroll up 5 items in the list of quests or topics
@@ -971,9 +972,9 @@ namespace
             return true;
         }
 
-        void setControllerFocusedQuest(size_t index)
+        void setControllerFocusedQuest(std::size_t index)
         {
-            size_t listSize = mButtons.size();
+            std::size_t listSize = mButtons.size();
             if (mSelectedQuest < listSize)
                 mButtons[mSelectedQuest]->setTextColour(MyGUI::Colour::Black);
 
@@ -984,8 +985,8 @@ namespace
 
                 // Scroll the list to keep the active item in view
                 auto* list = getWidget<Gui::MWList>(mQuestMode ? QuestsList : TopicsList);
-                int offset = 0;
-                for (int i = 4; std::cmp_less(i, mSelectedQuest); i++)
+                std::int32_t offset = 0;
+                for (std::int32_t i = 4; std::cmp_less(i, mSelectedQuest); i++)
                     offset += mButtons[static_cast<std::size_t>(i)]->getHeight();
                 list->setViewOffset(-offset);
             }

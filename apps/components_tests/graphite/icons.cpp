@@ -1,3 +1,10 @@
+#include <cstdint>
+#include <filesystem>
+#include <string>
+#include <vector>
+
+#include <gtest/gtest.h>
+
 #include <QColor>
 #include <QFile>
 #include <QIcon>
@@ -5,11 +12,6 @@
 #include <QPixmap>
 #include <QRegularExpression>
 #include <QString>
-#include <filesystem>
-#include <string>
-#include <vector>
-
-#include <gtest/gtest.h>
 
 #include <components/files/conversion.hpp>
 #include <components/graphite/look.hpp>
@@ -79,9 +81,9 @@ namespace Graphite
                                          .pixmap(48, 48)
                                          .toImage()
                                          .convertToFormat(QImage::Format_ARGB32);
-                int solid = 0;
-                for (int y = 0; y < drawn.height(); ++y)
-                    for (int x = 0; x < drawn.width(); ++x)
+                std::int32_t solid = 0;
+                for (std::int32_t y = 0; y < drawn.height(); ++y)
+                    for (std::int32_t x = 0; x < drawn.width(); ++x)
                         if (qAlpha(drawn.pixel(x, y)) == 255)
                         {
                             ++solid;

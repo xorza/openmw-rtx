@@ -717,7 +717,7 @@ namespace Rtx
             // first left where it found it. It asks whether the two are ordered at all, which only the synchronization
             // layers answer.
             camera.mTransparentBackground = 0;
-            for (int again = 0; again < 2; ++again)
+            for (std::int32_t again = 0; again < 2; ++again)
                 mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
             EXPECT_EQ(inTexture(texture, extent, 5, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 255 }))

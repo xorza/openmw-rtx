@@ -1,5 +1,7 @@
 #include "confirmationdialog.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 
@@ -33,9 +35,9 @@ namespace MWGui
 
         mMessage->setCaptionWithReplacing(message);
 
-        int height = mMessage->getTextSize().height + 60;
+        std::int32_t height = mMessage->getTextSize().height + 60;
 
-        int width = mMessage->getTextSize().width + 24;
+        std::int32_t width = mMessage->getTextSize().width + 24;
 
         mMainWidget->setSize(width, height);
 

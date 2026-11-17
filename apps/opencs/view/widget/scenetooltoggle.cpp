@@ -1,11 +1,13 @@
 #include "scenetooltoggle.hpp"
 
+#include <cstdint>
+#include <stdexcept>
+#include <utility>
+
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QPainter>
-#include <stdexcept>
-#include <utility>
 
 #include "pushbutton.hpp"
 #include "scenetool.hpp"
@@ -40,7 +42,7 @@ void CSVWidget::SceneToolToggle::adjustToolTip()
 
 void CSVWidget::SceneToolToggle::adjustIcon()
 {
-    unsigned int selection = getSelectionMask();
+    std::uint32_t selection = getSelectionMask();
     if (!selection)
         setIcon(QIcon(QString::fromUtf8(mEmptyIcon.c_str())));
     else
@@ -62,25 +64,25 @@ void CSVWidget::SceneToolToggle::adjustIcon()
     }
 }
 
-QRect CSVWidget::SceneToolToggle::getIconBox(int index) const
+QRect CSVWidget::SceneToolToggle::getIconBox(std::int32_t index) const
 {
     // layout for a 3x3 grid
-    int xMax = 3;
-    int yMax = 3;
+    std::int32_t xMax = 3;
+    std::int32_t yMax = 3;
 
     // icon size
-    int xBorder = 1;
-    int yBorder = 1;
+    std::int32_t xBorder = 1;
+    std::int32_t yBorder = 1;
 
-    int iconXSize = (mIconSize - xBorder * (xMax + 1)) / xMax;
-    int iconYSize = (mIconSize - yBorder * (yMax + 1)) / yMax;
+    std::int32_t iconXSize = (mIconSize - xBorder * (xMax + 1)) / xMax;
+    std::int32_t iconYSize = (mIconSize - yBorder * (yMax + 1)) / yMax;
 
-    int y = index / xMax;
-    int x = index % xMax;
+    std::int32_t y = index / xMax;
+    std::int32_t x = index % xMax;
 
-    int total = static_cast<int>(mButtons.size());
+    auto total = static_cast<std::int32_t>(mButtons.size());
 
-    int actualYIcons = total / xMax;
+    std::int32_t actualYIcons = total / xMax;
 
     if (total % xMax)
         ++actualYIcons;
@@ -88,19 +90,19 @@ QRect CSVWidget::SceneToolToggle::getIconBox(int index) const
     if (actualYIcons != yMax)
     {
         // space out icons vertically, if there aren't enough to populate all rows
-        int diff = yMax - actualYIcons;
+        std::int32_t diff = yMax - actualYIcons;
         yBorder += (diff * (yBorder + iconXSize)) / (actualYIcons + 1);
     }
 
     if (y == actualYIcons - 1)
     {
         // generating the last row of icons
-        int actualXIcons = total % xMax;
+        std::int32_t actualXIcons = total % xMax;
 
         if (actualXIcons)
         {
             // space out icons horizontally, if there aren't enough to fill the last row
-            int diff = xMax - actualXIcons;
+            std::int32_t diff = xMax - actualXIcons;
 
             xBorder += (diff * (xBorder + iconXSize)) / (actualXIcons + 1);
         }
@@ -135,7 +137,7 @@ void CSVWidget::SceneToolToggle::showPanel(const QPoint& position)
         mFirst->setFocus(Qt::OtherFocusReason);
 }
 
-void CSVWidget::SceneToolToggle::addButton(const std::string& icon, unsigned int mask, const std::string& smallIcon,
+void CSVWidget::SceneToolToggle::addButton(const std::string& icon, std::uint32_t mask, const std::string& smallIcon,
     const QString& name, const QString& tooltip)
 {
     if (mButtons.size() >= 9)
@@ -154,7 +156,7 @@ void CSVWidget::SceneToolToggle::addButton(const std::string& icon, unsigned int
     desc.mMask = mask;
     desc.mSmallIcon = smallIcon;
     desc.mName = name;
-    desc.mIndex = static_cast<int>(mButtons.size());
+    desc.mIndex = static_cast<std::int32_t>(mButtons.size());
 
     mButtons.insert(std::make_pair(button, desc));
 
@@ -164,9 +166,9 @@ void CSVWidget::SceneToolToggle::addButton(const std::string& icon, unsigned int
         mFirst = button;
 }
 
-unsigned int CSVWidget::SceneToolToggle::getSelectionMask() const
+std::uint32_t CSVWidget::SceneToolToggle::getSelectionMask() const
 {
-    unsigned int selection = 0;
+    std::uint32_t selection = 0;
 
     for (const auto& button : mButtons)
         if (button.first->isChecked())
@@ -175,7 +177,7 @@ unsigned int CSVWidget::SceneToolToggle::getSelectionMask() const
     return selection;
 }
 
-void CSVWidget::SceneToolToggle::setSelectionMask(unsigned int selection)
+void CSVWidget::SceneToolToggle::setSelectionMask(std::uint32_t selection)
 {
     for (auto& button : mButtons)
         button.first->setChecked(selection & button.second.mMask);

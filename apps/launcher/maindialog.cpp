@@ -1,5 +1,7 @@
 #include "maindialog.hpp"
 
+#include <cstdint>
+
 #include <QCloseEvent>
 #include <QDir>
 #include <QIcon>
@@ -55,7 +57,7 @@ Launcher::MainDialog::MainDialog(const Files::ConfigurationManager& configuratio
 
     connect(mWizardInvoker->getProcess(), &QProcess::started, this, &MainDialog::wizardStarted);
 
-    connect(mWizardInvoker->getProcess(), qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+    connect(mWizardInvoker->getProcess(), qOverload<std::int32_t, QProcess::ExitStatus>(&QProcess::finished), this,
         &MainDialog::wizardFinished);
 
     buttonBox->button(QDialogButtonBox::Close)->setText(tr("Close"));
@@ -627,7 +629,7 @@ void Launcher::MainDialog::wizardStarted()
     hide();
 }
 
-void Launcher::MainDialog::wizardFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void Launcher::MainDialog::wizardFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitCode != 0 || exitStatus == QProcess::CrashExit)
         return qApp->quit();

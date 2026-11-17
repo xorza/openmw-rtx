@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/nif/niffile.hpp>
 
 #include "resourcemanager.hpp"
@@ -27,7 +29,7 @@ namespace Resource
         /// to be done in advance by other managers accessing the NifFileManager.
         Nif::NIFFilePtr get(VFS::Path::NormalizedView name);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
     };
 
 }

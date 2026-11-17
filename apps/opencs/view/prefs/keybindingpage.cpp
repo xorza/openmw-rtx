@@ -1,13 +1,15 @@
 #include "keybindingpage.hpp"
 
+#include <cassert>
+#include <cstdint>
+#include <string>
+
 #include <QComboBox>
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QStackedLayout>
 #include <QVBoxLayout>
-#include <cassert>
-#include <string>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
@@ -32,7 +34,7 @@ namespace CSVPrefs
         mStackedLayout = new QStackedLayout(stackedWidget);
 
         mPageSelector = new QComboBox();
-        connect(mPageSelector, qOverload<int>(&QComboBox::currentIndexChanged), mStackedLayout,
+        connect(mPageSelector, qOverload<std::int32_t>(&QComboBox::currentIndexChanged), mStackedLayout,
             &QStackedLayout::setCurrentIndex);
 
         auto* lineSeparator = new QFrame(topWidget);
@@ -66,7 +68,7 @@ namespace CSVPrefs
             // Label, Option widgets
             assert(mPageLayout);
 
-            int next = mPageLayout->rowCount();
+            std::int32_t next = mPageLayout->rowCount();
             mPageLayout->addWidget(widgets.mLabel, next, 0);
             mPageLayout->addWidget(widgets.mInput, next, 1);
         }
@@ -75,7 +77,7 @@ namespace CSVPrefs
             // Wide single widget
             assert(mPageLayout);
 
-            int next = mPageLayout->rowCount();
+            std::int32_t next = mPageLayout->rowCount();
             mPageLayout->addWidget(widgets.mInput, next, 0, 1, 2);
         }
         else

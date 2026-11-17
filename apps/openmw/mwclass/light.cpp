@@ -1,5 +1,7 @@
 #include "light.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
@@ -103,11 +105,11 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    std::pair<std::vector<int>, bool> Light::getEquipmentSlots(const MWWorld::ConstPtr& ptr) const
+    std::pair<std::vector<std::int32_t>, bool> Light::getEquipmentSlots(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Light>* ref = ptr.get<ESM::Light>();
 
-        std::vector<int> slots;
+        std::vector<std::int32_t> slots;
 
         if (ref->mBase->mData.mFlags & ESM::Light::Carry)
             slots.push_back((MWWorld::InventoryStore::Slot_CarriedLeft));
@@ -115,7 +117,7 @@ namespace MWClass
         return std::make_pair(slots, false);
     }
 
-    int Light::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Light::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Light>* ref = ptr.get<ESM::Light>();
 
@@ -146,7 +148,7 @@ namespace MWClass
         return showsInInventory(ptr);
     }
 
-    MWGui::ToolTipInfo Light::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Light::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Light>* ref = ptr.get<ESM::Light>();
 
@@ -215,7 +217,7 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
-    bool Light::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Light::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::Lights) != 0;
     }
@@ -226,7 +228,8 @@ namespace MWClass
         return ref->mBase->mData.mWeight;
     }
 
-    std::pair<int, std::string_view> Light::canBeEquipped(const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const
+    std::pair<std::int32_t, std::string_view> Light::canBeEquipped(
+        const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const
     {
         const MWWorld::LiveCellRef<ESM::Light>* ref = ptr.get<ESM::Light>();
         if (!(ref->mBase->mData.mFlags & ESM::Light::Carry))

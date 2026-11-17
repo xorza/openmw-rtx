@@ -1,5 +1,7 @@
 #include "actorconvexcallback.hpp"
 
+#include <cstdint>
+
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 
 #include <components/misc/convert.hpp>
@@ -17,8 +19,8 @@ namespace MWPhysics
             bool mOverlapping = false;
 
             btScalar addSingleResult(btManifoldPoint& cp, const btCollisionObjectWrapper* /*colObj0Wrap*/,
-                int /*partId0*/, int /*index0*/, const btCollisionObjectWrapper* /*colObj1Wrap*/, int /*partId1*/,
-                int /*index1*/) override
+                std::int32_t /*partId0*/, std::int32_t /*index0*/, const btCollisionObjectWrapper* /*colObj1Wrap*/,
+                std::int32_t /*partId1*/, std::int32_t /*index1*/) override
             {
                 if (cp.getDistance() <= 0.0f)
                     mOverlapping = true;

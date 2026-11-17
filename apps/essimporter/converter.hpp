@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <limits>
 
 #include <osg/Image>
@@ -50,7 +51,7 @@ namespace ESSImport
     {
     public:
         /// @return the order for writing this converter's records to the output file, in relation to other converters
-        virtual int getStage() const { return 1; }
+        virtual std::int32_t getStage() const { return 1; }
 
         virtual ~Converter() = default;
 
@@ -73,7 +74,7 @@ namespace ESSImport
     class DefaultConverter : public Converter
     {
     public:
-        int getStage() const override { return 0; }
+        std::int32_t getStage() const override { return 0; }
 
         void read(ESM::ESMReader& esm) override
         {
@@ -218,7 +219,7 @@ namespace ESSImport
             }
             else
             {
-                int index = npcc.mNPDT.mIndex;
+                std::int32_t index = npcc.mNPDT.mIndex;
                 mContext->mNpcChanges.insert(std::make_pair(std::make_pair(index, id), npcc));
             }
         }
@@ -245,7 +246,7 @@ namespace ESSImport
             {
                 ESM::InventoryState& invState = mContext->mPlayer.mObject.mInventory;
 
-                for (uint32_t i = 0; i < static_cast<uint32_t>(invState.mItems.size()); ++i)
+                for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(invState.mItems.size()); ++i)
                 {
                     // FIXME: in case of conflict (multiple items with this refID) use the already equipped one?
                     if (invState.mItems[i].mRef.mRefID == refr.mActorData.mSelectedEnchantItem)
@@ -347,7 +348,7 @@ namespace ESSImport
         };
 
         std::map<std::string, Cell, Misc::StringUtils::CiComp> mIntCells;
-        std::map<std::pair<int, int>, Cell> mExtCells;
+        std::map<std::pair<std::int32_t, std::int32_t>, Cell> mExtCells;
 
         std::vector<ESM::CustomMarker> mMarkers;
 
@@ -378,7 +379,7 @@ namespace ESSImport
         }
 
     private:
-        std::map<ESM::RefId, int> mKillCounter;
+        std::map<ESM::RefId, std::int32_t> mKillCounter;
     };
 
     class ConvertFACT : public Converter
@@ -428,7 +429,7 @@ namespace ESSImport
             ESM::StolenItems items;
             for (const auto& stolenItem : mStolenItems)
             {
-                std::map<std::pair<ESM::RefId, bool>, int> owners;
+                std::map<std::pair<ESM::RefId, bool>, std::int32_t> owners;
                 for (const auto& ownerIt : stolenItem.second)
                 {
                     owners.insert(std::make_pair(std::make_pair(ESM::RefId::stringRefId(ownerIt.first), ownerIt.second)
@@ -437,7 +438,7 @@ namespace ESSImport
                         // this count, so must assume all items of that ID are stolen,
                         // like vanilla MW did.
                         ,
-                        std::numeric_limits<int>::max()));
+                        std::numeric_limits<std::int32_t>::max()));
                 }
 
                 items.mStolenItems.insert(std::make_pair(ESM::RefId::stringRefId(stolenItem.first), owners));
@@ -534,7 +535,7 @@ namespace ESSImport
             mHasGame = true;
         }
 
-        ESM::RefId validateWeatherID(int weatherID) const
+        ESM::RefId validateWeatherID(std::int32_t weatherID) const
         {
             if (weatherID >= -1 && weatherID < 10)
             {
@@ -599,7 +600,7 @@ namespace ESSImport
     class ConvertPROJ : public Converter
     {
     public:
-        int getStage() const override { return 2; }
+        std::int32_t getStage() const override { return 2; }
         void read(ESM::ESMReader& esm) override;
         void write(ESM::ESMWriter& esm) const override;
 

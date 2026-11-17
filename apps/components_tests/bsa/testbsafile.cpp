@@ -1,5 +1,6 @@
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -42,9 +43,9 @@ namespace Bsa
 
         struct Header
         {
-            uint32_t mFormat;
-            uint32_t mDirSize;
-            uint32_t mFileCount;
+            std::uint32_t mFormat;
+            std::uint32_t mDirSize;
+            std::uint32_t mFileCount;
         };
 
         struct Archive
@@ -411,7 +412,7 @@ namespace Bsa
 
         TEST(BSAFileTest, shouldHandleSomewhatLargeFiles)
         {
-            constexpr std::uint32_t maxUInt32 = std::numeric_limits<uint32_t>::max();
+            constexpr std::uint32_t maxUInt32 = std::numeric_limits<std::uint32_t>::max();
             constexpr std::uint32_t fileSize = maxUInt32 / 4;
             constexpr std::uint32_t fileOffset = maxUInt32 / 4 - 34;
             const Buffer buffer = makeBsaBuffer(fileSize, fileOffset);
@@ -436,7 +437,7 @@ namespace Bsa
 
         TEST(BSAFileTest, shouldHandleSingleFileAtTheEndOfLargeFile)
         {
-            constexpr std::uint32_t maxUInt32 = std::numeric_limits<uint32_t>::max();
+            constexpr std::uint32_t maxUInt32 = std::numeric_limits<std::uint32_t>::max();
             constexpr std::uint32_t fileSize = maxUInt32;
             constexpr std::uint32_t fileOffset = maxUInt32 - 34;
             const Buffer buffer = makeBsaBuffer(fileSize, fileOffset);
@@ -461,7 +462,7 @@ namespace Bsa
 
         TEST(BSAFileTest, shouldThrowExceptionOnTooBigAbsoluteOffset)
         {
-            constexpr std::uint32_t maxUInt32 = std::numeric_limits<uint32_t>::max();
+            constexpr std::uint32_t maxUInt32 = std::numeric_limits<std::uint32_t>::max();
             constexpr std::uint32_t fileSize = maxUInt32;
             constexpr std::uint32_t fileOffset = maxUInt32 - 34 + 1;
             const Buffer buffer = makeBsaBuffer(fileSize, fileOffset);

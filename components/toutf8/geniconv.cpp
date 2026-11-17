@@ -1,6 +1,8 @@
 // This program generates the file tablesgen.hpp
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
 
 #include <iconv.h>
@@ -15,18 +17,18 @@ void num(char i, bool last)
 {
     // Convert i to its integer value, i.e. -128 to 127. Printing it directly
     // would result in non-printable characters in the source code, which is bad.
-    std::cout << " " << static_cast<int>(i);
+    std::cout << " " << static_cast<std::int32_t>(i);
     if (!last)
         std::cout << ",";
 }
 
 // Write one table entry (UTF8 value), 1-5 bytes
-void writeChar(char* value, int length, bool last, const std::string& comment = "")
+void writeChar(char* value, std::int32_t length, bool last, const std::string& comment = "")
 {
     assert(length >= 1 && length <= 5);
     tab();
     num(length, false);
-    for (int i = 0; i < 5; i++)
+    for (std::int32_t i = 0; i < 5; i++)
         num(value[i], last && i == 4);
 
     if (comment != "")
@@ -41,12 +43,12 @@ void writeMissing(bool last)
     // Just write a space character
     char value[5];
     value[0] = ' ';
-    for (int i = 1; i < 5; i++)
+    for (std::int32_t i = 1; i < 5; i++)
         value[i] = 0;
     writeChar(value, 1, last, "not part of this charset");
 }
 
-int write_table(const std::string& charset, const std::string& tableName)
+std::int32_t write_table(const std::string& charset, const std::string& tableName)
 {
     // Write table header
     std::cout << "const static signed char " << tableName << "[] =\n{\n";
@@ -55,21 +57,21 @@ int write_table(const std::string& charset, const std::string& tableName)
     iconv_t cd = iconv_open("UTF-8", charset.c_str());
 
     // Convert each character from 0 to 255
-    for (int i = 0; i < 256; i++)
+    for (std::int32_t i = 0; i < 256; i++)
     {
         bool last = (i == 255);
 
         char input = i;
         char* iptr = &input;
-        size_t ileft = 1;
+        std::size_t ileft = 1;
 
         char output[5];
-        for (int k = 0; k < 5; k++)
+        for (std::int32_t k = 0; k < 5; k++)
             output[k] = 0;
         char* optr = output;
-        size_t oleft = 5;
+        std::size_t oleft = 5;
 
-        size_t res = iconv(cd, &iptr, &ileft, &optr, &oleft);
+        std::size_t res = iconv(cd, &iptr, &ileft, &optr, &oleft);
 
         if (res)
             writeMissing(last);

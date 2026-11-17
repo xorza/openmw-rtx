@@ -202,7 +202,7 @@ namespace Rtx::Testing
             }
 
             /// How many times `getModel` was asked, which a reader asks once a record.
-            mutable int mModelsAsked = 0;
+            mutable std::int32_t mModelsAsked = 0;
 
             /// How many walks of a cell the reading thread began, which it begins once the cell
             /// before is handed over.
@@ -290,7 +290,7 @@ namespace Rtx::Testing
             /// for and a shading to estimate.
             osg::ref_ptr<osg::Image> mBark = [] {
                 osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/bark.dds", 4, 4);
-                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
                 return image;
             }();
 
@@ -398,13 +398,14 @@ namespace Rtx::Testing
         /// nearest point `|dx| - 0.5` cells away, and one in the eye's own column has it at nought.
         constexpr std::uint32_t cellsWithin(const float reach)
         {
-            const auto nearest
-                = [](const int away) { return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f; };
+            const auto nearest = [](const std::int32_t away) {
+                return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f;
+            };
 
             std::uint32_t count = 0;
-            const int span = static_cast<int>(reach) + 1;
-            for (int dx = -span; dx <= span; ++dx)
-                for (int dy = -span; dy <= span; ++dy)
+            const std::int32_t span = static_cast<std::int32_t>(reach) + 1;
+            for (std::int32_t dx = -span; dx <= span; ++dx)
+                for (std::int32_t dy = -span; dy <= span; ++dy)
                 {
                     const float ax = nearest(dx);
                     const float ay = nearest(dy);
@@ -429,8 +430,8 @@ namespace Rtx::Testing
         protected:
             RtxCellRingTest()
             {
-                for (int x = -8; x <= 30; ++x)
-                    for (int y = -8; y <= 30; ++y)
+                for (std::int32_t x = -8; x <= 30; ++x)
+                    for (std::int32_t y = -8; y <= 30; ++y)
                         mLand.mWithData.emplace_back(x, y);
 
                 mRing.setMinSize(0.0f);
@@ -1160,9 +1161,9 @@ namespace Rtx::Testing
                 std::sort(lifted.begin(), lifted.end());
                 return lifted;
             };
-            const auto trees = [](std::initializer_list<int> scales) {
+            const auto trees = [](std::initializer_list<std::int32_t> scales) {
                 std::vector<float> lifted;
-                for (const int scale : scales)
+                for (const std::int32_t scale : scales)
                     lifted.push_back(105.0f * static_cast<float>(scale));
                 return lifted;
             };
@@ -1362,9 +1363,10 @@ namespace Rtx::Testing
             {
                 mAround.mNightDay = mode;
                 mRing.follow(mAround);
-                EXPECT_EQ(lifted(), stands) << static_cast<int>(mode) << ": at once";
-                EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u) << static_cast<int>(mode) << ": one sheet and the tree";
-                EXPECT_EQ(lifted(), stands) << static_cast<int>(mode) << ": and the walk keeps it";
+                EXPECT_EQ(lifted(), stands) << static_cast<std::int32_t>(mode) << ": at once";
+                EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u)
+                    << static_cast<std::int32_t>(mode) << ": one sheet and the tree";
+                EXPECT_EQ(lifted(), stands) << static_cast<std::int32_t>(mode) << ": and the walk keeps it";
             }
         }
 
@@ -1454,8 +1456,8 @@ namespace Rtx::Testing
         TEST_F(RtxCellRingTest, aRecycledCellWhoseLandStandsNothingStandsNoGround)
         {
             mLand.mWithData.clear();
-            for (int x = -6; x <= 6; ++x)
-                for (int y = -6; y <= 6; ++y)
+            for (std::int32_t x = -6; x <= 6; ++x)
+                for (std::int32_t y = -6; y <= 6; ++y)
                     mLand.mWithData.emplace_back(x, y);
             start(ESM::RefId::stringRefId("tamriel"));
 
@@ -1533,15 +1535,15 @@ namespace Rtx::Testing
             };
             const auto waiting = [&] {
                 std::vector<osg::Vec2i> found;
-                for (int x = -8; x <= 14; ++x)
-                    for (int y = -8; y <= 8; ++y)
+                for (std::int32_t x = -8; x <= 14; ++x)
+                    for (std::int32_t y = -8; y <= 8; ++y)
                         if (waits(osg::Vec2i(x, y)))
                             found.emplace_back(x, y);
                 return found;
             };
 
             start();
-            for (int walked = 0; walked < 3; ++walked)
+            for (std::int32_t walked = 0; walked < 3; ++walked)
                 walk(mWalked++);
 
             around(osg::Vec3f(2.5f * sCellSize, 0.5f * sCellSize, 0.0f), osg::Vec4i(1, -1, 4, 2));
@@ -1556,7 +1558,7 @@ namespace Rtx::Testing
                         return leftAway != rightAway ? leftAway < rightAway : left < right;
                     });
             };
-            for (int walked = 0; walked < 20; ++walked)
+            for (std::int32_t walked = 0; walked < 20; ++walked)
             {
                 const std::vector<osg::Vec2i> before = waiting();
                 ASSERT_FALSE(before.empty());
@@ -1649,36 +1651,37 @@ namespace Rtx::Testing
         /// nought once the band is whole, however many cells the ring keeps beside it.
         TEST_F(RtxCellRingTest, aCellIsReadAtTheBandAndLetGoACellPastIt)
         {
-            using Cells = std::set<std::pair<int, int>>;
+            using Cells = std::set<std::pair<std::int32_t, std::int32_t>>;
 
             // `withinReach`'s disc, as `cellsWithin` draws it, about an eye at the centre of the cell
             // `eye` columns east of the origin.
-            const auto within = [](const int x, const int y, const int eye, const float reach) {
-                const auto nearest = [](const int away) {
-                    return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f;
-                };
-                const float ax = nearest(x - eye);
-                const float ay = nearest(y);
-                return ax * ax + ay * ay < reach * reach;
-            };
-            const auto band = [&](const int eye) {
+            const auto within
+                = [](const std::int32_t x, const std::int32_t y, const std::int32_t eye, const float reach) {
+                      const auto nearest = [](const std::int32_t away) {
+                          return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f;
+                      };
+                      const float ax = nearest(x - eye);
+                      const float ay = nearest(y);
+                      return ax * ax + ay * ay < reach * reach;
+                  };
+            const auto band = [&](const std::int32_t eye) {
                 Cells cells;
-                for (int x = -12; x <= 12; ++x)
-                    for (int y = -12; y <= 12; ++y)
+                for (std::int32_t x = -12; x <= 12; ++x)
+                    for (std::int32_t y = -12; y <= 12; ++y)
                         if (within(x, y, eye, 5.0f))
                             cells.emplace(x, y);
                 return cells;
             };
             // What the ring holds once settled at `eye`, having held `held`: the band, and what it
             // held that is still within six.
-            const auto settled = [&](const Cells& held, const int eye) {
+            const auto settled = [&](const Cells& held, const std::int32_t eye) {
                 Cells cells = band(eye);
                 for (const auto& [x, y] : held)
                     if (within(x, y, eye, 6.0f))
                         cells.emplace(x, y);
                 return cells;
             };
-            const auto standAt = [&](const int eye) {
+            const auto standAt = [&](const std::int32_t eye) {
                 around(osg::Vec3f((static_cast<float>(eye) + 0.5f) * sCellSize, 0.5f * sCellSize, 0.0f),
                     osg::Vec4i(eye - 1, -1, eye + 2, 2));
             };
@@ -1690,8 +1693,8 @@ namespace Rtx::Testing
             ASSERT_EQ(mRing.getHeldCellCount(), sPreparedCells);
 
             standAt(1);
-            const std::uint32_t gained = static_cast<std::uint32_t>(
-                std::ranges::count_if(band(1), [&](const std::pair<int, int>& cell) { return !held.contains(cell); }));
+            const std::uint32_t gained = static_cast<std::uint32_t>(std::ranges::count_if(
+                band(1), [&](const std::pair<std::int32_t, std::int32_t>& cell) { return !held.contains(cell); }));
             EXPECT_EQ(fill().mMeshesAdded, gained) << "the column the band gained, one ground each";
             held = settled(held, 1);
 
@@ -1711,8 +1714,8 @@ namespace Rtx::Testing
             // Let go, by hand: column -5's five, 6.5 cells out now, and column -4's four past
             // `|dy| = 2`, `5.5² + 2.5² = 36.5`; column -3 keeps every row to `|dy| = 4`, `4.5² + 3.5²
             // = 32.5`.
-            EXPECT_EQ(
-                std::ranges::count_if(before, [&](const std::pair<int, int>& cell) { return !held.contains(cell); }),
+            EXPECT_EQ(std::ranges::count_if(before,
+                          [&](const std::pair<std::int32_t, std::int32_t>& cell) { return !held.contains(cell); }),
                 9);
             EXPECT_EQ(mRing.getHeldCellCount(), held.size());
             EXPECT_EQ(mRing.getCellsToStand(), 0u);
@@ -1903,7 +1906,7 @@ namespace Rtx::Testing
                 .mGround = &land,
                 .mContent = &content,
                 .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
-            for (int pass = 0; pass < 3; ++pass)
+            for (std::int32_t pass = 0; pass < 3; ++pass)
                 reader.giveBack(reader.read(osg::Vec2i(0, 0)));
 
             EXPECT_EQ(storage.mModelsAsked, 1) << "the storage was asked for a record's model more than once";
@@ -2225,8 +2228,8 @@ namespace Rtx::Testing
                 .mContent = &content,
                 .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
 
-            const int held = content.mFace->referenceCount();
-            for (int pass = 0; pass < 3; ++pass)
+            const std::int32_t held = content.mFace->referenceCount();
+            for (std::int32_t pass = 0; pass < 3; ++pass)
             {
                 PreparedCell& cell = reader.read(osg::Vec2i(0, 0));
                 EXPECT_TRUE(cell.mModels.empty()) << "a model the walk refused was named";

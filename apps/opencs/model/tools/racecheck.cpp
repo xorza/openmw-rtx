@@ -1,5 +1,6 @@
 #include "racecheck.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -11,7 +12,7 @@
 #include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadrace.hpp>
 
-void CSMTools::RaceCheckStage::performPerRecord(int stage, CSMDoc::Messages& messages)
+void CSMTools::RaceCheckStage::performPerRecord(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Race>& record = mRaces.getRecord(stage);
 
@@ -70,7 +71,7 @@ CSMTools::RaceCheckStage::RaceCheckStage(const CSMWorld::IdCollection<ESM::Race>
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::RaceCheckStage::setup()
+std::int32_t CSMTools::RaceCheckStage::setup()
 {
     mPlayable = false;
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
@@ -78,7 +79,7 @@ int CSMTools::RaceCheckStage::setup()
     return mRaces.getSize() + 1;
 }
 
-void CSMTools::RaceCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::RaceCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     if (stage == mRaces.getSize())
         performFinal(messages);

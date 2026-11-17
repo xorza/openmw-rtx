@@ -1,5 +1,7 @@
 #include "pathgridutil.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include <osg/Geometry>
@@ -12,13 +14,13 @@ namespace SceneUtil
 {
     namespace
     {
-        constexpr unsigned short DiamondVertexCount = 6;
-        constexpr unsigned short DiamondIndexCount = 24;
-        constexpr unsigned short DiamondWireframeIndexCount = 24;
+        constexpr std::uint16_t DiamondVertexCount = 6;
+        constexpr std::uint16_t DiamondIndexCount = 24;
+        constexpr std::uint16_t DiamondWireframeIndexCount = 24;
 
-        constexpr unsigned short DiamondConnectorVertexCount = 4;
+        constexpr std::uint16_t DiamondConnectorVertexCount = 4;
 
-        constexpr unsigned short DiamondTotalVertexCount = DiamondVertexCount + DiamondConnectorVertexCount;
+        constexpr std::uint16_t DiamondTotalVertexCount = DiamondVertexCount + DiamondConnectorVertexCount;
 
         constexpr float DiamondWireframeScalar = 1.1f;
 
@@ -28,13 +30,13 @@ namespace SceneUtil
             osg::Vec3f(DiamondHalfWidth, -DiamondHalfWidth, DiamondHalfHeight),
             osg::Vec3f(DiamondHalfWidth, DiamondHalfWidth, DiamondHalfHeight), osg::Vec3f(0.f, 0.f, 0.f) };
 
-        constexpr unsigned short DiamondIndices[DiamondIndexCount]
+        constexpr std::uint16_t DiamondIndices[DiamondIndexCount]
             = { 0, 2, 1, 0, 1, 3, 0, 3, 4, 0, 4, 2, 5, 1, 2, 5, 3, 1, 5, 4, 3, 5, 2, 4 };
 
-        constexpr unsigned short DiamondWireframeIndices[DiamondWireframeIndexCount]
+        constexpr std::uint16_t DiamondWireframeIndices[DiamondWireframeIndexCount]
             = { 0, 1, 0, 2, 0, 3, 0, 4, 1, 2, 2, 4, 4, 3, 3, 1, 5, 1, 5, 2, 5, 3, 5, 4 };
 
-        constexpr unsigned short DiamondConnectorVertices[DiamondConnectorVertexCount] = { 1, 2, 3, 4 };
+        constexpr std::uint16_t DiamondConnectorVertices[DiamondConnectorVertexCount] = { 1, 2, 3, 4 };
 
         const osg::Vec4f DiamondColors[DiamondVertexCount]
             = { osg::Vec4f(0.f, 0.f, 1.f, 1.f), osg::Vec4f(0.f, .05f, .95f, 1.f), osg::Vec4f(0.f, .1f, .95f, 1.f),
@@ -45,45 +47,45 @@ namespace SceneUtil
         const osg::Vec4f DiamondFocusWireColor = osg::Vec4f(0.91f, 0.66f, 1.f, 1.f);
 
         template <class PType, class LType>
-        void addPathgridToGeometry(const size_t vertexCount, const size_t pointIndexCount, const size_t edgeIndexCount,
-            osg::ref_ptr<osg::Geometry>& gridGeometry, const ESM::Pathgrid& pathgrid)
+        void addPathgridToGeometry(const std::size_t vertexCount, const std::size_t pointIndexCount,
+            const std::size_t edgeIndexCount, osg::ref_ptr<osg::Geometry>& gridGeometry, const ESM::Pathgrid& pathgrid)
         {
-            assert(vertexCount < std::numeric_limits<unsigned int>::max());
-            assert(pointIndexCount < std::numeric_limits<unsigned int>::max());
-            assert(edgeIndexCount < std::numeric_limits<unsigned int>::max());
-            osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array(static_cast<unsigned int>(vertexCount));
-            osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array(static_cast<unsigned int>(vertexCount));
+            assert(vertexCount < std::numeric_limits<std::uint32_t>::max());
+            assert(pointIndexCount < std::numeric_limits<std::uint32_t>::max());
+            assert(edgeIndexCount < std::numeric_limits<std::uint32_t>::max());
+            osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array(static_cast<std::uint32_t>(vertexCount));
+            osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array(static_cast<std::uint32_t>(vertexCount));
             osg::ref_ptr<PType> pointIndices
-                = new PType(osg::PrimitiveSet::TRIANGLES, static_cast<unsigned int>(pointIndexCount));
+                = new PType(osg::PrimitiveSet::TRIANGLES, static_cast<std::uint32_t>(pointIndexCount));
             osg::ref_ptr<LType> lineIndices
-                = new LType(osg::PrimitiveSet::LINES, static_cast<unsigned int>(edgeIndexCount));
+                = new LType(osg::PrimitiveSet::LINES, static_cast<std::uint32_t>(edgeIndexCount));
 
             // Add each point/node
-            for (size_t pointIndex = 0; pointIndex < pathgrid.mPoints.size(); ++pointIndex)
+            for (std::size_t pointIndex = 0; pointIndex < pathgrid.mPoints.size(); ++pointIndex)
             {
                 const ESM::Pathgrid::Point& point = pathgrid.mPoints[pointIndex];
                 osg::Vec3f position = osg::Vec3f(
                     static_cast<float>(point.mX), static_cast<float>(point.mY), static_cast<float>(point.mZ));
 
-                size_t vertexOffset = pointIndex * DiamondTotalVertexCount;
-                size_t indexOffset = pointIndex * DiamondIndexCount;
+                std::size_t vertexOffset = pointIndex * DiamondTotalVertexCount;
+                std::size_t indexOffset = pointIndex * DiamondIndexCount;
 
                 // Point
-                for (unsigned short i = 0; i < DiamondVertexCount; ++i)
+                for (std::uint16_t i = 0; i < DiamondVertexCount; ++i)
                 {
                     (*vertices)[vertexOffset + i] = position + DiamondPoints[i];
                     (*colors)[vertexOffset + i] = DiamondColors[i];
                 }
 
-                for (unsigned short i = 0; i < DiamondIndexCount; ++i)
+                for (std::uint16_t i = 0; i < DiamondIndexCount; ++i)
                 {
-                    pointIndices->setElement(static_cast<unsigned int>(indexOffset + i),
-                        static_cast<unsigned int>(vertexOffset + DiamondIndices[i]));
+                    pointIndices->setElement(static_cast<std::uint32_t>(indexOffset + i),
+                        static_cast<std::uint32_t>(vertexOffset + DiamondIndices[i]));
                 }
 
                 // Connectors
                 vertexOffset += DiamondVertexCount;
-                for (unsigned short i = 0; i < DiamondConnectorVertexCount; ++i)
+                for (std::uint16_t i = 0; i < DiamondConnectorVertexCount; ++i)
                 {
                     (*vertices)[vertexOffset + i] = position + DiamondPoints[DiamondConnectorVertices[i]];
                     (*colors)[vertexOffset + i] = DiamondEdgeColor;
@@ -91,7 +93,7 @@ namespace SceneUtil
             }
 
             // Add edges
-            unsigned int lineIndex = 0;
+            std::uint32_t lineIndex = 0;
 
             for (const ESM::Pathgrid::Edge& edge : pathgrid.mEdges)
             {
@@ -111,7 +113,7 @@ namespace SceneUtil
                 osg::Quat rot(static_cast<float>(-osg::PI_2), osg::Vec3f(0, 0, 1));
                 dir = rot * dir;
 
-                unsigned short diamondIndex = 0;
+                std::uint16_t diamondIndex = 0;
                 // Each branch states its own case, kept apart to be read and changed as its own.
                 // NOLINTBEGIN(bugprone-branch-clone)
                 if (dir.isNaN())
@@ -126,8 +128,8 @@ namespace SceneUtil
                 else if (dir.x() >= 0 && dir.y() < 0)
                     diamondIndex = 2;
 
-                auto fromIndex = static_cast<unsigned>(edge.mV0);
-                auto toIndex = static_cast<unsigned>(edge.mV1);
+                auto fromIndex = static_cast<std::uint32_t>(edge.mV0);
+                auto toIndex = static_cast<std::uint32_t>(edge.mV1);
 
                 lineIndices->setElement(
                     lineIndex++, fromIndex * DiamondTotalVertexCount + DiamondVertexCount + diamondIndex);
@@ -146,31 +148,31 @@ namespace SceneUtil
         }
 
         template <class T>
-        void addWireFrameGeometry(const size_t vertexCount, const size_t indexCount,
+        void addWireFrameGeometry(const std::size_t vertexCount, const std::size_t indexCount,
             osg::ref_ptr<osg::Geometry>& wireframeGeometry, const ESM::Pathgrid& pathgrid,
-            const std::vector<unsigned short>& selected)
+            const std::vector<std::uint16_t>& selected)
         {
-            assert(vertexCount < std::numeric_limits<unsigned int>::max());
-            assert(indexCount < std::numeric_limits<unsigned int>::max());
-            osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array(static_cast<unsigned int>(vertexCount));
-            osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array(static_cast<unsigned int>(vertexCount));
-            osg::ref_ptr<T> indices = new T(osg::PrimitiveSet::LINES, static_cast<unsigned int>(indexCount));
+            assert(vertexCount < std::numeric_limits<std::uint32_t>::max());
+            assert(indexCount < std::numeric_limits<std::uint32_t>::max());
+            osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array(static_cast<std::uint32_t>(vertexCount));
+            osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array(static_cast<std::uint32_t>(vertexCount));
+            osg::ref_ptr<T> indices = new T(osg::PrimitiveSet::LINES, static_cast<std::uint32_t>(indexCount));
 
             osg::Vec3f wireOffset = osg::Vec3f(0, 0, (1 - DiamondWireframeScalar) * DiamondHalfHeight);
 
             // Add each point/node
-            for (size_t it = 0; it < selected.size(); ++it)
+            for (std::size_t it = 0; it < selected.size(); ++it)
             {
                 const ESM::Pathgrid::Point& point = pathgrid.mPoints[selected[it]];
                 osg::Vec3f position = osg::Vec3f(static_cast<float>(point.mX), static_cast<float>(point.mY),
                                           static_cast<float>(point.mZ))
                     + wireOffset;
 
-                size_t vertexOffset = it * DiamondVertexCount;
-                size_t indexOffset = it * DiamondWireframeIndexCount;
+                std::size_t vertexOffset = it * DiamondVertexCount;
+                std::size_t indexOffset = it * DiamondWireframeIndexCount;
 
                 // Point
-                for (unsigned short i = 0; i < DiamondVertexCount; ++i)
+                for (std::uint16_t i = 0; i < DiamondVertexCount; ++i)
                 {
                     (*vertices)[vertexOffset + i] = position + DiamondPoints[i] * DiamondWireframeScalar;
 
@@ -180,10 +182,10 @@ namespace SceneUtil
                         (*colors)[vertexOffset + i] = DiamondWireColor;
                 }
 
-                for (unsigned short i = 0; i < DiamondWireframeIndexCount; ++i)
+                for (std::uint16_t i = 0; i < DiamondWireframeIndexCount; ++i)
                 {
-                    indices->setElement(static_cast<unsigned int>(indexOffset + i),
-                        static_cast<unsigned int>(vertexOffset + DiamondWireframeIndices[i]));
+                    indices->setElement(static_cast<std::uint32_t>(indexOffset + i),
+                        static_cast<std::uint32_t>(vertexOffset + DiamondWireframeIndices[i]));
                 }
             }
 
@@ -195,16 +197,16 @@ namespace SceneUtil
 
     osg::ref_ptr<osg::Geometry> createPathgridGeometry(const ESM::Pathgrid& pathgrid)
     {
-        const size_t vertexCount = pathgrid.mPoints.size() * DiamondTotalVertexCount;
-        const size_t pointIndexCount = pathgrid.mPoints.size() * DiamondIndexCount;
-        const size_t edgeIndexCount = pathgrid.mEdges.size() * 2;
+        const std::size_t vertexCount = pathgrid.mPoints.size() * DiamondTotalVertexCount;
+        const std::size_t pointIndexCount = pathgrid.mPoints.size() * DiamondIndexCount;
+        const std::size_t edgeIndexCount = pathgrid.mEdges.size() * 2;
 
         osg::ref_ptr<osg::Geometry> gridGeometry = new osg::Geometry();
 
         if (pointIndexCount || edgeIndexCount)
         {
-            const bool useIntPoints = pointIndexCount > std::numeric_limits<unsigned short>::max();
-            const bool useIntVertices = vertexCount > std::numeric_limits<unsigned short>::max();
+            const bool useIntPoints = pointIndexCount > std::numeric_limits<std::uint16_t>::max();
+            const bool useIntVertices = vertexCount > std::numeric_limits<std::uint16_t>::max();
             if (useIntPoints && useIntVertices)
                 addPathgridToGeometry<osg::DrawElementsUInt, osg::DrawElementsUInt>(
                     vertexCount, pointIndexCount, edgeIndexCount, gridGeometry, pathgrid);
@@ -227,16 +229,16 @@ namespace SceneUtil
     }
 
     osg::ref_ptr<osg::Geometry> createPathgridSelectedWireframe(
-        const ESM::Pathgrid& pathgrid, const std::vector<unsigned short>& selected)
+        const ESM::Pathgrid& pathgrid, const std::vector<std::uint16_t>& selected)
     {
-        const size_t vertexCount = selected.size() * DiamondVertexCount;
-        const size_t indexCount = selected.size() * DiamondWireframeIndexCount;
+        const std::size_t vertexCount = selected.size() * DiamondVertexCount;
+        const std::size_t indexCount = selected.size() * DiamondWireframeIndexCount;
 
         osg::ref_ptr<osg::Geometry> wireframeGeometry = new osg::Geometry();
 
         if (indexCount)
         {
-            if (vertexCount > std::numeric_limits<unsigned short>::max())
+            if (vertexCount > std::numeric_limits<std::uint16_t>::max())
                 addWireFrameGeometry<osg::DrawElementsUInt>(
                     vertexCount, indexCount, wireframeGeometry, pathgrid, selected);
             else
@@ -246,8 +248,8 @@ namespace SceneUtil
         return wireframeGeometry;
     }
 
-    unsigned short getPathgridNode(unsigned vertexIndex)
+    std::uint16_t getPathgridNode(std::uint32_t vertexIndex)
     {
-        return static_cast<unsigned short>(vertexIndex / (DiamondVertexCount + DiamondConnectorVertexCount));
+        return static_cast<std::uint16_t>(vertexIndex / (DiamondVertexCount + DiamondConnectorVertexCount));
     }
 }

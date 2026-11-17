@@ -5,6 +5,7 @@
 #include <bit>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <functional>
 #include <map>
@@ -87,7 +88,7 @@ namespace Rtx
         {
             std::vector<std::uint32_t> words(text.size() / 4 + 1, 0);
             for (std::size_t at = 0; at < text.size(); ++at)
-                words[at / 4] |= static_cast<std::uint32_t>(static_cast<unsigned char>(text[at])) << (8 * (at % 4));
+                words[at / 4] |= static_cast<std::uint32_t>(static_cast<std::uint8_t>(text[at])) << (8 * (at % 4));
             return words;
         }
 
@@ -95,7 +96,7 @@ namespace Rtx
         {
             std::string text;
             for (const std::uint32_t word : words)
-                for (int byte = 0; byte < 4; ++byte)
+                for (std::int32_t byte = 0; byte < 4; ++byte)
                 {
                     const char letter = static_cast<char>((word >> (8 * byte)) & 0xFFu);
                     if (letter == '\0')

@@ -1,6 +1,8 @@
 #include "draganddrop.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_ControllerManager.h>
 #include <MyGUI_Gui.h>
@@ -27,8 +29,8 @@ namespace MWGui
     {
     }
 
-    void DragAndDrop::startDrag(int index, SortFilterItemModel* sortModel, ItemModel* sourceModel, ItemView* sourceView,
-        std::size_t count, bool playSound)
+    void DragAndDrop::startDrag(std::int32_t index, SortFilterItemModel* sortModel, ItemModel* sourceModel,
+        ItemView* sourceView, std::size_t count, bool playSound)
     {
         mItem = sourceModel->getItem(index);
         mDraggedCount = count;
@@ -47,7 +49,7 @@ namespace MWGui
             playerModel->update();
 
             ItemModel::ModelIndex newIndex = -1;
-            for (size_t i = 0; i < playerModel->getItemCount(); ++i)
+            for (std::size_t i = 0; i < playerModel->getItemCount(); ++i)
             {
                 if (playerModel->getItem(static_cast<ItemModel::ModelIndex>(i)).mBase == item)
                 {
@@ -85,7 +87,7 @@ namespace MWGui
 
         mDraggedWidget->setItem(mItem.mBase);
         mDraggedWidget->setNeedMouseFocus(false);
-        mDraggedWidget->setCount(static_cast<int>(count));
+        mDraggedWidget->setCount(static_cast<std::int32_t>(count));
 
         MWBase::Environment::get().getWindowManager()->setDragDrop(true);
 
@@ -159,7 +161,7 @@ namespace MWGui
             return;
         }
 
-        mDraggedWidget->setCount(static_cast<int>(mDraggedCount));
+        mDraggedWidget->setCount(static_cast<std::int32_t>(mDraggedCount));
         mSourceSortModel->clearDragItems();
         mSourceSortModel->addDragItem(mItem.mBase, mDraggedCount);
     }

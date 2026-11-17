@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <span>
 #include <string>
@@ -476,7 +477,7 @@ namespace Rtx
             }
 
             const std::uint32_t run = Shaders::runWord(first, static_cast<std::uint32_t>(weights.size()));
-            for (const unsigned short vertex : group)
+            for (const std::uint16_t vertex : group)
             {
                 if (vertex >= vertices)
                     return Err{ "its skin names vertex " + std::to_string(vertex) + " of " + std::to_string(vertices) };

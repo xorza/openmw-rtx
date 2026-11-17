@@ -68,7 +68,7 @@ namespace Rtx
         struct Lamp
         {
             SceneUtil::LightController::LightType mType{};
-            int mId = 1;
+            std::int32_t mId = 1;
 
             float at(double seconds) const { return lightBrightness(mType, mId, seconds); }
 
@@ -189,7 +189,7 @@ namespace Rtx
         {
             std::vector<float> lit;
             lit.reserve(64);
-            for (int id = 0; id < 64; ++id)
+            for (std::int32_t id = 0; id < 64; ++id)
                 lit.push_back(Lamp{ SceneUtil::LightController::LT_PulseSlow, id }.at(0.0));
 
             double total = 0.0;
@@ -293,7 +293,7 @@ namespace Rtx
                 = lightColour(*Testing::makeLightSource(0.0f, osg::Vec4f(), osg::Vec4f(1, 1, 1, 1)), 0.0);
 
             float deepest = 0.0f;
-            for (int i = 0; i < 8; ++i)
+            for (std::int32_t i = 0; i < 8; ++i)
             {
                 const osg::Vec3f lit = lightColour(*lamp, static_cast<double>(i) * 0.375);
 

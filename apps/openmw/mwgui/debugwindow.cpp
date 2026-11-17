@@ -1,5 +1,7 @@
 #include "debugwindow.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <mutex>
 
 #include <MyGUI_EditBox.h>
@@ -41,8 +43,8 @@ namespace MWGui
     {
         std::vector<char> sLogCircularBuffer;
         std::mutex sBufferMutex;
-        int64_t sLogStartIndex;
-        int64_t sLogEndIndex;
+        std::int64_t sLogStartIndex;
+        std::int64_t sLogEndIndex;
         bool hasPrefix = false;
     }
 
@@ -73,7 +75,7 @@ namespace MWGui
             }
             bool bufferOverflow = false;
             std::scoped_lock lock(sBufferMutex);
-            const auto bufSize = static_cast<int64_t>(sLogCircularBuffer.size());
+            const auto bufSize = static_cast<std::int64_t>(sLogCircularBuffer.size());
             auto addChar = [&](char c) {
                 sLogCircularBuffer[static_cast<std::size_t>(sLogEndIndex++)] = c;
                 if (sLogEndIndex == bufSize)
@@ -113,7 +115,7 @@ namespace MWGui
             return; // Don't change text while player is trying to copy something
 
         std::string addition;
-        const auto bufSize = static_cast<int64_t>(sLogCircularBuffer.size());
+        const auto bufSize = static_cast<std::int64_t>(sLogCircularBuffer.size());
         {
             if (sLogStartIndex < sLogEndIndex)
                 addition = std::string(sLogCircularBuffer.data() + sLogStartIndex,
@@ -127,9 +129,9 @@ namespace MWGui
             sLogStartIndex = sLogEndIndex;
         }
 
-        size_t scrollPos = mLogView->getVScrollPosition();
+        std::size_t scrollPos = mLogView->getVScrollPosition();
         bool scrolledToTheEnd = scrollPos + 1 >= mLogView->getVScrollRange();
-        auto newSizeEstimation = static_cast<int64_t>(mLogView->getTextLength() + addition.size());
+        auto newSizeEstimation = static_cast<std::int64_t>(mLogView->getTextLength() + addition.size());
         if (newSizeEstimation > bufSize)
             mLogView->eraseText(0, static_cast<std::size_t>(newSizeEstimation - bufSize));
         mLogView->addText(addition);
@@ -144,7 +146,7 @@ namespace MWGui
         if (mLuaProfiler->isTextSelection())
             return;
 
-        size_t previousPos = mLuaProfiler->getVScrollPosition();
+        std::size_t previousPos = mLuaProfiler->getVScrollPosition();
         mLuaProfiler->setCaption(MWBase::Environment::get().getLuaManager()->formatResourceUsageStats());
         mLuaProfiler->setVScrollPosition(std::min(previousPos, mLuaProfiler->getVScrollRange() - 1));
     }

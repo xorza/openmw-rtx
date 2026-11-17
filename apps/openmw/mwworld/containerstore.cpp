@@ -1,6 +1,8 @@
 #include "containerstore.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -48,7 +50,7 @@ namespace
 
         for (const MWWorld::LiveCellRef<T>& liveCellRef : cellRefList.mList)
         {
-            if (const int count = liveCellRef.mRef.getCount(); count > 0)
+            if (const std::int32_t count = liveCellRef.mRef.getCount(); count > 0)
                 sum += static_cast<float>(count) * liveCellRef.mBase->mData.mWeight;
         }
 
@@ -108,14 +110,14 @@ MWWorld::ContainerStoreIterator MWWorld::ContainerStore::getState(
 }
 
 void MWWorld::ContainerStore::storeEquipmentState(
-    const MWWorld::LiveCellRefBase& ref, size_t index, ESM::InventoryState& inventory) const
+    const MWWorld::LiveCellRefBase& ref, std::size_t index, ESM::InventoryState& inventory) const
 {
     if (mSelectedEnchantItem.getType() != -1 && mSelectedEnchantItem->getBase() == &ref)
-        inventory.mSelectedEnchantItem = static_cast<uint32_t>(index);
+        inventory.mSelectedEnchantItem = static_cast<std::uint32_t>(index);
 }
 
 void MWWorld::ContainerStore::readEquipmentState(
-    const MWWorld::ContainerStoreIterator& iter, size_t index, const ESM::InventoryState& inventory)
+    const MWWorld::ContainerStoreIterator& iter, std::size_t index, const ESM::InventoryState& inventory)
 {
     if (index == inventory.mSelectedEnchantItem)
         mSelectedEnchantItem = iter;
@@ -137,7 +139,7 @@ void MWWorld::ContainerStore::storeState(const LiveCellRef<T>& ref, ESM::ObjectS
 
 template <typename T>
 void MWWorld::ContainerStore::storeStates(
-    const CellRefList<T>& collection, ESM::InventoryState& inventory, size_t& index, bool equipable) const
+    const CellRefList<T>& collection, ESM::InventoryState& inventory, std::size_t& index, bool equipable) const
 {
     for (const LiveCellRef<T>& liveCellRef : collection.mList)
     {
@@ -253,7 +255,7 @@ MWWorld::ContainerStore& MWWorld::ContainerStore::operator=(ContainerStore&& sto
     return *this;
 }
 
-MWWorld::ConstContainerStoreIterator MWWorld::ContainerStore::cbegin(int mask) const
+MWWorld::ConstContainerStoreIterator MWWorld::ContainerStore::cbegin(std::int32_t mask) const
 {
     return ConstContainerStoreIterator(mask, this);
 }
@@ -263,7 +265,7 @@ MWWorld::ConstContainerStoreIterator MWWorld::ContainerStore::cend() const
     return ConstContainerStoreIterator(this);
 }
 
-MWWorld::ConstContainerStoreIterator MWWorld::ContainerStore::begin(int mask) const
+MWWorld::ConstContainerStoreIterator MWWorld::ContainerStore::begin(std::int32_t mask) const
 {
     return cbegin(mask);
 }
@@ -273,7 +275,7 @@ MWWorld::ConstContainerStoreIterator MWWorld::ContainerStore::end() const
     return cend();
 }
 
-MWWorld::ContainerStoreIterator MWWorld::ContainerStore::begin(int mask)
+MWWorld::ContainerStoreIterator MWWorld::ContainerStore::begin(std::int32_t mask)
 {
     return ContainerStoreIterator(mask, this);
 }
@@ -283,9 +285,9 @@ MWWorld::ContainerStoreIterator MWWorld::ContainerStore::end()
     return ContainerStoreIterator(this);
 }
 
-int MWWorld::ContainerStore::count(const ESM::RefId& id) const
+std::int32_t MWWorld::ContainerStore::count(const ESM::RefId& id) const
 {
-    int total = 0;
+    std::int32_t total = 0;
     for (const auto&& iter : *this)
         if (iter.getCellRef().getRefId() == id)
             total += iter.getCellRef().getCount();
@@ -312,7 +314,7 @@ void MWWorld::ContainerStore::setContListener(MWWorld::ContainerStoreListener* l
     mListener = listener;
 }
 
-MWWorld::ContainerStoreIterator MWWorld::ContainerStore::unstack(const Ptr& ptr, int count)
+MWWorld::ContainerStoreIterator MWWorld::ContainerStore::unstack(const Ptr& ptr, std::int32_t count)
 {
     resolve();
     if (ptr.getCellRef().getCount() <= count)
@@ -400,14 +402,15 @@ bool MWWorld::ContainerStore::stacks(const ConstPtr& ptr1, const ConstPtr& ptr2)
                 && cls2.getItemHealth(ptr2) == cls2.getItemMaxHealth(ptr2)));
 }
 
-MWWorld::ContainerStoreIterator MWWorld::ContainerStore::add(const ESM::RefId& id, int count, bool allowAutoEquip)
+MWWorld::ContainerStoreIterator MWWorld::ContainerStore::add(
+    const ESM::RefId& id, std::int32_t count, bool allowAutoEquip)
 {
     MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), id, count);
     return add(ref.getPtr(), count, allowAutoEquip);
 }
 
 MWWorld::ContainerStoreIterator MWWorld::ContainerStore::add(
-    const ConstPtr& itemPtr, int count, bool /*allowAutoEquip*/, bool resolve)
+    const ConstPtr& itemPtr, std::int32_t count, bool /*allowAutoEquip*/, bool resolve)
 {
     Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
 
@@ -470,11 +473,12 @@ MWWorld::ContainerStoreIterator MWWorld::ContainerStore::add(
     return it;
 }
 
-MWWorld::ContainerStoreIterator MWWorld::ContainerStore::addImp(const ConstPtr& ptr, int count, bool markModified)
+MWWorld::ContainerStoreIterator MWWorld::ContainerStore::addImp(
+    const ConstPtr& ptr, std::int32_t count, bool markModified)
 {
     if (markModified)
         resolve();
-    int type = getType(ptr);
+    std::int32_t type = getType(ptr);
 
     const MWWorld::ESMStore& esmStore = *MWBase::Environment::get().getESMStore();
 
@@ -522,7 +526,7 @@ MWWorld::ContainerStoreIterator MWWorld::ContainerStore::addImp(const ConstPtr& 
     return addNewStack(ptr, count);
 }
 
-MWWorld::ContainerStoreIterator MWWorld::ContainerStore::addNewStack(const ConstPtr& ptr, int count)
+MWWorld::ContainerStoreIterator MWWorld::ContainerStore::addNewStack(const ConstPtr& ptr, std::int32_t count)
 {
     // As with MWWorld::CellStore::insert, the caller is expected to deal with LiveCellRefBase's copy constructor
     // copying RefData and CellRef, thereby creating another instance with the same ESM::RefNum and MWLua::LocalScripts.
@@ -647,11 +651,12 @@ void MWWorld::ContainerStore::updateRechargingItems()
     }
 }
 
-int MWWorld::ContainerStore::remove(const ESM::RefId& itemId, int count, bool equipReplacement, bool resolveFirst)
+std::int32_t MWWorld::ContainerStore::remove(
+    const ESM::RefId& itemId, std::int32_t count, bool equipReplacement, bool resolveFirst)
 {
     if (resolveFirst)
         resolve();
-    int toRemove = count;
+    std::int32_t toRemove = count;
 
     for (ContainerStoreIterator iter(begin()); iter != end() && toRemove > 0; ++iter)
         if (iter->getCellRef().getRefId() == itemId)
@@ -674,13 +679,14 @@ bool MWWorld::ContainerStore::hasVisibleItems() const
     return false;
 }
 
-int MWWorld::ContainerStore::remove(const Ptr& item, int count, bool equipReplacement, bool resolveFirst)
+std::int32_t MWWorld::ContainerStore::remove(
+    const Ptr& item, std::int32_t count, bool equipReplacement, bool resolveFirst)
 {
     assert(this == item.getContainerStore());
     if (resolveFirst)
         resolve();
 
-    int toRemove = count;
+    std::int32_t toRemove = count;
     CellRef& itemRef = item.getCellRef();
 
     if (itemRef.getCount() <= toRemove)
@@ -719,7 +725,8 @@ void MWWorld::ContainerStore::fill(const ESM::InventoryList& items, const ESM::R
     mResolved = true;
 }
 
-void MWWorld::ContainerStore::fillNonRandom(const ESM::InventoryList& items, const ESM::RefId& owner, unsigned int seed)
+void MWWorld::ContainerStore::fillNonRandom(
+    const ESM::InventoryList& items, const ESM::RefId& owner, std::uint32_t seed)
 {
     mSeed = seed;
     for (const ESM::ContItem& iter : items.mList)
@@ -732,7 +739,7 @@ void MWWorld::ContainerStore::fillNonRandom(const ESM::InventoryList& items, con
 }
 
 void MWWorld::ContainerStore::addInitialItem(
-    const ESM::RefId& id, const ESM::RefId& owner, int count, Misc::Rng::Generator* prng, bool topLevel)
+    const ESM::RefId& id, const ESM::RefId& owner, std::int32_t count, Misc::Rng::Generator* prng, bool topLevel)
 {
     if (count == 0)
         return; // Don't restock with nothing.
@@ -746,7 +753,7 @@ void MWWorld::ContainerStore::addInitialItem(
         else
         {
             // Adding just one item per time to make sure there isn't a stack of scripted items
-            for (int i = 0; i < std::abs(count); i++)
+            for (std::int32_t i = 0; i < std::abs(count); i++)
                 addInitialItemImp(ref.getPtr(), owner, count < 0 ? -1 : 1, prng, topLevel);
         }
     }
@@ -757,7 +764,7 @@ void MWWorld::ContainerStore::addInitialItem(
 }
 
 void MWWorld::ContainerStore::addInitialItemImp(
-    const MWWorld::Ptr& ptr, const ESM::RefId& owner, int count, Misc::Rng::Generator* prng, bool topLevel)
+    const MWWorld::Ptr& ptr, const ESM::RefId& owner, std::int32_t count, Misc::Rng::Generator* prng, bool topLevel)
 {
     if (ptr.getType() == ESM::ItemLevList::sRecordId)
     {
@@ -767,7 +774,7 @@ void MWWorld::ContainerStore::addInitialItemImp(
 
         if (topLevel && std::abs(count) > 1 && levItemList->mFlags & ESM::ItemLevList::Each)
         {
-            for (int i = 0; i < std::abs(count); ++i)
+            for (std::int32_t i = 0; i < std::abs(count); ++i)
                 addInitialItem(ptr.getCellRef().getRefId(), owner, count > 0 ? 1 : -1, prng, true);
             return;
         }
@@ -884,7 +891,7 @@ float MWWorld::ContainerStore::getWeight() const
     return mCachedWeight;
 }
 
-int MWWorld::ContainerStore::getType(const ConstPtr& ptr)
+std::int32_t MWWorld::ContainerStore::getType(const ConstPtr& ptr)
 {
     if (ptr.isEmpty())
         throw std::runtime_error("can't put a non-existent object into a container");
@@ -932,10 +939,10 @@ int MWWorld::ContainerStore::getType(const ConstPtr& ptr)
 MWWorld::Ptr MWWorld::ContainerStore::findReplacement(const ESM::RefId& id)
 {
     MWWorld::Ptr item;
-    int itemHealth = 1;
+    std::int32_t itemHealth = 1;
     for (auto&& iter : *this)
     {
-        int iterHealth = iter.getClass().hasItemHealth(iter) ? iter.getClass().getItemHealth(iter) : 1;
+        std::int32_t iterHealth = iter.getClass().hasItemHealth(iter) ? iter.getClass().getItemHealth(iter) : 1;
         if (iter.getCellRef().getRefId() == id)
         {
             // Prefer the stack with the lowest remaining uses
@@ -1029,17 +1036,17 @@ MWWorld::Ptr MWWorld::ContainerStore::search(const ESM::RefId& id)
     return Ptr();
 }
 
-int MWWorld::ContainerStore::addItems(int count1, int count2)
+std::int32_t MWWorld::ContainerStore::addItems(std::int32_t count1, std::int32_t count2)
 {
-    int sum = std::abs(count1) + std::abs(count2);
+    std::int32_t sum = std::abs(count1) + std::abs(count2);
     if (count1 < 0 || count2 < 0)
         return -sum;
     return sum;
 }
 
-int MWWorld::ContainerStore::subtractItems(int count1, int count2)
+std::int32_t MWWorld::ContainerStore::subtractItems(std::int32_t count1, std::int32_t count2)
 {
-    int sum = std::abs(count1) - std::abs(count2);
+    std::int32_t sum = std::abs(count1) - std::abs(count2);
     if (count1 < 0 || count2 < 0)
         return -sum;
     return sum;
@@ -1049,7 +1056,7 @@ void MWWorld::ContainerStore::writeState(ESM::InventoryState& state) const
 {
     state.mItems.clear();
 
-    size_t index = 0;
+    std::size_t index = 0;
     storeStates(mLists.mPotions, state, index);
     storeStates(mLists.mAppas, state, index);
     storeStates(mLists.mArmors, state, index, true);
@@ -1070,12 +1077,12 @@ void MWWorld::ContainerStore::readState(const ESM::InventoryState& inventory)
     mModified = true;
     mResolved = true;
 
-    size_t index = 0;
+    std::size_t index = 0;
     for (const ESM::ObjectState& state : inventory.mItems)
     {
-        int type = MWBase::Environment::get().getESMStore()->find(state.mRef.mRefID);
+        std::int32_t type = MWBase::Environment::get().getESMStore()->find(state.mRef.mRefID);
 
-        size_t thisIndex = index++;
+        std::size_t thisIndex = index++;
 
         switch (type)
         {
@@ -1461,7 +1468,7 @@ MWWorld::ContainerStoreIteratorBase<PtrType>& MWWorld::ContainerStoreIteratorBas
 }
 
 template <class PtrType>
-MWWorld::ContainerStoreIteratorBase<PtrType> MWWorld::ContainerStoreIteratorBase<PtrType>::operator++(int)
+MWWorld::ContainerStoreIteratorBase<PtrType> MWWorld::ContainerStoreIteratorBase<PtrType>::operator++(std::int32_t)
 {
     ContainerStoreIteratorBase<PtrType> iter(*this);
     ++*this;
@@ -1480,7 +1487,7 @@ MWWorld::ContainerStoreIteratorBase<PtrType>& MWWorld::ContainerStoreIteratorBas
 }
 
 template <class PtrType>
-int MWWorld::ContainerStoreIteratorBase<PtrType>::getType() const
+std::int32_t MWWorld::ContainerStoreIteratorBase<PtrType>::getType() const
 {
     return mType;
 }
@@ -1500,7 +1507,8 @@ MWWorld::ContainerStoreIteratorBase<PtrType>::ContainerStoreIteratorBase(Contain
 }
 
 template <class PtrType>
-MWWorld::ContainerStoreIteratorBase<PtrType>::ContainerStoreIteratorBase(int mask, ContainerStoreType container)
+MWWorld::ContainerStoreIteratorBase<PtrType>::ContainerStoreIteratorBase(
+    std::int32_t mask, ContainerStoreType container)
     : mType(0)
     , mMask(mask)
     , mContainer(container)

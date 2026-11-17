@@ -767,8 +767,8 @@ namespace Rtx
             if (!standsBy(lamp.mState))
                 continue;
 
-            const Result<std::optional<Light>, std::string_view> light = makeLight(
-                lamp.mRecord, lamp.mPosition, around.mSimulationTime, static_cast<int>(lamp.mState.mRefNum.mIndex));
+            const Result<std::optional<Light>, std::string_view> light = makeLight(lamp.mRecord, lamp.mPosition,
+                around.mSimulationTime, static_cast<std::int32_t>(lamp.mState.mRefNum.mIndex));
             assert(light.isOk() && "a lamp the reader carried that the frame refuses");
             if (!light.value().has_value())
                 continue;

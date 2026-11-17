@@ -1,5 +1,6 @@
 #include "actionharvest.hpp"
 
+#include <cstdint>
 #include <sstream>
 
 #include <MyGUI_LanguageManager.h>
@@ -31,13 +32,13 @@ namespace MWWorld
         MWWorld::ContainerStore& store = target.getClass().getContainerStore(target);
         store.resolve();
         MWWorld::ContainerStore& actorStore = actor.getClass().getContainerStore(actor);
-        std::map<std::string, int> takenMap;
+        std::map<std::string, std::int32_t> takenMap;
         for (MWWorld::ContainerStoreIterator it = store.begin(); it != store.end(); ++it)
         {
             if (!it->getClass().showsInInventory(*it))
                 continue;
 
-            int itemCount = it->getCellRef().getCount();
+            std::int32_t itemCount = it->getCellRef().getCount();
             // Note: it is important to check for crime before move an item from container. Otherwise owner check will
             // not work for a last item in the container - empty harvested containers are considered as "allowed to
             // use".
@@ -52,12 +53,12 @@ namespace MWWorld
         if (actor == MWBase::Environment::get().getWorld()->getPlayerPtr())
         {
             std::ostringstream stream;
-            int lineCount = 0;
-            const static int maxLines = 10;
+            std::int32_t lineCount = 0;
+            const static std::int32_t maxLines = 10;
             for (const auto& pair : takenMap)
             {
                 const std::string& itemName = pair.first;
-                int itemCount = pair.second;
+                std::int32_t itemCount = pair.second;
                 lineCount++;
                 if (lineCount == maxLines)
                     stream << "\n...";

@@ -1,8 +1,11 @@
 #include "loader.hpp"
 
-#include <QTimer>
+#include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
+
+#include <QTimer>
 
 #include <apps/opencs/model/tools/reportmodel.hpp>
 #include <apps/opencs/model/world/data.hpp>
@@ -53,8 +56,8 @@ void CSMDoc::Loader::load()
 
     Document* document = iter->first;
 
-    int size = static_cast<int>(document->getContentFiles().size());
-    int editedIndex = size - 1; // index of the file to be edited/created
+    auto size = static_cast<std::int32_t>(document->getContentFiles().size());
+    std::int32_t editedIndex = size - 1; // index of the file to be edited/created
 
     if (document->isNew())
         --size;
@@ -66,8 +69,8 @@ void CSMDoc::Loader::load()
         if (iter->second.mRecordsLeft)
         {
             Messages messages(Message::Severity_Error);
-            const int batchingSize = 50;
-            for (int i = 0; i < batchingSize; ++i) // do not flood the system with update signals
+            const std::int32_t batchingSize = 50;
+            for (std::int32_t i = 0; i < batchingSize; ++i) // do not flood the system with update signals
                 if (document->getData().continueLoading(messages))
                 {
                     iter->second.mRecordsLeft = false;
@@ -96,7 +99,8 @@ void CSMDoc::Loader::load()
             const std::filesystem::path& path
                 = document->getContentFiles()[static_cast<std::size_t>(iter->second.mFile)];
 
-            int steps = document->getData().startLoading(path, iter->second.mFile != editedIndex, /*project*/ false);
+            std::int32_t steps
+                = document->getData().startLoading(path, iter->second.mFile != editedIndex, /*project*/ false);
             iter->second.mRecordsLeft = true;
             iter->second.mRecordsLoaded = 0;
 
@@ -104,7 +108,7 @@ void CSMDoc::Loader::load()
         }
         else if (iter->second.mFile == size) // start loading the last (project) file
         {
-            int steps = document->getData().startLoading(document->getProjectPath(), /*base*/ false, true);
+            std::int32_t steps = document->getData().startLoading(document->getProjectPath(), /*base*/ false, true);
             iter->second.mRecordsLeft = true;
             iter->second.mRecordsLoaded = 0;
 

@@ -1,5 +1,6 @@
 #include "levelledlist.hpp"
 
+#include <cstdint>
 #include <utility>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -16,12 +17,12 @@
 namespace MWMechanics
 {
 
-    ESM::RefId getLevelledItem(
-        const ESM::LevelledListBase* levItem, bool creature, Misc::Rng::Generator& prng, std::optional<int> level)
+    ESM::RefId getLevelledItem(const ESM::LevelledListBase* levItem, bool creature, Misc::Rng::Generator& prng,
+        std::optional<std::int32_t> level)
     {
         const std::vector<ESM::LevelledListBase::LevelItem>& items = levItem->mList;
 
-        int playerLevel = 0;
+        std::int32_t playerLevel = 0;
         if (level.has_value())
             playerLevel = *level;
         else
@@ -35,7 +36,7 @@ namespace MWMechanics
             return ESM::RefId();
 
         std::vector<const ESM::RefId*> candidates;
-        int highestLevel = 0;
+        std::int32_t highestLevel = 0;
         for (const auto& levelledItem : items)
         {
             if (std::cmp_greater(levelledItem.mLevel, highestLevel)

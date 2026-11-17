@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -48,6 +49,6 @@ namespace CSVWorld
 
     private slots:
 
-        void coordChanged(int value);
+        void coordChanged(std::int32_t value);
     };
 }

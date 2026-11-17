@@ -1,6 +1,8 @@
 #include "asyncnavmeshupdater.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <set>
@@ -24,12 +26,12 @@ namespace DetourNavigator
 {
     namespace
     {
-        int getManhattanDistance(const TilePosition& lhs, const TilePosition& rhs)
+        std::int32_t getManhattanDistance(const TilePosition& lhs, const TilePosition& rhs)
         {
             return std::abs(lhs.x() - rhs.x()) + std::abs(lhs.y() - rhs.y());
         }
 
-        bool isAbsentTileTooClose(const TilePosition& position, int distance,
+        bool isAbsentTileTooClose(const TilePosition& position, std::int32_t distance,
             const std::set<std::tuple<AgentBounds, TilePosition>>& pushedTiles,
             const std::set<std::tuple<AgentBounds, TilePosition>>& presentTiles,
             const Misc::ScopeGuarded<std::set<std::tuple<AgentBounds, TilePosition>>>& processingTiles)
@@ -167,7 +169,7 @@ namespace DetourNavigator
         return result;
     }
 
-    void SpatialJobQueue::update(TilePosition playerTile, int maxTiles, std::vector<JobIt>& removing)
+    void SpatialJobQueue::update(TilePosition playerTile, std::int32_t maxTiles, std::vector<JobIt>& removing)
     {
         for (auto it = mValues.begin(); it != mValues.end();)
         {
@@ -240,7 +242,7 @@ namespace DetourNavigator
         return mUpdating.pop(playerTile);
     }
 
-    void JobQueue::update(TilePosition playerTile, int maxTiles, std::chrono::steady_clock::time_point now)
+    void JobQueue::update(TilePosition playerTile, std::int32_t maxTiles, std::chrono::steady_clock::time_point now)
     {
         mUpdating.update(playerTile, maxTiles, mRemoving);
 
@@ -371,7 +373,7 @@ namespace DetourNavigator
 
     void AsyncNavMeshUpdater::waitUntilJobsDoneForNotPresentTiles(Loading::Listener* listener)
     {
-        const int maxDistanceToPlayer = mSettings.get().mWaitUntilMinDistanceToPlayer;
+        const std::int32_t maxDistanceToPlayer = mSettings.get().mWaitUntilMinDistanceToPlayer;
         if (maxDistanceToPlayer <= 0)
             return;
         const std::size_t initialJobsLeft = getTotalJobs();

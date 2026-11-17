@@ -1,5 +1,7 @@
 #include "palette.hpp"
 
+#include <cstdint>
+
 #include <QColor>
 
 #include "colour.hpp"
@@ -15,7 +17,7 @@ namespace Graphite
         constexpr double sAccentHover = 0.12;
         constexpr double sAccentPress = 0.24;
 
-        QRgb withAlpha(QRgb colour, int alpha)
+        QRgb withAlpha(QRgb colour, std::int32_t alpha)
         {
             return qRgba(qRed(colour), qGreen(colour), qBlue(colour), alpha);
         }
@@ -23,7 +25,7 @@ namespace Graphite
 
     QRgb selectionWash(const Palette& palette)
     {
-        for (int alpha = sSelectionMost; alpha > 0; --alpha)
+        for (std::int32_t alpha = sSelectionMost; alpha > 0; --alpha)
         {
             const QRgb wash = withAlpha(palette.mAccent, alpha);
             if (contrast(palette.mText, over(wash, palette.mElementMid)) >= sTextFloor)

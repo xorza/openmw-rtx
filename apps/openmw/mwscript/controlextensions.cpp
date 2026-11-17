@@ -1,5 +1,6 @@
 #include "controlextensions.hpp"
 
+#include <cstdint>
 #include <string_view>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -181,7 +182,7 @@ namespace MWScript
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {
-            for (int i = 0; i < Compiler::Control::numberOfControls; ++i)
+            for (std::int32_t i = 0; i < Compiler::Control::numberOfControls; ++i)
             {
                 interpreter.installSegment5<OpSetControl>(
                     Compiler::Control::opcodeEnable + i, Compiler::Control::controls[i], true);

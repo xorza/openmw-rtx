@@ -1,5 +1,7 @@
 #include "backgroundimage.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Gui.h>
 
 namespace MWGui
@@ -41,8 +43,10 @@ namespace MWGui
 
         MyGUI::IntSize screenSize = getSize();
 
-        int leftPadding = std::max(0, static_cast<int>(screenSize.width - screenSize.height * mAspect) / 2);
-        int topPadding = std::max(0, static_cast<int>(screenSize.height - screenSize.width / mAspect) / 2);
+        std::int32_t leftPadding
+            = std::max(0, static_cast<std::int32_t>(screenSize.width - screenSize.height * mAspect) / 2);
+        std::int32_t topPadding
+            = std::max(0, static_cast<std::int32_t>(screenSize.height - screenSize.width / mAspect) / 2);
 
         mChild->setCoord(
             leftPadding, topPadding, screenSize.width - leftPadding * 2, screenSize.height - topPadding * 2);

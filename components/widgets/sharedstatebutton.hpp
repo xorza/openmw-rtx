@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 
 namespace Gui
@@ -26,8 +28,8 @@ namespace Gui
         // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void updateButtonState();
 
-        void onMouseButtonPressed(int left, int top, MyGUI::MouseButton id) override;
-        void onMouseButtonReleased(int left, int top, MyGUI::MouseButton id) override;
+        void onMouseButtonPressed(std::int32_t left, std::int32_t top, MyGUI::MouseButton id) override;
+        void onMouseButtonReleased(std::int32_t left, std::int32_t top, MyGUI::MouseButton id) override;
         void baseUpdateEnable() override;
 
         void shutdownOverride() override;

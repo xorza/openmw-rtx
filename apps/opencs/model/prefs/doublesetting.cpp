@@ -1,10 +1,12 @@
 
 #include "doublesetting.hpp"
 
+#include <cstdint>
+#include <limits>
+
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QMutexLocker>
-#include <limits>
 
 #include "category.hpp"
 #include "setting.hpp"
@@ -20,7 +22,7 @@ CSMPrefs::DoubleSetting::DoubleSetting(
 {
 }
 
-CSMPrefs::DoubleSetting& CSMPrefs::DoubleSetting::setPrecision(int precision)
+CSMPrefs::DoubleSetting& CSMPrefs::DoubleSetting::setPrecision(std::int32_t precision)
 {
     mPrecision = precision;
     return *this;

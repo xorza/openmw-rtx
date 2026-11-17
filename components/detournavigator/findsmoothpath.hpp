@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <iterator>
 #include <span>
@@ -43,7 +45,7 @@ namespace DetourNavigator
             return *this;
         }
 
-        FromNavMeshCoordinatesIterator operator++(int)
+        FromNavMeshCoordinatesIterator operator++(std::int32_t)
         {
             const auto copy = *this;
             ++(*this);
@@ -84,9 +86,9 @@ namespace DetourNavigator
         const dtPolyRef endRef, const osg::Vec3f& startPos, const osg::Vec3f& endPos, const dtQueryFilter& queryFilter,
         std::span<dtPolyRef> pathBuffer)
     {
-        int pathLen = 0;
+        std::int32_t pathLen = 0;
         const auto status = navMeshQuery.findPath(startRef, endRef, startPos.ptr(), endPos.ptr(), &queryFilter,
-            pathBuffer.data(), &pathLen, static_cast<int>(pathBuffer.size()));
+            pathBuffer.data(), &pathLen, static_cast<std::int32_t>(pathBuffer.size()));
         if (!dtStatusSucceed(status))
             return {};
         assert(pathLen >= 0);
@@ -101,17 +103,18 @@ namespace DetourNavigator
         assert(polygonPathSize <= polygonPath.size());
 
         std::vector<float> cornerVertsBuffer(maxSmoothPathSize * 3);
-        std::vector<unsigned char> cornerFlagsBuffer(maxSmoothPathSize);
+        std::vector<std::uint8_t> cornerFlagsBuffer(maxSmoothPathSize);
         std::vector<dtPolyRef> cornerPolysBuffer(maxSmoothPathSize);
-        int cornersCount = 0;
-        constexpr int findStraightPathOptions = DT_STRAIGHTPATH_AREA_CROSSINGS | DT_STRAIGHTPATH_ALL_CROSSINGS;
+        std::int32_t cornersCount = 0;
+        constexpr std::int32_t findStraightPathOptions = DT_STRAIGHTPATH_AREA_CROSSINGS | DT_STRAIGHTPATH_ALL_CROSSINGS;
         if (const dtStatus status = navMeshQuery.findStraightPath(start.ptr(), end.ptr(), polygonPath.data(),
-                static_cast<int>(polygonPathSize), cornerVertsBuffer.data(), cornerFlagsBuffer.data(),
-                cornerPolysBuffer.data(), &cornersCount, static_cast<int>(maxSmoothPathSize), findStraightPathOptions);
+                static_cast<std::int32_t>(polygonPathSize), cornerVertsBuffer.data(), cornerFlagsBuffer.data(),
+                cornerPolysBuffer.data(), &cornersCount, static_cast<std::int32_t>(maxSmoothPathSize),
+                findStraightPathOptions);
             dtStatusFailed(status))
             return Status::FindStraightPathFailed;
 
-        for (int i = skipFirst ? 1 : 0; i < cornersCount; ++i)
+        for (std::int32_t i = skipFirst ? 1 : 0; i < cornersCount; ++i)
             *out++ = Misc::Convert::makeOsgVec3f(&cornerVertsBuffer[static_cast<std::size_t>(i) * 3]);
 
         return Status::Success;

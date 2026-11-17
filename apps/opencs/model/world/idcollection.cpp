@@ -1,5 +1,6 @@
 #include "idcollection.hpp"
 
+#include <cstdint>
 #include <memory>
 #include <utility>
 
@@ -18,7 +19,7 @@ namespace ESM
 namespace CSMWorld
 {
     template <>
-    int BaseIdCollection<Pathgrid>::load(ESM::ESMReader& reader, bool base)
+    std::int32_t BaseIdCollection<Pathgrid>::load(ESM::ESMReader& reader, bool base)
     {
         Pathgrid record;
         bool isDeleted = false;
@@ -26,7 +27,7 @@ namespace CSMWorld
         loadRecord(record, reader, isDeleted, base);
 
         const ESM::RefId id = getRecordId(record);
-        int index = this->searchId(id);
+        std::int32_t index = this->searchId(id);
 
         if (record.mPoints.empty() || record.mEdges.empty())
             isDeleted = true;
@@ -56,18 +57,20 @@ namespace CSMWorld
         return load(record, base, index);
     }
 
-    const Record<ESM::LandTexture>* IdCollection<ESM::LandTexture>::searchRecord(std::uint16_t index, int plugin) const
+    const Record<ESM::LandTexture>* IdCollection<ESM::LandTexture>::searchRecord(
+        std::uint16_t index, std::int32_t plugin) const
     {
         const auto it = mIndices.find({ plugin, index });
         if (it == mIndices.end())
             return nullptr;
-        const int recordIndex = searchId(it->second);
+        const std::int32_t recordIndex = searchId(it->second);
         if (recordIndex == -1)
             return nullptr;
         return &getRecord(recordIndex);
     }
 
-    const VFS::Path::Normalized* IdCollection<ESM::LandTexture>::getLandTexture(std::uint16_t index, int plugin) const
+    const VFS::Path::Normalized* IdCollection<ESM::LandTexture>::getLandTexture(
+        std::uint16_t index, std::int32_t plugin) const
     {
         const Record<ESM::LandTexture>* record = searchRecord(index, plugin);
         if (record && !record->isDeleted())
@@ -79,7 +82,7 @@ namespace CSMWorld
         ESM::LandTexture& record, ESM::ESMReader& reader, bool& isDeleted, bool base)
     {
         record.load(reader, isDeleted);
-        int plugin = base ? reader.getIndex() : -1;
+        std::int32_t plugin = base ? reader.getIndex() : -1;
         mIndices.emplace(std::make_pair(plugin, record.mIndex), record.mId);
     }
 
@@ -117,7 +120,7 @@ namespace CSMWorld
 
     bool IdCollection<ESM::LandTexture>::touchRecord(const ESM::RefId& id)
     {
-        int row = BaseIdCollection<ESM::LandTexture>::touchRecordImp(id);
+        std::int32_t row = BaseIdCollection<ESM::LandTexture>::touchRecordImp(id);
         if (row != -1)
         {
             const_cast<ESM::LandTexture&>(getRecord(row).get()).mIndex = assignNewIndex(id);
@@ -129,7 +132,7 @@ namespace CSMWorld
     void IdCollection<ESM::LandTexture>::cloneRecord(
         const ESM::RefId& origin, const ESM::RefId& destination, const UniversalId::Type type)
     {
-        int row = cloneRecordImp(origin, destination, type);
+        std::int32_t row = cloneRecordImp(origin, destination, type);
         const_cast<ESM::LandTexture&>(getRecord(row).get()).mIndex = assignNewIndex(destination);
     }
 
@@ -147,9 +150,9 @@ namespace CSMWorld
         insertRecord(std::move(record2), getAppendIndex(id, type), type);
     }
 
-    void IdCollection<ESM::LandTexture>::removeRows(int index, int count)
+    void IdCollection<ESM::LandTexture>::removeRows(std::int32_t index, std::int32_t count)
     {
-        for (int row = index; row < index + count; ++row)
+        for (std::int32_t row = index; row < index + count; ++row)
         {
             const auto& record = getRecord(row);
             if (record.isModified())
@@ -158,7 +161,7 @@ namespace CSMWorld
         BaseIdCollection<ESM::LandTexture>::removeRows(index, count);
     }
 
-    void IdCollection<ESM::LandTexture>::replace(int index, std::unique_ptr<RecordBase> record)
+    void IdCollection<ESM::LandTexture>::replace(std::int32_t index, std::unique_ptr<RecordBase> record)
     {
         const auto& current = getRecord(index);
         if (current.isModified() && !record->isModified())

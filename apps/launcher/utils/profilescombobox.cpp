@@ -1,5 +1,7 @@
 #include "profilescombobox.hpp"
 
+#include <cstdint>
+
 #include <QApplication>
 #include <QColor>
 #include <QString>
@@ -9,7 +11,8 @@
 ProfilesComboBox::ProfilesComboBox(QWidget* parent)
     : ContentSelectorView::ComboBox(parent)
 {
-    connect(this, qOverload<int>(&ProfilesComboBox::activated), this, &ProfilesComboBox::slotIndexChangedByUser);
+    connect(
+        this, qOverload<std::int32_t>(&ProfilesComboBox::activated), this, &ProfilesComboBox::slotIndexChangedByUser);
 
     setInsertPolicy(QComboBox::NoInsert);
 }
@@ -47,7 +50,7 @@ void ProfilesComboBox::slotTextChanged(const QString& text)
     QPalette palette;
     palette.setColor(QPalette::Text, QColor::fromRgb(Graphite::errorInk(Graphite::sDark)));
 
-    int index = findText(text);
+    std::int32_t index = findText(text);
 
     if (text.isEmpty() || (index != -1 && index != currentIndex()))
     {
@@ -80,7 +83,7 @@ void ProfilesComboBox::slotEditingFinished()
     emit profileRenamed(previous, current);
 }
 
-void ProfilesComboBox::slotIndexChangedByUser(int index)
+void ProfilesComboBox::slotIndexChangedByUser(std::int32_t index)
 {
     if (index == -1)
         return;
@@ -92,7 +95,7 @@ void ProfilesComboBox::slotIndexChangedByUser(int index)
 ProfilesComboBox::ComboBoxLineEdit::ComboBoxLineEdit(QWidget* parent)
     : LineEdit(parent)
 {
-    int frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
+    std::int32_t frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
 
     setObjectName(QString("ComboBoxLineEdit"));
     setStyleSheet(QString("ComboBoxLineEdit { background-color: transparent; padding-right: %1px; } ")

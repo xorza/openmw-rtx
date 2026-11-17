@@ -1,5 +1,7 @@
 #include "landbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string>
 
@@ -23,18 +25,18 @@
 namespace
 {
     // Takes in a corrected world pos to match the visuals.
-    ESMTerrain::UniqueTextureId getTextureAt(const std::span<const std::uint16_t> landData, const int plugin,
+    ESMTerrain::UniqueTextureId getTextureAt(const std::span<const std::uint16_t> landData, const std::int32_t plugin,
         const osg::Vec3f& correctedWorldPos, const float cellSize)
     {
-        int cellX = static_cast<int>(std::floor(correctedWorldPos.x() / cellSize));
-        int cellY = static_cast<int>(std::floor(correctedWorldPos.y() / cellSize));
+        auto cellX = static_cast<std::int32_t>(std::floor(correctedWorldPos.x() / cellSize));
+        auto cellY = static_cast<std::int32_t>(std::floor(correctedWorldPos.y() / cellSize));
 
         // Normalized position in the cell
         float nX = (correctedWorldPos.x() - (static_cast<float>(cellX) * cellSize)) / cellSize;
         float nY = (correctedWorldPos.y() - (static_cast<float>(cellY) * cellSize)) / cellSize;
 
-        int startX = static_cast<int>(nX * ESM::Land::LAND_TEXTURE_SIZE);
-        int startY = static_cast<int>(nY * ESM::Land::LAND_TEXTURE_SIZE);
+        auto startX = static_cast<std::int32_t>(nX * ESM::Land::LAND_TEXTURE_SIZE);
+        auto startY = static_cast<std::int32_t>(nY * ESM::Land::LAND_TEXTURE_SIZE);
 
         assert(startX < ESM::Land::LAND_TEXTURE_SIZE);
         assert(startY < ESM::Land::LAND_TEXTURE_SIZE);
@@ -89,18 +91,18 @@ namespace MWLua
             if (worldspace != ESM::Cell::sDefaultWorldspaceId)
                 return values;
 
-            const int cellSize = ESM::getCellSize(worldspace);
+            const std::int32_t cellSize = ESM::getCellSize(worldspace);
             // A whole-number division on purpose.
-            const unsigned int unitsPerTexel
-                = static_cast<unsigned int>(cellSize) / ESM::LandRecordData::sLandTextureSize;
+            const std::uint32_t unitsPerTexel
+                = static_cast<std::uint32_t>(cellSize) / ESM::LandRecordData::sLandTextureSize;
             const float offset = static_cast<float>(unitsPerTexel) * 0.25f;
             const osg::Vec3f correctedPos = pos + osg::Vec3f{ -offset, +offset, 0.0f };
 
             const ESM::Land* land = nullptr;
             const ESM::Land::LandData* landData = nullptr;
 
-            int cellX = static_cast<int>(std::floor(correctedPos.x() / static_cast<float>(cellSize)));
-            int cellY = static_cast<int>(std::floor(correctedPos.y() / static_cast<float>(cellSize)));
+            auto cellX = static_cast<std::int32_t>(std::floor(correctedPos.x() / static_cast<float>(cellSize)));
+            auto cellY = static_cast<std::int32_t>(std::floor(correctedPos.y() / static_cast<float>(cellSize)));
 
             land = landStore.search(cellX, cellY);
 
@@ -126,7 +128,7 @@ namespace MWLua
 
             values.push_back(sol::make_object<std::string>(lua, texturePath->getOriginal()));
             const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
-            if (textureId.second >= 0 && static_cast<size_t>(textureId.second) < contentList.size())
+            if (textureId.second >= 0 && static_cast<std::size_t>(textureId.second) < contentList.size())
                 values.push_back(
                     sol::make_object<std::string>(lua, contentList[static_cast<std::size_t>(textureId.second)]));
 

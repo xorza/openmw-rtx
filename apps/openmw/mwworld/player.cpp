@@ -1,5 +1,6 @@
 #include "player.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -307,7 +308,7 @@ namespace MWWorld
         writer.endRecord(ESM::REC_PLAY);
     }
 
-    bool Player::readRecord(ESM::ESMReader& reader, uint32_t type)
+    bool Player::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_PLAY)
         {
@@ -406,7 +407,7 @@ namespace MWWorld
         return false;
     }
 
-    int Player::getNewCrimeId()
+    std::int32_t Player::getNewCrimeId()
     {
         return ++mCurrentCrimeId;
     }
@@ -416,7 +417,7 @@ namespace MWWorld
         mPaidCrimeId = mCurrentCrimeId;
     }
 
-    int Player::getCrimeId() const
+    std::int32_t Player::getCrimeId() const
     {
         return mPaidCrimeId;
     }
@@ -441,7 +442,7 @@ namespace MWWorld
         Ptr player = getPlayer();
         InventoryStore& store = player.getClass().getInventoryStore(player);
         store.setSelectedEnchantItem(store.end());
-        int castChance = static_cast<int>(MWMechanics::getSpellSuccessChance(spellId, player));
+        auto castChance = static_cast<std::int32_t>(MWMechanics::getSpellSuccessChance(spellId, player));
         MWBase::Environment::get().getWindowManager()->setSelectedSpell(spellId, castChance);
         MWBase::Environment::get().getWindowManager()->updateSpellWindow();
     }
@@ -488,13 +489,14 @@ namespace MWWorld
         else
             rendering->getCamera()->setSneakOffset(0.f);
 
-        int blind = 0;
+        std::int32_t blind = 0;
         const auto& magicEffects = playerClass.getCreatureStats(player).getMagicEffects();
         if (!world->getGodModeState())
-            blind = static_cast<int>(magicEffects.getOrDefault(ESM::MagicEffect::Blind).getModifier());
+            blind = static_cast<std::int32_t>(magicEffects.getOrDefault(ESM::MagicEffect::Blind).getModifier());
         windowMgr->setBlindness(std::clamp(blind, 0, 100));
 
-        int nightEye = static_cast<int>(magicEffects.getOrDefault(ESM::MagicEffect::NightEye).getMagnitude());
+        std::int32_t nightEye
+            = static_cast<std::int32_t>(magicEffects.getOrDefault(ESM::MagicEffect::NightEye).getMagnitude());
         rendering->setNightEyeFactor(std::min(1.f, (static_cast<float>(nightEye) / 100.f)));
     }
 

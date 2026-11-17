@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "scriptscontainer.hpp"
 
 namespace LuaUtil
@@ -7,7 +9,7 @@ namespace LuaUtil
     struct AsyncPackageId
     {
         ScriptsContainer* mContainer{};
-        int mScriptId{};
+        std::int32_t mScriptId{};
         sol::table mHiddenData;
     };
     sol::function getAsyncPackageInitializer(

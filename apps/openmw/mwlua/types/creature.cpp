@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <apps/openmw/mwlua/stats.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/lua/luastate.hpp>
@@ -12,7 +14,7 @@ namespace
     ESM::Creature tableToCreature(const sol::table& rec)
     {
         ESM::Creature crea;
-        auto setCreatureFlag = [&](std::string_view key, int flag) {
+        auto setCreatureFlag = [&](std::string_view key, std::int32_t flag) {
             if (rec[key] == sol::nil)
                 return;
 
@@ -40,26 +42,26 @@ namespace
             crea.mOriginal = ESM::RefId::deserializeText(rec["baseCreature"].get<std::string_view>());
 
         if (rec["soulValue"] != sol::nil)
-            crea.mData.mSoul = rec["soulValue"].get<int>();
+            crea.mData.mSoul = rec["soulValue"].get<std::int32_t>();
         if (rec["type"] != sol::nil)
-            crea.mData.mType = rec["type"].get<int>();
+            crea.mData.mType = rec["type"].get<std::int32_t>();
         if (rec["baseGold"] != sol::nil)
-            crea.mData.mGold = rec["baseGold"].get<int>();
+            crea.mData.mGold = rec["baseGold"].get<std::int32_t>();
         if (rec["combatSkill"] != sol::nil)
-            crea.mData.mCombat = rec["combatSkill"].get<int>();
+            crea.mData.mCombat = rec["combatSkill"].get<std::int32_t>();
         if (rec["magicSkill"] != sol::nil)
-            crea.mData.mMagic = rec["magicSkill"].get<int>();
+            crea.mData.mMagic = rec["magicSkill"].get<std::int32_t>();
         if (rec["stealthSkill"] != sol::nil)
-            crea.mData.mStealth = rec["stealthSkill"].get<int>();
+            crea.mData.mStealth = rec["stealthSkill"].get<std::int32_t>();
 
         if (rec["attack"] != sol::nil)
         {
             const sol::table atk = rec["attack"];
-            for (int i = 0; i < 6; ++i)
+            for (std::int32_t i = 0; i < 6; ++i)
             {
                 sol::object v = atk[i + 1];
                 if (v != sol::nil)
-                    crea.mData.mAttack[i] = v.as<int>();
+                    crea.mData.mAttack[i] = v.as<std::int32_t>();
             }
         }
         setCreatureFlag("canFly", ESM::Creature::Flies);
@@ -80,12 +82,12 @@ namespace
         }
 
         if (rec["bloodType"] != sol::nil)
-            crea.mBloodType = rec["bloodType"].get<int>();
+            crea.mBloodType = rec["bloodType"].get<std::int32_t>();
 
         if (rec["servicesOffered"] != sol::nil)
         {
             const sol::table services = rec["servicesOffered"];
-            int flags = 0;
+            std::int32_t flags = 0;
             for (const auto& [mask, key] : MWLua::ServiceNames)
             {
                 sol::object value = services[key];
@@ -112,7 +114,7 @@ namespace MWLua
     void addCreatureBindings(sol::table creature, const Context& context)
     {
         sol::state_view lua = context.sol();
-        creature["TYPE"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(lua,
+        creature["TYPE"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, std::int32_t>(lua,
             {
                 { "Creatures", ESM::Creature::Creatures },
                 { "Daedra", ESM::Creature::Daedra },
@@ -133,17 +135,21 @@ namespace MWLua
         record["mwscript"] = sol::readonly_property([](const ESM::Creature& rec) -> ESM::RefId { return rec.mScript; });
         record["baseCreature"] = sol::readonly_property(
             [](const ESM::Creature& rec) -> std::string { return rec.mOriginal.serializeText(); });
-        record["soulValue"] = sol::readonly_property([](const ESM::Creature& rec) -> int { return rec.mData.mSoul; });
-        record["type"] = sol::readonly_property([](const ESM::Creature& rec) -> int { return rec.mData.mType; });
-        record["baseGold"] = sol::readonly_property([](const ESM::Creature& rec) -> int { return rec.mData.mGold; });
+        record["soulValue"]
+            = sol::readonly_property([](const ESM::Creature& rec) -> std::int32_t { return rec.mData.mSoul; });
+        record["type"]
+            = sol::readonly_property([](const ESM::Creature& rec) -> std::int32_t { return rec.mData.mType; });
+        record["baseGold"]
+            = sol::readonly_property([](const ESM::Creature& rec) -> std::int32_t { return rec.mData.mGold; });
         record["combatSkill"]
-            = sol::readonly_property([](const ESM::Creature& rec) -> int { return rec.mData.mCombat; });
-        record["magicSkill"] = sol::readonly_property([](const ESM::Creature& rec) -> int { return rec.mData.mMagic; });
+            = sol::readonly_property([](const ESM::Creature& rec) -> std::int32_t { return rec.mData.mCombat; });
+        record["magicSkill"]
+            = sol::readonly_property([](const ESM::Creature& rec) -> std::int32_t { return rec.mData.mMagic; });
         record["stealthSkill"]
-            = sol::readonly_property([](const ESM::Creature& rec) -> int { return rec.mData.mStealth; });
+            = sol::readonly_property([](const ESM::Creature& rec) -> std::int32_t { return rec.mData.mStealth; });
         record["attack"] = sol::readonly_property([lua = lua.lua_state()](const ESM::Creature& rec) -> sol::table {
             sol::table res(lua, sol::create);
-            int index = 1;
+            std::int32_t index = 1;
             for (auto attack : rec.mData.mAttack)
                 res[index++] = attack;
             return LuaUtil::makeReadOnly(res);
@@ -164,7 +170,8 @@ namespace MWLua
             [](const ESM::Creature& rec) -> bool { return rec.mFlags & ESM::Creature::Respawn; });
         record["isPersistent"] = sol::readonly_property(
             [](const ESM::Creature& rec) -> bool { return rec.mRecordFlags & ESM::FLAG_Persistent; });
-        record["bloodType"] = sol::readonly_property([](const ESM::Creature& rec) -> int { return rec.mBloodType; });
+        record["bloodType"]
+            = sol::readonly_property([](const ESM::Creature& rec) -> std::int32_t { return rec.mBloodType; });
 
         addActorServicesBindings<ESM::Creature>(record, context);
     }

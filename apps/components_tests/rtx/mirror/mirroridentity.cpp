@@ -12,7 +12,7 @@ namespace Rtx
     namespace
     {
         /// The map every identity in the mirror is, so what a reservation holds is the shipped one's.
-        using Map = boost::unordered_flat_map<int, Known>;
+        using Map = boost::unordered_flat_map<std::int32_t, Known>;
 
         struct RtxKeptTest : testing::Test
         {
@@ -158,7 +158,7 @@ namespace Rtx
             Map beside;
             beside.reserve(4);
 
-            int key = 0;
+            std::int32_t key = 0;
             while (!fillsRoom(beside))
             {
                 beside.emplace(key, Known{});

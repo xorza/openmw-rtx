@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <Recast.h>
@@ -26,6 +27,6 @@ namespace DetourNavigator
         Debug::Level mMaxLogLevel;
         std::string mPrefix;
 
-        void doLog(rcLogCategory category, const char* msg, int len) override;
+        void doLog(rcLogCategory category, const char* msg, std::int32_t len) override;
     };
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -71,7 +72,7 @@ namespace RtxTool
             /// under `tour` (`sTourFrame`).
             FrameSize mSize;
             float mFieldOfView = 0.0f;
-            Named<int> mDay;
+            Named<std::int32_t> mDay;
 
             Named<Rtx::Upscale> mUpscale;
 
@@ -148,8 +149,8 @@ namespace RtxTool
             bool mHud = false;
             bool mSpellHands = false;
             bool mVanity = false;
-            int mNightEye = 0;
-            unsigned int mRandomSeed = 0;
+            std::int32_t mNightEye = 0;
+            std::uint32_t mRandomSeed = 0;
         };
 
         /// How long a stop runs, and what `bench` writes beside its numbers.

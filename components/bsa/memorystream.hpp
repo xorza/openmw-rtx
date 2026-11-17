@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <istream>
 #include <vector>
 
@@ -43,7 +44,7 @@ namespace Bsa
     class MemoryInputStream : private std::vector<char>, public Files::MemBuf, public std::istream
     {
     public:
-        explicit MemoryInputStream(size_t bufferSize)
+        explicit MemoryInputStream(std::size_t bufferSize)
             : std::vector<char>(bufferSize)
             , Files::MemBuf(this->data(), this->size())
             , std::istream(static_cast<std::streambuf*>(this))

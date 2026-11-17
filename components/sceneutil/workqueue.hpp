@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstddef>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -61,9 +62,9 @@ namespace SceneUtil
         /// @par Used internally by the WorkThread.
         std::shared_ptr<WorkItem> removeWorkItem();
 
-        size_t getNumItems() const;
+        std::size_t getNumItems() const;
 
-        size_t getNumActiveThreads() const;
+        std::size_t getNumActiveThreads() const;
 
     private:
         bool mIsReleased;

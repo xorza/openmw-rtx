@@ -21,13 +21,13 @@ namespace ESSImport
         {
             float mAttackStrength;
             float mSpeed;
-            unsigned char mUnknown[4 * 2];
+            std::uint8_t mUnknown[4 * 2];
             float mFlightTime;
-            int32_t mSplmIndex; // reference to a SPLM record (0 for ballistic projectiles)
-            unsigned char mUnknown2[4];
+            std::int32_t mSplmIndex; // reference to a SPLM record (0 for ballistic projectiles)
+            std::uint8_t mUnknown2[4];
             ESM::Vector3 mVelocity;
             ESM::Vector3 mPosition;
-            unsigned char mUnknown3[4 * 9];
+            std::uint8_t mUnknown3[4 * 9];
             ESM::NAME32 mActorId; // indexed refID (with the exception of "PlayerSaveGame")
             ESM::NAME32 mArrowId;
             ESM::NAME32 mBowId;

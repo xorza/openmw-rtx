@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -37,14 +38,14 @@ namespace MWRender
         }
 
         /// The record type a base record id names, or 0.
-        int findType(const ESM::RefId& id) const;
+        std::int32_t findType(const ESM::RefId& id) const;
 
-        const ESM::Cell* searchExterior(int x, int y) const;
+        const ESM::Cell* searchExterior(std::int32_t x, std::int32_t y) const;
 
         std::optional<SceneUtil::LightCommon> getLight(const ESM::RefId& id) const;
 
         /// The model a base record of `type` names, empty where it names none.
-        VFS::Path::Normalized getModel(int type, const ESM::RefId& id) const;
+        VFS::Path::Normalized getModel(std::int32_t type, const ESM::RefId& id) const;
 
     private:
         const MWWorld::ESMStore& mStore;
@@ -60,7 +61,7 @@ namespace MWRender
         /// Whether `collect` hands a cell's reference of record `type` to a chunk as near as one
         /// cell, lamps included: what the distance stands of a cell, and so which references a
         /// script's word on them reaches (`MWScript::VisibilityGates`).
-        static bool handsOver(int type);
+        static bool handsOver(std::int32_t type);
 
         void collect(float size, const osg::Vec2i& startCell, ESM::RefId worldspace, Terrain::RefKinds kinds,
             Terrain::RefCollector& collector, std::vector<Terrain::PagedCellRef>& into) const override;

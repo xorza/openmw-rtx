@@ -1,6 +1,8 @@
 #include "storage.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <stdexcept>
 
@@ -49,7 +51,7 @@ namespace ESMTerrain
     class LandCache
     {
     public:
-        explicit LandCache(int offsetX, int offsetY, std::size_t size)
+        explicit LandCache(std::int32_t offsetX, std::int32_t offsetY, std::size_t size)
             : mOffsetX(offsetX)
             , mOffsetY(offsetY)
             , mSize(size)
@@ -57,7 +59,7 @@ namespace ESMTerrain
         {
         }
 
-        std::optional<const LandObject*> find(int x, int y) const
+        std::optional<const LandObject*> find(std::int32_t x, std::int32_t y) const
         {
             const std::size_t index = getIndex(x, y);
             if (const auto& value = mValues[index])
@@ -65,39 +67,39 @@ namespace ESMTerrain
             return std::nullopt;
         }
 
-        void insert(int x, int y, std::shared_ptr<const LandObject>&& value)
+        void insert(std::int32_t x, std::int32_t y, std::shared_ptr<const LandObject>&& value)
         {
             const std::size_t index = getIndex(x, y);
             mValues[index] = std::move(value);
         }
 
     private:
-        int mOffsetX;
-        int mOffsetY;
+        std::int32_t mOffsetX;
+        std::int32_t mOffsetY;
         std::size_t mSize;
         std::vector<std::optional<std::shared_ptr<const LandObject>>> mValues;
 
-        std::size_t getIndex(int x, int y) const
+        std::size_t getIndex(std::int32_t x, std::int32_t y) const
         {
             return normalizeCoordinate(x, mOffsetX) * mSize + normalizeCoordinate(y, mOffsetY);
         }
 
-        std::size_t normalizeCoordinate(int value, int offset) const
+        std::size_t normalizeCoordinate(std::int32_t value, std::int32_t offset) const
         {
             assert(value >= offset);
-            assert(value < offset + static_cast<int>(mSize));
+            assert(value < offset + static_cast<std::int32_t>(mSize));
             return static_cast<std::size_t>(value - offset);
         }
     };
 
-    LandObject::LandObject(const ESM4::Land& land, int loadFlags)
+    LandObject::LandObject(const ESM4::Land& land, std::int32_t loadFlags)
         : mData(land, loadFlags)
     {
         mEsm4DefaultLayerInfo.mDiffuseMap = land.mDefaultDiffuseMap;
         mEsm4DefaultLayerInfo.mNormalMap = land.mDefaultNormalMap;
     }
 
-    LandObject::LandObject(const ESM::Land& land, int loadFlags)
+    LandObject::LandObject(const ESM::Land& land, std::int32_t loadFlags)
         : mData(land, loadFlags)
     {
     }
@@ -122,25 +124,28 @@ namespace ESMTerrain
 
         osg::Vec2f origin = center - osg::Vec2f(size / 2.f, size / 2.f);
 
-        int cellX = static_cast<int>(std::floor(origin.x()));
-        int cellY = static_cast<int>(std::floor(origin.y()));
+        auto cellX = static_cast<std::int32_t>(std::floor(origin.x()));
+        auto cellY = static_cast<std::int32_t>(std::floor(origin.y()));
         std::shared_ptr<const LandObject> land = getLand(ESM::ExteriorCellLocation(cellX, cellY, worldspace));
         const ESM::LandData* data = land ? land->getData(ESM::Land::DATA_VHGT) : nullptr;
-        const int landSize = ESM::getLandSize(worldspace);
-        int startRow = static_cast<int>((origin.x() - static_cast<float>(cellX)) * static_cast<float>(landSize));
-        int startColumn = static_cast<int>((origin.y() - static_cast<float>(cellY)) * static_cast<float>(landSize));
+        const std::int32_t landSize = ESM::getLandSize(worldspace);
+        auto startRow
+            = static_cast<std::int32_t>((origin.x() - static_cast<float>(cellX)) * static_cast<float>(landSize));
+        auto startColumn
+            = static_cast<std::int32_t>((origin.y() - static_cast<float>(cellY)) * static_cast<float>(landSize));
 
-        int endRow = static_cast<int>(static_cast<float>(startRow) + size * static_cast<float>((landSize - 1)) + 1);
-        int endColumn
-            = static_cast<int>(static_cast<float>(startColumn) + size * static_cast<float>((landSize - 1)) + 1);
+        auto endRow
+            = static_cast<std::int32_t>(static_cast<float>(startRow) + size * static_cast<float>((landSize - 1)) + 1);
+        auto endColumn = static_cast<std::int32_t>(
+            static_cast<float>(startColumn) + size * static_cast<float>((landSize - 1)) + 1);
 
         if (data)
         {
             min = std::numeric_limits<float>::max();
             max = -std::numeric_limits<float>::max();
-            for (int row = startRow; row < endRow; ++row)
+            for (std::int32_t row = startRow; row < endRow; ++row)
             {
-                for (int col = startColumn; col < endColumn; ++col)
+                for (std::int32_t col = startColumn; col < endColumn; ++col)
                 {
                     float h = data->getHeights()[static_cast<std::size_t>(col) * static_cast<std::size_t>(landSize)
                         + static_cast<std::size_t>(row)];
@@ -156,11 +161,11 @@ namespace ESMTerrain
         return false;
     }
 
-    void Storage::fixNormal(
-        osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache)
+    void Storage::fixNormal(osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, std::int32_t col,
+        std::int32_t row, LandCache& cache)
     {
 
-        const int landSize = ESM::getLandSize(cellLocation.mWorldspace);
+        const std::int32_t landSize = ESM::getLandSize(cellLocation.mWorldspace);
 
         while (col >= landSize - 1)
         {
@@ -203,8 +208,8 @@ namespace ESMTerrain
             normal = osg::Vec3f(0, 0, 1);
     }
 
-    void Storage::averageNormal(
-        osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache)
+    void Storage::averageNormal(osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, std::int32_t col,
+        std::int32_t row, LandCache& cache)
     {
         osg::Vec3f n1, n2, n3, n4;
         fixNormal(n1, cellLocation, col + 1, row, cache);
@@ -215,11 +220,11 @@ namespace ESMTerrain
         normal.normalize();
     }
 
-    void Storage::fixColour(
-        osg::Vec4ub& color, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache)
+    void Storage::fixColour(osg::Vec4ub& color, ESM::ExteriorCellLocation cellLocation, std::int32_t col,
+        std::int32_t row, LandCache& cache)
     {
 
-        const int landSize = ESM::getLandSize(cellLocation.mWorldspace);
+        const std::int32_t landSize = ESM::getLandSize(cellLocation.mWorldspace);
 
         if (col == landSize - 1)
         {
@@ -255,7 +260,7 @@ namespace ESMTerrain
         }
     }
 
-    void Storage::fillVertexBuffers(int lodLevel, float size, const osg::Vec2f& center, ESM::RefId worldspace,
+    void Storage::fillVertexBuffers(std::int32_t lodLevel, float size, const osg::Vec2f& center, ESM::RefId worldspace,
         osg::Vec3Array& positions, osg::Vec3Array& normals, osg::Vec4ubArray& colours)
     {
         if (lodLevel < 0 || 63 < lodLevel)
@@ -275,10 +280,10 @@ namespace ESMTerrain
         colours.resize(numVerts * numVerts);
 
         const bool alteration = useAlteration();
-        const int landSizeInUnits = ESM::getCellSize(worldspace);
+        const std::int32_t landSizeInUnits = ESM::getCellSize(worldspace);
         const osg::Vec2f origin = center - osg::Vec2f(size, size) * 0.5f;
-        const int startCellX = static_cast<int>(std::floor(origin.x()));
-        const int startCellY = static_cast<int>(std::floor(origin.y()));
+        const auto startCellX = static_cast<std::int32_t>(std::floor(origin.x()));
+        const auto startCellY = static_cast<std::int32_t>(std::floor(origin.y()));
         LandCache cache(startCellX - 1, startCellY - 1, static_cast<std::size_t>(std::ceil(size)) + 2);
         std::pair lastCell{ startCellX, startCellY };
         const LandObject* land = getLand(ESM::ExteriorCellLocation(startCellX, startCellY, worldspace), cache);
@@ -297,8 +302,8 @@ namespace ESMTerrain
 
         const auto handleSample = [&](std::size_t cellShiftX, std::size_t cellShiftY, std::size_t row, std::size_t col,
                                       std::size_t vertX, std::size_t vertY) {
-            const int cellX = startCellX + static_cast<int>(cellShiftX);
-            const int cellY = startCellY + static_cast<int>(cellShiftY);
+            const std::int32_t cellX = startCellX + static_cast<std::int32_t>(cellShiftX);
+            const std::int32_t cellY = startCellY + static_cast<std::int32_t>(cellShiftY);
             const std::pair cell{ cellX, cellY };
             const ESM::ExteriorCellLocation cellLocation(cellX, cellY, worldspace);
 
@@ -325,7 +330,7 @@ namespace ESMTerrain
             if (heightData != nullptr)
                 height = heightData->getHeights()[col * cellSize + row];
             if (alteration)
-                height += getAlteredHeight(static_cast<int>(col), static_cast<int>(row));
+                height += getAlteredHeight(static_cast<std::int32_t>(col), static_cast<std::int32_t>(row));
 
             const std::size_t vertIndex = vertX * numVerts + vertY;
 
@@ -341,7 +346,7 @@ namespace ESMTerrain
 
             if (normalData != nullptr)
             {
-                for (unsigned short i = 0; i < 3; ++i)
+                for (std::uint16_t i = 0; i < 3; ++i)
                     normal[i] = normalData->getNormals()[srcArrayIndex + i];
 
                 normal.normalize();
@@ -349,11 +354,12 @@ namespace ESMTerrain
 
             // Normals apparently don't connect seamlessly between cells
             if (col == cellSize - 1 || row == cellSize - 1)
-                fixNormal(normal, cellLocation, static_cast<int>(col), static_cast<int>(row), cache);
+                fixNormal(normal, cellLocation, static_cast<std::int32_t>(col), static_cast<std::int32_t>(row), cache);
 
             // some corner normals appear to be complete garbage (z < 0)
             if ((row == 0 || row == cellSize - 1) && (col == 0 || col == cellSize - 1))
-                averageNormal(normal, cellLocation, static_cast<int>(col), static_cast<int>(row), cache);
+                averageNormal(
+                    normal, cellLocation, static_cast<std::int32_t>(col), static_cast<std::int32_t>(row), cache);
 
             assert(normal.z() > 0);
 
@@ -362,16 +368,16 @@ namespace ESMTerrain
             osg::Vec4ub color(255, 255, 255, 255);
 
             if (colourData != nullptr)
-                for (unsigned short i = 0; i < 3; ++i)
+                for (std::uint16_t i = 0; i < 3; ++i)
                     color[i] = colourData->getColors()[srcArrayIndex + i];
 
             // Does nothing by default, override in OpenMW-CS
             if (alteration)
-                adjustColor(static_cast<int>(col), static_cast<int>(row), heightData, color);
+                adjustColor(static_cast<std::int32_t>(col), static_cast<std::int32_t>(row), heightData, color);
 
             // Unlike normals, colors mostly connect seamlessly between cells, but not always...
             if (col == cellSize - 1 || row == cellSize - 1)
-                fixColour(color, cellLocation, static_cast<int>(col), static_cast<int>(row), cache);
+                fixColour(color, cellLocation, static_cast<std::int32_t>(col), static_cast<std::int32_t>(row), cache);
 
             colours[vertIndex] = color;
         };
@@ -412,15 +418,15 @@ namespace ESMTerrain
         std::vector<Terrain::LayerInfo>& layerList, ESM::RefId worldspace)
     {
         const osg::Vec2f origin = chunkCenter - osg::Vec2f(chunkSize - 1, chunkSize + 1) * 0.5f;
-        const int startCellX = static_cast<int>(std::floor(origin.x()));
-        const int startCellY = static_cast<int>(std::floor(origin.y()));
+        const auto startCellX = static_cast<std::int32_t>(std::floor(origin.x()));
+        const auto startCellY = static_cast<std::int32_t>(std::floor(origin.y()));
 
-        constexpr int quadsPerCell = 2;
-        constexpr int quadSize = ESM4::Land::sVertsPerSide / quadsPerCell;
-        const int quadCount = static_cast<int>(chunkSize * quadsPerCell);
+        constexpr std::int32_t quadsPerCell = 2;
+        constexpr std::int32_t quadSize = ESM4::Land::sVertsPerSide / quadsPerCell;
+        const auto quadCount = static_cast<std::int32_t>(chunkSize * quadsPerCell);
         assert(quadCount > 0);
 
-        const int blendmapSize = quadCount * quadSize + 1;
+        const std::int32_t blendmapSize = quadCount * quadSize + 1;
 
         LandCache cache(startCellX - 1, startCellY - 1, static_cast<std::size_t>(std::ceil(chunkSize)) + 2);
         std::pair lastCell{ startCellX, startCellY };
@@ -428,7 +434,7 @@ namespace ESMTerrain
 
         std::map<ESM::FormId, std::size_t> textureIndicesMap;
 
-        auto getOrCreateBlendmap = [&](ESM::FormId texId) -> unsigned char* {
+        auto getOrCreateBlendmap = [&](ESM::FormId texId) -> std::uint8_t* {
             auto found = textureIndicesMap.find(texId);
             if (found != textureIndicesMap.end())
                 return blendmaps[found->second]->data();
@@ -455,30 +461,30 @@ namespace ESMTerrain
             const ESM::LandData* ldata = land->getData(0);
             if (!ldata)
                 return;
-            int quad = 0;
+            std::int32_t quad = 0;
             if (sample.mSrcRow == 0)
                 quad = sample.mSrcCol == 0 ? 0 : 2;
             else
                 quad = sample.mSrcCol == 0 ? 1 : 3;
             const ESM4::Land::Texture& ltex = ldata->getEsm4Texture(static_cast<std::size_t>(quad));
 
-            unsigned char* const baseBlendmap = getOrCreateBlendmap(ESM::FormId::fromUint32(ltex.base.formId));
-            int starty = (static_cast<int>(sample.mDstCol) - 1) * quadSize;
-            int startx = static_cast<int>(sample.mDstRow) * quadSize;
-            for (int y = std::max(0, starty + 1); y <= starty + quadSize && y < blendmapSize; ++y)
+            std::uint8_t* const baseBlendmap = getOrCreateBlendmap(ESM::FormId::fromUint32(ltex.base.formId));
+            std::int32_t starty = (static_cast<std::int32_t>(sample.mDstCol) - 1) * quadSize;
+            std::int32_t startx = static_cast<std::int32_t>(sample.mDstRow) * quadSize;
+            for (std::int32_t y = std::max(0, starty + 1); y <= starty + quadSize && y < blendmapSize; ++y)
             {
-                unsigned char* const row = baseBlendmap + static_cast<std::ptrdiff_t>(y * blendmapSize);
-                for (int x = startx; x < startx + quadSize && x < blendmapSize; ++x)
+                std::uint8_t* const row = baseBlendmap + static_cast<std::ptrdiff_t>(y * blendmapSize);
+                for (std::int32_t x = startx; x < startx + quadSize && x < blendmapSize; ++x)
                     row[x] = 255;
             }
 
             for (const auto& layer : ltex.layers)
             {
-                unsigned char* const layerBlendmap = getOrCreateBlendmap(ESM::FormId::fromUint32(layer.texture.formId));
+                std::uint8_t* const layerBlendmap = getOrCreateBlendmap(ESM::FormId::fromUint32(layer.texture.formId));
                 for (const ESM4::Land::VTXT& v : layer.data)
                 {
-                    int y = v.position / (quadSize + 1);
-                    int x = v.position % (quadSize + 1);
+                    std::int32_t y = v.position / (quadSize + 1);
+                    std::int32_t x = v.position % (quadSize + 1);
                     if (x == quadSize || startx + x >= blendmapSize || y == 0 || starty + y >= blendmapSize
                         || starty + y < 0)
                     {
@@ -486,8 +492,9 @@ namespace ESMTerrain
                     }
                     // An index from signed steps, whole and in range before it is widened.
                     // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
-                    auto index = static_cast<size_t>((starty + y) * blendmapSize + startx + x);
-                    auto delta = static_cast<unsigned char>(std::clamp(static_cast<int>(v.opacity * 255.f), 0, 255));
+                    auto index = static_cast<std::size_t>((starty + y) * blendmapSize + startx + x);
+                    auto delta
+                        = static_cast<std::uint8_t>(std::clamp(static_cast<std::int32_t>(v.opacity * 255.f), 0, 255));
                     baseBlendmap[index] -= std::min(baseBlendmap[index], delta);
                     layerBlendmap[index] = delta;
                 }
@@ -510,8 +517,8 @@ namespace ESMTerrain
         }
 
         const osg::Vec2f origin = chunkCenter - osg::Vec2f(chunkSize, chunkSize) * 0.5f;
-        const int startCellX = static_cast<int>(std::floor(origin.x()));
-        const int startCellY = static_cast<int>(std::floor(origin.y()));
+        const auto startCellX = static_cast<std::int32_t>(std::floor(origin.x()));
+        const auto startCellY = static_cast<std::int32_t>(std::floor(origin.y()));
         const auto blendmapSize = static_cast<std::size_t>(getBlendmapSize(chunkSize, ESM::Land::LAND_TEXTURE_SIZE));
         // We need to upscale the blendmap 2x with nearest neighbor sampling to look like Vanilla
         constexpr std::size_t imageScaleFactor = 2;
@@ -564,15 +571,15 @@ namespace ESMTerrain
                     if (layerIndex >= layerList.size())
                     {
                         osg::ref_ptr<osg::Image> image(new osg::Image);
-                        image->allocateImage(static_cast<int>(blendmapImageSize), static_cast<int>(blendmapImageSize),
-                            1, GL_ALPHA, GL_UNSIGNED_BYTE);
+                        image->allocateImage(static_cast<std::int32_t>(blendmapImageSize),
+                            static_cast<std::int32_t>(blendmapImageSize), 1, GL_ALPHA, GL_UNSIGNED_BYTE);
                         std::memset(image->data(), 0, image->getTotalDataSize());
                         blendmaps.push_back(std::move(image));
                         layerList.push_back(std::move(info));
                     }
                 }
                 const std::size_t layerIndex = found->second;
-                unsigned char* const data = blendmaps[layerIndex]->data();
+                std::uint8_t* const data = blendmaps[layerIndex]->data();
                 const std::size_t realY = y * imageScaleFactor;
                 const std::size_t realX = x * imageScaleFactor;
                 data[((realY + 0) * blendmapImageSize + realX + 0)] = 255;
@@ -589,8 +596,8 @@ namespace ESMTerrain
     float Storage::getHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace)
     {
         const auto cellSize = static_cast<float>(ESM::getCellSize(worldspace));
-        int cellX = static_cast<int>(std::floor(worldPos.x() / cellSize));
-        int cellY = static_cast<int>(std::floor(worldPos.y() / cellSize));
+        auto cellX = static_cast<std::int32_t>(std::floor(worldPos.x() / cellSize));
+        auto cellY = static_cast<std::int32_t>(std::floor(worldPos.y() / cellSize));
 
         std::shared_ptr<const LandObject> land = getLand(ESM::ExteriorCellLocation(cellX, cellY, worldspace));
         if (!land)
@@ -599,7 +606,7 @@ namespace ESMTerrain
         const ESM::LandData* data = land->getData(ESM::Land::DATA_VHGT);
         if (!data)
             return defaultHeight;
-        const int landSize = data->getLandSize();
+        const std::int32_t landSize = data->getLandSize();
 
         // Mostly lifted from Ogre::Terrain::getHeightAtTerrainPosition
 
@@ -611,10 +618,10 @@ namespace ESMTerrain
         float factor = static_cast<float>(landSize) - 1.0f;
         float invFactor = 1.0f / factor;
 
-        int startX = static_cast<int>(nX * factor);
-        int startY = static_cast<int>(nY * factor);
-        int endX = startX + 1;
-        int endY = startY + 1;
+        auto startX = static_cast<std::int32_t>(nX * factor);
+        auto startY = static_cast<std::int32_t>(nY * factor);
+        std::int32_t endX = startX + 1;
+        std::int32_t endY = startY + 1;
 
         endX = std::min(endX, landSize - 1);
         endY = std::min(endY, landSize - 1);
@@ -682,9 +689,12 @@ namespace ESMTerrain
         return result;
     }
 
-    void Storage::adjustColor(int col, int row, const ESM::LandData* heightData, osg::Vec4ub& color) const {}
+    void Storage::adjustColor(
+        std::int32_t col, std::int32_t row, const ESM::LandData* heightData, osg::Vec4ub& color) const
+    {
+    }
 
-    float Storage::getAlteredHeight(int col, int row) const
+    float Storage::getAlteredHeight(std::int32_t col, std::int32_t row) const
     {
         return 0;
     }
@@ -792,17 +802,17 @@ namespace ESMTerrain
         return static_cast<float>(ESM::getCellSize(worldspace));
     }
 
-    int Storage::getCellVertices(ESM::RefId worldspace)
+    std::int32_t Storage::getCellVertices(ESM::RefId worldspace)
     {
         return ESM::getLandSize(worldspace);
     }
 
-    int Storage::getTextureTileCount(float chunkSize, ESM::RefId worldspace)
+    std::int32_t Storage::getTextureTileCount(float chunkSize, ESM::RefId worldspace)
     {
         if (ESM::isEsm4Ext(worldspace))
-            return static_cast<int>(2 * ESM4::Land::sQuadTexturePerSide * chunkSize);
+            return static_cast<std::int32_t>(2 * ESM4::Land::sQuadTexturePerSide * chunkSize);
         else
-            return static_cast<int>(ESM::Land::LAND_TEXTURE_SIZE * chunkSize);
+            return static_cast<std::int32_t>(ESM::Land::LAND_TEXTURE_SIZE * chunkSize);
     }
 
 }

@@ -26,6 +26,8 @@
 */
 #include "loadregn.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 
 #include "reader.hpp"
@@ -59,7 +61,7 @@ void ESM4::Region::load(ESM4::Reader& reader)
             case ESM::fourCC("RPLD"):
             {
                 mRPLD.resize(subHdr.dataSize / sizeof(std::uint32_t));
-                for (unsigned int& it : mRPLD)
+                for (std::uint32_t& it : mRPLD)
                 {
                     reader.get(it);
                 }

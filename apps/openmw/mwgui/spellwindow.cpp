@@ -1,5 +1,7 @@
 #include "spellwindow.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_EditBox.h>
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
@@ -53,7 +55,7 @@ namespace MWGui
         setCoord(498, 300, 302, 300);
 
         // Adjust the spell filtering widget size because of MyGUI limitations.
-        int filterWidth = mSpellView->getSize().width - deleteButton->getSize().width - 3;
+        std::int32_t filterWidth = mSpellView->getSize().width - deleteButton->getSize().width - 3;
         mFilterEdit->setSize(filterWidth, mFilterEdit->getSize().height);
 
         if (Settings::gui().mControllerMenus)
@@ -226,7 +228,7 @@ namespace MWGui
         MWWorld::InventoryStore& store = player.getClass().getInventoryStore(player);
         store.setSelectedEnchantItem(store.end());
         MWBase::Environment::get().getWindowManager()->setSelectedSpell(
-            spellId, static_cast<int>(MWMechanics::getSpellSuccessChance(spellId, player)));
+            spellId, static_cast<std::int32_t>(MWMechanics::getSpellSuccessChance(spellId, player)));
 
         updateSpells();
     }
@@ -257,7 +259,7 @@ namespace MWGui
             return;
 
         mSpellView->setModel(new SpellModel(MWMechanics::getPlayer()));
-        int itemCount = static_cast<int>(mSpellView->getModel()->getItemCount());
+        auto itemCount = static_cast<std::int32_t>(mSpellView->getModel()->getItemCount());
         if (itemCount == 0)
             return;
 
@@ -271,7 +273,7 @@ namespace MWGui
             const Spell& currentSpell = mSpellView->getModel()->getItem(currentIndex);
 
             nextIndex = currentIndex;
-            for (int i = 0; i < itemCount; i++)
+            for (std::int32_t i = 0; i < itemCount; i++)
             {
                 nextIndex += next ? 1 : -1;
                 nextIndex = (nextIndex + itemCount) % itemCount;
@@ -322,10 +324,10 @@ namespace MWGui
             // Fill the screen, or limit to a certain size on large screens. Size chosen to
             // match the size of the stats window.
             MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-            int width = std::min(viewSize.width, StatsWindow::getIdealWidth());
-            int height = std::min(winMgr->getControllerMenuHeight(), StatsWindow::getIdealHeight());
-            int x = (viewSize.width - width) / 2;
-            int y = (viewSize.height - height) / 2;
+            std::int32_t width = std::min(viewSize.width, StatsWindow::getIdealWidth());
+            std::int32_t height = std::min(winMgr->getControllerMenuHeight(), StatsWindow::getIdealHeight());
+            std::int32_t x = (viewSize.width - width) / 2;
+            std::int32_t y = (viewSize.height - height) / 2;
 
             auto* window = mMainWidget->castType<MyGUI::Window>();
             window->setCoord(x, active ? y : viewSize.height + 1, width, height);

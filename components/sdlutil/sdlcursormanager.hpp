@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <string_view>
@@ -48,8 +49,8 @@ namespace SDLUtil
         /// pixels, which SDL shows at the display's scale `displayScale`: an image of the size
         /// divided by `baseDivisor`, which is what SDL scales up, and the whole size beside it, which
         /// SDL picks instead. Shown at once where it is the current cursor.
-        void createCursor(std::string_view name, double rotDegrees, osg::Image* image, int hotspotX, int hotspotY,
-            int width, int height, float displayScale);
+        void createCursor(std::string_view name, double rotDegrees, osg::Image* image, std::int32_t hotspotX,
+            std::int32_t hotspotY, std::int32_t width, std::int32_t height, float displayScale);
 
         /// The cursor `name` destroyed, where there is one: SDL shows its default until the next
         /// `cursorChanged`.

@@ -1,5 +1,6 @@
 #include "userdataserializer.hpp"
 
+#include <cstdint>
 #include <cstring>
 
 #include <components/lua/serialization.hpp>
@@ -15,7 +16,7 @@ namespace MWLua
         class Serializer final : public LuaUtil::UserdataSerializer
         {
         public:
-            explicit Serializer(bool localSerializer, std::map<int, int>* contentFileMapping)
+            explicit Serializer(bool localSerializer, std::map<std::int32_t, std::int32_t>* contentFileMapping)
                 : mLocalSerializer(localSerializer)
                 , mContentFileMapping(contentFileMapping)
             {
@@ -107,12 +108,12 @@ namespace MWLua
             }
 
             bool mLocalSerializer;
-            std::map<int, int>* mContentFileMapping;
+            std::map<std::int32_t, std::int32_t>* mContentFileMapping;
         };
     }
 
     std::unique_ptr<LuaUtil::UserdataSerializer> createUserdataSerializer(
-        bool local, std::map<int, int>* contentFileMapping)
+        bool local, std::map<std::int32_t, std::int32_t>* contentFileMapping)
     {
         return std::make_unique<Serializer>(local, contentFileMapping);
     }

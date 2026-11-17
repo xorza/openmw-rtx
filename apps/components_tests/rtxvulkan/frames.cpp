@@ -141,7 +141,7 @@ namespace Rtx
 
             // Behind the camera, so what the second frame sees is decided by the wall that walks
             // away rather than by a hundred quads landing over it.
-            for (int at = 0; at < 100; ++at)
+            for (std::int32_t at = 0; at < 100; ++at)
             {
                 const Index arrived = Testing::addOneBoneBody(
                     mScene, MeshArrays{ .mPositions = Testing::wallAt(-1000.0f), .mIndices = Testing::sQuadIndices })
@@ -302,7 +302,7 @@ namespace Rtx
         /// for, and the first frame is the one it cannot.
         TEST_F(RtxFramesTest, aReportIsDroppedRatherThanHeldPastTheFrameItDescribes)
         {
-            for (int at = 0; at < 5; ++at)
+            for (std::int32_t at = 0; at < 5; ++at)
             {
                 if (at > 0)
                     moveTo(at % 2 == 0 ? 200.0f : -1000.0f);
@@ -498,7 +498,7 @@ namespace Rtx
             EXPECT_NEAR(toward.mByInstance.z(), 9.9992f, 0.01f) << "the surface came ten units nearer";
 
             for (const Moved& moved : { across, toward })
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(moved.mByPose[axis], moved.mByInstance[axis], 1e-3f)
                         << "axis " << axis << ": a pose and an instance moved the same step";
 
@@ -527,7 +527,7 @@ namespace Rtx
             constexpr std::size_t centre = std::size_t{ sSize / 2 } * sSize + sSize / 2;
             moveTo(-1000.0f);
 
-            for (int copy = 0; copy < 2; ++copy)
+            for (std::int32_t copy = 0; copy < 2; ++copy)
             {
                 mScene.clearPlacement();
                 mScene.clearArrivals();
@@ -597,16 +597,16 @@ namespace Rtx
 
             const osg::Matrixf turn = osg::Matrixf::rotate(osg::PI_2f, osg::Vec3f(0.0f, 1.0f, 0.0f));
             const osg::Vec3f turned = osg::Vec3f(0.0f, -1.0f, -1.0f) / std::numbers::sqrt2_v<float>;
-            for (int frame = 0; frame < 2; ++frame)
+            for (std::int32_t frame = 0; frame < 2; ++frame)
             {
                 const osg::Vec3f read = centreNormalPosedBy(turn);
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(read[axis], turned[axis], 1e-3f) << "frame " << frame << ", axis " << axis;
             }
 
             const osg::Vec3f standing = centreNormalPosedBy(turn * osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
             const osg::Vec3f leaningBack = back / std::numbers::sqrt2_v<float>;
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
                 EXPECT_NEAR(standing[axis], leaningBack[axis], 1e-3f) << "the standing wall, axis " << axis;
 
             while (mRenderer.finishFrame().has_value())
@@ -800,7 +800,7 @@ namespace Rtx
                 << "the reserve did not grow past what content left, so nothing was built again";
             mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
 
-            for (int copy = 0; copy < 2; ++copy)
+            for (std::int32_t copy = 0; copy < 2; ++copy)
             {
                 mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
@@ -998,7 +998,7 @@ namespace Rtx
             // happened: three frames, which is more than the ring holds, so the scene's submit has
             // been waited out by the end of them and the scene has gone.
             mRenderer.dropViewScene(doll);
-            for (int frame = 0; frame < 3; ++frame)
+            for (std::int32_t frame = 0; frame < 3; ++frame)
             {
                 moveTo(-1000.0f + 100.0f * static_cast<float>(frame));
                 mProbe.traceFrame(ahead(), FrameOptions{});

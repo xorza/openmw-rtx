@@ -1,9 +1,10 @@
 #pragma once
 
-#include <QMetaType>
 #include <algorithm>
 #include <string>
 #include <vector>
+
+#include <QMetaType>
 
 #include <apps/opencs/model/world/universalid.hpp>
 

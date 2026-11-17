@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
+
 #include <QKeySequence>
 #include <QObject>
 #include <QString>
-#include <string>
 
 class QAction;
 class QWidget;
@@ -44,12 +46,12 @@ namespace CSMPrefs
         SecondaryMode getSecondaryMode() const;
 
         const QKeySequence& getSequence() const;
-        int getModifier() const;
+        std::int32_t getModifier() const;
 
         /// The position in the sequence
-        int getPosition() const;
+        std::int32_t getPosition() const;
         /// The position in the sequence
-        int getLastPosition() const;
+        std::int32_t getLastPosition() const;
 
         ActivationStatus getActivationStatus() const;
         bool getModifierStatus() const;
@@ -57,10 +59,10 @@ namespace CSMPrefs
         void enable(bool state);
 
         void setSequence(const QKeySequence& sequence);
-        void setModifier(int modifier);
+        void setModifier(std::int32_t modifier);
 
         /// The position in the sequence
-        void setPosition(int pos);
+        void setPosition(std::int32_t pos);
 
         void setActivationStatus(ActivationStatus status);
         void setModifierStatus(bool status);
@@ -84,10 +86,10 @@ namespace CSMPrefs
         std::string mModName;
         SecondaryMode mSecondaryMode;
         QKeySequence mSequence;
-        int mModifier;
+        std::int32_t mModifier;
 
-        int mCurrentPos;
-        int mLastPos;
+        std::int32_t mCurrentPos;
+        std::int32_t mLastPos;
 
         ActivationStatus mActivationStatus;
         bool mModifierStatus;

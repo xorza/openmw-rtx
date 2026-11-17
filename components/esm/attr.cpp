@@ -1,5 +1,6 @@
 #include "attr.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 #include <components/esm3/esmreader.hpp>
@@ -27,16 +28,16 @@ namespace ESM
         Attribute::Luck,
     };
 
-    RefId Attribute::indexToRefId(int index)
+    RefId Attribute::indexToRefId(std::int32_t index)
     {
         if (index < 0 || index >= Length)
             return RefId();
         return sAttributes[index];
     }
 
-    int Attribute::refIdToIndex(RefId id)
+    std::int32_t Attribute::refIdToIndex(RefId id)
     {
-        for (int i = 0; i < Length; ++i)
+        for (std::int32_t i = 0; i < Length; ++i)
         {
             if (sAttributes[i] == id)
                 return i;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <osg/Matrixd>
@@ -69,7 +70,7 @@ namespace MWRender
             SceneUtil::RTTNode& node, osg::Group& parent, const osg::FrameStamp& frameStamp, osg::StateSet* blend);
 
         /// The traversal number of the last draw, nought before the first.
-        virtual unsigned int getDrawnFrame() const = 0;
+        virtual std::uint32_t getDrawnFrame() const = 0;
 
         /// Whether a draw has been asked for and not yet made.
         virtual bool isPending() const = 0;
@@ -95,13 +96,13 @@ namespace MWRender
         ~GlDollView() override;
 
         void setView(const osg::Matrixd& view) override;
-        void setExtent(int width, int height) override;
+        void setExtent(std::int32_t width, std::int32_t height) override;
         void sceneChanged() override;
         void redraw() override;
         bool pick(float x, float y, osg::NodePath& hit) override;
 
     protected:
-        unsigned int getDrawnFrame() const override;
+        std::uint32_t getDrawnFrame() const override;
         bool isPending() const override;
 
     private:
@@ -125,7 +126,7 @@ namespace MWRender
         void redraw() override;
 
     protected:
-        unsigned int getDrawnFrame() const override;
+        std::uint32_t getDrawnFrame() const override;
         bool isPending() const override;
 
     private:

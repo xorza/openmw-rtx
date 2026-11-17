@@ -1,5 +1,7 @@
 #include "actiontake.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
@@ -29,7 +31,7 @@ namespace MWWorld
             }
         }
 
-        int count = getTarget().getCellRef().getCount();
+        std::int32_t count = getTarget().getCellRef().getCount();
         if (getTarget().getClass().isGold(getTarget()))
             count *= getTarget().getClass().getValue(getTarget());
 

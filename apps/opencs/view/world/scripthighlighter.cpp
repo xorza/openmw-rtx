@@ -1,5 +1,6 @@
 #include "scripthighlighter.hpp"
 
+#include <cstdint>
 #include <sstream>
 #include <utility>
 
@@ -18,7 +19,8 @@ namespace CSMWorld
     class Data;
 }
 
-bool CSVWorld::ScriptHighlighter::parseInt(int value, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner)
+bool CSVWorld::ScriptHighlighter::parseInt(
+    std::int32_t value, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner)
 {
     highlight(loc, Type_Int);
     return true;
@@ -37,7 +39,8 @@ bool CSVWorld::ScriptHighlighter::parseName(
     return true;
 }
 
-bool CSVWorld::ScriptHighlighter::parseKeyword(int keyword, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner)
+bool CSVWorld::ScriptHighlighter::parseKeyword(
+    std::int32_t keyword, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner)
 {
     if (((mMode == Mode_Console || mMode == Mode_Dialogue)
             && (keyword == Compiler::Scanner::K_begin || keyword == Compiler::Scanner::K_end
@@ -53,7 +56,8 @@ bool CSVWorld::ScriptHighlighter::parseKeyword(int keyword, const Compiler::Toke
     return true;
 }
 
-bool CSVWorld::ScriptHighlighter::parseSpecial(int code, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner)
+bool CSVWorld::ScriptHighlighter::parseSpecial(
+    std::int32_t code, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner)
 {
     highlight(loc, Type_Special);
     return true;
@@ -71,12 +75,12 @@ void CSVWorld::ScriptHighlighter::parseEOF(Compiler::Scanner& scanner) {}
 void CSVWorld::ScriptHighlighter::highlight(const Compiler::TokenLoc& loc, Type type)
 {
     // We should take in account multibyte characters
-    int length = 0;
+    std::int32_t length = 0;
     const char* token = loc.mLiteral.c_str();
     while (*token)
         length += (*token++ & 0xc0) != 0x80;
 
-    int index = loc.mColumn;
+    std::int32_t index = loc.mColumn;
 
     // compensate for bug in Compiler::Scanner (position of token is the character after the token)
     index -= length;
@@ -99,7 +103,7 @@ CSVWorld::ScriptHighlighter::ScriptHighlighter(const CSMWorld::Data& data, Mode 
     QTextCharFormat format;
     format.setForeground(color);
 
-    for (int i = 0; i <= Type_Id; ++i)
+    for (std::int32_t i = 0; i <= Type_Id; ++i)
         mScheme.insert(std::make_pair(static_cast<Type>(i), format));
 
     // configure compiler
@@ -146,7 +150,7 @@ bool CSVWorld::ScriptHighlighter::settingChanged(const CSMPrefs::Setting* settin
         static const char* const colours[Type_Id + 2] = { "colour-int", "colour-float", "colour-name", "colour-keyword",
             "colour-special", "colour-comment", "colour-highlight", "colour-id", nullptr };
 
-        for (int i = 0; colours[i]; ++i)
+        for (std::int32_t i = 0; colours[i]; ++i)
             if (setting->getKey() == colours[i])
             {
                 QTextCharFormat format;

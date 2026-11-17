@@ -1,5 +1,7 @@
 #include "globals.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 
 #include <components/esm3/esmreader.hpp>
@@ -72,7 +74,7 @@ namespace MWWorld
         }
     }
 
-    size_t Globals::countSavedGameRecords() const
+    std::size_t Globals::countSavedGameRecords() const
     {
         return mVariables.size();
     }
@@ -87,7 +89,7 @@ namespace MWWorld
         }
     }
 
-    bool Globals::readRecord(ESM::ESMReader& reader, uint32_t type)
+    bool Globals::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_GLOB)
         {

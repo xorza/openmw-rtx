@@ -1,5 +1,8 @@
 #include "startup.hpp"
 
+#include <algorithm>
+#include <cstdint>
+
 #include <QGridLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -9,13 +12,12 @@
 #include <QRect>
 #include <QScreen>
 #include <QVBoxLayout>
-#include <algorithm>
 
 #include <components/misc/scalableicon.hpp>
 
 QPushButton* CSVDoc::StartupDialogue::addButton(const QString& label, const QString& icon)
 {
-    int column = mColumn--;
+    std::int32_t column = mColumn--;
 
     auto* button = new QPushButton(this);
 
@@ -27,7 +29,7 @@ QPushButton* CSVDoc::StartupDialogue::addButton(const QString& label, const QStr
 
     mLayout->addWidget(new QLabel(label, this), 1, column, Qt::AlignCenter);
 
-    int width = mLayout->itemAtPosition(1, column)->widget()->sizeHint().width();
+    std::int32_t width = mLayout->itemAtPosition(1, column)->widget()->sizeHint().width();
 
     mWidth = std::max(width, mWidth);
 
@@ -50,7 +52,7 @@ QWidget* CSVDoc::StartupDialogue::createButtons()
     QPushButton* createGame = addButton("Create A New Game", ":startup/create-game");
     connect(createGame, &QPushButton::clicked, this, &StartupDialogue::createGame);
 
-    for (int i = 0; i < 3; ++i)
+    for (std::int32_t i = 0; i < 3; ++i)
         mLayout->setColumnMinimumWidth(i, mWidth);
 
     mLayout->setRowMinimumHeight(0, mWidth);

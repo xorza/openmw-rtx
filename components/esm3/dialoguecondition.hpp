@@ -119,7 +119,7 @@ namespace ESM
         };
 
         std::string mVariable;
-        std::variant<int32_t, float> mValue = 0;
+        std::variant<std::int32_t, float> mValue = 0;
         std::uint8_t mIndex = 0;
         Function mFunction = Function_None;
         Comparison mComparison = Comp_None;

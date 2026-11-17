@@ -1,9 +1,11 @@
 #pragma once
 
-#include <QString>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <QString>
 
 #include <apps/opencs/model/world/columnbase.hpp>
 
@@ -25,18 +27,18 @@ namespace CSVWorld
     class EnumDelegate : public CommandDelegate
     {
     protected:
-        std::vector<std::pair<int, QString>> mValues;
+        std::vector<std::pair<std::int32_t, QString>> mValues;
 
-        int getValueIndex(const QModelIndex& index, int role = Qt::DisplayRole) const;
+        std::int32_t getValueIndex(const QModelIndex& index, std::int32_t role = Qt::DisplayRole) const;
 
     private:
         void setModelDataImp(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override;
 
-        virtual void addCommands(QAbstractItemModel* model, const QModelIndex& index, int type) const;
+        virtual void addCommands(QAbstractItemModel* model, const QModelIndex& index, std::int32_t type) const;
 
     public:
-        EnumDelegate(const std::vector<std::pair<int, QString>>& values, CSMWorld::CommandDispatcher* dispatcher,
-            CSMDoc::Document& document, QObject* parent);
+        EnumDelegate(const std::vector<std::pair<std::int32_t, QString>>& values,
+            CSMWorld::CommandDispatcher* dispatcher, CSMDoc::Document& document, QObject* parent);
 
         QWidget* createEditor(
             QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
@@ -54,7 +56,7 @@ namespace CSVWorld
     class EnumDelegateFactory : public CommandDelegateFactory
     {
     protected:
-        std::vector<std::pair<int, QString>> mValues;
+        std::vector<std::pair<std::int32_t, QString>> mValues;
 
     public:
         EnumDelegateFactory() = default;
@@ -63,14 +65,15 @@ namespace CSVWorld
         ///< \param names Array of char pointer with a 0-pointer as end mark
         /// \param allowNone Use value of -1 for "none selected" (empty string)
 
-        explicit EnumDelegateFactory(const std::vector<std::pair<int, std::string>>& names, bool allowNone = false);
+        explicit EnumDelegateFactory(
+            const std::vector<std::pair<std::int32_t, std::string>>& names, bool allowNone = false);
         /// \param allowNone Use value of -1 for "none selected" (empty string)
 
         CommandDelegate* makeDelegate(
             CSMWorld::CommandDispatcher* dispatcher, CSMDoc::Document& document, QObject* parent) const override;
         ///< The ownership of the returned CommandDelegate is transferred to the caller.
 
-        void add(int value, const QString& name);
+        void add(std::int32_t value, const QString& name);
     };
 
 }

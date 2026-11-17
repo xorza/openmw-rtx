@@ -1,11 +1,13 @@
 #include "file.hpp"
 
 #include <cassert>
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <string>
 
-#include <errno.h>
 #include <fcntl.h>
-#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -20,10 +22,10 @@ namespace Platform::File
         {
             assert(handle != Handle::Invalid);
 
-            return static_cast<int>(handle);
+            return static_cast<std::int32_t>(handle);
         }
 
-        int getNativeSeekType(SeekType seek)
+        std::int32_t getNativeSeekType(SeekType seek)
         {
             if (seek == SeekType::Begin)
                 return SEEK_SET;
@@ -53,7 +55,7 @@ namespace Platform::File
         ::close(nativeHandle);
     }
 
-    void seek(Handle handle, size_t position, SeekType type /*= SeekType::Begin*/)
+    void seek(Handle handle, std::size_t position, SeekType type /*= SeekType::Begin*/)
     {
         const auto nativeHandle = getNativeHandle(handle);
         const auto nativeSeekType = getNativeSeekType(type);
@@ -64,7 +66,7 @@ namespace Platform::File
         }
     }
 
-    size_t size(Handle handle)
+    std::size_t size(Handle handle)
     {
         const auto oldPos = tell(handle);
 
@@ -72,10 +74,10 @@ namespace Platform::File
         const auto fileSize = tell(handle);
         seek(handle, oldPos, SeekType::Begin);
 
-        return static_cast<size_t>(fileSize);
+        return static_cast<std::size_t>(fileSize);
     }
 
-    size_t tell(Handle handle)
+    std::size_t tell(Handle handle)
     {
         auto nativeHandle = getNativeHandle(handle);
 
@@ -84,10 +86,10 @@ namespace Platform::File
         {
             throw std::system_error(errno, std::generic_category(), "An lseek() call failed");
         }
-        return static_cast<size_t>(position);
+        return static_cast<std::size_t>(position);
     }
 
-    size_t readAt(Handle handle, size_t offset, void* data, size_t size)
+    std::size_t readAt(Handle handle, std::size_t offset, void* data, std::size_t size)
     {
         const auto nativeHandle = getNativeHandle(handle);
 
@@ -97,14 +99,14 @@ namespace Platform::File
             throw std::system_error(errno, std::generic_category(),
                 "An attempt to read " + std::to_string(size) + " bytes at " + std::to_string(offset) + " failed");
         }
-        return static_cast<size_t>(amount);
+        return static_cast<std::size_t>(amount);
     }
 
-    size_t read(Handle handle, void* data, size_t size)
+    std::size_t read(Handle handle, void* data, std::size_t size)
     {
         auto nativeHandle = getNativeHandle(handle);
 
-        int amount = static_cast<int>(::read(nativeHandle, data, size));
+        auto amount = static_cast<std::int32_t>(::read(nativeHandle, data, size));
         if (amount == -1)
         {
             throw std::system_error(

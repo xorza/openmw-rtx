@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "importinventory.hpp"
 
 namespace ESM
@@ -13,7 +15,7 @@ namespace ESSImport
     /// Changed container contents
     struct CNTC
     {
-        int32_t mIndex{};
+        std::int32_t mIndex{};
 
         Inventory mInventory;
 

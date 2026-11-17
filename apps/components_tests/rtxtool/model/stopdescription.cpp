@@ -1,6 +1,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -272,7 +273,7 @@ namespace RtxTool
             const sol::function describe = spelling["describe"];
 
             std::size_t parted = 0;
-            for (int minute = 0; minute < 24 * 60; ++minute)
+            for (std::int32_t minute = 0; minute < 24 * 60; ++minute)
             {
                 const float half = (static_cast<float>(minute) + 0.5f) / 60.0f;
                 for (const float hour : { std::nextafter(half, 0.0f), half, std::nextafter(half, 24.0f) })

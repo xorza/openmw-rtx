@@ -270,8 +270,8 @@ namespace Rtx::Testing
                 for (std::size_t pixel = 0; pixel < shadowed.size() / 4; ++pixel)
                 {
                     for (std::size_t channel = 0; channel < 3; ++channel)
-                        EXPECT_NEAR(shadowed[pixel * 4 + channel], sum[static_cast<int>(channel)],
-                            sum[static_cast<int>(channel)] * 1e-5f)
+                        EXPECT_NEAR(shadowed[pixel * 4 + channel], sum[static_cast<std::int32_t>(channel)],
+                            sum[static_cast<std::int32_t>(channel)] * 1e-5f)
                             << "pixel " << pixel << ", channel " << channel;
                     EXPECT_TRUE(Testing::shadowOpen(shadowed[pixel * 4 + 3])) << "pixel " << pixel;
                 }
@@ -566,17 +566,17 @@ namespace Rtx::Testing
                 mProbe.readChannel(Channel::Shadowed, bits);
                 double squares = 0.0;
                 std::size_t counted = 0;
-                for (int y = 2; y < static_cast<int>(size) - 2; ++y)
-                    for (int x = 2; x < static_cast<int>(size) - 2; ++x)
+                for (std::int32_t y = 2; y < static_cast<std::int32_t>(size) - 2; ++y)
+                    for (std::int32_t x = 2; x < static_cast<std::int32_t>(size) - 2; ++x)
                     {
                         double box = 0.0;
                         double truth = 0.0;
-                        for (int dy = -2; dy <= 2; ++dy)
-                            for (int dx = -2; dx <= 2; ++dx)
+                        for (std::int32_t dy = -2; dy <= 2; ++dy)
+                            for (std::int32_t dx = -2; dx <= 2; ++dx)
                             {
                                 // An index from signed steps, whole and in range before it is widened.
-                                // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
-                                const auto at = static_cast<std::size_t>((y + dy) * static_cast<int>(size) + x + dx);
+                                const std::int32_t index = (y + dy) * static_cast<std::int32_t>(size) + x + dx;
+                                const auto at = static_cast<std::size_t>(index);
                                 box += static_cast<double>(Testing::shadowBit(bits[at * 4 + 3])) / 25.0;
                                 truth += mean[at] / 25.0;
                             }
@@ -683,7 +683,7 @@ namespace Rtx::Testing
                     std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
                         osg::Vec3f(4000.0f, 4000.0f, 0.0f), osg::Vec3f(-4000.0f, 4000.0f, 0.0f) },
                     scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mLampLit = farLit }));
-                for (int bar = -6; bar <= 6; ++bar)
+                for (std::int32_t bar = -6; bar <= 6; ++bar)
                 {
                     const float middle = 30.0f * static_cast<float>(bar);
                     addQuad(scene,

@@ -59,12 +59,12 @@ namespace Rtx
 
             // Half set: `2 * 0.5 * 0.5` is a half of a quarter of the irradiance over pi.
             const osg::Vec3f half = blue * Rtx::Shaders::DAYLIGHT * (0.5f * 0.25f / Rtx::Shaders::PI);
-            for (int channel = 0; channel < 3; ++channel)
+            for (std::int32_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(at(0.5f).mAmbient[channel], (room + half)[channel], 1e-6f);
 
             // And it only ever adds, at every share between the two ends.
             for (const float share : { 0.0f, 0.25f, 0.5f, 0.75f, 1.0f })
-                for (int channel = 0; channel < 3; ++channel)
+                for (std::int32_t channel = 0; channel < 3; ++channel)
                     EXPECT_GE(at(share).mAmbient[channel], room[channel]) << "at share " << share;
 
             // The position stays whatever it was, because a moon's crescent points at where the sun
@@ -230,7 +230,7 @@ namespace Rtx
 
             // And it only ever rises, which is what keeps a body from brightening as it sets.
             float below = 0.0f;
-            for (int step = 0; step <= 64; ++step)
+            for (std::int32_t step = 0; step <= 64; ++step)
             {
                 const float carried = airTransmittance(static_cast<float>(step) / 64.0f).y();
                 EXPECT_GT(carried, below) << "at a height of " << static_cast<float>(step) / 64.0f;

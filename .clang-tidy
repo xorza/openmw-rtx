@@ -67,6 +67,7 @@ Checks:
   - 'google-build-namespaces'
   - 'google-explicit-constructor'
   - 'google-global-names-in-headers'
+  - 'google-runtime-int'
 
   - 'misc-confusable-identifiers'
   - 'misc-definitions-in-headers'
@@ -88,6 +89,7 @@ Checks:
   - '-misc-static-assert'
 
   - 'modernize-avoid-c-style-cast'
+  - 'modernize-deprecated-headers'
   - 'modernize-loop-convert'
   - 'modernize-make-shared'
   - 'modernize-make-unique'
@@ -171,6 +173,10 @@ CheckOptions:
   # game's threads start.
   concurrency-mt-unsafe.FunctionSet: glibc
   cppcoreguidelines-init-variables.MathHeader: '<cmath>'
+  # The fixed widths `<cstdint>` spells, `std::`-qualified (AGENTS.md, "Fixed-width integers").
+  google-runtime-int.SignedTypePrefix: 'std::int'
+  google-runtime-int.UnsignedTypePrefix: 'std::uint'
+  google-runtime-int.TypeSuffix: '_t'
   # The build's definitions are the build's switches, read into `constexpr bool`s (`cpp.md`).
   cppcoreguidelines-macro-usage.IgnoreCommandLineMacros: true
   # A class that declares its destructor or a copy declares all three; one that declares a move, both. Its moves may

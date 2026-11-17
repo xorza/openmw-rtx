@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
@@ -48,7 +49,7 @@ namespace
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         return effect.mMinMagnitude
             + static_cast<float>(
-                Misc::Rng::rollDice(static_cast<int>(effect.mMaxMagnitude - effect.mMinMagnitude + 1), prng));
+                Misc::Rng::rollDice(static_cast<std::int32_t>(effect.mMaxMagnitude - effect.mMinMagnitude + 1), prng));
     }
 
     ESM::ActiveEffect::Flags modifyAiSetting(const MWWorld::Ptr& target, const ESM::ActiveEffect& effect,
@@ -58,13 +59,13 @@ namespace
             return ESM::ActiveEffect::Flag_Invalid;
         auto& creatureStats = target.getClass().getCreatureStats(target);
         auto stat = creatureStats.getAiSetting(setting);
-        stat.setModifier(static_cast<int>(static_cast<float>(stat.getModifier()) + magnitude));
+        stat.setModifier(static_cast<std::int32_t>(static_cast<float>(stat.getModifier()) + magnitude));
         creatureStats.setAiSetting(setting, stat);
         return ESM::ActiveEffect::Flag_Applied;
     }
 
-    void adjustDynamicStat(const MWWorld::Ptr& target, int index, float magnitude, bool allowDecreaseBelowZero = false,
-        bool allowIncreaseAboveModified = false)
+    void adjustDynamicStat(const MWWorld::Ptr& target, std::int32_t index, float magnitude,
+        bool allowDecreaseBelowZero = false, bool allowIncreaseAboveModified = false)
     {
         auto& creatureStats = target.getClass().getCreatureStats(target);
         auto stat = creatureStats.getDynamic(index);
@@ -72,7 +73,7 @@ namespace
         creatureStats.setDynamic(index, stat);
     }
 
-    void modDynamicStat(const MWWorld::Ptr& target, int index, float magnitude)
+    void modDynamicStat(const MWWorld::Ptr& target, std::int32_t index, float magnitude)
     {
         auto& creatureStats = target.getClass().getCreatureStats(target);
         auto stat = creatureStats.getDynamic(index);
@@ -134,7 +135,7 @@ namespace
         skill.setModifier(skill.getModifier() + magnitude);
     }
 
-    bool disintegrateSlot(const MWWorld::Ptr& ptr, int slot, float disintegrate)
+    bool disintegrateSlot(const MWWorld::Ptr& ptr, std::int32_t slot, float disintegrate)
     {
         MWWorld::InventoryStore& inv = ptr.getClass().getInventoryStore(ptr);
         MWWorld::ContainerStoreIterator item = inv.getSlot(slot);
@@ -145,7 +146,7 @@ namespace
         {
             if (!item->getClass().hasItemHealth(*item))
                 return false;
-            int charge = item->getClass().getItemHealth(*item);
+            std::int32_t charge = item->getClass().getItemHealth(*item);
             if (charge == 0)
                 return false;
 
@@ -153,7 +154,7 @@ namespace
             item->getCellRef().applyChargeRemainderToBeSubtracted(disintegrate - std::floor(disintegrate));
 
             charge = item->getClass().getItemHealth(*item);
-            charge -= std::min(static_cast<int>(disintegrate), charge);
+            charge -= std::min(static_cast<std::int32_t>(disintegrate), charge);
             item->getCellRef().setCharge(charge);
 
             if (charge == 0)
@@ -171,7 +172,7 @@ namespace
         return false;
     }
 
-    int getBoundItemSlot(const MWWorld::Ptr& boundPtr)
+    std::int32_t getBoundItemSlot(const MWWorld::Ptr& boundPtr)
     {
         const auto [slots, _] = boundPtr.getClass().getEquipmentSlots(boundPtr);
         if (!slots.empty())
@@ -184,7 +185,7 @@ namespace
         MWWorld::InventoryStore& store = actor.getClass().getInventoryStore(actor);
         MWWorld::Ptr boundPtr = *store.MWWorld::ContainerStore::add(itemId, 1);
 
-        int slot = getBoundItemSlot(boundPtr);
+        std::int32_t slot = getBoundItemSlot(boundPtr);
         auto prevItem = slot >= 0 ? store.getSlot(slot) : store.end();
 
         MWWorld::ActionEquip action(boundPtr);
@@ -221,7 +222,7 @@ namespace
             store.begin(), store.end(), [&](const auto& it) { return it.getCellRef().getRefId() == itemId; });
         if (item == store.end())
             return;
-        int slot = getBoundItemSlot(*item);
+        std::int32_t slot = getBoundItemSlot(*item);
 
         auto currentItem = store.getSlot(slot);
 
@@ -299,7 +300,7 @@ namespace
             animation->addEffect(absorbStaticModel.value(), ESM::MagicEffect::SpellAbsorption.getValue(), false);
         }
 
-        int spellCost = 0;
+        std::int32_t spellCost = 0;
         if (const ESM::Spell* spell = esmStore.get<ESM::Spell>().search(spellParams.getSourceSpellId()))
         {
             spellCost = MWMechanics::calcSpellCost(*spell);
@@ -551,7 +552,7 @@ namespace MWMechanics
                 if (target != getPlayer())
                 {
                     auto& store = target.getClass().getInventoryStore(target);
-                    for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+                    for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
                     {
                         // Unequip everything except weapons, torches, and pants
                         switch (slot)
@@ -581,8 +582,9 @@ namespace MWMechanics
                 else
                 {
                     auto& creatureStats = target.getClass().getCreatureStats(target);
-                    Stat<int> stat = creatureStats.getAiSetting(AiSetting::Flee);
-                    stat.setModifier(static_cast<int>(static_cast<float>(stat.getModifier()) + effect.mMagnitude));
+                    Stat<std::int32_t> stat = creatureStats.getAiSetting(AiSetting::Flee);
+                    stat.setModifier(
+                        static_cast<std::int32_t>(static_cast<float>(stat.getModifier()) + effect.mMagnitude));
                     creatureStats.setAiSetting(AiSetting::Flee, stat);
                 }
             }
@@ -932,7 +934,7 @@ namespace MWMechanics
                     return ESM::ActiveEffect::Flag_Invalid;
                 if (!godmode)
                 {
-                    static const std::array<int, 9> priorities{
+                    static const std::array<std::int32_t, 9> priorities{
                         MWWorld::InventoryStore::Slot_CarriedLeft,
                         MWWorld::InventoryStore::Slot_Cuirass,
                         MWWorld::InventoryStore::Slot_LeftPauldron,
@@ -943,7 +945,7 @@ namespace MWMechanics
                         MWWorld::InventoryStore::Slot_Greaves,
                         MWWorld::InventoryStore::Slot_Boots,
                     };
-                    for (const int priority : priorities)
+                    for (const std::int32_t priority : priorities)
                     {
                         if (disintegrateSlot(target, priority, effect.mMagnitude))
                             break;
@@ -1022,8 +1024,8 @@ namespace MWMechanics
             else if (effect.mEffectId == ESM::MagicEffect::TurnUndead)
             {
                 auto& creatureStats = target.getClass().getCreatureStats(target);
-                Stat<int> stat = creatureStats.getAiSetting(AiSetting::Flee);
-                stat.setModifier(static_cast<int>(static_cast<float>(stat.getModifier()) - effect.mMagnitude));
+                Stat<std::int32_t> stat = creatureStats.getAiSetting(AiSetting::Flee);
+                stat.setModifier(static_cast<std::int32_t>(static_cast<float>(stat.getModifier()) - effect.mMagnitude));
                 creatureStats.setAiSetting(AiSetting::Flee, stat);
             }
             else if (effect.mEffectId == ESM::MagicEffect::FrenzyCreature
@@ -1047,7 +1049,7 @@ namespace MWMechanics
                     // no longer bright. Modifying the base value here should prevent that while preserving their
                     // function.
                     float delta = std::clamp(-nightEye.getMagnitude(), 0.f, -static_cast<float>(nightEye.getBase()));
-                    magnitudes.modifyBase(effect.mEffectId, static_cast<int>(delta));
+                    magnitudes.modifyBase(effect.mEffectId, static_cast<std::int32_t>(delta));
                 }
             }
             else if (effect.mEffectId == ESM::MagicEffect::RallyCreature
@@ -1205,7 +1207,7 @@ namespace MWMechanics
             }
             else if (effect.mEffectId == ESM::MagicEffect::Corprus)
             {
-                int worsenings = spellParams.getWorsenings();
+                std::int32_t worsenings = spellParams.getWorsenings();
                 spellParams.resetWorsenings();
                 if (worsenings > 0)
                 {
@@ -1213,7 +1215,7 @@ namespace MWMechanics
                     {
                         if (isCorprusEffect(otherEffect, true))
                         {
-                            for (int i = 0; i < worsenings; i++)
+                            for (std::int32_t i = 0; i < worsenings; i++)
                                 removeMagicEffect(target, spellParams, otherEffect);
                         }
                     }
@@ -1231,7 +1233,7 @@ namespace MWMechanics
         ActiveSpells::ActiveSpellParams& spellParams, ESM::ActiveEffect& effect, float dt, bool playNonLooping)
     {
         const auto world = MWBase::Environment::get().getWorld();
-        int32_t applied = ESM::ActiveEffect::Flag_Remove;
+        std::int32_t applied = ESM::ActiveEffect::Flag_Remove;
         bool receivedMagicDamage = false;
         bool recalculateMagicka = false;
         bool affectedHealth = false;
@@ -1271,7 +1273,7 @@ namespace MWMechanics
                 MWRender::Animation* animation = world->getAnimation(target);
                 if (animation)
                     animation->addSpellCastGlow(magicEffect->getColor());
-                int magnitude = static_cast<int>(roll(effect));
+                auto magnitude = static_cast<std::int32_t>(roll(effect));
                 if (target.getCellRef().getLockLevel()
                     < magnitude) // If the door is not already locked to a higher value, lock it to spell magnitude
                 {
@@ -1296,7 +1298,7 @@ namespace MWMechanics
                 MWRender::Animation* animation = world->getAnimation(target);
                 if (animation)
                     animation->addSpellCastGlow(magicEffect->getColor());
-                int magnitude = static_cast<int>(roll(effect));
+                auto magnitude = static_cast<std::int32_t>(roll(effect));
                 if (target.getCellRef().getLockLevel() <= magnitude)
                 {
                     if (target.getCellRef().isLocked())

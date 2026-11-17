@@ -1,5 +1,7 @@
 #include "narynode.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <utility>
 
@@ -11,23 +13,23 @@ CSMFilter::NAryNode::NAryNode(const std::vector<std::shared_ptr<Node>>& nodes, s
 {
 }
 
-int CSMFilter::NAryNode::getSize() const
+std::int32_t CSMFilter::NAryNode::getSize() const
 {
-    return static_cast<int>(mNodes.size());
+    return static_cast<std::int32_t>(mNodes.size());
 }
 
-const CSMFilter::Node& CSMFilter::NAryNode::operator[](int index) const
+const CSMFilter::Node& CSMFilter::NAryNode::operator[](std::int32_t index) const
 {
     return *mNodes.at(static_cast<std::size_t>(index));
 }
 
-std::vector<int> CSMFilter::NAryNode::getReferencedColumns() const
+std::vector<std::int32_t> CSMFilter::NAryNode::getReferencedColumns() const
 {
-    std::vector<int> columns;
+    std::vector<std::int32_t> columns;
 
     for (const auto& node : mNodes)
     {
-        std::vector<int> columns2 = node->getReferencedColumns();
+        std::vector<std::int32_t> columns2 = node->getReferencedColumns();
 
         columns.insert(columns.end(), columns2.begin(), columns2.end());
     }
@@ -42,9 +44,9 @@ std::string CSMFilter::NAryNode::toString(bool numericColumns) const
     stream << mName << " (";
 
     bool first = true;
-    int size = getSize();
+    std::int32_t size = getSize();
 
-    for (int i = 0; i < size; ++i)
+    for (std::int32_t i = 0; i < size; ++i)
     {
         if (first)
             first = false;

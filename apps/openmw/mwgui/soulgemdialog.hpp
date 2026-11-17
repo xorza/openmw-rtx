@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwworld/ptr.hpp>
 
 namespace MWGui
@@ -17,7 +19,7 @@ namespace MWGui
 
         void show(const MWWorld::Ptr& soulgem);
 
-        void onButtonPressed(int button);
+        void onButtonPressed(std::int32_t button);
 
     private:
         MessageBoxManager* mManager;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <osg/BoundingBox>
@@ -52,8 +53,8 @@ namespace SceneUtil
             }
             else if (bbox.valid())
             {
-                for (int i = 0; i < 8; ++i)
-                    mBoundingBox.expandBy(bbox.corner(static_cast<unsigned int>(i)) * mMatrixStack.back());
+                for (std::int32_t i = 0; i < 8; ++i)
+                    mBoundingBox.expandBy(bbox.corner(static_cast<std::uint32_t>(i)) * mMatrixStack.back());
             }
         }
 

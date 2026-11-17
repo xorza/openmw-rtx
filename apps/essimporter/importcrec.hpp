@@ -17,7 +17,7 @@ namespace ESSImport
     /// Creature changes
     struct CREC
     {
-        int32_t mIndex{};
+        std::int32_t mIndex{};
 
         Inventory mInventory;
         ESM::AIPackageList mAiPackages;

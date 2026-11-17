@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/esm/refid.hpp>
 
 #include "referenceinterface.hpp"
@@ -23,12 +26,12 @@ namespace MWGui
         SpellBuyingWindow();
 
         void setPtr(const MWWorld::Ptr& actor) override;
-        void setPtr(const MWWorld::Ptr& actor, int startOffset);
+        void setPtr(const MWWorld::Ptr& actor, std::int32_t startOffset);
 
         void onFrame(float dt) override { checkReferenceAvailable(); }
         void clear() override { resetReference(); }
 
-        void onResChange(int, int) override { center(); }
+        void onResChange(std::int32_t, std::int32_t) override { center(); }
 
         std::string_view getWindowIdForLua() const override { return "SpellBuying"; }
 
@@ -40,14 +43,14 @@ namespace MWGui
 
         std::map<MyGUI::Widget*, ESM::RefId> mSpellsWidgetMap;
         /// List of enabled/purchasable spells and their index in the full list.
-        std::vector<std::pair<MyGUI::Button*, size_t>> mSpellButtons;
+        std::vector<std::pair<MyGUI::Button*, std::size_t>> mSpellButtons;
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onSpellButtonClick(MyGUI::Widget* sender);
-        void onMouseWheel(MyGUI::Widget* sender, int rel);
+        void onMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
         void addSpell(const ESM::Spell& spell);
         void clearSpells();
-        int mCurrentY;
+        std::int32_t mCurrentY;
 
         void updateLabels();
 
@@ -58,6 +61,6 @@ namespace MWGui
     private:
         static bool sortSpells(const ESM::Spell* left, const ESM::Spell* right);
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 }

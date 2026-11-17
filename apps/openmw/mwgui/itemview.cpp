@@ -1,6 +1,8 @@
 #include "itemview.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <MyGUI_FactoryManager.h>
@@ -47,14 +49,15 @@ namespace MWGui
         if (!mScrollView->getChildCount())
             return;
 
-        int x = 0;
-        int y = 0;
+        std::int32_t x = 0;
+        std::int32_t y = 0;
         MyGUI::Widget* dragArea = mScrollView->getChildAt(0);
-        int maxHeight = mScrollView->getHeight();
+        std::int32_t maxHeight = mScrollView->getHeight();
 
         mRows = std::max(maxHeight / 42, 1);
-        mItemCount = static_cast<int>(dragArea->getChildCount());
-        bool showScrollbar = static_cast<int>(std::ceil(static_cast<float>(mItemCount) / static_cast<float>(mRows)))
+        mItemCount = static_cast<std::int32_t>(dragArea->getChildCount());
+        bool showScrollbar
+            = static_cast<std::int32_t>(std::ceil(static_cast<float>(mItemCount) / static_cast<float>(mRows)))
             > mScrollView->getWidth() / 42;
         if (showScrollbar)
         {
@@ -62,7 +65,7 @@ namespace MWGui
             mRows = std::max(maxHeight / 42, 1);
         }
 
-        for (int i = 0; i < mItemCount; ++i)
+        for (std::int32_t i = 0; i < mItemCount; ++i)
         {
             MyGUI::Widget* w = dragArea->getChildAt(static_cast<std::size_t>(i));
 
@@ -129,7 +132,7 @@ namespace MWGui
             if (item.mType == ItemStack::Type_Equipped)
                 state = ItemWidget::Equip;
             itemWidget->setItem(item.mBase, state);
-            itemWidget->setCount(static_cast<int>(item.mCount));
+            itemWidget->setCount(static_cast<std::int32_t>(item.mCount));
 
             itemWidget->eventMouseButtonClick += MyGUI::newDelegate(this, &ItemView::onSelectedItem);
             itemWidget->eventMouseWheel += MyGUI::newDelegate(this, &ItemView::onMouseWheelMoved);
@@ -159,13 +162,13 @@ namespace MWGui
         eventBackgroundClicked();
     }
 
-    void ItemView::onMouseWheelMoved(MyGUI::Widget* /*sender*/, int rel)
+    void ItemView::onMouseWheelMoved(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (static_cast<float>(mScrollView->getViewOffset().left) + static_cast<float>(rel) * 0.3f > 0)
             mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mScrollView->setViewOffset(
-                MyGUI::IntPoint(static_cast<int>(static_cast<float>(mScrollView->getViewOffset().left)
+                MyGUI::IntPoint(static_cast<std::int32_t>(static_cast<float>(mScrollView->getViewOffset().left)
                                     + static_cast<float>(rel) * 0.3f),
                     0));
     }
@@ -204,12 +207,12 @@ namespace MWGui
             updateControllerFocus(mControllerFocus, -1);
     }
 
-    void ItemView::onControllerButton(const unsigned char button)
+    void ItemView::onControllerButton(const std::uint8_t button)
     {
         if (!mItemCount)
             return;
 
-        int prevFocus = mControllerFocus;
+        std::int32_t prevFocus = mControllerFocus;
         MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
 
         switch (button)
@@ -263,7 +266,7 @@ namespace MWGui
             updateControllerFocus(-1, mControllerFocus);
     }
 
-    void ItemView::updateControllerFocus(int prevFocus, int newFocus)
+    void ItemView::updateControllerFocus(std::int32_t prevFocus, std::int32_t newFocus)
     {
         if (!mItemCount)
             return;
@@ -285,7 +288,7 @@ namespace MWGui
                 focused->setControllerFocus(true);
 
                 // Scroll the list to keep the active item in view
-                int column = newFocus / mRows;
+                std::int32_t column = newFocus / mRows;
                 if (column <= 3)
                     mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
                 else

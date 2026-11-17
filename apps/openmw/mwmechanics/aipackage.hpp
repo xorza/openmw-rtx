@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <apps/openmw/mwworld/ptr.hpp>
@@ -34,7 +35,7 @@ namespace MWMechanics
     public:
         struct Options
         {
-            unsigned int mPriority = 0;
+            std::uint32_t mPriority = 0;
             bool mUseVariableSpeed = false;
             bool mSideWithTarget = false;
             bool mFollowTargetThroughDoors = false;
@@ -75,7 +76,7 @@ namespace MWMechanics
         AiPackageTypeId getTypeId() const { return mTypeId; }
 
         /// Higher number is higher priority (0 being the lowest)
-        unsigned int getPriority() const { return mOptions.mPriority; }
+        std::uint32_t getPriority() const { return mOptions.mPriority; }
 
         /// Check if package use movement with variable speed
         bool useVariableSpeed() const { return mOptions.mUseVariableSpeed; }
@@ -110,7 +111,7 @@ namespace MWMechanics
 
         virtual osg::Vec3f getDestination() const { return osg::Vec3f(0, 0, 0); }
 
-        virtual std::optional<int> getDistance() const { return std::nullopt; }
+        virtual std::optional<std::int32_t> getDistance() const { return std::nullopt; }
 
         virtual std::optional<float> getDuration() const { return std::nullopt; }
 
@@ -172,7 +173,7 @@ namespace MWMechanics
         mutable ESM::RefNum mTargetActor;
         osg::Vec3f mShortcutFailPos; // position of last shortcut fail
         float mLastDestinationTolerance = 0;
-        short mRotateOnTheRunChecks = 0; // attempts to check rotation to the pathpoint on the run possibility
+        std::int16_t mRotateOnTheRunChecks = 0; // attempts to check rotation to the pathpoint on the run possibility
         mutable bool mTargetNotFound = false;
         bool mIsShortcutting = false; // if shortcutting at the moment
         bool mShortcutProhibited = false; // shortcutting may be prohibited after unsuccessful attempt

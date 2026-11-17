@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <tuple>
 
 #include <components/resource/resourcemanager.hpp>
@@ -30,7 +31,7 @@ namespace Terrain
     struct TemplateKey
     {
         osg::Vec2f mCenter;
-        unsigned char mLod;
+        std::uint8_t mLod;
     };
 
     inline auto tie(const TemplateKey& v)
@@ -51,8 +52,8 @@ namespace Terrain
     struct ChunkKey
     {
         osg::Vec2f mCenter;
-        unsigned char mLod;
-        unsigned mLodFlags;
+        std::uint8_t mLod;
+        std::uint32_t mLodFlags;
     };
 
     inline auto tie(const ChunkKey& v)
@@ -77,27 +78,27 @@ namespace Terrain
         explicit ChunkManager(Storage* storage, Resource::SceneManager* sceneMgr, TextureManager* textureManager,
             CompositeMapRenderer* renderer, ESM::RefId worldspace, double expiryDelay);
 
-        osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, unsigned char lod, unsigned int lodFlags,
+        osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, std::uint8_t lod, std::uint32_t lodFlags,
             bool activeGrid, const osg::Vec3f& viewPoint, bool compile) override;
 
-        void setCompositeMapSize(unsigned int size) { mCompositeMapSize = size; }
+        void setCompositeMapSize(std::uint32_t size) { mCompositeMapSize = size; }
         void setCompositeMapLevel(float level) { mCompositeMapLevel = level; }
         void setMaxCompositeGeometrySize(float maxCompGeometrySize) { mMaxCompGeometrySize = maxCompGeometrySize; }
 
         void updateTextureFiltering();
 
-        void setNodeMask(unsigned int mask) { mNodeMask = mask; }
-        unsigned int getNodeMask() override { return mNodeMask; }
+        void setNodeMask(std::uint32_t mask) { mNodeMask = mask; }
+        std::uint32_t getNodeMask() override { return mNodeMask; }
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
         void clearCache() override;
 
         void releaseGLObjects(osg::State* state) override;
 
     private:
-        osg::ref_ptr<osg::Node> createChunk(float size, const osg::Vec2f& center, unsigned char lod,
-            unsigned int lodFlags, bool compile, const TerrainDrawable* templateGeometry);
+        osg::ref_ptr<osg::Node> createChunk(float size, const osg::Vec2f& center, std::uint8_t lod,
+            std::uint32_t lodFlags, bool compile, const TerrainDrawable* templateGeometry);
 
         osg::ref_ptr<osg::Texture2D> createCompositeMapRTT();
 
@@ -115,9 +116,9 @@ namespace Terrain
 
         osg::ref_ptr<osg::StateSet> mMultiPassRoot;
 
-        unsigned int mNodeMask;
+        std::uint32_t mNodeMask;
 
-        unsigned int mCompositeMapSize;
+        std::uint32_t mCompositeMapSize;
         float mCompositeMapLevel;
         float mMaxCompGeometrySize;
     };

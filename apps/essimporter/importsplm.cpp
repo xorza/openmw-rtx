@@ -1,5 +1,7 @@
 #include "importsplm.h"
 
+#include <cstdint>
+
 #include <components/esm3/esmreader.hpp>
 
 namespace ESSImport
@@ -35,7 +37,7 @@ namespace ESSImport
                 spell.mActiveEffects.push_back(effect);
             }
 
-            unsigned char xnam = 0; // sentinel
+            std::uint8_t xnam = 0; // sentinel
             esm.getHNT(xnam, "XNAM");
 
             mActiveSpells.push_back(std::move(spell));

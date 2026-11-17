@@ -1,5 +1,7 @@
 #include "processinvoker.hpp"
 
+#include <cstdint>
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QMessageBox>
@@ -13,8 +15,8 @@ Process::ProcessInvoker::ProcessInvoker(QObject* parent)
 
     connect(mProcess, &QProcess::errorOccurred, this, &ProcessInvoker::processError);
 
-    connect(
-        mProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, &ProcessInvoker::processFinished);
+    connect(mProcess, qOverload<std::int32_t, QProcess::ExitStatus>(&QProcess::finished), this,
+        &ProcessInvoker::processFinished);
 
     mName = QString();
     mArguments = QStringList();
@@ -170,7 +172,7 @@ void Process::ProcessInvoker::processError(QProcess::ProcessError error)
     msgBox.exec();
 }
 
-void Process::ProcessInvoker::processFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void Process::ProcessInvoker::processFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitCode != 0 || exitStatus == QProcess::CrashExit)
     {

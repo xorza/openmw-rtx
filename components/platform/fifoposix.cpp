@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -20,7 +21,7 @@ namespace Platform::Fifo
     File::Handle openForWriting(const std::filesystem::path& path)
     {
         // `O_NONBLOCK` on a write-only fifo is what turns "no reader" from a hang into `ENXIO`.
-        const int handle = ::open(path.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+        const std::int32_t handle = ::open(path.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
         if (handle == -1)
         {
             throw std::system_error(errno, std::generic_category(),
@@ -31,7 +32,7 @@ namespace Platform::Fifo
 
     void write(File::Handle handle, const void* data, std::size_t size)
     {
-        const ssize_t written = ::write(static_cast<int>(handle), data, size);
+        const ssize_t written = ::write(static_cast<std::int32_t>(handle), data, size);
         if (written == -1)
         {
             throw std::system_error(

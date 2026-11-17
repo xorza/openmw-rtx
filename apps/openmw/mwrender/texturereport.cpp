@@ -1,6 +1,8 @@
 #include "texturereport.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <ostream>
 #include <set>
 #include <string>
@@ -55,7 +57,7 @@ namespace MWRender
                 if (stateset)
                 {
                     const osg::StateSet::TextureAttributeList& texAttributes = stateset->getTextureAttributeList();
-                    for (unsigned i = 0; i < static_cast<unsigned>(texAttributes.size()); i++)
+                    for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(texAttributes.size()); i++)
                     {
                         const osg::StateAttribute* attr
                             = stateset->getTextureAttribute(i, osg::StateAttribute::TEXTURE);
@@ -108,7 +110,7 @@ namespace MWRender
             = dynamic_cast<const MWRender::NpcAnimation*>(MWBase::Environment::get().getWorld()->getAnimation(ptr));
         if (npcAnimation)
         {
-            for (int type = 0; type < ESM::PRT_Count; ++type)
+            for (std::int32_t type = 0; type < ESM::PRT_Count; ++type)
                 if (const auto* part = npcAnimation->getPart(static_cast<ESM::PartReferenceType>(type)))
                     visitor.mSkippedNodes.insert(part->getNode().get());
         }
@@ -138,7 +140,7 @@ namespace MWRender
         {
             msg << "[None]" << std::endl;
         }
-        for (int type = 0; npcAnimation && type < ESM::PRT_Count; ++type)
+        for (std::int32_t type = 0; npcAnimation && type < ESM::PRT_Count; ++type)
         {
             const auto* part = npcAnimation->getPart(static_cast<ESM::PartReferenceType>(type));
             if (!part)

@@ -1,5 +1,7 @@
 #include "animblendrulesmanager.hpp"
 
+#include <cstdint>
+
 #include <osg/Stats>
 
 #include <components/vfs/manager.hpp>
@@ -57,7 +59,7 @@ namespace Resource
         return blendRules;
     }
 
-    void AnimBlendRulesManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void AnimBlendRulesManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Blending Rules", frameNumber, mCache->getStats(), *stats);
     }

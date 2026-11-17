@@ -1,8 +1,10 @@
 
 #include "objectmarker.hpp"
 
-#include <QFile>
+#include <cstddef>
+#include <cstdint>
 
+#include <QFile>
 #include <osg/ClipPlane>
 #include <osg/PositionAttitudeTransform>
 #include <osgUtil/CullVisitor>
@@ -69,7 +71,7 @@ namespace
 
 namespace CSVRender
 {
-    ObjectMarkerTag::ObjectMarkerTag(Object* object, int axis)
+    ObjectMarkerTag::ObjectMarkerTag(Object* object, std::int32_t axis)
         : ObjectTag(object)
         , mAxis(axis)
     {
@@ -96,7 +98,8 @@ namespace CSVRender
 
         auto markerData = file.readAll();
 
-        mResourceSystem->getSceneManager()->loadSelectionMarker(mBaseNode, markerData.data(), markerData.size());
+        mResourceSystem->getSceneManager()->loadSelectionMarker(
+            mBaseNode, markerData.data(), static_cast<std::size_t>(markerData.size()));
         mResourceSystem->getSceneManager()->recreateShaders(mBaseNode);
 
         osg::ref_ptr<osg::StateSet> baseNodeState = mBaseNode->getOrCreateStateSet();
@@ -141,7 +144,7 @@ namespace CSVRender
         mBaseNode->setScale(osg::Vec3f(scale, scale, scale));
     }
 
-    void ObjectMarker::setSubMode(const int subMode)
+    void ObjectMarker::setSubMode(const std::int32_t subMode)
     {
         if (subMode == mSubMode)
             return;
@@ -205,11 +208,11 @@ namespace CSVRender
 
     void ObjectMarker::detachMarker()
     {
-        for (unsigned index = mRootNode->getNumParents(); index > 0;)
+        for (std::uint32_t index = mRootNode->getNumParents(); index > 0;)
             mRootNode->getParent(--index)->removeChild(mRootNode);
 
         osg::ref_ptr<osg::Group> widgetRoot = mMarkerNodes["unitArrows"]->asGroup();
-        for (unsigned index = widgetRoot->getNumChildren(); index > 0;)
+        for (std::uint32_t index = widgetRoot->getNumChildren(); index > 0;)
             widgetRoot->getChild(--index)->setNodeMask(Mask_Hidden);
     }
 
@@ -263,7 +266,7 @@ namespace CSVRender
         mLastHitNode.clear();
     }
 
-    void ObjectMarker::updateMarkerHighlight(const std::string_view hitNode, const int axis)
+    void ObjectMarker::updateMarkerHighlight(const std::string_view hitNode, const std::int32_t axis)
     {
         if (hitNode == mLastHitNode)
             return;

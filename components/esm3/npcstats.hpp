@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -23,8 +24,8 @@ namespace ESM
         struct Faction
         {
             bool mExpelled;
-            int32_t mRank;
-            int32_t mReputation;
+            std::int32_t mRank;
+            std::int32_t mReputation;
 
             Faction();
         };
@@ -32,18 +33,18 @@ namespace ESM
         bool mIsWerewolf{};
 
         std::map<ESM::RefId, Faction> mFactions;
-        int32_t mDisposition{};
-        int32_t mCrimeDispositionModifier{};
+        std::int32_t mDisposition{};
+        std::int32_t mCrimeDispositionModifier{};
         std::map<ESM::RefId, StatState<float>> mSkills;
-        int32_t mBounty{};
-        int32_t mReputation{};
-        int32_t mWerewolfKills{};
-        int32_t mLevelProgress{};
-        std::map<ESM::RefId, int32_t> mSkillIncrease;
-        std::array<int32_t, 3> mSpecIncreases{};
+        std::int32_t mBounty{};
+        std::int32_t mReputation{};
+        std::int32_t mWerewolfKills{};
+        std::int32_t mLevelProgress{};
+        std::map<ESM::RefId, std::int32_t> mSkillIncrease;
+        std::array<std::int32_t, 3> mSpecIncreases{};
         std::vector<ESM::RefId> mUsedIds;
         float mTimeToStartDrowning{};
-        int32_t mCrimeId{};
+        std::int32_t mCrimeId{};
 
         /// Initialize to default state
         void blank();

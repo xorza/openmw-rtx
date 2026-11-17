@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <ostream>
 #include <tuple>
 
@@ -11,13 +13,13 @@ namespace ESM
 {
     struct ExteriorCellLocation
     {
-        int mX = 0;
-        int mY = 0;
+        std::int32_t mX = 0;
+        std::int32_t mY = 0;
         ESM::RefId mWorldspace = ESM::Cell::sDefaultWorldspaceId;
 
         ExteriorCellLocation() = default;
 
-        ExteriorCellLocation(int x, int y, ESM::RefId worldspace)
+        ExteriorCellLocation(std::int32_t x, std::int32_t y, ESM::RefId worldspace)
             : mX(x)
             , mY(y)
             , mWorldspace(worldspace)
@@ -49,7 +51,7 @@ namespace std
             // second and third and combine them using XOR
             // and bit shifting:
 
-            return ((hash<int>()(toHash.mX) ^ (hash<int>()(toHash.mY) << 1)) >> 1)
+            return ((hash<std::int32_t>()(toHash.mX) ^ (hash<std::int32_t>()(toHash.mY) << 1)) >> 1)
                 ^ (hash<ESM::RefId>()(toHash.mWorldspace) << 1);
         }
     };

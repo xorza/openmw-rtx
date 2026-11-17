@@ -1,12 +1,15 @@
 #include "unshieldworker.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <fstream>
+
 #include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QReadLocker>
 #include <QStringList>
-#include <fstream>
 
 #include <components/files/qtconversion.hpp>
 
@@ -327,7 +330,7 @@ bool Wizard::UnshieldWorker::installFiles(
     if (!dir.exists())
         return false;
 
-    QStringList files(findFiles(fileName, path, static_cast<int>(flags)));
+    QStringList files(findFiles(fileName, path, static_cast<std::int32_t>(flags)));
 
     for (const QString& file : files)
     {
@@ -421,7 +424,7 @@ void Wizard::UnshieldWorker::extract()
     removeDirectory(getPath() + QDir::separator() + QStringLiteral("extract-temp"));
 
     // Fill the progress bar
-    int total = 0;
+    std::int32_t total = 0;
 
     if (getInstallComponent(Wizard::Component_Morrowind))
         total = 100;
@@ -784,13 +787,13 @@ bool Wizard::UnshieldWorker::installComponent(Component component, const QString
 }
 
 bool Wizard::UnshieldWorker::extractFile(
-    Unshield* unshield, const QString& destination, const QString& prefix, int index, int counter)
+    Unshield* unshield, const QString& destination, const QString& prefix, std::int32_t index, std::int32_t counter)
 {
     bool success = false;
     QString path(destination);
     path.append(QDir::separator());
 
-    int directory = unshield_file_directory(unshield, index);
+    std::int32_t directory = unshield_file_directory(unshield, index);
 
     if (!prefix.isEmpty())
         path.append(prefix + QDir::separator());
@@ -810,8 +813,8 @@ bool Wizard::UnshieldWorker::extractFile(
     path.append(QString::fromUtf8(unshield_file_name(unshield, index)));
 
     // Calculate the percentage done
-    int progress
-        = static_cast<int>(((static_cast<float>(counter) / static_cast<float>(unshield_file_count(unshield))) * 100));
+    auto progress = static_cast<std::int32_t>(
+        ((static_cast<float>(counter) / static_cast<float>(unshield_file_count(unshield))) * 100));
 
     if (getComponentDone(Wizard::Component_Morrowind))
         progress = progress + 100;
@@ -850,13 +853,13 @@ bool Wizard::UnshieldWorker::extractCab(const QString& cabFile, const QString& d
         return false;
     }
 
-    int counter = 0;
+    std::int32_t counter = 0;
 
-    for (int i = 0; i < unshield_file_group_count(unshield); ++i)
+    for (std::int32_t i = 0; i < unshield_file_group_count(unshield); ++i)
     {
         UnshieldFileGroup* group = unshield_file_group_get(unshield, i);
 
-        for (size_t j = group->first_file; j <= group->last_file; ++j)
+        for (std::size_t j = group->first_file; j <= group->last_file; ++j)
         {
             if (mStopped)
             {
@@ -866,13 +869,13 @@ bool Wizard::UnshieldWorker::extractCab(const QString& cabFile, const QString& d
                 return true;
             }
 
-            if (unshield_file_is_valid(unshield, static_cast<int>(j)))
+            if (unshield_file_is_valid(unshield, static_cast<std::int32_t>(j)))
             {
-                success = extractFile(unshield, destination, group->name, static_cast<int>(j), counter);
+                success = extractFile(unshield, destination, group->name, static_cast<std::int32_t>(j), counter);
 
                 if (!success)
                 {
-                    QString name(QString::fromUtf8(unshield_file_name(unshield, static_cast<int>(j))));
+                    QString name(QString::fromUtf8(unshield_file_name(unshield, static_cast<std::int32_t>(j))));
 
                     emit error(tr("Failed to extract %1.").arg(name),
                         tr("Complete path: %1").arg(destination + QDir::separator() + name));
@@ -895,10 +898,10 @@ QString Wizard::UnshieldWorker::findFile(const QString& fileName, const QString&
     return findFiles(fileName, path).first();
 }
 
-QStringList Wizard::UnshieldWorker::findFiles(
-    const QString& fileName, const QString& path, int depth, bool recursive, bool directories, Qt::MatchFlags flags)
+QStringList Wizard::UnshieldWorker::findFiles(const QString& fileName, const QString& path, std::int32_t depth,
+    bool recursive, bool directories, Qt::MatchFlags flags)
 {
-    constexpr int maximumDepth = 10;
+    constexpr std::int32_t maximumDepth = 10;
 
     if (depth >= maximumDepth)
     {
@@ -985,16 +988,16 @@ bool Wizard::UnshieldWorker::findInCab(const QString& fileName, const QString& c
         return false;
     }
 
-    for (int i = 0; i < unshield_file_group_count(unshield); ++i)
+    for (std::int32_t i = 0; i < unshield_file_group_count(unshield); ++i)
     {
         UnshieldFileGroup* group = unshield_file_group_get(unshield, i);
 
-        for (size_t j = group->first_file; j <= group->last_file; ++j)
+        for (std::size_t j = group->first_file; j <= group->last_file; ++j)
         {
 
-            if (unshield_file_is_valid(unshield, static_cast<int>(j)))
+            if (unshield_file_is_valid(unshield, static_cast<std::int32_t>(j)))
             {
-                QString current(QString::fromUtf8(unshield_file_name(unshield, static_cast<int>(j))));
+                QString current(QString::fromUtf8(unshield_file_name(unshield, static_cast<std::int32_t>(j))));
                 if (current.toLower() == fileName.toLower())
                 {
                     unshield_close(unshield);
@@ -1008,7 +1011,7 @@ bool Wizard::UnshieldWorker::findInCab(const QString& fileName, const QString& c
     return false;
 }
 
-size_t Wizard::UnshieldWorker::getMorrowindBsaFileSize(const QString& cabFile)
+std::size_t Wizard::UnshieldWorker::getMorrowindBsaFileSize(const QString& cabFile)
 {
     QString fileName = QString("Morrowind.bsa");
     QByteArray array(cabFile.toUtf8());
@@ -1023,19 +1026,19 @@ size_t Wizard::UnshieldWorker::getMorrowindBsaFileSize(const QString& cabFile)
         return false;
     }
 
-    for (int i = 0; i < unshield_file_group_count(unshield); ++i)
+    for (std::int32_t i = 0; i < unshield_file_group_count(unshield); ++i)
     {
         UnshieldFileGroup* group = unshield_file_group_get(unshield, i);
 
-        for (size_t j = group->first_file; j <= group->last_file; ++j)
+        for (std::size_t j = group->first_file; j <= group->last_file; ++j)
         {
 
-            if (unshield_file_is_valid(unshield, static_cast<int>(j)))
+            if (unshield_file_is_valid(unshield, static_cast<std::int32_t>(j)))
             {
-                QString current(QString::fromUtf8(unshield_file_name(unshield, static_cast<int>(j))));
+                QString current(QString::fromUtf8(unshield_file_name(unshield, static_cast<std::int32_t>(j))));
                 if (current.toLower() == fileName.toLower())
                 {
-                    size_t fileSize = unshield_file_size(unshield, static_cast<int>(j));
+                    std::size_t fileSize = unshield_file_size(unshield, static_cast<std::int32_t>(j));
                     unshield_close(unshield);
                     return fileSize; // File is found!
                 }

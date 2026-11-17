@@ -2,6 +2,7 @@
 
 #include <charconv>
 #include <cmath>
+#include <cstdint>
 #include <format>
 #include <limits>
 #include <regex>
@@ -19,7 +20,7 @@ namespace LuaUtil
 {
     namespace
     {
-        constexpr uint64_t maxDepth = 250;
+        constexpr std::uint64_t maxDepth = 250;
 
         enum class ScalarType
         {
@@ -36,11 +37,11 @@ namespace LuaUtil
 
         sol::object loadAll(const std::vector<YAML::Node>& rootNodes, const sol::state_view& lua);
 
-        sol::object getNode(const YAML::Node& node, const sol::state_view& lua, uint64_t depth);
+        sol::object getNode(const YAML::Node& node, const sol::state_view& lua, std::uint64_t depth);
 
-        sol::table getMap(const YAML::Node& node, const sol::state_view& lua, uint64_t depth);
+        sol::table getMap(const YAML::Node& node, const sol::state_view& lua, std::uint64_t depth);
 
-        sol::table getArray(const YAML::Node& node, const sol::state_view& lua, uint64_t depth);
+        sol::table getArray(const YAML::Node& node, const sol::state_view& lua, std::uint64_t depth);
 
         ScalarType getScalarType(const YAML::Node& node);
 
@@ -80,7 +81,7 @@ namespace LuaUtil
             return documentsTable;
         }
 
-        sol::object getNode(const YAML::Node& node, const sol::state_view& lua, uint64_t depth)
+        sol::object getNode(const YAML::Node& node, const sol::state_view& lua, std::uint64_t depth)
         {
             if (depth >= maxDepth)
                 throw std::runtime_error("Maximum layers depth exceeded, probably caused by a circular reference");
@@ -99,7 +100,7 @@ namespace LuaUtil
             nodeError(node, "An unknown YAML node encountered");
         }
 
-        sol::table getMap(const YAML::Node& node, const sol::state_view& lua, uint64_t depth)
+        sol::table getMap(const YAML::Node& node, const sol::state_view& lua, std::uint64_t depth)
         {
             sol::table childTable(lua, sol::create);
 
@@ -122,7 +123,7 @@ namespace LuaUtil
             return childTable;
         }
 
-        sol::table getArray(const YAML::Node& node, const sol::state_view& lua, uint64_t depth)
+        sol::table getArray(const YAML::Node& node, const sol::state_view& lua, std::uint64_t depth)
         {
             sol::table childTable(lua, sol::create);
 
@@ -222,16 +223,16 @@ namespace LuaUtil
                 }
                 case ScalarType::Decimal:
                 {
-                    int offset = 0;
+                    std::int32_t offset = 0;
 
                     // std::from_chars does not support "+" sign
                     if (!value.empty() && value[0] == '+')
                         ++offset;
 
-                    int result = 0;
+                    std::int32_t result = 0;
                     const auto status = std::from_chars(value.data() + offset, value.data() + value.size(), result);
                     if (status.ec == std::errc())
-                        return sol::make_object<int>(lua, result);
+                        return sol::make_object<std::int32_t>(lua, result);
 
                     nodeError(node, "Can not read a decimal value '" + value + "'");
                 }
@@ -247,19 +248,19 @@ namespace LuaUtil
                 }
                 case ScalarType::Hexadecimal:
                 {
-                    int result = 0;
+                    std::int32_t result = 0;
                     const auto status = std::from_chars(value.data() + 2, value.data() + value.size(), result, 16);
                     if (status.ec == std::errc())
-                        return sol::make_object<int>(lua, result);
+                        return sol::make_object<std::int32_t>(lua, result);
 
                     nodeError(node, "Can not read a hexadecimal value '" + value + "'");
                 }
                 case ScalarType::Octal:
                 {
-                    int result = 0;
+                    std::int32_t result = 0;
                     const auto status = std::from_chars(value.data() + 2, value.data() + value.size(), result, 8);
                     if (status.ec == std::errc())
-                        return sol::make_object<int>(lua, result);
+                        return sol::make_object<std::int32_t>(lua, result);
 
                     nodeError(node, "Can not read an octal value '" + value + "'");
                 }

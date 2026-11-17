@@ -1,5 +1,7 @@
 #include "timeadvancer.hpp"
 
+#include <cstdint>
+
 namespace
 {
     // Time per hour tick
@@ -17,7 +19,7 @@ namespace MWGui
     {
     }
 
-    void TimeAdvancer::run(int hours, int interruptAt)
+    void TimeAdvancer::run(std::int32_t hours, std::int32_t interruptAt)
     {
         mHours = hours;
         mCurHour = 0;
@@ -62,7 +64,7 @@ namespace MWGui
         }
     }
 
-    int TimeAdvancer::getHours() const
+    std::int32_t TimeAdvancer::getHours() const
     {
         return mHours;
     }

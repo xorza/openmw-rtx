@@ -1,9 +1,11 @@
 #include "dragrecordtable.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <string>
+
 #include <QDrag>
 #include <QDragEnterEvent>
-#include <algorithm>
-#include <string>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
@@ -112,11 +114,11 @@ CSMWorld::ColumnBase::Display CSVWorld::DragRecordTable::getIndexDisplayType(con
     return CSMWorld::ColumnBase::Display_None;
 }
 
-int CSVWorld::DragRecordTable::sizeHintForColumn(int column) const
+std::int32_t CSVWorld::DragRecordTable::sizeHintForColumn(std::int32_t column) const
 {
     // Prevent the column width from getting too long or too short
-    constexpr int minWidth = 100;
-    constexpr int maxWidth = 300;
-    int width = QTableView::sizeHintForColumn(column);
+    constexpr std::int32_t minWidth = 100;
+    constexpr std::int32_t maxWidth = 300;
+    std::int32_t width = QTableView::sizeHintForColumn(column);
     return std::clamp(width, minWidth, maxWidth);
 }

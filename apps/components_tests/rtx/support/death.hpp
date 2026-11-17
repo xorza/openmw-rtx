@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
@@ -49,7 +50,7 @@ namespace Rtx::Testing
     inline void expectDies(const std::function<void()>& statement, std::string_view message,
         std::source_location where = std::source_location::current())
     {
-        const ::testing::ScopedTrace trace(where.file_name(), static_cast<int>(where.line()), "expectDies");
+        const ::testing::ScopedTrace trace(where.file_name(), static_cast<std::int32_t>(where.line()), "expectDies");
 
         Platform::Process::setEnvironment(sDeathChildVariable, "1");
 
@@ -59,7 +60,8 @@ namespace Rtx::Testing
                 std::set_terminate([] {
                     char reason[Crash::sNoteCapacity];
                     const std::string_view said = Crash::terminateReason(reason);
-                    static_cast<void>(std::fprintf(stderr, "%.*s\n", static_cast<int>(said.size()), said.data()));
+                    static_cast<void>(
+                        std::fprintf(stderr, "%.*s\n", static_cast<std::int32_t>(said.size()), said.data()));
                     std::abort();
                 });
                 statement();

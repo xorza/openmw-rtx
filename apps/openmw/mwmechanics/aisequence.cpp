@@ -1,6 +1,7 @@
 #include "aisequence.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -497,9 +498,9 @@ namespace MWMechanics
             if (esmPackage.mType == ESM::AI_Wander)
             {
                 ESM::AIWander data = esmPackage.mWander;
-                std::vector<unsigned char> idles;
+                std::vector<std::uint8_t> idles;
                 idles.reserve(8);
-                for (unsigned char i : data.mIdle)
+                for (std::uint8_t i : data.mIdle)
                     idles.push_back(i);
                 package = std::make_unique<MWMechanics::AiWander>(
                     data.mDistance, data.mDuration, data.mTimeOfDay, idles, data.mShouldRepeat != 0);
@@ -538,7 +539,7 @@ namespace MWMechanics
         for (const auto& package : mPackages)
             package->writeState(sequence);
 
-        sequence.mLastAiPackage = static_cast<int>(mLastAiPackage);
+        sequence.mLastAiPackage = static_cast<std::int32_t>(mLastAiPackage);
     }
 
     void AiSequence::readState(const ESM::AiSequence::AiSequence& sequence)
@@ -610,7 +611,7 @@ namespace MWMechanics
                 continue;
             if (hasTarget && sequence.mActorIdConverter)
                 sequence.mActorIdConverter->convert(
-                    package->mTargetActor, static_cast<int>(package->mTargetActor.mIndex));
+                    package->mTargetActor, static_cast<std::int32_t>(package->mTargetActor.mIndex));
 
             onPackageAdded(*package);
             mPackages.push_back(std::move(package));

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_ScrollBar.h>
 
@@ -20,11 +21,11 @@ namespace Gui
 
     protected:
         void initialiseOverride() override;
-        void onMouseWheel(int rel) override;
+        void onMouseWheel(std::int32_t rel) override;
 
     private:
-        void notifyReleased(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void notifyWheel(MyGUI::Widget* sender, int rel);
+        void notifyReleased(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void notifyWheel(MyGUI::Widget* sender, std::int32_t rel);
 
         void settle();
     };

@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <format>
 #include <stdexcept>
 #include <vector>
@@ -11,10 +12,10 @@ namespace Spt
     {
         std::vector<SPTCompositeMapData::Quad> readQuads(SPTStream& stream)
         {
-            uint32_t n = 0;
+            std::uint32_t n = 0;
             stream.read(n);
             std::vector<SPTCompositeMapData::Quad> quads;
-            for (uint32_t i = 0; i < n; ++i)
+            for (std::uint32_t i = 0; i < n; ++i)
             {
                 SPTCompositeMapData::Quad quad;
                 for (auto& corner : quad.mCorners)
@@ -29,7 +30,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 10001)
                 return;
             switch (section)
@@ -62,7 +63,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 20001)
                 return;
             switch (section)

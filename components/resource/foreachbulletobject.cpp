@@ -1,6 +1,8 @@
 #include "foreachbulletobject.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -58,7 +60,7 @@ namespace Resource
             {
                 const ESM::ReadersCache::BusyItem reader
                     = readers.get(static_cast<std::size_t>(cell.mContextList[i].index));
-                cell.restore(*reader, static_cast<std::size_t>(static_cast<int>(i)));
+                cell.restore(*reader, static_cast<std::size_t>(static_cast<std::int32_t>(i)));
                 ESM::CellRef cellRef;
                 bool deleted = false;
                 while (ESM::Cell::getNextRef(*reader, cellRef, deleted))

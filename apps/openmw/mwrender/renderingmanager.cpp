@@ -1,5 +1,7 @@
 #include "renderingmanager.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <optional>
 #include <sstream>
@@ -590,7 +592,7 @@ namespace MWRender
         mPrecipitation->setWaterHeight(height);
     }
 
-    std::vector<char> RenderingManager::screenshot(int w, int h)
+    std::vector<char> RenderingManager::screenshot(std::int32_t w, std::int32_t h)
     {
         osg::ref_ptr<osg::Image> image(new osg::Image);
         mRenderer.capture(*image, w, h);
@@ -619,7 +621,7 @@ namespace MWRender
         return std::vector<char>(data.begin(), data.end());
     }
 
-    osg::BoundingBox RenderingManager::getObjectBounds(const MWWorld::Ptr& ptr, unsigned int ignoreMask) const
+    osg::BoundingBox RenderingManager::getObjectBounds(const MWWorld::Ptr& ptr, std::uint32_t ignoreMask) const
     {
         SceneUtil::PositionAttitudeTransform* baseNode = ptr.getRefData().getBaseNode();
         if (baseNode == nullptr)
@@ -684,10 +686,10 @@ namespace MWRender
                 if (hitPtr)
                     result.mHitObject = *hitPtr;
 
-                unsigned int vertexCounter = 0;
+                std::uint32_t vertexCounter = 0;
                 for (auto& refnumMarker : refnumMarkers)
                 {
-                    unsigned int intersectionIndex = intersection.indexList.empty() ? 0 : intersection.indexList[0];
+                    std::uint32_t intersectionIndex = intersection.indexList.empty() ? 0 : intersection.indexList[0];
                     if (!refnumMarker->mNumVertices
                         || (intersectionIndex >= vertexCounter
                             && intersectionIndex < vertexCounter + refnumMarker->mNumVertices))
@@ -812,7 +814,7 @@ namespace MWRender
 
         // `Mask_GUI` is drawn over the world, not in it: the present pass's quad stands across the
         // whole view and would be the nearest hit of every ray through it.
-        unsigned int mask = ~0u;
+        std::uint32_t mask = ~0u;
         mask &= ~(Mask_GUI | Mask_RenderToTexture | Mask_Sky | Mask_Debug | Mask_Effect | Mask_Water | Mask_SimpleWater
             | Mask_Groundcover);
         if (ignorePlayer)
@@ -1082,7 +1084,7 @@ namespace MWRender
     void RenderingManager::reportStats() const
     {
         osg::Stats* stats = &mRenderer.getStats();
-        unsigned int frameNumber = mRenderer.getFrameStamp().getFrameNumber();
+        std::uint32_t frameNumber = mRenderer.getFrameStamp().getFrameNumber();
         if (stats->collectStats("resource"))
         {
             mTerrain->reportStats(frameNumber, stats);
@@ -1327,17 +1329,18 @@ namespace MWRender
     {
         mTerrain->setActiveGrid(grid);
     }
-    bool RenderingManager::pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled)
+    bool RenderingManager::pagingEnableObject(std::int32_t type, const MWWorld::ConstPtr& ptr, bool enabled)
     {
         if (!ptr.isInCell() || !ptr.getCell()->isExterior())
             return false;
         return mGround->enableReference(type, ptr, enabled);
     }
-    void RenderingManager::pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr)
+    void RenderingManager::pagingBlacklistObject(std::int32_t type, const MWWorld::ConstPtr& ptr)
     {
         pagingMovedObject(type, ptr, ptr);
     }
-    void RenderingManager::pagingMovedObject(int type, const MWWorld::ConstPtr& from, const MWWorld::ConstPtr& to)
+    void RenderingManager::pagingMovedObject(
+        std::int32_t type, const MWWorld::ConstPtr& from, const MWWorld::ConstPtr& to)
     {
         if (!from.isInCell() || !from.getCell()->isExterior())
             return;

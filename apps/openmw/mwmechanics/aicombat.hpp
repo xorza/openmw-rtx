@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwworld/cellstore.hpp> // for Doors
 #include <components/esm3/loadpgrd.hpp>
 
@@ -115,8 +117,8 @@ namespace MWMechanics
 
         /// Transfer desired movement (from AiCombatStorage) to Actor
         void updateActorsMovement(const MWWorld::Ptr& actor, float duration, AiCombatStorage& storage);
-        void rotateActorOnAxis(const MWWorld::Ptr& actor, int axis, MWMechanics::Movement& actorMovementSettings,
-            AiCombatStorage& storage);
+        void rotateActorOnAxis(const MWWorld::Ptr& actor, std::int32_t axis,
+            MWMechanics::Movement& actorMovementSettings, AiCombatStorage& storage);
     };
 
 }

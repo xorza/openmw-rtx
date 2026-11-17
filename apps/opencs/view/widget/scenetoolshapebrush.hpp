@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QFrame>
 #include <QGroupBox>
 #include <QSlider>
@@ -65,7 +67,7 @@ namespace CSVWidget
 
     private:
         CSVWidget::BrushShape mBrushShape = CSVWidget::BrushShape_Point;
-        int mBrushSize = 1;
+        std::int32_t mBrushSize = 1;
         CSMDoc::Document& mDocument;
         QGroupBox* mHorizontalGroupBox;
         QComboBox* mToolSelector;
@@ -81,10 +83,10 @@ namespace CSVWidget
 
     public slots:
         void setBrushShape();
-        void setBrushSize(int brushSize);
+        void setBrushSize(std::int32_t brushSize);
 
     signals:
-        void passBrushSize(int brushSize);
+        void passBrushSize(std::int32_t brushSize);
         void passBrushShape(CSVWidget::BrushShape brushShape);
     };
 

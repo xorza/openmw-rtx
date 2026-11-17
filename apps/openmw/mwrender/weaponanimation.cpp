@@ -1,5 +1,7 @@
 #include "weaponanimation.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/soundmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -170,7 +172,7 @@ namespace MWRender
     void WeaponAnimation::addControllers(const Animation::NodeMap& nodes,
         std::vector<std::pair<osg::ref_ptr<osg::Node>, osg::ref_ptr<osg::Callback>>>& map, osg::Node* objectRoot)
     {
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
             mSpineControllers[i] = nullptr;
 

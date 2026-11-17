@@ -1,6 +1,8 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include <components/debug/debuglog.hpp>
@@ -18,19 +20,19 @@ namespace DetourNavigator
         float mMaxSlope = 0;
         float mRecastScaleFactor = 0;
         float mSwimHeightScale = 0;
-        int mBorderSize = 0;
-        int mMaxEdgeLen = 0;
-        int mMaxVertsPerPoly = 0;
-        int mRegionMergeArea = 0;
-        int mRegionMinArea = 0;
-        int mTileSize = 0;
+        std::int32_t mBorderSize = 0;
+        std::int32_t mMaxEdgeLen = 0;
+        std::int32_t mMaxVertsPerPoly = 0;
+        std::int32_t mRegionMergeArea = 0;
+        std::int32_t mRegionMinArea = 0;
+        std::int32_t mTileSize = 0;
         Debug::Level mMaxLogLevel = Debug::Error;
     };
 
     struct DetourSettings
     {
-        int mMaxPolys = 0;
-        int mMaxNavMeshQueryNodes = 0;
+        std::int32_t mMaxPolys = 0;
+        std::int32_t mMaxNavMeshQueryNodes = 0;
         std::size_t mMaxPolygonPathSize = 0;
         std::size_t mMaxSmoothPathSize = 0;
     };
@@ -44,8 +46,8 @@ namespace DetourNavigator
         bool mEnableNavMeshDiskCache = false;
         RecastSettings mRecast;
         DetourSettings mDetour;
-        int mWaitUntilMinDistanceToPlayer = 0;
-        int mMaxTilesNumber = 0;
+        std::int32_t mWaitUntilMinDistanceToPlayer = 0;
+        std::int32_t mMaxTilesNumber = 0;
         std::size_t mAsyncNavMeshUpdaterThreads = 0;
         std::size_t mMaxNavMeshTilesCacheSize = 0;
         std::string mRecastMeshPathPrefix;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -15,17 +16,17 @@ namespace Interpreter
 
         virtual ESM::RefId getTarget() const = 0;
 
-        virtual int getLocalShort(int index) const = 0;
+        virtual std::int32_t getLocalShort(std::int32_t index) const = 0;
 
-        virtual int getLocalLong(int index) const = 0;
+        virtual std::int32_t getLocalLong(std::int32_t index) const = 0;
 
-        virtual float getLocalFloat(int index) const = 0;
+        virtual float getLocalFloat(std::int32_t index) const = 0;
 
-        virtual void setLocalShort(int index, int value) = 0;
+        virtual void setLocalShort(std::int32_t index, std::int32_t value) = 0;
 
-        virtual void setLocalLong(int index, int value) = 0;
+        virtual void setLocalLong(std::int32_t index, std::int32_t value) = 0;
 
-        virtual void setLocalFloat(int index, float value) = 0;
+        virtual void setLocalFloat(std::int32_t index, float value) = 0;
 
         virtual void messageBox(std::string_view message, const std::vector<std::string>& buttons) = 0;
 
@@ -37,15 +38,15 @@ namespace Interpreter
 
         virtual void report(const std::string& message) = 0;
 
-        virtual int getGlobalShort(std::string_view name) const = 0;
+        virtual std::int32_t getGlobalShort(std::string_view name) const = 0;
 
-        virtual int getGlobalLong(std::string_view name) const = 0;
+        virtual std::int32_t getGlobalLong(std::string_view name) const = 0;
 
         virtual float getGlobalFloat(std::string_view name) const = 0;
 
-        virtual void setGlobalShort(std::string_view name, int value) = 0;
+        virtual void setGlobalShort(std::string_view name, std::int32_t value) = 0;
 
-        virtual void setGlobalLong(std::string_view name, int value) = 0;
+        virtual void setGlobalLong(std::string_view name, std::int32_t value) = 0;
 
         virtual void setGlobalFloat(std::string_view name, float value) = 0;
 
@@ -75,19 +76,19 @@ namespace Interpreter
 
         virtual std::string_view getPCNextRank() const = 0;
 
-        virtual int getPCBounty() const = 0;
+        virtual std::int32_t getPCBounty() const = 0;
 
         virtual std::string_view getCurrentCellName() const = 0;
 
-        virtual int getMemberShort(ESM::RefId id, std::string_view name, bool global) const = 0;
+        virtual std::int32_t getMemberShort(ESM::RefId id, std::string_view name, bool global) const = 0;
 
-        virtual int getMemberLong(ESM::RefId id, std::string_view name, bool global) const = 0;
+        virtual std::int32_t getMemberLong(ESM::RefId id, std::string_view name, bool global) const = 0;
 
         virtual float getMemberFloat(ESM::RefId id, std::string_view name, bool global) const = 0;
 
-        virtual void setMemberShort(ESM::RefId id, std::string_view name, int value, bool global) = 0;
+        virtual void setMemberShort(ESM::RefId id, std::string_view name, std::int32_t value, bool global) = 0;
 
-        virtual void setMemberLong(ESM::RefId id, std::string_view name, int value, bool global) = 0;
+        virtual void setMemberLong(ESM::RefId id, std::string_view name, std::int32_t value, bool global) = 0;
 
         virtual void setMemberFloat(ESM::RefId id, std::string_view name, float value, bool global) = 0;
     };

@@ -34,14 +34,14 @@ namespace ESM
 
         struct AADTstruct
         {
-            int32_t mType;
+            std::int32_t mType;
             float mQuality;
             float mWeight;
-            int32_t mValue;
+            std::int32_t mValue;
         };
 
         AADTstruct mData{};
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mScript;
         std::string mName;
         Path mModel;

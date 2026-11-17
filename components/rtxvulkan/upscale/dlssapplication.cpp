@@ -49,9 +49,9 @@ namespace Rtx::Dlss
 
         CoreExtensions coreExtensions(const Ngx::Api& ngx)
         {
-            unsigned int instanceCount = 0;
+            std::uint32_t instanceCount = 0;
             const char** instance = nullptr;
-            unsigned int deviceCount = 0;
+            std::uint32_t deviceCount = 0;
             const char** device = nullptr;
             if (Ngx::failed(ngx.RequiredExtensions(&instanceCount, &instance, &deviceCount, &device)))
                 return {};

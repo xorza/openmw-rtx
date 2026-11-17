@@ -1,11 +1,12 @@
 #pragma once
 
+#include <filesystem>
+
 #include <QFile>
 #include <QMultiMap>
 #include <QString>
 #include <QStringList>
 #include <QTextStream>
-#include <filesystem>
 
 namespace Files
 {

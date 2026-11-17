@@ -1,5 +1,10 @@
 #include "scenetooltexturebrush.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+
 #include <QButtonGroup>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -17,8 +22,6 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <algorithm>
-#include <utility>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
@@ -61,7 +64,7 @@ CSVWidget::BrushSizeControls::BrushSizeControls(const QString& title, QWidget* p
     mLayoutSliderSize->addWidget(mBrushSizeSpinBox);
 
     connect(mBrushSizeSlider, &QSlider::valueChanged, mBrushSizeSpinBox, &QSpinBox::setValue);
-    connect(mBrushSizeSpinBox, qOverload<int>(&QSpinBox::valueChanged), mBrushSizeSlider, &QSlider::setValue);
+    connect(mBrushSizeSpinBox, qOverload<std::int32_t>(&QSpinBox::valueChanged), mBrushSizeSlider, &QSlider::setValue);
 
     setLayout(mLayoutSliderSize);
 }
@@ -74,8 +77,8 @@ CSVWidget::TextureBrushWindow::TextureBrushWindow(CSMDoc::Document& document, QW
 
     CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = mDocument.getData().getLandTextures();
 
-    int landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
-    const int index = landtexturesCollection.searchId(mBrushTexture);
+    std::int32_t landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
+    const std::int32_t index = landtexturesCollection.searchId(mBrushTexture);
 
     if (index != -1 && !landtexturesCollection.getRecord(index).isDeleted())
     {
@@ -159,9 +162,9 @@ void CSVWidget::TextureBrushWindow::setBrushTexture(ESM::RefId brushTexture)
     QUndoStack& undoStack = mDocument.getUndoStack();
 
     CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = mDocument.getData().getLandTextures();
-    int landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
+    std::int32_t landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
 
-    int row = landtexturesCollection.getIndex(brushTexture);
+    std::int32_t row = landtexturesCollection.getIndex(brushTexture);
     const auto& record = landtexturesCollection.getRecord(row);
 
     if (!record.isDeleted())
@@ -189,7 +192,7 @@ void CSVWidget::TextureBrushWindow::setBrushTexture(ESM::RefId brushTexture)
     emit passBrushShape(mBrushShape); // updates the icon tooltip
 }
 
-void CSVWidget::TextureBrushWindow::setBrushSize(int brushSize)
+void CSVWidget::TextureBrushWindow::setBrushSize(std::int32_t brushSize)
 {
     mBrushSize = brushSize;
     emit passBrushSize(mBrushSize);
@@ -278,8 +281,8 @@ void CSVWidget::SceneToolTextureBrush::setButtonIcon(CSVWidget::BrushShape brush
 
     CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = mDocument.getData().getLandTextures();
 
-    int landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
-    const int index = landtexturesCollection.searchId(mTextureBrushWindow->mBrushTexture);
+    std::int32_t landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
+    const std::int32_t index = landtexturesCollection.searchId(mTextureBrushWindow->mBrushTexture);
 
     if (index != -1 && !landtexturesCollection.getRecord(index).isDeleted())
     {
@@ -306,14 +309,14 @@ void CSVWidget::SceneToolTextureBrush::showPanel(const QPoint& position)
 
 void CSVWidget::SceneToolTextureBrush::updatePanel()
 {
-    mTable->setRowCount(static_cast<int>(mBrushHistory.size()));
+    mTable->setRowCount(static_cast<std::int32_t>(mBrushHistory.size()));
 
-    for (size_t i = mBrushHistory.size(); i > 0; --i)
+    for (std::size_t i = mBrushHistory.size(); i > 0; --i)
     {
         CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = mDocument.getData().getLandTextures();
-        int landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
-        const int index = landtexturesCollection.searchId(mBrushHistory[i - 1]);
-        const int row = static_cast<int>(i - 1);
+        std::int32_t landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
+        const std::int32_t index = landtexturesCollection.searchId(mBrushHistory[i - 1]);
+        const auto row = static_cast<std::int32_t>(i - 1);
 
         if (index != -1 && !landtexturesCollection.getRecord(index).isDeleted())
         {

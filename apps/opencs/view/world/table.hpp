@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -78,7 +79,7 @@ namespace CSVWorld
         TableEditIdAction* mEditIdAction;
         CSMWorld::IdTableProxyModel* mProxyModel;
         CSMWorld::IdTableBase* mModel;
-        int mRecordStatusDisplay;
+        std::int32_t mRecordStatusDisplay;
         CSMWorld::CommandDispatcher* mDispatcher;
         std::map<Qt::KeyboardModifiers, DoubleClickAction> mDoubleClickActions;
         bool mJumpToAddedRecord;
@@ -102,7 +103,7 @@ namespace CSVWorld
         // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         virtual void setEditLock(bool locked);
 
-        CSMWorld::UniversalId getUniversalId(int row) const;
+        CSMWorld::UniversalId getUniversalId(std::int32_t row) const;
 
         std::vector<std::string> getColumnsWithDisplay(CSMWorld::ColumnBase::Display display) const;
 
@@ -114,9 +115,9 @@ namespace CSVWorld
 
         void editRequest(const CSMWorld::UniversalId& id, const std::string& hint);
 
-        void selectionSizeChanged(int size);
+        void selectionSizeChanged(std::int32_t size);
 
-        void tableSizeChanged(int size, int deleted, int modified);
+        void tableSizeChanged(std::int32_t size, std::int32_t deleted, std::int32_t modified);
         ///< \param size Number of not deleted records
         /// \param deleted Number of deleted records
         /// \param modified Number of added and modified records
@@ -177,8 +178,8 @@ namespace CSVWorld
 
         void dataChangedEvent(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void jumpAfterModChanged(int state);
+        void jumpAfterModChanged(std::int32_t state);
 
-        void queuedScrollTo(int row);
+        void queuedScrollTo(std::int32_t row);
     };
 }

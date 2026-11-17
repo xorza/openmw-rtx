@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
@@ -117,10 +119,10 @@ namespace LuaUtil
         // new script, adds it to the container, and calls onInit for this script. Returns `true` if the script was
         // successfully added. The script should have CUSTOM flag. If the flag is not set, or file not found, or has
         // syntax errors, returns false. If such script already exists in the container, then also returns false.
-        bool addCustomScript(int scriptId, std::string_view initData = {});
+        bool addCustomScript(std::int32_t scriptId, std::string_view initData = {});
 
-        bool hasScript(int scriptId) const;
-        void removeScript(int scriptId);
+        bool hasScript(std::int32_t scriptId) const;
+        void removeScript(std::int32_t scriptId);
 
         // While paused, only real-time timers are processed
         void processTimers(double simulationTime, double gameTime, double realTime, bool isPaused = false);
@@ -158,7 +160,8 @@ namespace LuaUtil
 
         // Callbacks for serializable timers should be registered in advance.
         // The script with the given path should already present in the container.
-        void registerTimerCallback(int scriptId, std::string_view callbackName, sol::main_protected_function callback);
+        void registerTimerCallback(
+            std::int32_t scriptId, std::string_view callbackName, sol::main_protected_function callback);
 
         // Sets up a timer, that can be automatically saved and loaded.
         //   type - the type of timer: SIMULATION_TIME, GAME_TIME, or REAL_TIME.
@@ -166,14 +169,15 @@ namespace LuaUtil
         //   scriptPath - script path in VFS is used as script id. The script with the given path should already present
         //   in the container. callbackName - callback (should be registered in advance) for this timer. callbackArg -
         //   parameter for the callback (should be serializable).
-        void setupSerializableTimer(
-            TimerType type, double time, int scriptId, std::string_view callbackName, sol::main_object callbackArg);
+        void setupSerializableTimer(TimerType type, double time, std::int32_t scriptId, std::string_view callbackName,
+            sol::main_object callbackArg);
 
         // Creates a timer. `callback` is an arbitrary Lua function. These timers are called "unsavable"
         // because they can not be stored in saves. I.e. loading a saved game will not fully restore the state.
         // type can be SIMULATION_TIME, GAME_TIME, or REAL_TIME.
         // REAL_TIME timers run even when the game is paused.
-        void setupUnsavableTimer(TimerType type, double time, int scriptId, sol::main_protected_function callback);
+        void setupUnsavableTimer(
+            TimerType type, double time, std::int32_t scriptId, sol::main_protected_function callback);
 
         // decayedInstructionCount applies deferred decay.
         void statsNextFrame() { ++mStatsFrame; }
@@ -181,10 +185,10 @@ namespace LuaUtil
         struct ScriptStats
         {
             float mAvgInstructionCount = 0; // averaged number of Lua instructions per frame
-            int64_t mMemoryUsage = 0; // bytes
+            std::int64_t mMemoryUsage = 0; // bytes
         };
         void collectStats(std::vector<ScriptStats>& stats) const;
-        static int64_t getInstanceCount() { return sInstanceCount; }
+        static std::int64_t getInstanceCount() { return sInstanceCount; }
 
         virtual bool isActive() const { return false; }
 
@@ -216,7 +220,7 @@ namespace LuaUtil
 
         struct Handler
         {
-            int mScriptId{};
+            std::int32_t mScriptId{};
             sol::main_function mFn;
         };
 
@@ -267,10 +271,10 @@ namespace LuaUtil
             std::string mInterfaceName;
             sol::main_table mHiddenData;
             std::map<std::string, sol::main_protected_function> mRegisteredCallbacks;
-            std::map<int64_t, sol::main_protected_function> mTemporaryCallbacks;
+            std::map<std::int64_t, sol::main_protected_function> mTemporaryCallbacks;
             VFS::Path::Normalized mPath;
             ScriptStats mStats;
-            int64_t mStatsFrame = 0; // frame mStats was last brought up to date
+            std::int64_t mStatsFrame = 0; // frame mStats was last brought up to date
 
             ~Script();
             Script() = default;
@@ -281,8 +285,8 @@ namespace LuaUtil
         {
             double mTime{};
             bool mSerializable{};
-            int mScriptId{};
-            std::variant<std::string, int64_t> mCallback; // string if serializable, integer otherwise
+            std::int32_t mScriptId{};
+            std::variant<std::string, std::int64_t> mCallback; // string if serializable, integer otherwise
             sol::main_object mArg;
             std::string mSerializedArg;
 
@@ -291,31 +295,31 @@ namespace LuaUtil
         using EventHandlerList = std::vector<Handler>;
 
         friend class LuaState;
-        void addInstructionCount(int scriptId, int64_t instructionCount);
-        void addMemoryUsage(int scriptId, int64_t memoryDelta);
+        void addInstructionCount(std::int32_t scriptId, std::int64_t instructionCount);
+        void addMemoryUsage(std::int32_t scriptId, std::int64_t memoryDelta);
 
         // Add to container without calling onInit/onLoad.
-        bool addScript(
-            LuaView& view, int scriptId, std::optional<sol::function>& onInit, std::optional<sol::function>& onLoad);
+        bool addScript(LuaView& view, std::int32_t scriptId, std::optional<sol::function>& onInit,
+            std::optional<sol::function>& onLoad);
 
         // Returns script by id (throws an exception if doesn't exist)
-        Script& getScript(int scriptId);
+        Script& getScript(std::int32_t scriptId);
 
-        void printError(int scriptId, std::string_view msg, const std::exception& e) const;
+        void printError(std::int32_t scriptId, std::string_view msg, const std::exception& e) const;
 
-        const VFS::Path::Normalized& scriptPath(int scriptId) const
+        const VFS::Path::Normalized& scriptPath(std::int32_t scriptId) const
         {
             return mLua.getConfiguration()[static_cast<std::size_t>(scriptId)].mScriptPath;
         }
 
-        void callOnInit(LuaView& view, int scriptId, const sol::function& onInit, std::string_view data);
+        void callOnInit(LuaView& view, std::int32_t scriptId, const sol::function& onInit, std::string_view data);
         void callTimer(const Timer& t);
         void updateTimerQueue(std::vector<Timer>& timerQueue, double time);
         static void insertTimer(std::vector<Timer>& timerQueue, Timer&& t);
-        static void insertHandler(std::vector<Handler>& list, int scriptId, sol::function fn);
-        static void removeHandler(std::vector<Handler>& list, int scriptId);
-        void insertInterface(int scriptId, const Script& script);
-        void removeInterface(int scriptId, const Script& script);
+        static void insertHandler(std::vector<Handler>& list, std::int32_t scriptId, sol::function fn);
+        static void removeHandler(std::vector<Handler>& list, std::int32_t scriptId);
+        void insertInterface(std::int32_t scriptId, const Script& script);
+        void removeInterface(std::int32_t scriptId, const Script& script);
         void save(LuaView&, ESM::LuaScripts&);
 
         ScriptIdsWithInitializationData mAutoStartScripts;
@@ -325,7 +329,7 @@ namespace LuaUtil
         std::map<std::string, sol::main_object> mAPI;
         struct LoadedData
         {
-            std::map<int, Script> mScripts;
+            std::map<std::int32_t, Script> mScripts;
             sol::main_table mPublicInterfaces;
 
             std::map<std::string, EventHandlerList, std::less<>> mEventHandlers;
@@ -346,10 +350,10 @@ namespace LuaUtil
         EngineHandlerList mUpdateHandlers{ "onUpdate" };
         std::map<std::string_view, EngineHandlerList*> mEngineHandlers;
         std::variant<UnloadedData, LoadedData> mData;
-        int64_t mTemporaryCallbackCounter = 0;
+        std::int64_t mTemporaryCallbackCounter = 0;
 
-        std::map<int, int64_t> mRemovedScriptsMemoryUsage;
-        int64_t mStatsFrame = 0;
+        std::map<std::int32_t, std::int64_t> mRemovedScriptsMemoryUsage;
+        std::int64_t mStatsFrame = 0;
 
         float decayedInstructionCount(const Script& script) const;
         ScriptsContainerLifetime mThis; // used by LuaState to track ownership of memory allocations
@@ -358,6 +362,6 @@ namespace LuaUtil
         bool mRequiredLoading = false;
         friend class ScriptTracker;
 
-        static int64_t sInstanceCount; // debug information, shown in Lua profiler
+        static std::int64_t sInstanceCount; // debug information, shown in Lua profiler
     };
 }

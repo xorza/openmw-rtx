@@ -1,5 +1,7 @@
 #include "actionmanager.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_InputManager.h>
 #include <SDL3/SDL_keyboard.h>
 
@@ -49,7 +51,7 @@ namespace MWInput
         mTimeIdle = 0.f;
     }
 
-    void ActionManager::executeAction(int action)
+    void ActionManager::executeAction(std::int32_t action)
     {
         MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::Action, action });
         const auto inputManager = MWBase::Environment::get().getInputManager();
@@ -232,7 +234,7 @@ namespace MWInput
         MWBase::Environment::get().getWindowManager()->toggleConsole();
     }
 
-    void ActionManager::quickKey(int index)
+    void ActionManager::quickKey(std::int32_t index)
     {
         if (!MWBase::Environment::get().getInputManager()->getControlSwitch("playercontrols")
             || !MWBase::Environment::get().getInputManager()->getControlSwitch("playerfighting")
@@ -270,7 +272,7 @@ namespace MWInput
         return env.getMechanicsManager()->isSneaking(env.getWorld()->getPlayer().getPlayer());
     }
 
-    void ActionManager::handleGuiArrowKey(int action)
+    void ActionManager::handleGuiArrowKey(std::int32_t action)
     {
         bool joystickUsed = MWBase::Environment::get().getInputManager()->joystickLastUsed();
         // This is currently keyboard-specific code

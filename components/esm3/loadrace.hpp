@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -29,13 +30,13 @@ namespace ESM
         struct SkillBonus
         {
             ESM::RefId mSkill; // SkillEnum
-            int32_t mBonus = 0;
+            std::int32_t mBonus = 0;
         };
 
         struct AttributeValues
         {
-            int32_t mMale{};
-            int32_t mFemale{};
+            std::int32_t mMale{};
+            std::int32_t mFemale{};
         };
 
         enum Flags
@@ -56,10 +57,10 @@ namespace ESM
             // as 'height' times 128. This has not been tested yet.
             float mMaleHeight{}, mFemaleHeight{}, mMaleWeight{}, mFemaleWeight{};
 
-            int32_t mFlags{}; // 0x1 - playable, 0x2 - beast race
+            std::int32_t mFlags{}; // 0x1 - playable, 0x2 - beast race
 
-            int32_t getAttribute(ESM::RefId attribute, bool male) const;
-            void setAttribute(ESM::RefId attribute, bool male, int32_t value);
+            std::int32_t getAttribute(ESM::RefId attribute, bool male) const;
+            void setAttribute(ESM::RefId attribute, bool male, std::int32_t value);
 
             void load(ESMReader& esm);
             void save(ESMWriter& esm) const;
@@ -68,7 +69,7 @@ namespace ESM
 
         RADTstruct mData;
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         std::string mName, mDescription;
         RefId mId;
         SpellList mPowers;

@@ -17,8 +17,8 @@ namespace Settings
     {
         using WithIndex::WithIndex;
 
-        SettingValue<int> mAsyncNumThreads{ mIndex, "Physics", "async num threads", makeMaxSanitizerInt(0) };
-        SettingValue<int> mLineofsightKeepInactiveCache{ mIndex, "Physics", "lineofsight keep inactive cache",
+        SettingValue<std::int32_t> mAsyncNumThreads{ mIndex, "Physics", "async num threads", makeMaxSanitizerInt(0) };
+        SettingValue<std::int32_t> mLineofsightKeepInactiveCache{ mIndex, "Physics", "lineofsight keep inactive cache",
             makeMaxSanitizerInt(-1) };
     };
 }

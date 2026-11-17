@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <tuple>
@@ -15,7 +16,7 @@ namespace ESM
     struct MagicEffects
     {
         // <Effect Id, Base value, Modifier>
-        std::map<ESM::RefId, std::pair<int32_t, float>> mEffects;
+        std::map<ESM::RefId, std::pair<std::int32_t, float>> mEffects;
 
         void load(ESMReader& esm);
         void save(ESMWriter& esm) const;
@@ -23,7 +24,7 @@ namespace ESM
 
     struct SummonKey
     {
-        SummonKey(ESM::RefId effectId, const ESM::RefId& sourceId, int32_t index)
+        SummonKey(ESM::RefId effectId, const ESM::RefId& sourceId, std::int32_t index)
             : mEffectId(effectId)
             , mSourceId(sourceId)
             , mEffectIndex(index)
@@ -32,7 +33,7 @@ namespace ESM
 
         ESM::RefId mEffectId;
         ESM::RefId mSourceId;
-        int32_t mEffectIndex;
+        std::int32_t mEffectIndex;
     };
 
     inline auto makeTupleRef(const SummonKey& value) noexcept

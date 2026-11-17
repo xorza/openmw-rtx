@@ -1,6 +1,8 @@
 #include "messagebundles.hpp"
 
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <mutex>
 #include <optional>
@@ -115,7 +117,7 @@ namespace L10n
             }
 
         protected:
-            void visitedPlaceholder(Placeholder, int, int, int, Notation) override
+            void visitedPlaceholder(Placeholder, std::int32_t, std::int32_t, std::int32_t, Notation) override
             {
                 mOut += '{';
                 if (mVariableIndex < mVariableNames.size() && !mVariableNames[mVariableIndex].empty())

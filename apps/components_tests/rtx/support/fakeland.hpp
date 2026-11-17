@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <map>
@@ -45,21 +46,21 @@ namespace Rtx::Testing
     class FakeLand : public Terrain::Storage
     {
     public:
-        static constexpr int sVerts = ESM::Land::LAND_SIZE;
-        static constexpr int sTiles = ESM::Land::LAND_TEXTURE_SIZE;
-        static constexpr int sMaskSide = 2 * (sTiles + 1);
+        static constexpr std::int32_t sVerts = ESM::Land::LAND_SIZE;
+        static constexpr std::int32_t sTiles = ESM::Land::LAND_TEXTURE_SIZE;
+        static constexpr std::int32_t sMaskSide = 2 * (sTiles + 1);
         static constexpr float sCellSize = static_cast<float>(Constants::CellSizeInUnits);
 
         /// The cells with a land record.
         std::vector<osg::Vec2i> mWithData;
 
-        static float heightAt(const int column, const int row)
+        static float heightAt(const std::int32_t column, const std::int32_t row)
         {
             return 8.0f * static_cast<float>(column) + 16.0f * static_cast<float>(row);
         }
 
         /// Where the storage puts vertex (`column`, `row`) of a cell, relative to its centre.
-        static osg::Vec3f positionAt(const int column, const int row)
+        static osg::Vec3f positionAt(const std::int32_t column, const std::int32_t row)
         {
             const auto side = static_cast<float>(sVerts - 1);
             return osg::Vec3f((static_cast<float>(column) / side - 0.5f) * sCellSize,
@@ -74,11 +75,12 @@ namespace Rtx::Testing
         /// Vertex (`column`, `row`)'s colour in `cell`: the blue tells the cells of a sixteen-cell square apart, so
         /// every cell's ground is a mesh of its own, as a world's is, where one geometry is one mesh
         /// (`SceneDesc::addMesh`); the origin's is a full blue.
-        static osg::Vec4ub colourAt(const int column, const int row, const osg::Vec2i& cell = osg::Vec2i())
+        static osg::Vec4ub colourAt(
+            const std::int32_t column, const std::int32_t row, const osg::Vec2i& cell = osg::Vec2i())
         {
-            const auto red = static_cast<unsigned char>(64 + column % 8);
-            const auto green = static_cast<unsigned char>(128 + row % 8);
-            const auto blue = static_cast<unsigned char>(255 - (((cell.x() & 15) << 4) | (cell.y() & 15)));
+            const auto red = static_cast<std::uint8_t>(64 + column % 8);
+            const auto green = static_cast<std::uint8_t>(128 + row % 8);
+            const auto blue = static_cast<std::uint8_t>(255 - (((cell.x() & 15) << 4) | (cell.y() & 15)));
             return osg::Vec4ub(red, green, blue, 255);
         }
 
@@ -103,8 +105,9 @@ namespace Rtx::Testing
             return hasData(cellOf(centre, worldspace));
         }
 
-        void fillVertexBuffers(const int lod, const float size, const osg::Vec2f& centre, const ESM::RefId worldspace,
-            osg::Vec3Array& positions, osg::Vec3Array& normals, osg::Vec4ubArray& colours) override
+        void fillVertexBuffers(const std::int32_t lod, const float size, const osg::Vec2f& centre,
+            const ESM::RefId worldspace, osg::Vec3Array& positions, osg::Vec3Array& normals,
+            osg::Vec4ubArray& colours) override
         {
             EXPECT_EQ(lod, 0) << "the ring reads every cell at full detail";
             EXPECT_EQ(size, 1.0f) << "and one cell at a time";
@@ -116,8 +119,8 @@ namespace Rtx::Testing
 
             const ESM::ExteriorCellLocation location = cellOf(centre, worldspace);
             const osg::Vec2i cell(location.mX, location.mY);
-            for (int column = 0; column < sVerts; ++column)
-                for (int row = 0; row < sVerts; ++row)
+            for (std::int32_t column = 0; column < sVerts; ++column)
+                for (std::int32_t row = 0; row < sVerts; ++row)
                 {
                     const std::size_t at = static_cast<std::size_t>(column) * sVerts + static_cast<std::size_t>(row);
                     positions[at] = positionAt(column, row);
@@ -143,17 +146,17 @@ namespace Rtx::Testing
 
         float getHeightAt(const osg::Vec3f&, ESM::RefId) override { return ESM::Land::DEFAULT_HEIGHT; }
         float getCellWorldSize(ESM::RefId) override { return sCellSize; }
-        int getCellVertices(ESM::RefId) override { return sVerts; }
-        int getTextureTileCount(const float chunkSize, ESM::RefId) override
+        std::int32_t getCellVertices(ESM::RefId) override { return sVerts; }
+        std::int32_t getTextureTileCount(const float chunkSize, ESM::RefId) override
         {
-            return static_cast<int>(sTiles * chunkSize);
+            return static_cast<std::int32_t>(sTiles * chunkSize);
         }
 
     private:
         static ESM::ExteriorCellLocation cellOf(const osg::Vec2f& centre, const ESM::RefId worldspace)
         {
-            return ESM::ExteriorCellLocation(
-                static_cast<int>(std::floor(centre.x())), static_cast<int>(std::floor(centre.y())), worldspace);
+            return ESM::ExteriorCellLocation(static_cast<std::int32_t>(std::floor(centre.x())),
+                static_cast<std::int32_t>(std::floor(centre.y())), worldspace);
         }
 
         static Terrain::LayerInfo layerOf(
@@ -170,10 +173,10 @@ namespace Rtx::Testing
             image->allocateImage(sMaskSide, sMaskSide, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
             std::memset(image->data(), 0, image->getTotalSizeInBytes());
 
-            for (int row = 0; row < sMaskSide; ++row)
+            for (std::int32_t row = 0; row < sMaskSide; ++row)
             {
-                unsigned char* along = image->data(0, static_cast<unsigned int>(row));
-                for (int column = 0; column < sMaskSide; ++column)
+                std::uint8_t* along = image->data(0, static_cast<std::uint32_t>(row));
+                for (std::int32_t column = 0; column < sMaskSide; ++column)
                     along[column] = (column < sMaskSide / 2) == western ? 255 : 0;
             }
 
@@ -200,7 +203,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName(std::string(path.value()));
             image->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
-            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
 
             mImages.emplace(std::string(path.value()), image);
             return osg::ref_ptr<const osg::Image>(image);

@@ -21,12 +21,12 @@ namespace Rtx
         /// share of `at` it covers: the pixel's span of the source, `[at, at + 1) * source / target`,
         /// cut at the source's pixel edges. The shares of one pixel sum to one.
         template <class Visit>
-        void forEachCover(const int source, const int target, const int at, Visit visit)
+        void forEachCover(const std::int32_t source, const std::int32_t target, const std::int32_t at, Visit visit)
         {
             const double scale = static_cast<double>(source) / static_cast<double>(target);
             const double from = at * scale;
             const double to = (at + 1) * scale;
-            for (int pixel = static_cast<int>(from); pixel < source && pixel < to; ++pixel)
+            for (auto pixel = static_cast<std::int32_t>(from); pixel < source && pixel < to; ++pixel)
             {
                 const double covered
                     = std::min(to, static_cast<double>(pixel + 1)) - std::max(from, static_cast<double>(pixel));
@@ -36,8 +36,8 @@ namespace Rtx
         }
     }
 
-    osg::ref_ptr<osg::Image> frameImage(
-        const TracedFrame& frame, const int width, const int height, const RowOrder order, const Channels channels)
+    osg::ref_ptr<osg::Image> frameImage(const TracedFrame& frame, const std::int32_t width, const std::int32_t height,
+        const RowOrder order, const Channels channels)
     {
         if (width <= 0 || height <= 0 || frame.mWidth == 0 || frame.mHeight == 0)
             return nullptr;
@@ -45,8 +45,8 @@ namespace Rtx
         if (frame.mPixels.size() < std::size_t{ frame.mWidth } * frame.mHeight * 4)
             return nullptr;
 
-        const int wide = static_cast<int>(frame.mWidth);
-        const int tall = static_cast<int>(frame.mHeight);
+        const auto wide = static_cast<std::int32_t>(frame.mWidth);
+        const auto tall = static_cast<std::int32_t>(frame.mHeight);
         const auto bytes = static_cast<std::size_t>(channels);
 
         osg::ref_ptr<osg::Image> image = new osg::Image;
@@ -58,12 +58,12 @@ namespace Rtx
         // copy.
         if (width == wide && height == tall)
         {
-            for (int y = 0; y < height; ++y)
+            for (std::int32_t y = 0; y < height; ++y)
             {
-                const int row = order == RowOrder::BottomFirst ? height - 1 - y : y;
+                const std::int32_t row = order == RowOrder::BottomFirst ? height - 1 - y : y;
                 const std::uint8_t* const from
                     = frame.mPixels.data() + static_cast<std::size_t>(row) * static_cast<std::size_t>(wide) * 4;
-                std::uint8_t* const into = image->data(0, static_cast<unsigned int>(y));
+                std::uint8_t* const into = image->data(0, static_cast<std::uint32_t>(y));
                 if (channels == Channels::Rgba)
                     std::memcpy(into, from, static_cast<std::size_t>(wide) * 4);
                 else
@@ -83,16 +83,16 @@ namespace Rtx
         // **A row at a time, in the order the frame lies in memory**: each row of the image sums the crop's rows that
         // row covers, each read along its length, into one row of sums the width of the image.
         std::vector<double> sums(static_cast<std::size_t>(width) * bytes);
-        for (int y = 0; y < height; ++y)
+        for (std::int32_t y = 0; y < height; ++y)
         {
             std::fill(sums.begin(), sums.end(), 0.0);
-            forEachCover(crop.mSize.y(), height, y, [&](int row, double down) {
+            forEachCover(crop.mSize.y(), height, y, [&](std::int32_t row, double down) {
                 const std::uint8_t* const line = frame.mPixels.data()
                     + (static_cast<std::size_t>(crop.mOrigin.y() + row) * static_cast<std::size_t>(wide)
                           + static_cast<std::size_t>(crop.mOrigin.x()))
                         * 4;
-                for (int x = 0; x < width; ++x)
-                    forEachCover(crop.mSize.x(), width, x, [&](int column, double across) {
+                for (std::int32_t x = 0; x < width; ++x)
+                    forEachCover(crop.mSize.x(), width, x, [&](std::int32_t column, double across) {
                         const std::uint8_t* const texel = line + static_cast<std::size_t>(column) * 4;
                         double* const sum = &sums[static_cast<std::size_t>(x) * bytes];
                         for (std::size_t channel = 0; channel < bytes; ++channel)
@@ -100,8 +100,8 @@ namespace Rtx
                     });
             });
 
-            const int to = order == RowOrder::BottomFirst ? height - 1 - y : y;
-            std::uint8_t* const into = image->data(0, static_cast<unsigned int>(to));
+            const std::int32_t to = order == RowOrder::BottomFirst ? height - 1 - y : y;
+            std::uint8_t* const into = image->data(0, static_cast<std::uint32_t>(to));
             for (std::size_t at = 0; at < sums.size(); ++at)
                 into[at] = static_cast<std::uint8_t>(std::clamp(std::lround(sums[at]), 0L, 255L));
         }

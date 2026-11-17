@@ -1,6 +1,8 @@
 #include "technique.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <utility>
@@ -28,9 +30,9 @@ namespace
         osg::Texture::FilterMode mMinFilter = osg::Texture::LINEAR_MIPMAP_LINEAR;
         osg::Texture::FilterMode mMagFilter = osg::Texture::LINEAR;
         osg::Texture::InternalFormatMode mCompression = osg::Texture::USE_IMAGE_DATA_FORMAT;
-        std::optional<int> mSourceFormat;
-        std::optional<int> mSourceType;
-        std::optional<int> mInternalFormat;
+        std::optional<std::int32_t> mSourceFormat;
+        std::optional<std::int32_t> mSourceType;
+        std::optional<std::int32_t> mInternalFormat;
     };
 }
 
@@ -47,7 +49,8 @@ namespace Fx
     }
 
     Technique::Technique(const VFS::Manager& vfs, Resource::ImageManager& imageManager,
-        VFS::Path::NormalizedView fileName, std::string name, int width, int height, bool ubo, bool supportsNormals)
+        VFS::Path::NormalizedView fileName, std::string name, std::int32_t width, std::int32_t height, bool ubo,
+        bool supportsNormals)
         : mName(std::move(name))
         , mFilePath(fileName)
         , mLastModificationTime(std::filesystem::file_time_type::clock::now())
@@ -128,7 +131,7 @@ namespace Fx
             if (mPassKeys.empty())
                 error("no pass list found, ensure you define one in a 'technique' block");
 
-            int swaps = 0;
+            std::int32_t swaps = 0;
 
             for (auto& name : mPassKeys)
             {
@@ -495,7 +498,7 @@ namespace Fx
         constexpr bool isVec
             = std::is_same_v<osg::Vec2f, SrcT> || std::is_same_v<osg::Vec3f, SrcT> || std::is_same_v<osg::Vec4f, SrcT>;
         constexpr bool isFloat = std::is_same_v<float, SrcT>;
-        constexpr bool isInt = std::is_same_v<int, SrcT>;
+        constexpr bool isInt = std::is_same_v<std::int32_t, SrcT>;
         constexpr bool isBool = std::is_same_v<bool, SrcT>;
 
         static_assert(isVec || isFloat || isInt || isBool, "Unsupported type");
@@ -545,7 +548,7 @@ namespace Fx
                     error("bool arrays currently unsupported");
                 else
                 {
-                    int size = parseInteger();
+                    std::int32_t size = parseInteger();
                     if (size > 1)
                         data.mArray = std::vector<SrcT>(static_cast<std::size_t>(size));
                 }
@@ -640,7 +643,7 @@ namespace Fx
     template <>
     void Technique::parseBlockImp<Lexer::Uniform_Int>()
     {
-        parseUniform<int, int>();
+        parseUniform<std::int32_t, std::int32_t>();
     }
 
     template <>
@@ -929,7 +932,7 @@ namespace Fx
         error(std::format("unrecognized compression '{}'", asLiteral()));
     }
 
-    int Technique::parseInternalFormat()
+    std::int32_t Technique::parseInternalFormat()
     {
         expect<Lexer::Literal>();
 
@@ -942,7 +945,7 @@ namespace Fx
         error(std::format("unrecognized internal format '{}'", asLiteral()));
     }
 
-    int Technique::parseSourceType()
+    std::int32_t Technique::parseSourceType()
     {
         expect<Lexer::Literal>();
 
@@ -955,7 +958,7 @@ namespace Fx
         error(std::format("unrecognized source type '{}'", asLiteral()));
     }
 
-    int Technique::parseSourceFormat()
+    std::int32_t Technique::parseSourceFormat()
     {
         expect<Lexer::Literal>();
 
@@ -1079,7 +1082,7 @@ namespace Fx
         error("expected float value");
     }
 
-    int Technique::parseInteger()
+    std::int32_t Technique::parseInteger()
     {
         expect<Lexer::Integer>();
 
@@ -1094,7 +1097,7 @@ namespace Fx
 
         OSGVec value;
 
-        for (int i = 0; i < OSGVec::num_components; ++i)
+        for (std::int32_t i = 0; i < OSGVec::num_components; ++i)
         {
             value.ptr()[i] = parseFloat();
 

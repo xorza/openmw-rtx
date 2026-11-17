@@ -1,5 +1,8 @@
 #include "contentbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwlua/types/types.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
@@ -91,7 +94,7 @@ namespace MWLua
             sol::usertype<Store> storeT = lua.new_usertype<Store>(name);
             storeT[sol::meta_function::length] = [](const Store& self) { return self.mStore.getSize(); };
             storeT[sol::meta_function::index] = sol::overload(
-                [=](const Store& self, size_t index, sol::this_state state) -> LuaType {
+                [=](const Store& self, std::size_t index, sol::this_state state) -> LuaType {
                     if (index == 0 || index > self.mStore.getSize())
                         return mapper(nullptr, state);
                     const Record* rec = self.mStore.at(
@@ -159,7 +162,7 @@ namespace MWLua
                     else
                     {
                         const double value = LuaUtil::cast<double>(obj);
-                        const auto intV = static_cast<int32_t>(value);
+                        const auto intV = static_cast<std::int32_t>(value);
                         const auto floatV = static_cast<float>(value);
                         if (intV == value && (!preferFloat || floatV != value))
                         {
@@ -218,7 +221,7 @@ namespace MWLua
                         global.blank();
                         global.mId = id;
                     }
-                    auto intV = static_cast<int32_t>(value);
+                    auto intV = static_cast<std::int32_t>(value);
                     if (static_cast<float>(intV) == value && !preferFloat)
                     {
                         global.mValue.setType(ESM::VT_Long);
@@ -245,7 +248,7 @@ namespace MWLua
             storeT[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();
             storeT[sol::meta_function::pairs] = lua["ipairsForArray"].template get<sol::function>();
             storeT[sol::meta_function::index] = sol::overload(
-                [](const Store& self, size_t index) -> std::optional<MutableRecord<T>> {
+                [](const Store& self, std::size_t index) -> std::optional<MutableRecord<T>> {
                     if (index == 0 || index > self.mStore.getSize())
                         return {};
                     return MutableRecord<T>{ self.mStore,
@@ -413,7 +416,7 @@ namespace MWLua
             // Lua file we've got this hidden function to generate it
             api["_getGMSTs"] = [](sol::this_state state) {
                 sol::table gmsts(state, sol::create);
-                for (int i = 0; i < ESM::MagicEffect::Length; ++i)
+                for (std::int32_t i = 0; i < ESM::MagicEffect::Length; ++i)
                 {
                     const ESM::RefId effect = ESM::MagicEffect::indexToRefId(i);
                     const std::string_view gmst = ESM::MagicEffect::refIdToGmstString(effect);

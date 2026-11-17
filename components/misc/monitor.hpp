@@ -1,6 +1,7 @@
 #pragma once
 
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 #include <stop_token>
 #include <utility>
@@ -139,6 +140,6 @@ namespace Misc
         /// in a turn: no worker can hand anything over where the first holds and none is busy. Until
         /// a worker serves, none can.
         bool mIdle = true;
-        int mBusy = 0;
+        std::int32_t mBusy = 0;
     };
 }

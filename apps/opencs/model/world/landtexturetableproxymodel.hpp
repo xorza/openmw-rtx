@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "idtableproxymodel.hpp"
 
 class QModelIndex;
@@ -15,6 +17,6 @@ namespace CSMWorld
         explicit LandTextureTableProxyModel(QObject* parent = nullptr);
 
     protected:
-        bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
+        bool filterAcceptsRow(std::int32_t sourceRow, const QModelIndex& sourceParent) const override;
     };
 }

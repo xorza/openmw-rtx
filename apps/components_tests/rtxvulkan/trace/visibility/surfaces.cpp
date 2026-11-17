@@ -517,7 +517,7 @@ namespace Rtx::Testing
                 for (std::uint32_t at = 0; at < materials; ++at)
                     holds.material(scene.addMaterial(Material{}));
                 mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
-                for (int frame = 0; frame < 2; ++frame)
+                for (std::int32_t frame = 0; frame < 2; ++frame)
                 {
                     mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
                     mProbe.traceFrame(camera, FrameOptions{});
@@ -830,15 +830,18 @@ namespace Rtx::Testing
 
                 std::vector<float> ambient;
                 mProbe.readChannel(Channel::AmbientAlbedo, ambient);
-                return std::array<int, 6>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2),
+                return std::array<std::int32_t, 6>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2),
                     encodeSrgb(ambient[centre]), encodeSrgb(ambient[centre + 1]), encodeSrgb(ambient[centre + 2]) };
             };
 
-            const std::array<int, 6> plain{ 188, 188, 188, 188, 188, 188 };
+            const std::array<std::int32_t, 6> plain{ 188, 188, 188, 188, 188, 188 };
             EXPECT_EQ(albedoUnder(VertexColour::None, tint), plain) << "the content said the colours mean nothing";
-            EXPECT_EQ(albedoUnder(VertexColour::Tint, tint), (std::array<int, 6>{ 137, 188, 99, 137, 188, 99 }));
-            EXPECT_EQ(albedoUnder(VertexColour::Diffuse, tint), (std::array<int, 6>{ 137, 188, 99, 188, 188, 188 }));
-            EXPECT_EQ(albedoUnder(VertexColour::Ambient, tint), (std::array<int, 6>{ 188, 188, 188, 137, 188, 99 }));
+            EXPECT_EQ(
+                albedoUnder(VertexColour::Tint, tint), (std::array<std::int32_t, 6>{ 137, 188, 99, 137, 188, 99 }));
+            EXPECT_EQ(
+                albedoUnder(VertexColour::Diffuse, tint), (std::array<std::int32_t, 6>{ 137, 188, 99, 188, 188, 188 }));
+            EXPECT_EQ(
+                albedoUnder(VertexColour::Ambient, tint), (std::array<std::int32_t, 6>{ 188, 188, 188, 137, 188, 99 }));
             EXPECT_EQ(albedoUnder(VertexColour::Glow, tint), plain) << "a glow is not a tint";
 
             // A mesh that brought no colour is white in the shared buffer, so the tint the shader
@@ -847,7 +850,7 @@ namespace Rtx::Testing
 
             const osg::Vec3f half(0.25f, 0.5f, 0.125f);
             EXPECT_EQ(albedoUnder(VertexColour::Tint, std::array<osg::Vec3f, 4>{ half, half, half, half }),
-                (std::array<int, 6>{ 137, 188, 99, 137, 188, 99 }))
+                (std::array<std::int32_t, 6>{ 137, 188, 99, 137, 188, 99 }))
                 << "the brightness baked into the colour is taken out";
             const osg::Vec3f black;
             EXPECT_EQ(albedoUnder(VertexColour::Tint, std::array<osg::Vec3f, 4>{ black, black, black, black }), plain)
@@ -989,7 +992,7 @@ namespace Rtx::Testing
             for (const std::size_t pixel : { centre / 4, std::size_t{ 3 } * size + 29, std::size_t{ 29 } * size + 3 })
                 for (std::size_t channel = 0; channel < 3; ++channel)
                 {
-                    const float added = addedAt(pixel)[static_cast<int>(channel)] / Shaders::SUNLIT_WHITE;
+                    const float added = addedAt(pixel)[static_cast<std::int32_t>(channel)] / Shaders::SUNLIT_WHITE;
                     const float plain = plainAlbedo[pixel * 4 + channel];
                     EXPECT_NEAR(litAlbedo[pixel * 4 + channel], std::min(plain + added, 1.0f), 1e-5f)
                         << "pixel " << pixel << " channel " << channel;
@@ -1208,21 +1211,22 @@ namespace Rtx::Testing
 
                 const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = SurfaceView::Albedo });
                 EXPECT_EQ(frame.mHits, size * size);
-                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+                return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
+                    frame.byte(centre + 2) };
             };
 
-            EXPECT_EQ(albedoUnder(sNoIndex, 0, 0), (std::array<int, 3>{ 188, 188, 188 }));
-            EXPECT_EQ(albedoUnder(1, 1, 0), (std::array<int, 3>{ 137, 188, 99 }));
+            EXPECT_EQ(albedoUnder(sNoIndex, 0, 0), (std::array<std::int32_t, 3>{ 188, 188, 188 }));
+            EXPECT_EQ(albedoUnder(1, 1, 0), (std::array<std::int32_t, 3>{ 137, 188, 99 }));
 
             // The sheet on the first set: the centre pixel reads the middle of it, a half in every
             // channel, which halves the grey to the tint test's 137.
-            EXPECT_EQ(albedoUnder(2, 0, 0), (std::array<int, 3>{ 137, 137, 137 }));
+            EXPECT_EQ(albedoUnder(2, 0, 0), (std::array<std::int32_t, 3>{ 137, 137, 137 }));
 
             // The sheet on the second set, at a unit that reads it: red everywhere.
-            EXPECT_EQ(albedoUnder(2, 1, 1u << 1), (std::array<int, 3>{ 188, 0, 0 }));
+            EXPECT_EQ(albedoUnder(2, 1, 1u << 1), (std::array<std::int32_t, 3>{ 188, 0, 0 }));
 
             // And at a unit the mesh says reads the first set, the second set is not read.
-            EXPECT_EQ(albedoUnder(2, 1, 0), (std::array<int, 3>{ 137, 137, 137 }));
+            EXPECT_EQ(albedoUnder(2, 1, 0), (std::array<std::int32_t, 3>{ 137, 137, 137 }));
 
             // **A glow map reads the set its own unit reads too**, as the draugrs' eyes do. With no
             // light, what the wall shows is its glow alone, `EMISSIVE_INTENSITY` times the texel:
@@ -1259,7 +1263,7 @@ namespace Rtx::Testing
             // hundred thousand.
             const osg::Vec3f onFirst = glowUnder(1, 0);
             const float middle = 0.5f * Shaders::EMISSIVE_INTENSITY;
-            for (int channel = 0; channel < 3; ++channel)
+            for (std::int32_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(onFirst[channel], middle, 1e-4f * middle) << "channel " << channel;
         }
 
@@ -1325,7 +1329,7 @@ namespace Rtx::Testing
                 return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
             };
             const auto expectNear = [](const osg::Vec3f& got, const osg::Vec3f& wanted, float tolerance) {
-                for (int channel = 0; channel < 3; ++channel)
+                for (std::int32_t channel = 0; channel < 3; ++channel)
                     EXPECT_NEAR(got[channel], wanted[channel], tolerance) << "channel " << channel;
             };
 
@@ -1414,7 +1418,7 @@ namespace Rtx::Testing
             const osg::Vec3f bare = radianceUnder({ .mSheet = false, .mBump = 2, .mGloss = 3 });
             const auto expectAdded = [&](const Sheeted& sheeted, const osg::Vec3f& read, const char* what) {
                 const osg::Vec3f added = radianceUnder(sheeted) - bare;
-                for (int channel = 0; channel < 3; ++channel)
+                for (std::int32_t channel = 0; channel < 3; ++channel)
                 {
                     const float wanted = Shaders::SUNLIT_WHITE * read[channel] * tint[channel];
                     EXPECT_NEAR(added[channel], wanted, 1e-4f * Shaders::SUNLIT_WHITE)
@@ -1568,7 +1572,8 @@ namespace Rtx::Testing
             EXPECT_EQ(withSurface, withoutSurface);
             EXPECT_EQ(withBounce, withoutBounce) << "a bounce met the additive quad";
 
-            EXPECT_GT(int{ withShown[centre] }, int{ withoutShown[centre] }) << "the quad added nothing red";
+            EXPECT_GT(std::int32_t{ withShown[centre] }, std::int32_t{ withoutShown[centre] })
+                << "the quad added nothing red";
 
             // The other channels in radiance and not in the picture: the tone pass grades a colour
             // by its luminance (`contrastScale`, `saturatedChannel`), so the red the quad adds
@@ -1688,7 +1693,7 @@ namespace Rtx::Testing
             ASSERT_GT(redAlone.x(), 0.5f * Shaders::EMISSIVE_INTENSITY * 0.99f) << "the red sheet did not glow";
             EXPECT_NEAR(redAlone.y(), 0.0f, 1e-5f) << "a red texel glowed green";
             EXPECT_NEAR(both.y(), greyAlone.y(), 1e-4f) << "the red sheet's glow lit the grey one's texels";
-            for (int channel = 0; channel < 3; ++channel)
+            for (std::int32_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(both[channel], redAlone[channel] + greyAlone[channel], 1e-3f * both[channel] + 1e-5f)
                     << "two sheets on one plane add other than each alone, channel " << channel;
         }
@@ -2320,17 +2325,17 @@ namespace Rtx::Testing
                     Shot{ .mShow = SurfaceView::Albedo, .mAnisotropy = anisotropy, .mSetScene = built });
                 EXPECT_EQ(frame.mHits, size * size);
 
-                std::vector<int> shown(std::size_t{ size } * size);
+                std::vector<std::int32_t> shown(std::size_t{ size } * size);
                 for (std::size_t pixel = 0; pixel < shown.size(); ++pixel)
                     shown[pixel] = frame.byte(pixel * 4);
                 return shown;
             };
 
-            const std::vector<int> isotropic = shownWith(1, true);
+            const std::vector<std::int32_t> isotropic = shownWith(1, true);
             for (std::size_t pixel = 0; pixel < isotropic.size(); ++pixel)
                 ASSERT_EQ(isotropic[pixel], 188) << "pixel " << pixel << ": the stripes averaged, at one";
 
-            const std::vector<int> along = shownWith(16, false);
+            const std::vector<std::int32_t> along = shownWith(16, false);
             EXPECT_LT(*std::min_element(along.begin(), along.end()), 188) << "a dark stripe resolved, at sixteen";
             EXPECT_GT(*std::max_element(along.begin(), along.end()), 188) << "and a bright one";
             EXPECT_EQ(shownWith(16, true), along) << "moved under the standing scene, as one built at sixteen";
@@ -2410,8 +2415,8 @@ namespace Rtx::Testing
                 const SceneDesc scene = sceneFor(flattening, one.mComposite);
                 const bool eyeGreen = flattening == GroundFlattening::Every;
                 const bool bounceGreen = one.mComposite;
-                const std::string name
-                    = std::to_string(static_cast<int>(flattening)) + (one.mComposite ? " with a composite" : "");
+                const std::string name = std::to_string(static_cast<std::int32_t>(flattening))
+                    + (one.mComposite ? " with a composite" : "");
 
                 const Frame wallSeen = shoot(scene, textures, onTheWall, size, Shot{ .mShow = SurfaceView::Albedo });
                 EXPECT_EQ(wallSeen.mHits, size * size);
@@ -2537,7 +2542,7 @@ namespace Rtx::Testing
                 carried(leaning * (1.0f - second) + osg::Vec3f(0.0f, 0.0f, 1.0f) * second),
                 carried(osg::Vec3f(0.0f, 0.0f, 1.0f)) };
             for (std::size_t at = 0; at < 3; ++at)
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(stackNormal[at][axis], wantedNormal[at][axis], 1e-5f)
                         << "column " << at << " axis " << axis;
 
@@ -2556,7 +2561,7 @@ namespace Rtx::Testing
             const std::array flatSpecular = render(SurfaceView::Specular, true);
             for (std::size_t at = 0; at < 3; ++at)
             {
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(flatNormal[at][axis], carried(osg::Vec3f(0.0f, 0.0f, 1.0f))[axis], 1e-6f)
                         << "flattened column " << at << " axis " << axis;
                 EXPECT_EQ(flatRough[at].x(), 64.0f / 255.0f) << "flattened column " << at;
@@ -2627,7 +2632,7 @@ namespace Rtx::Testing
             osg::Vec3f mapped = tangent * painted.x() + bitangent * painted.y() + stored * painted.z();
             mapped.normalize();
             const osg::Vec3f wanted = mapped * 0.5f + osg::Vec3f(0.5f, 0.5f, 0.5f);
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
                 EXPECT_NEAR(shown[axis], wanted[axis], 1e-5f) << "axis " << axis;
         }
 
@@ -3028,9 +3033,9 @@ namespace Rtx::Testing
                 ASSERT_EQ(drawn.mRadiance.size(), std::size_t{ size } * size * 4) << road;
                 for (std::size_t at = 0; at < drawn.mRadiance.size(); at += 4 * 61)
                 {
-                    EXPECT_NEAR(int{ drawn.byte(at) }, 137, 1) << road << " at pixel " << at / 4;
-                    EXPECT_NEAR(int{ drawn.byte(at + 1) }, 225, 1) << road << " at pixel " << at / 4;
-                    EXPECT_EQ(int{ drawn.byte(at + 2) }, 0) << road << " at pixel " << at / 4;
+                    EXPECT_NEAR(std::int32_t{ drawn.byte(at) }, 137, 1) << road << " at pixel " << at / 4;
+                    EXPECT_NEAR(std::int32_t{ drawn.byte(at + 1) }, 225, 1) << road << " at pixel " << at / 4;
+                    EXPECT_EQ(std::int32_t{ drawn.byte(at + 2) }, 0) << road << " at pixel " << at / 4;
                 }
             };
 
@@ -3046,7 +3051,7 @@ namespace Rtx::Testing
             // second. The placement below then owes nothing but the bake: a world that stands
             // still records no refit and no top level, and the bake has to be reason enough to
             // submit it.
-            for (int pass = 0; pass < 2; ++pass)
+            for (std::int32_t pass = 0; pass < 2; ++pass)
             {
                 scene.placements().advance();
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);

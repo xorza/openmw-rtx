@@ -1,7 +1,9 @@
 #include "startscriptcreator.hpp"
 
-#include <QLabel>
+#include <cstdint>
 #include <memory>
+
+#include <QLabel>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
@@ -53,7 +55,7 @@ void CSVWorld::StartScriptCreator::cloneMode(const std::string& originId, const 
 
     // Look up cloned record in start scripts table and set script ID text.
     CSMWorld::IdTable& table = getStartScriptsTable();
-    int column = table.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t column = table.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
     mScript->setText(table.data(table.getModelIndex(originId, column)).toString());
 }
 

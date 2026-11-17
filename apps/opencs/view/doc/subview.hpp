@@ -1,7 +1,8 @@
 #pragma once
 
-#include <QDockWidget>
 #include <string>
+
+#include <QDockWidget>
 
 #include <apps/opencs/model/world/universalid.hpp>
 

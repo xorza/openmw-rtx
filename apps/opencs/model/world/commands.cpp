@@ -1,10 +1,13 @@
 #include "commands.hpp"
 
-#include <QAbstractItemModel>
-#include <QAbstractProxyModel>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <utility>
+
+#include <QAbstractItemModel>
+#include <QAbstractProxyModel>
 
 #include <components/esm3/loadpgrd.hpp>
 #include <components/misc/constants.hpp>
@@ -56,11 +59,11 @@ CSMWorld::ImportLandTexturesCommand::ImportLandTexturesCommand(
 
 void CSMWorld::ImportLandTexturesCommand::redo()
 {
-    const int pluginColumn = mLands.findColumnIndex(Columns::ColumnId_PluginIndex);
-    const int oldPlugin = mLands.data(mLands.getModelIndex(getOriginId(), pluginColumn)).toInt();
+    const std::int32_t pluginColumn = mLands.findColumnIndex(Columns::ColumnId_PluginIndex);
+    const std::int32_t oldPlugin = mLands.data(mLands.getModelIndex(getOriginId(), pluginColumn)).toInt();
 
     // Original data
-    const int textureColumn = mLands.findColumnIndex(Columns::ColumnId_LandTexturesIndex);
+    const std::int32_t textureColumn = mLands.findColumnIndex(Columns::ColumnId_LandTexturesIndex);
     mOld = mLands.data(mLands.getModelIndex(getOriginId(), textureColumn)).value<DataType>();
 
     // Need to make a copy so the old values can be looked up
@@ -69,8 +72,8 @@ void CSMWorld::ImportLandTexturesCommand::redo()
     // Perform touch/copy/etc...
     onRedo();
 
-    std::unordered_map<uint16_t, uint16_t> indexMapping;
-    for (uint16_t index : mOld)
+    std::unordered_map<std::uint16_t, std::uint16_t> indexMapping;
+    for (std::uint16_t index : mOld)
     {
         // All indices are offset by 1 for a default texture
         if (index == 0)
@@ -91,15 +94,15 @@ void CSMWorld::ImportLandTexturesCommand::redo()
         }
         indexMapping.emplace(index, record->get().mIndex + 1);
     }
-    for (int i = 0; i < Land::LAND_NUM_TEXTURES; ++i)
+    for (std::int32_t i = 0; i < Land::LAND_NUM_TEXTURES; ++i)
     {
-        uint16_t oldIndex = mOld[i];
-        uint16_t newIndex = indexMapping[oldIndex];
+        std::uint16_t oldIndex = mOld[i];
+        std::uint16_t newIndex = indexMapping[oldIndex];
         copy[i] = newIndex;
     }
 
     // Apply modification
-    const int stateColumn = mLands.findColumnIndex(Columns::ColumnId_Modification);
+    const std::int32_t stateColumn = mLands.findColumnIndex(Columns::ColumnId_Modification);
     mOldState = mLands.data(mLands.getModelIndex(getDestinationId(), stateColumn)).toInt();
 
     QVariant variant;
@@ -110,12 +113,12 @@ void CSMWorld::ImportLandTexturesCommand::redo()
 void CSMWorld::ImportLandTexturesCommand::undo()
 {
     // Restore to previous
-    int textureColumn = mLands.findColumnIndex(Columns::ColumnId_LandTexturesIndex);
+    std::int32_t textureColumn = mLands.findColumnIndex(Columns::ColumnId_LandTexturesIndex);
     QVariant variant;
     variant.setValue(mOld);
     mLands.setData(mLands.getModelIndex(getDestinationId(), textureColumn), variant);
 
-    int stateColumn = mLands.findColumnIndex(Columns::ColumnId_Modification);
+    std::int32_t stateColumn = mLands.findColumnIndex(Columns::ColumnId_Modification);
     mLands.setData(mLands.getModelIndex(getDestinationId(), stateColumn), mOldState);
 
     // Undo copy/touch/etc...
@@ -217,9 +220,9 @@ void CSMWorld::ModifyCommand::redo()
     if (auto* table = dynamic_cast<IdTable*>(mModel))
     {
         mHasRecordState = true;
-        int stateColumnIndex = table->findColumnIndex(Columns::ColumnId_Modification);
+        std::int32_t stateColumnIndex = table->findColumnIndex(Columns::ColumnId_Modification);
 
-        int rowIndex = mIndex.row();
+        std::int32_t rowIndex = mIndex.row();
         if (mIndex.parent().isValid())
         {
             rowIndex = mIndex.parent().row();
@@ -266,12 +269,13 @@ CSMWorld::CreateCommand::CreateCommand(IdTable& model, const std::string& id, QU
     setText(("Create record " + id).c_str());
 }
 
-void CSMWorld::CreateCommand::addValue(int column, const QVariant& value)
+void CSMWorld::CreateCommand::addValue(std::int32_t column, const QVariant& value)
 {
     mValues[column] = value;
 }
 
-void CSMWorld::CreateCommand::addNestedValue(int parentColumn, int nestedColumn, const QVariant& value)
+void CSMWorld::CreateCommand::addNestedValue(
+    std::int32_t parentColumn, std::int32_t nestedColumn, const QVariant& value)
 {
     mNestedValues[parentColumn] = std::make_pair(nestedColumn, value);
 }
@@ -305,7 +309,7 @@ void CSMWorld::RevertCommand::redo()
 {
     mOld = mModel.getRecord(mId).clone();
 
-    int column = mModel.findColumnIndex(Columns::ColumnId_Modification);
+    std::int32_t column = mModel.findColumnIndex(Columns::ColumnId_Modification);
 
     QModelIndex index = mModel.getModelIndex(mId, column);
     RecordBase::State state = static_cast<RecordBase::State>(mModel.data(index).toInt());
@@ -316,7 +320,7 @@ void CSMWorld::RevertCommand::redo()
     }
     else
     {
-        mModel.setData(index, static_cast<int>(RecordBase::State_BaseOnly));
+        mModel.setData(index, static_cast<std::int32_t>(RecordBase::State_BaseOnly));
     }
 }
 
@@ -340,7 +344,7 @@ void CSMWorld::DeleteCommand::redo()
 {
     mOld = mModel.getRecord(mId).clone();
 
-    int column = mModel.findColumnIndex(Columns::ColumnId_Modification);
+    std::int32_t column = mModel.findColumnIndex(Columns::ColumnId_Modification);
 
     QModelIndex index = mModel.getModelIndex(mId, column);
     RecordBase::State state = static_cast<RecordBase::State>(mModel.data(index).toInt());
@@ -351,7 +355,7 @@ void CSMWorld::DeleteCommand::redo()
     }
     else
     {
-        mModel.setData(index, static_cast<int>(RecordBase::State_Deleted));
+        mModel.setData(index, static_cast<std::int32_t>(RecordBase::State_Deleted));
     }
 }
 
@@ -360,7 +364,8 @@ void CSMWorld::DeleteCommand::undo()
     mModel.setRecord(mId, std::move(mOld), mType);
 }
 
-CSMWorld::ReorderRowsCommand::ReorderRowsCommand(IdTable& model, int baseIndex, const std::vector<int>& newOrder)
+CSMWorld::ReorderRowsCommand::ReorderRowsCommand(
+    IdTable& model, std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder)
     : mModel(model)
     , mBaseIndex(baseIndex)
     , mNewOrder(newOrder)
@@ -374,10 +379,10 @@ void CSMWorld::ReorderRowsCommand::redo()
 
 void CSMWorld::ReorderRowsCommand::undo()
 {
-    int size = static_cast<int>(mNewOrder.size());
-    std::vector<int> reverse(static_cast<std::size_t>(size));
+    auto size = static_cast<std::int32_t>(mNewOrder.size());
+    std::vector<std::int32_t> reverse(static_cast<std::size_t>(size));
 
-    for (int i = 0; i < size; ++i)
+    for (std::int32_t i = 0; i < size; ++i)
         reverse.at(static_cast<std::size_t>(mNewOrder[static_cast<std::size_t>(i)])) = i;
 
     mModel.reorderRows(mBaseIndex, reverse);
@@ -407,7 +412,7 @@ void CSMWorld::CloneCommand::undo()
     mModel.removeRow(mModel.getModelIndex(mId, 0).row());
 }
 
-void CSMWorld::CloneCommand::setOverrideValue(int column, const QVariant& value)
+void CSMWorld::CloneCommand::setOverrideValue(std::int32_t column, const QVariant& value)
 {
     mOverrideValues.emplace_back(std::make_pair(column, value));
 }
@@ -437,7 +442,7 @@ void CSMWorld::CreatePathgridCommand::redo()
     mModel.setRecord(mId, std::move(record), mType);
 }
 
-CSMWorld::UpdateCellCommand::UpdateCellCommand(IdTable& model, int row, QUndoCommand* parent)
+CSMWorld::UpdateCellCommand::UpdateCellCommand(IdTable& model, std::int32_t row, QUndoCommand* parent)
     : QUndoCommand(parent)
     , mModel(model)
     , mRow(row)
@@ -449,15 +454,17 @@ void CSMWorld::UpdateCellCommand::redo()
 {
     if (!mNew.isValid())
     {
-        int cellColumn = mModel.searchColumnIndex(Columns::ColumnId_Cell);
+        std::int32_t cellColumn = mModel.searchColumnIndex(Columns::ColumnId_Cell);
         mIndex = mModel.index(mRow, cellColumn);
 
         QModelIndex xIndex = mModel.index(mRow, mModel.findColumnIndex(Columns::ColumnId_PositionXPos));
 
         QModelIndex yIndex = mModel.index(mRow, mModel.findColumnIndex(Columns::ColumnId_PositionYPos));
 
-        int x = static_cast<int>(std::floor(mModel.data(xIndex).toFloat() / Constants::CellSizeInUnits));
-        int y = static_cast<int>(std::floor(mModel.data(yIndex).toFloat() / Constants::CellSizeInUnits));
+        std::int32_t x
+            = static_cast<std::int32_t>(std::floor(mModel.data(xIndex).toFloat() / Constants::CellSizeInUnits));
+        std::int32_t y
+            = static_cast<std::int32_t>(std::floor(mModel.data(yIndex).toFloat() / Constants::CellSizeInUnits));
 
         std::ostringstream stream;
 
@@ -475,7 +482,7 @@ void CSMWorld::UpdateCellCommand::undo()
 }
 
 CSMWorld::DeleteNestedCommand::DeleteNestedCommand(
-    IdTree& model, const std::string& id, int nestedRow, int parentColumn, QUndoCommand* parent)
+    IdTree& model, const std::string& id, std::int32_t nestedRow, std::int32_t parentColumn, QUndoCommand* parent)
     : QUndoCommand(parent)
     , NestedTableStoring(model, id, parentColumn)
     , mModel(model)
@@ -505,7 +512,7 @@ void CSMWorld::DeleteNestedCommand::undo()
 }
 
 CSMWorld::AddNestedCommand::AddNestedCommand(
-    IdTree& model, const std::string& id, int nestedRow, int parentColumn, QUndoCommand* parent)
+    IdTree& model, const std::string& id, std::int32_t nestedRow, std::int32_t parentColumn, QUndoCommand* parent)
     : QUndoCommand(parent)
     , NestedTableStoring(model, id, parentColumn)
     , mModel(model)
@@ -534,7 +541,7 @@ void CSMWorld::AddNestedCommand::undo()
     mModifyParentCommand->undo();
 }
 
-CSMWorld::NestedTableStoring::NestedTableStoring(const IdTree& model, const std::string& id, int parentColumn)
+CSMWorld::NestedTableStoring::NestedTableStoring(const IdTree& model, const std::string& id, std::int32_t parentColumn)
     : mOld(model.nestedTable(model.getModelIndex(id, parentColumn)))
 {
 }

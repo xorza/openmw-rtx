@@ -1,5 +1,7 @@
 #include "locals.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -70,7 +72,7 @@ namespace MWScript
         ensure(script);
 
         const Compiler::Locals& locals = MWBase::Environment::get().getScriptManager()->getLocals(script);
-        int index = locals.getIndex(var);
+        std::int32_t index = locals.getIndex(var);
         return (index != -1);
     }
 
@@ -79,7 +81,7 @@ namespace MWScript
         ensure(script);
 
         const Compiler::Locals& locals = MWBase::Environment::get().getScriptManager()->getLocals(script);
-        int index = locals.getIndex(var);
+        std::int32_t index = locals.getIndex(var);
         if (index == -1)
             return 0;
         switch (locals.getType(var))
@@ -102,7 +104,7 @@ namespace MWScript
         ensure(script);
 
         const Compiler::Locals& locals = MWBase::Environment::get().getScriptManager()->getLocals(script);
-        int index = locals.getIndex(var);
+        std::int32_t index = locals.getIndex(var);
         if (index == -1)
             return false;
         switch (locals.getType(var))
@@ -137,7 +139,7 @@ namespace MWScript
 
         const Compiler::Locals& declarations = MWBase::Environment::get().getScriptManager()->getLocals(script);
 
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
         {
             char type = 0;
 
@@ -158,7 +160,7 @@ namespace MWScript
 
             const std::vector<std::string>& names = declarations.get(type);
 
-            for (int i2 = 0; std::cmp_less(i2, names.size()); ++i2)
+            for (std::int32_t i2 = 0; std::cmp_less(i2, names.size()); ++i2)
             {
                 ESM::Variant value;
 
@@ -193,7 +195,7 @@ namespace MWScript
 
         const Compiler::Locals& declarations = MWBase::Environment::get().getScriptManager()->getLocals(script);
 
-        int index = 0, numshorts = 0, numlongs = 0;
+        std::int32_t index = 0, numshorts = 0, numlongs = 0;
         for (const auto& [_, value] : locals.mVariables)
         {
             ESM::VarType type = value.getType();
@@ -228,7 +230,7 @@ namespace MWScript
             else
             {
                 char type = declarations.getType(name);
-                int index2 = declarations.getIndex(name);
+                std::int32_t index2 = declarations.getIndex(name);
 
                 // silently ignore locals that don't exist anymore
                 if (type == ' ' || index2 == -1)

@@ -1,6 +1,8 @@
 #include "quicksavemanager.hpp"
 
-MWState::QuickSaveManager::QuickSaveManager(std::string& saveName, unsigned int maxSaves)
+#include <cstdint>
+
+MWState::QuickSaveManager::QuickSaveManager(std::string& saveName, std::uint32_t maxSaves)
     : mSaveName(saveName)
     , mMaxSaves(maxSaves)
     , mSlotsVisited(0)

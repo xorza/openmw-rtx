@@ -1,5 +1,6 @@
 #include "tools.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -38,7 +39,7 @@ namespace CSMDoc
     struct Message;
 }
 
-CSMDoc::OperationHolder* CSMTools::Tools::get(int type)
+CSMDoc::OperationHolder* CSMTools::Tools::get(std::int32_t type)
 {
     switch (type)
     {
@@ -55,7 +56,7 @@ CSMDoc::OperationHolder* CSMTools::Tools::get(int type)
     return nullptr;
 }
 
-const CSMDoc::OperationHolder* CSMTools::Tools::get(int type) const
+const CSMDoc::OperationHolder* CSMTools::Tools::get(std::int32_t type) const
 {
     return const_cast<Tools*>(this)->get(type);
 }
@@ -167,8 +168,9 @@ CSMTools::Tools::~Tools()
 
 CSMWorld::UniversalId CSMTools::Tools::runVerifier(const CSMWorld::UniversalId& reportId)
 {
-    int reportNumber = reportId.getType() == CSMWorld::UniversalId::Type_VerificationResults ? reportId.getIndex()
-                                                                                             : mNextReportNumber++;
+    std::int32_t reportNumber = reportId.getType() == CSMWorld::UniversalId::Type_VerificationResults
+        ? reportId.getIndex()
+        : mNextReportNumber++;
 
     if (!mReports.contains(reportNumber))
         mReports.insert(std::make_pair(reportNumber, new ReportModel));
@@ -225,24 +227,24 @@ void CSMTools::Tools::runMerge(std::unique_ptr<CSMDoc::Document> target)
     mMerge->start();
 }
 
-void CSMTools::Tools::abortOperation(int type)
+void CSMTools::Tools::abortOperation(std::int32_t type)
 {
     if (CSMDoc::OperationHolder* operation = get(type))
         operation->abort();
 }
 
-int CSMTools::Tools::getRunningOperations() const
+std::int32_t CSMTools::Tools::getRunningOperations() const
 {
-    static const int sOperations[] = {
+    static const std::int32_t sOperations[] = {
         CSMDoc::State_Verifying,
         CSMDoc::State_Searching,
         CSMDoc::State_Merging,
         -1,
     };
 
-    int result = 0;
+    std::int32_t result = 0;
 
-    for (int i = 0; sOperations[i] != -1; ++i)
+    for (std::int32_t i = 0; sOperations[i] != -1; ++i)
         if (const CSMDoc::OperationHolder* operation = get(sOperations[i]))
             if (operation->isRunning())
                 result |= sOperations[i];
@@ -260,7 +262,7 @@ CSMTools::ReportModel* CSMTools::Tools::getReport(const CSMWorld::UniversalId& i
     return mReports.at(id.getIndex());
 }
 
-void CSMTools::Tools::verifierMessage(const CSMDoc::Message& message, int type)
+void CSMTools::Tools::verifierMessage(const CSMDoc::Message& message, std::int32_t type)
 {
     auto iter = mActiveReports.find(type);
 

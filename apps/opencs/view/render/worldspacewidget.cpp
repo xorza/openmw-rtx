@@ -1,5 +1,9 @@
 #include "worldspacewidget.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <set>
+
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
@@ -8,9 +12,6 @@
 #include <QScreen>
 #include <QToolTip>
 #include <QWindow>
-#include <algorithm>
-#include <set>
-
 #include <osg/Camera>
 #include <osg/Group>
 #include <osg/Matrixd>
@@ -251,15 +252,15 @@ CSVWidget::SceneToolRun* CSVRender::WorldspaceWidget::makeRunTool(CSVWidget::Sce
 
     std::vector<std::string> profiles;
 
-    int idColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-    int stateColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
-    int defaultColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_DefaultProfile);
+    std::int32_t idColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t stateColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
+    std::int32_t defaultColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_DefaultProfile);
 
-    int size = debugProfiles.rowCount();
+    std::int32_t size = debugProfiles.rowCount();
 
-    for (int i = 0; i < size; ++i)
+    for (std::int32_t i = 0; i < size; ++i)
     {
-        int state = debugProfiles.data(debugProfiles.index(i, stateColumn)).toInt();
+        std::int32_t state = debugProfiles.data(debugProfiles.index(i, stateColumn)).toInt();
 
         const bool defaultValue = debugProfiles.data(debugProfiles.index(i, defaultColumn)).toInt();
 
@@ -338,17 +339,17 @@ bool CSVRender::WorldspaceWidget::handleDrop(const std::vector<CSMWorld::Univers
     return false;
 }
 
-unsigned int CSVRender::WorldspaceWidget::getVisibilityMask() const
+std::uint32_t CSVRender::WorldspaceWidget::getVisibilityMask() const
 {
     return mSceneElements->getSelectionMask();
 }
 
-void CSVRender::WorldspaceWidget::setInteractionMask(unsigned int mask)
+void CSVRender::WorldspaceWidget::setInteractionMask(std::uint32_t mask)
 {
     mInteractionMask = mask | Mask_CellMarker | Mask_CellArrow;
 }
 
-unsigned int CSVRender::WorldspaceWidget::getInteractionMask() const
+std::uint32_t CSVRender::WorldspaceWidget::getInteractionMask() const
 {
     return mInteractionMask & getVisibilityMask();
 }
@@ -404,11 +405,11 @@ std::optional<CSVRender::WorldspaceHitResult> CSVRender::WorldspaceWidget::check
 }
 
 std::tuple<osg::Vec3d, osg::Vec3d, osg::Vec3d> CSVRender::WorldspaceWidget::getStartEndDirection(
-    int pointX, int pointY) const
+    std::int32_t pointX, std::int32_t pointY) const
 {
     // (0,0) is considered the lower left corner of an OpenGL window
-    int x = static_cast<int>(pointX * devicePixelRatio());
-    int y = static_cast<int>(height() * devicePixelRatio() - pointY * devicePixelRatio());
+    auto x = static_cast<std::int32_t>(pointX * devicePixelRatio());
+    auto y = static_cast<std::int32_t>(height() * devicePixelRatio() - pointY * devicePixelRatio());
 
     // Convert from screen space to world space
     osg::Matrixd wpvMat;
@@ -424,7 +425,7 @@ std::tuple<osg::Vec3d, osg::Vec3d, osg::Vec3d> CSVRender::WorldspaceWidget::getS
 }
 
 CSVRender::WorldspaceHitResult CSVRender::WorldspaceWidget::mousePick(
-    const QPoint& localPos, unsigned int interactionMask) const
+    const QPoint& localPos, std::uint32_t interactionMask) const
 {
     auto [start, end, direction] = getStartEndDirection(localPos.x(), localPos.y());
 
@@ -570,12 +571,12 @@ void CSVRender::WorldspaceWidget::debugProfileDataChanged(const QModelIndex& top
     CSMWorld::IdTable& debugProfiles = dynamic_cast<CSMWorld::IdTable&>(
         *mDocument.getData().getTableModel(CSMWorld::UniversalId::Type_DebugProfiles));
 
-    int idColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-    int stateColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
+    std::int32_t idColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t stateColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
 
-    for (int i = topLeft.row(); i <= bottomRight.row(); ++i)
+    for (std::int32_t i = topLeft.row(); i <= bottomRight.row(); ++i)
     {
-        int state = debugProfiles.data(debugProfiles.index(i, stateColumn)).toInt();
+        std::int32_t state = debugProfiles.data(debugProfiles.index(i, stateColumn)).toInt();
 
         // As of version 0.33 this case can not happen because debug profiles exist only in
         // project or session scope, which means they will never be in deleted state. But we
@@ -586,7 +587,8 @@ void CSVRender::WorldspaceWidget::debugProfileDataChanged(const QModelIndex& top
     }
 }
 
-void CSVRender::WorldspaceWidget::debugProfileAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::WorldspaceWidget::debugProfileAboutToBeRemoved(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (parent.isValid())
         return;
@@ -597,9 +599,9 @@ void CSVRender::WorldspaceWidget::debugProfileAboutToBeRemoved(const QModelIndex
     CSMWorld::IdTable& debugProfiles = dynamic_cast<CSMWorld::IdTable&>(
         *mDocument.getData().getTableModel(CSMWorld::UniversalId::Type_DebugProfiles));
 
-    int idColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t idColumn = debugProfiles.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
 
-    for (int i = start; i <= end; ++i)
+    for (std::int32_t i = start; i <= end; ++i)
     {
         mRun->removeProfile(debugProfiles.data(debugProfiles.index(i, idColumn)).toString().toUtf8().constData());
     }
@@ -636,7 +638,7 @@ void CSVRender::WorldspaceWidget::elementSelectionChanged()
 
 void CSVRender::WorldspaceWidget::updateOverlay() {}
 
-void CSVRender::WorldspaceWidget::handleMarkerHighlight(const int x, const int y)
+void CSVRender::WorldspaceWidget::handleMarkerHighlight(const std::int32_t x, const std::int32_t y)
 {
     auto [start, end, _] = getStartEndDirection(x, y);
 
@@ -678,8 +680,8 @@ void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
     if (mDragging)
     {
         QPoint pos = event->position().toPoint();
-        int diffX = pos.x() - mDragX;
-        int diffY = (height() - pos.y()) - mDragY;
+        std::int32_t diffX = pos.x() - mDragX;
+        std::int32_t diffY = (height() - pos.y()) - mDragY;
 
         mDragX = pos.x();
         mDragY = height() - pos.y();
@@ -708,8 +710,8 @@ void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
 
         if (mDragging)
         {
-            mDragX = static_cast<int>(event->position().x());
-            mDragY = static_cast<int>(height() - event->position().y());
+            mDragX = static_cast<std::int32_t>(event->position().x());
+            mDragY = static_cast<std::int32_t>(height() - event->position().y());
         }
     }
     else

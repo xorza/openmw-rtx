@@ -1,5 +1,7 @@
 #include "chunkmanager.hpp"
 
+#include <cstdint>
+
 #include <osg/Texture2D>
 #include <osgUtil/IncrementalCompileOperation>
 
@@ -60,12 +62,12 @@ namespace Terrain
         mMultiPassRoot->setAttributeAndModes(material, osg::StateAttribute::ON);
     }
 
-    osg::ref_ptr<osg::Node> ChunkManager::getChunk(float size, const osg::Vec2f& center, unsigned char lod,
-        unsigned int lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
+    osg::ref_ptr<osg::Node> ChunkManager::getChunk(float size, const osg::Vec2f& center, std::uint8_t lod,
+        std::uint32_t lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
     {
         // Override lod with the vertexLodMod adjusted value.
         // TODO: maybe we can refactor this code by moving all vertexLodMod code into this class.
-        lod = static_cast<unsigned char>(lodFlags >> (4 * 4));
+        lod = static_cast<std::uint8_t>(lodFlags >> (4 * 4));
 
         const ChunkKey key{ .mCenter = center, .mLod = lod, .mLodFlags = lodFlags };
         if (osg::ref_ptr<osg::Object> obj = mCache->getRefFromObjectCache(key))
@@ -88,7 +90,7 @@ namespace Terrain
         mCache->call(f);
     }
 
-    void ChunkManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void ChunkManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Terrain Chunk", frameNumber, mCache->getStats(), *stats);
     }
@@ -109,8 +111,8 @@ namespace Terrain
     osg::ref_ptr<osg::Texture2D> ChunkManager::createCompositeMapRTT()
     {
         osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D;
-        texture->setTextureWidth(static_cast<int>(mCompositeMapSize));
-        texture->setTextureHeight(static_cast<int>(mCompositeMapSize));
+        texture->setTextureWidth(static_cast<std::int32_t>(mCompositeMapSize));
+        texture->setTextureHeight(static_cast<std::int32_t>(mCompositeMapSize));
         texture->setInternalFormat(GL_RGB);
         texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
         texture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
@@ -198,14 +200,14 @@ namespace Terrain
             blendmapTextures.push_back(texture);
         }
 
-        int tileCount = mStorage->getTextureTileCount(chunkSize, mWorldspace);
+        std::int32_t tileCount = mStorage->getTextureTileCount(chunkSize, mWorldspace);
 
         return ::Terrain::createPasses(mSceneManager, layers, blendmapTextures, tileCount,
             static_cast<float>(tileCount), forCompositeMap, ESM::isEsm4Ext(mWorldspace));
     }
 
-    osg::ref_ptr<osg::Node> ChunkManager::createChunk(float chunkSize, const osg::Vec2f& chunkCenter, unsigned char lod,
-        unsigned int lodFlags, bool compile, const TerrainDrawable* templateGeometry)
+    osg::ref_ptr<osg::Node> ChunkManager::createChunk(float chunkSize, const osg::Vec2f& chunkCenter, std::uint8_t lod,
+        std::uint32_t lodFlags, bool compile, const TerrainDrawable* templateGeometry)
     {
         osg::ref_ptr<TerrainDrawable> geometry(new TerrainDrawable);
 
@@ -253,14 +255,14 @@ namespace Terrain
         if (chunkSize <= 1.f)
             geometry->setLightListCallback(new SceneUtil::LightListCallback);
 
-        auto numVerts = static_cast<unsigned>(static_cast<float>((mStorage->getCellVertices(mWorldspace) - 1))
+        auto numVerts = static_cast<std::uint32_t>(static_cast<float>((mStorage->getCellVertices(mWorldspace) - 1))
                 * chunkSize / static_cast<float>((1 << lod))
             + 1);
 
         geometry->addPrimitiveSet(mBufferCache.getIndexBuffer(numVerts, lodFlags));
 
         bool useCompositeMap = chunkSize >= mCompositeMapLevel;
-        unsigned int numUvSets = useCompositeMap ? 1 : 2;
+        std::uint32_t numUvSets = useCompositeMap ? 1 : 2;
 
         geometry->setTexCoordArrayList(osg::Geometry::ArrayList(numUvSets, mBufferCache.getUVBuffer(numVerts)));
 

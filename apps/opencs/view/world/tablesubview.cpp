@@ -1,5 +1,9 @@
 #include "tablesubview.hpp"
 
+#include <cstdint>
+#include <utility>
+#include <variant>
+
 #include <QApplication>
 #include <QCheckBox>
 #include <QDropEvent>
@@ -10,8 +14,6 @@
 #include <QScreen>
 #include <QVBoxLayout>
 #include <QVariant>
-#include <utility>
-#include <variant>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/tablemimedata.hpp>
@@ -82,7 +84,7 @@ CSVWorld::TableSubView::TableSubView(
 
     // prefer height of the screen and full width of the table
     const QRect rect = screen->geometry();
-    int frameHeight = 40; // set a reasonable default
+    std::int32_t frameHeight = 40; // set a reasonable default
     QWidget* topLevel = QApplication::topLevelAt(pos());
     if (topLevel)
         frameHeight = topLevel->frameGeometry().height() - topLevel->height();

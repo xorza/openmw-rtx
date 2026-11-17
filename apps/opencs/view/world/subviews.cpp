@@ -1,5 +1,7 @@
 #include "subviews.hpp"
 
+#include <cstdint>
+
 #include <apps/opencs/model/world/scope.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/doc/subviewfactory.hpp>
@@ -51,7 +53,7 @@ void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
         CSMWorld::UniversalId::Type_None,
     };
 
-    for (int i = 0; sTableTypes[i] != CSMWorld::UniversalId::Type_None; ++i)
+    for (std::int32_t i = 0; sTableTypes[i] != CSMWorld::UniversalId::Type_None; ++i)
         manager.add(
             sTableTypes[i], new CSVDoc::SubViewFactoryWithCreator<TableSubView, CreatorFactory<GenericCreator>>);
 
@@ -145,7 +147,7 @@ void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
         CSMWorld::UniversalId::Type_None,
     };
 
-    for (int i = 0; sTableTypes2[i] != CSMWorld::UniversalId::Type_None; ++i)
+    for (std::int32_t i = 0; sTableTypes2[i] != CSMWorld::UniversalId::Type_None; ++i)
         manager.add(sTableTypes2[i],
             new CSVDoc::SubViewFactoryWithCreator<DialogueSubView, CreatorFactory<GenericCreator>>(false));
 

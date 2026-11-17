@@ -1,9 +1,9 @@
 #include "pathgridselectionmode.hpp"
 
-#include <QAction>
-#include <QMenu>
 #include <vector>
 
+#include <QAction>
+#include <QMenu>
 #include <osg/ref_ptr>
 
 #include <apps/opencs/model/doc/document.hpp>

@@ -1,6 +1,7 @@
 #include "keyboardmanager.hpp"
 
 #include <cctype>
+#include <cstdint>
 
 #include <MyGUI_InputManager.h>
 
@@ -49,7 +50,7 @@ namespace MWInput
             (!(SDLK_SCANCODE_MASK & arg.key) &&
                 // Don't trust isprint for symbols outside the extended ASCII range
                 ((kc == MyGUI::KeyCode::None && arg.key > 0xff)
-                    || (arg.key <= 255 && std::isprint(static_cast<int>(arg.key)))));
+                    || (arg.key <= 255 && std::isprint(static_cast<std::int32_t>(arg.key)))));
         if (kc != MyGUI::KeyCode::None && !mBindingsManager->isDetectingBindingState())
         {
             if (MWBase::Environment::get().getWindowManager()->injectKeyPress(kc, 0, arg.repeat))

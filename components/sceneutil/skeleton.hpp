@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <unordered_map>
 
@@ -40,7 +41,7 @@ namespace SceneUtil
         Bone* getBone(const std::string& name);
 
         /// Request an update of bone matrices. May be a no-op if already updated in this frame.
-        void updateBoneMatrices(unsigned int traversalNumber);
+        void updateBoneMatrices(std::uint32_t traversalNumber);
 
         enum ActiveType
         {
@@ -59,12 +60,12 @@ namespace SceneUtil
 
         /// Says that something which draws this reached it on this frame, which is what keeps a SemiActive
         /// skeleton animating. A cull is one caller; a renderer that culls nothing calls it itself.
-        void markReached(unsigned int updateTraversalNumber) { mLastCullFrameNumber = updateTraversalNumber; }
+        void markReached(std::uint32_t updateTraversalNumber) { mLastCullFrameNumber = updateTraversalNumber; }
 
         void markDirty();
 
-        void childInserted(unsigned int) override;
-        void childRemoved(unsigned int, unsigned int) override;
+        void childInserted(std::uint32_t) override;
+        void childRemoved(std::uint32_t, std::uint32_t) override;
 
     private:
         // The root bone is not a "real" bone, it has no corresponding node in the scene graph.
@@ -79,8 +80,8 @@ namespace SceneUtil
 
         ActiveType mActive;
 
-        unsigned int mLastFrameNumber;
-        unsigned int mLastCullFrameNumber;
+        std::uint32_t mLastFrameNumber;
+        std::uint32_t mLastCullFrameNumber;
     };
 
 }

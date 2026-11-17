@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -11,9 +12,9 @@ namespace RtxTool
 
     /// `value` as a JSON number at `decimals` decimals, or `null` where it is not finite, which JSON has no
     /// number for: a figure of no samples, which a reader such as Python's `json` refuses as `nan`.
-    std::string jsonNumber(double value, int decimals);
+    std::string jsonNumber(double value, std::int32_t decimals);
 
     /// `value` as a JSON number to `digits` significant digits, or `null` where it is not finite: a figure whose
     /// scale nobody knows ahead, as a card's counter.
-    std::string jsonSignificant(double value, int digits);
+    std::string jsonSignificant(double value, std::int32_t digits);
 }

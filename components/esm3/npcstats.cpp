@@ -1,5 +1,8 @@
 #include "npcstats.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -21,7 +24,7 @@ namespace ESM
 
             Faction faction;
 
-            int32_t expelled = 0;
+            std::int32_t expelled = 0;
             esm.getHNOT(expelled, "FAEX");
 
             if (expelled)
@@ -43,7 +46,7 @@ namespace ESM
         if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
         {
             const bool intFallback = esm.getFormatVersion() <= MaxIntFallbackFormatVersion;
-            for (int i = 0; i < ESM::Skill::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Skill::Length; ++i)
                 mSkills[ESM::Skill::indexToRefId(i)].load(esm, intFallback);
         }
         else
@@ -73,10 +76,10 @@ namespace ESM
         mSkillIncrease.clear();
         if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
         {
-            std::array<int32_t, ESM::Attribute::Length> increases{};
+            std::array<std::int32_t, ESM::Attribute::Length> increases{};
             if (esm.getHNOT("INCR", increases))
             {
-                for (int i = 0; i < ESM::Attribute::Length; ++i)
+                for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
                     mSkillIncrease[ESM::Attribute::indexToRefId(i)] = increases[static_cast<std::size_t>(i)];
             }
         }
@@ -85,7 +88,7 @@ namespace ESM
             while (esm.isNextSub("INCR"))
             {
                 esm.getSubHeader();
-                int32_t value = 0;
+                std::int32_t value = 0;
                 esm.getT(value);
                 ESM::RefId attribute = esm.getRefId(esm.getSubSize() - sizeof(value));
                 mSkillIncrease[attribute] = value;
@@ -113,7 +116,7 @@ namespace ESM
 
             if (faction.mExpelled)
             {
-                int32_t expelled = 1;
+                std::int32_t expelled = 1;
                 esm.writeHNT("FAEX", expelled);
             }
 
@@ -133,7 +136,7 @@ namespace ESM
         if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
         {
             // This branch is only used in tests. It probably shouldn't exist.
-            for (int i = 0; i < ESM::Skill::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Skill::Length; ++i)
             {
                 const auto it = mSkills.find(ESM::Skill::indexToRefId(i));
                 if (it != mSkills.end())
@@ -181,9 +184,9 @@ namespace ESM
             if (saveSkillIncreases)
             {
                 esm.startSubRecord("INCR");
-                for (int i = 0; i < ESM::Attribute::Length; ++i)
+                for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
                 {
-                    int32_t increase = 0;
+                    std::int32_t increase = 0;
                     const auto it = mSkillIncrease.find(ESM::Attribute::indexToRefId(i));
                     if (it != mSkillIncrease.end())
                         increase = it->second;

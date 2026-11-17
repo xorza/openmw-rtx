@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -25,12 +26,12 @@ namespace SDLUtil
         struct Told final : WindowListener
         {
             void windowVisibilityChange(bool visible) override { mTold.push_back(visible); }
-            void windowSized(int width, int height) override { mSized.emplace_back(width, height); }
-            void windowResized(int x, int y) override { mResized.emplace_back(x, y); }
+            void windowSized(std::int32_t width, std::int32_t height) override { mSized.emplace_back(width, height); }
+            void windowResized(std::int32_t x, std::int32_t y) override { mResized.emplace_back(x, y); }
 
             std::vector<bool> mTold;
-            std::vector<std::pair<int, int>> mSized;
-            std::vector<std::pair<int, int>> mResized;
+            std::vector<std::pair<std::int32_t, std::int32_t>> mSized;
+            std::vector<std::pair<std::int32_t, std::int32_t>> mResized;
         };
 
         /// SDL's video on its offscreen driver, which needs no display.
@@ -127,8 +128,8 @@ namespace SDLUtil
 
             ASSERT_TRUE(SDL_SetWindowSize(video.mWindow, 100, 50)) << SDL_GetError();
             input.capture(true);
-            EXPECT_EQ(listener.mSized, (std::vector<std::pair<int, int>>{ { 100, 50 } }));
-            EXPECT_EQ(listener.mResized, (std::vector<std::pair<int, int>>{ { 100, 50 } }));
+            EXPECT_EQ(listener.mSized, (std::vector<std::pair<std::int32_t, std::int32_t>>{ { 100, 50 } }));
+            EXPECT_EQ(listener.mResized, (std::vector<std::pair<std::int32_t, std::int32_t>>{ { 100, 50 } }));
         }
     }
 }

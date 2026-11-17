@@ -1,9 +1,11 @@
 #include "tablemimedata.hpp"
 
-#include <QDebug>
-#include <QString>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
+
+#include <QDebug>
+#include <QString>
 
 #include "columnbase.hpp"
 #include "universalid.hpp"
@@ -262,7 +264,7 @@ namespace
 
 CSMWorld::UniversalId::Type CSMWorld::TableMimeData::convertEnums(ColumnBase::Display type)
 {
-    for (int i = 0; mapping[i].mUniversalIdType != CSMWorld::UniversalId::Type_None; ++i)
+    for (std::int32_t i = 0; mapping[i].mUniversalIdType != CSMWorld::UniversalId::Type_None; ++i)
         if (mapping[i].mDisplayType == type)
             return mapping[i].mUniversalIdType;
 
@@ -271,7 +273,7 @@ CSMWorld::UniversalId::Type CSMWorld::TableMimeData::convertEnums(ColumnBase::Di
 
 CSMWorld::ColumnBase::Display CSMWorld::TableMimeData::convertEnums(UniversalId::Type type)
 {
-    for (int i = 0; mapping[i].mUniversalIdType != CSMWorld::UniversalId::Type_None; ++i)
+    for (std::int32_t i = 0; mapping[i].mUniversalIdType != CSMWorld::UniversalId::Type_None; ++i)
         if (mapping[i].mUniversalIdType == type)
             return mapping[i].mDisplayType;
 

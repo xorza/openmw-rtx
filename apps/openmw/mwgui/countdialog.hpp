@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include "windowbase.hpp"
 
 namespace Gui
@@ -13,8 +16,8 @@ namespace MWGui
     {
     public:
         CountDialog();
-        void openCountDialog(const std::string& item, const std::string& message, const int maxCount);
-        void setCount(int count);
+        void openCountDialog(const std::string& item, const std::string& message, const std::int32_t maxCount);
+        void setCount(std::int32_t count);
 
         /** Event : Ok button was clicked.\n
             signature : void method(MyGUI::Widget* sender, std::size_t count)\n
@@ -31,8 +34,8 @@ namespace MWGui
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onOkButtonClicked(MyGUI::Widget* sender);
-        void onEditValueChanged(int value);
-        void onSliderMoved(MyGUI::ScrollBar* sender, size_t position);
+        void onEditValueChanged(std::int32_t value);
+        void onSliderMoved(MyGUI::ScrollBar* sender, std::size_t position);
         void onEnterKeyPressed(MyGUI::EditBox* sender);
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };

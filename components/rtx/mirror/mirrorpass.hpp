@@ -41,11 +41,11 @@ namespace Rtx
     {
     public:
         /// The next number, greater than every number handed out before it.
-        unsigned int next() { return ++mLast; }
+        std::uint32_t next() { return ++mLast; }
 
     private:
         /// From one and not from zero. Everything OSG poses starts at a traversal number of
         /// zero, so a first walk saying zero is a walk that poses nothing.
-        unsigned int mLast = 0;
+        std::uint32_t mLast = 0;
     };
 }

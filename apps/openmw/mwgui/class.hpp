@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string_view>
 
@@ -33,7 +35,7 @@ namespace MWGui
         bool exit() override { return false; }
 
         // Events
-        typedef MyGUI::delegates::MultiDelegate<int> EventHandle_Int;
+        typedef MyGUI::delegates::MultiDelegate<std::int32_t> EventHandle_Int;
 
         /** Event : Button was clicked.\n
             signature : void method(int index)\n
@@ -46,12 +48,12 @@ namespace MWGui
 
     private:
         void fitToText(MyGUI::TextBox* widget);
-        void layoutVertically(MyGUI::Widget* widget, int margin);
+        void layoutVertically(MyGUI::Widget* widget, std::int32_t margin);
         MyGUI::Widget* mTextBox{};
         MyGUI::TextBox* mText{};
         MyGUI::Widget* mButtonBar{};
         std::vector<MyGUI::Button*> mButtons;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 
     // Lets the player choose between 3 ways of creating a class
@@ -133,8 +135,8 @@ namespace MWGui
         EventHandle_WindowBase eventDone;
 
     protected:
-        void onSelectClass(MyGUI::ListBox* sender, size_t index);
-        void onAccept(MyGUI::ListBox* sender, size_t index);
+        void onSelectClass(MyGUI::ListBox* sender, std::size_t index);
+        void onAccept(MyGUI::ListBox* sender, std::size_t index);
 
         void onOkClicked(MyGUI::Widget* sender);
         void onBackClicked(MyGUI::Widget* sender);
@@ -218,7 +220,7 @@ namespace MWGui
         void onAttributeClicked(Widgets::MWAttributePtr sender);
         void onCancelClicked(MyGUI::Widget* sender);
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
         std::vector<Widgets::MWAttribute*> mAttributeButtons;
 
     private:
@@ -252,14 +254,14 @@ namespace MWGui
         void onSkillClicked(Widgets::MWSkillPtr sender);
         void onCancelClicked(MyGUI::Widget* sender);
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
         std::vector<Widgets::MWSkill*> mSkillButtons;
 
     private:
         ESM::RefId mSkillId;
-        std::array<size_t, 3> mNumSkillsPerSpecialization{};
+        std::array<std::size_t, 3> mNumSkillsPerSpecialization{};
 
-        void selectNextColumn(int direction);
+        void selectNextColumn(std::int32_t direction);
     };
 
     class DescriptionDialog : public WindowModal
@@ -328,7 +330,7 @@ namespace MWGui
         void onDescriptionEntered(WindowBase* parWindow);
         void onDialogCancel();
 
-        void setSpecialization(int id);
+        void setSpecialization(std::int32_t id);
 
         void update();
 
@@ -353,6 +355,6 @@ namespace MWGui
         Widgets::MWSkillPtr mAffectedSkill;
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 2;
+        std::size_t mControllerFocus = 2;
     };
 }

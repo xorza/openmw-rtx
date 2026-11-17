@@ -1,5 +1,7 @@
 #include "scriptsettings.hpp"
 
+#include <cstddef>
+
 #include "adapter.hpp"
 #include "element.hpp"
 #include "registerscriptsettings.hpp"
@@ -20,12 +22,12 @@ namespace LuaUi
         }
     }
 
-    size_t scriptSettingsPageCount()
+    std::size_t scriptSettingsPageCount()
     {
         return allPages.size();
     }
 
-    ScriptSettingsPage scriptSettingsPageAt(size_t index)
+    ScriptSettingsPage scriptSettingsPageAt(std::size_t index)
     {
         return parse(allPages[index]);
     }
@@ -45,7 +47,7 @@ namespace LuaUi
         allPages.clear();
     }
 
-    void ensureScriptSettingsPage(size_t index)
+    void ensureScriptSettingsPage(std::size_t index)
     {
         if (index >= allPages.size())
             return;
@@ -61,7 +63,7 @@ namespace LuaUi
         }
     }
 
-    void attachPageAt(size_t index, LuaAdapter* adapter)
+    void attachPageAt(std::size_t index, LuaAdapter* adapter)
     {
         adapter->detach();
         if (index < allPages.size())

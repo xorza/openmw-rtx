@@ -1,5 +1,7 @@
 #include "camerabindings.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwphysics/raycasting.hpp>
@@ -27,15 +29,15 @@ namespace MWLua
             lua.create_table_with("Static", CameraMode::Static, "FirstPerson", CameraMode::FirstPerson, "ThirdPerson",
                 CameraMode::ThirdPerson, "Vanity", CameraMode::Vanity, "Preview", CameraMode::Preview));
 
-        api["getMode"] = [camera]() -> int { return static_cast<int>(camera->getMode()); };
-        api["getQueuedMode"] = [camera]() -> sol::optional<int> {
+        api["getMode"] = [camera]() -> std::int32_t { return static_cast<std::int32_t>(camera->getMode()); };
+        api["getQueuedMode"] = [camera]() -> sol::optional<std::int32_t> {
             std::optional<CameraMode> mode = camera->getQueuedMode();
             if (mode)
-                return static_cast<int>(*mode);
+                return static_cast<std::int32_t>(*mode);
             else
                 return sol::nullopt;
         };
-        api["setMode"] = [camera](int mode, sol::optional<bool> force) {
+        api["setMode"] = [camera](std::int32_t mode, sol::optional<bool> force) {
             camera->setMode(static_cast<CameraMode>(mode), force ? *force : false);
         };
 
@@ -87,7 +89,7 @@ namespace MWLua
         api["instantTransition"] = [camera]() { camera->instantTransition(); };
 
         api["getCollisionType"] = [camera]() { return camera->getCollisionType(); };
-        api["setCollisionType"] = [camera](int collisionType) { camera->setCollisionType(collisionType); };
+        api["setCollisionType"] = [camera](std::int32_t collisionType) { camera->setCollisionType(collisionType); };
 
         api["getBaseFieldOfView"] = [] { return osg::DegreesToRadians(Settings::camera().mFieldOfView); };
         api["getFieldOfView"]
@@ -115,8 +117,8 @@ namespace MWLua
 
         api["worldToViewportVector"] = [camera, renderingManager](osg::Vec3f pos) {
             const osg::Vec2i frame = renderingManager->getRenderer().getPresentation().mFrame;
-            const int width = frame.x();
-            const int height = frame.y();
+            const std::int32_t width = frame.x();
+            const std::int32_t height = frame.y();
 
             osg::Matrix windowMatrix
                 = osg::Matrix::translate(1.0, 1.0, 1.0) * osg::Matrix::scale(0.5 * width, 0.5 * height, 0.5);

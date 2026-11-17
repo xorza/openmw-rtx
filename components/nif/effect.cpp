@@ -1,5 +1,8 @@
 #include "effect.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "node.hpp"
 #include "texture.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 
@@ -18,7 +21,7 @@ namespace Nif
 
         if (nif->getVersion() >= nif->generateVersion(10, 1, 0, 106))
             nif->read(mSwitchState);
-        size_t numAffectedNodes = nif->get<uint32_t>();
+        std::size_t numAffectedNodes = nif->get<std::uint32_t>();
         nif->skip(numAffectedNodes * 4);
     }
 
@@ -61,8 +64,8 @@ namespace Nif
         if (nif->getVersion() >= NIFStream::generateVersion(20, 5, 0, 4))
             nif->read(mMaxAnisotropy);
         nif->read(mClampMode);
-        mTextureType = static_cast<TextureType>(nif->get<uint32_t>());
-        mCoordGenType = static_cast<CoordGenType>(nif->get<uint32_t>());
+        mTextureType = static_cast<TextureType>(nif->get<std::uint32_t>());
+        mCoordGenType = static_cast<CoordGenType>(nif->get<std::uint32_t>());
         mTexture.read(nif);
         nif->read(mEnableClipPlane);
         mClipPlane = osg::Plane(nif->get<osg::Vec4f>());

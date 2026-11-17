@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <initializer_list>
 #include <limits>
@@ -72,7 +73,7 @@ namespace MWGui
         mDynamicToolTipBox->setNeedMouseFocus(false);
         mMainWidget->setNeedMouseFocus(false);
 
-        for (size_t i = 0; i < mMainWidget->getChildCount(); ++i)
+        for (std::size_t i = 0; i < mMainWidget->getChildCount(); ++i)
         {
             mMainWidget->getChildAt(i)->setVisible(false);
         }
@@ -97,7 +98,7 @@ namespace MWGui
         }
 
         // start by hiding everything
-        for (size_t i = 0; i < mMainWidget->getChildCount(); ++i)
+        for (std::size_t i = 0; i < mMainWidget->getChildCount(); ++i)
         {
             mMainWidget->getChildAt(i)->setVisible(false);
         }
@@ -216,7 +217,7 @@ namespace MWGui
                     mFocusObject = pair.second->getItem(pair.first).mBase;
                     bool isAllowedToUse = pair.second->allowedToUseItems();
                     tooltipSize = getToolTipViaPtr(
-                        static_cast<int>(pair.second->getItem(pair.first).mCount), false, !isAllowedToUse);
+                        static_cast<std::int32_t>(pair.second->getItem(pair.first).mCount), false, !isAllowedToUse);
                 }
                 else if (type == "ToolTipInfo")
                 {
@@ -285,7 +286,7 @@ namespace MWGui
                     const auto& userStrings = focus->getUserStrings();
                     for (auto& userStringPair : userStrings)
                     {
-                        size_t underscorePos = userStringPair.first.find('_');
+                        std::size_t underscorePos = userStringPair.first.find('_');
                         if (underscorePos == std::string::npos)
                             continue;
                         std::string key = userStringPair.first.substr(0, underscorePos);
@@ -293,7 +294,7 @@ namespace MWGui
                         std::string_view widgetName = first.substr(underscorePos + 1);
 
                         type = "Property";
-                        size_t caretPos = key.find('^');
+                        std::size_t caretPos = key.find('^');
                         if (caretPos != std::string::npos)
                         {
                             type = first.substr(0, caretPos);
@@ -328,9 +329,9 @@ namespace MWGui
             {
                 MyGUI::IntSize tooltipSize = getToolTipViaPtr(mFocusObject.getCellRef().getCount(), true, checkOwned());
 
-                const int left = viewSize.width / 2 - tooltipSize.width / 2;
-                const int top = std::max(0,
-                    static_cast<int>(mFocusToolTipY * static_cast<float>(viewSize.height)
+                const std::int32_t left = viewSize.width / 2 - tooltipSize.width / 2;
+                const std::int32_t top = std::max(0,
+                    static_cast<std::int32_t>(mFocusToolTipY * static_cast<float>(viewSize.height)
                         - static_cast<float>(tooltipSize.height) - 20));
                 setCoord(left, top, tooltipSize.width, tooltipSize.height);
 
@@ -343,7 +344,7 @@ namespace MWGui
     {
         position += MyGUI::IntPoint(0, 32)
             - MyGUI::IntPoint(
-                static_cast<int>(static_cast<float>(MyGUI::InputManager::getInstance().getMousePosition().left)
+                static_cast<std::int32_t>(static_cast<float>(MyGUI::InputManager::getInstance().getMousePosition().left)
                     / static_cast<float>(viewportSize.width) * static_cast<float>(size.width)),
                 0);
 
@@ -366,7 +367,7 @@ namespace MWGui
             MyGUI::Gui::getInstance().destroyWidget(mDynamicToolTipBox->getChildAt(0));
         }
 
-        for (size_t i = 0; i < mMainWidget->getChildCount(); ++i)
+        for (std::size_t i = 0; i < mMainWidget->getChildCount(); ++i)
         {
             mMainWidget->getChildAt(i)->setVisible(false);
         }
@@ -379,7 +380,7 @@ namespace MWGui
         update(mFrameDuration);
     }
 
-    MyGUI::IntSize ToolTips::getToolTipViaPtr(int count, bool image, bool isOwned)
+    MyGUI::IntSize ToolTips::getToolTipViaPtr(std::int32_t count, bool image, bool isOwned)
     {
         // this the maximum width of the tooltip before it starts word-wrapping
         setCoord(0, 0, 300, 300);
@@ -420,7 +421,7 @@ namespace MWGui
     {
         mDynamicToolTipBox->setVisible(true);
 
-        const int showOwned = Settings::game().mShowOwned;
+        const std::int32_t showOwned = Settings::game().mShowOwned;
         if ((showOwned == 1 || showOwned == 3) && isOwned)
             mDynamicToolTipBox->changeWidgetSkin(MWBase::Environment::get().getWindowManager()->isGuiMode()
                     ? "HUD_Box_NoTransp_Owned"
@@ -431,7 +432,7 @@ namespace MWGui
 
         const std::string& caption = info.caption;
         const std::string& image = info.icon;
-        int imageSize = (!image.empty()) ? info.imageSize : 0;
+        std::int32_t imageSize = (!image.empty()) ? info.imageSize : 0;
         std::string text = info.text;
         std::string_view extra = info.extra;
 
@@ -464,10 +465,11 @@ namespace MWGui
 
         const MyGUI::IntPoint padding(8, 8);
 
-        const int imageCaptionHPadding = !caption.empty() ? 8 : 0;
-        const int imageCaptionVPadding = !caption.empty() ? 4 : 0;
+        const std::int32_t imageCaptionHPadding = !caption.empty() ? 8 : 0;
+        const std::int32_t imageCaptionVPadding = !caption.empty() ? 4 : 0;
 
-        const int maximumWidth = MyGUI::RenderManager::getInstance().getViewSize().width - imageCaptionHPadding * 2;
+        const std::int32_t maximumWidth
+            = MyGUI::RenderManager::getInstance().getViewSize().width - imageCaptionHPadding * 2;
 
         const VFS::Path::Normalized realImage = Misc::ResourceHelpers::correctIconPath(
             VFS::Path::toNormalized(image), *MWBase::Environment::get().getResourceSystem()->getVFS());
@@ -479,7 +481,7 @@ namespace MWGui
         captionWidget->setCaptionWithReplacing(caption);
         MyGUI::IntSize captionSize = captionWidget->getTextSize();
 
-        int captionHeight = std::max(!caption.empty() ? captionSize.height : 0, imageSize);
+        std::int32_t captionHeight = std::max(!caption.empty() ? captionSize.height : 0, imageSize);
 
         auto* textWidget = mDynamicToolTipBox->createWidget<Gui::EditBox>("SandText",
             MyGUI::IntCoord(0, captionHeight + imageCaptionVPadding, 300, 300 - captionHeight - imageCaptionVPadding),
@@ -507,7 +509,7 @@ namespace MWGui
                 MyGUI::IntCoord(padding.left + 8 + 4, totalSize.height + padding.top, 300 - padding.left - 8 - 4,
                     300 - totalSize.height),
                 MyGUI::Align::Default);
-            constexpr size_t maxLength = 60;
+            constexpr std::size_t maxLength = 60;
             std::string shortenedNote = note.substr(0, std::min(maxLength, note.find('\n')));
             if (shortenedNote.size() < note.size())
                 shortenedNote += " ...";
@@ -532,7 +534,7 @@ namespace MWGui
             effectsWidget->setEffectList(info.effects);
 
             std::vector<MyGUI::Widget*> effectItems;
-            int flag = info.isPotion ? Widgets::MWEffectList::EF_NoTarget : 0;
+            std::int32_t flag = info.isPotion ? Widgets::MWEffectList::EF_NoTarget : 0;
             flag |= info.isIngredient ? Widgets::MWEffectList::EF_NoMagnitude : 0;
             flag |= info.isIngredient ? Widgets::MWEffectList::EF_Constant : 0;
             effectsWidget->createEffectWidgets(
@@ -554,7 +556,7 @@ namespace MWGui
             enchantWidget->setEffectList(Widgets::MWEffectList::effectListFromESM(&enchant->mEffects));
 
             std::vector<MyGUI::Widget*> enchantEffectItems;
-            int flag
+            std::int32_t flag
                 = (enchant->mData.mType == ESM::Enchantment::ConstantEffect) ? Widgets::MWEffectList::EF_Constant : 0;
             enchantWidget->createEffectWidgets(enchantEffectItems, enchantArea, coord, false, flag);
             totalSize.height += coord.top - 6;
@@ -563,18 +565,18 @@ namespace MWGui
             if (enchant->mData.mType == ESM::Enchantment::WhenStrikes
                 || enchant->mData.mType == ESM::Enchantment::WhenUsed)
             {
-                const int maxCharge = MWMechanics::getEnchantmentCharge(*enchant);
-                int charge = (info.remainingEnchantCharge == -1) ? maxCharge : info.remainingEnchantCharge;
+                const std::int32_t maxCharge = MWMechanics::getEnchantmentCharge(*enchant);
+                std::int32_t charge = (info.remainingEnchantCharge == -1) ? maxCharge : info.remainingEnchantCharge;
 
-                const int chargeWidth = 204;
+                const std::int32_t chargeWidth = 204;
 
                 auto* chargeText = enchantArea->createWidget<MyGUI::TextBox>(
                     "SandText", MyGUI::IntCoord(0, 0, 10, 18), MyGUI::Align::Default, "ToolTipEnchantChargeText");
                 chargeText->setCaptionWithReplacing("#{sCharges}");
 
-                const int chargeTextWidth = chargeText->getTextSize().width + 5;
+                const std::int32_t chargeTextWidth = chargeText->getTextSize().width + 5;
 
-                const int chargeAndTextWidth = chargeWidth + chargeTextWidth;
+                const std::int32_t chargeAndTextWidth = chargeWidth + chargeTextWidth;
 
                 totalSize.width = std::max(totalSize.width, chargeAndTextWidth);
 
@@ -627,7 +629,7 @@ namespace MWGui
             {
                 mHorizontalScrollIndex = -totalSize.width;
             }
-            int horizontalScroll = mHorizontalScrollIndex;
+            std::int32_t horizontalScroll = mHorizontalScrollIndex;
             if (horizontalScroll < 40)
             {
                 horizontalScroll = 40;
@@ -674,7 +676,7 @@ namespace MWGui
         return s;
     }
 
-    std::string ToolTips::toString(const int value)
+    std::string ToolTips::toString(const std::int32_t value)
     {
         return std::to_string(value);
     }
@@ -693,7 +695,7 @@ namespace MWGui
         return std::format("\n{}: {}%", prefix, toString(value * 100));
     }
 
-    std::string ToolTips::getValueString(const int value, std::string_view prefix)
+    std::string ToolTips::getValueString(const std::int32_t value, std::string_view prefix)
     {
         if (value == 0)
             return {};
@@ -707,7 +709,7 @@ namespace MWGui
         return std::format("\n{}: {}", prefix, text);
     }
 
-    std::string ToolTips::getCountString(const int value)
+    std::string ToolTips::getCountString(const std::int32_t value)
     {
         if (value == 1)
             return {};
@@ -742,7 +744,7 @@ namespace MWGui
                 ret += getMiscString(fact->mName.empty() ? factionId.getRefIdString() : fact->mName, "Owner Faction");
                 if (cellref.getFactionRank() >= 0)
                 {
-                    int rank = cellref.getFactionRank();
+                    std::int32_t rank = cellref.getFactionRank();
                     const std::string& rankName = fact->mRanks[static_cast<std::size_t>(rank)];
                     if (rankName.empty())
                         ret += getValueString(cellref.getFactionRank(), "Rank");
@@ -752,12 +754,12 @@ namespace MWGui
             }
         }
 
-        std::vector<std::pair<ESM::RefId, int>> itemOwners
+        std::vector<std::pair<ESM::RefId, std::int32_t>> itemOwners
             = MWBase::Environment::get().getMechanicsManager()->getStolenItemOwners(cellref.getRefId());
 
-        for (std::pair<ESM::RefId, int>& owner : itemOwners)
+        for (std::pair<ESM::RefId, std::int32_t>& owner : itemOwners)
         {
-            if (owner.second == std::numeric_limits<int>::max())
+            if (owner.second == std::numeric_limits<std::int32_t>::max())
                 ret += std::format("\nStolen from {}", owner.first.toDebugString()); // for legacy (ESS) savegames
             else
                 ret += std::format("\nStolen {} from {}", owner.second, owner.first.toDebugString());
@@ -780,20 +782,20 @@ namespace MWGui
             return ret;
         }
 
-        constexpr int secondsPerMinute = 60; // 60 seconds
-        constexpr int secondsPerHour = secondsPerMinute * 60; // 60 minutes
-        constexpr int secondsPerDay = secondsPerHour * 24; // 24 hours
-        constexpr int secondsPerMonth = secondsPerDay * 30; // 30 days
-        constexpr int secondsPerYear = secondsPerDay * 365;
-        int fullDuration = static_cast<int>(duration);
-        int units = 0;
-        int years = fullDuration / secondsPerYear;
-        int months = fullDuration % secondsPerYear / secondsPerMonth;
-        int days = fullDuration % secondsPerYear % secondsPerMonth
+        constexpr std::int32_t secondsPerMinute = 60; // 60 seconds
+        constexpr std::int32_t secondsPerHour = secondsPerMinute * 60; // 60 minutes
+        constexpr std::int32_t secondsPerDay = secondsPerHour * 24; // 24 hours
+        constexpr std::int32_t secondsPerMonth = secondsPerDay * 30; // 30 days
+        constexpr std::int32_t secondsPerYear = secondsPerDay * 365;
+        auto fullDuration = static_cast<std::int32_t>(duration);
+        std::int32_t units = 0;
+        std::int32_t years = fullDuration / secondsPerYear;
+        std::int32_t months = fullDuration % secondsPerYear / secondsPerMonth;
+        std::int32_t days = fullDuration % secondsPerYear % secondsPerMonth
             / secondsPerDay; // Because a year is not exactly 12 "months"
-        int hours = fullDuration % secondsPerDay / secondsPerHour;
-        int minutes = fullDuration % secondsPerHour / secondsPerMinute;
-        int seconds = fullDuration % secondsPerMinute;
+        std::int32_t hours = fullDuration % secondsPerDay / secondsPerHour;
+        std::int32_t minutes = fullDuration % secondsPerHour / secondsPerMinute;
+        std::int32_t seconds = fullDuration % secondsPerMinute;
         if (years)
         {
             units++;
@@ -874,7 +876,7 @@ namespace MWGui
         widget->setUserString("ImageTexture_AttributeImage", attribute->mIcon.getNormalized());
     }
 
-    void ToolTips::createSpecializationToolTip(MyGUI::Widget* widget, std::string_view name, int specId)
+    void ToolTips::createSpecializationToolTip(MyGUI::Widget* widget, std::string_view name, std::int32_t specId)
     {
         widget->setUserString("Caption_Caption", name);
         std::string specText;
@@ -963,7 +965,7 @@ namespace MWGui
         if (playerClass.mName.empty())
             return;
 
-        int spec = playerClass.mData.mSpecialization;
+        std::int32_t spec = playerClass.mData.mSpecialization;
         std::string specStr = "#{";
         specStr += ESM::Class::sGmstSpecializationIds[spec];
         specStr += '}';

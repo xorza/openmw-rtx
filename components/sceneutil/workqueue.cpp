@@ -1,5 +1,6 @@
 #include "workqueue.hpp"
 
+#include <cstddef>
 #include <numeric>
 
 #include <components/debug/debuglog.hpp>
@@ -99,13 +100,13 @@ namespace SceneUtil
         return nullptr;
     }
 
-    size_t WorkQueue::getNumItems() const
+    std::size_t WorkQueue::getNumItems() const
     {
         std::unique_lock<std::mutex> lock(mMutex);
         return mQueue.size();
     }
 
-    size_t WorkQueue::getNumActiveThreads() const
+    std::size_t WorkQueue::getNumActiveThreads() const
     {
         return std::accumulate(
             mThreads.begin(), mThreads.end(), 0u, [](auto r, const auto& t) { return r + t->isActive(); });

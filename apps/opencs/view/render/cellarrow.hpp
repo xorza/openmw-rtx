@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QString>
-
 #include <osg/ref_ptr>
 
 #include <apps/opencs/model/world/cellcoordinates.hpp>

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <span>
@@ -85,7 +87,7 @@ namespace MWWorld
         bool isTerrainLoaded(const PositionCellGrid& position, double referenceTime) const;
         void setTerrain(Terrain::World* terrain);
 
-        void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const;
+        void reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const;
 
     private:
         void clearAllTasks();

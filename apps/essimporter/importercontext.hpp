@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 
 #include <components/esm3/controlsstate.hpp>
@@ -32,19 +33,19 @@ namespace ESSImport
         ESM::ControlsState mControlsState;
 
         // cells which should show an explored overlay on the global map
-        std::set<std::pair<int, int>> mExploredCells;
+        std::set<std::pair<std::int32_t, std::int32_t>> mExploredCells;
 
         ESM::GlobalMap mGlobalMapState;
 
-        int mDay, mMonth, mYear;
+        std::int32_t mDay, mMonth, mYear;
         float mHour;
 
         // key <refIndex, refId>
-        std::map<std::pair<int, ESM::RefId>, CREC> mCreatureChanges;
-        std::map<std::pair<int, ESM::RefId>, NPCC> mNpcChanges;
-        std::map<std::pair<int, ESM::RefId>, CNTC> mContainerChanges;
+        std::map<std::pair<std::int32_t, ESM::RefId>, CREC> mCreatureChanges;
+        std::map<std::pair<std::int32_t, ESM::RefId>, NPCC> mNpcChanges;
+        std::map<std::pair<std::int32_t, ESM::RefId>, CNTC> mContainerChanges;
 
-        std::map<std::pair<int, ESM::RefId>, ESM::RefNum> mActorIdMap;
+        std::map<std::pair<std::int32_t, ESM::RefId>, ESM::RefNum> mActorIdMap;
         ESM::RefNum mNextRefNum;
 
         std::map<ESM::RefId, ESM::Creature> mCreatures;

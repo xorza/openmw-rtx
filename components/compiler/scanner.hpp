@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cctype>
+#include <cstddef>
+#include <cstdint>
 #include <iosfwd>
 #include <istream>
 #include <string>
@@ -32,9 +34,9 @@ namespace Compiler
             mLength = getCharLength(ch);
         }
 
-        static int getCharLength(const char ch)
+        static std::int32_t getCharLength(const char ch)
         {
-            auto c = static_cast<unsigned char>(ch);
+            auto c = static_cast<std::uint8_t>(ch);
             if (c <= 127)
                 return 0;
             else if ((c & 0xE0) == 0xC0)
@@ -71,8 +73,7 @@ namespace Compiler
 
         bool isDigit() const
         {
-            return std::isdigit(static_cast<unsigned char>(mData[0])) && mData[1] == 0 && mData[2] == 0
-                && mData[3] == 0;
+            return std::isdigit(static_cast<std::uint8_t>(mData[0])) && mData[1] == 0 && mData[2] == 0 && mData[3] == 0;
         }
 
         bool isMinusSign() const
@@ -88,19 +89,18 @@ namespace Compiler
             if (isMinusSign())
                 return false;
 
-            return std::isalpha(static_cast<unsigned char>(mData[0])) || mData[1] != 0 || mData[2] != 0
-                || mData[3] != 0;
+            return std::isalpha(static_cast<std::uint8_t>(mData[0])) || mData[1] != 0 || mData[2] != 0 || mData[3] != 0;
         }
 
         void appendTo(std::string& str) const
         {
-            for (int i = 0; i <= mLength; i++)
+            for (std::int32_t i = 0; i <= mLength; i++)
                 str += mData[i];
         }
 
         void putback(std::istream& in) const
         {
-            for (int i = mLength; i >= 0; i--)
+            for (std::int32_t i = mLength; i >= 0; i--)
                 in.putback(mData[i]);
         }
 
@@ -113,11 +113,11 @@ namespace Compiler
             if (!in.good())
                 return false;
 
-            int length = getCharLength(ch);
+            std::int32_t length = getCharLength(ch);
             if (length < 0)
                 return false;
 
-            for (int i = 0; i <= length; i++)
+            for (std::int32_t i = 0; i <= length; i++)
             {
                 in.get(ch);
 
@@ -141,11 +141,11 @@ namespace Compiler
             if (!in.good())
                 return false;
 
-            int length = getCharLength(ch);
+            std::int32_t length = getCharLength(ch);
             if (length < 0)
                 return false;
 
-            for (int i = 0; i <= length; i++)
+            for (std::int32_t i = 0; i <= length; i++)
             {
                 in.get(ch);
 
@@ -175,7 +175,7 @@ namespace Compiler
 
     private:
         char mData[4]{};
-        int mLength{};
+        std::int32_t mLength{};
     };
 
     class Scanner
@@ -196,8 +196,8 @@ namespace Compiler
         std::istream& mStream;
         const Extensions* mExtensions;
         PutbackType mPutback;
-        int mPutbackCode;
-        int mPutbackInteger;
+        std::int32_t mPutbackCode;
+        std::int32_t mPutbackInteger;
         float mPutbackFloat;
         std::string mPutbackName;
         TokenLoc mPutbackLoc;
@@ -276,10 +276,10 @@ namespace Compiler
         void scan(Parser& parser);
         ///< Scan a token and deliver it to the parser.
 
-        void putbackSpecial(int code, const TokenLoc& loc);
+        void putbackSpecial(std::int32_t code, const TokenLoc& loc);
         ///< put back a special token
 
-        void putbackInt(int value, const TokenLoc& loc);
+        void putbackInt(std::int32_t value, const TokenLoc& loc);
         ///< put back an integer token
 
         void putbackFloat(float value, const TokenLoc& loc);
@@ -288,7 +288,7 @@ namespace Compiler
         void putbackName(const std::string& name, const TokenLoc& loc);
         ///< put back a name token
 
-        void putbackKeyword(int keyword, const TokenLoc& loc);
+        void putbackKeyword(std::int32_t keyword, const TokenLoc& loc);
         ///< put back a keyword token
 
         void listKeywords(std::vector<std::string>& keywords);

@@ -1,5 +1,8 @@
 #include "ripples.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/Geometry>
 #include <osg/Texture2D>
 
@@ -53,7 +56,7 @@ namespace MWRender
             entry.mStateset = stateset;
         }
 
-        for (size_t i = 0; i < mTextures.size(); ++i)
+        for (std::size_t i = 0; i < mTextures.size(); ++i)
         {
             osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D;
             texture->setSourceFormat(GL_RGBA);
@@ -162,7 +165,7 @@ namespace MWRender
         const osg::Vec2f offset = mCurrentPlayerPos - mLastPlayerPos;
         mLastPlayerPos = mCurrentPlayerPos;
 
-        state.mStateset->getUniform("positionCount")->set(static_cast<int>(mPositionCount));
+        state.mStateset->getUniform("positionCount")->set(static_cast<std::int32_t>(mPositionCount));
         state.mStateset->getUniform("offset")->set(offset);
 
         osg::Uniform* const positions = state.mStateset->getUniform("positions");
@@ -173,7 +176,7 @@ namespace MWRender
                 - osg::Vec3f(mCurrentPlayerPos.x() * sWorldScaleFactor, mCurrentPlayerPos.y() * sWorldScaleFactor, 0.0)
                 + osg::Vec3f(sRTTSize * sWorldScaleFactor / 2, sRTTSize * sWorldScaleFactor / 2, 0.0);
             pos /= sWorldScaleFactor;
-            positions->setElement(static_cast<unsigned>(i), pos);
+            positions->setElement(static_cast<std::uint32_t>(i), pos);
         }
         positions->dirty();
 
@@ -207,7 +210,7 @@ namespace MWRender
         }
 
         osg::GLExtensions& ext = *state.get<osg::GLExtensions>();
-        const unsigned contextID = state.getContextID();
+        const std::uint32_t contextID = state.getContextID();
 
         const auto bindImage = [&](osg::Texture2D* texture, GLuint index, GLenum access) {
             osg::Texture::TextureObject* to = texture->getTextureObject(contextID);

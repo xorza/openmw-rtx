@@ -1,11 +1,13 @@
 #include "convertinventory.hpp"
 
+#include <cstdint>
+
 namespace ESSImport
 {
 
     void convertInventory(const Inventory& inventory, ESM::InventoryState& state)
     {
-        uint32_t index = 0;
+        std::uint32_t index = 0;
         for (const auto& item : inventory.mItems)
         {
             ESM::ObjectState objstate;

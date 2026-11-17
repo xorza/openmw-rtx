@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
 #include <osg/Matrixf>
 #include <osg/Vec2f>
@@ -33,8 +34,8 @@ namespace Rtx
     /// Whether every element of `value` is a finite number.
     inline bool isFinite(const osg::Matrixf& value)
     {
-        for (int row = 0; row < 4; ++row)
-            for (int column = 0; column < 4; ++column)
+        for (std::int32_t row = 0; row < 4; ++row)
+            for (std::int32_t column = 0; column < 4; ++column)
                 if (!std::isfinite(value(row, column)))
                     return false;
         return true;

@@ -1,5 +1,6 @@
 #include <array>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -51,7 +52,7 @@ namespace Crash::Client
         // Three ways MSVC's runtime ends a process without an exception the filter sees: `abort`
         // raises SIGABRT and then fails fast, and a pure virtual call and an invalid parameter go
         // to handlers of their own.
-        void onAbort(int)
+        void onAbort(std::int32_t)
         {
             reportAndEnd("abort()");
         }
@@ -61,7 +62,7 @@ namespace Crash::Client
             reportAndEnd("a pure virtual function was called");
         }
 
-        void onInvalidParameter(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
+        void onInvalidParameter(const wchar_t*, const wchar_t*, const wchar_t*, std::uint32_t, std::uintptr_t)
         {
             reportAndEnd("the C runtime was given an invalid parameter");
         }
@@ -109,8 +110,8 @@ namespace Crash::Client
             const std::filesystem::path named(value);
             const std::wstring ours = wer.filename().wstring();
             const std::wstring theirs = named.filename().wstring();
-            if (CompareStringOrdinal(
-                    theirs.c_str(), static_cast<int>(theirs.size()), ours.c_str(), static_cast<int>(ours.size()), TRUE)
+            if (CompareStringOrdinal(theirs.c_str(), static_cast<std::int32_t>(theirs.size()), ours.c_str(),
+                    static_cast<std::int32_t>(ours.size()), TRUE)
                 != CSTR_EQUAL)
                 return false;
 

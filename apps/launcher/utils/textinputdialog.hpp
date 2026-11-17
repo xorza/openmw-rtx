@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QDialog>
 
 #include "lineedit.hpp"
@@ -19,7 +21,7 @@ namespace Launcher
         inline LineEdit* lineEdit() { return mLineEdit; }
         void setOkButtonEnabled(bool enabled);
 
-        int exec() override;
+        std::int32_t exec() override;
 
     private:
         QDialogButtonBox* mButtonBox;

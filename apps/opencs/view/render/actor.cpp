@@ -1,5 +1,7 @@
 #include "actor.hpp"
 
+#include <cstdint>
+
 #include <osg/Group>
 #include <osg/Node>
 #include <osg/Vec3d>
@@ -98,7 +100,7 @@ namespace CSVRender
 
     void Actor::loadBodyParts()
     {
-        for (int i = 0; i < ESM::PRT_Count; ++i)
+        for (std::int32_t i = 0; i < ESM::PRT_Count; ++i)
         {
             const auto type = static_cast<ESM::PartReferenceType>(i);
             attachBodyPart(type, getBodyPartMesh(mActorData->getPart(type)));
@@ -125,7 +127,7 @@ namespace CSVRender
 
         const auto& bodyParts = mData.getBodyParts();
 
-        const int index = bodyParts.searchId(bodyPartId);
+        const std::int32_t index = bodyParts.searchId(bodyPartId);
         if (index != -1 && !bodyParts.getRecord(index).isDeleted())
             return VFS::Path::join(meshPrefix, bodyParts.getRecord(index).get().mModel.getNormalized()).value();
         else

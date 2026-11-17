@@ -253,16 +253,16 @@ namespace RtxTool
         mWorstCount = std::min(mWorstCount + 1, sKept);
     }
 
-    int minuteOfDay(const float hour)
+    std::int32_t minuteOfDay(const float hour)
     {
         // In double, where a float times sixty is exact: rounded in float first, an hour a hair
         // under a half minute would round up to it and then to the minute after.
-        return static_cast<int>(std::lround(static_cast<double>(hour) * 60.0)) % (24 * 60);
+        return static_cast<std::int32_t>(std::lround(static_cast<double>(hour) * 60.0)) % (24 * 60);
     }
 
     std::string describeHour(const float hour)
     {
-        const int minutes = minuteOfDay(hour);
+        const std::int32_t minutes = minuteOfDay(hour);
         return std::format("{:02}:{:02}", minutes / 60, minutes % 60);
     }
 

@@ -58,13 +58,14 @@ namespace Rtx::Testing
         /// the two per cent the vertical view loses.
         ///
         /// Nothing else adds. The scattering term meets a black ambient, and the sky is black.
-        int throughFlatWater(float depth, float zenith, std::size_t channel)
+        std::int32_t throughFlatWater(float depth, float zenith, std::size_t channel)
         {
             const float sine = std::sin(zenith) / Shaders::WATER_IOR;
             const float refracted = std::sqrt(1.0f - sine * sine);
 
-            const float down = std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth / refracted);
-            const float up = std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth);
+            const float down
+                = std::exp(-Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)] * depth / refracted);
+            const float up = std::exp(-Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)] * depth);
             const float bed = 0.5f * sSunOverWater * std::cos(zenith) * Shaders::INV_PI;
             const float grazing = std::pow(1.0f - std::cos(zenith), 5.0f);
             const float in = 1.0f - (Shaders::WATER_F0 + (1.0f - Shaders::WATER_F0) * grazing);
@@ -157,7 +158,8 @@ namespace Rtx::Testing
                 // also what makes the caustic exactly one — a flat surface has no curvature to
                 // gather anything with, so the Jacobian is the identity.
                 const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
-                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+                return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
+                    frame.byte(centre + 2) };
             };
 
             // A sun as near overhead as the reflection allows, where `throughFlatWater`'s slant is
@@ -165,7 +167,7 @@ namespace Rtx::Testing
             //
             //   0.5 * 2.0 / pi = 0.318310, times the two transmittances, times the 0.98 that is not
             //   the surface's own reflection.
-            const std::array<int, 3> overhead = look(sNearlyOverhead);
+            const std::array<std::int32_t, 3> overhead = look(sNearlyOverhead);
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(overhead[channel], throughFlatWater(depth, sNearlyOverhead, channel), 1)
                     << "channel " << channel << " under a sun all but overhead";
@@ -185,7 +187,7 @@ namespace Rtx::Testing
             // view back up is unchanged. One expectation serves both angles, which is what makes
             // this a measurement of the zenith rather than two unrelated numbers.
             const float slanted = osg::DegreesToRadians(45.0f);
-            const std::array<int, 3> across = look(slanted);
+            const std::array<std::int32_t, 3> across = look(slanted);
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(across[channel], throughFlatWater(depth, slanted, channel), 1)
                     << "channel " << channel << " under a slanted sun";
@@ -329,18 +331,20 @@ namespace Rtx::Testing
             const auto look = [&](const SceneDesc& scene) {
                 // No height at all, which is a flat sea: a table whose amplitudes are zero.
                 const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
-                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+                return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
+                    frame.byte(centre + 2) };
             };
 
             // The two legs' scattering over the bed, off the constants, for the reason the expectations
             // below are: 38 in red and 60 in blue, as the derivation above works out.
-            const std::array<int, 3> bedded = look(makeFlooded(4000.0f, depth));
+            const std::array<std::int32_t, 3> bedded = look(makeFlooded(4000.0f, depth));
             EXPECT_EQ(bedded[0], 38) << "red, settled at what the water scatters";
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const float kept = std::exp(-2.0f * Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth);
+                const float kept
+                    = std::exp(-2.0f * Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)] * depth);
                 EXPECT_NEAR(bedded[channel],
-                    encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] * 0.5f * (1.0f - kept)
+                    encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[static_cast<std::int32_t>(channel)] * 0.5f * (1.0f - kept)
                         * (1.0f - Shaders::WATER_F0)),
                     1)
                     << "channel " << channel << " over the bed";
@@ -349,11 +353,11 @@ namespace Rtx::Testing
             // The same column with the bed taken out from under it, which is the asymptote itself:
             // `WATER_SCATTER_SHIPPED * 0.5`, less Fresnel. Off the constants rather than written out, for
             // the reason the expectations above are.
-            const std::array<int, 3> bottomless = look(makeOpenWater(4000.0f));
+            const std::array<std::int32_t, 3> bottomless = look(makeOpenWater(4000.0f));
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(bottomless[channel],
-                    encodeSrgb(
-                        Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] * 0.5f * (1.0f - Shaders::WATER_F0)),
+                    encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[static_cast<std::int32_t>(channel)] * 0.5f
+                        * (1.0f - Shaders::WATER_F0)),
                     1)
                     << "channel " << channel << " over water with no bottom";
 
@@ -384,7 +388,8 @@ namespace Rtx::Testing
                 litThroughWater(camera);
 
                 const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
-                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+                return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
+                    frame.byte(centre + 2) };
             };
 
             // Ten above and ten below, and the two legitimately differ by a little. From above the
@@ -395,8 +400,8 @@ namespace Rtx::Testing
             //
             // for red, which the sRGB curve compresses to under three per cent of a byte — so 75 and
             // 77, and a tolerance of two rather than a round fraction chosen to pass.
-            const std::array<int, 3> above = look(10.0f);
-            const std::array<int, 3> below = look(-10.0f);
+            const std::array<std::int32_t, 3> above = look(10.0f);
+            const std::array<std::int32_t, 3> below = look(-10.0f);
 
             EXPECT_GT(above[0], 0) << "the bed is visible from above";
             for (std::size_t channel = 0; channel < 3; ++channel)
@@ -425,11 +430,12 @@ namespace Rtx::Testing
                 litThroughWater(camera);
 
                 const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
-                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+                return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
+                    frame.byte(centre + 2) };
             };
 
-            const std::array<int, 3> near = look(10000.0f);
-            const std::array<int, 3> farther = look(100000.0f);
+            const std::array<std::int32_t, 3> near = look(10000.0f);
+            const std::array<std::int32_t, 3> farther = look(100000.0f);
 
             EXPECT_GT(near[1], 0) << "the fifty units of water scatter the sun toward the eye";
             EXPECT_EQ(near, farther) << "the column ran on past the plane to the far plane";
@@ -478,9 +484,10 @@ namespace Rtx::Testing
             // The green channel, which the water takes least of, over the three pixels about each
             // point on the middle row: a pixel is 3.1 units, and the roof is forty across.
             const auto around = [&](float x) {
-                const int column = static_cast<int>(std::lround((x - middle) / across * size + 0.5f * (size - 1)));
+                const auto column
+                    = static_cast<std::int32_t>(std::lround((x - middle) / across * size + 0.5f * (size - 1)));
                 float sum = 0.0f;
-                for (int at = column - 1; at <= column + 1; ++at)
+                for (std::int32_t at = column - 1; at <= column + 1; ++at)
                     sum += frame.at((std::size_t{ size / 2 } * size + static_cast<std::size_t>(at)) * 4 + 1);
                 return sum;
             };
@@ -545,10 +552,10 @@ namespace Rtx::Testing
             const osg::Vec3d first = osg::Vec3d(1.0, 0.0, 0.0);
             const osg::Vec3d second = axis ^ first;
             const auto kept = [&](double x, double rise) {
-                constexpr int steps = 400;
-                int lit = 0;
-                for (int a = 0; a < steps; ++a)
-                    for (int b = 0; b < steps; ++b)
+                constexpr std::int32_t steps = 400;
+                std::int32_t lit = 0;
+                for (std::int32_t a = 0; a < steps; ++a)
+                    for (std::int32_t b = 0; b < steps; ++b)
                     {
                         const double cosine = 1.0 - (a + 0.5) / steps * (1.0 - std::cos(half));
                         const double sine = std::sqrt(1.0 - cosine * cosine);
@@ -644,13 +651,14 @@ namespace Rtx::Testing
                 Frame frame;
                 const SceneDesc scene = makeFlooded(4000.0f, eye + stretch);
                 frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
-                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+                return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
+                    frame.byte(centre + 2) };
             };
 
             const auto scattered = [&](float eye, std::size_t channel) {
-                const float o = Shaders::WATER_EXTINCTION[static_cast<int>(channel)];
+                const float o = Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)];
 
-                return encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] * 0.5f
+                return encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[static_cast<std::int32_t>(channel)] * 0.5f
                     * (1.0f - std::exp(-2.0f * o * stretch)) * std::exp(-o * eye));
             };
 
@@ -659,7 +667,7 @@ namespace Rtx::Testing
             // untouched one can carry this alone.
             for (const float eye : { 10.0f, 1000.0f })
             {
-                const std::array<int, 3> seen = look(eye);
+                const std::array<std::int32_t, 3> seen = look(eye);
                 EXPECT_NEAR(seen[0], scattered(eye, 0), 1) << "red, " << eye << " units under";
                 EXPECT_NEAR(seen[2], scattered(eye, 2), 1) << "blue, " << eye << " units under";
             }
@@ -724,9 +732,9 @@ namespace Rtx::Testing
                     const std::size_t at = (std::size_t{ y } * size + x) * 4;
                     for (std::size_t channel = 0; channel < 3; ++channel)
                     {
-                        const float settled = Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] / g
-                            * std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * eye);
-                        ASSERT_NEAR(int{ frame.byte(at + channel) }, encodeSrgb(settled), 1)
+                        const float settled = Shaders::WATER_SCATTER_SHIPPED[static_cast<std::int32_t>(channel)] / g
+                            * std::exp(-Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)] * eye);
+                        ASSERT_NEAR(std::int32_t{ frame.byte(at + channel) }, encodeSrgb(settled), 1)
                             << "channel " << channel << " at " << x << ", " << y;
                     }
                 }
@@ -736,7 +744,7 @@ namespace Rtx::Testing
             const Frame unlit = shoot(makeOpenWater(4000.0f), {}, camera, size);
             for (std::size_t at = 0; at < std::size_t{ size } * size * 4; at += 4)
                 for (std::size_t channel = 0; channel < 3; ++channel)
-                    ASSERT_EQ(int{ unlit.byte(at + channel) }, 0) << "the water took the path's ambient";
+                    ASSERT_EQ(std::int32_t{ unlit.byte(at + channel) }, 0) << "the water took the path's ambient";
         }
 
         /// A pixel of water with no water under it is the ground beside it, and how much water is
@@ -1067,7 +1075,7 @@ namespace Rtx::Testing
                 camera.mAmbientFromSky = 1.0f;
 
                 const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
-                return static_cast<int>(frame.byte(centre));
+                return static_cast<std::int32_t>(frame.byte(centre));
             };
 
             EXPECT_NEAR(lookUp(-100.0f, 0.05f), 157, 2) << "a hundred units of water over the eye";
@@ -1174,10 +1182,10 @@ namespace Rtx::Testing
             ASSERT_NEAR(phase, 0.0048718, 1e-7);
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const double o = Shaders::WATER_EXTINCTION[static_cast<int>(channel)];
-                const double expected = double{ Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] }
-                    * double{ moonlight[static_cast<int>(channel)] } * (1.0 - double{ Shaders::WATER_F0 }) * phase
-                    * std::exp(-o * double{ eye });
+                const double o = Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)];
+                const double expected = double{ Shaders::WATER_SCATTER_SHIPPED[static_cast<std::int32_t>(channel)] }
+                    * double{ moonlight[static_cast<std::int32_t>(channel)] } * (1.0 - double{ Shaders::WATER_F0 })
+                    * phase * std::exp(-o * double{ eye });
                 EXPECT_NEAR(double{ lit.at(centre + channel) }, expected, expected * 1e-3) << "channel " << channel;
                 EXPECT_EQ(dark.at(centre + channel), 0.0f) << "channel " << channel;
             }
@@ -1325,10 +1333,10 @@ namespace Rtx::Testing
 
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const float down = std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth);
-                const float out = std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * above);
+                const float down = std::exp(-Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)] * depth);
+                const float out = std::exp(-Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)] * above);
 
-                EXPECT_NEAR(frame.byte(centre + channel), int{ encodeSrgb(0.5f * sky * down * out) }, 1)
+                EXPECT_NEAR(frame.byte(centre + channel), std::int32_t{ encodeSrgb(0.5f * sky * down * out) }, 1)
                     << "channel " << channel;
             }
         }

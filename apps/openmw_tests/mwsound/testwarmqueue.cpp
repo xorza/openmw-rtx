@@ -58,7 +58,7 @@ namespace MWSound
         template <class Predicate>
         bool waitFor(Predicate predicate)
         {
-            for (int i = 0; i < 500 && !predicate(); ++i)
+            for (std::int32_t i = 0; i < 500 && !predicate(); ++i)
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             return predicate();
         }

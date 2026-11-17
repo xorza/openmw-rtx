@@ -72,7 +72,7 @@ namespace RtxTool
 
         /// The active grid's radius in cells (`CellGridRadius`): the rows are `2r + 1` cells apart, so every land
         /// cell stands in the active grid once.
-        int mGridRadius = 1;
+        std::int32_t mGridRadius = 1;
 
         /// Seconds each crossing of the circuit of weathers takes, and how long each weather stands before the next.
         float mCrossingSeconds = sTurnSeconds;
@@ -85,7 +85,7 @@ namespace RtxTool
 
         /// The hour and the day the first leg begins at.
         float mHour = 9.0f;
-        int mDay = 0;
+        std::int32_t mDay = 0;
 
         /// How many rooms the interiors share out by the files that add them, the least a file is given, and the most
         /// a settlement keeps of a file's share, by the prefix before a room's comma.
@@ -147,7 +147,7 @@ namespace RtxTool
 
         /// The hour and the day it begins at.
         float mHour = 0.0f;
-        int mDay = 0;
+        std::int32_t mDay = 0;
 
         /// How far the eye flies over it, in world units.
         double mLength = 0.0;

@@ -1,6 +1,7 @@
 #include "rng.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <random>
 #include <sstream>
 
@@ -35,13 +36,13 @@ namespace Misc::Rng
         ss >> prng;
     }
 
-    unsigned int generateDefaultSeed()
+    std::uint32_t generateDefaultSeed()
     {
-        auto res = static_cast<unsigned int>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+        auto res = static_cast<std::uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
         return res;
     }
 
-    void init(unsigned int seed)
+    void init(std::uint32_t seed)
     {
         sGenerator.seed(seed);
     }

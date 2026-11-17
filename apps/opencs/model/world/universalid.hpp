@@ -1,9 +1,11 @@
 #pragma once
 
-#include <QMetaType>
+#include <cstdint>
 #include <string>
 #include <variant>
 #include <vector>
+
+#include <QMetaType>
 
 #include <components/esm/refid.hpp>
 
@@ -158,7 +160,7 @@ namespace CSMWorld
 
         UniversalId(Type type, ESM::RefId id);
 
-        UniversalId(Type type, int index);
+        UniversalId(Type type, std::int32_t index);
         ///< Using a type for a non-index-argument UniversalId will throw an exception.
 
         UniversalId(Type type, const UniversalId& id);
@@ -172,7 +174,7 @@ namespace CSMWorld
         const std::string& getId() const;
         ///< Calling this function for a non-ID type will throw an exception.
 
-        int getIndex() const;
+        std::int32_t getIndex() const;
         ///< Calling this function for a non-index type will throw an exception.
 
         ESM::RefId getRefId() const;
@@ -186,7 +188,7 @@ namespace CSMWorld
 
         static std::vector<Type> listReferenceableTypes();
 
-        static std::vector<Type> listTypes(int classes);
+        static std::vector<Type> listTypes(std::int32_t classes);
 
         /// If \a type is a SubRecord, RefRecord or Record type return the type of the table
         /// that contains records of type \a type.
@@ -196,7 +198,7 @@ namespace CSMWorld
     private:
         Class mClass;
         Type mType;
-        std::variant<std::monostate, std::string, int, ESM::RefId> mValue;
+        std::variant<std::monostate, std::string, std::int32_t, ESM::RefId> mValue;
 
         friend bool operator==(const UniversalId& left, const UniversalId& right);
 

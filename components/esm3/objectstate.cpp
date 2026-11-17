@@ -1,5 +1,6 @@
 #include "objectstate.hpp"
 
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <typeinfo>
@@ -89,7 +90,7 @@ namespace ESM
         mRef.blank();
         mHasLocals = 0;
         mEnabled = false;
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
         {
             mPosition.pos[i] = 0;
             mPosition.rot[i] = 0;

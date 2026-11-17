@@ -1,5 +1,7 @@
 #include "conclusionpage.hpp"
 
+#include <cstdint>
+
 #include <QDebug>
 
 #include "mainwizard.hpp"
@@ -50,7 +52,7 @@ void Wizard::ConclusionPage::initializePage()
     }
 }
 
-int Wizard::ConclusionPage::nextId() const
+std::int32_t Wizard::ConclusionPage::nextId() const
 {
     return -1;
 }

@@ -40,8 +40,8 @@ namespace ESM
 
         struct AiWanderData
         {
-            int16_t mDistance;
-            int16_t mDuration;
+            std::int16_t mDistance;
+            std::int16_t mDuration;
             std::uint8_t mTimeOfDay;
             std::uint8_t mIdle[8];
             std::uint8_t mShouldRepeat;
@@ -60,7 +60,7 @@ namespace ESM
         struct AiEscortData
         {
             float mX, mY, mZ;
-            int16_t mDuration;
+            std::int16_t mDuration;
         };
 
         struct AiWander : AiPackage
@@ -147,7 +147,7 @@ namespace ESM
 
         struct AiPackageContainer
         {
-            int32_t mType{};
+            std::int32_t mType{};
 
             std::unique_ptr<AiPackage> mPackage;
         };
@@ -156,7 +156,7 @@ namespace ESM
         {
             std::vector<AiPackageContainer> mPackages;
             ActorIdConverter* mActorIdConverter = nullptr;
-            int32_t mLastAiPackage = -1;
+            std::int32_t mLastAiPackage = -1;
 
             AiSequence() {}
             AiSequence(const AiSequence&) = delete;

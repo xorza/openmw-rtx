@@ -1,7 +1,9 @@
 #pragma once
 
-#include <QDockWidget>
+#include <cstdint>
 #include <vector>
+
+#include <QDockWidget>
 
 class QVBoxLayout;
 
@@ -22,14 +24,14 @@ namespace CSVDoc
         Operations(const Operations&) = delete;
         Operations& operator=(const Operations&) = delete;
 
-        void setProgress(int current, int max, int type, int threads);
+        void setProgress(std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads);
         ///< Implicitly starts the operation, if it is not running already.
 
-        void quitOperation(int type);
+        void quitOperation(std::int32_t type);
         ///< Calling this function for an operation that is not running is a no-op.
 
     signals:
 
-        void abortOperation(int type);
+        void abortOperation(std::int32_t type);
     };
 }

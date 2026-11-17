@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <span>
@@ -142,7 +143,7 @@ namespace RtxTool
         {
             if (standing != nullptr && standing->getCell()->isExterior())
             {
-                const int column = standing->getCell()->getGridX();
+                const std::int32_t column = standing->getCell()->getGridX();
                 if (std::ranges::find(mCovered, column) == mCovered.end())
                     mCovered.push_back(column);
             }

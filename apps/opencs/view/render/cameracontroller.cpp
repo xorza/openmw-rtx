@@ -1,9 +1,10 @@
 #include "cameracontroller.hpp"
 
-#include <QWidget>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
+#include <QWidget>
 #include <osg/BoundingBox>
 #include <osg/Camera>
 #include <osg/ComputeBoundsVisitor>
@@ -108,7 +109,7 @@ namespace CSVRender
         mWheelMoveMult = value;
     }
 
-    void CameraController::setup(osg::Group* root, unsigned int mask, const osg::Vec3d& up)
+    void CameraController::setup(osg::Group* root, std::uint32_t mask, const osg::Vec3d& up)
     {
         // Find World bounds
         osg::ComputeBoundsVisitor boundsVisitor;
@@ -277,7 +278,7 @@ namespace CSVRender
         mLockUpright = false;
     }
 
-    void FreeCameraController::handleMouseMoveEvent(int x, int y)
+    void FreeCameraController::handleMouseMoveEvent(std::int32_t x, std::int32_t y)
     {
         if (!isActive())
             return;
@@ -298,7 +299,7 @@ namespace CSVRender
         }
     }
 
-    void FreeCameraController::handleMouseScrollEvent(int x)
+    void FreeCameraController::handleMouseScrollEvent(std::int32_t x)
     {
         if (!isActive())
             return;
@@ -544,7 +545,7 @@ namespace CSVRender
         return mOrbitSpeedMult;
     }
 
-    unsigned int OrbitCameraController::getPickingMask() const
+    std::uint32_t OrbitCameraController::getPickingMask() const
     {
         return mPickingMask;
     }
@@ -572,12 +573,12 @@ namespace CSVRender
         mOrbitSpeedMult = value;
     }
 
-    void OrbitCameraController::setPickingMask(unsigned int value)
+    void OrbitCameraController::setPickingMask(std::uint32_t value)
     {
         mPickingMask = value;
     }
 
-    void OrbitCameraController::handleMouseMoveEvent(int x, int y)
+    void OrbitCameraController::handleMouseMoveEvent(std::int32_t x, std::int32_t y)
     {
         if (!isActive())
             return;
@@ -601,7 +602,7 @@ namespace CSVRender
         }
     }
 
-    void OrbitCameraController::handleMouseScrollEvent(int x)
+    void OrbitCameraController::handleMouseScrollEvent(std::int32_t x)
     {
         if (!isActive())
             return;
@@ -647,7 +648,7 @@ namespace CSVRender
 
     void OrbitCameraController::initialize()
     {
-        const int defaultStartDistance = 10000.f;
+        const std::int32_t defaultStartDistance = 10000.f;
 
         // Try to intelligently pick focus object
         osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector(

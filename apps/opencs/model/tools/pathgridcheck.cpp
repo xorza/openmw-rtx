@@ -1,6 +1,8 @@
 #include "pathgridcheck.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -20,14 +22,14 @@ CSMTools::PathgridCheckStage::PathgridCheckStage(const CSMWorld::SubCellCollecti
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::PathgridCheckStage::setup()
+std::int32_t CSMTools::PathgridCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mPathgrids.getSize();
 }
 
-void CSMTools::PathgridCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::PathgridCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<CSMWorld::Pathgrid>& record = mPathgrids.getRecord(stage);
 
@@ -46,7 +48,7 @@ void CSMTools::PathgridCheckStage::perform(int stage, CSMDoc::Messages& messages
         messages.add(id, "More points than expected", "", CSMDoc::Message::Severity_Error);
 
     std::vector<CSMTools::Point> pointList(pathgrid.mPoints.size());
-    std::vector<size_t> duplList;
+    std::vector<std::size_t> duplList;
 
     for (const auto& edge : pathgrid.mEdges)
     {
@@ -55,7 +57,7 @@ void CSMTools::PathgridCheckStage::perform(int stage, CSMDoc::Messages& messages
             auto& point = pointList[edge.mV0];
             point.mConnectionNum++;
             // first check for duplicate edges
-            size_t j = 0;
+            std::size_t j = 0;
             for (; j < point.mOtherIndex.size(); ++j)
             {
                 if (point.mOtherIndex[j] == edge.mV1)
@@ -79,7 +81,7 @@ void CSMTools::PathgridCheckStage::perform(int stage, CSMDoc::Messages& messages
         }
     }
 
-    for (size_t i = 0; i < pathgrid.mPoints.size(); ++i)
+    for (std::size_t i = 0; i < pathgrid.mPoints.size(); ++i)
     {
         // check that edges are bidirectional
         bool foundReverse = false;
@@ -104,7 +106,7 @@ void CSMTools::PathgridCheckStage::perform(int stage, CSMDoc::Messages& messages
 
         // check duplicate points
         // FIXME: how to do this efficiently?
-        for (size_t j = 0; j != i; ++j)
+        for (std::size_t j = 0; j != i; ++j)
         {
             if (pathgrid.mPoints[i].mX == pathgrid.mPoints[j].mX && pathgrid.mPoints[i].mY == pathgrid.mPoints[j].mY
                 && pathgrid.mPoints[i].mZ == pathgrid.mPoints[j].mZ)
@@ -125,7 +127,7 @@ void CSMTools::PathgridCheckStage::perform(int stage, CSMDoc::Messages& messages
     }
 
     // check pathgrid points that are not connected to anything
-    for (size_t i = 0; i < pointList.size(); ++i)
+    for (std::size_t i = 0; i < pointList.size(); ++i)
     {
         if (pointList[i].mConnectionNum == 0)
         {

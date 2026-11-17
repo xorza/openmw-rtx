@@ -155,7 +155,7 @@ namespace RtxTool
         /// the pair may have spaces around its integers, which the world does not read.
         explicit CellAddress(std::string_view spelling);
 
-        static CellAddress exterior(int gridX, int gridY);
+        static CellAddress exterior(std::int32_t gridX, std::int32_t gridY);
 
         /// An interior by its name, where the cell itself says it is one, whatever the name spells.
         static CellAddress interior(std::string_view name);
@@ -235,7 +235,7 @@ namespace RtxTool
 
         /// Which day of Morrowind's calendar, counted from the one a new game begins on. Only the
         /// moons read it: a phase runs on a three-day cycle and no hour can stand for a date.
-        std::optional<int> mDay{};
+        std::optional<std::int32_t> mDay{};
 
         /// A weather, read once off a name by the parsers and named again only where text is
         /// printed. Set immediately, so a stop stands under it from its first frame.
@@ -529,7 +529,7 @@ namespace RtxTool
         /// The magnitude of Night-Eye the player wears at every stop, as a constant effect would put
         /// it on them: what the game turns into `0.7 × magnitude / 100` over the ambient. Nought, the
         /// effect off, by default.
-        int mNightEye = 0;
+        std::int32_t mNightEye = 0;
 
         /// Whether the run ends the session when its last stop does. False is a window somebody
         /// keeps flying after the schedule has run out.
@@ -539,7 +539,7 @@ namespace RtxTool
         /// function of the seed and the frames. The engine is seeded once at start, and what the start consumes
         /// before a stop begins is not a count of frames: it moved with the cache and the environment, and every
         /// wandering body then stood elsewhere from the first measured frame.
-        unsigned int mRandomSeed = 0;
+        std::uint32_t mRandomSeed = 0;
 
         /// Where the run is written as a record, and the hashes it writes and compares. Empty
         /// where none was asked for.

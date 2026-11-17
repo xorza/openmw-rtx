@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QHash>
 
 #include "columns.hpp"
@@ -19,12 +21,12 @@ namespace CSMWorld
         UniversalId::Type mType;
         Columns::ColumnId mInfoColumnId;
         ///< Contains ID for Topic or Journal ID
-        int mInfoColumnIndex;
-        int mLastAddedSourceRow;
+        std::int32_t mInfoColumnIndex;
+        std::int32_t mLastAddedSourceRow;
 
-        mutable QHash<QString, int> mFirstRowCache;
+        mutable QHash<QString, std::int32_t> mFirstRowCache;
 
-        int getFirstInfoRow(int currentRow) const;
+        std::int32_t getFirstInfoRow(std::int32_t currentRow) const;
         ///< Finds the first row with the same topic (journal entry) as in \a currentRow
         ///< \a currentRow is a row of the source model.
 
@@ -37,8 +39,8 @@ namespace CSMWorld
         bool lessThan(const QModelIndex& left, const QModelIndex& right) const override;
 
     protected slots:
-        void sourceRowsInserted(const QModelIndex& parent, int start, int end) override;
-        void sourceRowsRemoved(const QModelIndex& parent, int start, int end) override;
+        void sourceRowsInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end) override;
+        void sourceRowsRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end) override;
         void sourceDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight) override;
     };
 }

@@ -1,5 +1,8 @@
 #include "riggeometry.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/MatrixTransform>
 #include <osgUtil/CullVisitor>
 
@@ -144,7 +147,7 @@ namespace SceneUtil
                 return;
         }
 
-        unsigned int traversalNumber = nv->getTraversalNumber();
+        std::uint32_t traversalNumber = nv->getTraversalNumber();
         if (mLastFrameNumber == traversalNumber || (mLastFrameNumber != 0 && !mSkeleton->getActive()))
         {
             osg::Geometry& geom = *getGeometry(mLastFrameNumber);
@@ -194,14 +197,14 @@ namespace SceneUtil
                     continue;
                 const float* boneMatPtr = boneMatrices[index].ptr();
                 float* resultMatPtr = resultMat.ptr();
-                for (int i = 0; i < 16; ++i, ++resultMatPtr, ++boneMatPtr)
+                for (std::int32_t i = 0; i < 16; ++i, ++resultMatPtr, ++boneMatPtr)
                     if (i % 4 != 3)
                         *resultMatPtr += *boneMatPtr * weight;
             }
 
             resultMat *= transform;
 
-            for (unsigned short vertex : vertices)
+            for (std::uint16_t vertex : vertices)
             {
                 (*positionDst)[vertex] = resultMat.preMult((*positionSrc)[vertex]);
                 if (normalDst)
@@ -253,7 +256,7 @@ namespace SceneUtil
         else
             transform = mData->mTransform;
 
-        size_t index = 0;
+        std::size_t index = 0;
         for (const BoneInfo& info : mData->mBones)
         {
             const Bone* bone = mNodes[index++];
@@ -270,7 +273,7 @@ namespace SceneUtil
             _boundingBox = box;
             _boundingSphere = osg::BoundingSphere(_boundingBox);
             _boundingSphereComputed = true;
-            for (unsigned int i = 0; i < getNumParents(); ++i)
+            for (std::uint32_t i = 0; i < getNumParents(); ++i)
                 getParent(i)->dirtyBound();
 
             for (const auto& entry : mGeometry)
@@ -335,7 +338,7 @@ namespace SceneUtil
             mData = std::make_shared<InfluenceData>();
 
         std::map<BoneWeights, VertexList> influencesToVertices;
-        for (size_t i = 0; i < influences.size(); i++)
+        for (std::size_t i = 0; i < influences.size(); i++)
             influencesToVertices[influences[i]].emplace_back(static_cast<VertexList::value_type>(i));
         influencesToVertices.erase(BoneWeights());
 
@@ -390,7 +393,7 @@ namespace SceneUtil
         getGeometry(mLastFrameNumber)->accept(func);
     }
 
-    osg::Geometry* RigGeometry::getGeometry(unsigned int frame) const
+    osg::Geometry* RigGeometry::getGeometry(std::uint32_t frame) const
     {
         return mGeometry[frame % 2].get();
     }

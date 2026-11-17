@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
@@ -21,7 +23,7 @@ namespace CSVRender
         BrushDraw(const BrushDraw&) = delete;
         BrushDraw& operator=(const BrushDraw&) = delete;
 
-        void update(osg::Vec3d point, int brushSize, CSVWidget::BrushShape toolShape);
+        void update(osg::Vec3d point, std::int32_t brushSize, CSVWidget::BrushShape toolShape);
         void hide();
 
     private:

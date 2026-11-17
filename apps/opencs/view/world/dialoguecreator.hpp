@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/opencs/model/world/universalid.hpp>
 
 #include "creator.hpp"
@@ -22,14 +24,14 @@ namespace CSVWorld
 {
     class DialogueCreator : public GenericCreator
     {
-        int mType;
+        std::int32_t mType;
 
     protected:
         void configureCreateCommand(CSMWorld::CreateCommand& command) const override;
 
     public:
         explicit DialogueCreator(
-            CSMWorld::Data& worldData, QUndoStack& undoStack, const CSMWorld::UniversalId& id, int type);
+            CSMWorld::Data& worldData, QUndoStack& undoStack, const CSMWorld::UniversalId& id, std::int32_t type);
     };
 
     class TopicCreatorFactory : public CreatorFactoryBase

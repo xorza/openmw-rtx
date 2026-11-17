@@ -1,5 +1,7 @@
 #include "dialoguecondition.hpp"
 
+#include <cstdint>
+
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/conversion.hpp>
 
@@ -21,8 +23,8 @@ namespace ESM
         }
         if (rule[4] < '0' || rule[4] > '5')
         {
-            Log(Debug::Warning) << "Found invalid SCVR comparison operator " << static_cast<int>(rule[4]) << " in INFO "
-                                << context;
+            Log(Debug::Warning) << "Found invalid SCVR comparison operator " << static_cast<std::int32_t>(rule[4])
+                                << " in INFO " << context;
             return {};
         }
         DialogueCondition condition;
@@ -30,12 +32,13 @@ namespace ESM
             condition.mIndex = static_cast<std::uint8_t>(rule[0] - '0');
         else
         {
-            Log(Debug::Info) << "Found invalid SCVR index " << static_cast<int>(rule[0]) << " in INFO " << context;
+            Log(Debug::Info) << "Found invalid SCVR index " << static_cast<std::int32_t>(rule[0]) << " in INFO "
+                             << context;
             condition.mIndex = 0;
         }
         if (rule[1] == '1')
         {
-            int function = Misc::StringUtils::toNumeric<int>(std::string_view{ rule }.substr(2, 2), -1);
+            auto function = Misc::StringUtils::toNumeric<std::int32_t>(std::string_view{ rule }.substr(2, 2), -1);
             if (function >= Function_FacReactionLowest && function <= Function_PcWerewolfKills)
                 condition.mFunction = static_cast<Function>(function);
             else
@@ -112,7 +115,7 @@ namespace ESM
         }
         else
         {
-            Log(Debug::Warning) << "Found invalid SCVR function " << static_cast<int>(rule[1]) << " in INFO "
+            Log(Debug::Warning) << "Found invalid SCVR function " << static_cast<std::int32_t>(rule[1]) << " in INFO "
                                 << context;
             return {};
         }
@@ -143,8 +146,8 @@ namespace ESM
                 rule += "fX";
             else
             {
-                int32_t value = variant.getInteger();
-                if (static_cast<int16_t>(value) == value)
+                std::int32_t value = variant.getInteger();
+                if (static_cast<std::int16_t>(value) == value)
                     rule += "sX";
                 else
                     rule += "lX";
@@ -190,7 +193,7 @@ namespace ESM
                 start--;
             else
                 start -= 2;
-            auto result = std::to_chars(start, end, static_cast<int>(mFunction));
+            auto result = std::to_chars(start, end, static_cast<std::int32_t>(mFunction));
             if (result.ec != std::errc())
             {
                 Log(Debug::Error) << "Failed to save SCVR rule";

@@ -1,5 +1,7 @@
 #include "windowpinnablebase.hpp"
 
+#include <cstdint>
+
 #include "exposedwindow.hpp"
 
 namespace MWGui
@@ -14,7 +16,8 @@ namespace MWGui
         mPinButton->eventMouseButtonPressed += MyGUI::newDelegate(this, &WindowPinnableBase::onPinButtonPressed);
     }
 
-    void WindowPinnableBase::onPinButtonPressed(MyGUI::Widget* /*sender*/, int left, int top, MyGUI::MouseButton id)
+    void WindowPinnableBase::onPinButtonPressed(
+        MyGUI::Widget* /*sender*/, std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         if (id != MyGUI::MouseButton::Left)
             return;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -91,7 +92,7 @@ namespace CSVRender
         bool mForceBaseToZero;
         ESM::Position mPositionOverride;
         float mScaleOverride{ 1.f };
-        int mOverrideFlags{ 0 };
+        std::int32_t mOverrideFlags{ 0 };
         std::unique_ptr<Actor> mActor;
 
         /// Not implemented
@@ -143,7 +144,7 @@ namespace CSVRender
 
         /// \return Did this call result in a modification of the visual representation of
         /// this object?
-        bool referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        bool referenceableAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         /// \return Did this call result in a modification of the visual representation of
         /// this object?
@@ -162,7 +163,7 @@ namespace CSVRender
         /// Is there currently an editing operation running on this object?
         bool isEdited() const;
 
-        void setEdited(int flags);
+        void setEdited(std::int32_t flags);
 
         ESM::Position getPosition() const;
 

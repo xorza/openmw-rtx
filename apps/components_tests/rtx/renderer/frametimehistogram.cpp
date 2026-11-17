@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <gtest/gtest.h>
 
 #include <components/rtx/renderer/framespend.hpp>
@@ -25,7 +27,7 @@ namespace Rtx
             FrameTimeHistogram times;
             EXPECT_EQ(describe(times.summarise()), "no frames");
 
-            for (int frame = 0; frame < 49; ++frame)
+            for (std::int32_t frame = 0; frame < 49; ++frame)
                 times.add(frameOf(16.66));
             FrameSpend worst = frameOf(300.0);
             worst.at(Timing::Update) = 250.0;
@@ -34,7 +36,7 @@ namespace Rtx
             worst.at(Timing::Walk) = 15.0;
             worst.at(Timing::Trace) = 5.0;
             times.add(worst);
-            for (int frame = 0; frame < 49; ++frame)
+            for (std::int32_t frame = 0; frame < 49; ++frame)
                 times.add(frameOf(16.66));
             times.add(frameOf(40.0));
 

@@ -1,5 +1,7 @@
 #include "classcheck.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <utility>
@@ -19,14 +21,14 @@ CSMTools::ClassCheckStage::ClassCheckStage(const CSMWorld::IdCollection<ESM::Cla
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::ClassCheckStage::setup()
+std::int32_t CSMTools::ClassCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mClasses.getSize();
 }
 
-void CSMTools::ClassCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::ClassCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Class>& record = mClasses.getRecord(stage);
 
@@ -47,8 +49,8 @@ void CSMTools::ClassCheckStage::perform(int stage, CSMDoc::Messages& messages)
         messages.add(id, "Description of a playable class is missing", "", CSMDoc::Message::Severity_Warning);
 
     // test for invalid attributes
-    std::map<ESM::RefId, int> attributeCount;
-    for (size_t i = 0; i < classRecord.mData.mAttribute.size(); ++i)
+    std::map<ESM::RefId, std::int32_t> attributeCount;
+    for (std::size_t i = 0; i < classRecord.mData.mAttribute.size(); ++i)
     {
         ESM::RefId attribute = classRecord.mData.mAttribute[i];
         if (attribute.empty())
@@ -68,7 +70,7 @@ void CSMTools::ClassCheckStage::perform(int stage, CSMDoc::Messages& messages)
     }
 
     // test for non-unique skill
-    std::map<ESM::RefId, int> skills; // ID, number of occurrences
+    std::map<ESM::RefId, std::int32_t> skills; // ID, number of occurrences
 
     for (const ESM::RefId& skill : classRecord.mData.mMinorSkills)
         ++skills[skill];

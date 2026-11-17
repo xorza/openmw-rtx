@@ -1,6 +1,7 @@
 #include "morphgeometry.hpp"
 
 #include <cassert>
+#include <cstdint>
 
 #include <osgUtil/CullVisitor>
 
@@ -116,7 +117,7 @@ namespace SceneUtil
     osg::BoundingBox MorphGeometry::computeBoundingBox() const
     {
         bool anyMorphTarget = false;
-        for (unsigned int i = 1; i < mMorphTargets.size(); ++i)
+        for (std::uint32_t i = 1; i < mMorphTargets.size(); ++i)
             if (mMorphTargets[i].getWeight() != 0)
             {
                 anyMorphTarget = true;
@@ -147,10 +148,10 @@ namespace SceneUtil
             for (auto& vertBound : vertBounds)
                 vertBound.set(osg::Vec3f(0, 0, 0), osg::Vec3f(0, 0, 0));
 
-            for (unsigned int i = 1; i < mMorphTargets.size(); ++i)
+            for (std::uint32_t i = 1; i < mMorphTargets.size(); ++i)
             {
                 const osg::Vec3Array& offsets = *mMorphTargets[i].getOffsets();
-                for (unsigned int j = 0; j < offsets.size() && j < vertBounds.size(); ++j)
+                for (std::uint32_t j = 0; j < offsets.size() && j < vertBounds.size(); ++j)
                 {
                     osg::BoundingBox& bounds = vertBounds[j];
                     bounds.expandBy(bounds._max + offsets[j]);
@@ -159,7 +160,7 @@ namespace SceneUtil
             }
 
             osg::BoundingBox box;
-            for (unsigned int i = 0; i < vertBounds.size(); ++i)
+            for (std::uint32_t i = 0; i < vertBounds.size(); ++i)
             {
                 vertBounds[i]._max += (*sourceVerts)[i];
                 vertBounds[i]._min += (*sourceVerts)[i];
@@ -187,16 +188,16 @@ namespace SceneUtil
         const osg::Vec3Array* positionSrc = mMorphTargets[0].getOffsets();
         auto* positionDst = static_cast<osg::Vec3Array*>(geom.getVertexArray());
         assert(positionSrc->size() == positionDst->size());
-        for (unsigned int vertex = 0; vertex < positionSrc->size(); ++vertex)
+        for (std::uint32_t vertex = 0; vertex < positionSrc->size(); ++vertex)
             (*positionDst)[vertex] = (*positionSrc)[vertex];
 
-        for (unsigned int i = 1; i < mMorphTargets.size(); ++i)
+        for (std::uint32_t i = 1; i < mMorphTargets.size(); ++i)
         {
             float weight = mMorphTargets[i].getWeight();
             if (weight == 0.f)
                 continue;
             const osg::Vec3Array* offsets = mMorphTargets[i].getOffsets();
-            for (unsigned int vertex = 0; vertex < positionSrc->size(); ++vertex)
+            for (std::uint32_t vertex = 0; vertex < positionSrc->size(); ++vertex)
                 (*positionDst)[vertex] += (*offsets)[vertex] * weight;
         }
 
@@ -209,7 +210,7 @@ namespace SceneUtil
         nv->popFromNodePath();
     }
 
-    osg::Geometry* MorphGeometry::getGeometry(unsigned int frame) const
+    osg::Geometry* MorphGeometry::getGeometry(std::uint32_t frame) const
     {
         return mGeometry[frame % 2];
     }

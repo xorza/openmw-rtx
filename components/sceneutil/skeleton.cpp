@@ -1,6 +1,7 @@
 #include "skeleton.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <osg/MatrixTransform>
 
@@ -95,7 +96,7 @@ namespace SceneUtil
         return bone;
     }
 
-    void Skeleton::updateBoneMatrices(unsigned int traversalNumber)
+    void Skeleton::updateBoneMatrices(std::uint32_t traversalNumber)
     {
         if (traversalNumber != mLastFrameNumber)
             mNeedToUpdateBoneMatrices = true;
@@ -146,12 +147,12 @@ namespace SceneUtil
         osg::Group::traverse(nv);
     }
 
-    void Skeleton::childInserted(unsigned int)
+    void Skeleton::childInserted(std::uint32_t)
     {
         markDirty();
     }
 
-    void Skeleton::childRemoved(unsigned int, unsigned int)
+    void Skeleton::childRemoved(std::uint32_t, std::uint32_t)
     {
         markDirty();
     }

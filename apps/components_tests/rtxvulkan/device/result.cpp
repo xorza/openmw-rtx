@@ -37,24 +37,24 @@ namespace Rtx
         ///
         /// **The race `VK_INCOMPLETE` reports, made to happen.** Vulkan takes the count in one call and the elements
         /// in the next, so a driver may have more to say by the second; no real one does it on demand.
-        auto aDriverWhoseListGrows(int length, int growths)
+        auto aDriverWhoseListGrows(std::int32_t length, std::int32_t growths)
         {
-            return [length, growths](std::uint32_t* count, int* into) mutable {
+            return [length, growths](std::uint32_t* count, std::int32_t* into) mutable {
                 if (into == nullptr)
                 {
                     *count = static_cast<std::uint32_t>(length);
                     return VK_SUCCESS;
                 }
 
-                const auto offered = static_cast<int>(*count);
+                const auto offered = static_cast<std::int32_t>(*count);
                 if (growths > 0)
                 {
                     --growths;
                     ++length;
                 }
 
-                const int written = std::min(offered, length);
-                for (int at = 0; at < written; ++at)
+                const std::int32_t written = std::min(offered, length);
+                for (std::int32_t at = 0; at < written; ++at)
                     into[at] = at;
                 *count = static_cast<std::uint32_t>(written);
 
@@ -69,15 +69,18 @@ namespace Rtx
         /// swapchain half built.
         TEST(RtxResultTest, anEnumerationAsksAgainWhenTheDriverHadMoreToSay)
         {
-            const std::vector<int> once = enumerateVk<int>("a driver that grew once", aDriverWhoseListGrows(3, 1));
-            EXPECT_EQ(once, (std::vector<int>{ 0, 1, 2, 3 })) << "the fourth is the one that arrived late";
+            const std::vector<std::int32_t> once
+                = enumerateVk<std::int32_t>("a driver that grew once", aDriverWhoseListGrows(3, 1));
+            EXPECT_EQ(once, (std::vector<std::int32_t>{ 0, 1, 2, 3 })) << "the fourth is the one that arrived late";
 
             // Twice over, because one retry looks exactly like a loop that runs at most once.
-            const std::vector<int> twice = enumerateVk<int>("a driver that grew twice", aDriverWhoseListGrows(3, 2));
-            EXPECT_EQ(twice, (std::vector<int>{ 0, 1, 2, 3, 4 }));
+            const std::vector<std::int32_t> twice
+                = enumerateVk<std::int32_t>("a driver that grew twice", aDriverWhoseListGrows(3, 2));
+            EXPECT_EQ(twice, (std::vector<std::int32_t>{ 0, 1, 2, 3, 4 }));
 
             // A driver with nothing to add is asked once and answers whole.
-            EXPECT_EQ(enumerateVk<int>("a settled driver", aDriverWhoseListGrows(3, 0)), (std::vector<int>{ 0, 1, 2 }));
+            EXPECT_EQ(enumerateVk<std::int32_t>("a settled driver", aDriverWhoseListGrows(3, 0)),
+                (std::vector<std::int32_t>{ 0, 1, 2 }));
         }
 
         /// A list that shrank is trimmed to what the fill actually wrote.
@@ -87,7 +90,7 @@ namespace Rtx
         /// touched.
         TEST(RtxResultTest, anEnumerationKeepsOnlyWhatTheFillWrote)
         {
-            const auto shrinking = [](std::uint32_t* count, int* into) {
+            const auto shrinking = [](std::uint32_t* count, std::int32_t* into) {
                 if (into == nullptr)
                 {
                     *count = 4;
@@ -100,20 +103,21 @@ namespace Rtx
                 return VK_SUCCESS;
             };
 
-            EXPECT_EQ(enumerateVk<int>("a driver that shrank", shrinking), (std::vector<int>{ 11, 22 }));
+            EXPECT_EQ(
+                enumerateVk<std::int32_t>("a driver that shrank", shrinking), (std::vector<std::int32_t>{ 11, 22 }));
         }
 
         /// An empty list comes back empty, and the fill is never asked for.
         TEST(RtxResultTest, anEnumerationOfNothingAsksForNothing)
         {
             bool filled = false;
-            const auto empty = [&](std::uint32_t* count, const int* into) {
+            const auto empty = [&](std::uint32_t* count, const std::int32_t* into) {
                 filled = filled || into != nullptr;
                 *count = 0;
                 return VK_SUCCESS;
             };
 
-            EXPECT_TRUE(enumerateVk<int>("a driver with an empty list", empty).empty());
+            EXPECT_TRUE(enumerateVk<std::int32_t>("a driver with an empty list", empty).empty());
             EXPECT_FALSE(filled) << "a fill into no elements reads as a second count query";
         }
 
@@ -124,7 +128,7 @@ namespace Rtx
         TEST(RtxResultTest, anEnumerationStampsEveryElementBeforeTheDriverReadsIt)
         {
             bool stamped = false;
-            const auto reads = [&](std::uint32_t* count, int* into) {
+            const auto reads = [&](std::uint32_t* count, std::int32_t* into) {
                 if (into == nullptr)
                 {
                     *count = 2;
@@ -137,7 +141,8 @@ namespace Rtx
                 return VK_SUCCESS;
             };
 
-            EXPECT_EQ(enumerateVk<int>("a driver that reads what it is handed", reads, 7), (std::vector<int>{ 1, 2 }));
+            EXPECT_EQ(enumerateVk<std::int32_t>("a driver that reads what it is handed", reads, 7),
+                (std::vector<std::int32_t>{ 1, 2 }));
             EXPECT_TRUE(stamped) << "the driver was handed elements it had not stamped";
         }
 
@@ -149,7 +154,7 @@ namespace Rtx
         {
             try
             {
-                enumerateVk<int>("a driver that never settles", aDriverWhoseListGrows(3, 1000));
+                enumerateVk<std::int32_t>("a driver that never settles", aDriverWhoseListGrows(3, 1000));
                 ADD_FAILURE() << "the enumeration returned, so a list that never settles looks like one that did";
             }
             catch (const DeviceError& e)

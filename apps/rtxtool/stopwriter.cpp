@@ -231,14 +231,14 @@ namespace RtxTool
 
     void StopWriter::writeImage(const Writing& into, const osg::Image& drawn, const std::filesystem::path& file)
     {
-        const int width = drawn.s();
-        const int height = drawn.t();
+        const std::int32_t width = drawn.s();
+        const std::int32_t height = drawn.t();
         const auto stride = static_cast<std::size_t>(width) * 4;
         mPixels.resize(stride * static_cast<std::size_t>(height));
 
-        for (int row = 0; row < height; ++row)
+        for (std::int32_t row = 0; row < height; ++row)
             std::memcpy(mPixels.data() + stride * static_cast<std::size_t>(row),
-                drawn.data(0, static_cast<unsigned int>(height - 1 - row)), stride);
+                drawn.data(0, static_cast<std::uint32_t>(height - 1 - row)), stride);
 
         if (!writePicture(into, file, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mPixels))
             return;

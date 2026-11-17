@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwmechanics/magiceffects.hpp>
 #include <apps/openmw/mwworld/class.hpp>
 #include <components/esm3/loadmgef.hpp>
@@ -16,7 +18,7 @@ namespace MWClass
     class Actor : public MWWorld::Class
     {
     protected:
-        explicit Actor(unsigned type)
+        explicit Actor(std::uint32_t type)
             : Class(type)
         {
         }

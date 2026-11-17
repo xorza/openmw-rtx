@@ -1,4 +1,6 @@
 
+#include <cstdint>
+
 #include <benchmark/benchmark.h> // IWYU pragma: keep: the macros this source registers its benchmarks with
 
 #include <components/misc/strings/conversion.hpp>
@@ -61,7 +63,7 @@ namespace
         {
             static float v1 = Settings::Manager::getFloat("near clip", "Camera");
             static bool v2 = Settings::Manager::getBool("transparent postpass", "Post Processing");
-            static int v3 = Settings::Manager::getInt("reflection detail", "Water");
+            static std::int32_t v3 = Settings::Manager::getInt("reflection detail", "Water");
             benchmark::DoNotOptimize(v1);
             benchmark::DoNotOptimize(v2);
             benchmark::DoNotOptimize(v3);
@@ -94,7 +96,7 @@ namespace
         {
             bool v1 = Settings::postProcessing().mTransparentPostpass.get();
             float v2 = Settings::camera().mNearClip.get();
-            int v3 = Settings::water().mReflectionDetail.get();
+            std::int32_t v3 = Settings::water().mReflectionDetail.get();
             benchmark::DoNotOptimize(v1);
             benchmark::DoNotOptimize(v2);
             benchmark::DoNotOptimize(v3);
@@ -124,7 +126,7 @@ namespace
         {
             benchmark::DoNotOptimize(Settings::get<bool>("Post Processing", "transparent postpass"));
             benchmark::DoNotOptimize(Settings::get<float>("Camera", "near clip"));
-            benchmark::DoNotOptimize(Settings::get<int>("Water", "reflection detail"));
+            benchmark::DoNotOptimize(Settings::get<std::int32_t>("Water", "reflection detail"));
         }
     }
 }
@@ -146,7 +148,7 @@ BENCHMARK(settingsStorageGet3);
 
 // An exception here ends the process, which is what this function means.
 // NOLINTNEXTLINE(bugprone-exception-escape)
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     const std::filesystem::path settingsDefaultPath = std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files"
         / Misc::StringUtils::stringToU8String("settings-default.cfg");

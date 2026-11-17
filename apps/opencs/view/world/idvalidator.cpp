@@ -1,5 +1,7 @@
 #include "idvalidator.hpp"
 
+#include <cstdint>
+
 #include <components/misc/strings/lower.hpp>
 
 CSVWorld::IdValidator::IdValidator(bool relaxed, QObject* parent)
@@ -8,7 +10,7 @@ CSVWorld::IdValidator::IdValidator(bool relaxed, QObject* parent)
 {
 }
 
-QValidator::State CSVWorld::IdValidator::validate(QString& input, int& pos) const
+QValidator::State CSVWorld::IdValidator::validate(QString& input, std::int32_t& pos) const
 {
     mError.clear();
 
@@ -33,7 +35,8 @@ QValidator::State CSVWorld::IdValidator::validate(QString& input, int& pos) cons
 
         if (!mNamespace.empty())
         {
-            const std::string namespaceName = input.left(static_cast<int>(mNamespace.size())).toUtf8().constData();
+            const std::string namespaceName
+                = input.left(static_cast<std::int32_t>(mNamespace.size())).toUtf8().constData();
 
             if (Misc::StringUtils::lowerCase(namespaceName) != mNamespace)
                 return QValidator::Invalid; // incorrect namespace
@@ -44,7 +47,7 @@ QValidator::State CSVWorld::IdValidator::validate(QString& input, int& pos) cons
         }
         else
         {
-            int index = static_cast<int>(input.indexOf(":"));
+            std::int32_t index = static_cast<std::int32_t>(input.indexOf(":"));
 
             if (index != -1)
             {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 
@@ -16,5 +17,5 @@ namespace MWLua
     // contentFileMapping is used only for deserialization. Needed to fix references if the order
     // of content files was changed.
     std::unique_ptr<LuaUtil::UserdataSerializer> createUserdataSerializer(
-        bool local, std::map<int, int>* contentFileMapping = nullptr);
+        bool local, std::map<std::int32_t, std::int32_t>* contentFileMapping = nullptr);
 }

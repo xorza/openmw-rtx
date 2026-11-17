@@ -1,7 +1,8 @@
 #pragma once
 
-#include <QObject>
 #include <filesystem>
+
+#include <QObject>
 
 #include <components/toutf8/toutf8.hpp>
 

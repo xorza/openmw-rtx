@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QString>
-
 #include <osg/Referenced>
 
 #include "mask.hpp"

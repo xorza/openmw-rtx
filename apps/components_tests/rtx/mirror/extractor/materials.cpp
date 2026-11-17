@@ -132,7 +132,7 @@ namespace Rtx::Testing
 
             osgUtil::UpdateVisitor update;
 
-            for (unsigned int pass = 1; pass <= 4; ++pass)
+            for (std::uint32_t pass = 1; pass <= 4; ++pass)
             {
                 update.setTraversalNumber(pass);
                 node->accept(update);
@@ -171,7 +171,7 @@ namespace Rtx::Testing
             root->addChild(plain);
 
             osgUtil::UpdateVisitor update;
-            const auto frame = [&](unsigned int pass) {
+            const auto frame = [&](std::uint32_t pass) {
                 update.setTraversalNumber(pass);
                 node->accept(update);
                 mScene.clearPlacement();
@@ -179,7 +179,7 @@ namespace Rtx::Testing
                 return std::pair{ spent, mExtractor.retire() };
             };
 
-            for (unsigned int pass = 1; pass <= 3; ++pass)
+            for (std::uint32_t pass = 1; pass <= 3; ++pass)
                 frame(pass);
             root->removeChild(plain);
             const auto [gone, swept] = frame(4);
@@ -677,17 +677,17 @@ namespace Rtx::Testing
         /// no eye to shift by; its relief spans the lowest and highest alpha its texels hold, here 30 and 200.
         TEST_F(RtxSceneExtractorTest, theCompanionMapsReachTheMaterialAsDataAndTheSpecularMapOnlyInItsLayout)
         {
-            const auto extractOne = [](std::optional<std::array<unsigned char, 4>> specularTexel,
-                                        TextureRole normalRole, bool cutout = false) {
+            const auto extractOne = [](std::optional<std::array<std::uint8_t, 4>> specularTexel, TextureRole normalRole,
+                                        bool cutout = false) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
                 paint(state, "textures/tx_a_steel.dds");
 
                 osg::ref_ptr<osg::Image> normalMap = Testing::makeImage("", 2, 2);
-                constexpr std::array<unsigned char, 4> heights{ 30, 90, 200, 120 };
+                constexpr std::array<std::uint8_t, 4> heights{ 30, 90, 200, 120 };
                 for (std::size_t texel = 0; texel < heights.size(); ++texel)
                 {
-                    unsigned char* const at = normalMap->data() + texel * 4;
+                    std::uint8_t* const at = normalMap->data() + texel * 4;
                     at[0] = 128;
                     at[1] = 128;
                     at[2] = 255;
@@ -716,8 +716,8 @@ namespace Rtx::Testing
                     std::vector<TextureRow>(scene.textures().getRows().begin(), scene.textures().getRows().end()) };
             };
 
-            constexpr std::array<unsigned char, 4> grey{ 128, 128, 128, 255 };
-            constexpr std::array<unsigned char, 4> metalRough{ 0, 200, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> grey{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> metalRough{ 0, 200, 255, 255 };
             const auto [classic, classicRows] = extractOne(grey, TextureRole::NormalHeight);
             ASSERT_NE(classic.mNormal, sNoIndex);
             EXPECT_EQ(classicRows[classic.mNormal].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_nh.dds"));
@@ -766,7 +766,7 @@ namespace Rtx::Testing
             diffuse->setFileName("textures/tx_ore.dds");
             const auto grey = [](const char* name) {
                 osg::ref_ptr<osg::Image> image = Testing::makeImage("", 2, 2);
-                std::fill_n(image->data(), 16, static_cast<unsigned char>(128));
+                std::fill_n(image->data(), 16, static_cast<std::uint8_t>(128));
                 image->setFileName(name);
                 return image;
             };
@@ -871,7 +871,7 @@ namespace Rtx::Testing
             node->addUpdateCallback(controller);
 
             osgUtil::UpdateVisitor update;
-            for (unsigned int frame = 1; frame <= 72; ++frame)
+            for (std::uint32_t frame = 1; frame <= 72; ++frame)
             {
                 controller->mShown = (frame - 1) % 32;
                 update.setTraversalNumber(frame);
@@ -943,7 +943,7 @@ namespace Rtx::Testing
             root->addUpdateCallback(glow);
 
             osgUtil::UpdateVisitor update;
-            const auto frame = [&](unsigned int number) {
+            const auto frame = [&](std::uint32_t number) {
                 glow->mShown = number - 1;
                 update.setTraversalNumber(number);
                 root->accept(update);
@@ -980,7 +980,7 @@ namespace Rtx::Testing
             // The ray tracer compiles none of the rasterizer's shaders, and neither does this.
             resources.getSceneManager()->setModelPrograms(Resource::ModelPrograms::Omitted);
 
-            const auto frame = [&](osg::Group& root, unsigned int number, double seconds) {
+            const auto frame = [&](osg::Group& root, std::uint32_t number, double seconds) {
                 osg::ref_ptr<osg::FrameStamp> stamp = new osg::FrameStamp;
                 stamp->setFrameNumber(number);
                 stamp->setSimulationTime(seconds);
@@ -1036,7 +1036,7 @@ namespace Rtx::Testing
             paint(state, "textures/tx_6th_dark.dds", TextureRole::Dark);
             paint(state, "textures/vfx_alt_envir.dds", TextureRole::Environment);
 
-            for (unsigned int frame = 1; frame <= 6; ++frame)
+            for (std::uint32_t frame = 1; frame <= 6; ++frame)
             {
                 mScene.clearPlacement();
                 walk(*quad, 0, frame);
@@ -1083,7 +1083,7 @@ namespace Rtx::Testing
                 const char* const where = onDrawable ? " with the state set on the drawable" : "";
 
                 osgUtil::UpdateVisitor update;
-                for (unsigned int frame = 1; frame <= 40; ++frame)
+                for (std::uint32_t frame = 1; frame <= 40; ++frame)
                 {
                     controller->mShown = (frame - 1) % 32;
                     update.setTraversalNumber(frame);
@@ -1132,7 +1132,7 @@ namespace Rtx::Testing
             replaced->setAttribute(new SceneUtil::Material, osg::StateAttribute::ON);
 
             osgUtil::UpdateVisitor update;
-            for (unsigned int frame = 1; frame <= 6; ++frame)
+            for (std::uint32_t frame = 1; frame <= 6; ++frame)
             {
                 if (frame == 4)
                     shape->setStateSet(replaced);
@@ -1188,7 +1188,7 @@ namespace Rtx::Testing
                 const char* const where = onDrawable ? " with the state set on the drawable" : "";
 
                 osgUtil::UpdateVisitor update;
-                for (unsigned int frame = 1; frame <= 4; ++frame)
+                for (std::uint32_t frame = 1; frame <= 4; ++frame)
                 {
                     glows[0]->mShown = frame % 32;
                     glows[1]->mShown = (frame + 16) % 32;
@@ -1697,7 +1697,7 @@ namespace Rtx::Testing
             node->addUpdateCallback(controller);
 
             osgUtil::UpdateVisitor update;
-            for (unsigned int frame = 1; frame <= 3; ++frame)
+            for (std::uint32_t frame = 1; frame <= 3; ++frame)
             {
                 update.setTraversalNumber(frame);
                 node->accept(update);
@@ -1783,7 +1783,7 @@ namespace Rtx::Testing
             both->addChild(node);
 
             osgUtil::UpdateVisitor update;
-            for (unsigned int frame = 1; frame <= 3; ++frame)
+            for (std::uint32_t frame = 1; frame <= 3; ++frame)
             {
                 update.setTraversalNumber(frame);
                 both->accept(update);

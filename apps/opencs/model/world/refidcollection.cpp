@@ -1,5 +1,7 @@
 #include "refidcollection.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 #include <string_view>
@@ -28,7 +30,8 @@
 #include "refidadapterimp.hpp"
 #include "refiddata.hpp"
 
-CSMWorld::RefIdColumn::RefIdColumn(int columnId, Display displayType, int flag, bool editable, bool userEditable)
+CSMWorld::RefIdColumn::RefIdColumn(
+    std::int32_t columnId, Display displayType, std::int32_t flag, bool editable, bool userEditable)
     : NestableColumn(columnId, displayType, flag)
     , mEditable(editable)
     , mUserEditable(userEditable)
@@ -228,8 +231,8 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
 
     static const struct
     {
-        int mName;
-        unsigned int mFlag;
+        std::int32_t mName;
+        std::uint32_t mFlag;
     } sServiceTable[] = { { Columns::ColumnId_BuysWeapons, ESM::NPC::Weapon },
         { Columns::ColumnId_BuysArmor, ESM::NPC::Armor }, { Columns::ColumnId_BuysClothing, ESM::NPC::Clothing },
         { Columns::ColumnId_BuysBooks, ESM::NPC::Books }, { Columns::ColumnId_BuysIngredients, ESM::NPC::Ingredients },
@@ -242,7 +245,7 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
         { Columns::ColumnId_EnchantingService, ESM::NPC::Enchanting },
         { Columns::ColumnId_RepairService, ESM::NPC::Repair }, { -1, 0 } };
 
-    for (int i = 0; sServiceTable[i].mName != -1; ++i)
+    for (std::int32_t i = 0; sServiceTable[i].mName != -1; ++i)
     {
         mColumns.emplace_back(sServiceTable[i].mName, ColumnBase::Display_Boolean);
         actorsColumns.mServices.insert(std::make_pair(&mColumns.back(), sServiceTable[i].mFlag));
@@ -308,8 +311,8 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
 
     static const struct
     {
-        int mName;
-        unsigned int mFlag;
+        std::int32_t mName;
+        std::uint32_t mFlag;
     } sCreatureFlagTable[] = { { Columns::ColumnId_Biped, ESM::Creature::Bipedal },
         { Columns::ColumnId_HasWeapon, ESM::Creature::Weapon }, { Columns::ColumnId_Swims, ESM::Creature::Swims },
         { Columns::ColumnId_Flies, ESM::Creature::Flies }, { Columns::ColumnId_Walks, ESM::Creature::Walks },
@@ -318,7 +321,7 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
     // for re-use in NPC records
     const RefIdColumn* essential = nullptr;
 
-    for (int i = 0; sCreatureFlagTable[i].mName != -1; ++i)
+    for (std::int32_t i = 0; sCreatureFlagTable[i].mName != -1; ++i)
     {
         mColumns.emplace_back(sCreatureFlagTable[i].mName, ColumnBase::Display_Boolean);
         creatureColumns.mFlags.insert(std::make_pair(&mColumns.back(), sCreatureFlagTable[i].mFlag));
@@ -406,14 +409,14 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
 
     static const struct
     {
-        int mName;
-        unsigned int mFlag;
+        std::int32_t mName;
+        std::uint32_t mFlag;
     } sLightFlagTable[]
         = { { Columns::ColumnId_Dynamic, ESM::Light::Dynamic }, { Columns::ColumnId_Portable, ESM::Light::Carry },
               { Columns::ColumnId_NegativeLight, ESM::Light::Negative }, { Columns::ColumnId_Fire, ESM::Light::Fire },
               { Columns::ColumnId_OffByDefault, ESM::Light::OffDefault }, { -1, 0 } };
 
-    for (int i = 0; sLightFlagTable[i].mName != -1; ++i)
+    for (std::int32_t i = 0; sLightFlagTable[i].mName != -1; ++i)
     {
         mColumns.emplace_back(sLightFlagTable[i].mName, ColumnBase::Display_Boolean);
         lightColumns.mFlags.insert(std::make_pair(&mColumns.back(), sLightFlagTable[i].mFlag));
@@ -510,12 +513,12 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
     mColumns.emplace_back(Columns::ColumnId_WeaponReach, ColumnBase::Display_Float);
     weaponColumns.mReach = &mColumns.back();
 
-    for (int i = 0; i < 3; ++i)
+    for (std::int32_t i = 0; i < 3; ++i)
     {
         const RefIdColumn** column
             = i == 0 ? weaponColumns.mChop : (i == 1 ? weaponColumns.mSlash : weaponColumns.mThrust);
 
-        for (int j = 0; j < 2; ++j)
+        for (std::int32_t j = 0; j < 2; ++j)
         {
             mColumns.emplace_back(Columns::ColumnId_MinChop + i * 2 + j, ColumnBase::Display_Integer);
             column[j] = &mColumns.back();
@@ -524,12 +527,12 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
 
     static const struct
     {
-        int mName;
-        unsigned int mFlag;
+        std::int32_t mName;
+        std::uint32_t mFlag;
     } sWeaponFlagTable[] = { { Columns::ColumnId_Magical, ESM::Weapon::Magical },
         { Columns::ColumnId_Silver, ESM::Weapon::Silver }, { -1, 0 } };
 
-    for (int i = 0; sWeaponFlagTable[i].mName != -1; ++i)
+    for (std::int32_t i = 0; sWeaponFlagTable[i].mName != -1; ++i)
     {
         mColumns.emplace_back(sWeaponFlagTable[i].mName, ColumnBase::Display_Boolean);
         weaponColumns.mFlags.insert(std::make_pair(&mColumns.back(), sWeaponFlagTable[i].mFlag));
@@ -640,19 +643,19 @@ CSMWorld::RefIdCollection::~RefIdCollection()
     }
 }
 
-int CSMWorld::RefIdCollection::getSize() const
+std::int32_t CSMWorld::RefIdCollection::getSize() const
 {
     return mData.getSize();
 }
 
-ESM::RefId CSMWorld::RefIdCollection::getId(int index) const
+ESM::RefId CSMWorld::RefIdCollection::getId(std::int32_t index) const
 {
     return ESM::RefId::stringRefId(getData(index, 0).toString().toUtf8().constData());
 }
 
-int CSMWorld::RefIdCollection::getIndex(const ESM::RefId& id) const
+std::int32_t CSMWorld::RefIdCollection::getIndex(const ESM::RefId& id) const
 {
-    int index = searchId(id);
+    std::int32_t index = searchId(id);
 
     if (index == -1)
         throw std::runtime_error("ID is not found in RefId collection: " + id.toDebugString());
@@ -660,17 +663,17 @@ int CSMWorld::RefIdCollection::getIndex(const ESM::RefId& id) const
     return index;
 }
 
-int CSMWorld::RefIdCollection::getColumns() const
+std::int32_t CSMWorld::RefIdCollection::getColumns() const
 {
-    return static_cast<int>(mColumns.size());
+    return static_cast<std::int32_t>(mColumns.size());
 }
 
-const CSMWorld::ColumnBase& CSMWorld::RefIdCollection::getColumn(int column) const
+const CSMWorld::ColumnBase& CSMWorld::RefIdCollection::getColumn(std::int32_t column) const
 {
     return mColumns.at(static_cast<std::size_t>(column));
 }
 
-QVariant CSMWorld::RefIdCollection::getData(int index, int column) const
+QVariant CSMWorld::RefIdCollection::getData(std::int32_t index, std::int32_t column) const
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(index);
 
@@ -679,7 +682,8 @@ QVariant CSMWorld::RefIdCollection::getData(int index, int column) const
     return adaptor.getData(&mColumns.at(static_cast<std::size_t>(column)), mData, localIndex.first);
 }
 
-QVariant CSMWorld::RefIdCollection::getNestedData(int row, int column, int subRow, int subColumn) const
+QVariant CSMWorld::RefIdCollection::getNestedData(
+    std::int32_t row, std::int32_t column, std::int32_t subRow, std::int32_t subColumn) const
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(row);
     const CSMWorld::NestedRefIdAdapterBase& nestedAdapter
@@ -689,7 +693,7 @@ QVariant CSMWorld::RefIdCollection::getNestedData(int row, int column, int subRo
         &mColumns.at(static_cast<std::size_t>(column)), mData, localIndex.first, subRow, subColumn);
 }
 
-void CSMWorld::RefIdCollection::setData(int index, int column, const QVariant& data)
+void CSMWorld::RefIdCollection::setData(std::int32_t index, std::int32_t column, const QVariant& data)
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(index);
 
@@ -698,7 +702,8 @@ void CSMWorld::RefIdCollection::setData(int index, int column, const QVariant& d
     adaptor.setData(&mColumns.at(static_cast<std::size_t>(column)), mData, localIndex.first, data);
 }
 
-void CSMWorld::RefIdCollection::setNestedData(int row, int column, const QVariant& data, int subRow, int subColumn)
+void CSMWorld::RefIdCollection::setNestedData(
+    std::int32_t row, std::int32_t column, const QVariant& data, std::int32_t subRow, std::int32_t subColumn)
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(row);
     const CSMWorld::NestedRefIdAdapterBase& nestedAdapter
@@ -708,12 +713,12 @@ void CSMWorld::RefIdCollection::setNestedData(int row, int column, const QVarian
         &mColumns.at(static_cast<std::size_t>(column)), mData, localIndex.first, data, subRow, subColumn);
 }
 
-void CSMWorld::RefIdCollection::removeRows(int index, int count)
+void CSMWorld::RefIdCollection::removeRows(std::int32_t index, std::int32_t count)
 {
     mData.erase(index, count);
 }
 
-void CSMWorld::RefIdCollection::removeNestedRows(int row, int column, int subRow)
+void CSMWorld::RefIdCollection::removeNestedRows(std::int32_t row, std::int32_t column, std::int32_t subRow)
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(row);
     const CSMWorld::NestedRefIdAdapterBase& nestedAdapter
@@ -727,7 +732,7 @@ void CSMWorld::RefIdCollection::appendBlankRecord(const ESM::RefId& id, Universa
     mData.appendRecord(type, id, false);
 }
 
-int CSMWorld::RefIdCollection::searchId(const ESM::RefId& id) const
+std::int32_t CSMWorld::RefIdCollection::searchId(const ESM::RefId& id) const
 {
     const RefIdData::LocalIndex localIndex = mData.searchId(id);
 
@@ -737,7 +742,7 @@ int CSMWorld::RefIdCollection::searchId(const ESM::RefId& id) const
     return mData.localToGlobalIndex(localIndex);
 }
 
-void CSMWorld::RefIdCollection::replace(int index, std::unique_ptr<RecordBase> record)
+void CSMWorld::RefIdCollection::replace(std::int32_t index, std::unique_ptr<RecordBase> record)
 {
     mData.getRecord(mData.globalToLocalIndex(index)).assign(*record.release());
 }
@@ -761,7 +766,7 @@ void CSMWorld::RefIdCollection::appendRecord(std::unique_ptr<RecordBase> record,
 {
     auto id = findAdapter(type).getId(*record.get());
 
-    int index = mData.getAppendIndex(type);
+    std::int32_t index = mData.getAppendIndex(type);
 
     mData.appendRecord(type, id, false);
 
@@ -773,7 +778,7 @@ const CSMWorld::RecordBase& CSMWorld::RefIdCollection::getRecord(const ESM::RefI
     return mData.getRecord(mData.searchId(id));
 }
 
-const CSMWorld::RecordBase& CSMWorld::RefIdCollection::getRecord(int index) const
+const CSMWorld::RecordBase& CSMWorld::RefIdCollection::getRecord(std::int32_t index) const
 {
     return mData.getRecord(mData.globalToLocalIndex(index));
 }
@@ -783,7 +788,7 @@ void CSMWorld::RefIdCollection::load(ESM::ESMReader& reader, bool base, Universa
     mData.load(reader, base, type);
 }
 
-int CSMWorld::RefIdCollection::getAppendIndex(const ESM::RefId& id, UniversalId::Type type) const
+std::int32_t CSMWorld::RefIdCollection::getAppendIndex(const ESM::RefId& id, UniversalId::Type type) const
 {
     return mData.getAppendIndex(type);
 }
@@ -793,12 +798,12 @@ std::vector<ESM::RefId> CSMWorld::RefIdCollection::getIds(bool listDeleted) cons
     return mData.getIds(listDeleted);
 }
 
-bool CSMWorld::RefIdCollection::reorderRows(int baseIndex, const std::vector<int>& newOrder)
+bool CSMWorld::RefIdCollection::reorderRows(std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder)
 {
     return false;
 }
 
-void CSMWorld::RefIdCollection::save(int index, ESM::ESMWriter& writer) const
+void CSMWorld::RefIdCollection::save(std::int32_t index, ESM::ESMWriter& writer) const
 {
     mData.save(index, writer);
 }
@@ -808,7 +813,7 @@ const CSMWorld::RefIdData& CSMWorld::RefIdCollection::getDataSet() const
     return mData;
 }
 
-int CSMWorld::RefIdCollection::getNestedRowsCount(int row, int column) const
+std::int32_t CSMWorld::RefIdCollection::getNestedRowsCount(std::int32_t row, std::int32_t column) const
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(row);
     const CSMWorld::NestedRefIdAdapterBase& nestedAdapter
@@ -817,7 +822,7 @@ int CSMWorld::RefIdCollection::getNestedRowsCount(int row, int column) const
     return nestedAdapter.getNestedRowsCount(&mColumns.at(static_cast<std::size_t>(column)), mData, localIndex.first);
 }
 
-int CSMWorld::RefIdCollection::getNestedColumnsCount(int row, int column) const
+std::int32_t CSMWorld::RefIdCollection::getNestedColumnsCount(std::int32_t row, std::int32_t column) const
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(row);
     const CSMWorld::NestedRefIdAdapterBase& nestedAdapter
@@ -826,12 +831,12 @@ int CSMWorld::RefIdCollection::getNestedColumnsCount(int row, int column) const
     return nestedAdapter.getNestedColumnsCount(&mColumns.at(static_cast<std::size_t>(column)), mData);
 }
 
-CSMWorld::NestableColumn* CSMWorld::RefIdCollection::getNestableColumn(int column)
+CSMWorld::NestableColumn* CSMWorld::RefIdCollection::getNestableColumn(std::int32_t column)
 {
     return &mColumns.at(static_cast<std::size_t>(column));
 }
 
-void CSMWorld::RefIdCollection::addNestedRow(int row, int col, int position)
+void CSMWorld::RefIdCollection::addNestedRow(std::int32_t row, std::int32_t col, std::int32_t position)
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(row);
     const CSMWorld::NestedRefIdAdapterBase& nestedAdapter
@@ -840,7 +845,8 @@ void CSMWorld::RefIdCollection::addNestedRow(int row, int col, int position)
     nestedAdapter.addNestedRow(&mColumns.at(static_cast<std::size_t>(col)), mData, localIndex.first, position);
 }
 
-void CSMWorld::RefIdCollection::setNestedTable(int row, int column, const CSMWorld::NestedTableWrapperBase& nestedTable)
+void CSMWorld::RefIdCollection::setNestedTable(
+    std::int32_t row, std::int32_t column, const CSMWorld::NestedTableWrapperBase& nestedTable)
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(row);
     const CSMWorld::NestedRefIdAdapterBase& nestedAdapter
@@ -849,7 +855,7 @@ void CSMWorld::RefIdCollection::setNestedTable(int row, int column, const CSMWor
     nestedAdapter.setNestedTable(&mColumns.at(static_cast<std::size_t>(column)), mData, localIndex.first, nestedTable);
 }
 
-CSMWorld::NestedTableWrapperBase* CSMWorld::RefIdCollection::nestedTable(int row, int column) const
+CSMWorld::NestedTableWrapperBase* CSMWorld::RefIdCollection::nestedTable(std::int32_t row, std::int32_t column) const
 {
     RefIdData::LocalIndex localIndex = mData.globalToLocalIndex(row);
     const CSMWorld::NestedRefIdAdapterBase& nestedAdapter
@@ -876,7 +882,7 @@ const CSMWorld::NestedRefIdAdapterBase& CSMWorld::RefIdCollection::getNestedAdap
     throw std::runtime_error("No such column in the nestedadapters");
 }
 
-void CSMWorld::RefIdCollection::copyTo(int index, RefIdCollection& target) const
+void CSMWorld::RefIdCollection::copyTo(std::int32_t index, RefIdCollection& target) const
 {
     mData.copyTo(index, target.mData);
 }

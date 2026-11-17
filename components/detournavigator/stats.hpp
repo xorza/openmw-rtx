@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 
 namespace Misc
@@ -62,5 +63,5 @@ namespace DetourNavigator
         TileCachedRecastMeshManagerStats mRecast;
     };
 
-    void reportStats(const Stats& stats, unsigned int frameNumber, Misc::FrameStats& out);
+    void reportStats(const Stats& stats, std::uint32_t frameNumber, Misc::FrameStats& out);
 }

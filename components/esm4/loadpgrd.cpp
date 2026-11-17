@@ -26,6 +26,8 @@
 */
 #include "loadpgrd.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
 
@@ -60,7 +62,7 @@ void ESM4::Pathgrid::load(ESM4::Reader& reader)
                 {
                     reader.get(mNodes.at(i));
 
-                    if (static_cast<int>(mNodes.at(i).z) % 2 == 0)
+                    if (static_cast<std::int32_t>(mNodes.at(i).z) % 2 == 0)
                         mNodes.at(i).priority = 0;
                     else
                         mNodes.at(i).priority = 1;
@@ -110,7 +112,7 @@ void ESM4::Pathgrid::load(ESM4::Reader& reader)
                 PGRL objLink;
                 reader.getFormId(objLink.object);
                 //                                        object             linkedNode
-                std::size_t numNodes = (subHdr.dataSize - sizeof(int32_t)) / sizeof(int32_t);
+                std::size_t numNodes = (subHdr.dataSize - sizeof(std::int32_t)) / sizeof(std::int32_t);
 
                 objLink.linkedNodes.resize(numNodes);
                 for (std::size_t i = 0; i < numNodes; ++i)

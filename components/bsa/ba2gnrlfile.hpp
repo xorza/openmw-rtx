@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <list>
 #include <map>
 #include <string>
@@ -15,16 +16,16 @@ namespace Bsa
         struct FileRecord
         {
             FileRecord();
-            uint32_t mSize = 0;
-            uint64_t mOffset;
-            uint32_t mPackedSize = 0;
+            std::uint32_t mSize = 0;
+            std::uint64_t mOffset;
+            std::uint32_t mPackedSize = 0;
             bool isValid() const;
         };
 
-        uint32_t mVersion{ 0u };
+        std::uint32_t mVersion{ 0u };
 
-        using FolderRecord = std::map<std::pair<uint32_t, uint32_t>, FileRecord>;
-        std::map<uint32_t, FolderRecord> mFolders;
+        using FolderRecord = std::map<std::pair<std::uint32_t, std::uint32_t>, FileRecord>;
+        std::map<std::uint32_t, FolderRecord> mFolders;
 
         std::list<std::vector<char>> mFileNames;
 
@@ -32,7 +33,7 @@ namespace Bsa
 
         Files::IStreamPtr getFile(const FileRecord& fileRecord);
 
-        void loadFiles(uint32_t fileCount, std::istream& in);
+        void loadFiles(std::uint32_t fileCount, std::istream& in);
 
     public:
         using BSAFile::getFilename;

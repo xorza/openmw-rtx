@@ -1,6 +1,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <random>
 #include <string>
 #include <vector>
@@ -16,7 +17,7 @@ namespace
     template <class Random>
     std::string generateText(std::size_t size, Random& random)
     {
-        std::uniform_int_distribution<int> distribution('A', 'z');
+        std::uniform_int_distribution<std::int32_t> distribution('A', 'z');
         std::string result;
         result.reserve(size);
         std::generate_n(std::back_inserter(result), size, [&] { return distribution(random); });

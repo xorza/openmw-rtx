@@ -17,7 +17,7 @@ from omw.system import ROOT
 
 # The rules the tree is held to, each switched on by the commit that first runs it over the tree, so that
 # `omw format --check` never fails a file no commit has rewritten yet.
-ENABLED: tuple[str, ...] = ("includes",)
+ENABLED: tuple[str, ...] = ("includes", "integers")
 RULES = ("includes", "integers")
 
 # The headers GLSL reads as well, which spell C++ and GLSL alike (`shaders/portable.h`).

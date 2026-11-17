@@ -1,8 +1,9 @@
 #include "pushbutton.hpp"
 
+#include <utility>
+
 #include <QKeyEvent>
 #include <QMouseEvent>
-#include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>

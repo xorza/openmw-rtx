@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/luamanager.hpp>
@@ -97,7 +98,7 @@ namespace MWScript
 
                         const float* const pos1 = to.getRefData().getPosition().pos;
                         const float* const pos2 = from.getRefData().getPosition().pos;
-                        for (int i = 0; i < 3; ++i)
+                        for (std::int32_t i = 0; i < 3; ++i)
                             diff[i] = pos1[i] - pos2[i];
 
                         distance
@@ -611,7 +612,7 @@ namespace MWScript
                     if (!actor.isInCell())
                         throw std::runtime_error("actor is not in a cell");
 
-                    for (int i = 0; i < count; ++i)
+                    for (std::int32_t i = 0; i < count; ++i)
                     {
                         // create item
                         MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), itemID, 1);

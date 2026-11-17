@@ -1,10 +1,12 @@
 #include "state.hpp"
 
-#include <QColor>
-#include <QKeySequence>
+#include <cstdint>
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
+
+#include <QColor>
+#include <QKeySequence>
 
 #include <components/settings/settings.hpp>
 
@@ -417,7 +419,7 @@ void CSMPrefs::State::declareCategory(const std::string& key)
     }
 }
 
-CSMPrefs::IntSetting& CSMPrefs::State::declareInt(Settings::SettingValue<int>& value, const QString& label)
+CSMPrefs::IntSetting& CSMPrefs::State::declareInt(Settings::SettingValue<std::int32_t>& value, const QString& label)
 {
     if (mCurrentCategory == mCategories.end())
         throw std::logic_error("no category for setting");
@@ -517,7 +519,7 @@ CSMPrefs::ModifierSetting& CSMPrefs::State::declareModifier(
         throw std::logic_error("no category for setting");
 
     // Setup with actual data
-    int modifier = 0;
+    std::int32_t modifier = 0;
 
     getShortcutManager().convertFromString(value.get(), modifier);
     getShortcutManager().setModifier(value.mName, modifier);

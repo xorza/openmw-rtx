@@ -56,7 +56,7 @@ namespace Rtx
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
                 data, osg::Image::USE_NEW_DELETE);
@@ -74,7 +74,7 @@ namespace Rtx
                 0, 0, 0, 0 //
             };
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
@@ -168,7 +168,7 @@ namespace Rtx
         {
             const std::uint8_t bytes[] = { 10, 20, 255, 30, 40, 255, 50, 60, 255, 70, 80, 255, 1, 2, 3 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             file->setImage(2, 2, 1, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE, 1);
             file->setMipmapLevels(osg::Image::MipmapDataType{ 12 });
@@ -218,7 +218,7 @@ namespace Rtx
                 const std::uint8_t bytes[] = { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
                     255, 255, red, 0, blue, 255 };
                 osg::ref_ptr<osg::Image> image = new osg::Image;
-                auto* data = new unsigned char[sizeof(bytes)];
+                auto* data = new std::uint8_t[sizeof(bytes)];
                 std::memcpy(data, bytes, sizeof(bytes));
                 image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
                 image->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
@@ -290,7 +290,7 @@ namespace Rtx
                 osg::ref_ptr<osg::Image> image = Testing::makeImage("", 2, 2);
                 for (std::size_t texel = 0; texel < 4; ++texel)
                 {
-                    std::fill_n(image->data() + texel * 4, 3, static_cast<unsigned char>(128));
+                    std::fill_n(image->data() + texel * 4, 3, static_cast<std::uint8_t>(128));
                     image->data()[texel * 4 + 3] = alpha;
                 }
                 image->setFileName(name);
@@ -322,9 +322,9 @@ namespace Rtx
 
             // **Keyed by the finest levels alone**, the one level a conversion reads: a diffuse whose
             // second level differs is the same key, and one whose finest differs another.
-            const auto chained = [&](unsigned char finest, unsigned char second) {
+            const auto chained = [&](std::uint8_t finest, std::uint8_t second) {
                 osg::ref_ptr<osg::Image> image = new osg::Image;
-                auto* data = new unsigned char[20];
+                auto* data = new std::uint8_t[20];
                 std::fill_n(data, 16, finest);
                 std::fill_n(data + 16, 4, second);
                 image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
@@ -396,7 +396,7 @@ namespace Rtx
             // 4 by 4 in DXT1 with its chain: three levels of a block each, 24 bytes.
             const osg::ref_ptr<osg::Image> texels = new osg::Image;
             texels->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
-                GL_UNSIGNED_BYTE, new unsigned char[24]{}, osg::Image::USE_NEW_DELETE);
+                GL_UNSIGNED_BYTE, new std::uint8_t[24]{}, osg::Image::USE_NEW_DELETE);
             texels->setMipmapLevels(osg::Image::MipmapDataType{ 8, 16 });
             texels->setFileName("textures/tx_held.dds");
             const PreparedImage held = prepared.find(*texels, TextureEncoding::Colour, TextureWrap::Repeat);
@@ -428,7 +428,7 @@ namespace Rtx
         {
             const std::uint8_t bytes[] = { 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             file->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             file->setFileName("textures/tx_rain.dds");
@@ -465,7 +465,7 @@ namespace Rtx
         {
             const std::uint8_t block[] = { 0x00, 0xf8, 0x00, 0x00, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
-            auto* data = new unsigned char[sizeof(block)];
+            auto* data = new std::uint8_t[sizeof(block)];
             std::memcpy(data, block, sizeof(block));
             file->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
                 data, osg::Image::USE_NEW_DELETE);
@@ -487,29 +487,30 @@ namespace Rtx
         /// `cut`, transparent black, a cut in BC1's one bit of alpha.
         osg::ref_ptr<osg::Image> makeBc1(std::uint32_t width, std::uint32_t height, std::uint32_t levels, bool cut)
         {
-            std::vector<unsigned char> bytes;
+            std::vector<std::uint8_t> bytes;
             osg::Image::MipmapDataType offsets;
             for (std::uint32_t level = 0; level < levels; ++level)
             {
                 if (level > 0)
-                    offsets.push_back(static_cast<unsigned int>(bytes.size()));
+                    offsets.push_back(static_cast<std::uint32_t>(bytes.size()));
                 const std::uint32_t across = (std::max(width >> level, 1u) + 3) / 4;
                 const std::uint32_t down = (std::max(height >> level, 1u) + 3) / 4;
                 for (std::uint32_t block = 0; block < across * down; ++block)
                 {
                     // Colour nought at or under colour one is BC1's three colours and a transparent
                     // black, which index three, set on every texel, names.
-                    const std::array<unsigned char, 8> white{ 0xff, 0xff, 0, 0, 0, 0, 0, 0 };
-                    const std::array<unsigned char, 8> hole{ 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-                    const std::array<unsigned char, 8>& written = cut ? hole : white;
+                    const std::array<std::uint8_t, 8> white{ 0xff, 0xff, 0, 0, 0, 0, 0, 0 };
+                    const std::array<std::uint8_t, 8> hole{ 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+                    const std::array<std::uint8_t, 8>& written = cut ? hole : white;
                     bytes.insert(bytes.end(), written.begin(), written.end());
                 }
             }
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[bytes.size()];
+            auto* data = new std::uint8_t[bytes.size()];
             std::memcpy(data, bytes.data(), bytes.size());
-            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
-                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setImage(static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), 1,
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data,
+                osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(offsets);
             image->setFileName("textures/tx_bc1.dds");
             return image;
@@ -571,9 +572,9 @@ namespace Rtx
         /// file reading the other's nearest texel.
         TEST(RtxPreparedImagesTest, aClassicPairOfTwoSizesIsConvertedAtTheSlotsOwnFile)
         {
-            const auto make = [](int side, const char* name) {
+            const auto make = [](std::int32_t side, const char* name) {
                 osg::ref_ptr<osg::Image> image = Testing::makeImage("", side, side);
-                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
                 image->setFileName(name);
                 return image;
             };

@@ -1,6 +1,7 @@
 #include "spellutil.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -47,21 +48,21 @@ namespace MWMechanics
         bool hasMagnitude = !(magicEffect->mData.mFlags & ESM::MagicEffect::NoMagnitude);
         bool hasDuration = !(magicEffect->mData.mFlags & ESM::MagicEffect::NoDuration);
         bool appliedOnce = magicEffect->mData.mFlags & ESM::MagicEffect::AppliedOnce;
-        int minMagn = hasMagnitude ? effect.mMagnMin : 1;
-        int maxMagn = hasMagnitude ? effect.mMagnMax : 1;
+        std::int32_t minMagn = hasMagnitude ? effect.mMagnMin : 1;
+        std::int32_t maxMagn = hasMagnitude ? effect.mMagnMax : 1;
         if (method == EffectCostMethod::PlayerSpell || method == EffectCostMethod::GameSpell)
         {
             minMagn = std::max(1, minMagn);
             maxMagn = std::max(1, maxMagn);
         }
-        int duration = hasDuration ? effect.mDuration : 1;
+        std::int32_t duration = hasDuration ? effect.mDuration : 1;
         if (!appliedOnce)
             duration = std::max(1, duration);
         static const float fEffectCostMult = store.get<ESM::GameSetting>().find("fEffectCostMult")->mValue.getFloat();
         static const float iAlchemyMod = store.get<ESM::GameSetting>().find("iAlchemyMod")->mValue.getFloat();
 
-        int durationOffset = 0;
-        int minArea = 0;
+        std::int32_t durationOffset = 0;
+        std::int32_t minArea = 0;
         float costMult = fEffectCostMult;
         if (method == EffectCostMethod::PlayerSpell)
         {
@@ -82,17 +83,17 @@ namespace MWMechanics
         return x * costMult;
     }
 
-    int calcSpellCost(const ESM::Spell& spell)
+    std::int32_t calcSpellCost(const ESM::Spell& spell)
     {
         if (!(spell.mData.mFlags & ESM::Spell::F_Autocalc))
             return spell.mData.mCost;
 
         float cost = getTotalCost(spell.mEffects);
 
-        return static_cast<int>(std::round(cost));
+        return static_cast<std::int32_t>(std::round(cost));
     }
 
-    int getEffectiveEnchantmentCastCost(float castCost, const MWWorld::Ptr& actor)
+    std::int32_t getEffectiveEnchantmentCastCost(float castCost, const MWWorld::Ptr& actor)
     {
         /*
          * Each point of enchant skill above/under 10 subtracts/adds
@@ -101,10 +102,10 @@ namespace MWMechanics
         float eSkill = actor.getClass().getSkill(actor, ESM::Skill::Enchant);
         const float result = castCost - (castCost / 100) * (eSkill - 10);
 
-        return static_cast<int>((result < 1) ? 1 : result);
+        return static_cast<std::int32_t>((result < 1) ? 1 : result);
     }
 
-    int getEffectiveEnchantmentCastCost(const ESM::Enchantment& enchantment, const MWWorld::Ptr& actor)
+    std::int32_t getEffectiveEnchantmentCastCost(const ESM::Enchantment& enchantment, const MWWorld::Ptr& actor)
     {
         float castCost = NAN;
         if (enchantment.mData.mFlags & ESM::Enchantment::Autocalc)
@@ -114,33 +115,37 @@ namespace MWMechanics
         return getEffectiveEnchantmentCastCost(castCost, actor);
     }
 
-    int getEnchantmentCharge(const ESM::Enchantment& enchantment)
+    std::int32_t getEnchantmentCharge(const ESM::Enchantment& enchantment)
     {
         if (enchantment.mData.mFlags & ESM::Enchantment::Autocalc)
         {
-            int charge
-                = static_cast<int>(std::round(getTotalCost(enchantment.mEffects, EffectCostMethod::GameEnchantment)));
+            auto charge = static_cast<std::int32_t>(
+                std::round(getTotalCost(enchantment.mEffects, EffectCostMethod::GameEnchantment)));
             const auto& store = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();
             switch (enchantment.mData.mType)
             {
                 case ESM::Enchantment::CastOnce:
                 {
-                    static const int iMagicItemChargeOnce = store.find("iMagicItemChargeOnce")->mValue.getInteger();
+                    static const std::int32_t iMagicItemChargeOnce
+                        = store.find("iMagicItemChargeOnce")->mValue.getInteger();
                     return charge * iMagicItemChargeOnce;
                 }
                 case ESM::Enchantment::WhenStrikes:
                 {
-                    static const int iMagicItemChargeStrike = store.find("iMagicItemChargeStrike")->mValue.getInteger();
+                    static const std::int32_t iMagicItemChargeStrike
+                        = store.find("iMagicItemChargeStrike")->mValue.getInteger();
                     return charge * iMagicItemChargeStrike;
                 }
                 case ESM::Enchantment::WhenUsed:
                 {
-                    static const int iMagicItemChargeUse = store.find("iMagicItemChargeUse")->mValue.getInteger();
+                    static const std::int32_t iMagicItemChargeUse
+                        = store.find("iMagicItemChargeUse")->mValue.getInteger();
                     return charge * iMagicItemChargeUse;
                 }
                 case ESM::Enchantment::ConstantEffect:
                 {
-                    static const int iMagicItemChargeConst = store.find("iMagicItemChargeConst")->mValue.getInteger();
+                    static const std::int32_t iMagicItemChargeConst
+                        = store.find("iMagicItemChargeConst")->mValue.getInteger();
                     return charge * iMagicItemChargeConst;
                 }
                 default:
@@ -150,17 +155,17 @@ namespace MWMechanics
         return enchantment.mData.mCharge;
     }
 
-    int getPotionValue(const ESM::Potion& potion)
+    std::int32_t getPotionValue(const ESM::Potion& potion)
     {
         if (potion.mData.mFlags & ESM::Potion::Autocalc)
         {
             float cost = getTotalCost(potion.mEffects, EffectCostMethod::GamePotion);
-            return static_cast<int>(std::round(cost));
+            return static_cast<std::int32_t>(std::round(cost));
         }
         return potion.mData.mValue;
     }
 
-    std::optional<ESM::IndexedENAMstruct> getIngredientEffect(const ESM::Ingredient* ingredient, uint32_t index)
+    std::optional<ESM::IndexedENAMstruct> getIngredientEffect(const ESM::Ingredient* ingredient, std::uint32_t index)
     {
         if (index >= 4 || ingredient->mData.mEffectID[index].empty())
             return std::nullopt;
@@ -191,7 +196,7 @@ namespace MWMechanics
             * creatureStats.getFatigueTerm();
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        int roll = Misc::Rng::roll0to99(prng);
+        std::int32_t roll = Misc::Rng::roll0to99(prng);
         if (static_cast<float>(roll) > x)
         {
             return std::nullopt;
@@ -203,7 +208,7 @@ namespace MWMechanics
         if (magicEffect->mData.mFlags & ESM::MagicEffect::NoDuration)
             effect.mDuration = 1;
         else
-            effect.mDuration = static_cast<int>(y);
+            effect.mDuration = static_cast<std::int32_t>(y);
         if (!(magicEffect->mData.mFlags & ESM::MagicEffect::NoMagnitude))
         {
             if (!(magicEffect->mData.mFlags & ESM::MagicEffect::NoDuration))
@@ -215,8 +220,8 @@ namespace MWMechanics
         else
             magnitude = 1;
 
-        effect.mMagnMax = static_cast<int>(magnitude);
-        effect.mMagnMin = static_cast<int>(magnitude);
+        effect.mMagnMax = static_cast<std::int32_t>(magnitude);
+        effect.mMagnMin = static_cast<std::int32_t>(magnitude);
 
         ESM::EffectList effects;
         effects.mList.push_back(*indexedEffect);

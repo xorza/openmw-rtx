@@ -1,5 +1,6 @@
 #include "myguiloglistener.hpp"
 
+#include <cstdint>
 #include <iomanip>
 
 #include <components/debug/debuglog.hpp>
@@ -26,7 +27,7 @@ namespace MyGUIPlatform
     }
 
     void CustomLogListener::log(std::string_view section, MyGUI::LogLevel level, const tm* time,
-        std::string_view message, std::string_view file, int line)
+        std::string_view message, std::string_view file, std::int32_t line)
     {
         if (mStream.is_open())
         {

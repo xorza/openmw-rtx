@@ -1,12 +1,14 @@
 #pragma once
 
-#include <QAbstractTableModel>
-#include <QModelIndex>
-#include <QVariant>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <QAbstractTableModel>
+#include <QModelIndex>
+#include <QVariant>
 
 #include <components/esm/refid.hpp>
 
@@ -51,7 +53,7 @@ namespace CSMWorld
         std::map<CellCoordinates, CellDescription> mMap;
         CellCoordinates mMin; ///< inclusive
         CellCoordinates mMax; ///< exclusive
-        std::map<ESM::RefId, unsigned int> mColours; ///< region ID, colour (RGBA)
+        std::map<ESM::RefId, std::uint32_t> mColours; ///< region ID, colour (RGBA)
 
         CellCoordinates getIndex(const QModelIndex& index) const;
         ///< Translates a Qt model index into a cell index (which can contain negative components)
@@ -68,12 +70,12 @@ namespace CSMWorld
         ///< May be called on a cell that is already in the map (in which case an update is
         // performed)
 
-        void addCells(int start, int end);
+        void addCells(std::int32_t start, std::int32_t end);
 
         void removeCell(const CellCoordinates& index);
         ///< May be called on a cell that is not in the map (in which case the call is ignored)
 
-        void addRegion(const ESM::RefId& region, unsigned int colour);
+        void addRegion(const ESM::RefId& region, std::uint32_t colour);
         ///< May be called on a region that is already listed (in which case an update is
         /// performed)
         ///
@@ -94,11 +96,11 @@ namespace CSMWorld
     public:
         explicit RegionMap(Data& data);
 
-        int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+        std::int32_t rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
-        int columnCount(const QModelIndex& parent = QModelIndex()) const override;
+        std::int32_t columnCount(const QModelIndex& parent = QModelIndex()) const override;
 
-        QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+        QVariant data(const QModelIndex& index, std::int32_t role = Qt::DisplayRole) const override;
         ///< \note Calling this function with role==Role_CellId may return the ID of a cell
         /// that does not exist.
 
@@ -106,15 +108,15 @@ namespace CSMWorld
 
     private slots:
 
-        void regionsAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void regionsAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
-        void regionsInserted(const QModelIndex& parent, int start, int end);
+        void regionsInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         void regionsChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void cellsAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void cellsAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
-        void cellsInserted(const QModelIndex& parent, int start, int end);
+        void cellsInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         void cellsChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
     };

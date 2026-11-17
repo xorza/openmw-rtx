@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm/refid.hpp>
@@ -25,7 +27,7 @@ namespace ESM
         static std::string_view getRecordType() { return "LandTexture"; }
 
         RefId mId;
-        uint32_t mIndex{};
+        std::uint32_t mIndex{};
         Path mTexture;
 
         void load(ESMReader& esm, bool& isDeleted);

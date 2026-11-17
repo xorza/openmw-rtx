@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Vec2i>
 
 namespace DetourNavigator
@@ -7,6 +9,6 @@ namespace DetourNavigator
     struct CellGridBounds
     {
         osg::Vec2i mCenter;
-        int mHalfSize{};
+        std::int32_t mHalfSize{};
     };
 }

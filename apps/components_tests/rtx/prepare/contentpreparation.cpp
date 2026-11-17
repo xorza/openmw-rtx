@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -48,7 +49,7 @@ namespace Rtx
                 mNormals = new osg::Image;
                 const std::uint8_t bytes[]
                     = { 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112, 128, 251, 200, 0, 0, 0, 0 };
-                auto* data = new unsigned char[sizeof(bytes)];
+                auto* data = new std::uint8_t[sizeof(bytes)];
                 std::memcpy(data, bytes, sizeof(bytes));
                 mNormals->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
                 mNormals->setMipmapLevels(osg::Image::MipmapDataType{ 16 });

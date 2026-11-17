@@ -1,5 +1,6 @@
 #include "unarynode.hpp"
 
+#include <cstdint>
 #include <utility>
 
 #include "node.hpp"
@@ -20,7 +21,7 @@ CSMFilter::Node& CSMFilter::UnaryNode::getChild()
     return *mChild;
 }
 
-std::vector<int> CSMFilter::UnaryNode::getReferencedColumns() const
+std::vector<std::int32_t> CSMFilter::UnaryNode::getReferencedColumns() const
 {
     return mChild->getReferencedColumns();
 }

@@ -166,7 +166,7 @@ namespace RtxTool
             if (watched)
             {
                 Settings::rtx().mIndirectLighting.set(derived.mIndirectLighting);
-                Settings::rtx().mBounceRays.set(static_cast<int>(derived.mBounceRays));
+                Settings::rtx().mBounceRays.set(static_cast<std::int32_t>(derived.mBounceRays));
             }
 
             return framed;
@@ -522,7 +522,7 @@ namespace RtxTool
                 << options;
         }
 
-        ExitStatus dispatch(int argc, char* argv[])
+        ExitStatus dispatch(std::int32_t argc, char* argv[])
         {
             Platform::init();
 
@@ -608,7 +608,7 @@ namespace RtxTool
                 Command{ read, config, own, shaders.getSet(), *chosen, shipped });
         }
 
-        int run(int argc, char* argv[])
+        std::int32_t run(std::int32_t argc, char* argv[])
         {
             // Failures are reported here rather than left to `Debug::wrapApplication`, which puts up
             // an SDL message box when stdin is not a terminal. This tool is meant to be usable over
@@ -631,7 +631,7 @@ namespace RtxTool
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     // **Huge pages before anything else**, since the process this starts keeps no thread and no
     // state of this one: the figures a measured run reports move run to run on small ones.

@@ -1,12 +1,13 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <string>
+
 #include <QColor>
 #include <QObject>
 #include <QTimer>
 #include <QWidget>
-#include <memory>
-#include <string>
-
 #include <osg/PositionAttitudeTransform>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
@@ -74,7 +75,7 @@ namespace CSVRender
         /// Initiates a request to redraw the view
         void flagAsModified();
 
-        void setVisibilityMask(unsigned int mask);
+        void setVisibilityMask(std::uint32_t mask);
 
         osg::Camera* getCamera();
 

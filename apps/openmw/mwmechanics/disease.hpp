@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -58,7 +60,7 @@ namespace MWMechanics
             else
                 continue;
 
-            int x = static_cast<int>(fDiseaseXferChance * 100 * resist);
+            auto x = static_cast<std::int32_t>(fDiseaseXferChance * 100 * resist);
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
             if (Misc::Rng::rollDice(10000, prng) < x)
             {

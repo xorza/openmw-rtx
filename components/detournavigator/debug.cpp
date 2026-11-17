@@ -1,6 +1,8 @@
 #include "debug.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ostream>
@@ -44,7 +46,7 @@ namespace DetourNavigator
             OPENMW_COMPONENTS_DETOURNAVIGATOR_DEBUG_STATUS_MESSAGE(FindStraightPathFailed)
         }
 #undef OPENMW_COMPONENTS_DETOURNAVIGATOR_DEBUG_STATUS_MESSAGE
-        return stream << "DetourNavigator::Error::" << static_cast<int>(value);
+        return stream << "DetourNavigator::Error::" << static_cast<std::int32_t>(value);
     }
 
     std::ostream& operator<<(std::ostream& s, const Water& v)
@@ -65,7 +67,7 @@ namespace DetourNavigator
     std::ostream& operator<<(std::ostream& s, const Heightfield& v)
     {
         s << "Heightfield {.mCellPosition=" << v.mCellPosition << ", .mCellSize=" << v.mCellSize
-          << ", .mLength=" << static_cast<int>(v.mLength) << ", .mMinHeight=" << v.mMinHeight
+          << ", .mLength=" << static_cast<std::int32_t>(v.mLength) << ", .mMinHeight=" << v.mMinHeight
           << ", .mMaxHeight=" << v.mMaxHeight << ", .mHeights={";
         for (float h : v.mHeights)
             s << h << ", ";
@@ -85,7 +87,7 @@ namespace DetourNavigator
                 return s << "CollisionShapeType::Cylinder";
         }
         return s << "CollisionShapeType::"
-                 << static_cast<unsigned int>(static_cast<std::underlying_type_t<CollisionShapeType>>(v));
+                 << static_cast<std::uint32_t>(static_cast<std::underlying_type_t<CollisionShapeType>>(v));
     }
 
     std::ostream& operator<<(std::ostream& s, const AgentBounds& v)
@@ -96,7 +98,7 @@ namespace DetourNavigator
 
     namespace
     {
-        using StatusString = Debug::FlagString<unsigned int>;
+        using StatusString = Debug::FlagString<std::uint32_t>;
 
         constexpr std::array dtStatuses{
             StatusString{ DT_FAILURE, "DT_FAILURE" },
@@ -176,7 +178,7 @@ namespace DetourNavigator
                 return stream << "ground";
         }
         return stream << "unknown area type ("
-                      << static_cast<unsigned int>(static_cast<std::underlying_type_t<AreaType>>(value)) << ")";
+                      << static_cast<std::uint32_t>(static_cast<std::underlying_type_t<AreaType>>(value)) << ")";
     }
 
     std::ostream& operator<<(std::ostream& stream, ChangeType value)
@@ -190,7 +192,7 @@ namespace DetourNavigator
             case ChangeType::update:
                 return stream << "ChangeType::update";
         }
-        return stream << "ChangeType::" << static_cast<int>(value);
+        return stream << "ChangeType::" << static_cast<std::int32_t>(value);
     }
 
     std::ostream& operator<<(std::ostream& stream, const Version& value)
@@ -237,7 +239,7 @@ namespace DetourNavigator
                  << toNavMeshCoordinates(settings, vertices[i + 1]) << '\n';
         }
         std::size_t count = 0;
-        for (int v : recastMesh.getMesh().getIndices())
+        for (std::int32_t v : recastMesh.getMesh().getIndices())
         {
             if (count % 3 == 0)
             {
@@ -253,21 +255,21 @@ namespace DetourNavigator
 
     void writeToFile(const dtNavMesh& navMesh, const std::string& pathPrefix, const std::string& revision)
     {
-        const int navMeshSetMagic = 'M' << 24 | 'S' << 16 | 'E' << 8 | 'T'; //'MSET';
-        const int navMeshSetVersion = 1;
+        const std::int32_t navMeshSetMagic = 'M' << 24 | 'S' << 16 | 'E' << 8 | 'T'; //'MSET';
+        const std::int32_t navMeshSetVersion = 1;
 
         struct NavMeshSetHeader
         {
-            int magic;
-            int version;
-            int numTiles;
+            std::int32_t magic;
+            std::int32_t version;
+            std::int32_t numTiles;
             dtNavMeshParams params;
         };
 
         struct NavMeshTileHeader
         {
             dtTileRef tileRef;
-            int dataSize;
+            std::int32_t dataSize;
         };
 
         const auto path = pathPrefix + "all_tiles_navmesh" + revision + ".bin";
@@ -280,7 +282,7 @@ namespace DetourNavigator
         header.magic = navMeshSetMagic;
         header.version = navMeshSetVersion;
         header.numTiles = 0;
-        for (int i = 0; i < navMesh.getMaxTiles(); ++i)
+        for (std::int32_t i = 0; i < navMesh.getMaxTiles(); ++i)
         {
             const auto tile = navMesh.getTile(i);
             if (!tile || !tile->header || !tile->dataSize)
@@ -292,7 +294,7 @@ namespace DetourNavigator
         using const_char_ptr = const char*;
         file.write(reinterpret_cast<const_char_ptr>(&header), sizeof(header));
 
-        for (int i = 0; i < navMesh.getMaxTiles(); ++i)
+        for (std::int32_t i = 0; i < navMesh.getMaxTiles(); ++i)
         {
             const auto tile = navMesh.getTile(i);
             if (!tile || !tile->header || !tile->dataSize)

@@ -88,7 +88,7 @@ namespace Rtx
 
                 const MeshInstance& placed = scene.placements().getRows()[slot].mInstance;
                 const osg::BoundingBoxf& box = scene.meshes().getRows()[placed.mMesh].mBounds;
-                for (unsigned int corner = 0; corner < 8; ++corner)
+                for (std::uint32_t corner = 0; corner < 8; ++corner)
                     EXPECT_LE((box.corner(corner) * placed.mTransform - spheres[at].mCentre).length(),
                         spheres[at].mRadius * (1.0f + 1e-6f))
                         << when << ": slot " << slot << " corner " << corner;
@@ -364,7 +364,7 @@ namespace Rtx
             const osg::Vec3f expected = point * matrix;
 
             const Transform3x4 transform = toTransform3x4(matrix);
-            for (int row = 0; row < 3; ++row)
+            for (std::int32_t row = 0; row < 3; ++row)
             {
                 const float actual = transform.mRows[row][0] * point.x() + transform.mRows[row][1] * point.y()
                     + transform.mRows[row][2] * point.z() + transform.mRows[row][3];
@@ -382,8 +382,8 @@ namespace Rtx
                 { 9.0f, 10.0f, 11.0f, 12.0f } } };
 
             const VkTransformMatrixKHR converted = toVulkanTransform(transform);
-            for (int row = 0; row < 3; ++row)
-                for (int column = 0; column < 4; ++column)
+            for (std::int32_t row = 0; row < 3; ++row)
+                for (std::int32_t column = 0; column < 4; ++column)
                     EXPECT_EQ(converted.matrix[row][column], transform.mRows[row][column])
                         << "row " << row << " column " << column;
         }

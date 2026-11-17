@@ -396,11 +396,11 @@ namespace Rtx
             row.mOpacity = record.mOpacity;
             row.mClass = record.mClass | (record.mLampBody ? Shaders::INSTANCE_LAMP_BODY : 0u);
 
-            const auto rowOf = [](const Transform3x4& transform, int r) {
+            const auto rowOf = [](const Transform3x4& transform, std::int32_t r) {
                 return osg::Vec4f(
                     transform.mRows[r][0], transform.mRows[r][1], transform.mRows[r][2], transform.mRows[r][3]);
             };
-            for (int r = 0; r < 3; ++r)
+            for (std::int32_t r = 0; r < 3; ++r)
             {
                 row.mMotion[r] = rowOf(record.mMotion, r);
                 row.mToWorld[r] = rowOf(record.mTransform, r);
@@ -469,11 +469,13 @@ namespace Rtx
                 const Shaders::GpuLightCell& held = lightCells[cell];
                 for (std::uint32_t key = 0; key < 2; ++key)
                 {
-                    const VkDeviceSize at = VkDeviceSize{ held.mFirst[static_cast<int>(key)] } * sizeof(std::uint32_t);
+                    const VkDeviceSize at
+                        = VkDeviceSize{ held.mFirst[static_cast<std::int32_t>(key)] } * sizeof(std::uint32_t);
                     appendRun(mListRuns,
                         CopyRun{ .mFrom = at,
                             .mTo = at,
-                            .mSize = VkDeviceSize{ held.mCount[static_cast<int>(key)] } * sizeof(std::uint32_t) });
+                            .mSize
+                            = VkDeviceSize{ held.mCount[static_cast<std::int32_t>(key)] } * sizeof(std::uint32_t) });
                 }
             }
             uploads.writeRuns(tables.mLightCells.get(), std::as_bytes(lightCells), mCellRuns);

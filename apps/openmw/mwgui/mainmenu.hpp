@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <thread>
@@ -33,22 +34,22 @@ namespace MWGui
 
     public:
         explicit MenuVideo(const VFS::Manager* vfs);
-        void resize(int screenWidth, int screenHeight);
+        void resize(std::int32_t screenWidth, std::int32_t screenHeight);
         void commitFrame();
         ~MenuVideo();
     };
 
     class MainMenu : public WindowBase
     {
-        int mWidth;
-        int mHeight;
+        std::int32_t mWidth;
+        std::int32_t mHeight;
 
         bool mHasAnimatedMenu;
 
     public:
-        MainMenu(int w, int h, const VFS::Manager* vfs, const std::string& versionDescription);
+        MainMenu(std::int32_t w, std::int32_t h, const VFS::Manager* vfs, const std::string& versionDescription);
 
-        void onResChange(int w, int h) override;
+        void onResChange(std::int32_t w, std::int32_t h) override;
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
         void setVisible(bool visible) override;

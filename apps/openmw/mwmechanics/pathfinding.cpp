@@ -1,6 +1,8 @@
 #include "pathfinding.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <limits>
 
@@ -24,18 +26,18 @@
 namespace
 {
     // Chooses a reachable end pathgrid point.  start is assumed reachable.
-    std::pair<size_t, bool> getClosestReachablePoint(
-        const ESM::Pathgrid* grid, const MWMechanics::PathgridGraph* graph, const osg::Vec3f& pos, size_t start)
+    std::pair<std::size_t, bool> getClosestReachablePoint(
+        const ESM::Pathgrid* grid, const MWMechanics::PathgridGraph* graph, const osg::Vec3f& pos, std::size_t start)
     {
         assert(grid && !grid->mPoints.empty());
 
         float closestDistanceBetween = std::numeric_limits<float>::max();
         float closestDistanceReachable = std::numeric_limits<float>::max();
-        size_t closestIndex = 0;
-        size_t closestReachableIndex = 0;
+        std::size_t closestIndex = 0;
+        std::size_t closestReachableIndex = 0;
         // TODO: if this full scan causes performance problems mapping pathgrid
         //       points to a quadtree may help
-        for (size_t counter = 0; counter < grid->mPoints.size(); counter++)
+        for (std::size_t counter = 0; counter < grid->mPoints.size(); counter++)
         {
             float potentialDistBetween = Misc::distanceSquared(grid->mPoints[counter], pos);
             if (potentialDistBetween < closestDistanceReachable)
@@ -196,10 +198,10 @@ namespace MWMechanics
         //       point right behind the wall that is closer than any pathgrid
         //       point outside the wall
         osg::Vec3f startPointInLocalCoords(converter.toLocalVec3(startPoint));
-        const size_t startNode = Misc::getClosestPoint(*pathgrid, startPointInLocalCoords);
+        const std::size_t startNode = Misc::getClosestPoint(*pathgrid, startPointInLocalCoords);
 
         osg::Vec3f endPointInLocalCoords(converter.toLocalVec3(endPoint));
-        std::pair<size_t, bool> endNode
+        std::pair<std::size_t, bool> endNode
             = getClosestReachablePoint(pathgrid, &pathgridGraph, endPointInLocalCoords, startNode);
 
         // if it's shorter for actor to travel from start to end, than to travel from either
@@ -243,7 +245,7 @@ namespace MWMechanics
                     converter.toWorld(temp);
                     // Add Z offset since path node can overlap with other objects.
                     // Also ignore doors in raytesting.
-                    const int mask = MWPhysics::CollisionType_World;
+                    const std::int32_t mask = MWPhysics::CollisionType_World;
                     const osg::Vec3f zOffset(0.f, 0.f, 16.f);
                     const osg::Vec3f from = startPoint + zOffset;
                     const osg::Vec3f to = Misc::Convert::makeOsgVec3f(temp) + zOffset;

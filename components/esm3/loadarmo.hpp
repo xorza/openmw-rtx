@@ -50,7 +50,7 @@ namespace ESM
     // Reference to body parts
     struct PartReference
     {
-        unsigned char mPart{}; // possible values [0, 26]
+        std::uint8_t mPart{}; // possible values [0, 26]
         RefId mMale, mFemale;
     };
 
@@ -91,15 +91,15 @@ namespace ESM
 
         struct AODTstruct
         {
-            int32_t mType;
+            std::int32_t mType;
             float mWeight;
-            int32_t mValue, mHealth, mEnchant, mArmor;
+            std::int32_t mValue, mHealth, mEnchant, mArmor;
         };
 
         AODTstruct mData{};
         PartReferenceList mParts;
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mScript, mEnchant;
         std::string mName;
         Path mModel;

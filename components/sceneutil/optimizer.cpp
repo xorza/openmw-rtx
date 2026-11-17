@@ -33,6 +33,7 @@
 #include <osgUtil/Statistics>
 #include <osgUtil/MeshOptimizers>
 
+#include <cstdint>
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -54,7 +55,7 @@ void Optimizer::reset()
 {
 }
 
-void Optimizer::optimize(osg::Node* node, unsigned int options)
+void Optimizer::optimize(osg::Node* node, std::uint32_t options)
 {
     StatsVisitor stats;
 
@@ -70,7 +71,7 @@ void Optimizer::optimize(osg::Node* node, unsigned int options)
     {
         OSG_INFO<<"Optimizer::optimize() doing FLATTEN_STATIC_TRANSFORMS"<<std::endl;
 
-        int i=0;
+        std::int32_t i=0;
         bool result = false;
         do
         {
@@ -424,7 +425,7 @@ void CollectLowestTransformsVisitor::doTransform(osg::Object* obj,osg::Matrix& m
         lod->setCenter(lod->getCenter()*matrix);
 
         // adjust ranges to new scale.
-        for(unsigned int i=0;i<lod->getNumRanges();++i)
+        for(std::uint32_t i=0;i<lod->getNumRanges();++i)
         {
             lod->setRange(i,lod->getMinRange(i)*ratio,lod->getMaxRange(i)*ratio);
         }
@@ -450,7 +451,7 @@ void CollectLowestTransformsVisitor::doTransform(osg::Object* obj,osg::Matrix& m
         billboard->setNormal(normal);
 
 
-        for(unsigned int i=0;i<billboard->getNumDrawables();++i)
+        for(std::uint32_t i=0;i<billboard->getNumDrawables();++i)
         {
             billboard->setPosition(i,billboard->getPosition(i)*matrix);
             osg::Drawable* child = billboard->getDrawable(i);
@@ -581,14 +582,14 @@ bool CollectLowestTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRem
                 group->setCullCallback(transform->getCullCallback());
                 group->setUserDataContainer(transform->getUserDataContainer());
                 group->setDescriptions(transform->getDescriptions());
-                for(unsigned int i=0;i<transform->getNumChildren();++i)
+                for(std::uint32_t i=0;i<transform->getNumChildren();++i)
                 {
                     group->addChild(transform->getChild(i));
                 }
 
-                for(int i2=static_cast<int>(transform->getNumParents()-1);i2>=0;--i2)
+                for(auto i2=static_cast<std::int32_t>(transform->getNumParents()-1);i2>=0;--i2)
                 {
-                    transform->getParent(static_cast<unsigned int>(i2))->replaceChild(transform.get(),group.get());
+                    transform->getParent(static_cast<std::uint32_t>(i2))->replaceChild(transform.get(),group.get());
                 }
             }
             else
@@ -852,21 +853,21 @@ bool Optimizer::RemoveRedundantNodesVisitor::isOperationPermissible(osg::Node& n
 void Optimizer::RemoveRedundantNodesVisitor::apply(osg::LOD& lod)
 {
     // don't remove any direct children of the LOD because they are used to define each LOD level.
-    for (unsigned int i=0; i<lod.getNumChildren(); ++i)
+    for (std::uint32_t i=0; i<lod.getNumChildren(); ++i)
         traverse(*lod.getChild(i));
 }
 
 void Optimizer::RemoveRedundantNodesVisitor::apply(osg::Switch& switchNode)
 {
     // We should keep all switch child nodes since they reflect different switch states.
-    for (unsigned int i=0; i<switchNode.getNumChildren(); ++i)
+    for (std::uint32_t i=0; i<switchNode.getNumChildren(); ++i)
         traverse(*switchNode.getChild(i));
 }
 
 void Optimizer::RemoveRedundantNodesVisitor::apply(osg::Sequence& sequenceNode)
 {
     // We should keep all sequence child nodes since they reflect different sequence states.
-    for (unsigned int i=0; i<sequenceNode.getNumChildren(); ++i)
+    for (std::uint32_t i=0; i<sequenceNode.getNumChildren(); ++i)
         traverse(*sequenceNode.getChild(i));
 }
 
@@ -912,8 +913,8 @@ void Optimizer::RemoveRedundantNodesVisitor::removeRedundantNodes()
 
             for(auto & parent : parents)
             {
-                unsigned int childIndex = parent->getChildIndex(group);
-                for (unsigned int i=0; i<group->getNumChildren(); ++i)
+                std::uint32_t childIndex = parent->getChildIndex(group);
+                for (std::uint32_t i=0; i<group->getNumChildren(); ++i)
                 {
                     if (i==0)
                         parent->setChild(childIndex, group->getChild(i));
@@ -976,7 +977,7 @@ struct LessGeometry
 
         // therefore lhs->getNumTexCoordArrays()==rhs->getNumTexCoordArrays()
 
-        unsigned int i = 0;
+        std::uint32_t i = 0;
         for(i=0;i<lhs->getNumTexCoordArrays();++i)
         {
             if (rhs->getTexCoordArray(i))
@@ -1069,7 +1070,7 @@ struct LessGeometryPrimitiveType
 {
     bool operator() (const osg::ref_ptr<osg::Geometry>& lhs,const osg::ref_ptr<osg::Geometry>& rhs) const
     {
-        for(unsigned int i=0;
+        for(std::uint32_t i=0;
             i<lhs->getNumPrimitiveSets() && i<rhs->getNumPrimitiveSets();
             ++i)
         {
@@ -1086,10 +1087,10 @@ struct LessGeometryPrimitiveType
 
 
 /// Shortcut to get size of an array, even if pointer is nullptr.
-inline unsigned int getSize(const osg::Array * a) { return a ? a->getNumElements() : 0; }
+inline std::uint32_t getSize(const osg::Array * a) { return a ? a->getNumElements() : 0; }
 
 /// When merging geometries, tests if two arrays can be merged, regarding to their number of components, and the number of vertices.
-bool isArrayCompatible(unsigned int numVertice1, unsigned int numVertice2, const osg::Array* compare1, const osg::Array* compare2)
+bool isArrayCompatible(std::uint32_t numVertice1, std::uint32_t numVertice2, const osg::Array* compare1, const osg::Array* compare2)
 {
     // Sumed up truth table:
     //  If array (1 or 2) not empty and vertices empty => error, should not happen (allows simplification in formulae below)
@@ -1104,8 +1105,8 @@ bool isArrayCompatible(unsigned int numVertice1, unsigned int numVertice2, const
 /// Return true only if both geometries have same array type and if arrays (such as TexCoords) are compatible (i.e. both empty or both filled)
 bool isAbleToMerge(const osg::Geometry& g1, const osg::Geometry& g2)
 {
-    unsigned int numVertice1( getSize(g1.getVertexArray()) );
-    unsigned int numVertice2( getSize(g2.getVertexArray()) );
+    std::uint32_t numVertice1( getSize(g1.getVertexArray()) );
+    std::uint32_t numVertice2( getSize(g2.getVertexArray()) );
 
     // first verify arrays size
     if (!isArrayCompatible(numVertice1,numVertice2,g1.getNormalArray(),g2.getNormalArray()) ||
@@ -1114,7 +1115,7 @@ bool isAbleToMerge(const osg::Geometry& g1, const osg::Geometry& g2)
         !isArrayCompatible(numVertice1,numVertice2,g1.getFogCoordArray(),g2.getFogCoordArray()) ||
         g1.getNumTexCoordArrays()!=g2.getNumTexCoordArrays()) return false;
 
-    for (unsigned int eachTexCoordArray=0;eachTexCoordArray<g1.getNumTexCoordArrays();++eachTexCoordArray)
+    for (std::uint32_t eachTexCoordArray=0;eachTexCoordArray<g1.getNumTexCoordArrays();++eachTexCoordArray)
     {
         if (!isArrayCompatible(numVertice1,numVertice2,g1.getTexCoordArray(eachTexCoordArray),g2.getTexCoordArray(eachTexCoordArray))) return false;
     }
@@ -1148,7 +1149,7 @@ void Optimizer::MergeGeometryVisitor::popStateSet()
 
 void Optimizer::MergeGeometryVisitor::checkAlphaBlendingActive()
 {
-    int renderingHint = 0;
+    std::int32_t renderingHint = 0;
     bool override = false;
     for (auto stateSet : _stateSetStack)
     {
@@ -1196,7 +1197,7 @@ osg::PrimitiveSet* clonePrimitive(osg::PrimitiveSet* ps, osg::ElementBufferObjec
 
 bool containsSharedPrimitives(const osg::Geometry* geom)
 {
-    for (unsigned int i=0; i<geom->getNumPrimitiveSets(); ++i)
+    for (std::uint32_t i=0; i<geom->getNumPrimitiveSets(); ++i)
         if (geom->getPrimitiveSet(i)->referenceCount() > 1) return true;
     return false;
 }
@@ -1207,12 +1208,12 @@ bool containsSharedPrimitives(const osg::Geometry* geom)
 
     namespace
     {
-        unsigned getArraySizeOrZero(const osg::Array* array)
+        std::uint32_t getArraySizeOrZero(const osg::Array* array)
         {
             return array == nullptr ? 0 : array->getNumElements();
         }
 
-        void fillArraySizes(const std::vector<osg::ref_ptr<osg::Array>>& arrays, std::vector<unsigned>& sizes)
+        void fillArraySizes(const std::vector<osg::ref_ptr<osg::Array>>& arrays, std::vector<std::uint32_t>& sizes)
         {
             sizes.reserve(arrays.size());
             for (const auto& array : arrays)
@@ -1233,14 +1234,14 @@ bool containsSharedPrimitives(const osg::Geometry* geom)
             fillArraySizes(geometry.getVertexAttribArrayList(), sizes.mVertexAttrib);
         }
 
-        void addArraySize(const osg::Array* array, unsigned& size)
+        void addArraySize(const osg::Array* array, std::uint32_t& size)
         {
             if (array != nullptr)
                 size += array->getNumElements();
         }
 
         void addArraySizes(const std::vector<osg::ref_ptr<osg::Array>>& dst,
-            const std::vector<osg::ref_ptr<osg::Array>>& src, std::vector<unsigned>& sizes)
+            const std::vector<osg::ref_ptr<osg::Array>>& src, std::vector<std::uint32_t>& sizes)
         {
             assert(sizes.size() == dst.size());
 
@@ -1287,7 +1288,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
         MergeList geometryDuplicates;
         Nodes standardChildren;
 
-        unsigned int i = 0;
+        std::uint32_t i = 0;
         for(i=0;i<group.getNumChildren();++i)
         {
             osg::Node* child = group.getChild(i);
@@ -1390,12 +1391,12 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                 continue;
             }
 
-            unsigned int totalNumberVertices = 0;
+            std::uint32_t totalNumberVertices = 0;
             DuplicateList subset;
             for(auto & ditr : duplicateList)
             {
                 osg::Geometry* geometry = ditr.get();
-                unsigned int numVertices = (geometry->getVertexArray() ? geometry->getVertexArray()->getNumElements() : 0);
+                std::uint32_t numVertices = (geometry->getVertexArray() ? geometry->getVertexArray()->getNumElements() : 0);
                 if ((totalNumberVertices+numVertices)>_targetMaximumNumberOfVertices && !subset.empty())
                 {
                     mergeList.push_back(subset);
@@ -1458,7 +1459,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
 
 
     // convert all polygon primitives which has 3 indices into TRIANGLES, 4 indices into QUADS.
-    unsigned int i = 0;
+    std::uint32_t i = 0;
     for(i=0;i<group.getNumChildren();++i)
     {
         osg::Drawable* drawable = group.getChild(i)->asDrawable();
@@ -1511,8 +1512,8 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                 std::set<osg::PrimitiveSet*> toremove;
 
                 osg::Geometry::PrimitiveSetList& primitives = geom->getPrimitiveSetList();
-                unsigned int lhsNo=0;
-                unsigned int rhsNo=1;
+                std::uint32_t lhsNo=0;
+                std::uint32_t rhsNo=1;
                 while(rhsNo<primitives.size())
                 {
                     osg::PrimitiveSet* lhs = primitives[lhsNo].get();
@@ -1687,7 +1688,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
 {
     MergeArrayVisitor merger;
     osg::VertexBufferObject* vbo = nullptr;
-    unsigned int base = 0;
+    std::uint32_t base = 0;
     if (lhs.getVertexArray() && rhs.getVertexArray())
     {
         base = lhs.getVertexArray()->getNumElements();
@@ -1741,7 +1742,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
     {
         if (lhs.getSecondaryColorArray()->referenceCount() > 1)
             lhs.setSecondaryColorArray(cloneArray(lhs.getSecondaryColorArray(), vbo, &lhs));
-        lhs.getSecondaryColorArray()->reserveArray(static_cast<unsigned>(sizes.mSecondaryColor));
+        lhs.getSecondaryColorArray()->reserveArray(static_cast<std::uint32_t>(sizes.mSecondaryColor));
         if (!merger.merge(lhs.getSecondaryColorArray(),rhs.getSecondaryColorArray()))
         {
             OSG_DEBUG << "MergeGeometry: secondary color array not merged. Some data may be lost." <<std::endl;
@@ -1768,7 +1769,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
     }
 
 
-    unsigned int unit = 0;
+    std::uint32_t unit = 0;
     for(unit=0;unit<lhs.getNumTexCoordArrays();++unit)
     {
         if (!lhs.getTexCoordArray(unit)) continue;
@@ -1807,10 +1808,10 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
         case(osg::PrimitiveSet::DrawElementsUBytePrimitiveType):
             {
                 auto* primitiveUByte = static_cast<osg::DrawElementsUByte*>(primitive);
-                unsigned int currentMaximum = 0;
-                for(unsigned char & eitr : *primitiveUByte)
+                std::uint32_t currentMaximum = 0;
+                for(std::uint8_t & eitr : *primitiveUByte)
                 {
-                    currentMaximum = osg::maximum(currentMaximum,static_cast<unsigned int>(eitr));
+                    currentMaximum = osg::maximum(currentMaximum,static_cast<std::uint32_t>(eitr));
                 }
                 if ((base+currentMaximum)>=65536)
                 {
@@ -1819,7 +1820,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUByte->begin(),primitiveUByte->end(),std::back_inserter(*new_primitive));
-                    new_primitive->offsetIndices(static_cast<int>(base));
+                    new_primitive->offsetIndices(static_cast<std::int32_t>(base));
                     (*primItr) = new_primitive;
                 } else if ((base+currentMaximum)>=256)
                 {
@@ -1828,13 +1829,13 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUByte->begin(),primitiveUByte->end(),std::back_inserter(*new_primitive));
-                    new_primitive->offsetIndices(static_cast<int>(base));
+                    new_primitive->offsetIndices(static_cast<std::int32_t>(base));
                     (*primItr) = new_primitive;
                 }
                 else
                 {
                     (*primItr) = clonePrimitive(primitive, ebo, &lhs);
-                    (*primItr)->offsetIndices(static_cast<int>(base));
+                    (*primItr)->offsetIndices(static_cast<std::int32_t>(base));
                 }
             }
             break;
@@ -1842,10 +1843,10 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
         case(osg::PrimitiveSet::DrawElementsUShortPrimitiveType):
             {
                 auto* primitiveUShort = static_cast<osg::DrawElementsUShort*>(primitive);
-                unsigned int currentMaximum = 0;
-                for(unsigned short & eitr : *primitiveUShort)
+                std::uint32_t currentMaximum = 0;
+                for(std::uint16_t & eitr : *primitiveUShort)
                 {
-                    currentMaximum = osg::maximum(currentMaximum,static_cast<unsigned int>(eitr));
+                    currentMaximum = osg::maximum(currentMaximum,static_cast<std::uint32_t>(eitr));
                 }
                 if ((base+currentMaximum)>=65536)
                 {
@@ -1854,13 +1855,13 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUShort->begin(),primitiveUShort->end(),std::back_inserter(*new_primitive));
-                    new_primitive->offsetIndices(static_cast<int>(base));
+                    new_primitive->offsetIndices(static_cast<std::int32_t>(base));
                     (*primItr) = new_primitive;
                 }
                 else
                 {
                     (*primItr) = clonePrimitive(primitive, ebo, &lhs);
-                    (*primItr)->offsetIndices(static_cast<int>(base));
+                    (*primItr)->offsetIndices(static_cast<std::int32_t>(base));
                 }
             }
             break;
@@ -1870,7 +1871,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
         case(osg::PrimitiveSet::DrawElementsUIntPrimitiveType):
         default:
             (*primItr) = clonePrimitive(primitive, ebo, &lhs);
-            (*primItr)->offsetIndices(static_cast<int>(base));
+            (*primItr)->offsetIndices(static_cast<std::int32_t>(base));
             break;
         }
     }
@@ -1884,7 +1885,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
     lhs.dirtyDisplayList();
 
     if (osg::UserDataContainer* rhsUserData = rhs.getUserDataContainer())
-        for (unsigned int i=0; i<rhsUserData->getNumUserObjects(); ++i)
+        for (std::uint32_t i=0; i<rhsUserData->getNumUserObjects(); ++i)
             lhs.getOrCreateUserDataContainer()->addUserObject(rhsUserData->getUserObject(i));
 
     return true;
@@ -1902,7 +1903,7 @@ bool Optimizer::MergeGeometryVisitor::mergePrimitive(osg::DrawArrays& lhs,osg::D
 
 bool Optimizer::MergeGeometryVisitor::mergePrimitive(osg::DrawArrayLengths& lhs,osg::DrawArrayLengths& rhs)
 {
-    int lhs_count = std::accumulate(lhs.begin(),lhs.end(),0);
+    std::int32_t lhs_count = std::accumulate(lhs.begin(),lhs.end(),0);
 
     if (lhs.getFirst()+lhs_count==rhs.getFirst())
     {
@@ -1971,7 +1972,7 @@ void Optimizer::MergeGroupsVisitor::apply(osg::Group &group)
         GroupMap groupIndex;
         std::vector<std::vector<osg::Group*> > childOrder;
         std::set<osg::Group*> named;
-        for (unsigned int i=0; i<group.getNumChildren(); ++i)
+        for (std::uint32_t i=0; i<group.getNumChildren(); ++i)
         {
             osg::Node* child = group.getChild(i);
             osg::Group* childGroup = child->asGroup();
@@ -1998,7 +1999,7 @@ void Optimizer::MergeGroupsVisitor::apply(osg::Group &group)
                 for (auto groupIt = ++groupSet.begin(); groupIt != groupSet.end(); ++groupIt)
                 {
                     osg::Group* toMerge = *groupIt;
-                    for (unsigned int i=0; i<toMerge->getNumChildren(); ++i)
+                    for (std::uint32_t i=0; i<toMerge->getNumChildren(); ++i)
                         first->addChild(toMerge->getChild(i));
                     toMerge->removeChildren(0, toMerge->getNumChildren());
                     group.removeChild(toMerge);

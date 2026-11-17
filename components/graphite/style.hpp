@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QProxyStyle>
 
 namespace Graphite
@@ -23,10 +25,10 @@ namespace Graphite
             const QWidget* widget) const override;
         QIcon standardIcon(StandardPixmap icon, const QStyleOption* option, const QWidget* widget) const override;
         QRect subElementRect(SubElement element, const QStyleOption* option, const QWidget* widget) const override;
-        int pixelMetric(PixelMetric metric, const QStyleOption* option, const QWidget* widget) const override;
+        std::int32_t pixelMetric(PixelMetric metric, const QStyleOption* option, const QWidget* widget) const override;
         QSize sizeFromContents(
             ContentsType type, const QStyleOption* option, const QSize& contents, const QWidget* widget) const override;
-        int styleHint(StyleHint hint, const QStyleOption* option, const QWidget* widget,
+        std::int32_t styleHint(StyleHint hint, const QStyleOption* option, const QWidget* widget,
             QStyleHintReturn* returnData) const override;
 
         using QProxyStyle::polish;

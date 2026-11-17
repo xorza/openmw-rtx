@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -46,12 +47,12 @@ namespace Rtx
         /// runs `u` with the world's `x` and `v` against its `y`, which decides whether a deck drifts with its storm
         /// or into it.
         osg::ref_ptr<osg::Geometry> makeLayer(float height = sHeight, float curvature = sCurvature, float tile = sTile,
-            float handedness = -1.0f, const osg::Vec2f& origin = osg::Vec2f(), int perRing = 16)
+            float handedness = -1.0f, const osg::Vec2f& origin = osg::Vec2f(), std::int32_t perRing = 16)
         {
             osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
             osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
 
-            const auto put = [&](float radius, int step) {
+            const auto put = [&](float radius, std::int32_t step) {
                 const float turn = 2.0f * osg::PIf * static_cast<float>(step) / static_cast<float>(perRing);
                 const osg::Vec2f at(radius * std::cos(turn), radius * std::sin(turn));
 
@@ -61,11 +62,11 @@ namespace Rtx
 
             put(200.0f, 0);
             put(0.0f, 0);
-            for (int step = 1; step < perRing; ++step)
+            for (std::int32_t step = 1; step < perRing; ++step)
                 put(200.0f, step);
 
-            for (int ring = 2; ring <= 4; ++ring)
-                for (int step = 0; step < perRing; ++step)
+            for (std::int32_t ring = 2; ring <= 4; ++ring)
+                for (std::int32_t step = 0; step < perRing; ++step)
                     put(200.0f * static_cast<float>(ring), step);
 
             osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry;
@@ -189,7 +190,7 @@ namespace Rtx
             // **And the fade only ever falls**, which is what a mesh the rule makes nonsense of has to
             // come out as rather than a deck that thickens toward the horizon.
             float above = 1.0f;
-            for (int step = 0; step <= 64; ++step)
+            for (std::int32_t step = 0; step <= 64; ++step)
             {
                 const float here = fadesTo(shell, 2.5f * static_cast<float>(step) / 64.0f);
                 EXPECT_LE(here, above + 1.0e-6f) << "at " << 2.5f * static_cast<float>(step) / 64.0f;
@@ -274,7 +275,7 @@ namespace Rtx
             // read and the fit would divide by their agreement.
             osg::ref_ptr<osg::Vec3Array> ring = new osg::Vec3Array;
             osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
-            for (int step = 0; step < 8; ++step)
+            for (std::int32_t step = 0; step < 8; ++step)
             {
                 const float turn = 0.25f * osg::PIf * static_cast<float>(step);
                 ring->push_back(osg::Vec3f(500.0f * std::cos(turn), 500.0f * std::sin(turn), 100.0f));

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -51,7 +52,7 @@ namespace
         const osg::Group* handle = attached->asGroup();
         ASSERT_NE(handle, nullptr);
         ASSERT_EQ(handle->getNumChildren(), pieces.size());
-        for (unsigned int at = 0; at < handle->getNumChildren(); ++at)
+        for (std::uint32_t at = 0; at < handle->getNumChildren(); ++at)
             EXPECT_EQ(handle->getChild(at)->getName(), pieces[at]->getName()) << "piece " << at;
     }
 }

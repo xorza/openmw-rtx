@@ -1,6 +1,7 @@
 #include "cellwater.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <string_view>
 #include <utility>
 
@@ -32,7 +33,7 @@
 
 namespace CSVRender
 {
-    const int CellWater::CellSize = ESM::Land::REAL_SIZE;
+    const std::int32_t CellWater::CellSize = ESM::Land::REAL_SIZE;
 
     CellWater::CellWater(
         CSMWorld::Data& data, osg::Group* cellNode, std::string id, const CSMWorld::CellCoordinates& cellCoords)
@@ -56,7 +57,7 @@ namespace CSVRender
         mWaterGroup = new osg::Group();
         mWaterTransform->addChild(mWaterGroup);
 
-        const int cellIndex = mData.getCells().searchId(ESM::RefId::stringRefId(mId));
+        const std::int32_t cellIndex = mData.getCells().searchId(ESM::RefId::stringRefId(mId));
         if (cellIndex > -1)
         {
             updateCellData(mData.getCells().getRecord(cellIndex));
@@ -112,8 +113,8 @@ namespace CSVRender
     {
         const CSMWorld::Collection<CSMWorld::Cell>& cells = mData.getCells();
 
-        int rowStart = -1;
-        int rowEnd = -1;
+        std::int32_t rowStart = -1;
+        std::int32_t rowEnd = -1;
 
         if (topLeft.parent().isValid())
         {
@@ -126,7 +127,7 @@ namespace CSVRender
             rowEnd = bottomRight.row();
         }
 
-        for (int row = rowStart; row <= rowEnd; ++row)
+        for (std::int32_t row = rowStart; row <= rowEnd; ++row)
         {
             const CSMWorld::Record<CSMWorld::Cell>& cellRecord = cells.getRecord(row);
 
@@ -137,13 +138,13 @@ namespace CSVRender
 
     void CellWater::recreate()
     {
-        const int interiorScalar = 20;
-        const int segmentsPerCell = 1;
-        const int textureRepeatsPerCell = 6;
+        const std::int32_t interiorScalar = 20;
+        const std::int32_t segmentsPerCell = 1;
+        const std::int32_t textureRepeatsPerCell = 6;
 
         const float alpha = 0.5f;
 
-        const int renderBin = osg::StateSet::TRANSPARENT_BIN - 1;
+        const std::int32_t renderBin = osg::StateSet::TRANSPARENT_BIN - 1;
 
         if (mWaterGeometry)
         {
@@ -155,7 +156,7 @@ namespace CSVRender
             return;
 
         float size = NAN;
-        int segments = 0;
+        std::int32_t segments = 0;
         float textureRepeats = NAN;
 
         if (mExterior)

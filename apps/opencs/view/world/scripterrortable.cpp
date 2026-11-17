@@ -1,8 +1,10 @@
 #include "scripterrortable.hpp"
 
-#include <QHeaderView>
+#include <cstdint>
 #include <exception>
 #include <sstream>
+
+#include <QHeaderView>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/messages.hpp>
@@ -24,7 +26,7 @@ void CSVWorld::ScriptErrorTable::report(const std::string& message, const Compil
     addMessage(stream.str(),
         type == Compiler::ErrorHandler::WarningMessage ? CSMDoc::Message::Severity_Warning
                                                        : CSMDoc::Message::Severity_Error,
-        loc.mLine, loc.mColumn - static_cast<int>(loc.mLiteral.length()));
+        loc.mLine, loc.mColumn - static_cast<std::int32_t>(loc.mLiteral.length()));
 }
 
 void CSVWorld::ScriptErrorTable::report(const std::string& message, Type type)
@@ -35,9 +37,9 @@ void CSVWorld::ScriptErrorTable::report(const std::string& message, Type type)
 }
 
 void CSVWorld::ScriptErrorTable::addMessage(
-    const std::string& message, CSMDoc::Message::Severity severity, int line, int column)
+    const std::string& message, CSMDoc::Message::Severity severity, std::int32_t line, std::int32_t column)
 {
-    int row = rowCount();
+    std::int32_t row = rowCount();
 
     setRowCount(row + 1);
 
@@ -148,12 +150,12 @@ void CSVWorld::ScriptErrorTable::settingChanged(const CSMPrefs::Setting* setting
         setWarningsMode(setting->toString());
 }
 
-void CSVWorld::ScriptErrorTable::cellClicked(int row, int column)
+void CSVWorld::ScriptErrorTable::cellClicked(std::int32_t row, std::int32_t column)
 {
     if (item(row, 3))
     {
-        int scriptLine = item(row, 1)->data(Qt::DisplayRole).toInt();
-        int scriptColumn = item(row, 3)->data(Qt::DisplayRole).toInt();
+        std::int32_t scriptLine = item(row, 1)->data(Qt::DisplayRole).toInt();
+        std::int32_t scriptColumn = item(row, 3)->data(Qt::DisplayRole).toInt();
         emit highlightError(scriptLine - 1, scriptColumn);
     }
 }

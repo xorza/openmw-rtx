@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/spt/file.hpp>
 
 #include "resourcemanager.hpp"
@@ -14,6 +16,6 @@ namespace Resource
 
         Spt::SPTFilePtr get(VFS::Path::NormalizedView name);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
     };
 }

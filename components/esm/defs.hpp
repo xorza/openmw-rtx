@@ -1,8 +1,7 @@
 #pragma once
 
+#include <cstdint>
 #include <stdexcept>
-
-#include <stdint.h>
 
 #include <components/esm4/common.hpp>
 
@@ -15,13 +14,13 @@ namespace ESM
     struct EpochTimeStamp
     {
         float mGameHour;
-        int32_t mDay;
-        int32_t mMonth;
-        int32_t mYear;
+        std::int32_t mDay;
+        std::int32_t mMonth;
+        std::int32_t mYear;
     };
 
     // Pixel color value. Standard four-byte rr,gg,bb,aa format.
-    typedef uint32_t Color;
+    typedef std::uint32_t Color;
 
     enum RangeType
     {
@@ -30,9 +29,9 @@ namespace ESM
         RT_Target = 2
     };
 
-    constexpr unsigned int sEsm4RecnameFlag = 0x00800000;
+    constexpr std::uint32_t sEsm4RecnameFlag = 0x00800000;
 
-    constexpr unsigned int esm3Recname(const char (&name)[5])
+    constexpr std::uint32_t esm3Recname(const char (&name)[5])
     {
         if ((fourCC(name) & sEsm4RecnameFlag) == 0)
             return fourCC(name);
@@ -44,7 +43,7 @@ namespace ESM
                                                                                      // possible
     }
 
-    constexpr unsigned int esm4Recname(const ESM4::RecordTypes recType)
+    constexpr std::uint32_t esm4Recname(const ESM4::RecordTypes recType)
     {
         if ((recType & sEsm4RecnameFlag) == 0)
             return (recType | sEsm4RecnameFlag);
@@ -56,7 +55,7 @@ namespace ESM
                                                                                      // possible
     }
 
-    enum RecNameInts : unsigned int
+    enum RecNameInts : std::uint32_t
     {
         // Special values. Can not be used in any ESM.
         // Added to this enum to guarantee that the values don't collide with any records.
@@ -301,7 +300,7 @@ namespace ESM
         name.mData[5] = '\0';
 
         ESM::NAME fourCCName(recName & ~ESM::sEsm4RecnameFlag);
-        for (int i = 0; i < 4; i++)
+        for (std::int32_t i = 0; i < 4; i++)
             name.mData[i] = fourCCName.mData[i];
 
         name.mData[4] = ESM::isESM4Rec(recName) ? '4' : '\0';

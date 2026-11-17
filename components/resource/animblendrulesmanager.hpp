@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -22,7 +23,7 @@ namespace Resource
         std::shared_ptr<const SceneUtil::AnimBlendRules> getRules(
             const VFS::Path::NormalizedView path, const VFS::Path::NormalizedView overridePath);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
     private:
         std::shared_ptr<const SceneUtil::AnimBlendRules> loadRules(VFS::Path::NormalizedView path);

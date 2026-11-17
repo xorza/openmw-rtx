@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include <sol/sol.hpp>
 
 #include <components/lua/luastate.hpp>
@@ -21,9 +23,9 @@ namespace LuaUi
                 throw std::domain_error("Invalid UI Content");
         }
 
-        size_t size() const { return mTable.size(); }
+        std::size_t size() const { return mTable.size(); }
 
-        sol::object at(size_t index) const
+        sol::object at(std::size_t index) const
         {
             if (index < size())
                 return mTable.get<sol::object>(toLua(index));
@@ -34,6 +36,6 @@ namespace LuaUi
     private:
         sol::main_table mTable;
 
-        static inline size_t toLua(size_t index) { return index + 1; }
+        static inline std::size_t toLua(std::size_t index) { return index + 1; }
     };
 }

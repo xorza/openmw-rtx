@@ -1,5 +1,7 @@
 #include "scriptparser.hpp"
 
+#include <cstdint>
+
 #include "errorhandler.hpp"
 #include "scanner.hpp"
 #include "skipparser.hpp"
@@ -29,7 +31,7 @@ namespace Compiler
         return true;
     }
 
-    bool ScriptParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool ScriptParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (keyword == Scanner::K_while || keyword == Scanner::K_if || keyword == Scanner::K_elseif)
         {
@@ -65,7 +67,7 @@ namespace Compiler
         return true;
     }
 
-    bool ScriptParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+    bool ScriptParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
     {
         if (code == Scanner::S_newline) // empty line
             return true;

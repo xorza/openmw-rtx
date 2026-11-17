@@ -1,6 +1,7 @@
 #include "importscri.hpp"
 
 #include <cmath>
+#include <cstdint>
 
 #include <components/esm3/esmreader.hpp>
 
@@ -11,7 +12,7 @@ namespace ESSImport
     {
         mScript = esm.getHNOString("SCRI");
 
-        int32_t numShorts = 0, numLongs = 0, numFloats = 0;
+        std::int32_t numShorts = 0, numLongs = 0, numFloats = 0;
         if (esm.isNextSub("SLCS"))
         {
             esm.getSubHeader();
@@ -23,9 +24,9 @@ namespace ESSImport
         if (esm.isNextSub("SLSD"))
         {
             esm.getSubHeader();
-            for (int i = 0; i < numShorts; ++i)
+            for (std::int32_t i = 0; i < numShorts; ++i)
             {
-                int16_t val = 0;
+                std::int16_t val = 0;
                 esm.getT(val);
                 mShorts.push_back(val);
             }
@@ -35,9 +36,9 @@ namespace ESSImport
         if (esm.isNextSub("SLLD"))
         {
             esm.getSubHeader();
-            for (int i = 0; i < numLongs; ++i)
+            for (std::int32_t i = 0; i < numLongs; ++i)
             {
-                int32_t val = 0;
+                std::int32_t val = 0;
                 esm.getT(val);
                 mLongs.push_back(val);
             }
@@ -45,7 +46,7 @@ namespace ESSImport
         if (esm.isNextSub("SLFD"))
         {
             esm.getSubHeader();
-            for (int i = 0; i < numFloats; ++i)
+            for (std::int32_t i = 0; i < numFloats; ++i)
             {
                 float val = NAN;
                 esm.getT(val);

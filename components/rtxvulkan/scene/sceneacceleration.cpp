@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <utility>
 
@@ -62,8 +63,8 @@ namespace Rtx
     VkTransformMatrixKHR toVulkanTransform(const Transform3x4& transform)
     {
         VkTransformMatrixKHR result{};
-        for (int row = 0; row < 3; ++row)
-            for (int column = 0; column < 4; ++column)
+        for (std::int32_t row = 0; row < 3; ++row)
+            for (std::int32_t column = 0; column < 4; ++column)
                 result.matrix[row][column] = transform.mRows[row][column];
 
         return result;

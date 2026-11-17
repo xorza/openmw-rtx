@@ -1,5 +1,7 @@
 #include "landmanager.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
@@ -10,7 +12,7 @@
 namespace MWRender
 {
 
-    LandManager::LandManager(int loadFlags)
+    LandManager::LandManager(std::int32_t loadFlags)
         : GenericResourceManager<ESM::ExteriorCellLocation, std::shared_ptr<const ESMTerrain::LandObject>>(
               nullptr, Settings::cells().mCacheExpiryDelay)
         , mLoadFlags(loadFlags)
@@ -49,7 +51,7 @@ namespace MWRender
         return landObj;
     }
 
-    void LandManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void LandManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Land", frameNumber, mCache->getStats(), *stats);
     }

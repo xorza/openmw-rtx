@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -38,9 +40,9 @@ namespace MWGui
         void setNote(std::string_view note) override;
         void loadingOn() override;
         void loadingOff() override;
-        void setProgressRange(size_t range) override;
-        void setProgress(size_t value) override;
-        void increaseProgress(size_t increase = 1) override;
+        void setProgressRange(std::size_t range) override;
+        void setProgress(std::size_t value) override;
+        void increaseProgress(std::size_t increase = 1) override;
 
         void setVisible(bool visible) override;
 
@@ -67,9 +69,9 @@ namespace MWGui
 
         bool mImportantLabel;
 
-        int mNestedLoadingCount;
+        std::int32_t mNestedLoadingCount;
 
-        size_t mProgress;
+        std::size_t mProgress;
 
         bool mShowWallpaper;
 

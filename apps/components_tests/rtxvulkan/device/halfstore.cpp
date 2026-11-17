@@ -232,7 +232,7 @@ namespace Rtx
         {
             std::vector<float> values;
             std::vector<std::uint8_t> nearest;
-            for (const int step : { 1, 100, 254 })
+            for (const std::int32_t step : { 1, 100, 254 })
                 for (const float fraction : { 0.25f, 0.75f })
                 {
                     values.push_back((static_cast<float>(step) + fraction) / 255.0f);
@@ -242,8 +242,8 @@ namespace Rtx
             const Converted converted = convert(values);
             ASSERT_EQ(converted.mBytes.size(), values.size());
             for (std::size_t at = 0; at < values.size(); ++at)
-                EXPECT_EQ(converted.mBytes[at], nearest[at])
-                    << values[at] * 255.0f << " of 255 was stored as " << static_cast<int>(converted.mBytes[at]);
+                EXPECT_EQ(converted.mBytes[at], nearest[at]) << values[at] * 255.0f << " of 255 was stored as "
+                                                             << static_cast<std::int32_t>(converted.mBytes[at]);
         }
 
         /// **A running mean kept in halves keeps its target where the shader rounds it at random, and

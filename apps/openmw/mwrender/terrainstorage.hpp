@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <components/esmterrain/storage.hpp>
@@ -20,7 +21,7 @@ namespace MWRender
         ~TerrainStorage() override;
 
         std::shared_ptr<const ESMTerrain::LandObject> getLand(ESM::ExteriorCellLocation cellLocation) override;
-        const VFS::Path::Normalized* getLandTexture(std::uint16_t index, int plugin) override;
+        const VFS::Path::Normalized* getLandTexture(std::uint16_t index, std::int32_t plugin) override;
 
         const ESM4::LandTexture* getEsm4LandTexture(ESM::RefId ltexId) const override;
         const ESM4::TextureSet* getEsm4TextureSet(ESM::RefId txstId) const override;

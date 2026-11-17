@@ -92,7 +92,8 @@ namespace Rtx
                             for (std::uint32_t channel = 0; channel < 4; ++channel)
                             {
                                 const std::size_t at = (std::size_t{ y } * shape.mWidth + x) * 4 + channel;
-                                EXPECT_NEAR(int{ device[level][at] }, int{ host.at(level, x, y, channel) }, 1)
+                                EXPECT_NEAR(
+                                    std::int32_t{ device[level][at] }, std::int32_t{ host.at(level, x, y, channel) }, 1)
                                     << "level " << level << " at " << x << ", " << y << " channel " << channel;
                             }
                 }
@@ -114,7 +115,7 @@ namespace Rtx
             // be of a bake with shadows in it: the finest level's first row is `0, 64, 64, 0`, and
             // light from the high edge reaching its first texel crossed two of `(1 - 64/255)^(1/4)`
             // = 0.93030, which is 0.86546 and byte 221.
-            EXPECT_NEAR(int{ device[0][0] }, 221, 1);
+            EXPECT_NEAR(std::int32_t{ device[0][0] }, 221, 1);
         }
     }
 }

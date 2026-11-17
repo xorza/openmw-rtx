@@ -1,4 +1,5 @@
 
+#include <cstdint>
 #include <memory>
 
 #include <gmock/gmock.h>
@@ -72,8 +73,8 @@ namespace
         const CollisionShape shape(mInstance, boxShape);
         ASSERT_TRUE(manager.addObject(
             ObjectId(&boxShape), shape, btTransform::getIdentity(), AreaType::AreaType_ground, nullptr));
-        for (int x = -1; x < 1; ++x)
-            for (int y = -1; y < 1; ++y)
+        for (std::int32_t x = -1; x < 1; ++x)
+            for (std::int32_t y = -1; y < 1; ++y)
                 ASSERT_NE(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr);
     }
 
@@ -126,7 +127,7 @@ namespace
             .mEnd = TilePosition(1, 1),
         };
         manager.setRange(range, nullptr);
-        manager.addWater(osg::Vec2i(0, 0), std::numeric_limits<int>::max(), 0.0f, nullptr);
+        manager.addWater(osg::Vec2i(0, 0), std::numeric_limits<std::int32_t>::max(), 0.0f, nullptr);
         manager.addObject(ObjectId(&boxShape1), shape1, btTransform::getIdentity(), AreaType::AreaType_ground, nullptr);
         manager.addObject(ObjectId(&boxShape2), shape2, btTransform::getIdentity(), AreaType::AreaType_ground, nullptr);
         EXPECT_THAT(manager.takeChangedTiles(nullptr), ElementsAre(std::pair(TilePosition(0, 0), ChangeType::add)));
@@ -369,7 +370,7 @@ namespace
     {
         TileCachedRecastMeshManager manager(mSettings);
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 8192;
+        const std::int32_t cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         const auto changedTiles = manager.takeChangedTiles(nullptr);
         EXPECT_EQ(changedTiles.begin()->first, TilePosition(-1, -1));
@@ -383,10 +384,10 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 8192;
+        const std::int32_t cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
-        for (int x = -1; x < 12; ++x)
-            for (int y = -1; y < 12; ++y)
+        for (std::int32_t x = -1; x < 12; ++x)
+            for (std::int32_t y = -1; y < 12; ++y)
                 ASSERT_NE(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr);
     }
 
@@ -399,10 +400,10 @@ namespace
         ASSERT_TRUE(manager.addObject(
             ObjectId(&boxShape), shape, btTransform::getIdentity(), AreaType::AreaType_ground, nullptr));
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = std::numeric_limits<int>::max();
+        const std::int32_t cellSize = std::numeric_limits<std::int32_t>::max();
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
-        for (int x = -6; x < 6; ++x)
-            for (int y = -6; y < 6; ++y)
+        for (std::int32_t x = -6; x < 6; ++x)
+            for (std::int32_t y = -6; y < 6; ++y)
                 ASSERT_EQ(manager.getMesh(mWorldspace, TilePosition(x, y)) != nullptr,
                     -1 <= x && x <= 0 && -1 <= y && y <= 0);
     }
@@ -418,7 +419,7 @@ namespace
     {
         TileCachedRecastMeshManager manager(mSettings);
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 8192;
+        const std::int32_t cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.takeChangedTiles(nullptr);
         manager.removeWater(cellPosition, nullptr);
@@ -436,7 +437,7 @@ namespace
         const CollisionShape shape(mInstance, boxShape);
         manager.addObject(ObjectId(&boxShape), shape, btTransform::getIdentity(), AreaType::AreaType_ground, nullptr);
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 8192;
+        const std::int32_t cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.takeChangedTiles(nullptr);
         manager.removeWater(cellPosition, nullptr);
@@ -454,11 +455,11 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 8192;
+        const std::int32_t cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.removeWater(cellPosition, nullptr);
-        for (int x = -6; x < 6; ++x)
-            for (int y = -6; y < 6; ++y)
+        for (std::int32_t x = -6; x < 6; ++x)
+            for (std::int32_t y = -6; y < 6; ++y)
                 ASSERT_EQ(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr);
     }
 
@@ -471,11 +472,11 @@ namespace
         ASSERT_TRUE(manager.addObject(
             ObjectId(&boxShape), shape, btTransform::getIdentity(), AreaType::AreaType_ground, nullptr));
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 8192;
+        const std::int32_t cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.removeWater(cellPosition, nullptr);
-        for (int x = -6; x < 6; ++x)
-            for (int y = -6; y < 6; ++y)
+        for (std::int32_t x = -6; x < 6; ++x)
+            for (std::int32_t y = -6; y < 6; ++y)
                 ASSERT_EQ(manager.getMesh(mWorldspace, TilePosition(x, y)) != nullptr,
                     -1 <= x && x <= 0 && -1 <= y && y <= 0);
     }
@@ -485,15 +486,15 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
         const osg::Vec2i cellPosition(0, 0);
-        const int cellSize = 8192;
+        const std::int32_t cellSize = 8192;
         const btBoxShape boxShape(btVector3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape);
         ASSERT_TRUE(manager.addObject(
             ObjectId(&boxShape), shape, btTransform::getIdentity(), AreaType::AreaType_ground, nullptr));
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.removeObject(ObjectId(&boxShape), nullptr);
-        for (int x = -1; x < 12; ++x)
-            for (int y = -1; y < 12; ++y)
+        for (std::int32_t x = -1; x < 12; ++x)
+            for (std::int32_t y = -1; y < 12; ++y)
                 ASSERT_NE(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr);
     }
 
@@ -577,7 +578,7 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
         const osg::Vec2i cellPosition(1, 2);
-        const int cellSize = 32;
+        const std::int32_t cellSize = 32;
         const HeightfieldPlane plane{
             .mHeight = 1000,
         };
@@ -589,8 +590,8 @@ namespace
                 std::pair(TilePosition(0, -1), ChangeType::add), //
                 std::pair(TilePosition(0, 0), ChangeType::add) //
                 ));
-        for (int x = -1; x < 1; ++x)
-            for (int y = -1; y < 1; ++y)
+        for (std::int32_t x = -1; x < 1; ++x)
+            for (std::int32_t y = -1; y < 1; ++y)
                 EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr) << x << " " << y;
     }
 
@@ -599,7 +600,7 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
         const osg::Vec2i cellPosition(1, 2);
-        const int cellSize = 32;
+        const std::int32_t cellSize = 32;
         const std::array<float, 25> heights{ {
             1000, 1100, 1200, 1300, 1400, // 0
             1100, 1200, 1300, 1400, 1600, // 1
@@ -621,8 +622,8 @@ namespace
                 std::pair(TilePosition(0, -1), ChangeType::add), //
                 std::pair(TilePosition(0, 0), ChangeType::add) //
                 ));
-        for (int x = -1; x < 1; ++x)
-            for (int y = -1; y < 1; ++y)
+        for (std::int32_t x = -1; x < 1; ++x)
+            for (std::int32_t y = -1; y < 1; ++y)
                 EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr) << x << " " << y;
     }
 
@@ -631,7 +632,7 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
         const osg::Vec2i cellPosition(1, 2);
-        const int cellSize = 32;
+        const std::int32_t cellSize = 32;
         const float level = 1000;
         manager.addWater(cellPosition, cellSize, level, nullptr);
         EXPECT_THAT(manager.takeChangedTiles(nullptr),
@@ -641,8 +642,8 @@ namespace
                 std::pair(TilePosition(0, -1), ChangeType::add), //
                 std::pair(TilePosition(0, 0), ChangeType::add) //
                 ));
-        for (int x = -1; x < 1; ++x)
-            for (int y = -1; y < 1; ++y)
+        for (std::int32_t x = -1; x < 1; ++x)
+            for (std::int32_t y = -1; y < 1; ++y)
                 EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr) << x << " " << y;
     }
 }

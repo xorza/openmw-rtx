@@ -1,6 +1,8 @@
 #include "recastmeshobject.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include <BulletCollision/CollisionShapes/btCompoundShape.h>
 
@@ -13,7 +15,7 @@ namespace DetourNavigator
         {
             assert(static_cast<std::size_t>(shape.getNumChildShapes()) == children.size());
             bool result = false;
-            for (int i = 0, num = shape.getNumChildShapes(); i < num; ++i)
+            for (std::int32_t i = 0, num = shape.getNumChildShapes(); i < num; ++i)
             {
                 assert(shape.getChildShape(i) == std::addressof(children[static_cast<std::size_t>(i)].getShape()));
                 result = children[static_cast<std::size_t>(i)].update(shape.getChildTransform(i), areaType) || result;
@@ -24,7 +26,7 @@ namespace DetourNavigator
         std::vector<ChildRecastMeshObject> makeChildrenObjects(const btCompoundShape& shape, const AreaType areaType)
         {
             std::vector<ChildRecastMeshObject> result;
-            for (int i = 0, num = shape.getNumChildShapes(); i < num; ++i)
+            for (std::int32_t i = 0, num = shape.getNumChildShapes(); i < num; ++i)
                 result.emplace_back(*shape.getChildShape(i), shape.getChildTransform(i), areaType);
             return result;
         }

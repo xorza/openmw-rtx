@@ -79,9 +79,9 @@ namespace Rtx
         {
             const float bound = std::sqrt(4.5f) / 16383.0f + 1e-6f;
 
-            for (int x = -3; x <= 3; ++x)
-                for (int y = -3; y <= 3; ++y)
-                    for (int z = -3; z <= 3; ++z)
+            for (std::int32_t x = -3; x <= 3; ++x)
+                for (std::int32_t y = -3; y <= 3; ++y)
+                    for (std::int32_t z = -3; z <= 3; ++z)
                     {
                         if (x == 0 && y == 0 && z == 0)
                             continue;
@@ -138,8 +138,8 @@ namespace Rtx
         {
             EXPECT_EQ(Shaders::packNormal(osg::Vec3f(1.0f, 0.0f, 0.0f)), 0x9FFFFFFEu);
             EXPECT_EQ(Shaders::packNormal(osg::Vec3f(0.0f, 0.0f, 1.0f)), 0x9FFFBFFFu);
-            for (int x = -2; x <= 2; ++x)
-                for (int z = -2; z <= 2; ++z)
+            for (std::int32_t x = -2; x <= 2; ++x)
+                for (std::int32_t z = -2; z <= 2; ++z)
                 {
                     const osg::Vec3f direction(static_cast<float>(x), 1.0f, static_cast<float>(z));
                     const std::uint32_t packed = Shaders::packNormal(direction);

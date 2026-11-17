@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 
 #include <components/esm/esmbridge.hpp>
@@ -97,13 +98,13 @@ namespace MWWorld
         // For weapon or armor, this is the remaining item health.
         // For tools (lockpicks, probes, repair hammer) it is the remaining uses.
         // If this returns int(-1) it means full health.
-        int getCharge() const
+        std::int32_t getCharge() const
         {
             struct Visitor
             {
-                int operator()(const ESM::CellRef& ref) { return ref.mChargeInt; }
-                int operator()(const ESM4::Reference& /*ref*/) { return 0; }
-                int operator()(const ESM4::ActorCharacter&) { throw std::logic_error("Not applicable"); }
+                std::int32_t operator()(const ESM::CellRef& ref) { return ref.mChargeInt; }
+                std::int32_t operator()(const ESM4::Reference& /*ref*/) { return 0; }
+                std::int32_t operator()(const ESM4::ActorCharacter&) { throw std::logic_error("Not applicable"); }
             };
             return std::visit(Visitor(), mCellRef.mVariant);
         }
@@ -127,7 +128,7 @@ namespace MWWorld
             };
             return std::visit(Visitor(), mCellRef.mVariant);
         }
-        void setCharge(int charge);
+        void setCharge(std::int32_t charge);
         void setChargeFloat(float charge);
         void applyChargeRemainderToBeSubtracted(float chargeRemainder); // Stores remainders and applies if <= -1
 
@@ -176,14 +177,14 @@ namespace MWWorld
         void setFaction(const ESM::RefId& faction);
 
         // PC faction rank required to use the item. Sometimes is -1, which means "any rank".
-        void setFactionRank(int factionRank);
-        int getFactionRank() const
+        void setFactionRank(std::int32_t factionRank);
+        std::int32_t getFactionRank() const
         {
             struct Visitor
             {
-                int operator()(const ESM::CellRef& ref) { return ref.mFactionRank; }
-                int operator()(const ESM4::Reference& ref) { return ref.mFactionRank; }
-                int operator()(const ESM4::ActorCharacter&) { throw std::logic_error("Not applicable"); }
+                std::int32_t operator()(const ESM::CellRef& ref) { return ref.mFactionRank; }
+                std::int32_t operator()(const ESM4::Reference& ref) { return ref.mFactionRank; }
+                std::int32_t operator()(const ESM4::ActorCharacter&) { throw std::logic_error("Not applicable"); }
             };
             return std::visit(Visitor(), mCellRef.mVariant);
         }
@@ -191,18 +192,18 @@ namespace MWWorld
         // Lock level for doors and containers
         // Positive for a locked door. 0 for a door that was never locked.
         // For an unlocked door, it is set to -(previous locklevel)
-        int getLockLevel() const
+        std::int32_t getLockLevel() const
         {
             struct Visitor
             {
-                int operator()(const ESM::CellRef& ref) { return ref.mLockLevel; }
-                int operator()(const ESM4::Reference& ref) { return ref.mLockLevel; }
-                int operator()(const ESM4::ActorCharacter&) { throw std::logic_error("Not applicable"); }
+                std::int32_t operator()(const ESM::CellRef& ref) { return ref.mLockLevel; }
+                std::int32_t operator()(const ESM4::Reference& ref) { return ref.mLockLevel; }
+                std::int32_t operator()(const ESM4::ActorCharacter&) { throw std::logic_error("Not applicable"); }
             };
             return std::visit(Visitor(), mCellRef.mVariant);
         }
-        void setLockLevel(int lockLevel);
-        void lock(int lockLevel);
+        void setLockLevel(std::int32_t lockLevel);
+        void lock(std::int32_t lockLevel);
         void unlock();
         bool isLocked() const;
         void setLocked(bool locked);
@@ -230,32 +231,32 @@ namespace MWWorld
         }
         void setTrap(const ESM::RefId& trap);
 
-        int getCount(bool absolute = true) const
+        std::int32_t getCount(bool absolute = true) const
         {
             struct Visitor
             {
-                int operator()(const ESM::CellRef& ref) { return ref.mCount; }
-                int operator()(const ESM4::Reference& ref) { return ref.mCount; }
-                int operator()(const ESM4::ActorCharacter& ref) { return ref.mCount; }
+                std::int32_t operator()(const ESM::CellRef& ref) { return ref.mCount; }
+                std::int32_t operator()(const ESM4::Reference& ref) { return ref.mCount; }
+                std::int32_t operator()(const ESM4::ActorCharacter& ref) { return ref.mCount; }
             };
-            int count = std::visit(Visitor(), mCellRef.mVariant);
+            std::int32_t count = std::visit(Visitor(), mCellRef.mVariant);
             if (absolute)
                 return std::abs(count);
             return count;
         }
 
-        unsigned getAbsCount() const
+        std::uint32_t getAbsCount() const
         {
             struct Visitor
             {
-                int operator()(const ESM::CellRef& ref) { return ref.mCount; }
-                int operator()(const ESM4::Reference& ref) { return ref.mCount; }
-                int operator()(const ESM4::ActorCharacter& ref) { return ref.mCount; }
+                std::int32_t operator()(const ESM::CellRef& ref) { return ref.mCount; }
+                std::int32_t operator()(const ESM4::Reference& ref) { return ref.mCount; }
+                std::int32_t operator()(const ESM4::ActorCharacter& ref) { return ref.mCount; }
             };
-            return static_cast<unsigned>(std::abs(std::visit(Visitor(), mCellRef.mVariant)));
+            return static_cast<std::uint32_t>(std::abs(std::visit(Visitor(), mCellRef.mVariant)));
         }
 
-        void setCount(int value);
+        void setCount(std::int32_t value);
 
         // Write the content of this CellRef into the given ObjectState
         void writeState(ESM::ObjectState& state) const;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_ImageBox.h>
 
 namespace Gui
@@ -34,8 +36,8 @@ namespace Gui
         void setPropertyOverride(std::string_view key, std::string_view value) override;
         void onMouseLostFocus(MyGUI::Widget* newWidget) override;
         void onMouseSetFocus(MyGUI::Widget* oldWidget) override;
-        void onMouseButtonPressed(int left, int top, MyGUI::MouseButton id) override;
-        void onMouseButtonReleased(int left, int top, MyGUI::MouseButton id) override;
+        void onMouseButtonPressed(std::int32_t left, std::int32_t top, MyGUI::MouseButton id) override;
+        void onMouseButtonReleased(std::int32_t left, std::int32_t top, MyGUI::MouseButton id) override;
         void onKeySetFocus(MyGUI::Widget* newWidget) override;
         void onKeyLostFocus(MyGUI::Widget* oldWidget) override;
 

@@ -1,5 +1,6 @@
 #include "configurationmanager.hpp"
 
+#include <cstdint>
 #include <fstream>
 #include <map>
 #include <ranges>
@@ -440,8 +441,8 @@ namespace Files
         return mScreenshotPath;
     }
 
-    void parseArgs(
-        int argc, const char* const argv[], bpo::variables_map& variables, const bpo::options_description& description)
+    void parseArgs(std::int32_t argc, const char* const argv[], bpo::variables_map& variables,
+        const bpo::options_description& description)
     {
         bpo::store(bpo::command_line_parser(argc, argv).options(description).allow_unregistered().run(), variables);
     }

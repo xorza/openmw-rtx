@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 
@@ -49,17 +51,17 @@ namespace SceneUtil
             void apply(osg::Node& node) override
             {
                 if (osg::StateSet* stateset = node.getStateSet())
-                    mLowestUnusedTexUnit
-                        = std::max(mLowestUnusedTexUnit, static_cast<int>(stateset->getTextureAttributeList().size()));
+                    mLowestUnusedTexUnit = std::max(
+                        mLowestUnusedTexUnit, static_cast<std::int32_t>(stateset->getTextureAttributeList().size()));
 
                 traverse(node);
             }
 
-            int mLowestUnusedTexUnit = 0;
+            std::int32_t mLowestUnusedTexUnit = 0;
         };
     }
 
-    GlowUpdater::GlowUpdater(int texUnit, const osg::Vec4f& color,
+    GlowUpdater::GlowUpdater(std::int32_t texUnit, const osg::Vec4f& color,
         const std::vector<osg::ref_ptr<osg::Texture2D>>& textures, osg::Node* node, float duration,
         Resource::ResourceSystem* resourcesystem)
         : mTexUnit(texUnit)
@@ -88,7 +90,7 @@ namespace SceneUtil
 
     void GlowUpdater::removeTexture(osg::StateSet* stateset)
     {
-        stateset->removeTextureAttribute(static_cast<unsigned int>(mTexUnit), osg::StateAttribute::TEXTURE);
+        stateset->removeTextureAttribute(static_cast<std::uint32_t>(mTexUnit), osg::StateAttribute::TEXTURE);
         stateset->removeUniform("envMapColor");
 
         osg::StateSet::TextureAttributeList& list = stateset->getTextureAttributeList();
@@ -112,8 +114,9 @@ namespace SceneUtil
             mStartingTime = nv->getFrameStamp()->getSimulationTime();
 
         double time = nv->getFrameStamp()->getSimulationTime();
-        int index = static_cast<int>(static_cast<std::size_t>(static_cast<int>(time * 16)) % mTextures.size());
-        stateset->setTextureAttribute(static_cast<unsigned int>(mTexUnit), mTextures[static_cast<std::size_t>(index)],
+        auto index = static_cast<std::int32_t>(
+            static_cast<std::size_t>(static_cast<std::int32_t>(time * 16)) % mTextures.size());
+        stateset->setTextureAttribute(static_cast<std::uint32_t>(mTexUnit), mTextures[static_cast<std::size_t>(index)],
             osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
         if ((mDuration >= 0)
@@ -161,20 +164,20 @@ namespace SceneUtil
         mDuration = duration;
     }
 
-    osg::Vec4f colourFromRGB(unsigned int clr)
+    osg::Vec4f colourFromRGB(std::uint32_t clr)
     {
         osg::Vec4f colour(static_cast<float>(((clr >> 0) & 0xFF)) / 255.0f,
             static_cast<float>(((clr >> 8) & 0xFF)) / 255.0f, static_cast<float>(((clr >> 16) & 0xFF)) / 255.0f, 1.f);
         return colour;
     }
 
-    osg::Vec4f colourFromRGBA(unsigned int value)
+    osg::Vec4f colourFromRGBA(std::uint32_t value)
     {
         return osg::Vec4f(makeOsgColorComponent(value, 0), makeOsgColorComponent(value, 8),
             makeOsgColorComponent(value, 16), makeOsgColorComponent(value, 24));
     }
 
-    float makeOsgColorComponent(unsigned int value, unsigned int shift)
+    float makeOsgColorComponent(std::uint32_t value, std::uint32_t shift)
     {
         return static_cast<float>((value >> shift) & 0xFFu) / 255.0f;
     }
@@ -213,7 +216,7 @@ namespace SceneUtil
 
         FindLowestUnusedTexUnitVisitor findLowestUnusedTexUnitVisitor;
         node->accept(findLowestUnusedTexUnitVisitor);
-        int texUnit = findLowestUnusedTexUnitVisitor.mLowestUnusedTexUnit;
+        std::int32_t texUnit = findLowestUnusedTexUnitVisitor.mLowestUnusedTexUnit;
 
         osg::ref_ptr<GlowUpdater> glowUpdater
             = new GlowUpdater(texUnit, glowColor, textures, node, glowDuration, resourceSystem);
@@ -229,9 +232,9 @@ namespace SceneUtil
             node->setStateSet(writableStateSet);
         }
         writableStateSet->setTextureAttribute(
-            static_cast<unsigned int>(texUnit), textures.front(), osg::StateAttribute::ON);
+            static_cast<std::uint32_t>(texUnit), textures.front(), osg::StateAttribute::ON);
         writableStateSet->setTextureAttribute(
-            static_cast<unsigned int>(texUnit), new TextureType("envMap"), osg::StateAttribute::ON);
+            static_cast<std::uint32_t>(texUnit), new TextureType("envMap"), osg::StateAttribute::ON);
         writableStateSet->addUniform(new osg::Uniform("envMapColor", glowColor));
         resourceSystem->getSceneManager()->recreateShaders(node);
 
@@ -239,11 +242,11 @@ namespace SceneUtil
     }
 
     void attachAlphaToCoverageFriendlyFramebufferToCamera(osg::Camera* camera, osg::Camera::BufferComponent buffer,
-        osg::Texture* texture, unsigned int level, unsigned int face, bool mipMapGeneration,
+        osg::Texture* texture, std::uint32_t level, std::uint32_t face, bool mipMapGeneration,
         bool addMSAAIntermediateTarget)
     {
-        unsigned int samples = 0;
-        unsigned int colourSamples = 0;
+        std::uint32_t samples = 0;
+        std::uint32_t colourSamples = 0;
         if (addMSAAIntermediateTarget)
         {
             // Alpha-to-coverage requires a multisampled framebuffer.
@@ -397,7 +400,7 @@ namespace SceneUtil
         return osg::Image::computePixelFormat(format);
     }
 
-    const std::string& getTextureType(const osg::StateSet& stateset, const osg::Texture& texture, unsigned int texUnit)
+    const std::string& getTextureType(const osg::StateSet& stateset, const osg::Texture& texture, std::uint32_t texUnit)
     {
         const osg::StateAttribute* type = stateset.getTextureAttribute(texUnit, SceneUtil::TextureType::AttributeType);
         if (type)

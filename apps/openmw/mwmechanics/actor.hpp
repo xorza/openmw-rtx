@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -40,8 +41,8 @@ namespace MWMechanics
         CharacterController& getCharacterController() { return mCharacterController; }
         const CharacterController& getCharacterController() const { return mCharacterController; }
 
-        int getGreetingTimer() const { return mGreetingTimer; }
-        void setGreetingTimer(int timer) { mGreetingTimer = timer; }
+        std::int32_t getGreetingTimer() const { return mGreetingTimer; }
+        void setGreetingTimer(std::int32_t timer) { mGreetingTimer = timer; }
 
         float getAngleToPlayer() const { return mTargetAngleRadians; }
         void setAngleToPlayer(float angle) { mTargetAngleRadians = angle; }
@@ -69,7 +70,7 @@ namespace MWMechanics
 
     private:
         CharacterController mCharacterController;
-        int mGreetingTimer{ 0 };
+        std::int32_t mGreetingTimer{ 0 };
         float mTargetAngleRadians{ 0.f };
         GreetingState mGreetingState{ GreetingState::None };
         Misc::DeviatingPeriodicTimer mEngageCombat{ 1.0f, 0.25f,

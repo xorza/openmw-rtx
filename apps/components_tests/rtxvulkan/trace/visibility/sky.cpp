@@ -739,8 +739,9 @@ namespace Rtx::Testing
             // The channel's byte at the centre, and the picture's red byte there.
             struct Read
             {
+                // NOLINTNEXTLINE(google-runtime-int): std::lround's type
                 long mChannel;
-                int mShown;
+                std::int32_t mShown;
             };
             const auto read
                 = [&](const SceneDesc& scene, const Shaders::VisibilityConstants& camera, const Shot& shot) {
@@ -755,6 +756,7 @@ namespace Rtx::Testing
                       return Read{ std::lround(lifted[centre] * 255.0f), pixels[centre] };
                   };
 
+            // NOLINTNEXTLINE(google-runtime-int): std::lround's type
             const long floorByte = std::lround(Shaders::encodeSrgb(0.25f) * 255.0f);
             ASSERT_EQ(floorByte, 137);
 
@@ -829,21 +831,21 @@ namespace Rtx::Testing
                     = underTheEdge(osg::Vec3f(0.0f, -distance, 0.0f), size, edged ? reach : 0.0f);
 
                 const Frame frame = shoot(makeWall(400.0f), {}, camera, size);
-                return int{ frame.byte(centre) };
+                return std::int32_t{ frame.byte(centre) };
             };
 
-            EXPECT_NEAR(look(0.5f * reach, true), int{ encodeSrgb(0.32848f) }, 1) << "half of the world";
-            EXPECT_NEAR(look(0.75f * reach, true), int{ encodeSrgb(0.45813f) }, 1) << "three quarters of it";
-            EXPECT_NEAR(look(reach, true), int{ encodeSrgb(0.59883f) }, 1) << "and the last cell of it";
+            EXPECT_NEAR(look(0.5f * reach, true), std::int32_t{ encodeSrgb(0.32848f) }, 1) << "half of the world";
+            EXPECT_NEAR(look(0.75f * reach, true), std::int32_t{ encodeSrgb(0.45813f) }, 1) << "three quarters of it";
+            EXPECT_NEAR(look(reach, true), std::int32_t{ encodeSrgb(0.59883f) }, 1) << "and the last cell of it";
 
             // **Which is the sky's own colour to the byte**, and that is what hides a cut edge: the
             // wall is not merely dim at the reach, it is the thing behind it.
-            EXPECT_EQ(look(reach, true), int{ encodeSrgb(sFoggySky) }) << "the last cell, still showing";
+            EXPECT_EQ(look(reach, true), std::int32_t{ encodeSrgb(sFoggySky) }) << "the last cell, still showing";
 
             // And with no edge declared the same wall is untouched at every one of those ranges. A
             // room has no ring of cut ground and pays nothing for one.
             for (const float distance : { 0.5f * reach, 0.75f * reach, reach })
-                EXPECT_EQ(look(distance, false), int{ encodeSrgb(0.3f) }) << "with no edge at " << distance;
+                EXPECT_EQ(look(distance, false), std::int32_t{ encodeSrgb(0.3f) }) << "with no edge at " << distance;
         }
 
         /// A ray that climbs leaves the world's edge behind, and one that descends never does. What is missing
@@ -871,14 +873,14 @@ namespace Rtx::Testing
                 const Shaders::VisibilityConstants camera = underTheEdge(eye, size, reach);
 
                 const Frame frame = shoot(makeWall(400.0f), {}, camera, size);
-                return int{ frame.byte(centre) };
+                return std::int32_t{ frame.byte(centre) };
             };
 
-            EXPECT_EQ(look(osg::Vec3f(0.0f, -reach, -climb)), int{ encodeSrgb(0.3f) })
+            EXPECT_EQ(look(osg::Vec3f(0.0f, -reach, -climb)), std::int32_t{ encodeSrgb(0.3f) })
                 << "a wall the eye had to look up at, hidden anyway";
-            EXPECT_EQ(look(osg::Vec3f(0.0f, -reach, climb)), int{ encodeSrgb(sFoggySky) })
+            EXPECT_EQ(look(osg::Vec3f(0.0f, -reach, climb)), std::int32_t{ encodeSrgb(sFoggySky) })
                 << "and the same wall from above it, showing through the cut";
-            EXPECT_EQ(look(osg::Vec3f(0.0f, -slant, 0.0f)), int{ encodeSrgb(sFoggySky) })
+            EXPECT_EQ(look(osg::Vec3f(0.0f, -slant, 0.0f)), std::int32_t{ encodeSrgb(sFoggySky) })
                 << "and the same wall along the ground, still showing";
         }
 

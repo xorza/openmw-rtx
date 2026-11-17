@@ -268,7 +268,7 @@ namespace Rtx
         const osg::Vec3f anchor = anchorOf(ref.mRefId);
         const osg::Matrixf transform = transformOf(ref);
         const Result<std::optional<Light>, std::string_view> made
-            = makeLight(*record, anchor * transform, 0.0, static_cast<int>(ref.mRefNum.mIndex));
+            = makeLight(*record, anchor * transform, 0.0, static_cast<std::int32_t>(ref.mRefNum.mIndex));
         if (!made.isOk())
         {
             prepared.mRefusals.push_back(Refusal{

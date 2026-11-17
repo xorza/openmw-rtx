@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <stack>
@@ -18,10 +19,10 @@ namespace Interpreter
         std::stack<Runtime> mCallstack;
         bool mRunning = false;
         Runtime mRuntime;
-        std::map<int, std::unique_ptr<Opcode1>> mSegment0;
-        std::map<int, std::unique_ptr<Opcode1>> mSegment2;
-        std::map<int, std::unique_ptr<Opcode1>> mSegment3;
-        std::map<int, std::unique_ptr<Opcode0>> mSegment5;
+        std::map<std::int32_t, std::unique_ptr<Opcode1>> mSegment0;
+        std::map<std::int32_t, std::unique_ptr<Opcode1>> mSegment2;
+        std::map<std::int32_t, std::unique_ptr<Opcode1>> mSegment3;
+        std::map<std::int32_t, std::unique_ptr<Opcode0>> mSegment5;
 
         void execute(Type_Code code);
 
@@ -29,10 +30,10 @@ namespace Interpreter
 
         void end();
 
-        [[noreturn]] void abortDuplicateInstruction(std::string_view name, int code);
+        [[noreturn]] void abortDuplicateInstruction(std::string_view name, std::int32_t code);
 
         template <typename T, typename... Args>
-        void installSegment(auto& segment, std::string_view name, int code, Args&&... args)
+        void installSegment(auto& segment, std::string_view name, std::int32_t code, Args&&... args)
         {
             if (segment.find(code) != segment.end())
                 abortDuplicateInstruction(name, code);
@@ -47,25 +48,25 @@ namespace Interpreter
         ~Interpreter() = default;
 
         template <typename T, typename... TArgs>
-        void installSegment0(int code, TArgs&&... args)
+        void installSegment0(std::int32_t code, TArgs&&... args)
         {
             installSegment<T>(mSegment0, "0", code, std::forward<TArgs>(args)...);
         }
 
         template <typename T, typename... TArgs>
-        void installSegment2(int code, TArgs&&... args)
+        void installSegment2(std::int32_t code, TArgs&&... args)
         {
             installSegment<T>(mSegment2, "2", code, std::forward<TArgs>(args)...);
         }
 
         template <typename T, typename... TArgs>
-        void installSegment3(int code, TArgs&&... args)
+        void installSegment3(std::int32_t code, TArgs&&... args)
         {
             installSegment<T>(mSegment3, "3", code, std::forward<TArgs>(args)...);
         }
 
         template <typename T, typename... TArgs>
-        void installSegment5(int code, TArgs&&... args)
+        void installSegment5(std::int32_t code, TArgs&&... args)
         {
             installSegment<T>(mSegment5, "5", code, std::forward<TArgs>(args)...);
         }

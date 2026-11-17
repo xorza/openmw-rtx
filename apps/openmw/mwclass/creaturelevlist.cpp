@@ -1,5 +1,7 @@
 #include "creaturelevlist.hpp"
 
+#include <cstdint>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/creaturestats.hpp>
@@ -158,7 +160,7 @@ namespace MWClass
         customData.mSpawn = levListState.mSpawn;
         if (state.mActorIdConverter)
             state.mActorIdConverter->convert(
-                customData.mSpawnedActor, static_cast<int>(customData.mSpawnedActor.mIndex));
+                customData.mSpawnedActor, static_cast<std::int32_t>(customData.mSpawnedActor.mIndex));
     }
 
     void CreatureLevList::writeAdditionalState(const MWWorld::ConstPtr& ptr, ESM::ObjectState& state) const

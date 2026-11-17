@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -11,7 +13,7 @@ namespace Serialization
     YAML::Node encodeOSGVec(const OSGVec& rhs)
     {
         YAML::Node node;
-        for (int i = 0; i < OSGVec::num_components; ++i)
+        for (std::int32_t i = 0; i < OSGVec::num_components; ++i)
             node.push_back(rhs.ptr()[i]);
 
         return node;
@@ -23,7 +25,7 @@ namespace Serialization
         if (!node.IsSequence() || node.size() != OSGVec::num_components)
             return false;
 
-        for (int i = 0; i < OSGVec::num_components; ++i)
+        for (std::int32_t i = 0; i < OSGVec::num_components; ++i)
             rhs.ptr()[i] = node[i].as<typename OSGVec::value_type>();
 
         return true;

@@ -13,10 +13,11 @@
 #include <utility>
 #include <vector>
 
+#include <components/misc/windows.hpp>
+
+// After the tree's Windows header, whose declarations the SDK's headers below assume.
 #include <psapi.h>
 #include <shellapi.h>
-
-#include <components/misc/windows.hpp>
 
 namespace Platform::Process
 {
@@ -73,14 +74,14 @@ namespace Platform::Process
         }
     }
 
-    std::vector<std::string> commandLine(int, char**)
+    std::vector<std::string> commandLine(std::int32_t, char**)
     {
         std::vector<std::string> arguments;
-        int count = 0;
+        std::int32_t count = 0;
         wchar_t** const wide = CommandLineToArgvW(GetCommandLineW(), &count);
-        for (int i = 0; i < count; ++i)
+        for (std::int32_t i = 0; i < count; ++i)
         {
-            const int size = WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
+            const std::int32_t size = WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
             std::string one(static_cast<std::size_t>(std::max(size, 1)) - 1, '\0');
             WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, one.data(), size, nullptr, nullptr);
             arguments.push_back(std::move(one));
@@ -151,9 +152,10 @@ namespace Platform::Process
         // **Wide**, because the line is UTF-8 and `std::system` reads the process's ANSI code page:
         // a path through `C:\Users\Jörg` reached `cmd` as another path.
         const std::string quoted = '"' + line + '"';
-        const int length = MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<int>(quoted.size()), nullptr, 0);
+        const std::int32_t length
+            = MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<std::int32_t>(quoted.size()), nullptr, 0);
         std::wstring wide(static_cast<std::size_t>(length), L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<int>(quoted.size()), wide.data(), length);
+        MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<std::int32_t>(quoted.size()), wide.data(), length);
         return CommandEnd{ .mExitCode = static_cast<std::uint32_t>(_wsystem(wide.c_str())) };
     }
 

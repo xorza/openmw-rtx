@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_ListBox.h>
 
 #include "fontusers.hpp"
@@ -31,9 +33,9 @@ namespace Gui
 
         /// Stands every line at `height`, at least a pixel, keeping the scroll's position in
         /// pixels where the new range holds it, as MyGUI's own does.
-        void setItemHeight(int height);
+        void setItemHeight(std::int32_t height);
 
-        int getItemHeight() const;
+        std::int32_t getItemHeight() const;
 
     protected:
         void initialiseOverride() override;

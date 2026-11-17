@@ -18,4 +18,3 @@
 - `MWWorld::Scene::preloadTeleportDoorDestinations` loads a destination's references (`findCell`) before `CellPreloader::preload` asks the budget, so a preload skipped has still loaded the cell.
 - `CellPlacer::mMoved` grows by every reference the game moves and is emptied only by `forgetReferences`; every adoption searches the new cell for each entry.
 - Comments that no longer hold since `84a60139e8` and `7b2cdeabe9`: `memory.hpp` on `ContentTypes` ("a structure and a texture stand in two pools") and on `memoryPriorityOf` ("the two share the content pools' blocks"), `sceneholder.hpp` on `ArrivalRoom::mFree`, `sceneuploader.hpp` on `mPending` (`TextureTable::prepare`).
-- The Lua `FileHandle:seek` offset is a `sol::optional<long>` (`apps/openmw/mwlua/vfsbindings.cpp`), 32 bits on Windows: an offset past 2 GiB does not reach the file there.

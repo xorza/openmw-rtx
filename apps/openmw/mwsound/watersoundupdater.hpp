@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <components/esm/refid.hpp>
@@ -18,8 +19,8 @@ namespace MWSound
 {
     struct WaterSoundUpdaterSettings
     {
-        int mNearWaterRadius{};
-        int mNearWaterPoints{};
+        std::int32_t mNearWaterRadius{};
+        std::int32_t mNearWaterPoints{};
         float mNearWaterIndoorTolerance{};
         float mNearWaterOutdoorTolerance{};
         ESM::RefId mNearWaterIndoorID;

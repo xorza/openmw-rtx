@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -22,12 +23,12 @@ namespace ESM
         ESM::RefId mFailureSound;
         ESM::RefId mHitSound;
         std::string mName;
-        int32_t mAutoCalcMax{};
+        std::int32_t mAutoCalcMax{};
 
-        static constexpr int Length = 6;
+        static constexpr std::int32_t Length = 6;
 
-        static RefId indexToSkillRefId(int index);
-        static int skillRefIdToIndex(RefId id);
+        static RefId indexToSkillRefId(std::int32_t index);
+        static std::int32_t skillRefIdToIndex(RefId id);
     };
 
     /*
@@ -42,7 +43,7 @@ namespace ESM
         /// Return a string descriptor for this record type. Currently used for debugging / error logs only.
         static std::string_view getRecordType() { return "Skill"; }
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         //! Enum that defines the index into SKDTstruct::mUseValue for all vanilla skill uses
@@ -79,7 +80,7 @@ namespace ESM
         struct SKDTstruct
         {
             ESM::RefId mAttribute; // see defs.hpp
-            int32_t mSpecialization{}; // 0 - Combat, 1 - Magic, 2 - Stealth
+            std::int32_t mSpecialization{}; // 0 - Combat, 1 - Magic, 2 - Stealth
             std::array<float, 4> mUseValue{}; // How much skill improves through use. Meaning
                                               // of each field depends on what skill this
                                               // is. See UseType above
@@ -119,7 +120,7 @@ namespace ESM
         static const RefId Mercantile;
         static const RefId Speechcraft;
         static const RefId HandToHand;
-        static constexpr int Length = 27;
+        static constexpr std::int32_t Length = 27;
 
         void load(ESMReader& esm, bool& isDeleted);
         void save(ESMWriter& esm, bool isDeleted = false) const;
@@ -127,7 +128,7 @@ namespace ESM
         void blank();
         ///< Set record to default state (does not touch the ID/index).
 
-        static RefId indexToRefId(int index);
-        static int refIdToIndex(RefId id);
+        static RefId indexToRefId(std::int32_t index);
+        static std::int32_t refIdToIndex(RefId id);
     };
 }

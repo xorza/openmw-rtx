@@ -1,5 +1,6 @@
 #include "bodypartcheck.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -21,14 +22,14 @@ CSMTools::BodyPartCheckStage::BodyPartCheckStage(const CSMWorld::IdCollection<ES
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::BodyPartCheckStage::setup()
+std::int32_t CSMTools::BodyPartCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mBodyParts.getSize();
 }
 
-void CSMTools::BodyPartCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::BodyPartCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::BodyPart>& record = mBodyParts.getRecord(stage);
 
