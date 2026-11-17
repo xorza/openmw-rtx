@@ -51,6 +51,7 @@ namespace Crash::Monitor
         : mId(id)
     {
         // Through `syscall`, since the C library does not wrap a pidfd everywhere.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
         mHold = Platform::UniqueHold<Closing>(syscall(sPidfdOpen, static_cast<pid_t>(id), 0));
     }
 
@@ -65,6 +66,7 @@ namespace Crash::Monitor
         // to whatever process has the id now.
         if (mHold.get() < 0)
             return Ending::Failed;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
         if (syscall(SYS_pidfd_send_signal, static_cast<std::int32_t>(mHold.get()), SIGKILL, nullptr, 0) == 0)
             return Ending::Ended;
         return errno == ESRCH ? Ending::Gone : Ending::Failed;

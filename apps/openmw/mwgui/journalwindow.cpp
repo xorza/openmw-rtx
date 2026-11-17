@@ -30,26 +30,26 @@
 
 namespace
 {
-    static constexpr std::string_view OptionsOverlay = "OptionsOverlay";
-    static constexpr std::string_view OptionsBTN = "OptionsBTN";
-    static constexpr std::string_view PrevPageBTN = "PrevPageBTN";
-    static constexpr std::string_view NextPageBTN = "NextPageBTN";
-    static constexpr std::string_view CloseBTN = "CloseBTN";
-    static constexpr std::string_view JournalBTN = "JournalBTN";
-    static constexpr std::string_view TopicsBTN = "TopicsBTN";
-    static constexpr std::string_view QuestsBTN = "QuestsBTN";
-    static constexpr std::string_view CancelBTN = "CancelBTN";
-    static constexpr std::string_view ShowAllBTN = "ShowAllBTN";
-    static constexpr std::string_view ShowActiveBTN = "ShowActiveBTN";
-    static constexpr std::string_view PageOneNum = "PageOneNum";
-    static constexpr std::string_view PageTwoNum = "PageTwoNum";
-    static constexpr std::string_view TopicsList = "TopicsList";
-    static constexpr std::string_view QuestsList = "QuestsList";
-    static constexpr std::string_view LeftBookPage = "LeftBookPage";
-    static constexpr std::string_view RightBookPage = "RightBookPage";
-    static constexpr std::string_view LeftTopicIndex = "LeftTopicIndex";
-    static constexpr std::string_view CenterTopicIndex = "CenterTopicIndex";
-    static constexpr std::string_view RightTopicIndex = "RightTopicIndex";
+    constexpr std::string_view OptionsOverlay = "OptionsOverlay";
+    constexpr std::string_view OptionsBTN = "OptionsBTN";
+    constexpr std::string_view PrevPageBTN = "PrevPageBTN";
+    constexpr std::string_view NextPageBTN = "NextPageBTN";
+    constexpr std::string_view CloseBTN = "CloseBTN";
+    constexpr std::string_view JournalBTN = "JournalBTN";
+    constexpr std::string_view TopicsBTN = "TopicsBTN";
+    constexpr std::string_view QuestsBTN = "QuestsBTN";
+    constexpr std::string_view CancelBTN = "CancelBTN";
+    constexpr std::string_view ShowAllBTN = "ShowAllBTN";
+    constexpr std::string_view ShowActiveBTN = "ShowActiveBTN";
+    constexpr std::string_view PageOneNum = "PageOneNum";
+    constexpr std::string_view PageTwoNum = "PageTwoNum";
+    constexpr std::string_view TopicsList = "TopicsList";
+    constexpr std::string_view QuestsList = "QuestsList";
+    constexpr std::string_view LeftBookPage = "LeftBookPage";
+    constexpr std::string_view RightBookPage = "RightBookPage";
+    constexpr std::string_view LeftTopicIndex = "LeftTopicIndex";
+    constexpr std::string_view CenterTopicIndex = "CenterTopicIndex";
+    constexpr std::string_view RightTopicIndex = "RightTopicIndex";
 
     struct JournalWindowImpl : MWGui::JournalBooks, MWGui::JournalWindow
     {

@@ -42,8 +42,8 @@ namespace Bsa
         Unknown = 0x0,
         Uncompressed = 0x100,
         Compressed = 0x415342, // B, S, A,
-        BA2GNRL, // used by FO4, BSA which contains files
-        BA2DX10 // used by FO4, BSA which contains textures
+        BA2GNRL = 4281155, // used by FO4, BSA which contains files
+        BA2DX10 = 4281156 // used by FO4, BSA which contains textures
     };
 
     /**

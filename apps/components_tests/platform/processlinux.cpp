@@ -137,6 +137,7 @@ namespace
                             && Platform::LinuxText::parseCpuList(std::string_view(line).substr(key.size() + 1))
                                 != performance)
                         {
+                            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): stdio, in a child
                             static_cast<void>(std::fprintf(stderr, "%s\n", line.c_str()));
                             failure = 2;
                         }

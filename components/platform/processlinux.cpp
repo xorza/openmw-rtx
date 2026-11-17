@@ -87,6 +87,7 @@ namespace Platform::Process
 
     std::uint64_t currentThreadId()
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
         return static_cast<std::uint64_t>(syscall(SYS_gettid));
     }
 

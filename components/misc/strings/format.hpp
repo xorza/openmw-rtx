@@ -53,11 +53,13 @@ namespace Misc::StringUtils
         template <typename... Args>
         std::string format(const char* fmt, Args const&... args)
         {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): the content's own printf-style strings
             const std::int32_t size = std::snprintf(nullptr, 0, fmt, argument(args)...);
             if (size < 0)
                 throw std::system_error(errno, std::generic_category(), "Failed to compute resulting string size");
             // Note: snprintf also writes a trailing null character. We should remove it.
             std::string ret(static_cast<std::size_t>(size) + 1, '\0');
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): the content's own printf-style strings
             if (std::snprintf(ret.data(), ret.size(), fmt, argument(args)...) < 0)
                 throw std::system_error(errno, std::generic_category(), "Failed to format string");
             ret.erase(static_cast<std::size_t>(size));

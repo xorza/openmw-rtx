@@ -15,7 +15,7 @@ namespace Terrain
         NE = 1,
         SW = 2,
         SE = 3,
-        Root
+        Root = 4
     };
 
     class QuadTreeNode;

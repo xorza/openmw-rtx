@@ -52,8 +52,9 @@ namespace Rtx
         PerSlot() = default;
 
         /// One per slot, each `make(slot)`, every one live: for a `T` that has no empty state.
-        template <class Make, class = std::enable_if_t<std::is_invocable_v<Make&, FrameSlot>>>
+        template <class Make>
         explicit PerSlot(Make&& make)
+            requires(std::is_invocable_v<Make&, FrameSlot>)
             : PerSlot(make, std::make_index_sequence<sFrameSlots>{})
         {
         }

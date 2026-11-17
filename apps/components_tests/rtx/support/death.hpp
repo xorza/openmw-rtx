@@ -61,6 +61,7 @@ namespace Rtx::Testing
                     char reason[Crash::sNoteCapacity];
                     const std::string_view said = Crash::terminateReason(reason);
                     static_cast<void>(
+                        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): stdio in a terminate handler
                         std::fprintf(stderr, "%.*s\n", static_cast<std::int32_t>(said.size()), said.data()));
                     std::abort();
                 });

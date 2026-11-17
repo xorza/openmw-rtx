@@ -63,7 +63,7 @@ namespace MWLua
 
     namespace
     {
-        const static std::unordered_map<ESM::RecNameInts, std::string_view> luaObjectTypeInfo = {
+        const std::unordered_map<ESM::RecNameInts, std::string_view> luaObjectTypeInfo = {
             { ESM::REC_INTERNAL_PLAYER, ObjectTypeName::Player },
             { ESM::REC_INTERNAL_MARKER, ObjectTypeName::Marker },
             { ESM::REC_ACTI, ObjectTypeName::Activator },

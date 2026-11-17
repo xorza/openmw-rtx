@@ -166,7 +166,7 @@ namespace MWRender
 
             const std::unique_ptr<Terrain::View> view = ground.createView();
             ASSERT_NE(view, nullptr);
-            view->reset();
+            (*view).reset();
 
             ASSERT_EQ(making.mWorldRoot->getNumChildren(), 1u);
             osg::Group& borders = *making.mWorldRoot->getChild(0)->asGroup();

@@ -89,14 +89,14 @@ namespace MWLua
 
     namespace
     {
-        static void setCreatureValue(Index, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
+        void setCreatureValue(Index, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
         {
             auto& stats = ptr.getClass().getCreatureStats(ptr);
             if (prop == "current")
                 stats.setLevel(LuaUtil::cast<std::int32_t>(value));
         }
 
-        static void setNpcValue(Index index, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
+        void setNpcValue(Index index, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
         {
             auto& stats = ptr.getClass().getNpcStats(ptr);
             if (prop == "progress")

@@ -166,6 +166,7 @@ namespace Debug
                     char levelLetter = " EWIVD*"[static_cast<std::int32_t>(level)];
                     const auto ms
                         = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+                    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): written in place
                     prefixSize += static_cast<std::size_t>(snprintf(prefix + prefixSize, sizeof(prefix) - prefixSize,
                         ".%03u %c] ", static_cast<std::uint32_t>(ms % 1000), levelLetter));
                 }
@@ -388,18 +389,18 @@ namespace Debug
             return Verbose;
         }
 
-        static std::unique_ptr<std::ostream> rawStdout = nullptr;
-        static std::unique_ptr<std::ostream> rawStderr = nullptr;
-        static std::unique_ptr<std::mutex> rawStderrMutex = nullptr;
-        static Platform::AppendFile logfile;
+        std::unique_ptr<std::ostream> rawStdout = nullptr;
+        std::unique_ptr<std::ostream> rawStderr = nullptr;
+        std::unique_ptr<std::mutex> rawStderrMutex = nullptr;
+        Platform::AppendFile logfile;
 
 #if defined(_WIN32) && defined(_DEBUG)
         static boost::iostreams::stream_buffer<DebugOutput> sb;
 #else
-        static boost::iostreams::stream_buffer<Tee<Identity, Coloured>> standardOut;
-        static boost::iostreams::stream_buffer<Tee<Identity, Coloured>> standardErr;
-        static boost::iostreams::stream_buffer<Tee<Buffer, Coloured>> bufferedOut;
-        static boost::iostreams::stream_buffer<Tee<Buffer, Coloured>> bufferedErr;
+        boost::iostreams::stream_buffer<Tee<Identity, Coloured>> standardOut;
+        boost::iostreams::stream_buffer<Tee<Identity, Coloured>> standardErr;
+        boost::iostreams::stream_buffer<Tee<Buffer, Coloured>> bufferedOut;
+        boost::iostreams::stream_buffer<Tee<Buffer, Coloured>> bufferedErr;
 #endif
     }
 

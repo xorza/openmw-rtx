@@ -306,7 +306,7 @@ namespace
 
     // this function allows us to link a CellRefList<T> to the associated recNameInt, and apply a function
     template <typename RecordType, typename Callable>
-    static void recNameSwitcher(MWWorld::CellRefList<RecordType>& store, ESM::RecNameInts recnNameInt, Callable&& f)
+    void recNameSwitcher(MWWorld::CellRefList<RecordType>& store, ESM::RecNameInts recnNameInt, Callable&& f)
     {
         if (RecordType::sRecordId == recnNameInt)
         {

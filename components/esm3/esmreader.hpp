@@ -211,8 +211,9 @@ namespace ESM
             decompose(value, [&](auto&... args) { getHT(args...); });
         }
 
-        template <typename T, typename = std::enable_if_t<IsReadable<T>>>
+        template <typename T>
         void skipHT()
+            requires(IsReadable<T>)
         {
             constexpr std::size_t size = sizeof(T);
             getSubHeader();
@@ -315,14 +316,16 @@ namespace ESM
          *
          *************************************************************************/
 
-        template <typename X, typename = std::enable_if_t<IsReadable<X>>>
+        template <typename X>
         void getT(X& x)
+            requires(IsReadable<X>)
         {
             getExact(&x, sizeof(X));
         }
 
-        template <typename T, typename = std::enable_if_t<IsReadable<T>>>
+        template <typename T>
         void skipT()
+            requires(IsReadable<T>)
         {
             skip(sizeof(T));
         }

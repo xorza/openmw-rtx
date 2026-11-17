@@ -19,7 +19,7 @@
 
 namespace
 {
-    static std::int32_t getDaysPerMonth(std::int32_t month)
+    std::int32_t getDaysPerMonth(std::int32_t month)
     {
         switch (month)
         {

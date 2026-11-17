@@ -554,7 +554,7 @@ namespace LuaUi
 
     void WidgetExtension::keyPress(MyGUI::Widget*, MyGUI::KeyCode code, MyGUI::Char ch)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([code, ch, this](LuaUtil::LuaView& view) {
             if (code == MyGUI::KeyCode::None)
             {
                 propagateEvent("textInput", [&](auto w) {
@@ -570,21 +570,21 @@ namespace LuaUi
 
     void WidgetExtension::keyRelease(MyGUI::Widget*, MyGUI::KeyCode code)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([code, this](LuaUtil::LuaView& view) {
             propagateEvent("keyRelease", [&](auto w) { return w->keyEvent(view, code); });
         });
     }
 
     void WidgetExtension::mouseMove(MyGUI::Widget*, std::int32_t left, std::int32_t top)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, this](LuaUtil::LuaView& view) {
             propagateEvent("mouseMove", [&](auto w) { return w->mouseEvent(view, left, top); });
         });
     }
 
     void WidgetExtension::mouseDrag(MyGUI::Widget*, std::int32_t left, std::int32_t top, MyGUI::MouseButton button)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, button, this](LuaUtil::LuaView& view) {
             propagateEvent("mouseMove", [&](auto w) { return w->mouseEvent(view, left, top, button); });
         });
     }
@@ -601,21 +601,21 @@ namespace LuaUi
 
     void WidgetExtension::mousePress(MyGUI::Widget*, std::int32_t left, std::int32_t top, MyGUI::MouseButton button)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, button, this](LuaUtil::LuaView& view) {
             propagateEvent("mousePress", [&](auto w) { return w->mouseEvent(view, left, top, button); });
         });
     }
 
     void WidgetExtension::mouseRelease(MyGUI::Widget*, std::int32_t left, std::int32_t top, MyGUI::MouseButton button)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, button, this](LuaUtil::LuaView& view) {
             propagateEvent("mouseRelease", [&](auto w) { return w->mouseEvent(view, left, top, button); });
         });
     }
 
     void WidgetExtension::mouseWheel(MyGUI::Widget*, float left, float top, float x, float y)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, x, y, this](LuaUtil::LuaView& view) {
             propagateEvent("mouseWheel", [&](auto w) {
                 sol::table event = view.newTable();
                 event["position"] = osg::Vec2f(left, top);

@@ -144,32 +144,33 @@ Launcher::SettingsPage::SettingsPage(
         openFileActions.push_back(action);
     }
 
-    connect(configsList, &QTreeWidget::customContextMenuRequested, [=, this](const QPoint& pos) {
-        if (configsList->currentItem())
-        {
-            QMenu contextMenu;
-
-            contextMenu.addAction(actionOpenDir);
-
-            bool topLevel = !configsList->currentItem()->parent();
-
-            for (qsizetype i = 0; i < openFileActions.size(); ++i)
+    connect(configsList, &QTreeWidget::customContextMenuRequested,
+        [actionOpenDir, openFileActions, this](const QPoint& pos) {
+            if (configsList->currentItem())
             {
-                if (configsList->currentItem()->data(0, Role_IsMainUserConfigDirectory).toBool()
-                    || configDirectoryFiles[static_cast<std::size_t>(i)].showInAllConfigDirectories)
-                {
-                    QVariant fileUrl = configsList->currentItem()->data(
-                        0, configDirectoryFiles[static_cast<std::size_t>(i)].itemDataRole);
-                    bool fileExists = fileUrl.isValid();
-                    openFileActions[i]->setEnabled(fileExists);
-                    openFileActions[i]->setVisible(topLevel || fileExists);
-                    contextMenu.addAction(openFileActions[i]);
-                }
-            }
+                QMenu contextMenu;
 
-            contextMenu.exec(configsList->mapToGlobal(pos));
-        }
-    });
+                contextMenu.addAction(actionOpenDir);
+
+                bool topLevel = !configsList->currentItem()->parent();
+
+                for (qsizetype i = 0; i < openFileActions.size(); ++i)
+                {
+                    if (configsList->currentItem()->data(0, Role_IsMainUserConfigDirectory).toBool()
+                        || configDirectoryFiles[static_cast<std::size_t>(i)].showInAllConfigDirectories)
+                    {
+                        QVariant fileUrl = configsList->currentItem()->data(
+                            0, configDirectoryFiles[static_cast<std::size_t>(i)].itemDataRole);
+                        bool fileExists = fileUrl.isValid();
+                        openFileActions[i]->setEnabled(fileExists);
+                        openFileActions[i]->setVisible(topLevel || fileExists);
+                        contextMenu.addAction(openFileActions[i]);
+                    }
+                }
+
+                contextMenu.exec(configsList->mapToGlobal(pos));
+            }
+        });
 }
 
 void Launcher::SettingsPage::loadCellsForAutocomplete(const QStringList& cellNames)

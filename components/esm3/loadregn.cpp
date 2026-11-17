@@ -10,7 +10,7 @@
 
 namespace
 {
-    const static std::array<ESM::RefId, 10> sWeatherIds = {
+    const std::array<ESM::RefId, 10> sWeatherIds = {
         ESM::StringRefId("Clear"),
         ESM::StringRefId("Cloudy"),
         ESM::StringRefId("Foggy"),

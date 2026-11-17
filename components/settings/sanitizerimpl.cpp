@@ -80,7 +80,8 @@ namespace Settings
         };
 
         template <class T>
-        auto getPrev(const T& value) -> std::enable_if_t<std::is_floating_point_v<T>, T>
+        auto getPrev(const T& value) -> T
+            requires(std::is_floating_point_v<T>)
         {
             assert(value > -std::numeric_limits<T>::max());
             return std::nextafter(value, -std::numeric_limits<T>::max());

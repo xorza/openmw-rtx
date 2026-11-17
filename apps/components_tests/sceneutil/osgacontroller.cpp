@@ -8,7 +8,7 @@ namespace
 {
     using namespace SceneUtil;
 
-    static const std::string ROOT_BONE_NAME = "bip01";
+    const std::string ROOT_BONE_NAME = "bip01";
 
     // Creates a merged anim track with a single root channel with two start/end matrix transforms
     osg::ref_ptr<Resource::Animation> createMergedAnimationTrack(const std::string& name,

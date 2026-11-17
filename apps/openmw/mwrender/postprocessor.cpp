@@ -90,7 +90,7 @@ namespace
         TEXTURE,
     };
 
-    static osg::FrameBufferAttachment createFrameBufferAttachmentFromTemplate(
+    osg::FrameBufferAttachment createFrameBufferAttachmentFromTemplate(
         Usage usage, std::int32_t width, std::int32_t height, osg::Texture* textureTemplate, std::int32_t samples)
     {
         if (usage == Usage::RENDER_BUFFER && !Stereo::getMultiview())

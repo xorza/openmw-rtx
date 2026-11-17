@@ -48,7 +48,7 @@ constexpr double sDoubleMost = std::numeric_limits<double>::max();
 //////////////////////////////////////////////////////////////////
 // fragment shader
 //
-static const char fragmentShaderSource_withBaseTexture[] =
+const char fragmentShaderSource_withBaseTexture[] =
         "uniform sampler2D baseTexture;                                          \n"
         "uniform int baseTextureUnit;                                            \n"
         "uniform sampler2DShadow shadowTexture0;                                 \n"
@@ -62,7 +62,7 @@ static const char fragmentShaderSource_withBaseTexture[] =
         "  gl_FragColor = color;                                                                                                \n"
         "} \n";
 
-static const char fragmentShaderSource_withBaseTexture_twoShadowMaps[] =
+const char fragmentShaderSource_withBaseTexture_twoShadowMaps[] =
         "uniform sampler2D baseTexture;                                          \n"
         "uniform int baseTextureUnit;                                            \n"
         "uniform sampler2DShadow shadowTexture0;                                 \n"

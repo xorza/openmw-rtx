@@ -218,6 +218,7 @@ namespace Crash
 
         // An orphan goes to the nearest subreaper among its ancestors, and a monitor is one from its
         // start: the double fork that spawns it leaves it no parent.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's prctl
         if (prctl(PR_SET_CHILD_SUBREAPER, 1) != 0)
             return "the system refused a subreaper";
 

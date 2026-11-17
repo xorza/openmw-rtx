@@ -710,6 +710,7 @@ int main(std::int32_t argc, char** argv)
     }
     catch (const std::filesystem::filesystem_error& error)
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): stdio, which a benchmark's error needs nothing more than
         static_cast<void>(std::fprintf(stderr, "OPENMW_RTX_BENCH_TEXTURES: %s\n", error.what()));
         return 1;
     }

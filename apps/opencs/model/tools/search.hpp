@@ -33,7 +33,7 @@ namespace CSMTools
             Type_Id = 2,
             Type_IdRegEx = 3,
             Type_RecordState = 4,
-            Type_None
+            Type_None = 5
         };
 
     private:

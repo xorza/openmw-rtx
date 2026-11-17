@@ -483,40 +483,6 @@ benches are not owed. From item 8 on, a change to what a frame reads owes `./omw
 drm-shim; a hot path owes its allocation test; each item ends with the tours it names. Vanilla's pictures do not move
 in any item.
 
-### 6. The next clang-tidy checks
-
-The pinned clang-tidy is 23. `clang-tidy --list-checks -checks='*'` is read first: checks move between groups across
-releases (the file already names `bugprone-signed-bitwise`), and a name below that 23 lacks or aliases is dropped.
-Each check as the file holds the others: `omw tidy` counts it, its findings are fixed in one commit, and it is enabled
-whole, or refused with its reason. Every check here finds a class of bug or states one of AGENTS.md's or
-`~/.claude/rules/cpp.md`'s rules; one of style alone stays out, as the file's header says.
-
-1. **Expected to find little** — the file's own candidates: `cppcoreguidelines-interfaces-global-init`,
-   `misc-misplaced-const`, `misc-static-initialization-cycle`, `readability-ambiguous-smartptr-reset-call`,
-   `readability-enum-initial-value`, `readability-redundant-preprocessor`,
-   `readability-static-definition-in-anonymous-namespace`; and `concurrency-thread-canceltype-asynchronous`,
-   `hicpp-exception-baseclass` (an exception derives from `std::exception`, E.14).
-2. **Expected to find some**:
-   - the file's own: `cppcoreguidelines-avoid-non-const-global-variables` (no mutable global state),
-     `cppcoreguidelines-misleading-capture-default-by-value` (F.53), `google-default-arguments` (a virtual's default
-     comes from the static type), `misc-override-with-different-visibility`;
-   - `modernize-use-std-format` with `StrFormatLikeFunctions: ::Misc::StringUtils::format`: its 19 calls become
-     `std::format`, `StringUtils::format` and its `snprintf` go, and `-Wformat=2`, which `cmake/Checks.cmake` refused
-     for that function alone, comes on;
-   - `cppcoreguidelines-pro-type-vararg` (C varargs, unchecked), after the above;
-   - `modernize-use-constraints` (27 `std::enable_if`; every template parameter has a concept, T.10);
-   - `readability-convert-member-functions-to-static` (a member only where it needs the representation, C.4);
-   - `google-build-using-namespace` (147 directives; SF.7, though the check takes every scope, not the file's alone).
-3. **Counted, then whole or refused**: `misc-non-private-member-variables-in-classes` with
-   `IgnoreClassesWithAllMemberVariablesBeingPublic` (a class keeps its data private, a struct is data, C.2 and C.8);
-   `misc-no-recursion` (a recursion states its bound); `misc-unused-parameters` (dead code); and
-   `readability-identifier-naming` widened from five kinds to the rest the tree follows — classes, functions,
-   members' `m`, constants' `s`.
-4. **Refused here**: `cppcoreguidelines-avoid-const-or-ref-data-members`, which takes the pinned owner `cpp.md`
-   allows; `cppcoreguidelines-pro-bounds-*`, every byte buffer and Vulkan structure; and, as style alone,
-   `readability-use-concise-preprocessor-directives`, `modernize-type-traits`, `modernize-use-ranges`,
-   `modernize-use-designated-initializers`.
-
 ### 7. Platform branches behind `components/platform`
 
 Each caller of Findings' list asks `components/platform` (or a `…posix.cpp`/`…win32.cpp` pair CMake chooses), and
@@ -677,6 +643,16 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 
 ## Changed
 
+- **6. The next clang-tidy checks**: taken whole, each counted over the tree first, its findings fixed:
+  `concurrency-thread-canceltype-asynchronous`, `cppcoreguidelines-interfaces-global-init`,
+  `cppcoreguidelines-misleading-capture-default-by-value`, `cppcoreguidelines-pro-type-vararg` (each C API's varargs
+  marked with its reason), `misc-static-initialization-cycle`, `modernize-use-constraints`, `modernize-use-std-format`,
+  `readability-ambiguous-smartptr-reset-call`, `readability-enum-initial-value`, `readability-redundant-preprocessor`,
+  `readability-static-definition-in-anonymous-namespace`. `hicpp-exception-baseclass` is clang-tidy 23's
+  `bugprone-std-exception-baseclass`, which `bugprone-*` already holds. Refused in `.clang-tidy` with what each finds:
+  `misc-misplaced-const`, `misc-override-with-different-visibility`, `readability-convert-member-functions-to-static`,
+  `google-build-using-namespace`, `misc-unused-parameters`, `misc-non-private-member-variables-in-classes`.
+
 - **4. Includes**: the standard library's category matches case-sensitively, so Qt's `<QDialog>` stands with the other
   libraries, and `processwin32.cpp` keeps the tree's Windows header in a block ahead of the SDK's.
 - **5. Integers**: a `ull` literal stays, 64 bits on both targets and checked by no lint; `L` only where an API's `long`
@@ -688,3 +664,11 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **6. `Misc::StringUtils::format` as `std::format`, and `-Wformat=2`**: its 13 callers format the content's own GMST
+  strings, whose syntax is printf's and which `std::format` cannot read; the format stays, and so does the reason
+  `-Wformat=2` is off.
+- **6. `cppcoreguidelines-avoid-non-const-global-variables`, `misc-no-recursion`, `google-default-arguments`**: right
+  about what they find (175, 163 and 363 sites), and each site a change of design — an owner for a global, a bound or
+  an iteration for a recursion, a non-virtual interface for a default — not a lint's fix; logged in `.notes/ISSUES.md`.
+- **6. `readability-identifier-naming` widened**: not counted in this run.

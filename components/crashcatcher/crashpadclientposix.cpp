@@ -61,6 +61,7 @@ namespace Crash::Client
     {
         // `StartHandler` makes the pair with `socketpair` and no `SOCK_CLOEXEC`.
         if (const std::int32_t socket = handlerSocket(); socket >= 0)
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's fcntl
             fcntl(socket, F_SETFD, fcntl(socket, F_GETFD) | FD_CLOEXEC);
     }
 
@@ -139,7 +140,7 @@ namespace Crash::Client
     std::string_view letMonitorRead(std::uint32_t process)
     {
         // Linux without Yama answers EINVAL: any process of the user's reads another already.
-        // NOLINTNEXTLINE(google-runtime-int): prctl's argument type
+        // NOLINTNEXTLINE(google-runtime-int, cppcoreguidelines-pro-type-vararg): prctl's own
         if (prctl(PR_SET_PTRACER, static_cast<unsigned long>(process), 0, 0, 0) != 0 && errno != EINVAL)
             return "a hang's dump: the system would not let the monitor read the game";
         return {};

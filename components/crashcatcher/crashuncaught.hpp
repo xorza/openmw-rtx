@@ -13,6 +13,7 @@ namespace Crash
     [[noreturn]] inline void abortUncaught(std::string_view reason)
     {
         static_cast<void>(
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): stdio in a terminate handler
             std::fprintf(stderr, "Fatal: %.*s\n", static_cast<std::int32_t>(reason.size()), reason.data()));
         std::abort();
     }

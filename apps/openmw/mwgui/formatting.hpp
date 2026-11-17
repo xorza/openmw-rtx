@@ -44,12 +44,12 @@ namespace MWGui
             {
                 Event_None = -2,
                 Event_EOF = -1,
-                Event_BrTag,
-                Event_PTag,
-                Event_ImgTag,
-                Event_DivTag,
-                Event_FontTag,
-                Event_PageBreak,
+                Event_BrTag = 0,
+                Event_PTag = 1,
+                Event_ImgTag = 2,
+                Event_DivTag = 3,
+                Event_FontTag = 4,
+                Event_PageBreak = 5,
             };
 
             BookTextParser(std::string text, bool shrinkTextAtLastTag);

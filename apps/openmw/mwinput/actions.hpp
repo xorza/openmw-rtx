@@ -67,6 +67,6 @@ namespace MWInput
 
         A_TogglePostProcessorHUD = 50,
 
-        A_Last // Marker for the last item
+        A_Last = 51 // Marker for the last item
     };
 }

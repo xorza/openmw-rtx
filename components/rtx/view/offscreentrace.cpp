@@ -115,7 +115,7 @@ namespace Rtx
         Subject& subject = *mSubject;
         subject.mPosedFrame = posing.getFrameNumber();
 
-        subject.mUpdate->reset();
+        (*subject.mUpdate).reset();
 
         // `osg::NodeVisitor::setFrameStamp` takes a mutable pointer and stores it without writing
         // through it, which is the whole of why this is cast.
@@ -240,7 +240,7 @@ namespace Rtx
         // **Updated before it is posed, as a frame is**: a part `NpcAnimation::updateParts` attached since
         // the last redraw binds its skeleton in an update traversal, and culled before one it found none
         // and logged so. At the picture's own clock, so what was shown stands where it stood.
-        subject.mUpdate->reset();
+        (*subject.mUpdate).reset();
         subject.mUpdate->setFrameStamp(subject.mPoseStamp.get());
         subject.mUpdate->setTraversalNumber(posed);
         subject.mNode->accept(*subject.mUpdate);

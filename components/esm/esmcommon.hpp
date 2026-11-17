@@ -134,8 +134,9 @@ namespace ESM
         return rhs.size() <= capacity || rhs[capacity] == '\0';
     }
 
-    template <std::size_t capacity, class T, typename = std::enable_if_t<std::is_same_v<T, char>>>
+    template <std::size_t capacity, class T>
     inline bool operator==(const FixedString<capacity>& lhs, const T* const& rhs) noexcept
+        requires(std::is_same_v<T, char>)
     {
         return lhs == std::string_view(rhs, capacity);
     }
@@ -156,8 +157,9 @@ namespace ESM
         return lhs.toInt() == rhs.toInt();
     }
 
-    template <class T, typename = std::enable_if_t<std::is_same_v<T, char>>>
+    template <class T>
     inline bool operator==(const FixedString<4>& lhs, const T* const& rhs) noexcept
+        requires(std::is_same_v<T, char>)
     {
         return lhs == std::string_view(rhs, 5);
     }
