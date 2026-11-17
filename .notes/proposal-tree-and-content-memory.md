@@ -514,10 +514,9 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 ### 11. The device uses its budget
 
 2. Rooms: masks as the source's bytes.
-4. Item 9's room arithmetic, which these rooms replace: the structure storages' free runs in `getContentFree` and
-   `getVideoBudget`; `evictForRoom` sized against the storages and not the texture pools; a want filed for a mesh
-   refused in the loose storage; a texture's fit compared as its image's requirements, not the hole's margins; and
-   `contentFits` reading the rest and the pools' free bytes in the driver's usage.
+4. Item 9's room arithmetic, which these rooms replace: a want filed for a mesh refused in the loose storage; a
+   texture's fit compared as its image's requirements, not the hole's margins; `contentFits` reading the rest and the
+   pools' free bytes in the driver's usage; and `SceneDesc::evictFor` counting a texture toward a mesh's want.
 5. Tours on the handheld, Repack and PBR: no refusal with room under the budget; item 8's figures again.
 
 ### 12. One read a texture

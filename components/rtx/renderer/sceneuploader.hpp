@@ -132,7 +132,7 @@ namespace Rtx
         void serveWaits(SceneDesc& scene, PreparedImages* prepared, bool settled, std::uint64_t free);
 
         /// Frees what rests, the oldest first, until the device's room holds an arrival of `arriving` bytes of textures
-        /// beside the structures it may build.
+        /// in the pools' room beside the structures it may build in the storages'.
         void evictForRoom(SceneDesc& scene, const ArrivalRoom& room, std::uint64_t arriving);
 
         /// **Evicts for each want of the last answer what surely leaves it room** (`SceneDesc::evictFor`), once: a want

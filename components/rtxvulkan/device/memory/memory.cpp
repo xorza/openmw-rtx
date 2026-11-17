@@ -502,12 +502,16 @@ namespace Rtx
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VmaBudget& budget = budgets[mContent.mHeap];
-        const VkDeviceSize free = getContentFree();
+        // **Each use's own free room**: a structure takes the storages' free runs, which no texture can, and a texture
+        // the content pools'.
+        const VkDeviceSize free
+            = use == MemoryUse::Structure ? mStructureFree.load(std::memory_order_relaxed) : getContentFree();
 
         const VkDeviceSize ceiling = ceilingOf(mContent.mHeap, use, budget.budget);
         const VkDeviceSize above = ceiling > budget.usage ? ceiling - budget.usage : 0;
 
-        // Whole blocks, because that is what the small resources `tryAllocate` places are placed in.
+        // Whole blocks, because that is what the small resources `tryAllocate` places are placed in, and what a
+        // structure storage grows by.
         return free + above / sContentBlockBytes * sContentBlockBytes;
     }
 
@@ -521,8 +525,8 @@ namespace Rtx
         // and a range buried until its frames are done, and content takes both again before any new block. Counted,
         // a rest freed would read as use and lower its own limit at the next hand-over, freeing more.
         const Graveyard& graveyard = mDevice.getGraveyard();
-        const VkDeviceSize letGo
-            = getContentFree() + graveyard.getBuried(MemoryUse::Structure) + graveyard.getBuried(MemoryUse::Texture);
+        const VkDeviceSize letGo = getContentFree() + mStructureFree.load(std::memory_order_relaxed)
+            + graveyard.getBuried(MemoryUse::Structure) + graveyard.getBuried(MemoryUse::Texture);
         return VideoBudget{ .mBudget = heldTo(heap.budget), .mHeld = heap.usage > letGo ? heap.usage - letGo : 0 };
     }
 
@@ -623,6 +627,12 @@ namespace Rtx
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         mSystemBound = systemBoundOf(budgets[mContent.mHeap].usage, *available);
+    }
+
+    void MemoryAllocator::noteStructureFree(const VkDeviceSize was, const VkDeviceSize bytes) noexcept
+    {
+        [[maybe_unused]] const VkDeviceSize before = mStructureFree.fetch_add(bytes - was, std::memory_order_relaxed);
+        assert(before + bytes >= was && "free room taken back that was never said");
     }
 
     void MemoryAllocator::owe(const MemoryUse use, const VkDeviceSize was, const VkDeviceSize bytes) noexcept

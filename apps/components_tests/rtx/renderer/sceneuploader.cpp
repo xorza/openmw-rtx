@@ -372,10 +372,11 @@ namespace Rtx
         }
 
         /// **The textures that rest give the device room back, the oldest to rest first**, as much as keeps room
-        /// for the arrival at hand — its textures' whole files, as described — beside the most any arrival's structures
-        /// took, and what waits: three files of 64 bytes arrived at once beside 8 bytes of structures, and rest in the
-        /// order their models go. Nothing arriving keeps the 8; a file of 64 arriving keeps 64 + 8 = 72; a structure
-        /// waiting for 64 keeps 8 + 64 = 72. Unbounded, as a renderer that says none, frees none. **A rebuild frees
+        /// for the arrival at hand — its textures' whole files, as described, in the pools' room — beside the most any
+        /// recent arrival's structures took, in the storages' room, and what waits: three files of 64 bytes arrived at
+        /// once beside 8 bytes of structures, and rest in the order their models go. Nothing arriving keeps the 8 in
+        /// the storages; a file of 64 arriving keeps 64 in the pools beside them; a structure waiting for 64 keeps 64
+        /// besides. Unbounded, as a renderer that says none, frees none. **A rebuild frees
         /// every one**, as it describes from the host's images, which a slot that rests has let go of, **and is no
         /// arrival**: the same three built from nothing and let go of rest under no room at all.
         TEST(RtxSceneUploaderTest, theTexturesThatRestGiveTheDeviceRoomOldestFirst)
@@ -411,7 +412,8 @@ namespace Rtx
             renderer.mStanding.push_back(StoodMesh{ .mMesh = first.mMesh, .mStructureBytes = 8 });
             for (const Testing::Model& model : models)
                 renderer.mTextureFits.push_back(FitBytes{ .mSlot = model.mTexture, .mBytes = 64 });
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = sBudget };
+            renderer.mArrivalRoom
+                = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mStructureFree = 1u << 20, .mBudget = sBudget };
             const SceneUpload extended = hand(uploader, renderer);
             renderer.mArrivalRoom.reset();
             EXPECT_EQ(extended.mKind, SceneUpload::Kind::Extended);
@@ -426,19 +428,20 @@ namespace Rtx
             EXPECT_EQ(scene.textures().getResting().getCount(), 3u);
             EXPECT_EQ(scene.textures().getResting().getBytes(), 192u);
 
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 8, .mBudget = sBudget };
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mStructureFree = 8, .mBudget = sBudget };
             EXPECT_EQ(hand(uploader, renderer).mDropped, 0u) << "room for the structures' 8, nothing arriving";
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 7, .mBudget = sBudget };
-            EXPECT_EQ(hand(uploader, renderer).mDropped, 1u) << "the structures' 8 bytes were not kept";
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mStructureFree = 7, .mBudget = sBudget };
+            EXPECT_EQ(hand(uploader, renderer).mDropped, 1u) << "the structures' 8 bytes were not kept in the storages";
 
-            // A file of 64 arriving, one byte short of its 64 and the structures' 8: the next oldest goes for it.
+            // A file of 64 arriving in 63 of the pools', the structures' 8 held in the storages: the next oldest goes
+            // for it.
             constexpr VFS::Path::NormalizedView arriving("textures/tx_arriving.dds");
             images.push_back(sixtyFourBytes(arriving.value()));
             Testing::addModel(scene, arriving, images.back().get());
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 71, .mBudget = sBudget };
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 63, .mStructureFree = 8, .mBudget = sBudget };
             const SceneUpload arrival = hand(uploader, renderer);
             EXPECT_EQ(arrival.mKind, SceneUpload::Kind::Extended);
-            EXPECT_EQ(arrival.mDropped, 1u) << "the arrival's 64 and the structures' 8, 72, in 71";
+            EXPECT_EQ(arrival.mDropped, 1u) << "the arrival's 64 in 63";
             EXPECT_EQ(renderer.mDropped, (std::vector<std::uint32_t>{ models[1].mTexture, models[0].mTexture }));
             EXPECT_EQ(scene.textures().getResting().getCount(), 1u);
             EXPECT_EQ(scene.textures().getResting().getBytes(), 64u);
@@ -448,7 +451,7 @@ namespace Rtx
 
             // **A texture that waits for room is given it**: the last that rests, whose 64 hold the 64 it wants, goes
             // for it, the room holding the structures' 8.
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 71, .mBudget = sBudget };
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 64, .mStructureFree = 8, .mBudget = sBudget };
             renderer.mWants.push_back(RoomWant{ .mKind = RestKind::Texture, .mSlot = models[1].mTexture, .mHole = 64 });
             EXPECT_EQ(hand(uploader, renderer).mDropped, 0u) << "a want served before the answer saying it was read";
             EXPECT_TRUE(scene.textures().isLive(models[2].mTexture));

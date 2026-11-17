@@ -39,6 +39,7 @@ namespace Rtx
         {
             mOwed = OwedGrowth(device.getMemory(), MemoryUse::Structure);
             mOwed.set(mBlockBytes);
+            mMemory = &device.getMemory();
         }
 
         // **Every block one size, made apart from content's pool blocks**: a block sized to what a build had left
@@ -71,6 +72,7 @@ namespace Rtx
 
         if (taken.isOk())
             mLiveUnits += taken.value().mRun.mCount;
+        sayFree();
 
         return taken;
     }
@@ -84,6 +86,25 @@ namespace Rtx
     void StructureStorage::reclaim(const std::uint64_t finished)
     {
         mCooling.releaseThrough(finished, [&](const StructureRoom& room) { give(room); });
+        sayFree();
+    }
+
+    StructureStorage::~StructureStorage()
+    {
+        if (mMemory != nullptr)
+            mMemory->noteStructureFree(mFreeSaid, 0);
+    }
+
+    void StructureStorage::sayFree()
+    {
+        if (mMemory == nullptr)
+            return;
+        // What cools is counted live until it is given back: a structure a frame in flight may read stands in it.
+        const VkDeviceSize live = VkDeviceSize{ mLiveUnits } * sAlignment;
+        assert(mBytes >= live && "more handed out than the blocks hold");
+        const VkDeviceSize free = mBytes - live;
+        mMemory->noteStructureFree(mFreeSaid, free);
+        mFreeSaid = free;
     }
 
     void StructureStorage::give(const StructureRoom& room)

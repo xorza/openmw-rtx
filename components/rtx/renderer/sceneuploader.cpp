@@ -95,8 +95,12 @@ namespace Rtx
 
     void SceneUploader::evictForRoom(SceneDesc& scene, const ArrivalRoom& room, const std::uint64_t arriving)
     {
-        const std::uint64_t kept = arriving + mArrivals.largest().mStructures;
-        scene.evictResting(room.mFree < kept ? kept - room.mFree : 0);
+        // **Each against its own room**: the textures against the pools', the structures an arrival may build against
+        // the storages'; what rests gives back to either.
+        const std::uint64_t structures = mArrivals.largest().mStructures;
+        const std::uint64_t textureShort = room.mFree < arriving ? arriving - room.mFree : 0;
+        const std::uint64_t structureShort = room.mStructureFree < structures ? structures - room.mStructureFree : 0;
+        scene.evictResting(textureShort + structureShort);
     }
 
     bool SceneUploader::isCooling(const RestKind kind, const Index slot) const

@@ -51,7 +51,9 @@ namespace Rtx
         /// Pinned: every structure placed here keeps a pointer to it, to give its room back.
         StructureStorage(const StructureStorage&) = delete;
         StructureStorage& operator=(const StructureStorage&) = delete;
-        ~StructureStorage() = default;
+
+        /// Takes what its blocks held free off the allocator's count.
+        ~StructureStorage();
 
         /// Room for a structure of `bytes`, taken from the first block that has it, else from a new block, or why the
         /// device has none: a block is memory a mesh can be left out for — `MemoryUse::Structure`.
@@ -116,5 +118,14 @@ namespace Rtx
 
         /// Its next block, owed ahead of the textures once it first takes room (`OwedGrowth`).
         OwedGrowth mOwed;
+
+        /// The allocator its blocks are counted on, once it first takes room, and what of them it last said is free:
+        /// what its blocks hold past the rooms handed out, those cooling among them
+        /// (`MemoryAllocator::noteStructureFree`).
+        MemoryAllocator* mMemory = nullptr;
+        VkDeviceSize mFreeSaid = 0;
+
+        /// Says what its blocks hold free now.
+        void sayFree();
     };
 }

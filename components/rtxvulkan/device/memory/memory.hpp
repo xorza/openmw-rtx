@@ -395,6 +395,10 @@ namespace Rtx
         /// uses before it owe their growth: what a test of the ceiling reads.
         VkDeviceSize getCeiling(MemoryUse use) const;
 
+        /// What the structure storages hold free in their blocks, `bytes` in place of the `was` one storage said
+        /// before: room only a structure takes, which the driver counts as held (`StructureStorage`).
+        void noteStructureFree(VkDeviceSize was, VkDeviceSize bytes) noexcept;
+
         /// What `use`'s owners owe their next growth on the video heap.
         VkDeviceSize getOwed(MemoryUse use) const
         {
@@ -515,6 +519,9 @@ namespace Rtx
 
         /// What each use's owners owe their next growth on the video heap (`OwedGrowth`).
         std::array<std::atomic<VkDeviceSize>, sMemoryUses> mOwed{};
+
+        /// What the structure storages hold free in their blocks (`noteStructureFree`).
+        std::atomic<VkDeviceSize> mStructureFree = 0;
 
         std::optional<VkDeviceSize> mBudgetLimit;
         VkDeviceSize mFrameReserve = 0;

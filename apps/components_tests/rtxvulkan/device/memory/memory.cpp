@@ -23,9 +23,11 @@
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
+#include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/device/memory/structurestorage.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
@@ -411,6 +413,20 @@ namespace Rtx
             EXPECT_EQ(memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture), ahead)
                 << "the structures owe what they owed";
 
+            // **A structure takes the storages' free runs**: a storage of 4 MiB blocks with a megabyte handed out holds
+            // three free, the structures' room where no ceiling leaves any.
+            {
+                StructureStorage storage(sStructureStorageUsage, "free runs", VkDeviceSize{ 4 } << 20);
+                const Result<StructureRoom, MemoryRefusal> room = storage.take(device, VkDeviceSize{ 1 } << 20);
+                ASSERT_TRUE(room.isOk());
+                const Testing::BudgetLimit none(memory, 0);
+                EXPECT_EQ(memory.getRoom(MemoryUse::Structure), VkDeviceSize{ 3 } << 20);
+            }
+            {
+                const Testing::BudgetLimit none(memory, 0);
+                EXPECT_EQ(memory.getRoom(MemoryUse::Structure), 0u) << "a storage gone still says its free runs";
+            }
+
             // What went is buried until the device is done with it: collected, so the tests after count no block of
             // this one's.
             blocks = BlockedBuffer(sBlock, sizeof(std::uint32_t));
@@ -587,12 +603,13 @@ namespace Rtx
             const VkDeviceSize reserve = memory.getFrameReserve();
             memory.reserveFrame(frame);
 
-            // What content's blocks have free, which is the whole of the room where no ceiling is.
+            // What content's blocks have free, which is the whole of the room where no ceiling is: the pools' for a
+            // texture, and for a structure the storages', of which this test makes none.
             VkDeviceSize free = 0;
             {
                 const Testing::BudgetLimit none(memory, 0);
                 free = memory.getRoom(MemoryUse::Texture);
-                EXPECT_EQ(memory.getRoom(MemoryUse::Structure), free) << "the two uses share content's blocks";
+                EXPECT_EQ(memory.getRoom(MemoryUse::Structure), 0u) << "a structure takes no room of the pools'";
             }
 
             ASSERT_GE(memory.getHeld(heap, MemoryUse::Structure), VkDeviceSize{ 48 } << 20);
@@ -604,12 +621,12 @@ namespace Rtx
             const VkDeviceSize above = 3 * block + (1 << 20);
             const Testing::BudgetLimit limit(memory, Testing::budgetAbove(memory, MemoryUse::Structure, above));
 
-            EXPECT_EQ(memory.getRoom(MemoryUse::Structure), free + 3 * block);
+            EXPECT_EQ(memory.getRoom(MemoryUse::Structure), 3 * block);
             EXPECT_EQ(memory.getRoom(MemoryUse::Texture),
                 free + (structures < above ? (above - structures) / block * block : 0));
 
             memory.reserveFrame(frame + 2 * block);
-            EXPECT_EQ(memory.getRoom(MemoryUse::Structure), free + block) << "the reserve beyond the targets";
+            EXPECT_EQ(memory.getRoom(MemoryUse::Structure), block) << "the reserve beyond the targets";
 
             const VkDeviceSize atTheHeap = Testing::budgetAbove(memory, MemoryUse::Texture, 0);
             {

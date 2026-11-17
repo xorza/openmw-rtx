@@ -508,9 +508,10 @@ namespace Rtx
     {
         // The device's room, which every slot's content shares.
         const VideoBudget video = mDevice.getMemory().getVideoBudget();
-        return ArrivalRoom{
-            .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture), .mBudget = video.mBudget, .mHeld = video.mHeld
-        };
+        return ArrivalRoom{ .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture),
+            .mStructureFree = mDevice.getMemory().getRoom(MemoryUse::Structure),
+            .mBudget = video.mBudget,
+            .mHeld = video.mHeld };
     }
 
     void VulkanRenderer::placeScene(const SceneSlot slot, const SceneDesc& scene)

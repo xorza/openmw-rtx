@@ -35,9 +35,12 @@ namespace Rtx
     struct ArrivalRoom
     {
         /// What a texture may still take before the device refuses it: what the content pools' blocks have free and the
-        /// whole blocks the ceiling leaves room for. A structure's storages are blocks of their own, which this does
-        /// not count.
+        /// whole blocks the ceiling leaves room for.
         std::uint64_t mFree = 0;
+
+        /// What a structure may still take: what the structure storages' blocks have free and the whole blocks the
+        /// structures' ceiling leaves room for.
+        std::uint64_t mStructureFree = 0;
 
         /// What the device's budget allows the process, every slot's content, the frame and what rests together: what
         /// is free and what the process holds, as the driver states it.
