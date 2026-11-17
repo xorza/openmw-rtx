@@ -366,7 +366,7 @@ namespace Rtx
             // Let go of, with a texture resting so room is coming, and refused again.
             store.release(std::span(grids).subspan(1, 1));
             const Index resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
-            mScene.textures().stand(resting, 64, false);
+            mScene.textures().stand(resting, 64, false, 0);
             mScene.drop(mScene.holdTexture(resting));
             mScene.compact();
             ASSERT_EQ(mScene.textures().getResting().getBytes(), 64u);
@@ -482,7 +482,7 @@ namespace Rtx
                 mScene, MeshArrays{ .mPositions = corners, .mNormals = up, .mIndices = triangle })
                                    .mMesh;
             const Index resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
-            mScene.textures().stand(resting, 64, false);
+            mScene.textures().stand(resting, 64, false, 0);
             mScene.drop(mScene.holdTexture(resting));
             mScene.compact();
             stage();

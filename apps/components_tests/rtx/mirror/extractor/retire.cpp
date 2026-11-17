@@ -340,7 +340,7 @@ namespace Rtx::Testing
 
             // **A texture that rests is neither**: stood whole and let go of, it stands unheld until its room
             // is wanted, and the scene is still consistent and empty.
-            mScene.textures().stand(orphan, 64, false);
+            mScene.textures().stand(orphan, 64, false, 0);
             mScene.drop(std::move(held));
             EXPECT_TRUE(mScene.textures().isLive(orphan));
             EXPECT_TRUE(mScene.isConsistent()) << "a texture that rests was taken for a row nothing can free";

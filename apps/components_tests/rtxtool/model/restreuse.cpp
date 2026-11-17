@@ -26,7 +26,7 @@ namespace RtxTool
             Rtx::TextureTable& textures = scene.textures();
             const auto rest = [&](const char* path, const std::uint64_t mebibytes) {
                 const Rtx::Index slot = textures.add(VFS::Path::NormalizedView(path));
-                textures.stand(slot, mebibytes * sMiB, false);
+                textures.stand(slot, mebibytes * sMiB, false, 0);
                 scene.drop(scene.holdTexture(slot));
                 scene.compact();
                 return slot;

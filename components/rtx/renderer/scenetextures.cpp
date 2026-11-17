@@ -176,9 +176,18 @@ namespace Rtx
             if (row.mKind == TextureKind::File)
             {
                 const bool whole = described.isOk() && data.mSource == TextureSource::File && !kept.mStandsIn;
+
+                // **Whole is from its want** (`TextureData::topLevel`): a file its readers want from a coarser level
+                // stands and stages none of the finer.
+                const std::uint8_t want = scene.textures().getWant(kept.mSlot);
+                const auto from = static_cast<std::uint8_t>(
+                    data.mLevels.empty() ? 0 : std::min<std::size_t>(want, data.mLevels.size() - 1));
+                if (whole)
+                    data.mWant = from;
                 mStood.push_back(Stood{ .mSlot = kept.mSlot,
-                    .mBytes = whole ? data.mBytes.size() : 0,
-                    .mMade = whole && kept.mMade != nullptr });
+                    .mBytes = whole ? data.bytesFrom(from) : 0,
+                    .mMade = whole && kept.mMade != nullptr,
+                    .mFrom = whole ? from : std::uint8_t{ 0 } });
             }
             mDescriptions.push_back(data);
         }

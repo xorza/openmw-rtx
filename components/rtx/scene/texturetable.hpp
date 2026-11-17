@@ -114,6 +114,9 @@ namespace Rtx
         /// every level under the finest, rather than the file's own.
         bool mStoodMade = false;
 
+        /// The level the device was handed it whole from (`TextureTable::stand`): its want then.
+        std::uint8_t mStoodFrom = 0;
+
         /// Its place among the slots that rest (`TextureTable::drop`, `RestQueue`).
         RestPlace mRest{};
 
@@ -162,6 +165,7 @@ namespace Rtx
         {
             reserveRows(room.mTextures);
             mChanges.reserve(room.mTextures);
+            mFiner.reserve(room.mTextures);
             mPathIndex.reserve(room.mTextures);
             mResting.reserve(room.mTextures);
         }
@@ -206,10 +210,11 @@ namespace Rtx
         /// among them, and a bake made from a slot freed in its own hand-over named nothing.
         Index findFile(VFS::Path::NormalizedView path) const;
 
-        /// Says what the device was last handed of `slot`: the whole of its image, `bytes` of it, its chain
-        /// made again or not, or nought where it stood in or drew the stand-in. What lets a file rest once
-        /// nothing names it, and what its rest holds of the device's room.
-        void stand(Index slot, std::uint64_t bytes, bool made);
+        /// Says what the device was last handed of `slot`: the whole of its image from level `from`, its want then,
+        /// `bytes` of it, its chain made again or not, or nought where it stood in or drew the stand-in. What lets a
+        /// file rest once nothing names it, what its rest holds of the device's room, and what a want finer than
+        /// `from` hands over again (`compact`).
+        void stand(Index slot, std::uint64_t bytes, bool made, std::uint8_t from);
 
         /// **The first level `slot` is wanted from**, the finest its readers ask (`TextureRow::mAsks`): level 0 where
         /// nothing asks, so a texture no distance is known for stands whole (`docs/architecture.md`, "A texture stands
@@ -247,10 +252,12 @@ namespace Rtx
             ++mRevision;
         }
 
-        /// Settles what a drop took out of the arrivals, so they can be read, and files the slots that came
-        /// to rest since the last at `clock`, the scene's.
+        /// Settles what a drop took out of the arrivals, so they can be read, files the slots that came to rest since
+        /// the last at `clock`, the scene's, and has every named slot whose want moved finer than the level it stood
+        /// whole from arrive again, which hands it over from its want.
         void compact(const std::uint64_t clock)
         {
+            arriveFiner();
             mChanges.compact();
             mClock = clock;
             settleResting();
@@ -301,6 +308,10 @@ namespace Rtx
         /// counting and reporting the refusal where none rests.
         bool hasRoom();
 
+        /// Has each slot `ask` found wanted finer than it stood arrive again, where it is named, stands whole and is
+        /// still wanted finer; one that rests waits for its take, whose asks find it again.
+        void arriveFiner();
+
         /// Lays `slot`, a file nothing names, to rest, letting go of its host images.
         void rest(Index slot);
 
@@ -335,6 +346,9 @@ namespace Rtx
         using FileSlots = std::array<std::array<Index, sTextureWrapCount>, sTextureEncodingCount>;
 
         SlotChanges mChanges;
+
+        /// The slots an ask found wanted finer than they stood whole from (`arriveFiner`), each once.
+        SlotSet mFiner;
 
         /// A material's ground slots, the albedo's and the gloss's, `sNoIndex` where it holds none.
         using GroundSlots = std::array<Index, 2>;

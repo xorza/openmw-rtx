@@ -79,6 +79,9 @@ namespace Rtx
 
             /// Whether it is the file's chain made again.
             bool mMade;
+
+            /// The level it was handed whole from, its readers' want (`TextureData::mWant`).
+            std::uint8_t mFrom;
         };
 
         std::span<const Stood> getStood() const { return mStood; }

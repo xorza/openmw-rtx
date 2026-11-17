@@ -40,6 +40,16 @@ namespace Rtx
         bool operator==(const ShortTexture& other) const = default;
     };
 
+    /// **A named texture the device moved down to make room while it stood finer than its readers want**
+    /// (`TextureArray::makeRoom`): what it stands now, and the level of its file it stands from. Not short, since its
+    /// readers want no finer, so its owner tells the slot what stands and hands nothing over again.
+    struct MovedTexture
+    {
+        Index mSlot = sNoIndex;
+        std::uint64_t mStoodBytes = 0;
+        std::uint8_t mFrom = 0;
+    };
+
     /// Whose rest gives back the memory content the device waits on can take (`RoomWant`): textures', in the pools
     /// textures stand in, or meshes', in the storage their structures stand in once copied tight.
     enum class RestKind : std::uint8_t
@@ -81,6 +91,7 @@ namespace Rtx
         std::vector<Refusal> mRefused;
         std::vector<StoodMesh> mMeshes;
         std::vector<ShortTexture> mShort;
+        std::vector<MovedTexture> mMoved;
         std::vector<RoomWant> mWants;
         std::vector<FitBytes> mTextureFits;
         std::vector<FitBytes> mMeshFits;
@@ -90,6 +101,7 @@ namespace Rtx
             mRefused.clear();
             mMeshes.clear();
             mShort.clear();
+            mMoved.clear();
             mWants.clear();
             mTextureFits.clear();
             mMeshFits.clear();

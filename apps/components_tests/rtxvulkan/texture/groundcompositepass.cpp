@@ -24,6 +24,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -107,7 +108,8 @@ namespace Rtx
                 const std::optional<Image> gloss = canvasFor(Shaders::GROUND_COMPOSITE_GLOSS, true);
                 TextureArray array(device, setup, layout, passes, rooms, 2);
                 DeviceAnswer answer;
-                array.write(setup, passes, rooms, textures, answer, WhenRoomless::Refuses, nullptr);
+                array.write(
+                    setup, passes, rooms, textures, TextureArray::noWants(), answer, WhenRoomless::Refuses, nullptr);
                 Uploads uploads(setup);
                 array.sync(FrameSlot{}, uploads);
                 uploads.order();

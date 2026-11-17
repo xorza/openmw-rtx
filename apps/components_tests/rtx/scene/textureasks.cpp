@@ -152,8 +152,8 @@ namespace Rtx
             const Index far = textures.add(VFS::Path::NormalizedView("textures/far.dds"), image.get());
             const Index whole = textures.add(VFS::Path::NormalizedView("textures/whole.dds"), image.get());
             const Index unstood = textures.add(VFS::Path::NormalizedView("textures/unstood.dds"), image.get());
-            textures.stand(far, 5592404, false);
-            textures.stand(whole, 5592404, false);
+            textures.stand(far, 5592404, false, 0);
+            textures.stand(whole, 5592404, false, 0);
 
             const Index material = scene.addMaterial(Material{ .mDiffuse = far });
             MaterialHold held = scene.holdMaterial(material);
@@ -178,6 +178,41 @@ namespace Rtx
             EXPECT_TRUE(textures.getRows()[far].mRest.mResting);
             EXPECT_EQ(textures.measureAboveWant(),
                 (TexturesAboveWant{ .mStood = 5592404, .mRestingStood = 5592404, .mRestingAbove = 4194304 }));
+        }
+
+        /// **A want finer than what stood is handed over again; a coarser one is not.** A texture stood whole from
+        /// level 3 and asked at level 15 does not arrive again; asked at level 1 as well, it arrives at the next
+        /// `compact`, once.
+        TEST(RtxTextureAsksTest, aWantFinerThanWhatStoodArrivesAgain)
+        {
+            SceneDesc scene;
+            TextureTable& textures = scene.textures();
+            const osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/large.dds", 1024, 1024);
+            const Index slot = textures.add(VFS::Path::NormalizedView("textures/stood.dds"), image.get());
+            textures.compact(0);
+            textures.clearArrivals();
+            textures.stand(slot, 64, false, 3);
+
+            const Index material = scene.addMaterial(Material{ .mDiffuse = slot });
+            MaterialHold held = scene.holdMaterial(material);
+
+            // Step 37, footprint 5, plus the offset of 10: level 15, coarser than 3. Nothing arrives.
+            scene.askMaterial(material, 37);
+            textures.compact(1);
+            EXPECT_TRUE(textures.getArrived().empty());
+
+            // Step 23, footprint -9: level 1, finer than 3. It arrives again, once.
+            scene.askMaterial(material, 23);
+            textures.compact(2);
+            ASSERT_EQ(textures.getArrived().size(), 1u);
+            EXPECT_EQ(textures.getArrived()[0], slot);
+            textures.clearArrivals();
+            textures.compact(3);
+            EXPECT_TRUE(textures.getArrived().empty()) << "handed over once";
+
+            scene.unaskMaterial(material, 23);
+            scene.unaskMaterial(material, 37);
+            scene.drop(std::move(held));
         }
     }
 }

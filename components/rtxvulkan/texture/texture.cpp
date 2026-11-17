@@ -21,6 +21,7 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/renderer/framezone.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/device.hpp>
@@ -394,8 +395,8 @@ namespace Rtx
     }
 
     void TextureArray::write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
-        std::span<const TextureData> arrived, DeviceAnswer& answer, const WhenRoomless whenRoomless,
-        GpuTimer* const timer)
+        std::span<const TextureData> arrived, const TextureTable& table, DeviceAnswer& answer,
+        const WhenRoomless whenRoomless, GpuTimer* const timer)
     {
         if (arrived.empty())
             return;
@@ -416,17 +417,17 @@ namespace Rtx
         mFullFirsts.assign(arrived.size(), 0);
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::File)
-                mFullFirsts[at] = arrived[at].firstLevelWithin(mSideLimit).value_or(0);
+                mFullFirsts[at] = arrived[at].topLevel(mSideLimit).value_or(0);
         const VkDeviceSize whole = costAt(arrived, mFullFirsts, true, arrival);
         if (const VkDeviceSize deficit = (whole > room ? whole - room : 0) + memory.getContentOver(); deficit > 0)
-            makeRoom(arrival, RoomAsk{ .mBytes = deficit, .mKeep = arrived }, answer);
+            makeRoom(arrival, RoomAsk{ .mBytes = deficit, .mKeep = arrived }, table, answer);
         chooseLevels(arrived, room, arrival, mFirsts);
 
         std::uint32_t held = 0;
         std::uint32_t deepest = 0;
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::File)
-                if (const std::optional<std::uint32_t> top = arrived[at].firstLevelWithin(mSideLimit); top.has_value())
+                if (const std::optional<std::uint32_t> top = arrived[at].topLevel(mSideLimit); top.has_value())
                 {
                     held += mFirsts[at] > *top ? 1 : 0;
                     deepest = std::max(deepest, mFirsts[at] - *top);
@@ -493,7 +494,7 @@ namespace Rtx
         firsts.assign(arrived.size(), 0);
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::File)
-                firsts[at] = arrived[at].firstLevelWithin(mSideLimit).value_or(0);
+                firsts[at] = arrived[at].topLevel(mSideLimit).value_or(0);
         if (costAt(arrived, firsts, true, arrival) <= room)
             return;
 
@@ -502,7 +503,7 @@ namespace Rtx
         for (std::size_t at = 0; at < arrived.size(); ++at)
         {
             const TextureData& texture = arrived[at];
-            if (texture.mSource != TextureSource::File || !texture.firstLevelWithin(mSideLimit).has_value())
+            if (texture.mSource != TextureSource::File || !texture.topLevel(mSideLimit).has_value())
                 continue;
             for (std::uint32_t level = firsts[at]; level + 1 < texture.mLevels.size(); ++level)
                 mDrops.push_back(
@@ -569,7 +570,7 @@ namespace Rtx
             const Image* standing = nullptr;
             if (arriving != nullptr)
             {
-                if (arriving->mSource == TextureSource::File && arriving->firstLevelWithin(mSideLimit).has_value())
+                if (arriving->mSource == TextureSource::File && arriving->topLevel(mSideLimit).has_value())
                     return priceBake(shapeOf(*arriving, firsts[arrivingAt])).standing();
 
                 standing = &mStandIn.getImage();
@@ -595,7 +596,7 @@ namespace Rtx
             switch (texture.mSource)
             {
                 case TextureSource::File:
-                    if (texture.firstLevelWithin(mSideLimit).has_value())
+                    if (texture.topLevel(mSideLimit).has_value())
                     {
                         const std::uint32_t first = firsts[at];
                         cost += priceFile(texture, first).standing();
@@ -685,7 +686,7 @@ namespace Rtx
 
     RoomWant TextureArray::wantOf(const TextureData& texture) const
     {
-        const std::optional<std::uint32_t> top = texture.firstLevelWithin(mSideLimit);
+        const std::optional<std::uint32_t> top = texture.topLevel(mSideLimit);
         assert(top.has_value() && "a file past the device's side waits on no room");
         const VkMemoryRequirements whole = Image::requirementsFor(mDevice, Texture::describeFile(texture, *top));
         const VkDeviceSize granularity
@@ -716,13 +717,14 @@ namespace Rtx
         slot.mShortOfRoom = false;
 
         std::string why;
-        if (texture.mSource == TextureSource::File && !texture.firstLevelWithin(mSideLimit).has_value())
+        if (texture.mSource == TextureSource::File && !texture.topLevel(mSideLimit).has_value())
             why = pastTheSide(texture, mSideLimit);
         else if (texture.mSource != TextureSource::StandIn)
         {
             // Every refusal `make` answers is the device's room: a file past the side is the one
             // that is not, and it is known above.
             const Result<void, MemoryRefusal> stood = make(batch, arrival, slot.mTexture, texture, first, name);
+            slot.mFirst = stood.isOk() ? first : 0;
             if (!stood.isOk())
             {
                 slot.mShortOfRoom = true;
@@ -742,7 +744,7 @@ namespace Rtx
         slot.mSource = texture.mSource;
         slot.mWholeBytes = 0;
         if (texture.mSource == TextureSource::File)
-            if (const std::optional<std::uint32_t> top = texture.firstLevelWithin(mSideLimit); top.has_value())
+            if (const std::optional<std::uint32_t> top = texture.topLevel(mSideLimit); top.has_value())
                 slot.mWholeBytes = priceFile(texture, *top).standing();
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
@@ -753,7 +755,7 @@ namespace Rtx
         // alone holds smaller stands as it can stand.
         if (texture.mSource == TextureSource::File && !made.isEmpty())
         {
-            if (const std::optional<std::uint32_t> top = texture.firstLevelWithin(mSideLimit);
+            if (const std::optional<std::uint32_t> top = texture.topLevel(mSideLimit);
                 top.has_value() && made.getImage().getWidth() < std::max(1u, texture.mWidth >> *top))
             {
                 answer.mShort.push_back(ShortTexture{ .mSlot = texture.mSlot, .mStoodBytes = made.getBytes() });
@@ -805,7 +807,22 @@ namespace Rtx
         }
     }
 
-    VkDeviceSize TextureArray::makeRoom(TextureArrival& arrival, const RoomAsk& ask, DeviceAnswer& answer)
+    const TextureTable& TextureArray::noWants()
+    {
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): a constant, built on first use.
+        static const TextureTable table;
+        return table;
+    }
+
+    std::uint32_t TextureArray::readersWant(const TextureTable& table, const std::uint32_t slot)
+    {
+        if (slot >= table.getRows().size() || !table.isLive(slot) || table.getRows()[slot].mRest.mResting)
+            return 0;
+        return table.getWant(slot);
+    }
+
+    VkDeviceSize TextureArray::makeRoom(
+        TextureArrival& arrival, const RoomAsk& ask, const TextureTable& table, DeviceAnswer& answer)
     {
         const VkDeviceSize bytes = ask.mBytes;
         const std::span<const TextureData> keep = ask.mKeep;
@@ -817,10 +834,14 @@ namespace Rtx
                 continue;
             if (std::ranges::any_of(keep, [&](const TextureData& texture) { return texture.mSlot == at; }))
                 continue;
-            mMovable.push_back(Movable{ .mStanding = slot.mTexture.getBytes(), .mSlot = at });
+            mMovable.push_back(Movable{ .mAboveWant = slot.mFirst < readersWant(table, at),
+                .mStanding = slot.mTexture.getBytes(),
+                .mSlot = at });
         }
+        // What stands finer than its readers want first, then the most bytes.
         const auto lessStanding = [](const Movable& left, const Movable& right) {
-            return std::tie(left.mStanding, left.mSlot) < std::tie(right.mStanding, right.mSlot);
+            return std::tie(left.mAboveWant, left.mStanding, left.mSlot)
+                < std::tie(right.mAboveWant, right.mStanding, right.mSlot);
         };
         std::ranges::make_heap(mMovable, lessStanding);
 
@@ -856,15 +877,25 @@ namespace Rtx
                 break;
             }
             slot.mReduced = true;
+            ++slot.mFirst;
             count(slot);
             owe(at);
             freed += before - slot.mTexture.getBytes();
             copied += slot.mTexture.getBytes();
-            answer.mShort.push_back(
-                ShortTexture{ .mSlot = at, .mStoodBytes = slot.mTexture.getBytes(), .mWholeBytes = before });
+
+            // Short only where it now stands coarser than its readers want; at or finer, what stands is all it is.
+            const std::uint32_t want = readersWant(table, at);
+            if (slot.mFirst > want)
+                answer.mShort.push_back(
+                    ShortTexture{ .mSlot = at, .mStoodBytes = slot.mTexture.getBytes(), .mWholeBytes = before });
+            else
+                answer.mMoved.push_back(MovedTexture{ .mSlot = at,
+                    .mStoodBytes = slot.mTexture.getBytes(),
+                    .mFrom = static_cast<std::uint8_t>(slot.mFirst) });
             answer.mTextureFits.push_back(FitBytes{ .mSlot = at, .mBytes = slot.mTexture.getImage().getMemoryBytes() });
 
-            mMovable.push_back(Movable{ .mStanding = slot.mTexture.getBytes(), .mSlot = at });
+            mMovable.push_back(
+                Movable{ .mAboveWant = slot.mFirst < want, .mStanding = slot.mTexture.getBytes(), .mSlot = at });
             std::ranges::push_heap(mMovable, lessStanding);
         }
         return freed;

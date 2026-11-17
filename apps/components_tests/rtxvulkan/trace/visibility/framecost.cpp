@@ -250,7 +250,8 @@ namespace Rtx::Testing
             DeviceAnswer answer;
             const auto arrive = [&](Batch& batch, std::uint32_t slot) {
                 const TextureData described = describe(slot);
-                array.write(batch, passes, rooms, std::span(&described, 1), answer, WhenRoomless::Refuses, nullptr);
+                array.write(batch, passes, rooms, std::span(&described, 1), TextureArray::noWants(), answer,
+                    WhenRoomless::Refuses, nullptr);
             };
 
             {

@@ -41,6 +41,7 @@ namespace Rtx
     class Uploads;
     class GpuTimer;
     class GroundCompositePass;
+    class TextureTable;
     struct TexturePasses;
 
     /// A sampled image on the GPU, the levels a content file brought for it, and what was measured
@@ -216,8 +217,10 @@ namespace Rtx
         /// @param arrival the renderer's, which the arrival is recorded through.
         /// @param timer where what the arrival is made with on the device is timed, or null where it
         ///        is not: a scene being built, which is a load and no frame's.
+        /// @param table the scene's textures, whose wants say what may move down first and what a move leaves short.
         void write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
-            std::span<const TextureData> arrived, DeviceAnswer& answer, WhenRoomless whenRoomless, GpuTimer* timer);
+            std::span<const TextureData> arrived, const TextureTable& table, DeviceAnswer& answer,
+            WhenRoomless whenRoomless, GpuTimer* timer);
 
         /// Writes the descriptors `slot`'s set owes, and the texel words its copy owes through
         /// `uploads`. Before the placement that binds it, after `finishReads`: the bindings allow an
@@ -301,14 +304,25 @@ namespace Rtx
             VkDeviceSize mCopyMost = sMoveCopyMost;
         };
 
+        /// The level `slot`'s readers want it from (`TextureTable::getWant`): nought for one that rests, whose move
+        /// stands it short and evicts it (`SceneUploader::settleMovedResting`), and for a slot the table no longer
+        /// holds.
+        static std::uint32_t readersWant(const TextureTable& table, std::uint32_t slot);
+
+        /// A table that wants nothing of any slot, for what moves textures down with no scene at hand: a change of
+        /// mode, which moves the largest first and leaves every move short, as a want of level 0 does.
+        static const TextureTable& noWants();
+
         /// **Room made by textures that stand moving down**, as Unreal's streamer takes a level off the textures it
-        /// needs least (`docs/architecture.md`, "A texture that stands moves down to make room"): the file standing the
-        /// most bytes moves a level down first, and again, until the moves give back what `ask` asks, its copies reach
-        /// their most, or nothing moves past `sMoveFloorSide`. Each is copied on the device and its old image buried,
-        /// so the room comes back once the frames that sample it are done. A slot moved stands short of its file: named
-        /// in `answer.mShort` with the bytes it stood before, so its owner hands it over whole again once the room is
-        /// back. What it gave back, of what stands.
-        VkDeviceSize makeRoom(TextureArrival& arrival, const RoomAsk& ask, DeviceAnswer& answer);
+        /// needs least (`docs/architecture.md`, "A texture that stands moves down to make room"): a file standing finer
+        /// than its readers want moves first, then the file standing the most bytes, a level at a time, until the moves
+        /// give back what `ask` asks, its copies reach their most, or nothing moves past `sMoveFloorSide`. Each is
+        /// copied on the device and its old image buried, so the room comes back once the frames that sample it are
+        /// done. A slot moved coarser than its want stands short: named in `answer.mShort` with the bytes it stood
+        /// before, so its owner hands it over whole again once the room is back; one still at or finer than its want
+        /// is named in `answer.mMoved`. What it gave back, of what stands.
+        VkDeviceSize makeRoom(
+            TextureArrival& arrival, const RoomAsk& ask, const TextureTable& table, DeviceAnswer& answer);
 
         /// Names every file's slot that draws the stand-in for want of room short in `answer`, with the bytes its file
         /// asks: what the device refused where no room was coming, waiting again for room it did not see coming, a
@@ -345,6 +359,9 @@ namespace Rtx
 
             /// What the texture was made from, which `mHeld` counts its bytes under.
             TextureSource mSource = TextureSource::File;
+
+            /// The level of its file its image begins at: where it was stood from, one more for each move down.
+            std::uint32_t mFirst = 0;
 
             bool isEmpty() const { return mTexture.isEmpty() && !mStandIn; }
         };
@@ -428,6 +445,7 @@ namespace Rtx
         /// kept.
         struct Movable
         {
+            bool mAboveWant;
             VkDeviceSize mStanding;
             std::uint32_t mSlot;
         };

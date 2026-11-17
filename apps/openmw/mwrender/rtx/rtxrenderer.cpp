@@ -1,9 +1,9 @@
 #include "rtxrenderer.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>

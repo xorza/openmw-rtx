@@ -23,7 +23,7 @@ namespace Rtx
         std::uint64_t bytesAbove(const TextureRow& row, const std::uint8_t want)
         {
             constexpr TexelLayout made{ .mSide = 4, .mBytes = 16 };
-            if (want == 0 || row.mImage == nullptr || row.mStoodBytes == 0)
+            if (want <= row.mStoodFrom || row.mImage == nullptr || row.mStoodBytes == 0)
                 return 0;
 
             const TexelLayout layout = row.mStoodMade ? made : layoutOf(row.mFormat);
@@ -31,7 +31,8 @@ namespace Rtx
             const auto height = static_cast<std::uint32_t>(row.mImage->t());
             std::uint64_t whole = 0;
             std::uint64_t above = 0;
-            for (std::uint32_t level = 0; (width >> level) > 0 || (height >> level) > 0; ++level)
+            // From the level it stood from, which its bytes began at.
+            for (std::uint32_t level = row.mStoodFrom; (width >> level) > 0 || (height >> level) > 0; ++level)
             {
                 const std::uint64_t bytes
                     = layout.levelBytes(std::max(width >> level, 1u), std::max(height >> level, 1u));
@@ -264,6 +265,8 @@ namespace Rtx
         TextureRow& row = rowAt(texture);
         row.mAsks.ask(level);
         row.mLastWant = *row.mAsks.finest();
+        if (row.mStoodBytes > 0 && row.mLastWant < row.mStoodFrom)
+            mFiner.addMakingRoom(texture);
     }
 
     void TextureTable::unask(const Index texture, const std::size_t level)
@@ -278,13 +281,25 @@ namespace Rtx
             row.mLastWant = *finest;
     }
 
-    void TextureTable::stand(const Index slot, const std::uint64_t bytes, const bool made)
+    void TextureTable::stand(const Index slot, const std::uint64_t bytes, const bool made, const std::uint8_t from)
     {
         TextureRow& row = rowAt(slot);
         assert(isLive(slot) && "a slot that stands no texture was stood");
         assert(!row.mRest.mResting && "a slot that rests was described");
         row.mStoodBytes = bytes;
         row.mStoodMade = made;
+        row.mStoodFrom = from;
+    }
+
+    void TextureTable::arriveFiner()
+    {
+        for (const Index slot : mFiner.getSlots())
+        {
+            const TextureRow& row = rowAt(slot);
+            if (isLive(slot) && !row.mRest.mResting && row.mStoodBytes > 0 && getWant(slot) < row.mStoodFrom)
+                arriveAgain(slot);
+        }
+        mFiner.clear();
     }
 
     void TextureTable::fit(const Index slot, const std::uint64_t bytes)

@@ -596,7 +596,15 @@ it.
   handed over whole, "whole" meaning from its want). `makeRoom` moves down what stands above its want first, by item
   13's copy.
 
-**Progress**: steps 1–3 are written and tested. The meter waits on the handheld's tours.
+**Progress**: steps 1–3 and 5 are written and tested (`66aa444291`, `02ffdefad9` and the commit after). Step 4 and the
+tours of step 6 remain. The meter at its peak: the handheld's PBR 23.2%, its Repack 17.0% (that tour was cut at stop
+135 of 155 by its lost SSH session, no crash recorded), the desk's PBR 23.2%. All clear a tenth. Step 5's `shot
+--against` moved none of 74 pictures, and `repeat --pairs=10` agreed.
+
+- **Whole is from the want**, in one place: `TextureData::topLevel` replaced `firstLevelWithin`, so the arrival's
+  first level, a short texture's whole bytes and what waits all start from the want.
+- **A want finer than what stood arrives again** at the scene's `compact`. `makeRoom` moves what stands above its want
+  first, and such a move is named `MovedTexture`, not short, so nothing hands it over again.
 
 - **The direction was turned in the writing.** A ray reads finest where a mesh lays the least texture on a unit of
   surface, so the density kept is the least over the triangles, not the most.

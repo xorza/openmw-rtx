@@ -161,6 +161,10 @@ namespace Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
+        /// The first level a file's readers want it from (`TextureTable::getWant`): what it stands whole from
+        /// (`topLevel`). Nought for every other source, which stands from its finest.
+        std::uint8_t mWant = 0;
+
         /// Every level, back to back, the levels indexing into it. Empty under `SpriteBake`,
         /// `GroundComposite` and `GroundGloss`, whose bytes are the device's.
         std::span<const std::byte> mBytes{};
@@ -180,14 +184,16 @@ namespace Rtx
                                                                                           : TextureCompanion::Neutral;
         }
 
-        /// The first level no wider and no taller than `side`, or nothing where every level is
-        /// larger: where a texture held to that side begins. The levels halve, so every level
-        /// after it is within the side too.
-        std::optional<std::uint32_t> firstLevelWithin(std::uint32_t side) const
+        /// **Where the texture stands whole from**: the level its readers want (`mWant`), its last where they want
+        /// past it, and never a level wider or taller than `side`; nothing where every level is larger than the side.
+        /// The levels halve, so every level after it is within the side too (`docs/architecture.md`, "A texture stands
+        /// from the level its nearest user asks").
+        std::optional<std::uint32_t> topLevel(std::uint32_t side) const
         {
             for (std::uint32_t level = 0; level < mLevels.size(); ++level)
                 if (std::max(mLevels[level].mWidth, mLevels[level].mHeight) <= side)
-                    return level;
+                    return std::max(
+                        level, std::min<std::uint32_t>(mWant, static_cast<std::uint32_t>(mLevels.size() - 1)));
 
             return std::nullopt;
         }

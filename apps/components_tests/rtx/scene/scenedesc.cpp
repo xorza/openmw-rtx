@@ -348,7 +348,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView spark("textures/tx_spark.dds");
             const Index clamped = scene.textures().add(spark, TextureWrap::Clamp);
             const Index repeated = scene.textures().add(spark, TextureWrap::Repeat);
-            scene.textures().stand(clamped, 64, false);
+            scene.textures().stand(clamped, 64, false, 0);
             scene.drop(scene.holdTexture(clamped));
             scene.compact();
             ASSERT_TRUE(scene.textures().getRows()[clamped].mRest.mResting);
@@ -409,7 +409,7 @@ namespace Rtx
             // 5 comes to rest a batch before 3, each stood whole, and the full table stays full.
             for (const Index resting : { Index{ 5 }, Index{ 3 } })
             {
-                textures.stand(resting, 64, false);
+                textures.stand(resting, 64, false, 0);
                 scene.drop(scene.holdTexture(resting));
                 scene.compact();
             }
@@ -429,7 +429,7 @@ namespace Rtx
 
             // The room made by freeing the file's own slot under another wrap, which took the file out of the
             // lookup the take then files it under.
-            textures.stand(9, 64, false);
+            textures.stand(9, 64, false, 0);
             scene.drop(scene.holdTexture(9));
             EXPECT_EQ(textures.add(names[9], TextureWrap::Clamp), 9u);
             EXPECT_EQ(textures.findFile(names[9]), 9u);
@@ -450,7 +450,7 @@ namespace Rtx
                      VFS::Path::NormalizedView("textures/tx_3.dds"), VFS::Path::NormalizedView("textures/tx_4.dds") })
             {
                 const Index slot = textures.add(name);
-                textures.stand(slot, 8, false);
+                textures.stand(slot, 8, false, 0);
                 holds.push_back(scene.holdTexture(slot));
             }
 
@@ -864,7 +864,7 @@ namespace Rtx
 
             // A texture that rests first, on a hand-over of its own.
             const Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/tx_old.dds"));
-            scene.textures().stand(texture, 64, false);
+            scene.textures().stand(texture, 64, false, 0);
             scene.drop(scene.holdTexture(texture));
             scene.compact();
 
@@ -929,7 +929,7 @@ namespace Rtx
             {
                 const VFS::Path::Normalized name(std::format("textures/tx_{}.dds", slots.size()));
                 const Index slot = scene.textures().add(name);
-                scene.textures().stand(slot, 8, false);
+                scene.textures().stand(slot, 8, false, 0);
                 if (fit > 0)
                     scene.textures().fit(slot, fit);
                 scene.drop(scene.holdTexture(slot));

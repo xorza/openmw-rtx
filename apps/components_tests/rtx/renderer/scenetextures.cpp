@@ -76,7 +76,17 @@ namespace Rtx
             };
             for (const Case& one : { Case{ 16, 0 }, Case{ 15, 1 }, Case{ 8, 1 }, Case{ 7, 2 }, Case{ 4, 2 },
                      Case{ 3, std::nullopt }, Case{ 0, std::nullopt } })
-                EXPECT_EQ(texture.firstLevelWithin(one.mSide), one.mFirst) << "held to " << one.mSide;
+                EXPECT_EQ(texture.topLevel(one.mSide), one.mFirst) << "held to " << one.mSide;
+
+            // **Wanted from a level, it stands whole from there**, past which the side holds it; a want past the
+            // chain stands its last level.
+            TextureData wanted = texture;
+            wanted.mWant = 1;
+            EXPECT_EQ(wanted.topLevel(16), 1u);
+            EXPECT_EQ(wanted.topLevel(4), 2u) << "the side holds it coarser than its want";
+            EXPECT_EQ(wanted.topLevel(3), std::nullopt);
+            wanted.mWant = 9;
+            EXPECT_EQ(wanted.topLevel(16), 2u);
 
             EXPECT_EQ(texture.bytesFrom(0), 672u);
             EXPECT_EQ(texture.bytesFrom(1), 160u);
@@ -85,8 +95,8 @@ namespace Rtx
             // The stand-in is one block of four, and a device that took less has nothing to begin at.
             const TextureData standIn = describeStandIn();
             EXPECT_EQ(standIn.mSource, TextureSource::StandIn);
-            EXPECT_EQ(standIn.firstLevelWithin(4), 0u);
-            EXPECT_EQ(standIn.firstLevelWithin(3), std::nullopt);
+            EXPECT_EQ(standIn.topLevel(4), 0u);
+            EXPECT_EQ(standIn.topLevel(3), std::nullopt);
             EXPECT_EQ(standIn.bytesFrom(0), 8u) << "one BC1 block";
         }
 
@@ -1015,7 +1025,7 @@ namespace Rtx
             }
 
             Rtx::SceneDesc scene;
-            Testing::addModel(scene, path, image);
+            const Testing::Model read = Testing::addModel(scene, path, image);
             Testing::addModel(scene, widenedPath, widened);
 
             PreparedImages prepared(nullptr, 1);
@@ -1057,6 +1067,21 @@ namespace Rtx
             EXPECT_TRUE(described.getStood()[1].mMade);
             EXPECT_TRUE(Testing::isNear(Testing::firstTexelOf(laid.mFormat, laid.bytesOf(1)), { 255, 0, 255, 255 }, 2))
                 << "the made second level";
+            EXPECT_EQ(described.getStood()[0].mFrom, 0u) << "the walk's placement asks the finest";
+
+            // **Wanted from level 1, it stands whole from there**: the walk's placement taken out, its material
+            // asked at step 31, footprint -1, plus the 4-square file's offset 0.5 log2(16) = 2: level 1, whose
+            // levels from there are two BC7 blocks, 32 bytes.
+            MaterialHold kept = scene.holdMaterial(read.mMaterial);
+            scene.dropInstance(read.mPlacement, Stander::Walk);
+            scene.askMaterial(read.mMaterial, 31);
+            described.describeAll(scene, &prepared, true);
+            ASSERT_EQ(described.getStood().size(), 2u);
+            EXPECT_EQ(described.getDescriptions()[0].mWant, 1u);
+            EXPECT_EQ(described.getStood()[0].mFrom, 1u);
+            EXPECT_EQ(described.getStood()[0].mBytes, 32u);
+            scene.unaskMaterial(read.mMaterial, 31);
+            scene.drop(std::move(kept));
         }
     }
 }

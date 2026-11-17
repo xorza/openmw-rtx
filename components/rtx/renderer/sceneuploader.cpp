@@ -207,7 +207,7 @@ namespace Rtx
         // **A file short of its whole rests on nothing**, as one the hand-over stood short does
         // (`TextureTable::stand`): moved down, it stood its whole until now.
         if (whole == described.end())
-            scene.textures().stand(stood.mSlot, 0, textures.getRows()[stood.mSlot].mStoodMade);
+            scene.textures().stand(stood.mSlot, 0, textures.getRows()[stood.mSlot].mStoodMade, 0);
     }
 
     std::span<const Refusal> SceneUploader::takeAnswer(SceneHolder& scenes, const SceneSlot slot, SceneDesc& scene)
@@ -234,6 +234,13 @@ namespace Rtx
                 scene.textures().fit(fit.mSlot, fit.mBytes);
         for (const FitBytes& fit : mAnswer.mMeshFits)
             scene.fitMesh(fit.mSlot, fit.mBytes);
+
+        // **What moved down and stands no coarser than its readers want stands as it is now**: nothing is handed over
+        // again, and the slot says what the device holds of it. One let go of since, or laid to rest, says nothing.
+        TextureTable& textures = scene.textures();
+        for (const MovedTexture& moved : mAnswer.mMoved)
+            if (textures.isLive(moved.mSlot) && !textures.getRows()[moved.mSlot].mRest.mResting)
+                textures.stand(moved.mSlot, moved.mStoodBytes, textures.getRows()[moved.mSlot].mStoodMade, moved.mFrom);
         return mAnswer.mRefused;
     }
 
@@ -424,7 +431,8 @@ namespace Rtx
             for (const SceneTextures::Stood& stood : mTextures.getStood())
             {
                 const bool stands = !refusedTexture && !isWaiting(stood.mSlot);
-                scene.textures().stand(stood.mSlot, stands ? stood.mBytes : 0, stands && stood.mMade);
+                scene.textures().stand(stood.mSlot, stands ? stood.mBytes : 0, stands && stood.mMade,
+                    stands ? stood.mFrom : std::uint8_t{ 0 });
             }
 
             // **The host lets go of the texels and chains the device now holds**: what the descriptions held, and

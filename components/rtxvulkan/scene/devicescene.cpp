@@ -66,7 +66,8 @@ namespace Rtx
         // a loose block nothing holds any more.
         if (compaction == BuildCompaction::Settled)
             batch.flush();
-        mTextures.write(batch, mPasses.mTextures, arrival, textures, mAnswer, whenRoomless(device, scene), nullptr);
+        mTextures.write(batch, mPasses.mTextures, arrival, textures, scene.textures(), mAnswer,
+            whenRoomless(device, scene), nullptr);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedMeshes = scene.meshes().getFreedCount();
         mReleasedTextures = scene.textures().getFreedCount();
@@ -133,7 +134,8 @@ namespace Rtx
 
     void DeviceScene::makeTextureRoom(Batch& batch, TextureArrival& arrival, const VkDeviceSize bytes)
     {
-        mTextures.makeRoom(arrival, TextureArray::RoomAsk{ .mBytes = bytes, .mKeep = {}, .mCopyMost = bytes }, mAnswer);
+        mTextures.makeRoom(arrival, TextureArray::RoomAsk{ .mBytes = bytes, .mKeep = {}, .mCopyMost = bytes },
+            TextureArray::noWants(), mAnswer);
         arrival.record(batch, mPasses.mTextures, nullptr);
     }
 
@@ -163,7 +165,7 @@ namespace Rtx
             mBuiltMeshes = scene.meshes().getRevision();
         }
 
-        mTextures.write(batch, mPasses.mTextures, arrival, arrived, mAnswer, whenRoomless, timer);
+        mTextures.write(batch, mPasses.mTextures, arrival, arrived, scene.textures(), mAnswer, whenRoomless, timer);
 
         mBuiltStructure = scene.getStructureRevision();
     }
