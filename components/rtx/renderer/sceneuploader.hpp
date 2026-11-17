@@ -128,10 +128,8 @@ namespace Rtx
         /// forgets a smaller side that tried its most and those whose slot holds their file no more; asks `prepared` to
         /// read again the file of each the device's `free` bytes now hold and no eviction for it is coming back to
         /// (`isCooling`), and hands over again each read — each at once where nothing reads them or the hand-over is
-        /// `settled`, whose description reads and waits; and has `scenes` move what stands in `slot` down for the
-        /// stand-ins the room does not hold.
-        void serveWaits(SceneHolder& scenes, SceneSlot slot, SceneDesc& scene, PreparedImages* prepared, bool settled,
-            std::uint64_t free);
+        /// `settled`, whose description reads and waits.
+        void serveWaits(SceneDesc& scene, PreparedImages* prepared, bool settled, std::uint64_t free);
 
         /// Frees what rests, the oldest first, until the device's room holds an arrival of `arriving` bytes of textures
         /// in the pools' room beside the structures it may build in the storages'.
@@ -195,9 +193,6 @@ namespace Rtx
             std::uint64_t mStoodBytes = 0;
             std::uint32_t mWaited = 0;
             bool mReading = false;
-
-            /// Whether the last `serveWaits` asked the device to move what stands down for it.
-            bool mRoomAsked = false;
 
             /// How the read was asked, while `mReading`: what a wait that ends before it was handed forgets
             /// (`PreparedImages::forget`), its slot perhaps another file's by then.

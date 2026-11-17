@@ -542,12 +542,10 @@ namespace Rtx
             EXPECT_EQ(scene.textures().getRows()[model.mTexture].mStoodBytes, 0u) << "a texture that waits stood";
             EXPECT_EQ(scene.refusals().count(Refused::Texture), refusedBefore);
 
-            // No room yet: it waits, and is not handed over; the device is asked to move what stands down for its
-            // whole 64 bytes, none to stand 64 or less.
+            // No room yet: it waits, and is not handed over.
             renderer.mDescribedSlots.clear();
             hand();
             EXPECT_TRUE(renderer.mDescribedSlots.empty());
-            EXPECT_EQ(renderer.mRoomAsks, (std::vector<Rtx::TextureRoomAsk>{ { .mBytes = 64, .mAbove = 64 } }));
 
             // Room for its 64 bytes: handed over again, and stood.
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 64, .mBudget = sBudget };
@@ -602,7 +600,6 @@ namespace Rtx
             renderer.mShort.push_back(ShortTexture{ .mSlot = stranded.mTexture, .mStoodBytes = 0 });
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = sBudget };
             hand();
-            renderer.mRoomAsks.clear();
             for (std::uint32_t waited = 1; waited < sMostRoomWaits; ++waited)
             {
                 hand();
@@ -611,36 +608,6 @@ namespace Rtx
             hand();
             EXPECT_EQ(scene.refusals().count(Refused::Texture), refusedBefore + 1)
                 << "a room that never came ended in no refusal";
-            // Asked of the device at every hand-over but the one that refused it, since it moved nothing.
-            EXPECT_EQ(renderer.mRoomAsks,
-                std::vector<Rtx::TextureRoomAsk>(
-                    sMostRoomWaits - 1, Rtx::TextureRoomAsk{ .mBytes = 64, .mAbove = 64 }));
-
-            // **A stand-in the device moves what stands down for waits on afresh** each time, so it is never refused
-            // while the room keeps coming: asked once a cooling, every `sFramesInFlight + 1` hand-overs, and handed
-            // over once the room holds it and it cools no more. Thirteen hand-overs ask at the first, fourth, seventh,
-            // tenth and thirteenth, the last cooling through the next two.
-            constexpr VFS::Path::NormalizedView madeFor("textures/tx_made_for.dds");
-            const osg::ref_ptr<osg::Image> madeForImage = sixtyFourBytes(madeFor.value());
-            const Testing::Model making = Testing::addModel(scene, madeFor, madeForImage.get());
-            renderer.mShort.push_back(ShortTexture{ .mSlot = making.mTexture, .mStoodBytes = 0 });
-            hand();
-            renderer.mRoomAsks.clear();
-            renderer.mRoomMade = 64;
-            for (std::uint32_t waited = 0; waited <= 2 * sMostRoomWaits; ++waited)
-                hand();
-            EXPECT_EQ(scene.refusals().count(Refused::Texture), refusedBefore + 1)
-                << "a stand-in the device made room for was refused";
-            EXPECT_EQ(renderer.mRoomAsks.size(), 5u);
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 64, .mBudget = sBudget };
-            renderer.mDescribedSlots.clear();
-            hand();
-            hand();
-            EXPECT_TRUE(renderer.mDescribedSlots.empty()) << "handed over while the room made for it was coming";
-            hand();
-            EXPECT_EQ(renderer.mDescribedSlots, (std::vector<std::uint32_t>{ making.mTexture }));
-            EXPECT_EQ(scene.textures().getRows()[making.mTexture].mStoodBytes, 64u);
-            renderer.mRoomMade = 0;
 
             // **A wait goes with its file**: one whose slot the scene gives back is forgotten and never refused.
             constexpr VFS::Path::NormalizedView gone("textures/tx_gone.dds");

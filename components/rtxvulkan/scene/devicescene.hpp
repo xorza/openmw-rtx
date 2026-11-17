@@ -131,9 +131,9 @@ namespace Rtx
         /// mesh's structure took at its build — `SceneHolder::takeAnswer`.
         void takeAnswer(DeviceAnswer& into);
 
-        /// Moves textures that stand down as `ask` says, recorded into `batch` through `arrival`
-        /// (`TextureArray::makeRoom`): what they gave back. What moved is in the next answer, short of its file.
-        VkDeviceSize makeTextureRoom(Batch& batch, TextureArrival& arrival, const TextureArray::RoomAsk& ask);
+        /// Moves textures that stand down until they give back `bytes`, recorded into `batch` through `arrival`
+        /// (`TextureArray::makeRoom`); what moved is in the next answer, short of its file.
+        void makeTextureRoom(Batch& batch, TextureArrival& arrival, VkDeviceSize bytes);
 
         /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
         /// total kept as it changes, so a placement on the frame path reads them all.

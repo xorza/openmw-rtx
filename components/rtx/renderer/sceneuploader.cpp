@@ -34,8 +34,8 @@ namespace Rtx
         return std::ranges::any_of(mTextureWaits, [&](const TextureWait& wait) { return wait.mSlot == slot; });
     }
 
-    void SceneUploader::serveWaits(SceneHolder& scenes, const SceneSlot slot, SceneDesc& scene,
-        PreparedImages* const prepared, const bool settled, std::uint64_t free)
+    void SceneUploader::serveWaits(
+        SceneDesc& scene, PreparedImages* const prepared, const bool settled, std::uint64_t free)
     {
         // **Each hand-over is a wait more for a stand-in**, whether the room came or not, so a room that never comes
         // ends in a refusal and not in a stand-in for good. A smaller side draws its texture, and waits until it was
@@ -63,19 +63,11 @@ namespace Rtx
         // and the slot keeps what it stands meanwhile. A settled hand-over reads them as it describes, and waits for
         // them, so two runs hand the slot over on one hand-over. The room is what rested went for, a hand-over or
         // more before, back once the frames that held it are done.
-        TextureRoomAsk ask;
         for (TextureWait& wait : mTextureWaits)
         {
             // Not while what was evicted for it is coming back: handed over first, it stands short again.
             const std::uint64_t lacking = wait.getLacking();
-            const bool cooling = isCooling(RestKind::Texture, wait.mSlot);
-            wait.mRoomAsked = !wait.mReading && lacking > free && !cooling && wait.mStoodBytes == 0;
-            if (wait.mRoomAsked)
-            {
-                ask.mBytes += lacking;
-                ask.mAbove = std::max(ask.mAbove, wait.mFileBytes);
-            }
-            if (!wait.mReading && (lacking > free || cooling))
+            if (!wait.mReading && (lacking > free || isCooling(RestKind::Texture, wait.mSlot)))
                 continue;
             const TextureRow& row = scene.textures().getRows()[wait.mSlot];
             if (prepared != nullptr && !settled)
@@ -99,21 +91,6 @@ namespace Rtx
                 free -= lacking;
             scene.textures().arriveAgain(wait.mSlot);
         }
-
-        // **A stand-in that what rests gave no room to has what stands above it moved down for it**, the largest
-        // first, none to stand less than the stand-in's whole file (`SceneHolder::makeTextureRoom`): a texture drawn as
-        // the stand-in is a hole in the picture, a level off a large one is not. Where the device moved anything the
-        // room is coming, and each waits on it afresh, cooling while the frames that sample what moved are done; where
-        // it moved nothing they wait on as they were, to their most.
-        if (ask.mBytes == 0 || scenes.makeTextureRoom(slot, ask) == 0)
-            return;
-        for (TextureWait& wait : mTextureWaits)
-            if (wait.mRoomAsked)
-            {
-                wait.mWaited = 0;
-                mCooling.push_back(WantCooling{
-                    .mKind = RestKind::Texture, .mSlot = wait.mSlot, .mUntil = mHandOvers + sFramesInFlight + 1 });
-            }
     }
 
     void SceneUploader::evictForRoom(SceneDesc& scene, const ArrivalRoom& room, const std::uint64_t arriving)
@@ -222,7 +199,6 @@ namespace Rtx
             .mStoodBytes = stood.mStoodBytes,
             .mWaited = 0,
             .mReading = false,
-            .mRoomAsked = false,
             .mEncoding = {},
             .mWrap = {},
             .mPartner = nullptr,
@@ -339,7 +315,7 @@ namespace Rtx
             scene.setRestLimit(
                 RestLimit{ .mBytes = restLimitOf(*room, scene.getRestingBytes()), .mStep = mArrivals.largest().mAll });
             serveWants(scene);
-            serveWaits(scenes, slot, scene, handing.mPrepared, handing.mSettled, room->mFree);
+            serveWaits(scene, handing.mPrepared, handing.mSettled, room->mFree);
         }
 
         // After the calls above, because they rewrite what the spans reach.
