@@ -619,6 +619,11 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 
 ## Changed
 
+- **11. The device uses its budget**: the doubling tables owe twice their size and the blocked streams and structure
+  storages their next block; a scratch or a storage held to a room grows to what its owner asks and owes nothing, so a
+  build's 64 MiB scratch does not keep 128 MiB from content. The masks stay floats for now: bytes are a shader change
+  and its `kernels` and drm-shim checks, which this run did not reach.
+
 - **9. What is plainly wrong**: each its own commit and test, as planned, but for the room arithmetic — the storages'
   free runs, `evictForRoom`'s storage, the loose storage's want and a texture's fit — which moved to item 11, whose
   rooms replace it; a fix to each first would be rewritten there. The prepared images' orphan is forgotten per slot

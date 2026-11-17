@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
@@ -17,12 +19,22 @@ namespace Rtx
     class GrowableBuffer
     {
     public:
+        /// How it grows: made again at twice what it holds as it outgrows its room, the doubling table every scene's
+        /// rows are, whose next size it owes the ceiling (`OwedGrowth`); or to what its owner asks and no further, a
+        /// scratch or a storage held to a room, which owes nothing past it.
+        enum class Growth : std::uint8_t
+        {
+            Doubling,
+            Exact,
+        };
+
         /// Nothing yet, and nothing it can grow into: what a slot holds before its owner opens it.
         GrowableBuffer() = default;
 
         /// @param name kept, and named again on every buffer a growth makes, so it lives as long as
         ///        this does: a literal, which is what every caller passes.
-        GrowableBuffer(const Device& device, BufferKind kind, VkBufferUsageFlags usage, const char* name);
+        GrowableBuffer(const Device& device, BufferKind kind, VkBufferUsageFlags usage, const char* name,
+            Growth growth = Growth::Doubling);
 
         /// Grows so it can hold `bytes`, and never leaves the buffer holding nothing: an empty one
         /// is made whatever `bytes` is. Keeps what it has where that is big enough. True where it
@@ -54,7 +66,7 @@ namespace Rtx
 
         Buffer mBuffer;
 
-        /// Twice what it holds, the next growth's, where it stands in video memory (`OwedGrowth`).
+        /// Twice what a doubling table holds, its next growth's, where it stands in video memory (`OwedGrowth`).
         OwedGrowth mOwed;
     };
 }

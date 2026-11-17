@@ -12,12 +12,13 @@
 
 namespace Rtx
 {
-    GrowableBuffer::GrowableBuffer(const Device& device, BufferKind kind, VkBufferUsageFlags usage, const char* name)
+    GrowableBuffer::GrowableBuffer(
+        const Device& device, BufferKind kind, VkBufferUsageFlags usage, const char* name, const Growth growth)
         : mDevice(&device)
         , mKind(kind)
         , mUsage(usage)
         , mName(name)
-        , mOwed(kind == BufferKind::DeviceLocal || kind == BufferKind::HostWritten
+        , mOwed(growth == Growth::Doubling && (kind == BufferKind::DeviceLocal || kind == BufferKind::HostWritten)
                   ? OwedGrowth(device.getMemory(), MemoryUse::Essential)
                   : OwedGrowth())
     {

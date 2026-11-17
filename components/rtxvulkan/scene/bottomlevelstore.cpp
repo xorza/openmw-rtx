@@ -108,7 +108,7 @@ namespace Rtx
         , mBuildRoom(buildRoom)
         , mStorage(sStructureStorageUsage, "bottom level structures", blockBytes)
         , mLooseStorage(sStructureStorageUsage, "loose bottom level structures", blockBytes)
-        , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch")
+        , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch", GrowableBuffer::Growth::Exact)
     {
     }
 

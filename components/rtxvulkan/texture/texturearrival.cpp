@@ -25,7 +25,7 @@ namespace Rtx
     TextureArrival::TextureArrival(const Device& device, const VkDeviceSize meansRoom)
         : mMeansRoom(meansRoom)
         , mMeans(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-              "normal spread means")
+              "normal spread means", GrowableBuffer::Growth::Exact)
     {
     }
 

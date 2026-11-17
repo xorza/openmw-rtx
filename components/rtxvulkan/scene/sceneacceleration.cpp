@@ -74,11 +74,13 @@ namespace Rtx
         std::span<const Index> everyMesh, const std::uint32_t slots, const std::uint32_t placementRoom)
         : mDevice(device)
         , mPlacementRoom(placementRoom)
-        , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage")
+        , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage",
+              GrowableBuffer::Growth::Exact)
         , mPacked(device, BufferKind::DeviceLocal, sBuildInputUsage, "instances packed")
         , mBottomLevel(device, sStructureBuildRoom, placementRoom > 0 ? sContentBlockBytes : sSmallSceneBlockBytes)
-        , mRefitScratch(device, BufferKind::DeviceLocal, sScratchUsage, "refit scratch")
-        , mTopLevelScratch(device, BufferKind::DeviceLocal, sScratchUsage, "top level scratch")
+        , mRefitScratch(device, BufferKind::DeviceLocal, sScratchUsage, "refit scratch", GrowableBuffer::Growth::Exact)
+        , mTopLevelScratch(
+              device, BufferKind::DeviceLocal, sScratchUsage, "top level scratch", GrowableBuffer::Growth::Exact)
     {
         mPoses.open(device, slots, sBuildInputUsage, "poses");
         mRowTable.open(device, slots, sBuildInputUsage, "instances");
