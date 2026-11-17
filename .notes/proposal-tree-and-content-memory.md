@@ -495,15 +495,6 @@ Then the baseline's longest frames are explained: the ten longest on the handhel
 (`perf` beside the run, as `./omw profile` does on the desk) until each names what led it. One an item of this plan
 causes or cures is that item's to show gone; one that is upstream's is proposed with its profile.
 
-### 9. What is plainly wrong
-
-Each its own commit and test, none a design change: the prepared images' orphan; `admits` asked for the make only on a
-miss; the specular layout asked by the reader with the other facts; a want filed for a mesh refused in the loose
-storage; a texture's fit compared as its image's requirements; the storages' free runs in `getContentFree` and
-`getVideoBudget`; `evictForRoom` sized a storage; `mLargestStructures` and `mLargestArrival` coming down; the refusal
-flag cleared when the short list empties; `reservePicture` no cause for a rebuild; `noteRefused`'s walk once a
-hand-over; `CellPlacer::mMoved` bounded and skipped for actors; the stale comments the issue log names.
-
 ### 10. The heap, the budgets and the game's own holders
 
 1. The allocator's settings, by tunables and no code: handheld Repack tours under a pinned
@@ -527,7 +518,11 @@ hand-over; `CellPlacer::mMoved` bounded and skipped for actors; the stale commen
 2. Rooms: the world's tables at 2^17 placements with their growth owed; masks as the source's bytes; a stream's first
    block made when a run lands; a structure storage's block sized by its scene's room, so a picture's is small.
 3. Staging bounded: a batch flushes at the kept size; the spread's means given back past a bound.
-4. Tours on the handheld, Repack and PBR: no refusal with room under the budget; item 8's figures again.
+4. Item 9's room arithmetic, which these rooms replace: the structure storages' free runs in `getContentFree` and
+   `getVideoBudget`; `evictForRoom` sized against the storages and not the texture pools; a want filed for a mesh
+   refused in the loose storage; a texture's fit compared as its image's requirements, not the hole's margins; and
+   `contentFits` reading the rest and the pools' free bytes in the driver's usage.
+5. Tours on the handheld, Repack and PBR: no refusal with room under the budget; item 8's figures again.
 
 ### 12. One read a texture
 
@@ -612,6 +607,12 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **9. What is plainly wrong**: each its own commit and test, as planned, but for the room arithmetic — the storages'
+  free runs, `evictForRoom`'s storage, the loose storage's want and a texture's fit — which moved to item 11, whose
+  rooms replace it; a fix to each first would be rewritten there. The prepared images' orphan is forgotten per slot
+  (`PreparedImages::forget`), as `letGo` serves every slot of a file at once; `admits` became the preprocessor's
+  (`ChainRuns`), asked past the store's miss; the refusal flags became counts of what stands short of room now.
 
 - **8. Meters**: each stop's place in the report states them and the run's end names each peak with its stop; the
   device's vertex attributes and indices are counted apart from its tables. Image loads are counted as the fork's asks
