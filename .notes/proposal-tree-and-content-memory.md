@@ -713,12 +713,12 @@ from its callers.
 8. Tests: a block no run touches goes back, and a mesh refused in the loose storage stands once one empties. Tours:
    no mesh refused for room on the Repack.
 
-### 21–28. The open issues (the user, 2026-11-18)
+### 21–29. The open issues (the user, 2026-11-18)
 
 Each investigated against the tree at `b04f563f00`. Each item closes its issue in `.notes/ISSUES.md` when its test and
 its tour hold.
 
-#### 21. The content pools defragment, incrementally
+#### 21. Fix: the content pools defragment, incrementally
 
 **Closes**: "the pool refuses small resources while it has room free in pieces". Takes over item 16's conditional
 defragmentation. At the handheld Repack tour's mesh refusal (`5db3a1fbf7`), the texture pool held 793 MiB free in its
@@ -735,7 +735,7 @@ blocks, its largest range 12.4 MiB.
 - **Tests**: a pool cut into pieces takes, after its passes, the resource it refused; a frame whose takes fit runs no
   pass; a pass never copies past its bound.
 
-#### 22. A texture's want matches a rest of its own size
+#### 22. Fix: a texture's want matches a rest of its own size
 
 **Closes**: "a texture's want never matches a resting texture of its own size".
 
@@ -748,7 +748,7 @@ blocks, its largest range 12.4 MiB.
 - **Tests**: a want matches a rest of its own size and alignment and no smaller one; a coarser alignment fits a finer
   want, and not the other way.
 
-#### 23. A bake waits for room as a file does, and a refusal is counted once
+#### 23. Fix: a bake waits for room as a file does, and a refusal is counted once
 
 **Closes**: "a texture the device has no room for draws the stand-in for good", and the cascade in the Repack entry's
 `textures-readable`.
@@ -762,7 +762,7 @@ blocks, its largest range 12.4 MiB.
 - **Tests**: a bake refused for room stands once room is given back; the check fails at the stop of a refusal and not
   at the next.
 
-#### 24. The GPU memory tests start drained
+#### 24. Fix: the GPU memory tests start drained
 
 **Closes**: "`RtxMemoryTest.whatEachUseHoldsIsItsRangesExactly` fails in the GPU suite's random order". This
 reproduces at `43cf84a1b0` with seed 44490. The test measures the heap's held memory across a bind, while the previous
@@ -772,7 +772,7 @@ test's buried memory is still in the graveyard. A take collects that memory, so 
   states its own start: GoogleTest's rule that a test depends on no other.
 - **Test**: the whole GPU suite under `--gtest_shuffle` with seed 44490, and with three others.
 
-#### 25. The build image fetches autoconf from GNU's mirrors
+#### 25. Fix: the build image fetches autoconf from GNU's mirrors
 
 **Closes**: "`env/install_almalinux_deps.sh` fetches autoconf from ftp.gnu.org alone".
 
@@ -781,7 +781,7 @@ test's buried memory is still in the graveyard. A take collects that memory, so 
   `fetch` takes the list and tries each in order, its retries kept.
 - **Check**: the release-base image builds on Docker's default network, and CI's Linux jobs pass.
 
-#### 26. Windows says what holds the process's memory
+#### 26. Measure, then fix: Windows says what holds the process's memory
 
 **Addresses**: "on the Windows machine the tour's process holds far more anonymous memory than its heap takes". The
 issue closes once the gap is named and either fixed or decided.
@@ -791,7 +791,7 @@ issue closes once the gap is named and either fixed or decided.
   the top holders. On Linux, the same question is `smaps_rollup`'s, which the report already reads.
 - **Then**: a holder the fork owns becomes an item; a driver's holding is noted in the research with its figure.
 
-#### 27. The cell reader's lent models hold what their content fills
+#### 27. Measure, then fix: the cell reader's lent models hold what their content fills
 
 **Closes**: "the cell reader's lent models hold 2.6 times the room their content fills" (the latest PBR tour: 51.8 MiB
 for 22.4 MiB).
@@ -801,7 +801,7 @@ for 22.4 MiB).
   so a model's room is its content. The pool keeps its spares within twice their last tenant (`dropSlack`), as now.
 - **Test**: a model lent after a larger one holds its own content's room and no more.
 
-#### 28. Three lint checks over the fork's own code
+#### 28. Measure, then fix: three lint checks over the fork's own code
 
 **Addresses**: the issues of `cppcoreguidelines-avoid-non-const-global-variables`, `misc-no-recursion` and
 `google-default-arguments`, which count upstream's hits with the fork's.
@@ -812,6 +812,22 @@ for 22.4 MiB).
   loop with an explicit stack; a default argument taken off a virtual. Each check then holds over the fork's folders in
   `.clang-tidy`, so CI keeps it.
 - **Upstream's hits are listed for the user**, as an upstream proposal, and the issue keeps their count alone.
+
+#### 29. Measure: the Repack's refusals and outruns, after items 14.6, 15, 16, 20 and 21
+
+**Addresses**: "the handheld's Fullrest Repack tour at `8c032f6e00` still refuses content", and "the handheld's
+Fullrest Repack tour at `8c032f6e00` outran its world". Both were measured before the items that act on them, and
+item 15 may yet be declined by its own measure.
+
+- **The refusals, by kind and by why**: each refusal's reason from the log (no room in a block, a block past the
+  ceiling, a side past the device's), the pools' free bytes and largest range at it, and the resting bytes beside it.
+  Also the heap's free share and the bytes swapped. And the first place flown again at the end against its first
+  flight: vertices in use and live structure bytes, for the same instances, which grew half again at `8c032f6e00`.
+- **The outruns, by cause**: for each cell never stood whole while the player was in its column, whether its cell
+  read late (the reader's queue at the time), the walk adopted it late (one cell a frame), or its ground or statics
+  were refused for room. A tour's findings name the cell and its leg, and the cause comes from the log beside it.
+- **Then**: a cause no item cured becomes an item ahead of item 18, and the two issues are rewritten with what is left,
+  or deleted.
 
 **Proposed upstream, awaiting the user's yes** (`UPSTREAM.md`'s rule):
 
