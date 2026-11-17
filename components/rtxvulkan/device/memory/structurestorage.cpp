@@ -35,6 +35,11 @@ namespace Rtx
         assert(bytes > 0);
 
         reclaim(device.getTimeline().getKnownFinished());
+        if (mOwed.isUnowed())
+        {
+            mOwed = OwedGrowth(device.getMemory(), MemoryUse::Structure);
+            mOwed.set(mBlockBytes);
+        }
 
         // **Every block one size, made apart from content's pool blocks**: a block sized to what a build had left
         // to place cut ranges of every size out of the blocks textures stand in, and one that went back left them as

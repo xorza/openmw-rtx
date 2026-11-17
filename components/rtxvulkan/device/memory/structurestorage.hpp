@@ -14,6 +14,7 @@
 #include "blocklist.hpp"
 #include "buffer.hpp"
 #include "bufferusage.hpp"
+#include "owedgrowth.hpp"
 
 namespace Rtx
 {
@@ -112,5 +113,8 @@ namespace Rtx
         VkBufferUsageFlags mUsage = 0;
         std::string mName;
         VkDeviceSize mBlockBytes = 0;
+
+        /// Its next block, owed ahead of the textures once it first takes room (`OwedGrowth`).
+        OwedGrowth mOwed;
     };
 }

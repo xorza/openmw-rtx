@@ -387,6 +387,20 @@ namespace Rtx
         /// Whether the device's memory is the system's: an integrated device, as its type states.
         bool isUnified() const { return mUnified; }
 
+        /// What one owner's next growth of `use` takes, `bytes`, in place of the `was` it owed before
+        /// (`OwedGrowth`): kept free under the ceilings of the uses given room after it.
+        void owe(MemoryUse use, VkDeviceSize was, VkDeviceSize bytes) noexcept;
+
+        /// What `use` may take on the video heap at most, as the budget and the frame's reserve stand and what the
+        /// uses before it owe their growth: what a test of the ceiling reads.
+        VkDeviceSize getCeiling(MemoryUse use) const;
+
+        /// What `use`'s owners owe their next growth on the video heap.
+        VkDeviceSize getOwed(MemoryUse use) const
+        {
+            return mOwed[static_cast<std::size_t>(use)].load(std::memory_order_relaxed);
+        }
+
         /// How many calls to `vkAllocateMemory` stand behind everything handed out.
         std::size_t getBlockCount() const;
 
@@ -498,6 +512,9 @@ namespace Rtx
 
         /// What each use holds on each heap. Atomic, for the threads `take` is reached from.
         std::array<std::array<std::atomic<VkDeviceSize>, sMemoryUses>, VK_MAX_MEMORY_HEAPS> mHeld{};
+
+        /// What each use's owners owe their next growth on the video heap (`OwedGrowth`).
+        std::array<std::atomic<VkDeviceSize>, sMemoryUses> mOwed{};
 
         std::optional<VkDeviceSize> mBudgetLimit;
         VkDeviceSize mFrameReserve = 0;

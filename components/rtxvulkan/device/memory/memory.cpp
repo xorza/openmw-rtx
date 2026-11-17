@@ -468,9 +468,13 @@ namespace Rtx
             = mHeld[heap][static_cast<std::size_t>(MemoryUse::Frame)] + (heap == mContent.mHeap ? mHeldOutside : 0);
         if (heap == mContent.mHeap && mFrameReserve > frame)
             owed += mFrameReserve - frame;
-        for (auto before = static_cast<std::size_t>(MemoryUse::Essential); before < static_cast<std::size_t>(use);
-            ++before)
-            owed += mHeld[heap][before];
+        // **What the uses given room before `use` owe their next growth, and not what they hold**: what they hold is
+        // in the driver's usage already, and a second copy of it was kept free for a table that grows by being made
+        // again, which tables alone do, and their own next size is what they take beside what they hold.
+        if (heap == mContent.mHeap)
+            for (auto before = static_cast<std::size_t>(MemoryUse::Essential); before < static_cast<std::size_t>(use);
+                ++before)
+                owed += mOwed[before].load(std::memory_order_relaxed);
 
         const VkDeviceSize held = heldTo(budget);
         return held > owed ? held - owed : 0;
@@ -619,6 +623,20 @@ namespace Rtx
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         mSystemBound = systemBoundOf(budgets[mContent.mHeap].usage, *available);
+    }
+
+    void MemoryAllocator::owe(const MemoryUse use, const VkDeviceSize was, const VkDeviceSize bytes) noexcept
+    {
+        std::atomic<VkDeviceSize>& owed = mOwed[static_cast<std::size_t>(use)];
+        [[maybe_unused]] const VkDeviceSize before = owed.fetch_add(bytes - was, std::memory_order_relaxed);
+        assert(before + bytes >= was && "growth forgiven that was never owed");
+    }
+
+    VkDeviceSize MemoryAllocator::getCeiling(const MemoryUse use) const
+    {
+        VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
+        return ceilingOf(mContent.mHeap, use, budgets[mContent.mHeap].budget);
     }
 
     VkDeviceSize MemoryAllocator::heldTo(const VkDeviceSize budget) const

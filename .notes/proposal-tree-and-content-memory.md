@@ -513,8 +513,6 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 
 ### 11. The device uses its budget
 
-1. The ceiling from owed growth. A test: geometry and structures standing change no ceiling; a table about to double
-   lowers it by its next size.
 2. Rooms: the world's tables at 2^17 placements with their growth owed; masks as the source's bytes; a stream's first
    block made when a run lands; a structure storage's block sized by its scene's room, so a picture's is small.
 3. Staging bounded: a batch flushes at the kept size; the spread's means given back past a bound.

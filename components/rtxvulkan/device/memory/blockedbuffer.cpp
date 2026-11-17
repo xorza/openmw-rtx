@@ -19,6 +19,8 @@ namespace Rtx
         assert(mDevice == nullptr && "a blocked buffer opened twice");
 
         mDevice = &device;
+        mOwed = OwedGrowth(device.getMemory(), MemoryUse::Essential);
+        mOwed.set(getBlockBytes());
 
         // A shader reaches a block through a pointer out of the table, and a buffer only has an
         // address if it was created saying so. `TRANSFER_DST` because a block is filled and written

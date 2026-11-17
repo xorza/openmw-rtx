@@ -3,6 +3,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
+#include "owedgrowth.hpp"
 
 namespace Rtx
 {
@@ -21,13 +22,7 @@ namespace Rtx
 
         /// @param name kept, and named again on every buffer a growth makes, so it lives as long as
         ///        this does: a literal, which is what every caller passes.
-        GrowableBuffer(const Device& device, BufferKind kind, VkBufferUsageFlags usage, const char* name)
-            : mDevice(&device)
-            , mKind(kind)
-            , mUsage(usage)
-            , mName(name)
-        {
-        }
+        GrowableBuffer(const Device& device, BufferKind kind, VkBufferUsageFlags usage, const char* name);
 
         /// Grows so it can hold `bytes`, and never leaves the buffer holding nothing: an empty one
         /// is made whatever `bytes` is. Keeps what it has where that is big enough. True where it
@@ -54,5 +49,8 @@ namespace Rtx
         const char* mName = "";
 
         Buffer mBuffer;
+
+        /// Twice what it holds, the next growth's, where it stands in video memory (`OwedGrowth`).
+        OwedGrowth mOwed;
     };
 }

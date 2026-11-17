@@ -21,6 +21,9 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
+#include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
+#include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
@@ -370,6 +373,52 @@ namespace Rtx
             EXPECT_LT(memory.getBlockCount(), grown) << "emptied blocks were kept";
         }
 
+        /// **Content's ceiling keeps room for what the uses before it owe their growth, not a copy of what they hold**:
+        /// a blocked buffer opened owes its next block, and blocks it makes after change no ceiling; a table made at a
+        /// size owes twice that, its next growth, and made again at twice it owes four times; let go of, it owes
+        /// nothing. The textures' ceiling stands under the structures' by what the structures owe.
+        TEST_F(RtxMemoryTest, contentsCeilingKeepsRoomForWhatTheUsesBeforeItOweTheirGrowth)
+        {
+            Device& device = getDevice();
+            MemoryAllocator& memory = device.getMemory();
+            memory.refreshBudget(device.getTimeline().getNext());
+            const VkDeviceSize base = memory.getCeiling(MemoryUse::Structure);
+            const VkDeviceSize ahead = memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture);
+
+            constexpr std::uint32_t sBlock = 1024;
+            BlockedBuffer blocks(sBlock, sizeof(std::uint32_t));
+            blocks.open(device, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "owed blocks");
+            const VkDeviceSize opened = memory.getCeiling(MemoryUse::Structure);
+            EXPECT_EQ(base - opened, VkDeviceSize{ sBlock } * sizeof(std::uint32_t)) << "its next block";
+            {
+                Batch batch(getPool());
+                blocks.reserve(batch, 3 * sBlock);
+                batch.flush();
+            }
+            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure), opened) << "geometry that stands moved the ceiling";
+
+            constexpr VkDeviceSize sTable = 64 * 1024;
+            {
+                GrowableBuffer table(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "owed table");
+                table.growTo(sTable);
+                const VkDeviceSize made = table.get().getSize();
+                EXPECT_EQ(opened - memory.getCeiling(MemoryUse::Structure), 2 * made) << "its next growth";
+                table.outgrow(made + 1);
+                EXPECT_EQ(opened - memory.getCeiling(MemoryUse::Structure), 2 * table.get().getSize());
+                EXPECT_EQ(table.get().getSize(), 2 * made) << "a growth doubles";
+            }
+            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure), opened) << "a table let go of still owed";
+            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture), ahead)
+                << "the structures owe what they owed";
+
+            // What went is buried until the device is done with it: collected, so the tests after count no block of
+            // this one's.
+            blocks = BlockedBuffer(sBlock, sizeof(std::uint32_t));
+            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure), base) << "a blocked buffer let go of still owed";
+            device.waitIdle();
+            device.collectIdle();
+        }
+
         /// **A device whose memory is the system's is held to what the system leaves**: holding 2 GiB with 5 left
         /// beside it, 6 after the host's gigabyte; holding a quarter with a half left, nothing. The device here says
         /// whether its memory is the system's by its type.
@@ -486,19 +535,19 @@ namespace Rtx
         }
 
         /// Each use's room is what content's blocks have free and the whole blocks its ceiling leaves, and the ceiling
-        /// of each stands below the one before it by what the one before it holds.
+        /// of each stands below the one before it by what the one before it owes its next growth.
         ///
         /// **Hand-computed from the heap's own figures.** The budget is set to what the heap holds (the process's
-        /// memory outside the allocator counted once) plus what essential memory holds, owed once more, plus three
-        /// blocks and a megabyte: the structures' ceiling is then three whole blocks above the heap, and the megabyte
-        /// keeps the division by a block off its edge. The textures' ceiling stands lower by the structure held here
-        /// and whatever other structures the device holds.
+        /// memory outside the allocator counted once) plus what essential memory owes its growth, plus three blocks
+        /// and a megabyte: the structures' ceiling is then three whole blocks above the heap, and the megabyte keeps
+        /// the division by a block off its edge. The textures' ceiling stands lower by what the structure storages
+        /// owe, whatever structures the device holds.
         ///
         /// **The frame's targets are owed their reserve and not themselves once more**: sixteen megabytes held and a
         /// reserve of exactly that leave the three blocks; a reserve two blocks beyond it leaves one. **Content fits
         /// to the byte**: under a budget that puts the textures' ceiling at the heap it fits, and a byte less, or a
         /// reserve a byte more, it does not.
-        TEST_F(RtxMemoryTest, eachUseStopsWhereTheUsesBeforeItCouldBeMadeOnceMore)
+        TEST_F(RtxMemoryTest, eachUseStopsWhereTheUsesBeforeItCouldGrow)
         {
             MemoryAllocator& memory = getDevice().getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
@@ -546,8 +595,8 @@ namespace Rtx
                 EXPECT_EQ(memory.getRoom(MemoryUse::Structure), free) << "the two uses share content's blocks";
             }
 
-            const VkDeviceSize structures = memory.getHeld(heap, MemoryUse::Structure);
-            ASSERT_GE(structures, VkDeviceSize{ 48 } << 20);
+            ASSERT_GE(memory.getHeld(heap, MemoryUse::Structure), VkDeviceSize{ 48 } << 20);
+            const VkDeviceSize structures = memory.getOwed(MemoryUse::Structure);
             const HeapUse heapNow = memory.report().mHeaps[heap];
             ASSERT_GT(heapNow.mHeld - heapNow.mReserved, VkDeviceSize{ 1 } << 20)
                 << "no memory outside the allocator past the margin, so counting it twice would show nothing";

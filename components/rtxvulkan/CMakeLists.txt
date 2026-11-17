@@ -411,6 +411,7 @@ target_sources(
         device/memory/imagearena.cpp
         device/memory/joinedblocks.cpp
         device/memory/memory.cpp
+        device/memory/owedgrowth.cpp
         device/memory/stagingring.cpp
         device/memory/structurestorage.cpp
         device/memory/uploads.cpp
@@ -528,6 +529,7 @@ target_sources(
                 device/memory/imageuse.hpp
                 device/memory/joinedblocks.hpp
                 device/memory/memory.hpp
+                device/memory/owedgrowth.hpp
                 device/memory/referencealignment.hpp
                 device/memory/slottable.hpp
                 device/memory/stagingring.hpp
