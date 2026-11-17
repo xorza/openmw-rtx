@@ -408,16 +408,18 @@ namespace Rtx
         // What the last write moved out of: the batch that copied from it has gone to the queue since.
         mMovedFrom.clear();
 
-        // **Room made for an arrival the room does not hold whole by what stands moving down**, before it is held
-        // smaller: what moves gives its room back once the frames that sample it are done, and the arrival stood short
-        // meanwhile is handed over whole again then (`SceneUploader`).
-        const VkDeviceSize room = mDevice.getMemory().getRoom(MemoryUse::Texture);
+        // **Room made by what stands moving down**, for an arrival the room does not hold whole and for what content
+        // holds past its ceiling, a budget that fell beside it: what moves gives its room back once the frames that
+        // sample it are done, and the arrival stood short meanwhile is handed over whole again then (`SceneUploader`).
+        const MemoryAllocator& memory = mDevice.getMemory();
+        const VkDeviceSize room = memory.getRoom(MemoryUse::Texture);
         mFullFirsts.assign(arrived.size(), 0);
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::File)
                 mFullFirsts[at] = arrived[at].firstLevelWithin(mSideLimit).value_or(0);
-        if (const VkDeviceSize whole = costAt(arrived, mFullFirsts, true, arrival); whole > room)
-            makeRoom(arrival, RoomAsk{ .mBytes = whole - room, .mKeep = arrived }, answer);
+        const VkDeviceSize whole = costAt(arrived, mFullFirsts, true, arrival);
+        if (const VkDeviceSize deficit = (whole > room ? whole - room : 0) + memory.getContentOver(); deficit > 0)
+            makeRoom(arrival, RoomAsk{ .mBytes = deficit, .mKeep = arrived }, answer);
         chooseLevels(arrived, room, arrival, mFirsts);
 
         std::uint32_t held = 0;

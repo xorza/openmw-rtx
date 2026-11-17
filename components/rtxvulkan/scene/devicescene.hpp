@@ -118,7 +118,7 @@ namespace Rtx
         /// Whether the room the scene was built and extended in held any of it back: a texture stood
         /// smaller than its file, or a texture or a structure left out. A scene built again in more
         /// room would stand more of it.
-        bool wasHeldBack() const { return mTextures.wasHeldBack() || mAcceleration.wasRefusedRoom(); }
+        bool wasStructureRefused() const { return mAcceleration.wasRefusedRoom(); }
 
         /// Appends what the build, an `extend` or a placement made of the scene since the last take, and forgets it:
         /// what it left out, for want of room on the device or for a side the device does not take, and what each

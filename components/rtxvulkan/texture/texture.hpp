@@ -275,10 +275,6 @@ namespace Rtx
         /// nothing, and neither is counted here.
         const TexturesHeld& getHeld() const { return mHeld; }
 
-        /// Whether a texture stands smaller than its file, or a slot draws the stand-in for want of room: what an
-        /// array made against more room might have stood whole. Cleared as the last such slot stands whole or goes.
-        bool wasHeldBack() const { return mHeld.mReduced > 0 || mHeld.mShortOfRoom > 0; }
-
         /// How many files of the last `write` the room held below their first level within the
         /// device's side: nought where it took nothing off. Read by the tests and by nothing else.
         std::uint32_t getRoomHeld() const { return mRoomHeld; }

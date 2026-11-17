@@ -585,7 +585,8 @@ namespace Rtx
             lone.mData.mSlot = 1;
 
             const Testing::NoRoomForContent full(device);
-            EXPECT_FALSE(textures.wasHeldBack()) << "an array that stands nothing held something back";
+            EXPECT_EQ(textures.getHeld().mReduced + textures.getHeld().mShortOfRoom, 0u)
+                << "an array that stands nothing held something back";
 
             const Testing::BudgetLimit oneBlock(
                 memory, Testing::budgetAbove(memory, MemoryUse::Texture, VkDeviceSize{ 65 } << 20));
@@ -608,7 +609,7 @@ namespace Rtx
             EXPECT_EQ(textures.getRoomHeld(), 0u) << "the room chose the level, and not the device";
             EXPECT_EQ(textures.getHeld().mBytes, VkDeviceSize{ 1536 } * 1536 * 4);
             EXPECT_EQ(textures.getHeld().mReduced, 1u);
-            EXPECT_TRUE(textures.wasHeldBack()) << "a texture stood smaller than its file and held nothing back";
+            EXPECT_GT(textures.getHeld().mReduced, 0u) << "a texture stood smaller than its file and held nothing back";
             EXPECT_EQ(answer.mShort,
                 (std::vector<ShortTexture>{
                     { .mSlot = ladder.mData.mSlot, .mStoodBytes = VkDeviceSize{ 1536 } * 1536 * 4 } }))
@@ -696,7 +697,8 @@ namespace Rtx
             EXPECT_TRUE(refused.empty());
             EXPECT_EQ(textures.getHeld().mReduced, 0u);
             EXPECT_EQ(textures.getHeld().mShortOfRoom, 0u);
-            EXPECT_FALSE(textures.wasHeldBack()) << "a refusal kept past the slots that went without";
+            EXPECT_EQ(textures.getHeld().mReduced + textures.getHeld().mShortOfRoom, 0u)
+                << "a refusal kept past the slots that went without";
 
             // Before the array goes: what the writes replaced is buried, and the fillers give their
             // room back after it.

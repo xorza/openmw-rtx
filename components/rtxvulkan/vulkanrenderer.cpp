@@ -328,9 +328,9 @@ namespace Rtx
 
         // **A reserve that grows past what content holds is room made by textures moving down** (`makeRoom`), copied
         // on the device, what moved handed over whole again once the room is back. **The world is built again only
-        // where a reserve that shrinks could stand more of what was held back**: the hand-over after this finds its
-        // slot empty (`SceneUploader`) and stands every texture and structure against the new room, seconds of a
-        // frame.
+        // where a reserve that shrinks could stand a structure it refused**, which nothing hands over again: the
+        // hand-over after this finds its slot empty (`SceneUploader`) and stands every texture and structure against
+        // the new room, seconds of a frame. A texture held back is handed over again by the waits as the room comes.
         const VkDeviceSize reserved = memory.getFrameReserve();
         memory.refreshBudget(mDevice.getTimeline().getNext());
         memory.reserveFrame(reserve);
@@ -343,7 +343,7 @@ namespace Rtx
                 moved.flush();
             }
         const bool rebuildsWorld = rebuild == WorldRebuild::WhereTheReserveAsks && world != nullptr
-            && reserve < reserved && world->wasHeldBack();
+            && reserve < reserved && world->wasStructureRefused();
         if (rebuildsWorld)
         {
             drain();
