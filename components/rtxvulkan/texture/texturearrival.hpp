@@ -56,7 +56,8 @@ namespace Rtx
         void record(Batch& batch, const TexturePasses& passes, GpuTimer* timer);
 
         /// How many bytes of means the spreads are carried through now, which an arrival that needs
-        /// more is priced the rest of (`TextureArray::costAt`).
+        /// more is priced the rest of (`TextureArray::costAt`): at most the room between two runs, means grown past it
+        /// for one map being given back as the run that grew them is recorded.
         VkDeviceSize getMeansBytes() const { return mMeans.get().getSize(); }
 
         /// The bytes of means an arrival needs whose spreads come to `total` together, the largest of

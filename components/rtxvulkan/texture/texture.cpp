@@ -27,6 +27,7 @@
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
+#include <components/rtxvulkan/device/memory/stagingring.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
@@ -394,9 +395,20 @@ namespace Rtx
         // slot it names, and the ground last, because it is what gives way where the room runs out
         // — `chooseLevels` says why. Three walks and not a sort: the order is the kind's, and
         // `arrived` is what one cell brought.
+        //
+        // **Recorded and flushed where what the files staged reaches the kept size**, between two whole files, so a
+        // load's staging stays bounded: a PBR world's build staged 1.4 GiB in one batch. Untimed, as one frame opens
+        // each zone once and the last record is timed.
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::File || arrived[at].mSource == TextureSource::StandIn)
+            {
                 stand(batch, arrival, arrived[at], mFirsts[at], answer, whenRoomless);
+                if (batch.getStagedBytes() >= sStagingKept)
+                {
+                    arrival.record(batch, passes, nullptr);
+                    batch.flush();
+                }
+            }
 
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::SpriteBake)

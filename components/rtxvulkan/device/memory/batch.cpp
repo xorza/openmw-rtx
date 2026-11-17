@@ -79,6 +79,7 @@ namespace Rtx
         if (blocks.empty() || at + bytes > mPool.getStaging().at(blocks.back()).getSize())
         {
             blocks.push_back(mPool.getStaging().take(getDevice(), bytes));
+            mStaged += mPool.getStaging().at(blocks.back()).getSize();
             at = 0;
         }
 
@@ -141,6 +142,7 @@ namespace Rtx
             mPool.getStaging().give(block, readUntil);
         hold.mBlocks.clear();
         mFilled = 0;
+        mStaged = 0;
     }
 
     void Batch::flush()

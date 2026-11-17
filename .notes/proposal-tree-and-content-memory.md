@@ -514,7 +514,6 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 ### 11. The device uses its budget
 
 2. Rooms: masks as the source's bytes.
-3. Staging bounded: a batch flushes at the kept size; the spread's means given back past a bound.
 4. Item 9's room arithmetic, which these rooms replace: the structure storages' free runs in `getContentFree` and
    `getVideoBudget`; `evictForRoom` sized against the storages and not the texture pools; a want filed for a mesh
    refused in the loose storage; a texture's fit compared as its image's requirements, not the hole's margins; and

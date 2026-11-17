@@ -39,6 +39,10 @@ namespace Rtx
         /// (`sTableKeptUsage`).
         void outgrowKeeping(Batch& batch, VkDeviceSize bytes);
 
+        /// Lets go of the buffer, which `batch` buries under the submit it rides, and owes nothing until it grows
+        /// again: for a buffer grown past its room for one load, which the next would not need.
+        void letGo(Batch& batch);
+
         const Buffer& get() const { return mBuffer; }
         Buffer& get() { return mBuffer; }
 

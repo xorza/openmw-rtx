@@ -84,6 +84,11 @@ namespace Rtx
             recordBakes(commands, barriers, passes, timer);
             barriers.flush();
             mRecordedBarriers = barriers.getEmitted();
+
+            // **Means grown past the room for one map are given back**, buried under the submit that reads them:
+            // kept, one PBR load's 85 MiB stood for the session where the room is 64.
+            if (mMeans.get().getSize() > mMeansRoom)
+                mMeans.letGo(batch);
         }
 
         mRegions.clear();

@@ -32,6 +32,7 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/device/memory/stagingring.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
@@ -150,6 +151,44 @@ namespace Rtx
             hold.release();
             device.waitFor(bound, "the binder");
             textures.setAnisotropy(8);
+        }
+
+        /// **A load's staging stays at the kept size**: six files of 16 MiB each, 96 MiB past the kept 64, are
+        /// recorded and flushed once four have staged, so the last two reuse the four's blocks and the ring makes four
+        /// and not six. Every file stands.
+        TEST_F(RtxTextureArrayTest, aLoadsStagingStaysAtTheKeptSize)
+        {
+            Device& device = getDevice();
+            CommandPool& pool = getPool();
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            TextureArrival rooms(device);
+            constexpr std::uint32_t sFiles = 6;
+            Batch setup(pool);
+            TextureArray textures(device, setup, layout, passes, rooms, sFiles);
+            setup.flush();
+            device.waitIdle();
+            pool.getStaging().releaseThrough(device.getTimeline().getKnownFinished());
+
+            Testing::TestTexture large;
+            Testing::paintLevels(large, 2048, 2048, 1, "large");
+            ASSERT_EQ(large.mBytes.size(), std::size_t{ 16 } << 20);
+            ASSERT_EQ(sStagingKept, VkDeviceSize{ 64 } << 20) << "the arithmetic above is written against this";
+            std::vector<TextureData> arrived(sFiles, large.mData);
+            for (std::uint32_t slot = 0; slot < sFiles; ++slot)
+                arrived[slot].mSlot = slot;
+
+            const std::size_t blocks = pool.getStaging().getBlockCount();
+            DeviceAnswer answer;
+            Batch arrival(pool);
+            {
+                const Testing::BudgetLimit ample(device.getMemory(), ~VkDeviceSize{ 0 });
+                textures.write(arrival, passes, rooms, arrived, answer, WhenRoomless::Refuses, nullptr);
+            }
+            arrival.flush();
+            EXPECT_TRUE(answer.mRefused.empty());
+            EXPECT_EQ(textures.getHeld().mCount, sFiles);
+            EXPECT_LE(pool.getStaging().getBlockCount() - blocks, 4u) << "the load's staging grew past the kept size";
         }
 
         /// An arrival of one file is held to the largest side it fits the room at, the level a file begins at: a file

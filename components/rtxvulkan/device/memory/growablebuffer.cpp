@@ -44,6 +44,15 @@ namespace Rtx
         return growTo(std::max(bytes, mBuffer.getSize() * 2));
     }
 
+    void GrowableBuffer::letGo(Batch& batch)
+    {
+        if (mBuffer.isEmpty())
+            return;
+        batch.keep(std::move(mBuffer));
+        mBuffer = Buffer();
+        mOwed.set(0);
+    }
+
     void GrowableBuffer::outgrowKeeping(Batch& batch, const VkDeviceSize bytes)
     {
         assert((mUsage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) != 0 && (mUsage & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0
