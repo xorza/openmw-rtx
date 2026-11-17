@@ -36,7 +36,7 @@ namespace Rtx::Testing
     {
         mRenderer.mReservedUpscales = std::move(modes);
         const VkExtent2D output = mRenderer.mTarget.getExtent();
-        mRenderer.createTargets(output.width, output.height, VulkanRenderer::WorldRebuild::WhereTheReserveAsks);
+        mRenderer.createTargets(output.width, output.height, VulkanRenderer::ContentFollows::TheReserve);
     }
 
     const TracePasses& RendererProbe::getTracePasses() const

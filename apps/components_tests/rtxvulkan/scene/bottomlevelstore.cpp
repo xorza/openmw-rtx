@@ -318,7 +318,6 @@ namespace Rtx
 
             BottomLevelStore store(getDevice(), sStructureBuildRoom, StructureStorage::sAlignment);
             build(store, std::span(grids).subspan(0, 1));
-            EXPECT_FALSE(store.wasRefusedRoom());
 
             // Nothing resting and nothing buried: no room is coming.
             getDevice().waitIdle();
@@ -347,10 +346,17 @@ namespace Rtx
 
             EXPECT_FALSE(store.isWaiting(grids[1])) << "a mesh no room is coming for waits for it";
 
-            EXPECT_TRUE(store.wasRefusedRoom()) << "a mesh left out for want of room";
+            // **Set waiting again**, as a reserve that shrank does: room the device did not see coming. Once, however
+            // often asked.
+            store.waitAgain();
+            store.waitAgain();
+            EXPECT_TRUE(store.isWaiting(grids[1])) << "a mesh left out for want of room, waiting again";
+            EXPECT_FALSE(store.isWaiting(grids[0])) << "a mesh that stands waits for nothing";
             build(store, std::span(grids).subspan(1, 1));
             EXPECT_TRUE(store.stands(grids[1]));
-            EXPECT_FALSE(store.wasRefusedRoom()) << "a refusal kept past the mesh that went without, which stands now";
+            store.waitAgain();
+            EXPECT_FALSE(store.isWaiting(grids[1]))
+                << "a refusal kept past the mesh that went without, which stands now";
 
             // Let go of, with a texture resting so room is coming, and refused again.
             store.release(std::span(grids).subspan(1, 1));

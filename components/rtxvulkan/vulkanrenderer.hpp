@@ -141,11 +141,12 @@ namespace Rtx
         bool tracePicture(GuiSlot texture, SceneSlot scene, const Shaders::VisibilityConstants& camera,
             const GuiTraceOptions& options);
 
-        /// Whether a reserve that moved builds the world again where it would stand otherwise now (`createTargets`).
-        enum class WorldRebuild : std::uint8_t
+        /// Whether the world's content follows a reserve that moved (`createTargets`): textures moving down, what was
+        /// refused waiting again.
+        enum class ContentFollows : std::uint8_t
         {
             /// A size or a mode the player chose: the world stands its content against the room that leaves.
-            WhereTheReserveAsks,
+            TheReserve,
 
             /// A picture's room (`reservePicture`), asked once a view is first shown: what stands keeps standing,
             /// and content that arrives after is held to the new room.
@@ -154,7 +155,7 @@ namespace Rtx
 
         /// @param width, height what the frame is presented at. What it is traced at is the
         ///        upscaler's answer for the mode, `Upscaler::extentsFor`.
-        void createTargets(std::uint32_t width, std::uint32_t height, WorldRebuild rebuild);
+        void createTargets(std::uint32_t width, std::uint32_t height, ContentFollows follows);
 
         /// The one way the queue is emptied: everything given to it and everything waiting finished,
         /// everything buried let go. The order is load-bearing — the interface's batch and the deferred
@@ -265,11 +266,6 @@ namespace Rtx
 
         /// After the passes above, which every scene holds by reference.
         SceneSlots mScenes;
-
-        /// `SceneDesc::getIdentity` of the world a change of mode released for its reserve, until
-        /// the hand-over builds it again: that build is the same world, which keeps every history a
-        /// new world loses. Nought where none waits.
-        std::uint64_t mReleasedWorld = 0;
 
         GuiDrawer mGui;
 

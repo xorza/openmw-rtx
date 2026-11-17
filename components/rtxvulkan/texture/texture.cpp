@@ -740,6 +740,10 @@ namespace Rtx
         const Texture& made = slot.mTexture;
         slot.mStandIn = made.isEmpty();
         slot.mSource = texture.mSource;
+        slot.mWholeBytes = 0;
+        if (texture.mSource == TextureSource::File)
+            if (const std::optional<std::uint32_t> top = texture.firstLevelWithin(mSideLimit); top.has_value())
+                slot.mWholeBytes = priceFile(texture, *top).standing();
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
         count(slot);
@@ -789,6 +793,16 @@ namespace Rtx
 
         for (SlotSet& owed : mOwed.live())
             owed.addMakingRoom(at);
+    }
+
+    void TextureArray::waitAgain(DeviceAnswer& answer) const
+    {
+        for (std::uint32_t at = 0; at < mSlots.size(); ++at)
+        {
+            const Slot& slot = mSlots[at];
+            if (slot.mShortOfRoom && slot.mStandIn && slot.mSource == TextureSource::File && slot.mWholeBytes > 0)
+                answer.mShort.push_back(ShortTexture{ .mSlot = at, .mStoodBytes = 0, .mWholeBytes = slot.mWholeBytes });
+        }
     }
 
     VkDeviceSize TextureArray::makeRoom(TextureArrival& arrival, const RoomAsk& ask, DeviceAnswer& answer)

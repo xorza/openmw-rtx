@@ -614,28 +614,21 @@ namespace Rtx
             }
         }
 
-        /// **The frame's reserve is the running mode's, and the world is built again only where its move changes what
-        /// the world would stand as.** Native upscaling keeps the upscaler's images beside a trace of the same extent,
-        /// so its reserve stands over the mode with none. A reserve that moves within the room content left keeps the
-        /// world; one that grows past it (a budget at the textures' ceiling over the heap, which native mode's larger
-        /// reserve lowers) keeps it too, its textures moved down to make the room (`TextureArray::makeRoom`); one that
-        /// shrinks over a world built where the device had no room for its structures releases it, so the next
-        /// hand-over stands it against the new room (`SceneUploader` builds a slot that holds nothing). A world let go
-        /// gives back every structure and texture it took. A run that sums
+        /// **The frame's reserve is the running mode's, and the world stays whatever it does.** Native upscaling keeps
+        /// the upscaler's images beside a trace of the same extent, so its reserve stands over the mode with none. A
+        /// reserve that moves within the room content left keeps the world; one that grows past it (a budget at the
+        /// textures' ceiling over the heap, which native mode's larger reserve lowers) keeps it too, its textures moved
+        /// down to make the room (`TextureArray::makeRoom`); one that shrinks over a world built where the device had
+        /// no room for its content keeps it as well, and names every texture refused for room short in its next answer,
+        /// so the uploader hands it over again as the room comes (`DeviceScene::waitAgain`). A run that sums
         /// (`RadianceWidth::Summed`) fills its reserve to the byte once a frame sums, since nothing is kept that no
         /// frame makes. **A run that names the modes it moves between** (`RunProfile::mReservedUpscales`) reserves the
         /// largest of theirs under each.
-        TEST_F(RtxFramesTest, theReserveIsTheRunningModesAndOnlyAMoveThatChangesTheRoomBuildsTheWorldAgain)
+        TEST_F(RtxFramesTest, theReserveIsTheRunningModesAndTheWorldStaysWhateverItDoes)
         {
             MemoryAllocator& memory = mProbe.getDevice().getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
             const auto worldHeld = [&] { return mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity != 0; };
-            const auto contentHeld = [&] {
-                std::array<VkDeviceSize, sMemoryUses> held{};
-                for (auto use = static_cast<std::size_t>(MemoryUse::Essential); use < sMemoryUses; ++use)
-                    held[use] = memory.getHeld(heap, static_cast<MemoryUse>(use));
-                return held;
-            };
             const auto runAt = [&](Upscale mode) {
                 mRenderer.setUpscale(mode);
                 EXPECT_LE(memory.getHeld(heap, MemoryUse::Frame), memory.getFrameReserve())
@@ -659,9 +652,6 @@ namespace Rtx
             }
             EXPECT_TRUE(worldHeld()) << "a reserve that grew past what content left built the world again";
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
-            ASSERT_GT(contentHeld()[static_cast<std::size_t>(MemoryUse::Structure)], 0u)
-                << "the world built again holds no structure, so the release below proves nothing";
             EXPECT_EQ(runAt(Upscale::Native), upscaled);
             EXPECT_TRUE(worldHeld()) << "a reserve that stayed where it was built the world again";
 
@@ -676,12 +666,16 @@ namespace Rtx
             mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
             const std::vector<Rtx::Refusal>& refused = answer.mRefused;
             ASSERT_FALSE(refused.empty()) << "the device had room for the world, so nothing was held back";
+            const auto texturesRefused
+                = static_cast<std::size_t>(std::ranges::count(refused, Refused::Texture, &Refusal::mKind));
             EXPECT_EQ(runAt(Upscale::Off), alone);
-            EXPECT_FALSE(worldHeld()) << "a reserve that shrank kept content held to less room than it has";
-            EXPECT_EQ(contentHeld()[static_cast<std::size_t>(MemoryUse::Structure)], 0u)
-                << "a world let go kept its structures past its release";
-            EXPECT_EQ(contentHeld()[static_cast<std::size_t>(MemoryUse::Texture)], 0u)
-                << "a world let go kept its textures past its release";
+            EXPECT_TRUE(worldHeld()) << "a reserve that shrank built the world again";
+            Rtx::DeviceAnswer again;
+            mRenderer.takeAnswer(Rtx::SceneSlot::world(), again);
+            EXPECT_EQ(again.mShort.size(), texturesRefused) << "a texture refused for room did not wait again";
+            EXPECT_TRUE(std::ranges::all_of(again.mShort, [](const ShortTexture& stood) {
+                return stood.mWholeBytes > 0;
+            })) << "a texture waiting again with no bytes its file asks";
 
             ASSERT_EQ(mRenderer.getProfile().mRadianceWidth, RadianceWidth::Summed);
             mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
@@ -774,45 +768,6 @@ namespace Rtx
             EXPECT_EQ(memory.getLiveCount(), live) << "a range outlived the scene";
             EXPECT_EQ(held(), before) << "a use held memory past the scene's release";
             mRenderer.dropGuiTexture(texture);
-        }
-
-        /// **A world built again stands every body in the pose it held**, though nothing moved since: the walk names a
-        /// pose only where it changed (`MeshTable::getDeformed`), and a hand-over clears what arrived, so a still body
-        /// is on no list when a change of mode lets the world go and the uploader builds it again: a reserve that
-        /// shrinks over a world built where the device had no room for its content. A body built in its
-        /// bind pose would stand two hundred units ahead and fill the frame. Two frames, one on each copy of the
-        /// poses, since each is posed by the placement that writes it.
-        TEST_F(RtxFramesTest, aWorldBuiltAgainStandsEveryBodyInThePoseItHeld)
-        {
-            deformTo(-1000.0f);
-            mProbe.traceFrame(ahead(), FrameOptions{});
-            ASSERT_EQ(finishedHits(), 0u) << "the pose did not carry the wall away, so this proves nothing";
-
-            mScene.clearPlacement();
-            mScene.clearArrivals();
-            const Upscale held = mRenderer.getProfile().mUpscale;
-            mRenderer.setUpscale(Upscale::Native);
-            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
-            {
-                const Testing::NoRoomForContent full(mProbe.getDevice());
-                mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
-            }
-            mScene.clearPlacement();
-            mScene.clearArrivals();
-            mRenderer.setUpscale(Upscale::Off);
-            ASSERT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, 0u)
-                << "the reserve that shrank over a world held back did not let it go, so nothing was built again";
-            mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
-
-            for (std::int32_t copy = 0; copy < 2; ++copy)
-            {
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
-                mProbe.traceFrame(ahead(), FrameOptions{});
-                EXPECT_EQ(finishedHits(), 0u) << "copy " << copy << " stood the body in its bind pose";
-            }
-
-            // The renderer every test shares, given back in the mode it was found in.
-            mRenderer.setUpscale(held);
         }
 
         /// A refitted structure is built whole again on a rota: the posed body built longest ago, on every placement

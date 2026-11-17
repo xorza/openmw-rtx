@@ -155,9 +155,9 @@ namespace Rtx
 
         std::size_t size() const { return mRows.size(); }
 
-        /// Whether a mesh the store holds has no structure for want of room, waiting or refused: what a store made
-        /// against more room might have built. Cleared as the last such mesh is built or goes.
-        bool wasRefusedRoom() const { return mShortOfRoom > 0; }
+        /// Sets every mesh the device refused for room and left out waiting again (`buildWaiting`): what room the
+        /// device did not see coming, a reserve that shrank, may build now.
+        void waitAgain();
 
         /// Whether `mesh` has a structure: not where its slot is free, where it holds no triangle,
         /// or where the device had no room for it.

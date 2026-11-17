@@ -157,8 +157,8 @@ namespace Rtx
         /// packed rows, the blocks' first places, the poses, and every build's and refit's scratch.
         VkDeviceSize getWorkBytes() const;
 
-        /// `BottomLevelStore::wasRefusedRoom`.
-        bool wasRefusedRoom() const { return mBottomLevel.wasRefusedRoom(); }
+        /// `BottomLevelStore::waitAgain`.
+        void waitAgain() { mBottomLevel.waitAgain(); }
 
         VkDeviceSize getCompactableBytes() const { return mBottomLevel.getCompactableBytes(); }
         VkDeviceSize getCompactableNowBytes() const { return mBottomLevel.getCompactableNowBytes(); }

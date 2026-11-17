@@ -136,8 +136,10 @@ What the game reads from files (`components/resource`), changed for the handheld
   nothing read from the host, the file standing the most bytes first, as Unreal's streamer takes a level off the
   textures it needs least: for an arrival the room does not hold whole, a frame's share of copies at a time, and for a
   reserve a change of mode grows past what content holds, or a budget that fell, in place of building the world
-  again. What moved is handed over whole again by the waits once the room is back, and a reserve that shrinks builds
-  the world again only for a structure it refused, which nothing hands over again. No texture moves under 64 texels a side. Refused: building the
+  again. What moved is handed over whole again by the waits once the room is back, and a reserve that shrinks sets
+  what the device refused for room waiting again, structures and textures (`DeviceScene::waitAgain`): the world is
+  never built again for a change of mode, which leaves the host's copy of the geometry nothing to be read for after
+  its hand-over. No texture moves under 64 texels a side. Refused: building the
   world again, seconds of one frame; holding the arrival, nearest the eye, smaller than what stands far off.
 - **A made chain is handed over in a buffer of a bounded pool, read a segment at a time** (`Rtx::BufferPool`,
   `ContentPreprocessor::chain` into a pool): the store's entry is opened, its form's byte read, and its levels read

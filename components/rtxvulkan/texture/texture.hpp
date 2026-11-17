@@ -310,6 +310,11 @@ namespace Rtx
         /// back. What it gave back, of what stands.
         VkDeviceSize makeRoom(TextureArrival& arrival, const RoomAsk& ask, DeviceAnswer& answer);
 
+        /// Names every file's slot that draws the stand-in for want of room short in `answer`, with the bytes its file
+        /// asks: what the device refused where no room was coming, waiting again for room it did not see coming, a
+        /// reserve that shrank (`SceneUploader`).
+        void waitAgain(DeviceAnswer& answer) const;
+
         /// The level `write` stands each of `arrived` from where the device has `room` bytes for it, into `firsts` at
         /// the arrival's index: each file from its first level within the device's side, brought down a level at a
         /// time, the file standing the most bytes first, until the arrival comes to no more than the room. Where it
@@ -333,6 +338,10 @@ namespace Rtx
 
             /// Whether it draws the stand-in for want of room (`TexturesHeld::mShortOfRoom`).
             bool mShortOfRoom = false;
+
+            /// What a file's texture asks of the room to stand whole at the side the device allows, which a slot short
+            /// of room is named short with again (`waitAgain`); nought for any other.
+            VkDeviceSize mWholeBytes = 0;
 
             /// What the texture was made from, which `mHeld` counts its bytes under.
             TextureSource mSource = TextureSource::File;

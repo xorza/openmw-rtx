@@ -132,6 +132,20 @@ namespace Rtx
             mRefittable.remove(slot);
     }
 
+    void BottomLevelStore::waitAgain()
+    {
+        if (mShortOfRoom == 0)
+            return;
+        for (std::size_t slot = 0; slot < mRows.size(); ++slot)
+        {
+            Row& row = mRows[slot];
+            if (!row.mShortOfRoom || row.mWaiting)
+                continue;
+            row.mWaiting = true;
+            mWaiting.push_back(Waiting{ .mMesh = static_cast<Index>(slot) });
+        }
+    }
+
     void BottomLevelStore::markShortOfRoom(Row& row, const bool shortOfRoom)
     {
         if (row.mShortOfRoom == shortOfRoom)
