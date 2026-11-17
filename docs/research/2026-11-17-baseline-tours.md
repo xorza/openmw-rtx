@@ -12,9 +12,8 @@ profile names Morrowind alone, so its tour adds both expansions.
 - **The Windows machine**: a desktop with a mid-range AMD discrete card of 12 GiB, MSVC's build of the same commit
   (`db026575b2`, whose change past `ef34131d39` is the driver's alone).
 
-Landed so far: the desk's six flights, the handheld's first three, and the Windows machine's first flights of the
-repack and the PBR stack. The second flights of both, and the Windows machine's vanilla tours, are still flying
-and come into this note as they land. Each tour writes its record (`tour.json`), its findings, and its log.
+Every flight landed. Each tour writes its record (`tour.json`), its findings, and its log. A tour exits non-zero
+where it found a fault: every repack tour off the desk, and the handheld's PBR tours.
 
 ## What every tour closed with
 
@@ -31,10 +30,17 @@ memory by use, and the texels read back from a file over the whole run (`TexelRe
 | desk | pbr | 1 | 85 | 7 | 4 | 1.9 | 142, leg-2-land-22,-12 | 4319 (0) | 10656 | 7018 | 0 |
 | desk | pbr | 2 | 83 | 2 | 0 | 1.9 | 86, leg-12-land-15,18 | 4836 (0) | 10652 | 7017 | 0 |
 | handheld | vanilla | 1 | 830 | 17 | 2 | 19.6 | 135, leg-2-land-22,-12 | 2419 (0) | 2846 | 82 | 0 |
+| handheld | vanilla | 2 | 834 | 17 | 1 | 18.8 | 136, leg-2-land-22,-12 | 2408 (0) | 2846 | 82 | 0 |
 | handheld | mfr | 1 | 2816 | 58 | 47 | 26.2 | 897, leg-50-land--16,23 | 8443 (2111) | 4840 | 19913 | 2 |
+| handheld | mfr | 2 | 2839 | 58 | 51 | 26.0 | 1753, leg-36-land-40,5 | 8655 (2506) | 4900 | 18883 | 2 |
 | handheld | pbr | 1 | 1003 | 20 | 18 | 22.2 | 993, leg-6-land-22,0 | 3931 (555) | 5070 | 63638 | 10 |
+| handheld | pbr | 2 | 999 | 20 | 16 | 22.5 | 254, leg-8-land-23,6 | 3958 (2) | 5068 | 63502 | 13 |
+| Windows | vanilla | 1 | 980 | 19 | 13 | 27.0 | 999, leg-17-land--27,27 | 5404 (3361) | 2130 | 83 | 0 |
+| Windows | vanilla | 2 | 975 | 19 | 12 | 26.0 | 952, leg-17-land--27,27 | 5429 (3368) | 2130 | 82 | 0 |
 | Windows | mfr | 1 | 3616 | 68 | 51 | 37.3 | 11314, leg-49-land-49,23 | 19051 (7990) | 7686 | 8649 | 2 |
+| Windows | mfr | 2 | 3683 | 64 | 50 | 38.0 | 12490, leg-49-land-49,23 | 19035 (7958) | 7677 | 8741 | 2 |
 | Windows | pbr | 1 | 1167 | 18 | 18 | 29.0 | 2269, leg-2-land-22,-12 | 13607 (5175) | 9498 | 10573 | 0 |
+| Windows | pbr | 2 | 1170 | 19 | 18 | 29.0 | 2241, leg-2-land-22,-12 | 13637 (5254) | 9497 | 10778 | 0 |
 
 ## The desk's slow legs
 
@@ -62,7 +68,7 @@ Below are the legs whose worst frame passed 100 ms on either flight, with what l
 
 ## Content woken from rest
 
-Each tour's `rest reuse` line gives the textures' and meshes' bytes that woke from rest. Beside it is the share of
+The first flight of each. Each tour's `rest reuse` line gives the textures' and meshes' bytes that woke from rest. Beside it is the share of
 those bytes a least-recently-rested cache of each size would have kept (`RtxTool::RestReuse`).
 
 | machine | content | woke MiB | 256 MiB | 512 MiB | 1 GiB | 2 GiB | 4 GiB |
@@ -86,14 +92,16 @@ those bytes a least-recently-rested cache of each size would have kept (`RtxTool
   against the desk's 3.9 GiB (5×), and 63.6 GiB under the PBR stack against 7.0 GiB (9×). Its device is full:
   the textures had 62 MiB of room at the repack's peak and 15 MiB at the PBR stack's. The meter does not say which
   reads are textures coming back after leaving for room.
-- **On the handheld, room runs out before content does.** The PBR stack's tour refused a texture, and nine
-  cells outran their column (`outrun`). The repack's tour refused a texture and failed `textures-readable`
-  147 times. 132 looks for room in the caches found every entry in use. Both tours swapped: 2.1 GiB of 8.4 GiB
-  under the repack, 0.6 of 3.9 GiB under the PBR stack. The vanilla tour faulted nowhere and swapped nothing.
-- **The Windows machine swaps without the handheld's reason.** It held 19.1 GiB of anonymous memory under the
-  repack, 8.0 GiB of it swapped out, against the desk's 10.4 GiB. Under the PBR stack it held 13.6 GiB with the
-  heap taking 3.6 GiB of it, against the desk's 4.3 GiB in all. Its worst frames, 11.3 s and 2.3 s, sit on
-  those swapped tours. The gap between its anonymous memory and its heap is not yet named by any meter.
+- **On the handheld, room runs out before content does.** Both PBR tours refused a texture and outran their world,
+  nine cells and twelve (`outrun`). Both repack tours refused a texture and failed `textures-readable` 147 times; the
+  first's 132 looks for room in the caches found every entry in use. The repack swapped 2.1 and 2.5 GiB of some
+  8.5 GiB both times; the PBR stack 555 MiB once and 2 MiB the second time. Vanilla faulted nowhere and swapped
+  nothing.
+- **The Windows machine counts as swapped what the desk does not.** Even vanilla held 5.4 GiB of anonymous memory
+  there, 3.4 GiB of it counted out, against the desk's 2.8 GiB and nothing; the repack 19.0 GiB, 8.0 out, against
+  10.4; the PBR stack 13.6 GiB with the heap taking 3.6 of it, against 4.3 in all. Its worst frames, 0.95–1.0 s on
+  vanilla's leg 17, 11.3 and 12.5 s on the repack's leg 49, 2.2–2.3 s on the PBR stack's leg 2, sit on those tours.
+  No meter yet says what holds the memory the heap does not, nor whether what Windows counts out was paged.
 - **Content wakes from rest by the tens of gigabytes.** That is 47–73 GiB of textures and meshes over a repack or
   PBR tour on the desk and the Windows machine. A cache of 2 GiB of what rests would have kept 88–96% of it, and
   one of 512 MiB 36–53%.
