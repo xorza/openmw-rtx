@@ -14,6 +14,11 @@
 
 ## Open questions
 
+- **Whether a tour runs unsettled, as the game walks** (moved out of the tree-and-content-memory plan, 2026-11-18): a
+  settled walk waits on the frame for its nearest cell and its ground's bake (`CellSupply::waitForOne`, 111 ms of a
+  135 ms frame on the desk's Repack tour), which no player waits for. Decide by an A/B of worst frames and outruns on
+  the handheld, then fly the baseline again (`docs/research/2026-11-17-longest-frames.md`).
+
 - automate memleak detection
 - Upstream merge's app token: the exchange is copied from claude-code-action and undocumented (`.github/actions/app-token`). An app of our own (`actions/create-github-app-token`), or CI dispatched with the workflow's token?
 

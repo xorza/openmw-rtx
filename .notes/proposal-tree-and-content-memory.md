@@ -41,7 +41,16 @@ Why the items stand in this order, each a reason a later item leans on:
   first (item 8), since every later item is judged against them; then the ring's reading again of models (item 15),
   the largest cost the tours name; then the device's mesh memory (item 14.6), where the tours still refuse structure
   blocks; then need (item 16), behind its meter. **Item 16 then moved first** (the user, 2026-11-17: memory before
-  frame times, and levels by distance), ahead of items 19, 15 and 14.6. What only tidies a mechanism that works is declined: the texture
+  frame times, and levels by distance), ahead of items 19, 15 and 14.6.
+- **The rest by what it cures, at the user's review (2026-11-18)**:
+  - item 20, the script lookups the worst frames name on both machines;
+  - item 19, the device memory made on the frame;
+  - the cheap fixes, items 23–25;
+  - item 16's rest;
+  - item 21 before item 14.6, since a texture block emptied may be the room a structure block wants;
+  - item 15, behind its measure;
+  - items 22, 26 and 28;
+  - item 18, whose tours also answer the Repack's refusals and outruns. What only tidies a mechanism that works is declined: the texture
   planner's rest (item 13), the ring's flat records unless measured (item 14.4), the streams' spike (item 17).
 - **The texture's level moved down before the geometry's host copy went** (item 13's first part before 14): until no
   world is rebuilt for a reserve that moved, a rebuild read that copy.
@@ -284,6 +293,10 @@ a start 0.26–1.48 s.
 
 ## Decisions
 
+- **A heap profile runs in a cgroup with a memory cap** (`systemd-run --user --scope -p MemoryMax=<GiB>`), stopped by its
+  stop count: on 2026-11-17 `heaptrack_interpret` grew to 47 GiB over 37 Repack stops on the desk, and the kernel's OOM
+  killer took the desktop down with it.
+
 - **Fixed-width spellings, `std::`-qualified, for every integer.** `std::int32_t`, `std::uint32_t` and their kin from
   `<cstdint>`; `std::size_t` and `std::ptrdiff_t` for sizes, counts, indices and differences; `char` for text, `bool`
   and the floats as they are; `int main`; a library's typedef where the value is its (`GLenum`, `ALuint`, `VkBool32`,
@@ -522,30 +535,6 @@ benches are not owed. From item 8 on, a change to what a frame reads owes `./omw
 drm-shim; a hot path owes its allocation test; each item ends with the tours it names. Vanilla's pictures do not move
 in any item.
 
-### 8. Meters, a harness that runs as the game, and a baseline
-
-Then the baseline: tours of the three contents on the desk, the handheld and Windows, to `docs/research/`, which every
-later item is held against, each flown twice, so a leg's worst frame has its own spread beside it. The note keeps
-every leg's worst frame with what led it, and every outrun. A tour now expires the timer caches as play does and reaches doors as far as a player; what that does to a flight's worst frames is read off it, and a grid reach scaled apart from the doors' is proposed with that figure if a flight needs it. One handheld tour more of each content as tours ran
-before (huge pages, the scaled reach, no expiry), so `2026-11-17-handheld-tours-and-store-forms.md`'s figures can be
-told apart from the game's.
-
-**Next, ahead of every other item**: the baseline's longest frames are explained: the ten longest on the handheld, a
-content each, are profiled (`perf` beside the run, as `./omw profile` does on the desk) until each names what led it.
-One an item of this plan causes or cures is that item's to show gone; one that is upstream's is proposed with its
-profile; one no item names becomes an item of its own here, ahead of item 15, where its cost is the larger.
-
-**Open, from the desk's wait profile at `5db3a1fbf7`**: a tour runs settled, as its stated step makes it
-(`RtxRenderer::configureResources`), so its walk waits on the frame for its nearest cell (`CellSupply::waitForOne`, 111
-of a 135 ms frame) and for its ground's bake, which no player waits for. Whether a tour runs unsettled is decided by an A/B
-of its worst frames and outruns on the handheld, since the desk was busy at the time (the user, 2026-11-17: its frame
-times are not read, its memory is). Moving to unsettled also means flying the baseline again.
-
-**A heap profile runs in a cgroup with a memory cap** (`systemd-run --user --scope -p MemoryMax=<GiB>`), and is stopped
-by its stop count. On 2026-11-17, `heaptrack_interpret` grew to 47 GiB over 37 Repack stops on the desk, and the kernel's OOM
-killer took the desktop down with it. The harness's own figure at stop 23 had already said what the run was for: the heap
-took 4,432 MiB at `5db3a1fbf7`, against 6,668 MiB at `395077cdd4` (`research/2026-11-16-host-memory-holders-repack.md`).
-
 ### 20. A script finds a reference without walking every cell
 
 **Approved by the user (2026-11-18)**, an upstream change, recorded in `UPSTREAM.md` in the commit that makes it.
@@ -566,6 +555,59 @@ legs.
 - **Tests**: upstream's suites, plus a store answering an ID after an insert and after a move out, and a lookup over many
   stores visiting only those that hold the ID.
 - **Measure**: the handheld's tours, their longest frames against `research/2026-11-17-longest-frames.md`.
+
+### 19. Device memory made off the frame
+
+Item 8's handheld PBR profile at `5db3a1fbf7`: the frame thread spent 938 samples at 499 Hz (1.9 s) of the tour inside
+`vkAllocateMemory`, the kernel clearing and remapping the pages each new allocation takes, and up to 38 ms of a
+100 ms window. That cost leads four of the tour's ten longest frames: 160–176 ms, place-led. The desk's Repack profile
+holds about 100 samples of 429k there. Three callers ask for it:
+
+- the normal-spread means, made to each arrival's largest group exactly (`Growth::Exact`), and let go once past the
+  room, so every map past the room makes and frees its own means (451 samples);
+- the content pools' new blocks under `Texture::standFile` (273);
+- the staging ring's blocks past `sStagingKept`, which it sheds again a block a frame (123).
+
+Allocating on the frame path is what Vulkan's vendors advise against: NVIDIA's
+[dos and don'ts](https://developer.nvidia.com/blog/vulkan-dos-donts), and Samsung's
+[usage recommendations](https://developer.samsung.com/game/usage), which say to reuse rather than allocate per frame.
+The design is taken when the item starts, and must hold a device total no larger than today's peak. A test asserts
+that an arrival whose largest group fits what the means already hold makes no new means. Tours: on the
+handheld's PBR tour, none of the ten longest frames is led by `vkAllocateMemory`, and the means and the ring are gone
+from its callers.
+
+### 23. Fix: a bake waits for room as a file does, and a refusal is counted once
+
+**Closes**: "a texture the device has no room for draws the stand-in for good", and the cascade in the Repack entry's
+`textures-readable`.
+
+- **What was found**: the stand-in for good is a sprite's light bake or a ground composite (`whenRoomless` waits on
+  files alone), 0.4 MiB, once a PBR tour. `textures-readable` reads the scene's refusals since the run began
+  (`checks.cpp`), so one refusal fails every stop after it: the PBR tour's 91 and the Repack's 112.
+- **A bake or composite refused for room is filed as waiting**, as a file is (`DeviceAnswer::mShort`, `RoomWant`). It
+  is made again on the device from its source when the room returns, which needs nothing from the host.
+- **The check counts the refusals new at its stop**: the refusal count when the stop began, held beside the stop.
+- **Tests**: a bake refused for room stands once room is given back; the check fails at the stop of a refusal and not
+  at the next.
+
+### 24. Fix: the GPU memory tests start drained
+
+**Closes**: "`RtxMemoryTest.whatEachUseHoldsIsItsRangesExactly` fails in the GPU suite's random order". This
+reproduces at `43cf84a1b0` with seed 44490. The test measures the heap's held memory across a bind, while the previous
+test's buried memory is still in the graveyard. A take collects that memory, so held memory falls.
+
+- **The fixture's `SetUp` drains the device** (`waitIdle`, `collectIdle`) and asserts nothing is buried, so each test
+  states its own start: GoogleTest's rule that a test depends on no other.
+- **Test**: the whole GPU suite under `--gtest_shuffle` with seed 44490, and with three others.
+
+### 25. Fix: the build image fetches autoconf from GNU's mirrors
+
+**Closes**: "`env/install_almalinux_deps.sh` fetches autoconf from ftp.gnu.org alone".
+
+- **GNU's redirector first** (`https://ftpmirror.gnu.org/autoconf/`, [GNU, "Mirrors"](https://www.gnu.org/prep/ftp.html)),
+  then `ftp.gnu.org`. The tarball's SHA-512, which the script already checks, makes any mirror as good as the origin.
+  `fetch` takes the list and tries each in order, its retries kept.
+- **Check**: the release-base image builds on Docker's default network, and CI's Linux jobs pass.
 
 ### 16. Levels by distance
 
@@ -675,25 +717,34 @@ The steps:
 Defragmentation is item 21's, by the library's own incremental passes. The GPU's feedback meter is declined unless step 6's pictures move: the bound is derived, so its
 promise is checked by the pictures, not measured by a second path.
 
-### 19. Device memory made off the frame
+### 21. Fix: the texture pool defragments, incrementally
 
-Item 8's handheld PBR profile at `5db3a1fbf7`: the frame thread spent 938 samples at 499 Hz (1.9 s) of the tour inside
-`vkAllocateMemory`, the kernel clearing and remapping the pages each new allocation takes, and up to 38 ms of a
-100 ms window. That cost leads four of the tour's ten longest frames: 160–176 ms, place-led. The desk's Repack profile
-holds about 100 samples of 429k there. Three callers ask for it:
+**Closes**: "the pool refuses small resources while it has room free in pieces". Takes over item 16's conditional
+defragmentation. At the handheld Repack tour's mesh refusal (`5db3a1fbf7`), the texture pool held 793 MiB free in its
+blocks, its largest range 12.4 MiB. A whole block emptied is room a 64 MiB structure block can take too, so item 14.6
+follows it and runs only where refusals remain.
 
-- the normal-spread means, made to each arrival's largest group exactly (`Growth::Exact`), and let go once past the
-  room, so every map past the room makes and frees its own means (451 samples);
-- the content pools' new blocks under `Texture::standFile` (273);
-- the staging ring's blocks past `sStagingKept`, which it sheds again a block a frame (123).
+- **VMA's own incremental defragmentation**, over the texture pool alone (`vmaBeginDefragmentation`,
+  `vmaBeginDefragmentationPass` with `maxBytesPerPass`,
+  [VMA, "Defragmentation"](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/defragmentation.html)):
+  the library plans the moves, and each image is copied on the device by item 13's copy, at its own level.
+- **Structures are not moved.** One moves only by `vkCmdCopyAccelerationStructureKHR`, every instance naming it written
+  again. The structure storage gives back blocks nothing uses (item 14.6) instead.
+- **When**: a pass runs only where a take was refused while the pool's free bytes would have held it. It is bounded by
+  what one hand-over stages (`sMoveCopyMost`), so no frame absorbs a whole defragmentation: the frame rule.
+- **Refused**: pools by size class, which the architecture already refuses; and a full pass at load, which strands
+  again by the next crossing.
+- **Tests**: a pool cut into pieces takes, after its passes, the image it refused; a frame whose takes fit runs no
+  pass; a pass never copies past its bound.
 
-Allocating on the frame path is what Vulkan's vendors advise against: NVIDIA's
-[dos and don'ts](https://developer.nvidia.com/blog/vulkan-dos-donts), and Samsung's
-[usage recommendations](https://developer.samsung.com/game/usage), which say to reuse rather than allocate per frame.
-The design is taken when the item starts, and must hold a device total no larger than today's peak. A test asserts
-that an arrival whose largest group fits what the means already hold makes no new means. Tours: on the
-handheld's PBR tour, none of the ten longest frames is led by `vkAllocateMemory`, and the means and the ring are gone
-from its callers.
+### 14. The device's mesh memory
+
+6. **After item 21, and only where the tours still refuse a mesh for room** (the Repack at `f45fb184d7` refused three 64 MiB structure
+   blocks): `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the rest
+   counting geometry; and a want for a mesh refused in the loose storage, which a block emptied answers and no resting
+   mesh's fit does (item 9).
+8. Tests: a block no run touches goes back, and a mesh refused in the loose storage stands once one empties. Tours:
+   no mesh refused for room on the Repack.
 
 ### 15. The ring reads what can stand
 
@@ -704,38 +755,7 @@ from its callers.
 2. Item 8's count again; `repeat` and `shot`, since a model must stand before the frame that first shows it; and no
    outrun on the legs the baseline outran.
 
-### 14. The device's mesh memory
-
-6. **Only where the tours still refuse a mesh for room** (the Repack at `f45fb184d7` refused three 64 MiB structure
-   blocks): `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the rest
-   counting geometry; and a want for a mesh refused in the loose storage, which a block emptied answers and no resting
-   mesh's fit does (item 9).
-8. Tests: a block no run touches goes back, and a mesh refused in the loose storage stands once one empties. Tours:
-   no mesh refused for room on the Repack.
-
-### 21–29. The open issues (the user, 2026-11-18)
-
-Each investigated against the tree at `b04f563f00`. Each item closes its issue in `.notes/ISSUES.md` when its test and
-its tour hold.
-
-#### 21. Fix: the content pools defragment, incrementally
-
-**Closes**: "the pool refuses small resources while it has room free in pieces". Takes over item 16's conditional
-defragmentation. At the handheld Repack tour's mesh refusal (`5db3a1fbf7`), the texture pool held 793 MiB free in its
-blocks, its largest range 12.4 MiB.
-
-- **VMA's own incremental defragmentation** (`vmaBeginDefragmentation`, `vmaBeginDefragmentationPass` with
-  `maxBytesPerPass`, [VMA, "Defragmentation"](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/defragmentation.html)):
-  the library plans the moves, and the renderer copies each one on the device. An image is moved by item 13's copy,
-  and a structure by a copy into its new range. The library leaves the copying to its caller.
-- **When**: a pass runs only where a take was refused while the pool's free bytes would have held it. It is bounded by
-  what one hand-over stages (`sMoveCopyMost`), so no frame absorbs a whole defragmentation: the frame rule.
-- **Refused**: pools by size class, which the architecture already refuses; and a full pass at load, which strands
-  again by the next crossing.
-- **Tests**: a pool cut into pieces takes, after its passes, the resource it refused; a frame whose takes fit runs no
-  pass; a pass never copies past its bound.
-
-#### 22. Fix: a texture's want matches a rest of its own size
+### 22. Fix: a texture's want matches a rest of its own size
 
 **Closes**: "a texture's want never matches a resting texture of its own size".
 
@@ -748,40 +768,7 @@ blocks, its largest range 12.4 MiB.
 - **Tests**: a want matches a rest of its own size and alignment and no smaller one; a coarser alignment fits a finer
   want, and not the other way.
 
-#### 23. Fix: a bake waits for room as a file does, and a refusal is counted once
-
-**Closes**: "a texture the device has no room for draws the stand-in for good", and the cascade in the Repack entry's
-`textures-readable`.
-
-- **What was found**: the stand-in for good is a sprite's light bake or a ground composite (`whenRoomless` waits on
-  files alone), 0.4 MiB, once a PBR tour. `textures-readable` reads the scene's refusals since the run began
-  (`checks.cpp`), so one refusal fails every stop after it: the PBR tour's 91 and the Repack's 112.
-- **A bake or composite refused for room is filed as waiting**, as a file is (`DeviceAnswer::mShort`, `RoomWant`). It
-  is made again on the device from its source when the room returns, which needs nothing from the host.
-- **The check counts the refusals new at its stop**: the refusal count when the stop began, held beside the stop.
-- **Tests**: a bake refused for room stands once room is given back; the check fails at the stop of a refusal and not
-  at the next.
-
-#### 24. Fix: the GPU memory tests start drained
-
-**Closes**: "`RtxMemoryTest.whatEachUseHoldsIsItsRangesExactly` fails in the GPU suite's random order". This
-reproduces at `43cf84a1b0` with seed 44490. The test measures the heap's held memory across a bind, while the previous
-test's buried memory is still in the graveyard. A take collects that memory, so held memory falls.
-
-- **The fixture's `SetUp` drains the device** (`waitIdle`, `collectIdle`) and asserts nothing is buried, so each test
-  states its own start: GoogleTest's rule that a test depends on no other.
-- **Test**: the whole GPU suite under `--gtest_shuffle` with seed 44490, and with three others.
-
-#### 25. Fix: the build image fetches autoconf from GNU's mirrors
-
-**Closes**: "`env/install_almalinux_deps.sh` fetches autoconf from ftp.gnu.org alone".
-
-- **GNU's redirector first** (`https://ftpmirror.gnu.org/autoconf/`, [GNU, "Mirrors"](https://www.gnu.org/prep/ftp.html)),
-  then `ftp.gnu.org`. The tarball's SHA-512, which the script already checks, makes any mirror as good as the origin.
-  `fetch` takes the list and tries each in order, its retries kept.
-- **Check**: the release-base image builds on Docker's default network, and CI's Linux jobs pass.
-
-#### 26. Measure, then fix: Windows says what holds the process's memory
+### 26. Measure, then fix: Windows says what holds the process's memory
 
 **Addresses**: "on the Windows machine the tour's process holds far more anonymous memory than its heap takes". The
 issue closes once the gap is named and either fixed or decided.
@@ -791,60 +778,16 @@ issue closes once the gap is named and either fixed or decided.
   the top holders. On Linux, the same question is `smaps_rollup`'s, which the report already reads.
 - **Then**: a holder the fork owns becomes an item; a driver's holding is noted in the research with its figure.
 
-#### 27. Measure, then fix: the cell reader's lent models hold what their content fills
+### 28. Measure: the three lint checks' hits in the fork's own code
 
-**Closes**: "the cell reader's lent models hold 2.6 times the room their content fills" (the latest PBR tour: 51.8 MiB
-for 22.4 MiB).
+**Narrows**: the issues of `cppcoreguidelines-avoid-non-const-global-variables`, `misc-no-recursion` and
+`google-default-arguments`. Their hits in upstream's code are upstream's style and not defects (the user, 2026-11-18),
+so those issues are deleted and nothing of upstream's is changed.
 
-- **Measured first**: which buffers of a lent model hold the slack, by stream.
-- **Then each buffer is reserved exactly** from the counts its content-store entry states before its bytes are read,
-  so a model's room is its content. The pool keeps its spares within twice their last tenant (`dropSlack`), as now.
-- **Test**: a model lent after a larger one holds its own content's room and no more.
-
-#### 28. Measure, then fix: three lint checks over the fork's own code
-
-**Addresses**: the issues of `cppcoreguidelines-avoid-non-const-global-variables`, `misc-no-recursion` and
-`google-default-arguments`, which count upstream's hits with the fork's.
-
-- **Counted by owner first**: the fork's folders (`components/rtx*`, `components/myguirtx`, `apps/rtxtool`,
-  `apps/openmw/mwrender/rtx` and the fork's other files) against upstream's.
-- **The fork's hits are fixed**: a global given an owner; a recursion given its bound, stated and asserted, or made a
-  loop with an explicit stack; a default argument taken off a virtual. Each check then holds over the fork's folders in
-  `.clang-tidy`, so CI keeps it.
-- **Upstream's hits are listed for the user**, as an upstream proposal, and the issue keeps their count alone.
-
-#### 29. Measure: the Repack's refusals and outruns, after items 14.6, 15, 16, 20 and 21
-
-**Addresses**: "the handheld's Fullrest Repack tour at `8c032f6e00` still refuses content", and "the handheld's
-Fullrest Repack tour at `8c032f6e00` outran its world". Both were measured before the items that act on them, and
-item 15 may yet be declined by its own measure.
-
-- **The refusals, by kind and by why**: each refusal's reason from the log (no room in a block, a block past the
-  ceiling, a side past the device's), the pools' free bytes and largest range at it, and the resting bytes beside it.
-  Also the heap's free share and the bytes swapped. And the first place flown again at the end against its first
-  flight: vertices in use and live structure bytes, for the same instances, which grew half again at `8c032f6e00`.
-- **The outruns, by cause**: for each cell never stood whole while the player was in its column, whether its cell
-  read late (the reader's queue at the time), the walk adopted it late (one cell a frame), or its ground or statics
-  were refused for room. A tour's findings name the cell and its leg, and the cause comes from the log beside it.
-- **Then**: a cause no item cured becomes an item ahead of item 18, and the two issues are rewritten with what is left,
-  or deleted.
-
-**Proposed upstream, awaiting the user's yes** (`UPSTREAM.md`'s rule):
-
-- **`components/platform/filestdio.cpp`, built by nothing, goes**: upstream's fallback for a system with neither
-  POSIX nor Win32, which the fork's CMake dropped when it built Linux and Windows alone. Alternatively, the fallback is
-  restored in the one place the implementation is chosen.
-
-**Closed on investigation**, deleted from the issue log:
-
-- "A texture's arrival reads and decodes its source file before it asks the content store": the key is now the
-  header's derivation (`FileKeys::of`, `HeaderDerived`), read once, and a chain the store holds whole reads nothing of
-  its file (`PreparedImages::serve`).
-- "`Resource::CacheBudget::derive` counts as taken what the heap holds free": `derive` adds the heap's free memory
-  back. An insertion now evicts no more than it added, and the worker destroys what went.
-
-**Already planned**: the static mesh refused in the loose storage (item 14.6); the Repack's outrun (item 15, its step
-2); the Repack entry's refusals and worst frame (items 14.6, 16, 20 and 21), rewritten with item 18's figures.
+- **Counted over the fork's folders alone**: `components/rtx*`, `components/myguirtx`, `apps/rtxtool`,
+  `apps/openmw/mwrender/rtx` and the fork's other files.
+- **Then**: a check with no hits there is enabled over those folders in `.clang-tidy`, so CI keeps it at none. One with
+  hits gets an issue of its own with the fork's count, fixed in a later round.
 
 ### 18. Close
 
@@ -855,11 +798,25 @@ They pass where:
 2. no leg's worst frame is longer than that leg's at the baseline by more than the baseline's own spread;
 3. each of the baseline's ten longest frames on the handheld is gone, or stands proposed with its profile.
 
+The same tours' logs answer what the open issues' last measure asks (the user, 2026-11-18, folded here rather than
+flown apart). The Repack's refusals are read by kind and by why: each refusal's reason, the pools' free bytes and
+largest range at it, and the resting bytes beside it. Also read: the heap's free share, the bytes swapped, and the
+first place flown again against its first flight. Its outruns are read by cause: the cell read late, adopted late, or
+refused for room. A cause no item cured becomes an item ahead of this one, and the two Repack issues are rewritten
+with what is left, or deleted.
+
 A condition that fails is worked, not logged: its cause is found and fixed, or the item that owed it is moved to
 **Declined** with what was found. Then `.notes/ISSUES.md` is rewritten from the tours; the decisions folded into
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **8, its tail**: the longest frames are explained in `research/2026-11-17-longest-frames.md`. Their upstream cause
+  became item 20 on the user's yes, and the renderer's became item 19. Whether a tour runs unsettled, as the game walks,
+  moved to `todo.md` (the user, 2026-11-18): changing it mid-plan would fly the baseline twice over.
+- **Issues closed on investigation (2026-11-18)**: a texture's arrival reading its file before the store, which the
+  header's derived key already ended (`FileKeys::of`); and the cache budget counting free heap as taken, which
+  `CacheBudget::derive` already adds back.
 
 - **10.1. The allocator's settings**: pinned in `Platform::tuneHeap` from `Platform::init`, so every program of the tree
   takes them, and left to `GLIBC_TUNABLES` where it names the allocator, which is how a run tries another. The desk's
@@ -964,6 +921,10 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **27. The cell reader's lent models held to their content** (the user, 2026-11-18): about 30 MiB on the handheld's
+  PBR tour (51.8 MiB of room for 22.4 MiB), against a 7 GB heap. The measure and the fix cost more than they return.
+  The issue stays logged.
 
 - **14.3. A prepared model lets go of its geometry once adopted**: the reader's models held 64.3 MiB of content at the
   repack's peak on the handheld (`research/2026-11-17-handheld-allocator-tunables.md`), before packing halved it, and a
