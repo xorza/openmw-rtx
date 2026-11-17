@@ -20,7 +20,7 @@ commit.
 - **One binary a host, a shader set a side**: `--shader-source` reads a folder's modules, which compile to the shipped
   ones' code on every driver, so a shader candidate is a folder and no build. The desk builds every side's set; each
   host reads a desk-built set as its own (every zone within 0.3%).
-- **RADV on the desk**: Mesa's `amdgpu` drm-shim (`../openmw-perf/mesa-shim/`), `AMDGPU_GPU_ID` naming the handheld's
+- **RADV on the desk**: Mesa's `amdgpu` drm-shim (`../mesa/build-shim/`, Mesa's own tree built with `-Dtools=drm-shim -Dvulkan-drivers=amd`), `AMDGPU_GPU_ID` naming the handheld's
   chip: `bench --frames=1 --pipeline-code` compiles every pipeline for that card in six seconds, and the kernel
   ceilings' test runs under it in ten. A liveness pass over ACO's IR gives each kernel's peak and what rides each loop.
 - **What a kernel holds** is the driver's own answer, printed a pipeline a line in a run's log; its code is

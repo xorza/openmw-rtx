@@ -542,7 +542,6 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 
 ### 11. The device uses its budget
 
-2. Rooms: masks as the source's bytes.
 4. Tours on the handheld, Repack and PBR: no refusal with room under the budget; item 8's figures again.
 
 ### 12. One read a texture
@@ -639,8 +638,7 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 
 - **11. The device uses its budget**: the doubling tables owe twice their size and the blocked streams and structure
   storages their next block; a scratch or a storage held to a room grows to what its owner asks and owes nothing, so a
-  build's 64 MiB scratch does not keep 128 MiB from content. The masks stay floats for now: bytes are a shader change
-  and its `kernels` and drm-shim checks, which this run did not reach.
+  build's 64 MiB scratch does not keep 128 MiB from content. The masks stay floats (item 11.2, declined).
 
 - **9. What is plainly wrong**: each its own commit and test, as planned, but for the room arithmetic — the storages'
   free runs, `evictForRoom`'s storage, the loose storage's want and a texture's fit — which moved to item 11, whose
@@ -680,6 +678,12 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **11.2. The ground's masks as the land's bytes**: read a byte at a time (`storageBuffer8BitAccess`), the RADV
+  compile of the handheld's chip under the drm-shim put 14 landing kernels with a mod's maps from 112 registers to
+  128, a wave fewer on the PBR content's landings, and the ground composite from 24 to 32; unpacked from words, 46
+  kernels. NVIDIA's held one or two registers fewer. Not worth 24 MiB of the device's memory without a bench on the
+  handheld that shows the wave costs nothing.
 
 - **6. `Misc::StringUtils::format` as `std::format`, and `-Wformat=2`**: its 13 callers format the content's own GMST
   strings, whose syntax is printf's and which `std::format` cannot read; the format stays, and so does the reason
