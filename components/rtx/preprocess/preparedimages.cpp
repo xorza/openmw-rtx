@@ -259,26 +259,28 @@ namespace Rtx
                 ++mInFlight;
             },
             [&](const std::stop_token&) {
-                // Through the header a model holds, from its manager's cache or the file again.
-                osg::ref_ptr<const osg::Image> pixels
-                    = readTexels(*job.mFile, TexelRead::File, hand.mContent.texelReads());
-                const osg::Image& file = *pixels;
+                // **The header a model holds, keyed by its derivation**: a chain the store holds whole reads nothing of
+                // the file, and a run reads its texels through the header.
+                const osg::Image& file = *job.mFile;
                 const auto [image, encoding, wrap, partner] = job.mKey;
+                osg::ref_ptr<const osg::Image> pixels;
 
                 std::optional<MadeLayout> layout;
                 if (job.mMakes && job.mPartner != nullptr)
                 {
-                    const osg::ref_ptr<const osg::Image> partnerPixels
-                        = readTexels(*job.mPartner, TexelRead::Partner, hand.mContent.texelReads());
-                    const ConversionPass::Input input{
-                        .mImage = file, .mPartner = *partnerPixels, .mEncoding = encoding, .mWrap = wrap
-                    };
+                    const ConversionPass::Input input{ .mImage = file,
+                        .mPartner = *job.mPartner,
+                        .mEncoding = encoding,
+                        .mWrap = wrap,
+                        .mRead = &pixels };
                     if (hand.mContent.convert(input, hand.mChain))
                         layout = ConversionPass::madeLayout(input, hand.mChain.mForm);
                 }
                 else if (job.mMakes)
                 {
-                    const ChainPass::Input input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap };
+                    const ChainPass::Input input{
+                        .mImage = file, .mEncoding = encoding, .mWrap = wrap, .mRead = &pixels
+                    };
                     if (hand.mContent.chain(input, hand.mChain))
                         layout = ChainPass::madeLayout(input, hand.mChain.mForm);
                 }
@@ -288,6 +290,14 @@ namespace Rtx
                 osg::ref_ptr<const MadeImage> made;
                 if (layout.has_value())
                     made = MadeImage::make(*layout, std::move(hand.mChain.mBytes));
+
+                // The file's texels where the upload reads any of its levels: a run's read, else one now. A chain found
+                // whole holds none.
+                const bool readsFile = made == nullptr || !made->getWholeFormat().has_value();
+                if (!readsFile)
+                    pixels = nullptr;
+                else if (pixels == nullptr)
+                    pixels = readTexels(file, TexelRead::File, hand.mContent.texelReads());
 
                 // **A hand lets go of its chains' scratch once the queue is drained**, as the preparation's hands
                 // do: one miss on a 4096 map held some 106 MB on this thread for the session. Before the hand-over,
@@ -314,9 +324,7 @@ namespace Rtx
                         mEntries.erase(entry);
                     else if (entry != mEntries.end())
                     {
-                        // The file's texels where the upload reads any of its levels, held where they are not the
-                        // file's own image, which its holder keeps.
-                        const bool readsFile = made == nullptr || !made->getWholeFormat().has_value();
+                        // The file's texels held where they are not the file's own image, which its holder keeps.
                         entry->second.mMade = true;
                         entry->second.mStands = made == nullptr;
                         entry->second.mReadsFile = readsFile;

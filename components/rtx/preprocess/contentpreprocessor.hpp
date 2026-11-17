@@ -17,6 +17,8 @@
 #include "contentcache.hpp"
 #include "contentpass.hpp"
 #include "contentstats.hpp"
+#include "filekeys.hpp"
+#include "headerderived.hpp"
 
 namespace osg
 {
@@ -44,10 +46,10 @@ namespace Rtx
     };
 
     /// The one way the renderer computes anything from what the content files hold. Every pass is
-    /// asked through here: for a pass the store keeps (`ContentPass::sStored`) where there is a
-    /// store, its key is made of everything it reads, the cache is asked for the output under that
-    /// key, and the pass runs only where the cache has none — and then the cache is offered what it
-    /// computed. Every other pass runs. What each cost is counted.
+    /// asked through here: where there is a store, its key is made of everything it reads, the cache
+    /// is asked for the output under that key, and the pass runs only where the cache has none — and
+    /// then the cache is offered what it computed. With no store every pass runs. What each cost is
+    /// counted.
     ///
     /// **One a thread**, as the passes' scratch is: the frame's walk has one and the cell ring's
     /// reader another. Pinned: the texture passes describe into the one scratch it holds for them, and
@@ -84,6 +86,11 @@ namespace Rtx
         /// `SpecularKind`: what `image`'s channels mean as a `_spec` map.
         SpecularLayout specularLayout(const osg::Image& image);
 
+        /// **What is derived of a file where its texels are first read**: its key (`hashFile`), hashed once, and every
+        /// fact above keyed from it, so a header carries what any later ask would read its file again for
+        /// (`ImageDerivation`).
+        FileFacts derive(const osg::Image& texels);
+
         /// `ChainPass`: an image's chain made again, or made where it carried none, read as its input says. False
         /// where the store held none and its run was not admitted (`ChainRuns`): `made` is then untouched.
         bool chain(const ChainPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
@@ -109,6 +116,9 @@ namespace Rtx
         /// Gives back the room its chain and conversion buffers keep, the build's among them.
         void letGoChainScratch();
 
+        /// Gives back the room the texture passes read a file's finest level through.
+        void letGoTexelScratch();
+
     private:
         /// Asks `pass` through the cache, and answers whether `output` holds what was asked: false only where its run
         /// was not admitted (`admits`).
@@ -120,20 +130,21 @@ namespace Rtx
         template <ContentPass Pass>
         bool admits(const Pass& pass, const typename Pass::Input& input) const;
 
+        ContentStats mStats;
         ShapePass mShape;
         TexelScratch mTexels;
-        SolidReach mSolid{ mTexels };
-        TexelMean mMean{ mTexels };
-        SolidFall mFall{ mTexels };
-        AlphaSpan mSpan{ mTexels };
-        SpecularKind mKind{ mTexels };
+        FileKeys mKeys{ mTexels };
+        SolidReach mSolid{ mTexels, mKeys };
+        TexelMean mMean{ mTexels, mKeys };
+        SolidFall mFall{ mTexels, mKeys };
+        AlphaSpan mSpan{ mTexels, mKeys };
+        SpecularKind mKind{ mTexels, mKeys };
         ChainBuild mBuild;
-        ChainPass mChain{ mBuild };
-        ConversionPass mConversion{ mBuild };
+        ChainPass mChain{ mBuild, mKeys, mStats.mTexelReads };
+        ConversionPass mConversion{ mBuild, mKeys, mStats.mTexelReads };
 
         ContentCache mCache;
         ChainRuns mChainRuns = ChainRuns::Always;
-        ContentStats mStats;
         std::vector<StoredKey>* mKeysInto = nullptr;
     };
 }

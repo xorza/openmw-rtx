@@ -138,7 +138,7 @@ namespace
         EXPECT_FALSE(Resource::isHeader(*texels)) << "texels, where models keep them";
         EXPECT_EQ(texels->getTotalSizeInBytesIncludingMipmaps(), 48u);
 
-        images.setModelImages(Resource::ModelImages::Headers);
+        images.setModelImages(Resource::ModelImages::Headers, [](const osg::Image&, const Resource::ImageHeader&) {});
         const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
         ASSERT_TRUE(Resource::isHeader(*header));
         EXPECT_EQ(header->data(), nullptr);

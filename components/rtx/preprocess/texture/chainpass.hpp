@@ -16,6 +16,8 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/filekeys.hpp>
+#include <components/rtx/preprocess/texelreads.hpp>
 
 #include "chainscratch.hpp"
 
@@ -77,10 +79,9 @@ namespace Rtx
     /// the delit finest, in the file's own format; in BC7 where it is loose, small and chainless, or
     /// holds a cut, whose one bit of alpha rgbcx's BC1 does not encode.
     ///
-    /// **The key is everything the run reads**: the file's format, encoding and level count, its
-    /// finest level's extent, a painted colour's wrap, and the bytes of its finest level, or of every
-    /// level where a colour's own chain is read. Not its name, so one picture under two names is one
-    /// entry, and not the coarser levels of a chain made again, which nothing here reads.
+    /// **The key is everything the run reads**: the file's (`FileKeys`), the encoding, and a painted colour's wrap. A
+    /// header's key reads nothing, so a chain the store holds whole comes back with no read of its file; a run reads
+    /// the file's texels through the header.
     class ChainPass
     {
     public:
@@ -91,20 +92,28 @@ namespace Rtx
 
             /// How the slot addresses it past its edges, which a painted colour's estimate follows.
             TextureWrap mWrap = TextureWrap::Repeat;
+
+            /// Why a run reads a header's texels, where it must.
+            TexelRead mWhy = TexelRead::File;
+
+            /// Where a run leaves the file's texels it read, for a caller that reads them next, or null.
+            osg::ref_ptr<const osg::Image>* mRead = nullptr;
         };
 
         using Output = MadeChain;
 
         /// @param build the chain build this pass and the conversion share, which the preprocessor owns:
         ///        one a thread, holding its largest chain's scratch, and not one a pass.
-        explicit ChainPass(ChainBuild& build)
+        /// @param keys the keys of the preprocessor's files, and `reads` where it counts a header's texels read.
+        ChainPass(ChainBuild& build, FileKeys& keys, TexelReads& reads)
             : mChain(build)
+            , mKeys(keys)
+            , mReads(reads)
         {
         }
 
         static constexpr ContentPassId sPass = ContentPassId::Chain;
         static constexpr std::uint32_t sVersion = 7;
-        static constexpr bool sStored = true;
 
         void digest(const Input& input, ContentStore::Digest& digest);
         void run(const Input& input, Output& output);
@@ -118,10 +127,6 @@ namespace Rtx
         /// the file and its bytes fill them exactly, or nothing stands and it holds no byte. An entry
         /// whose digest holds and whose bytes are another file's laid nowhere past this.
         static bool fits(const Input& input, const Output& output);
-
-        /// Lets go of the image `digest` described, which a run lets go of as it ends and the
-        /// preprocessor once the store answered: held, it kept a file the scene let go of alive.
-        void release();
 
         /// What a run of `input` holds of each buffer at most, read off its image's header alone: the
         /// file laid, the build, and the chain made in the largest form it could take, held once as the
@@ -140,15 +145,18 @@ namespace Rtx
         }
 
     private:
-        /// Describes `input`'s image into the scratch, and holds it, unless it is the one described.
+        /// Describes `input`'s file into the scratch, its texels read and held where it is a header.
         void describe(const Input& input);
 
-        osg::ref_ptr<const osg::Image> mImage;
-        TextureEncoding mEncoding = TextureEncoding::Colour;
-        TextureWrap mWrap = TextureWrap::Repeat;
+        /// Lets go of the texels a run described, as it ends: held, they kept a file the scene let go of alive.
+        void release();
+
+        osg::ref_ptr<const osg::Image> mHeld;
         std::optional<TextureData> mFile;
         std::vector<MipLevel> mLevels;
         std::vector<std::byte> mTexels;
         ChainBuild& mChain;
+        FileKeys& mKeys;
+        TexelReads& mReads;
     };
 }

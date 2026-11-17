@@ -32,13 +32,8 @@ namespace Rtx
         {
         }
 
-        /// Whether anything is ever found for `Pass`. While nothing is, no key is made: a key is every
-        /// byte of a pass's input read once more, for an answer that is always no.
-        template <ContentPass Pass>
-        bool holds() const
-        {
-            return mStore != nullptr && Pass::sStored;
-        }
+        /// Whether anything is ever found. While nothing is, no key is made, for an answer that is always no.
+        bool holds() const { return mStore != nullptr; }
 
         /// Fills `output` with what `Pass` computed from `input`, filed under `key`, and says whether
         /// it could. A payload its codec cannot read is a miss, and discarded, so the output run again

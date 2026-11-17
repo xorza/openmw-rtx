@@ -57,7 +57,6 @@ namespace Rtx
 
         static constexpr ContentPassId sPass = ContentPassId::Shape;
         static constexpr std::uint32_t sVersion = 4;
-        static constexpr bool sStored = true;
 
         static void digest(const Input& input, ContentStore::Digest& digest);
         void run(const Input& input, Output& output);

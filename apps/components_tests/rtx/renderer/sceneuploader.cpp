@@ -18,6 +18,7 @@
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
 #include <apps/components_tests/rtx/support/ddsfile.hpp>
+#include <apps/components_tests/rtx/support/derivedheaders.hpp>
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
@@ -789,7 +790,7 @@ namespace Rtx
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Resource::ImageManager images(vfs.get(), budget);
-            images.setModelImages(Resource::ModelImages::Headers);
+            const Testing::DerivedHeaders derived(images);
             const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
             ASSERT_TRUE(Resource::isHeader(*header));
 
@@ -846,7 +847,7 @@ namespace Rtx
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Resource::ImageManager images(vfs.get(), budget);
-            images.setModelImages(Resource::ModelImages::Headers);
+            const Testing::DerivedHeaders derived(images);
             const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
 
             Rtx::SceneDesc scene;
@@ -897,7 +898,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView otherPath("textures/tx_never_room.dds");
             const std::unique_ptr<VFS::Manager> otherVfs = TestingOpenMW::createTestVFS({ { otherPath, &otherFile } });
             Resource::ImageManager otherImages(otherVfs.get(), budget);
-            otherImages.setModelImages(Resource::ModelImages::Headers);
+            const Testing::DerivedHeaders otherImagesDerived(otherImages);
             const osg::ref_ptr<osg::Image> otherHeader = otherImages.getModelImage(otherPath);
             const Testing::Model stranded = Testing::addModel(scene, otherPath, otherHeader.get());
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = std::uint64_t{ 4 } << 30 };

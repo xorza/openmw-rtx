@@ -6,6 +6,7 @@
 #include <components/contentstore/key.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/common/clock.hpp>
+#include <components/rtx/common/letgo.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/texture/chainadmission.hpp>
@@ -30,42 +31,35 @@ namespace Rtx
         ++stats.mAsked;
 
         const std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
-        if constexpr (Pass::sStored)
+        if (mCache.holds())
         {
-            if (mCache.holds<Pass>())
+            ContentStore::Digest digest(sContentPasses.name(Pass::sPass), Pass::sVersion);
+            pass.digest(input, digest);
+            const ContentStore::Key key = digest.getKey();
+            const std::chrono::steady_clock::time_point keyed = std::chrono::steady_clock::now();
+
+            stats.mKeyMs += since(started, keyed);
+            stats.mKeyBytes += digest.getBytes();
+            if (mKeysInto != nullptr)
+                mKeysInto->push_back(StoredKey{ .mKey = key, .mPass = Pass::sPass });
+
+            if (ask == ContentAsk::Stored ? mCache.stands(key) : mCache.find<Pass>(key, input, output))
             {
-                ContentStore::Digest digest(sContentPasses.name(Pass::sPass), Pass::sVersion);
-                pass.digest(input, digest);
-                const ContentStore::Key key = digest.getKey();
-                const std::chrono::steady_clock::time_point keyed = std::chrono::steady_clock::now();
-
-                stats.mKeyMs += since(started, keyed);
-                stats.mKeyBytes += digest.getBytes();
-                if (mKeysInto != nullptr)
-                    mKeysInto->push_back(StoredKey{ .mKey = key, .mPass = Pass::sPass });
-
-                if (ask == ContentAsk::Stored ? mCache.stands(key) : mCache.find<Pass>(key, input, output))
-                {
-                    // What the key was read from let go of, as a run lets it go: a pass that holds
-                    // its input's images between the key and the run says how.
-                    if constexpr (requires { pass.release(); })
-                        pass.release();
-                    ++stats.mHits;
-                    stats.mFoundMs += since(keyed, std::chrono::steady_clock::now());
-                    return true;
-                }
-
-                if (!admits(pass, input))
-                    return false;
-                pass.run(input, output);
-                // A stored ask reads no output, so what the run made moves into the store's payload.
-                if (ask == ContentAsk::Stored)
-                    mCache.keep<Pass>(key, std::move(output));
-                else
-                    mCache.keep<Pass>(key, output);
-                stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
+                ++stats.mHits;
+                stats.mFoundMs += since(keyed, std::chrono::steady_clock::now());
                 return true;
             }
+
+            if (!admits(pass, input))
+                return false;
+            pass.run(input, output);
+            // A stored ask reads no output, so what the run made moves into the store's payload.
+            if (ask == ContentAsk::Stored)
+                mCache.keep<Pass>(key, std::move(output));
+            else
+                mCache.keep<Pass>(key, output);
+            stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
+            return true;
         }
 
         if (!admits(pass, input))
@@ -115,6 +109,20 @@ namespace Rtx
         return layout;
     }
 
+    FileFacts ContentPreprocessor::derive(const osg::Image& texels)
+    {
+        FileFacts derived{ .mFile = hashFile(texels, mTexels), .mFacts = {} };
+        mKeys.name(texels, derived.mFile);
+        ImageFacts& facts = derived.mFacts;
+        facts.mReachesSolid = reachesSolid(texels);
+        facts.mMean = meanTexel(texels);
+        facts.mFallsBelowSolid = fallsBelowSolid(texels);
+        facts.mAlphaRange = alphaRange(texels);
+        facts.mSpecularLayout = specularLayout(texels);
+        mKeys.forget();
+        return derived;
+    }
+
     bool ContentPreprocessor::chain(const ChainPass::Input& input, MadeChain& made, const ContentAsk ask)
     {
         // A chain takes milliseconds to seconds of a thread, all of it inside the file's decode and the
@@ -153,6 +161,11 @@ namespace Rtx
         mChain.letGo();
         mConversion.letGo();
         mBuild.letGo();
+    }
+
+    void ContentPreprocessor::letGoTexelScratch()
+    {
+        letGoOf(mTexels);
     }
 
     ContentStats ContentPreprocessor::takeStats()

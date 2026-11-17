@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
 #include <osgDB/Registry>
 
@@ -212,6 +213,14 @@ namespace Resource
         return image;
     }
 
+    void ImageManager::setModelImages(const ModelImages images, HeaderDeriver deriver)
+    {
+        assert((images == ModelImages::Headers) == static_cast<bool>(deriver)
+            && "headers come with what derives them, and texels with nothing");
+        mModelImages = images;
+        mDeriver = std::move(deriver);
+    }
+
     osg::ref_ptr<osg::Image> ImageManager::getModelImage(VFS::Path::NormalizedView path)
     {
         if (mModelImages == ModelImages::Texels)
@@ -229,10 +238,15 @@ namespace Resource
         if (pixels == mWarningImage)
             return pixels;
 
+        // **Derived here, where the file was read, outside the lock**: two loaders that meet a file at once both
+        // derive it, and the first header filed stands.
+        const osg::ref_ptr<ImageHeader> made = new ImageHeader(*pixels, *this);
+        mDeriver(*pixels, *made);
+
         const std::scoped_lock lock(mHeadersMutex);
         osg::ref_ptr<osg::Image>& header = mHeaders[VFS::Path::Normalized(path)];
         if (header == nullptr)
-            header = new ImageHeader(*pixels, *this);
+            header = made;
         return header;
     }
 

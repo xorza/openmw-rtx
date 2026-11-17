@@ -23,6 +23,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/derivedheaders.hpp>
 #include <apps/components_tests/rtx/support/heldimages.hpp>
 #include <apps/components_tests/rtx/support/image.hpp>
 #include <components/misc/result.hpp>
@@ -536,7 +537,7 @@ namespace Rtx
             Resource::NifFileManager nifs(vfs.get(), budget, nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
             Resource::SptFileManager trees(vfs.get(), 0);
-            images.setModelImages(Resource::ModelImages::Headers);
+            const Testing::DerivedHeaders derived(images);
             Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, budget);
 
             osg::ref_ptr<osg::Image> sheet = Testing::makeImage("textures/tx_script_sky.dds", 4, 4);

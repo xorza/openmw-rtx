@@ -76,6 +76,7 @@ namespace ContentStore
 
 namespace Rtx
 {
+    class ImageDerivation;
     class PoseUpdate;
     class PreparedImages;
 }
@@ -413,6 +414,11 @@ namespace MWRender
         /// The content's derived data kept across sessions (`RunSetup::mContentStore`), or null. Before the
         /// mirror, so its going finishes what the mirror's passes handed it to write.
         std::unique_ptr<ContentStore::Store> mContentStore;
+
+        /// What is derived of a file where a loader first reads it (`Rtx::ImageDerivation`), on as many preprocessors
+        /// as the chains' threads. After the store it asks; handed to the image manager, which calls it on every
+        /// loader's thread, and taken back before this goes (`~RtxRenderer`).
+        std::unique_ptr<Rtx::ImageDerivation> mDerivation;
 
         /// The world's normal and data maps with their chains made again, on half the processors
         /// (`Rtx::Hands::Half`). After the store its threads write to, before the mirror whose hand-over reads it.

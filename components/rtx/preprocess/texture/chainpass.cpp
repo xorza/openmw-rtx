@@ -11,27 +11,12 @@
 
 namespace Rtx
 {
-    namespace
-    {
-        /// Whether the run reads every level `file` carries: a colour's own chain, encoded as it stands
-        /// where the file is loose, and a painted colour's, each level delit where it stands.
-        bool readsOwnChain(const TextureData& file)
-        {
-            return isColour(file.mEncoding) && file.mLevels.size() > 1;
-        }
-    }
-
     void ChainPass::describe(const Input& input)
     {
-        if (mImage.get() == &input.mImage && mEncoding == input.mEncoding && mWrap == input.mWrap)
-            return;
-
-        mImage = &input.mImage;
-        mEncoding = input.mEncoding;
-        mWrap = input.mWrap;
+        mHeld = readTexels(input.mImage, input.mWhy, mReads);
         mLevels.clear();
         mTexels.clear();
-        const Result<TextureData, std::string> read = describeImage(input.mImage, input.mEncoding, mLevels, mTexels);
+        const Result<TextureData, std::string> read = describeImage(*mHeld, input.mEncoding, mLevels, mTexels);
         mFile = read.isOk() ? std::optional(read.value()) : std::nullopt;
         if (mFile.has_value())
             mFile->mWrap = input.mWrap;
@@ -39,24 +24,10 @@ namespace Rtx
 
     void ChainPass::digest(const Input& input, ContentStore::Digest& digest)
     {
-        describe(input);
-        const bool rebuilt = mFile.has_value() && ChainBuild::rebuilds(*mFile);
-        digest.add(rebuilt);
-        if (!rebuilt)
-            return;
-
-        const TextureData& file = *mFile;
-        const MipLevel& finest = file.mLevels.front();
-        digest.add(file.mFormat);
-        digest.add(file.mEncoding);
-        digest.add(static_cast<std::uint32_t>(file.mLevels.size()));
-        digest.add(finest.mWidth);
-        digest.add(finest.mHeight);
-        if (file.mEncoding == TextureEncoding::Painted)
-            digest.add(file.mWrap);
-        const auto read = readsOwnChain(file) ? static_cast<std::uint32_t>(file.mLevels.size()) : 1u;
-        for (std::uint32_t level = 0; level < read; ++level)
-            digest.add(file.bytesOf(level));
+        digest.add(mKeys.of(input.mImage));
+        digest.add(input.mEncoding);
+        if (input.mEncoding == TextureEncoding::Painted)
+            digest.add(input.mWrap);
     }
 
     namespace
@@ -139,6 +110,8 @@ namespace Rtx
             }
         }
 
+        if (input.mRead != nullptr)
+            *input.mRead = mHeld;
         release();
     }
 
@@ -227,7 +200,7 @@ namespace Rtx
 
     void ChainPass::release()
     {
-        mImage = nullptr;
         mFile.reset();
+        mHeld = nullptr;
     }
 }

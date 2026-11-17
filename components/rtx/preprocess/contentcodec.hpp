@@ -90,6 +90,25 @@ namespace Rtx
     template <class T>
     struct ContentCodec;
 
+    /// A yes or a no: one byte, nought or one.
+    template <>
+    struct ContentCodec<bool>
+    {
+        static void encode(const bool value, Misc::ByteBuffer& into)
+        {
+            ContentBytes::put(into, static_cast<std::uint8_t>(value));
+        }
+
+        static bool decode(std::span<const std::byte> from, bool& value)
+        {
+            std::uint8_t stored = 0;
+            if (!ContentBytes::take(from, stored) || !from.empty() || stored > 1)
+                return false;
+            value = stored == 1;
+            return true;
+        }
+    };
+
     template <>
     struct ContentCodec<AlphaRange>
     {

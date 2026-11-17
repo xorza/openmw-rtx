@@ -41,6 +41,8 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
+#include <components/rtx/preprocess/filekeys.hpp>
+#include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 
 // What the loading screen's preparation spends most of its threads on: a painted colour's chain made again in
@@ -166,7 +168,10 @@ namespace Rtx
                     return;
 
                 mFile = described.value();
-                ChainPass pass(mBuilt);
+                TexelScratch scratch;
+                FileKeys keys(scratch);
+                TexelReads reads;
+                ChainPass pass(mBuilt, keys, reads);
                 pass.run(ChainPass::Input{ .mImage = *mImage, .mEncoding = encodingOf(mKind) }, mMade);
 
                 if (isMadeAsItsKind())
@@ -634,7 +639,10 @@ namespace Rtx
         void makeChains(benchmark::State& state, const Corpus& corpus)
         {
             ChainBuild build;
-            ChainPass pass(build);
+            TexelScratch scratch;
+            FileKeys keys(scratch);
+            TexelReads reads;
+            ChainPass pass(build, keys, reads);
             MadeChain made;
             for ([[maybe_unused]] auto _ : state)
                 for (const std::unique_ptr<CorpusChain>& chain : corpus.mChains)

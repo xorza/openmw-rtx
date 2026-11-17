@@ -443,10 +443,8 @@ namespace Rtx
             EXPECT_NEAR(between.mBase.z(), 0.5972f, 1e-4f);
         }
 
-        /// What a texture pass's key reads of a two-by-two RGBA8 level: whether it described, its
-        /// format, its encoding, its extent and its sixteen bytes.
-        constexpr std::uint64_t sFinestKeyBytes
-            = sizeof(bool) + sizeof(TextureFormat) + sizeof(TextureEncoding) + 2 * sizeof(std::uint32_t) + 16;
+        /// What a texture pass's key reads: its file's key (`hashFile`).
+        constexpr std::uint64_t sFinestKeyBytes = sizeof(ContentStore::Key);
 
         /// **A pass the store keeps is found again**: the texel mean asked twice through a store is
         /// run once and found once, keyed both times on what it read, and answers the same; and a
@@ -531,67 +529,77 @@ namespace Rtx
             EXPECT_FALSE(watched.lock(standing)) << "the image the hit read its key from was held";
         }
 
-        /// **A pass the store keeps nothing of makes no key**, store or none: the solid reach, whose
-        /// walk stops at the first solid texel, runs every time and writes nothing.
-        TEST(RtxContentPreprocessorTest, aPassTheStoreKeepsNothingOfMakesNoKey)
+        /// **The walks that stop at the first texel that answers are kept too**, their file's key costing nothing more
+        /// than the mean's: the solid reach and the solid fall, each asked twice, run once, are found once, and write
+        /// one entry each.
+        TEST(RtxContentPreprocessorTest, theWalksThatStopAtTheFirstTexelThatAnswersAreKept)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             ContentPreprocessor content(&store, ContentStore::Reach::Disk);
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
-            EXPECT_TRUE(content.reachesSolid(*painted));
-            EXPECT_TRUE(content.reachesSolid(*painted));
+            for (std::int32_t ask = 0; ask < 2; ++ask)
+            {
+                EXPECT_TRUE(content.reachesSolid(*painted));
+                EXPECT_TRUE(content.fallsBelowSolid(*painted));
+            }
 
-            const PassStats stats = content.takeStats().at(ContentPassId::SolidReach);
-            EXPECT_EQ(stats.mAsked, 2u);
-            EXPECT_EQ(stats.mHits, 0u);
-            EXPECT_EQ(stats.mKeyBytes, 0u);
+            const ContentStats stats = content.takeStats();
+            for (const ContentPassId pass : { ContentPassId::SolidReach, ContentPassId::SolidFall })
+            {
+                EXPECT_EQ(stats.at(pass).mAsked, 2u);
+                EXPECT_EQ(stats.at(pass).mHits, 1u);
+                EXPECT_EQ(stats.at(pass).mKeyBytes, 2 * sFinestKeyBytes);
+            }
             store.flush();
-            EXPECT_EQ(store.getStats().mWritten, 0u);
+            EXPECT_EQ(store.getStats().mWritten, 2u);
         }
 
-        ContentStore::Key finestKeyOf(const osg::Image& image, FinestTexels& finest)
+        /// A 2x2 RGBA8 image of `sPaint` carrying a 1x1 second level of `second`.
+        osg::ref_ptr<osg::Image> makeChained(const std::uint8_t second)
         {
-            ContentStore::Digest digest("solid reach", 1);
-            finest.describe(image);
-            finest.addTo(digest);
-            return digest.getKey();
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            auto* data = new std::uint8_t[20];
+            std::copy(sPaint.begin(), sPaint.end(), data);
+            std::fill_n(data + 16, 4, second);
+            image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
+            image->setFileName("painted.dds");
+            return image;
         }
 
-        /// A texture pass is keyed on the picture and not on the file: the same texels under
-        /// another name are one key, and one channel of one texel moved is another. The key reads
-        /// the finest level as it was described — format, encoding, extent and its sixteen bytes.
-        TEST(RtxContentPreprocessorTest, aTextureIsKeyedOnItsPictureAndNotOnItsName)
+        /// **A file is keyed on its texels and not on its name** (`hashFile`): the same texels under another name
+        /// are one key; one channel of one texel moved, a level more, or that level's texels moved is another. An
+        /// image no reader decodes is keyed by the bytes OpenSceneGraph holds, so two of them differ. A key named
+        /// for an image is answered for that image alone, and hashed again once forgotten.
+        TEST(RtxContentPreprocessorTest, aFileIsKeyedOnItsTexelsAndNotOnItsName)
         {
             TexelScratch scratch;
-            FinestTexels finest(scratch);
-
-            const ContentStore::Key key = finestKeyOf(*makeImage(sPaint, "painted.dds"), finest);
-            ASSERT_TRUE(finest.get().has_value());
-            EXPECT_EQ(finestKeyOf(*makeImage(sPaint, "elsewhere/renamed.dds"), finest), key);
+            const ContentStore::Key key = hashFile(*makeImage(sPaint, "painted.dds"), scratch);
+            EXPECT_EQ(hashFile(*makeImage(sPaint, "elsewhere/renamed.dds"), scratch), key);
 
             std::array<std::uint8_t, 16> moved = sPaint;
             moved[7] = 129;
-            EXPECT_NE(finestKeyOf(*makeImage(moved, "painted.dds"), finest), key) << "one texel's alpha";
+            EXPECT_NE(hashFile(*makeImage(moved, "painted.dds"), scratch), key) << "one texel's alpha";
 
-            // The caller's image gone before the key reads it, which the description's hold keeps:
-            // an RGBA8 level is spanned where the image holds it.
-            ContentStore::Digest digest("solid reach", 1);
-            finest.describe(*makeImage(sPaint, "painted.dds"));
-            finest.addTo(digest);
-            EXPECT_EQ(digest.getBytes(), sFinestKeyBytes);
-            EXPECT_EQ(digest.getKey(), key) << "the description outlived the caller's image";
+            const ContentStore::Key chained = hashFile(*makeChained(9), scratch);
+            EXPECT_NE(chained, key) << "a level more";
+            EXPECT_NE(hashFile(*makeChained(200), scratch), chained) << "the second level's texels";
+            EXPECT_EQ(hashFile(*makeChained(9), scratch), chained);
 
-            const osg::ref_ptr<osg::Image> held = makeImage(sPaint, "painted.dds");
-            finest.describe(*held);
-            EXPECT_TRUE(finest.describes(*held));
-            EXPECT_FALSE(finest.describes(*makeImage(sPaint, "painted.dds"))) << "the same texels, another image";
-            finest.clear();
-            EXPECT_FALSE(finest.describes(*held));
-            EXPECT_FALSE(finest.get().has_value());
+            const osg::ref_ptr<osg::Image> odd = Testing::makeImage("", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            const osg::ref_ptr<osg::Image> otherOdd = Testing::makeImage("", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            EXPECT_EQ(hashFile(*odd, scratch), hashFile(*otherOdd, scratch));
+            otherOdd->data()[0] ^= 1;
+            EXPECT_NE(hashFile(*odd, scratch), hashFile(*otherOdd, scratch)) << "two images no reader decodes";
 
-            osg::ref_ptr<osg::Image> odd = Testing::makeImage("", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            finestKeyOf(*odd, finest);
-            EXPECT_FALSE(finest.get().has_value()) << "an image no reader decodes is described as none";
+            FileKeys keys(scratch);
+            const osg::ref_ptr<osg::Image> named = makeImage(sPaint, "painted.dds");
+            const ContentStore::Key handed{ .mHash = { 1, 2 } };
+            keys.name(*named, handed);
+            EXPECT_EQ(keys.of(*named), handed);
+            EXPECT_EQ(keys.of(*makeImage(sPaint, "painted.dds")), key) << "another image of the same texels";
+            keys.forget();
+            EXPECT_EQ(keys.of(*named), key);
         }
 
         /// **A stored payload its codec cannot read is a miss, and the output run again is filed in its
@@ -604,10 +612,8 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
 
             TexelScratch scratch;
-            FinestTexels finest(scratch);
             ContentStore::Digest digest(sContentPasses.name(ContentPassId::TexelMean), TexelMean::sVersion);
-            finest.describe(*painted);
-            finest.addTo(digest);
+            digest.add(hashFile(*painted, scratch));
             const Misc::ByteBuffer broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
             store.write(digest.getKey(), storeKindOf(ContentPassId::TexelMean), TexelMean::sVersion, broken,
                 ContentStore::Reach::Disk);
@@ -707,9 +713,11 @@ namespace Rtx
             ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
             {
                 ChainBuild build;
-                ChainPass pass(build);
+                TexelScratch scratch;
+                FileKeys keys(scratch);
+                TexelReads reads;
+                ChainPass pass(build, keys, reads);
                 pass.digest(input, digest);
-                pass.release();
             }
 
             struct Misfit

@@ -51,16 +51,6 @@ namespace Rtx
             return std::min(static_cast<std::uint32_t>((static_cast<double>(at) + 0.5) * extent / of), extent - 1);
         }
 
-        /// What the run reads of `file`: its format and its finest level, the one level a conversion
-        /// reads of either file.
-        void addFinest(const TextureData& file, ContentStore::Digest& digest)
-        {
-            digest.add(file.mFormat);
-            digest.add(file.mLevels.front().mWidth);
-            digest.add(file.mLevels.front().mHeight);
-            digest.add(file.bytesOf(0));
-        }
-
         /// `file` with its finest level alone, as a reader of nothing else takes it.
         TextureData finestOf(const TextureData& file)
         {
@@ -92,18 +82,12 @@ namespace Rtx
 
     void ConversionPass::describe(const Input& input)
     {
-        if (mImage.get() == &input.mImage && mPartner.get() == &input.mPartner && mEncoding == input.mEncoding
-            && mWrap == input.mWrap)
-            return;
-
-        mImage = &input.mImage;
-        mPartner = &input.mPartner;
-        mEncoding = input.mEncoding;
-        mWrap = input.mWrap;
+        mImage = readTexels(input.mImage, input.mWhy, mReads);
+        mPartner = readTexels(input.mPartner, input.mPartnerWhy, mReads);
 
         const bool colour = input.mEncoding == TextureEncoding::ConvertedColour;
-        const osg::Image& diffuse = colour ? input.mImage : input.mPartner;
-        const osg::Image& specular = colour ? input.mPartner : input.mImage;
+        const osg::Image& diffuse = colour ? *mImage : *mPartner;
+        const osg::Image& specular = colour ? *mPartner : *mImage;
 
         mDiffuseLevels.clear();
         mDiffuseTexels.clear();
@@ -128,16 +112,10 @@ namespace Rtx
 
     void ConversionPass::digest(const Input& input, ContentStore::Digest& digest)
     {
-        describe(input);
-        const bool converted = converts();
-        digest.add(converted);
-        if (!converted)
-            return;
-
         digest.add(input.mEncoding);
         digest.add(input.mWrap);
-        addFinest(*mDiffuse, digest);
-        addFinest(*mSpecular, digest);
+        digest.add(mKeys.of(input.mImage));
+        digest.add(mKeys.of(input.mPartner));
     }
 
     void ConversionPass::run(const Input& input, Output& output)
@@ -240,6 +218,8 @@ namespace Rtx
             }
         }
 
+        if (input.mRead != nullptr)
+            *input.mRead = mImage;
         release();
     }
 

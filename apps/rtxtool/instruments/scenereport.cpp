@@ -178,9 +178,9 @@ namespace RtxTool
         // thread, which is the figure a cache is judged against.
         out += ("\npreprocessed since the renderer started\n");
         const Rtx::Preprocessed& preprocessed = walked.mSession;
-        for (const auto& [thread, passes] :
-            { std::pair{ "frame", &preprocessed.mOnFrame }, std::pair{ "ring", &preprocessed.mOffFrame },
-                std::pair{ "chains", &preprocessed.mPrepared }, std::pair{ "loading", &preprocessed.mLoading } })
+        for (const auto& [thread, passes] : { std::pair{ "frame", &preprocessed.mOnFrame },
+                 std::pair{ "ring", &preprocessed.mOffFrame }, std::pair{ "chains", &preprocessed.mPrepared },
+                 std::pair{ "loading", &preprocessed.mLoading }, std::pair{ "derived", &preprocessed.mDerived } })
             for (const auto& [pass, name] : Rtx::sContentPasses.mNames)
             {
                 const Rtx::PassStats& counted = passes->at(pass);

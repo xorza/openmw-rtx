@@ -19,6 +19,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/ddsfile.hpp>
+#include <apps/components_tests/rtx/support/derivedheaders.hpp>
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/image.hpp>
 #include <components/contentstore/key.hpp>
@@ -326,8 +327,8 @@ namespace Rtx
             EXPECT_EQ(map->getWholeFormat(), TextureFormat::Bc7Unorm);
             EXPECT_TRUE(Testing::isNear(texelOf(*map, 0), { 135, 76, 255, 255 }, 2)) << "metal, roughness, occlusion";
 
-            // **Keyed by the finest levels alone**, the one level a conversion reads: a diffuse whose
-            // second level differs is the same key, and one whose finest differs another.
+            // **Keyed by both files** (`hashFile`): a diffuse whose second level differs is another key, as one whose
+            // finest differs is.
             const auto chained = [&](std::uint8_t finest, std::uint8_t second) {
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 auto* data = new std::uint8_t[20];
@@ -340,7 +341,10 @@ namespace Rtx
             };
             const auto keyOf = [&](const osg::Image& image) {
                 ChainBuild build;
-                ConversionPass pass(build);
+                TexelScratch scratch;
+                FileKeys keys(scratch);
+                TexelReads reads;
+                ConversionPass pass(build, keys, reads);
                 ContentStore::Digest digest(sContentPasses.name(ConversionPass::sPass), ConversionPass::sVersion);
                 pass.digest(
                     ConversionPass::Input{
@@ -348,8 +352,9 @@ namespace Rtx
                     digest);
                 return digest.getKey();
             };
-            EXPECT_EQ(keyOf(*chained(128, 9)), keyOf(*chained(128, 200))) << "the second level is not read";
-            EXPECT_NE(keyOf(*chained(128, 9)), keyOf(*chained(129, 9)));
+            EXPECT_EQ(keyOf(*chained(128, 9)), keyOf(*chained(128, 9)));
+            EXPECT_NE(keyOf(*chained(128, 9)), keyOf(*chained(128, 200))) << "the second level";
+            EXPECT_NE(keyOf(*chained(128, 9)), keyOf(*chained(129, 9))) << "the finest";
         }
 
         /// **A header's texels are read on the service's thread and handed out until let go of**: a DXT1 colour
@@ -365,7 +370,7 @@ namespace Rtx
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Resource::ImageManager images(vfs.get(), budget);
-            images.setModelImages(Resource::ModelImages::Headers);
+            const Testing::DerivedHeaders derived(images);
             const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
             ASSERT_TRUE(Resource::isHeader(*header));
             Resource::releaseTexels(*header);
@@ -421,6 +426,47 @@ namespace Rtx
             EXPECT_EQ(held.mFile, texels);
         }
 
+        /// **A header whose chain the store holds whole comes back with no read of its file** (`FileKeys`): a chainless
+        /// 8 by 8 DXT1 colour is made whole in BC7, its texels read once, by the run; let go of and asked again, its
+        /// chain is found under its header's key, and nothing of the file is read, its manager's cache left empty.
+        TEST(RtxPreparedImagesTest, aHeaderWhoseChainTheStoreHoldsWholeComesBackWithNoRead)
+        {
+            TestingOpenMW::VFSTestFile file(Testing::ddsDxt1(8, 8, 1, 0x55));
+            constexpr VFS::Path::NormalizedView path("textures/tx_whole.dds");
+            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(vfs.get(), budget);
+            const Testing::DerivedHeaders derived(images);
+            const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
+            Resource::releaseTexels(*header);
+            ASSERT_EQ(budget.getHeld(), 0u);
+
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
+            PreparedImages prepared(&store, 1);
+            const auto arrive = [&] {
+                EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
+                prepared.flush();
+                const PreparedImage arrived = prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat);
+                EXPECT_NE(arrived.mImage, nullptr);
+                if (arrived.mImage != nullptr)
+                    EXPECT_EQ(arrived.mImage->getWholeFormat(), TextureFormat::Bc7Srgb);
+                EXPECT_EQ(arrived.mFile, nullptr) << "a whole chain reads none of its file";
+                prepared.letGo(*header);
+                return prepared.takeStats();
+            };
+
+            const ContentStats made = arrive();
+            EXPECT_EQ(made.at(ContentPassId::Chain).mHits, 0u);
+            EXPECT_EQ(made.mTexelReads.count(TexelRead::File), 1u) << "the run's read, and none for the upload";
+            EXPECT_EQ(budget.getHeld(), 0u);
+
+            const ContentStats found = arrive();
+            EXPECT_EQ(found.at(ContentPassId::Chain).mHits, 1u);
+            EXPECT_EQ(found.mTexelReads.count(TexelRead::File), 0u);
+            EXPECT_EQ(found.mTexelReads.mChainsFoundWhole, 1u);
+            EXPECT_EQ(budget.getHeld(), 0u) << "the file read again";
+        }
+
         /// A file that opens only as many times as it is let: what holds a thread inside a read for as long as a test
         /// needs a job in flight.
         class GatedFile final : public VFS::File
@@ -460,7 +506,7 @@ namespace Rtx
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Resource::ImageManager images(vfs.get(), budget);
-            images.setModelImages(Resource::ModelImages::Headers);
+            const Testing::DerivedHeaders derived(images);
             const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
             Resource::releaseTexels(*header);
 
@@ -531,7 +577,10 @@ namespace Rtx
 
             const auto keyOf = [](const osg::Image& image) {
                 ChainBuild build;
-                ChainPass pass(build);
+                TexelScratch scratch;
+                FileKeys keys(scratch);
+                TexelReads reads;
+                ChainPass pass(build, keys, reads);
                 ContentStore::Digest digest(sContentPasses.name(ChainPass::sPass), ChainPass::sVersion);
                 pass.digest(ChainPass::Input{ .mImage = image, .mEncoding = TextureEncoding::Colour }, digest);
                 return digest.getKey();

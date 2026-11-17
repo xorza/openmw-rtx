@@ -47,14 +47,16 @@ namespace Rtx
 
     /// What was preprocessed, by the thread that did it: the frame's — what its walks met the first
     /// time, and what the host read between them — the cell ring's reader, whose models the walk
-    /// adopted, the threads that make chains again (`PreparedImages`), and the loading screen's
-    /// (`ContentPreparation`). Apart, because only the first is a frame's time.
+    /// adopted, the threads that make chains again (`PreparedImages`), the loading screen's
+    /// (`ContentPreparation`), and the loaders that first read a file (`ImageDerivation`). Apart, because only the
+    /// first is a frame's time.
     struct Preprocessed
     {
         ContentStats mOnFrame;
         ContentStats mOffFrame{};
         ContentStats mPrepared{};
         ContentStats mLoading{};
+        ContentStats mDerived{};
 
         Preprocessed& operator+=(const Preprocessed& other);
 

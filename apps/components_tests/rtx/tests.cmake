@@ -203,6 +203,7 @@ set(RTX_TEST_SUPPORT_HEADERS
     rtx/support/cardmemory.hpp
     rtx/support/countingrenderer.hpp
     rtx/support/death.hpp
+    rtx/support/derivedheaders.hpp
     rtx/support/displaycurve.hpp
     rtx/support/fakeland.hpp
     rtx/support/firsttexel.hpp

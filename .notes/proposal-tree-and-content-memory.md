@@ -416,6 +416,18 @@ a start 0.26–1.48 s.
   every glibc writes), and counted in the caches' budget: the release builds run on glibc 2.28, which has no
   `mallinfo2`, and `mallinfo` wraps past 2 GiB.
 
+- **A file's key is every level as described, read as data** (`Rtx::hashFile`), one key every image pass adds its own
+  inputs to: a chain reads a colour's own levels, so a key of the finest alone could not serve it. An image the
+  description refuses as data is keyed by OpenSceneGraph's bytes, since another encoding may describe it: two such
+  files never meet under one key. Refused: each pass hashing the texels it reads, which read the file to key what the
+  store held ([Unreal's derived data](https://dev.epicgames.com/documentation/en-us/unreal-engine/derived-data-cache)
+  keys a texture by its source's hash taken once).
+- **The derivation runs on the loader's thread, on a pool of half the processors' preprocessors**, each giving its
+  texel scratch back after each file; a loader past the pool waits. Refused: a preprocessor kept a thread, `thread_local`,
+  which is global state the threads' owners cannot bound.
+- **A run's read of a header is the upload's** (`ChainPass::Input::mRead`): a miss reads the file once for the run and
+  the upload, and a whole chain found reads it never.
+
 ## Final shape
 
 Sketches of what items 8–17 leave; names are the plan's to settle.
@@ -538,9 +550,6 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 One bump of the store's version carries every format change of this plan, the manifest's among them, so the stores are
 made again once; a store made on the desk is the handheld's too, the key being the content.
 
-1. The header's digest and the deriver, passed with the `Headers` mode; every image pass keyed from the digest, with
-   `RtxPassVersionsTest` holding the new versions.
-2. Facts made at the first read; `factOf` reads no file.
 3. Every chain whole, with a digest a level; `Store::open` and the ranged `read`; the kind in the entry's folder, so
    the start opens no file to learn it.
 4. The manifest states each model's radius and whether it gives light, which item 15 reads.
@@ -618,6 +627,10 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **12.1–12.2. The header's digest, and facts at the first read**: no pass's version moved, since no output did; the
+  keys moved with the file's key, which files every old entry apart by construction. The solid reach and the solid
+  fall are kept in the store now that their key costs nothing, so no pass stands unstored and `sStored` went.
 
 - **11. The device uses its budget**: the doubling tables owe twice their size and the blocked streams and structure
   storages their next block; a scratch or a storage held to a room grows to what its owner asks and owes nothing, so a

@@ -38,6 +38,7 @@ namespace Rtx
         mOffFrame += other.mOffFrame;
         mPrepared += other.mPrepared;
         mLoading += other.mLoading;
+        mDerived += other.mDerived;
 
         return *this;
     }
@@ -48,6 +49,7 @@ namespace Rtx
         reads += mOffFrame.mTexelReads;
         reads += mPrepared.mTexelReads;
         reads += mLoading.mTexelReads;
+        reads += mDerived.mTexelReads;
         return reads;
     }
 }

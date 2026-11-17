@@ -167,6 +167,8 @@ openmw_rtx_layer(
     SOURCES
         preprocess/contentpreprocessor.cpp
         preprocess/contentstats.cpp
+        preprocess/filekeys.cpp
+        preprocess/imagederivation.cpp
         preprocess/imagefactcache.cpp
         preprocess/preparedimages.cpp
         preprocess/shape/creasesplit.cpp
@@ -184,6 +186,9 @@ openmw_rtx_layer(
         preprocess/contentpass.hpp
         preprocess/contentpreprocessor.hpp
         preprocess/contentstats.hpp
+        preprocess/filekeys.hpp
+        preprocess/headerderived.hpp
+        preprocess/imagederivation.hpp
         preprocess/imagefactcache.hpp
         preprocess/preparedheld.hpp
         preprocess/preparedimages.hpp

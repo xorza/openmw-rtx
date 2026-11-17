@@ -63,6 +63,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
+#include <components/rtx/preprocess/imagederivation.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -154,6 +155,8 @@ namespace MWRender
         , mContentStore(setup.mContentStore.has_value()
                   ? std::make_unique<ContentStore::Store>(*setup.mContentStore, Rtx::sContentStorePolicy)
                   : nullptr)
+        , mDerivation(std::make_unique<Rtx::ImageDerivation>(
+              mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mPrepared(std::make_unique<Rtx::PreparedImages>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
@@ -259,6 +262,10 @@ namespace MWRender
     // Out of line because the members it destroys are only forward declared in the header.
     RtxRenderer::~RtxRenderer()
     {
+        // **The derivation taken back from the image manager, which outlives this**: the world, the engine's work
+        // queue and the loading screen, whatever loads a model, have ended by now, so no loader is inside it.
+        getResources().getImageManager()->setModelImages(Resource::ModelImages::Texels, {});
+
         // `Engine` has stopped the screenshot writer by now, so no write on the queue still holds
         // an image of a frame this owns the memory for. The members go in the order they are
         // declared for: the frozen texture, the backend, the window.
@@ -328,8 +335,11 @@ namespace MWRender
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setModelPrograms(Resource::ModelPrograms::Omitted);
-        // The device keeps a texture's copy, and the host its texels only until the device has it.
-        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers);
+        // The device keeps a texture's copy, and the host its texels only until the device has it: what the renderer
+        // asks of a file is derived where a loader first reads it.
+        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers,
+            [derivation = mDerivation.get()](
+                const osg::Image& texels, const Resource::ImageHeader& header) { derivation->derive(texels, header); });
         setAutoMaps(scene);
     }
 
@@ -866,6 +876,7 @@ namespace MWRender
             if (mWalked.mAgain.has_value())
                 mWalked.mSession += mWalked.mAgain->mPreprocessed;
             mWalked.mSession.mPrepared += mPrepared->takeStats();
+            mWalked.mSession.mDerived += mDerivation->takeStats();
             if (mContentStore != nullptr)
                 mWalked.mStore = mContentStore->getStats();
         }

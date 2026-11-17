@@ -11,6 +11,7 @@
 
 #include <components/vfs/pathutil.hpp>
 
+#include "imageheader.hpp"
 #include "resourcemanager.hpp"
 
 namespace osgDB
@@ -47,8 +48,9 @@ namespace Resource
 
         osg::Image* getWarningImage();
 
-        /// Before any model is loaded, which every loader thread reads it for.
-        void setModelImages(ModelImages images) { mModelImages = images; }
+        /// Before any model is loaded, which every loader thread reads it for: headers with what derives each where
+        /// its file is read, and no deriver for texels, which the rasterizer reads from the graph.
+        void setModelImages(ModelImages images, HeaderDeriver deriver);
 
         /// What a model's texture at `path` holds, as `setModelImages` says: the image `getImage` hands out, or its
         /// header, the file read the first time a model names it and never again for a model. What every loader of
@@ -65,6 +67,7 @@ namespace Resource
         osg::ref_ptr<osgDB::Options> mOptions;
 
         ModelImages mModelImages = ModelImages::Texels;
+        HeaderDeriver mDeriver;
 
         /// Every header made, by its file: tiny, and bounded by the files the content names, one each, so that
         /// every texture of one file names one header, as it named one image.

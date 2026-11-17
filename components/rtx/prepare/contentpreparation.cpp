@@ -397,21 +397,21 @@ namespace Rtx
     {
         hand.mKeys.clear();
         hand.mContent.mPreprocessor.collectKeys(&hand.mKeys);
-        // The texels through the header a model holds, for the make alone: let go of as it ends.
-        TexelReads& reads = hand.mContent.mPreprocessor.texelReads();
-        const osg::ref_ptr<const osg::Image> image = readTexels(*queued.mImage, TexelRead::Preparation, reads);
+        // The header a model holds, whose texels a run reads for the make alone: a chain the store holds reads none.
         if (queued.mPartner != nullptr)
-        {
-            const osg::ref_ptr<const osg::Image> partner = readTexels(*queued.mPartner, TexelRead::Preparation, reads);
-            hand.mContent.mPreprocessor.convert(
-                ConversionPass::Input{
-                    .mImage = *image, .mPartner = *partner, .mEncoding = queued.mEncoding, .mWrap = queued.mWrap },
+            hand.mContent.mPreprocessor.convert(ConversionPass::Input{ .mImage = *queued.mImage,
+                                                    .mPartner = *queued.mPartner,
+                                                    .mEncoding = queued.mEncoding,
+                                                    .mWrap = queued.mWrap,
+                                                    .mWhy = TexelRead::Preparation,
+                                                    .mPartnerWhy = TexelRead::Preparation },
                 hand.mChain, ContentAsk::Stored);
-        }
         else
-            hand.mContent.mPreprocessor.chain(
-                ChainPass::Input{ .mImage = *image, .mEncoding = queued.mEncoding, .mWrap = queued.mWrap }, hand.mChain,
-                ContentAsk::Stored);
+            hand.mContent.mPreprocessor.chain(ChainPass::Input{ .mImage = *queued.mImage,
+                                                  .mEncoding = queued.mEncoding,
+                                                  .mWrap = queued.mWrap,
+                                                  .mWhy = TexelRead::Preparation },
+                hand.mChain, ContentAsk::Stored);
         hand.mContent.mPreprocessor.collectKeys(nullptr);
     }
 

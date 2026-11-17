@@ -120,6 +120,13 @@ What the game reads from files (`components/resource`), changed for the handheld
   they are read through the header when wanted and let go of once the device has its copy, as Unity's textures that are
   not readable drop their host copy (`research/2026-11-16-texture-uploads-and-host-memory.md`). Refused: freeing a
   shared image's texels in place, which every reader would race.
+- **A file is keyed once, where its texels are first read** (`Rtx::ImageDerivation`, `Rtx::FileKeys`): the image
+  manager hands a renderer the texels and the new header before any other thread sees it, and the renderer files on
+  the header the file's key, a hash of its levels as described, and every fact a material asks, each pass keyed from
+  the file's key. A chain the store holds whole then comes back with no read of its file, and no fact reads one. As
+  OpenSceneGraph hooks a read through its registry's `ReadFileCallback`, and as Unreal's derived data keys a texture
+  by its source's hash taken at import. Refused: a key a pass hashes from the texels each ask, which reads the file
+  to key what the store holds; facts made at a material's first ask, which read the file again once the texels went.
 - **A preload is a guess, skipped past the budget** (`CellPreloader`), and asked again later. Refused: waiting for room,
   which stalls the queue.
 
