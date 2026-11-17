@@ -45,6 +45,7 @@
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/scene/uvdensity.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/skinning.h>
 #include <components/rtx/shaders/tangent.h>
@@ -242,6 +243,14 @@ namespace Rtx
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
                 FoldedShape{ .mSheet = true });
             EXPECT_TRUE(scene.meshes().getRows()[sheet].mShape.mSheet);
+
+            // The UV density its reader measured, which the row keeps (`UvDensity`): a unit quad laid over twice the
+            // texture across, its first set 2 on each unit, the second it lacks read at the finest level, nought.
+            const std::array coords{ osg::Vec2f(0.0f, 0.0f), osg::Vec2f(2.0f, 0.0f), osg::Vec2f(2.0f, 1.0f),
+                osg::Vec2f(0.0f, 1.0f) };
+            const Index laid = Testing::addMesh(
+                scene, MeshArrays{ .mPositions = raised, .mTexCoords = coords, .mIndices = Testing::sQuadIndices });
+            EXPECT_EQ(scene.meshes().getRows()[laid].mUvDensity, (UvDensity{ .mFirst = 2.0f, .mSecond = 0.0f }));
         }
 
         /// A mesh without normals or texture coordinates must still leave the attribute buffers as

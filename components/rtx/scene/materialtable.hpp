@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -13,6 +14,7 @@
 
 #include "material.hpp"
 #include "sceneroom.hpp"
+#include "textureasks.hpp"
 #include "texturetable.hpp"
 
 namespace Rtx
@@ -66,6 +68,7 @@ namespace Rtx
         void reserve(const SceneRoom& room)
         {
             reserveRows(room.mMaterials);
+            mAsks.reserve(room.mMaterials);
             mWritten.reserve(room.mMaterials);
             mLayers.reserve(room.mLayers);
         }
@@ -98,6 +101,10 @@ namespace Rtx
         }
 
         std::span<const Index> getWritten() const { return mWritten.getSlots(); }
+
+        /// The footprints `material` is asked at (`FootprintAsks`): what its textures are asked at, each by its own
+        /// size and transform (`docs/architecture.md`, "A texture stands from the level its nearest user asks").
+        const FootprintAsks& getAsks(const Index material) const { return mAsks.at(material); }
         const ArrivedRuns& getArrivedRuns() const { return mArrived; }
 
         /// How many runs have been placed, ever. What a backend checks it staged the arrivals
@@ -123,6 +130,11 @@ namespace Rtx
         bool set(TextureTable& textures, Index material, const Material& what);
 
         void hold(Index material) { holdRow(material); }
+
+        /// One ask more, and one fewer, of `material` at footprint `step`, asking its textures again where its finest
+        /// step moved: a placement the walk stands wearing it asks the finest, a cell of the ring its own distance's.
+        void ask(TextureTable& textures, Index material, std::size_t step);
+        void unask(TextureTable& textures, Index material, std::size_t step);
 
         /// Gives one hold on `material` back, and frees it where that was the last: what it named
         /// goes back to `textures`, and its layer and mask runs to their allocators.
@@ -151,6 +163,26 @@ namespace Rtx
         /// order between them matters.
         void holdTextures(TextureTable& textures, const Material& material);
         void dropTextures(TextureTable& textures, const Material& material);
+
+        /// Calls `visit` with every texture slot `material` reads, the half log of what its texels and its transform
+        /// lay on a unit of the mesh's coordinates, `0.5 log2(T w h)`, and the coarsest level any read of it takes:
+        /// its maps through the material's transform, a map read by direction at minus infinity, as one of no known
+        /// size is, and each layer through its own, never coarser than the level its chunk's bake reads it at
+        /// (`groundLod`). Its own list beside `forEachTexture`'s, which holds what reads nothing too.
+        template <class Visit>
+        void forEachRead(const TextureTable& textures, const Material& material, Visit visit) const;
+
+        /// Whether two rows of one material read the same slots at the same stretch, so a rewrite between them moves
+        /// no ask (`forEachRead`).
+        static bool readsAlike(const Material& one, const Material& other);
+
+        /// Asks the textures of `material` at the levels its finest footprint `after` makes of them, and takes back
+        /// those `before` made, each slot whose level the two agree on left as it stands. Nothing for "none".
+        void askTextures(TextureTable& textures, const Material& material, std::optional<std::uint8_t> before,
+            std::optional<std::uint8_t> after) const;
+
+        /// Each material's footprints, parallel to the rows.
+        std::vector<FootprintAsks> mAsks;
 
         /// Rows written since the last `clearArrivals` — a flipbook that is added and then
         /// rewritten on one frame is one row, not two.

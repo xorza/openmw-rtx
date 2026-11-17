@@ -34,5 +34,5 @@ namespace Rtx
     /// its portrait is a coloured circle. A moon of size nought is not drawn, as the game draws
     /// none; one whose size is below nought or not finite is refused to `scene`.
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
-        ThreadContent& thread, std::vector<TextureHold>& holds);
+        ThreadContent& thread, std::vector<ReadingHold>& holds);
 }

@@ -78,9 +78,9 @@ namespace Rtx
         struct Given
         {
             SceneDesc& mScene;
-            std::vector<TextureHold>& mHolds;
+            std::vector<ReadingHold>& mHolds;
 
-            Given(SceneDesc& scene, std::vector<TextureHold>& holds)
+            Given(SceneDesc& scene, std::vector<ReadingHold>& holds)
                 : mScene(scene)
                 , mHolds(holds)
             {
@@ -88,7 +88,7 @@ namespace Rtx
 
             ~Given()
             {
-                for (TextureHold& hold : mHolds)
+                for (ReadingHold& hold : mHolds)
                     mScene.drop(std::move(hold));
             }
             Given(const Given&) = delete;
@@ -123,7 +123,7 @@ namespace Rtx
 
             SceneDesc scene;
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
 
             const Given given{ scene, holds };
 
@@ -187,7 +187,7 @@ namespace Rtx
 
             SceneDesc scene;
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             const Given given{ scene, holds };
 
             const NightSky sky = readNightSky(scene, *dome, thread, holds);

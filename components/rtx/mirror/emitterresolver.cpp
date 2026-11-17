@@ -120,7 +120,7 @@ namespace Rtx
         // Held, because nothing else can name them. An emitter is a placement and is thrown
         // away every frame, so this entry is the only lasting thing that says the sprite is in
         // use; the scene frees the slots when the sweep lets go of them.
-        held.mSlot = mScene.takeTexture(mThread.pathOf(*held.mSprite), *held.mSprite, held.mWrap);
+        held.mSlot = mScene.takeReading(mThread.pathOf(*held.mSprite), *held.mSprite, held.mWrap);
         if (held.mSlot.empty())
         {
             held.mRefused.refuse(sSpriteTake, freed);
@@ -148,7 +148,7 @@ namespace Rtx
             return;
         }
 
-        held.mLighting = mScene.holdTexture(bake);
+        held.mLighting = mScene.holdReading(bake);
     }
 
     void EmitterResolver::releaseSprite(HeldSprite& held)

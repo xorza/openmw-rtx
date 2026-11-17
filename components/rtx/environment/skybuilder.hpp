@@ -52,7 +52,7 @@ namespace Rtx
     ///
     /// @return its index in `content.mSheets`.
     std::uint32_t addCloudSheet(SceneDesc& scene, Resource::SceneManager& scenes, ThreadContent& thread,
-        std::vector<TextureHold>& holds, std::string_view name, SkyContent& content);
+        std::vector<ReadingHold>& holds, std::string_view name, SkyContent& content);
 
     /// Reads all of it, loading the textures into `scene` and appending a hold on each to `holds`,
     /// which the caller gives back when the world goes, so a scene the world has left holds nothing
@@ -62,5 +62,5 @@ namespace Rtx
     ///
     /// @param thread what each sheet's mean is read through: the frame thread's.
     SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkySources& sources,
-        ThreadContent& thread, std::vector<TextureHold>& holds);
+        ThreadContent& thread, std::vector<ReadingHold>& holds);
 }

@@ -437,6 +437,7 @@ namespace MWRender
             .mBindVertexEnd = deformers.getBindVertexCount(),
             .mRestingTextures = static_cast<std::uint32_t>(mScene.textures().getResting().getCount()),
             .mRestingTextureBytes = mScene.textures().getResting().getBytes(),
+            .mAboveWant = mScene.textures().measureAboveWant(),
             .mReader = mRing.getReaderMemory(),
             .mPrepared = mWalk.mPrepared != nullptr ? mWalk.mPrepared->getHeld() : Rtx::PreparedHeld{},
             .mRing = mRing.countStanding(),
@@ -523,6 +524,7 @@ namespace MWRender
             .mExterior = frame.mWorld.mLocation == Location::Exterior,
             .mSimulationTime = frame.mWhen.getSimulationTime(),
             .mNightDay = nightDayOf(frame.mWorld),
+            .mSight = mSight,
         };
 
         // Told once a frame, because what the graph does not hold is the frame's to say: the precipitation

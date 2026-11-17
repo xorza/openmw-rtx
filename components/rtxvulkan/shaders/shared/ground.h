@@ -22,11 +22,6 @@ namespace Rtx::Shaders
     const uint GROUND_COMPOSITE_BIND_GLOSS = 1;
     const uint GROUND_COMPOSITE_BINDINGS = 2;
 
-    /// How large a composite is, square: the rasterizer's `composite map resolution` default,
-    /// stated here because this path forces that setting past every chunk. A power of two, so the
-    /// chain halves exactly and ends at one texel.
-    const uint GROUND_COMPOSITE_EXTENT = 512u;
-
     /// The bake's workgroup, square.
     const uint GROUND_COMPOSITE_WORKGROUP = 16u;
 

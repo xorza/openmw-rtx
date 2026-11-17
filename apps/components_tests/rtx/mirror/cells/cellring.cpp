@@ -270,6 +270,8 @@ namespace Rtx::Testing
                     return mWindow;
                 if (path.value() == "meshes/ember.nif")
                     return mEmber;
+                if (path.value() == "meshes/panel.nif")
+                    return mPanel;
                 if (path.value() == "meshes/flame" || path.value() == "meshes/dark")
                     return mLantern;
                 if (path.value() == "meshes/broken.nif")
@@ -302,6 +304,20 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Group> mMirrored = [this] {
                 osg::ref_ptr<osg::Group> root = makeSheet(300.0f, 5.0f);
                 root->getOrCreateStateSet()->setAttribute(new osg::FrontFace(osg::FrontFace::CLOCKWISE));
+                return root;
+            }();
+
+            /// A sheet 512 units square laid with its texture once, (0,0) to (1,1): each triangle spans twice an area
+            /// of 512² = 2^18 units and of 1 in its coordinates, so its UV density is 2^-18 and its footprint, half the
+            /// log of that, -9.
+            osg::ref_ptr<osg::Group> mPanel = [this] {
+                osg::ref_ptr<osg::Group> root = makeSheet(256.0f, 0.0f);
+                osg::Geometry& sheet = *root->getChild(0)->asGroup()->getChild(0)->asGeometry();
+                osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
+                for (const osg::Vec2f corner :
+                    { osg::Vec2f(0.0f, 0.0f), osg::Vec2f(1.0f, 0.0f), osg::Vec2f(1.0f, 1.0f), osg::Vec2f(0.0f, 1.0f) })
+                    coords->push_back(corner);
+                sheet.setTexCoordArray(0, coords, osg::Array::BIND_PER_VERTEX);
                 return root;
             }();
 
@@ -1093,6 +1109,49 @@ namespace Rtx::Testing
             mScene.placements().forEachPlaced(
                 [&](Index, const PlacementRow& row) { bodies += row.mInstance.mLampBody ? 1 : 0; });
             EXPECT_EQ(bodies, 1u);
+        }
+
+        /// **A held cell asks each material it holds at the footprint its distance makes of it**, the band one nearer
+        /// than its own (`CellPlacer::askByDistance`). The panel's footprint is -9 (`FewContent::mPanel`), its radius
+        /// 256√2 = 362.04 how far it reaches past cell 3's square. The eye half a cell in stands 2.5 cells from that
+        /// square: 20480 - 362.04 = 20117.96 units, 2.46 cells, in the band from 2 to 4, so the ring asks at the near
+        /// edge of the band before it, one cell, 8192 units. A pixel opening by 2^-10 is 8 units wide there, a level
+        /// of 3: the material is asked at -9 + 3 = -6, step 26. Opened by 2^-9, step 27; by nought, the finest, step 0.
+        /// The eye a cell nearer stands 1.46 cells off, the band from 1 to 2, asked at half a cell: step 25.
+        TEST_F(RtxCellRingTest, aHeldCellAsksItsMaterialsAtTheFootprintItsDistanceMakes)
+        {
+            mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "panel.nif",
+                .mRefNum = ESM::RefNum{ 1, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 0.0f) } };
+            mAround.mSight = Rtx::Sight{ .mSpreadAngle = 1.0f / 1024.0f, .mLevelBias = 0.0f };
+            start();
+            fill();
+
+            // The panel's placement, a mesh of four vertices among the cells' grounds.
+            const auto askedAt = [&]() -> std::optional<std::uint8_t> {
+                std::optional<std::uint8_t> asked;
+                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                    if (row.mInstance.mStander == Stander::Ring
+                        && mScene.meshes().getRows()[row.mInstance.mMesh].mVertices.mCount == 4)
+                        asked = mScene.materials().getAsks(row.mInstance.mMaterial).finest();
+                });
+                return asked;
+            };
+            EXPECT_EQ(askedAt(), 26u);
+
+            mAround.mSight.mSpreadAngle = 1.0f / 512.0f;
+            walk(mWalked++);
+            EXPECT_EQ(askedAt(), 27u) << "a pixel twice as wide, a level coarser";
+
+            mAround.mSight.mSpreadAngle = 0.0f;
+            walk(mWalked++);
+            EXPECT_EQ(askedAt(), 0u) << "a cone of no width asks the finest";
+
+            mAround.mSight.mSpreadAngle = 1.0f / 1024.0f;
+            mAround.mEye = osg::Vec3f(1.5f * sCellSize, 0.5f * sCellSize, 0.0f);
+            walk(mWalked++);
+            EXPECT_EQ(askedAt(), 25u) << "a band nearer, a level finer";
         }
 
         /// **A static the ring stands shows the face its model's state stack fronts**, as the frame's walk stands it

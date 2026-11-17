@@ -9,7 +9,6 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/shaders/shared/bc7.h>
-#include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/shaders/shared/normalspread.h>
 
 #include "blockchain.hpp"

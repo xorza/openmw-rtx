@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -28,6 +29,7 @@
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/scene/textureasks.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/terrain/pagedcellref.hpp>
 
@@ -298,6 +300,7 @@ namespace Rtx
         adoptGround(cell, held, around, stats);
         held.mModels.assign(cell.mModels.begin(), cell.mModels.end());
         adoptPlacements(cell, held, holds);
+        gatherAsks(held);
 
         [[maybe_unused]] const auto [at, fresh] = mCells.insert(std::move(held));
         assert(fresh && "a cell adopted twice");
@@ -557,8 +560,94 @@ namespace Rtx
         }
         held.mModels.assign(grass.mModels.begin(), grass.mModels.end());
 
+        // Each material once, at the finest footprint, for as long as the cell's grass is held.
+        for (const Placement& placement : held.mPlacements)
+            if (placement.mStood.mMaterial != sNoIndex)
+                held.mAsked.push_back(placement.mStood.mMaterial);
+        std::ranges::sort(held.mAsked);
+        held.mAsked.erase(std::ranges::unique(held.mAsked).begin(), held.mAsked.end());
+        for (const Index material : held.mAsked)
+            mScene.askMaterial(material, 0);
+
         [[maybe_unused]] const auto [at, fresh] = mGrass.insert(std::move(held));
         assert(fresh && "a cell's grass adopted twice");
+    }
+
+    void CellPlacer::gatherAsks(HeldCell& held)
+    {
+        const std::span<const MeshRange> meshes = mScene.meshes().getRows();
+        held.mAsks.clear();
+
+        // `0.5 log2(density / scale²)`, the density of the sets the mesh brings at their least: a mesh with no second
+        // set reads every unit through its first (`MeshArrays::mUnitStreams`).
+        const auto ask = [&](const Stood& stood) {
+            if (stood.mMaterial == sNoIndex || stood.mMesh == sNoIndex)
+                return;
+            const MeshRange& mesh = meshes[stood.mMesh];
+            const float density = mesh.mSecondTexCoords.mCount > 0
+                ? std::min(mesh.mUvDensity.mFirst, mesh.mUvDensity.mSecond)
+                : mesh.mUvDensity.mFirst;
+            held.mAsks.push_back(RingAsk{ .mMaterial = stood.mMaterial,
+                .mFootprint = 0.5f * std::log2(density) - std::log2(placedScale(stood.mTransform)) });
+        };
+        for (const Placement& placement : held.mPlacements)
+            ask(placement.mStood);
+        if (held.mGround.mStands)
+            ask(held.mGround.mStood);
+
+        // One a material, at its finest.
+        std::ranges::sort(held.mAsks, [](const RingAsk& left, const RingAsk& right) {
+            return left.mMaterial != right.mMaterial ? left.mMaterial < right.mMaterial
+                                                     : left.mFootprint < right.mFootprint;
+        });
+        held.mAsks.erase(std::ranges::unique(held.mAsks, {}, &RingAsk::mMaterial).begin(), held.mAsks.end());
+
+        // Largest first, so the first is how far any placement reaches past the square.
+        held.mReachOut = held.mPlacements.empty() ? 0.0f : held.mPlacements.front().mRadius;
+    }
+
+    void CellPlacer::askByDistance(HeldCell& cell, const WorldAround& around, const bool sightMoved)
+    {
+        const CellGrid& grid = around.mWorld.mGrid;
+        const float size = grid.getCellSize();
+        const float distance
+            = std::max(0.0f, std::sqrt(grid.distanceSquaredTo(cell.mCell, around.mEye)) - cell.mReachOut);
+        const float asked = distance < size ? 0.0f : size * std::exp2(std::floor(std::log2(distance / size)) - 1.0f);
+        if (!sightMoved && cell.mAskedAt == asked)
+            return;
+        cell.mAskedAt = asked;
+
+        // The cone's width at the distance asked, as a level: minus infinity at no distance or no spread, which asks
+        // the finest. A footprint of plus infinity, a mesh of no triangles, against it is not a number, the finest too.
+        const float cone = std::log2(asked * mSight.mSpreadAngle) + mSight.mLevelBias;
+        for (RingAsk& ask : cell.mAsks)
+        {
+            const auto step = static_cast<std::uint8_t>(footprintStep(ask.mFootprint + cone));
+            if (ask.mStep == step)
+                continue;
+            mScene.askMaterial(ask.mMaterial, step);
+            if (ask.mStep.has_value())
+                mScene.unaskMaterial(ask.mMaterial, *ask.mStep);
+            ask.mStep = step;
+        }
+    }
+
+    void CellPlacer::unaskAll(HeldCell& cell)
+    {
+        for (RingAsk& ask : cell.mAsks)
+            if (ask.mStep.has_value())
+            {
+                mScene.unaskMaterial(ask.mMaterial, *ask.mStep);
+                ask.mStep.reset();
+            }
+        cell.mAskedAt.reset();
+    }
+
+    void CellPlacer::unaskAll(HeldGrass& grass)
+    {
+        for (const Index material : grass.mAsked)
+            mScene.unaskMaterial(material, 0);
+        grass.mAsked.clear();
     }
 
     void CellPlacer::dropSlots()
@@ -718,9 +807,15 @@ namespace Rtx
 
     std::uint32_t CellPlacer::place(const WorldAround& around)
     {
+        const bool sightMoved = around.mSight != mSight;
+        mSight = around.mSight;
+
         std::uint32_t lit = 0;
         for (HeldCell& cell : mCells)
+        {
+            askByDistance(cell, around, sightMoved);
             lit += place(cell, around);
+        }
 
         // What a walk touches is a cell's grass crossing the reach, and nothing on a standing frame.
         for (HeldGrass& grass : mGrass)

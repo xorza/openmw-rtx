@@ -14,6 +14,7 @@
 
 #include "foldedshape.hpp"
 #include "mesh.hpp"
+#include "uvdensity.hpp"
 
 namespace Rtx
 {
@@ -44,6 +45,9 @@ namespace Rtx
         /// The box every position fits in.
         osg::BoundingBoxf mBounds;
 
+        /// The least texture it lays on a unit of its surface (`UvDensity`).
+        UvDensity mUvDensity{};
+
         /// What a static mesh is filed under: every stream in order, each a step of its own, the units the second
         /// coordinates stream to and the shape.
         MeshKey mKey;
@@ -71,6 +75,7 @@ namespace Rtx
         bool mSharedIndices = false;
         FoldedShape mShape;
         osg::BoundingBoxf mBounds;
+        UvDensity mUvDensity;
         MeshKey mKey;
     };
 

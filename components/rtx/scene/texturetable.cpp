@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <format>
+#include <span>
 #include <string>
 #include <utility>
 
@@ -194,6 +196,68 @@ namespace Rtx
             release(texture);
     }
 
+    TexturesAboveWant TextureTable::measureAboveWant() const
+    {
+        // A made chain is BC7's four-texel blocks of sixteen bytes; only the share is read, so only the side matters.
+        constexpr TexelLayout made{ .mSide = 4, .mBytes = 16 };
+
+        TexturesAboveWant meter;
+        const std::span<const TextureRow> rows = getRows();
+        for (Index slot = 0; slot < rows.size(); ++slot)
+        {
+            const TextureRow& row = rows[slot];
+            if (!isLive(slot) || row.mKind != TextureKind::File || row.mRest.mResting || row.mStoodBytes == 0
+                || row.mImage == nullptr)
+                continue;
+
+            meter.mStood += row.mStoodBytes;
+            const std::uint8_t want = getWant(slot);
+            if (want == 0)
+                continue;
+
+            // The chain to one texel, whatever the file carries, as every chain this renderer stands goes there.
+            const TexelLayout layout = row.mStoodMade ? made : layoutOf(row.mFormat);
+            const auto width = static_cast<std::uint32_t>(row.mImage->s());
+            const auto height = static_cast<std::uint32_t>(row.mImage->t());
+            std::uint64_t whole = 0;
+            std::uint64_t above = 0;
+            for (std::uint32_t level = 0; (width >> level) > 0 || (height >> level) > 0; ++level)
+            {
+                const std::uint64_t bytes
+                    = layout.levelBytes(std::max(width >> level, 1u), std::max(height >> level, 1u));
+                whole += bytes;
+                if (level < want)
+                    above += bytes;
+            }
+            if (whole == 0 || above == 0)
+                continue;
+
+            // The device's own bytes, split as the chain is: what it stood for this file, in its own format.
+            meter.mAbove += static_cast<std::uint64_t>(
+                static_cast<double>(row.mStoodBytes) * static_cast<double>(above) / static_cast<double>(whole));
+            ++meter.mTextures;
+        }
+        return meter;
+    }
+
+    void TextureTable::ask(const Index texture, const std::size_t level)
+    {
+        if (texture >= sCapacity)
+            return;
+
+        assert(isLive(texture) && "an ask of a slot that stands no texture");
+        rowAt(texture).mAsks.ask(level);
+    }
+
+    void TextureTable::unask(const Index texture, const std::size_t level)
+    {
+        if (texture >= sCapacity)
+            return;
+
+        assert(isLive(texture) && "an ask taken back of a slot that stands no texture");
+        rowAt(texture).mAsks.unask(level);
+    }
+
     void TextureTable::stand(const Index slot, const std::uint64_t bytes, const bool made)
     {
         TextureRow& row = rowAt(slot);
@@ -260,6 +324,7 @@ namespace Rtx
     void TextureTable::release(const Index texture)
     {
         TextureRow& row = rowAt(texture);
+        assert(row.mAsks.empty() && "a slot freed while something still reads it");
         if (row.mRest.mResting)
         {
             // Out of the rest first, which leaves the census as a slot that rests left it.

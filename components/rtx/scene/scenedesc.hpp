@@ -169,7 +169,19 @@ namespace Rtx
         void drop(TextureHold&& hold);
 
         /// Gives back every hold in `holds`, and empties it.
-        void drop(std::vector<TextureHold>& holds);
+        void drop(std::vector<ReadingHold>& holds);
+
+        /// `takeTexture` and `holdTexture` for a holder that reads the texture itself, and its drop (`ReadingHold`):
+        /// the hold asks its finest level until it is given back.
+        ReadingHold takeReading(
+            VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat);
+        ReadingHold holdReading(Index texture);
+        void drop(ReadingHold&& hold);
+
+        /// One ask more, and one fewer, of `material` at footprint `step` (`MaterialTable::ask`): a cell of the ring,
+        /// at its own distance. The walk's placements ask through `addInstance` and `dropInstance`.
+        void askMaterial(Index material, std::size_t step) { mMaterials.ask(mTextures, material, step); }
+        void unaskMaterial(Index material, std::size_t step) { mMaterials.unask(mTextures, material, step); }
 
         /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
         /// caller: what a surface, a sprite, a sky layer and a moon turn their image into —

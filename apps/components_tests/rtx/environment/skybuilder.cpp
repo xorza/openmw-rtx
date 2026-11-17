@@ -433,7 +433,7 @@ namespace Rtx
                 images.hold(moonFaceOf(moon), portrait);
             }
 
-            std::vector<TextureHold> moonHolds;
+            std::vector<ReadingHold> moonHolds;
             ThreadContent thread;
             const Rtx::MoonFaces moons
                 = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, thread, moonHolds);
@@ -443,18 +443,18 @@ namespace Rtx
             // The content as `addSkyContent` would leave it, built by hand: two decks and a night
             // sky of a field and one patch, held once each, and the rest unset.
             SkyContent content;
-            std::vector<TextureHold> skyHolds;
+            std::vector<ReadingHold> skyHolds;
             for (const std::string_view name : { "tx_sky_clear.dds", "tx_sky_cloudy.dds" })
             {
                 const Index deck = scene.textures().add(VFS::Path::NormalizedView("textures/deck.dds"));
                 content.mSheets.push_back(CloudSheet{ .mName = std::string(name), .mTexture = deck });
-                skyHolds.push_back(scene.holdTexture(deck));
+                skyHolds.push_back(scene.holdReading(deck));
             }
             content.mNight.mField = scene.textures().add(VFS::Path::NormalizedView("textures/stars.dds"));
-            skyHolds.push_back(scene.holdTexture(content.mNight.mField));
+            skyHolds.push_back(scene.holdReading(content.mNight.mField));
             content.mNight.mPatches[0].mTexture
                 = scene.textures().add(VFS::Path::NormalizedView("textures/nebula.dds"));
-            skyHolds.push_back(scene.holdTexture(content.mNight.mPatches[0].mTexture));
+            skyHolds.push_back(scene.holdReading(content.mNight.mPatches[0].mTexture));
 
             EXPECT_EQ(scene.textures().getLiveCount(), 5u);
             EXPECT_EQ(scene.textures().getHolds(content.mSheets[sClear].mTexture), 2u)
@@ -497,7 +497,7 @@ namespace Rtx
 
             SceneDesc scene;
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             const SkyContent content = addSkyContent(scene, scenes, sources(), thread, holds);
 
             ASSERT_EQ(content.mSheets.size(), 2u) << "both names held, so neither is asked again";
@@ -516,7 +516,7 @@ namespace Rtx
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), alpha);
 
             SceneDesc taken;
-            std::vector<TextureHold> takenHolds;
+            std::vector<ReadingHold> takenHolds;
             const SkyContent takenContent = addSkyContent(taken, scenes, sources(), thread, takenHolds);
             EXPECT_NE(taken.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
                 << "an alpha-only deck left out";
@@ -550,7 +550,7 @@ namespace Rtx
 
             SceneDesc scene;
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             SkyContent content;
             const std::uint32_t at = addCloudSheet(scene, scenes, thread, holds, "tx_script_sky.dds", content);
 
@@ -624,7 +624,7 @@ namespace Rtx
 
             SceneDesc scene;
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             const Result<NightSky, std::string> sky = readNightSky(
                 scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), thread, holds);
             ASSERT_TRUE(sky.isOk()) << sky.error();
@@ -660,7 +660,7 @@ namespace Rtx
             Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, budget);
             SceneDesc scene;
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
 
             const Result<NightSky, std::string> night
                 = readNightSky(scene, scenes, VFS::Path::NormalizedView("meshes/sky_night_02.nif"),

@@ -17,6 +17,7 @@
 #include <components/esm/util.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/scene/packedstreams.hpp>
+#include <components/rtx/scene/uvdensity.hpp>
 #include <components/rtx/shaders/tangent.h>
 
 #include "cellworld.hpp"
@@ -159,6 +160,7 @@ namespace Rtx
         // Bounded and keyed here, on the reader's thread, and not where the frame adopts it.
         for (const osg::Vec3f& position : into.mPositions)
             into.mBounds.expandBy(position);
+        into.mUvDensity = uvDensityOf(into.mPositions, into.mTexCoords, {}, into.mIndices);
         into.mKey = keyOf(into.mesh());
 
         into.mStands = true;

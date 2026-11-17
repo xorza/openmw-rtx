@@ -17,6 +17,7 @@
 
 #include "foldedshape.hpp"
 #include "restqueue.hpp"
+#include "uvdensity.hpp"
 
 namespace Rtx
 {
@@ -245,6 +246,10 @@ namespace Rtx
         /// the caller says the pose reaches, because the posed vertices are on the device; that is
         /// what lets a question about where a scene reaches be eight transforms per instance.
         osg::BoundingBoxf mBounds;
+
+        /// The least texture it lays on a unit of its surface, as its reader measured it (`UvDensity`): what a
+        /// placement of it asks of its material's textures by its distance.
+        UvDensity mUvDensity{};
 
         /// What a static mesh is filed under (`PackedMesh::mKey`), which it rests under once nothing places it, and
         /// found again by whatever reads the same geometry; nothing for a mesh that deforms, a copy per instance.

@@ -20,6 +20,8 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/tangent.h>
 
+#include "uvdensity.hpp"
+
 namespace Rtx
 {
     namespace
@@ -142,6 +144,7 @@ namespace Rtx
             .mSharedIndices = arrays.mSharedIndices,
             .mShape = shape,
             .mBounds = {},
+            .mUvDensity = uvDensityOf(positions, arrays.mTexCoords, arrays.mSecondTexCoords, arrays.mIndices),
             .mKey = {},
         };
 
@@ -174,6 +177,7 @@ namespace Rtx
             .mSharedIndices = runs.mSharedIndices,
             .mShape = runs.mShape,
             .mBounds = runs.mBounds,
+            .mUvDensity = runs.mUvDensity,
             .mKey = runs.mKey,
         };
     }

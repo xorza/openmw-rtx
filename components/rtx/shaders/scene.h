@@ -48,6 +48,12 @@ namespace Rtx::Shaders
     /// per-lane test. **The last slot**, so the scene's own table still hands out from nought.
     const uint TEXTURE_NEUTRAL = TEXTURE_SLOTS - 1u;
 
+    /// How large a chunk's ground composite is, square: the rasterizer's `composite map resolution` default, stated
+    /// here because this path forces that setting past every chunk. A power of two, so the chain halves exactly and
+    /// ends at one texel. The scene's as well as the bake's, since what a chunk asks of its layers is the level the
+    /// bake reads them at (`MaterialTable`'s reads).
+    const uint GROUND_COMPOSITE_EXTENT = 512u;
+
 /// What every texture this renderer writes is stored as: a chain a file did not carry, a sprite's
 /// light bake and a ground composite. Read back through the file's curve where the file had one.
 #define TEXTURE_WRITTEN_FORMAT STORAGE_RGBA8

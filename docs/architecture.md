@@ -144,6 +144,16 @@ What the game reads from files (`components/resource`), changed for the handheld
 - **A texture moved down waits to come back, and one moved while it rests goes**: what moved is filed as waiting
   on whichever hand-over the device says so, one that only places among them, and rests on nothing meanwhile, as a
   rest holds the file whole and the host keeps none to hand over again.
+- **A texture stands from the level its nearest user asks**, by the user's idea: distant land never loads its finest
+  levels, and only the nearest cells load level 0. This is the shape of Unreal's streamer: a UV density per mesh, a
+  scale per material texture, and the wanted level from the nearest user. Here the bound is the trace's own: every
+  read takes the level its ray cone resolves, and a secondary cone is never narrower than the primary at the eye's
+  distance. So a level finer than the primary ray's at that distance is never read, a shadow ray's cutout aside.
+  Asks follow the hold chain, placement → material → texture (`MaterialTable::ask`): the walk's placements ask the
+  finest, the ring's cells ask by distance in bands that double from a cell's size, one band nearer than their own
+  (`CellPlacer::askByDistance`), and a holder that reads a texture itself asks level 0 (`ReadingHold`). Refused: a
+  scan of the placements each frame, which the frame rule forbids, and a feedback pass, which measures what a
+  derived bound already states.
 - **A made chain is handed over in a buffer of a bounded pool, read a segment at a time** (`Rtx::BufferPool`,
   `ContentPreprocessor::chain` into a pool): the store's entry is opened, its form's byte read, and its levels read
   by position into a pooled buffer, each segment's digest checked; the buffer goes back to the pool as the made image

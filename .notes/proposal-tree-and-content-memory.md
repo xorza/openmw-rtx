@@ -40,7 +40,8 @@ Why the items stand in this order, each a reason a later item leans on:
   plan is ordered by what the handheld measured, not by the shape it was written for. The longest frames are explained
   first (item 8), since every later item is judged against them; then the ring's reading again of models (item 15),
   the largest cost the tours name; then the device's mesh memory (item 14.6), where the tours still refuse structure
-  blocks; then need (item 16), behind its meter. What only tidies a mechanism that works is declined: the texture
+  blocks; then need (item 16), behind its meter. **Item 16 then moved first** (the user, 2026-11-17: memory before
+  frame times, and levels by distance), ahead of items 19, 15 and 14.6. What only tidies a mechanism that works is declined: the texture
   planner's rest (item 13), the ring's flat records unless measured (item 14.4), the streams' spike (item 17).
 - **The texture's level moved down before the geometry's host copy went** (item 13's first part before 14): until no
   world is rebuilt for a reserve that moved, a rebuild read that copy.
@@ -259,9 +260,11 @@ a start 0.26–1.48 s.
   parses, the device's mesh memory, need; what only tidies a mechanism that works is declined.
 - **A resting mesh counts its structure and its geometry, and gives both back** (item 14.6), changing "a mesh counts
   what its eviction gives back" (`a3d689826f`).
-- **Levels by need, a meter first** (item 16): declined past its meter if under a tenth of the handheld PBR tour's
-  texture bytes stand in levels no ray read.
-- **What the texture pool strands in pieces is moved, not classed** (item 16.4), only if a tour after item 11 still
+- **Levels by distance, a meter first** (item 16, the user's idea and order, 2026-11-17): each texture stands from the
+  level its nearest user's distance asks, by the trace's own cone, with the ring asking by cell and band and everything
+  else asking level 0; declined past its meter if under a tenth of the handheld's PBR and Repack texture bytes stand
+  above their want. Memory first, at the user's word: the desk's frame times are not read while it is busy.
+- **What the texture pool strands in pieces is moved, not classed** (item 16, after its step 5), only if a tour after item 11 still
   refuses a texture with room in pieces. Lifts "Refused: defragmentation" for textures; "pools by size class" stays
   refused.
 - **The NIF's hash pass stays** as upstream has it: some 15 µs a parse by the files' sizes, an estimate.
@@ -532,6 +535,132 @@ content each, are profiled (`perf` beside the run, as `./omw profile` does on th
 One an item of this plan causes or cures is that item's to show gone; one that is upstream's is proposed with its
 profile; one no item names becomes an item of its own here, ahead of item 15, where its cost is the larger.
 
+**Open, from the desk's wait profile at `5db3a1fbf7`**: a tour runs settled, as its stated step makes it
+(`RtxRenderer::configureResources`), so its walk waits on the frame for its nearest cell (`CellSupply::waitForOne`, 111
+of a 135 ms frame) and for its ground's bake, which no player waits for. Whether a tour runs unsettled is decided by an A/B
+of its worst frames and outruns on the handheld, since the desk was busy at the time (the user, 2026-11-17: its frame
+times are not read, its memory is). Moving to unsettled also means flying the baseline again.
+
+**A heap profile runs in a cgroup with a memory cap** (`systemd-run --user --scope -p MemoryMax=<GiB>`), and is stopped
+by its stop count. On 2026-11-17, `heaptrack_interpret` grew to 47 GiB over 37 Repack stops on the desk, and the kernel's OOM
+killer took the desktop down with it. The harness's own figure at stop 23 had already said what the run was for: the heap
+took 4,432 MiB at `5db3a1fbf7`, against 6,668 MiB at `395077cdd4` (`research/2026-11-16-host-memory-holders-repack.md`).
+
+### 16. Levels by distance
+
+The user's idea (2026-11-17): distant land never loads its finest levels, the further the smaller, and only the
+nearest cells load level 0. This is the canonical texture streamer's shape. Unreal's
+([overview](https://dev.epicgames.com/documentation/en-us/unreal-engine/texture-streaming-overview-for-unreal-engine),
+[build](https://dev.epicgames.com/documentation/en-us/unreal-engine/building-texture-streaming-data-in-unreal-engine))
+keeps a UV density per mesh and a UV channel and scale per material texture. From them it works out each texture's
+wanted level, the nearest user deciding, and streams levels in and out against a pool. Here it holds by the trace's own
+rule, not by a guess: a hit reads the level its ray cone resolves (`texturing.glsl`, `coneBaseOf`). A secondary cone
+opens no slower than the primary one (`shading.glsl`, `water.glsl`), and starts as wide as the footprint it leaves
+from. So the triangle inequality bounds every read at a point from below, by the primary ray's level at the eye's
+distance to it. The finest level any read takes is the head-on one along the short axis, which anisotropic filtering
+reads, so the facing term is left out. The bound is conservative, and a picture moves only where a ray reads finer than
+it.
+
+**What the investigation found the design must be** (`5db3a1fbf7`):
+
+- **The need is computed where the content is placed, and once per change, never by a scan per frame**: the frame
+  rule ("Frame times are uniform"), and how Unreal registers primitive bounds as they come and go. Every placement
+  states who stood it (`Stander::Walk`, `Stander::Ring`). The walk's placements are the active grid's, which the user's
+  "only the nearest cells load level 0" leaves whole. The ring's are held by cell (`CellPlacer`), and the ring already
+  measures every held cell against the eye once a frame. So the ring asks by cell and band, and everything else asks
+  level 0.
+- **Asks attach to materials, and textures derive their want from them**, mirroring the hold chain (placement →
+  material → texture, `MaterialTable` holding what a material names). A material's textures change after its placements
+  stand: a chunk's composite slots arrive later (`CompositeQueue`), and `setMaterial` rewrites rows. An ask stored per
+  texture would go stale there, while an ask per material moves with the row.
+- **A band per doubling of distance, measured from the cell's nearest point**, so a cell's every ask moves by exactly
+  one level when its band changes, and only the cells crossing a band's edge do any work. Each cell asks the level of
+  the band one nearer than its own, so its levels arrive before the eye does, as the ring reads a band ahead
+  (`CellRing::keptTo`). A move down waits for pressure, so receding costs nothing and no hysteresis is needed.
+- **Every term is the shader's own**, rounded to the finer side at each step:
+  - the mesh's finest texture-to-world area ratio per coordinate set, over its triangles, the `uvArea / cone.mArea`
+    term;
+  - the placement's scale;
+  - the material's texture transform for that unit, the `uv * xy` term;
+  - the texture's own resolution;
+  - the frame's pixel spread at the render size;
+  - `mLevelBias`.
+
+  A degenerate triangle reads level zero in the shader, so it makes the mesh's ratio infinite here too. An environment
+  map is read by direction, not by coordinates, so it asks level 0.
+- **The ground's bake is a reader too**: a chunk's composite is summed from its layers on the device. A chunk's layer
+  textures therefore ask the level the composite's texel reads at, and the composite slot asks by distance like any
+  texture.
+- **No new mechanism moves a level.** The arrival's first level (`TextureArray::chooseLevels`) starts at the want. A
+  texture whose want moves finer than it stands is filed as a wait, as a short one is (`SceneUploader::TextureWait`,
+  handed over whole, "whole" meaning from its want). `makeRoom` moves down what stands above its want first, by item
+  13's copy.
+
+**Progress**: steps 1–3 are written and tested. The meter waits on the handheld's tours.
+
+- **The direction was turned in the writing.** A ray reads finest where a mesh lays the least texture on a unit of
+  surface, so the density kept is the least over the triangles, not the most.
+- **Two kinds of hold.** The identity holds a walk keeps on a texture read nothing (`MaterialResolver::takeTexture`).
+  A holder that reads a texture itself (the sky's sheets, an emitter's sprite and its light) takes a `ReadingHold`,
+  which asks level 0.
+- **The composite's size moved into the core** (`GROUND_COMPOSITE_EXTENT`, `scene.h`), as a chunk asks its layers the
+  level its bake reads them at.
+
+The steps:
+
+1. **The meshes' UV density**: `MeshTable` computes, at add and once, each mesh's finest texture-to-world area ratio per
+   coordinate set. Tests: hand-computed ratios for a quad stretched each way, a degenerate triangle, and a second set
+   apart from the first.
+2. **The want**: every texture slot's first level wanted, in the scene (`components/rtx/scene`), from:
+   - each material's asks, ring cells counted by level and walk placements as level 0;
+   - direct holds (sprites, sky, emitters) as level 0;
+   - the material's units, each through its transform and coordinate set.
+
+   The ring keeps each held cell's per-material finest ask, made at adoption from its placements, and re-asks a cell
+   whose band moved. Counts change by events, never by a pass over the table. A change list names the slots whose want
+   moved finer. Tests: a far cell asks a coarse level and a near one level 0; a texture a walk placement also uses wants
+   level 0; a band crossing moves the want by one; a material rewritten moves its asks to its new slots; a hot path that
+   allocates nothing once warm.
+3. **The meter, which moves nothing**: the memory report states the bytes standing, and resting, above their want. It
+   is flown on the handheld's PBR and Repack tours. Under a tenth of the texture bytes on both, the rest of this item is
+   declined.
+4. **Standing by want**:
+   - `SceneTextures` lays a description from its want, so a far arrival stages and stands only its small levels;
+   - `chooseLevels` starts from the want;
+   - `DeviceAnswer`'s short is a texture standing coarser than its want;
+   - the waits hand over again a texture whose want moved finer;
+   - `makeRoom` moves down what stands above its want first, then the largest.
+
+   Tests: an arrival stands from its want; a want moved finer is handed over again whole from it; a room short moves
+   down the texture above its want before a larger one.
+5. **Checks and tours.** `shot --views=all --against` moves no picture, a shadow ray's cutout aside, and `repeat
+   --pairs=10` agrees. Tours of the three contents on the handheld show the device's texture bytes and the refusals
+   against item 8's.
+
+Defragmentation by the same copy (the old 16.4) stays open, but only if a tour after this item still refuses a texture
+with room in pieces. The GPU's feedback meter is declined unless step 5's pictures move: the bound is derived, so its
+promise is checked by the pictures, not measured by a second path.
+
+### 19. Device memory made off the frame
+
+Item 8's handheld PBR profile at `5db3a1fbf7`: the frame thread spent 938 samples at 499 Hz (1.9 s) of the tour inside
+`vkAllocateMemory`, the kernel clearing and remapping the pages each new allocation takes, and up to 38 ms of a
+100 ms window. That cost leads four of the tour's ten longest frames: 160–176 ms, place-led. The desk's Repack profile
+holds about 100 samples of 429k there. Three callers ask for it:
+
+- the normal-spread means, made to each arrival's largest group exactly (`Growth::Exact`), and let go once past the
+  room, so every map past the room makes and frees its own means (451 samples);
+- the content pools' new blocks under `Texture::standFile` (273);
+- the staging ring's blocks past `sStagingKept`, which it sheds again a block a frame (123).
+
+Allocating on the frame path is what Vulkan's vendors advise against: NVIDIA's
+[dos and don'ts](https://developer.nvidia.com/blog/vulkan-dos-donts), and Samsung's
+[usage recommendations](https://developer.samsung.com/game/usage), which say to reuse rather than allocate per frame.
+The design is taken when the item starts, and must hold a device total no larger than today's peak. A test asserts
+that an arrival whose largest group fits what the means already hold makes no new means. Tours: on the
+handheld's PBR tour, none of the ten longest frames is led by `vkAllocateMemory`, and the means and the ring are gone
+from its callers.
+
 ### 15. The ring reads what can stand
 
 0. **Measured first**: item 8's count of models parsed and parsed again on the handheld's Repack tour at the head, and
@@ -549,22 +678,6 @@ profile; one no item names becomes an item of its own here, ahead of item 15, wh
    mesh's fit does (item 9).
 8. Tests: a block no run touches goes back, and a mesh refused in the loose storage stands once one empties. Tours:
    no mesh refused for room on the Repack.
-
-### 16. Levels by need
-
-1. The feedback as a meter that moves nothing: a word a slot in the frame slot's tables, the minimum of the levels
-   asked, an anisotropic read stating its shorter axis's. Kept in the trace's kernels only if no kernel changes tier on
-   any of the three drivers and the benches stay within their noise; else made by a pass of its own over the frame's
-   hit records.
-2. Its histogram over the tours: the share of texture bytes in levels no ray read. Under a tenth on the handheld's PBR
-   tour, the rest of this item is declined.
-3. The order under pressure, with the peak's hold: `makeRoom` moves down what stands above its want first, then the
-   largest; a floor every texture keeps. The move it orders is item 13's copy on the device; a move up past want
-   stays the waits' hand-over whole, item 13's planner having been declined.
-4. Defragmentation by the same copy at the texture's own level, if a tour after item 11 still refused a texture with
-   room in pieces: one pass where a want finds no hole, bounded by what a hand-over stages. A test: a pool cut into
-   pieces takes the texture it refused, and no frame that fits runs a pass.
-5. `noise` and `shot` under a budget held low; tours.
 
 ### 18. Close
 

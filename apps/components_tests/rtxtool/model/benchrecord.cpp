@@ -368,6 +368,7 @@ namespace RtxTool
                 .mBindVertexEnd = 31,
                 .mRestingTextures = 38,
                 .mRestingTextureBytes = 39,
+                .mAboveWant = Rtx::TexturesAboveWant{ .mStood = 63, .mAbove = 64, .mTextures = 65 },
                 .mReader = Rtx::ReaderMemory{ .mLentModels = 32,
                     .mSpareModels = 33,
                     .mFiledModels = 34,
@@ -416,6 +417,7 @@ namespace RtxTool
                   R"("restingVertices": 40, "restingIndices": 41, "geometryBytes": 42, )"
                   R"("layerEnd": 25, "maskEnd": 26, "rigRunEnd": 27, "influenceEnd": 28, "offsetEnd": 29, )"
                   R"("poseEnd": 30, "bindVertexEnd": 31, "restingTextures": 38, "restingTextureBytes": 39, )"
+                  R"("aboveWant": {"stood": 63, "above": 64, "textures": 65}, )"
                   R"("reader": {"lentModels": 32, "spareModels": 33, )"
                   R"("filedModels": 34, "lentBytes": 35, "spareBytes": 36, "filedBytes": 37, )"
                   R"("lentContentBytes": 61, "filedContentBytes": 62}, )"

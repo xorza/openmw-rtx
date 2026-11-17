@@ -201,12 +201,13 @@ namespace RtxTool
         /// Every field of one row, as one list: `digestParts` reads these whole, so a field not named would escape
         /// the gate, and one added and not named here does not compile. Whether the mesh brought tangents is left
         /// out; the meshes column adds it where set, so a scene with none digests to the words on record. So are its
-        /// key and the key of the indices it shares, which its vertices and indices make and their columns digest, and
-        /// its place in the rest, which no frame reads; whether it rests and what it stands are digested.
+        /// key, the key of the indices it shares and its UV density, which its vertices and indices make and their
+        /// columns digest, and its place in the rest, which no frame reads; whether it rests and what it stands are
+        /// digested.
         auto fieldsOf(const Rtx::MeshRange& mesh)
         {
             const auto& [vertices, indices, sharedIndexKey, secondTexCoords, unitStreams, tangents, shape, deformer,
-                bindOffset, poseOffset, posed, bounds, key, stoodBytes, rest] = mesh;
+                bindOffset, poseOffset, posed, bounds, uvDensity, key, stoodBytes, rest] = mesh;
             return std::tie(vertices, indices, secondTexCoords, unitStreams, shape, deformer, bindOffset, poseOffset,
                 posed, bounds, stoodBytes, rest.mResting);
         }
@@ -483,12 +484,13 @@ namespace RtxTool
         // each path ends with its length so two laid end to end cannot read as one. Every other field is bound whole,
         // as `forEachMaterialField` does: the wrap and encoding reach the sampler and the decode. The image and
         // partner are files' bytes, which the path names; of what the device stands its bytes and whether it is the
-        // chain made again, which moves every level under the finest.
+        // chain made again, which moves every level under the finest. Its asks are left out: they are the placements'
+        // and the ring's distances, and the level they make stood is digested where it lands.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stoodBytes, stoodMade, rest]
-                = row;
+            const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stoodBytes, stoodMade, rest,
+                asks] = row;
             const auto& [resting, waitingAt, restedBefore, restedAfter, filedAt, order, fit, fitBefore, fitAfter]
                 = rest;
             const std::string_view name = path.value();

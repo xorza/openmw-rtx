@@ -139,13 +139,16 @@ openmw_rtx_layer(
         scene/placementtable.cpp
         scene/refusals.cpp
         scene/scenedesc.cpp
+        scene/textureasks.cpp
         scene/texturetable.cpp
+        scene/uvdensity.cpp
     HEADERS
         scene/compositequeue.hpp
         scene/deformertable.hpp
         scene/deviceanswer.hpp
         scene/foldedshape.hpp
         scene/instancerecord.hpp
+        scene/levelasks.hpp
         scene/light.hpp
         scene/lightgrid.hpp
         scene/material.hpp
@@ -165,7 +168,9 @@ openmw_rtx_layer(
         scene/sceneroom.hpp
         scene/sprite.hpp
         scene/surface.hpp
+        scene/textureasks.hpp
         scene/texturetable.hpp
+        scene/uvdensity.hpp
 )
 
 openmw_rtx_layer(

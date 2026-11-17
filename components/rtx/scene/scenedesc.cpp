@@ -186,7 +186,15 @@ namespace Rtx
 
         mMeshes.hold(instance.mMesh);
         if (instance.mMaterial != sNoIndex)
+        {
             mMaterials.hold(instance.mMaterial);
+
+            // **The walk's placements ask the finest footprint**: they are the active grid's, which stand whole
+            // (`docs/architecture.md`, "A texture stands from the level its nearest user asks"). The ring asks by
+            // its cells' distance (`askMaterial`).
+            if (instance.mStander == Stander::Walk)
+                mMaterials.ask(mTextures, instance.mMaterial, 0);
+        }
 
         return mPlacements.add(instance, worn);
     }
@@ -198,7 +206,11 @@ namespace Rtx
 
         mMeshes.drop(mDeformers, stood.mMesh);
         if (stood.mMaterial != sNoIndex)
+        {
+            if (stood.mStander == Stander::Walk)
+                mMaterials.unask(mTextures, stood.mMaterial, 0);
             mMaterials.drop(mTextures, stood.mMaterial);
+        }
     }
 
     MeshHold SceneDesc::holdMesh(const Index mesh)
@@ -237,9 +249,9 @@ namespace Rtx
             mTextures.drop(hold.release());
     }
 
-    void SceneDesc::drop(std::vector<TextureHold>& holds)
+    void SceneDesc::drop(std::vector<ReadingHold>& holds)
     {
-        for (TextureHold& hold : holds)
+        for (ReadingHold& hold : holds)
             drop(std::move(hold));
         holds.clear();
     }
@@ -248,6 +260,31 @@ namespace Rtx
         const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const partner)
     {
         return TextureHold(mTextures.take(path, image, wrap, encoding, partner));
+    }
+
+    ReadingHold SceneDesc::takeReading(
+        const VFS::Path::NormalizedView path, const osg::Image& image, const TextureWrap wrap)
+    {
+        const Index slot = mTextures.take(path, image, wrap);
+        mTextures.ask(slot, 0);
+        return ReadingHold(slot);
+    }
+
+    ReadingHold SceneDesc::holdReading(const Index texture)
+    {
+        mTextures.hold(texture);
+        mTextures.ask(texture, 0);
+        return ReadingHold(texture);
+    }
+
+    void SceneDesc::drop(ReadingHold&& hold)
+    {
+        if (hold.empty())
+            return;
+
+        const Index texture = hold.release();
+        mTextures.unask(texture, 0);
+        mTextures.drop(texture);
     }
 
     bool SceneDesc::isConsistent() const

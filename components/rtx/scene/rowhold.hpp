@@ -70,7 +70,15 @@ namespace Rtx
     struct Material;
     struct TextureRow;
 
+    /// What a hold on a texture its holder reads itself is kept apart by: a sky sheet, a sprite, a sprite's light.
+    struct TextureRead;
+
     using MeshHold = Hold<MeshRange>;
     using MaterialHold = Hold<Material>;
     using TextureHold = Hold<TextureRow>;
+
+    /// **A hold on a texture its holder reads itself**, which asks its finest level for as long as it stands
+    /// (`SceneDesc::takeReading`). A `TextureHold` asks nothing: what a material names is asked by the placements
+    /// wearing it, and the identity a walk met a texture under reads nothing.
+    using ReadingHold = Hold<TextureRead>;
 }

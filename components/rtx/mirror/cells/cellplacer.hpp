@@ -204,6 +204,20 @@ namespace Rtx
         /// `held.mLights` from the cell's lamps, with what the game said of each.
         void adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds);
 
+        /// Fills `held.mAsks` from its placements and its ground, each material once at its finest footprint, and how
+        /// far its placements reach out (`RingAsk`). Nothing is asked until `askByDistance`.
+        void gatherAsks(HeldCell& held);
+
+        /// **Asks each material `cell` holds at the footprint its distance makes of it**, where the distance moved to
+        /// another band or what the eye resolves changed (`docs/architecture.md`, "A texture stands from the level its
+        /// nearest user asks"). The bands double from a cell's size, the first reaching it, and a cell asks the near
+        /// edge of the band before its own: its levels arrive a band ahead of the eye, as the ring reads a band ahead.
+        void askByDistance(HeldCell& cell, const WorldAround& around, bool sightMoved);
+
+        /// Takes back everything `cell` or `grass` asks, before what it holds is let go of.
+        void unaskAll(HeldCell& cell);
+        void unaskAll(HeldGrass& grass);
+
         /// Adopts a cell's ground into the scene, on rows held on the scene.
         void adoptGround(const PreparedCell& cell, HeldCell& held, const WorldAround& around, ExtractionStats& stats);
 
@@ -317,6 +331,9 @@ namespace Rtx
 
         NightDayMode mNightDay = NightDayMode::Default;
 
+        /// What the eye resolved at the last `place`, which every cell asked by.
+        Sight mSight{};
+
         std::uint32_t mPlaced = 0;
         std::uint32_t mGroundPlaced = 0;
         std::uint32_t mGrassPlaced = 0;
@@ -349,6 +366,7 @@ namespace Rtx
             }
 
             dropSlots(*at);
+            unaskAll(*at);
             letGo(*at);
             if constexpr (std::is_same_v<Held, HeldCell>)
                 dropGround(*at);

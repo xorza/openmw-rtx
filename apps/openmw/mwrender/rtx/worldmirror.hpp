@@ -122,6 +122,10 @@ namespace MWRender
         ///        frame does not carry: `EyeState` says why.
         Rtx::ExtractionStats mirror(const SceneFrame& frame, const osg::Matrixd& view);
 
+        /// What the eye resolves (`Rtx::Sight`), which the next `mirror` tells the ring: the frame's camera is made
+        /// after the walk, so the ring asks by the last one, and a frame with none yet asks the finest.
+        void setSight(const Rtx::Sight& sight) { mSight = sight; }
+
         /// What disturbed the water this frame, into the scene the walk just cleared, so the
         /// trace presses it and the digest sees it. After `mirror`, which clears the frame's lists.
         void addRipples(std::span<const Rtx::RippleImpulse> impulses);
@@ -235,5 +239,6 @@ namespace MWRender
         Rtx::CompositeQueue mComposites;
         Rtx::CellGrid mGrid;
         osg::Vec3f mEye;
+        Rtx::Sight mSight{};
     };
 }

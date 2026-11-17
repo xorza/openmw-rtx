@@ -5,6 +5,7 @@
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/cells/ringstanding.hpp>
 #include <components/rtx/preprocess/preparedheld.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 
 namespace Rtx
 {
@@ -38,6 +39,9 @@ namespace Rtx
         /// bytes they were handed over in: what the scene's own figure of textures counts with the ones named.
         std::uint32_t mRestingTextures = 0;
         std::uint64_t mRestingTextureBytes = 0;
+
+        /// What the textures stood whole hold above the level each is wanted from (`TexturesAboveWant`).
+        TexturesAboveWant mAboveWant{};
 
         ReaderMemory mReader;
 

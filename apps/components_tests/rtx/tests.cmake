@@ -89,6 +89,8 @@ target_sources(
         rtx/scene/packedstreams.cpp
         rtx/scene/refusals.cpp
         rtx/scene/scenedesc.cpp
+        rtx/scene/textureasks.cpp
+        rtx/scene/uvdensity.cpp
         rtx/shaders/brdf.cpp
         rtx/shaders/lights.cpp
         rtx/shaders/pixelgrid.cpp

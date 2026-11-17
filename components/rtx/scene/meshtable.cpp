@@ -90,6 +90,7 @@ namespace Rtx
             .mShape = mesh.mShape,
             .mDeformer = deformer,
             .mBounds = mesh.mBounds,
+            .mUvDensity = mesh.mUvDensity,
             .mKey = std::nullopt,
         };
 
@@ -303,6 +304,7 @@ namespace Rtx
         range.mUnitStreams = 0;
         range.mTangents = false;
         range.mBounds = osg::BoundingBoxf();
+        range.mUvDensity = UvDensity{};
 
         // A slot given back names no structure to refit, however it was posed this frame: the
         // structure has gone with it.

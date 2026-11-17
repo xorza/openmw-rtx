@@ -98,7 +98,7 @@ namespace Rtx
 
             SceneDesc scene;
             ThreadContent content;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             const MoonFaces faces = addMoonFaces(scene, images, MoonSizes{ masser, secunda }, content, holds);
 
             // **A face that opens is lit as it is painted, and one that does not as the shipped
@@ -120,7 +120,7 @@ namespace Rtx
             // A size of nought is the quad of no extent the game draws, and no refusal; one below
             // nought, or not a number, is a size the game draws and this does not.
             SceneDesc broken;
-            std::vector<TextureHold> brokenHolds;
+            std::vector<ReadingHold> brokenHolds;
             const MoonFaces unsized = addMoonFaces(broken, images, MoonSizes{ -3.0f, 0.0f }, content, brokenHolds);
             EXPECT_EQ(unsized.of(Moon::Masser).mRadius, 0.0f);
             EXPECT_EQ(unsized.of(Moon::Secunda).mRadius, 0.0f);

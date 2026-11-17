@@ -286,6 +286,12 @@ namespace RtxTool
             balmora.mContent.mPrepared = Rtx::PreparedHeld{ .mEntries = 9, .mBytes = 1 * sMiB, .mLeftPending = 3 };
             balmora.mContent.mReader = Rtx::ReaderMemory{ .mLentBytes = 10 * sMiB, .mLentContentBytes = 5 * sMiB };
             vivec.mContent.mReader = Rtx::ReaderMemory{ .mSpareBytes = 8 * sMiB };
+            // **The textures above their want at their most**: balmora's 30 MiB of 120 stood whole, a quarter, over
+            // vivec's 10 of 200.
+            balmora.mContent.mAboveWant
+                = Rtx::TexturesAboveWant{ .mStood = 120 * sMiB, .mAbove = 30 * sMiB, .mTextures = 12 };
+            vivec.mContent.mAboveWant
+                = Rtx::TexturesAboveWant{ .mStood = 200 * sMiB, .mAbove = 10 * sMiB, .mTextures = 3 };
             balmora.mGame = GameHeld{ .mLoadedCells = 30, .mStarvedLooks = 2 };
             vivec.mGame = GameHeld{ .mLoadedCells = 40, .mPreloadedCells = 1, .mStarvedLooks = 7 };
             record.add(balmora);
@@ -295,6 +301,10 @@ namespace RtxTool
             EXPECT_NE(record.getReport().find("\nthe device held at most 1050.0 MiB by use, at balmora: frame 100.0 of "
                                               "400.0 kept   essential 50.0   structures 300.0, room 70.0   textures "
                                               "600.0, room 80.0\n"),
+                std::string::npos)
+                << record.getReport();
+            EXPECT_NE(record.getReport().find("\nthe textures stood above their want at most 30.0 of 120.0 MiB stood "
+                                              "whole, 25.0%, in 12 textures, at balmora\n"),
                 std::string::npos)
                 << record.getReport();
             EXPECT_NE(record.getReport().find("\nthe geometry reached at most 1.60 M vertices and 3.00 M indices, at "

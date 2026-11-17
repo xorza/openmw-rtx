@@ -39,7 +39,8 @@ namespace Rtx::Testing
                 mScene.drop(std::move(hold));
             for (MaterialHold& hold : mMaterials)
                 mScene.drop(std::move(hold));
-            mScene.drop(mTextures);
+            for (TextureHold& hold : mTextures)
+                mScene.drop(std::move(hold));
         }
 
         SceneHolds(const SceneHolds&) = delete;

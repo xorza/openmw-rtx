@@ -12,6 +12,7 @@
 #include <components/rtx/scene/foldedshape.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/packedstreams.hpp>
+#include <components/rtx/scene/uvdensity.hpp>
 
 namespace Rtx
 {
@@ -46,6 +47,8 @@ namespace Rtx
             EXPECT_TRUE(one.mTangents.empty());
             EXPECT_TRUE(one.mShape.mSheet);
             EXPECT_EQ(one.mBounds, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f(1.0f, 1.0f, 0.0f)));
+            EXPECT_EQ(one.mUvDensity, uvDensityOf(Testing::sUnitQuad, {}, {}, Testing::sQuadIndices))
+                << "measured where it is read, a mesh of no coordinates asking the finest";
 
             EXPECT_EQ(second.mVertices, (Rtx::Run{ .mOffset = 4, .mCount = 4 }));
             EXPECT_EQ(second.mIndices, (Rtx::Run{ .mOffset = 6, .mCount = 6 }));

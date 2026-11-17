@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -127,6 +128,17 @@ namespace Rtx
         ReferenceState mState;
     };
 
+    /// **What a held cell asks of one material it holds**: the finest footprint its placements wearing the material
+    /// lay before any distance, `0.5 log2(UvDensity / scale²)` at its least (`footprintStep`), and the step it last
+    /// asked at by its distance, or none yet. One a material a cell, so a band crossing re-asks each material once
+    /// (`CellPlacer::askByDistance`).
+    struct RingAsk
+    {
+        Index mMaterial = sNoIndex;
+        float mFootprint = 0.0f;
+        std::optional<std::uint8_t> mStep{};
+    };
+
     /// A cell's ground as the frame holds it: its rows, where it stands, and the readings of its
     /// textures. Its own type, because they are empty together. How many layers it has and whether
     /// it is flattened are its material row's, which is read and not copied.
@@ -156,6 +168,13 @@ namespace Rtx
     struct HeldCell
     {
         osg::Vec2i mCell;
+
+        /// What it asks of each material it holds, by material (`RingAsk`), and how far its placements reach past
+        /// its square, its largest radius: what its distance is measured short by, so no placement is nearer than
+        /// it says. The distance it last asked at, in whole cells of the band, or nothing before its first.
+        std::vector<RingAsk> mAsks;
+        float mReachOut = 0.0f;
+        std::optional<float> mAskedAt{};
 
         /// Largest radius first, which `CellPlacer::adoptPlacements` sorts once.
         std::vector<Placement> mPlacements;
@@ -192,8 +211,10 @@ namespace Rtx
                        [](const Placement& placement) { return placement.mStood.isStanding(); })
                 && !mGround.mStood.isStanding() && "a cell reused with something still standing");
 
+            assert(std::none_of(mAsks.begin(), mAsks.end(), [](const RingAsk& ask) { return ask.mStep.has_value(); })
+                && "a cell reused with its asks still standing");
             reuseKeeping(*this, &HeldCell::mPlacements, &HeldCell::mPlaces, &HeldCell::mModels, &HeldCell::mLights,
-                &HeldCell::mByReference, &HeldCell::mGround);
+                &HeldCell::mByReference, &HeldCell::mGround, &HeldCell::mAsks);
         }
     };
 
@@ -207,6 +228,10 @@ namespace Rtx
 
         std::vector<Placement> mPlacements;
 
+        /// The materials its placements wear, each once, which it asks at the finest footprint for as long as it is
+        /// held: a plant stands within the groundcover's reach, which is near.
+        std::vector<Index> mAsked;
+
         std::vector<PreparedModel*> mModels;
 
         /// Whether `mPlacements` stand, which `CellPlacer::place` decides on every walk.
@@ -219,7 +244,8 @@ namespace Rtx
                 return placement.mStood.isStanding();
             }) && "a cell's grass reused with something still standing");
 
-            reuseKeeping(*this, &HeldGrass::mPlacements, &HeldGrass::mModels);
+            assert(mAsked.empty() && "a cell's grass reused with its asks still standing");
+            reuseKeeping(*this, &HeldGrass::mPlacements, &HeldGrass::mModels, &HeldGrass::mAsked);
         }
     };
 

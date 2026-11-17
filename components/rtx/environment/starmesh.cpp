@@ -267,7 +267,7 @@ namespace Rtx
     }
 
     NightSky readNightSky(
-        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<TextureHold>& holds)
+        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<ReadingHold>& holds)
     {
         NightSky sky;
 
@@ -278,7 +278,7 @@ namespace Rtx
         std::size_t next = 0;
         for (const Layer& layer : read.mLayers)
         {
-            TextureHold held = takeSkySheet(
+            ReadingHold held = takeSkySheet(
                 scene, VFS::Path::Normalized(SceneUtil::EmbeddedImage::nameOf(*layer.mImage)), *layer.mImage);
             const Index slot = held.get();
             if (slot == sNoIndex)
@@ -331,7 +331,7 @@ namespace Rtx
 
     Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
-        std::vector<TextureHold>& holds)
+        std::vector<ReadingHold>& holds)
     {
         const VFS::Path::NormalizedView chosen = scenes.getVFS()->exists(mesh) ? mesh : fallback;
 

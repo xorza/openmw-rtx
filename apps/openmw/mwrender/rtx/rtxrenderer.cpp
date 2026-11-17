@@ -1,6 +1,7 @@
 #include "rtxrenderer.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cassert>
 #include <chrono>
 #include <cstddef>
@@ -1043,6 +1044,18 @@ namespace MWRender
         request.mSky = &mSky.getContent();
 
         const TracedSeconds elapsed = mTraceClocks.trace(getLoopClock().getNow(), frame.mWhen.getSimulationTime());
+
+        // What the eye resolves, which the ring asks its cells' textures by from the next walk on: the traced pixel's
+        // angle and the bias the reconstruction narrows it by, `Reconstruction::resolve`'s: the traced extent against
+        // the shown one where an upscaler stretches it, nought where it does not, beside the run's own epsilon.
+        const Rtx::FrameExtents extents = mRenderer->getExtents();
+        const float stretch = extents.mOutputWidth > 0 && extents.mRenderWidth > 0
+            ? std::log2(static_cast<float>(extents.mRenderWidth) / static_cast<float>(extents.mOutputWidth))
+            : 0.0f;
+        const std::optional<Rtx::ReconstructionRequest>& reconstruction = mRun.getReconstruction();
+        mMirror.setSight(Rtx::Sight{ .mSpreadAngle = request.mView.mEyes.mWorld.mSpreadAngle,
+            .mLevelBias
+            = std::min(stretch, 0.0f) + (reconstruction.has_value() ? reconstruction->mLevelEpsilon : 0.0f) });
 
         // The schedule's and not the profile's: a warm-up is not averaged in, which a half-built cell would
         // spoil (`RtxRun::getAccumulated`). The backend reads its own profile.

@@ -34,6 +34,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/packedstreams.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/uvdensity.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/terrain/pagedcellref.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -140,6 +141,7 @@ namespace Rtx
         std::span<const std::uint32_t> mIndices;
 
         osg::BoundingBoxf mBounds;
+        UvDensity mUvDensity{};
         MeshKey mKey;
 
         std::vector<PreparedLayer> mLayers;
@@ -165,6 +167,7 @@ namespace Rtx
                 .mIndices = mIndices,
                 .mSharedIndices = true,
                 .mBounds = mBounds,
+                .mUvDensity = mUvDensity,
                 .mKey = mKey };
         }
 

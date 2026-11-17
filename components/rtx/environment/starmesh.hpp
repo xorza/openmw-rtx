@@ -36,10 +36,10 @@ namespace Rtx
     /// @param thread what each sheet's mean is read through.
     Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
-        std::vector<TextureHold>& holds);
+        std::vector<ReadingHold>& holds);
 
     /// The same, off a mesh already loaded: each drawable's vertices placed through the transforms
     /// above it (`placedVertices`), and its sheet the one the state sets down its path bind.
     NightSky readNightSky(
-        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<TextureHold>& holds);
+        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<ReadingHold>& holds);
 }

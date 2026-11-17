@@ -14,6 +14,6 @@ namespace Rtx
     /// the caller. Refused as a sky layer, and an empty hold, where the upload cannot take `image`:
     /// no slot stands in, and a deck, a field and a moon each draw what they have without one.
     /// Asked before a slot is taken, because one the upload refused would stand in as an opaque grey.
-    TextureHold takeSkySheet(SceneDesc& scene, VFS::Path::NormalizedView path, const osg::Image& image,
+    ReadingHold takeSkySheet(SceneDesc& scene, VFS::Path::NormalizedView path, const osg::Image& image,
         TextureWrap wrap = TextureWrap::Repeat);
 }

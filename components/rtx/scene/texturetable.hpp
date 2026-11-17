@@ -25,9 +25,22 @@
 
 #include "restqueue.hpp"
 #include "sceneroom.hpp"
+#include "textureasks.hpp"
 
 namespace Rtx
 {
+    /// **What the textures stood whole hold above the level each is wanted from** (`TextureTable::measureAboveWant`):
+    /// the bytes they were handed over in, the share of those in levels finer than their want, and how many hold any.
+    /// A meter, and moves nothing (`docs/architecture.md`, "A texture stands from the level its nearest user asks").
+    struct TexturesAboveWant
+    {
+        std::uint64_t mStood = 0;
+        std::uint64_t mAbove = 0;
+        std::uint32_t mTextures = 0;
+
+        bool operator==(const TexturesAboveWant&) const = default;
+    };
+
     /// What stands in a live texture slot, and so which of the row's two names carries it, stated
     /// rather than deduced from two names. Whether a slot is live is the table's to say
     /// (`HeldRows::isLive`), and a free row's kind means nothing.
@@ -98,6 +111,11 @@ namespace Rtx
 
         /// Its place among the slots that rest (`TextureTable::drop`, `RestQueue`).
         RestPlace mRest{};
+
+        /// The levels it is asked at (`TextureTable::getWant`): one ask for each material that reads it, at the level
+        /// the finest footprint asked of the material makes of it, and one at level 0 for each holder that reads it
+        /// itself. Empty where nothing reads it.
+        TextureAsks mAsks{};
 
         /// What a person reads the slot as, in a refusal or a legend: a file's path, and what a bake
         /// or a composite was made from.
@@ -182,6 +200,16 @@ namespace Rtx
         /// nothing names it, and what its rest holds of the device's room.
         void stand(Index slot, std::uint64_t bytes, bool made);
 
+        /// **The first level `slot` is wanted from**, the finest its readers ask (`TextureRow::mAsks`): level 0 where
+        /// nothing asks, so a texture no distance is known for stands whole (`docs/architecture.md`, "A texture stands
+        /// from the level its nearest user asks").
+        std::uint8_t getWant(const Index slot) const { return rowAt(slot).mAsks.finest().value_or(0); }
+
+        /// The meter of `TexturesAboveWant`, from one walk of the slots: every file standing whole, named and not
+        /// resting, its bytes split by its chain's own levels, its file's layout or, where its chain was made again,
+        /// the block layout every made chain stands in. A walk, for a report and not for a frame.
+        TexturesAboveWant measureAboveWant() const;
+
         /// What the device made of `slot`'s image gives back of the pools textures stand in, `bytes`, the device's
         /// answer (`DeviceAnswer::mTextureFits`): the hole its eviction leaves for a texture the device waits on.
         void fit(Index slot, std::uint64_t bytes);
@@ -252,6 +280,11 @@ namespace Rtx
         /// recognises it between frames is what has to hold the texture.
         void hold(Index texture);
         void drop(Index texture);
+
+        /// One ask more, and one fewer, of `texture` at `level`: what a material that reads it says of it, and a
+        /// holder that reads it itself (`SceneDesc::takeReading`). Nothing for "none", as `hold` takes none.
+        void ask(Index texture, std::size_t level);
+        void unask(Index texture, std::size_t level);
 
         /// Whether a new slot may be taken, freeing the oldest to rest where the array is full, and
         /// counting and reporting the refusal where none rests.
