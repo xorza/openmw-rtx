@@ -546,6 +546,27 @@ by its stop count. On 2026-11-17, `heaptrack_interpret` grew to 47 GiB over 37 R
 killer took the desktop down with it. The harness's own figure at stop 23 had already said what the run was for: the heap
 took 4,432 MiB at `5db3a1fbf7`, against 6,668 MiB at `395077cdd4` (`research/2026-11-16-host-memory-holders-repack.md`).
 
+### 20. A script finds a reference without walking every cell
+
+**Approved by the user (2026-11-18)**, an upstream change, recorded in `UPSTREAM.md` in the commit that makes it.
+`research/2026-11-17-longest-frames.md` shows `World::searchPtr`, `WorldModel::getPtrByRefId` and `WorldModel::getAll`
+leading the worst frames on both machines: 288 ms on the handheld's PBR tour, 1.9 s on its Repack one. A lookup visits
+every reference of every loaded cell store, and no cell store is ever unloaded, about 3,065 after a Repack tour's first
+legs.
+
+- **The defect**: a loaded `CellStore` answers whether it holds an ID only by visiting its references
+  (`CellStore::search`, through `updateMergedRefs`). A preloaded one answers by a binary search of `mIds`.
+  `CellStore::hasId` for a loaded store returns the inverse of its search, unreached today since its one caller asks
+  it only of a preloaded store.
+- **The design, to be checked against upstream's own history before writing**: a loaded store keeps its IDs counted,
+  kept where a reference enters and leaves (load, insert, a move in or out). `hasId` answers from that count in every
+  state, and `getPtr`, `search` and `getAll`'s walk ask it first. The order cells are asked in stays, so
+  `getPtrByRefId`'s rule for an ambiguous ID (the exteriors in reverse, for `chargen_plank`) stands, and the answers
+  are the same references as before.
+- **Tests**: upstream's suites, plus a store answering an ID after an insert and after a move out, and a lookup over many
+  stores visiting only those that hold the ID.
+- **Measure**: the handheld's tours, their longest frames against `research/2026-11-17-longest-frames.md`.
+
 ### 16. Levels by distance
 
 The user's idea (2026-11-17): distant land never loads its finest levels, the further the smaller, and only the
