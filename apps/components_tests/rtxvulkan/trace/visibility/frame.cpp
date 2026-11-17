@@ -963,7 +963,7 @@ namespace Rtx::Testing
             const Index wall
                 = addOneBoneBody(scene, MeshArrays{ .mPositions = wallAt(200.0f), .mIndices = sQuadIndices }).mMesh;
             scene.addInstance(MeshInstance{ .mMesh = wall });
-            poseByOneBone(scene, wall, osg::Matrixf::identity());
+            poseByOneBone(scene, wall, wallAt(200.0f), osg::Matrixf::identity());
 
             const Frame frame = shoot(scene, {}, camera, size);
             ASSERT_EQ(frame.mHits, size * size);
@@ -976,7 +976,7 @@ namespace Rtx::Testing
             /// placement, exactly as a frame of the game does: clear, re-walk, hand it back.
             const auto deformTo = [&](float away) {
                 scene.clearPlacement();
-                poseByOneBone(scene, wall, osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
+                poseByOneBone(scene, wall, wallAt(200.0f), osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
                 scene.addInstance(MeshInstance{ .mMesh = wall });
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             };

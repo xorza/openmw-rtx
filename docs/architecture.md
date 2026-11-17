@@ -404,6 +404,13 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   split; one order across host and device.
 - **Not now: a resting allocation's priority lowered** (`VK_EXT_pageable_device_local_memory`): RADV lacks it, and it
   reaches no content placed in a shared block.
+- **The geometry has one host copy, for one hand-over** (`MeshArrivals`): a mesh's streams are packed into the
+  arrivals as it is added and let go once the device has them, as Unity frees a mesh's system copy once uploaded
+  ([`Mesh.UploadMeshData`](https://docs.unity3d.com/ScriptReference/Mesh.UploadMeshData.html)) and Unreal drops a
+  static mesh's unless asked
+  ([`bAllowCPUAccess`](https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/Engine/UStaticMesh/bAllowCPUAccess/)).
+  What the buffers keep between hand-overs is bounded, enough for a crossing. Refused: the copy kept and trimmed to
+  the live runs, which keeps the duplication on unified memory.
 - **A static mesh is the one its content is**: filed under a digest of its arrays, so a resting mesh is found again by
   whatever reads the same geometry. A skinned or morphed mesh is a copy per instance. Refused: the drawable as the key,
   which matches only while its template lives.
@@ -661,6 +668,10 @@ and includes the instruments, never the reverse. `AGENTS.md` lists the commands.
 - **A stop's own time begins on the frame after its world stands whole**: its clock is held from the move and its
   histories reset through the wait, so how long the world took to arrive moves nothing a stop shows. Refused: counting
   from the stop's first frame, under which two runs of one binary drew one place differently.
+- **The harness digests a mesh only where the host asks for digests** (`MeshTable::keepDigests`, a run that hashes or
+  describes the scene): each stream's digest and its triangles' are made as the mesh arrives, since nothing holds its
+  geometry after. Refused: a digest of every mesh the game adds, which a game pays for and never reads; the device's
+  buffers read back.
 - **Every waiting loop of a test has a bound** (`Testing::WaitBound`), past which it fails naming what it waited for.
 - **A content's known findings fail no tour** (`files/rtx/expected/`), by the user's decision: a tour passes what the
   file names and reports each entry nothing met, as web-platform-tests' and Chromium's expectation files. Refused:

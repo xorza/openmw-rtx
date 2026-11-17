@@ -18,6 +18,8 @@
 #include "deformertable.hpp"
 #include "foldedshape.hpp"
 #include "mesh.hpp"
+#include "mesharrivals.hpp"
+#include "meshdigest.hpp"
 #include "restqueue.hpp"
 
 namespace Rtx
@@ -29,7 +31,8 @@ namespace Rtx
         std::uint32_t mIndices = 0;
     };
 
-    /// Every mesh the scene holds, and the shared buffers its triangles live in. One type, because
+    /// Every mesh the scene holds, the runs of the device's streams its triangles live in, and the geometry of what
+    /// arrived since the last hand-over (`MeshArrivals`). One type, because
     /// a mesh that deforms has to give its deformer back between the free list and the two
     /// allocators. The deformers are the scene's and handed in per call rather than held: a table
     /// that held a reference to its sibling would be left pointing at the scene a defaulted move
@@ -60,22 +63,24 @@ namespace Rtx
         /// asserts it.
         static Result<void, std::string> checkFits(const MeshArrays& arrays);
 
-        const BlockedValues<osg::Vec3f>& getPositions() const { return mPositions; }
-        const BlockedValues<std::uint32_t>& getNormals() const { return mNormals; }
-        const BlockedValues<osg::Vec2f>& getTexCoords() const { return mTexCoords; }
-        const BlockedValues<osg::Vec2f>& getSecondTexCoords() const { return mSecondTexCoords; }
-        const BlockedValues<Shaders::GpuVertexColour>& getColours() const { return mColours; }
-        const BlockedValues<std::uint32_t>& getTangents() const { return mTangents; }
-        const BlockedValues<std::uint32_t>& getIndices() const { return mIndices; }
-
-        /// Where the vertex and the index runs are handed out: how far they reach against what
-        /// stands in them, which is the room freed meshes left and nothing moves to close.
+        /// Where the vertex, the index and the second coordinates' runs are handed out: how far they reach against
+        /// what stands in them, which is the room freed meshes left and nothing moves to close. How far a device's
+        /// streams reach.
         const RunAllocator& getVertexRuns() const { return mVertexRuns; }
         const RunAllocator& getIndexRuns() const { return mIndexRuns; }
+        const RunAllocator& getSecondRuns() const { return mSecondRuns; }
 
-        std::span<const osg::Vec3f> getMeshPositions(Index mesh) const;
-        // Read by the tests and by nothing else.
-        std::span<const std::uint32_t> getMeshIndices(Index mesh) const;
+        /// `mesh`'s geometry in the device's form, which arrived since the last `clearArrivals`: what a hand-over
+        /// writes, and nothing holds after it (`MeshArrivals`).
+        MeshGeometry getArrival(Index mesh) const { return mArrivals.of(mesh); }
+
+        /// Makes a digest of each mesh as it arrives, which nothing reads but the harness: asked of a table that holds
+        /// nothing yet, so every mesh has one.
+        void keepDigests();
+        bool keepsDigests() const { return mKeepsDigests; }
+
+        /// What `mesh`, standing or resting, digested to as it arrived (`keepDigests`).
+        const MeshDigest& getDigest(Index mesh) const;
 
         /// Which meshes changed shape since the last `clearDeformed`, each named once.
         std::span<const Index> getDeformed() const { return mDeformed.getSlots(); }
@@ -91,7 +96,9 @@ namespace Rtx
         /// How many triangles the standing meshes hold: counted as each arrives and leaves, where
         /// the index buffer's length counts the room a freed mesh left too.
         std::uint32_t getTriangleCount() const { return mTriangles; }
-        std::size_t getGeometryBytes() const;
+
+        /// What the host holds of the geometry: the arrivals' buffers (`MeshArrivals::getBytes`).
+        std::size_t getGeometryBytes() const { return mArrivals.getBytes(); }
 
         /// Settles what a drop took out of the posed and the arrived meshes, so they can be read, and files the
         /// meshes that came to rest since the last at `clock`, the scene's.
@@ -131,8 +138,8 @@ namespace Rtx
         /// made through the scene.
         friend class SceneDesc;
 
-        /// Copies the vertex data into the shared buffers and returns the new mesh's index. The
-        /// mesh fits a block — `checkFits`. A deforming mesh is stood on `deformer` in
+        /// Takes runs of the streams for the mesh, files its geometry with the arrivals and returns the new mesh's
+        /// index. The mesh fits a block — `checkFits`. A deforming mesh is stood on `deformer` in
         /// `deformers`, which must hold it.
         Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, Index deformer);
 
@@ -168,20 +175,15 @@ namespace Rtx
         void rest(Index mesh);
         void wake(Index mesh);
 
-        /// Makes the five vertex buffers as long as the vertex runs reach and writes `range`'s run
-        /// of each, and says in `MeshRange::mTangents` whether any tangent word is not nought. Fills
-        /// one the mesh did not bring with what stands for nothing there, because a reused slot
-        /// still holds its last tenant's.
-        void writeVertices(MeshRange& range, const MeshArrays& arrays);
+        /// Files `mesh`'s geometry with the arrivals in the device's form, its indices where `bringsIndices`, and says
+        /// in `MeshRange::mTangents` whether any tangent word is not nought. Fills a stream the mesh did not bring
+        /// with what stands for nothing there, as the device's run holds its last tenant's. Its digest beside it,
+        /// where they are kept.
+        void writeArrival(Index mesh, const MeshArrays& arrays, bool bringsIndices);
 
         /// Records `slot` as having arrived or gone, and grows the list to reach it.
         void note(Index slot, SlotNews what);
 
-        /// Where a mesh's vertices and its indices live — runs and not slots, because the geometry
-        /// behind a row is as long as the model. One vertex run names the same elements of the
-        /// five vertex buffers (`writeVertices`); the second texture coordinates are in runs of
-        /// their own — `MeshRange::mSecondTexCoords`. In the device's blocks, which is what lets
-        /// the host's buffers grow without moving either.
         /// The static meshes by their key, one slot a key, which leaves with its slot; the meshes that rest; and the
         /// scene's clock at the last `compact`.
         boost::unordered_flat_map<MeshKey, Index, MeshKeyHash> mKeyIndex;
@@ -198,31 +200,20 @@ namespace Rtx
         RestingGeometry mRestingGeometry;
         std::uint64_t mClock = 0;
 
+        /// Where a mesh's vertices and its indices live on the device — runs and not slots, because the geometry
+        /// behind a row is as long as the model. One vertex run names the same elements of the five vertex streams;
+        /// the second texture coordinates are in runs of their own — `MeshRange::mSecondTexCoords`. In the device's
+        /// blocks, which is what lets its buffers grow without moving any.
         RunAllocator mVertexRuns{ sVertexBlock };
         RunAllocator mIndexRuns{ sIndexBlock };
         RunAllocator mSecondRuns{ sVertexBlock };
 
-        /// **The host's copy of every standing mesh's geometry, kept after the device has it**: 100 to 153 MiB
-        /// of it at the ship (`docs/research/2026-11-14-scene-tables-at-three-contents.md`), which a target
-        /// rebuild writes to the device whole again, as `setUpscale` and `resize` let the world go. Freed, each
-        /// rebuild would read every mesh from the content again.
-        BlockedValues<osg::Vec3f> mPositions{ sVertexBlock };
+        /// The geometry of what arrived since the last hand-over, the host's one copy of it.
+        MeshArrivals mArrivals;
 
-        /// One word a vertex, `Shaders::packNormal`'s, and nought — the triangle's plane — where the
-        /// mesh brought none.
-        BlockedValues<std::uint32_t> mNormals{ sVertexBlock };
-        BlockedValues<osg::Vec2f> mTexCoords{ sVertexBlock };
-
-        /// The per-vertex colour, in linear light, as halves (`Shaders::GpuVertexColour`). White
-        /// where a mesh brought none, so that a hit multiplies by it whatever the content said and no
-        /// shader branches on whether there is one. `MeshArrays::mColours` says why it is linear here.
-        BlockedValues<Shaders::GpuVertexColour> mColours{ sVertexBlock };
-
-        /// One word a vertex, `Rtx::packTangent`'s, and nought where the mesh brought none.
-        BlockedValues<std::uint32_t> mTangents{ sVertexBlock };
-
-        BlockedValues<std::uint32_t> mIndices{ sIndexBlock };
-        BlockedValues<osg::Vec2f> mSecondTexCoords{ sVertexBlock };
+        /// Each slot's digest as its mesh arrived, where `keepDigests` asked for them: as long as the rows.
+        std::vector<MeshDigest> mDigests;
+        bool mKeepsDigests = false;
 
         /// Which meshes were posed this frame. Emptied with the placement rather than with the
         /// arrivals: a pose is a fact about the frame and an arrival is a fact about the scene.

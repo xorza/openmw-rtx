@@ -88,14 +88,18 @@ namespace Rtx
 
                 Batch setup(getPool());
                 mPoses.reserve(setup, tables.deformers().getBindVertexCount());
-                mPositions.reserve(setup, static_cast<std::uint32_t>(tables.meshes().getPositions().size()));
-                mIndices.reserve(setup, static_cast<std::uint32_t>(tables.meshes().getIndices().size()));
-                for (const MeshRange& range : tables.meshes().getRows())
+                mPositions.reserve(setup, tables.meshes().getVertexRuns().getEnd());
+                mIndices.reserve(setup, tables.meshes().getIndexRuns().getEnd());
+                const std::span<const MeshRange> rows = tables.meshes().getRows();
+                for (std::size_t at = 0; at < rows.size(); ++at)
                 {
+                    const MeshRange& range = rows[at];
+                    if (range.mVertices.empty())
+                        continue;
+                    const MeshGeometry geometry = tables.meshes().getArrival(static_cast<Index>(at));
                     if (!range.deforms())
-                        mPositions.writeAt(
-                            setup, range.mVertices.mOffset, range.mVertices.in(tables.meshes().getPositions()));
-                    mIndices.writeAt(setup, range.mIndices.mOffset, range.mIndices.in(tables.meshes().getIndices()));
+                        mPositions.writeAt(setup, range.mVertices.mOffset, geometry.mPositions);
+                    mIndices.writeAt(setup, range.mIndices.mOffset, geometry.mIndices);
                 }
                 orderStagedWrites(setup);
                 setup.flush();

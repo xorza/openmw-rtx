@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <numbers>
@@ -210,7 +209,7 @@ namespace Rtx
             // Two quads of two triangles each: what a scene holding both looks like.
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
             EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
-            const std::size_t twoQuads = scene.meshes().getGeometryBytes();
+            const std::uint32_t twoQuads = scene.meshes().getVertexRuns().getEnd();
 
             // The shirt comes off and a hat goes on — one part replaced, not moved.
             subject->removeChild(shirt);
@@ -240,7 +239,7 @@ namespace Rtx
             // buffers while its triangles are no longer counted. Two quads' room here would mean
             // the sweep closed the gap and renumbered every mesh above it.
             EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
-            EXPECT_EQ(2 * scene.meshes().getGeometryBytes(), 3 * twoQuads);
+            EXPECT_EQ(2 * scene.meshes().getVertexRuns().getEnd(), 3 * twoQuads);
 
             // The hat comes off in turn, and what replaces it takes the room the sweep is holding.
             subject->removeChild(hat);
@@ -251,11 +250,11 @@ namespace Rtx
 
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
 
-            // **Three quads' room again and not four**, which is what a freed slot is for: the boots
-            // fit where the hat was and the buffers did not grow. Four would be a doll that leaks a
-            // mesh per change of clothes.
+            // **Two quads' room again and not four**, which is what a freed slot is for: the boots fit
+            // the hole the shirt left, and the hat's room at the end goes back as it goes. Four would be
+            // a doll that leaks a mesh per change of clothes.
             EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
-            EXPECT_EQ(2 * scene.meshes().getGeometryBytes(), 3 * twoQuads);
+            EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), twoQuads);
 
             // **Built from nothing exactly once**, across three redraws that each replaced a part: the
             // sweep frees rather than compacts, so a slider drag redrawing the same subject sixty times a

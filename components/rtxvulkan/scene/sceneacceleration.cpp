@@ -126,18 +126,21 @@ namespace Rtx
         // made are left exactly where they are, and one call reaches every copy — `SlotBlocks` is
         // what holds one per frame in flight.
         mPoses.reserve(batch, scene.deformers().getBindVertexCount());
-        mIndices.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getIndices().size()));
+        mIndices.reserve(batch, scene.meshes().getIndexRuns().getEnd());
 
         // **No pose here**: a body's run in every copy is the skin pass's, which poses whatever
         // arrives into each copy before the build reads the first (`SkinPass::recordArrived`). A
         // static mesh has no run here at all: its structure is built over `SceneBuffers`' positions.
         for (const Index mesh : meshes)
         {
+            // A run of shared indices once, by the arrival that brought it (`MeshGeometry::mIndices`).
             const MeshRange& range = scene.meshes().getRows()[mesh];
             if (range.mVertices.empty())
                 continue;
 
-            mIndices.writeAt(batch, range.mIndices.mOffset, range.mIndices.in(scene.meshes().getIndices()));
+            const std::span<const std::uint32_t> indices = scene.meshes().getArrival(mesh).mIndices;
+            if (!indices.empty())
+                mIndices.writeAt(batch, range.mIndices.mOffset, indices);
         }
 
         // What is built out of these was copied a moment ago. The blocks are device memory, so a

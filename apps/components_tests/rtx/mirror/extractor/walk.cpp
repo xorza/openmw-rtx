@@ -678,7 +678,7 @@ namespace Rtx::Testing
 
             const Rtx::MeshTable& meshes = mScene.meshes();
             ASSERT_EQ(meshes.getRows().size(), 1u);
-            const std::span<const osg::Vec2f> coords = meshes.getRows()[0].mVertices.in(meshes.getTexCoords());
+            const std::span<const osg::Vec2f> coords = meshes.getArrival(0).mTexCoords;
             ASSERT_EQ(coords.size(), 4u);
             EXPECT_EQ(coords[1], osg::Vec2f(1.0f, 0.5f)) << "a pair per vertex is read";
             EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u) << "three components are no texture coordinate";

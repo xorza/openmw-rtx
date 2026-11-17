@@ -199,6 +199,8 @@ namespace MWRender
         , mTraversal(worldTraversal(~0u))
     {
         mRing.setMinSize(knobs.mMinSize);
+        if (knobs.mMeshDigests)
+            mScene.meshes().keepDigests();
         // The sky is not mirrored: the engine rebuilds it every frame, so walking it churns the identity maps
         // and makes every frame a full rebuild. The simple water is the local map's copy of the sea, which
         // would be placed twice. Only the one hidden bit is excluded, so the update traversal still reaches a

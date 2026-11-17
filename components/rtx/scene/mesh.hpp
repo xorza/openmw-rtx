@@ -171,7 +171,7 @@ namespace Rtx
         Morph,
     };
 
-    /// Where one mesh's vertices and indices sit in the scene's shared buffers — shared because a
+    /// Where one mesh's vertices and indices sit in the device's shared streams — shared because a
     /// cell holds thousands of meshes and the GPU wants one buffer anyway.
     /// **What a static mesh is, as one 128-bit digest of everything it is made of** (`meshKeyOf`): its arrays and its
     /// shape, so a mesh resting on the device is found again by whatever reads the same geometry — the same model

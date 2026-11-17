@@ -21,7 +21,7 @@ namespace Rtx
         std::uint32_t mRestingVertices = 0;
         std::uint32_t mRestingIndices = 0;
 
-        /// What the host's copy of the geometry takes, as far as the runs reach (`MeshTable::getGeometryBytes`).
+        /// What the host holds of the geometry: the arrivals waiting for a hand-over (`MeshTable::getGeometryBytes`).
         std::uint64_t mGeometryBytes = 0;
 
         /// The runs' reach, in elements: the materials' layers and masks, the rigs' runs and

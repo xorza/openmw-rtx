@@ -101,7 +101,8 @@ namespace Rtx
         /// host's, to how far either side grows before a table is made again.
         const SceneRoom& getRoom() const { return mRoom; }
 
-        /// Copies the vertex data into the shared buffers and returns the new mesh's index. Every
+        /// Takes runs of the device's streams for the mesh, files its geometry with the arrivals until the next
+        /// hand-over (`MeshArrivals`) and returns the new mesh's index. Every
         /// attribute but `MeshArrays::mPositions` may be empty; when one is not it must match the
         /// positions in length, `MeshArrays::mIndices` must be a whole number of triangles
         /// addressing only those vertices, and the mesh must fit a block (`MeshTable::checkFits`):
@@ -113,7 +114,7 @@ namespace Rtx
         Index addMesh(const MeshArrays& arrays, FoldedShape shape = {});
 
         /// A mesh that deforms, on `deformer`, the rig or the morph that poses it, whose vertex count must be this
-        /// mesh's: it hands over its bind pose, which stays in the shared buffers as long as the mesh does, and is a
+        /// mesh's: it hands over its bind pose, which stays in the device's runs as long as the mesh does, and is a
         /// copy per instance, filed under no key.
         Index addMesh(const MeshArrays& arrays, FoldedShape shape, Index deformer);
 
@@ -374,7 +375,7 @@ namespace Rtx
         RestLimit mRestLimit;
         DeformerTable mDeformers;
 
-        /// Every mesh, and the shared buffers its triangles live in.
+        /// Every mesh, its runs, and the geometry that arrived since the last hand-over.
         MeshTable mMeshes;
 
         /// The materials, their terrain layers and the weights those place.

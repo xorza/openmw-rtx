@@ -90,7 +90,7 @@ namespace Rtx::Testing
             const Index body
                 = addOneBoneBody(scene, MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }).mMesh;
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::translate(0.0f, 100.0f, 0.0f), .mMesh = body });
-            poseByOneBone(scene, body, osg::Matrixf::identity());
+            poseByOneBone(scene, body, sWallQuad, osg::Matrixf::identity());
             const Index puff = scene.textures().add(VFS::Path::NormalizedView("puff.dds"));
 
             renderer.resize(size, size);
@@ -114,7 +114,7 @@ namespace Rtx::Testing
                 scene.clearPlacement();
                 const osg::Matrixf bone = osg::Matrixf::translate(0.0f, walked, 0.0f);
                 packRig(toGpuBone(osg::Matrixf::identity()), std::array{ toGpuBone(bone) }, words);
-                scene.pose(body, words, reachUnder(scene, body, bone));
+                scene.pose(body, words, reachUnder(sWallQuad, bone));
                 renderer.placeScene(Rtx::SceneSlot::world(), scene);
             };
 

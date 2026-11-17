@@ -225,20 +225,21 @@ namespace Rtx::Testing
         scene.pose(mesh, words, reach);
     }
 
-    /// The box `mesh`'s bind pose reaches carried through `bone`.
-    inline osg::BoundingBoxf reachUnder(const SceneDesc& scene, Index mesh, const osg::Matrixf& bone)
+    /// The box a bind pose's vertices, `bind`, reach carried through `bone`: the caller's, as the game's poser
+    /// states a reach, since the host keeps no geometry past a hand-over.
+    inline osg::BoundingBoxf reachUnder(std::span<const osg::Vec3f> bind, const osg::Matrixf& bone)
     {
         osg::BoundingBoxf reach;
-        for (const osg::Vec3f& vertex : scene.meshes().getMeshPositions(mesh))
+        for (const osg::Vec3f& vertex : bind)
             reach.expandBy(vertex * bone);
         return reach;
     }
 
-    /// Poses `mesh`, a mesh on a one-bone rig, by `bone`, with the box its bind pose reaches
+    /// Poses `mesh`, a mesh on a one-bone rig whose bind pose is `bind`, by `bone`, with the box `bind` reaches
     /// carried through the same transform.
-    inline void poseByOneBone(SceneDesc& scene, Index mesh, const osg::Matrixf& bone)
+    inline void poseByOneBone(SceneDesc& scene, Index mesh, std::span<const osg::Vec3f> bind, const osg::Matrixf& bone)
     {
         const std::array rows{ toGpuBone(bone) };
-        poseRig(scene, mesh, rows, reachUnder(scene, mesh, bone));
+        poseRig(scene, mesh, rows, reachUnder(bind, bone));
     }
 }

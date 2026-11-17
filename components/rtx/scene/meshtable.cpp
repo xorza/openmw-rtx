@@ -56,17 +56,12 @@ namespace Rtx
             return bounds;
         }
 
-        /// A run of `runs` holding `brought`, with `values` reaching it.
+        /// A run of `runs` as long as `brought`.
         template <class T>
-        Run put(RunAllocator& runs, BlockedValues<T>& values, std::span<const T> brought)
+        Run put(RunAllocator& runs, std::span<const T> brought)
         {
             assert(!brought.empty() && "a run of nothing is not a run");
-
-            const Run run = runs.allocate(static_cast<std::uint32_t>(brought.size()));
-            values.reach(runs.getEnd());
-            std::copy(brought.begin(), brought.end(), values.in(run).begin());
-
-            return run;
+            return runs.allocate(static_cast<std::uint32_t>(brought.size()));
         }
     }
 
@@ -124,6 +119,7 @@ namespace Rtx
         // cell's ground carried its own copy of one triangulation, 96 KiB a cell on the host and as much on the device.
         std::optional<MeshKey> sharedKey;
         Run elements;
+        bool bringsIndices = true;
         if (arrays.mSharedIndices)
         {
             Misc::HashState digest;
@@ -131,14 +127,14 @@ namespace Rtx
             sharedKey = MeshKey{ .mWords = digest.getWords() };
             auto [shared, made] = mSharedIndices.try_emplace(*sharedKey);
             if (made)
-                shared->second.mRun = put(mIndexRuns, mIndices, indices);
+                shared->second.mRun = put(mIndexRuns, indices);
             ++shared->second.mHolders;
             elements = shared->second.mRun;
+            bringsIndices = made;
         }
         else
-            elements = put(mIndexRuns, mIndices, indices);
-        const Run second
-            = arrays.mSecondTexCoords.empty() ? Run{} : put(mSecondRuns, mSecondTexCoords, arrays.mSecondTexCoords);
+            elements = put(mIndexRuns, indices);
+        const Run second = arrays.mSecondTexCoords.empty() ? Run{} : put(mSecondRuns, arrays.mSecondTexCoords);
 
         MeshRange range{
             .mVertices = vertices,
@@ -153,11 +149,10 @@ namespace Rtx
         };
 
         deformers.stand(range);
-
-        writeVertices(range, arrays);
         mTriangles += range.getTriangleCount();
 
         const Index index = takeRow(range);
+        writeArrival(index, arrays, bringsIndices);
         note(index, SlotNews::Arrived);
         return index;
     }
@@ -172,54 +167,68 @@ namespace Rtx
         mChanges.note(slot, what);
     }
 
-    void MeshTable::writeVertices(MeshRange& range, const MeshArrays& arrays)
+    void MeshTable::writeArrival(const Index mesh, const MeshArrays& arrays, const bool bringsIndices)
     {
-        // As far as the runs reach and no further. All five are indexed by one vertex id, and the
-        // blocks decide where a run may go rather than how much is uploaded — so reaching a whole
-        // block would upload the tail of the last one as well.
-        const std::uint32_t reach = mVertexRuns.getEnd();
-        mPositions.reach(reach);
-        mNormals.reach(reach);
-        mTexCoords.reach(reach);
-        mColours.reach(reach);
-        mTangents.reach(reach);
+        MeshRange& range = rowAt(mesh);
+        const MeshArrivals::Filling into = mArrivals.add(mesh,
+            MeshArrivals::Lengths{ .mVertices = range.mVertices.mCount,
+                .mSecondTexCoords = range.mSecondTexCoords.mCount,
+                .mIndices = bringsIndices ? range.mIndices.mCount : 0u });
 
-        // Filled where the mesh brought none, or a reused slot lights a surface by its last
-        // tenant's normals. A zero normal says "use the triangle's plane" and a white colour says
-        // "no tint", because one is read and the other is multiplied. The normal is packed to a word
-        // (`Shaders::packNormal`) and the colour to halves (`packColour`) as they are copied: once a
-        // mesh, and never a frame.
-        const auto fill = [&](auto& into, const auto& brought, const auto& nothing, const auto& stored) {
-            const auto at = into.in(range.mVertices).begin();
+        // Filled where the mesh brought none, as the device's run still holds its last tenant's. A zero normal says
+        // "use the triangle's plane" and a white colour says "no tint", because one is read and the other is
+        // multiplied. The normal is packed to a word (`Shaders::packNormal`) and the colour to halves (`packColour`)
+        // as they are copied: once a mesh, and never a frame.
+        const auto fill = [](const auto& into, const auto& brought, const auto& nothing, const auto& stored) {
             if (brought.empty())
-                std::fill_n(at, range.mVertices.mCount, nothing);
+                std::ranges::fill(into, nothing);
             else
-                std::transform(brought.begin(), brought.end(), at, stored);
+                std::ranges::transform(brought, into.begin(), stored);
         };
         const auto asItIs = [](const auto& value) { return value; };
 
-        fill(mPositions, arrays.mPositions, osg::Vec3f(), asItIs);
-        fill(mTexCoords, arrays.mTexCoords, osg::Vec2f(), asItIs);
-        fill(mNormals, arrays.mNormals, 0u, [](const osg::Vec3f& normal) { return Shaders::packNormal(normal); });
-        fill(mColours, arrays.mColours, packColour(osg::Vec3f(1.0f, 1.0f, 1.0f)), packColour);
+        fill(into.mPositions, arrays.mPositions, osg::Vec3f(), asItIs);
+        fill(into.mTexCoords, arrays.mTexCoords, osg::Vec2f(), asItIs);
+        fill(into.mNormals, arrays.mNormals, 0u, [](const osg::Vec3f& normal) { return Shaders::packNormal(normal); });
+        fill(into.mColours, arrays.mColours, packColour(osg::Vec3f(1.0f, 1.0f, 1.0f)), packColour);
+        std::ranges::copy(arrays.mSecondTexCoords, into.mSecondTexCoords.begin());
+        if (bringsIndices)
+            std::ranges::copy(arrays.mIndices, into.mIndices.begin());
 
-        // Packed where they are copied, and nought — no tangent — where the mesh brought none. The
-        // mesh has tangents where any word is not nought, and not wherever it brought an array: a
-        // generator that found no texture coordinates to build from leaves tangents of no length,
-        // which pack to none.
-        auto tangents = mTangents.in(range.mVertices).begin();
+        // Packed where they are copied, and nought — no tangent — where the mesh brought none. The mesh has tangents
+        // where any word is not nought, and not wherever it brought an array: a generator that found no texture
+        // coordinates to build from leaves tangents of no length, which pack to none.
+        std::uint32_t any = 0;
         if (arrays.mTangents.empty())
-            std::fill_n(tangents, range.mVertices.mCount, 0u);
+            std::ranges::fill(into.mTangents, 0u);
         else
+            std::ranges::transform(arrays.mTangents, into.mTangents.begin(), [&](const osg::Vec4f& tangent) {
+                const std::uint32_t word = packTangent(tangent);
+                any |= word;
+                return word;
+            });
+        range.mTangents = any != 0;
+
+        if (mKeepsDigests)
         {
-            std::uint32_t any = 0;
-            for (const osg::Vec4f& tangent : arrays.mTangents)
-            {
-                *tangents = packTangent(tangent);
-                any |= *tangents++;
-            }
-            range.mTangents = any != 0;
+            MeshGeometry whole = mArrivals.of(mesh);
+            whole.mIndices = arrays.mIndices;
+            mDigests.resize(size());
+            mDigests[mesh] = digestMesh(whole);
         }
+    }
+
+    void MeshTable::keepDigests()
+    {
+        assert(size() == 0 && "digests asked of a table that holds meshes without one");
+        mKeepsDigests = true;
+    }
+
+    const MeshDigest& MeshTable::getDigest(const Index mesh) const
+    {
+        assert(mKeepsDigests && "a digest asked of a table that keeps none");
+        assert((isLive(mesh) || rowAt(mesh).mRest.mResting) && "the digest of a mesh the table does not hold");
+        return mDigests[mesh];
     }
 
     void MeshTable::notePosed(Index mesh, const osg::BoundingBoxf& bounds)
@@ -235,18 +244,6 @@ namespace Rtx
         // Named once however many callers reach it, because a backend builds one structure per mesh
         // and building it twice in a frame is the same answer for twice the cost.
         mDeformed.add(mesh);
-    }
-
-    std::span<const osg::Vec3f> MeshTable::getMeshPositions(Index mesh) const
-    {
-        const MeshRange& range = rowAt(mesh);
-        return mPositions.in(range.mVertices);
-    }
-
-    std::span<const std::uint32_t> MeshTable::getMeshIndices(Index mesh) const
-    {
-        const MeshRange& range = rowAt(mesh);
-        return mIndices.in(range.mIndices);
     }
 
     Index MeshTable::add(
@@ -379,20 +376,10 @@ namespace Rtx
         // A slot given back names no structure to refit, however it was posed this frame: the
         // structure has gone with it.
         mDeformed.remove(mesh);
+        mArrivals.forget(mesh);
 
         freeRow(mesh);
         note(mesh, SlotNews::Freed);
-    }
-
-    std::size_t MeshTable::getGeometryBytes() const
-    {
-        return std::size_t{ mPositions.size() } * sizeof(osg::Vec3f)
-            + std::size_t{ mNormals.size() } * sizeof(std::uint32_t)
-            + std::size_t{ mTangents.size() } * sizeof(std::uint32_t)
-            + std::size_t{ mTexCoords.size() } * sizeof(osg::Vec2f)
-            + std::size_t{ mSecondTexCoords.size() } * sizeof(osg::Vec2f)
-            + std::size_t{ mColours.size() } * sizeof(Shaders::GpuVertexColour)
-            + std::size_t{ mIndices.size() } * sizeof(std::uint32_t);
     }
 
     void MeshTable::compact(const std::uint64_t clock)
@@ -406,5 +393,6 @@ namespace Rtx
     void MeshTable::clearArrivals()
     {
         mChanges.clearArrivals();
+        mArrivals.clear();
     }
 }

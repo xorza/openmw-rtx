@@ -75,7 +75,7 @@ namespace Rtx
                     mScene, MeshArrays{ .mPositions = Testing::wallAt(200.0f), .mIndices = Testing::sQuadIndices })
                             .mMesh;
                 mInstance = mScene.addInstance(MeshInstance{ .mMesh = mWall });
-                Testing::poseByOneBone(mScene, mWall, osg::Matrixf::identity());
+                Testing::poseByOneBone(mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::identity());
                 mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
             }
 
@@ -92,7 +92,8 @@ namespace Rtx
             void deformTo(float away)
             {
                 mScene.clearPlacement();
-                Testing::poseByOneBone(mScene, mWall, osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
+                Testing::poseByOneBone(
+                    mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
                 mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
             }
 
@@ -147,7 +148,7 @@ namespace Rtx
                     mScene, MeshArrays{ .mPositions = Testing::wallAt(-1000.0f), .mIndices = Testing::sQuadIndices })
                                           .mMesh;
                 mScene.addInstance(MeshInstance{ .mMesh = arrived });
-                Testing::poseByOneBone(mScene, arrived, osg::Matrixf::identity());
+                Testing::poseByOneBone(mScene, arrived, Testing::wallAt(-1000.0f), osg::Matrixf::identity());
             }
 
             mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
@@ -467,7 +468,7 @@ namespace Rtx
             // pose alone: the instance stands still and the bone carries the wall as far.
             const auto movedBy = [&](const osg::Vec3f& step) {
                 mScene.clearPlacement();
-                Testing::poseByOneBone(mScene, mWall, osg::Matrixf::identity());
+                Testing::poseByOneBone(mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::identity());
                 mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
                 mScene.clearPlacement();
@@ -482,7 +483,7 @@ namespace Rtx
                 mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
                 mScene.clearPlacement();
-                Testing::poseByOneBone(mScene, mWall, osg::Matrixf::translate(step));
+                Testing::poseByOneBone(mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::translate(step));
                 mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
 
@@ -535,8 +536,8 @@ namespace Rtx
                     mScene, MeshArrays{ .mPositions = Testing::wallAt(200.0f), .mIndices = Testing::sQuadIndices })
                                           .mMesh;
                 mScene.addInstance(MeshInstance{ .mMesh = arrived });
-                Testing::poseByOneBone(
-                    mScene, arrived, osg::Matrixf::translate(0.0f, -10.0f * static_cast<float>(copy + 1), 0.0f));
+                Testing::poseByOneBone(mScene, arrived, Testing::wallAt(200.0f),
+                    osg::Matrixf::translate(0.0f, -10.0f * static_cast<float>(copy + 1), 0.0f));
                 mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
                 mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
@@ -579,14 +580,14 @@ namespace Rtx
                                                 .mNormals = backward,
                                                 .mIndices = Testing::sQuadIndices }) });
 
-            Testing::poseByOneBone(scene, body, osg::Matrixf::identity());
+            Testing::poseByOneBone(scene, body, Testing::wallAt(200.0f), osg::Matrixf::identity());
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
             // Two floats a pixel: the normal's code, then the distance.
             constexpr std::size_t centre = (std::size_t{ sSize / 2 } * sSize + sSize / 2) * 2;
             const auto centreNormalPosedBy = [&](const osg::Matrixf& bone) {
                 scene.clearPlacement();
-                Testing::poseByOneBone(scene, body, bone);
+                Testing::poseByOneBone(scene, body, Testing::wallAt(200.0f), bone);
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
 
@@ -808,7 +809,7 @@ namespace Rtx
                                      .mMesh;
             mScene.addInstance(MeshInstance{ .mMesh = second });
             mScene.clearPlacement();
-            Testing::poseByOneBone(mScene, second, osg::Matrixf::identity());
+            Testing::poseByOneBone(mScene, second, Testing::wallAt(300.0f), osg::Matrixf::identity());
             mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
             mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
             mScene.clearArrivals();
@@ -817,8 +818,9 @@ namespace Rtx
 
             const auto deformBoth = [&](float x) {
                 mScene.clearPlacement();
-                Testing::poseByOneBone(mScene, mWall, osg::Matrixf::translate(x, 0.0f, 0.0f));
-                Testing::poseByOneBone(mScene, second, osg::Matrixf::translate(-x, 0.0f, 0.0f));
+                Testing::poseByOneBone(mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::translate(x, 0.0f, 0.0f));
+                Testing::poseByOneBone(
+                    mScene, second, Testing::wallAt(300.0f), osg::Matrixf::translate(-x, 0.0f, 0.0f));
                 mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
             };
             for (std::uint64_t placement = 1; placement <= 4; ++placement)

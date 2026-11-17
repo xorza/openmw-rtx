@@ -213,40 +213,40 @@ namespace Rtx
         // Whole runs here and a mesh at a time afterwards. Only a skinned body's normals change,
         // so filling these when the mesh arrives is a load's cost and every frame after it pays for
         // what actually moved.
-        mTexCoords.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTexCoords().size()));
-        mSecondTexCoords.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getSecondTexCoords().size()));
-        mColours.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getColours().size()));
-        mPositions.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getPositions().size()));
+        const std::uint32_t vertices = scene.meshes().getVertexRuns().getEnd();
+        mTexCoords.reserve(batch, vertices);
+        mSecondTexCoords.reserve(batch, scene.meshes().getSecondRuns().getEnd());
+        mColours.reserve(batch, vertices);
+        mPositions.reserve(batch, vertices);
         const std::uint32_t posed = scene.deformers().getBindVertexCount();
-        mNormals.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getNormals().size()), posed);
-        mTangents.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTangents().size()), posed);
+        mNormals.reserve(batch, vertices, posed);
+        mTangents.reserve(batch, vertices, posed);
 
+        // **Out of the arrivals**, the host's one copy of a mesh, which goes once this hand-over has it.
         for (const Index mesh : meshes)
         {
             const MeshRange& range = scene.meshes().getRows()[mesh];
             if (range.mVertices.empty())
                 continue;
 
-            const std::span<const std::uint32_t> normals = range.mVertices.in(scene.meshes().getNormals());
-            const std::span<const std::uint32_t> tangents = range.mVertices.in(scene.meshes().getTangents());
+            const MeshGeometry geometry = scene.meshes().getArrival(mesh);
             if (range.deforms())
             {
-                mNormals.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, normals);
-                mTangents.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, tangents);
+                mNormals.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, geometry.mNormals);
+                mTangents.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, geometry.mTangents);
             }
             else
             {
-                mNormals.getShared().writeAt(batch, range.mVertices.mOffset, normals);
-                mTangents.getShared().writeAt(batch, range.mVertices.mOffset, tangents);
-                mPositions.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getPositions()));
+                mNormals.getShared().writeAt(batch, range.mVertices.mOffset, geometry.mNormals);
+                mTangents.getShared().writeAt(batch, range.mVertices.mOffset, geometry.mTangents);
+                mPositions.writeAt(batch, range.mVertices.mOffset, geometry.mPositions);
             }
 
-            mTexCoords.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getTexCoords()));
-            mColours.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getColours()));
+            mTexCoords.writeAt(batch, range.mVertices.mOffset, geometry.mTexCoords);
+            mColours.writeAt(batch, range.mVertices.mOffset, geometry.mColours);
 
             if (!range.mSecondTexCoords.empty())
-                mSecondTexCoords.writeAt(batch, range.mSecondTexCoords.mOffset,
-                    range.mSecondTexCoords.in(scene.meshes().getSecondTexCoords()));
+                mSecondTexCoords.writeAt(batch, range.mSecondTexCoords.mOffset, geometry.mSecondTexCoords);
         }
 
         mMeshRows.resize(scene.meshes().getRows().size());

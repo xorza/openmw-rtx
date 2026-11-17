@@ -133,6 +133,8 @@ openmw_rtx_layer(
         scene/lightgrid.cpp
         scene/materialtable.cpp
         scene/mesh.cpp
+        scene/mesharrivals.cpp
+        scene/meshdigest.cpp
         scene/meshtable.cpp
         scene/placementtable.cpp
         scene/refusals.cpp
@@ -149,6 +151,8 @@ openmw_rtx_layer(
         scene/material.hpp
         scene/materialtable.hpp
         scene/mesh.hpp
+        scene/mesharrivals.hpp
+        scene/meshdigest.hpp
         scene/meshtable.hpp
         scene/placementtable.hpp
         scene/refusal.hpp

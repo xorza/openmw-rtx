@@ -98,6 +98,7 @@ namespace RtxTool
             const bool mirroredFirst, const float lift, const float aside, const bool shuffled = false)
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
             return spellHash(digestScene(digestParts(scene)));
         }
@@ -106,6 +107,7 @@ namespace RtxTool
             const bool mirroredFirst, const float lift, const float aside, const bool shuffled = false)
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
             return spellHash(digestLayout(digestParts(scene)));
         }
@@ -160,6 +162,7 @@ namespace RtxTool
         std::pair<std::string, std::string> digestsOfMaterial(void (*change)(Rtx::Material&))
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
 
             Rtx::Material material;
             material.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("textures/box.dds"));
@@ -253,6 +256,7 @@ namespace RtxTool
         std::pair<std::string, ScenePartDigests> digestsOfTangents(std::span<const osg::Vec4f> tangents)
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false, 0.0f, false, tangents);
             scene.addInstance(instance);
@@ -299,6 +303,7 @@ namespace RtxTool
         ScenePartDigests partsOfPlume(const bool additive, const bool falls)
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
             const Rtx::Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/puff.dds"));
             const std::array sprites{ Rtx::Sprite{ .mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f),
                 .mRadius = 4.0f,
@@ -337,6 +342,7 @@ namespace RtxTool
         ScenePartDigests partsOfSkin(const float weight, const float up)
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
 
             const std::array<std::uint32_t, 4> runs{ 1u, 1u, 1u, 1u };
             const std::array influences{ Rtx::Shaders::GpuInfluence{ .mBone = 0, .mWeight = weight } };
@@ -387,6 +393,7 @@ namespace RtxTool
         std::string contentOfMotion(const bool jumped, const bool rippled)
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
             const Rtx::Index slot = scene.addInstance(instance);
@@ -427,6 +434,7 @@ namespace RtxTool
         ScenePartDigests partsWith(const Field field)
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
             instance.mClockwise = field == Field::Clockwise;
@@ -492,57 +500,48 @@ namespace RtxTool
             }
         }
 
-        /// **A digester hashes the vertex tables where they moved and nowhere else**, and answers
-        /// the same words as a digest made from nothing. A frame with nothing new pays no rehash
-        /// of forty megabytes; a mesh added costs one, a release none, and the next mesh into the
-        /// hole it left one more.
-        TEST(RtxSceneDigestTest, aDigesterHashesTheVertexTablesOnceForEveryChangeToThem)
+        /// **The geometry's parts are each mesh's digests from its arrival**, so the host letting the geometry go after
+        /// a hand-over moves none of them, and a digester answers what a digest made from nothing does. A placement
+        /// moved moves the instances alone; a mesh added, let go of or landing in the hole it left moves the positions.
+        TEST(RtxSceneDigestTest, theGeometrysPartsOutliveTheArrivalsTheyWereMadeFrom)
         {
             Rtx::SceneDesc scene;
+            scene.meshes().keepDigests();
             fillBoxes(scene, false, 0.0f, 0.0f);
 
             SceneDigester digester;
             const ScenePartDigests first = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 1u);
             EXPECT_EQ(first, digestParts(scene)) << "a digester and a digest from nothing disagree";
 
-            // The same scene again, and a pose of nothing: the cache answers.
-            EXPECT_EQ(digester.digest(scene), first);
-            EXPECT_EQ(digester.getVertexHashes(), 1u) << "an unchanged table was hashed again";
+            scene.clearArrivals();
+            EXPECT_EQ(digester.digest(scene), first) << "a part read the geometry the host let go of";
 
-            // A placement moved touches no vertex table; the instances column moves alone.
             scene.placements().move(0, osg::Matrixf::translate(1.0f, 0.0f, 0.0f));
             const ScenePartDigests moved = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 1u);
             EXPECT_EQ(moved[static_cast<std::size_t>(ScenePart::Positions)],
                 first[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_NE(moved[static_cast<std::size_t>(ScenePart::Instances)],
                 first[static_cast<std::size_t>(ScenePart::Instances)]);
 
-            // A mesh added is a revision, and the vertex columns move with it.
             const Rtx::Index third = addBox(scene, true, 2.0f);
             const ScenePartDigests grown = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 2u);
             EXPECT_NE(grown[static_cast<std::size_t>(ScenePart::Positions)],
                 moved[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_EQ(grown, digestParts(scene));
 
-            // A mesh let go of leaves the bytes where they were — a freed run is a hole, and the
-            // table keeps its length — so the cache still answers, and answers what a digest from nothing
-            // says. The mesh row it emptied moves the meshes column and nothing else.
             scene.drop(scene.holdMesh(third));
             const ScenePartDigests released = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 2u) << "a release wrote no vertex and was hashed for it";
+            EXPECT_EQ(released[static_cast<std::size_t>(ScenePart::Positions)],
+                moved[static_cast<std::size_t>(ScenePart::Positions)])
+                << "a slot given back still counted in the positions";
             EXPECT_EQ(released, digestParts(scene));
-            EXPECT_NE(released[static_cast<std::size_t>(ScenePart::Meshes)],
-                grown[static_cast<std::size_t>(ScenePart::Meshes)]);
 
-            // And the next mesh to land in the hole rewrites its bytes under a new revision.
             EXPECT_EQ(addBox(scene, false, 3.0f), third) << "the freed slot is the one handed out";
             const ScenePartDigests refilled = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 3u);
             EXPECT_NE(refilled[static_cast<std::size_t>(ScenePart::Positions)],
                 released[static_cast<std::size_t>(ScenePart::Positions)]);
+            EXPECT_NE(refilled[static_cast<std::size_t>(ScenePart::Positions)],
+                grown[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_EQ(refilled, digestParts(scene));
         }
     }

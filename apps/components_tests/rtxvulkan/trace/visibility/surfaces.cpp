@@ -254,7 +254,7 @@ namespace Rtx::Testing
             const DeformedMesh body = Testing::addOneBoneBody(
                 scene, MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices });
             scene.addInstance(MeshInstance{ .mMesh = body.mMesh });
-            Testing::poseByOneBone(scene, body.mMesh, osg::Matrixf::translate(0.0f, 0.0f, 1.0f));
+            Testing::poseByOneBone(scene, body.mMesh, Testing::sUnitQuad, osg::Matrixf::translate(0.0f, 0.0f, 1.0f));
 
             TextureData second = describeTexel(blueTexel, scene.materials().getRows()[blue].mDiffuse);
             second.mName = "blue";
@@ -270,7 +270,7 @@ namespace Rtx::Testing
             EXPECT_EQ(refused[0].mKind, Refused::Texture);
             EXPECT_EQ(refused[0].mName, "blue");
 
-            Testing::poseByOneBone(scene, body.mMesh, osg::Matrixf::translate(0.0f, 0.0f, 2.0f));
+            Testing::poseByOneBone(scene, body.mMesh, Testing::sUnitQuad, osg::Matrixf::translate(0.0f, 0.0f, 2.0f));
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 

@@ -25,6 +25,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
+#include <components/misc/digestwords.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -144,6 +145,7 @@ namespace Rtx
         TEST(RtxSceneDescTest, meshesThatShareTheirIndicesNameOneRunOfThem)
         {
             SceneDesc scene;
+            scene.meshes().keepDigests();
             const std::array<osg::Vec3f, 4> raised{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 0.0f, 1.0f),
                 osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 1.0f) };
             const std::array<osg::Vec3f, 4> higher{ osg::Vec3f(0.0f, 0.0f, 2.0f), osg::Vec3f(1.0f, 0.0f, 2.0f),
@@ -157,10 +159,21 @@ namespace Rtx
             };
             const Index first = shared(Testing::sUnitQuad);
             const Index second = shared(raised);
-            EXPECT_EQ(scene.meshes().getIndices().size(), 6u);
+            EXPECT_EQ(scene.meshes().getIndexRuns().getEnd(), 6u);
             EXPECT_EQ(scene.meshes().getRows()[first].mIndices, scene.meshes().getRows()[second].mIndices);
             EXPECT_EQ(scene.meshes().getRows()[second].mIndices.mOffset, 0u);
-            EXPECT_EQ(scene.meshes().getMeshIndices(second)[5], 3u);
+
+            // Brought once, by the arrival that made the run: the hand-over writes it once.
+            EXPECT_EQ(scene.meshes().getArrival(first).mIndices.size(), 6u);
+            EXPECT_EQ(scene.meshes().getArrival(first).mIndices[5], 3u);
+            EXPECT_TRUE(scene.meshes().getArrival(second).mIndices.empty()) << "a sharer brought the run again";
+
+            // A sharer's digest is of its indices whole, however many meshes name the run.
+            EXPECT_EQ(scene.meshes().getDigest(first).mIndices, scene.meshes().getDigest(second).mIndices);
+            EXPECT_NE(scene.meshes().getDigest(second).mIndices, Misc::DigestWords{});
+            EXPECT_NE(scene.meshes().getDigest(first).mPositions, scene.meshes().getDigest(second).mPositions);
+            EXPECT_NE(scene.meshes().getDigest(first).mTriangles, scene.meshes().getDigest(second).mTriangles);
+            scene.clearArrivals();
 
             const Index own
                 = scene.addMesh(MeshArrays{ .mPositions = higher, .mIndices = Testing::sQuadIndices }, FoldedShape{});
@@ -169,6 +182,8 @@ namespace Rtx
             // The run stays while a sharer stands: one gone, a new sharer names it still.
             Testing::letGoMesh(scene, first);
             const Index fourth = shared(highest);
+            EXPECT_TRUE(scene.meshes().getArrival(fourth).mIndices.empty())
+                << "a sharer of a run handed over brought it";
             EXPECT_EQ(scene.meshes().getRows()[fourth].mIndices.mOffset, 0u) << "the run went with one of two sharers";
 
             // And goes with the last: a mesh of its own takes its room.
@@ -177,6 +192,7 @@ namespace Rtx
             const Index after
                 = scene.addMesh(MeshArrays{ .mPositions = raised, .mIndices = Testing::sQuadIndices }, FoldedShape{});
             EXPECT_EQ(scene.meshes().getRows()[after].mIndices.mOffset, 0u) << "the last sharer kept the run";
+            EXPECT_EQ(scene.meshes().getArrival(after).mIndices.size(), 6u);
         }
 
         TEST(RtxSceneDescTest, aMeshRemembersWhereItsVerticesWent)
@@ -194,13 +210,13 @@ namespace Rtx
 
             // Two quads: 8 vertices and 12 indices in the shared buffers, the second mesh starting
             // where the first left off.
-            EXPECT_EQ(scene.meshes().getPositions().size(), 8u);
-            EXPECT_EQ(scene.meshes().getIndices().size(), 12u);
+            EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), 8u);
+            EXPECT_EQ(scene.meshes().getIndexRuns().getEnd(), 12u);
             EXPECT_EQ(scene.meshes().getRows()[1].mVertices.mOffset, 4u);
             EXPECT_EQ(scene.meshes().getRows()[1].mIndices.mOffset, 6u);
 
-            EXPECT_EQ(scene.meshes().getMeshPositions(second)[2], osg::Vec3f(1.0f, 1.0f, 1.0f));
-            EXPECT_EQ(scene.meshes().getMeshIndices(second)[5], 3u);
+            EXPECT_EQ(scene.meshes().getArrival(second).mPositions[2], osg::Vec3f(1.0f, 1.0f, 1.0f));
+            EXPECT_EQ(scene.meshes().getArrival(second).mIndices[5], 3u);
 
             // The box, read off the vertices as they arrive: a unit quad's runs from the origin
             // to (1, 1, 0).
@@ -235,19 +251,23 @@ namespace Rtx
             const Index withNormals = scene.addMesh(MeshArrays{
                 .mPositions = Testing::sUnitQuad, .mNormals = sNormals, .mIndices = Testing::sQuadIndices });
 
-            const Rtx::MeshTable& meshes = scene.meshes();
-            ASSERT_EQ(meshes.getNormals().size(), meshes.getPositions().size());
-            ASSERT_EQ(meshes.getTexCoords().size(), meshes.getPositions().size());
-            ASSERT_EQ(meshes.getTangents().size(), meshes.getPositions().size());
+            const MeshGeometry bare = scene.meshes().getArrival(0);
+            ASSERT_EQ(bare.mNormals.size(), bare.mPositions.size());
+            ASSERT_EQ(bare.mTexCoords.size(), bare.mPositions.size());
+            ASSERT_EQ(bare.mTangents.size(), bare.mPositions.size());
+            ASSERT_EQ(bare.mColours.size(), bare.mPositions.size());
 
-            const MeshRange& range = scene.meshes().getRows()[withNormals];
             // Packed as the tangents are: straight up is the square's middle, `0x3FFF` on both
             // coordinates, the second fifteen bits up, and the present bit over them; a mesh with
-            // none holds the word nought, "the triangle's plane".
-            EXPECT_EQ(scene.meshes().getNormals()[range.mVertices.mOffset], 0x9FFFBFFFu);
-            EXPECT_EQ(Shaders::unpackNormal(scene.meshes().getNormals()[range.mVertices.mOffset]),
-                osg::Vec3f(0.0f, 0.0f, 1.0f));
-            EXPECT_EQ(scene.meshes().getNormals()[0], 0u);
+            // none holds the word nought, "the triangle's plane", and white, `0x3C00` a half.
+            const MeshGeometry normalled = scene.meshes().getArrival(withNormals);
+            EXPECT_EQ(normalled.mNormals[0], 0x9FFFBFFFu);
+            EXPECT_EQ(Shaders::unpackNormal(normalled.mNormals[0]), osg::Vec3f(0.0f, 0.0f, 1.0f));
+            EXPECT_EQ(bare.mNormals[0], 0u);
+            EXPECT_EQ(bare.mTangents[3], 0u);
+            EXPECT_EQ(bare.mTexCoords[3], osg::Vec2f());
+            EXPECT_EQ(bare.mColours[3].mRedGreen, 0x3C003C00u);
+            EXPECT_EQ(bare.mColours[3].mBlue, 0x3C00u);
         }
 
         /// **A colour is kept as three halves, past one and at the dark end alike**: 2.5 is `0x4100`,
@@ -262,8 +282,7 @@ namespace Rtx
             const Index slot = scene.addMesh(
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mColours = colours, .mIndices = Testing::sQuadIndices });
 
-            const Shaders::GpuVertexColour packed
-                = scene.meshes().getColours()[scene.meshes().getRows()[slot].mVertices.mOffset];
+            const Shaders::GpuVertexColour packed = scene.meshes().getArrival(slot).mColours[0];
             EXPECT_EQ(packed.mRedGreen, 0x0CEA4100u);
             EXPECT_EQ(packed.mBlue, 0x3555u);
 
@@ -273,10 +292,10 @@ namespace Rtx
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f) };
             const Index pastSlot = scene.addMesh(
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mColours = past, .mIndices = Testing::sQuadIndices });
-            const std::uint32_t first = scene.meshes().getRows()[pastSlot].mVertices.mOffset;
-            EXPECT_EQ(scene.meshes().getColours()[first].mRedGreen, 0x3C003C00u);
-            EXPECT_EQ(scene.meshes().getColours()[first].mBlue, 0x3C00u);
-            EXPECT_EQ(scene.meshes().getColours()[first + 1].mRedGreen, 0x7BFF0000u);
+            const std::span<const Shaders::GpuVertexColour> pastColours = scene.meshes().getArrival(pastSlot).mColours;
+            EXPECT_EQ(pastColours[0].mRedGreen, 0x3C003C00u);
+            EXPECT_EQ(pastColours[0].mBlue, 0x3C00u);
+            EXPECT_EQ(pastColours[1].mRedGreen, 0x7BFF0000u);
         }
 
         TEST(RtxSceneDescTest, aTextureIsAddedOnceHoweverOftenItIsAskedFor)
@@ -701,10 +720,10 @@ namespace Rtx
                 << "the reach is the caller's and not the bind's";
 
             // The bind pose stays where it arrived, and so does everything beside it.
-            EXPECT_EQ(mScene.meshes().getPositions().size(), 12u);
+            EXPECT_EQ(mScene.meshes().getVertexRuns().getEnd(), 12u);
             EXPECT_EQ(mScene.meshes().getRows()[mMoving].mVertices.mOffset, 4u);
-            EXPECT_EQ(mScene.meshes().getMeshPositions(mMoving)[2], osg::Vec3f(1.0f, 1.0f, 0.0f));
-            EXPECT_EQ(mScene.meshes().getMeshPositions(mStill)[2], osg::Vec3f(1.0f, 1.0f, 0.0f));
+            EXPECT_EQ(mScene.meshes().getArrival(mMoving).mPositions[2], osg::Vec3f(1.0f, 1.0f, 0.0f));
+            EXPECT_EQ(mScene.meshes().getArrival(mStill).mPositions[2], osg::Vec3f(1.0f, 1.0f, 0.0f));
             EXPECT_EQ(boneAt(mScene.getMeshPose(mOther), 0), Shaders::GpuBone{})
                 << "the neighbour's rows are untouched";
 
@@ -1627,8 +1646,8 @@ namespace Rtx
                 = scene.addMesh(MeshArrays{ .mPositions = triangleAt(5.0f), .mIndices = Testing::sTriangleIndices });
             const Index last = Testing::addQuadMesh(scene, quads[1]);
 
-            ASSERT_EQ(scene.meshes().getPositions().size(), 11u);
-            ASSERT_EQ(scene.meshes().getIndices().size(), 15u);
+            ASSERT_EQ(scene.meshes().getVertexRuns().getEnd(), 11u);
+            ASSERT_EQ(scene.meshes().getIndexRuns().getEnd(), 15u);
             ASSERT_EQ(scene.meshes().getRows()[last].mVertices.mOffset, 7u);
 
             const StructureRevision was = scene.getStructureRevision();
@@ -1636,11 +1655,11 @@ namespace Rtx
 
             // Nothing moved, nothing shrank, and every index still means what it meant.
             EXPECT_EQ(scene.meshes().getRows().size(), 3u);
-            EXPECT_EQ(scene.meshes().getPositions().size(), 11u);
-            EXPECT_EQ(scene.meshes().getIndices().size(), 15u);
+            EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), 11u);
+            EXPECT_EQ(scene.meshes().getIndexRuns().getEnd(), 15u);
             EXPECT_EQ(scene.meshes().getRows()[last].mVertices.mOffset, 7u);
-            EXPECT_EQ(scene.meshes().getMeshPositions(first)[0].z(), 0.0f);
-            EXPECT_EQ(scene.meshes().getMeshPositions(last)[0].z(), 2.0f);
+            EXPECT_EQ(scene.meshes().getArrival(first).mPositions[0].z(), 0.0f);
+            EXPECT_EQ(scene.meshes().getArrival(last).mPositions[0].z(), 2.0f);
 
             // The freed one describes nothing until something takes it, so a backend that walks the
             // table builds a structure over no triangles rather than over somebody else's.
@@ -1664,12 +1683,12 @@ namespace Rtx
             EXPECT_EQ(moved, middle);
             EXPECT_EQ(scene.meshes().getRows()[moved].mVertices.mOffset, 4u);
             EXPECT_EQ(scene.meshes().getRows()[moved].mVertices.mCount, 3u);
-            EXPECT_EQ(scene.meshes().getPositions().size(), 11u) << "a reused slot appended";
+            EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), 11u) << "a reused slot appended";
             EXPECT_GT(scene.getStructureRevision().mMeshes, was.mMeshes)
                 << "a slot taken over holds different geometry";
 
             // And the last mesh is still where it was, which a compaction is what would break.
-            EXPECT_EQ(scene.meshes().getMeshPositions(last)[0].z(), 2.0f);
+            EXPECT_EQ(scene.meshes().getArrival(last).mPositions[0].z(), 2.0f);
 
             // **Taking the slot back moves it the other way**, which is what lets a backend apply
             // the two lists in either order: this slot is built and not then destroyed, whichever
@@ -1778,7 +1797,7 @@ namespace Rtx
             // is not something a backend should have to know.
             EXPECT_EQ(sorted(scene.meshes().getFreed()), (std::vector<Index>{ roomy, snug }));
 
-            const std::size_t vertices = scene.meshes().getPositions().size();
+            const std::size_t vertices = scene.meshes().getVertexRuns().getEnd();
             ASSERT_EQ(vertices, 16u);
 
             // The quad takes the front of the merged hole and leaves eight vertices behind it.
@@ -1789,7 +1808,7 @@ namespace Rtx
             // eight and four and the four had just been spent, so this would have appended.
             const Index again = big(20.0f);
             EXPECT_EQ(scene.meshes().getRows()[again].mVertices.mOffset, 4u);
-            EXPECT_EQ(scene.meshes().getPositions().size(), vertices) << "a mesh that fitted a hole appended anyway";
+            EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), vertices) << "a mesh that fitted a hole appended anyway";
 
             // Both freed slots have been taken, the lower one first — `Rtx::SlotRows` says why a
             // table answers with the lowest and never with the last one given back.
@@ -1798,7 +1817,7 @@ namespace Rtx
 
             // Nothing fits now, so this one goes on the end.
             EXPECT_EQ(big(30.0f), 3u);
-            EXPECT_GT(scene.meshes().getPositions().size(), vertices);
+            EXPECT_GT(scene.meshes().getVertexRuns().getEnd(), vertices);
         }
 
         /// A slot taken over holds its own attributes and none of its predecessor's.
@@ -1830,26 +1849,29 @@ namespace Rtx
                 .mIndices = Testing::sQuadIndices });
             // Along x is the square's `(1, 0)`, steps `0x7FFE` and `0x3FFF`; a colour of a quarter is
             // the half `0x3400` in the low half of the first word, and the other halves nought.
-            ASSERT_EQ(meshes.getNormals()[meshes.getRows()[slot].mVertices.mOffset], 0x9FFFFFFEu);
-            ASSERT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset].mRedGreen, 0x00003400u);
-            ASSERT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset].mBlue, 0u);
+            const MeshGeometry first = meshes.getArrival(slot);
+            ASSERT_EQ(first.mNormals[0], 0x9FFFFFFEu);
+            ASSERT_EQ(first.mColours[0].mRedGreen, 0x00003400u);
+            ASSERT_EQ(first.mColours[0].mBlue, 0u);
 
             // Packed as they are written: along y is the square's `(0, 1)`, steps `0x3FFF` and
             // `0x7FFE`, the second fifteen bits up, and the present bit over them.
-            ASSERT_EQ(meshes.getTangents()[meshes.getRows()[slot].mVertices.mOffset], 0xBFFF3FFFu);
+            ASSERT_EQ(first.mTangents[0], 0xBFFF3FFFu);
             ASSERT_TRUE(meshes.getRows()[slot].mTangents);
 
+            // Handed over, so the arrivals' buffers are filled again where the last tenant stood, as the device's run
+            // is.
+            scene.clearArrivals();
             Testing::letGoMesh(scene, slot);
             EXPECT_EQ(Testing::addQuadMesh(scene), slot);
 
-            EXPECT_EQ(meshes.getNormals()[meshes.getRows()[slot].mVertices.mOffset], 0u)
-                << "the slot kept the last tenant's normals";
-            EXPECT_EQ(meshes.getTexCoords()[0], osg::Vec2f());
-            EXPECT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset].mRedGreen, 0x3C003C00u)
+            const MeshGeometry second = meshes.getArrival(slot);
+            EXPECT_EQ(second.mNormals[0], 0u) << "the slot kept the last tenant's normals";
+            EXPECT_EQ(second.mTexCoords[0], osg::Vec2f());
+            EXPECT_EQ(second.mColours[0].mRedGreen, 0x3C003C00u)
                 << "the slot kept the last tenant's tint: white is the half `0x3C00` thrice";
-            EXPECT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset].mBlue, 0x3C00u);
-            EXPECT_EQ(meshes.getTangents()[meshes.getRows()[slot].mVertices.mOffset], 0u)
-                << "the slot kept the last tenant's tangents";
+            EXPECT_EQ(second.mColours[0].mBlue, 0x3C00u);
+            EXPECT_EQ(second.mTangents[0], 0u) << "the slot kept the last tenant's tangents";
             EXPECT_FALSE(meshes.getRows()[slot].mTangents) << "the slot kept the last tenant's claim to tangents";
         }
 
@@ -2526,13 +2548,13 @@ namespace Rtx
             const Index second = scene.addMesh(MeshArrays{ .mPositions = vertices(100000), .mIndices = triangle });
             EXPECT_EQ(scene.meshes().getRows()[second].mVertices.mOffset, MeshTable::sVertexBlock)
                 << "a run was laid across a block boundary";
-            EXPECT_EQ(scene.meshes().getPositions().size(), std::size_t{ 362144 });
+            EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), std::size_t{ 362144 });
 
             // And the 62,144 the second one stepped over is a hole like any other.
             const Index third = scene.addMesh(MeshArrays{ .mPositions = vertices(60000), .mIndices = triangle });
             EXPECT_EQ(scene.meshes().getRows()[third].mVertices.mOffset, 200000u)
                 << "the tail of a block was not reused";
-            EXPECT_EQ(scene.meshes().getPositions().size(), std::size_t{ 362144 })
+            EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), std::size_t{ 362144 })
                 << "a mesh that fitted the tail appended";
 
             // None of the three crosses a boundary, which is the property rather than the three

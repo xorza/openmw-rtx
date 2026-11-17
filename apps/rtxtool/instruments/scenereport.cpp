@@ -1,11 +1,13 @@
 #include "scenereport.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <format>
 #include <string>
 #include <utility>
+
+#include <osg/Vec2f>
+#include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <components/contentstore/store.hpp>
@@ -22,6 +24,7 @@
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/shaders/scene.h>
 
 #include "digest.hpp"
 #include "scenedigest.hpp"
@@ -33,6 +36,14 @@ namespace RtxTool
         const Rtx::ExtractionStats& stats = walked.mFound;
         const ScenePartDigests parts = digestParts(scene);
         std::string out;
+
+        // What the device's streams hold, by the runs handed out: the host keeps none of it past a hand-over.
+        const std::size_t vertices = scene.meshes().getVertexRuns().getUsed();
+        const std::size_t colourBytes = vertices * sizeof(Rtx::Shaders::GpuVertexColour);
+        const std::size_t geometryBytes
+            = vertices * (sizeof(osg::Vec3f) + 2 * sizeof(std::uint32_t) + sizeof(osg::Vec2f)) + colourBytes
+            + std::size_t{ scene.meshes().getSecondRuns().getUsed() } * sizeof(osg::Vec2f)
+            + std::size_t{ scene.meshes().getIndexRuns().getUsed() } * sizeof(std::uint32_t);
 
         out
             += (std::format("\nplaced\n"
@@ -49,8 +60,7 @@ namespace RtxTool
                             "  laid out as:          {}\n",
                 scene.placements().getCounts().mPlaced, stats.mDistantStatics, stats.mGroundCells, stats.mGroundcover,
                 scene.meshes().getRows().size(), scene.materials().getRows().size(), scene.textures().getRows().size(),
-                scene.meshes().getTriangleCount(), scene.meshes().getGeometryBytes() / 1024,
-                scene.meshes().getColours().size() * sizeof(Rtx::Shaders::GpuVertexColour) / 1024,
+                scene.meshes().getTriangleCount(), geometryBytes / 1024, colourBytes / 1024,
                 spellHash(digestScene(parts)), spellHash(digestLayout(parts))));
 
         // The images the standing slots keep, off the table that keeps them.
@@ -120,10 +130,7 @@ namespace RtxTool
         {
             sheets += mesh.mShape.mSheet ? 1 : 0;
             pocketed += mesh.mShape.mPocketed ? 1 : 0;
-            tangentMeshes += std::ranges::any_of(mesh.mVertices.in(scene.meshes().getTangents()),
-                                 [](const std::uint32_t word) { return word != 0; })
-                ? 1
-                : 0;
+            tangentMeshes += mesh.mTangents ? 1 : 0;
         }
 
         out

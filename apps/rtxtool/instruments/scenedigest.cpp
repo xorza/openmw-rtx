@@ -1,7 +1,6 @@
 #include "scenedigest.hpp"
 
-#include <algorithm>
-#include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -11,8 +10,6 @@
 
 #include <osg/BoundingBox>
 #include <osg/Matrixf>
-#include <osg/Vec2f>
-#include <osg/Vec3f>
 
 #include <components/misc/hashstate.hpp>
 #include <components/rtx/common/runs.hpp>
@@ -238,24 +235,6 @@ namespace RtxTool
             return whole.getWords();
         }
 
-        /// A table in blocks hashed a block at a time. One block or none hashes as the flat span would, so its words
-        /// match a flat table's; past one block the spans chain through the seed.
-        template <class T>
-        void addBlocks(Misc::HashState& digest, const Rtx::BlockedValues<T>& table)
-        {
-            if (table.size() == 0)
-                digest.add(std::span<const T>());
-            table.forEachBlock([&](const std::span<const T> block) { digest.add(block); });
-        }
-
-        template <class T>
-        Misc::DigestWords wordsOf(const Rtx::BlockedValues<T>& table)
-        {
-            Misc::HashState whole;
-            addBlocks(whole, table);
-            return whole.getWords();
-        }
-
         /// A column of rows: every field of every row laid end to end in one buffer, so the column
         /// is one hash over its bytes and not one hash per field.
         class Column
@@ -293,72 +272,13 @@ namespace RtxTool
             std::vector<std::byte>& mScratch;
         };
 
-        /// One corner of a triangle, as the picture sees it.
-        struct Corner
-        {
-            osg::Vec3f mPosition;
-            std::uint32_t mNormal = 0;
-            osg::Vec2f mTexCoord;
-
-            /// `Rtx::Shaders::GpuVertexColour`'s two words, which order as a pair.
-            std::array<std::uint32_t, 2> mColour{};
-            std::uint32_t mTangent = 0;
-
-            bool operator<(const Corner& other) const
-            {
-                return std::tie(mPosition, mNormal, mTexCoord, mColour, mTangent)
-                    < std::tie(other.mPosition, other.mNormal, other.mTexCoord, other.mColour, other.mTangent);
-            }
-        };
-
-        void addCorner(Misc::HashState& digest, const Corner& corner)
-        {
-            digest.add(corner.mPosition);
-            digest.add(corner.mNormal);
-            digest.add(corner.mTexCoord);
-            digest.add(corner.mColour);
-
-            // Only where there is one, so a corner with none digests to the words on record.
-            if (corner.mTangent != 0)
-                digest.add(corner.mTangent);
-        }
-
-        /// A shape as the multiset of its triangles, each turned to start at its least corner so
-        /// that the winding survives and the corner it happens to be spelt from does not.
-        Unordered digestTriangles(const Rtx::SceneDesc& scene, const Rtx::MeshRange& mesh)
-        {
-            Unordered triangles;
-            const std::span<const std::uint32_t> indices = mesh.mIndices.in(scene.meshes().getIndices());
-            for (std::size_t at = 0; at + 2 < indices.size(); at += 3)
-            {
-                std::array<Corner, 3> corners;
-                for (std::size_t corner = 0; corner < 3; ++corner)
-                {
-                    const std::uint32_t vertex = mesh.mVertices.mOffset + indices[at + corner];
-                    const Rtx::Shaders::GpuVertexColour& colour = scene.meshes().getColours()[vertex];
-                    corners[corner] = Corner{ scene.meshes().getPositions()[vertex],
-                        scene.meshes().getNormals()[vertex], scene.meshes().getTexCoords()[vertex],
-                        { colour.mRedGreen, colour.mBlue }, scene.meshes().getTangents()[vertex] };
-                }
-
-                const auto least
-                    = static_cast<std::size_t>(std::min_element(corners.begin(), corners.end()) - corners.begin());
-
-                Misc::HashState triangle;
-                for (std::size_t corner = 0; corner < 3; ++corner)
-                    addCorner(triangle, corners[(least + corner) % 3]);
-                triangles.add(triangle);
-            }
-
-            return triangles;
-        }
-
         /// A mesh's shape: the multiset of its triangles, and what deforms it where something does: its deformer's
         /// kind, rows, runs, influences and morph offsets, which the device poses it by.
-        Misc::DigestWords shapeOf(const Rtx::SceneDesc& scene, const Rtx::MeshRange& mesh)
+        Misc::DigestWords shapeOf(const Rtx::SceneDesc& scene, const Rtx::Index at)
         {
+            const Rtx::MeshRange& mesh = scene.meshes().getRows()[at];
             Misc::HashState shape;
-            shape.add(digestTriangles(scene, mesh).getWords());
+            shape.add(mesh.mVertices.empty() ? Misc::DigestWords{} : scene.meshes().getDigest(at).mTriangles);
             const Rtx::DeformerTable& deformers = scene.deformers();
             shape.add(deformers.kindOf(mesh));
             if (mesh.deforms())
@@ -380,7 +300,7 @@ namespace RtxTool
         {
             mShapes.resize(meshes.size());
             for (std::size_t at = 0; at < meshes.size(); ++at)
-                mShapes[at] = shapeOf(scene, meshes[at]);
+                mShapes[at] = shapeOf(scene, static_cast<Rtx::Index>(at));
             mShapesRevision = scene.meshes().getRevision();
         }
 
@@ -473,40 +393,25 @@ namespace RtxTool
 
     void SceneDigester::digestVertices(const Rtx::SceneDesc& scene)
     {
+        // **Each stream as the meshes standing in it digested as they arrived** (`Rtx::MeshTable::keepDigests`), by
+        // slot: the host keeps no geometry past its hand-over. A resting mesh stands in its runs too; a slot given
+        // back holds nothing a frame reads.
         const Rtx::MeshTable& meshes = scene.meshes();
-        const Vertices now{ .mRevision = meshes.getRevision(),
-            .mLengths = { meshes.getPositions().size(), meshes.getNormals().size(), meshes.getTexCoords().size(),
-                meshes.getSecondTexCoords().size(), meshes.getColours().size(), meshes.getIndices().size() } };
-        if (mVertices == now)
-            return;
-
-        take(ScenePart::Positions, wordsOf(meshes.getPositions()));
-
-        // The tangents are the normals' part, and only where a mesh has any, so a scene with none digests to the
-        // words on record.
-        Misc::HashState normals;
-        addBlocks(normals, meshes.getNormals());
-        bool tangents = false;
-        meshes.getTangents().forEachBlock([&](const std::span<const std::uint32_t> block) {
-            tangents = tangents || std::ranges::any_of(block, [](const std::uint32_t word) { return word != 0; });
-        });
-        if (tangents)
-            addBlocks(normals, meshes.getTangents());
-        take(ScenePart::Normals, normals.getWords());
-
-        Misc::HashState texCoords;
-        addBlocks(texCoords, meshes.getTexCoords());
-        addBlocks(texCoords, meshes.getSecondTexCoords());
-        take(ScenePart::TexCoords, texCoords.getWords());
-
-        Misc::HashState colours;
-        addBlocks(colours, meshes.getColours());
-        take(ScenePart::Colours, colours.getWords());
-
-        take(ScenePart::Indices, wordsOf(meshes.getIndices()));
-
-        mVertices = now;
-        ++mVertexHashes;
+        assert(meshes.keepsDigests() && "a scene digested whose meshes keep no digest");
+        const std::span<const Rtx::MeshRange> rows = meshes.getRows();
+        const auto column = [&](const ScenePart part, Misc::DigestWords Rtx::MeshDigest::* const stream) {
+            Column digests(mScratch);
+            for (std::size_t at = 0; at < rows.size(); ++at)
+                if (!rows[at].mVertices.empty())
+                    digests.addFields(
+                        std::tuple(static_cast<Rtx::Index>(at), meshes.getDigest(static_cast<Rtx::Index>(at)).*stream));
+            take(part, digests.take());
+        };
+        column(ScenePart::Positions, &Rtx::MeshDigest::mPositions);
+        column(ScenePart::Normals, &Rtx::MeshDigest::mNormals);
+        column(ScenePart::TexCoords, &Rtx::MeshDigest::mTexCoords);
+        column(ScenePart::Colours, &Rtx::MeshDigest::mColours);
+        column(ScenePart::Indices, &Rtx::MeshDigest::mIndices);
     }
 
     const ScenePartDigests& SceneDigester::digest(

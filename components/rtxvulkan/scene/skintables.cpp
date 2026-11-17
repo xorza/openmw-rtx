@@ -92,12 +92,13 @@ namespace Rtx
             if (!mesh.deforms() || mesh.mVertices.mCount == 0)
                 continue;
 
+            const MeshGeometry geometry = scene.meshes().getArrival(index);
             stageInto(batch, mBindPositions.get(), VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f),
-                std::as_bytes(scene.meshes().getMeshPositions(index)));
+                std::as_bytes(geometry.mPositions));
             stageInto(batch, mBindNormals.get(), VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t),
-                std::as_bytes(mesh.mVertices.in(scene.meshes().getNormals())));
+                std::as_bytes(geometry.mNormals));
             stageInto(batch, mBindTangents.get(), VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t),
-                std::as_bytes(mesh.mVertices.in(scene.meshes().getTangents())));
+                std::as_bytes(geometry.mTangents));
         }
 
         // A freed slot deforms nothing and holds no run to write.

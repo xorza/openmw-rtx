@@ -685,8 +685,8 @@ namespace Rtx::Testing
             // the eye's own cell asks for one only its bounces read, and the eye reads its stack.
             const std::optional<MeshInstance> far = groundOf(osg::Vec2i(3, 0));
             ASSERT_TRUE(far.has_value());
-            EXPECT_EQ(mScene.meshes().getMeshPositions(far->mMesh)[0], FakeLand::positionAt(0, 0));
-            EXPECT_EQ(mScene.meshes().getMeshPositions(far->mMesh).size(),
+            EXPECT_EQ(mScene.meshes().getArrival(far->mMesh).mPositions[0], FakeLand::positionAt(0, 0));
+            EXPECT_EQ(mScene.meshes().getArrival(far->mMesh).mPositions.size(),
                 static_cast<std::size_t>(FakeLand::sVerts) * FakeLand::sVerts);
             {
                 const Material& material = mScene.materials().getRows()[far->mMaterial];

@@ -169,7 +169,7 @@ namespace Rtx
             // **One length, because the pass writes one space**, the bind offsets: the poses, normals and tangents
             // hold the four deforming quads and not the static one between them, whose normals are the scene's one
             // copy and never posed.
-            const auto vertices = static_cast<std::uint32_t>(scene.meshes().getPositions().size());
+            const std::uint32_t vertices = scene.meshes().getVertexRuns().getEnd();
             const std::uint32_t posedVertices = scene.deformers().getBindVertexCount();
             EXPECT_EQ(vertices, 20u) << "five quads of four vertices";
             EXPECT_EQ(posedVertices, 16u) << "the static quad took a run among the posed vertices";

@@ -90,7 +90,7 @@ namespace Rtx::Testing
 
             // Two slots, and the new one carries its own vertices rather than the retired one's.
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
-            EXPECT_EQ(mScene.meshes().getMeshPositions(1)[0].z(), 5.0f);
+            EXPECT_EQ(mScene.meshes().getArrival(1).mPositions[0].z(), 5.0f);
 
             // **And the sweep is what lets go**, into the extractor's sink and not on the frame thread: the drawable
             // outlives its entry by the sink's one reference, until the owner hands the sink to whatever releases the
@@ -398,7 +398,7 @@ namespace Rtx::Testing
             // leave without renumbering every mesh in the world.
             ASSERT_EQ(mScene.meshes().getRows().size(), 3u);
             EXPECT_EQ(mScene.meshes().getRows()[1].mVertices.mCount, 0u) << "the middle slot should be free";
-            EXPECT_EQ(mScene.meshes().getMeshPositions(2)[0].z(), 7.0f) << "a survivor moved";
+            EXPECT_EQ(mScene.meshes().getArrival(2).mPositions[0].z(), 7.0f) << "a survivor moved";
 
             mScene.clearPlacement();
             const ExtractionStats after = walk(*less);
