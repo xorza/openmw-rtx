@@ -436,6 +436,8 @@ namespace MWRender
             .mRestingTextures = static_cast<std::uint32_t>(mScene.textures().getResting().getCount()),
             .mRestingTextureBytes = mScene.textures().getResting().getBytes(),
             .mReader = mRing.getReaderMemory(),
+            .mPrepared = mWalk.mPrepared != nullptr ? mWalk.mPrepared->getHeld() : Rtx::PreparedHeld{},
+            .mRing = mRing.countStanding(),
         };
     }
 

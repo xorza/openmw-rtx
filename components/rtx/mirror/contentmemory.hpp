@@ -3,6 +3,8 @@
 #include <cstdint>
 
 #include <components/rtx/mirror/cells/readermemory.hpp>
+#include <components/rtx/mirror/cells/ringstanding.hpp>
+#include <components/rtx/preprocess/preparedheld.hpp>
 
 namespace Rtx
 {
@@ -38,5 +40,12 @@ namespace Rtx
         std::uint64_t mRestingTextureBytes = 0;
 
         ReaderMemory mReader;
+
+        /// What the files' chains made again and texels read hold that no slot was handed (`PreparedImages`), and the
+        /// slots that left while theirs were read; nought with none.
+        PreparedHeld mPrepared{};
+
+        /// What the ring holds against what stands, by distance (`CellRing::countStanding`).
+        RingStanding mRing{};
     };
 }

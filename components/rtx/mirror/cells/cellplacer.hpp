@@ -25,6 +25,7 @@
 #include "held.hpp"
 #include "nightday.hpp"
 #include "prepared.hpp"
+#include "ringstanding.hpp"
 
 namespace Rtx
 {
@@ -168,6 +169,10 @@ namespace Rtx
         /// nowhere else; no slot under the ring's name is one no cell holds. What `place` keeps, asked after it, for an
         /// assert.
         bool standsAsHeld(const WorldAround& around) const;
+
+        /// What the held cells hold against what stands, by each cell's distance from `eye`, the eye's cell. A walk
+        /// of every placement, for a report.
+        RingStanding countStanding(const osg::Vec2i& eye) const;
 
     private:
         /// What the cell tables are ordered by, stated once so that no search can disagree with the

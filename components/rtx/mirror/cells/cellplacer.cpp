@@ -4,12 +4,15 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <ranges>
 #include <span>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include <osg/Matrixf>
 
@@ -593,6 +596,48 @@ namespace Rtx
 
         if (cell.mGround.mStands)
             drop(cell.mGround.mStood, mGroundPlaced);
+    }
+
+    RingStanding CellPlacer::countStanding(const osg::Vec2i& eye) const
+    {
+        // Each mesh at the nearest cell holding it, and standing where any placement of it stands anywhere.
+        constexpr std::uint8_t sNowhere = std::numeric_limits<std::uint8_t>::max();
+        static_assert(sRingDistances < sNowhere, "a distance told from a mesh no cell holds");
+        const std::span<const MeshRange> meshes = mScene.meshes().getRows();
+        std::vector<std::uint8_t> nearest(meshes.size(), sNowhere);
+        std::vector<bool> standing(meshes.size(), false);
+
+        RingStanding counted;
+        for (const HeldCell& cell : mCells)
+        {
+            const std::int32_t away = std::max(std::abs(cell.mCell.x() - eye.x()), std::abs(cell.mCell.y() - eye.y()));
+            const auto distance
+                = static_cast<std::uint8_t>(std::min(static_cast<std::size_t>(away), sRingDistances - 1));
+            RingDistance& at = counted.mByDistance[distance];
+            for (const Placement& placement : cell.mPlacements)
+            {
+                const bool stood = placement.mStood.isStanding();
+                ++at.mPlacements;
+                at.mPlacementsStanding += stood ? 1 : 0;
+                const Index mesh = placement.mStood.mMesh;
+                assert(mesh < meshes.size() && "a placement of a mesh the scene does not hold");
+                nearest[mesh] = std::min(nearest[mesh], distance);
+                standing[mesh] = standing[mesh] || stood;
+            }
+        }
+
+        for (std::size_t mesh = 0; mesh < meshes.size(); ++mesh)
+        {
+            if (nearest[mesh] == sNowhere)
+                continue;
+            RingDistance& at = counted.mByDistance[nearest[mesh]];
+            const std::uint32_t vertices = meshes[mesh].mVertices.mCount;
+            ++at.mMeshes;
+            at.mVertices += vertices;
+            at.mMeshesStanding += standing[mesh] ? 1 : 0;
+            at.mVerticesStanding += standing[mesh] ? vertices : 0;
+        }
+        return counted;
     }
 
     bool CellPlacer::standsAsHeld(const WorldAround& around) const

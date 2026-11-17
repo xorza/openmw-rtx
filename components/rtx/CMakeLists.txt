@@ -173,6 +173,7 @@ openmw_rtx_layer(
         preprocess/shape/pockettree.cpp
         preprocess/shape/shapefold.cpp
         preprocess/shape/shapepass.cpp
+        preprocess/texelreads.cpp
         preprocess/texture/chainpass.cpp
         preprocess/texture/conversionpass.cpp
         preprocess/texture/texturepass.cpp
@@ -183,6 +184,7 @@ openmw_rtx_layer(
         preprocess/contentpreprocessor.hpp
         preprocess/contentstats.hpp
         preprocess/imagefactcache.hpp
+        preprocess/preparedheld.hpp
         preprocess/preparedimages.hpp
         preprocess/shape/creasesplit.hpp
         preprocess/shape/facecross.hpp
@@ -190,6 +192,7 @@ openmw_rtx_layer(
         preprocess/shape/probetable.hpp
         preprocess/shape/shapefold.hpp
         preprocess/shape/shapepass.hpp
+        preprocess/texelreads.hpp
         preprocess/texture/chainpass.hpp
         preprocess/texture/chainscratch.hpp
         preprocess/texture/conversionpass.hpp
@@ -322,6 +325,7 @@ openmw_rtx_layer(
         mirror/cells/nightday.hpp
         mirror/cells/prepared.hpp
         mirror/cells/readermemory.hpp
+        mirror/cells/ringstanding.hpp
         mirror/cells/templatewalk.hpp
         mirror/chainkeys.hpp
         mirror/contentmemory.hpp

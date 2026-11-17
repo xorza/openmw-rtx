@@ -485,14 +485,6 @@ in any item.
 
 ### 8. Meters, a harness that runs as the game, and a baseline
 
-The meters. A stop's end logs, and the report keeps the run's peak of:
-
-1. image loads by cause (header, fact, key, retake after an eviction, a move up, a partner) with their bytes, and how
-   many chain jobs found their chain whole in the store;
-2. what the prepared images hold unhanded, in entries and bytes, and how many slots left while pending;
-3. the ring's meshes with no placement, and its placements with no slot, by the cell's distance;
-4. the reader's capacity against its content; loaded cell stores; the caches' "looks for room finding all in use".
-
 Then the baseline: tours of the three contents on the desk, the handheld and Windows, to `docs/research/`, which every
 later item is held against, each flown twice, so a leg's worst frame has its own spread beside it. The note keeps
 every leg's worst frame with what led it, and every outrun. A tour now expires the timer caches as play does and reaches doors as far as a player; what that does to a flight's worst frames is read off it, and a grid reach scaled apart from the doors' is proposed with that figure if a flight needs it. One handheld tour more of each content as tours ran
@@ -620,6 +612,14 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **8. Meters**: each stop's place in the report states them and the run's end names each peak with its stop; the
+  device's vertex attributes and indices are counted apart from its tables. Image loads are counted as the fork's asks
+  of a header for its texels, by why (a fact, a slot's file, a partner, the preparation) with their bytes, beside the
+  image cache's own loads: a load by cause needs the cause carried into `ImageManager::getImage`, an upstream change no
+  approval names, and the header's own read is upstream's `getModelImage`. A retake after an eviction and a move up
+  are one cause, a slot's file: telling them apart needs the uploader's reason carried through `PreparedImages::find`,
+  and item 13 removes the move up.
 
 - **7. Platform branches**: MSVC's warning pragmas around third-party headers stay, a compiler's and not a system's;
   so does `OMW_NO_UNIQUE_ADDRESS`, item 2's.

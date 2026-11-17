@@ -21,6 +21,7 @@
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 
 #include "contentstats.hpp"
+#include "preparedheld.hpp"
 
 namespace ContentStore
 {
@@ -107,6 +108,10 @@ namespace Rtx
         /// How many asks the table remembers, made or queued: what a test of the sweep reads.
         std::size_t getEntryCount();
 
+        /// What the entries hold that no slot was handed, made chains and files' texels, and how many slots let go of
+        /// their file while it was pending since the table was made. A walk of every entry, for a report.
+        PreparedHeld getHeld();
+
         /// What every hand keeps of its chains' scratch, asked while `isIdle`: nought, as a hand lets go of
         /// it once the queue is drained. What a test reads.
         std::size_t getScratchBytes();
@@ -177,6 +182,7 @@ namespace Rtx
         std::deque<Job> mQueue;
         std::int32_t mInFlight = 0;
         ContentStats mStats;
+        std::uint64_t mLeftPending = 0;
 
         /// Each thread's own preprocessor and its thread, last, so the threads are joined before the members they read
         /// go.

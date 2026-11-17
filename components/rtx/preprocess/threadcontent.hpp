@@ -16,6 +16,7 @@
 
 #include "contentpreprocessor.hpp"
 #include "imagefactcache.hpp"
+#include "texelreads.hpp"
 
 namespace Rtx
 {
@@ -116,7 +117,7 @@ namespace Rtx
                 if (const std::optional<Fact>& known = shared.mFacts.*member; known.has_value())
                     return *known;
             }
-            const Fact made = read(*Resource::texelsOf(image));
+            const Fact made = read(*readTexels(image, TexelRead::Fact, mPreprocessor.texelReads()));
             const std::scoped_lock lock(shared.mMutex);
             shared.mFacts.*member = made;
             return made;

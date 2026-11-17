@@ -16,6 +16,7 @@
 #include <components/sceneutil/embeddedimage.hpp>
 
 #include "contentpreprocessor.hpp"
+#include "texelreads.hpp"
 
 namespace Rtx
 {
@@ -162,7 +163,10 @@ namespace Rtx
             };
             auto entry = mEntries.lower_bound(Key{ &file, TextureEncoding{}, TextureWrap{}, nullptr });
             while (entry != mEntries.end() && std::get<0>(entry->first) == &file)
+            {
+                mLeftPending += entry->second.mMade ? 0 : 1;
                 entry = handed(entry->second) ? mEntries.erase(entry) : std::next(entry);
+            }
             return false;
         });
         Resource::releaseTexels(file);
@@ -186,6 +190,22 @@ namespace Rtx
     std::size_t PreparedImages::getEntryCount()
     {
         return mMonitor.under([&] { return mEntries.size(); });
+    }
+
+    PreparedHeld PreparedImages::getHeld()
+    {
+        return mMonitor.under([&] {
+            PreparedHeld held{ .mLeftPending = mLeftPending };
+            for (const auto& [key, entry] : mEntries)
+            {
+                if (entry.mHeld == nullptr && entry.mFileHeld == nullptr)
+                    continue;
+                ++held.mEntries;
+                held.mBytes += entry.mHeld != nullptr ? entry.mHeld->getBytes().size() : 0;
+                held.mBytes += entry.mFileHeld != nullptr ? entry.mFileHeld->getTotalSizeInBytesIncludingMipmaps() : 0;
+            }
+            return held;
+        });
     }
 
     std::size_t PreparedImages::getScratchBytes()
@@ -243,14 +263,16 @@ namespace Rtx
             },
             [&](const std::stop_token&) {
                 // Through the header a model holds, from its manager's cache or the file again.
-                osg::ref_ptr<const osg::Image> pixels = Resource::texelsOf(*job.mFile);
+                osg::ref_ptr<const osg::Image> pixels
+                    = readTexels(*job.mFile, TexelRead::File, hand.mContent.texelReads());
                 const osg::Image& file = *pixels;
                 const auto [image, encoding, wrap, partner] = job.mKey;
 
                 std::optional<MadeLayout> layout;
                 if (job.mMakes && job.mPartner != nullptr)
                 {
-                    const osg::ref_ptr<const osg::Image> partnerPixels = Resource::texelsOf(*job.mPartner);
+                    const osg::ref_ptr<const osg::Image> partnerPixels
+                        = readTexels(*job.mPartner, TexelRead::Partner, hand.mContent.texelReads());
                     const ConversionPass::Input input{
                         .mImage = file, .mPartner = *partnerPixels, .mEncoding = encoding, .mWrap = wrap
                     };
@@ -286,7 +308,13 @@ namespace Rtx
                 // left on this thread** once the job counts as done: a waiter that `flush` let go may drop
                 // the last reference it holds and find the image or the file gone, which a reference here
                 // kept alive a moment longer.
-                const ContentStats stats = hand.mContent.takeStats();
+                ContentStats stats = hand.mContent.takeStats();
+                // A chain the store answered whole reads nothing of its file for the upload: the figure a chain
+                // found coarser, which reads the file's finest level, is told apart by.
+                const std::uint32_t found
+                    = stats.at(ContentPassId::Chain).mHits + stats.at(ContentPassId::Conversion).mHits;
+                if (found > 0 && made != nullptr && made->getWholeFormat().has_value())
+                    ++stats.mTexelReads.mChainsFoundWhole;
                 mMonitor.hand([&] {
                     mStats += stats;
                     --mInFlight;

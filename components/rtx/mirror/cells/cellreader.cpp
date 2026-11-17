@@ -427,6 +427,8 @@ namespace Rtx
             const bool lent = model.mLent > 0;
             (spare ? measured.mSpareModels : lent ? measured.mLentModels : measured.mFiledModels) += 1;
             (spare ? measured.mSpareBytes : lent ? measured.mLentBytes : measured.mFiledBytes) += model.getRoomBytes();
+            if (!spare)
+                (lent ? measured.mLentContentBytes : measured.mFiledContentBytes) += model.getContentBytes();
         });
         return measured;
     }

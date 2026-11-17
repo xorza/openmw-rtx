@@ -143,6 +143,10 @@ namespace Rtx
         /// trace draws them — `CellPlacer::placementsIn`. Valid until the next walk.
         std::span<const Placement> placementsIn(const osg::Vec2i& cell) const { return mPlacer.placementsIn(cell); }
 
+        /// What the held cells hold against what stands, by each cell's distance from the eye's cell as the last
+        /// `follow` said it (`CellPlacer::countStanding`).
+        RingStanding countStanding() const { return mPlacer.countStanding(mAround.mWorld.mGrid.cellOf(mAround.mEye)); }
+
     private:
         /// Whether the supply handed over and the frame has not adopted `cell`'s, a cell or a
         /// cell's grass, as `list` holds them.

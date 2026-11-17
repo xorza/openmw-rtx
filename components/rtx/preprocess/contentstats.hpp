@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "contentpass.hpp"
+#include "texelreads.hpp"
 
 namespace Rtx
 {
@@ -33,6 +34,7 @@ namespace Rtx
     struct ContentStats
     {
         std::array<PassStats, sContentPassCount> mPasses{};
+        TexelReads mTexelReads{};
 
         PassStats& at(ContentPassId pass) { return mPasses[static_cast<std::size_t>(pass)]; }
         const PassStats& at(ContentPassId pass) const { return mPasses[static_cast<std::size_t>(pass)]; }
@@ -55,5 +57,8 @@ namespace Rtx
         ContentStats mLoading{};
 
         Preprocessed& operator+=(const Preprocessed& other);
+
+        /// The asks for a header's texels of every thread together.
+        TexelReads getTexelReads() const;
     };
 }

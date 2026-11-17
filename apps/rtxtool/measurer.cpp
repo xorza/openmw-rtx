@@ -16,8 +16,10 @@
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/openmw/mwrender/rtx/worldmirror.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/framehashes.hpp>
 #include <apps/rtxtool/instruments/frametimes.hpp>
@@ -34,6 +36,8 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
+#include <components/resource/cachebudget.hpp>
+#include <components/resource/resourcesystem.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -51,6 +55,19 @@ namespace RtxTool
         /// How long a stop waits on a paused world before it gives up, in seconds of world: what the session can
         /// lift, a menu, lifts within a frame or two, so a pause that outlasts a hundred times that is one it cannot.
         constexpr float sPauseSeconds = 2.0f;
+
+        /// What the game holds beside the renderer now: a walk of every cell store it made.
+        GameHeld readGameHeld()
+        {
+            GameHeld held;
+            MWWorld::WorldModel& model = *MWBase::Environment::get().getWorldModel();
+            model.forEachLoadedCellStore([&](const MWWorld::CellStore& store) {
+                held.mLoadedCells += store.getState() == MWWorld::CellStore::State_Loaded ? 1 : 0;
+                held.mPreloadedCells += store.getState() == MWWorld::CellStore::State_Preloaded ? 1 : 0;
+            });
+            held.mStarvedLooks = MWBase::Environment::get().getResourceSystem()->getCacheBudget().getStarvedLooks();
+            return held;
+        }
     }
 
     Measurer::Measurer(const SessionRequest& request, RunRecord& record)
@@ -442,6 +459,8 @@ namespace RtxTool
         place.mScene = renderer.getSceneStats();
         place.mMemory = renderer.getMemoryReport();
         place.mContent = context.mMirror.getContentMemory();
+        place.mTexelReads = report.mWalked.mSession.getTexelReads();
+        place.mGame = readGameHeld();
         place.mGpu.assign(zones.begin(), zones.end());
         place.mCounterNames.assign(mProgress.mGpu.counterNames().begin(), mProgress.mGpu.counterNames().end());
 

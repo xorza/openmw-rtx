@@ -175,18 +175,43 @@ namespace RtxTool
         std::string asJson(const Rtx::ContentMemory& content)
         {
             const Rtx::ReaderMemory& reader = content.mReader;
-            return std::format(R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
-                               R"("restingVertices": {}, "restingIndices": {}, "geometryBytes": {}, )"
-                               R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
-                               R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
-                               R"("restingTextures": {}, "restingTextureBytes": {}, )"
-                               R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
-                               R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}}}}})",
-                content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed,
-                content.mRestingVertices, content.mRestingIndices, content.mGeometryBytes, content.mLayerEnd,
-                content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
-                content.mBindVertexEnd, content.mRestingTextures, content.mRestingTextureBytes, reader.mLentModels,
-                reader.mSpareModels, reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes, reader.mFiledBytes);
+            std::string out
+                = std::format(R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
+                              R"("restingVertices": {}, "restingIndices": {}, "geometryBytes": {}, )"
+                              R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
+                              R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
+                              R"("restingTextures": {}, "restingTextureBytes": {}, )"
+                              R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
+                              R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}, "lentContentBytes": {}, )"
+                              R"("filedContentBytes": {}}}, )"
+                              R"("prepared": {{"entries": {}, "bytes": {}, "leftPending": {}}}, "ring": [)",
+                    content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed,
+                    content.mRestingVertices, content.mRestingIndices, content.mGeometryBytes, content.mLayerEnd,
+                    content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
+                    content.mBindVertexEnd, content.mRestingTextures, content.mRestingTextureBytes, reader.mLentModels,
+                    reader.mSpareModels, reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes, reader.mFiledBytes,
+                    reader.mLentContentBytes, reader.mFiledContentBytes, content.mPrepared.mEntries,
+                    content.mPrepared.mBytes, content.mPrepared.mLeftPending);
+            for (std::size_t distance = 0; distance < Rtx::sRingDistances; ++distance)
+            {
+                const Rtx::RingDistance& at = content.mRing.mByDistance[distance];
+                out += std::format(R"({}{{"placements": {}, "placementsStanding": {}, "meshes": {}, )"
+                                   R"("meshesStanding": {}, "vertices": {}, "verticesStanding": {}}})",
+                    distance == 0 ? "" : ", ", at.mPlacements, at.mPlacementsStanding, at.mMeshes, at.mMeshesStanding,
+                    at.mVertices, at.mVerticesStanding);
+            }
+            return out + "]}";
+        }
+
+        std::string asJson(const Rtx::TexelReads& reads)
+        {
+            return std::format(
+                R"({{"fact": {}, "factBytes": {}, "file": {}, "fileBytes": {}, "partner": {}, )"
+                R"("partnerBytes": {}, "preparation": {}, "preparationBytes": {}, "chainsFoundWhole": {}}})",
+                reads.count(Rtx::TexelRead::Fact), reads.bytes(Rtx::TexelRead::Fact), reads.count(Rtx::TexelRead::File),
+                reads.bytes(Rtx::TexelRead::File), reads.count(Rtx::TexelRead::Partner),
+                reads.bytes(Rtx::TexelRead::Partner), reads.count(Rtx::TexelRead::Preparation),
+                reads.bytes(Rtx::TexelRead::Preparation), reads.mChainsFoundWhole);
         }
 
         std::string asJson(const Arrivals& arrivals)
@@ -388,19 +413,66 @@ namespace RtxTool
 
         return std::format(
             "  host  vertices {:.2f} M placed, {:.2f} M resting, {:.2f} M in holes of {:.2f} M reached   indices "
-            "{:.2f} M, {:.2f} M, {:.2f} M of {:.2f} M   geometry {:.1f} MiB   reader {:.1f} MiB lent in {} models, "
-            "{:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n"
+            "{:.2f} M, {:.2f} M, {:.2f} M of {:.2f} M   geometry {:.1f} MiB   reader {:.1f} MiB lent in {} models "
+            "holding {:.1f}, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {} holding {:.1f}\n"
             "  runs  layers {}   masks {}   rig runs {}   influences {}   offsets {}   pose words {}   "
-            "bind vertices {}   resting textures {}, {:.1f} MiB\n",
+            "bind vertices {}   resting textures {}, {:.1f} MiB   prepared {} unhanded, {:.1f} MiB, {} slots left "
+            "pending\n",
             (content.mVerticesUsed - content.mRestingVertices) / 1e6, content.mRestingVertices / 1e6,
             (content.mVertexEnd - content.mVerticesUsed) / 1e6, content.mVertexEnd / 1e6,
             (content.mIndicesUsed - content.mRestingIndices) / 1e6, content.mRestingIndices / 1e6,
             (content.mIndexEnd - content.mIndicesUsed) / 1e6, content.mIndexEnd / 1e6,
             Rtx::mebibytes(content.mGeometryBytes), Rtx::mebibytes(reader.mLentBytes), reader.mLentModels,
-            Rtx::mebibytes(reader.mSpareBytes), reader.mSpareModels, Rtx::mebibytes(reader.mFiledBytes),
-            reader.mFiledModels, content.mLayerEnd, content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd,
-            content.mOffsetEnd, content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures,
-            Rtx::mebibytes(content.mRestingTextureBytes));
+            Rtx::mebibytes(reader.mLentContentBytes), Rtx::mebibytes(reader.mSpareBytes), reader.mSpareModels,
+            Rtx::mebibytes(reader.mFiledBytes), reader.mFiledModels, Rtx::mebibytes(reader.mFiledContentBytes),
+            content.mLayerEnd, content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd,
+            content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures,
+            Rtx::mebibytes(content.mRestingTextureBytes), content.mPrepared.mEntries,
+            Rtx::mebibytes(content.mPrepared.mBytes), content.mPrepared.mLeftPending);
+    }
+
+    std::string describeGameHeld(const GameHeld& game)
+    {
+        if (game.mLoadedCells + game.mPreloadedCells == 0)
+            return {};
+        return std::format(
+            "  game  cell stores {} loaded, {} preloaded   caches {} looks for room finding all in use\n",
+            game.mLoadedCells, game.mPreloadedCells, game.mStarvedLooks);
+    }
+
+    std::string describeRingStanding(const Rtx::RingStanding& ring)
+    {
+        // Each distance the ring holds anything at, what stands of it beside what it holds.
+        std::string out;
+        for (std::size_t distance = 0; distance < Rtx::sRingDistances; ++distance)
+        {
+            const Rtx::RingDistance& at = ring.mByDistance[distance];
+            if (at.mPlacements == 0)
+                continue;
+            out += std::format("   {}{}: placements {} of {}, meshes {} of {}, {:.2f} of {:.2f} M vertices", distance,
+                distance + 1 == Rtx::sRingDistances ? " and past" : "", at.mPlacementsStanding, at.mPlacements,
+                at.mMeshesStanding, at.mMeshes, static_cast<double>(at.mVerticesStanding) / 1e6,
+                static_cast<double>(at.mVertices) / 1e6);
+        }
+        return out.empty() ? std::string() : "  ring  standing of held by distance" + out + "\n";
+    }
+
+    std::string describeTexelReads(const Rtx::TexelReads& reads)
+    {
+        // Said only where a header was asked at all: a renderer that reads no file through one asks nothing.
+        std::uint64_t asked = 0;
+        for (const std::uint32_t count : reads.mCounts)
+            asked += count;
+        if (asked == 0)
+            return {};
+
+        std::string out = "  texels asked";
+        for (const auto& [why, name] : { std::pair{ Rtx::TexelRead::Fact, "fact" },
+                 std::pair{ Rtx::TexelRead::File, "file" }, std::pair{ Rtx::TexelRead::Partner, "partner" },
+                 std::pair{ Rtx::TexelRead::Preparation, "preparation" } })
+            out += std::format("   {} {} ({:.1f} MiB)", name, reads.count(why), Rtx::mebibytes(reads.bytes(why)));
+        out += std::format("   chains found whole {}\n", reads.mChainsFoundWhole);
+        return out;
     }
 
     std::string describeHeader(const BenchHeader& header)
@@ -467,6 +539,9 @@ namespace RtxTool
         out += Rtx::describeMemory(place.mMemory);
 
         out += describeHostHeld(place.mContent);
+        out += describeRingStanding(place.mContent.mRing);
+        out += describeGameHeld(place.mGame);
+        out += describeTexelReads(place.mTexelReads);
 
         // How much of the frame hit something is what tells "the cell rendered" from "the camera faced away".
         if (place.mHitPercent > 0.0)
@@ -584,7 +659,9 @@ namespace RtxTool
             file << std::format(R"(    {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
                 asJson(place.mCell), jsonNumber(place.mHour, 4), asJson(place.mWeather))
                  << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
-                 << R"(, "content": )" << asJson(place.mContent)
+                 << R"(, "content": )" << asJson(place.mContent) << R"(, "texelReads": )" << asJson(place.mTexelReads)
+                 << std::format(R"(, "game": {{"loadedCells": {}, "preloadedCells": {}, "starvedLooks": {}}})",
+                        place.mGame.mLoadedCells, place.mGame.mPreloadedCells, place.mGame.mStarvedLooks)
                  << std::format(R"(, "frames": {}, "wallSeconds": {}, "hitPercent": {}, )", place.mFrames,
                         jsonNumber(place.mWallSeconds, 4), jsonNumber(place.mHitPercent, 2))
                  << R"("crossings": )" << asJson(place.mCrossings) << R"(, "arrivals": )" << asJson(place.mArrivals)

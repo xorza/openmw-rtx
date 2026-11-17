@@ -31,38 +31,106 @@ namespace RtxTool
             return uses.mFrame + uses.mEssential + uses.mStructures + uses.mTextures;
         }
 
-        /// The stop whose end found the device holding the most by use, as one line, or nothing from a renderer that
-        /// does not say.
-        std::string describeDevicePeak(const std::vector<BenchPlace>& places)
+        /// The meshes the ring holds that stand in no placement, and their vertices, at every distance together.
+        struct Unstood
         {
-            const auto peak
-                = std::max_element(places.begin(), places.end(), [](const BenchPlace& a, const BenchPlace& b) {
-                      return heldByUse(a.mMemory.mUses) < heldByUse(b.mMemory.mUses);
-                  });
-            if (peak == places.end() || heldByUse(peak->mMemory.mUses) == 0)
-                return {};
-            return std::format("\nthe device held at most {:.1f} MiB by use, at {}: {}\n",
-                Rtx::mebibytes(heldByUse(peak->mMemory.mUses)), peak->mView, Rtx::describeUses(peak->mMemory.mUses));
+            std::uint64_t mMeshes = 0;
+            std::uint64_t mVertices = 0;
+        };
+
+        Unstood unstoodOf(const Rtx::RingStanding& ring)
+        {
+            Unstood unstood;
+            for (const Rtx::RingDistance& at : ring.mByDistance)
+            {
+                unstood.mMeshes += at.mMeshes - at.mMeshesStanding;
+                unstood.mVertices += at.mVertices - at.mVerticesStanding;
+            }
+            return unstood;
         }
 
-        /// The stop whose end found the geometry reaching furthest, on the host and the device together, as one line,
-        /// or nothing where no stop held any.
-        std::string describeGeometryPeak(const std::vector<BenchPlace>& places)
+        std::uint64_t readerRoomOf(const Rtx::ReaderMemory& reader)
         {
-            const auto reach
-                = [](const BenchPlace& place) { return place.mContent.mGeometryBytes + place.mScene.mGeometryBytes; };
+            return reader.mLentBytes + reader.mSpareBytes + reader.mFiledBytes;
+        }
+
+        /// The place whose end found `key` at its most, or null where none found any: what a run's peak of a figure
+        /// each stop's end measured names.
+        template <class Key>
+        const BenchPlace* peakOf(const std::vector<BenchPlace>& places, Key key)
+        {
             const auto peak = std::max_element(places.begin(), places.end(),
-                [&](const BenchPlace& a, const BenchPlace& b) { return reach(a) < reach(b); });
-            if (peak == places.end() || reach(*peak) == 0)
-                return {};
-            const Rtx::ContentMemory& content = peak->mContent;
-            return std::format(
-                "the geometry reached at most {:.2f} M vertices and {:.2f} M indices, at {}: {:.2f} M and {:.2f} M of "
-                "them resting, {:.2f} M and {:.2f} M in holes; {:.1f} MiB on the host, {:.1f} MiB on the device\n",
-                content.mVertexEnd / 1e6, content.mIndexEnd / 1e6, peak->mView, content.mRestingVertices / 1e6,
-                content.mRestingIndices / 1e6, (content.mVertexEnd - content.mVerticesUsed) / 1e6,
-                (content.mIndexEnd - content.mIndicesUsed) / 1e6, Rtx::mebibytes(content.mGeometryBytes),
-                Rtx::mebibytes(peak->mScene.mGeometryBytes));
+                [&](const BenchPlace& a, const BenchPlace& b) { return key(a) < key(b); });
+            return peak == places.end() || key(*peak) == 0 ? nullptr : &*peak;
+        }
+
+        /// A run's peak of each figure a stop's end measured, a line each, with the stop that found it; the counts
+        /// that only grow are the last stop's. A figure no stop found is left out, as a renderer that does not say it.
+        std::string describePeaks(const std::vector<BenchPlace>& places)
+        {
+            std::string out;
+            if (const BenchPlace* const peak
+                = peakOf(places, [](const BenchPlace& place) { return heldByUse(place.mMemory.mUses); }))
+                out += std::format("the device held at most {:.1f} MiB by use, at {}: {}\n",
+                    Rtx::mebibytes(heldByUse(peak->mMemory.mUses)), peak->mView,
+                    Rtx::describeUses(peak->mMemory.mUses));
+
+            if (const BenchPlace* const peak = peakOf(places, [](const BenchPlace& place) {
+                    return place.mContent.mGeometryBytes + place.mScene.mGeometryBytes;
+                }))
+            {
+                const Rtx::ContentMemory& content = peak->mContent;
+                out += std::format(
+                    "the geometry reached at most {:.2f} M vertices and {:.2f} M indices, at {}: {:.2f} M and {:.2f} M "
+                    "of them resting, {:.2f} M and {:.2f} M in holes; {:.1f} MiB on the host, {:.1f} MiB on the "
+                    "device\n",
+                    content.mVertexEnd / 1e6, content.mIndexEnd / 1e6, peak->mView, content.mRestingVertices / 1e6,
+                    content.mRestingIndices / 1e6, (content.mVertexEnd - content.mVerticesUsed) / 1e6,
+                    (content.mIndexEnd - content.mIndicesUsed) / 1e6, Rtx::mebibytes(content.mGeometryBytes),
+                    Rtx::mebibytes(peak->mScene.mGeometryBytes));
+            }
+
+            if (const BenchPlace* const peak
+                = peakOf(places, [](const BenchPlace& place) { return unstoodOf(place.mContent.mRing).mMeshes; }))
+            {
+                const Unstood unstood = unstoodOf(peak->mContent.mRing);
+                out += std::format(
+                    "the ring held at most {} meshes standing in no placement, {:.2f} M vertices, at {}\n",
+                    unstood.mMeshes, static_cast<double>(unstood.mVertices) / 1e6, peak->mView);
+            }
+
+            if (const BenchPlace* const peak
+                = peakOf(places, [](const BenchPlace& place) { return place.mContent.mPrepared.mBytes; }))
+                out += std::format("the prepared images held at most {} unhanded, {:.1f} MiB, at {}\n",
+                    peak->mContent.mPrepared.mEntries, Rtx::mebibytes(peak->mContent.mPrepared.mBytes), peak->mView);
+
+            if (const BenchPlace* const peak
+                = peakOf(places, [](const BenchPlace& place) { return readerRoomOf(place.mContent.mReader); }))
+            {
+                const Rtx::ReaderMemory& reader = peak->mContent.mReader;
+                out += std::format("the reader held at most {:.1f} MiB of room for {:.1f} MiB of models, at {}\n",
+                    Rtx::mebibytes(readerRoomOf(reader)),
+                    Rtx::mebibytes(reader.mLentContentBytes + reader.mFiledContentBytes), peak->mView);
+            }
+
+            if (const BenchPlace* const peak
+                = peakOf(places, [](const BenchPlace& place) { return place.mGame.mLoadedCells; }))
+                out += std::format(
+                    "the game held at most {} cell stores loaded, at {}\n", peak->mGame.mLoadedCells, peak->mView);
+
+            // What only grows, at the run's end.
+            if (!places.empty())
+            {
+                const BenchPlace& last = places.back();
+                if (last.mContent.mPrepared.mLeftPending > 0)
+                    out += std::format(
+                        "{} slots left while their files were read\n", last.mContent.mPrepared.mLeftPending);
+                if (last.mGame.mStarvedLooks > 0)
+                    out += std::format("{} looks for room in the caches found all in use\n", last.mGame.mStarvedLooks);
+                if (const std::string reads = describeTexelReads(last.mTexelReads); !reads.empty())
+                    out += "over the run" + reads.substr(1);
+            }
+            return out.empty() ? out : "\n" + out;
         }
     }
 
@@ -221,10 +289,9 @@ namespace RtxTool
             mReport += '\n';
         }
 
-        // **What the device held at its peak, by use**, beside the room each content use had left there: a stop's end
-        // says it, and a run's figure is its most.
-        mReport += describeDevicePeak(mPlaces);
-        mReport += describeGeometryPeak(mPlaces);
+        // **Each figure a stop's end measured, at the run's peak**, with the stop that found it: the device by use,
+        // the geometry, the ring, the prepared images, the reader and the game.
+        mReport += describePeaks(mPlaces);
 
         // **What a `check` run came to, in one line.** A suite asks every check at each of several
         // places, so the verdict is otherwise something a reader counts by hand.

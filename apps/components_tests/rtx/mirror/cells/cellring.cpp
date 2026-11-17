@@ -66,6 +66,7 @@
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
+#include <components/rtx/mirror/cells/ringstanding.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
@@ -1183,6 +1184,20 @@ namespace Rtx::Testing
             const auto three = standing();
             EXPECT_EQ(heights(three), trees({ 3, 4, 5 }));
 
+            // **What the ring holds against what stands, by distance**: both cells three from the eye's, their six
+            // trees one mesh, three of them standing; nothing held nearer or further.
+            const RingStanding held = mRing.countStanding();
+            const RingDistance& third = held.mByDistance[3];
+            EXPECT_EQ(third.mPlacements, 6u);
+            EXPECT_EQ(third.mPlacementsStanding, 3u);
+            EXPECT_EQ(third.mMeshes, 1u) << "one sheet scaled six ways";
+            EXPECT_EQ(third.mMeshesStanding, 1u);
+            EXPECT_GT(third.mVertices, 0u);
+            EXPECT_EQ(third.mVerticesStanding, third.mVertices);
+            for (std::size_t distance = 0; distance < sRingDistances; ++distance)
+                if (distance != 3)
+                    EXPECT_EQ(held.mByDistance[distance].mPlacements, 0u) << distance;
+
             mRing.setMinSize(600.0f / sDistance);
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 4u) << "the fourth clears 600";
             const auto four = standing();
@@ -1206,6 +1221,7 @@ namespace Rtx::Testing
             mRing.setMinSize(400.0f / sDistance);
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 4u) << "four of five, the disabled one skipped";
             EXPECT_EQ(heights(standing()), trees({ 2, 3, 4, 5 }));
+            EXPECT_EQ(mRing.countStanding().mByDistance[3].mPlacementsStanding, 4u) << "the disabled two held, unstood";
             mRing.setReferenceEnabled(ESM::RefNum{ 1, 0 }, true);
             EXPECT_EQ(heights(standing()), trees({ 1, 2, 3, 4, 5 })) << "enabled inside the prefix, at once";
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 5u) << "and the walk keeps it";
@@ -2198,6 +2214,11 @@ namespace Rtx::Testing
             EXPECT_EQ(lent.mFiledModels, 1u) << "the broken model, which no cell holds";
             EXPECT_EQ(lent.mLentBytes, tree.getRoomBytes());
             EXPECT_EQ(lent.mSpareBytes, 0u);
+            // What it fills of the room: its positions among it, and never past the room.
+            EXPECT_EQ(lent.mLentContentBytes, tree.getContentBytes());
+            EXPECT_GE(lent.mLentContentBytes, tree.mPositions.size() * sizeof(osg::Vec3f));
+            EXPECT_LE(lent.mLentContentBytes, lent.mLentBytes);
+            EXPECT_LE(lent.mFiledContentBytes, lent.mFiledBytes);
 
             reader.giveBack(tree);
             reader.giveBack(cell);
@@ -2209,6 +2230,8 @@ namespace Rtx::Testing
             EXPECT_EQ(spare.mFiledBytes, lent.mFiledBytes);
             EXPECT_EQ(spare.mLentBytes, 0u);
             EXPECT_EQ(spare.mSpareBytes, lent.mLentBytes) << "the spare keeps the room the lent model grew to";
+            EXPECT_EQ(spare.mLentContentBytes, 0u) << "a spare holds no model";
+            EXPECT_EQ(spare.mFiledContentBytes, lent.mFiledContentBytes);
         }
 
         /// **A model the walk refuses costs the reader nothing it keeps.** The reference is left

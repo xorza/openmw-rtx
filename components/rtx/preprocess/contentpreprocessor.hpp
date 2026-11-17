@@ -82,6 +82,9 @@ namespace Rtx
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
 
+        /// Where this thread's asks for a header's texels are counted, which the next take carries (`readTexels`).
+        TexelReads& texelReads() { return mStats.mTexelReads; }
+
         /// Appends to `into`, until it is handed null, the key of every entry an ask of a stored pass makes
         /// or finds: what a preparation files a model's walk under, so a later start asks the store for
         /// each (`PreparationManifest`). Null, as made, for none.

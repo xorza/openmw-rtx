@@ -20,7 +20,6 @@
 #include <components/misc/result.hpp>
 #include <components/platform/heap.hpp>
 #include <components/platform/thread.hpp>
-#include <components/resource/imageheader.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -31,6 +30,7 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
@@ -397,10 +397,11 @@ namespace Rtx
         hand.mKeys.clear();
         hand.mContent.mPreprocessor.collectKeys(&hand.mKeys);
         // The texels through the header a model holds, for the make alone: let go of as it ends.
-        const osg::ref_ptr<const osg::Image> image = Resource::texelsOf(*queued.mImage);
+        TexelReads& reads = hand.mContent.mPreprocessor.texelReads();
+        const osg::ref_ptr<const osg::Image> image = readTexels(*queued.mImage, TexelRead::Preparation, reads);
         if (queued.mPartner != nullptr)
         {
-            const osg::ref_ptr<const osg::Image> partner = Resource::texelsOf(*queued.mPartner);
+            const osg::ref_ptr<const osg::Image> partner = readTexels(*queued.mPartner, TexelRead::Preparation, reads);
             hand.mContent.mPreprocessor.convert(
                 ConversionPass::Input{
                     .mImage = *image, .mPartner = *partner, .mEncoding = queued.mEncoding, .mWrap = queued.mWrap },

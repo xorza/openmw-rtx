@@ -318,6 +318,15 @@ namespace Rtx
             return std::apply([&](const auto... buffer) { return (room(this->*buffer) + ...); }, buffers());
         }
 
+        /// What the buffers hold of that room, in bytes: the model itself.
+        std::size_t getContentBytes() const
+        {
+            const auto held = [](const auto& buffer) {
+                return buffer.size() * sizeof(typename std::remove_cvref_t<decltype(buffer)>::value_type);
+            };
+            return std::apply([&](const auto... buffer) { return (held(this->*buffer) + ...); }, buffers());
+        }
+
         /// Makes room for the next model, keeping what the buffers grew where this model filled at
         /// least half of it. Measured over the exterior suite, a pool that kept every buffer whole
         /// held 730 models from the fourth place on and grew from 42.8 to 59.5 MiB over the next

@@ -3,8 +3,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <memory>
+#include <semaphore>
 #include <span>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -35,6 +39,7 @@
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/testing/util.hpp>
+#include <components/vfs/file.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -369,7 +374,18 @@ namespace Rtx
             EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
             prepared.flush();
             EXPECT_TRUE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
+
+            // **One ask of the header for its file, its 48 bytes, held unhanded until a slot takes them.**
+            const ContentStats asked = prepared.takeStats();
+            EXPECT_EQ(asked.mTexelReads.count(TexelRead::File), 1u);
+            EXPECT_EQ(asked.mTexelReads.bytes(TexelRead::File), 48u);
+            EXPECT_EQ(asked.mTexelReads.count(TexelRead::Partner), 0u);
+            EXPECT_EQ(asked.mTexelReads.mChainsFoundWhole, 0u) << "no store";
+            EXPECT_EQ(prepared.getHeld().mEntries, 1u);
+            EXPECT_EQ(prepared.getHeld().mBytes, 48u);
             PreparedImage read = prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat);
+            EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "handed out, watched and no longer held";
+            EXPECT_EQ(prepared.getHeld().mBytes, 0u);
             EXPECT_FALSE(read.mPending);
             EXPECT_EQ(read.mImage, nullptr) << "a block colour's own chain stands";
             ASSERT_NE(read.mFile, nullptr);
@@ -402,6 +418,61 @@ namespace Rtx
             const PreparedImage held = prepared.find(*texels, TextureEncoding::Colour, TextureWrap::Repeat);
             EXPECT_FALSE(held.mPending);
             EXPECT_EQ(held.mFile, texels);
+        }
+
+        /// A file that opens only as many times as it is let: what holds a thread inside a read for as long as a test
+        /// needs a job in flight.
+        class GatedFile final : public VFS::File
+        {
+        public:
+            GatedFile(std::string content, std::ptrdiff_t opens)
+                : mContent(std::move(content))
+                , mOpens(opens)
+            {
+            }
+
+            Files::IStreamPtr open() override
+            {
+                mOpens.acquire();
+                return std::make_unique<std::stringstream>(mContent, std::ios_base::in);
+            }
+
+            std::filesystem::file_time_type getLastModified() const override { return {}; }
+            std::string getStem() const override { return "GatedFile"; }
+
+            void let() { mOpens.release(); }
+
+        private:
+            const std::string mContent;
+            std::counting_semaphore<> mOpens;
+        };
+
+        /// **A slot that lets go of its file while it is read is counted, and what the read made stays unhanded**: the
+        /// header made through one open, the job's read held at the file's second, the slot lets go meanwhile; once
+        /// the read is let through, its 48 bytes stand with no slot to hand them to (`PreparedImages::getHeld`).
+        TEST(RtxPreparedImagesTest, aSlotThatLeavesWhileItsFileIsReadIsCountedAndItsReadStaysUnhanded)
+        {
+            GatedFile file(Testing::ddsDxt1(8, 8, 3, 0x55), 1);
+            constexpr VFS::Path::NormalizedView path("textures/tx_gated.dds");
+            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(vfs.get(), budget);
+            images.setModelImages(Resource::ModelImages::Headers);
+            const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
+            Resource::releaseTexels(*header);
+
+            PreparedImages prepared(nullptr, 1);
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
+            EXPECT_EQ(prepared.getHeld().mLeftPending, 0u);
+            prepared.letGo(*header);
+            EXPECT_EQ(prepared.getHeld().mLeftPending, 1u);
+            EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "nothing read yet";
+
+            file.let();
+            prepared.flush();
+            EXPECT_EQ(prepared.getHeld().mEntries, 1u);
+            EXPECT_EQ(prepared.getHeld().mBytes, 48u);
+            EXPECT_EQ(prepared.getHeld().mLeftPending, 1u);
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no

@@ -255,8 +255,9 @@ namespace RtxTool
                 .mTextures = 650 * sMiB,
                 .mTextureRoom = 8000 * sMiB };
             // **The geometry's peak**, host and device together: vivec's 40 + 60 MiB over balmora's 30 + 50.
-            balmora.mContent
-                = Rtx::ContentMemory{ .mVertexEnd = 1'000'000, .mGeometryBytes = 30 * sMiB, .mReader = {} };
+            balmora.mContent = Rtx::ContentMemory{
+                .mVertexEnd = 1'000'000, .mGeometryBytes = 30 * sMiB, .mReader = {}, .mPrepared = {}
+            };
             balmora.mScene.mGeometryBytes = 50 * sMiB;
             vivec.mContent = Rtx::ContentMemory{ .mVertexEnd = 1'600'000,
                 .mVerticesUsed = 1'500'000,
@@ -265,8 +266,28 @@ namespace RtxTool
                 .mRestingVertices = 300'000,
                 .mRestingIndices = 600'000,
                 .mGeometryBytes = 40 * sMiB,
-                .mReader = {} };
+                .mReader = {},
+                .mPrepared = {},
+                .mRing = {} };
             vivec.mScene.mGeometryBytes = 60 * sMiB;
+            // **The ring, the prepared images, the reader and the game at their peaks**, and what only grows at the
+            // last stop: vivec's 10 - 4 = 6 meshes standing nowhere over balmora's 3 - 3, its 2 MiB unhanded over 1;
+            // balmora's reader room of 10 MiB over vivec's 8; vivec's 40 cell stores over 30.
+            constexpr std::uint64_t sVertices = 1'000'000;
+            vivec.mContent.mRing.mByDistance[2] = Rtx::RingDistance{ .mPlacements = 20,
+                .mPlacementsStanding = 9,
+                .mMeshes = 10,
+                .mMeshesStanding = 4,
+                .mVertices = sVertices,
+                .mVerticesStanding = 4 * sVertices / 10 };
+            balmora.mContent.mRing.mByDistance[0]
+                = Rtx::RingDistance{ .mPlacements = 3, .mPlacementsStanding = 3, .mMeshes = 3, .mMeshesStanding = 3 };
+            vivec.mContent.mPrepared = Rtx::PreparedHeld{ .mEntries = 5, .mBytes = 2 * sMiB, .mLeftPending = 4 };
+            balmora.mContent.mPrepared = Rtx::PreparedHeld{ .mEntries = 9, .mBytes = 1 * sMiB, .mLeftPending = 3 };
+            balmora.mContent.mReader = Rtx::ReaderMemory{ .mLentBytes = 10 * sMiB, .mLentContentBytes = 5 * sMiB };
+            vivec.mContent.mReader = Rtx::ReaderMemory{ .mSpareBytes = 8 * sMiB };
+            balmora.mGame = GameHeld{ .mLoadedCells = 30, .mStarvedLooks = 2 };
+            vivec.mGame = GameHeld{ .mLoadedCells = 40, .mPreloadedCells = 1, .mStarvedLooks = 7 };
             record.add(balmora);
             record.add(vivec);
 
@@ -279,6 +300,14 @@ namespace RtxTool
             EXPECT_NE(record.getReport().find("\nthe geometry reached at most 1.60 M vertices and 3.00 M indices, at "
                                               "vivec: 0.30 M and 0.60 M of them resting, 0.10 M and 0.60 M in holes; "
                                               "40.0 MiB on the host, 60.0 MiB on the device\n"),
+                std::string::npos)
+                << record.getReport();
+            EXPECT_NE(record.getReport().find("\nthe ring held at most 6 meshes standing in no placement, 0.60 M "
+                                              "vertices, at vivec\nthe prepared images held at most 5 unhanded, 2.0 "
+                                              "MiB, at vivec\nthe reader held at most 10.0 MiB of room for 5.0 MiB of "
+                                              "models, at balmora\nthe game held at most 40 cell stores loaded, at "
+                                              "vivec\n4 slots left while their files were read\n7 looks for room in "
+                                              "the caches found all in use\n"),
                 std::string::npos)
                 << record.getReport();
             unplayed.add(BenchPlace{});
