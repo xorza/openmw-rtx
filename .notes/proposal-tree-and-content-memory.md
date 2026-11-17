@@ -377,8 +377,11 @@ a start 0.26–1.48 s.
   reading everything in the disc, most of which stands only within a cell or two.
 - **A large buffer never reaches the allocator, and the mapping threshold is pinned**: pinning it turns glibc's own
   adjustment off (`mallopt(3)`), so a block past it is mapped and given back whole, whichever thread frees it. Its
-  value, and whether an arena cap stands beside it, are item 10's tunables to say. Refused: a trim on a timer, which
-  walks every arena to give back what should never have entered one.
+  value is 1 MiB, with glibc's arenas capped at four (`Platform::tuneHeap`), the setting that left the heap least free
+  memory on both machines' Repack tours and took 0.86 GiB off the handheld's most
+  (`research/2026-11-17-handheld-allocator-tunables.md`); `GLIBC_TUNABLES` naming the allocator overrides it. Refused:
+  a trim on a timer, which walks every arena to give back what should never have entered one; the 256 KiB and 4 MiB
+  thresholds, which left it 830 and 774 MiB free against 683; huge pages off, which swapped a GiB more.
 - **The caches' budget counts what the heap holds free as room, and an evicted value dies off the lock and off the
   frame**, on the worker that derives the budget, where upstream had put its own expiry.
 - **A preload asks the budget before anything of it is loaded, and the navigator's tiles stand under the one budget**,
@@ -524,34 +527,6 @@ Then the baseline's longest frames are explained: the ten longest on the handhel
 (`perf` beside the run, as `./omw profile` does on the desk) until each names what led it. One an item of this plan
 causes or cures is that item's to show gone; one that is upstream's is proposed with its profile.
 
-### 10. The heap, the budgets and the game's own holders
-
-1. The allocator's settings, by tunables and no code: handheld Repack tours under a pinned
-   `glibc.malloc.mmap_threshold` at 256 KiB, 1 MiB and 4 MiB, and the best of them again under `glibc.malloc.arena_max`
-   at 4. Then pinned in `components/platform` at the setting that leaves the arenas least free memory for the tour's
-   time, with its reason beside it. One tour more with the process's transparent huge pages off, behind a switch of
-   the harness (`PR_SET_THP_DISABLE`): what the handheld's kernel adds to the heap's free memory is a figure before it
-   is anyone's decision.
-2. The budget counting the heap's free memory; evicted values destroyed on the deriving worker; `update`'s walk off the
-   cache's lock.
-3. The unified bound, asked as a capability of the device, never by vendor.
-4. `Scene` asks the preloader's budget before a door's destination is loaded.
-5. The navigator's tile cache under the byte budget; its setting and the setting's documentation go.
-6. Handheld tours of the three contents: nothing swapped out at a tour's end, and a NIF parsed about once. If the heap
-   still holds a fifth of what it took free, the allocator is proposed with those figures.
-
-### 11. The device uses its budget
-
-4. Tours on the handheld, Repack and PBR: no refusal with room under the budget; item 8's figures again.
-
-### 12. One read a texture
-
-One bump of the store's version carries every format change of this plan, the manifest's among them, so the stores are
-made again once; a store made on the desk is the handheld's too, the key being the content.
-
-7. Handheld PBR tour: image loads at one a file, the tour's time, the heap's free share; and item 10's tunables once
-   more, now that the largest buffers are the pool's.
-
 ### 13. A texture stands at a level
 
 1. A move on the device: a new image at the level, the kept levels copied, the slot's descriptors written, the old
@@ -565,8 +540,6 @@ made again once; a store made on the desk is the handheld's too, the key being t
 
 ### 14. One copy of the geometry
 
-3. `PreparedModel` lets go of its arrays once adopted, on the reader's thread; a second adoption finds its meshes by
-   key or asks the reader to fill it again.
 4. The ring's flat records; the cell pools go.
 6. On the device: `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the
    rest counting geometry; and a want for a mesh refused in the loose storage, which a block emptied answers and no
@@ -614,6 +587,17 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **10.1. The allocator's settings**: pinned in `Platform::tuneHeap` from `Platform::init`, so every program of the tree
+  takes them, and left to `GLIBC_TUNABLES` where it names the allocator, which is how a run tries another. The desk's
+  tours were flown too, against a fear that four arenas would hold back its 32 threads: as fast, fewer hitches.
+
+- **10.6, 11.4 and 12.7. The handheld's tours at `f45fb184d7`** (`research/2026-11-17-handheld-allocator-tunables.md`):
+  none met its bar, each left to the item whose mechanism answers it. The Repack still swapped 2.6 GiB at its end, the
+  heap 12% of what it took free, under the fifth past which another allocator is proposed; NIFs parsed again stand
+  with item 15. Content was refused room 247–699 MiB under the budget, where 1.1–2.1 GiB stood before item 11; the
+  planner of item 13 sizes every texture by that room. A PBR file that stands as shipped is read again whenever its slot
+  arrives, which item 13's reader of levels by position ends.
 
 - **14.1. The reader packs, keys and bounds**: `PackedStreams` packs what `MeshReader` read, where its caller lands
   it — a model's streams on the ring's thread, the walk's scratch on the frame's — so the reader's own tests of what a
@@ -702,6 +686,11 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **14.3. A prepared model lets go of its geometry once adopted**: the reader's models held 64.3 MiB of content at the
+  repack's peak on the handheld (`research/2026-11-17-handheld-allocator-tunables.md`), before packing halved it, and a
+  model named again after its meshes left the device would need the reader to fill it again while a cell waits on it.
+  What the reader holds is room: 170 MiB lent for those 64 MiB, and 39 MiB spare.
 
 - **11.2. The ground's masks as the land's bytes**: read a byte at a time (`storageBuffer8BitAccess`), the RADV
   compile of the handheld's chip under the drm-shim put 14 landing kernels with a mod's maps from 112 registers to

@@ -14,6 +14,15 @@ namespace Platform
     /// it is called once a burst, never a frame.
     void trimHeap();
 
+    /// **Caps glibc's arenas at four and maps every block of a mebibyte or more apart** (`mallopt(3)`), where
+    /// `GLIBC_TUNABLES` sets neither, which stays the way to try another value: on the handheld's Repack
+    /// tour the cap took 0.86 GiB off the process's most and 0.34 GiB off its swap, and on the desk's the heap's free
+    /// memory from 396 to 97 MiB, the tours as fast and with fewer hitches
+    /// (`docs/research/2026-11-17-handheld-allocator-tunables.md`). The threshold pinned turns glibc's own adjustment
+    /// of it off, so a large buffer is given back whole, whichever thread frees it. Nothing where the allocator is not
+    /// glibc's. Called once, by `init`, before any thread is made.
+    void tuneHeap();
+
     /// One of the heap's arenas, which the allocator keeps apart, a thread taking one of its own: what it took from the
     /// system, and what of that is free.
     struct HeapArena

@@ -14,6 +14,9 @@ namespace Platform
         _heapmin();
     }
 
+    // The process heap keeps no arenas and no threshold to pin.
+    void tuneHeap() {}
+
     std::optional<HeapHeld> heapHeld()
     {
         // The C runtime's heap is the process's own.

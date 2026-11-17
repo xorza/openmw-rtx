@@ -94,5 +94,19 @@ namespace Platform
             EXPECT_FALSE(GlibcText::heapHeld(sReport.substr(0, sReport.find("</heap>\n<total"))).has_value())
                 << "an arena cut off";
         }
+
+        /// **Either setting `tuneHeap` pins, named in `GLIBC_TUNABLES`, leaves the heap as the run asked**, at any
+        /// place in the list; another of the allocator's, the huge pages a measured run restarts on, does not, and nor
+        /// does a name that merely contains one.
+        TEST(PlatformGlibcTextTest, theTunablesNameTheHeapsSettingsByTheirOwnNames)
+        {
+            EXPECT_TRUE(GlibcText::namesTheHeapsSettings("glibc.malloc.arena_max=2"));
+            EXPECT_TRUE(GlibcText::namesTheHeapsSettings("glibc.pthread.rseq=0:glibc.malloc.mmap_threshold=262144"));
+            EXPECT_TRUE(GlibcText::namesTheHeapsSettings("glibc.malloc.arena_max=8:glibc.pthread.rseq=0"));
+            EXPECT_FALSE(GlibcText::namesTheHeapsSettings(""));
+            EXPECT_FALSE(GlibcText::namesTheHeapsSettings("glibc.malloc.hugetlb=1")) << "the measured run's huge pages";
+            EXPECT_FALSE(GlibcText::namesTheHeapsSettings("glibc.pthread.rseq=0:glibc.malloc.tcache_count=0"));
+            EXPECT_FALSE(GlibcText::namesTheHeapsSettings("x.glibc.malloc.arena_max=2:glibc.malloc.arena_maximum=2"));
+        }
     }
 }
