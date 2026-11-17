@@ -672,8 +672,7 @@ The steps:
    --pairs=10` agrees. Tours of the three contents on the handheld show the device's texture bytes and the refusals
    against item 8's.
 
-Defragmentation by the same copy (the old 16.4) stays open, but only if a tour after this item still refuses a texture
-with room in pieces. The GPU's feedback meter is declined unless step 6's pictures move: the bound is derived, so its
+Defragmentation is item 21's, by the library's own incremental passes. The GPU's feedback meter is declined unless step 6's pictures move: the bound is derived, so its
 promise is checked by the pictures, not measured by a second path.
 
 ### 19. Device memory made off the frame
@@ -713,6 +712,126 @@ from its callers.
    mesh's fit does (item 9).
 8. Tests: a block no run touches goes back, and a mesh refused in the loose storage stands once one empties. Tours:
    no mesh refused for room on the Repack.
+
+### 21–28. The open issues (the user, 2026-11-18)
+
+Each investigated against the tree at `b04f563f00`. Each item closes its issue in `.notes/ISSUES.md` when its test and
+its tour hold.
+
+#### 21. The content pools defragment, incrementally
+
+**Closes**: "the pool refuses small resources while it has room free in pieces". Takes over item 16's conditional
+defragmentation. At the handheld Repack tour's mesh refusal (`5db3a1fbf7`), the texture pool held 793 MiB free in its
+blocks, its largest range 12.4 MiB.
+
+- **VMA's own incremental defragmentation** (`vmaBeginDefragmentation`, `vmaBeginDefragmentationPass` with
+  `maxBytesPerPass`, [VMA, "Defragmentation"](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/defragmentation.html)):
+  the library plans the moves, and the renderer copies each one on the device. An image is moved by item 13's copy,
+  and a structure by a copy into its new range. The library leaves the copying to its caller.
+- **When**: a pass runs only where a take was refused while the pool's free bytes would have held it. It is bounded by
+  what one hand-over stages (`sMoveCopyMost`), so no frame absorbs a whole defragmentation: the frame rule.
+- **Refused**: pools by size class, which the architecture already refuses; and a full pass at load, which strands
+  again by the next crossing.
+- **Tests**: a pool cut into pieces takes, after its passes, the resource it refused; a frame whose takes fit runs no
+  pass; a pass never copies past its bound.
+
+#### 22. A texture's want matches a rest of its own size
+
+**Closes**: "a texture's want never matches a resting texture of its own size".
+
+- **The fit states the range it leaves**: its size and the alignment it begins at (`FitBytes`), and the want states
+  its size and alignment. `RestQueue::firstFitting` takes the first rest whose range holds the want's size at the
+  want's alignment. That is exact, so no margin is needed.
+- **The granularity margin goes where it cannot apply**: a texture pool holds optimally tiled images alone, which
+  `bufferImageGranularity` never separates (Vulkan spec, "Buffer-Image Granularity"). The pool asserts that it holds
+  images alone.
+- **Tests**: a want matches a rest of its own size and alignment and no smaller one; a coarser alignment fits a finer
+  want, and not the other way.
+
+#### 23. A bake waits for room as a file does, and a refusal is counted once
+
+**Closes**: "a texture the device has no room for draws the stand-in for good", and the cascade in the Repack entry's
+`textures-readable`.
+
+- **What was found**: the stand-in for good is a sprite's light bake or a ground composite (`whenRoomless` waits on
+  files alone), 0.4 MiB, once a PBR tour. `textures-readable` reads the scene's refusals since the run began
+  (`checks.cpp`), so one refusal fails every stop after it: the PBR tour's 91 and the Repack's 112.
+- **A bake or composite refused for room is filed as waiting**, as a file is (`DeviceAnswer::mShort`, `RoomWant`). It
+  is made again on the device from its source when the room returns, which needs nothing from the host.
+- **The check counts the refusals new at its stop**: the refusal count when the stop began, held beside the stop.
+- **Tests**: a bake refused for room stands once room is given back; the check fails at the stop of a refusal and not
+  at the next.
+
+#### 24. The GPU memory tests start drained
+
+**Closes**: "`RtxMemoryTest.whatEachUseHoldsIsItsRangesExactly` fails in the GPU suite's random order". This
+reproduces at `43cf84a1b0` with seed 44490. The test measures the heap's held memory across a bind, while the previous
+test's buried memory is still in the graveyard. A take collects that memory, so held memory falls.
+
+- **The fixture's `SetUp` drains the device** (`waitIdle`, `collectIdle`) and asserts nothing is buried, so each test
+  states its own start: GoogleTest's rule that a test depends on no other.
+- **Test**: the whole GPU suite under `--gtest_shuffle` with seed 44490, and with three others.
+
+#### 25. The build image fetches autoconf from GNU's mirrors
+
+**Closes**: "`env/install_almalinux_deps.sh` fetches autoconf from ftp.gnu.org alone".
+
+- **GNU's redirector first** (`https://ftpmirror.gnu.org/autoconf/`, [GNU, "Mirrors"](https://www.gnu.org/prep/ftp.html)),
+  then `ftp.gnu.org`. The tarball's SHA-512, which the script already checks, makes any mirror as good as the origin.
+  `fetch` takes the list and tries each in order, its retries kept.
+- **Check**: the release-base image builds on Docker's default network, and CI's Linux jobs pass.
+
+#### 26. Windows says what holds the process's memory
+
+**Addresses**: "on the Windows machine the tour's process holds far more anonymous memory than its heap takes". The
+issue closes once the gap is named and either fixed or decided.
+
+- **A meter first**, in `components/platform`'s Windows file: `VirtualQuery` walks the process's committed private
+  regions, sums them by the module or heap that owns them (`HeapWalk` for the CRT's heaps), and the stop report states
+  the top holders. On Linux, the same question is `smaps_rollup`'s, which the report already reads.
+- **Then**: a holder the fork owns becomes an item; a driver's holding is noted in the research with its figure.
+
+#### 27. The cell reader's lent models hold what their content fills
+
+**Closes**: "the cell reader's lent models hold 2.6 times the room their content fills" (the latest PBR tour: 51.8 MiB
+for 22.4 MiB).
+
+- **Measured first**: which buffers of a lent model hold the slack, by stream.
+- **Then each buffer is reserved exactly** from the counts its content-store entry states before its bytes are read,
+  so a model's room is its content. The pool keeps its spares within twice their last tenant (`dropSlack`), as now.
+- **Test**: a model lent after a larger one holds its own content's room and no more.
+
+#### 28. Three lint checks over the fork's own code
+
+**Addresses**: the issues of `cppcoreguidelines-avoid-non-const-global-variables`, `misc-no-recursion` and
+`google-default-arguments`, which count upstream's hits with the fork's.
+
+- **Counted by owner first**: the fork's folders (`components/rtx*`, `components/myguirtx`, `apps/rtxtool`,
+  `apps/openmw/mwrender/rtx` and the fork's other files) against upstream's.
+- **The fork's hits are fixed**: a global given an owner; a recursion given its bound, stated and asserted, or made a
+  loop with an explicit stack; a default argument taken off a virtual. Each check then holds over the fork's folders in
+  `.clang-tidy`, so CI keeps it.
+- **Upstream's hits are listed for the user**, as an upstream proposal, and the issue keeps their count alone.
+
+**Proposed upstream, awaiting the user's yes** (`UPSTREAM.md`'s rule):
+
+- **`MWWorld::Scene::preloadTeleportDoorDestinations` asks the budget before it loads**: the destination's
+  `findCell` loads its references, which a preload the budget then skips has still paid for. The fix is
+  `CacheBudget::hasRoom` asked first, as `CellPreloader::preload` asks it. Cost: two lines in `mwworld/scene.cpp`.
+- **`components/platform/filestdio.cpp`, built by nothing, goes**: upstream's fallback for a system with neither
+  POSIX nor Win32, which the fork's CMake dropped when it built Linux and Windows alone. Alternatively, the fallback is
+  restored in the one place the implementation is chosen.
+
+**Closed on investigation**, deleted from the issue log:
+
+- "A texture's arrival reads and decodes its source file before it asks the content store": the key is now the
+  header's derivation (`FileKeys::of`, `HeaderDerived`), read once, and a chain the store holds whole reads nothing of
+  its file (`PreparedImages::serve`).
+- "`Resource::CacheBudget::derive` counts as taken what the heap holds free": `derive` adds the heap's free memory
+  back. An insertion now evicts no more than it added, and the worker destroys what went.
+
+**Already planned**: the static mesh refused in the loose storage (item 14.6); the Repack's outrun (item 15, its step
+2); the Repack entry's refusals and worst frame (items 14.6, 16, 20 and 21), rewritten with item 18's figures.
 
 ### 18. Close
 
