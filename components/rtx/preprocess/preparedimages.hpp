@@ -100,7 +100,7 @@ namespace Rtx
         /// every frame it compares draws the made chains.
         bool isIdle();
 
-        /// Waits until `isIdle`.
+        /// Waits until `isIdle`, its workers taking past the pool's most meanwhile (`BufferPool::Overdraft`).
         void flush();
 
         /// What every thread's preprocessor cost since the last take, its jobs' whole: a job's

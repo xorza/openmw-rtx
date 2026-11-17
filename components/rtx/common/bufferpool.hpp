@@ -80,9 +80,26 @@ namespace Rtx
         BufferPool(const BufferPool&) = delete;
         BufferPool& operator=(const BufferPool&) = delete;
 
-        /// A buffer of `bytes`, at most `sClassMost`, waiting while every byte of the most is in use; nothing where
-        /// `stop` asks before one is given back.
+        /// A buffer of `bytes`, at most `sClassMost`, waiting while every byte of the most is in use and no
+        /// `Overdraft` stands; nothing where `stop` asks before one is given back.
         std::optional<PooledBuffer> take(std::size_t bytes, const std::stop_token& stop);
+
+        /// **Every take past the most while it stands**, for a waiter that holds whatever it waits for until it has
+        /// it all and gives back nothing meanwhile: a settled hand-over, which stands an arrival's every chain at once
+        /// (`PreparedImages::flush`). Under the most, its workers would wait for buffers only the waiter gives back,
+        /// and the waiter for them. What it lets past is what that waiter asked, bounded by what it holds.
+        class [[nodiscard]] Overdraft
+        {
+        public:
+            explicit Overdraft(BufferPool& pool);
+            ~Overdraft();
+
+            Overdraft(const Overdraft&) = delete;
+            Overdraft& operator=(const Overdraft&) = delete;
+
+        private:
+            BufferPool& mPool;
+        };
 
         PoolHeld getHeld() const;
 
@@ -105,5 +122,8 @@ namespace Rtx
         std::array<std::vector<std::unique_ptr<std::byte[]>>, sClassCount> mFree;
         std::size_t mInUse = 0;
         std::size_t mFreeBytes = 0;
+
+        /// How many `Overdraft`s stand.
+        std::uint32_t mOverdrafts = 0;
     };
 }

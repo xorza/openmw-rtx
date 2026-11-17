@@ -95,5 +95,38 @@ namespace Rtx
             EXPECT_LE(pool->getHeld().mFree, 256 * sKiB) << "let go of as it came back";
             EXPECT_EQ(pool->getHeld().mInUse, 0u);
         }
+
+        /// **An overdraft lets a take past the most while it stands**, for the waiter that holds what is taken until it
+        /// has it all: a take that waited on a full pool is made as one begins, and one after it ends waits again. In
+        /// a pool of 128 KiB, two 64 KiB buffers fill it; the third waits until the overdraft, and the fourth, past it,
+        /// until a stop.
+        TEST(RtxBufferPoolTest, anOverdraftLetsATakePastTheMostWhileItStands)
+        {
+            const std::shared_ptr<BufferPool> pool = BufferPool::make(128 * sKiB);
+            std::optional<PooledBuffer> first = pool->take(64 * sKiB, {});
+            std::optional<PooledBuffer> second = pool->take(64 * sKiB, {});
+            ASSERT_TRUE(first.has_value());
+            ASSERT_TRUE(second.has_value());
+
+            std::optional<PooledBuffer> third;
+            std::thread waiter([&] { third = pool->take(64 * sKiB, {}); });
+            {
+                const BufferPool::Overdraft overdraft(*pool);
+                waiter.join();
+                ASSERT_TRUE(third.has_value()) << "a take waited on a full pool through an overdraft";
+                EXPECT_EQ(pool->getHeld().mInUse, 192 * sKiB);
+                EXPECT_TRUE(pool->take(64 * sKiB, {}).has_value()) << "a take past the most waited under an overdraft";
+            }
+
+            std::stop_source stopping;
+            std::thread stopper([&] { stopping.request_stop(); });
+            EXPECT_FALSE(pool->take(64 * sKiB, stopping.get_token()).has_value())
+                << "a take past the most was made once the overdraft ended";
+            stopper.join();
+
+            third.reset();
+            EXPECT_EQ(pool->getHeld().mInUse, 128 * sKiB);
+            EXPECT_EQ(pool->getHeld().mFree, 0u) << "a buffer made past the most kept as it came back";
+        }
     }
 }

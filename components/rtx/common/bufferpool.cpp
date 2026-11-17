@@ -107,8 +107,8 @@ namespace Rtx
                 }
 
             // **One past the most where nothing else is in use**, so a take larger than the pool is made and not
-            // waited on for ever.
-            if (mInUse + mFreeBytes + capacity <= mMostBytes || mInUse == 0)
+            // waited on for ever, and any past it while an overdraft stands.
+            if (mInUse + mFreeBytes + capacity <= mMostBytes || mInUse == 0 || mOverdrafts > 0)
             {
                 mInUse += capacity;
                 lock.unlock();
@@ -116,7 +116,8 @@ namespace Rtx
                     shared_from_this(), std::make_unique_for_overwrite<std::byte[]>(capacity), capacity, bytes);
             }
 
-            if (!mGiven.wait(lock, stop, [&] { return !own.empty() || mInUse + capacity <= mMostBytes; }))
+            if (!mGiven.wait(
+                    lock, stop, [&] { return !own.empty() || mInUse + capacity <= mMostBytes || mOverdrafts > 0; }))
                 return std::nullopt;
         }
     }
@@ -139,6 +140,23 @@ namespace Rtx
             }
         }
         mGiven.notify_all();
+    }
+
+    BufferPool::Overdraft::Overdraft(BufferPool& pool)
+        : mPool(pool)
+    {
+        {
+            const std::scoped_lock lock(mPool.mMutex);
+            ++mPool.mOverdrafts;
+        }
+        mPool.mGiven.notify_all();
+    }
+
+    BufferPool::Overdraft::~Overdraft()
+    {
+        const std::scoped_lock lock(mPool.mMutex);
+        assert(mPool.mOverdrafts > 0 && "an overdraft ended that did not stand");
+        --mPool.mOverdrafts;
     }
 
     PoolHeld BufferPool::getHeld() const

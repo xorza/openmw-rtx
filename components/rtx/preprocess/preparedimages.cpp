@@ -174,6 +174,9 @@ namespace Rtx
 
     void PreparedImages::flush()
     {
+        // Past the pool's most while it waits: what it waits for is held until every job is made, so a worker that
+        // waited for room would wait on this waiter.
+        const BufferPool::Overdraft overdraft(*mPool);
         mMonitor.await([&] { return mQueue.empty() && mInFlight == 0; });
     }
 
