@@ -254,6 +254,10 @@ namespace Rtx
 
         std::uint64_t mTableBytes = 0;
 
+        /// What the device's vertex attributes and indices take, in whole blocks: as far as the host's runs reach,
+        /// the meshes placed, the meshes that rest and the holes the freed ones left (`ContentMemory`).
+        std::uint64_t mGeometryBytes = 0;
+
         /// What the structures are worked in beside the two above: the rows, their packing, the
         /// poses and the builds' scratch, which the device holds for the scene as surely.
         std::uint64_t mWorkBytes = 0;

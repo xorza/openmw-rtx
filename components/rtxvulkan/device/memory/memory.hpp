@@ -223,8 +223,9 @@ namespace Rtx
     };
 
     /// What a content take the allocator refused for room asked, and how the heap stood: the use, the bytes, the
-    /// memory type, whether it was to have memory of its own; the video heap's budget and what the process held; and
-    /// every content pool (`MemoryAllocator::getLastRefused`).
+    /// memory type, whether it was to have memory of its own; the video heap's budget and what the process held; what
+    /// each use held and the room each content use had left; and every content pool
+    /// (`MemoryAllocator::getLastRefused`).
     struct RefusedTake
     {
         MemoryUse mUse = MemoryUse::Texture;
@@ -232,6 +233,7 @@ namespace Rtx
         std::uint32_t mType = 0;
         bool mOwn = false;
         VideoBudget mVideo;
+        MemoryUses mUses;
         std::array<PoolRoom, VK_MAX_MEMORY_TYPES> mPools{};
         std::uint32_t mPoolCount = 0;
     };
@@ -382,6 +384,9 @@ namespace Rtx
 
     private:
         friend class DeviceMemory;
+
+        /// The video heap's memory by use, as `report` and `noteRefused` state it.
+        MemoryUses uses() const;
 
         /// What a resource needs of an allocation, and whether the driver binds it to nothing but an
         /// allocation of its own, which the library would otherwise find out only inside a pool that

@@ -52,31 +52,35 @@ namespace Rtx
             out += std::format("   {} blocks\n", use.mBlocks);
         }
 
-        // What the video heap's `live` is made of, and why content stops where it does: the room
-        // kept for the frame's largest targets, and what each kind of content may still take.
+        // What the video heap's `live` is made of, and why content stops where it does.
         const MemoryUses& uses = report.mUses;
         if (uses.mFrame + uses.mFrameReserve + uses.mEssential + uses.mStructures + uses.mTextures > 0)
-            out += std::format(
-                "  uses  frame {:.1f} of {:.1f} kept   essential {:.1f}   structures {:.1f}, room {:.1f}   "
-                "textures {:.1f}, room {:.1f}\n",
-                mebibytes(uses.mFrame), mebibytes(uses.mFrameReserve), mebibytes(uses.mEssential),
-                mebibytes(uses.mStructures), mebibytes(uses.mStructureRoom), mebibytes(uses.mTextures),
-                mebibytes(uses.mTextureRoom));
+            out += "  uses  " + describeUses(uses) + "\n";
 
         return out;
+    }
+
+    std::string describeUses(const MemoryUses& uses)
+    {
+        return std::format(
+            "frame {:.1f} of {:.1f} kept   essential {:.1f}   structures {:.1f}, room {:.1f}   textures {:.1f}, room "
+            "{:.1f}",
+            mebibytes(uses.mFrame), mebibytes(uses.mFrameReserve), mebibytes(uses.mEssential),
+            mebibytes(uses.mStructures), mebibytes(uses.mStructureRoom), mebibytes(uses.mTextures),
+            mebibytes(uses.mTextureRoom));
     }
 
     std::string describeSceneHeld(const SceneStats& scene)
     {
         return std::format(
             "{} instances ({} cutouts) in {} slots   {:.1f} MiB structures in {:.1f} reserved{}, {:.1f} MiB "
-            "tables, {:.1f} MiB working   {} textures, "
+            "tables, {:.1f} MiB geometry, {:.1f} MiB working   {} textures, "
             "{:.1f} MiB{}: files {:.1f}, bakes {:.1f}, ground {:.1f}, gloss {:.1f}",
             scene.mInstances.mPlaced, scene.mInstances.mCutout, scene.mInstanceSlots,
             mebibytes(scene.mStructureLiveBytes), mebibytes(scene.mStructureBytes), describeCompaction(scene),
-            mebibytes(scene.mTableBytes), mebibytes(scene.mWorkBytes), scene.mTextureCount,
-            mebibytes(scene.mTextureBytes), describeReduced(scene), mebibytes(scene.mTextureBytesBySource.mFiles),
-            mebibytes(scene.mTextureBytesBySource.mSpriteBakes),
+            mebibytes(scene.mTableBytes), mebibytes(scene.mGeometryBytes), mebibytes(scene.mWorkBytes),
+            scene.mTextureCount, mebibytes(scene.mTextureBytes), describeReduced(scene),
+            mebibytes(scene.mTextureBytesBySource.mFiles), mebibytes(scene.mTextureBytesBySource.mSpriteBakes),
             mebibytes(scene.mTextureBytesBySource.mGroundComposites),
             mebibytes(scene.mTextureBytesBySource.mGroundGloss));
     }

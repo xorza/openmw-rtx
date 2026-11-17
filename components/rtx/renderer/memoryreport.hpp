@@ -75,6 +75,10 @@ namespace Rtx
     /// the renderer says, indented to sit under the place it belongs to.
     std::string describeMemory(const MemoryReport& report);
 
+    /// The uses as one line says them: what the frame holds of the room kept for it, what is essential, and what
+    /// structures and textures hold with the room each may still take.
+    std::string describeUses(const MemoryUses& uses);
+
     /// What the scene holds as one line says it: its instances, its structures and its textures. The harness
     /// prints it after a place's cell, hour and weather, and the game's log at the session's end.
     std::string describeSceneHeld(const SceneStats& scene);

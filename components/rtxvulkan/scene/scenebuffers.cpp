@@ -557,15 +557,19 @@ namespace Rtx
 
     VkDeviceSize SceneBuffers::getBytes() const
     {
-        // The indices are not counted here: they are the acceleration's, which counts them
-        // (`SceneAcceleration::getIndexBytes`).
-        VkDeviceSize total = mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes()
-            + mPositions.getBytes() + mNormals.getBytes() + mTangents.getBytes() + mMeshTable.get().getSize()
-            + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes() + mMaterialTable.getBytes()
-            + mMaterialMapTable.getBytes();
+        VkDeviceSize total = mMeshTable.get().getSize() + mLayers.get().getSize() + mMasks.get().getSize()
+            + mInstanceTable.getBytes() + mMaterialTable.getBytes() + mMaterialMapTable.getBytes();
         for (const Tables& tables : mTables.live())
             total += tables.getBytes();
 
         return total;
+    }
+
+    VkDeviceSize SceneBuffers::getGeometryBytes() const
+    {
+        // The indices are not counted here: they are the acceleration's, which counts them
+        // (`SceneAcceleration::getIndexBytes`).
+        return mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes() + mPositions.getBytes()
+            + mNormals.getBytes() + mTangents.getBytes();
     }
 }

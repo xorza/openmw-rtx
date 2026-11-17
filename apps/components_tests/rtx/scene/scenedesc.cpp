@@ -797,12 +797,17 @@ namespace Rtx
             EXPECT_TRUE(scene.meshes().getRows()[quad].mRest.mResting);
             EXPECT_FALSE(scene.meshes().isLive(other)) << "a mesh the device never stood rested";
             EXPECT_EQ(scene.getRestingBytes(), 64u + 100u);
+            // What it rests in the runs is the quad's 4 vertices and 6 indices, the one never stood holding none.
+            EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 4u);
+            EXPECT_EQ(scene.meshes().getRestingGeometry().mIndices, 6u);
 
             // Taken back: the same mesh, nothing arriving, nothing resting of it.
             scene.clearArrivals();
             EXPECT_EQ(Testing::addQuadMesh(scene), quad);
             EXPECT_TRUE(scene.meshes().getArrived().empty()) << "a mesh taken back from rest arrived again";
             EXPECT_EQ(scene.getRestingBytes(), 64u);
+            EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 0u) << "a mesh taken back still rests its runs";
+            EXPECT_EQ(scene.meshes().getRestingGeometry().mIndices, 0u);
             Testing::letGoMesh(scene, quad);
             scene.compact();
 
@@ -813,9 +818,13 @@ namespace Rtx
             EXPECT_EQ(scene.evictResting(), 64u);
             EXPECT_FALSE(scene.textures().isLive(texture));
             EXPECT_TRUE(scene.meshes().isLive(quad));
+            EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 4u);
             EXPECT_EQ(scene.evictResting(1), 100u);
             EXPECT_FALSE(scene.meshes().isLive(quad));
             EXPECT_EQ(scene.getRestingBytes(), 0u);
+            EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 0u)
+                << "a mesh freed from rest still rests its runs";
+            EXPECT_EQ(scene.meshes().getRestingGeometry().mIndices, 0u);
 
             const DeformedMesh body = Testing::addOneBoneBody(
                 scene, MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices });

@@ -135,17 +135,18 @@ namespace RtxTool
                                R"("darkAlphaInstances": {}, "reliefInstances": {}, )"
                                R"("structureBytes": {}, "structureLiveBytes": {}, )"
                                R"("compactableBytes": {}, "compactableNowBytes": {}, "rebuilt": {}, )"
-                               R"("tableBytes": {}, "workBytes": {}, "textureCount": {}, "textureBytes": {}, )"
+                               R"("tableBytes": {}, "geometryBytes": {}, "workBytes": {}, "textureCount": {}, )"
+                               R"("textureBytes": {}, )"
                                R"("reducedTextureCount": {}, "textureBytesBySource": {{"files": {}, )"
                                R"("spriteBakes": {}, "groundComposites": {}, "groundGloss": {}}}}})",
                 scene.mInstances.mPlaced, scene.mInstanceSlots, scene.mInstances.mCutout, scene.mInstances.mWater,
                 scene.mInstances.mMedium, scene.mInstances.mAdditive, scene.mInstances.mFirstPerson,
                 scene.mInstances.mMapped, scene.mInstances.mModMapped, scene.mInstances.mDarkAlpha,
                 scene.mInstances.mRelief, scene.mStructureBytes, scene.mStructureLiveBytes, scene.mCompactableBytes,
-                scene.mCompactableNowBytes, scene.mRebuilt, scene.mTableBytes, scene.mWorkBytes, scene.mTextureCount,
-                scene.mTextureBytes, scene.mReducedTextureCount, scene.mTextureBytesBySource.mFiles,
-                scene.mTextureBytesBySource.mSpriteBakes, scene.mTextureBytesBySource.mGroundComposites,
-                scene.mTextureBytesBySource.mGroundGloss);
+                scene.mCompactableNowBytes, scene.mRebuilt, scene.mTableBytes, scene.mGeometryBytes, scene.mWorkBytes,
+                scene.mTextureCount, scene.mTextureBytes, scene.mReducedTextureCount,
+                scene.mTextureBytesBySource.mFiles, scene.mTextureBytesBySource.mSpriteBakes,
+                scene.mTextureBytesBySource.mGroundComposites, scene.mTextureBytesBySource.mGroundGloss);
         }
 
         /// Every heap the device stated and every use, as the report's memory lines read them.
@@ -175,12 +176,14 @@ namespace RtxTool
         {
             const Rtx::ReaderMemory& reader = content.mReader;
             return std::format(R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
+                               R"("restingVertices": {}, "restingIndices": {}, "geometryBytes": {}, )"
                                R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
                                R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
                                R"("restingTextures": {}, "restingTextureBytes": {}, )"
                                R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
                                R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}}}}})",
-                content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed, content.mLayerEnd,
+                content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed,
+                content.mRestingVertices, content.mRestingIndices, content.mGeometryBytes, content.mLayerEnd,
                 content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
                 content.mBindVertexEnd, content.mRestingTextures, content.mRestingTextureBytes, reader.mLentModels,
                 reader.mSpareModels, reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes, reader.mFiledBytes);
@@ -384,15 +387,20 @@ namespace RtxTool
             return {};
 
         return std::format(
-            "  host  vertices {:.2f} M used of {:.2f} M reached   indices {:.2f} M of {:.2f} M   "
-            "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n"
+            "  host  vertices {:.2f} M placed, {:.2f} M resting, {:.2f} M in holes of {:.2f} M reached   indices "
+            "{:.2f} M, {:.2f} M, {:.2f} M of {:.2f} M   geometry {:.1f} MiB   reader {:.1f} MiB lent in {} models, "
+            "{:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n"
             "  runs  layers {}   masks {}   rig runs {}   influences {}   offsets {}   pose words {}   "
             "bind vertices {}   resting textures {}, {:.1f} MiB\n",
-            content.mVerticesUsed / 1e6, content.mVertexEnd / 1e6, content.mIndicesUsed / 1e6, content.mIndexEnd / 1e6,
-            Rtx::mebibytes(reader.mLentBytes), reader.mLentModels, Rtx::mebibytes(reader.mSpareBytes),
-            reader.mSpareModels, Rtx::mebibytes(reader.mFiledBytes), reader.mFiledModels, content.mLayerEnd,
-            content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
-            content.mBindVertexEnd, content.mRestingTextures, Rtx::mebibytes(content.mRestingTextureBytes));
+            (content.mVerticesUsed - content.mRestingVertices) / 1e6, content.mRestingVertices / 1e6,
+            (content.mVertexEnd - content.mVerticesUsed) / 1e6, content.mVertexEnd / 1e6,
+            (content.mIndicesUsed - content.mRestingIndices) / 1e6, content.mRestingIndices / 1e6,
+            (content.mIndexEnd - content.mIndicesUsed) / 1e6, content.mIndexEnd / 1e6,
+            Rtx::mebibytes(content.mGeometryBytes), Rtx::mebibytes(reader.mLentBytes), reader.mLentModels,
+            Rtx::mebibytes(reader.mSpareBytes), reader.mSpareModels, Rtx::mebibytes(reader.mFiledBytes),
+            reader.mFiledModels, content.mLayerEnd, content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd,
+            content.mOffsetEnd, content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures,
+            Rtx::mebibytes(content.mRestingTextureBytes));
     }
 
     std::string describeHeader(const BenchHeader& header)

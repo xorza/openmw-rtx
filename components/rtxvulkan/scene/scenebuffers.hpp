@@ -96,7 +96,9 @@ namespace Rtx
         /// their own.
         void describeTables(FrameSlot slot, Shaders::GpuTables& into) const;
 
+        /// What the tables take, the vertex attributes left out, and what those take (`SceneStats::mGeometryBytes`).
         VkDeviceSize getBytes() const;
+        VkDeviceSize getGeometryBytes() const;
 
     private:
         /// What a frame writes, once per frame in flight: whole, but for the light list. What is

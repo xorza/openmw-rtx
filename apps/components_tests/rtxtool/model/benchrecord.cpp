@@ -127,6 +127,27 @@ namespace RtxTool
         /// A name is written into the record as a JSON string, whatever it holds: a view, a cell,
         /// a suite and a process holding the card are all somebody else's text, and a quote left
         /// bare in one ended the record there.
+        /// **The host's geometry as placed, resting and holes**: of 1,600,000 vertices reached 1,500,000 stand in runs,
+        /// 300,000 of them resting, so 1.20 M placed and 0.10 M in holes; of 3,000,000 indices 2,400,000 stand, 600,000
+        /// resting: 1.80 M placed, 0.60 M in holes. The geometry's 52 MiB beside them.
+        TEST(RtxBenchRecordTest, theHostLineSaysTheGeometryAsPlacedRestingAndHoles)
+        {
+            constexpr std::uint64_t sMiB = std::uint64_t{ 1 } << 20;
+            const Rtx::ContentMemory content{ .mVertexEnd = 1'600'000,
+                .mVerticesUsed = 1'500'000,
+                .mIndexEnd = 3'000'000,
+                .mIndicesUsed = 2'400'000,
+                .mRestingVertices = 300'000,
+                .mRestingIndices = 600'000,
+                .mGeometryBytes = 52 * sMiB,
+                .mReader = {} };
+            const std::string line = describeHostHeld(content);
+            EXPECT_EQ(line.substr(0, line.find("   reader")),
+                "  host  vertices 1.20 M placed, 0.30 M resting, 0.10 M in holes of 1.60 M reached   indices 1.80 M, "
+                "0.60 M, 0.60 M of 3.00 M   geometry 52.0 MiB")
+                << line;
+        }
+
         TEST(RtxBenchRecordTest, theRecordWritesEveryNameAsAJsonString)
         {
             BenchPlace place;
@@ -246,6 +267,7 @@ namespace RtxTool
                 .mStructureBytes = 51,
                 .mStructureLiveBytes = 52,
                 .mTableBytes = 53,
+                .mGeometryBytes = 66,
                 .mWorkBytes = 54,
                 .mCompactableBytes = 55,
                 .mCompactableNowBytes = 56,
@@ -273,6 +295,9 @@ namespace RtxTool
                 .mVerticesUsed = 22,
                 .mIndexEnd = 23,
                 .mIndicesUsed = 24,
+                .mRestingVertices = 40,
+                .mRestingIndices = 41,
+                .mGeometryBytes = 42,
                 .mLayerEnd = 25,
                 .mMaskEnd = 26,
                 .mRigRunEnd = 27,
@@ -301,7 +326,7 @@ namespace RtxTool
                   R"("mappedInstances": 47, "modMappedInstances": 65, "darkAlphaInstances": 48, "reliefInstances": 49, )"
                   R"("structureBytes": 51, )"
                   R"("structureLiveBytes": 52, "compactableBytes": 55, "compactableNowBytes": 56, "rebuilt": 57, )"
-                  R"("tableBytes": 53, "workBytes": 54, "textureCount": 58, "textureBytes": 59, )"
+                  R"("tableBytes": 53, "geometryBytes": 66, "workBytes": 54, "textureCount": 58, "textureBytes": 59, )"
                   R"("reducedTextureCount": 64, "textureBytesBySource": {"files": 60, "spriteBakes": 61, )"
                   R"("groundComposites": 62, "groundGloss": 63}})";
             constexpr std::string_view memory
@@ -311,6 +336,7 @@ namespace RtxTool
                   R"("structures": 13, "structureRoom": 14, "textures": 15, "textureRoom": 16}})";
             constexpr std::string_view content
                 = R"("content": {"vertexEnd": 21, "verticesUsed": 22, "indexEnd": 23, "indicesUsed": 24, )"
+                  R"("restingVertices": 40, "restingIndices": 41, "geometryBytes": 42, )"
                   R"("layerEnd": 25, "maskEnd": 26, "rigRunEnd": 27, "influenceEnd": 28, "offsetEnd": 29, )"
                   R"("poseEnd": 30, "bindVertexEnd": 31, "restingTextures": 38, "restingTextureBytes": 39, )"
                   R"("reader": {"lentModels": 32, "spareModels": 33, )"

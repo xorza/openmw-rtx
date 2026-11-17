@@ -406,6 +406,15 @@ namespace Rtx
                     EXPECT_NE(
                         describe(*refused).find(std::string("no device memory for a ") + std::string(nameOf(use))),
                         std::string::npos);
+
+                    // What each use held when it was refused, as the report says it now, nothing being made since.
+                    const MemoryUses now = memory.report().mUses;
+                    EXPECT_EQ(refused->mUses.mTextures, now.mTextures);
+                    EXPECT_EQ(refused->mUses.mStructures, now.mStructures);
+                    EXPECT_EQ(refused->mUses.mEssential, now.mEssential);
+                    EXPECT_EQ(refused->mUses.mTextureRoom, now.mTextureRoom);
+                    EXPECT_EQ(refused->mUses.mStructureRoom, now.mStructureRoom);
+                    EXPECT_NE(describe(*refused).find("; held by use: " + describeUses(now)), std::string::npos);
                 }
 
             const Bound essential = bind(getDevice(), VkDeviceSize{ 40 } << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);

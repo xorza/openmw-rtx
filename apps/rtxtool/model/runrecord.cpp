@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <format>
 #include <optional>
@@ -16,11 +17,55 @@
 #include <components/platform/process.hpp>
 #include <components/rtx/common/asserts.hpp>
 #include <components/rtx/common/mebibytes.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 
 #include "heapdescription.hpp"
 
 namespace RtxTool
 {
+    namespace
+    {
+        /// What the device's video heap held by use, the frame's own memory among it.
+        std::uint64_t heldByUse(const Rtx::MemoryUses& uses)
+        {
+            return uses.mFrame + uses.mEssential + uses.mStructures + uses.mTextures;
+        }
+
+        /// The stop whose end found the device holding the most by use, as one line, or nothing from a renderer that
+        /// does not say.
+        std::string describeDevicePeak(const std::vector<BenchPlace>& places)
+        {
+            const auto peak
+                = std::max_element(places.begin(), places.end(), [](const BenchPlace& a, const BenchPlace& b) {
+                      return heldByUse(a.mMemory.mUses) < heldByUse(b.mMemory.mUses);
+                  });
+            if (peak == places.end() || heldByUse(peak->mMemory.mUses) == 0)
+                return {};
+            return std::format("\nthe device held at most {:.1f} MiB by use, at {}: {}\n",
+                Rtx::mebibytes(heldByUse(peak->mMemory.mUses)), peak->mView, Rtx::describeUses(peak->mMemory.mUses));
+        }
+
+        /// The stop whose end found the geometry reaching furthest, on the host and the device together, as one line,
+        /// or nothing where no stop held any.
+        std::string describeGeometryPeak(const std::vector<BenchPlace>& places)
+        {
+            const auto reach
+                = [](const BenchPlace& place) { return place.mContent.mGeometryBytes + place.mScene.mGeometryBytes; };
+            const auto peak = std::max_element(places.begin(), places.end(),
+                [&](const BenchPlace& a, const BenchPlace& b) { return reach(a) < reach(b); });
+            if (peak == places.end() || reach(*peak) == 0)
+                return {};
+            const Rtx::ContentMemory& content = peak->mContent;
+            return std::format(
+                "the geometry reached at most {:.2f} M vertices and {:.2f} M indices, at {}: {:.2f} M and {:.2f} M of "
+                "them resting, {:.2f} M and {:.2f} M in holes; {:.1f} MiB on the host, {:.1f} MiB on the device\n",
+                content.mVertexEnd / 1e6, content.mIndexEnd / 1e6, peak->mView, content.mRestingVertices / 1e6,
+                content.mRestingIndices / 1e6, (content.mVertexEnd - content.mVerticesUsed) / 1e6,
+                (content.mIndexEnd - content.mIndicesUsed) / 1e6, Rtx::mebibytes(content.mGeometryBytes),
+                Rtx::mebibytes(peak->mScene.mGeometryBytes));
+        }
+    }
+
     void RunRecord::begin(const SessionRequest& request)
     {
         mHeader.mSuite = request.mSuite;
@@ -175,6 +220,11 @@ namespace RtxTool
                 mReport += "; there " + describeHeap(*peak.mHeap);
             mReport += '\n';
         }
+
+        // **What the device held at its peak, by use**, beside the room each content use had left there: a stop's end
+        // says it, and a run's figure is its most.
+        mReport += describeDevicePeak(mPlaces);
+        mReport += describeGeometryPeak(mPlaces);
 
         // **What a `check` run came to, in one line.** A suite asks every check at each of several
         // places, so the verdict is otherwise something a reader counts by hand.

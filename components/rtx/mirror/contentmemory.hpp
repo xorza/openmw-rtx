@@ -6,16 +6,21 @@
 
 namespace Rtx
 {
-    /// What the content holds on the host beyond what stands in the scene, for a report taken once
-    /// a place: how far the mesh runs reach against what they hold, since a freed mesh leaves a
-    /// hole nothing moves to close, how far each table of runs reaches, which its room is held to
-    /// (`SceneRoom`), and what the cell reader keeps of the models it read.
+    /// What the content holds on the host beyond what stands in the scene, for a report taken once a place: how far
+    /// the mesh runs reach against what they hold, since a freed mesh leaves a hole nothing moves to close, and what of
+    /// that the meshes that rest hold; how far each table of runs reaches, which its room is held to (`SceneRoom`), and
+    /// what the cell reader keeps of the models it read.
     struct ContentMemory
     {
         std::uint32_t mVertexEnd = 0;
         std::uint32_t mVerticesUsed = 0;
         std::uint32_t mIndexEnd = 0;
         std::uint32_t mIndicesUsed = 0;
+        std::uint32_t mRestingVertices = 0;
+        std::uint32_t mRestingIndices = 0;
+
+        /// What the host's copy of the geometry takes, as far as the runs reach (`MeshTable::getGeometryBytes`).
+        std::uint64_t mGeometryBytes = 0;
 
         /// The runs' reach, in elements: the materials' layers and masks, the rigs' runs and
         /// influences, the morphs' offsets, the poses' words, and the deforming meshes' bind vertices.

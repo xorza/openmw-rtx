@@ -520,7 +520,9 @@ namespace Rtx
     void MemoryAllocator::noteRefused(
         const MemoryUse use, const VkDeviceSize bytes, const std::uint32_t type, const bool own)
     {
-        RefusedTake refused{ .mUse = use, .mBytes = bytes, .mType = type, .mOwn = own, .mVideo = getVideoBudget() };
+        RefusedTake refused{
+            .mUse = use, .mBytes = bytes, .mType = type, .mOwn = own, .mVideo = getVideoBudget(), .mUses = uses()
+        };
         for (std::uint32_t at = 0; at < mMemory.memoryTypeCount; ++at)
         {
             if ((mContent.mTypes & (1u << at)) == 0)
@@ -550,6 +552,7 @@ namespace Rtx
             "{:.1f} MiB, the process holding {:.1f} MiB of it",
             nameOf(refused.mUse), mebibytes(refused.mBytes), refused.mOwn ? "memory of its own" : "a block",
             refused.mType, mebibytes(refused.mVideo.mBudget), mebibytes(refused.mVideo.mHeld));
+        out += "; held by use: " + describeUses(refused.mUses);
         for (const PoolRoom& pool : std::span(refused.mPools).first(refused.mPoolCount))
             out += std::format(
                 "; pool of type {}: {:.1f} MiB in blocks, {:.1f} MiB allocated, the largest range free "
@@ -639,14 +642,18 @@ namespace Rtx
             }
         }
 
-        out.mUses = MemoryUses{ .mFrame = getHeld(mContent.mHeap, MemoryUse::Frame) + mHeldOutside,
+        out.mUses = uses();
+        return out;
+    }
+
+    MemoryUses MemoryAllocator::uses() const
+    {
+        return MemoryUses{ .mFrame = getHeld(mContent.mHeap, MemoryUse::Frame) + mHeldOutside,
             .mFrameReserve = mFrameReserve,
             .mEssential = getHeld(mContent.mHeap, MemoryUse::Essential),
             .mStructures = getHeld(mContent.mHeap, MemoryUse::Structure),
             .mStructureRoom = getRoom(MemoryUse::Structure),
             .mTextures = getHeld(mContent.mHeap, MemoryUse::Texture),
             .mTextureRoom = getRoom(MemoryUse::Texture) };
-
-        return out;
     }
 }

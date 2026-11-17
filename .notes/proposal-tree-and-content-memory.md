@@ -487,13 +487,11 @@ in any item.
 
 The meters. A stop's end logs, and the report keeps the run's peak of:
 
-1. what the device holds by use, the frame's gap and each ceiling, at a stop and in `RefusedTake`;
-2. the geometry's reach as placed, resting and holes, on the host and on the device;
-3. image loads by cause (header, fact, key, retake after an eviction, a move up, a partner) with their bytes, and how
+1. image loads by cause (header, fact, key, retake after an eviction, a move up, a partner) with their bytes, and how
    many chain jobs found their chain whole in the store;
-4. what the prepared images hold unhanded, in entries and bytes, and how many slots left while pending;
-5. the ring's meshes with no placement, and its placements with no slot, by the cell's distance;
-6. the reader's capacity against its content; loaded cell stores; the caches' "looks for room finding all in use".
+2. what the prepared images hold unhanded, in entries and bytes, and how many slots left while pending;
+3. the ring's meshes with no placement, and its placements with no slot, by the cell's distance;
+4. the reader's capacity against its content; loaded cell stores; the caches' "looks for room finding all in use".
 
 Then the baseline: tours of the three contents on the desk, the handheld and Windows, to `docs/research/`, which every
 later item is held against, each flown twice, so a leg's worst frame has its own spread beside it. The note keeps

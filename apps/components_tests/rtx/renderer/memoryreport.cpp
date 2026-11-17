@@ -109,6 +109,7 @@ namespace Rtx
                 .mStructureBytes = 178 * sMiB,
                 .mStructureLiveBytes = 168 * sMiB,
                 .mTableBytes = 274 * sMiB,
+                .mGeometryBytes = 96 * sMiB,
                 .mWorkBytes = 77 * sMiB,
                 .mTextureCount = 1144,
                 .mTextureBytes = 176 * sMiB,
@@ -116,14 +117,16 @@ namespace Rtx
                     .mFiles = 21 * sMiB, .mSpriteBakes = 1 * sMiB, .mGroundComposites = 154 * sMiB } };
             EXPECT_EQ(describeSceneHeld(scene),
                 "40123 instances (12064 cutouts) in 87964 slots   168.0 MiB structures in 178.0 reserved, 274.0 MiB "
-                "tables, 77.0 MiB working   1144 textures, 176.0 MiB: files 21.0, bakes 1.0, ground 154.0, gloss 0.0");
+                "tables, 96.0 MiB geometry, 77.0 MiB working   1144 textures, 176.0 MiB: files 21.0, bakes 1.0, ground "
+                "154.0, gloss 0.0");
 
             scene.mCompactableBytes = 100 * sMiB;
             scene.mCompactableNowBytes = 150 * sMiB;
             scene.mReducedTextureCount = 3;
             EXPECT_EQ(describeSceneHeld(scene),
                 "40123 instances (12064 cutouts) in 87964 slots   168.0 MiB structures in 178.0 reserved (150.0 of "
-                "them would compact to 100.0), 274.0 MiB tables, 77.0 MiB working   1144 textures, 176.0 MiB, 3 of "
+                "them would compact to 100.0), 274.0 MiB tables, 96.0 MiB geometry, 77.0 MiB working   1144 textures, "
+                "176.0 MiB, 3 of "
                 "them held smaller: files 21.0, bakes 1.0, ground 154.0, gloss 0.0");
         }
     }

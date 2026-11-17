@@ -22,6 +22,13 @@
 
 namespace Rtx
 {
+    /// What the meshes that rest hold of the vertex and the index runs (`MeshTable::getRestingGeometry`).
+    struct RestingGeometry
+    {
+        std::uint32_t mVertices = 0;
+        std::uint32_t mIndices = 0;
+    };
+
     /// Every mesh the scene holds, and the shared buffers its triangles live in. One type, because
     /// a mesh that deforms has to give its deformer back between the free list and the two
     /// allocators. The deformers are the scene's and handed in per call rather than held: a table
@@ -107,6 +114,9 @@ namespace Rtx
         /// The meshes that rest, oldest first (`RestQueue`): what the scene frees across its tables.
         const RestQueue& getResting() const { return mResting; }
 
+        /// What the meshes that rest hold of the vertex and the index runs: what stands in the runs and no frame draws.
+        RestingGeometry getRestingGeometry() const { return mRestingGeometry; }
+
         void clearArrivals();
 
     private:
@@ -154,6 +164,10 @@ namespace Rtx
         /// Files the meshes that came to rest since the last, by their slots, at the clock `compact` was last given.
         void settleResting() { mResting.settle(mClock, placeOf()); }
 
+        /// `mesh` laid to rest and woken, in the queue and in `mRestingGeometry` together.
+        void rest(Index mesh);
+        void wake(Index mesh);
+
         /// Makes the five vertex buffers as long as the vertex runs reach and writes `range`'s run
         /// of each, and says in `MeshRange::mTangents` whether any tangent word is not nought. Fills
         /// one the mesh did not bring with what stands for nothing there, because a reused slot
@@ -172,6 +186,7 @@ namespace Rtx
         /// scene's clock at the last `compact`.
         boost::unordered_flat_map<MeshKey, Index, MeshKeyHash> mKeyIndex;
         RestQueue mResting;
+        RestingGeometry mRestingGeometry;
         std::uint64_t mClock = 0;
 
         RunAllocator mVertexRuns{ sVertexBlock };

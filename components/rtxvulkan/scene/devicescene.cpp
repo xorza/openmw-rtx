@@ -242,7 +242,8 @@ namespace Rtx
     {
         stats.mInstances = mCounts;
         stats.mInstanceSlots = mAcceleration.getInstanceSlots();
-        stats.mTableBytes = mBuffers.getBytes() + mSkinTables.getBytes() + mAcceleration.getIndexBytes();
+        stats.mTableBytes = mBuffers.getBytes() + mSkinTables.getBytes();
+        stats.mGeometryBytes = mBuffers.getGeometryBytes() + mAcceleration.getIndexBytes();
         stats.mWorkBytes = mAcceleration.getWorkBytes();
 
         // Read every placement and not with the rest of the report, because a placement is

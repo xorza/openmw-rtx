@@ -246,9 +246,8 @@ namespace Rtx
         if (known == mKeyIndex.end())
             return sNoIndex;
 
-        MeshRange& range = rowAt(known->second);
-        if (range.mRest.mResting)
-            mResting.wake(known->second, range.mStoodBytes, placeOf());
+        if (rowAt(known->second).mRest.mResting)
+            wake(known->second);
         return known->second;
     }
 
@@ -289,9 +288,27 @@ namespace Rtx
         // content"); anything else goes now, a mesh the device has not stood among them.
         const MeshRange& range = rowAt(mesh);
         if (range.mKey.has_value() && range.mStoodBytes > 0)
-            mResting.rest(mesh, range.mStoodBytes, placeOf());
+            rest(mesh);
         else
             release(deformers, mesh);
+    }
+
+    void MeshTable::rest(const Index mesh)
+    {
+        const MeshRange& range = rowAt(mesh);
+        mResting.rest(mesh, range.mStoodBytes, placeOf());
+        mRestingGeometry.mVertices += range.mVertices.mCount;
+        mRestingGeometry.mIndices += range.mIndices.mCount;
+    }
+
+    void MeshTable::wake(const Index mesh)
+    {
+        const MeshRange& range = rowAt(mesh);
+        mResting.wake(mesh, range.mStoodBytes, placeOf());
+        assert(mRestingGeometry.mVertices >= range.mVertices.mCount && "a wake past the vertices that rest");
+        assert(mRestingGeometry.mIndices >= range.mIndices.mCount && "a wake past the indices that rest");
+        mRestingGeometry.mVertices -= range.mVertices.mCount;
+        mRestingGeometry.mIndices -= range.mIndices.mCount;
     }
 
     void MeshTable::releaseOldest(DeformerTable& deformers)
@@ -305,7 +322,7 @@ namespace Rtx
     {
         MeshRange& range = rowAt(mesh);
         if (range.mRest.mResting)
-            mResting.wake(mesh, range.mStoodBytes, placeOf());
+            wake(mesh);
         if (range.mKey.has_value())
             mKeyIndex.erase(*range.mKey);
         range.mKey.reset();
