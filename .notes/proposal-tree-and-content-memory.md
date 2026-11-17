@@ -399,6 +399,23 @@ a start 0.26–1.48 s.
   until item 15's count says what the reader's parse still costs; host image copy on unified memory; positions on a
   16-bit grid, which cracks where meshes meet.
 
+- **A device whose memory is the system's is told by its type**, `VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU`, a property
+  every driver states and no vendor's name: its budget is held to what it holds and what the system leaves, less a
+  gigabyte, read once a second at most. Refused: a heap that is both device-local and host-visible, which a discrete
+  card with resizable BAR states too.
+- **The room kept for the next arrival is the most of the last 64 extensions**, some three crossings at a tour's speed,
+  as a sliding maximum and not the session's, which one heavy arrival held for good.
+- **A load's staging is flushed between two whole files once it reaches the kept size**, its texture work recorded
+  first: the copies are recorded a phase at a time for the whole run, so a flush between two stagings without the
+  record would hand a staged block back before its copy ran. The records past the first are untimed, as one frame
+  opens each zone once.
+- **What a slot that leaves was read for is forgotten for that slot's ask alone** (`PreparedImages::forget`), as the
+  key the slot asked by, and kept where a slot asks again before its job lands: `letGo` serves every slot of a file at
+  once, after the device has its copy, and would drop what another slot still waits on.
+- **The heap's free memory is read with the system's, once a second off the frame** (`malloc_info`, glibc's one report
+  every glibc writes), and counted in the caches' budget: the release builds run on glibc 2.28, which has no
+  `mallinfo2`, and `mallinfo` wraps past 2 GiB.
+
 ## Final shape
 
 Sketches of what items 8–17 leave; names are the plan's to settle.
