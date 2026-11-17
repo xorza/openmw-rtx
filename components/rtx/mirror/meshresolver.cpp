@@ -149,7 +149,14 @@ namespace Rtx
             return sNoIndex;
         }
 
-        const Result<Index, std::string> added = addMesh(read, reading);
+        if (const Result<void, std::string> fits
+            = MeshTable::checkFits(reading.mArrays.mPositions.size(), reading.mArrays.mIndices.size());
+            !fits.isOk())
+            return refuse(drawable, model, fits.error());
+
+        mPacked.clear();
+        const Result<Index, std::string> added
+            = addMesh(read, mPacked.of(mPacked.append(reading.mArrays, reading.mShape)));
         if (!added.isOk())
             return refuse(drawable, model, added.error());
 
@@ -201,7 +208,7 @@ namespace Rtx
         return true;
     }
 
-    Index MeshResolver::adopt(const osg::Drawable& drawable, const MeshReading& reading)
+    Index MeshResolver::adopt(const osg::Drawable& drawable, const PackedMesh& reading)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -218,7 +225,7 @@ namespace Rtx
         }
         else
         {
-            known = file(drawable, mScene.addMesh(reading.mArrays, reading.mShape));
+            known = file(drawable, mScene.addMesh(reading));
             ++stats.mMeshesAdded;
         }
 
@@ -251,26 +258,23 @@ namespace Rtx
         return sNoIndex;
     }
 
-    Result<Index, std::string> MeshResolver::addMesh(const DrawableRead& read, const MeshReading& reading)
+    Result<Index, std::string> MeshResolver::addMesh(const DrawableRead& read, const PackedMesh& reading)
     {
         const Crash::NoteScope noted("adding the mesh \"{}\"", read.mGeometry->getName());
 
-        if (const Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
-            return Err{ fits.error() };
-
         if (read.mDeform == Deform::None)
-            return mScene.addMesh(reading.mArrays, reading.mShape);
+            return mScene.addMesh(reading);
 
         // A deformer the mirror holds that fits this drawable — the same kind, the same targets
         // and exactly these vertices — is added once per skin and once per set of targets however
         // many drawables share them, and stamped as each is met, so the sweep keeps it for as long
         // as a mesh stands on it.
-        const std::size_t vertices = reading.mArrays.mPositions.size();
+        const std::size_t vertices = reading.mPositions.size();
         const Held held = holdDeformer(read);
         if (held.mIndex != sNoIndex && mScene.deformers().getRows()[held.mIndex].getVertexCount() == vertices)
         {
             stampDeformer(held);
-            return mScene.addMesh(reading.mArrays, reading.mShape, held.mIndex);
+            return mScene.addMesh(reading, held.mIndex);
         }
 
         // Otherwise this drawable gets a deformer of its own, made with its mesh. A skin rewritten in place under the
@@ -285,11 +289,11 @@ namespace Rtx
                 return Err{ rig.error() };
 
             const Result<void, std::string> posed
-                = SceneDesc::checkPoses(rig.value().getVertexCount(), reading.mArrays);
+                = SceneDesc::checkPoses(rig.value().getVertexCount(), reading.mPositions.size());
             if (!posed.isOk())
                 return Err{ posed.error() };
 
-            added = mScene.addMesh(reading.mArrays, reading.mShape, rig.value());
+            added = mScene.addMesh(reading, rig.value());
         }
         else
         {
@@ -298,11 +302,11 @@ namespace Rtx
                 return Err{ morph.error() };
 
             const Result<void, std::string> posed
-                = SceneDesc::checkPoses(morph.value().getVertexCount(), reading.mArrays);
+                = SceneDesc::checkPoses(morph.value().getVertexCount(), reading.mPositions.size());
             if (!posed.isOk())
                 return Err{ posed.error() };
 
-            added = mScene.addMesh(reading.mArrays, reading.mShape, morph.value());
+            added = mScene.addMesh(reading, morph.value());
         }
 
         if (held.mEntry != mDeformers.end())

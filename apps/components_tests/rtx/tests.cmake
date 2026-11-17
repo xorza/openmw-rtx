@@ -86,6 +86,7 @@ target_sources(
         rtx/scene/instancerecord.cpp
         rtx/scene/lightgrid.cpp
         rtx/scene/mesharrivals.cpp
+        rtx/scene/packedstreams.cpp
         rtx/scene/refusals.cpp
         rtx/scene/scenedesc.cpp
         rtx/shaders/brdf.cpp

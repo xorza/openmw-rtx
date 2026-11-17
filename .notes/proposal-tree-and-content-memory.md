@@ -565,7 +565,6 @@ made again once; a store made on the desk is the handheld's too, the key being t
 
 ### 14. One copy of the geometry
 
-1. The reader packs, keys and bounds; `MeshTable::add` takes a `PackedMesh`; split normals stay words.
 3. `PreparedModel` lets go of its arrays once adopted, on the reader's thread; a second adoption finds its meshes by
    key or asks the reader to fill it again.
 4. The ring's flat records; the cell pools go.
@@ -615,6 +614,11 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **14.1. The reader packs, keys and bounds**: `PackedStreams` packs what `MeshReader` read, where its caller lands
+  it — a model's streams on the ring's thread, the walk's scratch on the frame's — so the reader's own tests of what a
+  drawable reads stay on the arrays it reads. The ground packs on its reader's thread and keeps naming the shared
+  corners and triangles. Split normals are words from the read on, as every normal is.
 
 - **14.2 and 14.7, the geometry. One host copy, for one hand-over, and digests where the host asks**: ahead of 14.1,
   since the arrivals take the table's packing as it stands and the reader's packing moves it later without touching

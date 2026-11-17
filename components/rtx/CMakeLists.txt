@@ -132,10 +132,10 @@ openmw_rtx_layer(
         scene/instancerecord.cpp
         scene/lightgrid.cpp
         scene/materialtable.cpp
-        scene/mesh.cpp
         scene/mesharrivals.cpp
         scene/meshdigest.cpp
         scene/meshtable.cpp
+        scene/packedstreams.cpp
         scene/placementtable.cpp
         scene/refusals.cpp
         scene/scenedesc.cpp
@@ -154,6 +154,7 @@ openmw_rtx_layer(
         scene/mesharrivals.hpp
         scene/meshdigest.hpp
         scene/meshtable.hpp
+        scene/packedstreams.hpp
         scene/placementtable.hpp
         scene/refusal.hpp
         scene/refusals.hpp

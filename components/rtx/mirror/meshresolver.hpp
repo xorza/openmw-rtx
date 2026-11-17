@@ -15,6 +15,7 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/deformertable.hpp>
+#include <components/rtx/scene/packedstreams.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/skinning.h>
@@ -72,7 +73,7 @@ namespace Rtx
         /// does not hold it and stamping it where it does — the insertion half of `resolve`, for a
         /// reading made off the frame, under the drawable so a clone met by the walk resolves to
         /// this mesh. Standing only. One hold is taken on the entry until `release` gives it back.
-        Index adopt(const osg::Drawable& drawable, const MeshReading& reading);
+        Index adopt(const osg::Drawable& drawable, const PackedMesh& reading);
 
         /// Gives one `adopt` back. The mirror must hold `drawable`, which it does for as long as
         /// anything holds it.
@@ -142,7 +143,7 @@ namespace Rtx
         /// that fits it, or with a deformer of its own, both rows in one call of the scene's, and the identity entry
         /// added or moved only once they exist. An error, adding nothing, where the mesh is past a block or its skin or
         /// targets do not pose exactly its vertices, because a vertex count comes out of a content file.
-        Result<Index, std::string> addMesh(const DrawableRead& read, const MeshReading& reading);
+        Result<Index, std::string> addMesh(const DrawableRead& read, const PackedMesh& reading);
 
         /// Refuses `drawable` of `model`, or of none, to the scene for `why`, named with its model, and keeps the
         /// refusal under it so it is read no more. Answers the index a refused drawable resolves to, which is none.
@@ -190,6 +191,9 @@ namespace Rtx
         Identity<const osg::Referenced> mDeformers{ mPass };
 
         MeshReader mReader;
+
+        /// The mesh the frame's walk read last, packed as the scene takes it (`PackedStreams`).
+        PackedStreams mPacked;
 
         // Refilled per rig and per morph, which a crowd is hundreds of.
         std::vector<std::uint32_t> mRunScratch;

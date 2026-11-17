@@ -1098,12 +1098,13 @@ namespace Rtx::Testing
                 SceneDesc scene;
                 const Index grey = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
                 const Index red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
-                scene.addInstance(
-                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = grey }) });
-                scene.addInstance(MeshInstance{ .mMesh
-                    = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = grey }) });
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
                     .mMaterial = scene.addMaterial(Material{ .mDiffuse = red }),
                     .mOpacity = fade,
                     .mClass = InstanceClass::FirstPerson });
@@ -1197,13 +1198,15 @@ namespace Rtx::Testing
                 VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
             const Index painted = scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
             scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(MeshArrays{
-                    .mPositions = uprightQuadAt(40.0f, 100.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                .mMesh = Testing::addMesh(scene,
+                    MeshArrays{
+                        .mPositions = uprightQuadAt(40.0f, 100.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
                 .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map, .mTwoSided = true }),
                 .mClass = InstanceClass::FirstPerson });
-            scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(MeshArrays{
-                    .mPositions = uprightQuadAt(400.0f, -500.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+            scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                MeshArrays{ .mPositions = uprightQuadAt(400.0f, -500.0f),
+                                                    .mTexCoords = sQuadUv,
+                                                    .mIndices = sQuadIndices }),
                 .mMaterial = scene.addMaterial(Material{ .mDiffuse = painted, .mTwoSided = true }) });
 
             const auto reflectedWith = [&](float world, float arms) {

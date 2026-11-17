@@ -20,6 +20,7 @@
 #include "mesh.hpp"
 #include "mesharrivals.hpp"
 #include "meshdigest.hpp"
+#include "packedstreams.hpp"
 #include "restqueue.hpp"
 
 namespace Rtx
@@ -57,11 +58,10 @@ namespace Rtx
             mResting.reserve(count);
         }
 
-        /// Whether `arrays` fits one block, and why not where it is longer: a run that straddled
-        /// two would be written across two allocations that are not next to each other. A vertex
-        /// count comes out of a content file, so whoever reads one asks this before `add`, which
-        /// asserts it.
-        static Result<void, std::string> checkFits(const MeshArrays& arrays);
+        /// Whether a mesh of `vertices` and `indices` fits one block, and why not where it is longer: a run that
+        /// straddled two would be written across two allocations that are not next to each other. A vertex count comes
+        /// out of a content file, so whoever reads one asks this before `add`, which asserts it.
+        static Result<void, std::string> checkFits(std::size_t vertices, std::size_t indices);
 
         /// Where the vertex, the index and the second coordinates' runs are handed out: how far they reach against
         /// what stands in them, which is the room freed meshes left and nothing moves to close. How far a device's
@@ -141,10 +141,10 @@ namespace Rtx
         /// Takes runs of the streams for the mesh, files its geometry with the arrivals and returns the new mesh's
         /// index. The mesh fits a block — `checkFits`. A deforming mesh is stood on `deformer` in
         /// `deformers`, which must hold it.
-        Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, Index deformer);
+        Index add(DeformerTable& deformers, const PackedMesh& mesh, Index deformer);
 
-        /// The same for a static mesh, filed under `key`, which `find` answers and it rests under.
-        Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, const MeshKey& key);
+        /// The same for a static mesh, filed under its key, which `find` answers and it rests under.
+        Index add(DeformerTable& deformers, const PackedMesh& mesh);
 
         /// What a pose that changed does beside its rows: the reach, and the mesh named for the
         /// frame, once.
@@ -175,11 +175,10 @@ namespace Rtx
         void rest(Index mesh);
         void wake(Index mesh);
 
-        /// Files `mesh`'s geometry with the arrivals in the device's form, its indices where `bringsIndices`, and says
-        /// in `MeshRange::mTangents` whether any tangent word is not nought. Fills a stream the mesh did not bring
-        /// with what stands for nothing there, as the device's run holds its last tenant's. Its digest beside it,
-        /// where they are kept.
-        void writeArrival(Index mesh, const MeshArrays& arrays, bool bringsIndices);
+        /// Files `mesh`'s geometry, `packed`, with the arrivals, its indices where `bringsIndices`. Fills a stream the
+        /// mesh did not bring with what stands for nothing there, as the device's run holds its last tenant's. Its
+        /// digest beside it, where they are kept.
+        void writeArrival(Index mesh, const PackedMesh& packed, bool bringsIndices);
 
         /// Records `slot` as having arrived or gone, and grows the list to reach it.
         void note(Index slot, SlotNews what);

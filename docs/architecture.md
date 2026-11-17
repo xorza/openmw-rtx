@@ -404,8 +404,9 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   split; one order across host and device.
 - **Not now: a resting allocation's priority lowered** (`VK_EXT_pageable_device_local_memory`): RADV lacks it, and it
   reaches no content placed in a shared block.
-- **The geometry has one host copy, for one hand-over** (`MeshArrivals`): a mesh's streams are packed into the
-  arrivals as it is added and let go once the device has them, as Unity frees a mesh's system copy once uploaded
+- **The geometry has one host copy, for one hand-over** (`MeshArrivals`): the reader packs a mesh into the device's
+  form with its key and bounds on its own thread (`PackedStreams`), adoption copies it into the arrivals, and they let
+  go once the device has it, as Unity frees a mesh's system copy once uploaded
   ([`Mesh.UploadMeshData`](https://docs.unity3d.com/ScriptReference/Mesh.UploadMeshData.html)) and Unreal drops a
   static mesh's unless asked
   ([`bAllowCPUAccess`](https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/Engine/UStaticMesh/bAllowCPUAccess/)).

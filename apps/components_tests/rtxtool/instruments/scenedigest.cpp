@@ -16,6 +16,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/rtxtool/instruments/digest.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <components/rtx/common/index.hpp>
@@ -61,11 +62,12 @@ namespace RtxTool
                 indices = { 7, 6, 5, 5, 6, 4 };
             }
 
-            return scene.addMesh(Rtx::MeshArrays{ .mPositions = positions,
-                                     .mNormals = normals,
-                                     .mTexCoords = texCoords,
-                                     .mTangents = tangents,
-                                     .mIndices = indices },
+            return Rtx::Testing::addMesh(scene,
+                Rtx::MeshArrays{ .mPositions = positions,
+                    .mNormals = normals,
+                    .mTexCoords = texCoords,
+                    .mTangents = tangents,
+                    .mIndices = indices },
                 {});
         }
 
@@ -350,10 +352,10 @@ namespace RtxTool
             const std::array positions{ osg::Vec3f(), osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 0.0f),
                 osg::Vec3f(0.0f, 1.0f, 0.0f) };
             const std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
-            const Rtx::Index quad = scene
-                                        .addMesh(Rtx::MeshArrays{ .mPositions = positions, .mIndices = indices }, {},
-                                            Rtx::RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 })
-                                        .mMesh;
+            const Rtx::Index quad
+                = Rtx::Testing::addMesh(scene, Rtx::MeshArrays{ .mPositions = positions, .mIndices = indices }, {},
+                    Rtx::RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 })
+                      .mMesh;
 
             scene.addInstance(Rtx::MeshInstance{ .mMesh = quad });
 

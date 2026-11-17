@@ -16,6 +16,8 @@
 #include <components/esm/exteriorcelllocation.hpp>
 #include <components/esm/util.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/scene/packedstreams.hpp>
+#include <components/rtx/shaders/tangent.h>
 
 #include "cellworld.hpp"
 
@@ -118,7 +120,9 @@ namespace Rtx
             assert(mPositions->size() == mVerts * mVerts);
 
             into.mPositions.assign(mPositions->begin(), mPositions->end());
-            into.mNormals.assign(mNormals->begin(), mNormals->end());
+            into.mNormals.reserve(mNormals->size());
+            for (const osg::Vec3f& normal : *mNormals)
+                into.mNormals.push_back(Shaders::packNormal(normal));
             into.mTexCoords = mGridCorners;
             into.mIndices = mGridIndices;
 
@@ -128,7 +132,7 @@ namespace Rtx
             // the storage writes is 255 at every vertex, because `VCLR` holds three channels.
             into.mColours.reserve(mColours->size());
             for (const osg::Vec4ub& colour : *mColours)
-                into.mColours.push_back(decodeColour(colour));
+                into.mColours.push_back(packColour(decodeColour(colour)));
         }
         else
         {
@@ -142,15 +146,20 @@ namespace Rtx
             for (const osg::Vec2f& corner : mQuadCorners)
             {
                 into.mPositions.emplace_back((corner.x() - 0.5f) * mCellSize, (corner.y() - 0.5f) * mCellSize, height);
-                into.mNormals.emplace_back(0.0f, 0.0f, 1.0f);
+                into.mNormals.push_back(Shaders::packNormal(osg::Vec3f(0.0f, 0.0f, 1.0f)));
 
                 // A cell with no record carries no `VCLR`, and white is what tints nothing.
-                into.mColours.emplace_back(1.0f, 1.0f, 1.0f);
+                into.mColours.push_back(packColour(osg::Vec3f(1.0f, 1.0f, 1.0f)));
             }
 
             into.mTexCoords = mQuadCorners;
             into.mIndices = mQuadIndices;
         }
+
+        // Bounded and keyed here, on the reader's thread, and not where the frame adopts it.
+        for (const osg::Vec3f& position : into.mPositions)
+            into.mBounds.expandBy(position);
+        into.mKey = keyOf(into.mesh());
 
         into.mStands = true;
 

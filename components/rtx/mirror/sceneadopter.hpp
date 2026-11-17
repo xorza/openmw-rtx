@@ -16,7 +16,7 @@ namespace osg
 namespace Rtx
 {
     struct ExtractionStats;
-    struct MeshReading;
+    struct PackedMesh;
     class SceneDesc;
 
     /// What a residency may do inside the walk that asks it: adopt rows through the mirror's own resolvers, under the
@@ -41,7 +41,7 @@ namespace Rtx
             const MaterialReading& reading, std::span<const osg::StateSet* const> chain) = 0;
 
         /// The same for a mesh, held under the identity the walk will find a clone's mesh under.
-        virtual Index adoptMesh(const osg::Drawable& drawable, const MeshReading& reading) = 0;
+        virtual Index adoptMesh(const osg::Drawable& drawable, const PackedMesh& reading) = 0;
 
         /// Gives one hold back on what `adoptMesh` held under `drawable`.
         virtual void releaseMesh(const osg::Drawable& drawable) = 0;

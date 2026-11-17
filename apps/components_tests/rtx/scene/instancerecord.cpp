@@ -304,12 +304,12 @@ namespace Rtx
         {
             SceneDesc scene;
             const Index plain = Testing::addQuadMesh(scene);
-            const Index doubled
-                = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
-                    FoldedShape{ .mSheet = true, .mFolded = true });
-            const Index hemmed
-                = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
-                    FoldedShape{ .mFolded = true });
+            const Index doubled = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
+                FoldedShape{ .mSheet = true, .mFolded = true });
+            const Index hemmed = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
+                FoldedShape{ .mFolded = true });
 
             const Index opaque = scene.addMaterial(Material{});
             const Index bothFaces = scene.addMaterial(Material{ .mTwoSided = true });

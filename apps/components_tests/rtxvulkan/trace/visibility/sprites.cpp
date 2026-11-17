@@ -708,11 +708,11 @@ namespace Rtx::Testing
 
                 const float across = 200.0f * slope;
                 const std::array corners = uprightQuadAt(10.0f, 100.0f, osg::Vec2f(across, 0.0f));
-                scene.addInstance(
-                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = corners, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = pane }),
-                        .mClass = InstanceClass::FirstPerson });
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = corners, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = pane }),
+                    .mClass = InstanceClass::FirstPerson });
 
                 if (sprited)
                 {

@@ -101,35 +101,33 @@ namespace Rtx
         /// host's, to how far either side grows before a table is made again.
         const SceneRoom& getRoom() const { return mRoom; }
 
-        /// Takes runs of the device's streams for the mesh, files its geometry with the arrivals until the next
-        /// hand-over (`MeshArrivals`) and returns the new mesh's index. Every
-        /// attribute but `MeshArrays::mPositions` may be empty; when one is not it must match the
-        /// positions in length, `MeshArrays::mIndices` must be a whole number of triangles
-        /// addressing only those vertices, and the mesh must fit a block (`MeshTable::checkFits`):
-        /// asserted, as a contract on the caller, which refuses what does not hold.
+        /// Takes runs of the device's streams for `mesh`, packed by its reader (`PackedStreams`), files its geometry
+        /// with the arrivals until the next hand-over (`MeshArrivals`) and returns the new mesh's index. The mesh must
+        /// fit a block (`MeshTable::checkFits`): asserted, as a contract on the caller, which refuses what does not
+        /// hold.
         ///
-        /// **A static mesh is the one its content is** (`meshKeyOf`): the mesh filed under the key these arrays
-        /// make, taken back where it rests, or a new one filed under it — so a mesh resting on the device costs
-        /// nothing to place again, and two drawables of one geometry are one mesh.
-        Index addMesh(const MeshArrays& arrays, FoldedShape shape = {});
+        /// **A static mesh is the one its content is** (`PackedMesh::mKey`): the mesh filed under its key, taken back
+        /// where it rests, or a new one filed under it — so a mesh resting on the device costs nothing to place again,
+        /// and two drawables of one geometry are one mesh.
+        Index addMesh(const PackedMesh& mesh);
 
         /// A mesh that deforms, on `deformer`, the rig or the morph that poses it, whose vertex count must be this
         /// mesh's: it hands over its bind pose, which stays in the device's runs as long as the mesh does, and is a
         /// copy per instance, filed under no key.
-        Index addMesh(const MeshArrays& arrays, FoldedShape shape, Index deformer);
+        Index addMesh(const PackedMesh& mesh, Index deformer);
 
         /// `addMesh` for a mesh that brings the skin or the targets that pose it. The deformer row
         /// and the mesh row are made in one call, so a deformer no mesh stands on cannot exist — a
         /// row nothing would free, because a deformer goes with its last mesh. The spec poses exactly
         /// this mesh's vertices (`checkPoses`) and the mesh fits a block, both asserted. A second
         /// mesh on the same skin names the deformer answered here through the overload above.
-        DeformedMesh addMesh(const MeshArrays& arrays, FoldedShape shape, const RigSpec& rig);
-        DeformedMesh addMesh(const MeshArrays& arrays, FoldedShape shape, const MorphSpec& morph);
+        DeformedMesh addMesh(const PackedMesh& mesh, const RigSpec& rig);
+        DeformedMesh addMesh(const PackedMesh& mesh, const MorphSpec& morph);
 
-        /// Whether a deformer of `posed` vertices can pose `arrays`, and why not where they are
+        /// Whether a deformer of `posed` vertices can pose a mesh of `vertices`, and why not where they are
         /// of another length. Both counts come out of a content file, so whoever reads them asks
         /// this before `addMesh`, which asserts it.
-        static Result<void, std::string> checkPoses(Index posed, const MeshArrays& arrays);
+        static Result<void, std::string> checkPoses(Index posed, std::size_t vertices);
 
         /// Poses one deforming mesh: its bone rows or its target weights as `packRig` or
         /// `packWeights` lays them, and the box the pose reaches — the whole of what the host says

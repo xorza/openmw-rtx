@@ -44,49 +44,47 @@ namespace Rtx
         return ++sIdentities;
     }
 
-    Index SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape)
+    Index SceneDesc::addMesh(const PackedMesh& mesh)
     {
-        const MeshKey key = meshKeyOf(arrays, shape);
-        if (const Index known = mMeshes.find(key); known != sNoIndex)
+        if (const Index known = mMeshes.find(mesh.mKey); known != sNoIndex)
             return known;
-        return mMeshes.add(mDeformers, arrays, shape, key);
+        return mMeshes.add(mDeformers, mesh);
     }
 
-    Index SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape, const Index deformer)
+    Index SceneDesc::addMesh(const PackedMesh& mesh, const Index deformer)
     {
         assert(deformer != sNoIndex && "a static mesh added on a deformer");
-        return mMeshes.add(mDeformers, arrays, shape, deformer);
+        return mMeshes.add(mDeformers, mesh, deformer);
     }
 
-    Result<void, std::string> SceneDesc::checkPoses(const Index posed, const MeshArrays& arrays)
+    Result<void, std::string> SceneDesc::checkPoses(const Index posed, const std::size_t vertices)
     {
-        if (posed != arrays.mPositions.size())
-            return Err{ "it has " + std::to_string(arrays.mPositions.size()) + " vertices on a rig or morph of "
+        if (posed != vertices)
+            return Err{ "it has " + std::to_string(vertices) + " vertices on a rig or morph of "
                 + std::to_string(posed) };
 
         return {};
     }
 
-    DeformedMesh SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape, const RigSpec& rig)
+    DeformedMesh SceneDesc::addMesh(const PackedMesh& mesh, const RigSpec& rig)
     {
-        assert(checkPoses(rig.getVertexCount(), arrays).isOk() && "a rig that does not pose its mesh");
-        assert(MeshTable::checkFits(arrays).isOk() && "a mesh past a block");
+        assert(checkPoses(rig.getVertexCount(), mesh.mPositions.size()).isOk() && "a rig that does not pose its mesh");
 
         const Index deformer = mDeformers.addRig(rig);
         return DeformedMesh{
-            .mMesh = mMeshes.add(mDeformers, arrays, shape, deformer),
+            .mMesh = mMeshes.add(mDeformers, mesh, deformer),
             .mDeformer = deformer,
         };
     }
 
-    DeformedMesh SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape, const MorphSpec& morph)
+    DeformedMesh SceneDesc::addMesh(const PackedMesh& mesh, const MorphSpec& morph)
     {
-        assert(checkPoses(morph.getVertexCount(), arrays).isOk() && "targets that do not pose their mesh");
-        assert(MeshTable::checkFits(arrays).isOk() && "a mesh past a block");
+        assert(
+            checkPoses(morph.getVertexCount(), mesh.mPositions.size()).isOk() && "targets that do not pose their mesh");
 
         const Index deformer = mDeformers.addMorph(morph);
         return DeformedMesh{
-            .mMesh = mMeshes.add(mDeformers, arrays, shape, deformer),
+            .mMesh = mMeshes.add(mDeformers, mesh, deformer),
             .mDeformer = deformer,
         };
     }

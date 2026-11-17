@@ -73,7 +73,7 @@ namespace Rtx::Testing
             const std::array<osg::Vec3f, 4> normals{ leaning, leaning, leaning, leaning };
 
             scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(
+                .mMesh = Testing::addMesh(scene,
                     MeshArrays{ .mPositions = sheetAt(4000.0f, 0.0f), .mNormals = normals, .mIndices = sQuadIndices },
                     shape),
                 .mMaterial = addGrey(scene) });
@@ -216,8 +216,8 @@ namespace Rtx::Testing
 
             const auto render = [&](bool neverSolid, std::span<const TextureData> painted) {
                 SceneDesc scene = makeWall();
-                const Index mesh
-                    = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("glass.dds")),
                     .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -509,8 +509,8 @@ namespace Rtx::Testing
 
             const auto render = [&](Index diffuse, Index emissiveMap, const osg::Vec3f& emissiveColour) {
                 SceneDesc scene;
-                const Index mesh = scene.addMesh(
-                    MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("green.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("red.dds"));
@@ -599,8 +599,8 @@ namespace Rtx::Testing
                                     std::uint32_t passes = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE,
                                     std::uint32_t frame = 0) {
                 SceneDesc scene = makeWall();
-                const Index mesh = scene.addMesh(
-                    MeshArrays{ .mPositions = masked, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = masked, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("mask.dds")),
                     .mAlphaTest = { .mReference = alphaRef, .mPasses = passes },
@@ -770,8 +770,8 @@ namespace Rtx::Testing
                     corner *= tiles;
 
                 SceneDesc scene = makeWall();
-                const Index mesh
-                    = scene.addMesh(MeshArrays{ .mPositions = masked, .mTexCoords = uv, .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = masked, .mTexCoords = uv, .mIndices = sQuadIndices });
                 const Index material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("checker.dds")),
                     .mAlphaTest = { .mReference = 0.6f },
@@ -1102,8 +1102,8 @@ namespace Rtx::Testing
                 const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
 
                 SceneDesc scene;
-                const Index mesh = scene.addMesh(
-                    MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
                 const Index map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1166,14 +1166,15 @@ namespace Rtx::Testing
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
                 const Index map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                scene.addInstance(
-                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse }) });
-                scene.addInstance(MeshInstance{ .mMesh = scene.addMesh(MeshArrays{ .mPositions = floorQuad,
-                                                    .mNormals = floorNormals,
-                                                    .mTexCoords = sQuadUv,
-                                                    .mIndices = sQuadIndices }),
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse }) });
+                scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                    MeshArrays{ .mPositions = floorQuad,
+                                                        .mNormals = floorNormals,
+                                                        .mTexCoords = sQuadUv,
+                                                        .mIndices = sQuadIndices }),
                     .mMaterial
                     = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map, .mTwoSided = true }) });
 
@@ -1263,12 +1264,13 @@ namespace Rtx::Testing
                       const std::array<osg::Vec3f, 4> colours{ colour, colour, colour, colour };
 
                       SceneDesc scene;
-                      const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                          .mNormals = normals,
-                          .mTexCoords = sQuadUv,
-                          .mColours = colours,
-                          .mTangents = tangents,
-                          .mIndices = sQuadIndices });
+                      const Index mesh = Testing::addMesh(scene,
+                          MeshArrays{ .mPositions = sWallQuad,
+                              .mNormals = normals,
+                              .mTexCoords = sQuadUv,
+                              .mColours = colours,
+                              .mTangents = tangents,
+                              .mIndices = sQuadIndices });
                       const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
                       const Index map = scene.textures().add(
                           VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1367,7 +1369,7 @@ namespace Rtx::Testing
             {
                 SceneDesc plain;
                 plain.addInstance(MeshInstance{
-                    .mMesh = plain.addMesh(MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }),
+                    .mMesh = Testing::addMesh(plain, MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }),
                     .mMaterial = plain.addMaterial(Material{}) });
                 shoot(plain, {}, camera, size);
 
@@ -1455,8 +1457,9 @@ namespace Rtx::Testing
                     normals[at] = osg::Vec3f(turn * wall[at].x(), -1.0f, turn * wall[at].z());
 
                 SceneDesc scene;
-                const Index mesh = scene.addMesh(MeshArrays{
-                    .mPositions = wall, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(scene,
+                    MeshArrays{
+                        .mPositions = wall, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
                 const Index map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1505,11 +1508,12 @@ namespace Rtx::Testing
             const std::array<osg::Vec4f, 4> tangents{ tangent, tangent, tangent, tangent };
 
             SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
+            const Index mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
             const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
             const Index map = scene.textures().add(
                 VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1573,11 +1577,12 @@ namespace Rtx::Testing
                 const std::array<osg::Vec4f, 4> tangents{ tangent, tangent, tangent, tangent };
 
                 SceneDesc scene;
-                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = positions,
-                    .mNormals = normals,
-                    .mTexCoords = sQuadUv,
-                    .mTangents = tangents,
-                    .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(scene,
+                    MeshArrays{ .mPositions = positions,
+                        .mNormals = normals,
+                        .mTexCoords = sQuadUv,
+                        .mTangents = tangents,
+                        .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
                 const Index map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1664,11 +1669,12 @@ namespace Rtx::Testing
                     textures[1].mSource = TextureSource::StandIn;
 
                 SceneDesc scene;
-                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                    .mNormals = normals,
-                    .mTexCoords = sQuadUv,
-                    .mTangents = tangents,
-                    .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(scene,
+                    MeshArrays{ .mPositions = sWallQuad,
+                        .mNormals = normals,
+                        .mTexCoords = sQuadUv,
+                        .mTangents = tangents,
+                        .mIndices = sQuadIndices });
                 const TextureEncoding encoding = role == Role::Normal ? TextureEncoding::Normal
                     : role == Role::Specular                          ? TextureEncoding::Data
                                                                       : TextureEncoding::Colour;
@@ -1750,11 +1756,12 @@ namespace Rtx::Testing
             const std::array tangents{ tangent, tangent, tangent, tangent };
 
             SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
+            const Index mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
             const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
             const Index map = scene.textures().add(
                 VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1828,11 +1835,12 @@ namespace Rtx::Testing
             const std::array tangents{ tangent, tangent, tangent, tangent };
 
             SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
+            const Index mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
             const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
             const Index map = scene.textures().add(
                 VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1914,11 +1922,12 @@ namespace Rtx::Testing
             const std::array tangents{ tangent, tangent, tangent, tangent };
 
             SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
+            const Index mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
             const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
             const Index map = scene.textures().add(
                 VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1979,10 +1988,10 @@ namespace Rtx::Testing
 
             const auto render = [&](std::span<const osg::Vec3f> normals) {
                 SceneDesc scene;
-                scene.addInstance(
-                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = sWallQuad, .mNormals = normals, .mIndices = sQuadIndices }),
-                        .mMaterial = addGrey(scene) });
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = sWallQuad, .mNormals = normals, .mIndices = sQuadIndices }),
+                    .mMaterial = addGrey(scene) });
                 scene.addLight(lamp);
 
                 const Frame frame = shoot(scene, {}, camera, size);
@@ -2038,7 +2047,7 @@ namespace Rtx::Testing
                 }
 
                 scene.addInstance(MeshInstance{
-                    .mMesh = scene.addMesh(
+                    .mMesh = Testing::addMesh(scene,
                         MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices },
                         FoldedShape{ .mSheet = sheet }),
                     .mMaterial = scene.addMaterial(material) });
@@ -2101,7 +2110,7 @@ namespace Rtx::Testing
                 leaf.mAlphaMode = AlphaMode::Cutout;
                 leaf.mAlphaTest.mReference = 0.5f;
                 scene.addInstance(MeshInstance{
-                    .mMesh = scene.addMesh(
+                    .mMesh = Testing::addMesh(scene,
                         MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices },
                         FoldedShape{ .mSheet = true }),
                     .mMaterial = scene.addMaterial(leaf) });
@@ -2725,9 +2734,10 @@ namespace Rtx::Testing
                 13, 14, 15, 16, 17 };
 
             SceneDesc scene;
-            scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }),
-                .mMaterial = addGrey(scene) });
+            scene.addInstance(
+                MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                  MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }),
+                    .mMaterial = addGrey(scene) });
 
             osg::Vec3f normal = up * 0.9f + nearSide * 0.1f;
             normal.normalize();
@@ -2868,9 +2878,10 @@ namespace Rtx::Testing
                     const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                     const Index map = scene.textures().add(
                         VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                    scene.addInstance(MeshInstance{
-                        .mMesh = scene.addMesh(MeshArrays{
-                            .mPositions = sheetAt(40000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                        MeshArrays{ .mPositions = sheetAt(40000.0f, 0.0f),
+                                                            .mTexCoords = sQuadUv,
+                                                            .mIndices = sQuadIndices }),
                         .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
                 }
                 else
@@ -3108,8 +3119,9 @@ namespace Rtx::Testing
                 const Index map = scene.textures().add(
                     VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                 scene.addInstance(MeshInstance{
-                    .mMesh = scene.addMesh(MeshArrays{
-                        .mPositions = sheetAt(4000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMesh = Testing::addMesh(scene,
+                        MeshArrays{
+                            .mPositions = sheetAt(4000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
                     .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
 
                 const Frame frame = shoot(scene, textures, camera, size, { .mFrames = 4 });

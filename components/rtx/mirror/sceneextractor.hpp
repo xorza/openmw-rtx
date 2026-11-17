@@ -299,7 +299,7 @@ namespace Rtx
         /// reachable through that interface and not in front of every reader of this class. The two adoptions mean
         /// anything only inside a walk; the two releases are allowed between walks as well (`detach`) because giving a
         /// hold back reads nothing of a walk.
-        Index adoptMesh(const osg::Drawable& drawable, const MeshReading& reading) override
+        Index adoptMesh(const osg::Drawable& drawable, const PackedMesh& reading) override
         {
             mPhase.expect(Phase::Walking);
             return mMeshes.adopt(drawable, reading);

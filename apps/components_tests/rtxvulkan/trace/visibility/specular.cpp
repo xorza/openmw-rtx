@@ -53,8 +53,8 @@ namespace Rtx::Testing
                 , mTextures{ describeTexel(sBaseTexel, 0), describeTexel(mMapTexel, 1) }
             {
                 const std::array positions = sheetAt(4000.0f, 0.0f);
-                const Index mesh = mScene.addMesh(
-                    MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index mesh = Testing::addMesh(
+                    mScene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = mScene.textures().add(VFS::Path::NormalizedView("base.dds"));
                 const Index map = mScene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -298,8 +298,8 @@ namespace Rtx::Testing
 
             SceneDesc scene;
             const std::array positions = sheetAt(4000.0f, 0.0f);
-            const Index mesh
-                = scene.addMesh(MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            const Index mesh = Testing::addMesh(
+                scene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("checker.dds"));
             const Index map = scene.textures().add(
                 VFS::Path::NormalizedView("checker_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);

@@ -510,9 +510,10 @@ namespace Rtx::Testing
                 .mDarkBelowSolid = true,
             });
             const std::array<osg::Vec3f, 4> pane = sheetAt(4000.0f, 40.0f);
-            scene.addInstance(MeshInstance{ .mMesh
-                = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                .mMaterial = stained });
+            scene.addInstance(
+                MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                  MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = stained });
 
             constexpr std::uint32_t frames = 32;
             std::vector<float> shadowed;

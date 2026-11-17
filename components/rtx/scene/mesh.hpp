@@ -173,9 +173,9 @@ namespace Rtx
 
     /// Where one mesh's vertices and indices sit in the device's shared streams — shared because a
     /// cell holds thousands of meshes and the GPU wants one buffer anyway.
-    /// **What a static mesh is, as one 128-bit digest of everything it is made of** (`meshKeyOf`): its arrays and its
-    /// shape, so a mesh resting on the device is found again by whatever reads the same geometry — the same model
-    /// loaded again after its template left the resource cache, or another model shipping it — and the host keeps
+    /// **What a static mesh is, as one 128-bit digest of everything it is made of** (`PackedMesh::mKey`): its arrays
+    /// and its shape, so a mesh resting on the device is found again by whatever reads the same geometry — the same
+    /// model loaded again after its template left the resource cache, or another model shipping it — and the host keeps
     /// none of it (`docs/architecture.md`, "One residency policy for the content").
     struct MeshKey
     {
@@ -189,10 +189,6 @@ namespace Rtx
     {
         std::size_t operator()(const MeshKey& key) const noexcept { return static_cast<std::size_t>(key.mWords[0]); }
     };
-
-    /// The key of the static mesh `arrays` and `shape` make: every array in order, each a step of its own, and the
-    /// shape and the units the second coordinates stream to.
-    MeshKey meshKeyOf(const MeshArrays& arrays, FoldedShape shape);
 
     struct MeshRange
     {
@@ -250,8 +246,8 @@ namespace Rtx
         /// what lets a question about where a scene reaches be eight transforms per instance.
         osg::BoundingBoxf mBounds;
 
-        /// What a static mesh is filed under (`meshKeyOf`), which it rests under once nothing places it, and found
-        /// again by whatever reads the same geometry; nothing for a mesh that deforms, a copy per instance.
+        /// What a static mesh is filed under (`PackedMesh::mKey`), which it rests under once nothing places it, and
+        /// found again by whatever reads the same geometry; nothing for a mesh that deforms, a copy per instance.
         std::optional<MeshKey> mKey;
 
         /// What its eviction would give the device back, its bottom-level structure (`MeshTable::stand`), and nought

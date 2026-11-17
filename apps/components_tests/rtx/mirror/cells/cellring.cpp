@@ -2149,21 +2149,21 @@ namespace Rtx::Testing
         /// `reuse` keeps the buffers, so the room the tree grew to leaves the lent figure and
         /// reappears whole in the spare one when its one holder gives it back.
         /// **A spare keeps the room its last model filled at least half of, and gives back the
-        /// rest.** Hand-counted on the positions: a hundred reserved and a hundred held is kept; fifty
+        /// rest.** Hand-counted on the chains: a hundred reserved and a hundred held is kept; fifty
         /// in the same hundred is exactly half and kept; forty is less than half and given back,
         /// which is what stops a spare keeping the largest model it ever held.
         TEST(RtxPreparedModelTest, aSpareKeepsItsRoomOnlyWhereItsModelFilledHalfOfIt)
         {
             PreparedModel model;
-            model.mPositions.reserve(100);
+            model.mChains.reserve(100);
 
             for (const auto& [held, kept] : { std::pair{ 100u, 100u }, std::pair{ 50u, 100u }, std::pair{ 40u, 0u } })
             {
-                model.mPositions.resize(held);
-                ASSERT_EQ(model.mPositions.capacity(), 100u) << "the room this starts from";
+                model.mChains.resize(held);
+                ASSERT_EQ(model.mChains.capacity(), 100u) << "the room this starts from";
                 model.reuse();
-                EXPECT_TRUE(model.mPositions.empty());
-                EXPECT_EQ(model.mPositions.capacity(), kept) << held << " of a hundred";
+                EXPECT_TRUE(model.mChains.empty());
+                EXPECT_EQ(model.mChains.capacity(), kept) << held << " of a hundred";
                 if (kept == 0)
                     break;
             }
@@ -2206,7 +2206,9 @@ namespace Rtx::Testing
             PreparedCell& cell = reader.read(osg::Vec2i(0, 0));
             ASSERT_EQ(cell.mModels.size(), 1u);
             PreparedModel& tree = *cell.mModels.front();
-            ASSERT_FALSE(tree.mPositions.empty()) << "the sheet was read";
+            ASSERT_FALSE(tree.mParts.empty()) << "the sheet was read";
+            const std::size_t positions = tree.readingOf(tree.mParts.front()).mPositions.size();
+            ASSERT_GT(positions, 0u);
 
             const ReaderMemory lent = reader.measure();
             EXPECT_EQ(lent.mLentModels, 1u);
@@ -2216,7 +2218,7 @@ namespace Rtx::Testing
             EXPECT_EQ(lent.mSpareBytes, 0u);
             // What it fills of the room: its positions among it, and never past the room.
             EXPECT_EQ(lent.mLentContentBytes, tree.getContentBytes());
-            EXPECT_GE(lent.mLentContentBytes, tree.mPositions.size() * sizeof(osg::Vec3f));
+            EXPECT_GE(lent.mLentContentBytes, positions * sizeof(osg::Vec3f));
             EXPECT_LE(lent.mLentContentBytes, lent.mLentBytes);
             EXPECT_LE(lent.mFiledContentBytes, lent.mFiledBytes);
 

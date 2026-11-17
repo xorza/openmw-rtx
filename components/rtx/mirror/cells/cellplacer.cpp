@@ -22,7 +22,6 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
-#include <components/rtx/scene/foldedshape.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -382,13 +381,7 @@ namespace Rtx
         stands.mStood.mMaterial = mScene.addMaterial(material);
 
         // A heightfield is neither a sheet nor closed, and no fold is needed to say so.
-        stands.mStood.mMesh = mScene.addMesh(MeshArrays{ .mPositions = ground.mPositions,
-                                                 .mNormals = ground.mNormals,
-                                                 .mTexCoords = ground.mTexCoords,
-                                                 .mColours = ground.mColours,
-                                                 .mIndices = ground.mIndices,
-                                                 .mSharedIndices = true },
-            FoldedShape{});
+        stands.mStood.mMesh = mScene.addMesh(ground.mesh());
 
         // Held on the scene, because no drawable and no state set will ever name them:
         // `dropGround` is what lets go.

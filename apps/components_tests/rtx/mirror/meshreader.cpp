@@ -34,6 +34,7 @@
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/packedstreams.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/shader/automaps.hpp>
 
@@ -580,8 +581,10 @@ namespace Rtx::Testing
             ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad), {}), nullptr, reading).value(),
                 MeshRead::Triangles);
 
+            PackedStreams packed;
+            const PackedMesh packedReading = packed.of(packed.append(reading.mArrays, reading.mShape));
             Resolving adopted;
-            const Index mesh = adopted.mResolver.adopt(*quad, reading);
+            const Index mesh = adopted.mResolver.adopt(*quad, packedReading);
             EXPECT_EQ(mesh, 0u);
             EXPECT_EQ(adopted.mStats.mMeshesAdded, 1u);
 
@@ -609,7 +612,7 @@ namespace Rtx::Testing
 
             // And adopting again holds rather than adds, answering the same mesh — and a hold is what
             // keeps the entry through a sweep the walk did not stamp it in.
-            EXPECT_EQ(adopted.mResolver.adopt(*quad, reading), mesh);
+            EXPECT_EQ(adopted.mResolver.adopt(*quad, packedReading), mesh);
             EXPECT_EQ(adopted.mStats.mMeshesAdded, 1u);
 
             adopted.mResolver.release(*quad);

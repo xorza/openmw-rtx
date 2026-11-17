@@ -163,7 +163,7 @@ namespace Rtx
             const std::array<osg::Vec3f, 4> highest{ osg::Vec3f(0.0f, 0.0f, 3.0f), osg::Vec3f(1.0f, 0.0f, 3.0f),
                 osg::Vec3f(1.0f, 1.0f, 3.0f), osg::Vec3f(0.0f, 1.0f, 3.0f) };
             const auto shared = [&](std::span<const osg::Vec3f> positions) {
-                return scene.addMesh(
+                return Testing::addMesh(scene,
                     MeshArrays{ .mPositions = positions, .mIndices = Testing::sQuadIndices, .mSharedIndices = true },
                     FoldedShape{});
             };
@@ -185,8 +185,8 @@ namespace Rtx
             EXPECT_NE(scene.meshes().getDigest(first).mTriangles, scene.meshes().getDigest(second).mTriangles);
             scene.clearArrivals();
 
-            const Index own
-                = scene.addMesh(MeshArrays{ .mPositions = higher, .mIndices = Testing::sQuadIndices }, FoldedShape{});
+            const Index own = Testing::addMesh(
+                scene, MeshArrays{ .mPositions = higher, .mIndices = Testing::sQuadIndices }, FoldedShape{});
             EXPECT_EQ(scene.meshes().getRows()[own].mIndices.mOffset, 6u) << "a mesh that keeps its own run";
 
             // The run stays while a sharer stands: one gone, a new sharer names it still.
@@ -199,8 +199,8 @@ namespace Rtx
             // And goes with the last: a mesh of its own takes its room.
             Testing::letGoMesh(scene, second);
             Testing::letGoMesh(scene, fourth);
-            const Index after
-                = scene.addMesh(MeshArrays{ .mPositions = raised, .mIndices = Testing::sQuadIndices }, FoldedShape{});
+            const Index after = Testing::addMesh(
+                scene, MeshArrays{ .mPositions = raised, .mIndices = Testing::sQuadIndices }, FoldedShape{});
             EXPECT_EQ(scene.meshes().getRows()[after].mIndices.mOffset, 0u) << "the last sharer kept the run";
             EXPECT_EQ(scene.meshes().getArrival(after).mIndices.size(), 6u);
         }
@@ -238,9 +238,9 @@ namespace Rtx
             EXPECT_FALSE(scene.meshes().getRows()[first].mShape.mSheet);
 
             // Added first and read after: the table grows under a span taken in the same expression.
-            const Index sheet
-                = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
-                    FoldedShape{ .mSheet = true });
+            const Index sheet = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
+                FoldedShape{ .mSheet = true });
             EXPECT_TRUE(scene.meshes().getRows()[sheet].mShape.mSheet);
         }
 
@@ -258,8 +258,9 @@ namespace Rtx
             };
 
             Testing::addQuadMesh(scene);
-            const Index withNormals = scene.addMesh(MeshArrays{
-                .mPositions = Testing::sUnitQuad, .mNormals = sNormals, .mIndices = Testing::sQuadIndices });
+            const Index withNormals = Testing::addMesh(scene,
+                MeshArrays{
+                    .mPositions = Testing::sUnitQuad, .mNormals = sNormals, .mIndices = Testing::sQuadIndices });
 
             const MeshGeometry bare = scene.meshes().getArrival(0);
             ASSERT_EQ(bare.mNormals.size(), bare.mPositions.size());
@@ -289,7 +290,7 @@ namespace Rtx
             const std::array<osg::Vec3f, 4> colours{ osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f),
                 osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f), osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f),
                 osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f) };
-            const Index slot = scene.addMesh(
+            const Index slot = Testing::addMesh(scene,
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mColours = colours, .mIndices = Testing::sQuadIndices });
 
             const Shaders::GpuVertexColour packed = scene.meshes().getArrival(slot).mColours[0];
@@ -300,7 +301,7 @@ namespace Rtx
             // white, "no tint", as one that is not a number is; just under it stays itself, `0x7BFF`.
             const std::array<osg::Vec3f, 4> past{ osg::Vec3f(1e6f, 0.0f, 0.0f), osg::Vec3f(0.0f, 65504.0f, 0.0f),
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f) };
-            const Index pastSlot = scene.addMesh(
+            const Index pastSlot = Testing::addMesh(scene,
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mColours = past, .mIndices = Testing::sQuadIndices });
             const std::span<const Shaders::GpuVertexColour> pastColours = scene.meshes().getArrival(pastSlot).mColours;
             EXPECT_EQ(pastColours[0].mRedGreen, 0x3C003C00u);
@@ -664,7 +665,7 @@ namespace Rtx
             Index addSkin() { return addQuad(mRig); }
 
             SceneDesc mScene;
-            Index mStill = mScene.addMesh(quad());
+            Index mStill = Testing::addMesh(mScene, quad());
             DeformedMesh mFirst = addFirstSkin();
             Index mRig = mFirst.mDeformer;
             Index mMoving = mFirst.mMesh;
@@ -682,7 +683,7 @@ namespace Rtx
                 };
             }
 
-            Index addQuad(Index deformer) { return mScene.addMesh(quad(), {}, deformer); }
+            Index addQuad(Index deformer) { return Testing::addMesh(mScene, quad(), {}, deformer); }
         };
 
         /// A rig and the meshes on it arrive with the tables they name, and the still one is in none
@@ -814,7 +815,7 @@ namespace Rtx
 
             // The last mesh on the first rig is the highest mesh slot, which is what makes letting go
             // in slot order free the two rigs in the order that catches this.
-            const Index late = scene.addMesh(quad, {}, first.mDeformer);
+            const Index late = Testing::addMesh(scene, quad, {}, first.mDeformer);
             ASSERT_LT(second.mMesh, late);
 
             for (const Index mesh : { first.mMesh, second.mMesh, late })
@@ -847,9 +848,9 @@ namespace Rtx
             EXPECT_EQ(Testing::addQuadMesh(scene), quad) << "one geometry made two meshes";
             const Index other = Testing::addQuadMesh(scene, raised);
             EXPECT_NE(other, quad);
-            const Index sheet
-                = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
-                    FoldedShape{ .mSheet = true });
+            const Index sheet = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
+                FoldedShape{ .mSheet = true });
             EXPECT_NE(sheet, quad) << "the shape is part of what a mesh is";
 
             // A texture that rests first, on a hand-over of its own.
@@ -1129,7 +1130,7 @@ namespace Rtx
 
             const MeshArrays quad{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices };
             const MorphSpec targets{ .mOffsets = offsets, .mTargets = 2 };
-            const DeformedMesh added = scene.addMesh(quad, {}, targets);
+            const DeformedMesh added = Testing::addMesh(scene, quad, {}, targets);
             const Index morph = added.mDeformer;
             const Index face = added.mMesh;
             ASSERT_EQ(scene.deformers().getRows().size(), 1u);
@@ -1161,7 +1162,7 @@ namespace Rtx
             Testing::letGoMesh(scene, face);
             EXPECT_EQ(scene.deformers().getHolds(morph), 0u);
             EXPECT_EQ(scene.deformers().getRows()[morph].getVertexCount(), 0u);
-            EXPECT_EQ(scene.addMesh(quad, {}, targets).mDeformer, morph);
+            EXPECT_EQ(Testing::addMesh(scene, quad, {}, targets).mDeformer, morph);
             EXPECT_EQ(scene.deformers().getMorphOffsets().size(), 8u);
         }
 
@@ -1173,9 +1174,9 @@ namespace Rtx
             SceneDesc scene;
 
             const std::vector<osg::Vec3f> offsets(20, osg::Vec3f(0.0f, 0.0f, 1.0f));
-            const DeformedMesh added
-                = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {},
-                    MorphSpec{ .mOffsets = offsets, .mTargets = 5 });
+            const DeformedMesh added = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {},
+                MorphSpec{ .mOffsets = offsets, .mTargets = 5 });
             const Index morph = added.mDeformer;
             const Index face = added.mMesh;
             EXPECT_EQ(scene.deformers().getRows()[morph].getPoseWords(), 2u);
@@ -1652,8 +1653,8 @@ namespace Rtx
             SceneDesc scene;
             const std::array quads{ quadAt(0.0f), quadAt(2.0f) };
             const Index first = Testing::addQuadMesh(scene, quads[0]);
-            const Index middle
-                = scene.addMesh(MeshArrays{ .mPositions = triangleAt(5.0f), .mIndices = Testing::sTriangleIndices });
+            const Index middle = Testing::addMesh(
+                scene, MeshArrays{ .mPositions = triangleAt(5.0f), .mIndices = Testing::sTriangleIndices });
             const Index last = Testing::addQuadMesh(scene, quads[1]);
 
             ASSERT_EQ(scene.meshes().getVertexRuns().getEnd(), 11u);
@@ -1688,8 +1689,8 @@ namespace Rtx
 
             // A triangle fits the hole exactly and takes it back, at the index and the offset the
             // old one had.
-            const Index moved
-                = scene.addMesh(MeshArrays{ .mPositions = triangleAt(5.0f), .mIndices = Testing::sTriangleIndices });
+            const Index moved = Testing::addMesh(
+                scene, MeshArrays{ .mPositions = triangleAt(5.0f), .mIndices = Testing::sTriangleIndices });
             EXPECT_EQ(moved, middle);
             EXPECT_EQ(scene.meshes().getRows()[moved].mVertices.mOffset, 4u);
             EXPECT_EQ(scene.meshes().getRows()[moved].mVertices.mCount, 3u);
@@ -1737,8 +1738,8 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getRevision(), meshes)
                 << "a cell leaving asked for the structures to be built again";
 
-            EXPECT_EQ(
-                scene.addMesh(MeshArrays{ .mPositions = triangleAt(5.0f), .mIndices = Testing::sTriangleIndices }),
+            EXPECT_EQ(Testing::addMesh(
+                          scene, MeshArrays{ .mPositions = triangleAt(5.0f), .mIndices = Testing::sTriangleIndices }),
                 slot);
             EXPECT_EQ(scene.meshes().getRows().size(), 1u)
                 << "the table grew, so a size test would have caught this anyway";
@@ -1785,7 +1786,7 @@ namespace Rtx
                     for (const std::uint32_t index : Testing::sQuadIndices)
                         bigIndices.push_back(index + static_cast<std::uint32_t>(copy) * 4u);
                 }
-                return scene.addMesh(MeshArrays{ .mPositions = positions, .mIndices = bigIndices });
+                return Testing::addMesh(scene, MeshArrays{ .mPositions = positions, .mIndices = bigIndices });
             };
             const auto quad = [&](const float at) {
                 const std::array<osg::Vec3f, 4> corners = quadAt(at);
@@ -1851,12 +1852,13 @@ namespace Rtx
                 osg::Vec4f(0.0f, 1.0f, 0.0f, 1.0f), osg::Vec4f(0.0f, 1.0f, 0.0f, 1.0f),
                 osg::Vec4f(0.0f, 1.0f, 0.0f, 1.0f) };
 
-            const Index slot = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
-                .mNormals = normals,
-                .mTexCoords = uvs,
-                .mColours = colours,
-                .mTangents = tangents,
-                .mIndices = Testing::sQuadIndices });
+            const Index slot = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad,
+                    .mNormals = normals,
+                    .mTexCoords = uvs,
+                    .mColours = colours,
+                    .mTangents = tangents,
+                    .mIndices = Testing::sQuadIndices });
             // Along x is the square's `(1, 0)`, steps `0x7FFE` and `0x3FFF`; a colour of a quarter is
             // the half `0x3400` in the low half of the first word, and the other halves nought.
             const MeshGeometry first = meshes.getArrival(slot);
@@ -2215,7 +2217,7 @@ namespace Rtx
             Testing::expectAssertDies(
                 [&] {
                     SceneDesc scene;
-                    scene.addMesh(MeshArrays{ .mPositions = placed, .mIndices = Testing::sQuadIndices });
+                    Testing::addMesh(scene, MeshArrays{ .mPositions = placed, .mIndices = Testing::sQuadIndices });
                 },
                 "a vertex that is not finite");
 
@@ -2224,8 +2226,9 @@ namespace Rtx
             Testing::expectAssertDies(
                 [&] {
                     SceneDesc scene;
-                    scene.addMesh(MeshArrays{
-                        .mPositions = Testing::sUnitQuad, .mColours = tints, .mIndices = Testing::sQuadIndices });
+                    Testing::addMesh(scene,
+                        MeshArrays{
+                            .mPositions = Testing::sUnitQuad, .mColours = tints, .mIndices = Testing::sQuadIndices });
                 },
                 "a colour that is not finite");
 
@@ -2234,7 +2237,8 @@ namespace Rtx
             Testing::expectAssertDies(
                 [&] {
                     SceneDesc scene;
-                    scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {},
+                    Testing::addMesh(scene,
+                        MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {},
                         MorphSpec{ .mOffsets = offsets, .mTargets = 2 });
                 },
                 "a morph offset that is not finite");
@@ -2243,10 +2247,9 @@ namespace Rtx
                 [&] {
                     SceneDesc scene;
                     const std::array<osg::Vec3f, 8> still{};
-                    const Index face = scene
-                                           .addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
-                                                        .mIndices = Testing::sQuadIndices },
-                                               {}, MorphSpec{ .mOffsets = still, .mTargets = 2 })
+                    const Index face = Testing::addMesh(scene,
+                        MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {},
+                        MorphSpec{ .mOffsets = still, .mTargets = 2 })
                                            .mMesh;
                     const std::array weights{ 1.0f, nan };
                     Testing::poseMorph(
@@ -2259,8 +2262,9 @@ namespace Rtx
             Testing::expectAssertDies(
                 [&] {
                     SceneDesc scene;
-                    scene.addMesh(MeshArrays{
-                        .mPositions = Testing::sUnitQuad, .mNormals = normals, .mIndices = Testing::sQuadIndices });
+                    Testing::addMesh(scene,
+                        MeshArrays{
+                            .mPositions = Testing::sUnitQuad, .mNormals = normals, .mIndices = Testing::sQuadIndices });
                 },
                 "a normal that is not finite");
 
@@ -2270,8 +2274,10 @@ namespace Rtx
             Testing::expectAssertDies(
                 [&] {
                     SceneDesc scene;
-                    scene.addMesh(MeshArrays{
-                        .mPositions = Testing::sUnitQuad, .mTangents = tangents, .mIndices = Testing::sQuadIndices });
+                    Testing::addMesh(scene,
+                        MeshArrays{ .mPositions = Testing::sUnitQuad,
+                            .mTangents = tangents,
+                            .mIndices = Testing::sQuadIndices });
                 },
                 "a tangent that is not finite");
 
@@ -2280,16 +2286,19 @@ namespace Rtx
             Testing::expectAssertDies(
                 [&] {
                     SceneDesc scene;
-                    scene.addMesh(MeshArrays{
-                        .mPositions = Testing::sUnitQuad, .mTexCoords = coords, .mIndices = Testing::sQuadIndices });
+                    Testing::addMesh(scene,
+                        MeshArrays{ .mPositions = Testing::sUnitQuad,
+                            .mTexCoords = coords,
+                            .mIndices = Testing::sQuadIndices });
                 },
                 "a texture coordinate that is not finite");
             Testing::expectAssertDies(
                 [&] {
                     SceneDesc scene;
-                    scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
-                        .mSecondTexCoords = coords,
-                        .mIndices = Testing::sQuadIndices });
+                    Testing::addMesh(scene,
+                        MeshArrays{ .mPositions = Testing::sUnitQuad,
+                            .mSecondTexCoords = coords,
+                            .mIndices = Testing::sQuadIndices });
                 },
                 "a texture coordinate that is not finite");
         }
@@ -2602,16 +2611,19 @@ namespace Rtx
             const auto vertices = [&](std::size_t count) { return std::span(room).first(count); };
 
             SceneDesc scene;
-            const Index first = scene.addMesh(MeshArrays{ .mPositions = vertices(200000), .mIndices = triangle });
+            const Index first
+                = Testing::addMesh(scene, MeshArrays{ .mPositions = vertices(200000), .mIndices = triangle });
             EXPECT_EQ(scene.meshes().getRows()[first].mVertices.mOffset, 0u);
 
-            const Index second = scene.addMesh(MeshArrays{ .mPositions = vertices(100000), .mIndices = triangle });
+            const Index second
+                = Testing::addMesh(scene, MeshArrays{ .mPositions = vertices(100000), .mIndices = triangle });
             EXPECT_EQ(scene.meshes().getRows()[second].mVertices.mOffset, MeshTable::sVertexBlock)
                 << "a run was laid across a block boundary";
             EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), std::size_t{ 362144 });
 
             // And the 62,144 the second one stepped over is a hole like any other.
-            const Index third = scene.addMesh(MeshArrays{ .mPositions = vertices(60000), .mIndices = triangle });
+            const Index third
+                = Testing::addMesh(scene, MeshArrays{ .mPositions = vertices(60000), .mIndices = triangle });
             EXPECT_EQ(scene.meshes().getRows()[third].mVertices.mOffset, 200000u)
                 << "the tail of a block was not reused";
             EXPECT_EQ(scene.meshes().getVertexRuns().getEnd(), std::size_t{ 362144 })
@@ -2638,8 +2650,7 @@ namespace Rtx
             const std::vector<osg::Vec3f> tooMany(MeshTable::sVertexBlock + 1);
             const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
-            const Result<void, std::string> pastABlock
-                = MeshTable::checkFits(MeshArrays{ .mPositions = tooMany, .mIndices = triangle });
+            const Result<void, std::string> pastABlock = MeshTable::checkFits(tooMany.size(), triangle.size());
             ASSERT_FALSE(pastABlock.isOk());
             EXPECT_EQ(pastABlock.error(),
                 "its " + std::to_string(MeshTable::sVertexBlock + 1) + " vertices and 3 indices are past the "
@@ -2649,17 +2660,16 @@ namespace Rtx
             // And exactly a block is not too many, so the refusal is a boundary and not a ban.
             const MeshArrays aBlock{ .mPositions = std::span(tooMany).first(MeshTable::sVertexBlock),
                 .mIndices = triangle };
-            EXPECT_TRUE(MeshTable::checkFits(aBlock).isOk());
+            EXPECT_TRUE(MeshTable::checkFits(aBlock.mPositions.size(), aBlock.mIndices.size()).isOk());
             SceneDesc scene;
-            scene.addMesh(aBlock);
+            Testing::addMesh(scene, aBlock);
 
             // A deforming mesh is asked the same of the deformer that poses it: a rig or a set of
             // targets of another length than its mesh is refused by name, before any row is made.
-            const Result<void, std::string> shortRig
-                = SceneDesc::checkPoses(3, MeshArrays{ .mPositions = Testing::sUnitQuad });
+            const Result<void, std::string> shortRig = SceneDesc::checkPoses(3, Testing::sUnitQuad.size());
             ASSERT_FALSE(shortRig.isOk()) << "a rig of three vertices on a quad";
             EXPECT_EQ(shortRig.error(), "it has 4 vertices on a rig or morph of 3");
-            EXPECT_TRUE(SceneDesc::checkPoses(4, MeshArrays{ .mPositions = Testing::sUnitQuad }).isOk());
+            EXPECT_TRUE(SceneDesc::checkPoses(4, Testing::sUnitQuad.size()).isOk());
         }
 
         /// A camera is placed from what stands in a region, and the sea is not among it.

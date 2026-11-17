@@ -576,9 +576,10 @@ namespace Rtx
 
             const osg::Vec3f back(-1.0f, -1.0f, 0.0f);
             const std::array backward{ back, back, back, back };
-            scene.addInstance(MeshInstance{ .mMesh = scene.addMesh(MeshArrays{ .mPositions = Testing::wallAt(400.0f),
-                                                .mNormals = backward,
-                                                .mIndices = Testing::sQuadIndices }) });
+            scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                MeshArrays{ .mPositions = Testing::wallAt(400.0f),
+                                                    .mNormals = backward,
+                                                    .mIndices = Testing::sQuadIndices }) });
 
             Testing::poseByOneBone(scene, body, Testing::wallAt(200.0f), osg::Matrixf::identity());
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});

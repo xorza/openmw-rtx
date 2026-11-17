@@ -31,6 +31,8 @@
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/scene/foldedshape.hpp>
 #include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/packedstreams.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/terrain/pagedcellref.hpp>
@@ -124,17 +126,21 @@ namespace Rtx
         /// The cell's centre in world units, which the positions are relative to.
         osg::Vec3f mOrigin;
 
+        /// Packed as the scene takes them (`PackedMesh`), on the reader's thread.
         std::vector<osg::Vec3f> mPositions;
-        std::vector<osg::Vec3f> mNormals;
+        std::vector<std::uint32_t> mNormals;
 
         /// The land's own per-vertex colour, in linear light — `VCLR`, painted over two thirds of
         /// Morrowind's exterior vertices. White for a cell with no land record.
-        std::vector<osg::Vec3f> mColours;
+        std::vector<Shaders::GpuVertexColour> mColours;
 
         /// The reader's own, shared by every cell of one shape: a grid's corners and its
         /// triangulation are the same for every cell.
         std::span<const osg::Vec2f> mTexCoords;
         std::span<const std::uint32_t> mIndices;
+
+        osg::BoundingBoxf mBounds;
+        MeshKey mKey;
 
         std::vector<PreparedLayer> mLayers;
 
@@ -146,6 +152,20 @@ namespace Rtx
         {
             reuseKeeping(*this, &PreparedGround::mPositions, &PreparedGround::mNormals, &PreparedGround::mColours,
                 &PreparedGround::mLayers, &PreparedGround::mWeights);
+        }
+
+        /// The ground as the scene takes it, its indices the run every cell of one shape shares; the key as made, or
+        /// as `keyOf` makes it of this.
+        PackedMesh mesh() const
+        {
+            return PackedMesh{ .mPositions = mPositions,
+                .mNormals = mNormals,
+                .mTexCoords = mTexCoords,
+                .mColours = mColours,
+                .mIndices = mIndices,
+                .mSharedIndices = true,
+                .mBounds = mBounds,
+                .mKey = mKey };
         }
 
         /// Appends every texture reading the layers hold, each layer's diffuse and then its normal
@@ -182,34 +202,18 @@ namespace Rtx
         /// Whether it shows the face wound clockwise (`clockwiseThrough`).
         bool mClockwise = false;
 
-        /// Where this part's attributes sit in the model's own buffers.
-        Run mVertices;
-
-        /// Empty where the geometry names no normal, no texture coordinate and no colour.
-        Run mNormals;
-        Run mTexCoords;
-        Run mColours;
-
-        /// Empty for every part no normal map is read through — `MeshArrays::mTangents`.
-        Run mTangents;
-
-        /// Empty for every part but the few that bind a second set — `MeshArrays::mSecondTexCoords`.
-        Run mSecondTexCoords;
-        std::uint32_t mUnitStreams = 0;
-
-        Run mIndices;
-
-        FoldedShape mShape;
+        /// Where this part's packed mesh sits in the model's streams, with its key, bounds and shape.
+        PackedRuns mRuns;
 
         /// The modes the part is shown in: every branch of a `NightDaySwitch` is read, because
         /// which one the world shows is the frame's to say (`CellPlacer::setNightDay`).
         NightDayModes mModes;
     };
 
-    /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of every one of them in
-    /// the format the scene copies from, and the images they name. Owned by the reader and lent to every cell that
-    /// names it, once per cell (`Lent` counts them); refilled for the next model once every hold is back. Flat, one
-    /// buffer per attribute, because a cell names hundreds of models of a handful of parts each.
+    /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of every one of them
+    /// packed as the scene copies it, keyed and bounded, and the images they name. Owned by the reader and lent to
+    /// every cell that names it, once per cell (`Lent` counts them); refilled for the next model once every hold is
+    /// back. Flat, one buffer per attribute, because a cell names hundreds of models of a handful of parts each.
     struct PreparedModel : Lent
     {
         /// The corrected path the model was read under, which is what the reader finds it by
@@ -232,13 +236,8 @@ namespace Rtx
 
         std::vector<PreparedPart> mParts;
 
-        std::vector<osg::Vec3f> mPositions;
-        std::vector<osg::Vec3f> mNormals;
-        std::vector<osg::Vec2f> mTexCoords;
-        std::vector<osg::Vec2f> mSecondTexCoords;
-        std::vector<osg::Vec3f> mColours;
-        std::vector<osg::Vec4f> mTangents;
-        std::vector<std::uint32_t> mIndices;
+        /// Every part's packed mesh (`PreparedPart::mRuns`).
+        PackedStreams mStreams;
 
         /// Every part's chain of the state sets that state anything, root first, one after another
         /// (`PreparedPart::mChain`). Not held: the template holds every one of its own, and the
@@ -249,48 +248,17 @@ namespace Rtx
         /// without it, as the frame's walk stands one without a drawable it refuses.
         std::string mRefused;
 
-        /// The bytes its buffers hold room for, which a refill keeps.
-        std::size_t heldBytes() const
-        {
-            return mParts.capacity() * sizeof(PreparedPart) + mPositions.capacity() * sizeof(osg::Vec3f)
-                + mNormals.capacity() * sizeof(osg::Vec3f) + mTexCoords.capacity() * sizeof(osg::Vec2f)
-                + mSecondTexCoords.capacity() * sizeof(osg::Vec2f) + mColours.capacity() * sizeof(osg::Vec3f)
-                + mTangents.capacity() * sizeof(osg::Vec4f) + mIndices.capacity() * sizeof(std::uint32_t)
-                + mChains.capacity() * sizeof(const osg::StateSet*);
-        }
-
         /// Gives its buffers' room back, where a preparation's thread is asked for it. Lent nowhere.
         void letGoBuffers()
         {
             letGoOf(mParts);
-            letGoOf(mPositions);
-            letGoOf(mNormals);
-            letGoOf(mTexCoords);
-            letGoOf(mSecondTexCoords);
-            letGoOf(mColours);
-            letGoOf(mTangents);
-            letGoOf(mIndices);
+            mStreams.letGo();
             letGoOf(mChains);
         }
 
         /// What one of its parts comes to, as the frame adopts it. The spans are into this model's
         /// own storage, and live for as long as it is lent.
-        MeshReading readingOf(const PreparedPart& part) const
-        {
-            return MeshReading{
-                .mArrays = {
-                    .mPositions = part.mVertices.in(std::span<const osg::Vec3f>(mPositions)),
-                    .mNormals = part.mNormals.in(std::span<const osg::Vec3f>(mNormals)),
-                    .mTexCoords = part.mTexCoords.in(std::span<const osg::Vec2f>(mTexCoords)),
-                    .mSecondTexCoords = part.mSecondTexCoords.in(std::span<const osg::Vec2f>(mSecondTexCoords)),
-                    .mUnitStreams = part.mUnitStreams,
-                    .mColours = part.mColours.in(std::span<const osg::Vec3f>(mColours)),
-                    .mTangents = part.mTangents.in(std::span<const osg::Vec4f>(mTangents)),
-                    .mIndices = part.mIndices.in(std::span<const std::uint32_t>(mIndices)),
-                },
-                .mShape = part.mShape,
-            };
-        }
+        PackedMesh readingOf(const PreparedPart& part) const { return mStreams.of(part.mRuns); }
 
         /// What the frame keys one of its parts' material on, into this model's own storage.
         std::span<const osg::StateSet* const> chainOf(const PreparedPart& part) const
@@ -302,9 +270,7 @@ namespace Rtx
         /// is kept cannot come to name different ones.
         static constexpr auto buffers()
         {
-            return std::tuple{ &PreparedModel::mPath, &PreparedModel::mParts, &PreparedModel::mPositions,
-                &PreparedModel::mNormals, &PreparedModel::mTexCoords, &PreparedModel::mSecondTexCoords,
-                &PreparedModel::mColours, &PreparedModel::mTangents, &PreparedModel::mIndices, &PreparedModel::mChains,
+            return std::tuple{ &PreparedModel::mPath, &PreparedModel::mParts, &PreparedModel::mChains,
                 &PreparedModel::mRefused };
         }
 
@@ -315,7 +281,8 @@ namespace Rtx
             const auto room = [](const auto& buffer) {
                 return buffer.capacity() * sizeof(typename std::remove_cvref_t<decltype(buffer)>::value_type);
             };
-            return std::apply([&](const auto... buffer) { return (room(this->*buffer) + ...); }, buffers());
+            return std::apply([&](const auto... buffer) { return (room(this->*buffer) + ...); }, buffers())
+                + mStreams.getRoomBytes();
         }
 
         /// What the buffers hold of that room, in bytes: the model itself.
@@ -324,7 +291,8 @@ namespace Rtx
             const auto held = [](const auto& buffer) {
                 return buffer.size() * sizeof(typename std::remove_cvref_t<decltype(buffer)>::value_type);
             };
-            return std::apply([&](const auto... buffer) { return (held(this->*buffer) + ...); }, buffers());
+            return std::apply([&](const auto... buffer) { return (held(this->*buffer) + ...); }, buffers())
+                + mStreams.getContentBytes();
         }
 
         /// Makes room for the next model, keeping what the buffers grew where this model filled at
@@ -336,7 +304,7 @@ namespace Rtx
             std::apply(
                 [this](const auto... buffer) {
                     (dropSlack(this->*buffer), ...);
-                    reuseKeeping(*this, buffer...);
+                    reuseKeeping(*this, buffer..., &PreparedModel::mStreams);
                 },
                 buffers());
         }

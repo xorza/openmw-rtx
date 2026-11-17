@@ -330,7 +330,7 @@ namespace Rtx
 
             ChainScratch kept = hand.mContent.mPreprocessor.chainScratch();
             kept[ChainBuffer::Made] = hand.mChain.mBytes.capacity();
-            mDispatcher.ended(hand.mIndex, kept, hand.mModel.heldBytes(), hand.mMetBytes);
+            mDispatcher.ended(hand.mIndex, kept, hand.mModel.getRoomBytes(), hand.mMetBytes);
             mDone = std::chrono::steady_clock::now();
             mToHands.notify_all();
             mToWaiter.notify_all();

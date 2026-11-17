@@ -69,11 +69,12 @@ namespace Rtx::Testing
             // same vertex carries 64, 128 and 255, which the sRGB curve takes to 0.05126946,
             // 0.21586050 and one — a colour a renderer that dropped the array would answer white
             // for, and one whose channels differ so that a decode that swapped them would show.
+            // Packed to halves on the reader's thread, the nearest of each: 0x2A90 is 0.0512695,
+            // 0x32E8 is 0.2158203 and 0x3C00 one.
             EXPECT_EQ(FakeLand::colourAt(64, 0), osg::Vec4ub(64, 128, 255, 255));
-            const osg::Vec3f& corner = ground.mColours[64 * verts];
-            EXPECT_FLOAT_EQ(corner.x(), 0.05126946f);
-            EXPECT_FLOAT_EQ(corner.y(), 0.21586050f);
-            EXPECT_FLOAT_EQ(corner.z(), 1.0f);
+            const Shaders::GpuVertexColour& corner = ground.mColours[64 * verts];
+            EXPECT_EQ(corner.mRedGreen, 0x2A90u | (0x32E8u << 16));
+            EXPECT_EQ(corner.mBlue, 0x3C00u);
 
             // **The game's own index buffer and the game's own corners**, from the class that
             // builds them for the rasterizer's chunks.
@@ -157,8 +158,11 @@ namespace Rtx::Testing
 
             // A cell with no record has no `VCLR` either, and white is what tints nothing.
             ASSERT_EQ(ground.mColours.size(), 4u);
-            for (const osg::Vec3f& colour : ground.mColours)
-                EXPECT_EQ(colour, osg::Vec3f(1.0f, 1.0f, 1.0f));
+            for (const Shaders::GpuVertexColour& colour : ground.mColours)
+            {
+                EXPECT_EQ(colour.mRedGreen, 0x3C003C00u);
+                EXPECT_EQ(colour.mBlue, 0x3C00u);
+            }
 
             Terrain::BufferCache buffers;
             expectSameTriangles(ground.mIndices, *buffers.getIndexBuffer(2, 0));

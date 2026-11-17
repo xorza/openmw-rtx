@@ -170,9 +170,10 @@ namespace Rtx::Testing
 
             SceneDesc scene;
             const std::array<osg::Vec3f, 4> arm = uprightQuadAt(400.0f, 100.0f);
-            scene.addInstance(MeshInstance{ .mMesh
-                = scene.addMesh(MeshArrays{ .mPositions = arm, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                .mClass = InstanceClass::FirstPerson });
+            scene.addInstance(
+                MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                  MeshArrays{ .mPositions = arm, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mClass = InstanceClass::FirstPerson });
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 100.0f, 0.0f), 30.0f, size, size, 100000.0f);
@@ -709,11 +710,12 @@ namespace Rtx::Testing
                         const std::array normals{ normal, normal, normal, normal };
                         const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
                         const std::array tangents{ tangent, tangent, tangent, tangent };
-                        mScene.addInstance(MeshInstance{ .mMesh = mScene.addMesh(MeshArrays{ .mPositions = quad,
-                                                             .mNormals = normals,
-                                                             .mTexCoords = sQuadUv,
-                                                             .mTangents = tangents,
-                                                             .mIndices = sQuadIndices }),
+                        mScene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(mScene,
+                                                             MeshArrays{ .mPositions = quad,
+                                                                 .mNormals = normals,
+                                                                 .mTexCoords = sQuadUv,
+                                                                 .mTangents = tangents,
+                                                                 .mIndices = sQuadIndices }),
                             .mMaterial = material });
                     };
                     bumpy(sheetAt(4000.0f, -100.0f), osg::Vec3f(0.0f, 0.0f, 1.0f));
@@ -1280,8 +1282,9 @@ namespace Rtx::Testing
                 }
 
             SceneDesc scene;
-            scene.addInstance(MeshInstance{ .mMesh
-                = scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }) });
+            scene.addInstance(
+                MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                  MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }) });
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -2600.0f, 2600.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -1447,9 +1450,10 @@ namespace Rtx::Testing
                     const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                     const Index map = scene.textures().add(
                         VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                    scene.addInstance(MeshInstance{
-                        .mMesh = scene.addMesh(MeshArrays{
-                            .mPositions = sheetAt(40000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                        MeshArrays{ .mPositions = sheetAt(40000.0f, 0.0f),
+                                                            .mTexCoords = sQuadUv,
+                                                            .mIndices = sQuadIndices }),
                         .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
                 }
                 else

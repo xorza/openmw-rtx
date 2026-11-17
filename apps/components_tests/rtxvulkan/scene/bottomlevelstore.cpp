@@ -59,7 +59,8 @@ namespace Rtx
                     indices.insert(indices.end(),
                         { corner, corner + 1, corner + side + 2, corner, corner + side + 2, corner + side + 1 });
                 }
-            return scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices });
+            return Testing::addMesh(
+                scene, MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices });
         }
 
         struct RtxBottomLevelStoreTest : Testing::DeviceTest

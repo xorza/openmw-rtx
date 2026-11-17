@@ -271,7 +271,7 @@ namespace Rtx::Testing
                 const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
                 mMaterial = mScene.addMaterial(Material{ .mKind = MaterialKind::Terrain });
-                mMesh = mScene.addMesh(MeshArrays{ .mPositions = corners, .mIndices = triangle });
+                mMesh = Testing::addMesh(mScene, MeshArrays{ .mPositions = corners, .mIndices = triangle });
                 mHolds.mesh(mMesh);
                 mHolds.material(mMaterial);
                 mSlot = mScene.addInstance(MeshInstance{ .mMesh = mMesh, .mMaterial = mMaterial });
