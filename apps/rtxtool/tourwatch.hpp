@@ -14,6 +14,7 @@
 #include <apps/rtxtool/model/expectations.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/logtally.hpp>
+#include <apps/rtxtool/model/longestframes.hpp>
 #include <apps/rtxtool/model/measurewindow.hpp>
 #include <apps/rtxtool/model/restreuse.hpp>
 #include <components/rtx/scene/refusal.hpp>
@@ -67,6 +68,9 @@ namespace RtxTool
 
         const FindingTable& getTable() const { return mTable; }
 
+        /// The tour's longest measured frames, as they stood on the screen, and when each ended.
+        const LongestFrames& getLongest() const { return mLongest; }
+
     private:
         FindingPlace placeOf(StandingNote& note);
 
@@ -97,6 +101,8 @@ namespace RtxTool
 
         /// How the textures came back from rest over the tour.
         RestReuse mRestReuse;
+
+        LongestFrames mLongest;
 
         /// The columns of the leg's cells a frame stood whole in while the player was there.
         std::vector<std::int32_t> mCovered;

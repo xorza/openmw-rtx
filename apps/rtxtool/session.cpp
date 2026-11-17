@@ -129,7 +129,8 @@ namespace RtxTool
     {
         const SessionRequest::Watching& watching = *mRequest.mWatching;
         mWatch->drainLog();
-        std::string text = describeFindings(mWatch->getTable()) + mWatch->getRestReuse().describe();
+        std::string text = describeFindings(mWatch->getTable()) + mWatch->getRestReuse().describe()
+            + mWatch->getLongest().describe();
         text
             += std::format("\nflown through {}, stop {} of {}\n", currentStop().mName, mAt + 1, mRequest.mStops.size());
         if (const Result<void, std::string> written = writeReport(watching.mFindings, text); !written.isOk())

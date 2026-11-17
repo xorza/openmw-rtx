@@ -38,6 +38,7 @@ target_sources(
         model/heapdescription.cpp
         model/restreuse.cpp
         model/logtally.cpp
+        model/longestframes.cpp
         model/measurewindow.cpp
         model/pictureshelf.cpp
         model/runrecord.cpp
@@ -95,6 +96,7 @@ target_sources(
                 model/restreuse.hpp
                 model/findingkind.hpp
                 model/logtally.hpp
+                model/longestframes.hpp
                 model/measurewindow.hpp
                 model/pictureshelf.hpp
                 model/runrecord.hpp

@@ -129,6 +129,7 @@ target_sources(
         rtxtool/model/finding.cpp
         rtxtool/model/heapdescription.cpp
         rtxtool/model/logtally.cpp
+        rtxtool/model/longestframes.cpp
         rtxtool/model/measurewindow.cpp
         rtxtool/model/restreuse.cpp
         rtxtool/model/runrecord.cpp
