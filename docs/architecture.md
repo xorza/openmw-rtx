@@ -113,6 +113,11 @@ What the game reads from files (`components/resource`), changed for the handheld
 - **The budget is derived, and again every second**, from what the system leaves the process, so whatever else takes the
   memory leaves the caches that much less, as a browser's memory-pressure signal does. No setting, so no default that
   is wrong on some machine. Refused: a figure read once at startup.
+- **What the system leaves the process is less what of the process is in swap** (`Platform::availableMemory`): the
+  kernel counts the memory it freed by swapping the process out as available, so a budget read off `MemAvailable`
+  alone grew by what it pushed out, and pushed out more; the handheld's repack held a cache budget of 4.5 GiB beside
+  6 GiB swapped. Windows states no figure of what it paged out apart from what nothing touched, so its room stands as
+  the system states it.
 - **An entry states its own bytes**, shared bytes in the one cache that owns them, as Unreal's `Exclusive` resource size
   counts. **The order of use is a stamp**, the clock algorithm's second chance for a held entry.
 - **What the game builds from memory keeps the timer**: the land, the chunks, the physics instances, the materials.

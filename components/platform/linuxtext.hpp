@@ -33,6 +33,12 @@ namespace Platform::LinuxText
     /// (`MemAvailable`, in kilobytes), or nothing where it names none.
     std::optional<std::uint64_t> availableMemory(std::string_view meminfo);
 
+    /// What the system leaves a process, from `/proc/meminfo` and the process's status: `MemAvailable` less what of
+    /// the process is in swap (`VmSwap`), which it is the process's to take back, and which the kernel counts as
+    /// available once it freed the memory by swapping it out. `MemAvailable` alone where the status names no swap;
+    /// nothing where the meminfo names no `MemAvailable`.
+    std::optional<std::uint64_t> availableToProcess(std::string_view meminfo, std::string_view status);
+
     /// What a process holds of anonymous memory, from its status as `/proc/<pid>/status` writes it: resident
     /// (`RssAnon`) and swapped out (`VmSwap`), in bytes, or nothing where either field is missing or not a number of
     /// kilobytes.

@@ -127,6 +127,15 @@ namespace Platform::LinuxText
         return kilobytesField(meminfo, "MemAvailable:");
     }
 
+    std::optional<std::uint64_t> availableToProcess(std::string_view meminfo, std::string_view status)
+    {
+        const std::optional<std::uint64_t> available = availableMemory(meminfo);
+        if (!available.has_value())
+            return std::nullopt;
+        const std::uint64_t swapped = kilobytesField(status, "VmSwap:").value_or(0);
+        return *available - std::min(*available, swapped);
+    }
+
     std::optional<Process::AnonymousMemory> anonymousMemory(std::string_view status)
     {
         const std::optional<std::uint64_t> resident = kilobytesField(status, "RssAnon:");

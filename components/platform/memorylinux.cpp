@@ -16,10 +16,13 @@ namespace Platform
     {
         // Each file is under a page, and 64 KiB is the largest page x86-64 and arm64 have.
         std::array<char, 65536> buffer{};
+        std::array<char, 65536> statusBuffer{};
         const std::optional<std::string_view> meminfo = KernelFile::read("/proc/meminfo", buffer);
         if (!meminfo.has_value())
             return std::nullopt;
-        std::optional<std::uint64_t> available = LinuxText::availableMemory(*meminfo);
+        const std::optional<std::string_view> status = KernelFile::read("/proc/self/status", statusBuffer);
+        std::optional<std::uint64_t> available
+            = LinuxText::availableToProcess(*meminfo, status.has_value() ? *status : std::string_view());
         if (!available.has_value())
             return std::nullopt;
 

@@ -75,6 +75,21 @@ namespace
         EXPECT_EQ(Platform::LinuxText::availableMemory("MemAvailable: 2 MB\n"), std::nullopt);
     }
 
+    /// **What the system leaves a process is `MemAvailable` less its `VmSwap`**: 8 kB available with 3 kB of the
+    /// process in swap is 5 kB, 5120 bytes; with more in swap than is available, none; with no swap line, all 8;
+    /// with no `MemAvailable`, nothing. The kernel counts what it freed by swapping the process out as available,
+    /// which the process takes back.
+    TEST(RtxPlatformLinuxTextTest, whatTheSystemLeavesAProcessIsMemAvailableLessItsSwap)
+    {
+        constexpr std::string_view meminfo = "MemTotal:       65000000 kB\nMemAvailable:          8 kB\n";
+        EXPECT_EQ(Platform::LinuxText::availableToProcess(meminfo, "RssAnon:\t2 kB\nVmSwap:\t       3 kB\n"),
+            std::optional<std::uint64_t>(5120));
+        EXPECT_EQ(Platform::LinuxText::availableToProcess(meminfo, "VmSwap:\t9 kB\n"), std::optional<std::uint64_t>(0));
+        EXPECT_EQ(
+            Platform::LinuxText::availableToProcess(meminfo, "RssAnon:\t2 kB\n"), std::optional<std::uint64_t>(8192));
+        EXPECT_EQ(Platform::LinuxText::availableToProcess("MemTotal: 1 kB\n", "VmSwap:\t3 kB\n"), std::nullopt);
+    }
+
     /// **The anonymous memory is `RssAnon` and `VmSwap`, in bytes**, from a status's tab-separated lines: 2 kB
     /// resident is 2048 bytes and 3 kB swapped 3072; nothing where either is missing or not in kilobytes.
     TEST(RtxPlatformLinuxTextTest, theAnonymousMemoryIsRssAnonAndVmSwapInBytes)
