@@ -375,8 +375,20 @@ namespace Rtx
         {
             const bool fitted = want.mKind == RestKind::Texture ? mTextures.releaseFitting(want.mHole)
                                                                 : mMeshes.releaseFitting(mDeformers, want.mHole);
-            for (std::uint64_t freed = 0; !fitted && freed < want.mHole && getRestingBytes() > 0;)
-                freed += releaseOldestResting();
+            // **A structure's want frees meshes alone**: a texture's range gives back room in the pools, which no
+            // structure takes, its storages being blocks of their own. A texture's frees what rested longest across
+            // the tables, a mesh whose block empties giving the heap room a pool's block takes.
+            for (std::uint64_t freed = 0; !fitted && freed < want.mHole;)
+            {
+                const std::uint64_t resting = getRestingBytes();
+                if (want.mKind == RestKind::Mesh && mMeshes.getResting().first() != sNoIndex)
+                    mMeshes.releaseOldest(mDeformers);
+                else if (want.mKind == RestKind::Texture && resting > 0)
+                    releaseOldestResting();
+                else
+                    break;
+                freed += resting - getRestingBytes();
+            }
         }
         return before - getRestingBytes();
     }

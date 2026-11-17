@@ -837,8 +837,9 @@ namespace Rtx
         /// class past the hole's, before the third and fourth of its own class, which it rested before; then by the
         /// third, the older of its class that holds it; then by the fourth, 64 holding 64. Two meshes rested a tick
         /// apart with nothing to give back until their tight copies landed, 300 each, the later's first: the earlier
-        /// still goes first for a structure's 200, filed back by when it rested, and the textures stay; and a hole of
-        /// 65 no texture holds frees what rested longest, the two left, 16 bytes, past which nothing rests.
+        /// still goes first for a structure's 200, filed back by when it rested, and the textures stay, as they stay
+        /// once no mesh rests; and a hole of 65 no texture holds frees what rested longest, the two left, 16 bytes,
+        /// past which nothing rests.
         TEST(RtxSceneDescTest, aWantFreesTheOldestRowOfItsKindThatSurelyHoldsItAndElseTheOldest)
         {
             SceneDesc scene;
@@ -889,6 +890,9 @@ namespace Rtx
             EXPECT_TRUE(scene.meshes().isLive(raised)) << "the mesh fitted first went first";
             EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 100u);
             EXPECT_FALSE(scene.meshes().isLive(raised));
+            EXPECT_EQ(live(), (std::vector<Index>{ slots[0], slots[4] })) << "a structure's want freed a texture";
+            EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 0u)
+                << "with no mesh resting, a structure frees nothing";
             EXPECT_EQ(live(), (std::vector<Index>{ slots[0], slots[4] })) << "a structure's want freed a texture";
 
             const RoomWant texture65{ .mKind = RestKind::Texture, .mSlot = 0, .mHole = 65 };

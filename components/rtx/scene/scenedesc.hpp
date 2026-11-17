@@ -286,8 +286,9 @@ namespace Rtx
         /// **Frees, for each of `wants`, what surely leaves it room** (`docs/architecture.md`, "What waits is given the
         /// resting row that surely leaves it room"): the row
         /// that has rested longest of its kind's that gives back at least its hole where it can take it, or, with
-        /// none, what rested longest across the tables until its hole is given back, holes that may join; answers the
-        /// bytes given back, each slot reported freed by its table.
+        /// none, what rested longest until its hole is given back, holes that may join — across the tables for a
+        /// texture, of the meshes alone for a structure, which takes no texture's room; answers the bytes given back,
+        /// each slot reported freed by its table.
         std::uint64_t evictFor(std::span<const RoomWant> wants);
 
         /// The bytes everything that rests stands on the device.

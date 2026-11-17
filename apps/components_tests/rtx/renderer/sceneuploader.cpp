@@ -656,7 +656,7 @@ namespace Rtx
 
         /// **What rests comes down to a limit that dropped a step a hand-over**, the most one extension handed the
         /// device, and the room an arrival needs at once. Five files of 64 bytes, handed over one a hand-over, rest
-        /// 320 under a limit of nought: the first hand-over frees the 64 a structure wants and a step of 64 more, two
+        /// 320 under a limit of nought: the first hand-over frees the 64 a texture wants and a step of 64 more, two
         /// files; each after it one.
         TEST(RtxSceneUploaderTest, whatRestsComesDownToALimitThatDroppedAStepAHandOver)
         {
@@ -685,9 +685,10 @@ namespace Rtx
             }
             ASSERT_EQ(scene.textures().getResting().getBytes(), 320u);
 
-            // The structure's want, which no resting mesh holds, frees the oldest by its 64 once the answer is taken.
+            // A texture's want, which no resting texture surely holds, frees the oldest by its 64 once the answer is
+            // taken.
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = 0 };
-            renderer.mWants.push_back(RoomWant{ .mKind = RestKind::Mesh, .mSlot = 0, .mHole = 64 });
+            renderer.mWants.push_back(RoomWant{ .mKind = RestKind::Texture, .mSlot = 0, .mHole = 64 });
             EXPECT_EQ(hand().mDropped, 1u) << "the step";
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 0 };
             EXPECT_EQ(hand().mDropped, 2u) << "the want's, and the step";
