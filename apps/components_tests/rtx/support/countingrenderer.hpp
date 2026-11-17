@@ -110,6 +110,13 @@ namespace Rtx::Testing
         /// What the device has room for, which a test sets to be what the next hand-over reads.
         std::optional<Rtx::ArrivalRoom> getArrivalRoom(Rtx::SceneSlot) const override { return mArrivalRoom; }
 
+        /// Each ask to move textures down, in order, answered with what a test says the device gave back.
+        std::uint64_t makeTextureRoom(Rtx::SceneSlot, const Rtx::TextureRoomAsk& ask) override
+        {
+            mRoomAsks.push_back(ask);
+            return mRoomMade;
+        }
+
         void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
         Rtx::FrameExtents getExtents() const override { return mExtents; }
         Rtx::FrameTraced renderFrame(const Rtx::FrameRequest&) override
@@ -277,6 +284,10 @@ namespace Rtx::Testing
 
         /// What `getArrivalRoom` answers: unbounded unless a test bounds it.
         std::optional<Rtx::ArrivalRoom> mArrivalRoom;
+
+        /// What `makeTextureRoom` was asked, and what it answers: nothing moved unless a test says.
+        std::vector<Rtx::TextureRoomAsk> mRoomAsks;
+        std::uint64_t mRoomMade = 0;
 
         /// What `getProfile` answers, which a test sets to say what the run decided.
         Rtx::RenderProfile mProfile;

@@ -131,10 +131,11 @@ namespace Rtx
         return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables, timer);
     }
 
-    void DeviceScene::makeTextureRoom(Batch& batch, TextureArrival& arrival, const VkDeviceSize bytes)
+    VkDeviceSize DeviceScene::makeTextureRoom(Batch& batch, TextureArrival& arrival, const TextureArray::RoomAsk& ask)
     {
-        mTextures.makeRoom(arrival, TextureArray::RoomAsk{ .mBytes = bytes, .mKeep = {}, .mCopyMost = bytes }, mAnswer);
+        const VkDeviceSize freed = mTextures.makeRoom(arrival, ask, mAnswer);
         arrival.record(batch, mPasses.mTextures, nullptr);
+        return freed;
     }
 
     void DeviceScene::extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene,

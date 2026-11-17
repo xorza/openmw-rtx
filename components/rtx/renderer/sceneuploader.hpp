@@ -128,8 +128,10 @@ namespace Rtx
         /// forgets a smaller side that tried its most and those whose slot holds their file no more; asks `prepared` to
         /// read again the file of each the device's `free` bytes now hold and no eviction for it is coming back to
         /// (`isCooling`), and hands over again each read — each at once where nothing reads them or the hand-over is
-        /// `settled`, whose description reads and waits.
-        void serveWaits(SceneDesc& scene, PreparedImages* prepared, bool settled, std::uint64_t free);
+        /// `settled`, whose description reads and waits; and has `scenes` move what stands in `slot` down for the
+        /// stand-ins the room does not hold.
+        void serveWaits(SceneHolder& scenes, SceneSlot slot, SceneDesc& scene, PreparedImages* prepared, bool settled,
+            std::uint64_t free);
 
         /// Frees what rests, the oldest first, until the device's room holds an arrival of `arriving` bytes of textures
         /// in the pools' room beside the structures it may build in the storages'.
@@ -143,9 +145,19 @@ namespace Rtx
         /// Whether a want of `kind` for `slot` was evicted for and its room is not yet the device's.
         bool isCooling(RestKind kind, Index slot) const;
 
-        /// Files the textures the last answer named stood short, and forgets those this hand-over described and the
-        /// device stood whole: a wait handed over again, or every one under a rebuild, which describes the whole table.
-        void waitForRoom(const TextureTable& textures);
+        /// Files the textures the last answer named stood short, and forgets those `described` and the device stood
+        /// whole: a wait handed over again, or every one under a rebuild, which describes the whole table; nothing is
+        /// described on a hand-over that only places. One `scene` let go of is passed over, and one that rests is
+        /// evicted.
+        void waitForRoom(SceneDesc& scene, std::span<const SceneTextures::Stood> described);
+
+        /// Files `stood`, a live slot that does not rest, as waiting for its whole file: what `described` handed over
+        /// of it, or what it stood before the device moved it down.
+        void fileWait(SceneDesc& scene, const ShortTexture& stood, std::span<const SceneTextures::Stood> described);
+
+        /// Evicts each texture the device moved down while it rested that rests still (`mMovedResting`), and files one
+        /// taken again since as waiting.
+        void settleMovedResting(SceneDesc& scene);
 
         /// Whether `slot` waits for room.
         bool isWaiting(Index slot) const;
@@ -184,6 +196,9 @@ namespace Rtx
             std::uint32_t mWaited = 0;
             bool mReading = false;
 
+            /// Whether the last `serveWaits` asked the device to move what stands down for it.
+            bool mRoomAsked = false;
+
             /// How the read was asked, while `mReading`: what a wait that ends before it was handed forgets
             /// (`PreparedImages::forget`), its slot perhaps another file's by then.
             TextureEncoding mEncoding{};
@@ -199,6 +214,10 @@ namespace Rtx
 
         /// The textures waiting for room, each slot once, so no more than the texture table's capacity.
         std::vector<TextureWait> mTextureWaits;
+
+        /// The textures the last answer said the device moved down while they rested, no more than it named: settled
+        /// at the next hand-over (`settleMovedResting`).
+        std::vector<ShortTexture> mMovedResting;
 
         /// A want evicted for (`serveWants`): whose, and the hand-over from which the room its eviction gave back is
         /// the device's.

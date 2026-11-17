@@ -82,6 +82,7 @@ namespace Rtx
         SceneHeld describeHeld(SceneSlot slot) const override;
         void takeAnswer(SceneSlot slot, DeviceAnswer& into) override;
         std::optional<ArrivalRoom> getArrivalRoom(SceneSlot slot) const override;
+        std::uint64_t makeTextureRoom(SceneSlot slot, const TextureRoomAsk& ask) override;
         void placeScene(SceneSlot slot, const SceneDesc& scene) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         MemoryReport getMemoryReport() const override;

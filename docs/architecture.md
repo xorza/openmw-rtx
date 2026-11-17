@@ -141,6 +141,14 @@ What the game reads from files (`components/resource`), changed for the handheld
   never built again for a change of mode, which leaves the host's copy of the geometry nothing to be read for after
   its hand-over. No texture moves under 64 texels a side. Refused: building the
   world again, seconds of one frame; holding the arrival, nearest the eye, smaller than what stands far off.
+- **A texture drawn as the stand-in for want of room has what stands above it moved down for it**
+  (`SceneHolder::makeTextureRoom`), once what rests gave it none, and none to stand less than the stand-in's file: a
+  hole in the picture against a level off a large texture. It waits afresh while the device moves anything for it,
+  and is refused only once nothing moves. The handheld's PBR and Repack tours drew 95 and 63 textures as the stand-in
+  for good beside 4.2 GiB of textures standing whole, the waits' bound reached while arrivals took the room
+  (`research/2026-11-17-handheld-allocator-tunables.md`). A texture moved down rests on nothing while it waits, and
+  one moved while it rests goes, as a rest holds the file whole and the host keeps none to hand over again. Refused:
+  moving down for a texture that stands at a smaller side, which trades one texture's level for another's.
 - **A made chain is handed over in a buffer of a bounded pool, read a segment at a time** (`Rtx::BufferPool`,
   `ContentPreprocessor::chain` into a pool): the store's entry is opened, its form's byte read, and its levels read
   by position into a pooled buffer, each segment's digest checked; the buffer goes back to the pool as the made image

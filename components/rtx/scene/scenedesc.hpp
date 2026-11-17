@@ -290,6 +290,10 @@ namespace Rtx
         /// each slot reported freed by its table.
         std::uint64_t evictFor(std::span<const RoomWant> wants);
 
+        /// Frees `slot`, a texture that rests, out of its turn: what one the device moved down for room comes to, as a
+        /// rest holds the file whole (`TextureTable::stand`), and a slot reported freed is the backend's to drop.
+        void evictRestingTexture(Index slot);
+
         /// The bytes everything that rests stands on the device.
         std::uint64_t getRestingBytes() const;
 

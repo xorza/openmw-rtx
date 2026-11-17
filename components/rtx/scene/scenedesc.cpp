@@ -391,6 +391,13 @@ namespace Rtx
         return before - getRestingBytes();
     }
 
+    void SceneDesc::evictRestingTexture(const Index slot)
+    {
+        assert(mTextures.isLive(slot) && "a texture evicted that the table holds no more");
+        assert(mTextures.getRows()[slot].mRest.mResting && "a texture evicted out of its turn that does not rest");
+        mTextures.release(slot);
+    }
+
     std::uint64_t SceneDesc::getRestingBytes() const
     {
         return mTextures.getResting().getBytes() + mMeshes.getResting().getBytes();

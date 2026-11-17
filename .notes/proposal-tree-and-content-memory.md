@@ -618,6 +618,14 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   textures, so a change of mode never builds the world again. The waits and the short list stay as the move up until a
   planner sizes every texture by the room (13.2, 13.3).
 
+- **13, its second part. A stand-in has what stands moved down for it**: the handheld's tours drew 95 (PBR) and 63
+  (Repack) textures of 0.4–5.4 MiB as the stand-in for good beside 4.2 GiB of textures standing whole, the texture
+  pools full and the waits' six hand-overs reached while arrivals took the room. A stand-in that what rests gave no
+  room to now asks the device to move what stands down for it (`SceneHolder::makeTextureRoom`), none below its own
+  file, and waits afresh while anything moves. Three faults of the first part fixed with it: a short met on a
+  hand-over that only placed was lost, so what a reserve moved down never came back up; a texture moved while it
+  rested was filed with no file to read again; and one moved while standing still rested as whole.
+
 - **12.4. The manifest's radius and light** move to item 15, their one reader: a field no code reads is dead until
   then, and the manifest has a signature of its own, so it is made again with item 15 and not with the store.
 

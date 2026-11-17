@@ -197,11 +197,7 @@ namespace Rtx
     {
         assert(isEmpty() && "a texture stood over one that stands");
         assert(!from.isEmpty() && "a move of a texture that does not stand");
-        assert(dropped > 0 && dropped < from.mImage.getMipLevels() && "a move past the texture's last level");
-
-        const ImageShape shape{ .mWidth = from.mImage.getWidthAt(dropped),
-            .mHeight = from.mImage.getHeightAt(dropped),
-            .mLevels = from.mImage.getMipLevels() - dropped };
+        const ImageShape shape = from.shapeMovedDown(dropped);
         const bool spread = from.hasCompanion();
         Result<Image, MemoryRefusal> companion
             = spread ? makeSpreadMap(device, name, use, shape.mWidth, shape.mHeight) : Image();
@@ -227,6 +223,19 @@ namespace Rtx
             arrival.spread(mImage, mCompanion);
         mBytes = priceShape(mFormat, shape, spread).standing();
         return {};
+    }
+
+    ImageShape Texture::shapeMovedDown(const std::uint32_t dropped) const
+    {
+        assert(dropped > 0 && dropped < mImage.getMipLevels() && "a move past the texture's last level");
+        return ImageShape{ .mWidth = mImage.getWidthAt(dropped),
+            .mHeight = mImage.getHeightAt(dropped),
+            .mLevels = mImage.getMipLevels() - dropped };
+    }
+
+    VkDeviceSize Texture::priceMovedDown(const std::uint32_t dropped) const
+    {
+        return priceShape(mFormat, shapeMovedDown(dropped), hasCompanion()).standing();
     }
 
     ImageDescription Texture::describeFile(const TextureData& data, const std::uint32_t first)
@@ -834,7 +843,8 @@ namespace Rtx
             mMovable.pop_back();
             Slot& slot = mSlots[at];
             const Image& image = slot.mTexture.getImage();
-            if (image.getMipLevels() < 2 || std::max(image.getWidthAt(1), image.getHeightAt(1)) < sMoveFloorSide)
+            if (image.getMipLevels() < 2 || std::max(image.getWidthAt(1), image.getHeightAt(1)) < sMoveFloorSide
+                || slot.mTexture.priceMovedDown(1) <= ask.mAbove)
                 continue;
 
             if constexpr (sDebugNames)

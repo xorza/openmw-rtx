@@ -339,7 +339,8 @@ namespace Rtx
             if (const VkDeviceSize over = memory.getContentOver(); over > 0)
             {
                 Batch moved(mDevice.getPool());
-                world->makeTextureRoom(moved, mArrival, over);
+                world->makeTextureRoom(
+                    moved, mArrival, TextureArray::RoomAsk{ .mBytes = over, .mKeep = {}, .mCopyMost = over });
                 moved.flush();
             }
         if (follows == ContentFollows::TheReserve && world != nullptr && reserve < reserved)
@@ -508,6 +509,19 @@ namespace Rtx
             .mStructureFree = mDevice.getMemory().getRoom(MemoryUse::Structure),
             .mBudget = video.mBudget,
             .mHeld = video.mHeld };
+    }
+
+    std::uint64_t VulkanRenderer::makeTextureRoom(const SceneSlot slot, const TextureRoomAsk& ask)
+    {
+        DeviceScene* const held = mScenes.find(slot);
+        if (held == nullptr)
+            return 0;
+        Batch moved(mDevice.getPool());
+        const VkDeviceSize freed = held->makeTextureRoom(moved, mArrival,
+            TextureArray::RoomAsk{
+                .mBytes = ask.mBytes, .mKeep = {}, .mCopyMost = TextureArray::sMoveCopyMost, .mAbove = ask.mAbove });
+        moved.flush();
+        return freed;
     }
 
     void VulkanRenderer::placeScene(const SceneSlot slot, const SceneDesc& scene)

@@ -33,6 +33,7 @@
 #include <components/rtxvulkan/device/readstamp.hpp>
 
 #include "texturearrival.hpp"
+#include "texturecost.hpp"
 
 namespace Rtx
 {
@@ -73,6 +74,9 @@ namespace Rtx
         /// as `use`. `from` stays where it is until `arrival` records, since the work names its image.
         Result<void, MemoryRefusal> standMovedDown(const Device& device, TextureArrival& arrival, const Texture& from,
             std::uint32_t dropped, std::string_view name, MemoryUse use);
+
+        /// What this would stand moved `dropped` levels down (`standMovedDown`), its companion included.
+        VkDeviceSize priceMovedDown(std::uint32_t dropped) const;
 
         /// The image `standFile` makes of `data` from level `first` on: what a texture stood short asks of the room
         /// to stand whole.
@@ -137,6 +141,9 @@ namespace Rtx
         VkDeviceSize getBytes() const { return mBytes; }
 
     private:
+        /// What this stands as moved `dropped` levels down.
+        ImageShape shapeMovedDown(std::uint32_t dropped) const;
+
         Image mImage;
         Image mCompanion;
 
@@ -292,22 +299,25 @@ namespace Rtx
         static constexpr std::uint32_t sMoveFloorSide = 64;
 
         /// What `makeRoom` is asked: the bytes it gives back of what stands, the slots it leaves where they are, an
-        /// arrival's, and the most bytes of images it copies, an arrival's frame's share or, at a change of mode,
-        /// every byte it needs.
+        /// arrival's, the most bytes of images it copies, an arrival's frame's share or, at a change of mode,
+        /// every byte it needs, and what a texture must still stand past once moved: nought for an arrival and a
+        /// reserve, and for a texture drawing the stand-in for want of room, what it asks whole, so that no texture
+        /// comes down to stand less than the one it makes room for.
         struct RoomAsk
         {
             VkDeviceSize mBytes = 0;
             std::span<const TextureData> mKeep{};
             VkDeviceSize mCopyMost = sMoveCopyMost;
+            VkDeviceSize mAbove = 0;
         };
 
         /// **Room made by textures that stand moving down**, as Unreal's streamer takes a level off the textures it
         /// needs least (`docs/architecture.md`, "A texture that stands moves down to make room"): the file standing the
         /// most bytes moves a level down first, and again, until the moves give back what `ask` asks, its copies reach
-        /// their most, or nothing moves past `sMoveFloorSide`. Each is copied on the device and its old image buried,
-        /// so the room comes back once the frames that sample it are done. A slot moved stands short of its file: named
-        /// in `answer.mShort` with the bytes it stood before, so its owner hands it over whole again once the room is
-        /// back. What it gave back, of what stands.
+        /// their most, or nothing moves past `sMoveFloorSide` or down to `RoomAsk::mAbove`. Each is copied on the
+        /// device and its old image buried, so the room comes back once the frames that sample it are done. A slot
+        /// moved stands short of its file: named in `answer.mShort` with the bytes it stood before, so its owner hands
+        /// it over whole again once the room is back. What it gave back, of what stands.
         VkDeviceSize makeRoom(TextureArrival& arrival, const RoomAsk& ask, DeviceAnswer& answer);
 
         /// Names every file's slot that draws the stand-in for want of room short in `answer`, with the bytes its file

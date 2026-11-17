@@ -292,7 +292,8 @@ namespace Rtx
         /// a 64-square file of one level, 16384, stand whole. Asked for a byte, the ladder moves a level down, its
         /// second level copied into the new image's first, 20480 bytes standing and 65536 given back, and it is named
         /// short with the 86016 it stood before; the file of one level cannot move. Asked for more than the ladder can
-        /// give, it moves no further, 64 square at the floor. A slot an arrival names stays where it is.
+        /// give, it moves no further, 64 square at the floor. A slot an arrival names stays where it is, and so does
+        /// one that would stand no more than the ask's `mAbove` once moved: 20480 stays, 20479 lets it move.
         TEST_F(RtxTextureArrayTest, roomIsMadeByWhatStandsMovingDownCopiedOnTheDevice)
         {
             Device& device = getDevice();
@@ -328,13 +329,16 @@ namespace Rtx
                 const std::array kept{ ladder.mData };
                 EXPECT_EQ(textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1, .mKeep = kept }, answer), 0u)
                     << "the ladder kept, and the other cannot move";
+                EXPECT_EQ(textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1, .mAbove = 20480 }, answer), 0u)
+                    << "the ladder would stand no more than the texture it makes room for";
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
             }
 
             {
                 Batch batch(getPool());
-                EXPECT_EQ(textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1 }, answer), 65536u);
+                EXPECT_EQ(
+                    textures.makeRoom(rooms, TextureArray::RoomAsk{ .mBytes = 1, .mAbove = 20479 }, answer), 65536u);
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
             }

@@ -31,6 +31,17 @@ namespace Rtx
         StructureRevision mStructureRevision;
     };
 
+    /// What the textures that stand are asked to give back by moving down (`SceneHolder::makeTextureRoom`): the bytes,
+    /// and what a texture must still stand past once moved, so that none comes down to stand less than the texture it
+    /// makes room for.
+    struct TextureRoomAsk
+    {
+        std::uint64_t mBytes = 0;
+        std::uint64_t mAbove = 0;
+
+        bool operator==(const TextureRoomAsk& other) const = default;
+    };
+
     /// What an arrival may take on the device, and what the budget leaves what rests (`SceneHolder::getArrivalRoom`).
     struct ArrivalRoom
     {
@@ -91,6 +102,12 @@ namespace Rtx
         /// whose content takes no room it bounds: what the content that rests gives its room back to
         /// (`SceneDesc::evictResting`).
         virtual std::optional<ArrivalRoom> getArrivalRoom(SceneSlot slot) const = 0;
+
+        /// **Room made in `slot` by textures that stand moving down a level at a time**, copied on the device, the
+        /// largest first, for a texture drawing the stand-in that what rests gave no room to: what it gave back, which
+        /// is the device's once the frames that sample what moved are done, and nought from a renderer whose content
+        /// takes no room it bounds. What moved is named short in the next answer.
+        virtual std::uint64_t makeTextureRoom(SceneSlot slot, const TextureRoomAsk& ask) = 0;
 
         /// The same scene with its instances and lights somewhere else and its actors in a new pose:
         /// rebuilds only what says where things are, plus the structure of each mesh `getDeformed`
