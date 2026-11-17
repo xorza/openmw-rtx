@@ -1,6 +1,7 @@
 #include "cellstore.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <cstddef>
 #include <cstdint>
 
@@ -582,6 +583,13 @@ namespace MWWorld
         MergeVisitor visitor(mMergedRefs, mMovedHere, mMovedToAnotherCell);
         CellStoreImp::forEachInternal(visitor, const_cast<CellStore&>(*this), includeDeleted);
         visitor.merge();
+
+        mMergedIdHashes.clear();
+        mMergedIdHashes.reserve(mMergedRefs.size());
+        for (const LiveCellRefBase* ref : mMergedRefs)
+            mMergedIdHashes.push_back(std::hash<ESM::RefId>{}(ref->mRef.getRefId()));
+        std::sort(mMergedIdHashes.begin(), mMergedIdHashes.end());
+
         mMergedRefsNeedsUpdate = false;
     }
 
@@ -641,7 +649,9 @@ namespace MWWorld
         if (mState == State_Preloaded)
             return std::binary_search(mIds.begin(), mIds.end(), id);
 
-        return searchConst(id).isEmpty();
+        if (mMergedRefsNeedsUpdate)
+            updateMergedRefs();
+        return std::binary_search(mMergedIdHashes.begin(), mMergedIdHashes.end(), std::hash<ESM::RefId>{}(id));
     }
 
     namespace
@@ -669,6 +679,10 @@ namespace MWWorld
 
     Ptr CellStore::search(const ESM::RefId& id)
     {
+        // A store that cannot hold `id` is not walked: what a lookup over every loaded store spent its time in.
+        if (!hasId(id))
+            return Ptr();
+
         SearchVisitor<MWWorld::Ptr> searchVisitor(id);
         forEach(searchVisitor);
         return searchVisitor.mFound;
@@ -676,6 +690,9 @@ namespace MWWorld
 
     ConstPtr CellStore::searchConst(const ESM::RefId& id) const
     {
+        if (!hasId(id))
+            return ConstPtr();
+
         SearchVisitor<MWWorld::ConstPtr> searchVisitor(id);
         forEachConst(searchVisitor);
         return searchVisitor.mFound;

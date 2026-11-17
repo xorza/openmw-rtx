@@ -446,12 +446,10 @@ std::vector<MWWorld::Ptr> MWWorld::WorldModel::getAll(ESM::RefId id, ESM::RefId 
             return;
         if (cellStore.getState() == CellStore::State_Unloaded)
             cellStore.preload();
+        if (!cellStore.hasId(id))
+            return;
         if (cellStore.getState() == CellStore::State_Preloaded)
-        {
-            if (!cellStore.hasId(id))
-                return;
             cellStore.load();
-        }
         cellStore.forEach([&](const Ptr& ptr) {
             if (ptr.getCellRef().getRefId() == id)
                 result.push_back(ptr);

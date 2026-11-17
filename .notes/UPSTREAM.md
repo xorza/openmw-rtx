@@ -210,6 +210,14 @@ and upstream's two Lua storage tests writing there.
 
 **Faults fixed**:
 
+- **A script's reference lookup walked every reference of every loaded cell store** (the user's yes, 2026-11-18,
+  `docs/research/2026-11-17-longest-frames.md`): `World::searchPtr`, `WorldModel::getPtrByRefId` and `getAll` asked
+  each of some 3,065 stores, and a loaded store answered only by visiting its refs, 288 ms and 1.9 s frames on the
+  handheld. A loaded `CellStore` keeps its merged refs' id hashes sorted, rebuilt with the merged list. `hasId`
+  answers from them, and `search`, `searchConst` and `getAll`'s walk ask it first. The same refs answer, in the same
+  order. `hasId` for a loaded store returned the inverse of its search, unreached until now. Cost: a conflict with an
+  upstream edit to `CellStore::updateMergedRefs`, `hasId`, `search` or `WorldModel::getAll`.
+
 - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1` holds for every error).
 - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote in place, so a crash or a full disk left
   part of either: both write through `Platform::writeWhole`, synced (`openmw-platform-io`), and a save the system could
