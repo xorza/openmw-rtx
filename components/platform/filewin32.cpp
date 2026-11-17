@@ -4,10 +4,14 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <format>
 #include <limits>
 #include <stdexcept>
 #include <string>
+
+#include <fcntl.h>
+#include <io.h>
 
 #include <components/files/conversion.hpp>
 #include <components/misc/windows.hpp>
@@ -117,5 +121,15 @@ namespace Platform::File
             throw std::runtime_error(std::format("A read operation on a file failed: {}", GetLastError()));
 
         return bytesRead;
+    }
+
+    void makeStandardErrorBinary()
+    {
+        static_cast<void>(_setmode(_fileno(stderr), _O_BINARY));
+    }
+
+    bool namesIgnoreCase()
+    {
+        return true;
     }
 }

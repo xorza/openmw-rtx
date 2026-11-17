@@ -24,12 +24,6 @@ namespace Files
 
     namespace
     {
-#if defined(_WIN32) || defined(__WINDOWS__)
-        constexpr auto sApplicationName = "OpenMW";
-#else
-        constexpr auto sApplicationName = "openmw";
-#endif
-
         using GetPath = const std::filesystem::path& (Files::FixedPath<>::*)() const;
         constexpr std::array<std::pair<std::u8string_view, GetPath>, 4> sTokenMappings = {
             std::make_pair(u8"?local?", &FixedPath<>::getLocalPath),
@@ -40,7 +34,7 @@ namespace Files
     }
 
     ConfigurationManager::ConfigurationManager(bool silent)
-        : mFixedPath(sApplicationName)
+        : mFixedPath(std::string(applicationName()))
         , mSilent(silent)
     {
         // Initialize with fixed paths, will be overridden in `readConfiguration`.

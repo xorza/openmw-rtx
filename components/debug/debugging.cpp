@@ -28,6 +28,8 @@
 #pragma warning(pop)
 #endif
 
+#include <SDL3/SDL_messagebox.h>
+
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashanswering.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
@@ -37,82 +39,14 @@
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/platform/appendfile.hpp>
+#include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
 #include <components/version/version.hpp>
 
-#ifdef _WIN32
-#include <components/misc/windows.hpp>
-#endif
-
-#include <SDL3/SDL_messagebox.h>
-
 #include "debuglog.hpp"
-
-#ifndef _WIN32
-#include <unistd.h>
-#endif
 
 namespace Debug
 {
-#ifdef _WIN32
-    namespace
-    {
-        bool isRedirected(DWORD nStdHandle)
-        {
-            DWORD fileType = GetFileType(GetStdHandle(nStdHandle));
-
-            return (fileType == FILE_TYPE_DISK) || (fileType == FILE_TYPE_PIPE);
-        }
-    }
-
-    bool attachParentConsole()
-    {
-        if (GetConsoleWindow() != nullptr)
-            return true;
-
-        bool inRedirected = isRedirected(STD_INPUT_HANDLE);
-        bool outRedirected = isRedirected(STD_OUTPUT_HANDLE);
-        bool errRedirected = isRedirected(STD_ERROR_HANDLE);
-
-        // Note: Do not spend three days reinvestigating this PowerShell bug thinking its our bug.
-        // https://gitlab.com/OpenMW/openmw/-/merge_requests/408#note_447467393
-        // The handles look valid, but GetFinalPathNameByHandleA can't tell what files they go to and writing to them
-        // doesn't work.
-
-        if (AttachConsole(ATTACH_PARENT_PROCESS))
-        {
-            static_cast<void>(fflush(stdout));
-            static_cast<void>(fflush(stderr));
-            std::cout.flush();
-            std::cerr.flush();
-
-            // this looks dubious but is really the right way
-            if (!inRedirected)
-            {
-                static_cast<void>(_wfreopen(L"CON", L"r", stdin));
-                static_cast<void>(freopen("CON", "r", stdin));
-                std::cin.clear();
-            }
-            if (!outRedirected)
-            {
-                static_cast<void>(_wfreopen(L"CON", L"w", stdout));
-                static_cast<void>(freopen("CON", "w", stdout));
-                std::cout.clear();
-            }
-            if (!errRedirected)
-            {
-                static_cast<void>(_wfreopen(L"CON", L"w", stderr));
-                static_cast<void>(freopen("CON", "w", stderr));
-                std::cerr.clear();
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-#endif
-
     namespace
     {
         LogListener logListener;
@@ -156,12 +90,7 @@ namespace Debug
                     prefix[0] = '[';
                     const auto now = std::chrono::system_clock::now();
                     const auto time = std::chrono::system_clock::to_time_t(now);
-                    tm timeInfo{};
-#ifdef _WIN32
-                    (void)localtime_s(&timeInfo, &time);
-#else
-                    (void)localtime_r(&time, &timeInfo);
-#endif
+                    const std::tm timeInfo = Platform::localTime(time).value_or(std::tm{});
                     prefixSize = std::strftime(prefix + 1, sizeof(prefix) - 1, "%T", &timeInfo) + 1;
                     char levelLetter = " EWIVD*"[static_cast<std::int32_t>(level)];
                     const auto ms
@@ -214,32 +143,6 @@ namespace Debug
             std::string mLine;
         };
 
-#if defined _WIN32 && defined _DEBUG
-        class DebugOutput : public DebugOutputBase
-        {
-        public:
-            std::streamsize writeImpl(const char* str, std::streamsize size, Level debugLevel)
-            {
-                if (size > std::numeric_limits<std::int32_t>::max())
-                    OutputDebugStringW(L"Next line truncated...");
-                auto wideSize = MultiByteToWideChar(CP_UTF8, 0, str,
-                    static_cast<std::int32_t>(
-                        std::min<std::streamsize>(size, std::numeric_limits<std::int32_t>::max())),
-                    nullptr, 0);
-                std::wstring wide(wideSize, L'\0');
-                MultiByteToWideChar(CP_UTF8, 0, str,
-                    static_cast<std::int32_t>(
-                        std::min<std::streamsize>(size, std::numeric_limits<std::int32_t>::max())),
-                    wide.data(), wideSize);
-                // Write string to Visual Studio Debug output
-                OutputDebugStringW(wide.c_str());
-                return size;
-            }
-
-            virtual ~DebugOutput() = default;
-        };
-#else
-
         struct Record
         {
             std::string mValue;
@@ -269,19 +172,7 @@ namespace Debug
 
         bool useColoredOutput()
         {
-#if defined(_WIN32)
-            if (std::getenv("NO_COLOR") != nullptr)
-                return false;
-
-            DWORD mode = 0;
-            if (GetConsoleMode(GetStdHandle(STD_ERROR_HANDLE), &mode) && mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING)
-                return true;
-
-            // some console emulators may not use the Win32 API, so try the Unixy approach
-            return std::getenv("TERM") != nullptr && GetFileType(GetStdHandle(STD_ERROR_HANDLE)) == FILE_TYPE_CHAR;
-#else
-            return std::getenv("TERM") != nullptr && std::getenv("NO_COLOR") == nullptr && isatty(fileno(stderr));
-#endif
+            return std::getenv("NO_COLOR") == nullptr && Platform::Process::standardErrorTakesColour();
         }
 
         /// The log's own file, written as it was said, at its end whoever else wrote there since: the
@@ -371,7 +262,6 @@ namespace Debug
             First mFirst;
             Second mSecond;
         };
-#endif
 
         Level toLevel(std::string_view value)
         {
@@ -394,14 +284,10 @@ namespace Debug
         std::unique_ptr<std::mutex> rawStderrMutex = nullptr;
         Platform::AppendFile logfile;
 
-#if defined(_WIN32) && defined(_DEBUG)
-        static boost::iostreams::stream_buffer<DebugOutput> sb;
-#else
         boost::iostreams::stream_buffer<Tee<Identity, Coloured>> standardOut;
         boost::iostreams::stream_buffer<Tee<Identity, Coloured>> standardErr;
         boost::iostreams::stream_buffer<Tee<Buffer, Coloured>> bufferedOut;
         boost::iostreams::stream_buffer<Tee<Buffer, Coloured>> bufferedErr;
-#endif
     }
 
     std::ostream& getRawStdout()
@@ -447,7 +333,6 @@ namespace Debug
         Log::sWriteLevel = true;
 
         const std::filesystem::path logFile = logDir / (Misc::StringUtils::lowerCase(appName) + ".log");
-#if !(defined(_WIN32) && defined(_DEBUG))
         // Emptied once and then opened to append, so every write lands at the end of the file: the
         // crash catcher's monitor appends its summaries from a process of its own, and a write at
         // this process's own offset would land over them.
@@ -465,7 +350,6 @@ namespace Debug
 
         std::cout.rdbuf(&standardOut);
         std::cerr.rdbuf(&standardErr);
-#endif
 
         // The catcher started before the log was known, in `wrapApplication`; its summaries land
         // here from now on.
@@ -491,20 +375,11 @@ namespace Debug
         if (const char* const dialog = std::getenv("OPENMW_CRASH_DIALOG"))
             asks = Misc::StringUtils::toNumeric<std::int32_t>(dialog, 1) != 0;
 
-#if defined _WIN32
-        (void)attachParentConsole();
-        SetConsoleOutputCP(CP_UTF8);
-#endif
+        Platform::Process::attachParentConsole();
         rawStdout = std::make_unique<std::ostream>(std::cout.rdbuf());
         rawStderr = std::make_unique<std::ostream>(std::cerr.rdbuf());
         rawStderrMutex = std::make_unique<std::mutex>();
 
-#if defined(_WIN32) && defined(_DEBUG)
-        // Redirect cout and cerr to VS debug output when running in debug mode
-        sb.open(DebugOutput());
-        std::cout.rdbuf(&sb);
-        std::cerr.rdbuf(&sb);
-#else
         constexpr std::size_t bufferCapacity = 1024;
 
         bufferedOut.open(Tee(Buffer(bufferCapacity, globalBuffer), Coloured(*rawStdout)));
@@ -512,7 +387,6 @@ namespace Debug
 
         std::cout.rdbuf(&bufferedOut);
         std::cerr.rdbuf(&bufferedErr);
-#endif
 
         // **Before the application, so a crash while the configuration is read is caught too.** The
         // reports go under the user data folder, which is known before any configuration is, and the

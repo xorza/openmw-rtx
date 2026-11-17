@@ -45,9 +45,7 @@ static std::int32_t runApplication(std::int32_t argc, char* argv[])
 
     Q_INIT_RESOURCE(resources);
 
-#ifdef WIN32
     Q_INIT_RESOURCE(dark);
-#endif
 
     qRegisterMetaType<std::string>("std::string");
     qRegisterMetaType<CSMWorld::UniversalId>("CSMWorld::UniversalId");
@@ -63,10 +61,9 @@ static std::int32_t runApplication(std::int32_t argc, char* argv[])
     application.setWindowIcon(QIcon(":openmw-cs"));
 
     CS::Editor editor(argc, argv);
-#ifdef __linux__
-    // Before any thread starts; a locale the system lacks leaves the one it had.
+    // Numbers read and written with a point, as Qt's start on Linux had set the system's; Windows starts in "C"
+    // already. Before any thread starts; a locale the system lacks leaves the one it had.
     static_cast<void>(setlocale(LC_NUMERIC, "C")); // NOLINT(concurrency-mt-unsafe): the editor's first act
-#endif
 
     if (!editor.makeIPCServer())
     {

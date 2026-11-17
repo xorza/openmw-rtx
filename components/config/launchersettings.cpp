@@ -14,6 +14,8 @@
 #include <QTextStream>
 
 #include <components/debug/debuglog.hpp>
+#include <components/platform/file.hpp>
+#include <components/platform/localtime.hpp>
 
 #include "gamesettings.hpp"
 
@@ -44,12 +46,7 @@ namespace Config
         {
             // basically, use date and time as the name  e.g. YYYY-MM-DDThh:mm:ss
             const std::time_t rawtime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            tm timeinfo{};
-#ifdef _WIN32
-            (void)localtime_s(&timeinfo, &rawtime);
-#else
-            (void)localtime_r(&rawtime, &timeinfo);
-#endif
+            const std::tm timeinfo = Platform::localTime(rawtime).value_or(std::tm{});
             constexpr std::int32_t base = 10;
             QChar zeroPad('0');
             return QString("%1-%2-%3T%4:%5:%6")
@@ -333,11 +330,7 @@ void Config::LauncherSettings::setContentList(const GameSettings& gameSettings)
     {
         const auto& listDirs = getDataDirectoryList(listName);
         constexpr auto compareDataDirectories = [](const SettingValue& dir, const QString& listDir) {
-#ifdef Q_OS_WINDOWS
-            constexpr auto caseSensitivity = Qt::CaseInsensitive;
-#else
-            constexpr auto caseSensitivity = Qt::CaseSensitive;
-#endif
+            const auto caseSensitivity = Platform::File::namesIgnoreCase() ? Qt::CaseInsensitive : Qt::CaseSensitive;
             return dir.originalRepresentation == listDir
                 || QDir::cleanPath(dir.originalRepresentation).compare(QDir::cleanPath(listDir), caseSensitivity) == 0;
         };

@@ -115,4 +115,11 @@ namespace Platform::File
         return static_cast<std::size_t>(amount);
     }
 
+    void makeStandardErrorBinary() {}
+
+    bool namesIgnoreCase()
+    {
+        return false;
+    }
+
 }

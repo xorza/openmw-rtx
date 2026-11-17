@@ -37,6 +37,13 @@ namespace Platform::File
     /// leaves, so a handle read at an offset is read no other way. Fewer bytes than asked only at the file's end.
     std::size_t readAt(Handle handle, std::size_t offset, void* data, std::size_t size);
 
+    /// The standard error written byte for byte, as a binary log needs: Windows' text mode would turn each `\n` into
+    /// `\r\n`; Linux writes bytes as they are already.
+    void makeStandardErrorBinary();
+
+    /// Whether the system's file names compare without case: Windows', and not Linux's.
+    bool namesIgnoreCase();
+
     class ScopedHandle
     {
         Handle mHandle{ Handle::Invalid };

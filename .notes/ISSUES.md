@@ -21,3 +21,4 @@
 - `cppcoreguidelines-avoid-non-const-global-variables` finds 175 variables of mutable global state over the tree (OpenAL's extension pointers in `openaloutput.cpp`, `stats.cpp`'s `collectStatEvent`, the editor's `defaultgmsts.hpp` tables, test fixtures among them), each without an owner.
 - `misc-no-recursion` finds 163 functions in recursive call chains (widget and scene-graph walks, the script compiler's error handler, `KeyboardNavigation::getKeyFocusWidgets`), none of which states its bound.
 - `google-default-arguments` finds 363 default arguments on virtual functions and their overrides (`MWWorld::Class` and its subclasses, `MWBase::StateManager`, the editor's models), where a call takes the default of the static type it names.
+- `components/platform/filestdio.cpp`, a third implementation of `Platform::File`, is built by no target.

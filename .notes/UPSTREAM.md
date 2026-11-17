@@ -295,6 +295,16 @@ and upstream's two Lua storage tests writing there.
   reason. The editor's queued scroll calls its slot through a lambda, not a string. A declaration a cast initialises
   is `auto` (`modernize-use-auto`, which a type name of five letters or more now reaches). Cost: a conflict with an
   upstream edit only where it overlaps the fork's, as the merge driver rewrites upstream's side first.
+- No system branch outside `components/platform` (2026-11-17): the calendar through `Platform::localTime` and the new
+  `universalTime`; the idle thread priority through `Platform::lowerThisThreadToIdle`, its error the system's (Linux's
+  from `pthread_setschedparam`'s result, where `errno` was read); the console, its colours, the executable's suffix,
+  binary standard error and whether names ignore case through `Platform::Process` and `Platform::File`;
+  `Files::LinuxPath` and `Files::WindowsPath` one `Files::TargetPath` over `targetpathlinux.cpp` and
+  `targetpathwin32.cpp`, with the application's folder name there; `Platform::Application`'s dark mode in
+  `applicationwin32.cpp`; `Platform::init` a pair; `WinMain` and AMD's export in `mainwin32.cpp`, both entries
+  running `OMW::runGame`, where `WinMain` called `main`; `std::endian` for the byte order; the editor's dark
+  resource and its numeric locale on every system. The MSVC debug runtime's log sink goes, as no build links that
+  runtime; the launcher's undefined `expansions` goes. Cost: a conflict with an upstream edit to a branch it moved.
 
 **The build** (`docs/build.md`). Cost: a conflict with every upstream change to a CMake list, an option, a found package
 or the install, which the merge places in this layout:

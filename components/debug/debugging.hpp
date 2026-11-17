@@ -20,10 +20,6 @@ namespace Debug
         Yellow = 93
     };
 
-#ifdef _WIN32
-    bool attachParentConsole();
-#endif
-
     using LogListener = std::function<void(Debug::Level, std::string_view prefix, std::string_view msg)>;
     void setLogListener(LogListener);
 

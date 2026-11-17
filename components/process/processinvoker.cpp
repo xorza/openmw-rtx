@@ -8,6 +8,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <components/platform/process.hpp>
+
 Process::ProcessInvoker::ProcessInvoker(QObject* parent)
     : QObject(parent)
 {
@@ -57,9 +59,7 @@ bool Process::ProcessInvoker::startProcess(const QString& name, const QStringLis
     mIgnoreErrors = false;
 
     QString path(name);
-#ifdef Q_OS_WIN
-    path.append(QLatin1String(".exe"));
-#endif
+    path.append(QString::fromUtf8(Platform::Process::executableSuffix()));
     QDir dir(QCoreApplication::applicationDirPath());
     path = dir.absoluteFilePath(path);
 

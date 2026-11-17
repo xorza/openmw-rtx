@@ -1,3 +1,7 @@
+#include <chrono>
+#include <cstdint>
+#include <filesystem>
+
 #include <boost/program_options/variables_map.hpp>
 #include <osg/Notify>
 
@@ -12,20 +16,8 @@
 #include <components/version/version.hpp>
 
 #include "engine.hpp"
+#include "entry.hpp"
 #include "options.hpp"
-
-#if defined(_WIN32)
-#include <components/misc/windows.hpp>
-// makes __argc and __argv available on windows
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-
-extern "C" __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x00000001;
-#endif
-
-#include <chrono>
-#include <filesystem>
 
 /**
  * \brief Parses application command line and calls \ref Cfg::ConfigurationManager
@@ -222,17 +214,12 @@ namespace
     }
 }
 
-int main(std::int32_t argc, char** argv)
+std::int32_t OMW::runGame(std::int32_t argc, char** argv)
 {
     return Debug::wrapApplication(&runApplication, argc, argv, "OpenMW");
 }
 
-// Platform specific for Windows when there is no console built into the executable.
-// Windows will call the WinMain function instead of main in this case, the normal
-// main function is then called with the __argc and __argv parameters.
-#if defined(_WIN32) && !defined(_CONSOLE)
-std::int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, std::int32_t nShowCmd)
+int main(std::int32_t argc, char** argv)
 {
-    return main(__argc, __argv);
+    return OMW::runGame(argc, argv);
 }
-#endif

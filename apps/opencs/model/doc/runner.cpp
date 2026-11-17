@@ -14,6 +14,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconversion.hpp>
+#include <components/platform/process.hpp>
 
 #include "operationholder.hpp"
 
@@ -54,9 +55,7 @@ void CSMDoc::Runner::start(bool delayed)
         mLog.clear();
 
         QString path = "openmw";
-#ifdef Q_OS_WIN
-        path.append(QLatin1String(".exe"));
-#endif
+        path.append(QString::fromUtf8(Platform::Process::executableSuffix()));
         QDir dir(QCoreApplication::applicationDirPath());
         path = dir.absoluteFilePath(path);
 

@@ -40,13 +40,8 @@ namespace Misc
         }
     }
 
-#ifdef _WIN32
-    constexpr bool IS_LITTLE_ENDIAN = true;
-    constexpr bool IS_BIG_ENDIAN = false;
-#else
-    constexpr bool IS_LITTLE_ENDIAN = __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__;
-    constexpr bool IS_BIG_ENDIAN = __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__;
-#endif
+    constexpr bool IS_LITTLE_ENDIAN = std::endian::native == std::endian::little;
+    constexpr bool IS_BIG_ENDIAN = std::endian::native == std::endian::big;
 
     // Usage: swapEndiannessInplaceIf<IS_BIG_ENDIAN>(v)  - native to little-endian or back
     //        swapEndiannessInplaceIf<IS_LITTLE_ENDIAN>(v)  - native to big-endian or back

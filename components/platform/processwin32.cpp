@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -88,6 +90,73 @@ namespace Platform::Process
         }
         LocalFree(static_cast<HLOCAL>(wide));
         return arguments;
+    }
+
+    namespace
+    {
+        bool isRedirected(DWORD nStdHandle)
+        {
+            const DWORD fileType = GetFileType(GetStdHandle(nStdHandle));
+            return fileType == FILE_TYPE_DISK || fileType == FILE_TYPE_PIPE;
+        }
+    }
+
+    void attachParentConsole()
+    {
+        if (GetConsoleWindow() == nullptr)
+        {
+            const bool inRedirected = isRedirected(STD_INPUT_HANDLE);
+            const bool outRedirected = isRedirected(STD_OUTPUT_HANDLE);
+            const bool errRedirected = isRedirected(STD_ERROR_HANDLE);
+
+            // Note: Do not spend three days reinvestigating this PowerShell bug thinking its our bug.
+            // https://gitlab.com/OpenMW/openmw/-/merge_requests/408#note_447467393
+            // The handles look valid, but GetFinalPathNameByHandleA can't tell what files they go to and writing to
+            // them doesn't work.
+            if (AttachConsole(ATTACH_PARENT_PROCESS))
+            {
+                static_cast<void>(fflush(stdout));
+                static_cast<void>(fflush(stderr));
+                std::cout.flush();
+                std::cerr.flush();
+
+                // this looks dubious but is really the right way
+                if (!inRedirected)
+                {
+                    static_cast<void>(_wfreopen(L"CON", L"r", stdin));
+                    static_cast<void>(freopen("CON", "r", stdin));
+                    std::cin.clear();
+                }
+                if (!outRedirected)
+                {
+                    static_cast<void>(_wfreopen(L"CON", L"w", stdout));
+                    static_cast<void>(freopen("CON", "w", stdout));
+                    std::cout.clear();
+                }
+                if (!errRedirected)
+                {
+                    static_cast<void>(_wfreopen(L"CON", L"w", stderr));
+                    static_cast<void>(freopen("CON", "w", stderr));
+                    std::cerr.clear();
+                }
+            }
+        }
+        SetConsoleOutputCP(CP_UTF8);
+    }
+
+    bool standardErrorTakesColour()
+    {
+        DWORD mode = 0;
+        if (GetConsoleMode(GetStdHandle(STD_ERROR_HANDLE), &mode) && (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0)
+            return true;
+
+        // some console emulators may not use the Win32 API, so try the Unixy approach
+        return std::getenv("TERM") != nullptr && GetFileType(GetStdHandle(STD_ERROR_HANDLE)) == FILE_TYPE_CHAR;
+    }
+
+    std::string_view executableSuffix()
+    {
+        return ".exe";
     }
 
     std::uint32_t currentId()

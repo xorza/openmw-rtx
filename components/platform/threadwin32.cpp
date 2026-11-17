@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 #include <components/misc/windows.hpp>
 
@@ -44,5 +45,13 @@ namespace Platform
         const auto ticks
             = [](const FILETIME& time) { return std::uint64_t{ time.dwHighDateTime } << 32 | time.dwLowDateTime; };
         return std::chrono::nanoseconds(static_cast<std::int64_t>((ticks(kernel) + ticks(user)) * 100));
+    }
+
+    std::error_code lowerThisThreadToIdle()
+    {
+        if (SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST)
+            && SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN))
+            return {};
+        return std::error_code(static_cast<std::int32_t>(GetLastError()), std::system_category());
     }
 }

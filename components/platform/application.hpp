@@ -22,17 +22,22 @@ namespace Platform
     public:
         Application(std::int32_t& argc, char* argv[], Look look);
 
-#if defined(WIN32)
-        void init();
-
-    private slots:
-        void updateStyle(bool isDark);
-#endif
-
     signals:
         void darkModeChanged(bool);
 
+    private slots:
+        /// The look for the system's dark mode, `isDark` or not: Windows' own style or its dark sheet; nothing where
+        /// the system's style follows its mode itself.
+        void updateStyle(bool isDark);
+
     private:
+        /// The system's look as it starts: on Windows its dark mode followed (`applicationwin32.cpp`); nothing on
+        /// Linux, whose style follows the system itself (`applicationposix.cpp`).
+        void followSystemLook();
+
+        /// Whether the system's dark mode turned since it was last read, which it then holds; never on Linux.
+        bool darkModeTurned();
+
         bool notify(QObject* receiver, QEvent* event) override;
 
         std::string mCurrentStyle{};

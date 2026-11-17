@@ -65,6 +65,7 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/platform/localtime.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/vfs/manager.hpp>
@@ -1452,12 +1453,7 @@ namespace MWScript
                     msg << "Report time: ";
 
                     std::time_t currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-                    tm timeinfo{};
-#ifdef _WIN32
-                    static_cast<void>(gmtime_s(&timeinfo, &currentTime));
-#else
-                    static_cast<void>(gmtime_r(&currentTime, &timeinfo));
-#endif
+                    const std::tm timeinfo = Platform::universalTime(currentTime).value_or(std::tm{});
                     msg << std::put_time(&timeinfo, "%Y.%m.%d %T UTC") << std::endl;
 
                     msg << "Content file: " << ptr.getCellRef().getRefNum().mContentFile;

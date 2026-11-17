@@ -33,6 +33,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/multidircollection.hpp>
+#include <components/platform/file.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/bulletshapemanager.hpp>
@@ -50,11 +51,6 @@
 
 #include "navmesh.hpp"
 #include "worldspacedata.hpp"
-
-#ifdef WIN32
-#include <fcntl.h>
-#include <io.h>
-#endif
 
 namespace NavMeshTool
 {
@@ -192,10 +188,8 @@ namespace NavMeshTool
 
             const std::regex worldspaceFilter(variables["worldspace-filter"].as<std::string>());
 
-#ifdef WIN32
             if (writeBinaryLog)
-                _setmode(_fileno(stderr), _O_BINARY);
-#endif
+                Platform::File::makeStandardErrorBinary();
 
             Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
 

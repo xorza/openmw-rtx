@@ -44,6 +44,18 @@ namespace Platform::Process
     /// there.
     std::vector<std::string> commandLine(std::int32_t argc, char** argv);
 
+    /// The parent's console taken on, where the process has none and its parent does, with its streams that were not
+    /// redirected and UTF-8 for its output: Windows', where a program built for the window starts without one. Nothing
+    /// on Linux, where a process's terminal is its parent's already.
+    void attachParentConsole();
+
+    /// Whether the standard error is a terminal that takes ANSI colours: a Windows console in virtual terminal mode,
+    /// or, there and on Linux, a character device under a `TERM`.
+    bool standardErrorTakesColour();
+
+    /// What the system ends a program's file name with: `.exe` on Windows, nothing on Linux.
+    std::string_view executableSuffix();
+
     /// This process's id, as the system numbers processes: what a reading that names processes
     /// tells this one from the rest by.
     std::uint32_t currentId();

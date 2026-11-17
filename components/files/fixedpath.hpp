@@ -4,22 +4,7 @@
 #include <string>
 #include <vector>
 
-#if defined(__linux__)
-#include "linuxpath.hpp"
-namespace Files
-{
-    typedef LinuxPath TargetPathType;
-}
-#elif defined(__WIN32) || defined(__WINDOWS__) || defined(_WIN32)
-#include "windowspath.hpp"
-namespace Files
-{
-    typedef WindowsPath TargetPathType;
-}
-
-#else
-#error "Unknown platform!"
-#endif
+#include "targetpath.hpp"
 
 /**
  * \namespace Files
@@ -33,7 +18,7 @@ namespace Files
      * \tparam P - Path strategy class type (depends on target system)
      *
      */
-    template <class P = TargetPathType>
+    template <class P = TargetPath>
     struct FixedPath
     {
         typedef P PathType;

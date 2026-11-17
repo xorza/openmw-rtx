@@ -483,12 +483,6 @@ benches are not owed. From item 8 on, a change to what a frame reads owes `./omw
 drm-shim; a hot path owes its allocation test; each item ends with the tours it names. Vanilla's pictures do not move
 in any item.
 
-### 7. Platform branches behind `components/platform`
-
-Each caller of Findings' list asks `components/platform` (or a `…posix.cpp`/`…win32.cpp` pair CMake chooses), and
-`WIN32` goes; `openmw/main.cpp`'s `WinMain` becomes a `mainwin32.cpp`. The largest of the items that move no frame
-and the most Windows CI: last of them. `./omw gate` and a green CI on every system stand before item 8.
-
 ### 8. Meters, a harness that runs as the game, and a baseline
 
 No change to how content is held. First what stands in a baseline's way:
@@ -642,6 +636,9 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **7. Platform branches**: MSVC's warning pragmas around third-party headers stay, a compiler's and not a system's;
+  so does `OMW_NO_UNIQUE_ADDRESS`, item 2's.
 
 - **6. The next clang-tidy checks**: taken whole, each counted over the tree first, its findings fixed:
   `concurrency-thread-canceltype-asynchronous`, `cppcoreguidelines-interfaces-global-init`,

@@ -6,6 +6,7 @@
 #include <stop_token>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <type_traits>
 #include <utility>
@@ -33,6 +34,10 @@ namespace Platform
     /// a periodic thread's wait, which a stop ends at once rather than a period later. A token with no
     /// stop state sleeps the period out.
     bool sleepUnlessStopped(const std::stop_token& stop, std::chrono::nanoseconds period);
+
+    /// Lowers the calling thread to run only where nothing else wants a CPU: Linux's idle policy, Windows' lowest
+    /// priority in background mode, which lowers its I/O as well. The system's error where it refused, else none.
+    std::error_code lowerThisThreadToIdle();
 
     /// A thread running `work`, handed its `std::stop_token` where it takes one.
     ///

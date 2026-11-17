@@ -70,6 +70,18 @@ namespace Platform::Process
         return std::vector<std::string>(argv, argv + argc);
     }
 
+    void attachParentConsole() {}
+
+    bool standardErrorTakesColour()
+    {
+        return std::getenv("TERM") != nullptr && isatty(STDERR_FILENO) != 0;
+    }
+
+    std::string_view executableSuffix()
+    {
+        return "";
+    }
+
     std::uint32_t currentId()
     {
         return static_cast<std::uint32_t>(getpid());

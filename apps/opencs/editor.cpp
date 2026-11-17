@@ -20,14 +20,9 @@
 #include <apps/opencs/view/doc/filedialog.hpp>
 #include <apps/opencs/view/doc/newgame.hpp>
 #include <apps/opencs/view/doc/startup.hpp>
+#include <apps/opencs/view/doc/viewmanager.hpp>
 #include <apps/opencs/view/prefs/dialogue.hpp>
 #include <apps/opencs/view/tools/merge.hpp>
-
-#ifdef _WIN32
-#include <components/misc/windows.hpp>
-#endif
-
-#include <apps/opencs/view/doc/viewmanager.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -37,6 +32,7 @@
 #include <components/files/qtconversion.hpp>
 #include <components/misc/rng.hpp>
 #include <components/nifosg/nifloader.hpp>
+#include <components/platform/process.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
@@ -358,11 +354,7 @@ bool CS::Editor::makeIPCServer()
             return false;
         }
 
-#ifdef _WIN32
-        mPidFile << GetCurrentProcessId() << std::endl;
-#else
-        mPidFile << getpid() << std::endl;
-#endif
+        mPidFile << Platform::Process::currentId() << std::endl;
 
         mServer = new QLocalServer(this);
 

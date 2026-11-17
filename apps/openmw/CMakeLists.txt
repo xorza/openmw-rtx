@@ -1048,8 +1048,14 @@ target_link_libraries(
         Threads::Threads
 )
 add_executable(openmw main.cpp)
+target_sources(openmw PRIVATE FILE_SET HEADERS FILES entry.hpp)
 if(WIN32)
-    target_sources(openmw PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/openmw.rc")
+    target_sources(
+        openmw
+        PRIVATE
+            mainwin32.cpp
+            "${PROJECT_SOURCE_DIR}/files/windows/openmw.rc"
+    )
 endif()
 target_link_libraries(openmw PRIVATE openmw-lib)
 # `osgAnimation::MatrixLinearSampler`'s dynamic casts work under Clang only with the executable's
