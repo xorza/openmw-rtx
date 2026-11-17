@@ -506,9 +506,9 @@ namespace Rtx
 
             ContentStore::Store next(folder, sContentStorePolicy);
             ContentPreprocessor content(&next, ContentStore::Reach::Disk);
-            MadeChain untouched{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer{ std::byte{ 9 } } };
+            MadeChain untouched{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer{ std::byte{ 9 } } };
             content.chain(input, untouched, ContentAsk::Stored);
-            EXPECT_EQ(untouched.mForm, ChainForm::Coarser);
+            EXPECT_EQ(untouched.mForm, ChainForm::Own);
             EXPECT_EQ(untouched.mBytes, Misc::ByteBuffer{ std::byte{ 9 } });
             EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
 
@@ -701,11 +701,10 @@ namespace Rtx
 
         /// **A stored chain that reads whole and does not fit its file is run again and replaced**, as a
         /// shape is: an 8 by 8 BC1 file of one level makes its chain whole in BC7 to a texel, 64 + 16 +
-        /// 16 + 16 = 112 bytes. A form's byte alone, 111 bytes, 113 bytes, coarser levels of a file of
-        /// one level, and nothing standing with a byte held are each a miss, and the run's 112 bytes are
-        /// filed in the misfit's place. Coarser levels of an 8 by 8 file of two levels are its 4 by 4
-        /// level, 8 bytes, and a painted one's own chain both levels, 32 + 8 = 40; a loose file has no
-        /// chain but BC7's.
+        /// 16 + 16 = 112 bytes. A form's byte alone, 111 bytes, 113 bytes, an own chain a level short, and
+        /// nothing standing with a byte held are each a miss, and the run's 112 bytes are filed in the
+        /// misfit's place. An 8 by 8 file of two levels keeps both in its own chain, 32 + 8 = 40, as data
+        /// or painted, and its 4 by 4 level alone fits neither; a loose file has no chain but BC7's.
         TEST(RtxContentPreprocessorTest, aStoredChainThatDoesNotFitItsFileIsRunAgain)
         {
             const osg::ref_ptr<osg::Image> single = makeBc1(8, 8, 1);
@@ -730,7 +729,7 @@ namespace Rtx
                 { "a form's byte alone", ChainForm::Bc7, 0 },
                 { "a chain a byte short", ChainForm::Bc7, 111 },
                 { "a chain a byte long", ChainForm::Bc7, 113 },
-                { "coarser levels of a file of one level", ChainForm::Coarser, 8 },
+                { "an own chain a level short", ChainForm::Own, 8 },
                 { "nothing standing with a byte held", ChainForm::Stands, 1 },
             };
             for (std::size_t at = 0; at < misfits.size(); ++at)
@@ -763,9 +762,9 @@ namespace Rtx
 
             const osg::ref_ptr<osg::Image> pair = makeBc1(8, 8, 2);
             const ChainPass::Input data{ .mImage = *pair, .mEncoding = TextureEncoding::Data };
-            EXPECT_TRUE(ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer(8) }));
-            EXPECT_FALSE(
-                ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer(40) }));
+            EXPECT_TRUE(ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(40) }));
+            EXPECT_FALSE(ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(8) }))
+                << "the coarser level alone, which no run makes";
             const ChainPass::Input painted{ .mImage = *pair, .mEncoding = TextureEncoding::Painted };
             EXPECT_TRUE(ChainPass::fits(painted, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(40) }));
             EXPECT_FALSE(ChainPass::fits(painted, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(8) }));
@@ -773,7 +772,6 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> loose = makeLoose(8, 8);
             const ChainPass::Input looseInput{ .mImage = *loose, .mEncoding = TextureEncoding::Colour };
             EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Own).has_value());
-            EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Coarser).has_value());
             EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Stands).has_value());
             EXPECT_TRUE(ChainPass::madeLayout(looseInput, ChainForm::Bc7).has_value());
 
@@ -793,7 +791,6 @@ namespace Rtx
                 .mImage = *pair, .mPartner = *pair, .mEncoding = TextureEncoding::ConvertedSpecular
             };
             EXPECT_FALSE(ConversionPass::madeLayout(metal, ChainForm::Own).has_value());
-            EXPECT_FALSE(ConversionPass::madeLayout(metal, ChainForm::Coarser).has_value());
         }
 
         /// **A kept shape is handed back whole**: the pass hands over its normals as their words read back

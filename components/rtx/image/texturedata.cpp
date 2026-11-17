@@ -61,18 +61,11 @@ namespace Rtx
 
     bool TextureData::levelsFit() const
     {
-        if (mLevels.empty())
-            return true;
-
         const TexelLayout layout = layoutOf(mFormat);
-        for (std::uint32_t at = 0; at < mLevels.size(); ++at)
-        {
-            const MipLevel& level = mLevels[at];
-            const std::size_t run = (at > 0 && !mCoarser.empty() ? mCoarser : mBytes).size();
-            if (level.mOffset > run || layout.levelBytes(level.mWidth, level.mHeight) > run - level.mOffset)
-                return false;
-        }
-        return true;
+        const std::size_t run = mBytes.size();
+        return std::ranges::all_of(mLevels, [&](const MipLevel& level) {
+            return level.mOffset <= run && layout.levelBytes(level.mWidth, level.mHeight) <= run - level.mOffset;
+        });
     }
 
     std::size_t TextureData::bytesFrom(const std::uint32_t level) const

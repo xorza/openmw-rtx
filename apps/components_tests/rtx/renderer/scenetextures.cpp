@@ -894,12 +894,11 @@ namespace Rtx
                 << "a colour file has nothing measured beside it";
         }
 
-        /// **A made coarser chain is described as the file's finest level, spanned where the file holds
-        /// it, with the made levels under it**: a 4x4 BC1 map of data of two levels, its finest one block
-        /// of (132, 130, 255) and its second black, is made a 2x2 level in a block of its own, the box of
-        /// that normal; the description spans the file's 8 bytes for its finest and comes to 8 + 8 = 16
-        /// from it.
-        TEST(RtxSceneTexturesTest, aMadeCoarserChainIsTheFilesFinestLevelWithTheMadeLevelsUnderIt)
+        /// **A chain made in its file's format is described whole, as it was made**: a 4x4 BC1 map of data of two
+        /// levels, its finest one block of (132, 130, 255) and its second black, is made whole, its finest as the
+        /// file holds it above the box of that normal, the same block; the description spans the made image's 8 + 8
+        /// = 16 bytes and none of the file's.
+        TEST(RtxSceneTexturesTest, aChainMadeInItsFilesFormatIsDescribedWhole)
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_block_data.dds");
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
@@ -923,15 +922,15 @@ namespace Rtx
             EXPECT_EQ(made.mFormat, TextureFormat::Bc1RgbaUnorm);
             ASSERT_EQ(made.mLevels.size(), 2u);
             EXPECT_TRUE(made.levelsFit());
-            EXPECT_EQ(made.bytesOf(0).data(), reinterpret_cast<const std::byte*>(image->data()))
-                << "the file's finest level was copied";
-            EXPECT_EQ(made.mCoarser.size(), 8u);
-            EXPECT_EQ(made.bytesOf(1).data(), made.mCoarser.data());
+            EXPECT_NE(made.bytesOf(0).data(), reinterpret_cast<const std::byte*>(image->data()))
+                << "the file's own bytes, which a made chain reads none of";
+            EXPECT_EQ(made.mBytes.size(), 16u);
+            EXPECT_EQ(Testing::firstTexelOf(made.mFormat, made.bytesOf(0)), (Testing::Texel{ 132, 130, 255, 255 }));
             EXPECT_EQ(Testing::firstTexelOf(made.mFormat, made.bytesOf(1)), (Testing::Texel{ 132, 130, 255, 255 }));
             EXPECT_EQ(made.bytesFrom(0), 16u);
             EXPECT_EQ(made.bytesFrom(1), 8u);
             TextureData shortRun = made;
-            shortRun.mCoarser = made.mCoarser.first(7);
+            shortRun.mBytes = made.mBytes.first(15);
             EXPECT_FALSE(shortRun.levelsFit()) << "a last level a byte short of its run";
             scene.drop(std::move(held));
         }
@@ -1038,7 +1037,6 @@ namespace Rtx
             EXPECT_EQ(made.mWidth, 4u);
             ASSERT_EQ(made.mLevels.size(), 3u);
             EXPECT_TRUE(made.levelsFit());
-            EXPECT_TRUE(made.mCoarser.empty());
             EXPECT_EQ(made.bytesFrom(0), 48u);
             EXPECT_EQ(made.mName, path.value());
             EXPECT_TRUE(

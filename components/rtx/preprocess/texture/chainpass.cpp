@@ -105,7 +105,10 @@ namespace Rtx
             }
             else if (built && !cut)
             {
-                output.mForm = ChainForm::Coarser;
+                // The file's finest as it holds it, which a build of it leaves as it stands, above the levels built.
+                output.mForm = ChainForm::Own;
+                const std::span<const std::byte> held = file.bytesOf(0);
+                output.mBytes.assign(held.begin(), held.end());
                 mChain.encode(file, 1, output.mBytes);
             }
         }
@@ -130,7 +133,7 @@ namespace Rtx
 
         const ChainPlan plan = ChainPlan::of(image, input.mEncoding);
         const TextureFormat own = readFormat(image, input.mEncoding);
-        const MadeLayout whole{ .mWidth = plan.mWidth, .mHeight = plan.mHeight, .mFirst = 0, .mCount = plan.mLevels };
+        const MadeLayout whole{ .mWidth = plan.mWidth, .mHeight = plan.mHeight, .mCount = plan.mLevels };
         switch (form)
         {
             case ChainForm::Bc7:
@@ -140,16 +143,12 @@ namespace Rtx
                 return bc7;
             }
             case ChainForm::Own:
-            case ChainForm::Coarser:
             {
                 // A loose file's chain is made in BC7 alone, and a widened one's is loose.
                 if (!layoutOf(own).isBlocked())
                     return std::nullopt;
                 MadeLayout laid = whole;
                 laid.mFormat = own;
-                laid.mFirst = form == ChainForm::Coarser ? 1 : 0;
-                if (laid.mFirst >= laid.mCount)
-                    return std::nullopt;
                 return laid;
             }
             case ChainForm::Stands:

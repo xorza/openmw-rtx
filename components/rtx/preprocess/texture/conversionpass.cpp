@@ -57,7 +57,6 @@ namespace Rtx
             TextureData finest = file;
             finest.mLevels = file.mLevels.first(1);
             finest.mBytes = file.mBytes.first(file.mLevels.front().mOffset + file.bytesOf(0).size());
-            finest.mCoarser = {};
             return finest;
         }
     }
@@ -231,7 +230,7 @@ namespace Rtx
 
         const auto width = static_cast<std::uint32_t>(image.s());
         const auto height = static_cast<std::uint32_t>(image.t());
-        MadeLayout laid{ .mWidth = width, .mHeight = height, .mFirst = 0, .mCount = levelsTo1x1(width, height) };
+        MadeLayout laid{ .mWidth = width, .mHeight = height, .mCount = levelsTo1x1(width, height) };
         if (form == ChainForm::Bc7)
         {
             laid.mFormat = bc7FormatOf(input.mEncoding);

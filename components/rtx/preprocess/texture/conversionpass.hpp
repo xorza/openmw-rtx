@@ -86,7 +86,7 @@ namespace Rtx
         }
 
         static constexpr ContentPassId sPass = ContentPassId::Conversion;
-        static constexpr std::uint32_t sVersion = 4;
+        static constexpr std::uint32_t sVersion = 5;
 
         void digest(const Input& input, ContentStore::Digest& digest);
         void run(const Input& input, Output& output);

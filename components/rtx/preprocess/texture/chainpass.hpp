@@ -29,15 +29,12 @@ namespace Rtx
         /// Nothing made: the file's own chain stands.
         Stands,
 
-        /// The levels under the file's finest, in its own format, laid as a file lays them
-        /// (`MadeImage`).
-        Coarser,
-
-        /// The whole chain in BC7, from the finest down (`MadeImage::whole`).
+        /// The whole chain in BC7, from the finest down (`MadeImage`).
         Bc7,
 
         /// The whole chain in the file's own format, from the finest down: a painted colour's, every
-        /// level delit (`MadeImage::whole`).
+        /// level delit, and every other's finest as the file holds it above the levels built
+        /// (`MadeImage`).
         Own,
     };
 
@@ -70,9 +67,11 @@ namespace Rtx
     /// **The whole chain in BC7 for every normal map**, and for a loose file and every chain the host
     /// would make loose (`docs/architecture.md`, "A loose chain is whole in BC7"): a block file of
     /// one level up to `sLargestBc7ChainSide`, which BC7's error moves less than BC1's would, and a
-    /// BC1 file of one level with a cut, whose coverage BC1 cannot hold. **Coarser levels in the file's
-    /// own format** for every other block file; **nothing made** for a format `ChainBuild` does not
-    /// rebuild, a block colour that carried its chain, and a BC1 file that carried a chain and has a cut.
+    /// BC1 file of one level with a cut, whose coverage BC1 cannot hold. **The whole chain in the file's
+    /// own format**, its finest as the file holds it, for every other block file, so a slot reads every level
+    /// it stands at from the store and none from the file (`docs/architecture.md`, "Every chain the store keeps
+    /// is whole"); **nothing made** for a format `ChainBuild` does not rebuild, a block colour that carried its
+    /// chain, and a BC1 file that carried a chain and has a cut.
     ///
     /// **A painted colour's whole chain delit** (`docs/architecture.md`, "A painted colour is stored
     /// delit, keyed by use"): every level it carries, and the levels under a chainless one boxed from
@@ -113,14 +112,14 @@ namespace Rtx
         }
 
         static constexpr ContentPassId sPass = ContentPassId::Chain;
-        static constexpr std::uint32_t sVersion = 7;
+        static constexpr std::uint32_t sVersion = 8;
 
         void digest(const Input& input, ContentStore::Digest& digest);
         void run(const Input& input, Output& output);
 
         /// Where a chain of `form` made of `input`'s file lays its levels, read off the file's header
-        /// alone; nothing for `ChainForm::Stands`, and for a form no run of `input` makes in that shape:
-        /// coarser or own levels of a loose file, coarser levels of a file of one level.
+        /// alone; nothing for `ChainForm::Stands`, and for a form no run of `input` makes in that shape: own
+        /// levels of a loose file.
         static std::optional<MadeLayout> madeLayout(const Input& input, ChainForm form);
 
         /// Whether `output` can be a run of `input`'s (`ContentCache::find`): its form lays levels for

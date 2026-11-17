@@ -273,6 +273,10 @@ filled on the loading screen (`research/2026-11-08-normal-map-chains.md`).
   in alpha (`research/2026-11-09-content-preparation-cost.md`). Refused: BC3, a normal at 5:6:5.
 - **A coarser level is encoded on the host in the file's format**, through rgbcx, approved by the user. Refused: an
   encoder of our own; encoding on the device.
+- **Every chain the store keeps is whole**, by the user's decision: a block file's built levels are kept under its
+  finest as the file holds it, so a slot reads every level it stands at from the store and none from the file. Some
+  700 MiB more over the desk's three profiles, a twentieth of the store. Refused: the coarser levels alone, under
+  which every arrival read its file for the finest.
 - **A loose chain is whole in BC7**, by the user's decision.
 - **rgbcx and bc7enc are made faster where they stand, and make the same blocks**, by the user's decision
   (`research/2026-11-13-preparation-cpu-by-codec.md`). Refused: a painted block made with its file's own selectors,

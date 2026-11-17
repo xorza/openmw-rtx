@@ -37,9 +37,8 @@ namespace Rtx
         /// nothing is made of it.
         osg::ref_ptr<const MadeImage> mImage{};
 
-        /// The file's texels, which the upload reads the levels nothing made of: every level where
-        /// nothing is made, the finest where the made levels are coarser; null where the made image is
-        /// whole, or pending.
+        /// The file's texels, which the upload reads where nothing is made of it; null where a chain is made,
+        /// or pending.
         osg::ref_ptr<const osg::Image> mFile{};
 
         /// Whether it is being read or made, so the caller stands it in for now and asks again.
@@ -136,12 +135,8 @@ namespace Rtx
             bool mLeft = false;
 
             /// Made, and nothing made of it: its own chain stands (`ChainPass`'s empty output), and for a
-            /// file `prepares` refuses.
+            /// file `prepares` refuses. The upload reads the file's texels then, and only then.
             bool mStands = false;
-
-            /// Whether the upload reads the file's texels: where nothing is made, or the made levels are
-            /// coarser.
-            bool mReadsFile = false;
 
             /// Held until first handed out, watched after it: the made chain, and the file's texels
             /// read through its header.

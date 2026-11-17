@@ -92,7 +92,7 @@ namespace Rtx
     enum class TextureSource : std::uint8_t
     {
         /// A file the content named, decoded. `TextureData::mBytes` and `mLevels` are the file's
-        /// own, or its finest level with the chain the host made of it under it (`mCoarser`).
+        /// own, or the chain the host made of it (`MadeImage`).
         File,
 
         /// The light bake of a sprite texture — `TextureKind::SpriteLight` says what a bake is —
@@ -161,15 +161,9 @@ namespace Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
-        /// Every level, back to back, the levels indexing into it — or, where `mCoarser` is not empty,
-        /// the bytes the finest level lies in, whose bytes past it no level indexes. Empty under
-        /// `SpriteBake`, `GroundComposite` and `GroundGloss`, whose bytes are the device's.
+        /// Every level, back to back, the levels indexing into it. Empty under `SpriteBake`,
+        /// `GroundComposite` and `GroundGloss`, whose bytes are the device's.
         std::span<const std::byte> mBytes{};
-
-        /// The levels after the finest where the host made them again (`MadeImage`), each level after
-        /// the first indexing into it: the file's finest level stays in `mBytes` where the file holds
-        /// it, and is not copied. Empty where every level is in `mBytes`.
-        std::span<const std::byte> mCoarser{};
 
         std::span<const MipLevel> mLevels{};
 
@@ -198,13 +192,12 @@ namespace Rtx
             return std::nullopt;
         }
 
-        /// `level`'s own bytes, in `mBytes` or `mCoarser`, as its format lays it.
+        /// `level`'s own bytes, as its format lays it.
         std::span<const std::byte> bytesOf(std::uint32_t level) const
         {
             assert(level < mLevels.size() && "a level past the end of the chain");
             const MipLevel& at = mLevels[level];
-            const std::span<const std::byte> run = level > 0 && !mCoarser.empty() ? mCoarser : mBytes;
-            return run.subspan(at.mOffset, layoutOf(mFormat).levelBytes(at.mWidth, at.mHeight));
+            return mBytes.subspan(at.mOffset, layoutOf(mFormat).levelBytes(at.mWidth, at.mHeight));
         }
 
         /// How many bytes the levels from `level` on take as its format lays them: what an upload that

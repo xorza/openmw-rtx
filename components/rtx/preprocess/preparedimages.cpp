@@ -137,8 +137,8 @@ namespace Rtx
         PreparedImage found;
         const bool chainStands = entry.mStands || take(entry.mHeld, entry.mWatched, found.mImage);
         const bool fileStands
-            = !entry.mReadsFile || !Resource::isHeader(file) || take(entry.mFileHeld, entry.mFileWatched, found.mFile);
-        if (entry.mReadsFile && found.mFile == nullptr && fileStands)
+            = !entry.mStands || !Resource::isHeader(file) || take(entry.mFileHeld, entry.mFileWatched, found.mFile);
+        if (entry.mStands && found.mFile == nullptr && fileStands)
             found.mFile = &file;
         if (chainStands && fileStands)
             return found;
@@ -285,15 +285,14 @@ namespace Rtx
                         layout = ChainPass::madeLayout(input, hand.mChain.mForm);
                 }
 
-                // The made levels move into the image that holds them; the file's finest level stays
-                // the file's where they are coarser (`MadeImage`).
+                // The made levels move into the image that holds them (`MadeImage`).
                 osg::ref_ptr<const MadeImage> made;
                 if (layout.has_value())
                     made = MadeImage::make(*layout, std::move(hand.mChain.mBytes));
 
-                // The file's texels where the upload reads any of its levels: a run's read, else one now. A chain found
-                // whole holds none.
-                const bool readsFile = made == nullptr || !made->getWholeFormat().has_value();
+                // The file's texels where the upload reads its levels, nothing made: a run's read, else one now. A
+                // chain made holds none.
+                const bool readsFile = made == nullptr;
                 if (!readsFile)
                     pixels = nullptr;
                 else if (pixels == nullptr)
@@ -310,11 +309,11 @@ namespace Rtx
                 // the last reference it holds and find the image or the file gone, which a reference here
                 // kept alive a moment longer.
                 ContentStats stats = hand.mContent.takeStats();
-                // A chain the store answered whole reads nothing of its file for the upload: the figure a chain
-                // found coarser, which reads the file's finest level, is told apart by.
+                // A chain the store answered reads nothing of its file for the upload, which a file that stands as
+                // shipped, its own levels read, is told apart by.
                 const std::uint32_t found
                     = stats.at(ContentPassId::Chain).mHits + stats.at(ContentPassId::Conversion).mHits;
-                if (found > 0 && made != nullptr && made->getWholeFormat().has_value())
+                if (found > 0 && made != nullptr)
                     ++stats.mTexelReads.mChainsFoundWhole;
                 mMonitor.hand([&] {
                     mStats += stats;
@@ -326,8 +325,7 @@ namespace Rtx
                     {
                         // The file's texels held where they are not the file's own image, which its holder keeps.
                         entry->second.mMade = true;
-                        entry->second.mStands = made == nullptr;
-                        entry->second.mReadsFile = readsFile;
+                        entry->second.mStands = readsFile;
                         entry->second.mHeld = made;
                         entry->second.mWatched = nullptr;
                         entry->second.mFileHeld = readsFile && pixels.get() != job.mFile.get() ? pixels : nullptr;

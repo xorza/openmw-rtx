@@ -216,7 +216,6 @@ namespace Rtx
         TextureData first = file;
         first.mLevels = file.mLevels.first(read);
         first.mBytes = file.mBytes.first(file.mLevels[read - 1].mOffset + file.bytesOf(read - 1).size());
-        first.mCoarser = {};
         mAlpha.build(first);
 
         // Each buffer grown to the size this build needs and no more, as `scratchOf` predicts it.

@@ -740,16 +740,15 @@ namespace Rtx::Testing
                 .mBytes = std::as_bytes(std::span(bytes)),
                 .mLevels = std::span(&level, 1),
             };
-            // Its coarser levels in bytes of their own under the file's finest level, as a slot
-            // describes a chain the host made (`TextureData::mCoarser`).
-            // A loose file's built levels are its own bytes, four a texel.
+            // The whole chain in one run, as a slot describes a chain the host made: a loose file's built levels are
+            // its own bytes, four a texel, under its finest.
             ChainBuild chain;
             chain.build(file, levelsTo1x1(extent, extent));
-            Misc::ByteBuffer coarser;
+            Misc::ByteBuffer whole(file.mBytes.begin(), file.mBytes.end());
             for (std::uint32_t at = 1; at < chain.getLevelCount(); ++at)
-                coarser.insert(coarser.end(), chain.getTexels(at).begin(), chain.getTexels(at).end());
+                whole.insert(whole.end(), chain.getTexels(at).begin(), chain.getTexels(at).end());
             std::vector<MipLevel> levels{ level };
-            std::uint32_t laid = 0;
+            auto laid = static_cast<std::uint32_t>(file.mBytes.size());
             for (std::uint32_t side = extent / 2; side >= 1; side /= 2)
             {
                 levels.push_back(MipLevel{ laid, side, side });
@@ -757,7 +756,7 @@ namespace Rtx::Testing
             }
             TextureData data = file;
             data.mLevels = levels;
-            data.mCoarser = coarser;
+            data.mBytes = whole;
             ASSERT_TRUE(data.levelsFit());
             const std::span<const TextureData> textures(&data, 1);
 

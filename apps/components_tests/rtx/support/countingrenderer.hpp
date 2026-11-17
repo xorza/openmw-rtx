@@ -211,7 +211,7 @@ namespace Rtx::Testing
             for (const Rtx::TextureData& texture : described)
             {
                 mDescribedSlots.push_back(texture.mSlot);
-                mDescribedBytes.push_back(texture.mBytes.size() + texture.mCoarser.size());
+                mDescribedBytes.push_back(texture.mBytes.size());
                 if (texture.mSlot >= mDescribedSources.size())
                     mDescribedSources.resize(std::size_t{ texture.mSlot } + 1, Rtx::TextureSource::StandIn);
                 mDescribedSources[texture.mSlot] = texture.mSource;

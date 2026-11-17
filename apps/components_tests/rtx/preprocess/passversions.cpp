@@ -138,9 +138,9 @@ namespace Rtx
                 ChainPass::Input{ .mImage = *makeImage(heights, { 0, 0, 0, 0 }), .mEncoding = TextureEncoding::Normal },
                 chain);
             ASSERT_EQ(chain.mForm, ChainForm::Bc7);
-            MadeChain coarser;
-            content.chain(ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data }, coarser);
-            ASSERT_EQ(coarser.mForm, ChainForm::Coarser);
+            MadeChain data;
+            content.chain(ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data }, data);
+            ASSERT_EQ(data.mForm, ChainForm::Own);
             MadeChain own;
             content.chain(
                 ChainPass::Input{
@@ -166,7 +166,7 @@ namespace Rtx
                 Recorded{ "texel mean", TexelMean::sVersion, digestOf(mean) },
                 Recorded{ "alpha span", AlphaSpan::sVersion, digestOf(span) },
                 Recorded{ "chain in BC7", ChainPass::sVersion, digestOf(chain) },
-                Recorded{ "coarser chain", ChainPass::sVersion, digestOf(coarser) },
+                Recorded{ "data chain", ChainPass::sVersion, digestOf(data) },
                 Recorded{ "painted chain", ChainPass::sVersion, digestOf(own) },
                 Recorded{ "specular kind", SpecularKind::sVersion, digestOf(kind) },
                 Recorded{ "conversion", ConversionPass::sVersion, digestOf(converted) },
@@ -177,11 +177,11 @@ namespace Rtx
                 Recorded{ "shape", 4, 0xfe8b49f90aed1c6d },
                 Recorded{ "texel mean", 1, 0xfaa7e2c796ee8c55 },
                 Recorded{ "alpha span", 1, 0xb02496efa84a6d00 },
-                Recorded{ "chain in BC7", 7, 0xfa7ed3b85133af96 },
-                Recorded{ "coarser chain", 7, 0xece598d212e9cf22 },
-                Recorded{ "painted chain", 7, 0xfa62c3fe1604e007 },
+                Recorded{ "chain in BC7", 8, 0x49e28ea38c0ba847 },
+                Recorded{ "data chain", 8, 0x6bf8b7518c018d9e },
+                Recorded{ "painted chain", 8, 0x75154d36494e4adb },
                 Recorded{ "specular kind", 1, 0x5eac70df15eeb2ef },
-                Recorded{ "conversion", 4, 0x3cf77b53dd5e0330 },
+                Recorded{ "conversion", 5, 0xed492221331d8e6e },
                 Recorded{ "solid reach", 1, 0x5eac70df15eeb2ef },
                 Recorded{ "solid fall", 1, 0x6d2d432d2156abeb },
             };

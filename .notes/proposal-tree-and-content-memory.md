@@ -550,7 +550,7 @@ causes or cures is that item's to show gone; one that is upstream's is proposed 
 One bump of the store's version carries every format change of this plan, the manifest's among them, so the stores are
 made again once; a store made on the desk is the handheld's too, the key being the content.
 
-3. Every chain whole, with a digest a level; `Store::open` and the ranged `read`; the kind in the entry's folder, so
+3. A digest a level; `Store::open` and the ranged `read`; the kind in the entry's folder, so
    the start opens no file to learn it.
 4. The manifest states each model's radius and whether it gives light, which item 15 reads.
 5. `LevelReader` and `BufferPool`; cancel; the uploader gives buffers back.
@@ -627,6 +627,11 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **12.3, its first part. Every chain whole**: a block file's built levels are kept under its finest as the file
+  holds it, in the own form, and the coarser form, `TextureData::mCoarser`, `MadeLayout::mFirst` and the prepared
+  image's second flag went with it; the chain pass to version 8, the conversion to 5 for its form's renumbered byte.
+  The digest a level, the ranged read and the kind in the entry's folder stay with item 12.3.
 
 - **12.1–12.2. The header's digest, and facts at the first read**: no pass's version moved, since no output did; the
   keys moved with the file's key, which files every old entry apart by construction. The solid reach and the solid

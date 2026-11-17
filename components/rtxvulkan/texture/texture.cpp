@@ -148,8 +148,7 @@ namespace Rtx
 
         // Every level in one submit, laid back to back in one staging run, one copy a level out of
         // it — and from the first level on, so a texture held to a smaller side stages none of what
-        // it leaves out. Laid level by level, since a chain the host made lies apart from the file's
-        // finest level (`TextureData::mCoarser`).
+        // it leaves out.
         regions.clear();
         regions.reserve(levels);
         std::size_t laid = 0;
