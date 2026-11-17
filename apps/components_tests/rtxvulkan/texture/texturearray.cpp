@@ -526,6 +526,7 @@ namespace Rtx
             EXPECT_EQ(textures.getTexels(0), 1536u * 1536u);
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "no room";
             EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(1536u, 1536u)) << "the level the room took";
+            EXPECT_EQ(textures.getHeld().mShortOfRoom, 1u) << "refused for want of room";
 
             // **Where room is coming, the file waits rather than being refused**: named by its slot among those the
             // core hands over again, drawing the stand-in meanwhile, and no refusal.
@@ -542,6 +543,7 @@ namespace Rtx
                     { .mKind = RestKind::Texture, .mSlot = lone.mData.mSlot, .mHole = holeOf(lone.mData) } }));
             EXPECT_TRUE(answer.mTextureFits.empty()) << "the stand-in gave back a range";
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "a file that waits drew its own";
+            EXPECT_EQ(textures.getHeld().mShortOfRoom, 1u) << "waiting, and counted once";
             answer.mShort.clear();
             answer.mWants.clear();
 
@@ -563,8 +565,10 @@ namespace Rtx
             EXPECT_EQ(textures.getTexels(1), 3072u * 3072u) << "a slot that stands at last still says the stand-in";
             EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(3072u, 3072u)) << "and still measures it";
 
-            // **A refusal is kept past the slot that went without**: the ladder stood again whole
-            // leaves nothing smaller than its file, and the array still says the room held it back.
+            // **What the room held back is what still stands short of it**: the single level stands whole, no slot
+            // is short of room, and once the ladder stands whole again nothing is smaller than its file either, and
+            // the array says nothing was held back.
+            EXPECT_EQ(textures.getHeld().mShortOfRoom, 0u) << "the single level stood whole at last";
             {
                 const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
                 Batch arrival(getPool());
@@ -574,7 +578,8 @@ namespace Rtx
             }
             EXPECT_TRUE(refused.empty());
             EXPECT_EQ(textures.getHeld().mReduced, 0u);
-            EXPECT_TRUE(textures.wasHeldBack()) << "a refusal was forgotten once its slot stood";
+            EXPECT_EQ(textures.getHeld().mShortOfRoom, 0u);
+            EXPECT_FALSE(textures.wasHeldBack()) << "a refusal kept past the slots that went without";
 
             // Before the array goes: what the writes replaced is buried, and the fillers give their
             // room back after it.

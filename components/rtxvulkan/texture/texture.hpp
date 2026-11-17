@@ -147,6 +147,10 @@ namespace Rtx
         /// How many of those stand smaller than their files, from a level further down.
         std::uint32_t mReduced = 0;
 
+        /// How many slots draw the stand-in for want of room, waiting for it or refused: beside the count, as such a
+        /// slot stands nothing.
+        std::uint32_t mShortOfRoom = 0;
+
         /// `mBytes` by what stands in each slot.
         TextureSourceBytes mBySource;
 
@@ -257,11 +261,9 @@ namespace Rtx
         /// nothing, and neither is counted here.
         const TexturesHeld& getHeld() const { return mHeld; }
 
-        /// Whether a texture stands smaller than its file, or the device had no room for one since
-        /// the array was made: what an array made against more room might have stood whole. A
-        /// refusal is kept past the slot that went without, as `BottomLevelStore::wasRefusedRoom`
-        /// keeps one.
-        bool wasHeldBack() const { return mHeld.mReduced > 0 || mRefusedRoom; }
+        /// Whether a texture stands smaller than its file, or a slot draws the stand-in for want of room: what an
+        /// array made against more room might have stood whole. Cleared as the last such slot stands whole or goes.
+        bool wasHeldBack() const { return mHeld.mReduced > 0 || mHeld.mShortOfRoom > 0; }
 
         /// How many files of the last `write` the room held below their first level within the
         /// device's side: nought where it took nothing off. Read by the tests and by nothing else.
@@ -292,6 +294,9 @@ namespace Rtx
 
             /// Whether the texture stands smaller than its file.
             bool mReduced = false;
+
+            /// Whether it draws the stand-in for want of room (`TexturesHeld::mShortOfRoom`).
+            bool mShortOfRoom = false;
 
             /// What the texture was made from, which `mHeld` counts its bytes under.
             TextureSource mSource = TextureSource::File;
@@ -447,7 +452,5 @@ namespace Rtx
             std::uint32_t mOutput;
         };
         std::vector<PendingComposite> mPendingComposites;
-
-        bool mRefusedRoom = false;
     };
 }

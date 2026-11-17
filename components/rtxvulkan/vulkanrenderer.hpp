@@ -141,9 +141,20 @@ namespace Rtx
         bool tracePicture(GuiSlot texture, SceneSlot scene, const Shaders::VisibilityConstants& camera,
             const GuiTraceOptions& options);
 
+        /// Whether a reserve that moved builds the world again where it would stand otherwise now (`createTargets`).
+        enum class WorldRebuild : std::uint8_t
+        {
+            /// A size or a mode the player chose: the world stands its content against the room that leaves.
+            WhereTheReserveAsks,
+
+            /// A picture's room (`reservePicture`), asked once a view is first shown: what stands keeps standing,
+            /// and content that arrives after is held to the new room.
+            Never,
+        };
+
         /// @param width, height what the frame is presented at. What it is traced at is the
         ///        upscaler's answer for the mode, `Upscaler::extentsFor`.
-        void createTargets(std::uint32_t width, std::uint32_t height);
+        void createTargets(std::uint32_t width, std::uint32_t height, WorldRebuild rebuild);
 
         /// The one way the queue is emptied: everything given to it and everything waiting finished,
         /// everything buried let go. The order is load-bearing — the interface's batch and the deferred

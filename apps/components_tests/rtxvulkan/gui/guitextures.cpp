@@ -625,6 +625,26 @@ namespace Rtx
             EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), before) << "a picture at the room made a frame target";
         }
 
+        /// **A picture's room builds no world again**: a world the device holds with no room left for content, which
+        /// a larger reserve from a change of mode would build again, stands as it stood once a wider picture's room
+        /// grows the reserve.
+        TEST_F(RtxGuiDrawTest, aPicturesRoomBuildsNoWorldAgain)
+        {
+            MemoryAllocator& memory = mProbe.getDevice().getMemory();
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            ASSERT_TRUE(mProbe.holdsScene(SceneSlot::world()));
+
+            const VkDeviceSize reserve = memory.getFrameReserve();
+            memory.limitBudget(VkDeviceSize{ 1 });
+            ASSERT_FALSE(memory.contentFits()) << "a budget of a byte holds no content";
+            mRenderer.reservePicture(mProbe.getPictureRoom().width + 16, mProbe.getPictureRoom().height);
+            const bool held = mProbe.holdsScene(SceneSlot::world());
+            const VkDeviceSize grown = memory.getFrameReserve();
+            memory.limitBudget(std::nullopt);
+            EXPECT_GT(grown, reserve) << "the reserve did not move, so nothing was asked of the world";
+            EXPECT_TRUE(held) << "a picture's room built the world again";
+        }
+
         /// **A picture from a viewpoint is the picture of the block its options lay over it**: the map camera's sheet
         /// under the map camera's sun, with a backdrop that stops where nothing was hit, traced once from the
         /// viewpoint and the options the seam takes and once from the block a test writes whole, with the sky source's

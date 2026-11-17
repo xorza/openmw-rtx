@@ -34,8 +34,9 @@ namespace Rtx
     /// What an arrival may take on the device, and what the budget leaves what rests (`SceneHolder::getArrivalRoom`).
     struct ArrivalRoom
     {
-        /// What a texture, the content given room last, may still take before the device refuses it: what a structure,
-        /// given room ahead of it, may take as well.
+        /// What a texture may still take before the device refuses it: what the content pools' blocks have free and the
+        /// whole blocks the ceiling leaves room for. A structure's storages are blocks of their own, which this does
+        /// not count.
         std::uint64_t mFree = 0;
 
         /// What the device's budget allows the process, every slot's content, the frame and what rests together: what

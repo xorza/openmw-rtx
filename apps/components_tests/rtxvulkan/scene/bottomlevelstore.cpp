@@ -347,9 +347,10 @@ namespace Rtx
 
             EXPECT_FALSE(store.isWaiting(grids[1])) << "a mesh no room is coming for waits for it";
 
+            EXPECT_TRUE(store.wasRefusedRoom()) << "a mesh left out for want of room";
             build(store, std::span(grids).subspan(1, 1));
             EXPECT_TRUE(store.stands(grids[1]));
-            EXPECT_TRUE(store.wasRefusedRoom()) << "a refusal was forgotten once its mesh stood";
+            EXPECT_FALSE(store.wasRefusedRoom()) << "a refusal kept past the mesh that went without, which stands now";
 
             // Let go of, with a texture resting so room is coming, and refused again.
             store.release(std::span(grids).subspan(1, 1));

@@ -126,9 +126,19 @@ namespace Rtx
         state.mTightness = Tightness::None;
         row.mStructure = AccelerationStructure();
         row.mWaiting = false;
+        markShortOfRoom(row, false);
 
         if (mRefittable.has(slot))
             mRefittable.remove(slot);
+    }
+
+    void BottomLevelStore::markShortOfRoom(Row& row, const bool shortOfRoom)
+    {
+        if (row.mShortOfRoom == shortOfRoom)
+            return;
+        assert((shortOfRoom || mShortOfRoom > 0) && "a row taken off a count it was never on");
+        row.mShortOfRoom = shortOfRoom;
+        mShortOfRoom = shortOfRoom ? mShortOfRoom + 1 : mShortOfRoom - 1;
     }
 
     void BottomLevelStore::release(std::span<const Index> meshes)
@@ -351,7 +361,7 @@ namespace Rtx
                     row.mUpdatable = false;
                     row.mUpdateScratch = 0;
                     row.mBuildScratch = 0;
-                    mRefusedRoom = true;
+                    markShortOfRoom(row, true);
                     if (whenRoomless(mDevice, scene) == WhenRoomless::Waits)
                     {
                         row.mWaiting = true;
@@ -367,6 +377,7 @@ namespace Rtx
                     continue;
                 }
 
+                markShortOfRoom(row, false);
                 row.mStructure
                     = AccelerationStructure::bottomLevel(mDevice, storage, room.value(), mBuilding[at].mSize);
                 mResized.push_back(StoodMesh{ .mMesh = slot, .mStructureBytes = mBuilding[at].mSize });

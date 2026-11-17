@@ -149,10 +149,9 @@ namespace Rtx
 
         std::size_t size() const { return mRows.size(); }
 
-        /// Whether the device had no room for a structure since the store was made, which a store
-        /// made against more room might have built. Kept past the mesh that went without, which
-        /// may since have gone: an answer that asks for a build too often and never too seldom.
-        bool wasRefusedRoom() const { return mRefusedRoom; }
+        /// Whether a mesh the store holds has no structure for want of room, waiting or refused: what a store made
+        /// against more room might have built. Cleared as the last such mesh is built or goes.
+        bool wasRefusedRoom() const { return mShortOfRoom > 0; }
 
         /// Whether `mesh` has a structure: not where its slot is free, where it holds no triangle,
         /// or where the device had no room for it.
@@ -328,6 +327,9 @@ namespace Rtx
             /// Whether the mesh is one of `mWaiting`.
             bool mWaiting = false;
 
+            /// Whether the device last had no room for its structure, waiting or refused: one of `mShortOfRoom`.
+            bool mShortOfRoom = false;
+
             Compaction mCompaction;
         };
 
@@ -398,7 +400,11 @@ namespace Rtx
         VkDeviceSize mCompactableNow = 0;
         VkDeviceSize mCompactableTight = 0;
 
-        bool mRefusedRoom = false;
+        /// How many rows are short of room (`Row::mShortOfRoom`).
+        std::uint32_t mShortOfRoom = 0;
+
+        /// `row` short of room, or no longer, counted in `mShortOfRoom`.
+        void markShortOfRoom(Row& row, bool shortOfRoom);
 
         /// A mesh the device had no room for, waiting for room that is coming (`build`): what its structure takes, why
         /// the device refused it, and how many placements it has waited.

@@ -204,7 +204,7 @@ namespace Rtx
             mPresenter
                 = std::make_unique<Presenter>(mDevice, std::move(mSurface), options.mWindow, options.mVerticalSync);
 
-        createTargets(options.mWidth, options.mHeight);
+        createTargets(options.mWidth, options.mHeight, WorldRebuild::WhereTheReserveAsks);
     }
 
     VulkanRenderer::~VulkanRenderer()
@@ -235,10 +235,11 @@ namespace Rtx
         mProfile.mUpscale = upscale;
 
         const VkExtent2D output = mTarget.getExtent();
-        createTargets(output.width, output.height);
+        createTargets(output.width, output.height, WorldRebuild::WhereTheReserveAsks);
     }
 
-    void VulkanRenderer::createTargets(std::uint32_t width, std::uint32_t height)
+    void VulkanRenderer::createTargets(
+        const std::uint32_t width, const std::uint32_t height, const WorldRebuild rebuild)
     {
         assert(width > 0 && height > 0);
 
@@ -332,8 +333,8 @@ namespace Rtx
         memory.refreshBudget(mDevice.getTimeline().getNext());
         memory.reserveFrame(reserve);
         const DeviceScene* const world = mScenes.find(SceneSlot::world());
-        const bool rebuildsWorld = world != nullptr && reserve != reserved
-            && (reserve > reserved ? !memory.contentFits() : world->wasHeldBack());
+        const bool rebuildsWorld = rebuild == WorldRebuild::WhereTheReserveAsks && world != nullptr
+            && reserve != reserved && (reserve > reserved ? !memory.contentFits() : world->wasHeldBack());
         if (rebuildsWorld)
         {
             drain();
@@ -640,7 +641,7 @@ namespace Rtx
         if ((was > 1) != (rays > 1) && mTarget.isOpen())
         {
             const VkExtent2D output = mTarget.getExtent();
-            createTargets(output.width, output.height);
+            createTargets(output.width, output.height, WorldRebuild::WhereTheReserveAsks);
         }
     }
 
@@ -670,7 +671,7 @@ namespace Rtx
         if (width == mTarget.getExtent().width && height == mTarget.getExtent().height)
             return;
 
-        createTargets(width, height);
+        createTargets(width, height, WorldRebuild::WhereTheReserveAsks);
     }
 
     void VulkanRenderer::showIn(std::uint32_t width, std::uint32_t height)
@@ -997,7 +998,7 @@ namespace Rtx
         // is left beside them.
         mPictureRoom = VkExtent2D{ std::max(mPictureRoom.width, width), std::max(mPictureRoom.height, height) };
         const VkExtent2D output = mTarget.getExtent();
-        createTargets(output.width, output.height);
+        createTargets(output.width, output.height, WorldRebuild::Never);
     }
 
     SceneSlot VulkanRenderer::addViewScene()

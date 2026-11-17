@@ -36,7 +36,7 @@ namespace Rtx::Testing
     {
         mRenderer.mReservedUpscales = std::move(modes);
         const VkExtent2D output = mRenderer.mTarget.getExtent();
-        mRenderer.createTargets(output.width, output.height);
+        mRenderer.createTargets(output.width, output.height, VulkanRenderer::WorldRebuild::WhereTheReserveAsks);
     }
 
     const TracePasses& RendererProbe::getTracePasses() const
@@ -64,6 +64,11 @@ namespace Rtx::Testing
     {
         const DeviceScene* held = mRenderer.mScenes.find(slot);
         return held != nullptr ? held->getTextureCount() : 0;
+    }
+
+    bool RendererProbe::holdsScene(const SceneSlot slot) const
+    {
+        return mRenderer.mScenes.find(slot) != nullptr;
     }
 
     void RendererProbe::setSea(const SeaState& sea)

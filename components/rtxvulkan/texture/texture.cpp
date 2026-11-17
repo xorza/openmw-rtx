@@ -649,6 +649,7 @@ namespace Rtx
         // images.
         forget(slot);
         slot.mTexture = Texture();
+        slot.mShortOfRoom = false;
 
         std::string why;
         if (texture.mSource == TextureSource::File && !texture.firstLevelWithin(mSideLimit).has_value())
@@ -660,7 +661,7 @@ namespace Rtx
             const Result<void, MemoryRefusal> stood = make(batch, arrival, slot.mTexture, texture, first, name);
             if (!stood.isOk())
             {
-                mRefusedRoom = true;
+                slot.mShortOfRoom = true;
                 // A file the core can hand over again once the room is back: its slot draws the stand-in meanwhile.
                 if (whenRoomless == WhenRoomless::Waits && texture.mSource == TextureSource::File)
                 {
@@ -886,6 +887,7 @@ namespace Rtx
             mSlots[slot].mTexture = Texture();
             mSlots[slot].mStandIn = false;
             mSlots[slot].mReduced = false;
+            mSlots[slot].mShortOfRoom = false;
         }
     }
 
@@ -953,6 +955,12 @@ namespace Rtx
 
     void TextureArray::forget(const Slot& slot)
     {
+        if (slot.mShortOfRoom)
+        {
+            assert(mHeld.mShortOfRoom > 0 && "a slot short of room taken off a count it was never on");
+            --mHeld.mShortOfRoom;
+        }
+
         // Whether it is there and not its size: a slot stands a texture or it does not, and a
         // content file carrying an empty level is a texture that exists.
         if (slot.mTexture.isEmpty())
@@ -987,6 +995,9 @@ namespace Rtx
 
     void TextureArray::count(const Slot& slot)
     {
+        if (slot.mShortOfRoom)
+            ++mHeld.mShortOfRoom;
+
         if (slot.mTexture.isEmpty())
             return;
 

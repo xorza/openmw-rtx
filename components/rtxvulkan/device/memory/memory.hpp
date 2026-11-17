@@ -66,7 +66,8 @@ namespace Rtx
     ///
     /// **Every such type, and not the first**: the library places each resource in whichever of
     /// them its requirements allow, and RADV lists a second that buffers alone take, so a structure
-    /// and a texture stand in two pools.
+    /// storage's block, memory of its own (`StructureStorage`), may stand in another type than the
+    /// textures in the pools.
     struct ContentTypes
     {
         std::uint32_t mTypes = 0;
@@ -140,8 +141,8 @@ namespace Rtx
     /// evicts it in, lowest first. **The one statement of the priorities.** **Memory nothing stands in for
     /// stands at a half**, the library's priority for every block outside a pool, so a target big enough
     /// for an allocation of its own stands where a table in a shared block stands. **Content stands at a
-    /// quarter**, one figure for structures and textures, because the two share the content pools' blocks
-    /// and a priority belongs to a block.
+    /// quarter**, one figure for structures and textures: both are what rests and is evicted by one policy
+    /// (`docs/architecture.md`, "One residency policy for the content"), and neither goes before the other.
     constexpr float memoryPriorityOf(const MemoryUse use)
     {
         return isNeverRefused(use) ? 0.5f : 0.25f;
@@ -224,8 +225,8 @@ namespace Rtx
 
     /// What a content take the allocator refused for room asked, and how the heap stood: the use, the bytes, the
     /// memory type, whether it was to have memory of its own; the video heap's budget and what the process held; what
-    /// each use held and the room each content use had left; and every content pool
-    /// (`MemoryAllocator::getLastRefused`).
+    /// each use held and the room each content use had left; and every content pool as it stood when the refusal was
+    /// read (`MemoryAllocator::getLastRefused`).
     struct RefusedTake
     {
         MemoryUse mUse = MemoryUse::Texture;
@@ -377,8 +378,8 @@ namespace Rtx
         /// is left.
         MemoryReport report() const;
 
-        /// The last content take refused for room, and how many have been: what a caller that refuses content
-        /// for good reads to say why, beside the refusal (`DeviceScene`).
+        /// The last content take refused for room, its pools walked now, and how many have been: what a caller that
+        /// refuses content for good reads to say why, once a hand-over, beside the refusal (`DeviceScene`).
         std::optional<RefusedTake> getLastRefused() const;
         std::uint64_t getRefusedCount() const { return mRefusedCount.load(std::memory_order_relaxed); }
 

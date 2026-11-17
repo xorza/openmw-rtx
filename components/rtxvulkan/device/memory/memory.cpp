@@ -520,20 +520,9 @@ namespace Rtx
     void MemoryAllocator::noteRefused(
         const MemoryUse use, const VkDeviceSize bytes, const std::uint32_t type, const bool own)
     {
-        RefusedTake refused{
+        const RefusedTake refused{
             .mUse = use, .mBytes = bytes, .mType = type, .mOwn = own, .mVideo = getVideoBudget(), .mUses = uses()
         };
-        for (std::uint32_t at = 0; at < mMemory.memoryTypeCount; ++at)
-        {
-            if ((mContent.mTypes & (1u << at)) == 0)
-                continue;
-            VmaDetailedStatistics pool{};
-            vmaCalculatePoolStatistics(mLibrary.get(), mLibrary.poolOf(at), &pool);
-            refused.mPools[refused.mPoolCount++] = PoolRoom{ .mType = at,
-                .mBlocks = pool.statistics.blockBytes,
-                .mAllocated = pool.statistics.allocationBytes,
-                .mLargestFree = pool.unusedRangeCount > 0 ? pool.unusedRangeSizeMax : 0 };
-        }
         const std::scoped_lock lock(mRefusedMutex);
         mLastRefused = refused;
         mRefusedCount.fetch_add(1, std::memory_order_relaxed);
@@ -541,8 +530,28 @@ namespace Rtx
 
     std::optional<RefusedTake> MemoryAllocator::getLastRefused() const
     {
-        const std::scoped_lock lock(mRefusedMutex);
-        return mLastRefused;
+        std::optional<RefusedTake> refused;
+        {
+            const std::scoped_lock lock(mRefusedMutex);
+            refused = mLastRefused;
+        }
+        if (!refused.has_value())
+            return refused;
+
+        // **The pools walked here, once a caller asks, and not at each refusal**: the walk visits every allocation of
+        // every content pool, and a hand-over the device refused many takes in asks once.
+        for (std::uint32_t at = 0; at < mMemory.memoryTypeCount; ++at)
+        {
+            if ((mContent.mTypes & (1u << at)) == 0)
+                continue;
+            VmaDetailedStatistics pool{};
+            vmaCalculatePoolStatistics(mLibrary.get(), mLibrary.poolOf(at), &pool);
+            refused->mPools[refused->mPoolCount++] = PoolRoom{ .mType = at,
+                .mBlocks = pool.statistics.blockBytes,
+                .mAllocated = pool.statistics.allocationBytes,
+                .mLargestFree = pool.unusedRangeCount > 0 ? pool.unusedRangeSizeMax : 0 };
+        }
+        return refused;
     }
 
     std::string describe(const RefusedTake& refused)
