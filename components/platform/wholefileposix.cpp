@@ -59,6 +59,7 @@ namespace Platform::WholeFileSystem
 
     Result<void, IoError> read(const std::filesystem::path& path, const Sink sink, const std::size_t most)
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const HeldDescriptor file(::open(path.c_str(), O_RDONLY | O_CLOEXEC));
         if (!file.isOpen())
             return lastError();
@@ -104,6 +105,7 @@ namespace Platform::WholeFileSystem
         const std::span<const std::span<const std::byte>> parts, const bool synced,
         const std::filesystem::path& replacing)
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const std::int32_t descriptor = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666);
         if (descriptor < 0)
             return lastError();
@@ -148,6 +150,7 @@ namespace Platform::WholeFileSystem
         // **The folder synced after the rename**, or a power loss can keep the old name: the rename
         // is the folder's write, not the file's.
         const std::filesystem::path folder = to.has_parent_path() ? to.parent_path() : std::filesystem::path(".");
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const HeldDescriptor held(::open(folder.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
         if (!held.isOpen() || fsync(held.get()) != 0)
         {

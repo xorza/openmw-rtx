@@ -14,6 +14,7 @@ namespace Platform
         AppendFile file;
         const bool emptied = start == AppendStart::Emptied;
         const std::int32_t flags = O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC | (emptied ? O_TRUNC : 0);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         file.mHold = UniqueHold<Closing>(::open(path.c_str(), flags, 0644));
         return file;
     }

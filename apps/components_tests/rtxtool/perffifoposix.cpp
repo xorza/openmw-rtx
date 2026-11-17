@@ -42,6 +42,7 @@ namespace RtxTool
 
                 // Read-only and non-blocking, which is the one combination that opens a fifo with
                 // nobody writing to it yet.
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
                 mHandle = ::open(mPath.c_str(), O_RDONLY | O_NONBLOCK);
                 EXPECT_GE(mHandle, 0);
             }
@@ -131,6 +132,7 @@ namespace RtxTool
             std::int32_t reader = -1;
             std::thread perf([&] {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
                 reader = ::open(path.c_str(), O_RDONLY | O_NONBLOCK);
             });
             PerfControl control(path, std::chrono::seconds(10));

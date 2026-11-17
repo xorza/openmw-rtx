@@ -27,6 +27,7 @@ namespace Platform::KernelFile
 
     std::optional<std::string_view> read(const char* const path, const std::span<char> buffer) noexcept
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const std::int32_t descriptor = open(path, O_RDONLY | O_CLOEXEC);
         if (descriptor == -1)
             return std::nullopt;

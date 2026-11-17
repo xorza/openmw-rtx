@@ -44,6 +44,7 @@ namespace
             EXPECT_EQ(read.mError, error);
         }
 
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const std::int32_t folder = open(std::filesystem::temp_directory_path().c_str(), O_RDONLY | O_CLOEXEC);
         ASSERT_NE(folder, -1);
         const Platform::KernelFile::Read read = Platform::KernelFile::readOpened(folder, buffer);

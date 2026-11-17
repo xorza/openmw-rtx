@@ -46,7 +46,9 @@ namespace
         siginfo_t ended{};
         ASSERT_EQ(waitid(P_PID, static_cast<id_t>(child), &ended, WEXITED | WNOWAIT), 0);
         const std::string path = "/proc/" + std::to_string(child) + "/stat";
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const std::int32_t before = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const std::int32_t after = open(path.c_str(), O_RDONLY | O_CLOEXEC);
         ASSERT_NE(before, -1);
         ASSERT_NE(after, -1);
@@ -84,6 +86,7 @@ namespace
         EXPECT_EQ(longest.mParent, 42);
         EXPECT_EQ(readText(head + std::string(4096 - head.size(), '0')).mOutcome, Outcome::Unknown);
 
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const std::int32_t folder = open(std::filesystem::temp_directory_path().c_str(), O_RDONLY | O_CLOEXEC);
         ASSERT_NE(folder, -1);
         EXPECT_EQ(Crash::readProcessStat(folder).mOutcome, Outcome::Unknown);

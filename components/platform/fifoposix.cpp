@@ -21,6 +21,7 @@ namespace Platform::Fifo
     File::Handle openForWriting(const std::filesystem::path& path)
     {
         // `O_NONBLOCK` on a write-only fifo is what turns "no reader" from a hang into `ENXIO`.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
         const std::int32_t handle = ::open(path.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
         if (handle == -1)
         {

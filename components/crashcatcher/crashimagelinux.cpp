@@ -90,6 +90,7 @@ namespace Crash
                 if (std::from_chars(name.data(), name.data() + name.size(), id).ptr != name.data() + name.size())
                     continue;
 
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
                 const std::int32_t descriptor = open((entry.path() / "stat").c_str(), O_RDONLY | O_CLOEXEC);
                 if (descriptor == -1)
                 {
