@@ -240,6 +240,14 @@ namespace MWWorld
         clearAllTasks();
     }
 
+    bool CellPreloader::admitsPreload()
+    {
+        if (mResourceSystem->getCacheBudget().hasRoom())
+            return true;
+        ++mSkipped;
+        return false;
+    }
+
     void CellPreloader::preload(CellStore& cell, double timestamp)
     {
         if (!mWorkQueue)
@@ -261,13 +269,9 @@ namespace MWWorld
             return;
         }
 
-        // A preload is a guess, dropped where the caches are past their budget with everything in use, and asked
-        // again on a later frame as the scene asks; the cell loads when the player arrives if the guess never fits.
-        if (!mResourceSystem->getCacheBudget().hasRoom())
-        {
-            ++mSkipped;
+        // The cell loads when the player arrives if the guess never fits.
+        if (!admitsPreload())
             return;
-        }
 
         while (mPreloadCells.size() >= mMaxCacheSize)
         {

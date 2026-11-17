@@ -78,6 +78,11 @@ namespace MWWorld
 
         std::size_t getCacheSize() const { return mPreloadCells.size(); }
 
+        /// Whether a preload may be made now: the caches stand within their budget, everything past it being in use.
+        /// A preload is a guess, dropped where they do not and asked again on a later frame; a refusal is counted as
+        /// skipped. Asked before a door's destination is loaded to be preloaded, which loads its references for good.
+        bool admitsPreload();
+
         void setWorkQueue(std::shared_ptr<SceneUtil::WorkQueue> workQueue);
 
         void setTerrainPreloadPositions(std::span<const PositionCellGrid> positions);

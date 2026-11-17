@@ -1224,7 +1224,9 @@ namespace MWWorld
             sqrDistToPlayer
                 = std::min(sqrDistToPlayer, (predictedPos - door.getRefData().getPosition().asVec3()).length2());
 
-            if (sqrDistToPlayer < mPreloadDistance * mPreloadDistance)
+            // The preloader's budget asked before the destination is found, which loads its references for good:
+            // a preload it would refuse has loaded the cell all the same.
+            if (sqrDistToPlayer < mPreloadDistance * mPreloadDistance && mPreloader->admitsPreload())
             {
                 CellStore* dest = mWorld.getWorldModel().findCell(door.getCellRef().getDestCell());
                 if (dest != nullptr)

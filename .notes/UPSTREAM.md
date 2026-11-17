@@ -103,7 +103,10 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   thread, the frame's among them, destroys nothing; and `GenericObjectCache::update` stamps a budgeted cache in runs of
   256 entries, the lock let go between them. Approved with item 10 of the tree and content memory plan (2026-11-17).
 - `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
-  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs.
+  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. `Scene::preloadTeleportDoorDestinations` asks
+  the same (`CellPreloader::admitsPreload`) before `findCell` loads a door's destination, which a skipped preload had
+  loaded all the same. Cost: a conflict with an edit to that loop. Approved with item 10 of the tree and content
+  memory plan (2026-11-17).
 - A model's texture holds the file's header and not its texels where the renderer reads texels itself
   (`ImageManager::getModelImage` in place of `getImage` in the NIF loader's `getTextureImage`, `attachAutoMaps` and the
   scene manager's image reader; `Resource::ModelImages::Headers`, `Resource::ImageHeader`, `Resource::texelsOf`,
