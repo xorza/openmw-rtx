@@ -14,3 +14,5 @@
 - `components/platform/filestdio.cpp`, a third implementation of `Platform::File`, is built by no target.
 - The handheld's Fullrest Repack tour at `8c032f6e00` outran its world: six cells of leg 2 (6..7, -13..-11) never stood whole while the player was in their column.
 - `env/install_almalinux_deps.sh` fetches autoconf from ftp.gnu.org alone, which some networks reach only over IPv6: there the release-base image fails to build on Docker's default network, which has none.
+- On the Windows machine the tour's process holds far more anonymous memory than its heap takes (13.6 GiB against 3.6 GiB under the PBR stack, at `db026575b2`), and swaps; no meter names what holds the rest (`docs/research/2026-11-17-baseline-tours.md`).
+- The handheld's PBR tour at `ef34131d39` outran its world as the repack's did: cells 6..7, -13..-11 and 3, -10..-8 never stood whole while the player was in their column.
