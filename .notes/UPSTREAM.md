@@ -97,7 +97,11 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   in place of `cache expiry delay`; each load states its bytes (`Resource::Loaded`), and `navmeshtool` and
   `bulletobjecttool` hand a budget of nought. A run may hold it under a limit (`CacheBudget::limit`, the harness's
   `--cache-budget`), so the desk loads as a machine short of memory does. Cost: also a conflict with an edit to the
-  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager.
+  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager. The budget counts the heap's free memory, which the
+  system counts as the process's (`ResourceSystem::updateCache` reads `Platform::heapHeld` with the system's figure);
+  an eviction keeps its value until the deriving worker destroys it (`BudgetedCache::destroyEvicted`), so an inserting
+  thread, the frame's among them, destroys nothing; and `GenericObjectCache::update` stamps a budgeted cache in runs of
+  256 entries, the lock let go between them. Approved with item 10 of the tree and content memory plan (2026-11-17).
 - `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
   `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs.
 - A model's texture holds the file's header and not its texels where the renderer reads texels itself

@@ -608,6 +608,18 @@ namespace Resource
             EXPECT_EQ(stats.mExpired, 1);
             EXPECT_EQ(stats.mSize, 2);
 
+            // **What went is destroyed by the worker that derives the budget**, not the thread that inserted: the
+            // first value lives until `makeRoom`, watched here through a weak hold.
+            CacheBudget watched(100);
+            SharedCache deferred(watched);
+            const std::weak_ptr<const std::string> first = deferred.getOrLoad(1, loadOf(40));
+            deferred.getOrLoad(2, loadOf(40));
+            deferred.getOrLoad(3, loadOf(40));
+            EXPECT_EQ(deferred.getRefFromObjectCacheOrNone(1), std::nullopt) << "evicted";
+            EXPECT_FALSE(first.expired()) << "destroyed by the inserting thread";
+            watched.makeRoom();
+            EXPECT_TRUE(first.expired()) << "kept past the deriving worker's look";
+
             // The same three under a budget of 120 keep all three: the budget is what decides.
             CacheBudget roomy(120);
             SharedCache kept(roomy);
@@ -615,6 +627,30 @@ namespace Resource
                 kept.getOrLoad(key, loadOf(40));
             EXPECT_EQ(kept.getStats().mSize, 3);
             EXPECT_EQ(kept.getStats().mExpired, 0);
+        }
+
+        /// **An update stamps every held entry, in runs with the lock let go between them**: 600 entries of a byte, the
+        /// oldest 300 held while the cache updates and let go after, past the first run of 256: held then, they are the
+        /// newest, so a budget of 300 lets the other 300 go and keeps every one of them.
+        TEST(ResourceGenericObjectCacheTest, anUpdateStampsEveryHeldEntryAcrossItsRuns)
+        {
+            constexpr std::int32_t sEntries = 600;
+            constexpr std::int32_t sHeld = 300;
+            CacheBudget budget(sEntries);
+            SharedCache cache(budget);
+            std::vector<std::shared_ptr<const std::string>> held;
+            for (std::int32_t key = 0; key < sEntries; ++key)
+            {
+                std::shared_ptr<const std::string> value = cache.getOrLoad(key, loadOf(1));
+                if (key < sHeld)
+                    held.push_back(std::move(value));
+            }
+            cache.update(1.0, 0.0);
+            held.clear();
+
+            budget.limit(sHeld);
+            for (std::int32_t key = 0; key < sEntries; ++key)
+                EXPECT_EQ(cache.getRefFromObjectCacheOrNone(key).has_value(), key < sHeld) << key;
         }
 
         /// **A hit moves an entry to the front**: 1 asked again after 2 was loaded makes 2 the one to go.
@@ -773,17 +809,20 @@ namespace Resource
             EXPECT_EQ(budget.getHeld(), 0);
         }
 
-        /// **The budget is what the caches hold and what the system leaves beside them, less 1 GiB**: 8 GiB left and
-        /// none held is 7 GiB; 8 left and 2 held, 9; half a GiB left and 3 held, 2.5, under what they hold, so they
-        /// make room; under the reserve altogether, none; where the system states nothing, a budget nothing passes.
+        /// **The budget is what the caches hold, what the system leaves beside them and what the heap holds free, less
+        /// 1 GiB**: 8 GiB left and none held is 7 GiB; 8 left and 2 held, 9; and 3 the heap holds free beside them,
+        /// 12; half a GiB left and 3 held, 2.5, under what they hold, so they make room; under the reserve
+        /// altogether, none; where the system states nothing, a budget nothing passes.
         TEST(ResourceCacheBudgetTest, theBudgetIsWhatTheCachesHoldAndWhatTheSystemLeavesLessTheReserve)
         {
             constexpr std::uint64_t gib = std::uint64_t{ 1 } << 30;
-            EXPECT_EQ(CacheBudget::derive(8 * gib, 0), 7 * gib);
-            EXPECT_EQ(CacheBudget::derive(8 * gib, 2 * gib), 9 * gib);
-            EXPECT_EQ(CacheBudget::derive(gib / 2, 3 * gib), 5 * gib / 2);
-            EXPECT_EQ(CacheBudget::derive(gib / 4, gib / 2), 0);
-            EXPECT_EQ(CacheBudget::derive(std::nullopt, 2 * gib), CacheBudget::sUnbounded);
+            EXPECT_EQ(CacheBudget::derive(8 * gib, 0, 0), 7 * gib);
+            EXPECT_EQ(CacheBudget::derive(8 * gib, 2 * gib, 0), 9 * gib);
+            EXPECT_EQ(CacheBudget::derive(8 * gib, 2 * gib, 3 * gib), 12 * gib)
+                << "the heap's free memory, the process's";
+            EXPECT_EQ(CacheBudget::derive(gib / 2, 3 * gib, 0), 5 * gib / 2);
+            EXPECT_EQ(CacheBudget::derive(gib / 4, gib / 2, 0), 0);
+            EXPECT_EQ(CacheBudget::derive(std::nullopt, 2 * gib, 3 * gib), CacheBudget::sUnbounded);
         }
     }
 }

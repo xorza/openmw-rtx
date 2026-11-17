@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 
+#include <components/platform/heap.hpp>
 #include <components/platform/memory.hpp>
 
 #include "animblendrulesmanager.hpp"
@@ -18,7 +20,7 @@ namespace Resource
 
     ResourceSystem::ResourceSystem(
         const VFS::Manager* vfs, double expiryDelay, const ToUTF8::StatelessUtf8Encoder* encoder)
-        : mCacheBudget(CacheBudget::derive(Platform::availableMemory(), 0))
+        : mCacheBudget(CacheBudget::derive(Platform::availableMemory(), 0, 0))
         , mVFS(vfs)
     {
         mNifFileManager = std::make_unique<NifFileManager>(vfs, mCacheBudget, encoder);
@@ -92,9 +94,12 @@ namespace Resource
     {
         for (auto& resourceManager : mResourceManagers)
             resourceManager->updateCache(referenceTime);
-        // After the caches stamped what is in use: one read of the system's figure and one look for room, off the
-        // frame, on the preloader's worker once a second and on the scene's thread as a cell changes.
-        mCacheBudget.setBytes(CacheBudget::derive(Platform::availableMemory(), mCacheBudget.getHeld()));
+        // After the caches stamped what is in use: one read of the system's figure and of the heap's, and one look for
+        // room, off the frame, on the preloader's worker once a second and on the scene's thread as a cell changes.
+        const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
+        const std::uint64_t heapFree
+            = heap.has_value() && heap->mTaken > heap->mInUse ? heap->mTaken - heap->mInUse : 0;
+        mCacheBudget.setBytes(CacheBudget::derive(Platform::availableMemory(), mCacheBudget.getHeld(), heapFree));
     }
 
     void ResourceSystem::clearCache()

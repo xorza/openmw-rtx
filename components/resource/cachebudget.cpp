@@ -6,11 +6,12 @@
 
 namespace Resource
 {
-    std::uint64_t CacheBudget::derive(std::optional<std::uint64_t> available, std::uint64_t held)
+    std::uint64_t CacheBudget::derive(
+        const std::optional<std::uint64_t> available, const std::uint64_t held, const std::uint64_t heapFree)
     {
         if (!available.has_value())
             return sUnbounded;
-        const std::uint64_t room = *available + held;
+        const std::uint64_t room = *available + held + heapFree;
         return room - std::min(room, sReserveBytes);
     }
 
@@ -50,6 +51,10 @@ namespace Resource
         mStarved.store(false, std::memory_order_relaxed);
         if (getHeld() > getBytes())
             evictToBudget();
+
+        const std::scoped_lock lock(mMutex);
+        for (BudgetedCache* const cache : mCaches)
+            cache->destroyEvicted();
     }
 
     void CacheBudget::remove(std::uint64_t bytes)

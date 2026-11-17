@@ -20,8 +20,13 @@ namespace Resource
         virtual std::optional<std::uint64_t> oldestUnheld() = 0;
 
         /// Lets go of the least recently used entry, where its stamp is still `used` and nothing holds it, and
-        /// answers whether it did: another thread may have used it since `oldestUnheld` named it.
+        /// answers whether it did: another thread may have used it since `oldestUnheld` named it. Its value is kept
+        /// until `destroyEvicted`, so whichever thread evicts destroys nothing.
         virtual bool evictOldest(std::uint64_t used) = 0;
+
+        /// Destroys the values evicted since the last call, outside the cache's lock: the deriving worker's work
+        /// (`CacheBudget::makeRoom`), never an inserting thread's, the frame's among them.
+        virtual void destroyEvicted() = 0;
 
         BudgetedCache(const BudgetedCache&) = delete;
         BudgetedCache& operator=(const BudgetedCache&) = delete;
@@ -35,7 +40,8 @@ namespace Resource
     /// order over all of them (`docs/architecture.md`, "Loading"): an entry anything outside its cache holds
     /// stays, and one nothing holds stays until the caches' bytes pass the budget, when whatever was used longest
     /// ago goes first, whichever cache it is in. The thread whose insertion passed the budget evicts as many bytes
-    /// as it added, so no frame absorbs a whole cache's eviction.
+    /// as it added, so no frame absorbs a whole cache's eviction, and the worker that derives the budget destroys
+    /// what went, so no frame absorbs a destruction either.
     class CacheBudget
     {
     public:
@@ -46,11 +52,13 @@ namespace Resource
         /// A budget nothing passes, which keeps everything: where the system states no memory, and for a test.
         static constexpr std::uint64_t sUnbounded = std::numeric_limits<std::uint64_t>::max();
 
-        /// What the caches may hold, where they hold `held` and the system leaves the process `available` beside
-        /// it: both, less `sReserveBytes`; `sUnbounded` where the system states no memory. Derived again as the
-        /// system's memory moves, so whatever else takes it — the rest of the process, a device that shares the
-        /// system's memory, another program — leaves the caches that much less.
-        static std::uint64_t derive(std::optional<std::uint64_t> available, std::uint64_t held);
+        /// What the caches may hold, where they hold `held`, the system leaves the process `available` beside it, and
+        /// the process's heap keeps `heapFree` it took and holds free: all three, less `sReserveBytes`; `sUnbounded`
+        /// where the system states no memory. The heap's free memory is the process's own to take again, which the
+        /// system counts as taken. Derived again as the system's memory moves, so whatever else takes it — the rest
+        /// of the process, a device that shares the system's memory, another program — leaves the caches that much
+        /// less.
+        static std::uint64_t derive(std::optional<std::uint64_t> available, std::uint64_t held, std::uint64_t heapFree);
 
         explicit CacheBudget(std::uint64_t bytes);
         ~CacheBudget();
@@ -78,8 +86,9 @@ namespace Resource
         /// look found everything in use and no `makeRoom` has come since.
         void makeRoomForInsertion();
 
-        /// Looks for room where the caches stand past the budget, and lets the next insertion look again: called
-        /// once the caches have updated, when what they held may have been let go. Outside every cache's lock.
+        /// Looks for room where the caches stand past the budget, lets the next insertion look again, and destroys what
+        /// every eviction since the last let go of: called once the caches have updated, when what they held may have
+        /// been let go, by the worker that derives the budget. Outside every cache's lock.
         void makeRoom();
 
         /// What the caches hold, held or not.
