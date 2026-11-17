@@ -2,18 +2,13 @@
 
 #include <algorithm>
 #include <cassert>
-#include <format>
 #include <iterator>
 #include <optional>
 #include <utility>
 
 #include <components/contentstore/store.hpp>
-#include <components/debug/debuglog.hpp>
-#include <components/platform/memory.hpp>
 #include <components/resource/imageheader.hpp>
-#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/image/textureformat.hpp>
-#include <components/sceneutil/embeddedimage.hpp>
 
 #include "contentpreprocessor.hpp"
 #include "texelreads.hpp"
@@ -25,7 +20,7 @@ namespace Rtx
     struct PreparedImages::Hand
     {
         explicit Hand(ContentStore::Store* store)
-            : mContent(store, ContentStore::Reach::Disk)
+            : mContent(store, ContentStore::Reach::Disk, ChainRuns::WithinMemory)
         {
         }
 
@@ -95,6 +90,8 @@ namespace Rtx
 
             if (!entry->second.mMade)
             {
+                // Asked again before its job landed: the slot that left is not the last to want it.
+                entry->second.mLeft = false;
                 found = PreparedImage{ .mPending = true };
                 return false;
             }
@@ -163,10 +160,7 @@ namespace Rtx
             };
             auto entry = mEntries.lower_bound(Key{ &file, TextureEncoding{}, TextureWrap{}, nullptr });
             while (entry != mEntries.end() && std::get<0>(entry->first) == &file)
-            {
-                mLeftPending += entry->second.mMade ? 0 : 1;
                 entry = handed(entry->second) ? mEntries.erase(entry) : std::next(entry);
-            }
             return false;
         });
         Resource::releaseTexels(file);
@@ -190,6 +184,25 @@ namespace Rtx
     std::size_t PreparedImages::getEntryCount()
     {
         return mMonitor.under([&] { return mEntries.size(); });
+    }
+
+    void PreparedImages::forget(
+        const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap, const osg::Image* const partner)
+    {
+        mMonitor.give([&] {
+            const auto entry = mEntries.find(keyOf(file, encoding, wrap, partner));
+            if (entry == mEntries.end())
+                return false;
+            if (entry->second.mMade)
+                mEntries.erase(entry);
+            else
+            {
+                entry->second.mLeft = true;
+                ++mLeftPending;
+            }
+            return false;
+        });
+        Resource::releaseTexels(file);
     }
 
     PreparedHeld PreparedImages::getHeld()
@@ -235,22 +248,6 @@ namespace Rtx
         mSweepAt = std::max<std::size_t>(1024, 2 * mEntries.size());
     }
 
-    bool PreparedImages::admits(const ChainScratch& scratch, const osg::Image& file)
-    {
-        // **A chain whose making needs more than the system has left is not made**, and its file's own
-        // chain draws: allocated on this thread, it ended the game. Asked as it starts and not as it is
-        // queued, since what the system has left moves with the world.
-        const std::optional<std::uint64_t> available = Platform::availableMemory();
-        if (!available.has_value() || scratch.total() <= *available)
-            return true;
-
-        Log(Debug::Warning) << "Ray tracing keeps the chain of \"" << SceneUtil::EmbeddedImage::nameOf(file)
-                            << "\" as it stands: making it again needs "
-                            << std::format("{:.1f} MiB, and the system has {:.1f} MiB left", mebibytes(scratch.total()),
-                                   mebibytes(*available));
-        return false;
-    }
-
     void PreparedImages::serve(Hand& hand, const std::stop_token& stop)
     {
         Job job;
@@ -276,20 +273,14 @@ namespace Rtx
                     const ConversionPass::Input input{
                         .mImage = file, .mPartner = *partnerPixels, .mEncoding = encoding, .mWrap = wrap
                     };
-                    if (admits(ConversionPass::scratchOf(input), file))
-                    {
-                        hand.mContent.convert(input, hand.mChain);
+                    if (hand.mContent.convert(input, hand.mChain))
                         layout = ConversionPass::madeLayout(input, hand.mChain.mForm);
-                    }
                 }
                 else if (job.mMakes)
                 {
                     const ChainPass::Input input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap };
-                    if (admits(ChainPass::scratchOf(input), file))
-                    {
-                        hand.mContent.chain(input, hand.mChain);
+                    if (hand.mContent.chain(input, hand.mChain))
                         layout = ChainPass::madeLayout(input, hand.mChain.mForm);
-                    }
                 }
 
                 // The made levels move into the image that holds them; the file's finest level stays
@@ -319,7 +310,9 @@ namespace Rtx
                     mStats += stats;
                     --mInFlight;
                     const auto entry = mEntries.find(job.mKey);
-                    if (entry != mEntries.end())
+                    if (entry != mEntries.end() && entry->second.mLeft)
+                        mEntries.erase(entry);
+                    else if (entry != mEntries.end())
                     {
                         // The file's texels where the upload reads any of its levels, held where they are not the
                         // file's own image, which its holder keeps.

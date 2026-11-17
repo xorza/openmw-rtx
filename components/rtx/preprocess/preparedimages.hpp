@@ -62,11 +62,6 @@ namespace Rtx
         /// encoded to BC7 (`ChainPass`). A block colour's own chain stands as the file holds it.
         static bool prepares(const osg::Image& file, TextureEncoding encoding);
 
-        /// Whether a chain whose making holds `scratch` at most is made of `file`: not where it needs more
-        /// than the system has left (`Platform::availableMemory`), which is logged. The one rule the
-        /// loading screen's preparation and play's chains are both held to.
-        static bool admits(const ChainScratch& scratch, const osg::Image& file);
-
         /// @param store where the chains are found and kept, or null for none.
         /// @param hands how many threads make them.
         PreparedImages(ContentStore::Store* store, std::size_t hands);
@@ -94,6 +89,13 @@ namespace Rtx
         /// again. What a job reading it holds goes as the job ends.
         void letGo(const osg::Image& file);
 
+        /// Forgets what `find` was asked of `file` as `encoding` and `wrap` by a slot that leaves before it was
+        /// handed what was read and made for it: the entry goes now where it is made, and as its job lands where it is
+        /// still read or made, unless a slot asks for it again first; and a header's manager may let go of its texels.
+        /// Without it the entry would hold its chain and its texels for the session, its file's header being kept
+        /// for the run (`Resource::ImageManager`).
+        void forget(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner);
+
         /// Whether nothing is queued or being made: what a run that compares frames waits for, so
         /// every frame it compares draws the made chains.
         bool isIdle();
@@ -108,8 +110,8 @@ namespace Rtx
         /// How many asks the table remembers, made or queued: what a test of the sweep reads.
         std::size_t getEntryCount();
 
-        /// What the entries hold that no slot was handed, made chains and files' texels, and how many slots let go of
-        /// their file while it was pending since the table was made. A walk of every entry, for a report.
+        /// What the entries hold that no slot was handed, made chains and files' texels, and how many slots left while
+        /// their file was read or made since the table was made (`forget`). A walk of every entry, for a report.
         PreparedHeld getHeld();
 
         /// What every hand keeps of its chains' scratch, asked while `isIdle`: nought, as a hand lets go of
@@ -129,6 +131,9 @@ namespace Rtx
             osg::observer_ptr<const osg::Image> mPartner{};
 
             bool mMade = false;
+
+            /// The slot it was read for left while it was read or made (`forget`): what its job makes goes as it lands.
+            bool mLeft = false;
 
             /// Made, and nothing made of it: its own chain stands (`ChainPass`'s empty output), and for a
             /// file `prepares` refuses.

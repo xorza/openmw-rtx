@@ -174,6 +174,7 @@ openmw_rtx_layer(
         preprocess/shape/shapefold.cpp
         preprocess/shape/shapepass.cpp
         preprocess/texelreads.cpp
+        preprocess/texture/chainadmission.cpp
         preprocess/texture/chainpass.cpp
         preprocess/texture/conversionpass.cpp
         preprocess/texture/texturepass.cpp
@@ -193,6 +194,7 @@ openmw_rtx_layer(
         preprocess/shape/shapefold.hpp
         preprocess/shape/shapepass.hpp
         preprocess/texelreads.hpp
+        preprocess/texture/chainadmission.hpp
         preprocess/texture/chainpass.hpp
         preprocess/texture/chainscratch.hpp
         preprocess/texture/conversionpass.hpp
@@ -262,6 +264,7 @@ openmw_rtx_layer(
         renderer/scenetextures.cpp
         renderer/sceneuploader.cpp
     HEADERS
+        renderer/arrivalwindow.hpp
         renderer/channel.hpp
         renderer/denoiserimage.hpp
         renderer/framedescriber.hpp

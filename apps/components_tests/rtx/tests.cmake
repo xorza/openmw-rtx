@@ -71,6 +71,7 @@ target_sources(
         rtx/preprocess/preparedimages.cpp
         rtx/preprocess/shape/creasesplit.cpp
         rtx/preprocess/shape/shapefold.cpp
+        rtx/renderer/arrivalwindow.cpp
         rtx/renderer/framedescriber.cpp
         rtx/renderer/frameimage.cpp
         rtx/renderer/frametimehistogram.cpp

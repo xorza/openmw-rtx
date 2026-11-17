@@ -54,7 +54,7 @@ namespace Rtx
             if (same && !waitedMost)
                 return false;
             if (prepared != nullptr && wait.mReading)
-                prepared->letGo(*wait.mSource);
+                prepared->forget(*wait.mSource, wait.mEncoding, wait.mWrap, wait.mPartner.get());
             return true;
         });
 
@@ -75,6 +75,9 @@ namespace Rtx
                 if (!wait.mReading)
                 {
                     wait.mReading = true;
+                    wait.mEncoding = row.mEncoding;
+                    wait.mWrap = row.mWrap;
+                    wait.mPartner = row.mPartner;
                     free -= lacking;
                     // Held until the hand-over describes it: what is read is the asker's to hold once handed out.
                     wait.mRead = prepared->find(*wait.mSource, row.mEncoding, row.mWrap, row.mPartner.get());
@@ -92,7 +95,7 @@ namespace Rtx
 
     void SceneUploader::evictForRoom(SceneDesc& scene, const ArrivalRoom& room, const std::uint64_t arriving)
     {
-        const std::uint64_t kept = arriving + mLargestStructures;
+        const std::uint64_t kept = arriving + mArrivals.largest().mStructures;
         scene.evictResting(room.mFree < kept ? kept - room.mFree : 0);
     }
 
@@ -155,6 +158,9 @@ namespace Rtx
                 .mStoodBytes = stood.mStoodBytes,
                 .mWaited = 0,
                 .mReading = false,
+                .mEncoding = {},
+                .mWrap = {},
+                .mPartner = nullptr,
                 .mRead = {} });
         }
     }
@@ -232,7 +238,8 @@ namespace Rtx
                     && scene.textures().getRows()[pending.mSlot].mImage == pending.mSource;
                 if (!same)
                 {
-                    handing.mPrepared->letGo(*pending.mSource);
+                    handing.mPrepared->forget(
+                        *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get());
                     return true;
                 }
                 if (!handing.mPrepared->isReady(
@@ -256,7 +263,7 @@ namespace Rtx
             // **And never past their limit, coming down to it a step a hand-over** (`docs/architecture.md`, "One
             // residency policy for the content").
             scene.setRestLimit(
-                RestLimit{ .mBytes = restLimitOf(*room, scene.getRestingBytes()), .mStep = mLargestArrival });
+                RestLimit{ .mBytes = restLimitOf(*room, scene.getRestingBytes()), .mStep = mArrivals.largest().mAll });
             serveWants(scene);
             serveWaits(scene, handing.mPrepared, handing.mSettled, room->mFree);
         }
@@ -353,8 +360,7 @@ namespace Rtx
                 std::uint64_t structures = 0;
                 for (const StoodMesh& stood : mAnswer.mMeshes)
                     structures += stood.mStructureBytes;
-                mLargestArrival = std::max(mLargestArrival, textures + structures);
-                mLargestStructures = std::max(mLargestStructures, structures);
+                mArrivals.note(ArrivalBytes{ .mAll = textures + structures, .mStructures = structures });
             }
 
             // What the device now has of each slot described, which a slot that comes to rest keeps: nought

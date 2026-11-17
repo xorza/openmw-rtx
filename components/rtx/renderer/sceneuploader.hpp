@@ -9,8 +9,11 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 
+#include "arrivalwindow.hpp"
 #include "framespend.hpp"
 #include "sceneholder.hpp"
 #include "scenetextures.hpp"
@@ -152,17 +155,15 @@ namespace Rtx
         SceneTextures mTextures;
 
         /// The slots stood in for while their images are made: asked after at every hand-over, and
-        /// stood once made (`TextureTable::prepare`).
+        /// stood once made (`SceneTextures::getPending`).
         std::vector<SceneTextures::Pending> mPending;
 
-        /// The most bytes one extension has handed the device, of its arriving files and the structures it built: the
-        /// room what rests leaves free (`SceneDesc::evictResting`), and the step it comes down to its limit by
-        /// (`RestLimit::mStep`). Not a rebuild's, which hands over the whole world and would pace nothing.
-        std::uint64_t mLargestArrival = 0;
-
-        /// The same of the structures alone: the room an arrival's structures may take, which only the device knows
-        /// once it built them, beside its textures, which the descriptions say before (`evictForRoom`).
-        std::uint64_t mLargestStructures = 0;
+        /// The most bytes one recent extension has handed the device, of its arriving files and the structures it
+        /// built: the room what rests leaves free (`SceneDesc::evictResting`), and the step it comes down to its limit
+        /// by (`RestLimit::mStep`); and of the structures alone, the room an arrival's structures may take, which only
+        /// the device knows once it built them, beside its textures, which the descriptions say before
+        /// (`evictForRoom`). Not a rebuild's, which hands over the whole world and would pace nothing.
+        ArrivalWindow mArrivals;
 
         /// What the device made of a hand-over (`SceneHolder::takeAnswer`), refilled each time.
         DeviceAnswer mAnswer;
@@ -183,8 +184,14 @@ namespace Rtx
             std::uint32_t mWaited = 0;
             bool mReading = false;
 
+            /// How the read was asked, while `mReading`: what a wait that ends before it was handed forgets
+            /// (`PreparedImages::forget`), its slot perhaps another file's by then.
+            TextureEncoding mEncoding{};
+            TextureWrap mWrap{};
+            osg::ref_ptr<const osg::Image> mPartner;
+
             /// What the read handed back where it was ready at once, held until the hand-over describes it.
-            PreparedImage mRead;
+            PreparedImage mRead{};
 
             /// What the device's room has to hold for it to stand whole: what it lacks of its file.
             std::uint64_t getLacking() const { return mFileBytes - std::min(mStoodBytes, mFileBytes); }

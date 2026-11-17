@@ -34,6 +34,7 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
@@ -447,10 +448,12 @@ namespace Rtx
             std::counting_semaphore<> mOpens;
         };
 
-        /// **A slot that lets go of its file while it is read is counted, and what the read made stays unhanded**: the
-        /// header made through one open, the job's read held at the file's second, the slot lets go meanwhile; once
-        /// the read is let through, its 48 bytes stand with no slot to hand them to (`PreparedImages::getHeld`).
-        TEST(RtxPreparedImagesTest, aSlotThatLeavesWhileItsFileIsReadIsCountedAndItsReadStaysUnhanded)
+        /// **What a slot that leaves was read for is forgotten, and kept for a slot that asks again** (`forget`): the
+        /// header made through one open, each job's read held at the file's next. A slot leaves while its read waits
+        /// and asks again before it lands: the read stands for it, 48 bytes unhanded. Forgotten once made, it goes at
+        /// once. Read as data and forgotten while it waits, it goes as its job lands: nothing is left held for the
+        /// session, and each slot that left while its file was read is counted.
+        TEST(RtxPreparedImagesTest, whatASlotThatLeavesWasReadForIsForgottenUnlessAskedAgain)
         {
             GatedFile file(Testing::ddsDxt1(8, 8, 3, 0x55), 1);
             constexpr VFS::Path::NormalizedView path("textures/tx_gated.dds");
@@ -463,16 +466,27 @@ namespace Rtx
 
             PreparedImages prepared(nullptr, 1);
             EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
-            EXPECT_EQ(prepared.getHeld().mLeftPending, 0u);
-            prepared.letGo(*header);
+            prepared.forget(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr);
             EXPECT_EQ(prepared.getHeld().mLeftPending, 1u);
-            EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "nothing read yet";
-
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending)
+                << "asked again while its read waits";
             file.let();
             prepared.flush();
-            EXPECT_EQ(prepared.getHeld().mEntries, 1u);
+            EXPECT_EQ(prepared.getHeld().mEntries, 1u) << "kept for the slot that asked again";
             EXPECT_EQ(prepared.getHeld().mBytes, 48u);
-            EXPECT_EQ(prepared.getHeld().mLeftPending, 1u);
+
+            prepared.forget(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr);
+            EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "made and forgotten, gone at once";
+            EXPECT_EQ(prepared.getHeld().mLeftPending, 1u) << "made, so it left nothing pending";
+            EXPECT_FALSE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
+
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Data, TextureWrap::Repeat).mPending);
+            prepared.forget(*header, TextureEncoding::Data, TextureWrap::Repeat, nullptr);
+            EXPECT_EQ(prepared.getHeld().mLeftPending, 2u);
+            file.let();
+            prepared.flush();
+            EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "what its job made went as it landed";
+            EXPECT_EQ(prepared.getEntryCount(), 0u) << "and its entry with it";
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no
@@ -628,14 +642,21 @@ namespace Rtx
         }
 
         /// **A chain whose making needs more than the system has left is not made**, and one that needs
-        /// nothing is: an exabyte against any machine's memory.
+        /// nothing is: an exabyte against any machine's memory. A preprocessor held to the rule makes what it
+        /// admits, and says so (`ChainRuns::WithinMemory`).
         TEST(RtxPreparedImagesTest, aChainPastWhatTheSystemHasLeftIsNotMade)
         {
             const osg::ref_ptr<osg::Image> file = makeBc1(8, 8, 1, false);
             ChainScratch vast;
             vast[ChainBuffer::File] = std::size_t{ 1 } << 60;
-            EXPECT_FALSE(PreparedImages::admits(vast, *file));
-            EXPECT_TRUE(PreparedImages::admits(ChainScratch{}, *file));
+            EXPECT_FALSE(admitsChain(vast, *file));
+            EXPECT_TRUE(admitsChain(ChainScratch{}, *file));
+
+            ContentPreprocessor held(nullptr, ContentStore::Reach::Disk, ChainRuns::WithinMemory);
+            MadeChain made;
+            EXPECT_TRUE(
+                held.chain(ChainPass::Input{ .mImage = *makeNormalMap(), .mEncoding = TextureEncoding::Data }, made));
+            EXPECT_NE(made.mForm, ChainForm::Stands) << "admitted, and made";
         }
 
         /// **A classic pair of two sizes is converted at the slot's own file's**: a 4x4 diffuse beside a 2x2

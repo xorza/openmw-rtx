@@ -31,6 +31,7 @@
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texelreads.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
@@ -305,9 +306,9 @@ namespace Rtx
                         Log(Debug::Info) << "The content's preparation makes the chain of \""
                                          << SceneUtil::EmbeddedImage::nameOf(*queuedChain.mImage)
                                          << "\" alone: it needs more than the whole budget of memory";
-                        makes = PreparedImages::admits(needOf(*queuedChain.mImage, queuedChain.mPartner.get(),
-                                                           queuedChain.mEncoding, queuedChain.mWrap)
-                                                           .mScratch,
+                        makes = admitsChain(needOf(*queuedChain.mImage, queuedChain.mPartner.get(),
+                                                queuedChain.mEncoding, queuedChain.mWrap)
+                                                .mScratch,
                             *queuedChain.mImage);
                     }
                     if (makes)

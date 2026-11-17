@@ -8,12 +8,22 @@
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 
 namespace Rtx
 {
     template <ContentPass Pass>
-    void ContentPreprocessor::run(
+    bool ContentPreprocessor::admits(const Pass& pass, const typename Pass::Input& input) const
+    {
+        if constexpr (requires { Pass::scratchOf(input); })
+            return mChainRuns == ChainRuns::Always || admitsChain(Pass::scratchOf(input), input.mImage);
+        else
+            return true;
+    }
+
+    template <ContentPass Pass>
+    bool ContentPreprocessor::run(
         Pass& pass, const typename Pass::Input& input, typename Pass::Output& output, const ContentAsk ask)
     {
         PassStats& stats = mStats.at(Pass::sPass);
@@ -42,9 +52,11 @@ namespace Rtx
                         pass.release();
                     ++stats.mHits;
                     stats.mFoundMs += since(keyed, std::chrono::steady_clock::now());
-                    return;
+                    return true;
                 }
 
+                if (!admits(pass, input))
+                    return false;
                 pass.run(input, output);
                 // A stored ask reads no output, so what the run made moves into the store's payload.
                 if (ask == ContentAsk::Stored)
@@ -52,12 +64,15 @@ namespace Rtx
                 else
                     mCache.keep<Pass>(key, output);
                 stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
-                return;
+                return true;
             }
         }
 
+        if (!admits(pass, input))
+            return false;
         pass.run(input, output);
         stats.mRunMs += since(started, std::chrono::steady_clock::now());
+        return true;
     }
 
     void ContentPreprocessor::shape(const ShapePass::Input& input, ShapePass::Output& output)
@@ -100,26 +115,28 @@ namespace Rtx
         return layout;
     }
 
-    void ContentPreprocessor::chain(const ChainPass::Input& input, MadeChain& made, const ContentAsk ask)
+    bool ContentPreprocessor::chain(const ChainPass::Input& input, MadeChain& made, const ContentAsk ask)
     {
         // A chain takes milliseconds to seconds of a thread, all of it inside the file's decode and the
         // encoders, so a crash there names the file and how it is read.
         const Crash::NoteScope noted("making the chain of \"{}\" as {}, {}",
             SceneUtil::EmbeddedImage::nameOf(input.mImage), sTextureEncodings.name(input.mEncoding),
             sTextureWraps.name(input.mWrap));
-        run(mChain, input, made, ask);
+        return run(mChain, input, made, ask);
     }
 
-    void ContentPreprocessor::convert(const ConversionPass::Input& input, MadeChain& made, const ContentAsk ask)
+    bool ContentPreprocessor::convert(const ConversionPass::Input& input, MadeChain& made, const ContentAsk ask)
     {
         const Crash::NoteScope noted("converting \"{}\" with \"{}\" as {}, {}",
             SceneUtil::EmbeddedImage::nameOf(input.mImage), SceneUtil::EmbeddedImage::nameOf(input.mPartner),
             sTextureEncodings.name(input.mEncoding), sTextureWraps.name(input.mWrap));
-        run(mConversion, input, made, ask);
+        return run(mConversion, input, made, ask);
     }
 
-    ContentPreprocessor::ContentPreprocessor(ContentStore::Store* const store, const ContentStore::Reach reach)
+    ContentPreprocessor::ContentPreprocessor(
+        ContentStore::Store* const store, const ContentStore::Reach reach, const ChainRuns runs)
         : mCache(store, reach)
+        , mChainRuns(runs)
     {
     }
 

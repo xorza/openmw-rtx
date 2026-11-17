@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <components/contentstore/key.hpp>
@@ -33,6 +34,15 @@ namespace Rtx
         Stored,
     };
 
+    /// Which runs of the chain and conversion passes a preprocessor makes where the store holds no output: every one,
+    /// or those the system has the memory for (`admitsChain`), asked only past the store's miss, so a chain the store
+    /// holds is read whatever its making would cost.
+    enum class ChainRuns : std::uint8_t
+    {
+        Always,
+        WithinMemory,
+    };
+
     /// The one way the renderer computes anything from what the content files hold. Every pass is
     /// asked through here: for a pass the store keeps (`ContentPass::sStored`) where there is a
     /// store, its key is made of everything it reads, the cache is asked for the output under that
@@ -48,8 +58,9 @@ namespace Rtx
         /// @param store the process's store, or null for none (`ContentCache`): a test's, which
         ///        computes every ask.
         /// @param reach where this thread's asks may reach in it.
-        explicit ContentPreprocessor(
-            ContentStore::Store* store = nullptr, ContentStore::Reach reach = ContentStore::Reach::Memory);
+        /// @param runs which chains and conversions it makes where the store holds none.
+        explicit ContentPreprocessor(ContentStore::Store* store = nullptr,
+            ContentStore::Reach reach = ContentStore::Reach::Memory, ChainRuns runs = ChainRuns::Always);
 
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;
@@ -73,11 +84,12 @@ namespace Rtx
         /// `SpecularKind`: what `image`'s channels mean as a `_spec` map.
         SpecularLayout specularLayout(const osg::Image& image);
 
-        /// `ChainPass`: an image's chain made again, or made where it carried none, read as its input says.
-        void chain(const ChainPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
+        /// `ChainPass`: an image's chain made again, or made where it carried none, read as its input says. False
+        /// where the store held none and its run was not admitted (`ChainRuns`): `made` is then untouched.
+        bool chain(const ChainPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
 
-        /// `ConversionPass`: a classic pair's base colour or metal-roughness map.
-        void convert(const ConversionPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
+        /// `ConversionPass`: a classic pair's base colour or metal-roughness map, as `chain` answers.
+        bool convert(const ConversionPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
 
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
@@ -98,9 +110,15 @@ namespace Rtx
         void letGoChainScratch();
 
     private:
+        /// Asks `pass` through the cache, and answers whether `output` holds what was asked: false only where its run
+        /// was not admitted (`admits`).
         template <ContentPass Pass>
-        void run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output,
+        bool run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output,
             ContentAsk ask = ContentAsk::Output);
+
+        /// Whether `pass`'s run of `input` is made: a chain or a conversion as `mChainRuns` says, every other pass.
+        template <ContentPass Pass>
+        bool admits(const Pass& pass, const typename Pass::Input& input) const;
 
         ShapePass mShape;
         TexelScratch mTexels;
@@ -114,6 +132,7 @@ namespace Rtx
         ConversionPass mConversion{ mBuild };
 
         ContentCache mCache;
+        ChainRuns mChainRuns = ChainRuns::Always;
         ContentStats mStats;
         std::vector<StoredKey>* mKeysInto = nullptr;
     };
