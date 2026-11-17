@@ -221,11 +221,12 @@ namespace RtxTool
             EXPECT_EQ(request.mStep, sStepSeconds);
             EXPECT_EQ(request.mSetup.mWindowPixels, osg::Vec2i(800, 600)) << "the tour's own frame";
 
-            // A player's preloading at the flight's speed: 12000 over a running player's 337.5 is 35.6 times, so the
-            // shipped 1000 units of warning become 35,556 and its one thread 36, held to the ring's 16 cells and to
+            // A player's preloading at the flight's speed: the doors' reach the shipped 1000 units, and 12000 over a
+            // running player's 337.5 is 35.6 times, so its one thread becomes 36, held to the ring's 16 cells and to
             // what the processor spares.
             ASSERT_TRUE(run.mPreload.has_value());
-            EXPECT_FLOAT_EQ(run.mPreload->mDistance, 1000.0f * 12000.0f / 337.5f);
+            EXPECT_FLOAT_EQ(run.mPreload->mDistance, 1000.0f) << "the doors' reach a player's";
+            EXPECT_EQ(request.mSetup.mSteppedExpiry, MWRender::SteppedExpiry::AsTheGame) << "the game's own expiry";
             EXPECT_EQ(run.mPreload->mThreads,
                 std::min(16, std::max(1, static_cast<std::int32_t>(std::thread::hardware_concurrency()) - 1)));
             EXPECT_EQ(run.mPreload->mCacheMin, 12) << "the shipped least, so what expired makes room";

@@ -13,7 +13,6 @@
 - A static mesh refused in the loose structure storage files no want (`BottomLevelStore`, `if (kept)`), so nothing is evicted for it.
 - The world is rebuilt where no mode changed: `VulkanRenderer::reservePicture` reaches `createTargets`, `MemoryAllocator::contentFits` compares a ceiling with the driver's usage, rest and free bytes in it, and `TextureArray::mRefusedRoom` and `BottomLevelStore::mRefusedRoom` are never cleared.
 - `Resource::CacheBudget::derive` counts as taken what the heap holds free, and `evictToBudget` evicts on the inserting thread, the frame's included, inside the budget's lock.
-- A tour's memory is not a played game's: `preloadFlownAt` scales the door reach to 4.3 cells (`apps/rtxtool/framed.cpp`), `RtxRenderer::setResourceExpiry` sets the timer caches' expiry to infinity for a stepped run, and the harness starts itself on huge pages (`Platform::Process::restartOnHugePages`).
 - `MWWorld::Scene::preloadTeleportDoorDestinations` loads a destination's references (`findCell`) before `CellPreloader::preload` asks the budget, so a preload skipped has still loaded the cell.
 - `CellPlacer::mMoved` grows by every reference the game moves and is emptied only by `forgetReferences`; every adoption searches the new cell for each entry.
 - Comments that no longer hold since `84a60139e8` and `7b2cdeabe9`: `memory.hpp` on `ContentTypes` ("a structure and a texture stand in two pools") and on `memoryPriorityOf` ("the two share the content pools' blocks"), `sceneholder.hpp` on `ArrivalRoom::mFree`, `sceneuploader.hpp` on `mPending` (`TextureTable::prepare`).
@@ -21,3 +20,4 @@
 - `misc-no-recursion` finds 163 functions in recursive call chains (widget and scene-graph walks, the script compiler's error handler, `KeyboardNavigation::getKeyFocusWidgets`), none of which states its bound.
 - `google-default-arguments` finds 363 default arguments on virtual functions and their overrides (`MWWorld::Class` and its subclasses, `MWBase::StateManager`, the editor's models), where a call takes the default of the static type it names.
 - `components/platform/filestdio.cpp`, a third implementation of `Platform::File`, is built by no target.
+- The handheld's Fullrest Repack tour at `8c032f6e00` outran its world: six cells of leg 2 (6..7, -13..-11) never stood whole while the player was in their column.

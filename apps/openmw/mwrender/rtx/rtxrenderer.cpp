@@ -160,6 +160,7 @@ namespace MWRender
     {
         mSettled = setup.mSettled;
         mCacheBudget = setup.mCacheBudget;
+        mSteppedExpiry = setup.mSteppedExpiry;
 
         // **Made here, because there is no viewer to make them.** Every renderer needs the four and
         // one built on `osgViewer` gets them already wired together.
@@ -314,7 +315,7 @@ namespace MWRender
     {
         mPhase.expect(Phase::Between);
         const std::optional<float> stated = getLoopClock().getStatedStep();
-        setResourceExpiry(resources, stated);
+        setResourceExpiry(resources, stated, mSteppedExpiry);
 
         // A stated step makes the ground wait: a composite lands on whichever frame the baker finishes it
         // on, a thread's answer a run compared with another's cannot have. The step and not a hashed frame
@@ -340,9 +341,10 @@ namespace MWRender
         scene.setAutoMaps(maps);
     }
 
-    void RtxRenderer::setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step)
+    void RtxRenderer::setResourceExpiry(
+        Resource::ResourceSystem& resources, const std::optional<float>& step, const SteppedExpiry expiry)
     {
-        if (step.has_value())
+        if (step.has_value() && expiry == SteppedExpiry::Never)
             resources.setExpiryDelay(std::numeric_limits<double>::infinity());
     }
 

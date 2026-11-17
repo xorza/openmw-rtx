@@ -214,7 +214,8 @@ namespace MWRender
         /// two runs of one build dropped different models and laid the scene out two ways from
         /// `island-crossing` on. What is read from files is kept by the caches' budget instead, which a stepped
         /// run is held to as well: no run on the desk passes it, and one that does has no memory to keep more.
-        static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
+        static void setResourceExpiry(
+            Resource::ResourceSystem& resources, const std::optional<float>& step, SteppedExpiry expiry);
 
         /// Has `scene` look for every model's `_n` and `_spec` maps whatever `[Shaders] auto use object normal
         /// maps` and `specular maps` say: those are the rasterizer's, and a replacer's companion maps are what
@@ -474,6 +475,9 @@ namespace MWRender
         /// What the run holds the game's resource caches to, where it says — `RunSetup::mCacheBudget` — which
         /// `configureResources` hands the resource system.
         std::optional<std::uint64_t> mCacheBudget;
+
+        /// What a stepped run keeps in the caches kept by time — `RunSetup::mSteppedExpiry`.
+        SteppedExpiry mSteppedExpiry = SteppedExpiry::Never;
 
         /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;

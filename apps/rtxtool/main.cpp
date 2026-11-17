@@ -633,9 +633,11 @@ namespace RtxTool
 
 int main(std::int32_t argc, char* argv[])
 {
-    // **Huge pages before anything else**, since the process this starts keeps no thread and no
-    // state of this one: the figures a measured run reports move run to run on small ones.
-    Platform::Process::restartOnHugePages(argv);
+    // **Huge pages for a timed run, before anything else**, since the process this starts keeps no thread and no
+    // state of this one: a timed run's figures move run to run on small ones. Every other verb starts as the game
+    // does, asking for none, so the memory a tour reports is the game's.
+    if (argc > 1 && (std::string_view(argv[1]) == "bench" || std::string_view(argv[1]) == "noise"))
+        Platform::Process::restartOnHugePages(argv);
 
     // The catcher's box is off and the catcher is on: a dialog waiting for a click is a run that never finishes,
     // and a measured run that crashes or hangs should still leave the report a player's game would. Not

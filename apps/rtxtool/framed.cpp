@@ -123,7 +123,9 @@ namespace RtxTool
         // the game asked for under the three contents' tours, a door's surroundings among them.
         constexpr std::int32_t sCacheTheGameAsksFor
             = 2 * (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3);
-        return CellPreload{ .mDistance = shipped.get(cells.mPreloadDistance) * faster,
+        // The doors' reach the shipped one, as a player's: scaled with the flight, it followed every door of the active
+        // grid and loaded every destination's references for good (`.notes/ISSUES.md`).
+        return CellPreload{ .mDistance = shipped.get(cells.mPreloadDistance),
             .mThreads = std::clamp(threads, 1, std::min(sRing, processors)),
             // The least kept stays the shipped file's, so what expired makes room: a cache held full at its most
             // asked for more on every door, 58 against 50.

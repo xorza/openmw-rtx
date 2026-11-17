@@ -431,6 +431,8 @@ namespace RtxTool
                     pacing.mNamedRooms.push_back(view.mStand.mCell.getSpelling());
 
         framed.mSetup.mHeadless = !command.mLine.mBench.mWindow;
+        // **The game's own expiry**, as a tour's memory is a figure it reports, and no other run compares its frames.
+        framed.mSetup.mSteppedExpiry = MWRender::SteppedExpiry::AsTheGame;
         // The rate the step was made from and not one over the step, which rounds to 59.9999962.
         assert(pacing.mStep == sStepSeconds && "a tour steps at the measured rate, which its limit is held to");
         if (line.mPaced)

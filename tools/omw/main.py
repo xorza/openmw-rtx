@@ -65,10 +65,13 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   archive [name]               the release archive into out/dist/, with its symbols: the release flavour,
                                on Linux in an AlmaLinux 8 container where the system is another
   profile [args]               the harness's CPU side under perf: the release flavour
-  remote <host> <verb> [args]  openmw-rtxtool's verb on another Linux machine over SSH: built where
-                               a release is, copied to this tree's path there with the libraries it
-                               lacks, run headless, and the files the line names brought back; a
-                               bench or noise run holds a SteamOS GPU clock at its top
+  remote <host> [--env NAME=VALUE]... <verb> [args]
+                               openmw-rtxtool's verb on another machine over SSH, under the environment
+                               named, and the files the line names brought back. Linux: built where a
+                               release is, copied to this tree's path there with the libraries it
+                               lacks, run headless; a bench or noise run holds a SteamOS GPU clock at its
+                               top. Windows: this commit built in the host's own clone, run in its
+                               logged-on session by an interactive scheduled task
   info, scene, shot, view, bench, check, film, noise, tour [args]
                                openmw-rtxtool's own verbs, from the build directory
   noise --ab=<switch>[=<a>,<b>] [--still] [--cut=N] [noise args]

@@ -1,7 +1,10 @@
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+from unittest import mock
 
-from omw.remote import build_refusal, fetch_note, lacking, linked, remote_line, remote_script, sonames
+from omw.remote import build_refusal, fetch_note, lacking, linked, remote_line, remote_script, sonames, split_env
+from omw import remotewindows
+from omw.remotewindows import WindowsRun, cmd_quote, is_windows, windows_args, windows_script
 from omw.system import WINDOWS, Refusal
 
 
@@ -101,6 +104,88 @@ class RemoteScriptTest(unittest.TestCase):
         unmeasured = remote_script(folder, "shot", [], measured=False)
         self.assertNotIn("steamos", unmeasured.lower())
         self.assertEqual(unmeasured.splitlines()[-1], "./openmw-rtxtool shot")
+
+
+class EnvironmentTest(unittest.TestCase):
+    def test_the_environment_ahead_of_the_verb_is_split_off_in_either_form_and_a_bad_word_refused(self):
+        self.assertEqual(split_env(["--env", "GLIBC_TUNABLES=glibc.malloc.mmap_threshold=262144",
+                                    "--env=A=", "tour", "--env=x"]),
+                         ([("GLIBC_TUNABLES", "glibc.malloc.mmap_threshold=262144"), ("A", "")], ["tour", "--env=x"]))
+        self.assertEqual(split_env(["bench"]), ([], ["bench"]))
+        for bad in (["--env"], ["--env", "NOVALUE", "tour"], ["--env", "1A=b", "tour"], ["--env", "A-B=c", "tour"]):
+            with self.subTest(bad=bad), self.assertRaises(Refusal):
+                split_env(bad)
+
+    @unittest.skipIf(WINDOWS, "remote is the desk's")
+    def test_a_linux_run_exports_the_environment_quoted(self):
+        script = remote_script(Path("/t/out/release"), "tour", [], measured=False, env=[("A", "x y"), ("B", "")])
+        self.assertIn("export A='x y'", script.splitlines())
+        self.assertIn("export B=''", script.splitlines())
+
+
+class WindowsHostTest(unittest.TestCase):
+    def test_cmd_echoes_windows_and_a_posix_shell_echoes_the_word(self):
+        self.assertTrue(is_windows("Windows_NT\r\n"))
+        self.assertFalse(is_windows("%OS%\n"))
+        self.assertFalse(is_windows(""))
+
+    def test_a_word_is_quoted_only_where_cmd_would_split_or_read_it(self):
+        self.assertEqual(cmd_quote("--frames=200"), "--frames=200")
+        self.assertEqual(cmd_quote("C:\\Users\\me\\My Games"), '"C:\\Users\\me\\My Games"')
+        self.assertEqual(cmd_quote('a"b'), '"a""b"')
+        self.assertEqual(cmd_quote("100%"), '"100%%"')
+        self.assertEqual(cmd_quote(""), '""')
+
+    @unittest.skipIf(WINDOWS, "the line's paths are this desk's")
+    def test_the_lines_paths_are_mapped_into_the_runs_folder_and_the_script_ends_in_its_status(self):
+        run = WindowsRun(PureWindowsPath("C:/Users/me/.cache/omw-remote/abc"))
+        out = Path("/home/me/runs/deck/pbr")
+        self.assertEqual(windows_args(["--out=/home/me/runs/deck/pbr", "--window=false", "--out-x=/y"], [out], run),
+                         ["--out=C:\\Users\\me\\.cache\\omw-remote\\abc\\files\\pbr", "--window=false",
+                          "--out-x=/y"])
+        script = windows_script(PureWindowsPath("C:/Users/me/Projects/openmw/out/release"), run, "tour",
+                                ["--config=C:\\My Games\\pbr"], [("GLIBC_TUNABLES", "x=1")]).split("\r\n")
+        self.assertEqual(script[0], "@echo off")
+        self.assertEqual(script[1], "cd /d C:\\Users\\me\\Projects\\openmw\\out\\release")
+        self.assertEqual(script[2], 'set "GLIBC_TUNABLES=x=1"')
+        self.assertEqual(script[3], 'openmw-rtxtool.exe tour "--config=C:\\My Games\\pbr" > '
+                                    "C:\\Users\\me\\.cache\\omw-remote\\abc\\log.txt 2>&1")
+        self.assertEqual(script[4], "echo %ERRORLEVEL% > C:\\Users\\me\\.cache\\omw-remote\\abc\\done.txt")
+        self.assertEqual(script[5], "")
+
+    def test_the_task_is_deleted_however_the_wait_ends(self):
+        # A task made to run once still fires at the time it names: a run whose wait ran out would otherwise start
+        # again there.
+        lines = []
+
+        class Host:
+            host = "win"
+            profile = PureWindowsPath("C:/Users/me")
+
+            def __init__(self, *_):
+                pass
+
+            def cmd(self, line):
+                lines.append(line)
+                return ""
+
+            def call(self, _line):
+                return 0
+
+            def exists(self, _path):
+                return False
+
+            def write(self, _remote, _text):
+                pass
+
+        with (mock.patch.object(remotewindows, "WindowsHost", Host),
+              mock.patch.object(remotewindows, "bring_commit", return_value="0" * 40),
+              mock.patch.object(remotewindows, "RUN_LIMIT_S", 0),
+              mock.patch("builtins.print"),
+              self.assertRaises(Refusal)):
+            remotewindows.remote_windows("ssh", "scp", "win", "release", "tour", [], [], [], [], lambda _: "")
+        self.assertEqual(lines[-1], "schtasks /delete /tn omw-remote /f")
+        self.assertIn("schtasks /run /tn omw-remote", lines)
 
 
 if __name__ == "__main__":

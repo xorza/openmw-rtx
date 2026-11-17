@@ -485,19 +485,7 @@ in any item.
 
 ### 8. Meters, a harness that runs as the game, and a baseline
 
-No change to how content is held. First what stands in a baseline's way:
-
-1. A run on either machine is one verb. `omw remote` takes the Windows machine as it takes a Linux one: the commit
-   fetched into its tree, the verb started through an interactive scheduled task, its exit line waited on within a
-   bound, its files brought back. It forwards the environment a run names, `GLIBC_TUNABLES` first, which item 10's
-   tunables need. The scheduled tasks left there (`omw-tour`, `omw-run-tours`) name scripts that are gone and are
-   replaced by the verb's own. `./omw lint driver` and the driver's tests hold it.
-3. A tour and a `scene` run start as the game does, asking for no huge pages; `bench` and `noise` keep them.
-4. The timer caches expire in a tour as they do in play, and its preload distance is the shipped one. What that does
-   to a flight's worst frames is read off the baseline; a grid reach scaled apart from the doors' is proposed with
-   that figure if a flight needs it.
-
-Then the meters. A stop's end logs, and the report keeps the run's peak of:
+The meters. A stop's end logs, and the report keeps the run's peak of:
 
 1. what the device holds by use, the frame's gap and each ceiling, at a stop and in `RefusedTake`;
 2. the geometry's reach as placed, resting and holes, on the host and on the device;
@@ -509,7 +497,7 @@ Then the meters. A stop's end logs, and the report keeps the run's peak of:
 
 Then the baseline: tours of the three contents on the desk, the handheld and Windows, to `docs/research/`, which every
 later item is held against, each flown twice, so a leg's worst frame has its own spread beside it. The note keeps
-every leg's worst frame with what led it, and every outrun. One handheld tour more of each content as tours ran
+every leg's worst frame with what led it, and every outrun. A tour now expires the timer caches as play does and reaches doors as far as a player; what that does to a flight's worst frames is read off it, and a grid reach scaled apart from the doors' is proposed with that figure if a flight needs it. One handheld tour more of each content as tours ran
 before (huge pages, the scaled reach, no expiry), so `2026-11-17-handheld-tours-and-store-forms.md`'s figures can be
 told apart from the game's.
 

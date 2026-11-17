@@ -139,8 +139,8 @@ namespace MWRender
             EXPECT_EQ(fixture.mWorld->mReached, 0u);
         }
 
-        /// **A stepped run keeps what it built, and a run on the wall keeps the setting**, in the caches kept by
-        /// time, which start at the setting's five seconds; the materials' is one.
+        /// **A stepped run keeps what it built, unless it asks for the game's expiry, and a run on the wall keeps the
+        /// setting**, in the caches kept by time, which start at the setting's five seconds; the materials' is one.
         TEST(RtxRendererTest, aSteppedRunNeverExpiresWhatItLoadedAndARunOnTheWallKeepsTheSetting)
         {
             constexpr double sSetting = 5.0;
@@ -148,11 +148,15 @@ namespace MWRender
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({});
 
             Resource::ResourceSystem stepped(vfs.get(), sSetting, nullptr);
-            RtxRenderer::setResourceExpiry(stepped, 1.0f / 60.0f);
+            RtxRenderer::setResourceExpiry(stepped, 1.0f / 60.0f, SteppedExpiry::Never);
             EXPECT_EQ(stepped.getBgsmFileManager()->getExpiryDelay(), sForever);
 
+            Resource::ResourceSystem asPlayed(vfs.get(), sSetting, nullptr);
+            RtxRenderer::setResourceExpiry(asPlayed, 1.0f / 60.0f, SteppedExpiry::AsTheGame);
+            EXPECT_EQ(asPlayed.getBgsmFileManager()->getExpiryDelay(), sSetting);
+
             Resource::ResourceSystem walled(vfs.get(), sSetting, nullptr);
-            RtxRenderer::setResourceExpiry(walled, std::nullopt);
+            RtxRenderer::setResourceExpiry(walled, std::nullopt, SteppedExpiry::Never);
             EXPECT_EQ(walled.getBgsmFileManager()->getExpiryDelay(), sSetting);
         }
 
