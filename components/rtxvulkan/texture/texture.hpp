@@ -403,7 +403,7 @@ namespace Rtx
             const TextureTable& mTable;
             std::span<const TextureData> mArrived;
             DeviceAnswer& mAnswer;
-            WhenRoomless mWhenRoomless;
+            WhenRoomless mWhenRoomless = WhenRoomless::Refuses;
         };
 
         /// Stands one of the arrival in its slot: a file from level `first`, a texture of another
