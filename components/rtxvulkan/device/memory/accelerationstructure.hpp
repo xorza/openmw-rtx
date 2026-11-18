@@ -48,6 +48,10 @@ namespace Rtx
 
         bool isEmpty() const { return mHandle.get() == VK_NULL_HANDLE; }
 
+        /// The storage it stands in and its room there; null and empty for a top level, or an empty slot.
+        const StructureStorage* getStorage() const { return mStorage; }
+        const StructureRoom& getRoom() const { return mRoom; }
+
     private:
         AccelerationStructure(const Device& device, VkAccelerationStructureTypeKHR type, VkBuffer buffer,
             VkDeviceSize offset, VkDeviceSize size, StructureStorage* storage, const StructureRoom& room);

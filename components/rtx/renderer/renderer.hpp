@@ -267,6 +267,10 @@ namespace Rtx
         std::uint64_t mCompactableBytes = 0;
         std::uint64_t mCompactableNowBytes = 0;
 
+        /// What the structures moved out of a block to give it back have come to since the scene was made: what the
+        /// device's memory past its budget has cost in copies.
+        std::uint64_t mStructureMovedBytes = 0;
+
         /// How many refitted structures the rota has built whole again since the scene was made. A
         /// refit keeps a structure's shape as its placements move and so loses its quality, which a
         /// rebuild on a rota wins back; how often is the backend's.

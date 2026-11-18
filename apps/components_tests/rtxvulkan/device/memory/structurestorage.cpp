@@ -1,3 +1,4 @@
+#include <optional>
 #include <string_view>
 
 #include <gtest/gtest.h>
@@ -114,6 +115,49 @@ namespace Rtx
             const StructureRoom again = storage.take(device, 1024).value();
             EXPECT_EQ(again.mBlock, room.mBlock) << "the block kept was not the one taken";
             EXPECT_EQ(storage.getBytes(), sBlock);
+        }
+
+        /// **The block to empty is the one the fewest units stand in, where the others hold room for them all, and a
+        /// structure moved out of it goes to another block or nowhere.** Hand-counted in units of 256 bytes, blocks of
+        /// sixteen: the first block full and the second one unit in, nothing can be emptied, since the first has no
+        /// room; with eight units of the first given back, the second's one unit fits, and moving it takes the first
+        /// block's hole, never the second and never a new block. Once moved and cooled, the second block goes.
+        TEST_F(RtxStructureStorageTest, theBlockToEmptyIsTheEmptiestWhoseStructuresFitElsewhere)
+        {
+            const Device& device = getDevice();
+            StructureStorage storage(
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                "test structures", sBlock);
+            EXPECT_EQ(storage.blockToEmpty(), std::nullopt) << "no block at all";
+
+            const StructureRoom left = storage.take(device, 2048).value();
+            const StructureRoom right = storage.take(device, 2048).value();
+            const StructureRoom lone = storage.take(device, 256).value();
+            ASSERT_EQ(left.mBlock, 0u);
+            ASSERT_EQ(right.mBlock, 0u);
+            ASSERT_EQ(lone.mBlock, 1u);
+            EXPECT_EQ(storage.blockToEmpty(), std::nullopt)
+                << "the first block, full, has no room for the second's unit";
+            EXPECT_EQ(storage.takeOutside(256, 1), std::nullopt) << "no room outside the second block";
+            EXPECT_EQ(storage.getBytes(), 2 * sBlock) << "and no block made for it";
+
+            storage.retire(right, device.getTimeline().getNext());
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            storage.reclaim(device.getTimeline().getKnownFinished());
+            EXPECT_EQ(storage.blockToEmpty(), 1u)
+                << "one unit stands in the second, eight in the first, eight free there";
+
+            const std::optional<StructureRoom> moved = storage.takeOutside(256, 1);
+            ASSERT_TRUE(moved.has_value());
+            EXPECT_EQ(moved->mBlock, 0u);
+            EXPECT_EQ(storage.getOffset(*moved), 2048u) << "the first block's hole";
+            EXPECT_EQ(storage.getLiveBytes(), 2048u + 256u + 256u) << "both copies stand until the old one cools";
+
+            storage.retire(lone, device.getTimeline().getNext());
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            storage.reclaim(device.getTimeline().getKnownFinished());
+            EXPECT_EQ(storage.getBytes(), sBlock) << "the emptied block went back";
+            EXPECT_EQ(storage.blockToEmpty(), std::nullopt) << "the last block is never emptied";
         }
 
         /// A structure larger than the storage's block gets a block that holds it, and the next block is the

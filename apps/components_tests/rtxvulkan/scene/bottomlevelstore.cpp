@@ -668,6 +668,68 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
+        /// **While the device holds more than it is held to, the structures of the kept storage's emptiest block move
+        /// to the others' free runs, and the block goes back.** Six grids of sixty-four copied tight into blocks of
+        /// three, the first, fifth and sixth let go: the first block holds two and a hole, the second one. Held to a
+        /// byte, a placement moves the fourth grid into the first block's hole, a copy of its structure as it is, and
+        /// names it moved; once its old room cools, the second block goes back. Not held, nothing moves.
+        TEST_F(RtxBottomLevelStoreTest, overItsBudgetTheEmptiestBlocksStructuresMoveAndTheBlockGoes)
+        {
+            std::array<MeshIndex, 6> grids{};
+            for (std::size_t at = 0; at < grids.size(); ++at)
+                grids[at] = addGrid(mScene, 64, static_cast<float>(at));
+            stage();
+
+            // What one tight structure stands in, read off a store whose every block is the one structure it holds.
+            VkDeviceSize tight = 0;
+            {
+                BottomLevelStore probe(getDevice(), sStructureBuildRoom, StructureStorage::sAlignment);
+                build(probe, std::span(grids).subspan(0, 1));
+                place(probe);
+                tight = probe.getBytes() - probe.getLooseBytes();
+                getDevice().waitIdle();
+                getDevice().collectIdle();
+            }
+            ASSERT_GT(tight, 0u);
+
+            BottomLevelStore store(getDevice(), sStructureBuildRoom, 3 * tight);
+            build(store, grids);
+            ASSERT_EQ(place(store).getSlots().size(), grids.size()) << "every grid copied tight";
+            const auto keptBytes = [&] { return store.getBytes() - store.getLooseBytes(); };
+            ASSERT_EQ(keptBytes(), 6 * tight) << "two blocks of three";
+
+            const std::array<MeshIndex, 3> going{ grids[0], grids[4], grids[5] };
+            // The rooms come back once the submit their structures were buried under has run.
+            store.release(going);
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            EXPECT_TRUE(place(store).empty()) << "nothing moves where the device is not held";
+            EXPECT_EQ(store.getMovedOutBytes(), 0u);
+
+            const VkAccelerationStructureKHR before = store.getStructure(grids[3]);
+            {
+                const Testing::BudgetLimit held(getDevice().getMemory(), 1);
+                const SlotSet<MeshIndex>& moved = place(store);
+                EXPECT_EQ(std::vector<MeshIndex>(moved.getSlots().begin(), moved.getSlots().end()),
+                    std::vector<MeshIndex>{ grids[3] })
+                    << "the emptiest block's one structure, and no other";
+            }
+            EXPECT_NE(store.getStructure(grids[3]), before) << "a copy stands in its place";
+            EXPECT_TRUE(store.stands(grids[3]));
+            EXPECT_EQ(store.getMovedOutBytes(), tight);
+
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            place(store);
+            EXPECT_EQ(keptBytes(), 3 * tight) << "the emptied block went back";
+
+            // Before the store goes: a buried structure gives its room back to the store's storage.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+        }
+
         /// **Every block is content's block size**, apart from the pools textures stand in: two grids of sixty-four
         /// stand loose in one, one goes, and an arrival of a small grid and another of sixty-four takes the hole it
         /// left and the block's rest, and no second block.

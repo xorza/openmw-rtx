@@ -332,6 +332,7 @@ namespace RtxTool
                 .mWorkBytes = 54,
                 .mCompactableBytes = 55,
                 .mCompactableNowBytes = 56,
+                .mStructureMovedBytes = 67,
                 .mRebuilt = 57,
                 .mTextureCount = 58,
                 .mTextureBytes = 59,
@@ -410,7 +411,8 @@ namespace RtxTool
                   R"("mediumInstances": 44, "additiveInstances": 45, "firstPersonInstances": 46, )"
                   R"("mappedInstances": 47, "modMappedInstances": 65, "darkAlphaInstances": 48, "reliefInstances": 49, )"
                   R"("structureBytes": 51, )"
-                  R"("structureLiveBytes": 52, "compactableBytes": 55, "compactableNowBytes": 56, "rebuilt": 57, )"
+                  R"("structureLiveBytes": 52, "compactableBytes": 55, "compactableNowBytes": 56, )"
+                  R"("structureMovedBytes": 67, "rebuilt": 57, )"
                   R"("tableBytes": 53, "geometryBytes": 66, "workBytes": 54, "textureCount": 58, "textureBytes": 59, )"
                   R"("reducedTextureCount": 64, "textureBytesBySource": {"files": 60, "spriteBakes": 61, )"
                   R"("groundComposites": 62, "groundGloss": 63}})";

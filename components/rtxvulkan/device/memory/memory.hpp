@@ -340,6 +340,12 @@ namespace Rtx
         /// What content holds past that ceiling, nought where it fits (`contentFits`).
         VkDeviceSize getContentOver() const;
 
+        /// **What the process holds on the video heap past what it is held to, counting blocks as the system backs
+        /// them**: the driver's usage, every block whole and its free runs with it, less the budget as `limitBudget`
+        /// and the system's share hold it (`docs/architecture.md`, "Held is counted as the system backs it"). What a
+        /// block emptied and given back answers, and what content's ranges never see. Nought where it fits.
+        VkDeviceSize getBlocksOver() const;
+
         /// What `reserveFrame` was last told.
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }
 

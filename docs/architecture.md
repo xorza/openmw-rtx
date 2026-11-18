@@ -492,6 +492,16 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   and flown on the handheld's Repack tour: the blocks it gave back went to the caches, and once the device's reserve
   stood below theirs its 24 runs left the structures refused 133 times where the tour without them refused 3, and the
   legs' p99 at 73 ms against 51 (`research/2026-11-18-closing-tours.md`).
+- **Held is counted as the system backs it: blocks** (`MemoryAllocator::getBlocksOver`). A free run in a block is held
+  until the block goes, so a device over its budget by its blocks gives memory back by emptying them, which content's
+  ranges never see: the handheld's Repack held its structures' blocks at 2184 MiB with 711 of it free while the device
+  stood over its budget at 119 stops (`research/2026-11-18-handheld-rooms-and-device-memory.md`). Refused: ranges as
+  held, which read that storage as room the system held.
+- **Over its budget, the kept structure storage's emptiest block is emptied** (`BottomLevelStore::moveOut`): its
+  structures are copied as they are into the other blocks' free runs, within the placement's copy budget the tight
+  copies leave, and the block goes back once their old rooms cool. A block begun is emptied whole; one that refits,
+  or whose tight copy is owed, stays, as a refit records against the handle it was prepared with. Refused: a new block
+  to move into, which gives nothing back; every block at once, a frame's worth of copies.
 - **A bottom level is built loose and copied out tight**, as RTXMU does, and the world's build compacts before its
   textures are made, as NVIDIA's `buildBlas` does. **Both storages take blocks of content's block size, apart from the
   pools textures stand in, and keep their last** (`StructureStorage`), by the user's decision, as NVIDIA pools

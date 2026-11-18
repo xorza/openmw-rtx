@@ -594,7 +594,8 @@ namespace Rtx
         // waiting for the next arrival to ask for room.
         reclaim();
         readAnswers();
-        copyAnswered(sCompactionPerPlacement);
+        const VkDeviceSize copied = copyAnswered(sCompactionPerPlacement);
+        moveOut(sCompactionPerPlacement - std::min(copied, sCompactionPerPlacement));
         return mMovedMeshes;
     }
 
@@ -617,7 +618,7 @@ namespace Rtx
         return bytes;
     }
 
-    void BottomLevelStore::copyAnswered(const VkDeviceSize budget)
+    VkDeviceSize BottomLevelStore::copyAnswered(const VkDeviceSize budget)
     {
         VkDeviceSize taken = 0;
         while (!mAnswered.empty() && taken < budget)
@@ -683,6 +684,70 @@ namespace Rtx
         }
 
         mAnswered.settle();
+        return taken;
+    }
+
+    void BottomLevelStore::moveOut(const VkDeviceSize budget)
+    {
+        const auto movable = [&](const Row& row) {
+            return !row.mStructure.isEmpty() && row.mStructure.getStorage() == &mStorage && !row.mUpdatable
+                && (row.mCompaction.mTightness == Tightness::Tight || row.mCompaction.mTightness == Tightness::None);
+        };
+
+        if (!mEmptying.has_value())
+        {
+            if (mDevice.getMemory().getBlocksOver() == 0)
+                return;
+            mEmptying = mStorage.blockToEmpty();
+            if (!mEmptying.has_value())
+                return;
+            // Listed once, as the block is chosen: a walk of every row a block, not a placement.
+            mLeaving.clear();
+            for (const MeshIndex slot : everyRow<MeshIndex>(mRows.size()))
+                if (movable(mRows[slot]) && mRows[slot].mStructure.getRoom().mBlock == *mEmptying)
+                    mLeaving.push_back(slot);
+        }
+
+        VkDeviceSize taken = 0;
+        while (!mLeaving.empty() && taken < budget)
+        {
+            const MeshIndex slot = mLeaving.back();
+            Row& row = mRows[slot];
+            // Gone, built again or copied tight since it was listed: whatever stands there now is not in the block.
+            if (!movable(row) || row.mStructure.getRoom().mBlock != *mEmptying)
+            {
+                mLeaving.pop_back();
+                continue;
+            }
+
+            const VkDeviceSize size
+                = VkDeviceSize{ row.mStructure.getRoom().mRun.mCount } * StructureStorage::sAlignment;
+            const std::optional<StructureRoom> room = mStorage.takeOutside(size, *mEmptying);
+            if (!room.has_value())
+                break;
+            mLeaving.pop_back();
+
+            AccelerationStructure made = AccelerationStructure::bottomLevel(mDevice, mStorage, *room, size);
+            mCompactionCopies.push_back(VkCopyAccelerationStructureInfoKHR{
+                .sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR,
+                .pNext = nullptr,
+                .src = row.mStructure.getHandle(),
+                .dst = made.getHandle(),
+                .mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_KHR,
+            });
+            // Replaced though the copy reads it, as a tight copy's is (`copyAnswered`).
+            row.mStructure = std::move(made);
+            mMovedMeshes.addMakingRoom(slot);
+            taken += size;
+            mMovedOut += size;
+        }
+
+        // Emptied, or no room for what is left: the next block is chosen afresh.
+        if (mLeaving.empty() || taken < budget)
+        {
+            mEmptying.reset();
+            mLeaving.clear();
+        }
     }
 
     void BottomLevelStore::recordCompaction(const VkCommandBuffer commands, GpuTimer* const timer)

@@ -605,6 +605,14 @@ namespace Rtx
         return held - std::min(held, ceiling);
     }
 
+    VkDeviceSize MemoryAllocator::getBlocksOver() const
+    {
+        VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
+        const VkDeviceSize usage = budgets[mContent.mHeap].usage;
+        return usage - std::min(usage, heldTo(budgets[mContent.mHeap].budget));
+    }
+
     void MemoryAllocator::limitBudget(const std::optional<VkDeviceSize> bytes)
     {
         mBudgetLimit = bytes;

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -58,6 +59,15 @@ namespace Rtx
         /// Room for a structure of `bytes`, taken from the first block that has it, else from a new block, or why the
         /// device has none: a block is memory a mesh can be left out for — `MemoryUse::Structure`.
         Result<StructureRoom, MemoryRefusal> take(const Device& device, VkDeviceSize bytes);
+
+        /// **The block to empty**: the live block the fewest units stand in, where another live block stands and the
+        /// others hold free room for every one of them, so moving them out could give it back. Nothing where no block
+        /// could be emptied so.
+        std::optional<std::uint32_t> blockToEmpty() const;
+
+        /// Room for a structure of `bytes` in a live block other than `avoid`, and never a new block: where a structure
+        /// moves to empty `avoid`. Nothing where no other block has the room.
+        std::optional<StructureRoom> takeOutside(VkDeviceSize bytes, std::uint32_t avoid);
 
         /// Takes a structure's room back once the timeline passes `until`, which is the stamp its
         /// handle was buried with. `AccelerationStructure`'s end, and nothing else.

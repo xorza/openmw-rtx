@@ -234,6 +234,10 @@ namespace Rtx
         /// back.
         VkDeviceSize getCompactableNowBytes() const { return mCompactableNow; }
 
+        /// What the structures moved out of a block to empty it came to, since the store was made: what giving the
+        /// device's blocks back has cost in copies (`moveOut`).
+        VkDeviceSize getMovedOutBytes() const { return mMovedOut; }
+
     private:
         /// What the compaction knows about the structure in a slot — a state per slot and a
         /// question per structure, asked once, because asking about every loose structure at every
@@ -290,7 +294,16 @@ namespace Rtx
         /// Makes a room in the kept storage for as many answered structures as `budget` takes, and
         /// queues the copy of each into its room for `recordCompaction`; the meshes it moved join
         /// `mMovedMeshes`. A new block is made at what is left of the budget.
-        void copyAnswered(VkDeviceSize budget);
+        /// What it took of `budget`.
+        VkDeviceSize copyAnswered(VkDeviceSize budget);
+
+        /// **Moves structures out of a block to give it back, while the device holds more than it is held to**
+        /// (`MemoryAllocator::getBlocksOver`): the kept storage's block the fewest structures stand in, its standing
+        /// structures copied as they are into the other blocks' free runs, as many as `budget` takes, joining
+        /// `mMovedMeshes`; the block goes back once the last room cools (`StructureStorage::give`). A block begun is
+        /// emptied whole, the device over or not, and a structure that finds no room ends it. One that refits, or
+        /// whose tight copy is still owed, stays: a refit records against the handle it was prepared with.
+        void moveOut(VkDeviceSize budget);
 
         /// What every answered structure's copy would take: a settled run's budget, which then
         /// copies them all into blocks of exactly that.
@@ -447,5 +460,11 @@ namespace Rtx
 
         /// The meshes those copies moved, whose placements the caller writes again.
         SlotSet<MeshIndex> mMovedMeshes;
+
+        /// The kept storage's block being emptied, and the meshes standing in it still to move, listed once as it is
+        /// chosen (`moveOut`).
+        std::optional<std::uint32_t> mEmptying;
+        std::vector<MeshIndex> mLeaving;
+        VkDeviceSize mMovedOut = 0;
     };
 }

@@ -129,14 +129,15 @@ Decided by the user, 2026-11-18:
   held under 4 GiB, the Windows Repack held 13.3 GiB not resident against 7.2 and ran as fast, so the Windows machine's
   issue is closed (`docs/research/2026-11-18-handheld-rooms-and-device-memory.md`).
 
+- **Items 4 and 5, the owner and the structures' moves**: what the device holds past its budget is counted by blocks
+  (`MemoryAllocator::getBlocksOver`), and over it the kept structure storage's emptiest block is emptied into the
+  others' free runs within the placement's copy budget (`BottomLevelStore::moveOut`). The rest limit, `evictForRoom`
+  and the reserve's `makeRoom` stay: they hold content's ranges to the ceiling and do; what none of them reached is the
+  blocks' slack, 711 MiB of the structures' in the rooms, which the moves give back. Replacing them was a refactor of
+  mechanisms that work, with no frame in it.
+
 ## Items
 
-4. **`DeviceResidency`**: the target, held by blocks, the band, and the ladder's first three steps (rests, above want,
-   empty blocks), replacing the rest limit, `evictForRoom` and the reserve's `makeRoom`. Test: the ladder as a function
-   of the figures it reads, each step's bytes exact; the hand-over's allocation count held at nought.
-5. **Structures out of the least-filled block**: the copy the tight copy uses, into another block's free run, a step a
-   hand-over, the block given back when empty. Test on the device: a block emptied by moves frees, the instance rows
-   name the new addresses, and `omw repeat` agrees frame for frame.
 6. **Textures out of the least-filled block** (approved 2), the same way. Test on the device: the moved image samples
    the same texels, its slot's descriptor names it, and the block goes.
 7. **The bias below every want** (approved 3), the last step before a refusal, coming off a level a step once under the
