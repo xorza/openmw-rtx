@@ -1256,19 +1256,28 @@ namespace Rtx
             return found->second;
         }
 
-        std::uint32_t Pinner::scalarOf(std::uint32_t type) const
+        std::uint32_t Pinner::scalarOf(const std::uint32_t type) const
         {
-            const Type& shape = typeNamed(type);
-            switch (shape.mKind)
+            // A matrix's part is a vector and a vector's a scalar, so the scalar is two parts down at most: a
+            // module that nests deeper is not SPIR-V.
+            constexpr std::uint32_t sDeepest = 2;
+            std::uint32_t at = type;
+            for (std::uint32_t depth = 0; depth <= sDeepest; ++depth)
             {
-                case Kind::Float:
-                    return type;
-                case Kind::Vector:
-                case Kind::Matrix:
-                    return scalarOf(shape.mPart);
-                default:
-                    throw Rtx::InputError(std::format("%{} is no float, vector or matrix type", type));
+                const Type& shape = typeNamed(at);
+                switch (shape.mKind)
+                {
+                    case Kind::Float:
+                        return at;
+                    case Kind::Vector:
+                    case Kind::Matrix:
+                        at = shape.mPart;
+                        break;
+                    default:
+                        throw Rtx::InputError(std::format("%{} is no float, vector or matrix type", type));
+                }
             }
+            throw Rtx::InputError(std::format("%{} nests its scalar deeper than a matrix's", type));
         }
 
         std::uint32_t Pinner::floatConstant(std::uint32_t type, float value)

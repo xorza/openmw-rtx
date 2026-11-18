@@ -59,29 +59,46 @@ namespace Rtx
         /// message nobody ever sees.
         void takeErrorsOnThisThread(std::vector<std::string>& out);
 
+        /// Files this thread's errors under `owner` until `release`, the latest adoption of a thread naming it: what
+        /// `AdoptedThread` holds.
+        void adopt(std::thread::id owner);
+
+        /// Ends this thread's latest adoption.
+        void release();
+
     private:
+        /// A thread whose errors are filed under another's (`adopt`).
+        struct Adoption
+        {
+            std::thread::id mThread;
+            std::thread::id mOwner;
+        };
+
         const bool mAbortOnError;
         mutable std::mutex mMutex;
         std::vector<ValidationMessage> mErrors;
+
+        /// Every adoption standing, under `mMutex`: one a worker of a pass that compiles, at most a thread a core.
+        std::vector<Adoption> mAdopted;
 
         /// What `disown` was told: a prefix a runtime, so at most one an upscaler.
         std::vector<std::string> mDisowned;
     };
 
-    /// Files this thread's validation errors under `owner` for as long as it stands. Pipeline
-    /// compilation runs a thread per core and the layers report on whichever thread made the call,
-    /// so an error raised inside a worker would be filed under a thread nobody collects from.
+    /// Files this thread's validation errors in `log` under `owner` for as long as it stands, and nothing where `log`
+    /// is null, the layers off. Pipeline compilation runs a thread per core and the layers report on whichever thread
+    /// made the call, so an error raised inside a worker would be filed under a thread nobody collects from.
     class AdoptedThread
     {
     public:
-        explicit AdoptedThread(std::thread::id owner);
+        AdoptedThread(ValidationLog* log, std::thread::id owner);
         ~AdoptedThread();
 
         AdoptedThread(const AdoptedThread&) = delete;
         AdoptedThread& operator=(const AdoptedThread&) = delete;
 
     private:
-        std::thread::id mPrevious;
+        ValidationLog* const mLog;
     };
 
     /// Fills in a messenger description that routes every severity to `log`. Returned by value so

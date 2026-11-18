@@ -26,6 +26,7 @@ namespace Rtx
     class FaultReport;
     class Graveyard;
     class Instance;
+    class ValidationLog;
     class MemoryAllocator;
     class NotFiniteCensus;
     class Timeline;
@@ -148,6 +149,10 @@ namespace Rtx
         /// the instance outlives the device, as `Instance` says.
         VkInstance getInstanceHandle() const { return mInstance; }
 
+        /// The instance's validation log, null where the layers are off: what a worker that calls on the device's
+        /// behalf files its errors in (`AdoptedThread`).
+        ValidationLog* getValidationLog() const { return mValidationLog; }
+
         /// Where every buffer's and every image's memory comes from: one suballocator for the
         /// device, where an allocation per resource is a kernel call apiece for a cell's several
         /// hundred images. Not const although the device is, because every resource that asks holds
@@ -264,6 +269,7 @@ namespace Rtx
         /// The instance the device was made on, held as a handle because NGX asks for one and the
         /// device does not otherwise keep it (`Instance` outlives every device made on it).
         VkInstance mInstance = VK_NULL_HANDLE;
+        ValidationLog* mValidationLog = nullptr;
 
         /// Before every member made on it — `Root` says why.
         Root<VkDevice, vkDestroyDevice> mHandle;

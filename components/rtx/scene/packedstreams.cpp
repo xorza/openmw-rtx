@@ -92,12 +92,17 @@ namespace Rtx
 
     Shaders::GpuVertexColour packColour(const osg::Vec3f& colour)
     {
-        const std::uint16_t red = toHalf(colour.x());
-        const std::uint16_t green = toHalf(colour.y());
-        const std::uint16_t blue = toHalf(colour.z());
         const auto infinite = [](const std::uint16_t half) { return (half & 0x7c00u) == 0x7c00u; };
+        std::uint16_t red = toHalf(colour.x());
+        std::uint16_t green = toHalf(colour.y());
+        std::uint16_t blue = toHalf(colour.z());
         if (infinite(red) || infinite(green) || infinite(blue))
-            return packColour(osg::Vec3f(1.0f, 1.0f, 1.0f));
+        {
+            const std::uint16_t one = toHalf(1.0f);
+            red = one;
+            green = one;
+            blue = one;
+        }
 
         return Shaders::GpuVertexColour{
             .mRedGreen = std::uint32_t{ red } | (std::uint32_t{ green } << 16),

@@ -52,6 +52,7 @@ namespace Rtx
         const PipelineCacheSpec& cache, DeviceReport report)
         : mPhysicalDevice(std::move(physicalDevice))
         , mInstance(instance.getHandle())
+        , mValidationLog(instance.getValidationLog())
         , mWatchesSubmits(instance.watchesSubmits())
         , mShaders(shaders)
         , mReport(std::move(report))

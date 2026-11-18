@@ -445,7 +445,8 @@ namespace Rtx
         // Each row of the level under `at` boxed once the rows of `at` its box reads stand, below `to`,
         // and each boxed row in turn boxing the level under it: the row `y` reads `2 y` to `2 y + 2`, so a
         // ring holds the two rows before the finest's band of four, and a coarser level's rows come one
-        // at a time. At the end of a level every row under it is boxed, its last rows held to its edge.
+        // at a time. At the end of a level every row under it is boxed, its last rows held to its edge. A call goes
+        // one level down and the last level stops it, so it nests no deeper than the chain's levels.
         const auto boxUnder = [&](const auto& self, std::size_t at, std::uint32_t to) -> void {
             if (at + 1 >= mLevels.size())
                 return;

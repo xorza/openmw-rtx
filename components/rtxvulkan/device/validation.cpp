@@ -2,9 +2,11 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iterator>
 #include <span>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 
 #include <vulkan/vk_platform.h>
@@ -52,18 +54,14 @@ namespace Rtx
             // The spec reserves a true return for the layers' own use; applications must return false.
             return VK_FALSE;
         }
-
-        /// Which thread a message raised on this one is filed under: this thread by default, and
-        /// `AdoptedThread` is what moves it. A thread-local rather than a member of the log,
-        /// because the callback reaches the log through `pUserData` and knows nothing else, and
-        /// because one process may hold more than one instance.
-        thread_local std::thread::id sFiledUnder = std::this_thread::get_id();
     }
 
     void ValidationLog::recordError(std::string&& text)
     {
         const std::scoped_lock lock(mMutex);
-        mErrors.push_back(ValidationMessage{ std::move(text), sFiledUnder });
+        const std::thread::id self = std::this_thread::get_id();
+        const auto adopted = std::ranges::find(mAdopted.rbegin(), mAdopted.rend(), self, &Adoption::mThread);
+        mErrors.push_back(ValidationMessage{ std::move(text), adopted != mAdopted.rend() ? adopted->mOwner : self });
     }
 
     void ValidationLog::disown(std::string prefix)
@@ -106,15 +104,32 @@ namespace Rtx
         mErrors.erase(taken, mErrors.end());
     }
 
-    AdoptedThread::AdoptedThread(std::thread::id owner)
-        : mPrevious(sFiledUnder)
+    void ValidationLog::adopt(const std::thread::id owner)
     {
-        sFiledUnder = owner;
+        const std::scoped_lock lock(mMutex);
+        mAdopted.push_back(Adoption{ .mThread = std::this_thread::get_id(), .mOwner = owner });
+    }
+
+    void ValidationLog::release()
+    {
+        const std::scoped_lock lock(mMutex);
+        const auto adopted
+            = std::ranges::find(mAdopted.rbegin(), mAdopted.rend(), std::this_thread::get_id(), &Adoption::mThread);
+        assert(adopted != mAdopted.rend() && "an adoption released that this thread never made");
+        mAdopted.erase(std::next(adopted).base());
+    }
+
+    AdoptedThread::AdoptedThread(ValidationLog* const log, const std::thread::id owner)
+        : mLog(log)
+    {
+        if (mLog != nullptr)
+            mLog->adopt(owner);
     }
 
     AdoptedThread::~AdoptedThread()
     {
-        sFiledUnder = mPrevious;
+        if (mLog != nullptr)
+            mLog->release();
     }
 
     VkDebugUtilsMessengerCreateInfoEXT makeMessengerCreateInfo(ValidationLog& log)

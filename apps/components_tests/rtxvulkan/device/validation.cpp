@@ -1,4 +1,7 @@
 #include <array>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -17,6 +20,38 @@ namespace Rtx
                 .objectType = type,
                 .objectHandle = 1,
                 .pObjectName = name };
+        }
+
+        /// **An error raised on a worker is filed under the thread that adopted it** (`AdoptedThread`), and once the
+        /// adoption ends, under the worker again: the caller takes the adopted one, the worker the other. An adoption
+        /// inside another files under the inner owner, and its end gives the outer one back. A null log adopts
+        /// nothing.
+        TEST(RtxValidationLogTest, aWorkersErrorIsFiledUnderTheThreadThatAdoptedIt)
+        {
+            ValidationLog log(false);
+            const std::thread::id caller = std::this_thread::get_id();
+            std::vector<std::string> workers;
+            std::thread worker([&] {
+                {
+                    const AdoptedThread adopted(&log, caller);
+                    log.recordError("adopted");
+                    {
+                        const AdoptedThread inner(&log, std::this_thread::get_id());
+                        log.recordError("inner");
+                    }
+                    log.recordError("outer again");
+                }
+                log.recordError("its own");
+                const AdoptedThread none(nullptr, caller);
+                log.recordError("unlogged adoption");
+                log.takeErrorsOnThisThread(workers);
+            });
+            worker.join();
+
+            std::vector<std::string> callers;
+            log.takeErrorsOnThisThread(callers);
+            EXPECT_EQ(callers, (std::vector<std::string>{ "adopted", "outer again" }));
+            EXPECT_EQ(workers, (std::vector<std::string>{ "inner", "its own", "unlogged adoption" }));
         }
 
         /// **A hazard is a runtime's own only where every image and buffer it names is the runtime's**: NGX's resource

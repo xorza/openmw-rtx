@@ -321,7 +321,8 @@ namespace Rtx
             [this, caller, drawing = std::move(drawing)](const std::stop_token& stop, Job& job) {
                 mCode.emplace(mDevice, sTraceModules);
                 runInParallel(
-                    "compile hand", drawing.size(), Hands::Every, stop, [caller] { return AdoptedThread(caller); },
+                    "compile hand", drawing.size(), Hands::Every, stop,
+                    [caller, log = mDevice.getValidationLog()] { return AdoptedThread(log, caller); },
                     [&](const std::size_t at) {
                         compile(drawing[at]);
                         job.advance();
@@ -388,7 +389,8 @@ namespace Rtx
 
                 // Each turn claims one kernel and every kernel is one turn's, so no turn finds none.
                 runInParallel(
-                    "tuple hand", queue.getItemCount(), Hands::Half, stop, [caller] { return AdoptedThread(caller); },
+                    "tuple hand", queue.getItemCount(), Hands::Half, stop,
+                    [caller, log = mDevice.getValidationLog()] { return AdoptedThread(log, caller); },
                     [&](std::size_t) {
                         const Wanted& wanted = kernels[queue.claim(mWanted.load(std::memory_order_relaxed))];
                         compile(wanted);
