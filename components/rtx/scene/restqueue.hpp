@@ -113,6 +113,14 @@ namespace Rtx
             mBytes -= bytes;
         }
 
+        /// A row that rests now stands `after` bytes where it stood `before`, moved down on the device in its rest; its
+        /// place in the order is its own still.
+        void restand(const std::uint64_t before, const std::uint64_t after)
+        {
+            assert(mBytes >= before && "a row restood past the bytes that rest");
+            mBytes = mBytes - before + after;
+        }
+
         /// Files the batch at the end of the list, by slot, each stamped `clock`.
         template <class PlaceOf>
         void settle(const std::uint64_t clock, PlaceOf&& placeOf)

@@ -107,6 +107,11 @@ namespace Rtx
         /// derived from the budget").
         static constexpr std::uint64_t sOthersShare = 10;
 
+        /// **The most of what rests a hand-over counts on moving down rather than evicting**: what the device copies
+        /// of what stands at most in one (`TextureArray::sMoveCopyMost`, 64 MiB), which the core states again since it
+        /// names no backend.
+        static constexpr std::uint64_t sRestShrinkMost = std::uint64_t{ 64 } << 20;
+
         /// **What everything that rests may stand**: what `room`'s budget leaves of what is in use, less other
         /// programs' share, where in use is what the process holds less the `resting` bytes in it, so that what rests
         /// does not shrink its own limit. Nought where use fills the budget.

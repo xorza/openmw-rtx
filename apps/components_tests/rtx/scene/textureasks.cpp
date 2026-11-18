@@ -178,6 +178,14 @@ namespace Rtx
             EXPECT_TRUE(textures.getRows()[far].mRest.mResting);
             EXPECT_EQ(textures.measureAboveWant(),
                 (TexturesAboveWant{ .mStood = 5592404, .mRestingStood = 5592404, .mRestingAbove = 4194304 }));
+            EXPECT_EQ(textures.getRestingAboveWant(), 4194304u) << "kept as it rests";
+
+            // **Moved down to its last want in its rest, it rests smaller and above nothing**: level 0's 4194304
+            // bytes gone, 1398100 left from level 1, which the rest's own bytes follow.
+            textures.restandResting(far, 5592404 - 4194304, 1);
+            EXPECT_EQ(textures.getRestingAboveWant(), 0u);
+            EXPECT_EQ(textures.getResting().getBytes(), 1398100u);
+            EXPECT_EQ(textures.measureAboveWant(), (TexturesAboveWant{ .mStood = 5592404, .mRestingStood = 1398100 }));
         }
 
         /// **A want finer than what stood is handed over again; a coarser one is not.** A texture stood whole from

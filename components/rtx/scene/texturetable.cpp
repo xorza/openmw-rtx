@@ -291,6 +291,25 @@ namespace Rtx
         row.mStoodFrom = from;
     }
 
+    void TextureTable::restandResting(const Index slot, const std::uint64_t bytes, const std::uint8_t from)
+    {
+        TextureRow& row = rowAt(slot);
+        assert(row.mRest.mResting && "a slot restood in a rest it does not take");
+        assert(bytes <= row.mStoodBytes && "a rest moved up");
+        mResting.restand(row.mStoodBytes, bytes);
+
+        // What it holds above its last want now: what it did, less the levels the move let go, which all stood above
+        // the want, the move stopping at it; nought where it came down to the want.
+        const std::uint64_t freed = row.mStoodBytes - bytes;
+        assert(mRestingAbove >= row.mRestAbove && "a rest restood past what rests above its want");
+        mRestingAbove -= row.mRestAbove;
+        row.mRestAbove = from >= row.mLastWant || row.mRestAbove <= freed ? 0 : row.mRestAbove - freed;
+        mRestingAbove += row.mRestAbove;
+
+        row.mStoodBytes = bytes;
+        row.mStoodFrom = from;
+    }
+
     void TextureTable::arriveFiner()
     {
         for (const Index slot : mFiner.getSlots())
@@ -332,6 +351,7 @@ namespace Rtx
 
         // What it would hold above the level its last readers asked, measured while its image is still here.
         row.mRestAbove = bytesAbove(row, row.mLastWant);
+        mRestingAbove += row.mRestAbove;
 
         // The census counts what the host keeps, and the host keeps nothing of a slot that rests.
         if (row.mImage != nullptr)
@@ -346,6 +366,9 @@ namespace Rtx
     {
         TextureRow& row = rowAt(slot);
         mResting.wake(slot, row.mStoodBytes, placeOf());
+        assert(mRestingAbove >= row.mRestAbove && "a wake past what rests above its want");
+        mRestingAbove -= row.mRestAbove;
+        row.mRestAbove = 0;
 
         // The taker's images, which a rebuild describes the slot from; the device stands them already.
         row.mImage = image;

@@ -226,6 +226,16 @@ namespace Rtx
         /// stands in; one that rests against the level its last readers asked. A walk, for a report and not a frame.
         TexturesAboveWant measureAboveWant() const;
 
+        /// Says what the device moved `slot`, which rests, down to in its rest: `bytes` from level `from`, the level
+        /// its last readers asked or finer (`DeviceAnswer::mMoved`). A rest shrunk to its last want, kept rather than
+        /// evicted.
+        void restandResting(Index slot, std::uint64_t bytes, std::uint8_t from);
+
+        /// What the textures that rest stand above the level their last readers asked, together: what moving them down
+        /// gives back before any is evicted (`SceneUploader::evictForRoom`). A sum over what rests, kept as rows rest,
+        /// wake and are moved.
+        std::uint64_t getRestingAboveWant() const { return mRestingAbove; }
+
         /// What the device made of `slot`'s image gives back of the pools textures stand in, `bytes`, the device's
         /// answer (`DeviceAnswer::mTextureFits`): the hole its eviction leaves for a texture the device waits on.
         void fit(Index slot, std::uint64_t bytes);
@@ -367,6 +377,9 @@ namespace Rtx
         /// between two is filed at.
         RestQueue mResting;
         std::uint64_t mClock = 0;
+
+        /// What the rows that rest stand above their last want, their `mRestAbove` summed (`getRestingAboveWant`).
+        std::uint64_t mRestingAbove = 0;
 
         std::uint64_t mRevision = 0;
         std::uint32_t mRefused = 0;

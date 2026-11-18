@@ -843,9 +843,11 @@ namespace Rtx
 
     std::uint32_t TextureArray::readersWant(const TextureTable& table, const std::uint32_t slot)
     {
-        if (slot >= table.getRows().size() || !table.isLive(slot) || table.getRows()[slot].mRest.mResting)
+        if (slot >= table.getRows().size() || !table.isLive(slot))
             return 0;
-        return table.getWant(slot);
+        // One that rests, by what its last readers asked: moved down to it, it rests smaller rather than going.
+        const TextureRow& row = table.getRows()[slot];
+        return row.mRest.mResting ? row.mLastWant : table.getWant(slot);
     }
 
     VkDeviceSize TextureArray::makeRoom(

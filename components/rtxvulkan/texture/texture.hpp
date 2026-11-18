@@ -304,9 +304,8 @@ namespace Rtx
             VkDeviceSize mCopyMost = sMoveCopyMost;
         };
 
-        /// The level `slot`'s readers want it from (`TextureTable::getWant`): nought for one that rests, whose move
-        /// stands it short and evicts it (`SceneUploader::settleMovedResting`), and for a slot the table no longer
-        /// holds.
+        /// The level `slot`'s readers want it from (`TextureTable::getWant`), and for one that rests the level its last
+        /// readers asked (`TextureRow::mLastWant`); nought for a slot the table no longer holds.
         static std::uint32_t readersWant(const TextureTable& table, std::uint32_t slot);
 
         /// What a bake or a composite stands whole, its source as its slot stands now: what one refused for room waits

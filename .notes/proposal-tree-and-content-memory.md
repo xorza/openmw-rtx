@@ -639,7 +639,12 @@ it.
   handed over whole, "whole" meaning from its want). `makeRoom` moves down what stands above its want first, by item
   13's copy.
 
-**Progress**: steps 1–3 and 5 are written and tested (`66aa444291`, `02ffdefad9` and the commit after). Step 4 and the
+**Progress, 2026-11-18**: step 4 is written as well. The handheld's PBR tour at `43cf84a1b0` read 28.2% of what
+rested above its last want (486 of 1,722 MiB), past its tenth. The device peak barely moved (5,780.6 MiB against
+5,786.6), since the rest fills what the budget leaves. Step 4 keeps more in the same rest: a texture's last want
+stays on its row (`mLastWant`), the device moves what rests above it down first (`makeRoom` by `readersWant`), the
+scene keeps it resting smaller (`TextureTable::restandResting`), and the uploader evicts only what a hand-over's
+move cannot give back (`SceneUploader::sRestShrinkMost`). Steps 1–3 and 5 were written and tested earlier (`66aa444291`, `02ffdefad9` and the commit after). Step 4 and the
 tours of step 6 remain. The meter at its peak: the handheld's PBR 23.2%, its Repack 17.0% (that tour was cut at stop
 135 of 155 by its lost SSH session, no crash recorded), the desk's PBR 23.2%. All clear a tenth. Step 5's `shot
 --against` moved none of 74 pictures, and `repeat --pairs=10` agreed.

@@ -106,7 +106,11 @@ namespace Rtx
         // **Each against its own room**: the textures against the pools', the structures an arrival may build against
         // the storages'; what rests gives back to either.
         const std::uint64_t structures = mArrivals.largest().mStructures;
-        const std::uint64_t textureShort = room.mFree < arriving ? arriving - room.mFree : 0;
+        // **What rests shrinks before it goes**: the device moves down what rests above its last want first
+        // (`TextureArray::makeRoom`), a hand-over's copy at most, so only what that leaves short is evicted.
+        const std::uint64_t shrinkable = std::min(scene.textures().getRestingAboveWant(), sRestShrinkMost);
+        const std::uint64_t lacking = room.mFree < arriving ? arriving - room.mFree : 0;
+        const std::uint64_t textureShort = lacking > shrinkable ? lacking - shrinkable : 0;
         const std::uint64_t structureShort = room.mStructureFree < structures ? structures - room.mStructureFree : 0;
         scene.evictResting(textureShort + structureShort);
     }
@@ -246,11 +250,18 @@ namespace Rtx
             scene.fitMesh(fit.mSlot, fit.mBytes);
 
         // **What moved down and stands no coarser than its readers want stands as it is now**: nothing is handed over
-        // again, and the slot says what the device holds of it. One let go of since, or laid to rest, says nothing.
+        // again, and the slot says what the device holds of it. **One that rests is kept smaller**, moved down to its
+        // last readers' want, resting on what stands now. One let go of since says nothing.
         TextureTable& textures = scene.textures();
         for (const MovedTexture& moved : mAnswer.mMoved)
-            if (textures.isLive(moved.mSlot) && !textures.getRows()[moved.mSlot].mRest.mResting)
+        {
+            if (!textures.isLive(moved.mSlot))
+                continue;
+            if (textures.getRows()[moved.mSlot].mRest.mResting)
+                textures.restandResting(moved.mSlot, moved.mStoodBytes, moved.mFrom);
+            else
                 textures.stand(moved.mSlot, moved.mStoodBytes, textures.getRows()[moved.mSlot].mStoodMade, moved.mFrom);
+        }
         return mAnswer.mRefused;
     }
 
