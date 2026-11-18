@@ -340,6 +340,9 @@ namespace RtxTool
                     .mGroundComposites = 62,
                     .mGroundGloss = 63 },
                 .mReducedTextureCount = 64 };
+            place.mDriver = Platform::Process::DriverMemory{
+                .mTotalVram = 71, .mResidentVram = 72, .mTotalGtt = 73, .mResidentGtt = 74, .mResidentCpu = 75
+            };
             place.mMemory.mHeapCount = 2;
             place.mMemory.mHeaps[0] = Rtx::HeapUse{
                 .mSize = 1, .mBudget = 2, .mHeld = 3, .mReserved = 4, .mLive = 5, .mBlocks = 6, .mDeviceLocal = true
@@ -431,6 +434,11 @@ namespace RtxTool
                   R"("verticesStanding": 60}, {"placements": 0,)";
             EXPECT_NE(json.find(scene), std::string::npos) << json;
             EXPECT_NE(json.find(memory), std::string::npos) << json;
+            EXPECT_NE(
+                json.find(R"(, "driver": {"totalVram": 71, "residentVram": 72, "totalGtt": 73, "residentGtt": 74, )"
+                          R"("residentCpu": 75}, "content": )"),
+                std::string::npos)
+                << json;
             EXPECT_NE(json.find(content), std::string::npos) << json;
             EXPECT_NE(json.find(R"(, "texelReads": {"fact": 46, "factBytes": 50, "file": 47, "fileBytes": 51, )"
                                 R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"

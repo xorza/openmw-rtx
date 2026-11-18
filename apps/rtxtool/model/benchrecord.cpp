@@ -171,6 +171,17 @@ namespace RtxTool
                 uses.mTextures, uses.mTextureRoom);
         }
 
+        /// What the graphics driver held, by region, or null where the system states none.
+        std::string asJson(const std::optional<Platform::Process::DriverMemory>& driver)
+        {
+            if (!driver.has_value())
+                return "null";
+            return std::format(R"({{"totalVram": {}, "residentVram": {}, "totalGtt": {}, "residentGtt": {}, )"
+                               R"("residentCpu": {}}})",
+                driver->mTotalVram, driver->mResidentVram, driver->mTotalGtt, driver->mResidentGtt,
+                driver->mResidentCpu);
+        }
+
         /// What the mirror's content holds, every count the report's host line reads.
         std::string asJson(const Rtx::ContentMemory& content)
         {
@@ -544,6 +555,13 @@ namespace RtxTool
         // content came to, this what the card gave up for it, which a card with a small host-visible heap runs out
         // of first.
         out += Rtx::describeMemory(place.mMemory);
+        if (place.mDriver.has_value())
+            out += std::format(
+                "  the driver: vram {:.1f} of {:.1f} MiB standing, gtt {:.1f} of {:.1f}, moved out of the device's "
+                "reach {:.1f}\n",
+                Rtx::mebibytes(place.mDriver->mResidentVram), Rtx::mebibytes(place.mDriver->mTotalVram),
+                Rtx::mebibytes(place.mDriver->mResidentGtt), Rtx::mebibytes(place.mDriver->mTotalGtt),
+                Rtx::mebibytes(place.mDriver->mResidentCpu));
 
         out += describeHostHeld(place.mContent);
         out += describeRingStanding(place.mContent.mRing);
@@ -666,7 +684,8 @@ namespace RtxTool
             file << std::format(R"(    {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
                 asJson(place.mCell), jsonNumber(place.mHour, 4), asJson(place.mWeather))
                  << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
-                 << R"(, "content": )" << asJson(place.mContent) << R"(, "texelReads": )" << asJson(place.mTexelReads)
+                 << R"(, "driver": )" << asJson(place.mDriver) << R"(, "content": )" << asJson(place.mContent)
+                 << R"(, "texelReads": )" << asJson(place.mTexelReads)
                  << std::format(R"(, "game": {{"loadedCells": {}, "preloadedCells": {}, "starvedLooks": {}}})",
                         place.mGame.mLoadedCells, place.mGame.mPreloadedCells, place.mGame.mStarvedLooks)
                  << std::format(R"(, "frames": {}, "wallSeconds": {}, "hitPercent": {}, )", place.mFrames,

@@ -258,6 +258,11 @@ namespace Platform::Process
         return AnonymousMemory{ .mResident = resident, .mSwapped = committed - std::min(resident, committed) };
     }
 
+    std::optional<DriverMemory> driverMemory()
+    {
+        return std::nullopt;
+    }
+
     std::optional<PrivateMemoryHeld> privateMemoryHeld()
     {
         // The heaps' own allocations, by the base `VirtualQuery` names each under: a heap's regions, and each block

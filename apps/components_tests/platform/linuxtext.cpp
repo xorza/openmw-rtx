@@ -75,6 +75,31 @@ namespace
         EXPECT_EQ(Platform::LinuxText::availableMemory("MemAvailable: 2 MB\n"), std::nullopt);
     }
 
+    /// **A DRM client's memory is its `drm-total-` and `drm-resident-` sizes, in bytes**, as amdgpu writes them: a
+    /// size in KiB is 1024 bytes a unit, one in MiB 1048576, one with no unit bytes; a region the file names not is
+    /// nought; a file with no `drm-driver` is no client, and a size that is no number, or in a unit it does not name,
+    /// is nothing.
+    TEST(RtxPlatformLinuxTextTest, aDrmClientsMemoryIsItsTotalAndResidentSizesInBytes)
+    {
+        constexpr std::string_view handheld
+            = "pos:\t0\nflags:\t02100002\ndrm-driver:\tamdgpu\ndrm-client-id:\t224\n"
+              "drm-total-cpu:\t0\ndrm-resident-cpu:\t3 KiB\n"
+              "drm-total-gtt:\t12304 KiB\ndrm-resident-gtt:\t26584 KiB\n"
+              "drm-total-vram:\t2 MiB\ndrm-resident-vram:\t14372 KiB\n"
+              "drm-memory-vram:\t14372 KiB\ndrm-memory-gtt: \t26584 KiB\n";
+        EXPECT_EQ(Platform::LinuxText::driverMemory(handheld),
+            (Platform::Process::DriverMemory{ .mTotalVram = 2 * 1048576,
+                .mResidentVram = 14372 * 1024,
+                .mTotalGtt = 12304 * 1024,
+                .mResidentGtt = 26584 * 1024,
+                .mResidentCpu = 3 * 1024 }));
+        EXPECT_EQ(Platform::LinuxText::driverMemory("drm-driver:\tamdgpu\ndrm-total-gtt:\t5\n"),
+            (Platform::Process::DriverMemory{ .mTotalGtt = 5 }));
+        EXPECT_EQ(Platform::LinuxText::driverMemory("pos:\t0\nflags:\t02\n"), std::nullopt) << "a socket's";
+        EXPECT_EQ(Platform::LinuxText::driverMemory("drm-driver:\tamdgpu\ndrm-total-gtt:\tmany\n"), std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::driverMemory("drm-driver:\tamdgpu\ndrm-total-gtt:\t5 GiB\n"), std::nullopt);
+    }
+
     /// **What the system leaves a process is `MemAvailable` less its `VmSwap`**: 8 kB available with 3 kB of the
     /// process in swap is 5 kB, 5120 bytes; with more in swap than is available, none; with no swap line, all 8;
     /// with no `MemAvailable`, nothing. The kernel counts what it freed by swapping the process out as available,

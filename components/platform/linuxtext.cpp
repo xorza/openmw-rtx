@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <charconv>
 #include <cstddef>
+#include <cstdint>
 #include <system_error>
+#include <utility>
 
 namespace Platform::LinuxText
 {
@@ -120,6 +122,48 @@ namespace Platform::LinuxText
             return value;
         }
         return std::nullopt;
+    }
+
+    std::optional<Process::DriverMemory> driverMemory(std::string_view fdinfo)
+    {
+        bool client = false;
+        Process::DriverMemory held;
+        const std::pair<std::string_view, std::uint64_t Process::DriverMemory::*> fields[] = {
+            { "drm-total-vram:", &Process::DriverMemory::mTotalVram },
+            { "drm-resident-vram:", &Process::DriverMemory::mResidentVram },
+            { "drm-total-gtt:", &Process::DriverMemory::mTotalGtt },
+            { "drm-resident-gtt:", &Process::DriverMemory::mResidentGtt },
+            { "drm-resident-cpu:", &Process::DriverMemory::mResidentCpu },
+        };
+        for (std::string_view rest = fdinfo; !rest.empty();)
+        {
+            const std::size_t end = rest.find('\n');
+            std::string_view line = rest.substr(0, end);
+            rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+            client = client || line.starts_with("drm-driver:");
+            for (const auto& [name, field] : fields)
+            {
+                if (!line.starts_with(name))
+                    continue;
+                line.remove_prefix(name.size());
+                line.remove_prefix(std::min(line.find_first_not_of(" \t"), line.size()));
+                std::uint64_t size = 0;
+                const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), size);
+                const std::string_view unit(read.ptr, line.data() + line.size());
+                if (read.ec != std::errc{})
+                    return std::nullopt;
+                if (unit == " KiB")
+                    size *= 1024;
+                else if (unit == " MiB")
+                    size *= 1024 * 1024;
+                else if (!unit.empty())
+                    return std::nullopt;
+                held.*field = size;
+            }
+        }
+        if (!client)
+            return std::nullopt;
+        return held;
     }
 
     std::optional<std::uint64_t> availableMemory(std::string_view meminfo)

@@ -157,6 +157,33 @@ namespace Platform::Process
         return std::nullopt;
     }
 
+    std::optional<DriverMemory> driverMemory()
+    {
+        // Every open file's information, the DRM clients among them: one for the device, and any a library opened.
+        std::optional<DriverMemory> summed;
+        std::error_code error;
+        std::array<char, 8192> buffer{};
+        for (const std::filesystem::directory_entry& entry :
+            std::filesystem::directory_iterator("/proc/self/fdinfo", error))
+        {
+            const std::optional<std::string_view> text = KernelFile::read(entry.path().c_str(), buffer);
+            if (!text.has_value())
+                continue;
+            const std::optional<DriverMemory> client = LinuxText::driverMemory(*text);
+            if (!client.has_value())
+                continue;
+            if (!summed.has_value())
+                summed.emplace();
+            DriverMemory& into = *summed;
+            into.mTotalVram += client->mTotalVram;
+            into.mResidentVram += client->mResidentVram;
+            into.mTotalGtt += client->mTotalGtt;
+            into.mResidentGtt += client->mResidentGtt;
+            into.mResidentCpu += client->mResidentCpu;
+        }
+        return summed;
+    }
+
     std::size_t keepToPerformanceCores()
     {
         // The kernel lists each core type apart only on a hybrid part, which is the one case there is

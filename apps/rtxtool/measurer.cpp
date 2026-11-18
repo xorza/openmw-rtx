@@ -36,6 +36,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/process.hpp>
 #include <components/resource/cachebudget.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/frame/frameextents.hpp>
@@ -460,6 +461,7 @@ namespace RtxTool
         place.mTravelled = travelled;
         place.mScene = renderer.getSceneStats();
         place.mMemory = renderer.getMemoryReport();
+        place.mDriver = Platform::Process::driverMemory();
         place.mContent = context.mMirror.getContentMemory();
         place.mTexelReads = report.mWalked.mSession.getTexelReads();
         place.mGame = readGameHeld();

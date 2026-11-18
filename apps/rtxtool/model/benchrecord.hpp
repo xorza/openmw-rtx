@@ -16,6 +16,7 @@
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/instruments/threadcounters.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -201,6 +202,10 @@ namespace RtxTool
         /// What the device gave up for that scene, per heap. A place and not a run: allocators reserve a
         /// high-water mark, and a route arrives at cells the last one did not.
         Rtx::MemoryReport mMemory;
+
+        /// What the graphics driver held for the process at the same moment, by region, where the system says
+        /// (`Platform::Process::driverMemory`): what of the device's memory the driver moved out of its reach.
+        std::optional<Platform::Process::DriverMemory> mDriver;
 
         /// What the content held on the host at the same moment, for the same reason.
         Rtx::ContentMemory mContent;

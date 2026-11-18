@@ -179,4 +179,23 @@ namespace Platform::Process
     /// Linux, where `anonymousMemory` and the heap's own report (`Platform::heapHeld`) already part the two, and where
     /// the system does not say.
     std::optional<PrivateMemoryHeld> privateMemoryHeld();
+
+    /// **What the graphics driver holds for this process**, by the regions the kernel's DRM accounting names for it
+    /// (`drm-usage-stats`, amdgpu's regions): what its buffers come to in the device's own memory (`vram`) and in the
+    /// system's memory the device maps (`gtt`), what of each stands there now, and what the driver moved out to the
+    /// system's memory beyond the device's reach (`cpu`), where a buffer waits to be moved back before the device can
+    /// read it. Read once a stop, every client of the process summed. Nothing on a system or driver that states none.
+    struct DriverMemory
+    {
+        std::uint64_t mTotalVram = 0;
+        std::uint64_t mResidentVram = 0;
+        std::uint64_t mTotalGtt = 0;
+        std::uint64_t mResidentGtt = 0;
+        std::uint64_t mResidentCpu = 0;
+
+        bool operator==(const DriverMemory&) const = default;
+    };
+
+    /// `DriverMemory` of this process, now.
+    std::optional<DriverMemory> driverMemory();
 }
