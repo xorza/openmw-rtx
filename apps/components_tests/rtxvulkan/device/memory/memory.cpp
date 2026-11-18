@@ -37,9 +37,11 @@ namespace Rtx
 {
     namespace
     {
-        /// **Each test starts with the graveyard empty**: a range an earlier test let go stays counted
-        /// until a collection gives it back, and a test that reads what a use holds before and after
-        /// its own collection would count the earlier test's range in the first figure alone.
+        /// **Each test starts with the graveyard empty and the driver's figures fresh**: a range an earlier test let
+        /// go stays counted until a collection gives it back, and the library's usage is its own tally since the
+        /// driver last said, which the driver's next word corrects by what an earlier test left it. A test that reads
+        /// the heap's held memory before and after a take counted that correction when the take fetched the
+        /// driver's figures (the GPU suite in seed 44490's order).
         struct RtxMemoryTest : Testing::DeviceTest
         {
             void SetUp() override
@@ -47,6 +49,7 @@ namespace Rtx
                 DeviceTest::SetUp();
                 getDevice().waitIdle();
                 getDevice().collectIdle();
+                getDevice().getMemory().refreshBudget(getDevice().getTimeline().getNext());
             }
         };
 

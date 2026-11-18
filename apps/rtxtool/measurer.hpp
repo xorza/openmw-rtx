@@ -202,6 +202,11 @@ namespace RtxTool
         SceneDigester mDigester;
 
         Progress mProgress;
+
+        /// How many textures the scene had refused when the last stop was written: what the next stop's
+        /// `textures-readable` counts its own refusals from (`StopFacts::mTexturesRefusedBefore`).
+        std::uint32_t mTexturesRefused = 0;
+
         std::string mFailure;
         std::optional<ClosedSpan> mMeasuredSpan;
     };

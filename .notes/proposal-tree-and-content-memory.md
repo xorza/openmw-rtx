@@ -589,39 +589,6 @@ from its callers.
 
 Its tours are flown with items 20 and 23–25's.
 
-### 23. Fix: a bake waits for room as a file does, and a refusal is counted once
-
-**Closes**: "a texture the device has no room for draws the stand-in for good", and the cascade in the Repack entry's
-`textures-readable`.
-
-- **What was found**: the stand-in for good is a sprite's light bake or a ground composite (`whenRoomless` waits on
-  files alone), 0.4 MiB, once a PBR tour. `textures-readable` reads the scene's refusals since the run began
-  (`checks.cpp`), so one refusal fails every stop after it: the PBR tour's 91 and the Repack's 112.
-- **A bake or composite refused for room is filed as waiting**, as a file is (`DeviceAnswer::mShort`, `RoomWant`). It
-  is made again on the device from its source when the room returns, which needs nothing from the host.
-- **The check counts the refusals new at its stop**: the refusal count when the stop began, held beside the stop.
-- **Tests**: a bake refused for room stands once room is given back; the check fails at the stop of a refusal and not
-  at the next.
-
-### 24. Fix: the GPU memory tests start drained
-
-**Closes**: "`RtxMemoryTest.whatEachUseHoldsIsItsRangesExactly` fails in the GPU suite's random order". This
-reproduces at `43cf84a1b0` with seed 44490. The test measures the heap's held memory across a bind, while the previous
-test's buried memory is still in the graveyard. A take collects that memory, so held memory falls.
-
-- **The fixture's `SetUp` drains the device** (`waitIdle`, `collectIdle`) and asserts nothing is buried, so each test
-  states its own start: GoogleTest's rule that a test depends on no other.
-- **Test**: the whole GPU suite under `--gtest_shuffle` with seed 44490, and with three others.
-
-### 25. Fix: the build image fetches autoconf from GNU's mirrors
-
-**Closes**: "`env/install_almalinux_deps.sh` fetches autoconf from ftp.gnu.org alone".
-
-- **GNU's redirector first** (`https://ftpmirror.gnu.org/autoconf/`, [GNU, "Mirrors"](https://www.gnu.org/prep/ftp.html)),
-  then `ftp.gnu.org`. The tarball's SHA-512, which the script already checks, makes any mirror as good as the origin.
-  `fetch` takes the list and tries each in order, its retries kept.
-- **Check**: the release-base image builds on Docker's default network, and CI's Linux jobs pass.
-
 ### 16. Levels by distance
 
 The user's idea (2026-11-17): distant land never loads its finest levels, the further the smaller, and only the
@@ -824,6 +791,14 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 
 ## Changed
 
+- **23. A bake waits for room as a file does**: as planned. A refused bake or composite is named short with what it
+  stands whole (`TextureArray::bakeBytesOf`), and the uploader has its slot arrive again once the room holds it,
+  reading nothing. `textures-readable` counts the texture refusals since the stop before it (`StopFacts::
+  mTexturesRefusedBefore`). Its issue closes once the handheld's PBR tour draws no stand-in for good.
+- **24. The GPU memory tests start drained**: the fixture already drained the graveyard. The fault was the library's
+  usage figure, its own tally since the driver last spoke, corrected by the driver's next word at the take. The
+  fixture now has the library fetch the driver's figures in `SetUp`. Seeds 44490, 1, 7 and 1234 pass.
+
 - **8, its tail**: the longest frames are explained in `research/2026-11-17-longest-frames.md`. Their upstream cause
   became item 20 on the user's yes, and the renderer's became item 19. Whether a tour runs unsettled, as the game walks,
   moved to `todo.md` (the user, 2026-11-18): changing it mid-plan would fly the baseline twice over.
@@ -934,6 +909,11 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **25. The build image fetches autoconf from GNU's mirrors**: `env/install_almalinux_deps.sh` is an input of the
+  dependency set's key (`tools/omw/deps.py`, `SET_INPUTS`). Changing it means building and publishing a new set and
+  repinning `pins.py`, hours of machine time for a fetch that failed on two runs of one day. It is made with the next
+  change to the set: `fetch` takes a list of URLs, GNU's redirector `ftpmirror.gnu.org` first. The issue stays.
 
 - **27. The cell reader's lent models held to their content** (the user, 2026-11-18): about 30 MiB on the handheld's
   PBR tour (51.8 MiB of room for 22.4 MiB), against a 7 GB heap. The measure and the fix cost more than they return.

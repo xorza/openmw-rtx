@@ -442,8 +442,10 @@ namespace RtxTool
                 .mHold = mProgress.mHold,
                 .mHoldAskedMs = mRequest.mSetup.mRun.mProfile.mStressOverlapMs,
                 .mNotFinite = mProgress.mNotFinite,
+                .mTexturesRefusedBefore = mTexturesRefused,
             },
             mRecord, mRecord.getShelf());
+        mTexturesRefused = context.mMirror.getScene().refusals().count(Rtx::Refused::Texture);
 
         // The hour and the sky of one moment, the stop's last frame, so a stop the sky turned over is not reported
         // at its closing hour under its opening sky.

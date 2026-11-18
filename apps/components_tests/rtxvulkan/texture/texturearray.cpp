@@ -648,6 +648,47 @@ namespace Rtx
             EXPECT_EQ(bySource.mBytes, 2u * 16384u);
         }
 
+        /// **A composite the device has no room for waits as a file does** (`TextureArray::stand`): where room is
+        /// coming, it is named short with nothing standing and the bytes it stands whole (`priceComposite`), and no
+        /// refusal, so the core has its slot arrive again once the room is back; where none is, it is refused.
+        TEST_F(RtxTextureArrayTest, aCompositeTheDeviceHasNoRoomForWaitsWithWhatItStandsWhole)
+        {
+            Device& device = getDevice();
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            TextureArrival rooms(device);
+            Batch setup(getPool());
+            TextureArray textures(device, setup, layout, passes, rooms, 1);
+            setup.flush();
+
+            const Testing::NoRoomForContent full(device);
+            const TextureData composite{ .mSlot = 0, .mSource = TextureSource::GroundComposite, .mFrom = 0 };
+            DeviceAnswer answer;
+            {
+                Batch arrival(getPool());
+                textures.write(arrival, passes, rooms, std::span(&composite, 1), TextureArray::noWants(), answer,
+                    WhenRoomless::Waits, nullptr);
+                arrival.flush();
+            }
+            EXPECT_TRUE(answer.mRefused.empty()) << "a composite room is coming for was refused";
+            EXPECT_EQ(answer.mShort,
+                (std::vector<ShortTexture>{
+                    { .mSlot = 0, .mStoodBytes = 0, .mWholeBytes = priceComposite().standing() } }));
+
+            answer.clear();
+            {
+                Batch arrival(getPool());
+                textures.write(arrival, passes, rooms, std::span(&composite, 1), TextureArray::noWants(), answer,
+                    WhenRoomless::Refuses, nullptr);
+                arrival.flush();
+            }
+            ASSERT_EQ(answer.mRefused.size(), 1u) << "with no room coming, it is refused";
+            EXPECT_TRUE(answer.mShort.empty());
+
+            device.waitIdle();
+            device.collectIdle();
+        }
+
         /// A texture the device has no room for comes down a level at a time, and one it has room for at no level
         /// draws the stand-in, refused and saying why.
         ///

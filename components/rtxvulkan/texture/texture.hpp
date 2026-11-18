@@ -309,6 +309,11 @@ namespace Rtx
         /// holds.
         static std::uint32_t readersWant(const TextureTable& table, std::uint32_t slot);
 
+        /// What a bake or a composite stands whole, its source as its slot stands now: what one refused for room waits
+        /// for (`DeviceAnswer::mShort`). Nought for a file and the stand-in, and for a bake whose source stands
+        /// nothing.
+        VkDeviceSize bakeBytesOf(const TextureData& texture) const;
+
         /// A table that wants nothing of any slot, for what moves textures down with no scene at hand: a change of
         /// mode, which moves the largest first and leaves every move short, as a want of level 0 does.
         static const TextureTable& noWants();
