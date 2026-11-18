@@ -24,6 +24,12 @@
 
 ## Performance
 
+- **The ring reads what can stand** (moved out of the tree-and-content-memory plan, 2026-11-18): the handheld's Repack
+  tour at `b461faf024` loaded 27,004 `Nif`s, 8,828 of them again (33%), and 25,661 `Node`s, 7,494 again (29%). A
+  cell's references read as a prefix by radius, one band ahead of the size rule, with `CellRing` asking the reader to
+  go further as the cell nears. It needs each model's radius in the store's manifest before the model is read, and
+  `CellPlacer` adopting a cell in parts. Held by the count again, `repeat` and `shot`, and no outrun.
+
 - `x86_64-v3`.
 - Publish rgbcx.
 - AVX encoders.

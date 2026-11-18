@@ -731,19 +731,6 @@ follows it and runs only where refusals remain.
 - **Tests**: a pool cut into pieces takes, after its passes, the image it refused; a frame whose takes fit runs no
   pass; a pass never copies past its bound.
 
-### 15. The ring reads what can stand
-
-**Step 0, measured at `b461faf024`** (the handheld's Repack tour): `Nif` loaded 27,004, 8,828 of them again (33%), and
-`Node` 25,661, 7,494 again (29%). Past a tenth, so the item goes ahead. The tour's outruns are already gone (none),
-so step 2 holds them at none.
-
-0. **Measured first**: item 8's count of models parsed and parsed again on the handheld's Repack tour at the head, and
-   what the parse costs the loading threads in its profile. Declined if the parses again are under a tenth of all.
-1. A cell's references read as a prefix by radius, one band ahead of the size rule, the radius the manifest's;
-   `CellRing` asks the reader to go further as a cell nears. Written on the ring's records as they stand.
-2. Item 8's count again; `repeat` and `shot`, since a model must stand before the frame that first shows it; and no
-   outrun on the legs the baseline outran.
-
 ### 18. Close
 
 `./omw gate`; `./omw release tour` of the three contents on the desk, the handheld and Windows, held against item 8's.
@@ -906,6 +893,11 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **15. The ring reads what can stand**: moved to `.notes/todo.md` as its own piece of work (the user, 2026-11-18). Its
+  measure passed (the handheld's Repack tour parsed 33% of its models again), but reading a cell's references as a
+  prefix by radius needs each model's radius before it is read: a manifest format change, and the placer adopting a
+  cell in parts.
 
 - **23, its other half: a bake waiting for room as a file does.** The handheld's PBR tour at `b461faf024` refused 14
   ground composites, each after its waits, against the one stand-in a tour drew before. A composite slot that arrives
