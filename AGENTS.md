@@ -108,10 +108,10 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`, one task a
 - `./omw release tour --every=1` before a release, once a content: it flies every land cell and the largest rooms and
   fails on a fault met anywhere. A tour flies every fourth land leg and every fourth room unless `--every` says
   otherwise, a sample whose legs' p99 median stands within a few milliseconds of the whole tour's in a quarter of the
-  time. `--plan` says what it will fly
-  and for how long. To verify a fix or A/B a change, fly only the legs its question needs: `--legs=` takes `rooms`,
-  `land`, legs by number, `a-b` and `a-` (the rest after a crash, with `--every=1`), each leg held against the same leg
-  of a whole tour by its name.
+  time. What builds up over a flight shows only in the whole tour: the handheld's Repack rooms ran at 21 ms flown
+  alone and at 51 ms after the land legs. `--plan` says what it will fly and for how long. To verify a fix or A/B a
+  change, fly only the legs its question needs: `--legs=` takes `rooms`, `land`, legs by number, `a-b` and `a-` (the
+  rest after a crash, with `--every=1`), each leg held against the same leg of a whole tour by its name.
 
 **Measuring**
 
