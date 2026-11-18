@@ -684,27 +684,6 @@ namespace Rtx
         Crash::fatal("a stand-in made rather than drawn as the one the array holds");
     }
 
-    VkDeviceSize TextureArray::bakeBytesOf(const TextureData& texture) const
-    {
-        switch (texture.mSource)
-        {
-            case TextureSource::GroundComposite:
-            case TextureSource::GroundGloss:
-                return priceComposite().standing();
-            case TextureSource::SpriteBake:
-            {
-                if (texture.mFrom >= mSlots.size())
-                    return 0;
-                const Image& source = standingIn(mSlots[texture.mFrom]).getImage();
-                return source.isEmpty() ? 0 : priceBake(shapeOf(source)).standing();
-            }
-            case TextureSource::File:
-            case TextureSource::StandIn:
-                break;
-        }
-        return 0;
-    }
-
     RoomWant TextureArray::wantOf(const TextureData& texture) const
     {
         const std::optional<std::uint32_t> top = texture.topLevel(mSideLimit);
@@ -755,12 +734,6 @@ namespace Rtx
                     answer.mShort.push_back(ShortTexture{ .mSlot = texture.mSlot, .mStoodBytes = 0 });
                     answer.mWants.push_back(wantOf(texture));
                 }
-                // **A bake waits as a file does**, made again on the device from its source once the room is back,
-                // which needs nothing from the host: refused, it drew the stand-in for good.
-                else if (const VkDeviceSize whole = bakeBytesOf(texture);
-                    whenRoomless == WhenRoomless::Waits && whole > 0)
-                    answer.mShort.push_back(
-                        ShortTexture{ .mSlot = texture.mSlot, .mStoodBytes = 0, .mWholeBytes = whole });
                 else
                     why = describe(stood.error());
             }

@@ -762,6 +762,9 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 
 ## Changed
 
+- **23, its half kept: a refusal is counted once.** `textures-readable` counts the texture refusals since the stop
+  before it (`StopFacts::mTexturesRefusedBefore`), where one refusal had failed every stop after it.
+
 - **28. The three lint checks over the fork's own code**: counted over its 316 sources on 2026-11-18.
   `google-default-arguments` found none, so it now holds over the fork's folders. Each of `components/rtx`,
   `components/rtxvulkan`, `components/myguirtx`, `apps/rtxtool` and `apps/openmw/mwrender/rtx` has a `.clang-tidy`
@@ -778,10 +781,6 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   the ground bake's buffers, so the plan's "images alone" did not hold. A range a resource of its own kind freed needs
   no granularity margin anyway, as its neighbours held it before. `holeFor` is gone.
 
-- **23. A bake waits for room as a file does**: as planned. A refused bake or composite is named short with what it
-  stands whole (`TextureArray::bakeBytesOf`), and the uploader has its slot arrive again once the room holds it,
-  reading nothing. `textures-readable` counts the texture refusals since the stop before it (`StopFacts::
-  mTexturesRefusedBefore`). Its issue closes once the handheld's PBR tour draws no stand-in for good.
 - **24. The GPU memory tests start drained**: the fixture already drained the graveyard. The fault was the library's
   usage figure, its own tally since the driver last spoke, corrected by the driver's next word at the take. The
   fixture now has the library fetch the driver's figures in `SetUp`. Seeds 44490, 1, 7 and 1234 pass.
@@ -896,6 +895,10 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **23, its other half: a bake waiting for room as a file does.** The handheld's PBR tour at `b461faf024` refused 14
+  ground composites, each after its waits, against the one stand-in a tour drew before. A composite slot that arrives
+  again stands unbaked, and is never handed to the composite queue. Reverted, and the stand-in issue stays.
 
 - **25. The build image fetches autoconf from GNU's mirrors**: `env/install_almalinux_deps.sh` is an input of the
   dependency set's key (`tools/omw/deps.py`, `SET_INPUTS`). Changing it means building and publishing a new set and

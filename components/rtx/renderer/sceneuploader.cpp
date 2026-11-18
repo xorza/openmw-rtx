@@ -71,13 +71,6 @@ namespace Rtx
                 continue;
             const TextureRow& row = scene.textures().getRows()[wait.mSlot];
 
-            // A bake reads nothing: it arrives again, and the device makes it from its source.
-            if (row.mKind != TextureKind::File)
-            {
-                free -= lacking;
-                scene.textures().arriveAgain(wait.mSlot);
-                continue;
-            }
             if (prepared != nullptr && !settled)
             {
                 if (!wait.mReading)
@@ -203,10 +196,9 @@ namespace Rtx
         const auto whole = std::ranges::find(described, stood.mSlot, &SceneTextures::Stood::mSlot);
         assert((whole != described.end() || stood.mWholeBytes > 0)
             && "a texture stood short this hand-over did not describe and did not move");
-        // A bake or a composite waits with no file: it is made again on the device from its source (`serveWaits`).
         const TextureRow& row = textures.getRows()[stood.mSlot];
         const osg::Image* const file = row.mImage.get();
-        assert((file != nullptr || row.mKind != TextureKind::File) && "a file stood short with no file to hand over");
+        assert(file != nullptr && "a texture stood short with no file to hand over again");
         mTextureWaits.push_back(TextureWait{ .mSlot = stood.mSlot,
             .mSource = file,
             .mFileBytes = whole != described.end() ? whole->mBytes : stood.mWholeBytes,
@@ -220,7 +212,7 @@ namespace Rtx
 
         // **A file short of its whole rests on nothing**, as one the hand-over stood short does
         // (`TextureTable::stand`): moved down, it stood its whole until now.
-        if (whole == described.end() && row.mKind == TextureKind::File)
+        if (whole == described.end())
             scene.textures().stand(stood.mSlot, 0, row.mStoodMade, 0);
     }
 
