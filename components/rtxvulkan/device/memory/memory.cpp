@@ -694,6 +694,12 @@ namespace Rtx
         assert(before + bytes >= was && "growth forgiven that was never owed");
     }
 
+    void MemoryAllocator::noteBlocksComing(const std::uint32_t was, const std::uint32_t blocks) noexcept
+    {
+        [[maybe_unused]] const std::uint32_t before = mBlocksComing.fetch_add(blocks - was, std::memory_order_relaxed);
+        assert(before + blocks >= was && "a block said to come back that was never said to");
+    }
+
     VkDeviceSize MemoryAllocator::getCeiling(const MemoryUse use) const
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};

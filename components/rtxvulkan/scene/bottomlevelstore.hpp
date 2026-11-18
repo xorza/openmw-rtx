@@ -16,6 +16,7 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/accelerationstructure.hpp>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
+#include <components/rtxvulkan/device/memory/blockscoming.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -305,6 +306,10 @@ namespace Rtx
         /// whose tight copy is still owed, stays: a refit records against the handle it was prepared with.
         void moveOut(VkDeviceSize budget);
 
+        /// Whether `moveOut` gives a block back soon: it empties one, or it would at the next ask, a block no move
+        /// found stuck (`mStuck`).
+        bool givesBlockBack() const;
+
         /// What every answered structure's copy would take: a settled run's budget, which then
         /// copies them all into blocks of exactly that.
         VkDeviceSize getAnsweredBytes() const;
@@ -470,5 +475,12 @@ namespace Rtx
         /// How many takes the allocator had refused at the last placement, or when the store was made
         /// (`MemoryAllocator::asksForBlock`).
         std::uint64_t mRefusedSeen = 0;
+
+        /// The block a move found no room outside for, which is not chosen again, nor said to come back, until a
+        /// structure leaves the kept storage.
+        std::optional<std::uint32_t> mStuck;
+
+        /// What it says of `givesBlockBack`, once a placement.
+        BlocksComing mComing;
     };
 }
