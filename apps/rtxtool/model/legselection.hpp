@@ -13,8 +13,15 @@
 
 namespace RtxTool
 {
+    /// **Every how many land legs and rooms a tour flies where the line names none** (`tour --every`): a sample of
+    /// both, in about a quarter of the time, whose legs' p99 median stood within 3.1 ms and 12% of the whole tour's
+    /// over twelve tours of the handheld's and Windows' contents, and which a whole tour's same legs, by name, hold
+    /// exactly. A release's verdict, a fault's hunt and the rest after a crash fly every leg, `--every=1`.
+    inline constexpr std::uint32_t sEveryLeg = 4;
+
     /// **Which legs of a tour fly** (`tour --legs`, `--every`): kinds of leg, and legs and runs of them by the numbers
-    /// `--plan` gives them, all together and in the plan's order; then every `every`th of those, the first among them.
+    /// `--plan` gives them, all together and in the plan's order; then every `every`th land leg of those and every
+    /// `every`th room, the first of each among them, and the closing leg where it is named.
     /// What a question asks of a tour flies and nothing else — a fix verified at the places it concerns, an A/B of the
     /// rooms alone — while the release's verdict flies every leg. A leg flown stands as the whole tour stood it
     /// (`stopsFor`), so its figures are held against the same leg of a whole tour by its name.

@@ -213,7 +213,7 @@ namespace RtxTool
             framed.mWindow.mWidth = sTourFrame.mWidth;
             framed.mWindow.mHeight = sTourFrame.mHeight;
             const HostedRun run = planOf(
-                Verb::Tour, {},
+                Verb::Tour, { "--every=1" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); }, framed);
             const SessionRequest& request = run.mRequest;
             EXPECT_TRUE(request.mStops.empty()) << "nothing to fly until the world stands";
@@ -273,7 +273,17 @@ namespace RtxTool
             }),
                 "--fail-on names no kind of finding called \"stall\"");
 
-            const HostedRun later = planOf(Verb::Tour, { "--legs=4-" },
+            // A line that names no --every flies every fourth land leg and room, the first of each, and the closing
+            // leg: of two land legs and two rooms, the first of each.
+            const HostedRun sampled = planOf(Verb::Tour, {},
+                [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
+            std::vector<std::string> sampledNames;
+            for (const Stop& stop : sampled.mRequest.mPlanWhereTheWorldStands(30.0f))
+                sampledNames.push_back(stop.mName);
+            EXPECT_EQ(sampledNames,
+                (std::vector<std::string>{ "leg-1-land-0,1", "leg-3-room-Arrille's Tradehouse", "leg-5-closing-0,1" }));
+
+            const HostedRun later = planOf(Verb::Tour, { "--legs=4-", "--every=1" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
             EXPECT_EQ(
                 later.mRequest.mPlanWhereTheWorldStands(30.0f).front().mName, "leg-4-room-Balmora, Guild of Mages");

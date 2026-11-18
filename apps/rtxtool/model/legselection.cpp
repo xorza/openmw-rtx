@@ -86,16 +86,33 @@ namespace RtxTool
 
         const bool everyLeg = mKinds.empty() && mRuns.empty();
         std::vector<std::size_t> picked;
-        std::size_t named = 0;
+        std::size_t landNamed = 0;
+        std::size_t roomsNamed = 0;
         for (std::size_t number = 0; number < legs; ++number)
         {
-            const bool kinded = std::ranges::find(mKinds, plan.mLegs[number].mKind) != mKinds.end();
+            const LegKind kind = plan.mLegs[number].mKind;
+            const bool kinded = std::ranges::find(mKinds, kind) != mKinds.end();
             const bool ranged = std::ranges::any_of(mRuns,
                 [&](const Run& run) { return number + 1 >= run.mFirst && number + 1 <= run.mLast.value_or(legs); });
             if (!everyLeg && !kinded && !ranged)
                 continue;
-            if (named++ % mEvery == 0)
-                picked.push_back(number);
+
+            // The land and the rooms sampled apart, so a sample holds both whatever their counts; the closing leg
+            // whole, as the soak's second pass over the first land leg every sample flies.
+            switch (kind)
+            {
+                case LegKind::Land:
+                    if (landNamed++ % mEvery == 0)
+                        picked.push_back(number);
+                    break;
+                case LegKind::Room:
+                    if (roomsNamed++ % mEvery == 0)
+                        picked.push_back(number);
+                    break;
+                case LegKind::Closing:
+                    picked.push_back(number);
+                    break;
+            }
         }
         return picked;
     }

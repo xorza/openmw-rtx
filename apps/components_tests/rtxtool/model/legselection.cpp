@@ -64,15 +64,19 @@ namespace RtxTool
             EXPECT_EQ(picked("rooms,4-5"), (std::vector<std::size_t>{ 3, 4 })) << "a leg named twice flies once";
         }
 
-        /// **Every Nth of what is named flies, the first among them**: every second of six is the first, third and
-        /// fifth; every second room the first room; an `every` past the count the first alone.
-        TEST(RtxLegSelectionTest, everyNthOfWhatIsNamedFliesTheFirstAmongThem)
+        /// **Every Nth land leg and every Nth room of what is named flies, the first of each, and the closing leg
+        /// whole**: every second of three land legs and two rooms is the first and third land leg and the first room;
+        /// every fourth, the first of each; an `every` past either count the first of each still.
+        TEST(RtxLegSelectionTest, everyNthLandLegAndRoomFliesTheFirstOfEachAndTheClosingLeg)
         {
-            EXPECT_EQ(picked("", 2), (std::vector<std::size_t>{ 0, 2, 4 }));
-            EXPECT_EQ(picked("", 4), (std::vector<std::size_t>{ 0, 4 }));
+            EXPECT_EQ(picked("", 2), (std::vector<std::size_t>{ 0, 2, 3, 5 }));
+            EXPECT_EQ(picked("", 4), (std::vector<std::size_t>{ 0, 3, 5 })) << "land and rooms both, whatever count";
+            EXPECT_EQ(picked("", 9), (std::vector<std::size_t>{ 0, 3, 5 }));
             EXPECT_EQ(picked("rooms", 2), (std::vector<std::size_t>{ 3 }));
-            EXPECT_EQ(picked("2-", 2), (std::vector<std::size_t>{ 1, 3, 5 }));
-            EXPECT_EQ(picked("", 9), (std::vector<std::size_t>{ 0 }));
+            EXPECT_EQ(picked("land", 2), (std::vector<std::size_t>{ 0, 2 }));
+            EXPECT_EQ(picked("2-", 2), (std::vector<std::size_t>{ 1, 3, 5 }))
+                << "the first land leg named is the second";
+            EXPECT_EQ(picked("closing", 4), (std::vector<std::size_t>{ 5 }));
         }
 
         /// **What names no leg is refused, saying why**: a word that is no kind, a leg nought, a run backwards, a

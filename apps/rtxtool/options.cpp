@@ -817,9 +817,13 @@ namespace RtxTool
             "--plan numbers them, a-b the legs from a to b, a- the legs from a on (the rest after a crash), comma "
             "separated and taken together; each leg under the hour and the sky the whole tour would have stood it "
             "under, so it holds against the same leg of a whole tour");
-        option({ Verb::Tour }, "every", number(anyNumber<std::uint32_t>())->default_value(1),
-            "of the legs --legs names, every Nth flies, the first among them: a sample whose legs' p99 median stood "
-            "within 1 to 3 ms of the whole tour's at 2, and 2 to 5 at 4, on the handheld's and Windows' tours");
+        option({ Verb::Tour }, "every", number(anyNumber<std::uint32_t>())->default_value(sEveryLeg),
+            std::format(
+                "of the legs --legs names, every Nth land leg and every Nth room flies, the first of each, and "
+                "the closing leg, {} unless named: a sample whose legs' p99 median stood within 3.1 ms and 12% "
+                "of the whole tour's over twelve tours, and which a whole tour's same legs hold exactly. 1 flies "
+                "every leg named, which a release's verdict, a fault's hunt and the rest after a crash ask",
+                sEveryLeg));
         option({ Verb::Tour }, "rooms", number(anyNumber<std::uint32_t>())->default_value(touring.mRooms),
             std::format("how many rooms a tour shares out among the content files by the rooms each adds, never "
                         "under {} a file nor over what it has, each file's with the most references",
