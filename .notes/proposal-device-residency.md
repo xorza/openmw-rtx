@@ -140,6 +140,11 @@ Decided by the user, 2026-11-18:
   blocks' slack, 711 MiB of the structures' in the rooms, which the moves give back. Replacing them was a refactor of
   mechanisms that work, with no frame in it.
 
+- **Item 8, the close**: the three tours flown whole; the handheld's device under its budget at all but two stops, and
+  its rooms at 32.2 ms against 61.9, the Windows machine and the PBR stack as before. Not met: the rooms within the
+  baseline's 21.0, no structure block refused, and the stand-in at Seyda Neen gone, which stay open in the issue log
+  as rewritten. `overnight` is not merged here: a merge is the user's.
+
 ## Decisions
 
 - **A texture moved out of a block takes a range in the blocks the pool holds already, and never the block it leaves**:
@@ -160,11 +165,3 @@ Decided by the user, 2026-11-18:
   but two stops, by 12 MiB at most, and what is refused is refused under it, at a use's ceiling; the textures that
   stand already move down for an arrival with no room to the same 64 texels a side (`TextureArray::makeRoom`), so a
   bias gives no room those moves do not, lowers every texture for one arrival, and reads files again as it comes off.
-
-## Items
-
-8. **Close**: the handheld's Repack and PBR and the Windows machine's Repack flown whole (`--every=1`), held against
-   the baseline and against `docs/research/2026-11-18-handheld-rooms-and-device-memory.md`. They pass where the rooms'
-   legs' p99 median is within the baseline's spread, no flight refuses a structure block, the stand-in at Seyda Neen is
-   gone, and the device is under its target at every stop past the first land leg. Then the issues are rewritten, the
-   figures go into a dated research note, the gate and CI run, `overnight` merges into master, and this file goes.

@@ -87,7 +87,7 @@ once. MiB:
 
 ## With the device giving blocks back
 
-The whole Repack flown again with the unified split smoothed and the caches yielding to it, held counted by blocks,
+The whole Repack, and on the handheld the PBR stack, flown again with the unified split smoothed and the caches yielding to it, held counted by blocks,
 and the emptiest structure and texture blocks emptied while the device is over its budget or a take was refused: on
 the handheld at `4ca1857b03`, and on the Windows machine at `4ebe9c3153`, the same code but for the hang
 `4ca1857b03` fixed, in moves its device never made.
@@ -96,6 +96,8 @@ the handheld at `4ca1857b03`, and on the Windows machine at `4ebe9c3153`, the sa
 |---|---|---|---|---|
 | handheld, `d5ea79cc75` (M1) | 70.9 / 80.6 / 61.9 | 120 | 5928 / 5928 | — |
 | handheld, `4ca1857b03` | 49.7 / 82.7 / 32.2 | 2 | 5838 / 4136 | 1171 / 2307 |
+| handheld's PBR, `9f41093017` | 21.6 / 61.9 / 20.7 | 0 | 5928 / — | — |
+| handheld's PBR, `4ca1857b03` | 22.5 / 58.4 / 21.2 | 0 | 5992 / — | 409 / 2810 |
 | Windows, `87b6f3a4d8` | 38.9 / 101.0 / 34.3 | 0 | 8542 / — | — |
 | Windows, `4ebe9c3153` | 36.9 / 91.8 / 33.9 | 0 | 8542 / — | 0 / 0 |
 
@@ -107,3 +109,6 @@ the handheld at `4ca1857b03`, and on the Windows machine at `4ebe9c3153`, the sa
   the textures' ceiling, which keeps back what the uses before them owe their growth; one texture drew the stand-in for
   good and one 64 MiB structure block was refused, both at the land legs' peak, legs 24 and 25.
 - **The Windows machine never held past its budget**, so it moved nothing, and ran as before.
+- **The handheld's PBR still draws the stand-in at Seyda Neen** (leg 3, frame 561): the texture pool's 4288 MiB of
+  blocks stand full with no range free, the structures' blocks hold 250 MiB free, and the texture is refused for good
+  in the take that is refused, before the placement whose moves the refusal sets off gives a block back.

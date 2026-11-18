@@ -512,7 +512,10 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   (`research/2026-11-18-handheld-rooms-and-device-memory.md`). Refused: a new block to move into, which gives nothing
   back; every block at once, a frame's worth of copies; VMA's defragmentation for the textures, which chooses what moves
   and where on its own and hands the copy back to the caller anyway, where the array's copy and its descriptors are the
-  array's.
+  array's; a bias below every texture's want before a refusal, as Unreal's `MipBias`, which gives no room the moves down
+  for an arrival do not (`TextureArray::makeRoom`, to the same 64 texels a side), lowers every texture for one, and
+  reads files again as it comes off; the rest limit, `evictForRoom` and the reserve's `makeRoom` replaced by one owner,
+  as they hold content's ranges to its ceilings and do, and what none of them reached was the blocks' slack.
 - **A bottom level is built loose and copied out tight**, as RTXMU does, and the world's build compacts before its
   textures are made, as NVIDIA's `buildBlas` does. **Both storages take blocks of content's block size, apart from the
   pools textures stand in, and keep their last** (`StructureStorage`), by the user's decision, as NVIDIA pools
