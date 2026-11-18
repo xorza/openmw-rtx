@@ -648,6 +648,64 @@ namespace Rtx
             EXPECT_EQ(bySource.mBytes, 2u * 16384u);
         }
 
+        /// **A file the device has no room for waits where what stands moves down for it**, though nothing rests and
+        /// nothing is buried: a 1024-square ladder of three levels, 4 MiB + 1 MiB + 256 KiB, stands; with the
+        /// textures' ceiling 32 MiB over what the heap holds, a 4096-square file of one level, 64 MiB and so memory of
+        /// its own, is refused its room. The ladder moves down a level for it, 512 square, and no further in the run,
+        /// whose copies would read the image it wrote; so the room is coming: the file is named short, waiting on its
+        /// whole image's range, and refused nothing. Where nothing could move, the next test's lone file is refused.
+        TEST_F(RtxTextureArrayTest, aFileTheDeviceHasNoRoomForWaitsWhereWhatStandsMovesDownForIt)
+        {
+            Device& device = getDevice();
+            MemoryAllocator& memory = device.getMemory();
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            TextureArrival rooms(device);
+            Batch setup(getPool());
+            TextureArray textures(device, setup, layout, passes, rooms, 2);
+            setup.flush();
+
+            Testing::TestTexture ladder;
+            Testing::paintLevels(ladder, 1024, 1024, 3, "ladder");
+            ladder.mData.mSlot = 0;
+            Testing::TestTexture large;
+            Testing::paintLevels(large, 4096, 4096, 1, "large");
+            large.mData.mSlot = 1;
+            {
+                Batch arrival(getPool());
+                DeviceAnswer answer;
+                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), TextureArray::noWants(), answer,
+                    WhenRoomless::Refuses, nullptr);
+                arrival.flush();
+                ASSERT_EQ(textures.getExtent(0), Shaders::uvec2(1024u, 1024u));
+            }
+
+            DeviceAnswer answer;
+            {
+                const Testing::BudgetLimit tight(
+                    memory, Testing::budgetAbove(memory, MemoryUse::Texture, VkDeviceSize{ 32 } << 20));
+                Batch arrival(getPool());
+                textures.write(arrival, passes, rooms, std::span(&large.mData, 1), TextureArray::noWants(), answer,
+                    WhenRoomless::Refuses, nullptr);
+                arrival.flush();
+            }
+            EXPECT_TRUE(answer.mRefused.empty()) << "a file refused where what stood could move down for it";
+            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(512u, 512u)) << "the ladder, a level down";
+            EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "the stand-in, while it waits";
+            EXPECT_NE(
+                std::ranges::find(answer.mShort, ShortTexture{ .mSlot = 1, .mStoodBytes = 0 }), answer.mShort.end())
+                << "the file is not named short";
+            const VkMemoryRequirements whole = Image::requirementsFor(device, Texture::describeFile(large.mData, 0));
+            EXPECT_NE(
+                std::ranges::find(answer.mWants,
+                    RoomWant{
+                        .mKind = RestKind::Texture, .mSlot = 1, .mHole = whole.size, .mAlignment = whole.alignment }),
+                answer.mWants.end())
+                << "the file waits on no range of its whole image";
+            device.waitIdle();
+            device.collectIdle();
+        }
+
         /// A texture the device has no room for comes down a level at a time, and one it has room for at no level
         /// draws the stand-in, refused and saying why.
         ///

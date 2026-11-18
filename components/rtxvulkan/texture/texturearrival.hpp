@@ -63,6 +63,10 @@ namespace Rtx
         /// undefined.
         void moveDown(const Image& from, std::uint32_t dropped, const Image& to);
 
+        /// Whether the run writes `image`, an upload's, a move's, a spread's or a bake's target: an image a later copy
+        /// of the same run may not read, its writes not yet ordered before it.
+        bool writes(const Image& image) const;
+
         /// `NormalSpreadPass` of `map` into `spread`, met undefined, through the run's means.
         void spread(const Image& map, const Image& spread);
 

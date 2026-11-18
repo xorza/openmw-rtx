@@ -419,8 +419,9 @@ namespace Rtx
             if (arrived[at].mSource == TextureSource::File)
                 mFullFirsts[at] = arrived[at].topLevel(mSideLimit).value_or(0);
         const VkDeviceSize whole = costAt(arrived, mFullFirsts, true, arrival);
+        VkDeviceSize gaveBack = 0;
         if (const VkDeviceSize deficit = (whole > room ? whole - room : 0) + memory.getContentOver(); deficit > 0)
-            makeRoom(arrival, RoomAsk{ .mBytes = deficit, .mKeep = arrived }, table, answer);
+            gaveBack = makeRoom(arrival, RoomAsk{ .mBytes = deficit, .mKeep = arrived }, table, answer);
         chooseLevels(arrived, room, arrival, mFirsts);
 
         std::uint32_t held = 0;
@@ -444,6 +445,14 @@ namespace Rtx
             mSaidDrop = deepest;
         }
 
+        // What gave room back up front leaves it coming for whatever the device still refuses below.
+        const Standing standing{ .mBatch = batch,
+            .mArrival = arrival,
+            .mTable = table,
+            .mArrived = arrived,
+            .mAnswer = answer,
+            .mWhenRoomless = gaveBack > 0 ? WhenRoomless::Waits : whenRoomless };
+
         // Every source before every bake, because a bake is made from the texture standing in the
         // slot it names, and the ground last, because it is what gives way where the room runs out
         // — `chooseLevels` says why. Three walks and not a sort: the order is the kind's, and
@@ -455,7 +464,7 @@ namespace Rtx
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::File || arrived[at].mSource == TextureSource::StandIn)
             {
-                stand(batch, arrival, arrived[at], mFirsts[at], answer, whenRoomless);
+                stand(standing, arrived[at], mFirsts[at]);
                 if (batch.getStagedBytes() >= sStagingKept)
                 {
                     arrival.record(batch, passes, nullptr);
@@ -465,12 +474,12 @@ namespace Rtx
 
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::SpriteBake)
-                stand(batch, arrival, arrived[at], mFirsts[at], answer, whenRoomless);
+                stand(standing, arrived[at], mFirsts[at]);
 
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::GroundComposite
                 || arrived[at].mSource == TextureSource::GroundGloss)
-                stand(batch, arrival, arrived[at], mFirsts[at], answer, whenRoomless);
+                stand(standing, arrived[at], mFirsts[at]);
 
         arrival.record(batch, passes, timer);
     }
@@ -694,9 +703,11 @@ namespace Rtx
         };
     }
 
-    void TextureArray::stand(Batch& batch, TextureArrival& arrival, const TextureData& texture,
-        const std::uint32_t first, DeviceAnswer& answer, const WhenRoomless whenRoomless)
+    void TextureArray::stand(const Standing& standing, const TextureData& texture, const std::uint32_t first)
     {
+        Batch& batch = standing.mBatch;
+        TextureArrival& arrival = standing.mArrival;
+        DeviceAnswer& answer = standing.mAnswer;
         assert(texture.mSlot < mSlots.size() && "a texture stood in a slot `write` did not reserve");
         Slot& slot = mSlots[texture.mSlot];
 
@@ -729,7 +740,15 @@ namespace Rtx
             {
                 slot.mShortOfRoom = true;
                 // A file the core can hand over again once the room is back: its slot draws the stand-in meanwhile.
-                if (whenRoomless == WhenRoomless::Waits && texture.mSource == TextureSource::File)
+                // **Room is coming where what stands moves down for it**, though nothing rests and nothing is buried:
+                // the handheld's PBR tours drew a file's stand-in for good at Seyda Neen where the textures that stood
+                // could have come down for it.
+                const bool coming = texture.mSource == TextureSource::File
+                    && (standing.mWhenRoomless == WhenRoomless::Waits
+                        || makeRoom(arrival, RoomAsk{ .mBytes = wantOf(texture).mHole, .mKeep = standing.mArrived },
+                               standing.mTable, answer)
+                            > 0);
+                if (coming)
                 {
                     answer.mShort.push_back(ShortTexture{ .mSlot = texture.mSlot, .mStoodBytes = 0 });
                     answer.mWants.push_back(wantOf(texture));
@@ -859,6 +878,10 @@ namespace Rtx
             Slot& slot = mSlots[at];
             const Image& image = slot.mTexture.getImage();
             if (image.getMipLevels() < 2 || std::max(image.getWidthAt(1), image.getHeightAt(1)) < sMoveFloorSide)
+                continue;
+            // **A level a run at most**: an image the run writes, a move's own target among them, is copied from in
+            // the next, its writes ordered before the copy only once the run is recorded.
+            if (arrival.writes(image))
                 continue;
 
             if constexpr (sDebugNames)

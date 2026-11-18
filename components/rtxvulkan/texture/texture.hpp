@@ -210,8 +210,8 @@ namespace Rtx
         /// Every file from the level `chooseLevels` gives it. A texture the room still cannot hold comes down a level
         /// at a time; one with no level it can hold, or past the device's side at every level, draws the stand-in.
         /// One past the side is refused into `answer`, saying why; one with no room is refused there where
-        /// `whenRoomless` refuses, and otherwise named among the textures stood short (`DeviceAnswer::mShort`), as is
-        /// every file stood smaller than the side allows.
+        /// `whenRoomless` refuses and nothing that stands moves down for it (`makeRoom`), and otherwise named among the
+        /// textures stood short (`DeviceAnswer::mShort`), as is every file stood smaller than the side allows.
         ///
         /// @param passes the renderer's, which every texture is made with as it arrives.
         /// @param arrival the renderer's, which the arrival is recorded through.
@@ -314,8 +314,9 @@ namespace Rtx
 
         /// **Room made by textures that stand moving down**, as Unreal's streamer takes a level off the textures it
         /// needs least (`docs/architecture.md`, "A texture that stands moves down to make room"): a file standing finer
-        /// than its readers want moves first, then the file standing the most bytes, a level at a time, until the moves
-        /// give back what `ask` asks, its copies reach their most, or nothing moves past `sMoveFloorSide`. Each is
+        /// than its readers want moves first, then the file standing the most bytes, a level each, until the moves give
+        /// back what `ask` asks, its copies reach their most, or nothing moves past `sMoveFloorSide`. A level a run at
+        /// most: an image `arrival`'s run writes is copied from only once that run is recorded. Each is
         /// copied on the device and its old image buried, so the room comes back once the frames that sample it are
         /// done. A slot moved coarser than its want stands short: named in `answer.mShort` with the bytes it stood
         /// before, so its owner hands it over whole again once the room is back; one still at or finer than its want
@@ -391,11 +392,23 @@ namespace Rtx
         Result<void, MemoryRefusal> make(Batch& batch, TextureArrival& arrival, Texture& into,
             const TextureData& texture, std::uint32_t first, std::string_view name);
 
-        /// Stands one of `arrived` in its slot: a file from level `first`, a texture of another
+        /// What one `write` stands its arrival with: the batch and the arrival it records into, the scene's textures
+        /// and what arrived, which a move down for room reads, the answer it fills, and what becomes of a texture the
+        /// device has no room for.
+        struct Standing
+        {
+            Batch& mBatch;
+            TextureArrival& mArrival;
+            const TextureTable& mTable;
+            std::span<const TextureData> mArrived;
+            DeviceAnswer& mAnswer;
+            WhenRoomless mWhenRoomless;
+        };
+
+        /// Stands one of the arrival in its slot: a file from level `first`, a texture of another
         /// source from its bytes, or a bake from its source, which must stand already — or the
         /// stand-in, where the texture cannot stand.
-        void stand(Batch& batch, TextureArrival& arrival, const TextureData& texture, std::uint32_t first,
-            DeviceAnswer& answer, WhenRoomless whenRoomless);
+        void stand(const Standing& standing, const TextureData& texture, std::uint32_t first);
 
         /// What a file the device stood short waits on (`RoomWant`): the hole its whole image at the side the device
         /// allows needs in the pools textures stand in.

@@ -66,6 +66,14 @@ namespace Rtx
         mMoves.push_back(Move{ .mFrom = &from, .mDropped = dropped, .mTo = &to });
     }
 
+    bool TextureArrival::writes(const Image& image) const
+    {
+        return std::ranges::any_of(mUploads, [&](const Upload& upload) { return upload.mImage == &image; })
+            || std::ranges::any_of(mMoves, [&](const Move& move) { return move.mTo == &image; })
+            || std::ranges::any_of(mSpreads, [&](const Spread& spread) { return spread.mSpread == &image; })
+            || std::ranges::any_of(mBakes, [&](const Bake& bake) { return bake.mBake == &image; });
+    }
+
     void TextureArrival::bake(const Image& source, const Image& bake)
     {
         mBakes.push_back(Bake{ .mSource = &source, .mBake = &bake });
