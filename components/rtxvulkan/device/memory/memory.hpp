@@ -386,9 +386,14 @@ namespace Rtx
             return room - std::min(room, sHostReserveBytes);
         }
 
-        /// What the host's own side keeps of the system's memory, a gigabyte, as the caches of what is read keep
-        /// (`Resource::CacheBudget::sReserveBytes`).
-        static constexpr VkDeviceSize sHostReserveBytes = VkDeviceSize{ 1 } << 30;
+        /// What the host's own side keeps of the system's memory: half a gigabyte, **half the caches' own reserve**
+        /// (`Resource::CacheBudget::sReserveBytes`), so as the device and the caches of what is read meet, the caches
+        /// stop first and give back what the device takes (`docs/architecture.md`, "On a unified device the budget is
+        /// the lesser of the driver's and what the system can still back"). Both counted what the system leaves as
+        /// theirs less one reserve, and every block the device gave back the caches took for good: the handheld's
+        /// Repack tour with the texture pool defragmenting held the device to 680 MiB by its end, the caches at 3.2
+        /// GiB, and read 38.8 GiB of texels again.
+        static constexpr VkDeviceSize sHostReserveBytes = VkDeviceSize{ 1 } << 29;
 
         /// Whether the device's memory is the system's: an integrated device, as its type states.
         bool isUnified() const { return mUnified; }

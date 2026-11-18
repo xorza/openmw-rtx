@@ -414,8 +414,10 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   the budget less the frame's gap and their sum. A scratch or a storage held to a room owes nothing. Refused: a second
   copy of memory that is appended and never made again; no reserve, under which a table's growth could end the
   renderer.
-- **On a unified device the budget is the lesser of the driver's and what the system can still back**, less a gigabyte,
-  read once a second at most. Such a device is told by its type (`VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU`), which
+- **On a unified device the budget is the lesser of the driver's and what the system can still back**, less half a
+  gigabyte, half the caches' reserve, so as the two meet the caches stop first; read once a second at most. With one
+  reserve for both, every block the device gave back the caches took for good, and the handheld's Repack tour ended
+  with the device held to 680 MiB. Such a device is told by its type (`VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU`), which
   every driver states; Windows says of it that it has one pool
   ([residency](https://learn.microsoft.com/en-us/windows/win32/direct3d12/residency)). Refused: a heap both
   device-local and host-visible, which a discrete card with resizable BAR states too; the kernel's pressure stall
