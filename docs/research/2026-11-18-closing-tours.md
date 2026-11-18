@@ -58,7 +58,9 @@ largest range 26 MiB, and 2.5 GiB of resting meshes beside them.
   four hours, frames of 14–33 s, against the whole tour's hour at the baseline. At `87b6f3a4d8`, which reads nothing of
   the Windows heap, the PBR stack's p99 median is 28.6 ms.
 - **What holds the private memory** (`Platform::Process::privateMemoryHeld`), at the PBR stack's stop 90 at
-  `942563a569`: 2.8 GiB in the heaps' regions, 11.1 GiB in 955 other regions, the largest 68.6 MiB.
+  `942563a569`: 2.8 GiB in the heaps' regions, 11.1 GiB in 955 other regions, the largest 68.6 MiB. **The other
+  regions are the device's memory**: over the Repack's 155 stops at `87b6f3a4d8` they held what the device's two heaps
+  held plus 147 to 211 MiB at every stop, from 2.3 GiB at the first to 8.9 GiB at the last.
 - **The PBR stack's outruns**: three cells, `-27,20` to `-27,22`, at leg 13's frame 680 at `87b6f3a4d8`; legs 12 and 13
   flown again at `a10f37724a` stood every one.
 - **The meter's own walk** held each stop's end some 47 s on the Repack's 7 GiB heap, querying the system once an
