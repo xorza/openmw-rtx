@@ -84,6 +84,29 @@ namespace Rtx
         static Result<Image, MemoryRefusal> tryMake(
             MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
 
+        /// `from` made again where `move` places its range, which goes with it: what a defragmentation pass moves
+        /// (`MemoryAllocator::moved`). Holds nothing until a copy writes it. `from` keeps its handle and views, which
+        /// bury themselves as it goes, and no memory.
+        static Image moveTo(Image& from, const MemoryMove& move, std::string_view name);
+
+        /// What this image was made as.
+        ImageDescription getDescription() const
+        {
+            return ImageDescription{ .mWidth = mWidth,
+                .mHeight = mHeight,
+                .mFormat = mFormat,
+                .mUsage = mUsage,
+                .mMipLevels = mMipLevels,
+                .mDepth = mDepth,
+                .mStorageFormat = mStorageFormat };
+        }
+
+        /// Whether `move` moves this image's range.
+        bool isMovedBy(const MemoryMove& move) const { return mMemory.isMovedBy(move); }
+
+        /// The image's range as a defragmentation's moves name it, null for one bound into an arena's.
+        const VmaAllocation_T* getRange() const { return mMemory.getRange(); }
+
         /// Movable, because the channels of a g-buffer are built by a loop over a table rather than a
         /// member list. The husk is a default-made image, as a buffer's is: its size, format and stamp go
         /// with the move. The assignment buries what this held in the order the destruction does.

@@ -457,7 +457,73 @@ namespace Rtx
     void MemoryAllocator::give(DeviceMemory& memory)
     {
         mHeld[memory.mHeap][static_cast<std::size_t>(memory.mUse)] -= memory.mSize;
+        {
+            const std::scoped_lock lock(mPassMutex);
+            if (std::ranges::binary_search(mInPass, static_cast<const VmaAllocation_T*>(memory.mAllocation)))
+            {
+                mFreeAfterPass.push_back(memory.mAllocation);
+                return;
+            }
+        }
         vmaFreeMemory(mLibrary.get(), memory.mAllocation);
+    }
+
+    std::optional<Defragmentation> MemoryAllocator::defragment(
+        const VkDeviceSize least, const VkDeviceSize bytesPerPass, const std::uint32_t rangesPerPass)
+    {
+        // The pool whose blocks hold the most free, as the library counts it without walking a range.
+        VmaPool_T* fullest = nullptr;
+        VkDeviceSize most = 0;
+        for (std::uint32_t type = 0; type < mMemory.memoryTypeCount; ++type)
+        {
+            if ((mContent.mTypes & (1u << type)) == 0)
+                continue;
+            VmaStatistics pool{};
+            vmaGetPoolStatistics(mLibrary.get(), mLibrary.poolOf(type), &pool);
+            const VkDeviceSize free = pool.blockBytes - pool.allocationBytes;
+            if (free >= least && free > most)
+            {
+                most = free;
+                fullest = mLibrary.poolOf(type);
+            }
+        }
+        if (fullest == nullptr)
+            return std::nullopt;
+        return Defragmentation(*this, fullest, bytesPerPass, rangesPerPass);
+    }
+
+    DeviceMemory MemoryAllocator::moved(DeviceMemory&& from, const MemoryMove& move)
+    {
+        assert(from.isMovedBy(move) && "a range made again where another's move places it");
+        assert(from.mMapped == nullptr && "a mapped range moved, whose mapping the move changes");
+        DeviceMemory to(this, std::exchange(from.mAllocation, nullptr), move.mTo, move.mToOffset, nullptr, from.mSize,
+            from.mHeap, from.mUse);
+        from.mOwner = nullptr;
+        from = DeviceMemory();
+        return to;
+    }
+
+    void MemoryAllocator::openPass(const std::span<const MemoryMove> moves)
+    {
+        const std::scoped_lock lock(mPassMutex);
+        assert(mInPass.empty() && "a pass opened over one that is open");
+        for (const MemoryMove& move : moves)
+            mInPass.push_back(move.mRange);
+        std::ranges::sort(mInPass);
+    }
+
+    void MemoryAllocator::closePass()
+    {
+        const std::scoped_lock lock(mPassMutex);
+        mInPass.clear();
+        for (VmaAllocation_T* const range : mFreeAfterPass)
+            vmaFreeMemory(mLibrary.get(), range);
+        mFreeAfterPass.clear();
+    }
+
+    void MemoryAllocator::checkDefragmentation(const VkResult result, const char* const call) const
+    {
+        checkVk(mDevice, result, call);
     }
 
     VkDeviceSize MemoryAllocator::ceilingOf(

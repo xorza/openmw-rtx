@@ -132,6 +132,11 @@ namespace Rtx
         return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables, timer);
     }
 
+    void DeviceScene::defragment(Batch& batch, TextureArrival& arrival, GpuTimer* const timer)
+    {
+        mTextures.defragment(batch, arrival, mPasses.mTextures, timer, TextureArray::DefragmentAsk{});
+    }
+
     void DeviceScene::makeTextureRoom(Batch& batch, TextureArrival& arrival, const VkDeviceSize bytes)
     {
         mTextures.makeRoom(arrival, TextureArray::RoomAsk{ .mBytes = bytes, .mKeep = {}, .mCopyMost = bytes },

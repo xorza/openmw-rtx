@@ -133,6 +133,15 @@ namespace Rtx
         return made;
     }
 
+    Image Image::moveTo(Image& from, const MemoryMove& move, const std::string_view name)
+    {
+        assert(from.mDevice != nullptr && "an empty image moved");
+        Image to(Unbound{}, *from.mDevice, from.getDescription(), name);
+        to.mMemory = from.mDevice->getMemory().moved(std::move(from.mMemory), move);
+        to.bind(move.mTo, move.mToOffset, name);
+        return to;
+    }
+
     Image::Image(Unbound, const Device& device, const ImageDescription& description, std::string_view name)
         : mDevice(&device)
         , mWidth(description.mWidth)

@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -18,6 +19,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/renderer/framezone.hpp>
@@ -59,7 +61,7 @@ namespace Rtx
                 ImageDescription{ .mWidth = across,
                     .mHeight = down,
                     .mFormat = toVulkanFormat(NORMAL_SPREAD_FORMAT),
-                    .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                    .mUsage = sWrittenTextureUsage,
                     .mMipLevels = levelsTo1x1(across, down) },
                 spreadName);
         }
@@ -223,11 +225,55 @@ namespace Rtx
         mFormat = from.mFormat;
         mImage = std::move(image.value());
         mCompanion = std::move(companion.value());
-        arrival.moveDown(from.mImage, dropped, mImage);
+        arrival.move(from.mImage, dropped, mImage);
         if (spread)
             arrival.spread(mImage, mCompanion);
         mBytes = priceShape(mFormat, shape, spread).standing();
         return {};
+    }
+
+    namespace
+    {
+        /// The move of `moves`, sorted by range, that moves `image`, or null.
+        const MemoryMove* moveOf(const std::span<const MemoryMove> moves, const Image& image)
+        {
+            if (image.isEmpty() || image.getRange() == nullptr)
+                return nullptr;
+            const auto found = std::ranges::lower_bound(moves, image.getRange(), {}, &MemoryMove::mRange);
+            return found != moves.end() && image.isMovedBy(*found) ? &*found : nullptr;
+        }
+
+        /// Stands `from` in `into`, which is empty, where `move` places it, copied there through `arrival`, which
+        /// names `into` where it stays; or taken over as it stands where `move` is null.
+        void standMovedImage(
+            TextureArrival& arrival, Image& from, const MemoryMove* move, const std::string_view name, Image& into)
+        {
+            if (move == nullptr)
+            {
+                into = std::move(from);
+                return;
+            }
+            into = Image::moveTo(from, *move, name);
+            arrival.move(from, 0, into);
+        }
+    }
+
+    void Texture::standMoved(
+        TextureArrival& arrival, Texture& from, const TextureMoves& moves, const std::string_view name)
+    {
+        assert(isEmpty() && "a texture stood over one that stands");
+        assert(moves.any() && "a texture stood moved that no move names");
+
+        standMovedImage(arrival, from.mImage, moves.mImage, name, mImage);
+        standMovedImage(arrival, from.mCompanion, moves.mCompanion, name, mCompanion);
+        mWrap = from.mWrap;
+        mBytes = from.mBytes;
+        mFormat = from.mFormat;
+    }
+
+    TextureMoves Texture::movesOf(const std::span<const MemoryMove> moves) const
+    {
+        return TextureMoves{ .mImage = moveOf(moves, mImage), .mCompanion = moveOf(moves, mCompanion) };
     }
 
     ImageDescription Texture::describeFile(const TextureData& data, const std::uint32_t first)
@@ -351,6 +397,9 @@ namespace Rtx
         // ever owes the slots that are new.
         , mSets(device, sBindings, layout.get(), sFrameSlots, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT)
     {
+        // A refusal before the array stood is no hole its textures left.
+        mRefusedAtDefragment = device.getMemory().getRefusedCount();
+
         mNeutral.standColour(device, batch, arrival, "neutral texel",
             osg::Vec4f(
                 Shaders::UNTEXTURED_ALBEDO.x(), Shaders::UNTEXTURED_ALBEDO.y(), Shaders::UNTEXTURED_ALBEDO.z(), 1.0f));
@@ -1073,6 +1122,93 @@ namespace Rtx
             mSlots[slot].mReduced = false;
             mSlots[slot].mShortOfRoom = false;
         }
+    }
+
+    void TextureArray::defragment(Batch& batch, TextureArrival& arrival, const TexturePasses& passes,
+        GpuTimer* const timer, const DefragmentAsk& ask)
+    {
+        MemoryAllocator& memory = mDevice.getMemory();
+
+        // Said once a defragmentation ends, with what it moved and gave back.
+        const auto finished = [&] {
+            const DefragmentationMoved& moved = mDefragmentation->getMoved();
+            mDefragmented.mBytes += moved.mBytes;
+            mDefragmented.mRanges += moved.mRanges;
+            mDefragmented.mBytesFreed += moved.mBytesFreed;
+            mDefragmented.mBlocksFreed += moved.mBlocksFreed;
+            Log(Debug::Info) << std::format(
+                "Ray tracing moved {} textures of {:.1f} MiB together in their pool, giving "
+                "back {} blocks of {:.1f} MiB",
+                moved.mRanges, mebibytes(moved.mBytes), moved.mBlocksFreed, mebibytes(moved.mBytesFreed));
+            mDefragmentation.reset();
+        };
+        const auto endPass = [&] {
+            if (!mDefragmentation->endPass())
+                finished();
+        };
+        // **The open pass ends once its copies have run**: every frame before them read the old images behind the
+        // barrier the copies wait on, and every set bound after them was written with the new ones (`owe`).
+        if (mDefragmentation.has_value() && mDefragmentation->isPassOpen())
+        {
+            if (!mDefragmentation->isCopied())
+                return;
+            endPass();
+        }
+
+        // **Begun where a want found no hole**: a refusal since the last, with a pool's blocks holding what one
+        // block emptied would give back.
+        if (!mDefragmentation.has_value())
+        {
+            if (memory.getRefusedCount() == mRefusedAtDefragment)
+                return;
+            mDefragmentation = memory.defragment(ask.mFrom, ask.mCopyMost, ask.mRangesMost);
+            if (!mDefragmentation.has_value())
+                return;
+            mRefusedAtDefragment = memory.getRefusedCount();
+        }
+
+        if (!mDefragmentation->beginPass(mPassMoves))
+        {
+            finished();
+            return;
+        }
+
+        // The moves this array makes: each slot's texture whose range a move names, made again at its place. A move
+        // no slot makes is another's range — a picture's texture, the ground's canvas — and stays where it is.
+        mPassMade.assign(mPassMoves.size(), false);
+        const auto made = [&](const MemoryMove* const move) {
+            if (move != nullptr)
+                mPassMade[static_cast<std::size_t>(move - mPassMoves.data())] = true;
+        };
+        for (std::uint32_t at = 0; at < mSlots.size(); ++at)
+        {
+            Slot& slot = mSlots[at];
+            const TextureMoves moves = slot.mTexture.movesOf(mPassMoves);
+            if (!moves.any())
+                continue;
+            made(moves.mImage);
+            made(moves.mCompanion);
+
+            std::string name;
+            if constexpr (sDebugNames)
+                name = "texture " + std::to_string(at);
+            mDefragmentedFrom.push_back(std::move(slot.mTexture));
+            slot.mTexture = Texture();
+            slot.mTexture.standMoved(arrival, mDefragmentedFrom.back(), moves, name);
+            owe(at);
+        }
+        for (std::size_t at = 0; at < mPassMoves.size(); ++at)
+            if (!mPassMade[at])
+                mDefragmentation->ignore(mPassMoves[at].mAt);
+
+        if (mDefragmentedFrom.empty())
+        {
+            endPass();
+            return;
+        }
+        arrival.record(batch, passes, timer);
+        mDefragmentedFrom.clear();
+        mDefragmentation->copiedBy(mDevice.getTimeline().getNext());
     }
 
     void TextureArray::setAnisotropy(const std::uint32_t anisotropy)

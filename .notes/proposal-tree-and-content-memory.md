@@ -702,35 +702,6 @@ The steps:
 Defragmentation is item 21's, by the library's own incremental passes. The GPU's feedback meter is declined unless step 6's pictures move: the bound is derived, so its
 promise is checked by the pictures, not measured by a second path.
 
-### 21. Fix: the texture pool defragments, incrementally
-
-**Gated again after item 14.6 (2026-11-18)**: the refusals the measure above names were loose structure blocks, which
-14.6 now frees resting meshes for. Item 21 is built where item 18's tours still refuse a texture or a structure while
-the texture pool holds the room in pieces, and is otherwise declined there with their figures.
-
-**Measured at `b461faf024`** (the handheld's Repack tour, all 155 stops): 3 structure blocks of 64 MiB refused. The
-texture pool held 937–1,031 MiB free in its blocks, 2,368 MiB in blocks against 1,431 MiB allocated, its largest
-range 31.7 MiB, beside 12,008 resting meshes on 2.6 GiB. So items 21 and 14.6 are both due. That tour had no outrun
-and 4 faults in all, against 137 at `5db3a1fbf7`.
-
-**Closes**: "the pool refuses small resources while it has room free in pieces". Takes over item 16's conditional
-defragmentation. At the handheld Repack tour's mesh refusal (`5db3a1fbf7`), the texture pool held 793 MiB free in its
-blocks, its largest range 12.4 MiB. A whole block emptied is room a 64 MiB structure block can take too, so item 14.6
-follows it and runs only where refusals remain.
-
-- **VMA's own incremental defragmentation**, over the texture pool alone (`vmaBeginDefragmentation`,
-  `vmaBeginDefragmentationPass` with `maxBytesPerPass`,
-  [VMA, "Defragmentation"](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/defragmentation.html)):
-  the library plans the moves, and each image is copied on the device by item 13's copy, at its own level.
-- **Structures are not moved.** One moves only by `vkCmdCopyAccelerationStructureKHR`, every instance naming it written
-  again. The structure storage gives back blocks nothing uses (item 14.6) instead.
-- **When**: a pass runs only where a take was refused while the pool's free bytes would have held it. It is bounded by
-  what one hand-over stages (`sMoveCopyMost`), so no frame absorbs a whole defragmentation: the frame rule.
-- **Refused**: pools by size class, which the architecture already refuses; and a full pass at load, which strands
-  again by the next crossing.
-- **Tests**: a pool cut into pieces takes, after its passes, the image it refused; a frame whose takes fit runs no
-  pass; a pass never copies past its bound.
-
 ### 18. Close
 
 `./omw gate`; `./omw release tour` of the three contents on the desk, the handheld and Windows, held against item 8's.
@@ -752,6 +723,15 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **21. The texture pool defragments, incrementally**: the closing Repack tour at `9f41093017` refused its 64 MiB
+  structure blocks with 887 MiB free in the texture pool's blocks, past the gate. Built on VMA's incremental
+  defragmentation (`Defragmentation`), driven by the world's texture array once a frame ahead of its placement
+  (`TextureArray::defragment`): begun where a take was refused since the last with two blocks free in a pool, 16 MiB a
+  pass. A move of a range no slot holds (a picture's texture, the ground's canvas) is ignored; a range a pass names
+  that its owner frees meanwhile is given back once the pass ends (`MemoryAllocator::give`), and a scene taken apart
+  with a pass open waits out its copies. Every written texture is now made copyable (`sWrittenTextureUsage`). VMA
+  keeps one emptied block per pool against the next take, which the defragmentation does not free.
 
 - **23, its half kept: a refusal is counted once.** `textures-readable` counts the texture refusals since the stop
   before it (`StopFacts::mTexturesRefusedBefore`), where one refusal had failed every stop after it.

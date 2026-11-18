@@ -131,6 +131,11 @@ namespace Rtx
         /// mesh's structure took at its build — `SceneHolder::takeAnswer`.
         void takeAnswer(DeviceAnswer& into);
 
+        /// Moves what the texture pools strand in pieces together, a pass at most, recorded into `batch` through
+        /// `arrival` ahead of the placement that binds them (`TextureArray::defragment`). The world's alone, once a
+        /// frame, before its placement.
+        void defragment(Batch& batch, TextureArrival& arrival, GpuTimer* timer);
+
         /// Moves textures that stand down until they give back `bytes`, recorded into `batch` through `arrival`
         /// (`TextureArray::makeRoom`); what moved is in the next answer, short of its file.
         void makeTextureRoom(Batch& batch, TextureArrival& arrival, VkDeviceSize bytes);
