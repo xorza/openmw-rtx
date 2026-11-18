@@ -4,4 +4,3 @@
 - The handheld's Fullrest Repack tour refuses three 64 MiB structure blocks a flight, each with 887 MiB free in the texture pool's blocks, the largest range 26 MiB, and 2.5 GiB of resting meshes beside them; a mesh is left out.
 - On the Windows machine the tour's process holds far more private memory than its heaps: 11.1 GiB in 955 regions outside them, the largest 68.6 MiB, beside 2.8 GiB in the heaps' regions, at stop 90 of the PBR tour at `942563a569` (`Platform::Process::privateMemoryHeld`). What allocates those regions is not named.
 - The handheld's PBR tour draws the stand-in for a 0.4 MiB texture with no name at Seyda Neen (leg 3, frame 559) where the device has no room for it, at `f45fb184d7`, `579612228d` and `8cdf5be569`: the last after a file the device refuses waits where what stands moves down for it (`TextureArray::makeRoom`).
-- The Windows machine's PBR tour at `87b6f3a4d8` outran three cells, where its baseline outran none.

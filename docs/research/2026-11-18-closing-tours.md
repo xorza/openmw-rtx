@@ -59,6 +59,8 @@ largest range 26 MiB, and 2.5 GiB of resting meshes beside them.
   the Windows heap, the PBR stack's p99 median is 28.6 ms.
 - **What holds the private memory** (`Platform::Process::privateMemoryHeld`), at the PBR stack's stop 90 at
   `942563a569`: 2.8 GiB in the heaps' regions, 11.1 GiB in 955 other regions, the largest 68.6 MiB.
+- **The PBR stack's outruns**: three cells, `-27,20` to `-27,22`, at leg 13's frame 680 at `87b6f3a4d8`; legs 12 and 13
+  flown again at `a10f37724a` stood every one.
 - **The meter's own walk** held each stop's end some 47 s on the Repack's 7 GiB heap, querying the system once an
   entry; at `3e42700a85` it queries once a region. At `87b6f3a4d8` it still grows with the heap: 1 s at the Repack's
   first stop, 14 s at stop 41, 25 s at its last, past the monitor's hang watch from stop 100 on, which took 43 dumps of
