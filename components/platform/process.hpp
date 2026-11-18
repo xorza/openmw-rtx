@@ -161,4 +161,20 @@ namespace Platform::Process
     /// `AnonymousMemory` of this process, now: what a run on a machine short of memory reads at every stop, since
     /// what it holds the system takes from everything else. Nothing where the system does not say.
     std::optional<AnonymousMemory> anonymousMemory();
+
+    /// **What holds a process's committed private memory**, split by who keeps it: the regions of the heaps the
+    /// process's allocators keep, and every other private region, with how many there are and the largest of them,
+    /// which is what a driver or a library's own allocation keeps.
+    struct PrivateMemoryHeld
+    {
+        std::uint64_t mHeaps = 0;
+        std::uint64_t mOther = 0;
+        std::uint32_t mOtherRegions = 0;
+        std::uint64_t mLargestOther = 0;
+    };
+
+    /// `PrivateMemoryHeld` of this process, now, walked region by region, so asked once a stop and never a frame: what
+    /// names the memory a Windows process holds past its heap. Nothing on Linux, where `anonymousMemory` and the heap's
+    /// own report (`Platform::heapHeld`) already part the two, and where the system does not say.
+    std::optional<PrivateMemoryHeld> privateMemoryHeld();
 }

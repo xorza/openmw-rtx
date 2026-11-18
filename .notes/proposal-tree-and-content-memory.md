@@ -740,27 +740,6 @@ follows it and runs only where refusals remain.
 2. Item 8's count again; `repeat` and `shot`, since a model must stand before the frame that first shows it; and no
    outrun on the legs the baseline outran.
 
-### 26. Measure, then fix: Windows says what holds the process's memory
-
-**Addresses**: "on the Windows machine the tour's process holds far more anonymous memory than its heap takes". The
-issue closes once the gap is named and either fixed or decided.
-
-- **A meter first**, in `components/platform`'s Windows file: `VirtualQuery` walks the process's committed private
-  regions, sums them by the module or heap that owns them (`HeapWalk` for the CRT's heaps), and the stop report states
-  the top holders. On Linux, the same question is `smaps_rollup`'s, which the report already reads.
-- **Then**: a holder the fork owns becomes an item; a driver's holding is noted in the research with its figure.
-
-### 28. Measure: the three lint checks' hits in the fork's own code
-
-**Narrows**: the issues of `cppcoreguidelines-avoid-non-const-global-variables`, `misc-no-recursion` and
-`google-default-arguments`. Their hits in upstream's code are upstream's style and not defects (the user, 2026-11-18),
-so those issues are deleted and nothing of upstream's is changed.
-
-- **Counted over the fork's folders alone**: `components/rtx*`, `components/myguirtx`, `apps/rtxtool`,
-  `apps/openmw/mwrender/rtx` and the fork's other files.
-- **Then**: a check with no hits there is enabled over those folders in `.clang-tidy`, so CI keeps it at none. One with
-  hits gets an issue of its own with the fork's count, fixed in a later round.
-
 ### 18. Close
 
 `./omw gate`; `./omw release tour` of the three contents on the desk, the handheld and Windows, held against item 8's.
@@ -782,6 +761,16 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **28. The three lint checks over the fork's own code**: counted over its 316 sources on 2026-11-18.
+  `google-default-arguments` found none, so it now holds over the fork's folders. Each of `components/rtx`,
+  `components/rtxvulkan`, `components/myguirtx`, `apps/rtxtool` and `apps/openmw/mwrender/rtx` has a `.clang-tidy`
+  that adds the check and reports the fork's headers alone, as an upstream header is checked by upstream's own
+  sources. `misc-no-recursion` found 11 functions and `cppcoreguidelines-avoid-non-const-global-variables` 2, each now
+  an issue with the fork's count.
+- **26. Windows says what holds the process's memory**: the meter is written (`Platform::Process::privateMemoryHeld`,
+  a `VirtualQuery` walk that parts the heaps' regions from every other private region, with the largest). Each stop's
+  host memory line states it. It reads on item 18's Windows tours, and the issue closes once those name the holder.
 
 - **22. A texture's want matches a rest of its own size**: the want states its size and its alignment, and the fit
   states the coarsest power of two its range starts at (its offset's lowest bit, `Image::getMemoryAlignment`).

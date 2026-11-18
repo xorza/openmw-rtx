@@ -559,11 +559,20 @@ namespace RtxTool
             anonymous.has_value())
         {
             const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
+            // What holds the private memory past the heap, where the system walks it (Windows): a driver's or a
+            // library's own allocations show as the other regions.
+            const std::optional<Platform::Process::PrivateMemoryHeld> held = Platform::Process::privateMemoryHeld();
             Log(Debug::Info) << std::format(
                 "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB "
-                "swapped out{}",
+                "swapped out{}{}",
                 (mAt + 1), Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mSwapped),
-                heap.has_value() ? "; " + describeHeap(*heap) : std::string());
+                heap.has_value() ? "; " + describeHeap(*heap) : std::string(),
+                held.has_value()
+                    ? std::format("; private memory {:.1f} MiB in the heaps' regions, {:.1f} MiB in {} other "
+                                  "regions, the largest {:.1f} MiB",
+                          Rtx::mebibytes(held->mHeaps), Rtx::mebibytes(held->mOther), held->mOtherRegions,
+                          Rtx::mebibytes(held->mLargestOther))
+                    : std::string());
             mRecord.noteHostMemory(currentStop().mName, *anonymous, heap);
         }
 

@@ -152,6 +152,11 @@ namespace Platform::Process
         return LinuxText::anonymousMemory(*status);
     }
 
+    std::optional<PrivateMemoryHeld> privateMemoryHeld()
+    {
+        return std::nullopt;
+    }
+
     std::size_t keepToPerformanceCores()
     {
         // The kernel lists each core type apart only on a hybrid part, which is the one case there is

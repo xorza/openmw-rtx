@@ -258,6 +258,55 @@ namespace Platform::Process
         return AnonymousMemory{ .mResident = resident, .mSwapped = committed - std::min(resident, committed) };
     }
 
+    std::optional<PrivateMemoryHeld> privateMemoryHeld()
+    {
+        // The heaps' own allocations, by the base `VirtualQuery` names each under: a heap's regions, and each block
+        // a heap gave memory of its own, which `HeapWalk` lists busy and past a region. Every heap is locked while it
+        // is walked, as `HeapWalk` asks.
+        std::vector<HANDLE> heaps(GetProcessHeaps(0, nullptr));
+        heaps.resize(GetProcessHeaps(static_cast<DWORD>(heaps.size()), heaps.data()));
+        std::vector<const void*> heapBases;
+        const auto baseOf = [](const void* address) -> const void* {
+            MEMORY_BASIC_INFORMATION region{};
+            return VirtualQuery(address, &region, sizeof(region)) == sizeof(region) ? region.AllocationBase : nullptr;
+        };
+        for (const HANDLE heap : heaps)
+        {
+            if (!HeapLock(heap))
+                continue;
+            PROCESS_HEAP_ENTRY entry{};
+            while (HeapWalk(heap, &entry))
+                if ((entry.wFlags & PROCESS_HEAP_REGION) != 0 || (entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) != 0)
+                    if (const void* const base = baseOf(entry.lpData); base != nullptr)
+                        heapBases.push_back(base);
+            HeapUnlock(heap);
+        }
+        std::ranges::sort(heapBases);
+        heapBases.erase(std::ranges::unique(heapBases).begin(), heapBases.end());
+
+        // Every committed private region of the address space, a region at a time.
+        PrivateMemoryHeld held;
+        const char* address = nullptr;
+        MEMORY_BASIC_INFORMATION region{};
+        while (VirtualQuery(address, &region, sizeof(region)) == sizeof(region))
+        {
+            if (region.State == MEM_COMMIT && region.Type == MEM_PRIVATE)
+            {
+                const std::uint64_t bytes = region.RegionSize;
+                if (std::ranges::binary_search(heapBases, static_cast<const void*>(region.AllocationBase)))
+                    held.mHeaps += bytes;
+                else
+                {
+                    held.mOther += bytes;
+                    ++held.mOtherRegions;
+                    held.mLargestOther = std::max(held.mLargestOther, bytes);
+                }
+            }
+            address = static_cast<const char*>(region.BaseAddress) + region.RegionSize;
+        }
+        return held;
+    }
+
     std::size_t keepToPerformanceCores()
     {
         const HANDLE process = GetCurrentProcess();
