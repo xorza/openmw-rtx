@@ -85,7 +85,7 @@ namespace Rtx
                     if (wait.mRead.mPending)
                         continue;
                 }
-                else if (!prepared->isReady(*wait.mSource, row.mEncoding, row.mWrap, row.mPartner.get()))
+                else if (prepared->isPending(*wait.mSource, row.mEncoding, row.mWrap, row.mPartner.get()))
                     continue;
             }
             else
@@ -298,8 +298,9 @@ namespace Rtx
         timed.at(Timing::Bake) = since(began, gathered);
 
         // **A slot whose texels were read and chain made since it stood in arrives again**, before the
-        // arrivals are read, so this hand-over hands it over. One the scene gave back, or gave another file,
-        // lets go of what was read for it.
+        // arrivals are read, so this hand-over hands it over, and so does one whose entry a slot of another wrap
+        // was handed and let go of, which asks anew. One the scene gave back, or gave another file, lets go of what
+        // was read for it.
         if (handing.mPrepared != nullptr)
             std::erase_if(mPending, [&](const SceneTextures::Pending& pending) {
                 const bool same = scene.textures().isLive(pending.mSlot)
@@ -310,7 +311,7 @@ namespace Rtx
                         *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get());
                     return true;
                 }
-                if (!handing.mPrepared->isReady(
+                if (handing.mPrepared->isPending(
                         *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get()))
                     return false;
                 scene.textures().arriveAgain(pending.mSlot);
