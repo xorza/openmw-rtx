@@ -1,8 +1,3 @@
-#include <components/resource/objectcache.hpp>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -15,7 +10,12 @@
 #include <thread>
 #include <vector>
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <osg/Object>
+
+#include <components/resource/objectcache.hpp>
 
 namespace Resource
 {
@@ -23,12 +23,12 @@ namespace Resource
     {
         using namespace ::testing;
 
-        using ObjectCache = GenericObjectCache<int, osg::ref_ptr<osg::Object>>;
+        using ObjectCache = GenericObjectCache<std::int32_t, osg::ref_ptr<osg::Object>>;
         using StringObjectCache = GenericObjectCache<std::string, osg::ref_ptr<osg::Object>>;
 
         // The point of the value type parameter: a type that derives from nothing at all
         // is cacheable, and expiry still knows whether anything outside holds it.
-        using SharedCache = GenericObjectCache<int, std::shared_ptr<const std::string>>;
+        using SharedCache = GenericObjectCache<std::int32_t, std::shared_ptr<const std::string>>;
         using LoadedString = Loaded<std::shared_ptr<const std::string>>;
 
         TEST(ResourceGenericObjectCacheTest, getRefFromObjectCacheShouldReturnNullptrByDefault)
@@ -91,7 +91,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, shouldStoreValues)
         {
             ObjectCache cache;
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
             EXPECT_EQ(cache.getRefFromObjectCache(key), value);
@@ -100,7 +100,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, shouldStoreNullptrValues)
         {
             ObjectCache cache;
-            const int key = 42;
+            const std::int32_t key = 42;
             cache.addEntryToObjectCache(key, nullptr);
             EXPECT_THAT(cache.getRefFromObjectCacheOrNone(key), Optional(nullptr));
         }
@@ -109,7 +109,7 @@ namespace Resource
         {
             ObjectCache cache;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value, 0);
             value = nullptr;
@@ -124,7 +124,7 @@ namespace Resource
         {
             ObjectCache cache;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value1(new Object);
             osg::ref_ptr<Object> value2(new Object);
             cache.addEntryToObjectCache(key, value1);
@@ -140,7 +140,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 2;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             cache.addEntryToObjectCache(key, nullptr, referenceTime + expiryDelay);
 
             cache.update(referenceTime, expiryDelay);
@@ -160,7 +160,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 1;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
             value = nullptr;
@@ -181,7 +181,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 1;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
 
@@ -199,7 +199,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 2;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
             value = nullptr;
@@ -218,7 +218,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 2;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             cache.addEntryToObjectCache(key, nullptr);
 
             cache.update(referenceTime + expiryDelay, expiryDelay);
@@ -235,7 +235,7 @@ namespace Resource
             const double referenceTime = 1;
             const double expiryDelay = 2;
 
-            const int key = 42;
+            const std::int32_t key = 42;
             cache.addEntryToObjectCache(key, nullptr);
 
             cache.update(referenceTime, expiryDelay);
@@ -259,7 +259,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, shouldSupportRemovingItems)
         {
             ObjectCache cache;
-            const int key = 42;
+            const std::int32_t key = 42;
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(key, value);
             ASSERT_EQ(cache.getRefFromObjectCache(key), value);
@@ -271,8 +271,8 @@ namespace Resource
         {
             ObjectCache cache;
 
-            const int key1 = 42;
-            const int key2 = 13;
+            const std::int32_t key1 = 42;
+            const std::int32_t key2 = 13;
             osg::ref_ptr<Object> value1(new Object);
             osg::ref_ptr<Object> value2(new Object);
             cache.addEntryToObjectCache(key1, value1);
@@ -298,8 +298,8 @@ namespace Resource
             cache.addEntryToObjectCache(2, value2);
             cache.addEntryToObjectCache(3, value3);
 
-            std::vector<std::pair<int, osg::Object*>> actual;
-            cache.call([&](int key, osg::Object* value) { actual.emplace_back(key, value); });
+            std::vector<std::pair<std::int32_t, osg::Object*>> actual;
+            cache.call([&](std::int32_t key, osg::Object* value) { actual.emplace_back(key, value); });
 
             EXPECT_THAT(actual, ElementsAre(Pair(1, value1.get()), Pair(2, value2.get()), Pair(3, value3.get())));
         }
@@ -448,7 +448,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, getOrLoadLoadsAKeyOnceForEveryThreadAskingAtOnce)
         {
             SharedCache cache;
-            std::atomic<int> loads = 0;
+            std::atomic<std::int32_t> loads = 0;
             const auto load = [&] {
                 ++loads;
                 EXPECT_TRUE(awaitWithin([&] { return cache.getStats().mCoalesced == 7; }));
@@ -487,7 +487,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, getOrLoadAnswersAThrowingLoadToItsWaitersAndLoadsAgainAfter)
         {
             SharedCache cache;
-            std::atomic<int> loads = 0;
+            std::atomic<std::int32_t> loads = 0;
             const auto failing = [&]() -> LoadedString {
                 ++loads;
                 EXPECT_TRUE(awaitWithin([&] { return cache.getStats().mCoalesced == 1; }));
@@ -541,7 +541,7 @@ namespace Resource
         TEST(ResourceGenericObjectCacheTest, getOrLoadLoadsTwoKeysInParallel)
         {
             SharedCache cache;
-            std::atomic<int> started = 0;
+            std::atomic<std::int32_t> started = 0;
             const auto load = [&] {
                 ++started;
                 EXPECT_TRUE(awaitWithin([&] { return started == 2; })) << "one key's load waited on the other's";
@@ -608,13 +608,49 @@ namespace Resource
             EXPECT_EQ(stats.mExpired, 1);
             EXPECT_EQ(stats.mSize, 2);
 
+            // **What went is destroyed by the worker that derives the budget**, not the thread that inserted: the
+            // first value lives until `makeRoom`, watched here through a weak hold.
+            CacheBudget watched(100);
+            SharedCache deferred(watched);
+            const std::weak_ptr<const std::string> first = deferred.getOrLoad(1, loadOf(40));
+            deferred.getOrLoad(2, loadOf(40));
+            deferred.getOrLoad(3, loadOf(40));
+            EXPECT_EQ(deferred.getRefFromObjectCacheOrNone(1), std::nullopt) << "evicted";
+            EXPECT_FALSE(first.expired()) << "destroyed by the inserting thread";
+            watched.makeRoom();
+            EXPECT_TRUE(first.expired()) << "kept past the deriving worker's look";
+
             // The same three under a budget of 120 keep all three: the budget is what decides.
             CacheBudget roomy(120);
             SharedCache kept(roomy);
-            for (const int key : { 1, 2, 3 })
+            for (const std::int32_t key : { 1, 2, 3 })
                 kept.getOrLoad(key, loadOf(40));
             EXPECT_EQ(kept.getStats().mSize, 3);
             EXPECT_EQ(kept.getStats().mExpired, 0);
+        }
+
+        /// **An update stamps every held entry, in runs with the lock let go between them**: 600 entries of a byte, the
+        /// oldest 300 held while the cache updates and let go after, past the first run of 256: held then, they are the
+        /// newest, so a budget of 300 lets the other 300 go and keeps every one of them.
+        TEST(ResourceGenericObjectCacheTest, anUpdateStampsEveryHeldEntryAcrossItsRuns)
+        {
+            constexpr std::int32_t sEntries = 600;
+            constexpr std::int32_t sHeld = 300;
+            CacheBudget budget(sEntries);
+            SharedCache cache(budget);
+            std::vector<std::shared_ptr<const std::string>> held;
+            for (std::int32_t key = 0; key < sEntries; ++key)
+            {
+                std::shared_ptr<const std::string> value = cache.getOrLoad(key, loadOf(1));
+                if (key < sHeld)
+                    held.push_back(std::move(value));
+            }
+            cache.update(1.0, 0.0);
+            held.clear();
+
+            budget.limit(sHeld);
+            for (std::int32_t key = 0; key < sEntries; ++key)
+                EXPECT_EQ(cache.getRefFromObjectCacheOrNone(key).has_value(), key < sHeld) << key;
         }
 
         /// **A hit moves an entry to the front**: 1 asked again after 2 was loaded makes 2 the one to go.
@@ -739,8 +775,26 @@ namespace Resource
                 budget.setBytes(30);
                 EXPECT_EQ(budget.getBytes(), 30) << "a figure under the limit stands";
                 budget.limit(std::nullopt);
+                EXPECT_EQ(budget.getBytes(), 30) << "lifted, the system's last figure stands at once";
                 budget.setBytes(1000);
                 EXPECT_EQ(budget.getBytes(), 1000);
+
+                // What the device claims is taken off the system's figure, at once and from every figure after it,
+                // and makes no room until the next look.
+                cache.getOrLoad(5, loadOf(70));
+                budget.yieldTo(960);
+                EXPECT_EQ(budget.getBytes(), 40) << "1000 less the device's 960";
+                EXPECT_EQ(budget.getHeld(), 70) << "the claim made room on the frame";
+                budget.setBytes(1100);
+                EXPECT_EQ(budget.getBytes(), 140) << "a new figure less the same claim";
+                EXPECT_EQ(budget.getHeld(), 70) << "under 140, nothing went";
+                budget.yieldTo(2000);
+                EXPECT_EQ(budget.getBytes(), 0) << "a claim past the figure leaves nothing";
+                budget.limit(30);
+                EXPECT_EQ(budget.getBytes(), 0) << "the limit takes nothing back from the claim";
+                budget.limit(std::nullopt);
+                budget.yieldTo(0);
+                EXPECT_EQ(budget.getBytes(), 1100);
             }
             EXPECT_EQ(budget.getHeld(), 0) << "the cache's own went with it";
         }
@@ -750,12 +804,12 @@ namespace Resource
         /// so the budget holds 20,000 at the most, where one counted gone first wraps it round past 2^63.
         TEST(ResourceGenericObjectCacheTest, aClearBesideALoadNeverTakesFromTheBudgetWhatItWasNotGiven)
         {
-            constexpr int sLoads = 20000;
+            constexpr std::int32_t sLoads = 20000;
             CacheBudget budget(CacheBudget::sUnbounded);
             SharedCache cache(budget);
             std::atomic<bool> loaded = false;
             std::jthread loader([&] {
-                for (int key = 0; key < sLoads; ++key)
+                for (std::int32_t key = 0; key < sLoads; ++key)
                     cache.getOrLoad(key, loadOf(1));
                 loaded = true;
             });
@@ -773,17 +827,20 @@ namespace Resource
             EXPECT_EQ(budget.getHeld(), 0);
         }
 
-        /// **The budget is what the caches hold and what the system leaves beside them, less 1 GiB**: 8 GiB left and
-        /// none held is 7 GiB; 8 left and 2 held, 9; half a GiB left and 3 held, 2.5, under what they hold, so they
-        /// make room; under the reserve altogether, none; where the system states nothing, a budget nothing passes.
+        /// **The budget is what the caches hold, what the system leaves beside them and what the heap holds free, less
+        /// 1 GiB**: 8 GiB left and none held is 7 GiB; 8 left and 2 held, 9; and 3 the heap holds free beside them,
+        /// 12; half a GiB left and 3 held, 2.5, under what they hold, so they make room; under the reserve
+        /// altogether, none; where the system states nothing, a budget nothing passes.
         TEST(ResourceCacheBudgetTest, theBudgetIsWhatTheCachesHoldAndWhatTheSystemLeavesLessTheReserve)
         {
             constexpr std::uint64_t gib = std::uint64_t{ 1 } << 30;
-            EXPECT_EQ(CacheBudget::derive(8 * gib, 0), 7 * gib);
-            EXPECT_EQ(CacheBudget::derive(8 * gib, 2 * gib), 9 * gib);
-            EXPECT_EQ(CacheBudget::derive(gib / 2, 3 * gib), 5 * gib / 2);
-            EXPECT_EQ(CacheBudget::derive(gib / 4, gib / 2), 0);
-            EXPECT_EQ(CacheBudget::derive(std::nullopt, 2 * gib), CacheBudget::sUnbounded);
+            EXPECT_EQ(CacheBudget::derive(8 * gib, 0, 0), 7 * gib);
+            EXPECT_EQ(CacheBudget::derive(8 * gib, 2 * gib, 0), 9 * gib);
+            EXPECT_EQ(CacheBudget::derive(8 * gib, 2 * gib, 3 * gib), 12 * gib)
+                << "the heap's free memory, the process's";
+            EXPECT_EQ(CacheBudget::derive(gib / 2, 3 * gib, 0), 5 * gib / 2);
+            EXPECT_EQ(CacheBudget::derive(gib / 4, gib / 2, 0), 0);
+            EXPECT_EQ(CacheBudget::derive(std::nullopt, 2 * gib, 3 * gib), CacheBudget::sUnbounded);
         }
     }
 }

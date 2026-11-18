@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -22,13 +23,13 @@ namespace Compiler
 
         const std::vector<std::string>& getStrings() const { return mStrings; }
 
-        int addInteger(Interpreter::Type_Integer value);
+        std::int32_t addInteger(Interpreter::Type_Integer value);
         ///< add integer liternal and return index.
 
-        int addFloat(Interpreter::Type_Float value);
+        std::int32_t addFloat(Interpreter::Type_Float value);
         ///< add float literal and return value.
 
-        int addString(const std::string& value);
+        std::int32_t addString(const std::string& value);
         ///< add string literal and return value.
 
         void clear();

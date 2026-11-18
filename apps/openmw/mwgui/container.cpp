@@ -1,11 +1,12 @@
+#include "container.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 #include <utility>
-
-#include "container.hpp"
 
 #include <MyGUI_Button.h>
 #include <MyGUI_Delegate.h>
@@ -13,23 +14,19 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/aipackage.hpp> // IWYU pragma: keep: the package whole, which a shared pointer to it is read through
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/summoning.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/esm/defs.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/summoning.hpp"
-
-#include "../mwscript/interpretercontext.hpp"
 
 #include "containeritemmodel.hpp"
 #include "countdialog.hpp"
@@ -80,7 +77,7 @@ namespace MWGui
         mControllerButtons.mL2 = "#{Interface:Inventory}";
     }
 
-    void ContainerWindow::onItemSelected(int index)
+    void ContainerWindow::onItemSelected(std::int32_t index)
     {
         if (mDragAndDrop->mIsOnDragAndDrop)
         {
@@ -98,7 +95,7 @@ namespace MWGui
         }
 
         MWWorld::Ptr object = item.mBase;
-        size_t count = item.mCount;
+        std::size_t count = item.mCount;
         bool shift = MyGUI::InputManager::getInstance().isShiftPressed();
         if (MyGUI::InputManager::getInstance().isControlPressed())
             count = 1;
@@ -110,7 +107,7 @@ namespace MWGui
             CountDialog* dialog = MWBase::Environment::get().getWindowManager()->getCountDialog();
             std::string name{ object.getClass().getName(object) };
             name += MWGui::ToolTips::getSoulString(object.getCellRef());
-            dialog->openCountDialog(name, "#{sTake}", static_cast<int>(count));
+            dialog->openCountDialog(name, "#{sTake}", static_cast<std::int32_t>(count));
             dialog->eventOkClicked.clear();
             if (Settings::gui().mControllerMenus || MyGUI::InputManager::getInstance().isAltPressed())
                 dialog->eventOkClicked += MyGUI::newDelegate(this, &ContainerWindow::transferItem);
@@ -130,7 +127,7 @@ namespace MWGui
 
         const ItemStack item = mModel->getItem(mSelectedItem);
 
-        if (!mModel->onTakeItem(item.mBase, static_cast<int>(count)))
+        if (!mModel->onTakeItem(item.mBase, static_cast<std::int32_t>(count)))
             return;
 
         mDragAndDrop->startDrag(mSelectedItem, mSortModel, mModel, mItemView, count);
@@ -143,7 +140,7 @@ namespace MWGui
 
         const ItemStack item = mModel->getItem(mSelectedItem);
 
-        if (!mModel->onTakeItem(item.mBase, static_cast<int>(count)))
+        if (!mModel->onTakeItem(item.mBase, static_cast<std::int32_t>(count)))
             return;
 
         mItemTransfer->apply(item, count, *mItemView);
@@ -154,7 +151,8 @@ namespace MWGui
         if (mModel == nullptr)
             return;
 
-        bool success = mModel->onDropItem(mDragAndDrop->mItem.mBase, static_cast<int>(mDragAndDrop->mDraggedCount));
+        bool success
+            = mModel->onDropItem(mDragAndDrop->mItem.mBase, static_cast<std::int32_t>(mDragAndDrop->mDraggedCount));
 
         if (success)
             mDragAndDrop->drop(mModel, mItemView);
@@ -258,7 +256,7 @@ namespace MWGui
         if (mPtr.getClass().hasInventoryStore(mPtr))
         {
             MWWorld::InventoryStore& invStore = mPtr.getClass().getInventoryStore(mPtr);
-            for (size_t i = 0; i < mModel->getItemCount(); ++i)
+            for (std::size_t i = 0; i < mModel->getItemCount(); ++i)
             {
                 const ItemStack& item = mModel->getItem(static_cast<ItemModel::ModelIndex>(i));
                 if (invStore.isEquipped(item.mBase) == false)
@@ -270,7 +268,7 @@ namespace MWGui
 
         mModel->update();
 
-        for (size_t i = 0; i < mModel->getItemCount(); ++i)
+        for (std::size_t i = 0; i < mModel->getItemCount(); ++i)
         {
             if (i == 0)
             {
@@ -282,7 +280,7 @@ namespace MWGui
 
             const ItemStack item = mModel->getItem(static_cast<ItemModel::ModelIndex>(i));
 
-            if (!mModel->onTakeItem(item.mBase, static_cast<int>(item.mCount)))
+            if (!mModel->onTakeItem(item.mBase, static_cast<std::int32_t>(item.mCount)))
                 break;
 
             mModel->moveItem(item, item.mCount, playerModel);
@@ -379,7 +377,7 @@ namespace MWGui
     {
         if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
-            int index = mItemView->getControllerFocus();
+            std::int32_t index = mItemView->getControllerFocus();
             if (index >= 0 && index < mItemView->getItemCount())
                 onItemSelected(index);
         }

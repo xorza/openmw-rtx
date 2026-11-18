@@ -2,46 +2,41 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
-#include <components/debug/debuglog.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadgmst.hpp>
+#include <components/esm3/loadmgef.hpp>
+#include <components/esm3/loadstat.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
-#include <components/esm3/loadcrea.hpp>
-#include <components/esm3/loadgmst.hpp>
-#include <components/esm3/loadmgef.hpp>
-#include <components/esm3/loadstat.hpp>
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/aibreathe.hpp"
-
-#include "../mwrender/vismask.hpp"
-
 #include "actor.hpp"
 #include "actorutil.hpp"
+#include "aibreathe.hpp"
 #include "aicombataction.hpp"
 #include "aifollow.hpp"
 #include "aipursue.hpp"
@@ -165,7 +160,7 @@ namespace
         const auto& stats = creature.getClass().getCreatureStats(creature);
         if (!static_cast<bool>(stats.getMagicEffects().getOrDefault(ESM::MagicEffect::Soultrap).getMagnitude()))
             return;
-        const int creatureSoulValue = creature.get<ESM::Creature>()->mBase->mData.mSoul;
+        const std::int32_t creatureSoulValue = creature.get<ESM::Creature>()->mBase->mData.mSoul;
         if (creatureSoulValue <= 0)
             return;
         MWBase::World* const world = MWBase::Environment::get().getWorld();
@@ -253,7 +248,8 @@ namespace MWMechanics
                 case AttackType::Thrust:
                     return "thrust";
             }
-            throw std::logic_error("Invalid attack type value: " + std::to_string(static_cast<int>(attackType)));
+            throw std::logic_error(
+                "Invalid attack type value: " + std::to_string(static_cast<std::int32_t>(attackType)));
         }
 
         float getTimeToDestination(const AiPackage& package, const osg::Vec3f& position, float speed, float duration,
@@ -536,8 +532,8 @@ namespace MWMechanics
 
         // Play a random voice greeting if the player gets too close
         const auto& gmst = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();
-        static const int iGreetDistanceMultiplier = gmst.find("iGreetDistanceMultiplier")->mValue.getInteger();
-        static const int iGreetDuration = gmst.find("iGreetDuration")->mValue.getInteger();
+        static const std::int32_t iGreetDistanceMultiplier = gmst.find("iGreetDistanceMultiplier")->mValue.getInteger();
+        static const std::int32_t iGreetDuration = gmst.find("iGreetDuration")->mValue.getInteger();
         static const float fGreetDistanceReset = gmst.find("fGreetDistanceReset")->mValue.getFloat();
 
         const float helloDistance
@@ -549,7 +545,7 @@ namespace MWMechanics
         const osg::Vec3f dir = playerPos - actorPos;
         const float distSquared = dir.length2();
 
-        int greetingTimer = actorState.getGreetingTimer();
+        std::int32_t greetingTimer = actorState.getGreetingTimer();
         if (greetingState == GreetingState::None)
         {
             const CreatureStats& playerStats = player.getClass().getCreatureStats(player);
@@ -558,7 +554,7 @@ namespace MWMechanics
                 && MWBase::Environment::get().getMechanicsManager()->awarenessCheck(player, actor))
                 greetingTimer++;
 
-            constexpr int initialDelay = 2;
+            constexpr std::int32_t initialDelay = 2;
             if (greetingTimer >= initialDelay)
             {
                 greetingState = GreetingState::InProgress;
@@ -572,8 +568,8 @@ namespace MWMechanics
         {
             greetingTimer++;
 
-            static const int greetDuration
-                = static_cast<int>(static_cast<float>(iGreetDuration) / sUpdateHelloInterval);
+            static const auto greetDuration
+                = static_cast<std::int32_t>(static_cast<float>(iGreetDuration) / sUpdateHelloInterval);
             if (greetingTimer <= greetDuration)
                 turnActorToFacePlayer(actor, actorState, dir);
             else
@@ -646,7 +642,7 @@ namespace MWMechanics
         const osg::Vec3f actor1Pos(actor1.getRefData().getPosition().asVec3());
         const osg::Vec3f actor2Pos(actor2.getRefData().getPosition().asVec3());
         const float sqrDist = (actor1Pos - actor2Pos).length2();
-        const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
+        const std::int32_t actorsProcessingRange = Settings::game().mActorsProcessingRange;
 
         if (sqrDist > static_cast<float>(actorsProcessingRange * actorsProcessingRange))
             return;
@@ -1197,7 +1193,8 @@ namespace MWMechanics
             && creatureStats.getMagicEffects().getOrDefault(ESM::MagicEffect::CalmHumanoid).getMagnitude() == 0)
         {
             const MWWorld::ESMStore& esmStore = world->getStore();
-            static const int cutoff = esmStore.get<ESM::GameSetting>().find("iCrimeThreshold")->mValue.getInteger();
+            static const std::int32_t cutoff
+                = esmStore.get<ESM::GameSetting>().find("iCrimeThreshold")->mValue.getInteger();
             // Force dialogue on sight if bounty is greater than the cutoff
             // In vanilla morrowind, the greeting dialogue is scripted to either arrest the player (< 5000 bounty) or
             // attack (>= 5000 bounty)
@@ -1206,7 +1203,7 @@ namespace MWMechanics
                 // or so?
                 && world->getLOS(ptr, player) && mechanicsManager->awarenessCheck(player, ptr))
             {
-                static const int iCrimeThresholdMultiplier
+                static const std::int32_t iCrimeThresholdMultiplier
                     = esmStore.get<ESM::GameSetting>().find("iCrimeThresholdMultiplier")->mValue.getInteger();
                 if (playerStats.getBounty() >= cutoff * iCrimeThresholdMultiplier)
                 {
@@ -1277,7 +1274,7 @@ namespace MWMechanics
 
         const float dist
             = (player.getRefData().getPosition().asVec3() - ptr.getRefData().getPosition().asVec3()).length();
-        const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
+        const std::int32_t actorsProcessingRange = Settings::game().mActorsProcessingRange;
         if (dist > static_cast<float>(actorsProcessingRange))
         {
             ptr.getRefData().getBaseNode()->setNodeMask(0);
@@ -1582,7 +1579,7 @@ namespace MWMechanics
                 if (!playerHitAttemptActor.isInCell())
                     player.getClass().getCreatureStats(player).setHitAttemptActor({});
             }
-            const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
+            const std::int32_t actorsProcessingRange = Settings::game().mActorsProcessingRange;
 
             // AI and magic effects update
             for (Actor& actor : mActors)
@@ -1723,9 +1720,10 @@ namespace MWMechanics
                     alwaysActive = !seq.isEmpty() && seq.getActivePackage().alwaysActive();
                 }
                 const bool inRange = isPlayer || dist <= static_cast<float>(actorsProcessingRange) || alwaysActive;
-                const int activeFlag = isPlayer ? 2 : 1; // Can be changed back to '2' to keep updating bounding boxes
-                                                         // off screen (more accurate, but slower)
-                const int active = inRange ? activeFlag : 0;
+                const std::int32_t activeFlag
+                    = isPlayer ? 2 : 1; // Can be changed back to '2' to keep updating bounding boxes
+                                        // off screen (more accurate, but slower)
+                const std::int32_t active = inRange ? activeFlag : 0;
 
                 CharacterController& ctrl = actor.getCharacterController();
                 ctrl.setActive(active);
@@ -1933,7 +1931,7 @@ namespace MWMechanics
 
         const MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
         const osg::Vec3f playerPos = player.getRefData().getPosition().asVec3();
-        const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
+        const std::int32_t actorsProcessingRange = Settings::game().mActorsProcessingRange;
 
         for (const Actor& actor : mActors)
         {
@@ -2042,7 +2040,7 @@ namespace MWMechanics
         mSneakTimer += duration;
     }
 
-    int Actors::getHoursToRest(const MWWorld::Ptr& ptr) const
+    std::int32_t Actors::getHoursToRest(const MWWorld::Ptr& ptr) const
     {
         const auto [healthPerHour, magickaPerHour] = getRestorationPerHourOfSleep(ptr);
 
@@ -2056,10 +2054,10 @@ namespace MWMechanics
             ? (stats.getMagicka().getModified() - stats.getMagicka().getCurrent()) / magickaPerHour
             : 1.0f;
 
-        return static_cast<int>(std::ceil(std::max(1.f, std::max(healthHours, magickaHours))));
+        return static_cast<std::int32_t>(std::ceil(std::max(1.f, std::max(healthHours, magickaHours))));
     }
 
-    int Actors::countDeaths(const ESM::RefId& id) const
+    std::int32_t Actors::countDeaths(const ESM::RefId& id) const
     {
         const auto iter = mDeathCount.find(id);
         if (iter != mDeathCount.end())
@@ -2074,8 +2072,8 @@ namespace MWMechanics
             iter->second->getCharacterController().forceStateUpdate();
     }
 
-    bool Actors::playAnimationGroup(
-        const MWWorld::Ptr& ptr, std::string_view groupName, int mode, uint32_t number, bool scripted) const
+    bool Actors::playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, std::int32_t mode,
+        std::uint32_t number, bool scripted) const
     {
         const auto iter = mIndex.find(ptr.mRef);
         if (iter != mIndex.end())
@@ -2090,8 +2088,8 @@ namespace MWMechanics
         }
     }
 
-    bool Actors::playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops, float speed,
-        std::string_view startKey, std::string_view stopKey, bool forceLoop)
+    bool Actors::playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, std::uint32_t loops,
+        float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop)
     {
         const auto iter = mIndex.find(ptr.mRef);
         if (iter != mIndex.end())
@@ -2287,9 +2285,9 @@ namespace MWMechanics
                 getActorsSidingWith(follower, out, excludeInfighting);
     }
 
-    std::vector<int> Actors::getActorsFollowingIndices(const MWWorld::Ptr& actor) const
+    std::vector<std::int32_t> Actors::getActorsFollowingIndices(const MWWorld::Ptr& actor) const
     {
-        std::vector<int> list;
+        std::vector<std::int32_t> list;
         forEachFollowingPackage(
             mActors, actor, getPlayer(), [&](const Actor&, const std::shared_ptr<AiPackage>& package) {
                 if (package->followTargetThroughDoors() && package->targetIs(actor))
@@ -2305,14 +2303,14 @@ namespace MWMechanics
         return list;
     }
 
-    std::map<int, MWWorld::Ptr> Actors::getActorsFollowingByIndex(const MWWorld::Ptr& actor) const
+    std::map<std::int32_t, MWWorld::Ptr> Actors::getActorsFollowingByIndex(const MWWorld::Ptr& actor) const
     {
-        std::map<int, MWWorld::Ptr> map;
+        std::map<std::int32_t, MWWorld::Ptr> map;
         forEachFollowingPackage(
             mActors, actor, getPlayer(), [&](const Actor& otherActor, const std::shared_ptr<AiPackage>& package) {
                 if (package->followTargetThroughDoors() && package->targetIs(actor))
                 {
-                    const int index = static_cast<const AiFollow*>(package.get())->getFollowIndex();
+                    const std::int32_t index = static_cast<const AiFollow*>(package.get())->getFollowIndex();
                     map[index] = otherActor.getPtr();
                     return false;
                 }
@@ -2379,14 +2377,14 @@ namespace MWMechanics
         writer.endRecord(ESM::REC_DCOU);
     }
 
-    void Actors::readRecord(ESM::ESMReader& reader, uint32_t type)
+    void Actors::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_DCOU)
         {
             while (reader.isNextSub("ID__"))
             {
                 ESM::RefId id = reader.getRefId();
-                int count = 0;
+                std::int32_t count = 0;
                 reader.getHNT(count, "COUN");
                 if (MWBase::Environment::get().getESMStore()->find(id))
                     mDeathCount[id] = count;
@@ -2434,7 +2432,7 @@ namespace MWMechanics
         return it->second->getCharacterController().isAttackingOrSpell();
     }
 
-    int Actors::getGreetingTimer(const MWWorld::Ptr& ptr) const
+    std::int32_t Actors::getGreetingTimer(const MWWorld::Ptr& ptr) const
     {
         const auto it = mIndex.find(ptr.mRef);
         if (it == mIndex.end())

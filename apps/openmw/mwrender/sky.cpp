@@ -1,15 +1,22 @@
 #include "sky.hpp"
 
+#include <cstdint>
+
 #include <osg/Depth>
 #include <osg/PositionAttitudeTransform>
-
 #include <osgParticle/ModularEmitter>
 #include <osgParticle/ModularProgram>
 #include <osgParticle/Operator>
 #include <osgParticle/ParticleSystemUpdater>
 
-#include <components/settings/values.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/nifosg/particle.hpp>
+#include <components/resource/imagemanager.hpp>
+#include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/material.hpp>
@@ -17,24 +24,10 @@
 #include <components/sceneutil/shadow.hpp>
 #include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/visitor.hpp>
-
-#include <components/resource/imagemanager.hpp>
-#include <components/resource/scenemanager.hpp>
-
-#include <components/vfs/manager.hpp>
-
-#include <components/misc/resourcehelpers.hpp>
-#include <components/stereo/stereomanager.hpp>
-
-#include <components/nifosg/particle.hpp>
-
+#include <components/settings/values.hpp>
 #include <components/sky/skyclock.hpp>
-
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/weather.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
+#include <components/stereo/stereomanager.hpp>
+#include <components/vfs/manager.hpp>
 
 #include "renderbin.hpp"
 #include "skystate.hpp"
@@ -77,13 +70,13 @@ namespace
                 toLocal.invert(toWorld);
             }
 
-            for (int i = 0; i < ps->numParticles(); ++i)
+            for (std::int32_t i = 0; i < ps->numParticles(); ++i)
             {
                 osgParticle::Particle* p = ps->getParticle(i);
                 p->setPosition(toWorld.preMult(p->getPosition()));
                 p->setPosition(p->getPosition() - positionDifference);
 
-                for (int j = 0; j < 3; ++j) // wrap-around in all 3 dimensions
+                for (std::int32_t j = 0; j < 3; ++j) // wrap-around in all 3 dimensions
                 {
                     osg::Vec3 pos = p->getPosition();
 
@@ -210,8 +203,8 @@ namespace
     {
     public:
         SkyRTT(osg::Vec2f size, osg::Group* earlyRenderBinRoot)
-            : RTTNode(static_cast<std::uint32_t>(static_cast<int>(size.x())),
-                  static_cast<std::uint32_t>(static_cast<int>(size.y())), 0, false, 1, StereoAwareness::Aware,
+            : RTTNode(static_cast<std::uint32_t>(static_cast<std::int32_t>(size.x())),
+                  static_cast<std::uint32_t>(static_cast<std::int32_t>(size.y())), 0, false, 1, StereoAwareness::Aware,
                   MWRender::shouldAddMSAAIntermediateTarget())
             , mEarlyRenderBinRoot(earlyRenderBinRoot)
         {
@@ -701,7 +694,7 @@ namespace MWRender
                     program->setParticleSystem(ps);
                     mParticleNode->addChild(program);
 
-                    for (int particleIndex = 0; particleIndex < ps->numParticles(); ++particleIndex)
+                    for (std::int32_t particleIndex = 0; particleIndex < ps->numParticles(); ++particleIndex)
                     {
                         ps->getParticle(particleIndex)
                             ->setAlphaRange(osgParticle::rangef(mPrecipitationAlpha, mPrecipitationAlpha));

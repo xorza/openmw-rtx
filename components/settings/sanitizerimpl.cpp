@@ -1,15 +1,17 @@
 #include "sanitizerimpl.hpp"
 
-#include <osg/Vec3f>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+
+#include <osg/Vec3f>
 
 namespace Settings
 {
@@ -78,7 +80,8 @@ namespace Settings
         };
 
         template <class T>
-        auto getPrev(const T& value) -> std::enable_if_t<std::is_floating_point_v<T>, T>
+        auto getPrev(const T& value) -> T
+            requires(std::is_floating_point_v<T>)
         {
             assert(value > -std::numeric_limits<T>::max());
             return std::nextafter(value, -std::numeric_limits<T>::max());
@@ -147,9 +150,9 @@ namespace Settings
         return std::make_unique<Max<float>>(max);
     }
 
-    std::unique_ptr<Sanitizer<int>> makeMaxSanitizerInt(int max)
+    std::unique_ptr<Sanitizer<std::int32_t>> makeMaxSanitizerInt(std::int32_t max)
     {
-        return std::make_unique<Max<int>>(max);
+        return std::make_unique<Max<std::int32_t>>(max);
     }
 
     std::unique_ptr<Sanitizer<std::size_t>> makeMaxSanitizerSize(std::size_t max)
@@ -182,9 +185,9 @@ namespace Settings
         return std::make_unique<Clamp<double>>(min, max);
     }
 
-    std::unique_ptr<Sanitizer<int>> makeClampSanitizerInt(int min, int max)
+    std::unique_ptr<Sanitizer<std::int32_t>> makeClampSanitizerInt(std::int32_t min, std::int32_t max)
     {
-        return std::make_unique<Clamp<int>>(min, max);
+        return std::make_unique<Clamp<std::int32_t>>(min, max);
     }
 
     std::unique_ptr<Sanitizer<std::size_t>> makeClampSanitizerSize(std::size_t min, std::size_t max)
@@ -197,9 +200,9 @@ namespace Settings
         return std::make_unique<ClampStrictMax<float>>(min, max);
     }
 
-    std::unique_ptr<Sanitizer<int>> makeEnumSanitizerInt(std::initializer_list<int> values)
+    std::unique_ptr<Sanitizer<std::int32_t>> makeEnumSanitizerInt(std::initializer_list<std::int32_t> values)
     {
-        return std::make_unique<Enum<int>>(values);
+        return std::make_unique<Enum<std::int32_t>>(values);
     }
 
     std::unique_ptr<Sanitizer<std::string>> makeEnumSanitizerString(std::initializer_list<std::string> values)

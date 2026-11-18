@@ -14,7 +14,6 @@
 #include <osg/Vec3f>
 
 #include <components/misc/bytebuffer.hpp>
-
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -91,6 +90,25 @@ namespace Rtx
     template <class T>
     struct ContentCodec;
 
+    /// A yes or a no: one byte, nought or one.
+    template <>
+    struct ContentCodec<bool>
+    {
+        static void encode(const bool value, Misc::ByteBuffer& into)
+        {
+            ContentBytes::put(into, static_cast<std::uint8_t>(value));
+        }
+
+        static bool decode(std::span<const std::byte> from, bool& value)
+        {
+            std::uint8_t stored = 0;
+            if (!ContentBytes::take(from, stored) || !from.empty() || stored > 1)
+                return false;
+            value = stored == 1;
+            return true;
+        }
+    };
+
     template <>
     struct ContentCodec<AlphaRange>
     {
@@ -112,7 +130,7 @@ namespace Rtx
         static void encode(const MeanTexel& mean, Misc::ByteBuffer& into)
         {
             for (const osg::Vec3f& colour : { mean.mColour, mean.mWhole })
-                for (int channel = 0; channel < 3; ++channel)
+                for (std::int32_t channel = 0; channel < 3; ++channel)
                     ContentBytes::put(into, colour[channel]);
             ContentBytes::put(into, mean.mAlpha);
         }
@@ -120,7 +138,7 @@ namespace Rtx
         static bool decode(std::span<const std::byte> from, MeanTexel& mean)
         {
             for (osg::Vec3f* colour : { &mean.mColour, &mean.mWhole })
-                for (int channel = 0; channel < 3; ++channel)
+                for (std::int32_t channel = 0; channel < 3; ++channel)
                     if (!ContentBytes::take(from, (*colour)[channel]))
                         return false;
             return ContentBytes::take(from, mean.mAlpha) && from.empty();

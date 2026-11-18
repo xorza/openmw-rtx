@@ -1,6 +1,8 @@
 #include "interpreter.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <stdexcept>
 #include <string>
@@ -12,7 +14,7 @@ namespace Interpreter
 {
     namespace
     {
-        [[noreturn]] void abortUnknownCode(int segment, int opcode)
+        [[noreturn]] void abortUnknownCode(std::int32_t segment, std::int32_t opcode)
         {
             const std::string error = std::format("unknown opcode {} in segment {}", opcode, segment);
             throw std::runtime_error(error);
@@ -25,18 +27,18 @@ namespace Interpreter
         }
 
         template <typename T>
-        auto& getDispatcher(const T& segment, unsigned int seg, int opcode)
+        auto& getDispatcher(const T& segment, std::uint32_t seg, std::int32_t opcode)
         {
             auto it = segment.find(opcode);
             if (it == segment.end())
             {
-                abortUnknownCode(static_cast<int>(seg), opcode);
+                abortUnknownCode(static_cast<std::int32_t>(seg), opcode);
             }
             return it->second;
         }
     }
 
-    [[noreturn]] void Interpreter::abortDuplicateInstruction(std::string_view name, int code)
+    [[noreturn]] void Interpreter::abortDuplicateInstruction(std::string_view name, std::int32_t code)
     {
         throw std::invalid_argument(
             std::format("Duplicated interpreter instruction code in segment {}: {:#x}", name, code));
@@ -44,22 +46,22 @@ namespace Interpreter
 
     void Interpreter::execute(Type_Code code)
     {
-        unsigned int segSpec = code >> 30;
+        std::uint32_t segSpec = code >> 30;
 
         switch (segSpec)
         {
             case 0:
             {
-                const int opcode = static_cast<int>(code >> 24);
-                const unsigned int arg0 = code & 0xffffff;
+                const auto opcode = static_cast<std::int32_t>(code >> 24);
+                const std::uint32_t arg0 = code & 0xffffff;
 
                 return getDispatcher(mSegment0, 0, opcode)->execute(mRuntime, arg0);
             }
 
             case 2:
             {
-                const int opcode = static_cast<int>((code >> 20) & 0x3ff);
-                const unsigned int arg0 = code & 0xfffff;
+                const auto opcode = static_cast<std::int32_t>((code >> 20) & 0x3ff);
+                const std::uint32_t arg0 = code & 0xfffff;
 
                 return getDispatcher(mSegment2, 2, opcode)->execute(mRuntime, arg0);
             }
@@ -73,15 +75,15 @@ namespace Interpreter
         {
             case 0x30:
             {
-                const int opcode = static_cast<int>((code >> 8) & 0x3ffff);
-                const unsigned int arg0 = code & 0xff;
+                const auto opcode = static_cast<std::int32_t>((code >> 8) & 0x3ffff);
+                const std::uint32_t arg0 = code & 0xff;
 
                 return getDispatcher(mSegment3, 3, opcode)->execute(mRuntime, arg0);
             }
 
             case 0x32:
             {
-                const int opcode = static_cast<int>(code & 0x3ffffff);
+                const auto opcode = static_cast<std::int32_t>(code & 0x3ffffff);
 
                 return getDispatcher(mSegment5, 5, opcode)->execute(mRuntime);
             }

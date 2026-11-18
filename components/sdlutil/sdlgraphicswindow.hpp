@@ -1,7 +1,8 @@
 #pragma once
 
-#include <SDL3/SDL_video.h>
+#include <cstdint>
 
+#include <SDL3/SDL_video.h>
 #include <osgViewer/GraphicsWindow>
 
 #include "vsyncmode.hpp"
@@ -64,7 +65,8 @@ namespace SDLUtil
         void raiseWindow() override;
 
         /** Set the window's position and size.*/
-        bool setWindowRectangleImplementation(int x, int y, int width, int height) override;
+        bool setWindowRectangleImplementation(
+            std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) override;
 
         /** Set the name of the window */
         void setWindowName(const std::string& name) override;

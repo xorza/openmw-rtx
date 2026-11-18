@@ -28,6 +28,7 @@
 #include <components/rtx/renderer/frametimehistogram.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -76,6 +77,7 @@ namespace ContentStore
 
 namespace Rtx
 {
+    class ImageDerivation;
     class PoseUpdate;
     class PreparedImages;
 }
@@ -154,7 +156,7 @@ namespace MWRender
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
-        void windowResized(int x, int y, int width, int height) noexcept override;
+        void windowResized(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) noexcept override;
 
         void advance(double simulationTime) noexcept override;
         void updateTraversal() noexcept override;
@@ -187,7 +189,7 @@ namespace MWRender
         /// the content is read: `Rtx::Renderer::awaitKernels`; and the content's preparation beside it.
         void prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener) override;
 
-        void capture(osg::Image& image, int width, int height) noexcept override;
+        void capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept override;
         void saveScreenshot() noexcept override;
 
         /// A present mode: off is mailbox rather than immediate, and adaptive is relaxed FIFO.
@@ -214,7 +216,8 @@ namespace MWRender
         /// two runs of one build dropped different models and laid the scene out two ways from
         /// `island-crossing` on. What is read from files is kept by the caches' budget instead, which a stepped
         /// run is held to as well: no run on the desk passes it, and one that does has no memory to keep more.
-        static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
+        static void setResourceExpiry(
+            Resource::ResourceSystem& resources, const std::optional<float>& step, SteppedExpiry expiry);
 
         /// Has `scene` look for every model's `_n` and `_spec` maps whatever `[Shaders] auto use object normal
         /// maps` and `specular maps` say: those are the rasterizer's, and a replacer's companion maps are what
@@ -413,9 +416,18 @@ namespace MWRender
         /// mirror, so its going finishes what the mirror's passes handed it to write.
         std::unique_ptr<ContentStore::Store> mContentStore;
 
+        /// What is derived of a file where a loader first reads it (`Rtx::ImageDerivation`), on as many preprocessors
+        /// as the chains' threads. After the store it asks; handed to the image manager, which calls it on every
+        /// loader's thread, and taken back before this goes (`~RtxRenderer`).
+        std::unique_ptr<Rtx::ImageDerivation> mDerivation;
+
         /// The world's normal and data maps with their chains made again, on half the processors
         /// (`Rtx::Hands::Half`). After the store its threads write to, before the mirror whose hand-over reads it.
         std::unique_ptr<Rtx::PreparedImages> mPrepared;
+
+        /// Where every scene this renderer's slots meet takes its identity: the world's and every traced view's.
+        /// Before the mirror, whose scene takes one, and every view.
+        Rtx::SceneIdentities mSceneIdentities;
 
         /// The engine's scene graph mirrored into what a ray can meet, and the hand-over that
         /// puts it on the device.
@@ -474,6 +486,9 @@ namespace MWRender
         /// What the run holds the game's resource caches to, where it says — `RunSetup::mCacheBudget` — which
         /// `configureResources` hands the resource system.
         std::optional<std::uint64_t> mCacheBudget;
+
+        /// What a stepped run keeps in the caches kept by time — `RunSetup::mSteppedExpiry`.
+        SteppedExpiry mSteppedExpiry = SteppedExpiry::Never;
 
         /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;

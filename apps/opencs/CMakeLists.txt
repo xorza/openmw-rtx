@@ -11,9 +11,8 @@ target_sources(
             BASE_DIRS
                 "${PROJECT_SOURCE_DIR}"
 )
-if(WIN32)
-    target_sources(openmw-cs-lib PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc")
-endif()
+# On every system, though Windows' alone reads it (`Platform::Application`), so the editor starts one way everywhere.
+target_sources(openmw-cs-lib PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc")
 
 target_sources(openmw-cs-lib PRIVATE editor.cpp PUBLIC FILE_SET HEADERS FILES editor.hpp)
 
@@ -380,6 +379,7 @@ target_sources(
                 view/doc/newgame.hpp
                 view/doc/operation.hpp
                 view/doc/operations.hpp
+                view/doc/pathmetatype.hpp
                 view/doc/runlogsubview.hpp
                 view/doc/sizehint.hpp
                 view/doc/startup.hpp

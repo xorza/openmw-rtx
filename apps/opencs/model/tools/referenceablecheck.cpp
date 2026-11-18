@@ -1,14 +1,17 @@
 #include "referenceablecheck.hpp"
 
+#include <cstdint>
 #include <format>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/resources.hpp>
-
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/aipackage.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
@@ -30,11 +33,6 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
-#include "../prefs/state.hpp"
-
-#include "../world/record.hpp"
-#include "../world/universalid.hpp"
 
 #include "effectlistcheck.hpp"
 
@@ -65,10 +63,10 @@ CSMTools::ReferenceableCheckStage::ReferenceableCheckStage(const CSMWorld::RefId
     mIgnoreBaseRecords = false;
 }
 
-void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::ReferenceableCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     // Checks for books, than, when stage is above mBooksSize goes to other checks, with (stage - PrevSum) as stage.
-    const int bookSize(mReferencables.getBooks().getSize());
+    const std::int32_t bookSize(mReferencables.getBooks().getSize());
 
     if (stage < bookSize)
     {
@@ -78,7 +76,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= bookSize;
 
-    const int activatorSize(mReferencables.getActivators().getSize());
+    const std::int32_t activatorSize(mReferencables.getActivators().getSize());
 
     if (stage < activatorSize)
     {
@@ -88,7 +86,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= activatorSize;
 
-    const int potionSize(mReferencables.getPotions().getSize());
+    const std::int32_t potionSize(mReferencables.getPotions().getSize());
 
     if (stage < potionSize)
     {
@@ -98,7 +96,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= potionSize;
 
-    const int apparatusSize(mReferencables.getApparati().getSize());
+    const std::int32_t apparatusSize(mReferencables.getApparati().getSize());
 
     if (stage < apparatusSize)
     {
@@ -108,7 +106,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= apparatusSize;
 
-    const int armorSize(mReferencables.getArmors().getSize());
+    const std::int32_t armorSize(mReferencables.getArmors().getSize());
 
     if (stage < armorSize)
     {
@@ -118,7 +116,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= armorSize;
 
-    const int clothingSize(mReferencables.getClothing().getSize());
+    const std::int32_t clothingSize(mReferencables.getClothing().getSize());
 
     if (stage < clothingSize)
     {
@@ -128,7 +126,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= clothingSize;
 
-    const int containerSize(mReferencables.getContainers().getSize());
+    const std::int32_t containerSize(mReferencables.getContainers().getSize());
 
     if (stage < containerSize)
     {
@@ -138,7 +136,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= containerSize;
 
-    const int doorSize(mReferencables.getDoors().getSize());
+    const std::int32_t doorSize(mReferencables.getDoors().getSize());
 
     if (stage < doorSize)
     {
@@ -148,7 +146,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= doorSize;
 
-    const int ingredientSize(mReferencables.getIngredients().getSize());
+    const std::int32_t ingredientSize(mReferencables.getIngredients().getSize());
 
     if (stage < ingredientSize)
     {
@@ -158,7 +156,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= ingredientSize;
 
-    const int creatureLevListSize(mReferencables.getCreatureLevelledLists().getSize());
+    const std::int32_t creatureLevListSize(mReferencables.getCreatureLevelledLists().getSize());
 
     if (stage < creatureLevListSize)
     {
@@ -168,7 +166,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= creatureLevListSize;
 
-    const int itemLevelledListSize(mReferencables.getItemLevelledList().getSize());
+    const std::int32_t itemLevelledListSize(mReferencables.getItemLevelledList().getSize());
 
     if (stage < itemLevelledListSize)
     {
@@ -178,7 +176,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= itemLevelledListSize;
 
-    const int lightSize(mReferencables.getLights().getSize());
+    const std::int32_t lightSize(mReferencables.getLights().getSize());
 
     if (stage < lightSize)
     {
@@ -188,7 +186,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= lightSize;
 
-    const int lockpickSize(mReferencables.getLocpicks().getSize());
+    const std::int32_t lockpickSize(mReferencables.getLocpicks().getSize());
 
     if (stage < lockpickSize)
     {
@@ -198,7 +196,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= lockpickSize;
 
-    const int miscSize(mReferencables.getMiscellaneous().getSize());
+    const std::int32_t miscSize(mReferencables.getMiscellaneous().getSize());
 
     if (stage < miscSize)
     {
@@ -208,7 +206,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= miscSize;
 
-    const int npcSize(mReferencables.getNPCs().getSize());
+    const std::int32_t npcSize(mReferencables.getNPCs().getSize());
 
     if (stage < npcSize)
     {
@@ -218,7 +216,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= npcSize;
 
-    const int weaponSize(mReferencables.getWeapons().getSize());
+    const std::int32_t weaponSize(mReferencables.getWeapons().getSize());
 
     if (stage < weaponSize)
     {
@@ -228,7 +226,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= weaponSize;
 
-    const int probeSize(mReferencables.getProbes().getSize());
+    const std::int32_t probeSize(mReferencables.getProbes().getSize());
 
     if (stage < probeSize)
     {
@@ -238,7 +236,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= probeSize;
 
-    const int repairSize(mReferencables.getRepairs().getSize());
+    const std::int32_t repairSize(mReferencables.getRepairs().getSize());
 
     if (stage < repairSize)
     {
@@ -248,7 +246,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= repairSize;
 
-    const int staticSize(mReferencables.getStatics().getSize());
+    const std::int32_t staticSize(mReferencables.getStatics().getSize());
 
     if (stage < staticSize)
     {
@@ -258,7 +256,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
 
     stage -= staticSize;
 
-    const int creatureSize(mReferencables.getCreatures().getSize());
+    const std::int32_t creatureSize(mReferencables.getCreatures().getSize());
 
     if (stage < creatureSize)
     {
@@ -270,7 +268,7 @@ void CSMTools::ReferenceableCheckStage::perform(int stage, CSMDoc::Messages& mes
     return;
 }
 
-int CSMTools::ReferenceableCheckStage::setup()
+std::int32_t CSMTools::ReferenceableCheckStage::setup()
 {
     mPlayerPresent = false;
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
@@ -279,7 +277,7 @@ int CSMTools::ReferenceableCheckStage::setup()
 }
 
 void CSMTools::ReferenceableCheckStage::bookCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Book>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Book>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -297,7 +295,7 @@ void CSMTools::ReferenceableCheckStage::bookCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::activatorCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Activator>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Activator>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -319,7 +317,7 @@ void CSMTools::ReferenceableCheckStage::activatorCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::potionCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Potion>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Potion>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -339,7 +337,7 @@ void CSMTools::ReferenceableCheckStage::potionCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::apparatusCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Apparatus>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Apparatus>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -359,7 +357,7 @@ void CSMTools::ReferenceableCheckStage::apparatusCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::armorCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Armor>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Armor>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -385,7 +383,7 @@ void CSMTools::ReferenceableCheckStage::armorCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::clothingCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Clothing>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Clothing>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -402,7 +400,7 @@ void CSMTools::ReferenceableCheckStage::clothingCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::containerCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Container>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Container>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -436,7 +434,7 @@ void CSMTools::ReferenceableCheckStage::containerCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::creatureCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Creature>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Creature>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -490,7 +488,7 @@ void CSMTools::ReferenceableCheckStage::creatureCheck(
     if (creature.mAiData.mFlee > 100)
         messages.add(id, "Flee rating is over 100", "", CSMDoc::Message::Severity_Warning);
 
-    for (int i = 0; i < 6; ++i)
+    for (std::int32_t i = 0; i < 6; ++i)
     {
         if (creature.mData.mAttack[i] < 0)
             messages.add(id,
@@ -528,7 +526,7 @@ void CSMTools::ReferenceableCheckStage::creatureCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::doorCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Door>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Door>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -554,7 +552,7 @@ void CSMTools::ReferenceableCheckStage::doorCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::ingredientCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Ingredient>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Ingredient>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -574,7 +572,7 @@ void CSMTools::ReferenceableCheckStage::ingredientCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::creaturesLevListCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::CreatureLevList>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::CreatureLevList>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -591,7 +589,7 @@ void CSMTools::ReferenceableCheckStage::creaturesLevListCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::itemLevelledListCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::ItemLevList>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::ItemLevList>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -606,7 +604,7 @@ void CSMTools::ReferenceableCheckStage::itemLevelledListCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::lightCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Light>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Light>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -628,7 +626,7 @@ void CSMTools::ReferenceableCheckStage::lightCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::lockpickCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Lockpick>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Lockpick>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -648,7 +646,7 @@ void CSMTools::ReferenceableCheckStage::lockpickCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::miscCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Miscellaneous>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Miscellaneous>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -667,7 +665,7 @@ void CSMTools::ReferenceableCheckStage::miscCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::npcCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::NPC>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::NPC>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -685,8 +683,8 @@ void CSMTools::ReferenceableCheckStage::npcCheck(
     if (mIgnoreBaseRecords && baseRecord.mState == CSMWorld::RecordBase::State_BaseOnly)
         return;
 
-    short level(npc.mNpdt.mLevel);
-    int gold(npc.mNpdt.mGold);
+    std::int16_t level(npc.mNpdt.mLevel);
+    std::int32_t gold(npc.mNpdt.mGold);
 
     if (npc.mNpdtType == ESM::NPC::NPC_WITH_AUTOCALCULATED_STATS) // 12 = autocalculated
     {
@@ -758,7 +756,7 @@ void CSMTools::ReferenceableCheckStage::npcCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::weaponCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Weapon>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Weapon>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -818,7 +816,7 @@ void CSMTools::ReferenceableCheckStage::weaponCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::probeCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Probe>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Probe>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -837,7 +835,7 @@ void CSMTools::ReferenceableCheckStage::probeCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::repairCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Repair>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Repair>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 
@@ -856,7 +854,7 @@ void CSMTools::ReferenceableCheckStage::repairCheck(
 }
 
 void CSMTools::ReferenceableCheckStage::staticCheck(
-    int stage, const CSMWorld::RefIdDataContainer<ESM::Static>& records, CSMDoc::Messages& messages)
+    std::int32_t stage, const CSMWorld::RefIdDataContainer<ESM::Static>& records, CSMDoc::Messages& messages)
 {
     const CSMWorld::RecordBase& baseRecord = records.getRecord(stage);
 

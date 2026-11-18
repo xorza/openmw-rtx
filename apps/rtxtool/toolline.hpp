@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -14,6 +15,7 @@
 #include <apps/rtxtool/model/expectations.hpp>
 #include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/findingkind.hpp>
+#include <apps/rtxtool/model/legselection.hpp>
 #include <apps/rtxtool/model/tour.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/multidircollection.hpp>
@@ -50,6 +52,15 @@ namespace RtxTool
     /// What `--content-cache` names: the game's store, none, or a directory of the run's own.
     using ContentCacheChoice = std::variant<GameContentCache, NoContentCache, std::filesystem::path>;
 
+    /// `--transparent-huge-pages`: what the system gives every mapping, or none (`Platform::Process::
+    /// refuseTransparentHugePages`), for a run that asks what a kernel that gives every mapping huge pages adds to the
+    /// heap's free memory.
+    enum class TransparentHugePages : std::uint8_t
+    {
+        System,
+        Off,
+    };
+
     /// What `--size` names.
     struct FrameSize
     {
@@ -71,7 +82,7 @@ namespace RtxTool
             /// under `tour` (`sTourFrame`).
             FrameSize mSize;
             float mFieldOfView = 0.0f;
-            Named<int> mDay;
+            Named<std::int32_t> mDay;
 
             Named<Rtx::Upscale> mUpscale;
 
@@ -89,6 +100,8 @@ namespace RtxTool
 
             /// `--cache-budget`, in bytes.
             std::optional<std::uint64_t> mCacheBudget;
+
+            TransparentHugePages mTransparentHugePages = TransparentHugePages::System;
 
             std::filesystem::path mPipelineCode;
 
@@ -148,8 +161,8 @@ namespace RtxTool
             bool mHud = false;
             bool mSpellHands = false;
             bool mVanity = false;
-            int mNightEye = 0;
-            unsigned int mRandomSeed = 0;
+            std::int32_t mNightEye = 0;
+            std::uint32_t mRandomSeed = 0;
         };
 
         /// How long a stop runs, and what `bench` writes beside its numbers.
@@ -207,13 +220,13 @@ namespace RtxTool
         };
 
         /// What a tour is asked, as the line names it: its pacing, where the timescale and the grid's radius are the
-        /// world's and set where the world stands; the leg it begins at, counted from one; and the frame time its
-        /// plan's cost is worked out at.
+        /// world's and set where the world stands; the legs it flies; and the frame time its plan's cost is worked
+        /// out at.
         struct Tour
         {
             bool mPlan = false;
             TourPacing mPacing;
-            std::size_t mFrom = 1;
+            LegSelection mLegs;
             float mFrameMs = 7.0f;
 
             /// The costs that fail the run beside the faults (`--fail-on`).

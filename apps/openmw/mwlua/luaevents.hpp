@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -54,7 +55,7 @@ namespace MWLua
         void callEventHandlers();
         void callMenuEventHandlers();
 
-        void load(lua_State* lua, ESM::ESMReader& esm, const std::map<int, int>& contentFileMapping,
+        void load(lua_State* lua, ESM::ESMReader& esm, const std::map<std::int32_t, std::int32_t>& contentFileMapping,
             const LuaUtil::UserdataSerializer* serializer);
         void save(ESM::ESMWriter& esm) const;
 

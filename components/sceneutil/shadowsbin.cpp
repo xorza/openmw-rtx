@@ -1,5 +1,7 @@
 #include "shadowsbin.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <ranges>
 #include <unordered_set>
 
@@ -7,14 +9,14 @@
 #include <osg/StateSet>
 #include <osgUtil/StateGraph>
 
-#include <components/sceneutil/material.hpp>
+#include "material.hpp"
 
 using namespace osgUtil;
 
 namespace
 {
     template <typename T>
-    inline void accumulateState(T& currentValue, T newValue, bool& isOverride, unsigned int overrideFlags)
+    inline void accumulateState(T& currentValue, T newValue, bool& isOverride, std::uint32_t overrideFlags)
     {
         if (isOverride && !(overrideFlags & osg::StateAttribute::PROTECTED))
             return;
@@ -25,13 +27,13 @@ namespace
         currentValue = newValue;
     }
 
-    inline void accumulateModeState(const osg::StateSet* ss, bool& currentValue, bool& isOverride, int mode)
+    inline void accumulateModeState(const osg::StateSet* ss, bool& currentValue, bool& isOverride, std::int32_t mode)
     {
         const osg::StateSet::ModeList& l = ss->getModeList();
         auto mf = l.find(static_cast<osg::StateAttribute::GLMode>(mode));
         if (mf == l.end())
             return;
-        unsigned int flags = mf->second;
+        std::uint32_t flags = mf->second;
         bool newValue = flags & osg::StateAttribute::ON;
         accumulateState(currentValue, newValue, isOverride, flags);
     }
@@ -58,7 +60,7 @@ namespace SceneUtil
         mShaderAlphaTestStateSet->setMode(
             GL_BLEND, osg::StateAttribute::OFF | osg::StateAttribute::PROTECTED | osg::StateAttribute::OVERRIDE);
 
-        for (size_t i = 0; i < castingPrograms.size(); ++i)
+        for (std::size_t i = 0; i < castingPrograms.size(); ++i)
         {
             mAlphaFuncShaders[i] = new osg::StateSet;
             mAlphaFuncShaders[i]->setAttribute(castingPrograms[i],
@@ -201,7 +203,7 @@ namespace SceneUtil
             root = root->_parent;
             if (!root->getStateSet())
                 continue;
-            unsigned int cullFaceFlags = root->getStateSet()->getMode(GL_CULL_FACE);
+            std::uint32_t cullFaceFlags = root->getStateSet()->getMode(GL_CULL_FACE);
             if (cullFaceFlags & osg::StateAttribute::OVERRIDE && !(cullFaceFlags & osg::StateAttribute::ON))
             {
                 cullFaceOverridden = true;

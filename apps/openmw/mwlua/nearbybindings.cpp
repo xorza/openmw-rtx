@@ -1,24 +1,24 @@
 #include "nearbybindings.hpp"
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
+#include <apps/openmw/mwworld/cell.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/constants.hpp>
 #include <components/settings/values.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwphysics/raycasting.hpp"
-#include "../mwworld/cell.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/scene.hpp"
-
 #include "context.hpp"
 #include "luamanagerimp.hpp"
 #include "objectlists.hpp"
-
-#include <utility>
-#include <vector>
 
 namespace
 {
@@ -112,12 +112,12 @@ namespace MWLua
 
         api["castRay"] = [](const osg::Vec3f& from, const osg::Vec3f& to, sol::optional<sol::table> options) {
             std::vector<MWWorld::ConstPtr> ignore;
-            int collisionType = MWPhysics::CollisionType_Default;
+            std::int32_t collisionType = MWPhysics::CollisionType_Default;
             float radius = 0;
             if (options)
             {
                 ignore = parseIgnoreList<MWWorld::ConstPtr>(*options);
-                collisionType = options->get<sol::optional<int>>("collisionType").value_or(collisionType);
+                collisionType = options->get<sol::optional<std::int32_t>>("collisionType").value_or(collisionType);
                 radius = options->get<sol::optional<float>>("radius").value_or(0);
             }
             const MWPhysics::RayCastingInterface* rayCasting = MWBase::Environment::get().getWorld()->getRayCasting();
@@ -276,7 +276,7 @@ namespace MWLua
                       {
                           for (const auto& [k, v] : *t)
                           {
-                              const int index = k.as<int>();
+                              const std::int32_t index = k.as<std::int32_t>();
                               const osg::Vec3f position = v.as<osg::Vec3f>();
                               if (std::cmp_not_equal(index, checkpoints.size() + 1))
                                   throw std::runtime_error("checkpoints is not an array");

@@ -3,26 +3,24 @@
 #include <cstdint>
 #include <memory>
 
-#include <osg/Drawable>
-#include <osg/NodeVisitor>
-#include <osg/Transform>
-#include <osg/TriangleFunctor>
-
 #include <BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
 #include <BulletCollision/CollisionShapes/btCompoundShape.h>
 #include <BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h>
 #include <BulletCollision/CollisionShapes/btStridingMeshInterface.h>
 #include <BulletCollision/CollisionShapes/btTriangleMesh.h>
 #include <BulletCollision/CollisionShapes/btTriangleMeshShape.h>
+#include <osg/Drawable>
+#include <osg/NodeVisitor>
+#include <osg/Transform>
+#include <osg/TriangleFunctor>
 
 #include <components/misc/convert.hpp>
 #include <components/misc/osguservalues.hpp>
 #include <components/misc/pathhelpers.hpp>
+#include <components/nifbullet/bulletnifloader.hpp>
 #include <components/sceneutil/visitor.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include <components/nifbullet/bulletnifloader.hpp>
 
 #include "bulletshape.hpp"
 #include "multiobjectcache.hpp"
@@ -45,7 +43,7 @@ namespace Resource
                 {
                     const auto& compound = static_cast<const btCompoundShape&>(shape);
                     std::uint64_t bytes = 0;
-                    for (int child = 0; child < compound.getNumChildShapes(); ++child)
+                    for (std::int32_t child = 0; child < compound.getNumChildShapes(); ++child)
                         bytes += meshBytes(*compound.getChildShape(child));
                     return bytes;
                 }
@@ -56,15 +54,15 @@ namespace Resource
                     const btStridingMeshInterface& mesh
                         = *static_cast<const btTriangleMeshShape&>(shape).getMeshInterface();
                     std::uint64_t bytes = 0;
-                    for (int part = 0; part < mesh.getNumSubParts(); ++part)
+                    for (std::int32_t part = 0; part < mesh.getNumSubParts(); ++part)
                     {
-                        const unsigned char* vertices = nullptr;
-                        int vertexCount = 0;
+                        const std::uint8_t* vertices = nullptr;
+                        std::int32_t vertexCount = 0;
                         PHY_ScalarType vertexType{};
-                        int vertexStride = 0;
-                        const unsigned char* indices = nullptr;
-                        int indexStride = 0;
-                        int triangleCount = 0;
+                        std::int32_t vertexStride = 0;
+                        const std::uint8_t* indices = nullptr;
+                        std::int32_t indexStride = 0;
+                        std::int32_t triangleCount = 0;
                         PHY_ScalarType indexType{};
                         mesh.getLockedReadOnlyVertexIndexBase(&vertices, vertexCount, vertexType, vertexStride,
                             &indices, indexStride, triangleCount, indexType, part);
@@ -193,7 +191,7 @@ namespace Resource
             osg::ref_ptr<osg::Node> node(const_cast<osg::Node*>(constNode.get()));
 
             // Check first if there's a custom collision node
-            unsigned int visitAllNodesMask = 0xffffffff;
+            std::uint32_t visitAllNodesMask = 0xffffffff;
             SceneUtil::FindByNameVisitor nameFinder("Collision");
             nameFinder.setTraversalMask(visitAllNodesMask);
             nameFinder.setNodeMaskOverride(visitAllNodesMask);
@@ -264,7 +262,7 @@ namespace Resource
         mInstanceCache->clear();
     }
 
-    void BulletShapeManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void BulletShapeManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Shape", frameNumber, mCache->getStats(), *stats);
         Resource::reportStats("Shape Instance", frameNumber, mInstanceCache->getStats(), *stats);

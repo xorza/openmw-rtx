@@ -1,9 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -13,7 +14,7 @@ namespace ESM
 
     struct SOUNstruct
     {
-        unsigned char mVolume, mMinRange, mMaxRange;
+        std::uint8_t mVolume, mMinRange, mMaxRange;
     };
 
     struct Sound
@@ -24,7 +25,7 @@ namespace ESM
         static std::string_view getRecordType() { return "Sound"; }
 
         SOUNstruct mData{};
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         std::string mSound;
         RefId mId;
 

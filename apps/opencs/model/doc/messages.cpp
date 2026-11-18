@@ -1,7 +1,8 @@
 #include "messages.hpp"
 
-#include <apps/opencs/model/world/universalid.hpp>
 #include <utility>
+
+#include <apps/opencs/model/world/universalid.hpp>
 
 CSMDoc::Message::Message()
     : mSeverity(Severity_Default)

@@ -1,6 +1,8 @@
 #include "imagebutton.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_RenderManager.h>
 
@@ -71,7 +73,7 @@ namespace Gui
         Base::onMouseLostFocus(newWidget);
     }
 
-    void ImageButton::onMouseButtonPressed(int left, int top, MyGUI::MouseButton id)
+    void ImageButton::onMouseButtonPressed(std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         if (id == MyGUI::MouseButton::Left)
         {
@@ -96,11 +98,12 @@ namespace Gui
             if (texture && getHeight() != 0)
                 scale = static_cast<float>(texture->getHeight()) / static_cast<float>(getHeight());
 
-            const int width = static_cast<int>(std::round(static_cast<float>(mTextureRect.width) * scale));
-            const int height = static_cast<int>(std::round(static_cast<float>(mTextureRect.height) * scale));
+            const auto width = static_cast<std::int32_t>(std::round(static_cast<float>(mTextureRect.width) * scale));
+            const auto height = static_cast<std::int32_t>(std::round(static_cast<float>(mTextureRect.height) * scale));
             setImageTile(MyGUI::IntSize(width, height));
-            MyGUI::IntCoord scaledSize(static_cast<int>(std::round(static_cast<float>(mTextureRect.left) * scale)),
-                static_cast<int>(std::round(static_cast<float>(mTextureRect.top) * scale)), width, height);
+            MyGUI::IntCoord scaledSize(
+                static_cast<std::int32_t>(std::round(static_cast<float>(mTextureRect.left) * scale)),
+                static_cast<std::int32_t>(std::round(static_cast<float>(mTextureRect.top) * scale)), width, height);
             setImageCoord(scaledSize);
         }
 
@@ -124,7 +127,7 @@ namespace Gui
 
     void ImageButton::setImage(const std::string& image)
     {
-        size_t extpos = image.find_last_of('.');
+        std::size_t extpos = image.find_last_of('.');
         std::string imageNoExt = image.substr(0, extpos);
 
         std::string ext = image.substr(extpos);
@@ -136,7 +139,7 @@ namespace Gui
         updateImage();
     }
 
-    void ImageButton::onMouseButtonReleased(int left, int top, MyGUI::MouseButton id)
+    void ImageButton::onMouseButtonReleased(std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         if (id == MyGUI::MouseButton::Left)
         {

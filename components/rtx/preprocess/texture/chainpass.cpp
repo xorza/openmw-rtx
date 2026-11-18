@@ -11,27 +11,12 @@
 
 namespace Rtx
 {
-    namespace
-    {
-        /// Whether the run reads every level `file` carries: a colour's own chain, encoded as it stands
-        /// where the file is loose, and a painted colour's, each level delit where it stands.
-        bool readsOwnChain(const TextureData& file)
-        {
-            return isColour(file.mEncoding) && file.mLevels.size() > 1;
-        }
-    }
-
     void ChainPass::describe(const Input& input)
     {
-        if (mImage.get() == &input.mImage && mEncoding == input.mEncoding && mWrap == input.mWrap)
-            return;
-
-        mImage = &input.mImage;
-        mEncoding = input.mEncoding;
-        mWrap = input.mWrap;
+        mHeld = readTexels(input.mImage, input.mWhy, mReads);
         mLevels.clear();
         mTexels.clear();
-        const Result<TextureData, std::string> read = describeImage(input.mImage, input.mEncoding, mLevels, mTexels);
+        const Result<TextureData, std::string> read = describeImage(*mHeld, input.mEncoding, mLevels, mTexels);
         mFile = read.isOk() ? std::optional(read.value()) : std::nullopt;
         if (mFile.has_value())
             mFile->mWrap = input.mWrap;
@@ -39,24 +24,10 @@ namespace Rtx
 
     void ChainPass::digest(const Input& input, ContentStore::Digest& digest)
     {
-        describe(input);
-        const bool rebuilt = mFile.has_value() && ChainBuild::rebuilds(*mFile);
-        digest.add(rebuilt);
-        if (!rebuilt)
-            return;
-
-        const TextureData& file = *mFile;
-        const MipLevel& finest = file.mLevels.front();
-        digest.add(file.mFormat);
-        digest.add(file.mEncoding);
-        digest.add(static_cast<std::uint32_t>(file.mLevels.size()));
-        digest.add(finest.mWidth);
-        digest.add(finest.mHeight);
-        if (file.mEncoding == TextureEncoding::Painted)
-            digest.add(file.mWrap);
-        const auto read = readsOwnChain(file) ? static_cast<std::uint32_t>(file.mLevels.size()) : 1u;
-        for (std::uint32_t level = 0; level < read; ++level)
-            digest.add(file.bytesOf(level));
+        digest.add(mKeys.of(input.mImage));
+        digest.add(input.mEncoding);
+        if (input.mEncoding == TextureEncoding::Painted)
+            digest.add(input.mWrap);
     }
 
     namespace
@@ -134,19 +105,24 @@ namespace Rtx
             }
             else if (built && !cut)
             {
-                output.mForm = ChainForm::Coarser;
+                // The file's finest as it holds it, which a build of it leaves as it stands, above the levels built.
+                output.mForm = ChainForm::Own;
+                const std::span<const std::byte> held = file.bytesOf(0);
+                output.mBytes.assign(held.begin(), held.end());
                 mChain.encode(file, 1, output.mBytes);
             }
         }
 
+        if (input.mRead != nullptr)
+            *input.mRead = mHeld;
         release();
     }
 
-    bool fillsLayout(const std::optional<MadeLayout>& layout, const MadeChain& chain)
+    bool fillsLayout(const std::optional<MadeLayout>& layout, const ChainForm form, const std::size_t bytes)
     {
         if (!layout.has_value())
-            return chain.mForm == ChainForm::Stands && chain.mBytes.empty();
-        return chain.mBytes.size() == layout->bytes();
+            return form == ChainForm::Stands && bytes == 0;
+        return bytes == layout->bytes();
     }
 
     std::optional<MadeLayout> ChainPass::madeLayout(const Input& input, const ChainForm form)
@@ -157,7 +133,7 @@ namespace Rtx
 
         const ChainPlan plan = ChainPlan::of(image, input.mEncoding);
         const TextureFormat own = readFormat(image, input.mEncoding);
-        const MadeLayout whole{ .mWidth = plan.mWidth, .mHeight = plan.mHeight, .mFirst = 0, .mCount = plan.mLevels };
+        const MadeLayout whole{ .mWidth = plan.mWidth, .mHeight = plan.mHeight, .mCount = plan.mLevels };
         switch (form)
         {
             case ChainForm::Bc7:
@@ -167,16 +143,12 @@ namespace Rtx
                 return bc7;
             }
             case ChainForm::Own:
-            case ChainForm::Coarser:
             {
                 // A loose file's chain is made in BC7 alone, and a widened one's is loose.
                 if (!layoutOf(own).isBlocked())
                     return std::nullopt;
                 MadeLayout laid = whole;
                 laid.mFormat = own;
-                laid.mFirst = form == ChainForm::Coarser ? 1 : 0;
-                if (laid.mFirst >= laid.mCount)
-                    return std::nullopt;
                 return laid;
             }
             case ChainForm::Stands:
@@ -185,9 +157,29 @@ namespace Rtx
         return std::nullopt;
     }
 
+    void segmentEndsOfLayout(
+        const std::optional<MadeLayout>& layout, const MadeChain& chain, std::vector<std::uint64_t>& ends)
+    {
+        if (!layout.has_value() || chain.mBytes.size() != layout->bytes())
+            return;
+        const TexelLayout laid = layoutOf(layout->mFormat);
+        std::uint64_t end = 0;
+        for (std::uint32_t level = 0; level < layout->mCount; ++level)
+        {
+            end += laid.levelBytes(std::max(layout->mWidth >> level, 1u), std::max(layout->mHeight >> level, 1u));
+            ends.push_back(end);
+        }
+        ends.push_back(end + 1);
+    }
+
+    void ChainPass::segmentEndsOf(const Input& input, const Output& output, std::vector<std::uint64_t>& ends)
+    {
+        segmentEndsOfLayout(madeLayout(input, output.mForm), output, ends);
+    }
+
     bool ChainPass::fits(const Input& input, const Output& output)
     {
-        return fillsLayout(madeLayout(input, output.mForm), output);
+        return fillsLayout(madeLayout(input, output.mForm), output.mForm, output.mBytes.size());
     }
 
     ChainScratch ChainPass::scratchOf(const Input& input)
@@ -227,7 +219,7 @@ namespace Rtx
 
     void ChainPass::release()
     {
-        mImage = nullptr;
         mFile.reset();
+        mHeld = nullptr;
     }
 }

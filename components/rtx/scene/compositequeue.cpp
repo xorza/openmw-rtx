@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <span>
 
 #include <components/rtx/shaders/scene.h>
 
@@ -27,10 +26,10 @@ namespace Rtx
         /// asking, not yet given, and its layers where they were. The run and not the layers in it:
         /// the bake reads the row as it stands when the slot is given, so a run handed out again to
         /// another chunk flattens that chunk's ground.
-        bool stillWants(const SceneDesc& scene, const Index material, const Run& layers)
+        bool stillWants(const SceneDesc& scene, const MaterialIndex material, const Run& layers)
         {
-            const std::span<const Material> materials = scene.materials().getRows();
-            if (material >= materials.size())
+            const RowSpan<const Material, MaterialIndex> materials = scene.materials().getRows();
+            if (!materials.holds(material))
                 return false;
 
             return materials[material].wantsFlattening() && materials[material].mLayers == layers;
@@ -45,18 +44,18 @@ namespace Rtx
 
     void CompositeQueue::gather(const SceneDesc& scene)
     {
-        const std::span<const Material> materials = scene.materials().getRows();
+        const RowSpan<const Material, MaterialIndex> materials = scene.materials().getRows();
         if (mPositions.size() < materials.size())
-            mPositions.resize(materials.size(), sNoIndex);
+            mPositions.resize(materials.size(), sNoPosition);
 
-        for (const Index at : scene.materials().getWritten())
+        for (const MaterialIndex at : scene.materials().getWritten())
         {
             const Material& material = materials[at];
             if (!material.wantsFlattening())
                 continue;
 
             const Asked wanted{ .mMaterial = at, .mLayers = material.mLayers };
-            if (const Index position = mPositions[at]; position != sNoIndex)
+            if (const std::uint32_t position = mPositions[at]; position != sNoPosition)
             {
                 Asked& waiting = mWaiting[position];
                 if (waiting == wanted)
@@ -66,7 +65,7 @@ namespace Rtx
                 // ground that has gone, and the new chunk goes to the back of the schedule. The old
                 // ask stays where it stands, naming no material, for `take` to pass over — closing
                 // the gap would move every ask behind it.
-                waiting.mMaterial = sNoIndex;
+                waiting.mMaterial = sNoRow;
             }
 
             wait(wanted);
@@ -83,8 +82,8 @@ namespace Rtx
             for (std::size_t age = 0; age < mCount; ++age)
             {
                 grown[age] = waitingAt(age);
-                if (grown[age].mMaterial != sNoIndex)
-                    mPositions[grown[age].mMaterial] = static_cast<Index>(age);
+                if (grown[age].mMaterial != sNoRow)
+                    mPositions[grown[age].mMaterial] = static_cast<std::uint32_t>(age);
             }
 
             mWaiting.swap(grown);
@@ -93,7 +92,7 @@ namespace Rtx
 
         const std::size_t position = (mFront + mCount) % mWaiting.size();
         mWaiting[position] = asked;
-        mPositions[asked.mMaterial] = static_cast<Index>(position);
+        mPositions[asked.mMaterial] = static_cast<std::uint32_t>(position);
         ++mCount;
     }
 
@@ -101,7 +100,7 @@ namespace Rtx
     {
         mFront = (mFront + mWaiting.size() - 1) % mWaiting.size();
         mWaiting[mFront] = asked;
-        mPositions[asked.mMaterial] = static_cast<Index>(mFront);
+        mPositions[asked.mMaterial] = static_cast<std::uint32_t>(mFront);
         ++mCount;
     }
 
@@ -117,8 +116,8 @@ namespace Rtx
             const Asked asked = mWaiting[mFront];
             mFront = (mFront + 1) % mWaiting.size();
             --mCount;
-            if (asked.mMaterial != sNoIndex)
-                mPositions[asked.mMaterial] = sNoIndex;
+            if (asked.mMaterial != sNoRow)
+                mPositions[asked.mMaterial] = sNoPosition;
 
             // What it asked for has to still be what stands there, or one hillside's ground lands
             // on another's.
@@ -128,8 +127,8 @@ namespace Rtx
             // A table with no room left keeps the chunk on its stack, which the shader sums at the
             // hit as it does for every chunk still waiting, and keeps its place in line: dropped, it
             // would never ask again, because its material is not written again.
-            const Index slot = scene.textures().addGround(asked.mMaterial, TextureKind::GroundAlbedo);
-            if (slot == sNoIndex)
+            const TextureIndex slot = scene.textures().addGround(asked.mMaterial, TextureKind::GroundAlbedo);
+            if (slot == sNoRow)
             {
                 putBack(asked);
                 mRefused.refuse(sCompositeTake, freed);

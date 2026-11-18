@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <sys/types.h>
 
 /// What the AppImage keeper reads of the system: Linux's alone, as the keeper is.
@@ -23,5 +25,5 @@ namespace Crash
     };
 
     /// The parent the open `stat` at `descriptor` names, read from where it stands.
-    ProcessStat readProcessStat(int descriptor) noexcept;
+    ProcessStat readProcessStat(std::int32_t descriptor) noexcept;
 }

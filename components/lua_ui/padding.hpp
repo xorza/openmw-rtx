@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstdint>
+
 namespace LuaUi
 {
     struct Padding
     {
-        int mLeft = 0;
-        int mTop = 0;
-        int mRight = 0;
-        int mBottom = 0;
+        std::int32_t mLeft = 0;
+        std::int32_t mTop = 0;
+        std::int32_t mRight = 0;
+        std::int32_t mBottom = 0;
     };
 }

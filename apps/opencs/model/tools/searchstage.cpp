@@ -1,9 +1,10 @@
 #include "searchstage.hpp"
 
-#include "../world/idtablebase.hpp"
+#include <cstdint>
 
-#include <apps/opencs/model/tools/search.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
 
+#include "search.hpp"
 #include "searchoperation.hpp"
 
 namespace CSMDoc
@@ -17,7 +18,7 @@ CSMTools::SearchStage::SearchStage(const CSMWorld::IdTableBase* model)
 {
 }
 
-int CSMTools::SearchStage::setup()
+std::int32_t CSMTools::SearchStage::setup()
 {
     if (mOperation)
         mSearch = mOperation->getSearch();
@@ -27,7 +28,7 @@ int CSMTools::SearchStage::setup()
     return mModel->rowCount();
 }
 
-void CSMTools::SearchStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::SearchStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     mSearch.searchRow(mModel, stage, messages);
 }

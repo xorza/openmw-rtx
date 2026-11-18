@@ -1,21 +1,18 @@
 #include "debugbindings.hpp"
 
-#include "context.hpp"
-#include "luamanagerimp.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwinput/actions.hpp"
-
-#include "../mwrender/renderer.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/rendersupport.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwinput/actions.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/rendersupport.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/lua/luastate.hpp>
+
+#include "context.hpp"
+#include "luamanagerimp.hpp"
 
 namespace MWLua
 {

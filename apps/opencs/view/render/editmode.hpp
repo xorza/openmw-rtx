@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../widget/modebutton.hpp"
+#include <cstdint>
+
+#include <apps/opencs/view/widget/modebutton.hpp>
 
 class QDragEnterEvent;
 class QDropEvent;
@@ -25,17 +27,17 @@ namespace CSVRender
         Q_OBJECT
 
         WorldspaceWidget* mWorldspaceWidget;
-        unsigned int mMask;
+        std::uint32_t mMask;
 
     protected:
         WorldspaceWidget& getWorldspaceWidget();
         const WorldspaceWidget& getWorldspaceWidget() const;
 
     public:
-        EditMode(WorldspaceWidget* worldspaceWidget, const QIcon& icon, unsigned int mask, const QString& tooltip = "",
+        EditMode(WorldspaceWidget* worldspaceWidget, const QIcon& icon, std::uint32_t mask, const QString& tooltip = "",
             QWidget* parent = nullptr);
 
-        unsigned int getInteractionMask() const;
+        std::uint32_t getInteractionMask() const;
 
         void activate(CSVWidget::SceneToolbar* toolbar) override;
 
@@ -81,7 +83,7 @@ namespace CSVRender
         virtual bool secondarySelectStartDrag(const QPoint& pos);
 
         /// Default-implementation: ignored
-        virtual void drag(const QPoint& pos, int diffX, int diffY, double speedFactor);
+        virtual void drag(const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor);
 
         /// Default-implementation: ignored
         virtual void dragCompleted(const QPoint& pos);
@@ -93,7 +95,7 @@ namespace CSVRender
         virtual void dragAborted();
 
         /// Default-implementation: ignored
-        virtual void dragWheel(int diff, double speedFactor);
+        virtual void dragWheel(std::int32_t diff, double speedFactor);
 
         /// Default-implementation: ignored
         void dragEnterEvent(QDragEnterEvent* event) override;
@@ -107,6 +109,6 @@ namespace CSVRender
         void mouseMoveEvent(QMouseEvent* event) override;
 
         /// Default: return -1
-        virtual int getSubMode() const;
+        virtual std::int32_t getSubMode() const;
     };
 }

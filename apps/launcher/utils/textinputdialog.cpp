@@ -1,5 +1,7 @@
 #include "textinputdialog.hpp"
 
+#include <cstdint>
+
 #include <QApplication>
 #include <QColor>
 #include <QDialogButtonBox>
@@ -41,7 +43,7 @@ Launcher::TextInputDialog::TextInputDialog(const QString& title, const QString& 
     connect(mButtonBox, &QDialogButtonBox::rejected, this, &TextInputDialog::reject);
 }
 
-int Launcher::TextInputDialog::exec()
+std::int32_t Launcher::TextInputDialog::exec()
 {
     mLineEdit->clear();
     mLineEdit->setFocus();

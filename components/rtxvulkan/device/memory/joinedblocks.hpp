@@ -40,7 +40,7 @@ namespace Rtx
 
         /// A slot's own blocks, as `SlotBlocks` keeps them: by element from nought, which the
         /// table resolves from `ownFirst`.
-        SlotBlocks& getOwn() { return mOwn; }
+        SlotBlocks<MeshIndex>& getOwn() { return mOwn; }
 
         /// Where `slot`'s table is, as `BlockedBuffer::getTableAddress` says of one.
         VkDeviceAddress getTableAddress(FrameSlot slot) const { return mTables.at(slot).addressFor(); }
@@ -55,7 +55,7 @@ namespace Rtx
 
         std::uint32_t mOwnFirst;
         BlockedBuffer mShared;
-        SlotBlocks mOwn;
+        SlotBlocks<MeshIndex> mOwn;
         PerSlot<Buffer> mTables;
 
         /// What a table was written of: how many blocks each side held.

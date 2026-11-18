@@ -17,6 +17,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -65,6 +66,10 @@ namespace Rtx
         /// heights its relief spans.
         std::optional<ImageFacts> mNormalFacts{};
 
+        /// What the `_spec` map's texels say, for a surface that wears one: what its channels mean
+        /// (`SpecularLayout`), which binds the surface's maps.
+        std::optional<ImageFacts> mSpecularFacts{};
+
         /// Whether the reader laid upstream's groundcover override over `mDescribed`
         /// (`CellReader::readModel`), which no state set of the chain states: the frame keys it
         /// apart, since the same chain read as a static wears another material.
@@ -82,7 +87,7 @@ namespace Rtx
         /// A material slot and the key it is held under (`Shading::materialKey`).
         struct Resolved
         {
-            Index mIndex = sNoIndex;
+            MaterialIndex mIndex = sNoRow;
             const osg::StateSet* mKey = nullptr;
         };
 
@@ -122,8 +127,8 @@ namespace Rtx
         /// The material slot for a reading, held under `key`, the frame's key of its chain: added
         /// where the mirror holds none under it, with one hold taken on the entry —
         /// `MeshResolver::adopt` says why a hold. Standing only: a reading carries no controller.
-        /// `sNoIndex` and no hold for a null key.
-        Index adopt(const osg::StateSet* key, const MaterialReading& reading);
+        /// `sNoRow` and no hold for a null key.
+        MaterialIndex adopt(const osg::StateSet* key, const MaterialReading& reading);
 
         /// Gives one `adopt` back, by the key the reading named. Nothing for null.
         void release(const osg::StateSet* key);
@@ -232,11 +237,14 @@ namespace Rtx
         /// A material, the entry's hold on it, and, where a controller rewrites it, what it has
         /// worn: a row of `mWorns`, since tens of materials wear anything and a slot of every
         /// entry holding a `Worn` inline was ten megabytes of the world's map.
+        /// A row of `mWorns`.
+        using WornIndex = RowIndex<struct WornRows>;
+
         struct HeldMaterial
         {
             MaterialHold mRow;
             Reach mReach{};
-            Index mWorn = sNoIndex;
+            WornIndex mWorn = sNoRow;
         };
 
         /// How many controllers one node's chains are applied from: an actor's root carries a glow
@@ -362,7 +370,7 @@ namespace Rtx
             /// to change its defaults — a glow's end, a glow's new colour — and the node's own
             /// update consumes that before the walk applies it here, so the state set held here
             /// hears it by the number alone.
-            std::array<unsigned int, sMostUpdaters> mGenerations{};
+            std::array<std::uint32_t, sMostUpdaters> mGenerations{};
             HeldChains mChains;
         };
 
@@ -393,7 +401,7 @@ namespace Rtx
         void release(HeldTexture& held);
 
         /// A row of `mWorns` wearing nothing, a freed one where there is one.
-        Index takeWorn();
+        WornIndex takeWorn();
 
         /// The scene's slot for one image under one wrap and one encoding, held for as long as this names it.
         ///
@@ -401,7 +409,7 @@ namespace Rtx
         ///        texture through the frames the controller shows another one.
         /// @param partner a converted slot's other file (`isConverted`), which the slot is named for beside `use`'s;
         ///        null for every other slot.
-        Index takeTexture(const TextureUse& use, Worn* worn, TextureEncoding encoding = TextureEncoding::Colour,
+        TextureIndex takeTexture(const TextureUse& use, Worn* worn, TextureEncoding encoding = TextureEncoding::Colour,
             const osg::Image* partner = nullptr);
 
         /// What `image`'s texels say — `ImageFactCache::of`, found by the slot after the first ask.
@@ -418,8 +426,8 @@ namespace Rtx
 
         /// What each animated material has worn, a row each (`HeldMaterial::mWorn`), and the rows
         /// a material that went gave back.
-        std::vector<Worn> mWorns;
-        std::vector<Index> mFreeWorns;
+        RowVector<Worn, WornIndex> mWorns;
+        std::vector<WornIndex> mFreeWorns;
 
         /// Which slot each image the walk has met stands in, so an animated material re-read every
         /// frame does not build four `VFS::Path::Normalized` strings a frame. The entry is a

@@ -1,6 +1,6 @@
 #include "settings.hpp"
 
-#include "components/settings/values.hpp"
+#include <components/settings/values.hpp>
 
 namespace MWGui
 {

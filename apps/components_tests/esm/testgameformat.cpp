@@ -1,11 +1,11 @@
-#include <components/esm/gameformat.hpp>
-
-#include <gtest/gtest.h>
-
 #include <initializer_list>
 #include <optional>
 #include <sstream>
 #include <vector>
+
+#include <gtest/gtest.h>
+
+#include <components/esm/gameformat.hpp>
 
 namespace
 {

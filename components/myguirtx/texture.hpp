@@ -33,7 +33,8 @@ namespace MyGUIRtx
     public:
         Texture(std::string name, Rtx::GuiRenderer& renderer, Resource::ImageManager* imageManager);
 
-        void createManual(int width, int height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format) override;
+        void createManual(
+            std::int32_t width, std::int32_t height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format) override;
         void loadFromFile(const std::string& fname) override;
 
         void destroy() override;
@@ -50,7 +51,7 @@ namespace MyGUIRtx
 
         MyGUI::PixelFormat getFormat() const override { return mFormat; }
         MyGUI::TextureUsage getUsage() const override { return mUsage; }
-        size_t getNumElemBytes() const override { return mNumElemBytes; }
+        std::size_t getNumElemBytes() const override { return mNumElemBytes; }
 
     private:
         /// Forgets the format with the slot, so that a second `createManual` starts clean.

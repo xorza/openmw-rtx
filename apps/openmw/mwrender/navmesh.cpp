@@ -1,7 +1,17 @@
 #include "navmesh.hpp"
 
-#include "vismask.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <utility>
 
+#include <DetourNavMesh.h>
+#include <osg/BlendFunc>
+#include <osg/LineWidth>
+#include <osg/StateSet>
+
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/detournavigator/guardednavmeshcacheitem.hpp>
 #include <components/detournavigator/navmeshcacheitem.hpp>
 #include <components/detournavigator/settings.hpp>
@@ -12,17 +22,7 @@
 #include <components/sceneutil/navmesh.hpp>
 #include <components/sceneutil/workqueue.hpp>
 
-#include <osg/BlendFunc>
-#include <osg/LineWidth>
-#include <osg/StateSet>
-
-#include <DetourNavMesh.h>
-
-#include "../mwbase/environment.hpp"
-
-#include <algorithm>
-#include <limits>
-#include <utility>
+#include "vismask.hpp"
 
 namespace MWRender
 {
@@ -111,8 +111,8 @@ namespace MWRender
                 return;
 
             std::vector<std::pair<DetourNavigator::TilePosition, Version>> existingTiles;
-            unsigned minSalt = std::numeric_limits<unsigned>::max();
-            unsigned maxSalt = 0;
+            std::uint32_t minSalt = std::numeric_limits<std::uint32_t>::max();
+            std::uint32_t maxSalt = 0;
 
             navMeshPtr->lockConst()->forEachUsedTile(
                 [&](const TilePosition& position, const Version& version, const dtMeshTile& meshTile) {
@@ -134,7 +134,7 @@ namespace MWRender
 
             std::vector<std::pair<TilePosition, Tile>> updatedTiles;
 
-            const unsigned char flags = SceneUtil::NavMeshTileDrawFlagsOffMeshConnections
+            const std::uint8_t flags = SceneUtil::NavMeshTileDrawFlagsOffMeshConnections
                 | SceneUtil::NavMeshTileDrawFlagsClosedList
                 | (mMode == Settings::NavMeshRenderMode::UpdateFrequency ? SceneUtil::NavMeshTileDrawFlagsHeat : 0);
 

@@ -1,21 +1,20 @@
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwclass/esm4base.hpp"
-#include "apps/openmw/mwclass/npc.hpp"
-#include "apps/openmw/mwworld/cell.hpp"
-#include "apps/openmw/mwworld/cellstore.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/livecellref.hpp"
-#include "apps/openmw/mwworld/ptr.hpp"
-#include "apps/openmw/mwworld/worldmodel.hpp"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwclass/esm4base.hpp>
+#include <apps/openmw/mwclass/npc.hpp>
+#include <apps/openmw/mwworld/cell.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/esm4/loadcell.hpp>
 #include <components/esm4/loadrefr.hpp>
 #include <components/esm4/loadstat.hpp>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
 
 namespace MWWorld
 {
@@ -153,6 +152,60 @@ namespace MWWorld
             childPtr.getRefData().enable();
             EXPECT_TRUE(childPtr.getRefData().isEnabled());
             EXPECT_EQ(worldModel.getPtr(childFormId), childPtr);
+        }
+
+        // A loaded store answers whether it holds an id from its merged refs' sorted hashes, and its search walks
+        // only a store that may: the one statics' id it holds, and none it does not, before and after an insert.
+        TEST(MWWorldPtrTest, aLoadedCellStoreAnswersWhetherItHoldsAnIdWithoutWalkingItsRefs)
+        {
+            MWClass::ESM4Static::registerSelf();
+
+            ESMStore store;
+            ESM4::Static held{};
+            held.mId = ESM::FormId{ .mIndex = 0x1, .mContentFile = 0 };
+            store.getWritable<ESM4::Static>().insertStatic(held);
+            ESM4::Static other{};
+            other.mId = ESM::FormId{ .mIndex = 0x2, .mContentFile = 0 };
+            store.getWritable<ESM4::Static>().insertStatic(other);
+
+            ESM4::Cell cell4{};
+            cell4.mId = ESM::FormId{ .mIndex = 0x100, .mContentFile = 0 };
+            cell4.mCellFlags = ESM4::CELL_Interior;
+            store.getWritable<ESM4::Cell>().insertStatic(cell4);
+
+            ESM4::Reference ref{};
+            ref.mId = ESM::FormId{ .mIndex = 0x2a, .mContentFile = 0 };
+            ref.mParent = cell4.mId;
+            ref.mBaseObj = held.mId;
+            store.getWritable<ESM4::Reference>().insertStatic(ref);
+
+            store.rebuildIdsIndex();
+            store.getWritable<ESM4::Reference>().preprocessReferences(store.get<ESM4::Cell>());
+
+            ESM::ReadersCache readersCache;
+            WorldModel worldModel(store, readersCache);
+            MWBase::Environment environment;
+            environment.setWorldModel(worldModel);
+            environment.setESMStore(store);
+
+            CellStore cellStore(Cell(cell4), store, readersCache);
+            cellStore.load();
+
+            const ESM::RefId heldId = ESM::RefId(held.mId);
+            const ESM::RefId otherId = ESM::RefId(other.mId);
+            EXPECT_TRUE(cellStore.hasId(heldId));
+            EXPECT_FALSE(cellStore.hasId(otherId));
+            EXPECT_FALSE(cellStore.search(heldId).isEmpty());
+            EXPECT_TRUE(cellStore.search(otherId).isEmpty());
+
+            ESM4::Reference placed{};
+            placed.mId = ESM::FormId{ .mIndex = 0x2b, .mContentFile = 0 };
+            placed.mParent = cell4.mId;
+            placed.mBaseObj = other.mId;
+            const LiveCellRef<ESM4::Static> inserting(placed, &other);
+            cellStore.insert(&inserting);
+            EXPECT_TRUE(cellStore.hasId(otherId)) << "an insert marks the merged refs, and the hashes with them";
+            EXPECT_FALSE(cellStore.search(otherId).isEmpty());
         }
     }
 }

@@ -105,7 +105,7 @@ namespace MWRender
         Rtx::SkyContent mSkyContent;
 
         /// What names them: a hold on every sheet the two took, given back together at `detach`.
-        std::vector<Rtx::TextureHold> mHolds;
+        std::vector<Rtx::ReadingHold> mHolds;
 
         /// The deck and the fog's seconds, this renderer's own: the dome keeps its own.
         Sky::SkyClock mClock;

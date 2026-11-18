@@ -1,12 +1,13 @@
 #pragma once
 
-#include "leafnode.hpp"
-
-#include <apps/opencs/model/world/idtablebase.hpp>
-
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
+
+#include <apps/opencs/model/world/idtablebase.hpp>
+
+#include "leafnode.hpp"
 
 namespace CSMFilter
 {
@@ -21,7 +22,7 @@ namespace CSMFilter
         };
 
     private:
-        int mColumnId;
+        std::int32_t mColumnId;
         std::string mText;
         double mLower;
         double mUpper;
@@ -29,13 +30,14 @@ namespace CSMFilter
         Type mUpperType;
 
     public:
-        ValueNode(int columnId, Type lowerType, Type upperType, double lower, double upper);
+        ValueNode(std::int32_t columnId, Type lowerType, Type upperType, double lower, double upper);
 
-        bool test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const override;
+        bool test(const CSMWorld::IdTableBase& table, std::int32_t row,
+            const std::map<std::int32_t, std::int32_t>& columns) const override;
         ///< \return Can the specified table row pass through to filter?
         /// \param columns column ID to column index mapping
 
-        std::vector<int> getReferencedColumns() const override;
+        std::vector<std::int32_t> getReferencedColumns() const override;
         ///< Return a list of the IDs of the columns referenced by this node. The column mapping
         /// passed into test as columns must contain all columns listed here.
 

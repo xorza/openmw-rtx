@@ -1,6 +1,8 @@
 
 #include "numericeditbox.hpp"
 
+#include <cstdint>
+
 #include <components/misc/strings/conversion.hpp>
 
 namespace Gui
@@ -30,11 +32,11 @@ namespace Gui
             return;
         }
 
-        if (const auto conversion = Misc::StringUtils::toNumeric<int>(newCaption))
+        if (const auto conversion = Misc::StringUtils::toNumeric<std::int32_t>(newCaption))
         {
             mValue = conversion.value();
 
-            const int capped = std::clamp(mValue, mMinValue, mMaxValue);
+            const std::int32_t capped = std::clamp(mValue, mMinValue, mMaxValue);
             if (capped != mValue)
             {
                 mValue = capped;
@@ -49,7 +51,7 @@ namespace Gui
         eventValueChanged(mValue);
     }
 
-    void NumericEditBox::setValue(int value)
+    void NumericEditBox::setValue(std::int32_t value)
     {
         if (value != mValue)
         {
@@ -58,17 +60,17 @@ namespace Gui
         }
     }
 
-    int NumericEditBox::getValue()
+    std::int32_t NumericEditBox::getValue()
     {
         return mValue;
     }
 
-    void NumericEditBox::setMinValue(int minValue)
+    void NumericEditBox::setMinValue(std::int32_t minValue)
     {
         mMinValue = minValue;
     }
 
-    void NumericEditBox::setMaxValue(int maxValue)
+    void NumericEditBox::setMaxValue(std::int32_t maxValue)
     {
         mMaxValue = maxValue;
     }

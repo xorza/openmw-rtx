@@ -1,9 +1,20 @@
 #include "uibindings.hpp"
 
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <format>
+#include <numbers>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <components/lua/util.hpp>
 #include <components/lua_ui/alignment.hpp>
 #include <components/lua_ui/content.hpp>
@@ -12,26 +23,13 @@
 #include <components/lua_ui/registerscriptsettings.hpp>
 #include <components/lua_ui/resources.hpp>
 #include <components/lua_ui/util.hpp>
-
 #include <components/misc/finitevalues.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <cmath>
-#include <numbers>
-
 #include "context.hpp"
 #include "luamanagerimp.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwrender/renderer.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
-#include <format>
 
 namespace sol
 {
@@ -45,7 +43,7 @@ namespace MWLua
 {
     namespace
     {
-        constexpr int sMaxCursorSize = 128;
+        constexpr std::int32_t sMaxCursorSize = 128;
 
         const std::unordered_map<MWGui::GuiMode, std::string_view> modeToName{
             { MWGui::GM_Inventory, "Interface" },
@@ -123,7 +121,7 @@ namespace MWLua
             api["_isHudVisible"]
                 = []() -> bool { return MWBase::Environment::get().getWindowManager()->isHudVisible(); };
             api["_getDefaultFontSize"]
-                = []() -> int { return MWBase::Environment::get().getWindowManager()->getFontSize(); };
+                = []() -> std::int32_t { return MWBase::Environment::get().getWindowManager()->getFontSize(); };
             api["showMessage"] = [luaManager = context.mLuaManager](
                                      std::string_view message, const sol::optional<sol::table>& options) {
                 MWGui::ShowInDialogueMode mode = MWGui::ShowInDialogueMode_IfPossible;
@@ -210,9 +208,9 @@ namespace MWLua
                     elementsByLayerNode[layerNode].push_back(element);
                 });
 
-                size_t index = 1;
+                std::size_t index = 1;
                 const auto appendLayer = [&](MyGUI::ILayer* currentLayer) {
-                    for (size_t nodeIndex = 0; nodeIndex < currentLayer->getLayerNodeCount(); ++nodeIndex)
+                    for (std::size_t nodeIndex = 0; nodeIndex < currentLayer->getLayerNodeCount(); ++nodeIndex)
                     {
                         const auto it = elementsByLayerNode.find(currentLayer->getLayerNodeAt(nodeIndex));
                         if (it == elementsByLayerNode.end())
@@ -224,7 +222,7 @@ namespace MWLua
                 };
 
                 MyGUI::LayerManager& layerManager = MyGUI::LayerManager::getInstance();
-                for (size_t layerIndex = 0; layerIndex < layerManager.getLayerCount(); ++layerIndex)
+                for (std::size_t layerIndex = 0; layerIndex < layerManager.getLayerCount(); ++layerIndex)
                 {
                     MyGUI::ILayer* currentLayer = layerManager.getLayer(layerIndex);
                     if (!layer || currentLayer->getName() == *layer)
@@ -253,19 +251,19 @@ namespace MWLua
             api["_getMenuTransparency"] = []() -> float { return Settings::gui().mMenuTransparency; };
 
             sol::table layersTable(lua, sol::create);
-            layersTable["indexOf"] = [](std::string_view name) -> sol::optional<size_t> {
-                size_t index = LuaUi::Layer::indexOf(name);
+            layersTable["indexOf"] = [](std::string_view name) -> sol::optional<std::size_t> {
+                std::size_t index = LuaUi::Layer::indexOf(name);
                 if (index == LuaUi::Layer::count())
                     return sol::nullopt;
                 else
-                    return static_cast<unsigned long>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(index)));
+                    return static_cast<std::size_t>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(index)));
             };
             layersTable["insertAfter"] = [context](std::string afterName, std::string name, const sol::object& opt) {
                 LuaUi::Layer::Options options{};
                 options.mInteractive = LuaUtil::getValueOrDefault(LuaUtil::getFieldOrNil(opt, "interactive"), true);
                 context.mLuaManager->addAction(
                     [afterName = std::move(afterName), name = std::move(name), options]() {
-                        size_t index = LuaUi::Layer::indexOf(afterName);
+                        std::size_t index = LuaUi::Layer::indexOf(afterName);
                         if (index == LuaUi::Layer::count())
                             throw std::logic_error(
                                 std::format("Couldn't insert after non-existent layer {}", afterName));
@@ -278,7 +276,7 @@ namespace MWLua
                 options.mInteractive = LuaUtil::getValueOrDefault(LuaUtil::getFieldOrNil(opt, "interactive"), true);
                 context.mLuaManager->addAction(
                     [beforeName = std::move(beforeName), name = std::move(name), options]() {
-                        size_t index = LuaUi::Layer::indexOf(beforeName);
+                        std::size_t index = LuaUi::Layer::indexOf(beforeName);
                         if (index == LuaUi::Layer::count())
                             throw std::logic_error(
                                 std::format("Couldn't insert before non-existent layer {}", beforeName));
@@ -290,7 +288,7 @@ namespace MWLua
             sol::table layersMeta = layers[sol::metatable_key];
             layersMeta[sol::meta_function::length] = []() { return LuaUi::Layer::count(); };
             layersMeta[sol::meta_function::index] = sol::overload(
-                [](const sol::object& self, size_t index) {
+                [](const sol::object& self, std::size_t index) {
                     index = static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
                     return LuaUi::Layer(index);
                 },
@@ -298,7 +296,8 @@ namespace MWLua
                     const sol::object& self, std::string_view key) { return layersTable.raw_get<sol::object>(key); });
             {
                 auto pairs = [layers](const sol::object&) {
-                    auto next = [](const sol::table& l, size_t i) -> sol::optional<std::tuple<size_t, LuaUi::Layer>> {
+                    auto next = [](const sol::table& l,
+                                    std::size_t i) -> sol::optional<std::tuple<std::size_t, LuaUi::Layer>> {
                         if (i < LuaUi::Layer::count())
                             return std::make_tuple(i + 1, LuaUi::Layer(i));
                         else
@@ -379,9 +378,9 @@ namespace MWLua
                 auto cursor = luaManager->uiResourceManager()->registerCursor(std::move(data));
                 luaManager->addAction([cursor] {
                     MWBase::Environment::get().getWindowManager()->createLuaCursor(cursor->mName,
-                        std::string(cursor->mPath), static_cast<int>(cursor->mSize.x()),
-                        static_cast<int>(cursor->mSize.y()), static_cast<int>(cursor->mHotspot.x()),
-                        static_cast<int>(cursor->mHotspot.y()), -cursor->mRotation * 180.0 / std::numbers::pi);
+                        std::string(cursor->mPath), static_cast<std::int32_t>(cursor->mSize.x()),
+                        static_cast<std::int32_t>(cursor->mSize.y()), static_cast<std::int32_t>(cursor->mHotspot.x()),
+                        static_cast<std::int32_t>(cursor->mHotspot.y()), -cursor->mRotation * 180.0 / std::numbers::pi);
                 });
                 return cursor;
             };
@@ -414,7 +413,7 @@ namespace MWLua
             };
             api["_getUiModeStack"] = [windowManager](sol::this_state thisState) {
                 sol::table res(thisState, sol::create);
-                int i = 1;
+                std::int32_t i = 1;
                 for (MWGui::GuiMode m : windowManager->getGuiModeStack())
                     res[i++] = modeToName.at(m);
                 return res;
@@ -422,7 +421,7 @@ namespace MWLua
             api["_setUiModeStack"] = [windowManager, luaManager = context.mLuaManager](
                                          sol::table modes, sol::optional<LObject> arg) {
                 std::vector<MWGui::GuiMode> newStack(modes.size());
-                for (unsigned i = 0; i < newStack.size(); ++i)
+                for (std::uint32_t i = 0; i < newStack.size(); ++i)
                     newStack[i] = nameToMode.at(LuaUtil::cast<std::string_view>(modes[LuaUtil::toLuaIndex(i)]));
                 luaManager->addAction(
                     [windowManager, newStack = std::move(newStack), arg = std::move(arg)]() {
@@ -430,16 +429,16 @@ namespace MWLua
                         if (arg.has_value())
                             ptr = arg->ptr();
                         const std::vector<MWGui::GuiMode>& stack = windowManager->getGuiModeStack();
-                        size_t common = 0;
+                        std::size_t common = 0;
                         while (common < std::min(stack.size(), newStack.size()) && stack[common] == newStack[common])
                             common++;
                         // TODO: Maybe disallow opening/closing special modes (main menu, settings, loading screen)
                         // from player scripts. Add new Lua context "menu" that can do it.
-                        for (size_t i = stack.size() - common; i > 0; i--)
+                        for (std::size_t i = stack.size() - common; i > 0; i--)
                             windowManager->popGuiMode(true);
                         if (common == newStack.size() && !newStack.empty() && arg.has_value())
                             windowManager->pushGuiMode(newStack.back(), ptr);
-                        for (size_t i = common; i < newStack.size(); ++i)
+                        for (std::size_t i = common; i < newStack.size(); ++i)
                             windowManager->pushGuiMode(newStack[i], ptr);
                     },
                     "Set UI modes");

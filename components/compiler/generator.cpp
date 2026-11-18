@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <iterator>
 #include <stdexcept>
 
@@ -9,9 +10,9 @@
 
 namespace
 {
-    void opPushInt(Compiler::Generator::CodeContainer& code, int value)
+    void opPushInt(Compiler::Generator::CodeContainer& code, std::int32_t value)
     {
-        code.push_back(Compiler::Generator::segment0(0, static_cast<unsigned int>(value)));
+        code.push_back(Compiler::Generator::segment0(0, static_cast<std::uint32_t>(value)));
     }
 
     void opFetchIntLiteral(Compiler::Generator::CodeContainer& code)
@@ -109,9 +110,9 @@ namespace
         code.push_back(Compiler::Generator::segment5(20));
     }
 
-    void opMessageBox(Compiler::Generator::CodeContainer& code, int buttons)
+    void opMessageBox(Compiler::Generator::CodeContainer& code, std::int32_t buttons)
     {
-        code.push_back(Compiler::Generator::segment3(0, static_cast<unsigned int>(buttons)));
+        code.push_back(Compiler::Generator::segment3(0, static_cast<std::uint32_t>(buttons)));
     }
 
     void opReport(Compiler::Generator::CodeContainer& code)
@@ -134,14 +135,14 @@ namespace
         code.push_back(Compiler::Generator::segment5(23));
     }
 
-    void opJumpForward(Compiler::Generator::CodeContainer& code, int offset)
+    void opJumpForward(Compiler::Generator::CodeContainer& code, std::int32_t offset)
     {
-        code.push_back(Compiler::Generator::segment0(1, static_cast<unsigned int>(offset)));
+        code.push_back(Compiler::Generator::segment0(1, static_cast<std::uint32_t>(offset)));
     }
 
-    void opJumpBackward(Compiler::Generator::CodeContainer& code, int offset)
+    void opJumpBackward(Compiler::Generator::CodeContainer& code, std::int32_t offset)
     {
-        code.push_back(Compiler::Generator::segment0(2, static_cast<unsigned int>(offset)));
+        code.push_back(Compiler::Generator::segment0(2, static_cast<std::uint32_t>(offset)));
     }
 
     /*
@@ -280,27 +281,28 @@ namespace
 
 namespace Compiler::Generator
 {
-    void pushInt(CodeContainer& code, Literals& literals, int value)
+    void pushInt(CodeContainer& code, Literals& literals, std::int32_t value)
     {
-        int index = literals.addInteger(value);
+        std::int32_t index = literals.addInteger(value);
         opPushInt(code, index);
         opFetchIntLiteral(code);
     }
 
     void pushFloat(CodeContainer& code, Literals& literals, float value)
     {
-        int index = literals.addFloat(value);
+        std::int32_t index = literals.addFloat(value);
         opPushInt(code, index);
         opFetchFloatLiteral(code);
     }
 
     void pushString(CodeContainer& code, Literals& literals, const std::string& value)
     {
-        int index = literals.addString(value);
+        std::int32_t index = literals.addString(value);
         opPushInt(code, index);
     }
 
-    void assignToLocal(CodeContainer& code, char localType, int localIndex, const CodeContainer& value, char valueType)
+    void assignToLocal(
+        CodeContainer& code, char localType, std::int32_t localIndex, const CodeContainer& value, char valueType)
     {
         opPushInt(code, localIndex);
 
@@ -451,14 +453,14 @@ namespace Compiler::Generator
         opReturn(code);
     }
 
-    void message(CodeContainer& code, Literals& literals, const std::string& message, int buttons)
+    void message(CodeContainer& code, Literals& literals, const std::string& message, std::int32_t buttons)
     {
         assert(buttons >= 0);
 
         if (buttons >= 256)
             throw std::runtime_error("A message box can't have more than 255 buttons");
 
-        int index = literals.addString(message);
+        std::int32_t index = literals.addString(message);
 
         opPushInt(code, index);
         opMessageBox(code, buttons);
@@ -466,13 +468,13 @@ namespace Compiler::Generator
 
     void report(CodeContainer& code, Literals& literals, const std::string& message)
     {
-        int index = literals.addString(message);
+        std::int32_t index = literals.addString(message);
 
         opPushInt(code, index);
         opReport(code);
     }
 
-    void fetchLocal(CodeContainer& code, char localType, int localIndex)
+    void fetchLocal(CodeContainer& code, char localType, std::int32_t localIndex)
     {
         opPushInt(code, localIndex);
 
@@ -499,7 +501,7 @@ namespace Compiler::Generator
         }
     }
 
-    void jump(CodeContainer& code, int offset)
+    void jump(CodeContainer& code, std::int32_t offset)
     {
         if (offset > 0)
             opJumpForward(code, offset);
@@ -509,7 +511,7 @@ namespace Compiler::Generator
             throw std::logic_error("infinite loop");
     }
 
-    void jumpOnZero(CodeContainer& code, int offset)
+    void jumpOnZero(CodeContainer& code, std::int32_t offset)
     {
         opSkipOnNonZero(code);
 
@@ -588,7 +590,7 @@ namespace Compiler::Generator
     void assignToGlobal(CodeContainer& code, Literals& literals, char localType, const std::string& name,
         const CodeContainer& value, char valueType)
     {
-        int index = literals.addString(name);
+        std::int32_t index = literals.addString(name);
 
         opPushInt(code, index);
 
@@ -631,7 +633,7 @@ namespace Compiler::Generator
 
     void fetchGlobal(CodeContainer& code, Literals& literals, char localType, const std::string& name)
     {
-        int index = literals.addString(name);
+        std::int32_t index = literals.addString(name);
 
         opPushInt(code, index);
 
@@ -661,7 +663,7 @@ namespace Compiler::Generator
     void assignToMember(CodeContainer& code, Literals& literals, char localType, const std::string& name,
         const std::string& id, const CodeContainer& value, char valueType, bool global)
     {
-        int index = literals.addString(name);
+        std::int32_t index = literals.addString(name);
 
         opPushInt(code, index);
 
@@ -709,7 +711,7 @@ namespace Compiler::Generator
     void fetchMember(CodeContainer& code, Literals& literals, char localType, const std::string& name,
         const std::string& id, bool global)
     {
-        int index = literals.addString(name);
+        std::int32_t index = literals.addString(name);
 
         opPushInt(code, index);
 

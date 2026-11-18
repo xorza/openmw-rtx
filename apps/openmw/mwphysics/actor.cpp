@@ -1,14 +1,15 @@
 #include "actor.hpp"
 
+#include <cstdint>
+
 #include <BulletCollision/CollisionShapes/btCylinderShape.h>
 
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/convert.hpp>
 #include <components/resource/bulletshape.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwworld/class.hpp"
 
 #include "collisiontype.hpp"
 #include "mtphysics.hpp"
@@ -132,7 +133,7 @@ namespace MWPhysics
         }
     }
 
-    void Actor::addCollisionMask(int collisionMask)
+    void Actor::addCollisionMask(std::int32_t collisionMask)
     {
         mTaskScheduler->addCollisionObject(mCollisionObject.get(), CollisionType_Actor, collisionMask);
     }
@@ -142,9 +143,9 @@ namespace MWPhysics
         mTaskScheduler->setCollisionFilterMask(mCollisionObject.get(), getCollisionMask());
     }
 
-    int Actor::getCollisionMask() const
+    std::int32_t Actor::getCollisionMask() const
     {
-        int collisionMask = CollisionType_World | CollisionType_HeightMap;
+        std::int32_t collisionMask = CollisionType_World | CollisionType_HeightMap;
         if (mExternalCollisionMode)
             collisionMask |= CollisionType_Actor | CollisionType_Projectile | CollisionType_Door;
         if (mCanWaterWalk)

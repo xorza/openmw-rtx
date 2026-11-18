@@ -1,8 +1,8 @@
 #pragma once
 
-#include <osg/Geometry>
-
 #include <memory>
+
+#include <osg/Geometry>
 
 namespace osg
 {

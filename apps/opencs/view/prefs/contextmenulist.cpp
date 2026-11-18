@@ -4,7 +4,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 
-#include "../../model/prefs/state.hpp"
+#include <apps/opencs/model/prefs/state.hpp>
 
 CSVPrefs::ContextMenuList::ContextMenuList(QWidget* parent)
     : QListWidget(parent)

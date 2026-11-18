@@ -1,25 +1,24 @@
+#include "bulletdebugdraw.hpp"
+
 #include <algorithm>
+#include <cstdint>
 
 #include <osg/Geometry>
 #include <osg/Group>
-
-#include <components/debug/debuglog.hpp>
-#include <components/misc/convert.hpp>
-#include <components/sceneutil/depth.hpp>
-#include <components/sceneutil/material.hpp>
-
 #include <osg/PolygonMode>
 #include <osg/PolygonOffset>
 #include <osg/ShapeDrawable>
 #include <osg/StateSet>
 
-#include "bulletdebugdraw.hpp"
-#include "vismask.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/misc/convert.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/sceneutil/depth.hpp>
+#include <components/sceneutil/material.hpp>
 
-#include "../mwbase/environment.hpp"
+#include "vismask.hpp"
 
 namespace MWRender
 {
@@ -141,30 +140,6 @@ namespace MWRender
         mLinesVertices->push_back(Misc::Convert::toOsg(to));
         mLinesColors->push_back({ 1, 1, 1, 1 });
         mLinesColors->push_back({ 1, 1, 1, 1 });
-
-#if BT_BULLET_VERSION < 317
-        size_t size = mLinesVertices->size();
-        if (size >= 6 && (*mLinesVertices)[size - 1] == (*mLinesVertices)[size - 6]
-            && (*mLinesVertices)[size - 2] == (*mLinesVertices)[size - 3]
-            && (*mLinesVertices)[size - 4] == (*mLinesVertices)[size - 5])
-        {
-            mTrisVertices->push_back(mLinesVertices->back());
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mTrisVertices->push_back(mLinesVertices->back());
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mTrisVertices->push_back(mLinesVertices->back());
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-        }
-#endif
     }
 
     void DebugDrawer::drawTriangle(
@@ -207,7 +182,7 @@ namespace MWRender
         Log(Debug::Warning) << warningString;
     }
 
-    void DebugDrawer::setDebugMode(int isOn)
+    void DebugDrawer::setDebugMode(std::int32_t isOn)
     {
         mDebugOn = (isOn != 0);
 
@@ -217,7 +192,7 @@ namespace MWRender
             createGeometry();
     }
 
-    int DebugDrawer::getDebugMode() const
+    std::int32_t DebugDrawer::getDebugMode() const
     {
         return mDebugOn;
     }

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include <components/rtx/common/index.hpp>
@@ -45,8 +46,7 @@ namespace RtxTool
         /// on the device, and the bytes that came to rest after it and still rest.
         struct Rested
         {
-            bool mMesh = false;
-            Rtx::Index mSlot = 0;
+            std::variant<Rtx::TextureIndex, Rtx::MeshIndex> mSlot;
             std::uint64_t mFiledAt = 0;
             std::uint64_t mBytes = 0;
             std::uint64_t mAfter = 0;

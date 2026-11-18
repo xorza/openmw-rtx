@@ -26,6 +26,13 @@ namespace Rtx
     /// settles again.
     inline constexpr VkDeviceSize sStagingKept = 8 * sStagingBlock;
 
+    /// **How long a spare block stands unused before `StagingRing::shed` gives it back**, in submits: some ten seconds
+    /// at the frame rate, as jemalloc gives a page back after it decays unused for ten
+    /// ([`dirty_decay_ms`](https://jemalloc.net/jemalloc.3.html)). A block shed a frame after the crossing that grew it
+    /// was made again at the next, each a device allocation the kernel clears on a frame
+    /// (`docs/research/2026-11-17-longest-frames.md`).
+    inline constexpr std::uint64_t sStagingIdleSubmits = 600;
+
     /// What every run inside a block starts on: the largest texel block of any format this renderer
     /// uploads, BC2's and BC3's sixteen bytes. `VkBufferImageCopy::bufferOffset` has to be a
     /// multiple of four and of the format's texel block.
@@ -57,10 +64,30 @@ namespace Rtx
         /// submit is the busiest there is. The arrivals after grow it again to their own.
         void trim(VkDeviceSize keep);
 
-        /// Lets go of the largest free block where the ring holds more than `keep` bytes, and of
-        /// nothing else: what a frame that hands nothing over calls, so a crossing that staged hundreds
-        /// of megabytes gives them back a block a frame, and no one frame pays for all. Free blocks only.
-        void shed(VkDeviceSize keep);
+        /// Lets go of the largest free block that stood unused for `sStagingIdleSubmits` by `finished`, where the
+        /// ring holds more than `keep` bytes, and of nothing else: what a frame that hands nothing over calls, so a
+        /// crossing that staged hundreds of megabytes gives them back a block a frame once they cool, and no one frame
+        /// pays for all. Free blocks only.
+        void shed(VkDeviceSize keep, std::uint64_t finished);
+
+        /// Which of the spare blocks `spare` `shed` gives back by `finished`, as a position in `spare`, or nothing: the
+        /// largest whose stamp `freedAt` is at least `sStagingIdleSubmits` behind, and of equal ones the lowest block.
+        template <class SizeOf, class FreedAt>
+        static std::optional<std::size_t> sheddable(
+            std::span<const std::size_t> spare, SizeOf&& sizeOf, FreedAt&& freedAt, const std::uint64_t finished)
+        {
+            std::optional<std::size_t> best;
+            for (std::size_t at = 0; at < spare.size(); ++at)
+            {
+                if (finished < freedAt(spare[at]) + sStagingIdleSubmits)
+                    continue;
+                const VkDeviceSize size = sizeOf(spare[at]);
+                if (!best.has_value() || size > sizeOf(spare[*best])
+                    || (size == sizeOf(spare[*best]) && spare[at] < spare[*best]))
+                    best = at;
+            }
+            return best;
+        }
 
         /// Which of the spare blocks `spare` an upload of `bytes` takes, as a position in `spare`, or
         /// nothing where none holds it: the smallest that does, and of equal ones the lowest block.
@@ -97,6 +124,9 @@ namespace Rtx
         std::vector<Buffer> mBlocks;
         Retiring<std::size_t> mRetiring;
         std::vector<std::size_t> mSpare;
+
+        /// When each block was last given back, by the timeline value that freed it: what `shed` cools blocks by.
+        std::vector<std::uint64_t> mFreedAt;
 
         /// What the blocks hold together, free and in use: what `shed` keeps to.
         VkDeviceSize mBytes = 0;

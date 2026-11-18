@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -29,8 +30,8 @@ namespace MWInput
         void clear();
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress);
-        void readRecord(ESM::ESMReader& reader, uint32_t type);
-        size_t countSavedGameRecords() const;
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type);
+        std::size_t countSavedGameRecords() const;
 
     private:
         std::map<std::string, bool, std::less<>> mSwitches;

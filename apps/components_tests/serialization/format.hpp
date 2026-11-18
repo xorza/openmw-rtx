@@ -1,16 +1,17 @@
 #pragma once
 
-#include <components/serialization/format.hpp>
-
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
+
+#include <components/serialization/format.hpp>
 
 namespace SerializationTesting
 {
     struct Pod
     {
-        int mInt = 42;
+        std::int32_t mInt = 42;
         double mDouble = 3.14;
 
         friend bool operator==(const Pod& l, const Pod& r)
@@ -29,7 +30,7 @@ namespace SerializationTesting
 
     struct Composite
     {
-        short mFloatArray[3] = { 0 };
+        std::int16_t mFloatArray[3] = { 0 };
         std::vector<std::int32_t> mIntVector;
         std::vector<Enum> mEnumVector;
         std::vector<Pod> mPodVector;
@@ -45,15 +46,16 @@ namespace SerializationTesting
         using Serialization::Format<mode, TestFormat<mode>>::operator();
 
         template <class Visitor, class T>
-        auto operator()(Visitor&& visitor, T& value) const -> std::enable_if_t<std::is_same_v<std::decay_t<T>, Pod>>
+        auto operator()(Visitor&& visitor, T& value) const -> void
+            requires(std::is_same_v<std::decay_t<T>, Pod>)
         {
             visitor(*this, value.mInt);
             visitor(*this, value.mDouble);
         }
 
         template <class Visitor, class T>
-        auto operator()(Visitor&& visitor, T& value) const
-            -> std::enable_if_t<std::is_same_v<std::decay_t<T>, Composite>>
+        auto operator()(Visitor&& visitor, T& value) const -> void
+            requires(std::is_same_v<std::decay_t<T>, Composite>)
         {
             visitor(*this, value.mFloatArray);
             visitor(*this, value.mIntVector);

@@ -1,5 +1,10 @@
 #include "regionmap.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <sstream>
+#include <stdexcept>
+
 #include <QApplication>
 #include <QBrush>
 #include <QModelIndex>
@@ -7,18 +12,13 @@
 #include <QSize>
 #include <QVariant>
 
-#include <algorithm>
-#include <sstream>
-#include <stdexcept>
-
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/record.hpp>
-
 #include <components/esm3/loadregn.hpp>
 
+#include "cell.hpp"
+#include "cellcoordinates.hpp"
 #include "data.hpp"
+#include "idcollection.hpp"
+#include "record.hpp"
 #include "universalid.hpp"
 
 namespace CSMWorld
@@ -28,7 +28,7 @@ namespace CSMWorld
         float getLandHeight(const CSMWorld::Cell& cell, CSMWorld::Data& data)
         {
             const IdCollection<Land>& lands = data.getLand();
-            int landIndex = lands.searchId(cell.mId);
+            std::int32_t landIndex = lands.searchId(cell.mId);
             if (landIndex == -1)
                 return 0.0f;
 
@@ -73,8 +73,8 @@ CSMWorld::CellCoordinates CSMWorld::RegionMap::getIndex(const Cell& cell) const
     std::istringstream stream(cell.mId.getRefIdString());
 
     char ignore = 0;
-    int x = 0;
-    int y = 0;
+    std::int32_t x = 0;
+    std::int32_t y = 0;
     stream >> ignore >> x >> y;
 
     return CellCoordinates(x, y);
@@ -84,9 +84,9 @@ void CSMWorld::RegionMap::buildRegions()
 {
     const IdCollection<ESM::Region>& regions = mData.getRegions();
 
-    int size = regions.getSize();
+    std::int32_t size = regions.getSize();
 
-    for (int i = 0; i < size; ++i)
+    for (std::int32_t i = 0; i < size; ++i)
     {
         const Record<ESM::Region>& region = regions.getRecord(i);
 
@@ -99,9 +99,9 @@ void CSMWorld::RegionMap::buildMap()
 {
     const IdCollection<Cell>& cells = mData.getCells();
 
-    int size = cells.getSize();
+    std::int32_t size = cells.getSize();
 
-    for (int i = 0; i < size; ++i)
+    for (std::int32_t i = 0; i < size; ++i)
     {
         const Record<Cell>& cell = cells.getRecord(i);
 
@@ -143,11 +143,11 @@ void CSMWorld::RegionMap::addCell(const CellCoordinates& index, const CellDescri
     dataChanged(index2, index2);
 }
 
-void CSMWorld::RegionMap::addCells(int start, int end)
+void CSMWorld::RegionMap::addCells(std::int32_t start, std::int32_t end)
 {
     const IdCollection<Cell>& cells = mData.getCells();
 
-    for (int i = start; i <= end; ++i)
+    for (std::int32_t i = start; i <= end; ++i)
     {
         const Record<Cell>& cell = cells.getRecord(i);
 
@@ -180,7 +180,7 @@ void CSMWorld::RegionMap::removeCell(const CellCoordinates& index)
     }
 }
 
-void CSMWorld::RegionMap::addRegion(const ESM::RefId& region, unsigned int colour)
+void CSMWorld::RegionMap::addRegion(const ESM::RefId& region, std::uint32_t colour)
 {
     mColours[region] = colour;
 }
@@ -215,23 +215,23 @@ void CSMWorld::RegionMap::updateSize()
 {
     std::pair<CellCoordinates, CellCoordinates> size = getSize();
 
-    if (int diff = size.first.getX() - mMin.getX())
+    if (std::int32_t diff = size.first.getX() - mMin.getX())
     {
         beginInsertColumns(QModelIndex(), 0, std::abs(diff) - 1);
         mMin = CellCoordinates(size.first.getX(), mMin.getY());
         endInsertColumns();
     }
 
-    if (int diff = size.first.getY() - mMin.getY())
+    if (std::int32_t diff = size.first.getY() - mMin.getY())
     {
         beginInsertRows(QModelIndex(), 0, std::abs(diff) - 1);
         mMin = CellCoordinates(mMin.getX(), size.first.getY());
         endInsertRows();
     }
 
-    if (int diff = size.second.getX() - mMax.getX())
+    if (std::int32_t diff = size.second.getX() - mMax.getX())
     {
-        int columns = columnCount();
+        std::int32_t columns = columnCount();
 
         if (diff > 0)
             beginInsertColumns(QModelIndex(), columns, columns + diff - 1);
@@ -242,9 +242,9 @@ void CSMWorld::RegionMap::updateSize()
         endInsertColumns();
     }
 
-    if (int diff = size.second.getY() - mMax.getY())
+    if (std::int32_t diff = size.second.getY() - mMax.getY())
     {
-        int rows = rowCount();
+        std::int32_t rows = rowCount();
 
         if (diff > 0)
             beginInsertRows(QModelIndex(), rows, rows + diff - 1);
@@ -260,12 +260,12 @@ std::pair<CSMWorld::CellCoordinates, CSMWorld::CellCoordinates> CSMWorld::Region
 {
     const IdCollection<Cell>& cells = mData.getCells();
 
-    int size = cells.getSize();
+    std::int32_t size = cells.getSize();
 
     CellCoordinates min(0, 0);
     CellCoordinates max(0, 0);
 
-    for (int i = 0; i < size; ++i)
+    for (std::int32_t i = 0; i < size; ++i)
     {
         const Record<Cell>& cell = cells.getRecord(i);
 
@@ -317,7 +317,7 @@ CSMWorld::RegionMap::RegionMap(Data& data)
     connect(cells, &QAbstractItemModel::dataChanged, this, &RegionMap::cellsChanged);
 }
 
-int CSMWorld::RegionMap::rowCount(const QModelIndex& parent) const
+std::int32_t CSMWorld::RegionMap::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
@@ -325,7 +325,7 @@ int CSMWorld::RegionMap::rowCount(const QModelIndex& parent) const
     return mMax.getY() - mMin.getY();
 }
 
-int CSMWorld::RegionMap::columnCount(const QModelIndex& parent) const
+std::int32_t CSMWorld::RegionMap::columnCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
@@ -333,7 +333,7 @@ int CSMWorld::RegionMap::columnCount(const QModelIndex& parent) const
     return mMax.getX() - mMin.getX();
 }
 
-QVariant CSMWorld::RegionMap::data(const QModelIndex& index, int role) const
+QVariant CSMWorld::RegionMap::data(const QModelIndex& index, std::int32_t role) const
 {
     if (role == Qt::SizeHintRole)
         return QSize(16, 16);
@@ -352,9 +352,9 @@ QVariant CSMWorld::RegionMap::data(const QModelIndex& index, int role) const
             auto iter = mColours.find(cell->second.mRegion);
 
             if (iter != mColours.end())
-                return QBrush(
-                    QColor(static_cast<int>(iter->second & 0xff), static_cast<int>((iter->second >> 8) & 0xff),
-                        static_cast<int>((iter->second >> 16) & 0xff)),
+                return QBrush(QColor(static_cast<std::int32_t>(iter->second & 0xff),
+                                  static_cast<std::int32_t>((iter->second >> 8) & 0xff),
+                                  static_cast<std::int32_t>((iter->second >> 16) & 0xff)),
                     cell->second.mMaxLandHeight > 0 ? Qt::SolidPattern : Qt::CrossPattern);
 
             if (cell->second.mRegion.empty()) // no region
@@ -430,13 +430,13 @@ Qt::ItemFlags CSMWorld::RegionMap::flags(const QModelIndex& index) const
     return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
 }
 
-void CSMWorld::RegionMap::regionsAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSMWorld::RegionMap::regionsAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     std::vector<ESM::RefId> update;
 
     const IdCollection<ESM::Region>& regions = mData.getRegions();
 
-    for (int i = start; i <= end; ++i)
+    for (std::int32_t i = start; i <= end; ++i)
     {
         const Record<ESM::Region>& region = regions.getRecord(i);
 
@@ -448,13 +448,13 @@ void CSMWorld::RegionMap::regionsAboutToBeRemoved(const QModelIndex& parent, int
     updateRegions(update);
 }
 
-void CSMWorld::RegionMap::regionsInserted(const QModelIndex& parent, int start, int end)
+void CSMWorld::RegionMap::regionsInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     std::vector<ESM::RefId> update;
 
     const IdCollection<ESM::Region>& regions = mData.getRegions();
 
-    for (int i = start; i <= end; ++i)
+    for (std::int32_t i = start; i <= end; ++i)
     {
         const Record<ESM::Region>& region = regions.getRecord(i);
 
@@ -462,7 +462,7 @@ void CSMWorld::RegionMap::regionsInserted(const QModelIndex& parent, int start, 
         {
             update.push_back(region.get().mId);
 
-            addRegion(region.get().mId, static_cast<unsigned int>(region.get().mMapColor));
+            addRegion(region.get().mId, static_cast<std::uint32_t>(region.get().mMapColor));
         }
     }
 
@@ -478,14 +478,14 @@ void CSMWorld::RegionMap::regionsChanged(const QModelIndex& topLeft, const QMode
 
     const IdCollection<ESM::Region>& regions = mData.getRegions();
 
-    for (int i = topLeft.row(); i <= bottomRight.column(); ++i)
+    for (std::int32_t i = topLeft.row(); i <= bottomRight.column(); ++i)
     {
         const Record<ESM::Region>& region = regions.getRecord(i);
 
         update.push_back(region.get().mId);
 
         if (!region.isDeleted())
-            addRegion(region.get().mId, static_cast<unsigned int>(region.get().mMapColor));
+            addRegion(region.get().mId, static_cast<std::uint32_t>(region.get().mMapColor));
         else
             removeRegion(region.get().mId);
     }
@@ -493,11 +493,11 @@ void CSMWorld::RegionMap::regionsChanged(const QModelIndex& topLeft, const QMode
     updateRegions(update);
 }
 
-void CSMWorld::RegionMap::cellsAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSMWorld::RegionMap::cellsAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     const IdCollection<Cell>& cells = mData.getCells();
 
-    for (int i = start; i <= end; ++i)
+    for (std::int32_t i = start; i <= end; ++i)
     {
         const Record<Cell>& cell = cells.getRecord(i);
 
@@ -508,7 +508,7 @@ void CSMWorld::RegionMap::cellsAboutToBeRemoved(const QModelIndex& parent, int s
     }
 }
 
-void CSMWorld::RegionMap::cellsInserted(const QModelIndex& parent, int start, int end)
+void CSMWorld::RegionMap::cellsInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     addCells(start, end);
 }

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "importplayer.hpp"
-
 #include <components/esm3/controlsstate.hpp>
 #include <components/esm3/player.hpp>
+
+#include "importplayer.hpp"
 
 namespace ESSImport
 {

@@ -1,6 +1,8 @@
 #include "statswindow.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
@@ -12,26 +14,21 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_Window.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadrace.hpp>
-
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "tooltips.hpp"
 
@@ -93,19 +90,19 @@ namespace MWGui
         onWindowResize(t);
     }
 
-    void StatsWindow::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void StatsWindow::onMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (mSkillView->getViewOffset().top + rel * 0.3 > 0)
             mSkillView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mSkillView->setViewOffset(
-                MyGUI::IntPoint(0, static_cast<int>(mSkillView->getViewOffset().top + rel * 0.3)));
+                MyGUI::IntPoint(0, static_cast<std::int32_t>(mSkillView->getViewOffset().top + rel * 0.3)));
     }
 
     void StatsWindow::onWindowResize(MyGUI::Window* window)
     {
-        int windowWidth = window->getSize().width;
-        int windowHeight = window->getSize().height;
+        std::int32_t windowWidth = window->getSize().width;
+        std::int32_t windowHeight = window->getSize().height;
 
         // initial values defined in openmw_stats_window.layout, if custom options are not present in .layout, a default
         // is loaded
@@ -113,13 +110,13 @@ namespace MWGui
         if (mLeftPane->isUserString("LeftPaneRatio"))
             leftPaneRatio = MyGUI::utility::parseFloat(mLeftPane->getUserString("LeftPaneRatio"));
 
-        int leftOffsetWidth = 24;
+        std::int32_t leftOffsetWidth = 24;
         if (mLeftPane->isUserString("LeftOffsetWidth"))
             leftOffsetWidth = MyGUI::utility::parseInt(mLeftPane->getUserString("LeftOffsetWidth"));
 
         float rightPaneRatio = 1.f - leftPaneRatio;
-        int minLeftWidth = static_cast<int>(static_cast<float>(mMinFullWidth) * leftPaneRatio);
-        int minLeftOffsetWidth = minLeftWidth + leftOffsetWidth;
+        auto minLeftWidth = static_cast<std::int32_t>(static_cast<float>(mMinFullWidth) * leftPaneRatio);
+        std::int32_t minLeftOffsetWidth = minLeftWidth + leftOffsetWidth;
 
         // if there's no space for right pane
         mRightPane->setVisible(windowWidth >= minLeftOffsetWidth);
@@ -136,10 +133,11 @@ namespace MWGui
         // if there's enough space for both panes
         else
         {
-            mLeftPane->setCoord(
-                MyGUI::IntCoord(0, 0, static_cast<int>(leftPaneRatio * static_cast<float>(windowWidth)), windowHeight));
-            mRightPane->setCoord(MyGUI::IntCoord(static_cast<int>(leftPaneRatio * static_cast<float>(windowWidth)), 0,
-                static_cast<int>(rightPaneRatio * static_cast<float>(windowWidth)), windowHeight));
+            mLeftPane->setCoord(MyGUI::IntCoord(
+                0, 0, static_cast<std::int32_t>(leftPaneRatio * static_cast<float>(windowWidth)), windowHeight));
+            mRightPane->setCoord(
+                MyGUI::IntCoord(static_cast<std::int32_t>(leftPaneRatio * static_cast<float>(windowWidth)), 0,
+                    static_cast<std::int32_t>(rightPaneRatio * static_cast<float>(windowWidth)), windowHeight));
         }
 
         // Canvas size must be expressed with VScroll disabled, otherwise MyGUI would expand the scroll area when the
@@ -149,7 +147,7 @@ namespace MWGui
         mSkillView->setVisibleVScroll(true);
     }
 
-    void StatsWindow::setBar(const std::string& name, const std::string& tname, int val, int max)
+    void StatsWindow::setBar(const std::string& name, const std::string& tname, std::int32_t val, std::int32_t max)
     {
         MyGUI::ProgressBar* pt = nullptr;
         getWidget(pt, name);
@@ -173,7 +171,7 @@ namespace MWGui
         if (it != mAttributeWidgets.end())
         {
             MyGUI::TextBox* box = it->second;
-            box->setCaption(std::to_string(static_cast<int>(value.getModified())));
+            box->setCaption(std::to_string(static_cast<std::int32_t>(value.getModified())));
             if (value.getModified() > value.getBase())
                 box->_setWidgetState("increased");
             else if (value.getModified() < value.getBase())
@@ -185,8 +183,8 @@ namespace MWGui
 
     void StatsWindow::setValue(std::string_view id, const MWMechanics::DynamicStat<float>& value)
     {
-        int current = static_cast<int>(value.getCurrent());
-        int modified = static_cast<int>(value.getModified(false));
+        auto current = static_cast<std::int32_t>(value.getCurrent());
+        auto modified = static_cast<std::int32_t>(value.getModified(false));
 
         // Fatigue can be negative
         if (id != "FBar")
@@ -224,7 +222,7 @@ namespace MWGui
             setText("ClassText", value);
     }
 
-    void StatsWindow::setValue(std::string_view id, int value)
+    void StatsWindow::setValue(std::string_view id, std::int32_t value)
     {
         if (id == "level")
         {
@@ -248,7 +246,7 @@ namespace MWGui
             // due to the int casting in the skill levelup logic. Also the progress label could in rare cases
             // reach 100% without the skill levelling up.
             // Leaving the original display logic for now, for consistency with ess-imported savegames.
-            int progressPercent = static_cast<int>(std::lround(progress / progressRequirement * 100.f));
+            auto progressPercent = static_cast<std::int32_t>(std::lround(progress / progressRequirement * 100.f));
 
             w->setUserString("Caption_SkillProgressText", MyGUI::utility::toString(progressPercent) + "/100");
             w->setUserString("RangePosition_SkillProgress", MyGUI::utility::toString(progressPercent));
@@ -264,19 +262,19 @@ namespace MWGui
         if (valueWidget && nameWidget)
         {
             float modified = value.getModified(), base = value.getBase();
-            std::string text = MyGUI::utility::toString(static_cast<int>(modified));
+            std::string text = MyGUI::utility::toString(static_cast<std::int32_t>(modified));
             std::string state = "normal";
             if (modified > base)
                 state = "increased";
             else if (modified < base)
                 state = "decreased";
 
-            int widthBefore = valueWidget->getTextSize().width;
+            std::int32_t widthBefore = valueWidget->getTextSize().width;
 
             valueWidget->setCaption(text);
             valueWidget->_setWidgetState(state);
 
-            int widthAfter = valueWidget->getTextSize().width;
+            std::int32_t widthAfter = valueWidget->getTextSize().width;
             if (widthBefore != widthAfter)
             {
                 valueWidget->setCoord(valueWidget->getLeft() - (widthAfter - widthBefore), valueWidget->getTop(),
@@ -346,8 +344,8 @@ namespace MWGui
         bool first = true;
         for (const auto& attribute : store->get<ESM::Attribute>())
         {
-            int mult = playerStats.getLevelupAttributeMultiplier(attribute.mId);
-            mult = std::min(mult, static_cast<int>(100 - playerStats.getAttribute(attribute.mId).getBase()));
+            std::int32_t mult = playerStats.getLevelupAttributeMultiplier(attribute.mId);
+            mult = std::min(mult, static_cast<std::int32_t>(100 - playerStats.getAttribute(attribute.mId).getBase()));
             if (mult > 1)
             {
                 if (!first)
@@ -360,9 +358,9 @@ namespace MWGui
 
         // level progress
         MyGUI::Widget* levelWidget = nullptr;
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
-            int max = store->get<ESM::GameSetting>().find("iLevelUpTotal")->mValue.getInteger();
+            std::int32_t max = store->get<ESM::GameSetting>().find("iLevelUpTotal")->mValue.getInteger();
             getWidget(levelWidget, i == 0 ? "Level_str" : "LevelText");
 
             levelWidget->setUserString(
@@ -434,7 +432,7 @@ namespace MWGui
         groupWidget->eventMouseWheel += MyGUI::newDelegate(this, &StatsWindow::onMouseWheel);
         mSkillWidgets.push_back(groupWidget);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         coord1.top += lineHeight;
         coord2.top += lineHeight;
     }
@@ -456,7 +454,7 @@ namespace MWGui
         skillValueWidget->eventMouseWheel += MyGUI::newDelegate(this, &StatsWindow::onMouseWheel);
 
         // resize dynamically according to text size
-        int textWidthPlusMargin = skillValueWidget->getTextSize().width + 12;
+        std::int32_t textWidthPlusMargin = skillValueWidget->getTextSize().width + 12;
         skillValueWidget->setCoord(
             coord2.left + coord2.width - textWidthPlusMargin, coord2.top, textWidthPlusMargin, coord2.height);
         skillNameWidget->setSize(skillNameWidget->getSize() + MyGUI::IntSize(coord2.width - textWidthPlusMargin, 0));
@@ -464,7 +462,7 @@ namespace MWGui
         mSkillWidgets.push_back(skillNameWidget);
         mSkillWidgets.push_back(skillValueWidget);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         coord1.top += lineHeight;
         coord2.top += lineHeight;
 
@@ -480,12 +478,12 @@ namespace MWGui
         skillNameWidget->setCaption(text);
         skillNameWidget->eventMouseWheel += MyGUI::newDelegate(this, &StatsWindow::onMouseWheel);
 
-        int textWidth = skillNameWidget->getTextSize().width;
+        std::int32_t textWidth = skillNameWidget->getTextSize().width;
         skillNameWidget->setSize(textWidth, skillNameWidget->getHeight());
 
         mSkillWidgets.push_back(skillNameWidget);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         coord1.top += lineHeight;
         coord2.top += lineHeight;
 
@@ -524,7 +522,7 @@ namespace MWGui
                 = addValueItem(skill->mName, {}, "normal", coord1, coord2);
             mSkillWidgetMap[skill->mId] = std::move(widgets);
 
-            for (int i = 0; i < 2; ++i)
+            for (std::int32_t i = 0; i < 2; ++i)
             {
                 mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
                     "ToolTipType", "Layout");
@@ -557,7 +555,7 @@ namespace MWGui
         }
         mSkillWidgets.clear();
 
-        const int valueSize = 40;
+        const std::int32_t valueSize = 40;
         MyGUI::IntCoord coord1(10, 0, mSkillView->getWidth() - (10 + valueSize) - 24, 18);
         MyGUI::IntCoord coord2(coord1.left + coord1.width, coord1.top, valueSize, coord1.height);
 
@@ -628,7 +626,7 @@ namespace MWGui
                     text += "\n#{fontcolourhtml=normal}#{sExpelled}";
                 else
                 {
-                    const auto rank = static_cast<size_t>(std::max(0, factionRank));
+                    const auto rank = static_cast<std::size_t>(std::max(0, factionRank));
                     if (rank < faction->mRanks.size())
                         text += std::string("\n#{fontcolourhtml=normal}") + faction->mRanks[rank];
                     if (rank + 1 < faction->mRanks.size() && !faction->mRanks[rank + 1].empty())
@@ -697,7 +695,7 @@ namespace MWGui
         addValueItem(MWBase::Environment::get().getWindowManager()->getGameSettingString("sReputation", "Reputation"),
             MyGUI::utility::toString(mReputation), "normal", coord1, coord2);
 
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
             mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
                 "ToolTipType", "Layout");
@@ -710,7 +708,7 @@ namespace MWGui
         addValueItem(MWBase::Environment::get().getWindowManager()->getGameSettingString("sBounty", "Bounty"),
             MyGUI::utility::toString(mBounty), "normal", coord1, coord2);
 
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
             mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
                 "ToolTipType", "Layout");
@@ -764,10 +762,10 @@ namespace MWGui
             // Fill the screen, or limit to a certain size on large screens. Size chosen to
             // show all stats.
             MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-            int width = std::min(viewSize.width, getIdealWidth());
-            int height = std::min(winMgr->getControllerMenuHeight(), getIdealHeight());
-            int x = (viewSize.width - width) / 2;
-            int y = (viewSize.height - height) / 2;
+            std::int32_t width = std::min(viewSize.width, getIdealWidth());
+            std::int32_t height = std::min(winMgr->getControllerMenuHeight(), getIdealHeight());
+            std::int32_t x = (viewSize.width - width) / 2;
+            std::int32_t y = (viewSize.height - height) / 2;
 
             auto* window = mMainWidget->castType<MyGUI::Window>();
             window->setCoord(x, active ? y : viewSize.height + 1, width, height);

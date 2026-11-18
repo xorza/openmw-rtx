@@ -4,9 +4,9 @@
 
 #include <osg/NodeVisitor>
 
-#include <components/sceneutil/lightmanager.hpp>
-
 #include <components/misc/rng.hpp>
+
+#include "lightmanager.hpp"
 
 namespace SceneUtil
 {

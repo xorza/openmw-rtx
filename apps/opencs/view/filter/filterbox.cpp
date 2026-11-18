@@ -8,12 +8,12 @@
 #include <QHBoxLayout>
 #include <QVariant>
 
-#include "filterdata.hpp"
-#include "recordfilterbox.hpp"
-
 #include <apps/opencs/model/world/tablemimedata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/world/dragrecordtable.hpp>
+
+#include "filterdata.hpp"
+#include "recordfilterbox.hpp"
 
 CSVFilter::FilterBox::FilterBox(CSMWorld::Data& worldData, QWidget* parent)
     : QWidget(parent)

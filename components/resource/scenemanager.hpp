@@ -1,7 +1,9 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -13,13 +15,11 @@
 #include <osg/Texture>
 #include <osg/ref_ptr>
 
-#include "resourcemanager.hpp"
-
-#include <components/shader/automaps.hpp>
-
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/shader/automaps.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <filesystem>
+
+#include "resourcemanager.hpp"
 
 namespace VFS
 {
@@ -112,11 +112,11 @@ namespace Resource
         void setOpaqueDepthTex(osg::ref_ptr<osg::Texture> texturePing, osg::ref_ptr<osg::Texture> texturePong);
         void setOpaqueColorTex(osg::ref_ptr<osg::Texture> texturePing, osg::ref_ptr<osg::Texture> texturePong);
 
-        osg::ref_ptr<osg::Texture> getOpaqueDepthTex(size_t frame);
-        osg::ref_ptr<osg::Texture> getOpaqueColorTex(size_t frame);
+        osg::ref_ptr<osg::Texture> getOpaqueDepthTex(std::size_t frame);
+        osg::ref_ptr<osg::Texture> getOpaqueColorTex(std::size_t frame);
 
         void loadSelectionMarker(
-            const osg::ref_ptr<osg::Group>& parentNode, const char* markerData, long long markerSize) const;
+            const osg::ref_ptr<osg::Group>& parentNode, const char* markerData, std::size_t markerSize) const;
 
         enum class UBOBinding
         {
@@ -179,7 +179,7 @@ namespace Resource
         Resource::ImageManager* getImageManager();
 
         /// @param mask The node mask to apply to loaded particle system nodes.
-        void setParticleSystemMask(unsigned int mask);
+        void setParticleSystemMask(std::uint32_t mask);
 
         /// @warning It is unsafe to call this method while the draw thread is using textures! call
         /// Viewer::stopThreading first.
@@ -206,7 +206,7 @@ namespace Resource
         /// (`Rtx::ContentPreparation`).
         void letGo(std::span<const std::string> paths);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
         void setSupportsNormalsRT(bool supports) { mSupportsNormalsRT = supports; }
         bool getSupportsNormalsRT() const { return mSupportsNormalsRT; }
@@ -256,7 +256,7 @@ namespace Resource
 
         BlacklistModelSet mOptimizerBlacklist;
 
-        unsigned int mParticleSystemMask;
+        std::uint32_t mParticleSystemMask;
         bool mSupportsClusteredLighting = false;
         bool mConvertAlphaTestToAlphaToCoverage = false;
         bool mAdjustCoverageForAlphaTest = false;

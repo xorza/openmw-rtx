@@ -7,11 +7,10 @@
 
 #include <gtest/gtest.h>
 
-#include <volk.h>
-
 #include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
+#include <volk.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
@@ -28,6 +27,7 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -51,9 +51,9 @@ namespace Rtx
         };
 
         /// That wall, on its own, as a scene.
-        SceneDesc wall()
+        SceneDesc wall(SceneIdentities& identities)
         {
-            SceneDesc scene;
+            SceneDesc scene(identities);
             Testing::addQuad(scene, sWallCorners);
 
             return scene;
@@ -61,9 +61,9 @@ namespace Rtx
 
         /// The wall over a sheet of water, which is what makes a scene one the ripple field is
         /// stood for: the field is read where a ray meets water, so a scene with none stands none.
-        SceneDesc wallOverWater()
+        SceneDesc wallOverWater(SceneIdentities& identities)
         {
-            SceneDesc scene = wall();
+            SceneDesc scene = wall(identities);
             Material water;
             water.mKind = MaterialKind::Water;
             Testing::addQuad(scene, Testing::sheetAt(1000.0f, -100.0f), scene.addMaterial(water));
@@ -125,10 +125,11 @@ namespace Rtx
 
         TEST_F(RtxGpuTimerTest, aFrameAccountsForItsOwnDeviceTimePassByPass)
         {
+            SceneIdentities identities;
             mRenderer.resize(sSize, sSize);
 
-            SceneDesc scene;
-            const Index wallPlaced = Testing::addQuad(scene, sWallCorners);
+            SceneDesc scene(identities);
+            const PlacementIndex wallPlaced = Testing::addQuad(scene, sWallCorners);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
             const Shaders::VisibilityConstants camera
@@ -300,7 +301,7 @@ namespace Rtx
             // sky's clock has moved and something presses it**, before the sea reads it. The frame
             // the field is stood on steps nothing and reports no zone; a sixtieth on, the footfall
             // the scene holds is pressed and the step comes first of all, ahead of the sea.
-            SceneDesc flooding = wallOverWater();
+            SceneDesc flooding = wallOverWater(identities);
             flooding.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
             mRenderer.setScene(Rtx::SceneSlot::world(), flooding, {});
 

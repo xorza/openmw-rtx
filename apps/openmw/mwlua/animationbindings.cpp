@@ -1,14 +1,14 @@
 #include "animationbindings.hpp"
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/character.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/finitevalues.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/character.hpp"
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"
@@ -167,8 +167,8 @@ namespace MWLua
                 return completion;
             return sol::nullopt;
         };
-        api["getLoopCount"] = [](const LObject& object, const std::string& groupname) -> sol::optional<uint32_t> {
-            uint32_t loops = 0;
+        api["getLoopCount"] = [](const LObject& object, const std::string& groupname) -> sol::optional<std::uint32_t> {
+            std::uint32_t loops = 0;
             if (getConstAnimationOrThrow(object)->getInfo(groupname, nullptr, nullptr, &loops))
                 return loops;
             return sol::nullopt;
@@ -197,7 +197,7 @@ namespace MWLua
         // Extended variant of MWScript's PlayGroup and LoopGroup
         api["playQueued"] = sol::overload(
             [mechanics](const SelfObject& object, const std::string& groupname, const sol::table& options) {
-                uint32_t numberOfLoops = options.get_or("loops", std::numeric_limits<uint32_t>::max());
+                std::uint32_t numberOfLoops = options.get_or("loops", std::numeric_limits<std::uint32_t>::max());
                 float speed = options.get_or("speed", 1.f);
                 std::string startKey = options.get_or<std::string>("startKey", "start");
                 std::string stopKey = options.get_or<std::string>("stopKey", "stop");
@@ -209,11 +209,11 @@ namespace MWLua
             [mechanics](const SelfObject& object, const std::string& groupname) {
                 const MWWorld::Ptr& ptr = getMutablePtrOrThrow(object);
                 mechanics->playAnimationGroupLua(
-                    ptr, groupname, std::numeric_limits<int>::max(), 1, "start", "stop", false);
+                    ptr, groupname, std::numeric_limits<std::int32_t>::max(), 1, "start", "stop", false);
             });
 
         api["playBlended"] = [](const SelfObject& object, std::string_view groupName, const sol::table& options) {
-            uint32_t loops = options.get_or("loops", 0u);
+            std::uint32_t loops = options.get_or("loops", 0u);
             MWRender::Animation::AnimPriority priority = getPriorityArgument(options);
             BlendMask blendMask = options.get_or("blendMask", BlendMask::BlendMask_All);
             bool autoDisable = options.get_or("autoDisable", true);

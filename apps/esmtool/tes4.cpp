@@ -1,6 +1,4 @@
 #include "tes4.hpp"
-#include "arguments.hpp"
-#include "labels.hpp"
 
 #include <array>
 #include <cstdint>
@@ -103,6 +101,9 @@
 #include <components/esm4/readerutils.hpp>
 #include <components/esm4/typetraits.hpp>
 #include <components/toutf8/toutf8.hpp>
+
+#include "arguments.hpp"
+#include "labels.hpp"
 
 namespace EsmTool
 {
@@ -264,7 +265,7 @@ namespace EsmTool
             if constexpr (ESM4::HasKf<T>)
                 std::cout << "\n  Kf:" << WriteArray("\n  - ", value.mKf);
             if constexpr (ESM4::HasType<T>)
-                std::cout << "\n  Type: " << static_cast<unsigned int>(value.mType);
+                std::cout << "\n  Type: " << static_cast<std::uint32_t>(value.mType);
             if constexpr (ESM4::HasValue<T>)
                 std::cout << "\n  Value: " << value.mValue;
             if constexpr (ESM4::HasData<T>)
@@ -618,7 +619,7 @@ namespace EsmTool
 
     }
 
-    int loadTes4(const Arguments& info, std::unique_ptr<std::ifstream>&& stream)
+    std::int32_t loadTes4(const Arguments& info, std::unique_ptr<std::ifstream>&& stream)
     {
         std::cout << "Loading TES4 file: " << info.filename << '\n';
 

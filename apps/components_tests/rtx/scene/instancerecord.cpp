@@ -13,12 +13,15 @@
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowspan.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/scene/foldedshape.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
@@ -28,20 +31,22 @@ namespace Rtx
 {
     namespace
     {
+        using Records = RowVector<InstanceRecord, PlacementIndex>;
+
         /// The rows built from nothing, which is the answer the rows kept across frames must match.
-        std::vector<InstanceRecord> whole(const SceneDesc& scene)
+        Records whole(const SceneDesc& scene)
         {
-            std::vector<InstanceRecord> records;
+            Records records;
             makeInstanceRecords(scene, records);
             return records;
         }
 
-        void expectSame(const std::vector<InstanceRecord>& kept, const SceneDesc& scene, const char* when)
+        void expectSame(const Records& kept, const SceneDesc& scene, const char* when)
         {
-            const std::vector<InstanceRecord> fresh = whole(scene);
+            const Records fresh = whole(scene);
             ASSERT_EQ(kept.size(), fresh.size()) << when;
-            for (std::size_t slot = 0; slot < kept.size(); ++slot)
-                EXPECT_TRUE(kept[slot] == fresh[slot]) << when << ": slot " << slot;
+            for (const PlacementIndex slot : everyRow<PlacementIndex>(kept.size()))
+                EXPECT_TRUE(kept[slot] == fresh[slot]) << when << ": slot " << slot.at();
 
             // **The counts that gate the trace are what the records tell traversal**, both being
             // `PlacedTraversal`'s: a cutout counted that no record stops for is a walk the trace
@@ -66,12 +71,13 @@ namespace Rtx
             // **And the present set is exactly the rows a walk looks for, each once**, whatever
             // counted a row out and back in on the way — a fade does both. Each sphere carries the
             // record's kinds and holds every corner of its box as placed.
-            std::vector<Index> present;
-            for (std::size_t slot = 0; slot < kept.size(); ++slot)
+            std::vector<PlacementIndex> present;
+            for (const PlacementIndex slot : everyRow<PlacementIndex>(kept.size()))
                 if (kept[slot].mPlaced && (kept[slot].mAdditive || (kept[slot].mMask & Shaders::MASK_MEDIUM) != 0))
-                    present.push_back(static_cast<Index>(slot));
+                    present.push_back(slot);
 
-            std::vector<Index> listed(scene.placements().getPresent().begin(), scene.placements().getPresent().end());
+            std::vector<PlacementIndex> listed(
+                scene.placements().getPresent().begin(), scene.placements().getPresent().end());
             std::sort(listed.begin(), listed.end());
             EXPECT_EQ(listed, present) << when;
 
@@ -80,18 +86,18 @@ namespace Rtx
             ASSERT_EQ(spheres.size(), scene.placements().getPresent().size()) << when;
             for (std::size_t at = 0; at < spheres.size(); ++at)
             {
-                const Index slot = scene.placements().getPresent()[at];
+                const PlacementIndex slot = scene.placements().getPresent()[at];
                 const InstanceRecord& record = kept[slot];
                 const std::uint32_t kinds = (record.mAdditive ? Shaders::PRESENCE_ADDITIVE : 0u)
                     | ((record.mMask & Shaders::MASK_MEDIUM) != 0 ? Shaders::PRESENCE_MEDIUM : 0u);
-                EXPECT_EQ(spheres[at].mKinds, kinds) << when << ": slot " << slot;
+                EXPECT_EQ(spheres[at].mKinds, kinds) << when << ": slot " << slot.at();
 
                 const MeshInstance& placed = scene.placements().getRows()[slot].mInstance;
                 const osg::BoundingBoxf& box = scene.meshes().getRows()[placed.mMesh].mBounds;
-                for (unsigned int corner = 0; corner < 8; ++corner)
+                for (std::uint32_t corner = 0; corner < 8; ++corner)
                     EXPECT_LE((box.corner(corner) * placed.mTransform - spheres[at].mCentre).length(),
                         spheres[at].mRadius * (1.0f + 1e-6f))
-                        << when << ": slot " << slot << " corner " << corner;
+                        << when << ": slot " << slot.at() << " corner " << corner;
             }
         }
 
@@ -106,27 +112,28 @@ namespace Rtx
         /// nothing and where a row written only on the frame of the move would keep it for ever.
         TEST(RtxInstanceRecordTest, rowsKeptAcrossFramesAreTheRowsBuiltFromNothing)
         {
-            SceneDesc scene;
-            const Index mesh = Testing::addQuadMesh(scene);
+            SceneIdentities identities;
+            SceneDesc scene(identities);
+            const MeshIndex mesh = Testing::addQuadMesh(scene);
 
-            const Index cutout = scene.addMaterial(Material{
+            const MaterialIndex cutout = scene.addMaterial(Material{
                 .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("textures/leaf.dds")),
                 .mAlphaTest = { .mReference = 0.5f },
                 .mAlphaMode = AlphaMode::Cutout,
             });
-            const Index glass = scene.addMaterial(Material{
+            const MaterialIndex glass = scene.addMaterial(Material{
                 .mOpacity = 0.5f,
                 .mAlphaMode = AlphaMode::Blend,
             });
-            const Index sea = scene.addMaterial(Material{ .mKind = MaterialKind::Water });
-            const Index ground = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain });
+            const MaterialIndex sea = scene.addMaterial(Material{ .mKind = MaterialKind::Water });
+            const MaterialIndex ground = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain });
 
-            const Index leaf = scene.addInstance(MeshInstance{
+            const PlacementIndex leaf = scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::translate(1.0f, 0.0f, 0.0f), .mMesh = mesh, .mMaterial = cutout });
-            const Index pane = scene.addInstance(MeshInstance{
+            const PlacementIndex pane = scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::translate(2.0f, 0.0f, 0.0f), .mMesh = mesh, .mMaterial = glass });
-            const Index water = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = sea });
-            const Index chunk = scene.addInstance(MeshInstance{
+            const PlacementIndex water = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = sea });
+            const PlacementIndex chunk = scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::translate(3.0f, 0.0f, 0.0f), .mMesh = mesh, .mMaterial = ground });
 
             // And the two a walk along the eye's ray looks for, scaled and turned so a sphere about
@@ -135,16 +142,18 @@ namespace Rtx
             shell.mDiffuseNeverSolid = true;
             Material sheet{ .mAlphaMode = AlphaMode::Blend };
             sheet.mBlend = BlendKind::Add;
-            const Index cloud = scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::scale(4.0f, 1.0f, 2.0f)
-                    * osg::Matrixf::rotate(0.7f, osg::Vec3f(0, 0, 1)) * osg::Matrixf::translate(0.0f, 9.0f, 1.0f),
-                .mMesh = mesh,
-                .mMaterial = scene.addMaterial(shell) });
-            const Index glow = scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::translate(-4.0f, 0.0f, 2.0f),
-                .mMesh = mesh,
-                .mMaterial = scene.addMaterial(sheet) });
+            const PlacementIndex cloud
+                = scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::scale(4.0f, 1.0f, 2.0f)
+                        * osg::Matrixf::rotate(0.7f, osg::Vec3f(0, 0, 1)) * osg::Matrixf::translate(0.0f, 9.0f, 1.0f),
+                    .mMesh = mesh,
+                    .mMaterial = scene.addMaterial(shell) });
+            const PlacementIndex glow
+                = scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::translate(-4.0f, 0.0f, 2.0f),
+                    .mMesh = mesh,
+                    .mMaterial = scene.addMaterial(sheet) });
 
-            std::vector<InstanceRecord> kept;
-            std::vector<Index> changed;
+            Records kept;
+            std::vector<PlacementIndex> changed;
             makeInstanceRecords(scene, kept);
             expectSame(kept, scene, "built");
             EXPECT_TRUE(kept[leaf].mCutout);
@@ -188,13 +197,14 @@ namespace Rtx
             EXPECT_FALSE(kept[leaf].mMotion == still) << "a mover carried no motion";
             EXPECT_TRUE(kept[water].mMotion == still) << "the sea stood a cell over moved its surface";
             // The two that moved: the build placed every slot where it stands, which settles nothing.
-            EXPECT_EQ(changed, (std::vector<Index>{ leaf, water })) << "the slots written, in order";
+            EXPECT_EQ(changed, (std::vector<PlacementIndex>{ leaf, water })) << "the slots written, in order";
 
             scene.placements().advance();
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "settled");
             EXPECT_TRUE(kept[leaf].mMotion == still) << "the frame after a move carried the motion on";
-            EXPECT_EQ(changed, (std::vector<Index>{ leaf, water })) << "a settling slot is a row a backend rewrites";
+            EXPECT_EQ(changed, (std::vector<PlacementIndex>{ leaf, water }))
+                << "a settling slot is a row a backend rewrites";
 
             // **A placement shrunk to nothing has no motion to report**: a scale of nought has no
             // inverse, and the one OpenSceneGraph gives it is NaN.
@@ -252,13 +262,13 @@ namespace Rtx
                 scene.addInstance(MeshInstance{
                     .mTransform = osg::Matrixf::translate(0.0f, 3.0f, 0.0f), .mMesh = mesh, .mMaterial = cutout }),
                 pane);
-            const Index more = scene.addInstance(MeshInstance{ .mMesh = mesh });
+            const PlacementIndex more = scene.addInstance(MeshInstance{ .mMesh = mesh });
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "taken over and grown");
             EXPECT_TRUE(kept[pane].mPlaced);
             EXPECT_TRUE(kept[pane].mCutout) << "the slot's new tenant, not its last";
             EXPECT_TRUE(kept[pane].mMotion == still) << "a placement made this frame arrived from nowhere";
-            EXPECT_EQ(kept.size(), std::size_t{ more } + 1);
+            EXPECT_EQ(kept.size(), std::size_t{ more.at() } + 1);
         }
 
         /// **A turned placement six figures out moves by its step and nothing else.** Turned by a
@@ -268,15 +278,16 @@ namespace Rtx
         /// translation `-t R⁻¹` at an ulp of 90000, 0.0078 a component, and the step lost a hundredth.
         TEST(RtxInstanceRecordTest, aTurnedPlacementFarOutMovesByItsStepAlone)
         {
-            SceneDesc scene;
-            const Index mesh = Testing::addQuadMesh(scene);
+            SceneIdentities identities;
+            SceneDesc scene(identities);
+            const MeshIndex mesh = Testing::addQuadMesh(scene);
             osg::Matrixf turn;
             turn.set(0.6f, 0.8f, 0.0f, 0.0f, -0.8f, 0.6f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-            const Index far = scene.addInstance(MeshInstance{
+            const PlacementIndex far = scene.addInstance(MeshInstance{
                 .mTransform = turn * osg::Matrixf::translate(150000.0f, -120000.0f, 30.0f), .mMesh = mesh });
 
-            std::vector<InstanceRecord> kept;
-            std::vector<Index> changed;
+            Records kept;
+            std::vector<PlacementIndex> changed;
             makeInstanceRecords(scene, kept);
             scene.placements().advance();
             scene.placements().move(far, turn * osg::Matrixf::translate(150000.25f, -120000.0f, 30.0f));
@@ -302,24 +313,25 @@ namespace Rtx
         /// a determinant of one, which mirrors nothing.
         TEST(RtxInstanceRecordTest, aRowSaysWhichFacesItIsDrawnFrom)
         {
-            SceneDesc scene;
-            const Index plain = Testing::addQuadMesh(scene);
-            const Index doubled
-                = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
-                    FoldedShape{ .mSheet = true, .mFolded = true });
-            const Index hemmed
-                = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
-                    FoldedShape{ .mFolded = true });
+            SceneIdentities identities;
+            SceneDesc scene(identities);
+            const MeshIndex plain = Testing::addQuadMesh(scene);
+            const MeshIndex doubled = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
+                FoldedShape{ .mSheet = true, .mFolded = true });
+            const MeshIndex hemmed = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
+                FoldedShape{ .mFolded = true });
 
-            const Index opaque = scene.addMaterial(Material{});
-            const Index bothFaces = scene.addMaterial(Material{ .mTwoSided = true });
+            const MaterialIndex opaque = scene.addMaterial(Material{});
+            const MaterialIndex bothFaces = scene.addMaterial(Material{ .mTwoSided = true });
 
-            const Index solid = scene.addInstance(MeshInstance{ .mMesh = plain, .mMaterial = opaque });
-            const Index stated = scene.addInstance(MeshInstance{ .mMesh = plain, .mMaterial = bothFaces });
-            const Index leaf = scene.addInstance(MeshInstance{ .mMesh = doubled, .mMaterial = opaque });
-            const Index awning = scene.addInstance(MeshInstance{ .mMesh = hemmed, .mMaterial = opaque });
+            const PlacementIndex solid = scene.addInstance(MeshInstance{ .mMesh = plain, .mMaterial = opaque });
+            const PlacementIndex stated = scene.addInstance(MeshInstance{ .mMesh = plain, .mMaterial = bothFaces });
+            const PlacementIndex leaf = scene.addInstance(MeshInstance{ .mMesh = doubled, .mMaterial = opaque });
+            const PlacementIndex awning = scene.addInstance(MeshInstance{ .mMesh = hemmed, .mMaterial = opaque });
 
-            const std::vector<InstanceRecord> records = whole(scene);
+            const Records records = whole(scene);
 
             EXPECT_FALSE(records[solid].mTwoSided) << "the scene root culls everything the content does not spare";
             EXPECT_TRUE(records[stated].mTwoSided) << "a material the content turned culling off for";
@@ -332,12 +344,12 @@ namespace Rtx
                 return scene.addInstance(MeshInstance{
                     .mTransform = transform, .mMesh = plain, .mMaterial = opaque, .mClockwise = clockwise });
             };
-            const Index mirrored = place(mirror, false);
-            const Index stencilled = place(osg::Matrixf::identity(), true);
-            const Index leftArm = place(mirror, true);
-            const Index turned = place(halfTurn, true);
+            const PlacementIndex mirrored = place(mirror, false);
+            const PlacementIndex stencilled = place(osg::Matrixf::identity(), true);
+            const PlacementIndex leftArm = place(mirror, true);
+            const PlacementIndex turned = place(halfTurn, true);
 
-            const std::vector<InstanceRecord> placed = whole(scene);
+            const Records placed = whole(scene);
             EXPECT_FALSE(placed[solid].mFlipFacing) << "neither clockwise nor mirrored";
             EXPECT_TRUE(placed[mirrored].mFlipFacing) << "a mirror turns the rasterizer's front round";
             EXPECT_TRUE(placed[stencilled].mFlipFacing) << "a content file's clockwise front";
@@ -364,7 +376,7 @@ namespace Rtx
             const osg::Vec3f expected = point * matrix;
 
             const Transform3x4 transform = toTransform3x4(matrix);
-            for (int row = 0; row < 3; ++row)
+            for (std::int32_t row = 0; row < 3; ++row)
             {
                 const float actual = transform.mRows[row][0] * point.x() + transform.mRows[row][1] * point.y()
                     + transform.mRows[row][2] * point.z() + transform.mRows[row][3];
@@ -382,8 +394,8 @@ namespace Rtx
                 { 9.0f, 10.0f, 11.0f, 12.0f } } };
 
             const VkTransformMatrixKHR converted = toVulkanTransform(transform);
-            for (int row = 0; row < 3; ++row)
-                for (int column = 0; column < 4; ++column)
+            for (std::int32_t row = 0; row < 3; ++row)
+                for (std::int32_t column = 0; column < 4; ++column)
                     EXPECT_EQ(converted.matrix[row][column], transform.mRows[row][column])
                         << "row " << row << " column " << column;
         }

@@ -1,10 +1,19 @@
 #include "weatherbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <type_traits>
 
 #include <osg/Vec4f>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/color.hpp>
@@ -13,17 +22,9 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/sky/timeofday.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/weather.hpp"
-
 #include "context.hpp"
 #include "object.hpp"
 #include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
 
 namespace
 {
@@ -160,10 +161,10 @@ namespace
         {
             auto table = value.as<sol::lua_table>();
             weather.mThunderSoundID.fill({});
-            const size_t length = table.size();
+            const std::size_t length = table.size();
             if (length > weather.mThunderSoundID.size())
                 throw std::runtime_error("cannot specify more than 4 thunder sound ids");
-            for (size_t i = 0; i < length; ++i)
+            for (std::size_t i = 0; i < length; ++i)
             {
                 const ESM::RefId id = ESM::RefId::deserializeText(
                     table.get<std::string_view>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))));
@@ -313,7 +314,7 @@ namespace MWLua
                     RT::asRecord(w).mRainEffect = VFS::Path::Normalized(rainEffect.value_or(std::string_view{}));
                 });
             record["rainMaxRaindrops"] = sol::property([](const T& w) { return RT::asRecord(w).mRainMaxRaindrops; },
-                [](T& w, int rainMaxRaindrops) { RT::asRecord(w).mRainMaxRaindrops = rainMaxRaindrops; });
+                [](T& w, std::int32_t rainMaxRaindrops) { RT::asRecord(w).mRainMaxRaindrops = rainMaxRaindrops; });
             record["rainDiameter"] = sol::property([](const T& w) { return RT::asRecord(w).mRainDiameter; },
                 [](T& w, const FiniteFloat rainDiameter) { RT::asRecord(w).mRainDiameter = rainDiameter; });
             record["rainThreshold"] = sol::property([](const T& w) { return RT::asRecord(w).mRainThreshold; },
@@ -384,14 +385,14 @@ namespace MWLua
                 auto thunderT = lua.new_usertype<ThunderSoundIds>("BaseWeatherThunderSoundIds");
                 thunderT[sol::meta_function::length] = [](const ThunderSoundIds& ids) { return ids.find().size(); };
                 thunderT[sol::meta_function::index]
-                    = [](const ThunderSoundIds& ids, uint32_t index) -> std::optional<ESM::RefId> {
+                    = [](const ThunderSoundIds& ids, std::uint32_t index) -> std::optional<ESM::RefId> {
                     const auto& array = ids.find();
                     if (index == 0 || index > array.size())
                         return {};
                     return array[index - 1];
                 };
                 thunderT[sol::meta_function::new_index]
-                    = [](ThunderSoundIds& ids, uint32_t i, const sol::object& value) {
+                    = [](ThunderSoundIds& ids, std::uint32_t i, const sol::object& value) {
                           auto& array = ids.find();
                           if (i == 0 || i > array.size())
                               throw std::runtime_error("index out of range");

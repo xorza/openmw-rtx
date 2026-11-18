@@ -1,5 +1,7 @@
 #include "particle.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <optional>
 
@@ -77,7 +79,7 @@ namespace
             if (path.empty())
                 return;
 
-            size_t i = path.size();
+            std::size_t i = path.size();
 
             for (auto rit = path.rbegin(); rit != path.rend(); rit++, --i)
             {
@@ -102,7 +104,7 @@ namespace NifOsg
 
     ParticleSystem::ParticleSystem()
         : osgParticle::ParticleSystem()
-        , mQuota(std::numeric_limits<int>::max())
+        , mQuota(std::numeric_limits<std::int32_t>::max())
     {
         mNormalArray = new osg::Vec3Array(1);
         mNormalArray->setBinding(osg::Array::BIND_OVERALL);
@@ -118,11 +120,11 @@ namespace NifOsg
         (*mNormalArray.get())[0] = osg::Vec3(0.3f, 0.3f, 0.3f);
 
         // For some reason the osgParticle constructor doesn't copy the particles
-        for (int i = 0; i < copy.numParticles() - copy.numDeadParticles(); ++i)
+        for (std::int32_t i = 0; i < copy.numParticles() - copy.numDeadParticles(); ++i)
             ParticleSystem::createParticle(copy.getParticle(i));
     }
 
-    void ParticleSystem::setQuota(int quota)
+    void ParticleSystem::setQuota(std::int32_t quota)
     {
         mQuota = quota;
     }
@@ -461,7 +463,7 @@ namespace NifOsg
     {
     }
 
-    Emitter::Emitter(const std::vector<int>& targets)
+    Emitter::Emitter(const std::vector<std::int32_t>& targets)
         : mTargets(targets)
         , mFlags(0)
         , mGeometryEmitterTarget(std::nullopt)
@@ -470,7 +472,7 @@ namespace NifOsg
 
     void Emitter::emitParticles(double dt)
     {
-        int n = mCounter->numParticlesToCreate(dt);
+        std::int32_t n = mCounter->numParticlesToCreate(dt);
         if (n == 0)
             return;
 
@@ -493,7 +495,7 @@ namespace NifOsg
 
         if (useGeometryEmitter || !mTargets.empty())
         {
-            int recordIndex = 0;
+            std::int32_t recordIndex = 0;
 
             if (useGeometryEmitter)
             {
@@ -504,12 +506,12 @@ namespace NifOsg
             }
             else
             {
-                size_t randomIndex = Misc::Rng::rollDice(mTargets.size());
+                std::size_t randomIndex = Misc::Rng::rollDice(mTargets.size());
                 recordIndex = mTargets[randomIndex];
             }
 
             // we could use a map here for faster lookup
-            FindGroupByRecordIndex visitor(static_cast<unsigned int>(recordIndex));
+            FindGroupByRecordIndex visitor(static_cast<std::uint32_t>(recordIndex));
             getParent(0)->accept(visitor);
 
             if (!visitor.mFound)
@@ -565,7 +567,7 @@ namespace NifOsg
         if (useGeometryEmitter && (!geometryVertices.valid() || geometryVertices->empty()))
             return;
 
-        for (int i = 0; i < n; ++i)
+        for (std::int32_t i = 0; i < n; ++i)
         {
             osgParticle::Particle* const particle = getParticleSystem()->createParticle(nullptr);
             if (particle)
@@ -582,7 +584,7 @@ namespace NifOsg
         }
     }
 
-    FindGroupByRecordIndex::FindGroupByRecordIndex(unsigned int recordIndex)
+    FindGroupByRecordIndex::FindGroupByRecordIndex(std::uint32_t recordIndex)
         : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
         , mFound(nullptr)
         , mRecordIndex(recordIndex)
@@ -606,7 +608,7 @@ namespace NifOsg
 
     void FindGroupByRecordIndex::applyNode(osg::Node& searchNode)
     {
-        unsigned int recordIndex = 0;
+        std::uint32_t recordIndex = 0;
         if (searchNode.getUserValue("recordIndex", recordIndex) && mRecordIndex == recordIndex)
         {
             osg::Group* group = searchNode.asGroup();

@@ -1,5 +1,6 @@
 #include "scenetooltoggle2.hpp"
 
+#include <cstdint>
 #include <sstream>
 #include <utility>
 
@@ -7,11 +8,10 @@
 #include <QHBoxLayout>
 #include <QIcon>
 
-#include <apps/opencs/view/widget/scenetool.hpp>
-
 #include <components/misc/scalableicon.hpp>
 
 #include "pushbutton.hpp"
+#include "scenetool.hpp"
 #include "scenetoolbar.hpp"
 
 void CSVWidget::SceneToolToggle2::adjustToolTip()
@@ -43,7 +43,7 @@ void CSVWidget::SceneToolToggle2::adjustToolTip()
 
 void CSVWidget::SceneToolToggle2::adjustIcon()
 {
-    unsigned int buttonIds = 0;
+    std::uint32_t buttonIds = 0;
 
     for (const auto& [button, desc] : mButtons)
         if (button->isChecked())
@@ -83,7 +83,7 @@ void CSVWidget::SceneToolToggle2::showPanel(const QPoint& position)
 }
 
 void CSVWidget::SceneToolToggle2::addButton(
-    unsigned int id, unsigned int mask, const QString& name, const QString& tooltip, bool disabled)
+    std::uint32_t id, std::uint32_t mask, const QString& name, const QString& tooltip, bool disabled)
 {
     std::ostringstream stream;
     stream << mSingleIcon << id;
@@ -104,7 +104,7 @@ void CSVWidget::SceneToolToggle2::addButton(
     desc.mButtonId = id;
     desc.mMask = mask;
     desc.mName = name;
-    desc.mIndex = static_cast<int>(mButtons.size());
+    desc.mIndex = static_cast<std::int32_t>(mButtons.size());
 
     mButtons.insert(std::make_pair(button, desc));
 
@@ -114,9 +114,9 @@ void CSVWidget::SceneToolToggle2::addButton(
         mFirst = button;
 }
 
-unsigned int CSVWidget::SceneToolToggle2::getSelectionMask() const
+std::uint32_t CSVWidget::SceneToolToggle2::getSelectionMask() const
 {
-    unsigned int selection = 0;
+    std::uint32_t selection = 0;
 
     for (const auto& button : mButtons)
         if (button.first->isChecked())
@@ -125,7 +125,7 @@ unsigned int CSVWidget::SceneToolToggle2::getSelectionMask() const
     return selection;
 }
 
-void CSVWidget::SceneToolToggle2::setSelectionMask(unsigned int selection)
+void CSVWidget::SceneToolToggle2::setSelectionMask(std::uint32_t selection)
 {
     for (auto& button : mButtons)
         button.first->setChecked(selection & button.second.mMask);

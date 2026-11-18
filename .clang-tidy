@@ -45,6 +45,7 @@ Checks:
   - 'concurrency-mt-unsafe'
 
   - 'cppcoreguidelines-init-variables'
+  - 'cppcoreguidelines-macro-usage'
   - 'cppcoreguidelines-noexcept-*'
   - 'cppcoreguidelines-pro-type-member-init'
   - 'cppcoreguidelines-special-member-functions'
@@ -66,6 +67,7 @@ Checks:
   - 'google-build-namespaces'
   - 'google-explicit-constructor'
   - 'google-global-names-in-headers'
+  - 'google-runtime-int'
 
   - 'misc-confusable-identifiers'
   - 'misc-definitions-in-headers'
@@ -87,6 +89,7 @@ Checks:
   - '-misc-static-assert'
 
   - 'modernize-avoid-c-style-cast'
+  - 'modernize-deprecated-headers'
   - 'modernize-loop-convert'
   - 'modernize-make-shared'
   - 'modernize-make-unique'
@@ -143,19 +146,31 @@ Checks:
   - '-readability-static-accessed-through-instance'
   - '-readability-use-anyofallof'
 
-  # Candidates, off until `omw tidy` has counted what each finds. These should find little or nothing:
-  # - 'cppcoreguidelines-interfaces-global-init'
-  # - 'misc-misplaced-const'
-  # - 'misc-static-initialization-cycle'
-  # - 'readability-ambiguous-smartptr-reset-call'
-  # - 'readability-enum-initial-value'
-  # - 'readability-redundant-preprocessor'
-  # - 'readability-static-definition-in-anonymous-namespace'
-  # These will find some, mostly in upstream's code:
-  # - 'cppcoreguidelines-avoid-non-const-global-variables'
-  # - 'cppcoreguidelines-misleading-capture-default-by-value'
-  # - 'google-default-arguments'
-  # - 'misc-override-with-different-visibility'
+  # Counted over the tree on 2026-11-17 and taken whole: none to a handful each, fixed where they stood.
+  - 'concurrency-thread-canceltype-asynchronous'
+  - 'cppcoreguidelines-interfaces-global-init'
+  - 'cppcoreguidelines-misleading-capture-default-by-value'
+  - 'cppcoreguidelines-pro-type-vararg'
+  - 'misc-static-initialization-cycle'
+  - 'modernize-use-constraints'
+  - 'modernize-use-std-format'
+  - 'readability-ambiguous-smartptr-reset-call'
+  - 'readability-enum-initial-value'
+  - 'readability-redundant-preprocessor'
+  - 'readability-static-definition-in-anonymous-namespace'
+  # Counted the same day and refused, each for what it finds and not for how many:
+  # Every one of its 131 a Vulkan handle, an opaque pointer typedef whose `const` is the handle's, as meant.
+  - '-misc-misplaced-const'
+  # Its 322 narrow an override's visibility, Qt's and MyGUI's own idiom for an event handler.
+  - '-misc-override-with-different-visibility'
+  # Its 252 are callbacks bound by member pointer (MyGUI's delegates, Qt's slots), which a static breaks.
+  - '-readability-convert-member-functions-to-static'
+  # It takes a directive at every scope, where the rule (SF.7) refuses one at a file's.
+  - '-google-build-using-namespace'
+  # Its 998 are an override's or a callback's parameters, which the signature owns; its fix comments the names out.
+  - '-misc-unused-parameters'
+  # Its 885 are protected members of upstream's and OSG's hierarchies, whose subclasses read them by design.
+  - '-misc-non-private-member-variables-in-classes'
 WarningsAsErrors: '*'
 # Either slash separates: on Windows, clang-tidy joins an include folder to the directive's path with a backslash.
 HeaderFilterRegex: '(apps|components)[/\\]'
@@ -170,6 +185,12 @@ CheckOptions:
   # game's threads start.
   concurrency-mt-unsafe.FunctionSet: glibc
   cppcoreguidelines-init-variables.MathHeader: '<cmath>'
+  # The fixed widths `<cstdint>` spells, `std::`-qualified (AGENTS.md, "Fixed-width integers").
+  google-runtime-int.SignedTypePrefix: 'std::int'
+  google-runtime-int.UnsignedTypePrefix: 'std::uint'
+  google-runtime-int.TypeSuffix: '_t'
+  # The build's definitions are the build's switches, read into `constexpr bool`s (`cpp.md`).
+  cppcoreguidelines-macro-usage.IgnoreCommandLineMacros: true
   # A class that declares its destructor or a copy declares all three; one that declares a move, both. Its moves may
   # stay undeclared: a class with deleted copies is then not movable either, and a copyable one copies an rvalue
   # (Hinnant's table), which a deleted move would refuse.

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <span>
@@ -40,7 +41,7 @@ namespace MWRender
 {
     namespace
     {
-        constexpr unsigned int sTerrainMask = 1u << 8;
+        constexpr std::uint32_t sTerrainMask = 1u << 8;
 
         /// Where a ray straight down over (`x`, `y`) meets what stands under `root` with
         /// `sTerrainMask`, or nothing.
@@ -87,7 +88,7 @@ namespace MWRender
             std::optional<ESM::RefNum> mRefNum;
         };
 
-        std::vector<Met> metAlong(osg::Group& root, const osg::Vec3d& from, const osg::Vec3d& to, unsigned int mask)
+        std::vector<Met> metAlong(osg::Group& root, const osg::Vec3d& from, const osg::Vec3d& to, std::uint32_t mask)
         {
             osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector
                 = new osgUtil::LineSegmentIntersector(osgUtil::LineSegmentIntersector::MODEL, from, to);
@@ -165,18 +166,18 @@ namespace MWRender
 
             const std::unique_ptr<Terrain::View> view = ground.createView();
             ASSERT_NE(view, nullptr);
-            view->reset();
+            (*view).reset();
 
             ASSERT_EQ(making.mWorldRoot->getNumChildren(), 1u);
             osg::Group& borders = *making.mWorldRoot->getChild(0)->asGroup();
-            EXPECT_EQ(borders.getNodeMask(), static_cast<unsigned int>(Mask_Terrain));
+            EXPECT_EQ(borders.getNodeMask(), static_cast<std::uint32_t>(Mask_Terrain));
 
             ground.loadCell(0, 0);
             EXPECT_EQ(borders.getNumChildren(), 0u) << "a border before `tb`";
             ground.setBordersVisible(true);
             EXPECT_TRUE(ground.getBordersVisible());
             ASSERT_EQ(borders.getNumChildren(), 1u);
-            EXPECT_EQ(borders.getChild(0)->getNodeMask(), static_cast<unsigned int>(Mask_Debug));
+            EXPECT_EQ(borders.getChild(0)->getNodeMask(), static_cast<std::uint32_t>(Mask_Debug));
 
             DebugWalk walk;
             const Rtx::DebugLines lines = walk.walk(*making.mWorldRoot, ~0u);
@@ -203,7 +204,7 @@ namespace MWRender
             ground.enable(false);
             EXPECT_TRUE(walk.walk(*making.mWorldRoot, ~0u).mLines.empty()) << "the borders of a ground turned off";
             ground.enable(true);
-            EXPECT_EQ(borders.getNodeMask(), static_cast<unsigned int>(Mask_Terrain));
+            EXPECT_EQ(borders.getNodeMask(), static_cast<std::uint32_t>(Mask_Terrain));
 
             ground.setBordersVisible(false);
             EXPECT_FALSE(ground.getBordersVisible());
@@ -231,7 +232,7 @@ namespace MWRender
             constexpr double middle = 0.5 * cell;
             EXPECT_FALSE(groundUnder(*sceneRoot, middle, middle).has_value()) << "ground before any cell was loaded";
 
-            for (int again = 0; again < 2; ++again)
+            for (std::int32_t again = 0; again < 2; ++again)
             {
                 ground.loadCell(0, 0);
                 const std::optional<osg::Vec3d> met = groundUnder(*sceneRoot, middle, middle);
@@ -280,7 +281,7 @@ namespace MWRender
         TEST(RtxTracedTerrainTest, pastTheLoadedCellsARayMeetsTheGroundTheRingStands)
         {
             Making making;
-            for (int x = 0; x <= 4; ++x)
+            for (std::int32_t x = 0; x <= 4; ++x)
                 making.mLand.mWithData.push_back(osg::Vec2i(x, 0));
             TracedTerrain ground = making.make();
             ground.loadCell(0, 0);
@@ -336,7 +337,7 @@ namespace MWRender
         TEST(RtxTracedTerrainTest, pastTheLoadedCellsARayMeetsTheStaticsTheRingStands)
         {
             Making making;
-            for (int x = 0; x <= 4; ++x)
+            for (std::int32_t x = 0; x <= 4; ++x)
                 making.mLand.mWithData.push_back(osg::Vec2i(x, 0));
             TracedTerrain ground = making.make();
 
@@ -352,7 +353,7 @@ namespace MWRender
             Rtx::Placement placed;
             placed.mStood.mTransform
                 = osg::Matrixf::translate(static_cast<float>(4.5 * cell), static_cast<float>(0.5 * cell), 300.0f);
-            placed.mStood.mSlot = 0;
+            placed.mStood.mSlot = Rtx::PlacementIndex(0);
             placed.mDrawable = quad.get();
             placed.mState.mRefNum = ESM::RefNum{ 42, 0 };
             making.mStood.mPlacedCell = osg::Vec2i(4, 0);
@@ -375,11 +376,11 @@ namespace MWRender
             ground.enable(true);
             EXPECT_EQ(metAlong(*making.mSceneRoot, from, to, Mask_Static).size(), 1u);
 
-            making.mStood.mPlacements[0].mStood.mSlot = Rtx::sNoIndex;
+            making.mStood.mPlacements[0].mStood.mSlot = Rtx::sNoRow;
             EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())
                 << "a static the ring does not stand";
 
-            making.mStood.mPlacements[0].mStood.mSlot = 0;
+            making.mStood.mPlacements[0].mStood.mSlot = Rtx::PlacementIndex(0);
             ground.loadCell(4, 0);
             EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())
                 << "the ring answered a loaded cell";
@@ -408,7 +409,7 @@ namespace MWRender
         TEST(RtxTracedTerrainTest, aDeformingPartTheRingStandsIsMetByItsSource)
         {
             Making making;
-            for (int x = 0; x <= 4; ++x)
+            for (std::int32_t x = 0; x <= 4; ++x)
                 making.mLand.mWithData.push_back(osg::Vec2i(x, 0));
             TracedTerrain ground = making.make();
 
@@ -434,7 +435,7 @@ namespace MWRender
                 Rtx::Placement placed;
                 placed.mStood.mTransform
                     = osg::Matrixf::translate(static_cast<float>(4.5 * cell), static_cast<float>(0.5 * cell), 300.0f);
-                placed.mStood.mSlot = 0;
+                placed.mStood.mSlot = Rtx::PlacementIndex(0);
                 placed.mDrawable = deforming;
                 making.mStood.mPlacedCell = osg::Vec2i(4, 0);
                 making.mStood.mPlacements = { placed };

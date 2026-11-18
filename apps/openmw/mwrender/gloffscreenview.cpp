@@ -1,6 +1,7 @@
 #include "gloffscreenview.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <ios>
 #include <memory>
 #include <utility>
@@ -83,13 +84,13 @@ namespace MWRender
 
         void redrawNextFrame() { mRendered = false; }
 
-        unsigned int getLastRenderedFrame() const { return mLastRenderedFrame; }
+        std::uint32_t getLastRenderedFrame() const { return mLastRenderedFrame; }
 
         bool isPending() const { return !mRendered; }
 
     private:
         bool mRendered;
-        unsigned int mLastRenderedFrame;
+        std::uint32_t mLastRenderedFrame;
         osg::ref_ptr<osg::Node> mSubgraph;
     };
 
@@ -191,7 +192,7 @@ namespace MWRender
             camera->setClearColor(mClearColour);
             camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             camera->setProjectionMatrixAsPerspective(fovYDegrees, mAspectRatio, znear, zfar);
-            camera->setViewport(0, 0, static_cast<int>(width()), static_cast<int>(height()));
+            camera->setViewport(0, 0, static_cast<std::int32_t>(width()), static_cast<std::int32_t>(height()));
             camera->setRenderOrder(osg::Camera::PRE_RENDER);
             camera->setCullMask(mMask);
             camera->setComputeNearFarMode(osg::Camera::DO_NOT_COMPUTE_NEAR_FAR);
@@ -226,7 +227,7 @@ namespace MWRender
         const float fovYDegrees;
         const float znear;
         const float zfar;
-        const unsigned int mMask;
+        const std::uint32_t mMask;
         const osg::Vec4f mClearColour;
     };
 
@@ -248,9 +249,9 @@ namespace MWRender
         osg::Matrix mProjectionMatrix;
         osg::Matrix mViewMatrix;
         bool mActive;
-        unsigned int mLastRenderedFrame = 0;
+        std::uint32_t mLastRenderedFrame = 0;
 
-        const unsigned int mMask;
+        const std::uint32_t mMask;
         const osg::Vec4f mClearColour;
         const SceneUtil::FlatLight mSun;
     };
@@ -465,10 +466,10 @@ namespace MWRender
     }
 
     // Upstream's, from InventoryPreview::setViewport; the redraw is the caller's.
-    void GlDollView::setExtent(int width, int height)
+    void GlDollView::setExtent(std::int32_t width, std::int32_t height)
     {
-        const int sizeX = static_cast<int>(mDoll.width());
-        const int sizeY = static_cast<int>(mDoll.height());
+        const auto sizeX = static_cast<std::int32_t>(mDoll.width());
+        const auto sizeY = static_cast<std::int32_t>(mDoll.height());
 
         // NB Camera::setViewport has threading issues
         osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;
@@ -490,7 +491,7 @@ namespace MWRender
         mDrawOnce->redrawNextFrame();
     }
 
-    unsigned int GlDollView::getDrawnFrame() const
+    std::uint32_t GlDollView::getDrawnFrame() const
     {
         return mDrawOnce->getLastRenderedFrame();
     }
@@ -521,7 +522,7 @@ namespace MWRender
         mTile.redraw();
     }
 
-    unsigned int GlTileView::getDrawnFrame() const
+    std::uint32_t GlTileView::getDrawnFrame() const
     {
         return mTile.mLastRenderedFrame;
     }

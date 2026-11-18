@@ -1,20 +1,21 @@
 #pragma once
 
-#include "sanitizer.hpp"
-
-#include <osg/Vec3f>
-
+#include <cstddef>
 #include <cstdint>
 #include <initializer_list>
 #include <memory>
 #include <string>
 #include <string_view>
 
+#include <osg/Vec3f>
+
+#include "sanitizer.hpp"
+
 namespace Settings
 {
     std::unique_ptr<Sanitizer<float>> makeMaxSanitizerFloat(float max);
 
-    std::unique_ptr<Sanitizer<int>> makeMaxSanitizerInt(int max);
+    std::unique_ptr<Sanitizer<std::int32_t>> makeMaxSanitizerInt(std::int32_t max);
 
     std::unique_ptr<Sanitizer<std::size_t>> makeMaxSanitizerSize(std::size_t max);
 
@@ -28,13 +29,13 @@ namespace Settings
 
     std::unique_ptr<Sanitizer<double>> makeClampSanitizerDouble(double min, double max);
 
-    std::unique_ptr<Sanitizer<int>> makeClampSanitizerInt(int min, int max);
+    std::unique_ptr<Sanitizer<std::int32_t>> makeClampSanitizerInt(std::int32_t min, std::int32_t max);
 
     std::unique_ptr<Sanitizer<std::size_t>> makeClampSanitizerSize(std::size_t min, std::size_t max);
 
     std::unique_ptr<Sanitizer<float>> makeClampStrictMaxSanitizerFloat(float min, float max);
 
-    std::unique_ptr<Sanitizer<int>> makeEnumSanitizerInt(std::initializer_list<int> values);
+    std::unique_ptr<Sanitizer<std::int32_t>> makeEnumSanitizerInt(std::initializer_list<std::int32_t> values);
 
     std::unique_ptr<Sanitizer<std::string>> makeEnumSanitizerString(std::initializer_list<std::string> values);
 

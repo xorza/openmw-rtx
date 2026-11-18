@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QObject>
 
 class QHBoxLayout;
@@ -13,7 +15,7 @@ namespace CSVDoc
     {
         Q_OBJECT
 
-        int mType;
+        std::int32_t mType;
         bool mStalling;
         QProgressBar* mProgressBar{};
         QPushButton* mAbortButton{};
@@ -23,24 +25,24 @@ namespace CSVDoc
         Operation(const Operation&);
         Operation& operator=(const Operation&);
 
-        void updateLabel(int threads = -1);
+        void updateLabel(std::int32_t threads = -1);
 
     public:
-        Operation(int type, QWidget* parent);
+        Operation(std::int32_t type, QWidget* parent);
         ~Operation() override;
 
-        void setProgress(int current, int max, int threads);
+        void setProgress(std::int32_t current, std::int32_t max, std::int32_t threads);
 
-        int getType() const;
+        std::int32_t getType() const;
         QHBoxLayout* getLayout() const;
 
     private:
-        void setBarColor(int type);
+        void setBarColor(std::int32_t type);
         void initWidgets();
 
     signals:
 
-        void abortOperation(int type);
+        void abortOperation(std::int32_t type);
 
     private slots:
 

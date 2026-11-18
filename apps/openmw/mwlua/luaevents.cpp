@@ -1,15 +1,14 @@
 #include "luaevents.hpp"
 
-#include <components/debug/debuglog.hpp>
+#include <cstdint>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm/luascripts.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
 #include <components/lua/serialization.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/worldmodel.hpp"
 
 #include "globalscripts.hpp"
 #include "localscripts.hpp"
@@ -72,8 +71,8 @@ namespace MWLua
         }
     }
 
-    void LuaEvents::load(lua_State* lua, ESM::ESMReader& esm, const std::map<int, int>& contentFileMapping,
-        const LuaUtil::UserdataSerializer* serializer)
+    void LuaEvents::load(lua_State* lua, ESM::ESMReader& esm,
+        const std::map<std::int32_t, std::int32_t>& contentFileMapping, const LuaUtil::UserdataSerializer* serializer)
     {
         clear();
         while (esm.isNextSub("LUAE"))

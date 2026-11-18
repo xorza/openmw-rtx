@@ -1,7 +1,6 @@
-#include "crashpadclientsystem.hpp"
-
 #include <array>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -18,6 +17,7 @@
 #include <components/misc/windows.hpp>
 
 #include "crashnote.hpp"
+#include "crashpadclientsystem.hpp"
 #include "crashsummary.hpp"
 
 namespace Crash::Client
@@ -52,7 +52,7 @@ namespace Crash::Client
         // Three ways MSVC's runtime ends a process without an exception the filter sees: `abort`
         // raises SIGABRT and then fails fast, and a pure virtual call and an invalid parameter go
         // to handlers of their own.
-        void onAbort(int)
+        void onAbort(std::int32_t)
         {
             reportAndEnd("abort()");
         }
@@ -62,7 +62,7 @@ namespace Crash::Client
             reportAndEnd("a pure virtual function was called");
         }
 
-        void onInvalidParameter(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
+        void onInvalidParameter(const wchar_t*, const wchar_t*, const wchar_t*, std::uint32_t, std::uintptr_t)
         {
             reportAndEnd("the C runtime was given an invalid parameter");
         }
@@ -110,8 +110,8 @@ namespace Crash::Client
             const std::filesystem::path named(value);
             const std::wstring ours = wer.filename().wstring();
             const std::wstring theirs = named.filename().wstring();
-            if (CompareStringOrdinal(
-                    theirs.c_str(), static_cast<int>(theirs.size()), ours.c_str(), static_cast<int>(ours.size()), TRUE)
+            if (CompareStringOrdinal(theirs.c_str(), static_cast<std::int32_t>(theirs.size()), ours.c_str(),
+                    static_cast<std::int32_t>(ours.size()), TRUE)
                 != CSTR_EQUAL)
                 return false;
 
@@ -301,15 +301,9 @@ namespace Crash::Client
 }
 
 // The loader calls every pointer in `.CRT$XL*` at each thread's start. The two names keep the
-// linker from dropping the table and the entry, which nothing else refers to; a 32-bit build
-// spells a C name with a leading underscore.
-#if defined(_M_IX86)
-#pragma comment(linker, "/INCLUDE:__tls_used")
-#pragma comment(linker, "/INCLUDE:_openmwCrashThreadStart")
-#else
+// linker from dropping the table and the entry, which nothing else refers to.
 #pragma comment(linker, "/INCLUDE:_tls_used")
 #pragma comment(linker, "/INCLUDE:openmwCrashThreadStart")
-#endif
 #pragma section(".CRT$XLY", long, read)
 extern "C" __declspec(allocate(".CRT$XLY")) const PIMAGE_TLS_CALLBACK openmwCrashThreadStart
     = Crash::Client::onThreadStart;

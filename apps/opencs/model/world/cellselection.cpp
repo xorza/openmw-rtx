@@ -1,11 +1,12 @@
 #include "cellselection.hpp"
 
-#include "cellcoordinates.hpp"
-
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <utility>
+
+#include "cellcoordinates.hpp"
 
 CSMWorld::CellSelection::Iterator CSMWorld::CellSelection::begin() const
 {
@@ -32,9 +33,9 @@ bool CSMWorld::CellSelection::has(const CellCoordinates& coordinates) const
     return mCells.find(coordinates) != end();
 }
 
-int CSMWorld::CellSelection::getSize() const
+std::int32_t CSMWorld::CellSelection::getSize() const
 {
-    return static_cast<int>(mCells.size());
+    return static_cast<std::int32_t>(mCells.size());
 }
 
 CSMWorld::CellCoordinates CSMWorld::CellSelection::getCentre() const
@@ -74,7 +75,7 @@ CSMWorld::CellCoordinates CSMWorld::CellSelection::getCentre() const
     return *closest;
 }
 
-void CSMWorld::CellSelection::move(int x, int y)
+void CSMWorld::CellSelection::move(std::int32_t x, std::int32_t y)
 {
     Container moved;
 

@@ -1,7 +1,8 @@
-#include "apps/openmw/options.hpp"
-
-#include <components/files/configurationmanager.hpp>
-#include <components/files/conversion.hpp>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -9,9 +10,9 @@
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
 
-#include <array>
-#include <string>
-#include <vector>
+#include <apps/openmw/options.hpp>
+#include <components/files/configurationmanager.hpp>
+#include <components/files/conversion.hpp>
 
 namespace
 {
@@ -32,7 +33,7 @@ namespace
     {
         std::vector<std::string> result;
         (result.emplace_back(makeString(args)), ...);
-        for (int i = 1; i <= std::numeric_limits<char>::max(); ++i)
+        for (std::int32_t i = 1; i <= std::numeric_limits<char>::max(); ++i)
             if (i != '&' && i != '"' && i != ' ' && i != '\n')
                 result.push_back(std::string(1, static_cast<char>(i)));
         return result;
@@ -46,7 +47,7 @@ namespace
     template <class T>
     void parseArgs(const T& arguments, bpo::variables_map& variables, bpo::options_description& description)
     {
-        Files::parseArgs(static_cast<int>(arguments.size()), arguments.data(), variables, description);
+        Files::parseArgs(static_cast<std::int32_t>(arguments.size()), arguments.data(), variables, description);
     }
 
     TEST(OpenMWOptionsFromArguments, should_support_equality_to_separate_flag_and_value)

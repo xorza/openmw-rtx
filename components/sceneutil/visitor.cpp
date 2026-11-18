@@ -1,14 +1,13 @@
 #include "visitor.hpp"
 
+#include <string_view>
+
 #include <osg/Drawable>
 #include <osg/MatrixTransform>
-
 #include <osgAnimation/Bone>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
-
-#include <string_view>
 
 namespace SceneUtil
 {

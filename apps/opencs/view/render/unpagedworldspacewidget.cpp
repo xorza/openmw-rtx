@@ -1,34 +1,30 @@
 #include "unpagedworldspacewidget.hpp"
 
+#include <cstdint>
 #include <sstream>
-
-#include <components/sceneutil/util.hpp>
-
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/pathgrid.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/subcellcollection.hpp>
-#include <apps/opencs/view/render/cell.hpp>
-#include <apps/opencs/view/render/worldspacewidget.hpp>
-
-#include <components/esm3/loadcell.hpp>
+#include <utility>
 
 #include <osg/Camera>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 #include <osgViewer/View>
-#include <utility>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
-
-#include "../widget/scenetooltoggle2.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/cell.hpp>
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/pathgrid.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/subcellcollection.hpp>
+#include <apps/opencs/view/widget/scenetooltoggle2.hpp>
+#include <components/esm3/loadcell.hpp>
+#include <components/sceneutil/util.hpp>
 
 #include "cameracontroller.hpp"
+#include "cell.hpp"
+#include "worldspacewidget.hpp"
 
 namespace CSVRender
 {
@@ -84,7 +80,7 @@ CSVRender::UnpagedWorldspaceWidget::UnpagedWorldspaceWidget(
 
 void CSVRender::UnpagedWorldspaceWidget::cellDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
-    int index = mCellsModel->findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
+    std::int32_t index = mCellsModel->findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
     QModelIndex cellIndex = mCellsModel->getModelIndex(mCellId, index);
 
     if (cellIndex.row() >= topLeft.row() && cellIndex.row() <= bottomRight.row())
@@ -102,7 +98,8 @@ void CSVRender::UnpagedWorldspaceWidget::cellDataChanged(const QModelIndex& topL
     }
 }
 
-void CSVRender::UnpagedWorldspaceWidget::cellRowsAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::UnpagedWorldspaceWidget::cellRowsAboutToBeRemoved(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     QModelIndex cellIndex = mCellsModel->getModelIndex(mCellId, 0);
 
@@ -137,26 +134,26 @@ bool CSVRender::UnpagedWorldspaceWidget::handleDrop(
     return true;
 }
 
-void CSVRender::UnpagedWorldspaceWidget::clearSelection(int elementMask)
+void CSVRender::UnpagedWorldspaceWidget::clearSelection(std::int32_t elementMask)
 {
     mCell->setSelection(elementMask, Cell::Selection_Clear);
     flagAsModified();
     mSelectionMarker->detachMarker();
 }
 
-void CSVRender::UnpagedWorldspaceWidget::invertSelection(int elementMask)
+void CSVRender::UnpagedWorldspaceWidget::invertSelection(std::int32_t elementMask)
 {
     mCell->setSelection(elementMask, Cell::Selection_Invert);
     flagAsModified();
 }
 
-void CSVRender::UnpagedWorldspaceWidget::selectAll(int elementMask)
+void CSVRender::UnpagedWorldspaceWidget::selectAll(std::int32_t elementMask)
 {
     mCell->setSelection(elementMask, Cell::Selection_All);
     flagAsModified();
 }
 
-void CSVRender::UnpagedWorldspaceWidget::selectAllWithSameParentId(int elementMask)
+void CSVRender::UnpagedWorldspaceWidget::selectAllWithSameParentId(std::int32_t elementMask)
 {
     mCell->selectAllWithSameParentId(elementMask);
     flagAsModified();
@@ -189,13 +186,13 @@ CSVRender::Cell* CSVRender::UnpagedWorldspaceWidget::getCell(const CSMWorld::Cel
     return mCell.get();
 }
 
-osg::ref_ptr<CSVRender::TagBase> CSVRender::UnpagedWorldspaceWidget::getSnapTarget(unsigned int elementMask) const
+osg::ref_ptr<CSVRender::TagBase> CSVRender::UnpagedWorldspaceWidget::getSnapTarget(std::uint32_t elementMask) const
 {
     return mCell->getSnapTarget(elementMask);
 }
 
 std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::UnpagedWorldspaceWidget::getSelection(
-    unsigned int elementMask) const
+    std::uint32_t elementMask) const
 {
     return mCell->getSelection(elementMask);
 }
@@ -211,18 +208,18 @@ void CSVRender::UnpagedWorldspaceWidget::unhideAll() const
 }
 
 std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::UnpagedWorldspaceWidget::getEdited(
-    unsigned int elementMask) const
+    std::uint32_t elementMask) const
 {
     return mCell->getEdited(elementMask);
 }
 
-void CSVRender::UnpagedWorldspaceWidget::setSubMode(int subMode, unsigned int elementMask)
+void CSVRender::UnpagedWorldspaceWidget::setSubMode(std::int32_t subMode, std::uint32_t elementMask)
 {
     mCell->setSubMode(subMode, elementMask);
     mSelectionMarker->updateSelectionMarker();
 }
 
-void CSVRender::UnpagedWorldspaceWidget::reset(unsigned int elementMask)
+void CSVRender::UnpagedWorldspaceWidget::reset(std::uint32_t elementMask)
 {
     mCell->reset(elementMask);
 }
@@ -235,14 +232,16 @@ void CSVRender::UnpagedWorldspaceWidget::referenceableDataChanged(
             flagAsModified();
 }
 
-void CSVRender::UnpagedWorldspaceWidget::referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::UnpagedWorldspaceWidget::referenceableAboutToBeRemoved(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (mCell.get())
         if (mCell.get()->referenceableAboutToBeRemoved(parent, start, end))
             flagAsModified();
 }
 
-void CSVRender::UnpagedWorldspaceWidget::referenceableAdded(const QModelIndex& parent, int start, int end)
+void CSVRender::UnpagedWorldspaceWidget::referenceableAdded(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (mCell.get())
     {
@@ -262,14 +261,15 @@ void CSVRender::UnpagedWorldspaceWidget::referenceDataChanged(
             flagAsModified();
 }
 
-void CSVRender::UnpagedWorldspaceWidget::referenceAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::UnpagedWorldspaceWidget::referenceAboutToBeRemoved(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (mCell.get())
         if (mCell.get()->referenceAboutToBeRemoved(parent, start, end))
             flagAsModified();
 }
 
-void CSVRender::UnpagedWorldspaceWidget::referenceAdded(const QModelIndex& parent, int start, int end)
+void CSVRender::UnpagedWorldspaceWidget::referenceAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (mCell.get())
         if (mCell.get()->referenceAdded(parent, start, end))
@@ -280,8 +280,8 @@ void CSVRender::UnpagedWorldspaceWidget::pathgridDataChanged(const QModelIndex& 
 {
     const CSMWorld::SubCellCollection<CSMWorld::Pathgrid>& pathgrids = mDocument.getData().getPathgrids();
 
-    int rowStart = -1;
-    int rowEnd = -1;
+    std::int32_t rowStart = -1;
+    std::int32_t rowEnd = -1;
 
     if (topLeft.parent().isValid())
     {
@@ -294,7 +294,7 @@ void CSVRender::UnpagedWorldspaceWidget::pathgridDataChanged(const QModelIndex& 
         rowEnd = bottomRight.row();
     }
 
-    for (int row = rowStart; row <= rowEnd; ++row)
+    for (std::int32_t row = rowStart; row <= rowEnd; ++row)
     {
         const CSMWorld::Pathgrid& pathgrid = pathgrids.getRecord(row).get();
         if (ESM::RefId::stringRefId(mCellId) == pathgrid.mId)
@@ -306,14 +306,15 @@ void CSVRender::UnpagedWorldspaceWidget::pathgridDataChanged(const QModelIndex& 
     }
 }
 
-void CSVRender::UnpagedWorldspaceWidget::pathgridAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::UnpagedWorldspaceWidget::pathgridAboutToBeRemoved(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     const CSMWorld::SubCellCollection<CSMWorld::Pathgrid>& pathgrids = mDocument.getData().getPathgrids();
 
     if (!parent.isValid())
     {
         // Pathgrid going to be deleted
-        for (int row = start; row <= end; ++row)
+        for (std::int32_t row = start; row <= end; ++row)
         {
             const CSMWorld::Pathgrid& pathgrid = pathgrids.getRecord(row).get();
             if (ESM::RefId::stringRefId(mCellId) == pathgrid.mId)
@@ -326,13 +327,13 @@ void CSVRender::UnpagedWorldspaceWidget::pathgridAboutToBeRemoved(const QModelIn
     }
 }
 
-void CSVRender::UnpagedWorldspaceWidget::pathgridAdded(const QModelIndex& parent, int start, int end)
+void CSVRender::UnpagedWorldspaceWidget::pathgridAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     const CSMWorld::SubCellCollection<CSMWorld::Pathgrid>& pathgrids = mDocument.getData().getPathgrids();
 
     if (!parent.isValid())
     {
-        for (int row = start; row <= end; ++row)
+        for (std::int32_t row = start; row <= end; ++row)
         {
             const CSMWorld::Pathgrid& pathgrid = pathgrids.getRecord(row).get();
             if (ESM::RefId::stringRefId(mCellId) == pathgrid.mId)

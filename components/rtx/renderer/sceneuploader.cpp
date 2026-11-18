@@ -29,7 +29,7 @@
 
 namespace Rtx
 {
-    bool SceneUploader::isWaiting(const Index slot) const
+    bool SceneUploader::isWaiting(const TextureIndex slot) const
     {
         return std::ranges::any_of(mTextureWaits, [&](const TextureWait& wait) { return wait.mSlot == slot; });
     }
@@ -54,7 +54,7 @@ namespace Rtx
             if (same && !waitedMost)
                 return false;
             if (prepared != nullptr && wait.mReading)
-                prepared->letGo(*wait.mSource);
+                prepared->forget(*wait.mSource, wait.mEncoding, wait.mWrap, wait.mPartner.get());
             return true;
         });
 
@@ -67,14 +67,18 @@ namespace Rtx
         {
             // Not while what was evicted for it is coming back: handed over first, it stands short again.
             const std::uint64_t lacking = wait.getLacking();
-            if (!wait.mReading && (lacking > free || isCooling(RestKind::Texture, wait.mSlot)))
+            if (!wait.mReading && (lacking > free || isCooling(RoomWaiter(wait.mSlot))))
                 continue;
             const TextureRow& row = scene.textures().getRows()[wait.mSlot];
+
             if (prepared != nullptr && !settled)
             {
                 if (!wait.mReading)
                 {
                     wait.mReading = true;
+                    wait.mEncoding = row.mEncoding;
+                    wait.mWrap = row.mWrap;
+                    wait.mPartner = row.mPartner;
                     free -= lacking;
                     // Held until the hand-over describes it: what is read is the asker's to hold once handed out.
                     wait.mRead = prepared->find(*wait.mSource, row.mEncoding, row.mWrap, row.mPartner.get());
@@ -92,14 +96,21 @@ namespace Rtx
 
     void SceneUploader::evictForRoom(SceneDesc& scene, const ArrivalRoom& room, const std::uint64_t arriving)
     {
-        const std::uint64_t kept = arriving + mLargestStructures;
-        scene.evictResting(room.mFree < kept ? kept - room.mFree : 0);
+        // **Each against its own room**: the textures against the pools', the structures an arrival may build against
+        // the storages'; what rests gives back to either.
+        const std::uint64_t structures = mArrivals.largest().mStructures;
+        // **What rests shrinks before it goes**: the device moves down what rests above its last want first
+        // (`TextureArray::makeRoom`), a hand-over's copy at most, so only what that leaves short is evicted.
+        const std::uint64_t shrinkable = std::min(scene.textures().getRestingAboveWant(), sRestShrinkMost);
+        const std::uint64_t lacking = room.mFree < arriving ? arriving - room.mFree : 0;
+        const std::uint64_t textureShort = lacking > shrinkable ? lacking - shrinkable : 0;
+        const std::uint64_t structureShort = room.mStructureFree < structures ? structures - room.mStructureFree : 0;
+        scene.evictResting(textureShort + structureShort);
     }
 
-    bool SceneUploader::isCooling(const RestKind kind, const Index slot) const
+    bool SceneUploader::isCooling(const RoomWaiter& waiter) const
     {
-        return std::ranges::any_of(
-            mCooling, [&](const WantCooling& cooling) { return cooling.mKind == kind && cooling.mSlot == slot; });
+        return std::ranges::any_of(mCooling, [&](const WantCooling& cooling) { return cooling.mWaiter == waiter; });
     }
 
     void SceneUploader::serveWants(SceneDesc& scene)
@@ -109,54 +120,98 @@ namespace Rtx
         // placement after that, whose answer the hand-over after reads.
         for (const RoomWant& want : mAnswer.mWants)
         {
-            if (isCooling(want.mKind, want.mSlot))
+            if (isCooling(want.mWaiter))
                 continue;
             scene.evictFor(std::span(&want, 1));
-            mCooling.push_back(
-                WantCooling{ .mKind = want.mKind, .mSlot = want.mSlot, .mUntil = mHandOvers + sFramesInFlight + 1 });
+            mCooling.push_back(WantCooling{ .mWaiter = want.mWaiter, .mUntil = mHandOvers + sFramesInFlight + 1 });
         }
     }
 
-    void SceneUploader::waitForRoom(const TextureTable& textures)
+    void SceneUploader::waitForRoom(SceneDesc& scene, const std::span<const SceneTextures::Stood> described)
     {
-        const auto shortOf = [&](const Index slot) {
+        const TextureTable& textures = scene.textures();
+        const auto shortOf = [&](const TextureIndex slot) {
             return std::ranges::find(mAnswer.mShort, slot, &ShortTexture::mSlot) != mAnswer.mShort.end();
         };
         std::erase_if(mTextureWaits, [&](const TextureWait& wait) {
             return !shortOf(wait.mSlot)
-                && std::ranges::find(mTextures.getStood(), wait.mSlot, &SceneTextures::Stood::mSlot)
-                != mTextures.getStood().end();
+                && std::ranges::find(described, wait.mSlot, &SceneTextures::Stood::mSlot) != described.end();
         });
 
         // A new one waits from nothing, for its file's bytes, with the file its slot holds; one stood short again
         // stands what the device stood now, and its texels are read again when the room comes back.
         for (const ShortTexture& stood : mAnswer.mShort)
         {
-            const auto known = std::ranges::find(mTextureWaits, stood.mSlot, &TextureWait::mSlot);
-            if (known != mTextureWaits.end())
+            // **Moved down where the host holds no file to hand over again**: a slot the scene let go of since, which
+            // the next placement drops, and one that rests, which a rest holds whole and so goes at the next hand-over
+            // (`settleMovedResting`): freed now, it would be freed after this one's placement and never dropped.
+            if (!textures.isLive(stood.mSlot))
+                continue;
+            if (textures.getRows()[stood.mSlot].mRest.mResting)
             {
-                // Handed over again and stood short again: a smaller side's wait more, which bounds its tries.
-                if (known->mStoodBytes > 0
-                    && std::ranges::find(mTextures.getStood(), stood.mSlot, &SceneTextures::Stood::mSlot)
-                        != mTextures.getStood().end())
-                    ++known->mWaited;
-                known->mStoodBytes = stood.mStoodBytes;
-                known->mReading = false;
-                known->mRead = PreparedImage{};
+                mMovedResting.push_back(stood);
                 continue;
             }
-            const auto described = std::ranges::find(mTextures.getStood(), stood.mSlot, &SceneTextures::Stood::mSlot);
-            assert(described != mTextures.getStood().end() && "a texture stood short this hand-over did not describe");
-            const osg::Image* const file = textures.getRows()[stood.mSlot].mImage.get();
-            assert(file != nullptr && "a texture stood short with no file to hand over again");
-            mTextureWaits.push_back(TextureWait{ .mSlot = stood.mSlot,
-                .mSource = file,
-                .mFileBytes = described->mBytes,
-                .mStoodBytes = stood.mStoodBytes,
-                .mWaited = 0,
-                .mReading = false,
-                .mRead = {} });
+            fileWait(scene, stood, described);
         }
+    }
+
+    void SceneUploader::settleMovedResting(SceneDesc& scene)
+    {
+        // Still at rest, it goes; taken again since, it stands short of the file its taker holds, and waits for it.
+        for (const ShortTexture& stood : mMovedResting)
+        {
+            if (!scene.textures().isLive(stood.mSlot))
+                continue;
+            const TextureRow& row = scene.textures().getRows()[stood.mSlot];
+            if (row.mRest.mResting)
+                scene.evictRestingTexture(stood.mSlot);
+            else if (row.mImage != nullptr)
+                fileWait(scene, stood, {});
+        }
+        mMovedResting.clear();
+    }
+
+    void SceneUploader::fileWait(
+        SceneDesc& scene, const ShortTexture& stood, const std::span<const SceneTextures::Stood> described)
+    {
+        const TextureTable& textures = scene.textures();
+
+        const auto known = std::ranges::find(mTextureWaits, stood.mSlot, &TextureWait::mSlot);
+        if (known != mTextureWaits.end())
+        {
+            // Handed over again and stood short again: a smaller side's wait more, which bounds its tries.
+            if (known->mStoodBytes > 0
+                && std::ranges::find(described, stood.mSlot, &SceneTextures::Stood::mSlot) != described.end())
+                ++known->mWaited;
+            known->mStoodBytes = stood.mStoodBytes;
+            known->mReading = false;
+            known->mRead = PreparedImage{};
+            return;
+        }
+        // What the file asks of the room: as this hand-over described it, or, for a texture the device moved down
+        // to make room, the bytes it stood before (`DeviceAnswer::mShort`).
+        const auto whole = std::ranges::find(described, stood.mSlot, &SceneTextures::Stood::mSlot);
+        assert((whole != described.end() || stood.mWholeBytes > 0)
+            && "a texture stood short this hand-over did not describe and did not move");
+        const TextureRow& row = textures.getRows()[stood.mSlot];
+        const osg::Image* const file = row.mImage.get();
+        assert(file != nullptr && "a texture stood short with no file to hand over again");
+        mTextureWaits.push_back(TextureWait{ .mSlot = stood.mSlot,
+            .mSource = file,
+            .mFileBytes = whole != described.end() ? whole->mBytes : stood.mWholeBytes,
+            .mStoodBytes = stood.mStoodBytes,
+            .mWaited = 0,
+            .mReading = false,
+            .mEncoding = {},
+            .mWrap = {},
+            .mPartner = nullptr,
+            .mRead = {} });
+
+        // **A file short of its whole rests on nothing**, as one the hand-over stood short does
+        // (`TextureTable::stand`): moved down, it stood its whole until now.
+        if (whole == described.end())
+            scene.textures().stand(stood.mSlot, 0, row.mStoodMade, 0);
     }
 
     std::span<const Refusal> SceneUploader::takeAnswer(SceneHolder& scenes, const SceneSlot slot, SceneDesc& scene)
@@ -177,10 +232,26 @@ namespace Rtx
                 scene.meshes().getResting().getCount(), mebibytes(scene.meshes().getResting().getBytes()));
         for (const StoodMesh& stood : mAnswer.mMeshes)
             scene.standMesh(stood.mMesh, stood.mStructureBytes);
-        for (const FitBytes& fit : mAnswer.mTextureFits)
-            scene.textures().fit(fit.mSlot, fit.mBytes);
-        for (const FitBytes& fit : mAnswer.mMeshFits)
-            scene.fitMesh(fit.mSlot, fit.mBytes);
+        // A slot the scene let go of before the device moved it down fits nothing.
+        for (const FitBytes<TextureIndex>& fit : mAnswer.mTextureFits)
+            if (scene.textures().isLive(fit.mSlot))
+                scene.textures().fit(fit.mSlot, fit.mBytes, fit.mAlignment);
+        for (const FitBytes<MeshIndex>& fit : mAnswer.mMeshFits)
+            scene.fitMesh(fit.mSlot, fit.mBytes, fit.mAlignment);
+
+        // **What moved down and stands no coarser than its readers want stands as it is now**: nothing is handed over
+        // again, and the slot says what the device holds of it. **One that rests is kept smaller**, moved down to its
+        // last readers' want, resting on what stands now. One let go of since says nothing.
+        TextureTable& textures = scene.textures();
+        for (const MovedTexture& moved : mAnswer.mMoved)
+        {
+            if (!textures.isLive(moved.mSlot))
+                continue;
+            if (textures.getRows()[moved.mSlot].mRest.mResting)
+                textures.restandResting(moved.mSlot, moved.mStoodBytes, moved.mFrom);
+            else
+                textures.stand(moved.mSlot, moved.mStoodBytes, textures.getRows()[moved.mSlot].mStoodMade, moved.mFrom);
+        }
         return mAnswer.mRefused;
     }
 
@@ -195,6 +266,9 @@ namespace Rtx
         // are written once each rather than guarded three times.
         FrameSpend unread;
         FrameSpend& timed = spend != nullptr ? *spend : unread;
+
+        // What the device moved down while it rested goes ahead of the placement that drops what the scene let go of.
+        settleMovedResting(scene);
 
         // A hand-over more on the clock a want cools by, and a want whose room is the device's again cools no more.
         ++mHandOvers;
@@ -232,7 +306,8 @@ namespace Rtx
                     && scene.textures().getRows()[pending.mSlot].mImage == pending.mSource;
                 if (!same)
                 {
-                    handing.mPrepared->letGo(*pending.mSource);
+                    handing.mPrepared->forget(
+                        *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get());
                     return true;
                 }
                 if (!handing.mPrepared->isReady(
@@ -256,7 +331,7 @@ namespace Rtx
             // **And never past their limit, coming down to it a step a hand-over** (`docs/architecture.md`, "One
             // residency policy for the content").
             scene.setRestLimit(
-                RestLimit{ .mBytes = restLimitOf(*room, scene.getRestingBytes()), .mStep = mLargestArrival });
+                RestLimit{ .mBytes = restLimitOf(*room, scene.getRestingBytes()), .mStep = mArrivals.largest().mAll });
             serveWants(scene);
             serveWaits(scene, handing.mPrepared, handing.mSettled, room->mFree);
         }
@@ -285,8 +360,10 @@ namespace Rtx
             done.mDropped = tables.textures().getFreed().size();
             scenes.placeScene(slot, tables);
 
-            // What a placement could not stand: a structure that waited for room it found is not coming.
+            // What a placement could not stand: a structure that waited for room it found is not coming. And what
+            // moved down for room since the last hand-over, which waits to be handed over whole again.
             takeAnswer(scenes, slot, scene);
+            waitForRoom(scene, {});
 
             timed.at(Timing::Upload) = since(told, std::chrono::steady_clock::now());
             done.mKind = SceneUpload::Kind::Placed;
@@ -341,7 +418,7 @@ namespace Rtx
             // What the device could not stand, reported as what the describe could not: the scene
             // is written here, and the backend holds it const.
             const std::span<const Refusal> refused = takeAnswer(scenes, slot, scene);
-            waitForRoom(scene.textures());
+            waitForRoom(scene, mTextures.getStood());
 
             // An extension's, and not a rebuild's, which hands over the whole table and is no arrival a crossing
             // makes: its textures and the structures the device built, as its answer says.
@@ -353,8 +430,7 @@ namespace Rtx
                 std::uint64_t structures = 0;
                 for (const StoodMesh& stood : mAnswer.mMeshes)
                     structures += stood.mStructureBytes;
-                mLargestArrival = std::max(mLargestArrival, textures + structures);
-                mLargestStructures = std::max(mLargestStructures, structures);
+                mArrivals.note(ArrivalBytes{ .mAll = textures + structures, .mStructures = structures });
             }
 
             // What the device now has of each slot described, which a slot that comes to rest keeps: nought
@@ -366,7 +442,8 @@ namespace Rtx
             for (const SceneTextures::Stood& stood : mTextures.getStood())
             {
                 const bool stands = !refusedTexture && !isWaiting(stood.mSlot);
-                scene.textures().stand(stood.mSlot, stands ? stood.mBytes : 0, stands && stood.mMade);
+                scene.textures().stand(stood.mSlot, stands ? stood.mBytes : 0, stands && stood.mMade,
+                    stands ? stood.mFrom : std::uint8_t{ 0 });
             }
 
             // **The host lets go of the texels and chains the device now holds**: what the descriptions held, and

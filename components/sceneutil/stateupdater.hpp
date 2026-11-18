@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include <components/sceneutil/statesetupdater.hpp>
+#include "statesetupdater.hpp"
 
 namespace osg
 {
@@ -24,8 +26,8 @@ namespace SceneUtil
     class PerViewUniformStateUpdater final : public StateSetUpdater
     {
     public:
-        explicit PerViewUniformStateUpdater(
-            Resource::SceneManager* sceneManager, int opaqueTextureUnit = -1, int opaqueColorTextureUnit = -1);
+        explicit PerViewUniformStateUpdater(Resource::SceneManager* sceneManager, std::int32_t opaqueTextureUnit = -1,
+            std::int32_t opaqueColorTextureUnit = -1);
 
         void setDefaults(osg::StateSet* stateset) override;
 
@@ -39,18 +41,18 @@ namespace SceneUtil
 
         const osg::Matrixf& getProjectionMatrix() const;
 
-        void enableSkyRTT(int skyTextureUnit, RTTNode* skyRTT);
+        void enableSkyRTT(std::int32_t skyTextureUnit, RTTNode* skyRTT);
 
     private:
-        osg::Matrixf getEyeProjectionMatrix(int view);
+        osg::Matrixf getEyeProjectionMatrix(std::int32_t view);
 
         osg::Matrixf mProjectionMatrix;
-        int mSkyTextureUnit = -1;
+        std::int32_t mSkyTextureUnit = -1;
         RTTNode* mSkyRTT = nullptr;
 
         Resource::SceneManager* mSceneManager;
-        int mOpaqueTextureUnit = -1;
-        int mOpaqueColorTextureUnit = -1;
+        std::int32_t mOpaqueTextureUnit = -1;
+        std::int32_t mOpaqueColorTextureUnit = -1;
     };
 
     class SharedUniformStateUpdater : public StateSetUpdater

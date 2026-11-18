@@ -111,6 +111,11 @@ namespace Rtx
         /// recorded and waits for it. A batch nobody used costs nothing.
         void flush();
 
+        /// What the staging blocks the batch took hold together since it began or last ended: what a caller that
+        /// stages a long run of uploads flushes at, between whole uploads, so the run's staging stays bounded
+        /// (`sStagingKept`), where a world's build staged 1.4 GiB at once.
+        VkDeviceSize getStagedBytes() const { return mStaged; }
+
         /// Hands what has been recorded to the pool, to go ahead of the pool's next submit, and
         /// buries what it held under that submit; records nothing more. The other way out of a
         /// batch, for a load that is followed by a submit anyway.
@@ -133,6 +138,9 @@ namespace Rtx
         /// See `stage`.
         std::size_t mHold;
         VkDeviceSize mFilled = 0;
+
+        /// What the staging blocks the batch took hold together, until it ends.
+        VkDeviceSize mStaged = 0;
     };
 
     /// Stages `bytes` through the batch's own staging and copies them into `into` at `offset`.

@@ -2,10 +2,14 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <ranges>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/cellid.hpp>
@@ -20,9 +24,6 @@
 
 #include "cellstore.hpp"
 #include "esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
 
 namespace MWWorld
 {
@@ -445,12 +446,10 @@ std::vector<MWWorld::Ptr> MWWorld::WorldModel::getAll(ESM::RefId id, ESM::RefId 
             return;
         if (cellStore.getState() == CellStore::State_Unloaded)
             cellStore.preload();
+        if (!cellStore.hasId(id))
+            return;
         if (cellStore.getState() == CellStore::State_Preloaded)
-        {
-            if (!cellStore.hasId(id))
-                return;
             cellStore.load();
-        }
         cellStore.forEach([&](const Ptr& ptr) {
             if (ptr.getCellRef().getRefId() == id)
                 result.push_back(ptr);
@@ -500,7 +499,7 @@ std::vector<MWWorld::Ptr> MWWorld::WorldModel::getAll(ESM::RefId id, ESM::RefId 
     return result;
 }
 
-size_t MWWorld::WorldModel::countSavedGameRecords() const
+std::size_t MWWorld::WorldModel::countSavedGameRecords() const
 {
     return static_cast<std::size_t>(
         std::count_if(mCells.begin(), mCells.end(), [](const auto& v) { return v.second.hasState(); }));
@@ -538,7 +537,7 @@ public:
     }
 };
 
-bool MWWorld::WorldModel::readRecord(ESM::ESMReader& reader, uint32_t type)
+bool MWWorld::WorldModel::readRecord(ESM::ESMReader& reader, std::uint32_t type)
 {
     if (type == ESM::REC_CSTA)
     {

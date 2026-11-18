@@ -1,10 +1,12 @@
 #include "mirrortexture.hpp"
 
+#include <cstdint>
+
 #include <components/crashcatcher/crash.hpp>
 
 namespace MyGUIRtx
 {
-    void MirrorTexture::createManual(int, int, MyGUI::TextureUsage, MyGUI::PixelFormat)
+    void MirrorTexture::createManual(std::int32_t, std::int32_t, MyGUI::TextureUsage, MyGUI::PixelFormat)
     {
         Crash::fatal("a mirrored picture is the game's, and is not made through MyGUI");
     }

@@ -1,6 +1,6 @@
-#include <components/esm3/infoorder.hpp>
-
 #include <gtest/gtest.h>
+
+#include <components/esm3/infoorder.hpp>
 
 namespace ESM
 {

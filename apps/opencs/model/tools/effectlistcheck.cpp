@@ -1,13 +1,15 @@
 #include "effectlistcheck.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
-
-#include <apps/opencs/model/doc/messages.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
 
 namespace CSMTools
 {
@@ -20,15 +22,15 @@ namespace CSMTools
             return;
         }
 
-        size_t i = 1;
+        std::size_t i = 1;
         for (const ESM::IndexedENAMstruct& effect : list)
         {
             const std::string number = std::to_string(i);
 
             // At the time of writing this effects, attributes and skills are mostly hardcoded
-            int effectIndex = ESM::MagicEffect::refIdToIndex(effect.mData.mEffectID);
-            int skillIndex = ESM::Skill::refIdToIndex(effect.mData.mSkill);
-            int attributeIndex = ESM::Attribute::refIdToIndex(effect.mData.mAttribute);
+            std::int32_t effectIndex = ESM::MagicEffect::refIdToIndex(effect.mData.mEffectID);
+            std::int32_t skillIndex = ESM::Skill::refIdToIndex(effect.mData.mSkill);
+            std::int32_t attributeIndex = ESM::Attribute::refIdToIndex(effect.mData.mAttribute);
             if (effectIndex < -1 || effectIndex >= ESM::MagicEffect::Length)
                 messages.add(id, "Effect #" + number + ": invalid effect ID", "", CSMDoc::Message::Severity_Error);
             if (skillIndex < -1 || skillIndex >= ESM::Skill::Length)
@@ -69,15 +71,15 @@ namespace CSMTools
     {
         bool hasEffects = false;
 
-        for (size_t i = 0; i < 4; i++)
+        for (std::size_t i = 0; i < 4; i++)
         {
             if (ingredient.mData.mEffectID[i].empty())
                 continue;
 
             hasEffects = true;
-            int effectIndex = ESM::MagicEffect::refIdToIndex(ingredient.mData.mEffectID[i]);
-            int skillIndex = ESM::Skill::refIdToIndex(ingredient.mData.mSkills[i]);
-            int attributeIndex = ESM::Attribute::refIdToIndex(ingredient.mData.mAttributes[i]);
+            std::int32_t effectIndex = ESM::MagicEffect::refIdToIndex(ingredient.mData.mEffectID[i]);
+            std::int32_t skillIndex = ESM::Skill::refIdToIndex(ingredient.mData.mSkills[i]);
+            std::int32_t attributeIndex = ESM::Attribute::refIdToIndex(ingredient.mData.mAttributes[i]);
 
             const std::string number = std::to_string(i + 1);
             if (effectIndex < -1 || effectIndex >= ESM::MagicEffect::Length)

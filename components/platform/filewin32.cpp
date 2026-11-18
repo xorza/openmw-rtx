@@ -2,11 +2,16 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <format>
 #include <limits>
 #include <stdexcept>
 #include <string>
+
+#include <fcntl.h>
+#include <io.h>
 
 #include <components/files/conversion.hpp>
 #include <components/misc/windows.hpp>
@@ -19,10 +24,10 @@ namespace Platform::File
         {
             assert(handle != Handle::Invalid);
 
-            return reinterpret_cast<HANDLE>(static_cast<intptr_t>(handle));
+            return reinterpret_cast<HANDLE>(static_cast<std::intptr_t>(handle));
         }
 
-        int getNativeSeekType(SeekType seek)
+        std::int32_t getNativeSeekType(SeekType seek)
         {
             if (seek == SeekType::Begin)
                 return FILE_BEGIN;
@@ -44,7 +49,7 @@ namespace Platform::File
             throw std::runtime_error(std::format(
                 "Failed to open '{}' for reading: {}", Files::pathToUnicodeString(filename), GetLastError()));
         }
-        return static_cast<Handle>(reinterpret_cast<intptr_t>(handle));
+        return static_cast<Handle>(reinterpret_cast<std::intptr_t>(handle));
     }
 
     void close(Handle handle)
@@ -53,7 +58,7 @@ namespace Platform::File
         CloseHandle(nativeHandle);
     }
 
-    void seek(Handle handle, size_t position, SeekType type /*= SeekType::Begin*/)
+    void seek(Handle handle, std::size_t position, SeekType type /*= SeekType::Begin*/)
     {
         const auto nativeHandle = getNativeHandle(handle);
         const auto nativeSeekType = getNativeSeekType(type);
@@ -64,17 +69,17 @@ namespace Platform::File
             throw std::runtime_error(std::format("Failed to seek in file: {}", GetLastError()));
     }
 
-    size_t size(Handle handle)
+    std::size_t size(Handle handle)
     {
         const auto nativeHandle = getNativeHandle(handle);
         LARGE_INTEGER li;
         if (!GetFileSizeEx(nativeHandle, &li))
             throw std::runtime_error(std::format("Failed to get file size: {}", GetLastError()));
 
-        return static_cast<size_t>(li.QuadPart);
+        return static_cast<std::size_t>(li.QuadPart);
     }
 
-    size_t tell(Handle handle)
+    std::size_t tell(Handle handle)
     {
         const auto nativeHandle = getNativeHandle(handle);
         LARGE_INTEGER distance;
@@ -83,10 +88,10 @@ namespace Platform::File
         if (!SetFilePointerEx(nativeHandle, distance, &li, FILE_CURRENT))
             throw std::runtime_error(std::format("Failed to get file offset: {}", GetLastError()));
 
-        return static_cast<size_t>(li.QuadPart);
+        return static_cast<std::size_t>(li.QuadPart);
     }
 
-    size_t readAt(Handle handle, size_t offset, void* data, size_t size)
+    std::size_t readAt(Handle handle, std::size_t offset, void* data, std::size_t size)
     {
         const auto nativeHandle = getNativeHandle(handle);
 
@@ -95,7 +100,7 @@ namespace Platform::File
         at.Offset = static_cast<DWORD>(offset & 0xFFFFFFFFu);
         at.OffsetHigh = static_cast<DWORD>(static_cast<std::uint64_t>(offset) >> 32);
         DWORD bytesRead{};
-        size = std::min<size_t>(size, std::numeric_limits<DWORD>::max());
+        size = std::min<std::size_t>(size, std::numeric_limits<DWORD>::max());
         if (!ReadFile(nativeHandle, data, static_cast<DWORD>(size), &bytesRead, &at))
         {
             const DWORD error = GetLastError();
@@ -106,15 +111,25 @@ namespace Platform::File
         return bytesRead;
     }
 
-    size_t read(Handle handle, void* data, size_t size)
+    std::size_t read(Handle handle, void* data, std::size_t size)
     {
         const auto nativeHandle = getNativeHandle(handle);
 
         DWORD bytesRead{};
-        size = std::min<size_t>(size, std::numeric_limits<DWORD>::max());
+        size = std::min<std::size_t>(size, std::numeric_limits<DWORD>::max());
         if (!ReadFile(nativeHandle, data, static_cast<DWORD>(size), &bytesRead, nullptr))
             throw std::runtime_error(std::format("A read operation on a file failed: {}", GetLastError()));
 
         return bytesRead;
+    }
+
+    void makeStandardErrorBinary()
+    {
+        static_cast<void>(_setmode(_fileno(stderr), _O_BINARY));
+    }
+
+    bool namesIgnoreCase()
+    {
+        return true;
     }
 }

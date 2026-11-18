@@ -1,7 +1,14 @@
 #include "corebindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/lua/l10n.hpp>
 #include <components/lua/luastate.hpp>
@@ -11,12 +18,6 @@
 #include <components/misc/strings/lower.hpp>
 #include <components/settings/values.hpp>
 #include <components/version/version.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "context.hpp"
 #include "coremwscriptbindings.hpp"
@@ -38,14 +39,14 @@ namespace MWLua
         {
             const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
             sol::table list(lua, sol::create);
-            for (size_t i = 0; i < contentList.size(); ++i)
+            for (std::size_t i = 0; i < contentList.size(); ++i)
                 list[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))] = Misc::StringUtils::lowerCase(contentList[i]);
             sol::table res(lua, sol::create);
             res["list"] = LuaUtil::makeReadOnly(list);
-            res["indexOf"] = [&contentList](std::string_view contentFile) -> sol::optional<int64_t> {
-                for (size_t i = 0; i < contentList.size(); ++i)
+            res["indexOf"] = [&contentList](std::string_view contentFile) -> sol::optional<std::int64_t> {
+                for (std::size_t i = 0; i < contentList.size(); ++i)
                     if (Misc::StringUtils::ciEqual(contentList[i], contentFile))
-                        return LuaUtil::toLuaIndex(static_cast<int64_t>(i));
+                        return LuaUtil::toLuaIndex(static_cast<std::int64_t>(i));
                 return sol::nullopt;
             };
             res["has"] = [&contentList](std::string_view contentFile) -> bool {
@@ -83,11 +84,11 @@ namespace MWLua
         sol::table api(lua, sol::create);
         api["API_REVISION"] = Version::getLuaApiRevision(); // specified in CMakeLists.txt
         api["contentFiles"] = initContentFilesBindings(lua);
-        api["getFormId"] = [](std::string_view contentFile, unsigned int index) -> std::string {
+        api["getFormId"] = [](std::string_view contentFile, std::uint32_t index) -> std::string {
             const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
-            for (size_t i = 0; i < contentList.size(); ++i)
+            for (std::size_t i = 0; i < contentList.size(); ++i)
                 if (Misc::StringUtils::ciEqual(contentList[i], contentFile))
-                    return ESM::RefId(ESM::FormId{ index, static_cast<int>(i) }).serializeText();
+                    return ESM::RefId(ESM::FormId{ index, static_cast<std::int32_t>(i) }).serializeText();
             throw std::runtime_error("Content file not found: " + std::string(contentFile));
         };
         if (context.mType != Context::Load)
@@ -134,7 +135,7 @@ namespace MWLua
                     case ESM::VT_Short:
                     case ESM::VT_Long:
                     case ESM::VT_Int:
-                        return sol::make_object<int>(lua, value.getInteger());
+                        return sol::make_object<std::int32_t>(lua, value.getInteger());
                     case ESM::VT_String:
                         return sol::make_object<std::string>(lua, value.getString());
                     case ESM::VT_Unknown:

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -22,33 +23,28 @@
 #include <osgDB/Registry>
 
 #include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/fourcc.hpp>
+#include <components/esm3/cellid.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
-#include <components/esm3/player.hpp>
-#include <components/esm3/savedgame.hpp>
-
-#include <components/esm3/cellid.hpp>
+#include <components/esm3/formatversion.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadarmo.hpp>
+#include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadlevlist.hpp>
 #include <components/esm3/loadspel.hpp>
-#include <components/esm3/loadweap.hpp>
-
-#include <components/misc/constants.hpp>
-
-#include <components/esm/esmcommon.hpp>
-#include <components/esm/fourcc.hpp>
-#include <components/esm3/formatversion.hpp>
-#include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadtes3.hpp>
+#include <components/esm3/loadweap.hpp>
+#include <components/esm3/player.hpp>
+#include <components/esm3/savedgame.hpp>
+#include <components/misc/constants.hpp>
 #include <components/toutf8/toutf8.hpp>
 
-#include "importercontext.hpp"
-
 #include "converter.hpp"
+#include "importercontext.hpp"
 
 namespace
 {
@@ -65,14 +61,14 @@ namespace
 
         // need to convert pixel format from BGRA to RGB as the jpg readerwriter doesn't support it otherwise
         auto it = fileHeader.mSCRS.begin();
-        for (int y = 0; y < 128; ++y)
+        for (std::int32_t y = 0; y < 128; ++y)
         {
-            for (int x = 0; x < 128; ++x)
+            for (std::int32_t x = 0; x < 128; ++x)
             {
-                assert(image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)));
-                *(image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)) + 2) = *it++;
-                *(image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)) + 1) = *it++;
-                *image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)) = *it++;
+                assert(image->data(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)));
+                *(image->data(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)) + 2) = *it++;
+                *(image->data(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)) + 1) = *it++;
+                *image->data(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)) = *it++;
                 ++it; // skip alpha
             }
         }
@@ -118,14 +114,14 @@ namespace ESSImport
             struct Subrecord
             {
                 std::string mName;
-                size_t mFileOffset{};
-                std::vector<unsigned char> mData;
+                std::size_t mFileOffset{};
+                std::vector<std::uint8_t> mData;
             };
 
             struct Record
             {
                 std::string mName;
-                size_t mFileOffset{};
+                std::size_t mFileOffset{};
                 std::vector<Subrecord> mSubrecords;
             };
 
@@ -181,7 +177,7 @@ namespace ESSImport
         read(mOutFile, file2); // todo rename variable
 
         // FIXME: use max(size1, size2)
-        for (size_t i = 0; i < file1.mRecords.size(); ++i)
+        for (std::size_t i = 0; i < file1.mRecords.size(); ++i)
         {
             File::Record rec = file1.mRecords[i];
 
@@ -204,7 +200,7 @@ namespace ESSImport
             }
 
             // FIXME: use max(size1, size2)
-            for (size_t j = 0; j < rec.mSubrecords.size(); ++j)
+            for (std::size_t j = 0; j < rec.mSubrecords.size(); ++j)
             {
                 File::Subrecord sub = rec.mSubrecords[j];
 
@@ -240,7 +236,7 @@ namespace ESSImport
                               << std::hex << sub.mFileOffset << " (2) 0x" << sub2.mFileOffset << std::endl;
 
                     std::cout << "Data 1:" << std::endl;
-                    for (size_t k = 0; k < sub.mData.size(); ++k)
+                    for (std::size_t k = 0; k < sub.mData.size(); ++k)
                     {
                         bool different = false;
                         if (k >= sub2.mData.size() || sub2.mData[k] != sub.mData[k])
@@ -248,15 +244,15 @@ namespace ESSImport
 
                         if (different)
                             std::cout << "\033[033m";
-                        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(sub.mData[k])
-                                  << " ";
+                        std::cout << std::hex << std::setw(2) << std::setfill('0')
+                                  << static_cast<std::int32_t>(sub.mData[k]) << " ";
                         if (different)
                             std::cout << "\033[0m";
                     }
                     std::cout << std::endl;
 
                     std::cout << "Data 2:" << std::endl;
-                    for (size_t k = 0; k < sub2.mData.size(); ++k)
+                    for (std::size_t k = 0; k < sub2.mData.size(); ++k)
                     {
                         bool different = false;
                         if (k >= sub.mData.size() || sub.mData[k] != sub2.mData[k])
@@ -264,8 +260,8 @@ namespace ESSImport
 
                         if (different)
                             std::cout << "\033[033m";
-                        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(sub2.mData[k])
-                                  << " ";
+                        std::cout << std::hex << std::setw(2) << std::setfill('0')
+                                  << static_cast<std::int32_t>(sub2.mData[k]) << " ";
                         if (different)
                             std::cout << "\033[0m";
                     }
@@ -288,16 +284,16 @@ namespace ESSImport
         const ESM::Header& header = esm.getHeader();
         context.mPlayerCellName = header.mGameData.mCurrentCell.toString();
 
-        const unsigned int recREFR = ESM::fourCC("REFR");
-        const unsigned int recPCDT = ESM::fourCC("PCDT");
-        const unsigned int recFMAP = ESM::fourCC("FMAP");
-        const unsigned int recKLST = ESM::fourCC("KLST");
-        const unsigned int recSTLN = ESM::fourCC("STLN");
-        const unsigned int recGAME = ESM::fourCC("GAME");
-        const unsigned int recJOUR = ESM::fourCC("JOUR");
-        const unsigned int recSPLM = ESM::fourCC("SPLM");
+        const std::uint32_t recREFR = ESM::fourCC("REFR");
+        const std::uint32_t recPCDT = ESM::fourCC("PCDT");
+        const std::uint32_t recFMAP = ESM::fourCC("FMAP");
+        const std::uint32_t recKLST = ESM::fourCC("KLST");
+        const std::uint32_t recSTLN = ESM::fourCC("STLN");
+        const std::uint32_t recGAME = ESM::fourCC("GAME");
+        const std::uint32_t recJOUR = ESM::fourCC("JOUR");
+        const std::uint32_t recSPLM = ESM::fourCC("SPLM");
 
-        std::map<unsigned int, std::unique_ptr<Converter>> converters;
+        std::map<std::uint32_t, std::unique_ptr<Converter>> converters;
         converters[ESM::REC_GLOB] = std::make_unique<ConvertGlobal>();
         converters[ESM::REC_BOOK] = std::make_unique<ConvertBook>();
         converters[ESM::REC_NPC_] = std::make_unique<ConvertNPC>();
@@ -336,7 +332,7 @@ namespace ESSImport
         // - VFXM
         // - SPLM (active spell effects)
 
-        std::set<unsigned int> unknownRecords;
+        std::set<std::uint32_t> unknownRecords;
 
         for (const auto& converter : converters)
         {
@@ -441,8 +437,10 @@ namespace ESSImport
 
         writer.startRecord(ESM::REC_PLAY);
         ESM::CellId cellId = ESM::CellId::extractFromRefId(context.mPlayer.mCellId);
-        int cellX = static_cast<int>(std::floor(context.mPlayer.mObject.mPosition.pos[0] / Constants::CellSizeInUnits));
-        int cellY = static_cast<int>(std::floor(context.mPlayer.mObject.mPosition.pos[1] / Constants::CellSizeInUnits));
+        auto cellX = static_cast<std::int32_t>(
+            std::floor(context.mPlayer.mObject.mPosition.pos[0] / Constants::CellSizeInUnits));
+        auto cellY = static_cast<std::int32_t>(
+            std::floor(context.mPlayer.mObject.mPosition.pos[1] / Constants::CellSizeInUnits));
 
         context.mPlayer.mCellId = ESM::Cell::generateIdForCell(cellId.mPaged, cellId.mWorldspace, cellX, cellY);
         context.mPlayer.save(writer);

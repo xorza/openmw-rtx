@@ -1,15 +1,15 @@
 #pragma once
 
-#include <components/settings/sanitizerimpl.hpp>
-#include <components/settings/settingvalue.hpp>
+#include <cstdint>
+#include <string>
+#include <string_view>
 
 #include <osg/Math>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+#include <components/settings/sanitizerimpl.hpp>
+#include <components/settings/settingvalue.hpp>
 
 namespace Settings
 {
@@ -17,8 +17,8 @@ namespace Settings
     {
         using WithIndex::WithIndex;
 
-        SettingValue<int> mEyeResolutionX{ mIndex, "Stereo View", "eye resolution x", makeMaxSanitizerInt(1) };
-        SettingValue<int> mEyeResolutionY{ mIndex, "Stereo View", "eye resolution y", makeMaxSanitizerInt(1) };
+        SettingValue<std::int32_t> mEyeResolutionX{ mIndex, "Stereo View", "eye resolution x", makeMaxSanitizerInt(1) };
+        SettingValue<std::int32_t> mEyeResolutionY{ mIndex, "Stereo View", "eye resolution y", makeMaxSanitizerInt(1) };
         SettingValue<float> mLeftEyeOffsetX{ mIndex, "Stereo View", "left eye offset x" };
         SettingValue<float> mLeftEyeOffsetY{ mIndex, "Stereo View", "left eye offset y" };
         SettingValue<float> mLeftEyeOffsetZ{ mIndex, "Stereo View", "left eye offset z" };

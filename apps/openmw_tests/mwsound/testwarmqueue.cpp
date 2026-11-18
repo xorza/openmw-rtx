@@ -1,7 +1,3 @@
-#include "apps/openmw/mwsound/warmqueue.hpp"
-
-#include "apps/openmw/mwsound/headcache.hpp"
-
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/openmw/mwsound/headcache.hpp>
+#include <apps/openmw/mwsound/warmqueue.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -60,7 +58,7 @@ namespace MWSound
         template <class Predicate>
         bool waitFor(Predicate predicate)
         {
-            for (int i = 0; i < 500 && !predicate(); ++i)
+            for (std::int32_t i = 0; i < 500 && !predicate(); ++i)
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             return predicate();
         }

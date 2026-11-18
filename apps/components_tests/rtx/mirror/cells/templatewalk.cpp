@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
@@ -127,7 +128,7 @@ namespace Rtx::Testing
             walk.read(*root, ~hidden, model, content);
 
             ASSERT_EQ(model.mParts.size(), 3u) << "the branch that is on, the frame shown, and the near level";
-            EXPECT_EQ(model.mPositions.size(), 12u) << "three quads' corners, appended in turn";
+            EXPECT_EQ(model.mParts[2].mRuns.mVertices.getEnd(), 12u) << "three quads' corners, appended in turn";
 
             EXPECT_EQ(model.mParts[0].mDrawable, on.get());
             ASSERT_EQ(model.chainOf(model.mParts[0]).size(), 1u);
@@ -141,21 +142,26 @@ namespace Rtx::Testing
                 << "and the root's state set was in force at it";
             EXPECT_EQ(osg::Vec3f() * model.mParts[0].mLocal, osg::Vec3f(10.0f, 0.0f, 0.0f))
                 << "moved by the transform above it";
-            EXPECT_EQ(model.mParts[0].mVertices, (Rtx::Run{ .mOffset = 0, .mCount = 4 }));
+            EXPECT_EQ(model.mParts[0].mRuns.mVertices, (Rtx::Run{ .mOffset = 0, .mCount = 4 }));
 
             EXPECT_EQ(model.mParts[1].mDrawable, second.get()) << "the frame the sequence stands on, unstepped";
             ASSERT_EQ(model.chainOf(model.mParts[1]).size(), 1u);
             EXPECT_EQ(model.chainOf(model.mParts[1])[0], rootState) << "nearest last, and the root is all there is";
-            EXPECT_EQ(model.mParts[1].mVertices, (Rtx::Run{ .mOffset = 4, .mCount = 4 }));
+            EXPECT_EQ(model.mParts[1].mRuns.mVertices, (Rtx::Run{ .mOffset = 4, .mCount = 4 }));
 
             EXPECT_EQ(model.mParts[2].mDrawable, near.get());
-            EXPECT_EQ(model.mParts[0].mTangents.mCount, 0u);
-            EXPECT_EQ(model.mParts[1].mTangents.mCount, 0u);
-            EXPECT_EQ(model.mParts[2].mTangents, (Rtx::Run{ .mOffset = 0, .mCount = 4 }));
-            const MeshReading nearReading = model.readingOf(model.mParts[2]);
-            ASSERT_EQ(nearReading.mArrays.mTangents.size(), 4u);
+            EXPECT_EQ(model.mParts[0].mRuns.mTangents.mCount, 0u);
+            EXPECT_EQ(model.mParts[1].mRuns.mTangents.mCount, 0u);
+            EXPECT_EQ(model.mParts[2].mRuns.mTangents, (Rtx::Run{ .mOffset = 0, .mCount = 4 }));
+            const PackedMesh nearReading = model.readingOf(model.mParts[2]);
+            ASSERT_EQ(nearReading.mTangents.size(), 4u);
             for (std::size_t vertex = 0; vertex < 4; ++vertex)
-                EXPECT_EQ(nearReading.mArrays.mTangents[vertex], (*tangents)[vertex]) << vertex;
+            {
+                const osg::Vec4f& tangent = (*tangents)[vertex];
+                EXPECT_EQ(nearReading.mTangents[vertex],
+                    Shaders::packTangent(osg::Vec3f(tangent.x(), tangent.y(), tangent.z()), tangent.w() < 0.0f))
+                    << vertex;
+            }
 
             for (const PreparedPart& part : model.mParts)
             {
@@ -201,7 +207,7 @@ namespace Rtx::Testing
             EXPECT_TRUE(modesOf({ Default, ExteriorNight, InteriorDay, Authored }).isEvery());
             EXPECT_FALSE(modesOf({ Default, ExteriorNight, InteriorDay }).isEvery());
 
-            const auto dayNight = [](std::initializer_list<osg::Node*> children, unsigned int opensOn) {
+            const auto dayNight = [](std::initializer_list<osg::Node*> children, std::uint32_t opensOn) {
                 osg::ref_ptr<osg::Switch> branches = new osg::Switch;
                 branches->setName(Constants::NightDayLabel);
                 for (osg::Node* child : children)
@@ -306,11 +312,14 @@ namespace Rtx::Testing
                 EXPECT_EQ(model.mRefused, why);
                 ASSERT_EQ(model.mParts.size(), 1u) << "the model was refused whole";
                 EXPECT_EQ(model.mParts[0].mDrawable, kept.get());
-                EXPECT_EQ(model.mPositions.size(), 4u) << "the refused mesh left arrays behind";
+                EXPECT_EQ(model.mParts[0].mRuns.mVertices, (Rtx::Run{ .mOffset = 0, .mCount = 4 }))
+                    << "the refused mesh left arrays behind";
 
                 const osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 PreparedModel next;
                 walk.read(*quad, ~0u, next, content);
+                EXPECT_EQ(model.mStreams.getContentBytes(), next.mStreams.getContentBytes())
+                    << "the refused mesh left streams behind";
                 EXPECT_TRUE(next.mRefused.empty()) << "a refusal carried into the next model";
                 EXPECT_EQ(next.mParts.size(), 1u);
             }
@@ -324,7 +333,7 @@ namespace Rtx::Testing
         TEST(RtxTemplateWalkTest, aWalksKeysAreItsVersions)
         {
             osg::ref_ptr<osg::Image> normals = makeImage("textures/tx_rock_n.dds", 2, 2);
-            std::fill_n(normals->data(), normals->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+            std::fill_n(normals->data(), normals->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
 
             osg::ref_ptr<osg::Group> root = new osg::Group;
             osg::ref_ptr<osg::Geometry> painted = makeQuad();

@@ -1,8 +1,8 @@
 #include "textcolours.hpp"
 
-#include <MyGUI_LanguageManager.h>
-
 #include <string>
+
+#include <MyGUI_LanguageManager.h>
 
 namespace MWGui
 {

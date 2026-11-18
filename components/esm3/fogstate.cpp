@@ -1,5 +1,8 @@
 #include "fogstate.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -24,7 +27,7 @@ namespace ESM
             esm.getT(tex.mX);
             esm.getT(tex.mY);
 
-            const std::size_t imageSize = esm.getSubSize() - sizeof(int32_t) * 2;
+            const std::size_t imageSize = esm.getSubSize() - sizeof(std::int32_t) * 2;
             tex.mImageData.resize(imageSize);
             esm.getExact(tex.mImageData.data(), imageSize);
 

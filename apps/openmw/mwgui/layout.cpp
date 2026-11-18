@@ -1,5 +1,7 @@
 #include "layout.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Gui.h>
 #include <MyGUI_LayoutManager.h>
 #include <MyGUI_TextBox.h>
@@ -37,7 +39,7 @@ namespace MWGui
         mListWindowRoot.clear();
     }
 
-    void Layout::setCoord(int x, int y, int w, int h)
+    void Layout::setCoord(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
     {
         mMainWidget->setCoord(x, y, w, h);
     }

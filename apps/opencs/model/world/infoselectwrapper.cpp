@@ -1,5 +1,6 @@
 #include "infoselectwrapper.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
@@ -342,19 +343,19 @@ void CSMWorld::ConstInfoSelectWrapper::updateComparisonType()
     }
 }
 
-std::pair<int, int> CSMWorld::ConstInfoSelectWrapper::getConditionIntRange() const
+std::pair<std::int32_t, std::int32_t> CSMWorld::ConstInfoSelectWrapper::getConditionIntRange() const
 {
-    const int intMax = std::numeric_limits<int>::max();
-    const int intMin = std::numeric_limits<int>::min();
-    const std::pair<int, int> invalidRange(intMax, intMin);
+    const std::int32_t intMax = std::numeric_limits<std::int32_t>::max();
+    const std::int32_t intMin = std::numeric_limits<std::int32_t>::min();
+    const std::pair<std::int32_t, std::int32_t> invalidRange(intMax, intMin);
 
-    int value = std::get<int>(mConstSelect.mValue);
+    std::int32_t value = std::get<std::int32_t>(mConstSelect.mValue);
 
     switch (getRelationType())
     {
         case ESM::DialogueCondition::Comp_Eq:
         case ESM::DialogueCondition::Comp_Ne:
-            return std::pair<int, int>(value, value);
+            return std::pair<std::int32_t, std::int32_t>(value, value);
 
         case ESM::DialogueCondition::Comp_Gt:
             if (value == intMax)
@@ -363,12 +364,12 @@ std::pair<int, int> CSMWorld::ConstInfoSelectWrapper::getConditionIntRange() con
             }
             else
             {
-                return std::pair<int, int>(value + 1, intMax);
+                return std::pair<std::int32_t, std::int32_t>(value + 1, intMax);
             }
             break;
 
         case ESM::DialogueCondition::Comp_Ge:
-            return std::pair<int, int>(value, intMax);
+            return std::pair<std::int32_t, std::int32_t>(value, intMax);
 
         case ESM::DialogueCondition::Comp_Ls:
             if (value == intMin)
@@ -377,11 +378,11 @@ std::pair<int, int> CSMWorld::ConstInfoSelectWrapper::getConditionIntRange() con
             }
             else
             {
-                return std::pair<int, int>(intMin, value - 1);
+                return std::pair<std::int32_t, std::int32_t>(intMin, value - 1);
             }
 
         case ESM::DialogueCondition::Comp_Le:
-            return std::pair<int, int>(intMin, value);
+            return std::pair<std::int32_t, std::int32_t>(intMin, value);
 
         default:
             throw std::logic_error("InfoSelectWrapper: relation does not have a range");
@@ -419,10 +420,10 @@ std::pair<float, float> CSMWorld::ConstInfoSelectWrapper::getConditionFloatRange
     }
 }
 
-std::pair<int, int> CSMWorld::ConstInfoSelectWrapper::getValidIntRange() const
+std::pair<std::int32_t, std::int32_t> CSMWorld::ConstInfoSelectWrapper::getValidIntRange() const
 {
-    const int intMax = std::numeric_limits<int>::max();
-    const int intMin = std::numeric_limits<int>::min();
+    const std::int32_t intMax = std::numeric_limits<std::int32_t>::max();
+    const std::int32_t intMin = std::numeric_limits<std::int32_t>::min();
 
     switch (getFunctionName())
     {
@@ -446,7 +447,7 @@ std::pair<int, int> CSMWorld::ConstInfoSelectWrapper::getValidIntRange() const
         case ESM::DialogueCondition::Function_TalkedToPc:
         case ESM::DialogueCondition::Function_ShouldAttack:
         case ESM::DialogueCondition::Function_Werewolf:
-            return std::pair<int, int>(0, 1);
+            return std::pair<std::int32_t, std::int32_t>(0, 1);
 
         // Integer
         case ESM::DialogueCondition::Function_FacReactionLowest:
@@ -454,7 +455,7 @@ std::pair<int, int> CSMWorld::ConstInfoSelectWrapper::getValidIntRange() const
         case ESM::DialogueCondition::Function_Reputation:
         case ESM::DialogueCondition::Function_PcReputation:
         case ESM::DialogueCondition::Function_Journal:
-            return std::pair<int, int>(intMin, intMax);
+            return std::pair<std::int32_t, std::int32_t>(intMin, intMax);
 
         case ESM::DialogueCondition::Function_Item:
         case ESM::DialogueCondition::Function_Dead:
@@ -499,46 +500,46 @@ std::pair<int, int> CSMWorld::ConstInfoSelectWrapper::getValidIntRange() const
         case ESM::DialogueCondition::Function_PcLuck:
         case ESM::DialogueCondition::Function_Level:
         case ESM::DialogueCondition::Function_PcWerewolfKills:
-            return std::pair<int, int>(0, intMax);
+            return std::pair<std::int32_t, std::int32_t>(0, intMax);
 
         case ESM::DialogueCondition::Function_Fight:
         case ESM::DialogueCondition::Function_Hello:
         case ESM::DialogueCondition::Function_Alarm:
         case ESM::DialogueCondition::Function_Flee:
-            return std::pair<int, int>(0, 100);
+            return std::pair<std::int32_t, std::int32_t>(0, 100);
 
         case ESM::DialogueCondition::Function_Weather:
-            return std::pair<int, int>(0, 9);
+            return std::pair<std::int32_t, std::int32_t>(0, 9);
 
         case ESM::DialogueCondition::Function_FriendHit:
-            return std::pair<int, int>(0, 4);
+            return std::pair<std::int32_t, std::int32_t>(0, 4);
 
         case ESM::DialogueCondition::Function_RankRequirement:
-            return std::pair<int, int>(0, 3);
+            return std::pair<std::int32_t, std::int32_t>(0, 3);
 
         case ESM::DialogueCondition::Function_CreatureTarget:
-            return std::pair<int, int>(0, 2);
+            return std::pair<std::int32_t, std::int32_t>(0, 2);
 
         case ESM::DialogueCondition::Function_PcGender:
-            return std::pair<int, int>(0, 1);
+            return std::pair<std::int32_t, std::int32_t>(0, 1);
 
         case ESM::DialogueCondition::Function_FactionRankDifference:
-            return std::pair<int, int>(-9, 9);
+            return std::pair<std::int32_t, std::int32_t>(-9, 9);
 
         // Numeric
         case ESM::DialogueCondition::Function_Global:
         case ESM::DialogueCondition::Function_Local:
         case ESM::DialogueCondition::Function_NotLocal:
-            return std::pair<int, int>(intMin, intMax);
+            return std::pair<std::int32_t, std::int32_t>(intMin, intMax);
 
         case ESM::DialogueCondition::Function_PcMagicka:
         case ESM::DialogueCondition::Function_PcFatigue:
         case ESM::DialogueCondition::Function_PcHealth:
-            return std::pair<int, int>(0, intMax);
+            return std::pair<std::int32_t, std::int32_t>(0, intMax);
 
         case ESM::DialogueCondition::Function_Health_Percent:
         case ESM::DialogueCondition::Function_PcHealthPercent:
-            return std::pair<int, int>(0, 100);
+            return std::pair<std::int32_t, std::int32_t>(0, 100);
 
         default:
             throw std::runtime_error("InfoSelectWrapper: function does not exist");
@@ -678,7 +679,7 @@ void CSMWorld::InfoSelectWrapper::setFunctionName(ESM::DialogueCondition::Functi
     if (getComparisonType() != ConstInfoSelectWrapper::Comparison_Numeric
         && std::holds_alternative<float>(mSelect.mValue))
     {
-        mSelect.mValue = std::visit([](auto value) { return static_cast<int>(value); }, mSelect.mValue);
+        mSelect.mValue = std::visit([](auto value) { return static_cast<std::int32_t>(value); }, mSelect.mValue);
     }
 }
 
@@ -692,7 +693,7 @@ void CSMWorld::InfoSelectWrapper::setVariableName(const std::string& name)
     mSelect.mVariable = name;
 }
 
-void CSMWorld::InfoSelectWrapper::setValue(int value)
+void CSMWorld::InfoSelectWrapper::setValue(std::int32_t value)
 {
     mSelect.mValue = value;
 }

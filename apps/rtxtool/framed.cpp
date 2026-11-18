@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <stdexcept>
@@ -62,7 +63,7 @@ namespace RtxTool
     }
 
     template float ShippedDefaults::get<float>(const Settings::SettingValue<float>&) const;
-    template int ShippedDefaults::get<int>(const Settings::SettingValue<int>&) const;
+    template std::int32_t ShippedDefaults::get<std::int32_t>(const Settings::SettingValue<std::int32_t>&) const;
     template bool ShippedDefaults::get<bool>(const Settings::SettingValue<bool>&) const;
     template std::string ShippedDefaults::get<std::string>(const Settings::SettingValue<std::string>&) const;
 
@@ -73,7 +74,7 @@ namespace RtxTool
             .mUpscale = line.mUpscale.mValue,
             .mUpscaler = line.mUpscaler.mValue,
             .mIndirectLighting = sampling.mIndirect,
-            .mBounceRays = static_cast<int>(sampling.mBounceRays),
+            .mBounceRays = static_cast<std::int32_t>(sampling.mBounceRays),
             .mDistantLandCells = shipped.get(Settings::rtx().mDistantLandCells),
             .mViewingDistance = shipped.get(Settings::camera().mViewingDistance),
             .mObjectPaging = shipped.get(Settings::terrain().mObjectPaging),
@@ -110,19 +111,21 @@ namespace RtxTool
     {
         const Settings::CellsCategory& cells = Settings::cells();
         const float faster = speed / sPlayerRunSpeed;
-        const int threads
-            = static_cast<int>(std::ceil(static_cast<float>(shipped.get(cells.mPreloadNumThreads)) * faster));
+        const auto threads
+            = static_cast<std::int32_t>(std::ceil(static_cast<float>(shipped.get(cells.mPreloadNumThreads)) * faster));
         // No more than the ring around the active grid holds cells, (2r + 3)² - (2r + 1)², which is the most the
         // preloader has to load at once on a flight, nor than the processor spares beside the frame's thread.
-        constexpr int sRing = (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3)
+        constexpr std::int32_t sRing = (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3)
             - (2 * Constants::CellGridRadius + 1) * (2 * Constants::CellGridRadius + 1);
-        const int processors = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1);
+        const std::int32_t processors = std::max(1, static_cast<std::int32_t>(std::thread::hardware_concurrency()) - 1);
         // What the preloader may hold at once: the grid and its ring around the centre the player stands at and
         // around the one the flight is predicted to reach, (2r + 3)² each, 50 at a radius of one; past the 43 and 44
         // the game asked for under the three contents' tours, a door's surroundings among them.
-        constexpr int sCacheTheGameAsksFor
+        constexpr std::int32_t sCacheTheGameAsksFor
             = 2 * (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3);
-        return CellPreload{ .mDistance = shipped.get(cells.mPreloadDistance) * faster,
+        // The doors' reach the shipped one, as a player's: scaled with the flight, it followed every door of the active
+        // grid and loaded every destination's references for good (`.notes/ISSUES.md`).
+        return CellPreload{ .mDistance = shipped.get(cells.mPreloadDistance),
             .mThreads = std::clamp(threads, 1, std::min(sRing, processors)),
             // The least kept stays the shipped file's, so what expired makes room: a cache held full at its most
             // asked for more on every door, 58 against 50.
@@ -146,7 +149,7 @@ namespace RtxTool
         if (line.mBouncesNamed.mIndirect)
             source.mIndirectLighting = sampling.mIndirect;
         if (line.mBouncesNamed.mBounceRays)
-            source.mBounceRays = static_cast<int>(sampling.mBounceRays);
+            source.mBounceRays = static_cast<std::int32_t>(sampling.mBounceRays);
         take(source.mGroundcover, line.mGrass);
         take(source.mDistantLandCells, line.mDistantCells);
         take(source.mObjectPaging, line.mDistantStatics);
@@ -162,8 +165,8 @@ namespace RtxTool
     void WindowRequest::writeSettings() const
     {
         // The frame at the window's size, which the run states in pixels (`RunSetup::mWindowPixels`).
-        Settings::video().mResolutionX.set(static_cast<int>(mWidth));
-        Settings::video().mResolutionY.set(static_cast<int>(mHeight));
+        Settings::video().mResolutionX.set(static_cast<std::int32_t>(mWidth));
+        Settings::video().mResolutionY.set(static_cast<std::int32_t>(mHeight));
         Settings::video().mWindowMode.set(Settings::WindowMode::Windowed);
         // **Never the player's vertical sync**: on a display with a fixed refresh it holds each frame
         // to whole refreshes, a mix of one, two and three wherever the frame falls between them, and

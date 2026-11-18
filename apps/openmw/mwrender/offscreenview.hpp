@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/Vec4f>
@@ -34,14 +36,14 @@ namespace MWRender
         osg::Node& mScene;
 
         /// The image, in pixels. `setExtent` may go on to fill less of it than this.
-        int mWidth = 0;
-        int mHeight = 0;
+        std::int32_t mWidth = 0;
+        std::int32_t mHeight = 0;
 
         /// Only the nodes these bits select (`MWRender::VisMask`): an inclusion mask AND-ed at
         /// every node, so a category left out is dropped wherever it appears below. The rasterizer
         /// puts it on the camera's cull mask; a ray tracer masks the walk of a subject with it and
         /// hands every picture the classes its rays meet (`describeView`).
-        unsigned int mMask = ~0u;
+        std::uint32_t mMask = ~0u;
 
         SceneUtil::Framing mFraming{};
 
@@ -106,7 +108,7 @@ namespace MWRender
         /// Fill only this much of the image and leave the rest at the clear colour: the inventory
         /// doll, whose window resizes while the texture behind it does not. A description like
         /// `setView`, which the next `redraw()` acts on, so both renderers repaint at the same call.
-        virtual void setExtent(int width, int height) = 0;
+        virtual void setExtent(std::int32_t width, std::int32_t height) = 0;
 
         /// The subtree is not the same subtree any more — geometry added, removed or replaced,
         /// rather than moved. What that costs is the renderer's business; a pose change is not it.

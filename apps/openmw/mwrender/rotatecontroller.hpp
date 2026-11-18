@@ -1,7 +1,8 @@
 #pragma once
 
-#include <components/sceneutil/nodecallback.hpp>
 #include <osg/Quat>
+
+#include <components/sceneutil/nodecallback.hpp>
 
 namespace osg
 {

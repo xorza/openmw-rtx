@@ -1,3 +1,6 @@
+#include "projectile.hpp"
+
+#include <cstdint>
 #include <memory>
 
 #include <BulletCollision/CollisionShapes/btSphereShape.h>
@@ -8,7 +11,6 @@
 #include "collisiontype.hpp"
 #include "mtphysics.hpp"
 #include "object.hpp"
-#include "projectile.hpp"
 
 namespace MWPhysics
 {
@@ -35,7 +37,7 @@ namespace MWPhysics
         mSimulationPosition = position;
         setCaster(caster);
 
-        const int collisionMask = CollisionType_World | CollisionType_HeightMap | CollisionType_Actor
+        const std::int32_t collisionMask = CollisionType_World | CollisionType_HeightMap | CollisionType_Actor
             | CollisionType_Door | CollisionType_Water | CollisionType_Projectile;
         mTaskScheduler->addCollisionObject(mCollisionObject.get(), CollisionType_Projectile, collisionMask);
 

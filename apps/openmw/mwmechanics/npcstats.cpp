@@ -2,18 +2,18 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <format>
+#include <utility>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/npcstats.hpp>
-#include <utility>
-
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 MWMechanics::NpcStats::NpcStats()
     : mDisposition(0)
@@ -31,27 +31,27 @@ MWMechanics::NpcStats::NpcStats()
         mSkills.emplace(skill.mId, SkillValue{});
 }
 
-int MWMechanics::NpcStats::getBaseDisposition() const
+std::int32_t MWMechanics::NpcStats::getBaseDisposition() const
 {
     return mDisposition;
 }
 
-void MWMechanics::NpcStats::setBaseDisposition(int disposition)
+void MWMechanics::NpcStats::setBaseDisposition(std::int32_t disposition)
 {
     mDisposition = disposition;
 }
 
-int MWMechanics::NpcStats::getCrimeDispositionModifier() const
+std::int32_t MWMechanics::NpcStats::getCrimeDispositionModifier() const
 {
     return mCrimeDispositionModifier;
 }
 
-void MWMechanics::NpcStats::setCrimeDispositionModifier(int value)
+void MWMechanics::NpcStats::setCrimeDispositionModifier(std::int32_t value)
 {
     mCrimeDispositionModifier = value;
 }
 
-void MWMechanics::NpcStats::modCrimeDispositionModifier(int value)
+void MWMechanics::NpcStats::modCrimeDispositionModifier(std::int32_t value)
 {
     mCrimeDispositionModifier += value;
 }
@@ -80,12 +80,12 @@ void MWMechanics::NpcStats::setSkill(ESM::RefId id, const MWMechanics::SkillValu
     it->second = value;
 }
 
-const std::map<ESM::RefId, int>& MWMechanics::NpcStats::getFactionRanks() const
+const std::map<ESM::RefId, std::int32_t>& MWMechanics::NpcStats::getFactionRanks() const
 {
     return mFactionRank;
 }
 
-int MWMechanics::NpcStats::getFactionRank(const ESM::RefId& faction) const
+std::int32_t MWMechanics::NpcStats::getFactionRank(const ESM::RefId& faction) const
 {
     auto it = mFactionRank.find(faction);
     if (it != mFactionRank.end())
@@ -101,7 +101,7 @@ void MWMechanics::NpcStats::joinFaction(const ESM::RefId& faction)
         mFactionRank[faction] = 0;
 }
 
-void MWMechanics::NpcStats::setFactionRank(const ESM::RefId& faction, int newRank)
+void MWMechanics::NpcStats::setFactionRank(const ESM::RefId& faction, std::int32_t newRank)
 {
     auto it = mFactionRank.find(faction);
     if (it != mFactionRank.end())
@@ -151,7 +151,7 @@ bool MWMechanics::NpcStats::isInFaction(const ESM::RefId& faction) const
     return (mFactionRank.contains(faction));
 }
 
-int MWMechanics::NpcStats::getFactionReputation(const ESM::RefId& faction) const
+std::int32_t MWMechanics::NpcStats::getFactionReputation(const ESM::RefId& faction) const
 {
     auto iter = mFactionReputation.find(faction);
 
@@ -161,7 +161,7 @@ int MWMechanics::NpcStats::getFactionReputation(const ESM::RefId& faction) const
     return iter->second;
 }
 
-void MWMechanics::NpcStats::setFactionReputation(const ESM::RefId& faction, int value)
+void MWMechanics::NpcStats::setFactionReputation(const ESM::RefId& faction, std::int32_t value)
 {
     mFactionReputation[faction] = value;
 }
@@ -213,12 +213,12 @@ float MWMechanics::NpcStats::getSkillProgressRequirement(ESM::RefId id, const ES
     return progressRequirement;
 }
 
-int MWMechanics::NpcStats::getLevelProgress() const
+std::int32_t MWMechanics::NpcStats::getLevelProgress() const
 {
     return mLevelProgress;
 }
 
-void MWMechanics::NpcStats::setLevelProgress(int progress)
+void MWMechanics::NpcStats::setLevelProgress(std::int32_t progress)
 {
     mLevelProgress = progress;
 }
@@ -255,12 +255,12 @@ void MWMechanics::NpcStats::updateHealth()
     setHealth(std::floor(0.5f * (strength + endurance)));
 }
 
-int MWMechanics::NpcStats::getLevelupAttributeMultiplier(ESM::RefId attribute) const
+std::int32_t MWMechanics::NpcStats::getLevelupAttributeMultiplier(ESM::RefId attribute) const
 {
     const auto it = mSkillIncreases.find(attribute);
     if (it == mSkillIncreases.end())
         return 1;
-    const int num = std::clamp(it->second, 0, 10);
+    const std::int32_t num = std::clamp(it->second, 0, 10);
     if (num == 0)
         return 1;
 
@@ -272,7 +272,7 @@ int MWMechanics::NpcStats::getLevelupAttributeMultiplier(ESM::RefId attribute) c
     return 1;
 }
 
-int MWMechanics::NpcStats::getSkillIncreasesForAttribute(ESM::RefId attribute) const
+std::int32_t MWMechanics::NpcStats::getSkillIncreasesForAttribute(ESM::RefId attribute) const
 {
     auto it = mSkillIncreases.find(attribute);
     if (it == mSkillIncreases.end())
@@ -280,7 +280,7 @@ int MWMechanics::NpcStats::getSkillIncreasesForAttribute(ESM::RefId attribute) c
     return it->second;
 }
 
-void MWMechanics::NpcStats::setSkillIncreasesForAttribute(ESM::RefId attribute, int increases)
+void MWMechanics::NpcStats::setSkillIncreasesForAttribute(ESM::RefId attribute, std::int32_t increases)
 {
     if (increases == 0)
         mSkillIncreases.erase(attribute);
@@ -288,12 +288,12 @@ void MWMechanics::NpcStats::setSkillIncreasesForAttribute(ESM::RefId attribute, 
         mSkillIncreases[attribute] = increases;
 }
 
-int MWMechanics::NpcStats::getSkillIncreasesForSpecialization(ESM::Class::Specialization spec) const
+std::int32_t MWMechanics::NpcStats::getSkillIncreasesForSpecialization(ESM::Class::Specialization spec) const
 {
     return mSpecIncreases[spec];
 }
 
-void MWMechanics::NpcStats::setSkillIncreasesForSpecialization(ESM::Class::Specialization spec, int increases)
+void MWMechanics::NpcStats::setSkillIncreasesForSpecialization(ESM::Class::Specialization spec, std::int32_t increases)
 {
     assert(spec >= 0 && spec < 3);
     mSpecIncreases[spec] = increases;
@@ -309,49 +309,49 @@ bool MWMechanics::NpcStats::hasBeenUsed(const ESM::RefId& id) const
     return mUsedIds.contains(id);
 }
 
-int MWMechanics::NpcStats::getBounty() const
+std::int32_t MWMechanics::NpcStats::getBounty() const
 {
     return mBounty;
 }
 
-void MWMechanics::NpcStats::setBounty(int bounty)
+void MWMechanics::NpcStats::setBounty(std::int32_t bounty)
 {
     mBounty = bounty;
 }
 
-int MWMechanics::NpcStats::getReputation() const
+std::int32_t MWMechanics::NpcStats::getReputation() const
 {
     return mReputation;
 }
 
-void MWMechanics::NpcStats::setReputation(int reputation)
+void MWMechanics::NpcStats::setReputation(std::int32_t reputation)
 {
     // Reputation is capped in original engine
     mReputation = std::clamp(reputation, 0, 255);
 }
 
-int MWMechanics::NpcStats::getCrimeId() const
+std::int32_t MWMechanics::NpcStats::getCrimeId() const
 {
     return mCrimeId;
 }
 
-void MWMechanics::NpcStats::setCrimeId(int id)
+void MWMechanics::NpcStats::setCrimeId(std::int32_t id)
 {
     mCrimeId = id;
 }
 
-bool MWMechanics::NpcStats::hasSkillsForRank(const ESM::RefId& factionId, int rank) const
+bool MWMechanics::NpcStats::hasSkillsForRank(const ESM::RefId& factionId, std::int32_t rank) const
 {
     const ESM::Faction& faction = *MWBase::Environment::get().getESMStore()->get<ESM::Faction>().find(factionId);
 
     const ESM::RankData& rankData = faction.mData.mRankData.at(static_cast<std::size_t>(rank));
 
-    std::vector<int> skills;
+    std::vector<std::int32_t> skills;
 
     for (const ESM::RefId& id : faction.mData.mSkills)
     {
         if (!id.empty())
-            skills.push_back(static_cast<int>(getSkill(id).getBase()));
+            skills.push_back(static_cast<std::int32_t>(getSkill(id).getBase()));
     }
 
     if (skills.empty())
@@ -398,7 +398,7 @@ void MWMechanics::NpcStats::setWerewolf(bool set)
     mIsWerewolf = set;
 }
 
-int MWMechanics::NpcStats::getWerewolfKills() const
+std::int32_t MWMechanics::NpcStats::getWerewolfKills() const
 {
     return mWerewolfKills;
 }
@@ -452,7 +452,7 @@ void MWMechanics::NpcStats::writeState(ESM::NpcStats& state) const
 
     state.mSkillIncrease = mSkillIncreases;
 
-    for (size_t i = 0; i < state.mSpecIncreases.size(); ++i)
+    for (std::size_t i = 0; i < state.mSpecIncreases.size(); ++i)
         state.mSpecIncreases[i] = mSpecIncreases[i];
 
     std::copy(mUsedIds.begin(), mUsedIds.end(), std::back_inserter(state.mUsedIds));
@@ -497,7 +497,7 @@ void MWMechanics::NpcStats::readState(const ESM::NpcStats& state)
 
     mSkillIncreases = state.mSkillIncrease;
 
-    for (size_t i = 0; i < state.mSpecIncreases.size(); ++i)
+    for (std::size_t i = 0; i < state.mSpecIncreases.size(); ++i)
         mSpecIncreases[i] = state.mSpecIncreases[i];
 
     for (auto usedId : state.mUsedIds)

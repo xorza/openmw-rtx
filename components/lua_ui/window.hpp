@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include "text.hpp"
@@ -27,7 +28,7 @@ namespace LuaUi
         const std::vector<std::string_view>& allUsedProperties() const override;
 
     protected:
-        void notifyMousePress(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void notifyMouseDrag(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
+        void notifyMousePress(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void notifyMouseDrag(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
     };
 }

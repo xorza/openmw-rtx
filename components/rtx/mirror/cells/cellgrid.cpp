@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace Rtx
 {
@@ -15,8 +16,8 @@ namespace Rtx
 
     osg::Vec2i CellGrid::cellOf(const osg::Vec3f& position) const
     {
-        return osg::Vec2i(static_cast<int>(std::floor(position.x() / mCellSize)),
-            static_cast<int>(std::floor(position.y() / mCellSize)));
+        return osg::Vec2i(static_cast<std::int32_t>(std::floor(position.x() / mCellSize)),
+            static_cast<std::int32_t>(std::floor(position.y() / mCellSize)));
     }
 
     bool CellGrid::withinReach(const osg::Vec2i& cell, const osg::Vec3f& eye, const float radius) const

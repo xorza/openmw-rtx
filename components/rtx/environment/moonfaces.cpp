@@ -37,7 +37,7 @@ namespace Rtx
     }
 
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
-        ThreadContent& thread, std::vector<TextureHold>& holds)
+        ThreadContent& thread, std::vector<ReadingHold>& holds)
     {
         // A moon of a size that is no size is refused and not drawn.
         const auto drawnWidth = [&](Moon moon, float size) {
@@ -68,9 +68,9 @@ namespace Rtx
                 scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
                 continue;
             }
-            TextureHold held = takeSkySheet(scene, path, *image.value(), TextureWrap::Clamp);
+            ReadingHold held = takeSkySheet(scene, path, *image.value(), TextureWrap::Clamp);
             face.mSlot = held.get();
-            if (face.mSlot == sNoIndex)
+            if (face.mSlot == sNoRow)
                 continue;
 
             holds.push_back(std::move(held));

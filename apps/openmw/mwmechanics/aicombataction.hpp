@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace MWMechanics
 {

@@ -1,9 +1,12 @@
 #include "linuxtext.hpp"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstddef>
+#include <cstdint>
 #include <system_error>
+#include <utility>
 
 namespace Platform::LinuxText
 {
@@ -122,9 +125,76 @@ namespace Platform::LinuxText
         return std::nullopt;
     }
 
+    std::optional<DriverClient> driverClient(std::string_view fdinfo)
+    {
+        bool client = false;
+        std::optional<std::uint64_t> id;
+        Process::DriverMemory held;
+        // Named, as MSVC reads a pointer to a member spelled inside a template's arguments as a qualified name.
+        using Field = std::uint64_t Process::DriverMemory::*;
+        const std::array<std::pair<std::string_view, Field>, 5> fields{ {
+            { "drm-total-vram:", &Process::DriverMemory::mTotalVram },
+            { "drm-resident-vram:", &Process::DriverMemory::mResidentVram },
+            { "drm-total-gtt:", &Process::DriverMemory::mTotalGtt },
+            { "drm-resident-gtt:", &Process::DriverMemory::mResidentGtt },
+            { "drm-resident-cpu:", &Process::DriverMemory::mResidentCpu },
+        } };
+        const auto valueOf = [](std::string_view line, const std::string_view name) {
+            line.remove_prefix(name.size());
+            line.remove_prefix(std::min(line.find_first_not_of(" \t"), line.size()));
+            return line;
+        };
+        for (std::string_view rest = fdinfo; !rest.empty();)
+        {
+            const std::size_t end = rest.find('\n');
+            const std::string_view line = rest.substr(0, end);
+            rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+            client = client || line.starts_with("drm-driver:");
+            if (constexpr std::string_view name = "drm-client-id:"; line.starts_with(name))
+            {
+                const std::string_view value = valueOf(line, name);
+                std::uint64_t number = 0;
+                const std::from_chars_result read = std::from_chars(value.data(), value.data() + value.size(), number);
+                if (read.ec != std::errc{} || read.ptr != value.data() + value.size())
+                    return std::nullopt;
+                id = number;
+            }
+            for (const auto& [name, field] : fields)
+            {
+                if (!line.starts_with(name))
+                    continue;
+                const std::string_view value = valueOf(line, name);
+                std::uint64_t size = 0;
+                const std::from_chars_result read = std::from_chars(value.data(), value.data() + value.size(), size);
+                const std::string_view unit(read.ptr, value.data() + value.size());
+                if (read.ec != std::errc{})
+                    return std::nullopt;
+                if (unit == " KiB")
+                    size *= 1024;
+                else if (unit == " MiB")
+                    size *= 1024 * 1024;
+                else if (!unit.empty())
+                    return std::nullopt;
+                held.*field = size;
+            }
+        }
+        if (!client || !id.has_value())
+            return std::nullopt;
+        return DriverClient{ .mId = *id, .mMemory = held };
+    }
+
     std::optional<std::uint64_t> availableMemory(std::string_view meminfo)
     {
         return kilobytesField(meminfo, "MemAvailable:");
+    }
+
+    std::optional<std::uint64_t> availableToProcess(std::string_view meminfo, std::string_view status)
+    {
+        const std::optional<std::uint64_t> available = availableMemory(meminfo);
+        if (!available.has_value())
+            return std::nullopt;
+        const std::uint64_t swapped = kilobytesField(status, "VmSwap:").value_or(0);
+        return *available - std::min(*available, swapped);
     }
 
     std::optional<Process::AnonymousMemory> anonymousMemory(std::string_view status)
@@ -133,7 +203,7 @@ namespace Platform::LinuxText
         const std::optional<std::uint64_t> swapped = kilobytesField(status, "VmSwap:");
         if (!resident.has_value() || !swapped.has_value())
             return std::nullopt;
-        return Process::AnonymousMemory{ .mResident = *resident, .mSwapped = *swapped };
+        return Process::AnonymousMemory{ .mResident = *resident, .mNotResident = *swapped };
     }
 
     std::optional<std::string_view> unifiedCgroup(std::string_view cgroup)

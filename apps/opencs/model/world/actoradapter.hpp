@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -34,7 +35,7 @@ namespace CSMWorld
         Q_OBJECT
     public:
         /// A list indexed by ESM::PartReferenceType
-        using ActorPartList = std::map<ESM::PartReferenceType, std::pair<ESM::RefId, int>>;
+        using ActorPartList = std::map<ESM::PartReferenceType, std::pair<ESM::RefId, std::int32_t>>;
         /// A list indexed by ESM::BodyPart::MeshPart
         using RacePartList = std::array<ESM::RefId, ESM::BodyPart::MP_Count>;
         /// Tracks unique strings
@@ -111,7 +112,7 @@ namespace CSMWorld
             bool hasDependency(const ESM::RefId& id) const;
 
             /// Sets the actor part used and marks a dependency
-            void setPart(ESM::PartReferenceType partIndex, const ESM::RefId& partId, int priority);
+            void setPart(ESM::PartReferenceType partIndex, const ESM::RefId& partId, std::int32_t priority);
             /// Marks an additional dependency for the actor
             void addOtherDependency(const ESM::RefId& id);
             /// Clears race, parts, and dependencies
@@ -143,20 +144,20 @@ namespace CSMWorld
 
     public slots:
 
-        void handleReferenceablesInserted(const QModelIndex&, int, int);
+        void handleReferenceablesInserted(const QModelIndex&, std::int32_t, std::int32_t);
         void handleReferenceableChanged(const QModelIndex&, const QModelIndex&);
-        void handleReferenceablesAboutToBeRemoved(const QModelIndex&, int, int);
-        void handleReferenceablesRemoved(const QModelIndex&, int, int);
+        void handleReferenceablesAboutToBeRemoved(const QModelIndex&, std::int32_t, std::int32_t);
+        void handleReferenceablesRemoved(const QModelIndex&, std::int32_t, std::int32_t);
 
-        void handleRacesInserted(const QModelIndex&, int, int);
+        void handleRacesInserted(const QModelIndex&, std::int32_t, std::int32_t);
         void handleRaceChanged(const QModelIndex&, const QModelIndex&);
-        void handleRacesAboutToBeRemoved(const QModelIndex&, int, int);
-        void handleRacesRemoved(const QModelIndex&, int, int);
+        void handleRacesAboutToBeRemoved(const QModelIndex&, std::int32_t, std::int32_t);
+        void handleRacesRemoved(const QModelIndex&, std::int32_t, std::int32_t);
 
-        void handleBodyPartsInserted(const QModelIndex&, int, int);
+        void handleBodyPartsInserted(const QModelIndex&, std::int32_t, std::int32_t);
         void handleBodyPartChanged(const QModelIndex&, const QModelIndex&);
-        void handleBodyPartsAboutToBeRemoved(const QModelIndex&, int, int);
-        void handleBodyPartsRemoved(const QModelIndex&, int, int);
+        void handleBodyPartsAboutToBeRemoved(const QModelIndex&, std::int32_t, std::int32_t);
+        void handleBodyPartsRemoved(const QModelIndex&, std::int32_t, std::int32_t);
 
     private:
         QModelIndex getHighestIndex(QModelIndex) const;

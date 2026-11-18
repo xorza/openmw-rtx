@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <limits>
@@ -16,13 +17,25 @@
 #include <vector>
 
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
-
 #include <LinearMath/btTransform.h>
 #include <osg/Vec2f>
 #include <osg/Vec4i>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/actor.hpp>
 #include <apps/openmw/mwphysics/collisiontype.hpp>
+#include <apps/openmw/mwphysics/heightfield.hpp>
+#include <apps/openmw/mwphysics/object.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwrender/camera.hpp>
+#include <apps/openmw/mwrender/landmanager.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
@@ -52,24 +65,7 @@
 #include <components/terrain/terraingrid.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwrender/camera.hpp"
-#include "../mwrender/landmanager.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
-#include "../mwphysics/actor.hpp"
-#include "../mwphysics/heightfield.hpp"
-#include "../mwphysics/object.hpp"
-#include "../mwphysics/physicssystem.hpp"
-
-#include "../mwworld/actionteleport.hpp"
-
+#include "actionteleport.hpp"
 #include "cellpreloader.hpp"
 #include "cellreflist.hpp"
 #include "cellstore.hpp"
@@ -136,7 +132,7 @@ namespace
 
     // Null node meant to distinguish objects that aren't in the scene from paged objects
     // TODO: find a more clever way to make paging exclusion more reliable?
-    static osg::ref_ptr<SceneUtil::PositionAttitudeTransform> pagedNode = new SceneUtil::PositionAttitudeTransform;
+    osg::ref_ptr<SceneUtil::PositionAttitudeTransform> pagedNode = new SceneUtil::PositionAttitudeTransform;
 
     void addObject(const MWWorld::Ptr& ptr, const MWWorld::World& world, const std::vector<ESM::RefNum>& pagedRefs,
         MWPhysics::PhysicsSystem& physics, MWRender::RenderingManager& rendering)
@@ -291,7 +287,7 @@ namespace
         }
     }
 
-    int getCellPositionDistanceToOrigin(const std::pair<int, int>& cellPosition)
+    std::int32_t getCellPositionDistanceToOrigin(const std::pair<std::int32_t, std::int32_t>& cellPosition)
     {
         return std::abs(cellPosition.first) + std::abs(cellPosition.second);
     }
@@ -317,26 +313,28 @@ namespace
     }
 
     template <class Function>
-    void iterateOverCellsAround(int cellX, int cellY, int range, Function&& f)
+    void iterateOverCellsAround(std::int32_t cellX, std::int32_t cellY, std::int32_t range, Function&& f)
     {
-        for (int x = cellX - range, lastX = cellX + range; x <= lastX; ++x)
-            for (int y = cellY - range, lastY = cellY + range; y <= lastY; ++y)
+        for (std::int32_t x = cellX - range, lastX = cellX + range; x <= lastX; ++x)
+            for (std::int32_t y = cellY - range, lastY = cellY + range; y <= lastY; ++y)
                 f(x, y);
     }
 
-    void sortCellsToLoad(int centerX, int centerY, std::vector<std::pair<int, int>>& cells)
+    void sortCellsToLoad(
+        std::int32_t centerX, std::int32_t centerY, std::vector<std::pair<std::int32_t, std::int32_t>>& cells)
     {
-        const auto getDistanceToPlayerCell = [&](const std::pair<int, int>& cellPosition) {
+        const auto getDistanceToPlayerCell = [&](const std::pair<std::int32_t, std::int32_t>& cellPosition) {
             return std::abs(cellPosition.first - centerX) + std::abs(cellPosition.second - centerY);
         };
 
-        const auto getCellPositionPriority = [&](const std::pair<int, int>& cellPosition) {
+        const auto getCellPositionPriority = [&](const std::pair<std::int32_t, std::int32_t>& cellPosition) {
             return std::make_pair(getDistanceToPlayerCell(cellPosition), getCellPositionDistanceToOrigin(cellPosition));
         };
 
-        std::sort(cells.begin(), cells.end(), [&](const std::pair<int, int>& lhs, const std::pair<int, int>& rhs) {
-            return getCellPositionPriority(lhs) < getCellPositionPriority(rhs);
-        });
+        std::sort(cells.begin(), cells.end(),
+            [&](const std::pair<std::int32_t, std::int32_t>& lhs, const std::pair<std::int32_t, std::int32_t>& rhs) {
+                return getCellPositionPriority(lhs) < getCellPositionPriority(rhs);
+            });
     }
 }
 
@@ -467,8 +465,8 @@ namespace MWWorld
 
         Log(Debug::Info) << "Loading cell " << cell.getCell()->getDescription();
 
-        const int cellX = cell.getCell()->getGridX();
-        const int cellY = cell.getCell()->getGridY();
+        const std::int32_t cellX = cell.getCell()->getGridX();
+        const std::int32_t cellY = cell.getCell()->getGridY();
         const MWWorld::Cell& cellVariant = *cell.getCell();
         ESM::RefId worldspace = cellVariant.getWorldSpace();
         ESM::ExteriorCellLocation cellIndex(cellX, cellY, worldspace);
@@ -477,8 +475,8 @@ namespace MWWorld
         {
             std::shared_ptr<const ESMTerrain::LandObject> land = mRendering.getLandManager()->getLand(cellIndex);
             const ESM::LandData* data = land ? land->getData(ESM::Land::DATA_VHGT) : nullptr;
-            const int verts = ESM::getLandSize(worldspace);
-            const int worldsize = ESM::getCellSize(worldspace);
+            const std::int32_t verts = ESM::getLandSize(worldspace);
+            const std::int32_t worldsize = ESM::getCellSize(worldspace);
 
             if (data)
             {
@@ -551,8 +549,8 @@ namespace MWWorld
             }
             else
             {
-                mNavigator.addWater(
-                    osg::Vec2i(cellX, cellY), std::numeric_limits<int>::max(), waterLevel, navigatorUpdateGuard);
+                mNavigator.addWater(osg::Vec2i(cellX, cellY), std::numeric_limits<std::int32_t>::max(), waterLevel,
+                    navigatorUpdateGuard);
             }
         }
         else
@@ -591,7 +589,7 @@ namespace MWWorld
             const osg::Vec2f center = ESM::indexToPosition(
                 ESM::ExteriorCellLocation(currentGridCenter->x(), currentGridCenter->y(), worldspace), true);
             float distance = std::max(std::abs(center.x() - pos.x()), std::abs(center.y() - pos.y()));
-            int cellSize = ESM::getCellSize(worldspace);
+            std::int32_t cellSize = ESM::getCellSize(worldspace);
             const float maxDistance
                 // A whole-number division on purpose.
                 // NOLINTNEXTLINE(bugprone-integer-division)
@@ -650,11 +648,11 @@ namespace MWWorld
     {
         // What a crash while the cells around the player load names.
         const Crash::NoteScope noted("moving to the exterior cell {}, {}", playerCellIndex.mX, playerCellIndex.mY);
-        const int halfGridSize
+        const std::int32_t halfGridSize
             = isEsm4Ext(playerCellIndex.mWorldspace) ? Constants::ESM4CellGridRadius : Constants::CellGridRadius;
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
-        const int playerCellX = playerCellIndex.mX;
-        const int playerCellY = playerCellIndex.mY;
+        const std::int32_t playerCellX = playerCellIndex.mX;
+        const std::int32_t playerCellY = playerCellIndex.mY;
 
         // Over a copy, as an unload takes the cell out of the list.
         for (CellStore* cell : CellStoreCollection(mActiveCells))
@@ -696,8 +694,8 @@ namespace MWWorld
         addPostponedPhysicsObjects(navigatorUpdateGuard.get());
 
         std::size_t refsToLoad = 0;
-        std::vector<std::pair<int, int>> cellsPositionsToLoad;
-        iterateOverCellsAround(playerCellX, playerCellY, mHalfGridSize, [&](int x, int y) {
+        std::vector<std::pair<std::int32_t, std::int32_t>> cellsPositionsToLoad;
+        iterateOverCellsAround(playerCellX, playerCellY, mHalfGridSize, [&](std::int32_t x, std::int32_t y) {
             const ESM::ExteriorCellLocation location(x, y, playerCellIndex.mWorldspace);
             if (isCellInCollection(location, mActiveCells))
                 return;
@@ -773,7 +771,7 @@ namespace MWWorld
         loadingListener->setProgressRange(cells.getExtSize());
 
         MWWorld::Store<ESM::Cell>::iterator it = cells.extBegin();
-        int i = 1;
+        std::int32_t i = 1;
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
         for (; it != cells.extEnd(); ++it)
         {
@@ -839,7 +837,7 @@ namespace MWWorld
         Loading::ScopedLoad load(loadingListener);
         loadingListener->setProgressRange(cells.getIntSize());
 
-        int i = 1;
+        std::int32_t i = 1;
         MWWorld::Store<ESM::Cell>::iterator it = cells.intBegin();
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
         for (; it != cells.intEnd(); ++it)
@@ -1226,7 +1224,9 @@ namespace MWWorld
             sqrDistToPlayer
                 = std::min(sqrDistToPlayer, (predictedPos - door.getRefData().getPosition().asVec3()).length2());
 
-            if (sqrDistToPlayer < mPreloadDistance * mPreloadDistance)
+            // The preloader's budget asked before the destination is found, which loads its references for good:
+            // a preload it would refuse has loaded the cell all the same.
+            if (sqrDistToPlayer < mPreloadDistance * mPreloadDistance && mPreloader->admitsPreload())
             {
                 CellStore* dest = mWorld.getWorldModel().findCell(door.getCellRef().getDestCell());
                 if (dest != nullptr)
@@ -1240,18 +1240,18 @@ namespace MWWorld
         if (!mWorld.isCellExterior())
             return;
 
-        int halfGridSizePlusOne = mHalfGridSize + 1;
+        std::int32_t halfGridSizePlusOne = mHalfGridSize + 1;
 
-        int cellX = 0, cellY = 0;
+        std::int32_t cellX = 0, cellY = 0;
         cellX = mCurrentGridCenter.x();
         cellY = mCurrentGridCenter.y();
         ESM::RefId extWorldspace = mWorld.getCurrentWorldspace();
 
-        int cellSize = ESM::getCellSize(extWorldspace);
+        std::int32_t cellSize = ESM::getCellSize(extWorldspace);
 
-        for (int dx = -halfGridSizePlusOne; dx <= halfGridSizePlusOne; ++dx)
+        for (std::int32_t dx = -halfGridSizePlusOne; dx <= halfGridSizePlusOne; ++dx)
         {
-            for (int dy = -halfGridSizePlusOne; dy <= halfGridSizePlusOne; ++dy)
+            for (std::int32_t dy = -halfGridSizePlusOne; dy <= halfGridSizePlusOne; ++dy)
             {
                 if (dy != halfGridSizePlusOne && dy != -halfGridSizePlusOne && dx != halfGridSizePlusOne
                     && dx != -halfGridSizePlusOne)
@@ -1282,16 +1282,17 @@ namespace MWWorld
             return;
         }
 
-        const int cellX = cell.getCell()->getGridX();
-        const int cellY = cell.getCell()->getGridY();
+        const std::int32_t cellX = cell.getCell()->getGridX();
+        const std::int32_t cellY = cell.getCell()->getGridY();
 
-        std::vector<std::pair<int, int>> cells;
+        std::vector<std::pair<std::int32_t, std::int32_t>> cells;
         // An index from signed steps, whole and in range before it is widened.
         // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
         const auto gridSize = static_cast<std::size_t>(2 * mHalfGridSize + 1);
         cells.reserve(gridSize * gridSize);
 
-        iterateOverCellsAround(cellX, cellY, mHalfGridSize, [&](int x, int y) { cells.emplace_back(x, y); });
+        iterateOverCellsAround(
+            cellX, cellY, mHalfGridSize, [&](std::int32_t x, std::int32_t y) { cells.emplace_back(x, y); });
 
         sortCellsToLoad(cellX, cellY, cells);
 
@@ -1405,7 +1406,7 @@ namespace MWWorld
         }
     }
 
-    void Scene::reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const
+    void Scene::reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const
     {
         mPreloader->reportStats(frameNumber, stats);
     }

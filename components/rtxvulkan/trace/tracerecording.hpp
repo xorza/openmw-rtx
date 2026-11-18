@@ -6,7 +6,6 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
-
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>

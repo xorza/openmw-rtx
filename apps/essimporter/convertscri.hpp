@@ -1,8 +1,8 @@
 #pragma once
 
-#include "importscri.hpp"
-
 #include <components/esm3/locals.hpp>
+
+#include "importscri.hpp"
 
 namespace ESSImport
 {

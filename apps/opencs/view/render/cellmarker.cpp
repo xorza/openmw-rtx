@@ -1,5 +1,6 @@
 #include "cellmarker.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <osg/AutoTransform>
@@ -11,12 +12,12 @@
 #include <osg/Vec4f>
 #include <osgText/Text>
 
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <components/misc/constants.hpp>
 #include <components/sceneutil/material.hpp>
 
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/view/render/mask.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
+#include "mask.hpp"
+#include "tagbase.hpp"
 
 CSVRender::CellMarkerTag::CellMarkerTag(CellMarker* marker)
     : TagBase(Mask_CellMarker)
@@ -31,7 +32,7 @@ CSVRender::CellMarker* CSVRender::CellMarkerTag::getCellMarker() const
 
 void CSVRender::CellMarker::buildMarker()
 {
-    const int characterSize = 20;
+    const std::int32_t characterSize = 20;
 
     // Set up attributes of marker text.
     osg::ref_ptr<osgText::Text> markerText(new osgText::Text);
@@ -60,12 +61,12 @@ void CSVRender::CellMarker::buildMarker()
 
 void CSVRender::CellMarker::positionMarker()
 {
-    const int cellSize = Constants::CellSizeInUnits;
-    const int markerHeight = 0;
+    const std::int32_t cellSize = Constants::CellSizeInUnits;
+    const std::int32_t markerHeight = 0;
 
     // Move marker to center of cell.
-    int x = (mCoordinates.getX() * cellSize) + (cellSize / 2);
-    int y = (mCoordinates.getY() * cellSize) + (cellSize / 2);
+    std::int32_t x = (mCoordinates.getX() * cellSize) + (cellSize / 2);
+    std::int32_t y = (mCoordinates.getY() * cellSize) + (cellSize / 2);
     mMarkerNode->setPosition(osg::Vec3f(static_cast<float>(x), static_cast<float>(y), markerHeight));
 }
 

@@ -1,20 +1,19 @@
 #include "scrollwindow.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_ScrollView.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/actiontake.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/esm3/loadbook.hpp>
 #include <components/esm4/loadbook.hpp>
 #include <components/settings/values.hpp>
 #include <components/widgets/imagebutton.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwworld/actiontake.hpp"
-#include "../mwworld/class.hpp"
 
 #include "formatting.hpp"
 
@@ -85,7 +84,7 @@ namespace MWGui
 
     void ScrollWindow::onKeyButtonPressed(MyGUI::Widget* /*sender*/, MyGUI::KeyCode key, MyGUI::Char character)
     {
-        int scroll = 0;
+        std::int32_t scroll = 0;
         if (key == MyGUI::KeyCode::ArrowUp)
             scroll = 40;
         else if (key == MyGUI::KeyCode::ArrowDown)

@@ -1,71 +1,64 @@
 ﻿#include "npc.hpp"
 
-#include <MyGUI_TextIterator.h>
-#include <MyGUI_UString.h>
-
 #include <cmath>
+#include <cstdint>
 #include <format>
 #include <memory>
 #include <stdexcept>
 
-#include <components/misc/constants.hpp>
-#include <components/misc/resourcehelpers.hpp>
-#include <components/misc/rng.hpp>
+#include <MyGUI_TextIterator.h>
+#include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwlua/localscripts.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/aisetting.hpp>
+#include <apps/openmw/mwmechanics/autocalcspell.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/creaturecustomdataresetter.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/difficultyscaling.hpp>
+#include <apps/openmw/mwmechanics/disease.hpp>
+#include <apps/openmw/mwmechanics/inventory.hpp>
+#include <apps/openmw/mwmechanics/movement.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/setbaseaisetting.hpp>
+#include <apps/openmw/mwmechanics/spellcasting.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwrender/npcanimation.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actionopen.hpp>
+#include <apps/openmw/mwworld/actiontalk.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/failedaction.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/localscripts.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/npcstate.hpp>
+#include <components/misc/constants.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwlua/localscripts.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/aisetting.hpp"
-#include "../mwmechanics/autocalcspell.hpp"
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/creaturecustomdataresetter.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/difficultyscaling.hpp"
-#include "../mwmechanics/disease.hpp"
-#include "../mwmechanics/inventory.hpp"
-#include "../mwmechanics/movement.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/setbaseaisetting.hpp"
-#include "../mwmechanics/spellcasting.hpp"
-#include "../mwmechanics/weapontype.hpp"
-
-#include "../mwworld/actionopen.hpp"
-#include "../mwworld/actiontalk.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/failedaction.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/localscripts.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "preloadmodels.hpp"
-
-#include "../mwrender/npcanimation.hpp"
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
 #include "nameorid.hpp"
+#include "preloadmodels.hpp"
 
 namespace
 {
@@ -118,7 +111,7 @@ namespace
         bool male = (npc->mFlags & ESM::NPC::Female) == 0;
 
         const auto& attributes = MWBase::Environment::get().getESMStore()->get<ESM::Attribute>();
-        int level = creatureStats.getLevel();
+        std::int32_t level = creatureStats.getLevel();
         for (const ESM::Attribute& attribute : attributes)
             creatureStats.setAttribute(
                 attribute.mId, static_cast<float>(race->mData.getAttribute(attribute.mId, male)));
@@ -160,7 +153,7 @@ namespace
         float strength = creatureStats.getAttribute(ESM::Attribute::Strength).getBase();
         float endurance = creatureStats.getAttribute(ESM::Attribute::Endurance).getBase();
 
-        int multiplier = 3;
+        std::int32_t multiplier = 3;
 
         if (npcClass->mData.mSpecialization == ESM::Class::Combat)
             multiplier += 2;
@@ -194,7 +187,7 @@ namespace
     {
         const ESM::Class* npcClass = MWBase::Environment::get().getESMStore()->get<ESM::Class>().find(npc->mClass);
 
-        auto level = static_cast<unsigned int>(npcStats.getLevel());
+        auto level = static_cast<std::uint32_t>(npcStats.getLevel());
 
         for (const auto& id : npcClass->mData.mMinorSkills)
         {
@@ -212,8 +205,8 @@ namespace
             float majorMultiplier = 0.1f;
             float specMultiplier = 0.0f;
 
-            int raceBonus = 0;
-            int specBonus = 0;
+            std::int32_t raceBonus = 0;
+            std::int32_t specBonus = 0;
 
             auto bonusIt = std::find_if(race->mData.mBonus.begin(), race->mData.mBonus.end(),
                 [&](const auto& bonus) { return bonus.mSkill == skill.mId; });
@@ -231,11 +224,11 @@ namespace
                 specBonus = 5;
             }
 
-            npcStats.getSkill(skill.mId).setBase(
-                std::min(round_ieee_754(npcStats.getSkill(skill.mId).getBase() + 5 + static_cast<float>(raceBonus)
-                             + static_cast<float>(specBonus)
-                             + static_cast<float>((static_cast<int>(level) - 1)) * (majorMultiplier + specMultiplier)),
-                    100.f)); // Must gracefully handle level 0
+            npcStats.getSkill(skill.mId).setBase(std::min(
+                round_ieee_754(npcStats.getSkill(skill.mId).getBase() + 5 + static_cast<float>(raceBonus)
+                    + static_cast<float>(specBonus)
+                    + static_cast<float>((static_cast<std::int32_t>(level) - 1)) * (majorMultiplier + specMultiplier)),
+                100.f)); // Must gracefully handle level 0
         }
 
         if (!spellsInitialised)
@@ -333,7 +326,7 @@ namespace MWClass
             }
             else
             {
-                for (int i = 0; i < 3; ++i)
+                for (std::int32_t i = 0; i < 3; ++i)
                     data->mNpcStats.setDynamic(i, 10);
 
                 autoCalculateAttributes(ref->mBase, race, data->mNpcStats);
@@ -349,17 +342,17 @@ namespace MWClass
 
             if (!ref->mBase->mFaction.empty())
             {
-                static const int iAutoRepFacMod = MWBase::Environment::get()
-                                                      .getESMStore()
-                                                      ->get<ESM::GameSetting>()
-                                                      .find("iAutoRepFacMod")
-                                                      ->mValue.getInteger();
-                static const int iAutoRepLevMod = MWBase::Environment::get()
-                                                      .getESMStore()
-                                                      ->get<ESM::GameSetting>()
-                                                      .find("iAutoRepLevMod")
-                                                      ->mValue.getInteger();
-                int rank = ref->mBase->getFactionRank();
+                static const std::int32_t iAutoRepFacMod = MWBase::Environment::get()
+                                                               .getESMStore()
+                                                               ->get<ESM::GameSetting>()
+                                                               .find("iAutoRepFacMod")
+                                                               ->mValue.getInteger();
+                static const std::int32_t iAutoRepLevMod = MWBase::Environment::get()
+                                                               .getESMStore()
+                                                               ->get<ESM::GameSetting>()
+                                                               .find("iAutoRepLevMod")
+                                                               ->mValue.getInteger();
+                std::int32_t rank = ref->mBase->getFactionRank();
 
                 data->mNpcStats.setReputation(
                     iAutoRepFacMod * (rank + 1) + iAutoRepLevMod * (data->mNpcStats.getLevel() - 1));
@@ -463,7 +456,7 @@ namespace MWClass
         if (customData)
         {
             const MWWorld::InventoryStore& invStore = customData->asNpcCustomData().mInventoryStore;
-            for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+            for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
             {
                 MWWorld::ConstContainerStoreIterator equipped = invStore.getSlot(slot);
                 if (equipped != invStore.end())
@@ -559,12 +552,12 @@ namespace MWClass
         if (!weapon.isEmpty())
             weapskill = weapon.getClass().getEquipmentSkill(weapon);
 
-        float hitchance = MWMechanics::getHitChance(ptr, victim, static_cast<int>(getSkill(ptr, weapskill)));
+        float hitchance = MWMechanics::getHitChance(ptr, victim, static_cast<std::int32_t>(getSkill(ptr, weapskill)));
 
         return static_cast<float>(Misc::Rng::roll0to99(world->getPrng())) < hitchance;
     }
 
-    void Npc::hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, int type,
+    void Npc::hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, std::int32_t type,
         const MWWorld::Ptr& victim, const osg::Vec3f& hitPosition, bool success) const
     {
         MWWorld::InventoryStore& inv = getInventoryStore(ptr);
@@ -602,7 +595,7 @@ namespace MWClass
         bool healthdmg = false;
         if (!weapon.isEmpty())
         {
-            const unsigned char* attack = nullptr;
+            const std::uint8_t* attack = nullptr;
             if (type == ESM::Weapon::AT_Chop)
                 attack = weapon.get<ESM::Weapon>()->mBase->mData.mChop.data();
             else if (type == ESM::Weapon::AT_Slash)
@@ -764,7 +757,7 @@ namespace MWClass
             // 'ptr' is losing health. Play a 'hit' voiced dialog entry if not already saying
             // something, alert the character controller, scripts, etc.
             const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
-            int chance = store.get<ESM::GameSetting>().find("iVoiceHitOdds")->mValue.getInteger();
+            std::int32_t chance = store.get<ESM::GameSetting>().find("iVoiceHitOdds")->mValue.getInteger();
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
             if (Misc::Rng::roll0to99(prng) < chance)
                 MWBase::Environment::get().getDialogueManager()->say(ptr, ESM::RefId::stringRefId("hit"));
@@ -970,7 +963,7 @@ namespace MWClass
         return false;
     }
 
-    MWGui::ToolTipInfo Npc::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Npc::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::NPC>* ref = ptr.get<ESM::NPC>();
 
@@ -1011,7 +1004,8 @@ namespace MWClass
         return getNpcStats(ptr).isWerewolf() ? 0.0f : Actor::getEncumbrance(ptr);
     }
 
-    void Npc::skillUsageSucceeded(const MWWorld::Ptr& ptr, ESM::RefId skill, int usageType, float extraFactor) const
+    void Npc::skillUsageSucceeded(
+        const MWWorld::Ptr& ptr, ESM::RefId skill, std::int32_t usageType, float extraFactor) const
     {
         MWBase::Environment::get().getLuaManager()->skillUse(ptr, skill, usageType, extraFactor);
     }
@@ -1038,7 +1032,7 @@ namespace MWClass
         float unarmoredSkill = getSkill(ptr, ESM::Skill::Unarmored);
 
         float ratings[MWWorld::InventoryStore::Slots];
-        for (int i = 0; i < MWWorld::InventoryStore::Slots; i++)
+        for (std::int32_t i = 0; i < MWWorld::InventoryStore::Slots; i++)
         {
             MWWorld::ConstContainerStoreIterator it = invStore.getSlot(i);
             if (it == invStore.end() || it->getType() != ESM::Armor::sRecordId)
@@ -1109,7 +1103,7 @@ namespace MWClass
         }
     }
 
-    int Npc::getServices(const MWWorld::ConstPtr& actor) const
+    std::int32_t Npc::getServices(const MWWorld::ConstPtr& actor) const
     {
         const ESM::NPC* npc = actor.get<ESM::NPC>()->mBase;
         if (npc->mFlags & ESM::NPC::Autocalc)
@@ -1251,7 +1245,7 @@ namespace MWClass
         customData.mNpcStats.writeState(npcState.mCreatureStats);
     }
 
-    int Npc::getBaseGold(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Npc::getBaseGold(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::NPC>* ref = ptr.get<ESM::NPC>();
         return ref->mBase->mNpdt.mGold;
@@ -1315,7 +1309,7 @@ namespace MWClass
         }
     }
 
-    int Npc::getBaseFightRating(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Npc::getBaseFightRating(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::NPC>* ref = ptr.get<ESM::NPC>();
         return ref->mBase->mAiData.mFight;
@@ -1332,7 +1326,7 @@ namespace MWClass
         return ref->mBase->mFaction;
     }
 
-    int Npc::getPrimaryFactionRank(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Npc::getPrimaryFactionRank(const MWWorld::ConstPtr& ptr) const
     {
         const ESM::RefId& factionID = ptr.getClass().getPrimaryFaction(ptr);
         if (factionID.empty())
@@ -1341,7 +1335,7 @@ namespace MWClass
         // Search in the NPC data first
         if (const MWWorld::CustomData* data = ptr.getRefData().getCustomData())
         {
-            int rank = data->asNpcCustomData().mNpcStats.getFactionRank(factionID);
+            std::int32_t rank = data->asNpcCustomData().mNpcStats.getFactionRank(factionID);
             if (rank >= 0)
                 return rank;
         }
@@ -1351,12 +1345,12 @@ namespace MWClass
         return ref->mBase->getFactionRank();
     }
 
-    void Npc::setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, int value) const
+    void Npc::setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, std::int32_t value) const
     {
-        MWMechanics::setBaseAISetting<ESM::NPC>(id, setting, static_cast<unsigned char>(value));
+        MWMechanics::setBaseAISetting<ESM::NPC>(id, setting, static_cast<std::uint8_t>(value));
     }
 
-    void Npc::modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, int amount) const
+    void Npc::modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, std::int32_t amount) const
     {
         MWMechanics::modifyBaseInventory<ESM::NPC>(actorId, itemId, amount);
     }

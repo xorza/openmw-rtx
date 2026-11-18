@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <iterator>
 #include <span>
@@ -82,7 +84,7 @@ namespace MWMechanics
     class PathFinder
     {
     public:
-        using UpdateFlags = unsigned;
+        using UpdateFlags = std::uint32_t;
 
         enum UpdateFlag : UpdateFlags
         {

@@ -1,13 +1,14 @@
 #include "terrainstorage.hpp"
 
 #include <algorithm>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/esm4/loadltex.hpp>
 #include <components/esm4/loadtxst.hpp>
 #include <components/esm4/loadwrld.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "landmanager.hpp"
 
@@ -107,7 +108,7 @@ namespace MWRender
         return mLandManager->getLand(cellLocation);
     }
 
-    const VFS::Path::Normalized* TerrainStorage::getLandTexture(std::uint16_t index, int plugin)
+    const VFS::Path::Normalized* TerrainStorage::getLandTexture(std::uint16_t index, std::int32_t plugin)
     {
         const MWWorld::ESMStore& esmStore = *MWBase::Environment::get().getESMStore();
         if (const ESM::Path* const path = esmStore.get<ESM::LandTexture>().search(index, plugin))

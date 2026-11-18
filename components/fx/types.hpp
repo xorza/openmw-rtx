@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <variant>
@@ -19,21 +21,21 @@ namespace Fx
         {
             std::optional<float> mWidthRatio;
             std::optional<float> mHeightRatio;
-            std::optional<int> mWidth;
-            std::optional<int> mHeight;
+            std::optional<std::int32_t> mWidth;
+            std::optional<std::int32_t> mHeight;
 
-            std::tuple<int, int> get(int width, int height) const
+            std::tuple<std::int32_t, std::int32_t> get(std::int32_t width, std::int32_t height) const
             {
-                int scaledWidth = width;
-                int scaledHeight = height;
+                std::int32_t scaledWidth = width;
+                std::int32_t scaledHeight = height;
 
                 if (mWidthRatio)
-                    scaledWidth = static_cast<int>(static_cast<float>(width) * mWidthRatio.value());
+                    scaledWidth = static_cast<std::int32_t>(static_cast<float>(width) * mWidthRatio.value());
                 else if (mWidth)
                     scaledWidth = mWidth.value();
 
                 if (mHeightRatio > 0.f)
-                    scaledHeight = static_cast<int>(static_cast<float>(height) * mHeightRatio.value());
+                    scaledHeight = static_cast<std::int32_t>(static_cast<float>(height) * mHeightRatio.value());
                 else if (mHeight)
                     scaledHeight = mHeight.value();
 
@@ -78,7 +80,7 @@ namespace Fx
         };
 
         using Uniform_t = std::variant<Uniform<osg::Vec2f>, Uniform<osg::Vec3f>, Uniform<osg::Vec4f>, Uniform<bool>,
-            Uniform<float>, Uniform<int>>;
+            Uniform<float>, Uniform<std::int32_t>>;
 
         enum SamplerType
         {
@@ -109,7 +111,7 @@ namespace Fx
                 return value.value_or(std::get<Uniform<T>>(mData).getValue());
             }
 
-            size_t getNumElements() const
+            std::size_t getNumElements() const
             {
                 return std::visit([](auto&& arg) { return arg.isArray() ? arg.getArray().size() : 1; }, mData);
             }
@@ -188,8 +190,8 @@ namespace Fx
                     [&](auto&& arg) {
                         if (arg.isArray())
                         {
-                            for (size_t i = 0; i < arg.getArray().size(); ++i)
-                                uniform->setElement(static_cast<unsigned int>(i), arg.getArray()[i]);
+                            for (std::size_t i = 0; i < arg.getArray().size(); ++i)
+                                uniform->setElement(static_cast<std::uint32_t>(i), arg.getArray()[i]);
                             uniform->dirty();
                         }
                         else
@@ -212,7 +214,7 @@ namespace Fx
                             return osg::Uniform::FLOAT_VEC4;
                         else if constexpr (std::is_same_v<T, float>)
                             return osg::Uniform::FLOAT;
-                        else if constexpr (std::is_same_v<T, int>)
+                        else if constexpr (std::is_same_v<T, std::int32_t>)
                             return osg::Uniform::INT;
                         else
                         {
@@ -280,7 +282,7 @@ namespace Fx
 
                             return std::format("const float {}={:f};", mName, value);
                         }
-                        else if constexpr (std::is_same_v<T, int>)
+                        else if constexpr (std::is_same_v<T, std::int32_t>)
                         {
                             if (useUniform)
                                 return std::format("uniform int {};", uname);

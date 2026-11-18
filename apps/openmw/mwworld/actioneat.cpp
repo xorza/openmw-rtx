@@ -1,8 +1,7 @@
 #include "actioneat.hpp"
 
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <components/esm3/loadskil.hpp>
-
-#include "../mwmechanics/actorutil.hpp"
 
 #include "class.hpp"
 

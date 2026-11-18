@@ -1,13 +1,14 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <apps/openmw/mwbase/soundmanager.hpp>
 #include <components/settings/hrtfmode.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/soundmanager.hpp"
 
 namespace MWSound
 {
@@ -39,8 +40,8 @@ namespace MWSound
 
         virtual std::vector<std::string> enumerateHrtf() = 0;
 
-        virtual std::pair<Sound_Handle, size_t> loadSound(VFS::Path::NormalizedView fname) = 0;
-        virtual size_t unloadSound(Sound_Handle data) = 0;
+        virtual std::pair<Sound_Handle, std::size_t> loadSound(VFS::Path::NormalizedView fname) = 0;
+        virtual std::size_t unloadSound(Sound_Handle data) = 0;
 
         virtual bool playSound(Sound* sound, Sound_Handle data, float offset) = 0;
         virtual bool playSound3D(Sound* sound, Sound_Handle data, float offset) = 0;
@@ -63,8 +64,8 @@ namespace MWSound
         virtual void updateListener(const osg::Vec3f& pos, const osg::Vec3f& atdir, const osg::Vec3f& updir,
             const osg::Vec3f& vel, Environment env) = 0;
 
-        virtual void pauseSounds(int types) = 0;
-        virtual void resumeSounds(int types) = 0;
+        virtual void pauseSounds(std::int32_t types) = 0;
+        virtual void resumeSounds(std::int32_t types) = 0;
 
         virtual void pauseActiveDevice() = 0;
         virtual void resumeActiveDevice() = 0;

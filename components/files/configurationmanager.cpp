@@ -1,16 +1,18 @@
 #include "configurationmanager.hpp"
 
+#include <cstdint>
 #include <fstream>
 #include <map>
-
-#include <components/debug/debuglog.hpp>
-#include <components/fallback/validate.hpp>
-#include <components/files/configfileparser.hpp>
-#include <components/misc/strings/conversion.hpp>
+#include <ranges>
 
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
-#include <ranges>
+
+#include <components/debug/debuglog.hpp>
+#include <components/fallback/validate.hpp>
+#include <components/misc/strings/conversion.hpp>
+
+#include "configfileparser.hpp"
 
 /**
  * \namespace Files
@@ -22,12 +24,6 @@ namespace Files
 
     namespace
     {
-#if defined(_WIN32) || defined(__WINDOWS__)
-        constexpr auto sApplicationName = "OpenMW";
-#else
-        constexpr auto sApplicationName = "openmw";
-#endif
-
         using GetPath = const std::filesystem::path& (Files::FixedPath<>::*)() const;
         constexpr std::array<std::pair<std::u8string_view, GetPath>, 4> sTokenMappings = {
             std::make_pair(u8"?local?", &FixedPath<>::getLocalPath),
@@ -38,7 +34,7 @@ namespace Files
     }
 
     ConfigurationManager::ConfigurationManager(bool silent)
-        : mFixedPath(sApplicationName)
+        : mFixedPath(std::string(applicationName()))
         , mSilent(silent)
     {
         // Initialize with fixed paths, will be overridden in `readConfiguration`.
@@ -439,8 +435,8 @@ namespace Files
         return mScreenshotPath;
     }
 
-    void parseArgs(
-        int argc, const char* const argv[], bpo::variables_map& variables, const bpo::options_description& description)
+    void parseArgs(std::int32_t argc, const char* const argv[], bpo::variables_map& variables,
+        const bpo::options_description& description)
     {
         bpo::store(bpo::command_line_parser(argc, argv).options(description).allow_unregistered().run(), variables);
     }

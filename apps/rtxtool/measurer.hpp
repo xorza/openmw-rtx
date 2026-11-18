@@ -78,6 +78,9 @@ namespace RtxTool
         /// route flies over, a take's track is posed by and a reference is averaged over.
         std::optional<std::uint32_t> getMeasuredIndex() const { return mProgress.mWindow.getMeasuredIndex(); }
 
+        /// `MeasureWindow::getWarmup` of the stop under way: the frames it runs after its world stood whole.
+        std::uint32_t getWarmup() const { return mProgress.mWindow.getWarmup(); }
+
         /// `MeasureWindow::getSinceWhole` of the stop under way.
         std::optional<std::uint32_t> getSinceWhole() const { return mProgress.mWindow.getSinceWhole(); }
 
@@ -202,6 +205,11 @@ namespace RtxTool
         SceneDigester mDigester;
 
         Progress mProgress;
+
+        /// How many textures the scene had refused when the last stop was written: what the next stop's
+        /// `textures-readable` counts its own refusals from (`StopFacts::mTexturesRefusedBefore`).
+        std::uint32_t mTexturesRefused = 0;
+
         std::string mFailure;
         std::optional<ClosedSpan> mMeasuredSpan;
     };

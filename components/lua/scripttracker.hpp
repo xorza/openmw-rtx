@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <queue>
 #include <utility>
@@ -10,7 +12,7 @@ namespace LuaUtil
 {
     class ScriptTracker
     {
-        using Frame = unsigned int;
+        using Frame = std::uint32_t;
         using TrackedScriptContainer = std::pair<ScriptsContainerWeakPtr, Frame>;
         std::queue<TrackedScriptContainer> mLoadedScripts;
         Frame mFrame = 0;

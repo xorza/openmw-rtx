@@ -56,7 +56,7 @@ namespace Rtx
         {
             const std::string space = format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
                 ? std::string("sRGB")
-                : "colour space " + std::to_string(static_cast<int>(format.colorSpace));
+                : "colour space " + std::to_string(static_cast<std::int32_t>(format.colorSpace));
             switch (format.format)
             {
                 case VK_FORMAT_B8G8R8A8_UNORM:
@@ -64,7 +64,7 @@ namespace Rtx
                 case VK_FORMAT_R8G8B8A8_UNORM:
                     return "R8G8B8A8_UNORM in " + space;
                 default:
-                    return "format " + std::to_string(static_cast<int>(format.format)) + " in " + space;
+                    return "format " + std::to_string(static_cast<std::int32_t>(format.format)) + " in " + space;
             }
         }
 

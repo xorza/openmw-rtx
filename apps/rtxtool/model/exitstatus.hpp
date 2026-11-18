@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace RtxTool
 {
     /// What a run of the harness ends with, which `tools/omw/exitstatus.py` mirrors: a driver tells "the run
@@ -7,7 +9,7 @@ namespace RtxTool
     /// sentence would swap.
     ///
     /// Listed from the best to the worst, which is how two parts of one run are told apart (`worseOf`).
-    enum class ExitStatus : int
+    enum class ExitStatus : std::int32_t
     {
         Passed = 0,
 
@@ -45,8 +47,8 @@ namespace RtxTool
     }
 
     /// The process's exit code for `status`.
-    constexpr int codeOf(const ExitStatus status)
+    constexpr std::int32_t codeOf(const ExitStatus status)
     {
-        return static_cast<int>(status);
+        return static_cast<std::int32_t>(status);
     }
 }

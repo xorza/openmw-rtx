@@ -23,6 +23,7 @@
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
+#include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/specularlayout.hpp>
@@ -85,7 +86,7 @@ namespace Rtx
         }
 
         /// `width` by `height` of loose RGBA8, mid grey and opaque, with no chain.
-        osg::ref_ptr<osg::Image> makeLoose(int width, int height)
+        osg::ref_ptr<osg::Image> makeLoose(std::int32_t width, std::int32_t height)
         {
             osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/tx_loose.dds", width, height);
             std::memset(image->data(), 128, image->getTotalSizeInBytes());
@@ -102,13 +103,14 @@ namespace Rtx
             for (std::uint32_t level = 0; level < levels; ++level)
             {
                 if (level > 0)
-                    offsets.push_back(static_cast<unsigned int>(bytes));
+                    offsets.push_back(static_cast<std::uint32_t>(bytes));
                 bytes += layout.levelBytes(std::max(width >> level, 1u), std::max(height >> level, 1u));
             }
-            auto* data = new unsigned char[bytes]();
+            auto* data = new std::uint8_t[bytes]();
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
-                GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setImage(static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), 1,
+                GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data,
+                osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(offsets);
             image->setFileName("textures/tx_block.dds");
             return image;
@@ -158,14 +160,14 @@ namespace Rtx
                 content.chain(input, made);
                 const ChainScratch predicted = ChainPass::scratchOf(input);
                 const ChainScratch held = heldBy(content, made);
-                const auto encoding = static_cast<int>(tried.mEncoding);
+                const auto encoding = static_cast<std::int32_t>(tried.mEncoding);
                 EXPECT_TRUE(held.within(predicted)) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Texels], tried.mTexels) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Band], tried.mBand) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Ring], tried.mRing) << encoding;
                 for (const ChainBuffer exact : { ChainBuffer::File, ChainBuffer::Alpha, ChainBuffer::Texels,
                          ChainBuffer::Band, ChainBuffer::Ring, ChainBuffer::Columns })
-                    EXPECT_EQ(held[exact], predicted[exact]) << encoding << " " << static_cast<int>(exact);
+                    EXPECT_EQ(held[exact], predicted[exact]) << encoding << " " << static_cast<std::int32_t>(exact);
                 EXPECT_EQ(held[ChainBuffer::Payload], 0u) << "the store frees the payload";
             }
 
@@ -182,9 +184,9 @@ namespace Rtx
                 ContentPreprocessor content(nullptr);
                 MadeChain made;
                 content.convert(input, made);
-                ASSERT_NE(made.mForm, ChainForm::Stands) << static_cast<int>(encoding);
+                ASSERT_NE(made.mForm, ChainForm::Stands) << static_cast<std::int32_t>(encoding);
                 EXPECT_TRUE(heldBy(content, made).within(ConversionPass::scratchOf(input)))
-                    << static_cast<int>(encoding);
+                    << static_cast<std::int32_t>(encoding);
             }
 
             ContentPreprocessor content(nullptr);
@@ -442,10 +444,8 @@ namespace Rtx
             EXPECT_NEAR(between.mBase.z(), 0.5972f, 1e-4f);
         }
 
-        /// What a texture pass's key reads of a two-by-two RGBA8 level: whether it described, its
-        /// format, its encoding, its extent and its sixteen bytes.
-        constexpr std::uint64_t sFinestKeyBytes
-            = sizeof(bool) + sizeof(TextureFormat) + sizeof(TextureEncoding) + 2 * sizeof(std::uint32_t) + 16;
+        /// What a texture pass's key reads: its file's key (`hashFile`).
+        constexpr std::uint64_t sFinestKeyBytes = sizeof(ContentStore::Key);
 
         /// **A pass the store keeps is found again**: the texel mean asked twice through a store is
         /// run once and found once, keyed both times on what it read, and answers the same; and a
@@ -507,9 +507,9 @@ namespace Rtx
 
             ContentStore::Store next(folder, sContentStorePolicy);
             ContentPreprocessor content(&next, ContentStore::Reach::Disk);
-            MadeChain untouched{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer{ std::byte{ 9 } } };
+            MadeChain untouched{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer{ std::byte{ 9 } } };
             content.chain(input, untouched, ContentAsk::Stored);
-            EXPECT_EQ(untouched.mForm, ChainForm::Coarser);
+            EXPECT_EQ(untouched.mForm, ChainForm::Own);
             EXPECT_EQ(untouched.mBytes, Misc::ByteBuffer{ std::byte{ 9 } });
             EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
 
@@ -530,67 +530,77 @@ namespace Rtx
             EXPECT_FALSE(watched.lock(standing)) << "the image the hit read its key from was held";
         }
 
-        /// **A pass the store keeps nothing of makes no key**, store or none: the solid reach, whose
-        /// walk stops at the first solid texel, runs every time and writes nothing.
-        TEST(RtxContentPreprocessorTest, aPassTheStoreKeepsNothingOfMakesNoKey)
+        /// **The walks that stop at the first texel that answers are kept too**, their file's key costing nothing more
+        /// than the mean's: the solid reach and the solid fall, each asked twice, run once, are found once, and write
+        /// one entry each.
+        TEST(RtxContentPreprocessorTest, theWalksThatStopAtTheFirstTexelThatAnswersAreKept)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             ContentPreprocessor content(&store, ContentStore::Reach::Disk);
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
-            EXPECT_TRUE(content.reachesSolid(*painted));
-            EXPECT_TRUE(content.reachesSolid(*painted));
+            for (std::int32_t ask = 0; ask < 2; ++ask)
+            {
+                EXPECT_TRUE(content.reachesSolid(*painted));
+                EXPECT_TRUE(content.fallsBelowSolid(*painted));
+            }
 
-            const PassStats stats = content.takeStats().at(ContentPassId::SolidReach);
-            EXPECT_EQ(stats.mAsked, 2u);
-            EXPECT_EQ(stats.mHits, 0u);
-            EXPECT_EQ(stats.mKeyBytes, 0u);
+            const ContentStats stats = content.takeStats();
+            for (const ContentPassId pass : { ContentPassId::SolidReach, ContentPassId::SolidFall })
+            {
+                EXPECT_EQ(stats.at(pass).mAsked, 2u);
+                EXPECT_EQ(stats.at(pass).mHits, 1u);
+                EXPECT_EQ(stats.at(pass).mKeyBytes, 2 * sFinestKeyBytes);
+            }
             store.flush();
-            EXPECT_EQ(store.getStats().mWritten, 0u);
+            EXPECT_EQ(store.getStats().mWritten, 2u);
         }
 
-        ContentStore::Key finestKeyOf(const osg::Image& image, FinestTexels& finest)
+        /// A 2x2 RGBA8 image of `sPaint` carrying a 1x1 second level of `second`.
+        osg::ref_ptr<osg::Image> makeChained(const std::uint8_t second)
         {
-            ContentStore::Digest digest("solid reach", 1);
-            finest.describe(image);
-            finest.addTo(digest);
-            return digest.getKey();
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            auto* data = new std::uint8_t[20];
+            std::copy(sPaint.begin(), sPaint.end(), data);
+            std::fill_n(data + 16, 4, second);
+            image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
+            image->setFileName("painted.dds");
+            return image;
         }
 
-        /// A texture pass is keyed on the picture and not on the file: the same texels under
-        /// another name are one key, and one channel of one texel moved is another. The key reads
-        /// the finest level as it was described — format, encoding, extent and its sixteen bytes.
-        TEST(RtxContentPreprocessorTest, aTextureIsKeyedOnItsPictureAndNotOnItsName)
+        /// **A file is keyed on its texels and not on its name** (`hashFile`): the same texels under another name
+        /// are one key; one channel of one texel moved, a level more, or that level's texels moved is another. An
+        /// image no reader decodes is keyed by the bytes OpenSceneGraph holds, so two of them differ. A key named
+        /// for an image is answered for that image alone, and hashed again once forgotten.
+        TEST(RtxContentPreprocessorTest, aFileIsKeyedOnItsTexelsAndNotOnItsName)
         {
             TexelScratch scratch;
-            FinestTexels finest(scratch);
-
-            const ContentStore::Key key = finestKeyOf(*makeImage(sPaint, "painted.dds"), finest);
-            ASSERT_TRUE(finest.get().has_value());
-            EXPECT_EQ(finestKeyOf(*makeImage(sPaint, "elsewhere/renamed.dds"), finest), key);
+            const ContentStore::Key key = hashFile(*makeImage(sPaint, "painted.dds"), scratch);
+            EXPECT_EQ(hashFile(*makeImage(sPaint, "elsewhere/renamed.dds"), scratch), key);
 
             std::array<std::uint8_t, 16> moved = sPaint;
             moved[7] = 129;
-            EXPECT_NE(finestKeyOf(*makeImage(moved, "painted.dds"), finest), key) << "one texel's alpha";
+            EXPECT_NE(hashFile(*makeImage(moved, "painted.dds"), scratch), key) << "one texel's alpha";
 
-            // The caller's image gone before the key reads it, which the description's hold keeps:
-            // an RGBA8 level is spanned where the image holds it.
-            ContentStore::Digest digest("solid reach", 1);
-            finest.describe(*makeImage(sPaint, "painted.dds"));
-            finest.addTo(digest);
-            EXPECT_EQ(digest.getBytes(), sFinestKeyBytes);
-            EXPECT_EQ(digest.getKey(), key) << "the description outlived the caller's image";
+            const ContentStore::Key chained = hashFile(*makeChained(9), scratch);
+            EXPECT_NE(chained, key) << "a level more";
+            EXPECT_NE(hashFile(*makeChained(200), scratch), chained) << "the second level's texels";
+            EXPECT_EQ(hashFile(*makeChained(9), scratch), chained);
 
-            const osg::ref_ptr<osg::Image> held = makeImage(sPaint, "painted.dds");
-            finest.describe(*held);
-            EXPECT_TRUE(finest.describes(*held));
-            EXPECT_FALSE(finest.describes(*makeImage(sPaint, "painted.dds"))) << "the same texels, another image";
-            finest.clear();
-            EXPECT_FALSE(finest.describes(*held));
-            EXPECT_FALSE(finest.get().has_value());
+            const osg::ref_ptr<osg::Image> odd = Testing::makeImage("", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            const osg::ref_ptr<osg::Image> otherOdd = Testing::makeImage("", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            EXPECT_EQ(hashFile(*odd, scratch), hashFile(*otherOdd, scratch));
+            otherOdd->data()[0] ^= 1;
+            EXPECT_NE(hashFile(*odd, scratch), hashFile(*otherOdd, scratch)) << "two images no reader decodes";
 
-            osg::ref_ptr<osg::Image> odd = Testing::makeImage("", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            finestKeyOf(*odd, finest);
-            EXPECT_FALSE(finest.get().has_value()) << "an image no reader decodes is described as none";
+            FileKeys keys(scratch);
+            const osg::ref_ptr<osg::Image> named = makeImage(sPaint, "painted.dds");
+            const ContentStore::Key handed{ .mHash = { 1, 2 } };
+            keys.name(*named, handed);
+            EXPECT_EQ(keys.of(*named), handed);
+            EXPECT_EQ(keys.of(*makeImage(sPaint, "painted.dds")), key) << "another image of the same texels";
+            keys.forget();
+            EXPECT_EQ(keys.of(*named), key);
         }
 
         /// **A stored payload its codec cannot read is a miss, and the output run again is filed in its
@@ -603,12 +613,14 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
 
             TexelScratch scratch;
-            FinestTexels finest(scratch);
             ContentStore::Digest digest(sContentPasses.name(ContentPassId::TexelMean), TexelMean::sVersion);
-            finest.describe(*painted);
-            finest.addTo(digest);
+            digest.add(hashFile(*painted, scratch));
             const Misc::ByteBuffer broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
-            store.write(digest.getKey(), storeKindOf(ContentPassId::TexelMean), TexelMean::sVersion, broken,
+            store.write(ContentStore::Filed{ .mKey = digest.getKey(),
+                            .mKind = storeKindOf(ContentPassId::TexelMean),
+                            .mVersion = TexelMean::sVersion,
+                            .mPayload = broken,
+                            .mSegmentEnds = {} },
                 ContentStore::Reach::Disk);
 
             ContentPreprocessor content(&store, ContentStore::Reach::Memory);
@@ -668,7 +680,11 @@ namespace Rtx
 
                 ContentStore::Store store(
                     TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), sContentStorePolicy);
-                store.write(digest.getKey(), storeKindOf(ContentPassId::Shape), ShapePass::sVersion, payload,
+                store.write(ContentStore::Filed{ .mKey = digest.getKey(),
+                                .mKind = storeKindOf(ContentPassId::Shape),
+                                .mVersion = ShapePass::sVersion,
+                                .mPayload = payload,
+                                .mSegmentEnds = {} },
                     ContentStore::Reach::Disk);
                 ContentPreprocessor content(&store, ContentStore::Reach::Memory);
                 std::vector<std::uint32_t> run;
@@ -692,13 +708,89 @@ namespace Rtx
                 ShapePass::fits(input, ShapePass::Output{ .mKept = kept, .mNormals = normals, .mSources = sources }));
         }
 
+        /// **A made chain is filed a segment a level, its form's byte last** (`ChainPass::segmentEndsOf`), so a range
+        /// of its levels reads and checks alone: an 8 by 8 BC1 file of one level made whole in BC7 to a texel lays
+        /// 64, 16, 16 and 16 bytes, ending at 64, 80, 96 and 112, and the form's byte at 113; the store's file holds
+        /// those five segments' records. A chain that stands is one segment, and one that does not fill its layout
+        /// states none.
+        TEST(RtxContentPreprocessorTest, aMadeChainIsFiledASegmentALevel)
+        {
+            const osg::ref_ptr<osg::Image> single = makeBc1(8, 8, 1);
+            const ChainPass::Input input{ .mImage = *single, .mEncoding = TextureEncoding::Colour };
+            std::vector<std::uint64_t> ends;
+            ChainPass::segmentEndsOf(
+                input, MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(112) }, ends);
+            EXPECT_EQ(ends, (std::vector<std::uint64_t>{ 64, 80, 96, 112, 113 }));
+            ends.clear();
+            ChainPass::segmentEndsOf(input, MadeChain{}, ends);
+            EXPECT_TRUE(ends.empty()) << "a chain that stands";
+            ChainPass::segmentEndsOf(
+                input, MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(111) }, ends);
+            EXPECT_TRUE(ends.empty()) << "a chain short of its layout";
+
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            ContentStore::Store store(folder, sContentStorePolicy);
+            ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+            TexelScratch scratch;
+            ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
+            digest.add(hashFile(*single, scratch));
+            digest.add(TextureEncoding::Colour);
+            MadeChain made;
+            ASSERT_TRUE(content.chain(input, made));
+            ASSERT_EQ(made.mForm, ChainForm::Bc7);
+            store.flush();
+            const std::filesystem::path path = store.pathOf(digest.getKey(), storeKindOf(ContentPassId::Chain));
+            ASSERT_TRUE(std::filesystem::exists(path)) << "filed under the key the pass makes";
+            EXPECT_EQ(std::filesystem::file_size(path), 113u + 5u * 24u + 64u);
+        }
+
+        /// **A chain is handed over in a buffer of a pool, read from the store a segment at a time** (`chain` into a
+        /// pool): a chainless 64 by 64 BC1 colour made whole in BC7, 4096 + 1024 + 256 + 64 + 16 + 16 + 16 = 5488
+        /// bytes, past what the store holds in memory, is made and copied into a 64 KiB buffer at the first ask; a
+        /// later session reads it from its file into the buffer given back, the same bytes, found and not made.
+        TEST(RtxContentPreprocessorTest, aChainIsHandedOverInAPoolsBufferReadFromTheStore)
+        {
+            const osg::ref_ptr<osg::Image> file = makeBc1(64, 64, 1);
+            const ChainPass::Input input{ .mImage = *file, .mEncoding = TextureEncoding::Colour };
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            const std::shared_ptr<BufferPool> pool = BufferPool::make(std::size_t{ 1 } << 20);
+
+            ContentStore::Store store(folder, sContentStorePolicy);
+            Misc::ByteBuffer madeBytes;
+            const std::byte* buffer = nullptr;
+            {
+                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                PooledChain made;
+                ASSERT_TRUE(content.chain(input, *pool, {}, made));
+                EXPECT_EQ(made.mForm, ChainForm::Bc7);
+                ASSERT_EQ(made.mBytes.bytes().size(), 5488u);
+                madeBytes.assign(made.mBytes.bytes().begin(), made.mBytes.bytes().end());
+                buffer = made.mBytes.bytes().data();
+                EXPECT_EQ(pool->getHeld().mInUse, std::size_t{ 64 } << 10);
+                EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
+            }
+            store.flush();
+            EXPECT_EQ(pool->getHeld().mFree, std::size_t{ 64 } << 10) << "given back";
+
+            ContentStore::Store next(folder, sContentStorePolicy);
+            next.flush();
+            ContentPreprocessor content(&next, ContentStore::Reach::Disk);
+            PooledChain found;
+            ASSERT_TRUE(content.chain(input, *pool, {}, found));
+            EXPECT_EQ(found.mForm, ChainForm::Bc7);
+            EXPECT_EQ(Misc::ByteBuffer(found.mBytes.bytes().begin(), found.mBytes.bytes().end()), madeBytes);
+            EXPECT_EQ(found.mBytes.bytes().data(), buffer) << "the buffer given back";
+            const PassStats stats = content.takeStats().at(ContentPassId::Chain);
+            EXPECT_EQ(stats.mHits, 1u);
+            EXPECT_EQ(stats.mRunMs, 0.0);
+        }
+
         /// **A stored chain that reads whole and does not fit its file is run again and replaced**, as a
         /// shape is: an 8 by 8 BC1 file of one level makes its chain whole in BC7 to a texel, 64 + 16 +
-        /// 16 + 16 = 112 bytes. A form's byte alone, 111 bytes, 113 bytes, coarser levels of a file of
-        /// one level, and nothing standing with a byte held are each a miss, and the run's 112 bytes are
-        /// filed in the misfit's place. Coarser levels of an 8 by 8 file of two levels are its 4 by 4
-        /// level, 8 bytes, and a painted one's own chain both levels, 32 + 8 = 40; a loose file has no
-        /// chain but BC7's.
+        /// 16 + 16 = 112 bytes. A form's byte alone, 111 bytes, 113 bytes, an own chain a level short, and
+        /// nothing standing with a byte held are each a miss, and the run's 112 bytes are filed in the
+        /// misfit's place. An 8 by 8 file of two levels keeps both in its own chain, 32 + 8 = 40, as data
+        /// or painted, and its 4 by 4 level alone fits neither; a loose file has no chain but BC7's.
         TEST(RtxContentPreprocessorTest, aStoredChainThatDoesNotFitItsFileIsRunAgain)
         {
             const osg::ref_ptr<osg::Image> single = makeBc1(8, 8, 1);
@@ -706,9 +798,11 @@ namespace Rtx
             ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
             {
                 ChainBuild build;
-                ChainPass pass(build);
+                TexelScratch scratch;
+                FileKeys keys(scratch);
+                TexelReads reads;
+                ChainPass pass(build, keys, reads);
                 pass.digest(input, digest);
-                pass.release();
             }
 
             struct Misfit
@@ -721,7 +815,7 @@ namespace Rtx
                 { "a form's byte alone", ChainForm::Bc7, 0 },
                 { "a chain a byte short", ChainForm::Bc7, 111 },
                 { "a chain a byte long", ChainForm::Bc7, 113 },
-                { "coarser levels of a file of one level", ChainForm::Coarser, 8 },
+                { "an own chain a level short", ChainForm::Own, 8 },
                 { "nothing standing with a byte held", ChainForm::Stands, 1 },
             };
             for (std::size_t at = 0; at < misfits.size(); ++at)
@@ -734,10 +828,14 @@ namespace Rtx
                 ContentCodec<MadeChain>::encode(stored, payload);
                 ContentStore::Store store(
                     TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), sContentStorePolicy);
-                store.write(digest.getKey(), storeKindOf(ContentPassId::Chain), ChainPass::sVersion, payload,
+                store.write(ContentStore::Filed{ .mKey = digest.getKey(),
+                                .mKind = storeKindOf(ContentPassId::Chain),
+                                .mVersion = ChainPass::sVersion,
+                                .mPayload = payload,
+                                .mSegmentEnds = {} },
                     ContentStore::Reach::Disk);
                 ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-                for (int ask = 0; ask < 2; ++ask)
+                for (std::int32_t ask = 0; ask < 2; ++ask)
                 {
                     MadeChain made;
                     content.chain(input, made);
@@ -754,9 +852,9 @@ namespace Rtx
 
             const osg::ref_ptr<osg::Image> pair = makeBc1(8, 8, 2);
             const ChainPass::Input data{ .mImage = *pair, .mEncoding = TextureEncoding::Data };
-            EXPECT_TRUE(ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer(8) }));
-            EXPECT_FALSE(
-                ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer(40) }));
+            EXPECT_TRUE(ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(40) }));
+            EXPECT_FALSE(ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(8) }))
+                << "the coarser level alone, which no run makes";
             const ChainPass::Input painted{ .mImage = *pair, .mEncoding = TextureEncoding::Painted };
             EXPECT_TRUE(ChainPass::fits(painted, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(40) }));
             EXPECT_FALSE(ChainPass::fits(painted, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(8) }));
@@ -764,7 +862,6 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> loose = makeLoose(8, 8);
             const ChainPass::Input looseInput{ .mImage = *loose, .mEncoding = TextureEncoding::Colour };
             EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Own).has_value());
-            EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Coarser).has_value());
             EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Stands).has_value());
             EXPECT_TRUE(ChainPass::madeLayout(looseInput, ChainForm::Bc7).has_value());
 
@@ -784,7 +881,6 @@ namespace Rtx
                 .mImage = *pair, .mPartner = *pair, .mEncoding = TextureEncoding::ConvertedSpecular
             };
             EXPECT_FALSE(ConversionPass::madeLayout(metal, ChainForm::Own).has_value());
-            EXPECT_FALSE(ConversionPass::madeLayout(metal, ChainForm::Coarser).has_value());
         }
 
         /// **A kept shape is handed back whole**: the pass hands over its normals as their words read back
@@ -803,7 +899,7 @@ namespace Rtx
             std::vector<osg::Vec3f> normals(8, rounded);
             std::vector<std::uint32_t> sources;
             const ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
-            cache.keep<ShapePass>(key, output);
+            cache.keep<ShapePass>(key, input, output);
 
             std::vector<std::uint32_t> foundKept;
             std::vector<osg::Vec3f> foundNormals;

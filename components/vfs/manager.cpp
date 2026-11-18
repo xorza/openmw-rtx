@@ -4,8 +4,6 @@
 #include <ranges>
 #include <stdexcept>
 
-#include <components/vfs/recursivedirectoryiterator.hpp>
-
 #include "archive.hpp"
 #include "file.hpp"
 #include "pathutil.hpp"

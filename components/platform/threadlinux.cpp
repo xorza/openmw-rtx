@@ -1,11 +1,13 @@
 #include "thread.hpp"
 
 #include <chrono>
+#include <ctime>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 #include <pthread.h>
-#include <time.h>
+#include <sched.h>
 
 namespace Platform
 {
@@ -28,5 +30,12 @@ namespace Platform
         timespec spent{};
         clock_gettime(CLOCK_THREAD_CPUTIME_ID, &spent);
         return std::chrono::seconds(spent.tv_sec) + std::chrono::nanoseconds(spent.tv_nsec);
+    }
+
+    std::error_code lowerThisThreadToIdle()
+    {
+        sched_param param{};
+        param.sched_priority = 0;
+        return std::error_code(pthread_setschedparam(pthread_self(), SCHED_IDLE, &param), std::generic_category());
     }
 }

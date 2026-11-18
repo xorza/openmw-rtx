@@ -1,11 +1,13 @@
 #include "colordelegate.hpp"
 
+#include <cstdint>
+
 #include <QColor>
 #include <QModelIndex>
 #include <QPainter>
 #include <QRect>
 
-#include <apps/opencs/view/world/util.hpp>
+#include "util.hpp"
 
 namespace CSMDoc
 {
@@ -26,7 +28,7 @@ CSVWorld::ColorDelegate::ColorDelegate(
 void CSVWorld::ColorDelegate::paint(
     QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
-    int colorInt = index.data().toInt();
+    std::int32_t colorInt = index.data().toInt();
     QColor color(colorInt & 0xff, (colorInt >> 8) & 0xff, (colorInt >> 16) & 0xff);
 
     QRect coloredRect(option.rect.x() + qRound(option.rect.width() / 4.0),

@@ -17,7 +17,7 @@ namespace Rtx
         /// One painted patch: a sheet laid once across a piece of the sky.
         struct Patch
         {
-            Index mTexture = sNoIndex;
+            TextureIndex mTexture = sNoRow;
 
             /// Where its middle points, and how far it reaches from there in radians.
             osg::Vec3f mDirection{ 0.0f, 0.0f, 1.0f };
@@ -25,7 +25,7 @@ namespace Rtx
         };
 
         /// The field over the whole dome, and the sheet it is painted with.
-        Index mField = sNoIndex;
+        TextureIndex mField = sNoRow;
 
         /// How much sky one tile of that sheet covers, in radians; the unwrap is isotropic, which keeps a
         /// star round. The median over every edge, so a mesh that disagrees with itself somewhere still

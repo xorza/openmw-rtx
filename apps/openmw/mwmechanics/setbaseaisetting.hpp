@@ -1,17 +1,17 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/esmstore.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 
 #include "aisetting.hpp"
 
 namespace MWMechanics
 {
     template <class T>
-    void setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, unsigned char value)
+    void setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, std::uint8_t value)
     {
         T copy = *MWBase::Environment::get().getESMStore()->get<T>().find(id);
         switch (setting)

@@ -1,19 +1,21 @@
 #include "messagebox.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 #include <MyGUI_LanguageManager.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_UString.h>
 
-#include <algorithm>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 namespace MWGui
 {
@@ -58,7 +60,7 @@ namespace MWGui
         }
     }
 
-    void MessageBoxManager::setLastButtonPressed(int index)
+    void MessageBoxManager::setLastButtonPressed(std::int32_t index)
     {
         mLastButtonPressed = index;
     }
@@ -80,7 +82,7 @@ namespace MWGui
         auto it = mMessageBoxes.begin();
         while (it != mMessageBoxes.end())
         {
-            (*it)->update(static_cast<int>(height));
+            (*it)->update(static_cast<std::int32_t>(height));
             height += static_cast<float>((*it)->getHeight());
             ++it;
         }
@@ -114,7 +116,7 @@ namespace MWGui
             mMessageBoxes.erase(mMessageBoxes.begin());
         }
 
-        int height = 0;
+        std::int32_t height = 0;
         for (const auto& messageBox : mMessageBoxes)
         {
             messageBox->update(height);
@@ -129,7 +131,7 @@ namespace MWGui
     }
 
     bool MessageBoxManager::createInteractiveMessageBox(
-        std::string_view message, const std::vector<std::string>& buttons, bool immediate, int defaultFocus)
+        std::string_view message, const std::vector<std::string>& buttons, bool immediate, std::int32_t defaultFocus)
     {
         if (mInterMessageBoxe != nullptr)
         {
@@ -167,9 +169,9 @@ namespace MWGui
         return mMessageBoxes;
     }
 
-    int MessageBoxManager::readPressedButton(bool reset)
+    std::int32_t MessageBoxManager::readPressedButton(bool reset)
     {
-        int pressed = mLastButtonPressed;
+        std::int32_t pressed = mLastButtonPressed;
         if (reset)
             mLastButtonPressed = -1;
         return pressed;
@@ -198,7 +200,7 @@ namespace MWGui
         mMessageWidget->setCaptionWithReplacing(mMessage);
     }
 
-    void MessageBox::update(int height)
+    void MessageBox::update(std::int32_t height)
     {
         MyGUI::IntSize gameWindowSize = MyGUI::RenderManager::getInstance().getViewSize();
         MyGUI::IntPoint pos;
@@ -208,7 +210,7 @@ namespace MWGui
         mMainWidget->setPosition(pos);
     }
 
-    int MessageBox::getHeight()
+    std::int32_t MessageBox::getHeight()
     {
         return mMainWidget->getHeight() + mNextBoxPadding;
     }
@@ -219,7 +221,7 @@ namespace MWGui
     }
 
     InteractiveMessageBox::InteractiveMessageBox(MessageBoxManager& parMessageBoxManager, const std::string& message,
-        const std::vector<std::string>& buttons, bool immediate, size_t defaultFocus)
+        const std::vector<std::string>& buttons, bool immediate, std::size_t defaultFocus)
         : WindowModal(MWBase::Environment::get().getWindowManager()->isGuiMode()
                   ? "openmw_interactive_messagebox_notransp.layout"
                   : "openmw_interactive_messagebox.layout")
@@ -229,13 +231,13 @@ namespace MWGui
         , mImmediate(immediate)
         , mControllerFocus(0)
     {
-        int textPadding = 10; // padding between text-widget and main-widget
-        int textButtonPadding = 10; // padding between the text-widget und the button-widget
-        int buttonLeftPadding = 10; // padding between the buttons if horizontal
-        int buttonTopPadding = 10; // ^-- if vertical
-        int buttonLabelLeftPadding = 12; // padding between button label and button itself, from left
-        int buttonLabelTopPadding = 4; // padding between button label and button itself, from top
-        int buttonMainPadding = 10; // padding between buttons and bottom of the main widget
+        std::int32_t textPadding = 10; // padding between text-widget and main-widget
+        std::int32_t textButtonPadding = 10; // padding between the text-widget und the button-widget
+        std::int32_t buttonLeftPadding = 10; // padding between the buttons if horizontal
+        std::int32_t buttonTopPadding = 10; // ^-- if vertical
+        std::int32_t buttonLabelLeftPadding = 12; // padding between button label and button itself, from left
+        std::int32_t buttonLabelTopPadding = 4; // padding between button label and button itself, from top
+        std::int32_t buttonMainPadding = 10; // padding between buttons and bottom of the main widget
 
         mMarkedToDelete = false;
 
@@ -249,10 +251,10 @@ namespace MWGui
 
         MyGUI::IntSize gameWindowSize = MyGUI::RenderManager::getInstance().getViewSize();
 
-        int biggestButtonWidth = 0;
-        int buttonsWidth = 0;
-        int buttonsHeight = 0;
-        int buttonHeight = 0;
+        std::int32_t biggestButtonWidth = 0;
+        std::int32_t buttonsWidth = 0;
+        std::int32_t buttonsHeight = 0;
+        std::int32_t buttonHeight = 0;
         MyGUI::IntCoord dummyCoord(0, 0, 0, 0);
 
         for (const std::string& buttonId : buttons)
@@ -268,7 +270,7 @@ namespace MWGui
             if (buttonsWidth != 0)
                 buttonsWidth += buttonLeftPadding;
 
-            int buttonWidth = button->getTextSize().width + 2 * buttonLabelLeftPadding;
+            std::int32_t buttonWidth = button->getTextSize().width + 2 * buttonLabelLeftPadding;
             buttonsWidth += buttonWidth;
 
             buttonHeight = button->getTextSize().height + 2 * buttonLabelTopPadding;
@@ -291,7 +293,7 @@ namespace MWGui
                 mControllerFocus = 0;
                 if (mDefaultFocus < mButtons.size())
                     mControllerFocus = mDefaultFocus;
-                for (size_t i = 0; i < mButtons.size(); ++i)
+                for (std::size_t i = 0; i < mButtons.size(); ++i)
                     mButtons[i]->setStateSelected(i == mControllerFocus);
             }
         }
@@ -324,7 +326,7 @@ namespace MWGui
 
             MyGUI::IntCoord buttonCord;
             MyGUI::IntSize buttonSize(0, buttonHeight);
-            int left = (mainWidgetSize.width - buttonsWidth) / 2;
+            std::int32_t left = (mainWidgetSize.width - buttonsWidth) / 2;
 
             for (MyGUI::Button* button : mButtons)
             {
@@ -355,7 +357,7 @@ namespace MWGui
             MyGUI::IntCoord buttonCord;
             MyGUI::IntSize buttonSize(0, buttonHeight);
 
-            int top = textPadding + textSize.height + textButtonPadding;
+            std::int32_t top = textPadding + textSize.height + textButtonPadding;
 
             for (MyGUI::Button* button : mButtons)
             {
@@ -423,7 +425,7 @@ namespace MWGui
     void InteractiveMessageBox::buttonActivated(MyGUI::Widget* widget)
     {
         mMarkedToDelete = true;
-        int index = 0;
+        std::int32_t index = 0;
         for (const MyGUI::Button* button : mButtons)
         {
             if (button == widget)
@@ -442,7 +444,7 @@ namespace MWGui
         }
     }
 
-    int InteractiveMessageBox::readPressedButton()
+    std::int32_t InteractiveMessageBox::readPressedButton()
     {
         return mButtonPressed;
     }

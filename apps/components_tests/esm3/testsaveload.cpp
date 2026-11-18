@@ -1,3 +1,16 @@
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <limits>
+#include <memory>
+#include <numeric>
+#include <random>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <components/esm/fourcc.hpp>
 #include <components/esm3/aipackage.hpp>
 #include <components/esm3/aisequence.hpp>
@@ -20,17 +33,6 @@
 #include <components/esm3/loadweap.hpp>
 #include <components/esm3/player.hpp>
 #include <components/esm3/quickkeys.hpp>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <array>
-#include <iterator>
-#include <limits>
-#include <memory>
-#include <numeric>
-#include <random>
 
 namespace ESM
 {
@@ -79,7 +81,7 @@ namespace ESM
     static std::ostream& operator<<(std::ostream& stream, const ESM::Region::SoundRef& value)
     {
         return stream << "ESM::Region::SoundRef {.mSound = '" << value.mSound
-                      << "', .mChance = " << static_cast<unsigned int>(value.mChance) << "}";
+                      << "', .mChance = " << static_cast<std::uint32_t>(value.mChance) << "}";
     }
 
     static bool operator==(const ESM::QuickKeys::QuickKey& lhs, const ESM::QuickKeys::QuickKey& rhs)
@@ -214,7 +216,7 @@ namespace ESM
         struct Esm3SaveLoadRecordTest : public TestWithParam<FormatVersion>
         {
             std::minstd_rand mRandom;
-            std::uniform_int_distribution<short> mRefIdDistribution{ 'a', 'z' };
+            std::uniform_int_distribution<std::int16_t> mRefIdDistribution{ 'a', 'z' };
 
             std::string generateRandomString(std::size_t size)
             {
@@ -235,9 +237,9 @@ namespace ESM
 
             void generateBytes(auto iterator, std::size_t count)
             {
-                std::uniform_int_distribution<unsigned short> distribution{ 0,
-                    std::numeric_limits<unsigned char>::max() };
-                std::generate_n(iterator, count, [&] { return static_cast<unsigned char>(distribution(mRandom)); });
+                std::uniform_int_distribution<std::uint16_t> distribution{ 0,
+                    std::numeric_limits<std::uint8_t>::max() };
+                std::generate_n(iterator, count, [&] { return static_cast<std::uint8_t>(distribution(mRandom)); });
             }
 
             void generateStrings(auto iterator, std::size_t count)
@@ -343,18 +345,18 @@ namespace ESM
         {
             CellRef record;
             record.blank();
-            record.mRefNum.mIndex = std::numeric_limits<unsigned>::max();
-            record.mRefNum.mContentFile = std::numeric_limits<int>::max();
+            record.mRefNum.mIndex = std::numeric_limits<std::uint32_t>::max();
+            record.mRefNum.mContentFile = std::numeric_limits<std::int32_t>::max();
             record.mRefID = generateRandomRefId();
             record.mScale = 2;
             record.mOwner = generateRandomRefId();
             record.mGlobalVariable = generateRandomString(100);
             record.mSoul = generateRandomRefId();
             record.mFaction = generateRandomRefId();
-            record.mFactionRank = std::numeric_limits<int>::max();
-            record.mChargeInt = std::numeric_limits<int>::max();
+            record.mFactionRank = std::numeric_limits<std::int32_t>::max();
+            record.mChargeInt = std::numeric_limits<std::int32_t>::max();
             record.mEnchantmentCharge = std::numeric_limits<float>::max();
-            record.mCount = std::numeric_limits<int>::max();
+            record.mCount = std::numeric_limits<std::int32_t>::max();
             record.mTeleport = true;
             generateArray(record.mDoorDest.pos);
             generateArray(record.mDoorDest.rot);
@@ -363,7 +365,7 @@ namespace ESM
             record.mIsLocked = true;
             record.mKey = generateRandomRefId();
             record.mTrap = generateRandomRefId();
-            record.mReferenceBlocked = std::numeric_limits<signed char>::max();
+            record.mReferenceBlocked = std::numeric_limits<std::int8_t>::max();
             generateArray(record.mPos.pos);
             generateArray(record.mPos.rot);
             CellRef result;
@@ -728,7 +730,7 @@ namespace ESM
             EXPECT_EQ(result.mFactionLess, record.mFactionLess);
             EXPECT_EQ(result.mQuestStatus, record.mQuestStatus);
             EXPECT_EQ(result.mSelects.size(), record.mSelects.size());
-            for (size_t i = 0; i < result.mSelects.size(); ++i)
+            for (std::size_t i = 0; i < result.mSelects.size(); ++i)
             {
                 const auto& resultS = result.mSelects[i];
                 const auto& recordS = record.mSelects[i];
@@ -848,10 +850,6 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, creatureShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic push");
-            _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-#endif
             Creature record = {
                 .mData = {
                     .mAttributes = {
@@ -897,9 +895,6 @@ namespace ESM
                 .mAiPackage{},
                 .mTransport{},
             };
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic pop");
-#endif
 
             Creature result;
             saveAndLoadRecord(record, GetParam(), result);
@@ -914,7 +909,7 @@ namespace ESM
             EXPECT_EQ(result.mData.mCombat, record.mData.mCombat);
             EXPECT_EQ(result.mData.mMagic, record.mData.mMagic);
             EXPECT_EQ(result.mData.mStealth, record.mData.mStealth);
-            for (size_t i = 0; i < std::size(result.mData.mAttack); ++i)
+            for (std::size_t i = 0; i < std::size(result.mData.mAttack); ++i)
                 EXPECT_EQ(result.mData.mAttack[i], record.mData.mAttack[i]);
             EXPECT_EQ(result.mData.mGold, record.mData.mGold);
             EXPECT_EQ(result.mBloodType, record.mBloodType);
@@ -963,7 +958,7 @@ namespace ESM
             EXPECT_EQ(result.mName, record.mName);
             EXPECT_EQ(result.mId, record.mId);
             EXPECT_EQ(result.mData.mAttribute, record.mData.mAttribute);
-            for (size_t i = 0; i < result.mData.mRankData.size(); ++i)
+            for (std::size_t i = 0; i < result.mData.mRankData.size(); ++i)
             {
                 EXPECT_EQ(result.mData.mRankData[i].mAttribute1, record.mData.mRankData[i].mAttribute1);
                 EXPECT_EQ(result.mData.mRankData[i].mAttribute2, record.mData.mRankData[i].mAttribute2);
@@ -978,10 +973,6 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, npcShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic push");
-            _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-#endif
             NPC record = {
                 .mNpdtType = NPC::NPC_DEFAULT,
                 .mNpdt = {
@@ -1031,9 +1022,6 @@ namespace ESM
                 .mHair = generateRandomRefId(32),
                 .mHead = generateRandomRefId(32),
             };
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic pop");
-#endif
 
             NPC result;
             saveAndLoadRecord(record, GetParam(), result);
@@ -1069,10 +1057,6 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, raceShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic push");
-            _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-#endif
             Race record = {
                 .mData = {
                     .mBonus = { { { .mSkill = Skill::Athletics, .mBonus = 10 }, {}, {}, {}, {}, {}, {} } },
@@ -1089,14 +1073,11 @@ namespace ESM
                 .mId = generateRandomRefId(32),
                 .mPowers{},
             };
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic pop");
-#endif
 
             Race result;
             saveAndLoadRecord(record, GetParam(), result);
 
-            for (size_t i = 0; i < result.mData.mBonus.size(); ++i)
+            for (std::size_t i = 0; i < result.mData.mBonus.size(); ++i)
             {
                 EXPECT_EQ(result.mData.mBonus[i].mSkill, record.mData.mBonus[i].mSkill);
                 EXPECT_EQ(result.mData.mBonus[i].mBonus, record.mData.mBonus[i].mBonus);

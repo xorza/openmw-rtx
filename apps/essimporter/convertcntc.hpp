@@ -1,8 +1,8 @@
 #pragma once
 
-#include "importcntc.hpp"
-
 #include <components/esm3/containerstate.hpp>
+
+#include "importcntc.hpp"
 
 namespace ESSImport
 {

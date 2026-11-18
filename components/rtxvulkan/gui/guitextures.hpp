@@ -138,7 +138,7 @@ namespace Rtx
 
         /// The slots nothing holds. `SlotPool` and not a list of its own, because which free
         /// slot an arrival takes is one rule and this renderer keeps three tables by it.
-        SlotPool mFree;
+        SlotPool<RowIndex<struct GuiTextureRows>> mFree;
 
         /// What `lend` handed bytes out of, until `send` records the copy back: a run of the
         /// batch's staging, which the batch gives back stamped with the submit its copies ride.

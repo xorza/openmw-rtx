@@ -1,12 +1,15 @@
 #include "inventorytabsoverlay.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_Window.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 
 namespace MWGui
 {
@@ -33,7 +36,7 @@ namespace MWGui
             MWBase::Environment::get().getInputManager()->getControllerAxisIcon(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER));
     }
 
-    int InventoryTabsOverlay::getHeight()
+    std::int32_t InventoryTabsOverlay::getHeight()
     {
         auto* window = mMainWidget->castType<MyGUI::Window>();
         return window->getHeight();
@@ -44,7 +47,7 @@ namespace MWGui
         if (!MWBase::Environment::get().getWindowManager()->getJournalAllowed())
             return;
 
-        for (size_t i = 0; i < mTabs.size(); ++i)
+        for (std::size_t i = 0; i < mTabs.size(); ++i)
         {
             if (mTabs[i] == sender)
             {
@@ -55,9 +58,9 @@ namespace MWGui
         }
     }
 
-    void InventoryTabsOverlay::setTab(size_t index)
+    void InventoryTabsOverlay::setTab(std::size_t index)
     {
-        for (size_t i = 0; i < mTabs.size(); ++i)
+        for (std::size_t i = 0; i < mTabs.size(); ++i)
             mTabs[i]->setStateSelected(i == index);
     }
 }

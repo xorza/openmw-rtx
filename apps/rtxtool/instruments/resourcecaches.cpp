@@ -1,6 +1,7 @@
 #include "resourcecaches.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <utility>
 
@@ -16,7 +17,7 @@ namespace RtxTool
     {
         constexpr std::string_view sLoaded = " Loaded";
 
-        std::size_t attribute(const osg::Stats& stats, unsigned frame, const std::string& name)
+        std::size_t attribute(const osg::Stats& stats, std::uint32_t frame, const std::string& name)
         {
             double value = 0.0;
             stats.getAttribute(frame, name, value);
@@ -27,7 +28,7 @@ namespace RtxTool
     std::vector<NamedCacheStats> readResourceCaches(const Resource::ResourceSystem& resources)
     {
         const osg::ref_ptr<osg::Stats> stats = new osg::Stats("resource caches", 1);
-        const unsigned frame = stats->getLatestFrameNumber();
+        const std::uint32_t frame = stats->getLatestFrameNumber();
         resources.reportStats(frame, stats.get());
 
         std::vector<NamedCacheStats> caches;

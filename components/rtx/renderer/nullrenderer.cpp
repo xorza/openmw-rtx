@@ -21,19 +21,19 @@ namespace Rtx
 
     bool NullRenderer::holds(const SceneSlot slot) const
     {
-        return slot.isWorld() || (slot.getViewIndex() < mViews.size() && mViews.isLive(slot.getViewIndex()));
+        return slot.isWorld() || (slot.getViewIndex() < mViews.size() && mViews.isLive(ViewRow(slot.getViewIndex())));
     }
 
     SceneHeld& NullRenderer::heldAt(const SceneSlot slot)
     {
         assert(holds(slot) && "a view scene that was never made or was dropped");
-        return slot.isWorld() ? mWorld : mViews.at(slot.getViewIndex());
+        return slot.isWorld() ? mWorld : mViews.at(ViewRow(slot.getViewIndex()));
     }
 
     const SceneHeld& NullRenderer::heldAt(const SceneSlot slot) const
     {
         assert(holds(slot) && "a view scene that was never made or was dropped");
-        return slot.isWorld() ? mWorld : mViews.at(slot.getViewIndex());
+        return slot.isWorld() ? mWorld : mViews.at(ViewRow(slot.getViewIndex()));
     }
 
     void NullRenderer::setScene(const SceneSlot slot, const SceneDesc& scene, std::span<const TextureData>)
@@ -62,20 +62,20 @@ namespace Rtx
 
     SceneSlot NullRenderer::addViewScene()
     {
-        return SceneSlot::view(mViews.take(SceneHeld{}));
+        return SceneSlot::view(mViews.take(SceneHeld{}).at());
     }
 
     void NullRenderer::dropViewScene(const SceneSlot slot)
     {
         assert(!slot.isWorld() && holds(slot) && "a view scene dropped that is not held");
-        mViews.free(slot.getViewIndex());
+        mViews.free(ViewRow(slot.getViewIndex()));
     }
 
     NullRenderer::GuiTexture& NullRenderer::textureAt(const GuiSlot slot)
     {
         assert(!slot.isNone() && "a gui texture nothing names");
-        assert(mGuiTextures.isLive(slot.get()) && "a gui texture that was never made or was dropped");
-        return mGuiTextures.at(slot.get());
+        assert(mGuiTextures.isLive(GuiTextureRow(slot.get())) && "a gui texture that was never made or was dropped");
+        return mGuiTextures.at(GuiTextureRow(slot.get()));
     }
 
     bool NullRenderer::traceGuiTexture(const GuiSlot texture, [[maybe_unused]] const SceneSlot scene,
@@ -103,7 +103,7 @@ namespace Rtx
 
     GuiSlot NullRenderer::addGuiTexture(const std::uint32_t width, const std::uint32_t height)
     {
-        return GuiSlot::at(mGuiTextures.take(GuiTexture{ .mWidth = width, .mHeight = height, .mCopied = false }));
+        return GuiSlot::at(mGuiTextures.take(GuiTexture{ .mWidth = width, .mHeight = height, .mCopied = false }).at());
     }
 
     std::span<std::uint8_t> NullRenderer::lendGuiTexture(const GuiSlot texture, const GuiRegion& region)
@@ -129,7 +129,7 @@ namespace Rtx
     void NullRenderer::dropGuiTexture(const GuiSlot texture)
     {
         assert(!texture.isNone() && "a gui texture nothing names");
-        mGuiTextures.free(texture.get());
+        mGuiTextures.free(GuiTextureRow(texture.get()));
     }
 
     void NullRenderer::resize(const std::uint32_t width, const std::uint32_t height)
@@ -162,7 +162,7 @@ namespace Rtx
 
     FrameTraced NullRenderer::renderFrame(const FrameRequest& request)
     {
-        assert(mWorld.mIdentity != 0 && "a frame traced before the world's scene was set");
+        assert(mWorld.mIdentity != SceneIdentity{} && "a frame traced before the world's scene was set");
         // The host collects a frame before it places the next where the ring is full
         // (`collectFrame`), so a frame never finds the ring full here.
         assert(mUnreportedCount < sFramesInFlight && "a frame traced into a full ring");

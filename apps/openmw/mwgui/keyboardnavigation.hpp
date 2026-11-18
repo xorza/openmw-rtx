@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_IUnlinkWidget.h>
 #include <MyGUI_KeyCode.h>
 
@@ -15,10 +17,10 @@ namespace MWGui
         KeyboardNavigation& operator=(const KeyboardNavigation&) = delete;
 
         /// @return Was the key handled by this class?
-        bool injectKeyPress(MyGUI::KeyCode key, unsigned int text, bool repeat);
+        bool injectKeyPress(MyGUI::KeyCode key, std::uint32_t text, bool repeat);
 
-        void saveFocus(int mode);
-        void restoreFocus(int mode);
+        void saveFocus(std::int32_t mode);
+        void restoreFocus(std::int32_t mode);
 
         void _unlinkWidget(MyGUI::Widget* widget) override;
 
@@ -32,14 +34,14 @@ namespace MWGui
         void setEnabled(bool enabled);
 
     private:
-        bool switchFocus(int direction, bool wrap);
+        bool switchFocus(std::int32_t direction, bool wrap);
 
         bool selectFirstWidget();
 
         /// Send button press event to focused button
         bool accept();
 
-        std::map<int, MyGUI::Widget*> mKeyFocus;
+        std::map<std::int32_t, MyGUI::Widget*> mKeyFocus;
 
         MyGUI::Widget* mCurrentFocus;
         MyGUI::Widget* mModalWindow;

@@ -1,6 +1,8 @@
 #include "scenetoolrun.hpp"
 
+#include <cstdint>
 #include <iterator>
+#include <utility>
 
 #include <QApplication>
 #include <QFrame>
@@ -10,9 +12,8 @@
 
 #include <components/misc/scalableicon.hpp>
 
-#include <apps/opencs/view/widget/pushbutton.hpp>
-#include <apps/opencs/view/widget/scenetool.hpp>
-#include <utility>
+#include "pushbutton.hpp"
+#include "scenetool.hpp"
 
 class QPoint;
 
@@ -43,9 +44,9 @@ void CSVWidget::SceneToolRun::updateIcon()
 
 void CSVWidget::SceneToolRun::updatePanel()
 {
-    mTable->setRowCount(static_cast<int>(mProfiles.size()));
+    mTable->setRowCount(static_cast<std::int32_t>(mProfiles.size()));
 
-    int i = 0;
+    std::int32_t i = 0;
 
     for (auto iter(mProfiles.begin()); iter != mProfiles.end(); ++iter, ++i)
     {

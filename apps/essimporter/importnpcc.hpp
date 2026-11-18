@@ -1,7 +1,8 @@
 #pragma once
 
-#include <components/esm3/aipackage.hpp>
 #include <cstdint>
+
+#include <components/esm3/aipackage.hpp>
 
 #include "importinventory.hpp"
 
@@ -17,11 +18,11 @@ namespace ESSImport
     {
         struct NPDT
         {
-            unsigned char mDisposition;
-            unsigned char unknown;
-            unsigned char mReputation;
-            unsigned char unknown2;
-            int32_t mIndex;
+            std::uint8_t mDisposition;
+            std::uint8_t unknown;
+            std::uint8_t mReputation;
+            std::uint8_t unknown2;
+            std::int32_t mIndex;
         } mNPDT{};
 
         Inventory mInventory;

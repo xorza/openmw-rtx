@@ -1,18 +1,18 @@
-#include <gtest/gtest.h>
-
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/conversion.hpp>
-#include <components/misc/strings/format.hpp>
-#include <components/misc/strings/lower.hpp>
-
-#include <components/misc/algorithm.hpp>
-
 #include <cmath>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+
+#include <gtest/gtest.h>
+
+#include <components/misc/algorithm.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/conversion.hpp>
+#include <components/misc/strings/format.hpp>
+#include <components/misc/strings/lower.hpp>
 
 namespace
 {
@@ -244,7 +244,7 @@ namespace
     {
         EXPECT_EQ(toNumeric<float>("1.5"), 1.5f);
         EXPECT_EQ(toNumeric<double>("-0.25"), -0.25);
-        EXPECT_EQ(toNumeric<int>("42"), 42);
+        EXPECT_EQ(toNumeric<std::int32_t>("42"), 42);
     }
 
     TEST(MiscStringsToNumeric, should_refuse_what_is_not_a_finite_number)

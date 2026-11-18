@@ -1,52 +1,45 @@
 #include "dialoguemanagerimp.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <list>
 #include <optional>
 #include <sstream>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwscript/compilercontext.hpp>
+#include <apps/openmw/mwscript/extensions.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <components/compiler/exception.hpp>
+#include <components/compiler/locals.hpp>
+#include <components/compiler/output.hpp>
+#include <components/compiler/scanner.hpp>
+#include <components/compiler/scriptparser.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm3/dialoguestate.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loaddial.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadinfo.hpp>
 #include <components/esm3/loadmgef.hpp>
-
-#include <components/compiler/exception.hpp>
-#include <components/compiler/locals.hpp>
-#include <components/compiler/output.hpp>
-#include <components/compiler/scanner.hpp>
-#include <components/compiler/scriptparser.hpp>
-
 #include <components/interpreter/defines.hpp>
 #include <components/interpreter/interpreter.hpp>
-
 #include <components/misc/resourcehelpers.hpp>
-
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwscript/compilercontext.hpp"
-#include "../mwscript/extensions.hpp"
-#include "../mwscript/interpretercontext.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "filter.hpp"
 #include "keywordsearch.hpp"
@@ -360,7 +353,7 @@ namespace MWDialogue
 
                 if (answer != nullptr)
                 {
-                    int topicFlags = 0;
+                    std::int32_t topicFlags = 0;
                     if (!inJournal(topicId, answer->mId))
                     {
                         // Does this dialogue contains some actor-specific answer?
@@ -413,7 +406,7 @@ namespace MWDialogue
         return keywordList;
     }
 
-    int DialogueManager::getTopicFlag(const ESM::RefId& topicId) const
+    std::int32_t DialogueManager::getTopicFlag(const ESM::RefId& topicId) const
     {
         auto known = mActorKnownTopics.find(topicId);
         if (known != mActorKnownTopics.end())
@@ -448,13 +441,14 @@ namespace MWDialogue
 
             // Get the sum of disposition effects minus charm (shouldn't be made permanent)
             npcStats.setBaseDisposition(0);
-            int zero = static_cast<int>(
+            std::int32_t zero = static_cast<std::int32_t>(
                 static_cast<float>(
                     MWBase::Environment::get().getMechanicsManager()->getDerivedDisposition(mActor, false))
                 - npcStats.getMagicEffects().getOrDefault(ESM::MagicEffect::Charm).getMagnitude());
 
             // Clamp new permanent disposition to avoid negative derived disposition (can be caused by intimidate)
-            int disposition = std::clamp(mOriginalDisposition + mPermanentDispositionChange, -zero, 100 - zero);
+            std::int32_t disposition
+                = std::clamp(mOriginalDisposition + mPermanentDispositionChange, -zero, 100 - zero);
             npcStats.setBaseDisposition(disposition);
         }
         mPermanentDispositionChange = 0;
@@ -462,7 +456,7 @@ namespace MWDialogue
         mCurrentDisposition = 0;
     }
 
-    void DialogueManager::questionAnswered(int answer, ResponseCallback* callback)
+    void DialogueManager::questionAnswered(std::int32_t answer, ResponseCallback* callback)
     {
         mChoice = answer;
 
@@ -509,13 +503,13 @@ namespace MWDialogue
         updateActorKnownTopics();
     }
 
-    void DialogueManager::addChoice(std::string_view text, int choice)
+    void DialogueManager::addChoice(std::string_view text, std::int32_t choice)
     {
         mIsInChoice = true;
         mChoices.emplace_back(text, choice);
     }
 
-    const std::vector<std::pair<std::string, int>>& DialogueManager::getChoices() const
+    const std::vector<std::pair<std::string, std::int32_t>>& DialogueManager::getChoices() const
     {
         return mChoices;
     }
@@ -531,10 +525,10 @@ namespace MWDialogue
         mGoodbye = true;
     }
 
-    void DialogueManager::persuade(int type, ResponseCallback* callback)
+    void DialogueManager::persuade(std::int32_t type, ResponseCallback* callback)
     {
         bool success = false;
-        int temp = 0, perm = 0;
+        std::int32_t temp = 0, perm = 0;
         MWBase::Environment::get().getMechanicsManager()->getPersuasionDispositionChange(
             mActor, MWBase::MechanicsManager::PersuasionType(type), success, temp, perm);
         updateOriginalDisposition();
@@ -550,7 +544,7 @@ namespace MWDialogue
 
         if (success)
         {
-            int gold = 0;
+            std::int32_t gold = 0;
             if (type == MWBase::MechanicsManager::PT_Bribe10)
                 gold = 10;
             else if (type == MWBase::MechanicsManager::PT_Bribe100)
@@ -581,7 +575,7 @@ namespace MWDialogue
         executeTopic(ESM::RefId::stringRefId(text + (success ? " Success" : " Fail")), callback);
     }
 
-    void DialogueManager::applyBarterDispositionChange(int delta)
+    void DialogueManager::applyBarterDispositionChange(std::int32_t delta)
     {
         if (!mActor.isEmpty() && mActor.getClass().isNpc())
         {
@@ -664,7 +658,7 @@ namespace MWDialogue
         return info != nullptr;
     }
 
-    size_t DialogueManager::countSavedGameRecords() const
+    std::size_t DialogueManager::countSavedGameRecords() const
     {
         return 1; // known topics
     }
@@ -683,7 +677,7 @@ namespace MWDialogue
         writer.endRecord(ESM::REC_DIAS);
     }
 
-    void DialogueManager::readRecord(ESM::ESMReader& reader, uint32_t type)
+    void DialogueManager::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_DIAS)
         {
@@ -700,19 +694,20 @@ namespace MWDialogue
         }
     }
 
-    void DialogueManager::modFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2, int diff)
+    void DialogueManager::modFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2, std::int32_t diff)
     {
         // Make sure the factions exist
         MWBase::Environment::get().getESMStore()->get<ESM::Faction>().find(faction1);
         MWBase::Environment::get().getESMStore()->get<ESM::Faction>().find(faction2);
 
-        int newValue = getFactionReaction(faction1, faction2) + diff;
+        std::int32_t newValue = getFactionReaction(faction1, faction2) + diff;
 
         auto& map = mChangedFactionReaction[faction1];
         map[faction2] = newValue;
     }
 
-    void DialogueManager::setFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2, int absolute)
+    void DialogueManager::setFactionReaction(
+        const ESM::RefId& faction1, const ESM::RefId& faction2, std::int32_t absolute)
     {
         // Make sure the factions exist
         MWBase::Environment::get().getESMStore()->get<ESM::Faction>().find(faction1);
@@ -722,7 +717,7 @@ namespace MWDialogue
         map[faction2] = absolute;
     }
 
-    int DialogueManager::getFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2) const
+    std::int32_t DialogueManager::getFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2) const
     {
         auto map = mChangedFactionReaction.find(faction1);
         if (map != mChangedFactionReaction.end())
@@ -743,7 +738,8 @@ namespace MWDialogue
         return 0;
     }
 
-    const std::map<ESM::RefId, int>* DialogueManager::getFactionReactionOverrides(const ESM::RefId& faction) const
+    const std::map<ESM::RefId, std::int32_t>* DialogueManager::getFactionReactionOverrides(
+        const ESM::RefId& faction) const
     {
         // Make sure the faction exists
         MWBase::Environment::get().getESMStore()->get<ESM::Faction>().find(faction);

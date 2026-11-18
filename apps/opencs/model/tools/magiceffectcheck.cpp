@@ -1,20 +1,19 @@
 #include "magiceffectcheck.hpp"
 
+#include <cstdint>
 #include <format>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/resources.hpp>
-
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
-#include "../prefs/state.hpp"
 
 namespace ESM
 {
@@ -44,14 +43,14 @@ CSMTools::MagicEffectCheckStage::MagicEffectCheckStage(const CSMWorld::IdCollect
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::MagicEffectCheckStage::setup()
+std::int32_t CSMTools::MagicEffectCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mMagicEffects.getSize();
 }
 
-void CSMTools::MagicEffectCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::MagicEffectCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::MagicEffect>& record = mMagicEffects.getRecord(stage);
 

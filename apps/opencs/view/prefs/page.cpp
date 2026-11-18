@@ -1,12 +1,14 @@
 #include "page.hpp"
 
-#include <apps/opencs/view/prefs/pagebase.hpp>
+#include <cstdint>
 
 #include <QGridLayout>
 #include <QLabel>
 
-#include "../../model/prefs/category.hpp"
-#include "../../model/prefs/setting.hpp"
+#include <apps/opencs/model/prefs/category.hpp>
+#include <apps/opencs/model/prefs/setting.hpp>
+
+#include "pagebase.hpp"
 
 CSVPrefs::Page::Page(CSMPrefs::Category& category, QWidget* parent)
     : PageBase(category, parent)
@@ -24,7 +26,7 @@ void CSVPrefs::Page::addSetting(CSMPrefs::Setting* setting)
 {
     const CSMPrefs::SettingWidgets widgets = setting->makeWidgets(this);
 
-    int next = mGrid->rowCount();
+    std::int32_t next = mGrid->rowCount();
 
     if (widgets.mLabel != nullptr && widgets.mInput != nullptr)
     {

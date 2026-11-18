@@ -1,9 +1,13 @@
 #pragma once
 
 #include <cassert>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <optional>
+
+#include <components/esm/refid.hpp>
+#include <components/resource/bulletshape.hpp>
 
 #include "cellgridbounds.hpp"
 #include "heightfieldshape.hpp"
@@ -12,9 +16,6 @@
 #include "sharednavmeshcacheitem.hpp"
 #include "updateguard.hpp"
 #include "waitconditiontype.hpp"
-
-#include <components/esm/refid.hpp>
-#include <components/resource/bulletshape.hpp>
 
 namespace ESM
 {
@@ -26,6 +27,11 @@ namespace ESM
 namespace Loading
 {
     class Listener;
+}
+
+namespace Resource
+{
+    class CacheBudget;
 }
 
 namespace DetourNavigator
@@ -138,7 +144,8 @@ namespace DetourNavigator
          * @param cellSize set cell borders. std::numeric_limits<int>::max() disables cell borders.
          * @param shift set global shift of cell center.
          */
-        virtual void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard) = 0;
+        virtual void addWater(
+            const osg::Vec2i& cellPosition, std::int32_t cellSize, float level, const UpdateGuard* guard) = 0;
 
         /**
          * @brief removeWater to make it no more available at the scene.
@@ -146,8 +153,8 @@ namespace DetourNavigator
          */
         virtual void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard) = 0;
 
-        virtual void addHeightfield(
-            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard) = 0;
+        virtual void addHeightfield(const osg::Vec2i& cellPosition, std::int32_t cellSize,
+            const HeightfieldShape& shape, const UpdateGuard* guard) = 0;
 
         virtual void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard) = 0;
 
@@ -189,8 +196,10 @@ namespace DetourNavigator
         virtual float getMaxNavmeshAreaRealRadius() const = 0;
     };
 
-    /// A navigator whose tiles are kept under `cachePath` where `settings` ask for the disk cache.
-    std::unique_ptr<Navigator> makeNavigator(const Settings& settings, const std::filesystem::path& cachePath);
+    /// A navigator whose tiles are kept under `cachePath` where `settings` ask for the disk cache, and in memory as
+    /// `budget`, which outlives it, holds the caches of the process.
+    std::unique_ptr<Navigator> makeNavigator(
+        const Settings& settings, const std::filesystem::path& cachePath, Resource::CacheBudget& budget);
 
     std::unique_ptr<Navigator> makeNavigatorStub();
 }

@@ -1,6 +1,7 @@
 #include "ngx.hpp"
 
 #include <array>
+#include <cstdint>
 
 #include "ngxlibrary.hpp"
 
@@ -239,7 +240,7 @@ namespace Rtx::Dlss::Ngx
         parameters.Set(sHeight, create.mRender.height);
         parameters.Set(sOutWidth, create.mOutput.width);
         parameters.Set(sOutHeight, create.mOutput.height);
-        parameters.Set(sPerfQualityValue, static_cast<int>(create.mQuality));
+        parameters.Set(sPerfQualityValue, static_cast<std::int32_t>(create.mQuality));
         parameters.Set(sFeatureCreateFlags, create.mFlags);
         parameters.Set(sEnableOutputSubrects, 0);
         parameters.Set(sDenoiseMode, sDenoiseModeUnified);
@@ -305,7 +306,7 @@ namespace Rtx::Dlss::Ngx
 
         capabilities.Set(sWidth, output.width);
         capabilities.Set(sHeight, output.height);
-        capabilities.Set(sPerfQualityValue, static_cast<int>(quality));
+        capabilities.Set(sPerfQualityValue, static_cast<std::int32_t>(quality));
         // "Some older DLSS dlls still expect this value to be set", as the helper has it.
         capabilities.Set(sRtxValue, 0);
         const Result asked = callback(&capabilities);
@@ -324,6 +325,7 @@ namespace Rtx::Dlss::Ngx
         return asked;
     }
 
+    // NOLINTNEXTLINE(google-runtime-int): NGX's type
     Result statsBytes(Parameter& capabilities, unsigned long long& into)
     {
         const QueryCallback callback = callbackOf(capabilities, sStatsCallback);

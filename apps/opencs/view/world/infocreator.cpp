@@ -2,32 +2,32 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include <QLabel>
 #include <QRandomGenerator>
 #include <QString>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/view/world/genericcreator.hpp>
+#include <apps/opencs/model/world/idcompletionmanager.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/view/widget/droplineedit.hpp>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/columns.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idcompletionmanager.hpp"
-#include "../../model/world/idtable.hpp"
-
-#include "../widget/droplineedit.hpp"
+#include "genericcreator.hpp"
 
 class QUndoStack;
 
 std::string CSVWorld::InfoCreator::getId() const
 {
     std::string id = mTopic->text().toStdString();
-    size_t length = id.size();
+    std::size_t length = id.size();
     // We want generated ids to be at most 31 + \0 characters
     id.resize(length + 32);
     id[length] = '#';
@@ -111,9 +111,9 @@ void CSVWorld::InfoCreator::cloneMode(const std::string& originId, const CSMWorl
 {
     auto& infoTable = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()));
 
-    int topicColumn = infoTable.findColumnIndex(getCollectionId().getType() == CSMWorld::UniversalId::Type_TopicInfos
-            ? CSMWorld::Columns::ColumnId_Topic
-            : CSMWorld::Columns::ColumnId_Journal);
+    std::int32_t topicColumn = infoTable.findColumnIndex(
+        getCollectionId().getType() == CSMWorld::UniversalId::Type_TopicInfos ? CSMWorld::Columns::ColumnId_Topic
+                                                                              : CSMWorld::Columns::ColumnId_Journal);
 
     mTopic->setText(infoTable.data(infoTable.getModelIndex(originId, topicColumn)).toString());
 

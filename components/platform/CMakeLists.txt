@@ -46,7 +46,7 @@ target_sources(
     openmw-components
     PRIVATE
         glibctext.cpp
-        platform.cpp
+        integerwidths.cpp
         thread.cpp
     PUBLIC
         FILE_SET HEADERS
@@ -79,6 +79,7 @@ if(WIN32)
             librarywin32.cpp
             localtimewin32.cpp
             memorywin32.cpp
+            platformwin32.cpp
             sharedmemorywin32.cpp
             threadwin32.cpp
             userhomewin32.cpp
@@ -96,6 +97,7 @@ elseif(LINUX)
             libraryposix.cpp
             localtimeposix.cpp
             memorylinux.cpp
+            platformposix.cpp
             sharedmemoryposix.cpp
             threadlinux.cpp
             userhomeposix.cpp

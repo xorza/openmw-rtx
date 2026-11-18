@@ -1,14 +1,16 @@
 #include "junkparser.hpp"
 
+#include <cstdint>
+
 #include "scanner.hpp"
 
-Compiler::JunkParser::JunkParser(ErrorHandler& errorHandler, const Context& context, int ignoreKeyword)
+Compiler::JunkParser::JunkParser(ErrorHandler& errorHandler, const Context& context, std::int32_t ignoreKeyword)
     : Parser(errorHandler, context)
     , mIgnoreKeyword(ignoreKeyword)
 {
 }
 
-bool Compiler::JunkParser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
+bool Compiler::JunkParser::parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner)
 {
     scanner.putbackInt(value, loc);
     return false;
@@ -26,7 +28,7 @@ bool Compiler::JunkParser::parseName(const std::string& name, const TokenLoc& lo
     return false;
 }
 
-bool Compiler::JunkParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+bool Compiler::JunkParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
 {
     if (keyword == mIgnoreKeyword)
         reportWarning("Ignoring found junk", loc);
@@ -36,7 +38,7 @@ bool Compiler::JunkParser::parseKeyword(int keyword, const TokenLoc& loc, Scanne
     return false;
 }
 
-bool Compiler::JunkParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+bool Compiler::JunkParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
 {
     if (code == Scanner::S_member)
         reportWarning("Ignoring found junk", loc);

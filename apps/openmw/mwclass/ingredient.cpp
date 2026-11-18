@@ -1,25 +1,23 @@
 #include "ingredient.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actioneat.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/nullaction.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadnpc.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/actioneat.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/nullaction.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"
@@ -62,7 +60,7 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    int Ingredient::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Ingredient::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Ingredient>* ref = ptr.get<ESM::Ingredient>();
 
@@ -99,7 +97,7 @@ namespace MWClass
         return ref->mBase->mIcon.getNormalized();
     }
 
-    MWGui::ToolTipInfo Ingredient::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Ingredient::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Ingredient>* ref = ptr.get<ESM::Ingredient>();
 
@@ -129,7 +127,7 @@ namespace MWClass
                                                   ->mValue.getFloat();
 
         MWGui::Widgets::SpellEffectList list;
-        for (int i = 0; i < 4; ++i)
+        for (std::int32_t i = 0; i < 4; ++i)
         {
             if (ref->mBase->mData.mEffectID[i].empty())
                 continue;
@@ -156,7 +154,7 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
-    bool Ingredient::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Ingredient::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::Ingredients) != 0;
     }

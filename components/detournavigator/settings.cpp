@@ -1,11 +1,12 @@
 #include "settings.hpp"
 
-#include <components/misc/constants.hpp>
-#include <components/settings/values.hpp>
-
 #include <algorithm>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
+
+#include <components/misc/constants.hpp>
+#include <components/settings/values.hpp>
 
 namespace DetourNavigator
 {
@@ -13,14 +14,14 @@ namespace DetourNavigator
     {
         struct NavMeshLimits
         {
-            int mMaxTiles;
-            int mMaxPolys;
+            std::int32_t mMaxTiles;
+            std::int32_t mMaxPolys;
         };
 
         template <class T>
-        unsigned long getMinValuableBitsNumber(const T value)
+        std::uint32_t getMinValuableBitsNumber(const T value)
         {
-            unsigned long power = 0;
+            std::uint32_t power = 0;
             while (power < sizeof(T) * 8 && (static_cast<T>(1) << power) < value)
                 ++power;
             return power;
@@ -30,13 +31,13 @@ namespace DetourNavigator
         {
             // Max tiles and max polys affect how the tile IDs are caculated.
             // There are 22 bits available for identifying a tile and a polygon.
-            constexpr int polysAndTilesBits = 22;
-            const unsigned long polysBits = getMinValuableBitsNumber(settings.mMaxPolys);
+            constexpr std::int32_t polysAndTilesBits = 22;
+            const std::uint32_t polysBits = getMinValuableBitsNumber(settings.mMaxPolys);
 
             if (polysBits >= polysAndTilesBits)
                 throw std::invalid_argument("Too many polygons per tile: " + std::to_string(settings.mMaxPolys));
 
-            const unsigned long tilesBits = polysAndTilesBits - polysBits;
+            const std::uint32_t tilesBits = polysAndTilesBits - polysBits;
 
             return NavMeshLimits{
                 .mMaxTiles = (1 << tilesBits),
@@ -95,7 +96,6 @@ namespace DetourNavigator
         result.mMaxTilesNumber = std::min(limits.mMaxTiles, ::Settings::navigator().mMaxTilesNumber.get());
         result.mWaitUntilMinDistanceToPlayer = ::Settings::navigator().mWaitUntilMinDistanceToPlayer;
         result.mAsyncNavMeshUpdaterThreads = ::Settings::navigator().mAsyncNavMeshUpdaterThreads;
-        result.mMaxNavMeshTilesCacheSize = ::Settings::navigator().mMaxNavMeshTilesCacheSize;
         result.mEnableWriteRecastMeshToFile = ::Settings::navigator().mEnableWriteRecastMeshToFile;
         result.mEnableWriteNavMeshToFile = ::Settings::navigator().mEnableWriteNavMeshToFile;
         result.mRecastMeshPathPrefix = ::Settings::navigator().mRecastMeshPathPrefix;

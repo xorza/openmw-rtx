@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include "components/esm/esmcommon.hpp"
-#include "components/misc/concepts.hpp"
+#include <components/esm/esmcommon.hpp>
+#include <components/misc/concepts.hpp>
 
 namespace ESM
 {
@@ -13,9 +14,9 @@ namespace ESM
 
     struct AIData
     {
-        uint16_t mHello; // This is the base value for greeting distance [0, 65535]
-        unsigned char mFight, mFlee, mAlarm; // These are probabilities [0, 100]
-        int32_t mServices; // See the Services enum
+        std::uint16_t mHello; // This is the base value for greeting distance [0, 65535]
+        std::uint8_t mFight, mFlee, mAlarm; // These are probabilities [0, 100]
+        std::int32_t mServices; // See the Services enum
 
         void blank();
         ///< Set record to default state (does not touch the ID).
@@ -23,31 +24,31 @@ namespace ESM
 
     struct AIWander
     {
-        int16_t mDistance;
-        int16_t mDuration;
-        unsigned char mTimeOfDay;
-        unsigned char mIdle[8];
-        unsigned char mShouldRepeat;
+        std::int16_t mDistance;
+        std::int16_t mDuration;
+        std::uint8_t mTimeOfDay;
+        std::uint8_t mIdle[8];
+        std::uint8_t mShouldRepeat;
     };
 
     struct AITravel
     {
         float mX, mY, mZ;
-        unsigned char mShouldRepeat;
+        std::uint8_t mShouldRepeat;
     };
 
     struct AITarget
     {
         float mX, mY, mZ;
-        int16_t mDuration;
+        std::int16_t mDuration;
         NAME32 mId;
-        unsigned char mShouldRepeat;
+        std::uint8_t mShouldRepeat;
     };
 
     struct AIActivate
     {
         NAME32 mName;
-        unsigned char mShouldRepeat;
+        std::uint8_t mShouldRepeat;
     };
 
     enum AiPackageType : std::uint32_t

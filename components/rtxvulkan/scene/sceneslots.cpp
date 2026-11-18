@@ -18,17 +18,17 @@ namespace Rtx
 
     SceneSlot SceneSlots::add()
     {
-        return SceneSlot::view(mViews.take(nullptr));
+        return SceneSlot::view(mViews.take(nullptr).at());
     }
 
     void SceneSlots::drop(const SceneSlot slot)
     {
         assert(!slot.isWorld() && "the world's slot given back");
         assert(slot.getViewIndex() < mViews.size() && "a scene slot nothing handed out");
-        assert(mViews.isLive(slot.getViewIndex()) && "a scene given back twice");
+        assert(mViews.isLive(ViewRow(slot.getViewIndex())) && "a scene given back twice");
 
         clear(slot);
-        mViews.free(slot.getViewIndex());
+        mViews.free(ViewRow(slot.getViewIndex()));
     }
 
     void SceneSlots::clear(const SceneSlot slot)
@@ -50,7 +50,7 @@ namespace Rtx
             return mWorld;
 
         assert(slot.getViewIndex() < mViews.size() && "a scene slot nothing handed out");
-        return mViews.at(slot.getViewIndex());
+        return mViews.at(ViewRow(slot.getViewIndex()));
     }
 
     std::unique_ptr<DeviceScene>& SceneSlots::slotAt(const SceneSlot slot)

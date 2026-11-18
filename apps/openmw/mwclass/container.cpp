@@ -1,35 +1,32 @@
 #include "container.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwmechanics/inventory.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actionharvest.hpp>
+#include <apps/openmw/mwworld/actionopen.hpp>
+#include <apps/openmw/mwworld/actiontrap.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/failedaction.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/nullaction.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/containerstate.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwphysics/physicssystem.hpp"
-#include "../mwworld/actionharvest.hpp"
-#include "../mwworld/actionopen.hpp"
-#include "../mwworld/actiontrap.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/failedaction.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/nullaction.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwrender/animation.hpp"
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-
-#include "../mwmechanics/inventory.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"
@@ -39,7 +36,7 @@ namespace MWClass
     ContainerCustomData::ContainerCustomData(const ESM::Container& container, MWWorld::CellStore* cell)
     {
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        auto seed = static_cast<unsigned int>(Misc::Rng::rollDice(std::numeric_limits<int>::max(), prng));
+        auto seed = static_cast<std::uint32_t>(Misc::Rng::rollDice(std::numeric_limits<std::int32_t>::max(), prng));
         // setting ownership not needed, since taking items from a container inherits the
         // container's owner automatically
         mStore.fillNonRandom(container.mInventory, ESM::RefId(), seed);
@@ -236,7 +233,7 @@ namespace MWClass
         return true;
     }
 
-    MWGui::ToolTipInfo Container::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Container::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Container>* ref = ptr.get<ESM::Container>();
 
@@ -245,7 +242,7 @@ namespace MWClass
         info.caption = MyGUI::TextIterator::toTagsString(MyGUI::UString(name));
 
         std::string text;
-        int lockLevel = ptr.getCellRef().getLockLevel();
+        std::int32_t lockLevel = ptr.getCellRef().getLockLevel();
         if (lockLevel)
         {
             if (ptr.getCellRef().isLocked())
@@ -287,7 +284,8 @@ namespace MWClass
         return !(ref->mBase->mFlags & ESM::Container::Organic);
     }
 
-    void Container::modifyBaseInventory(const ESM::RefId& containerId, const ESM::RefId& itemId, int amount) const
+    void Container::modifyBaseInventory(
+        const ESM::RefId& containerId, const ESM::RefId& itemId, std::int32_t amount) const
     {
         MWMechanics::modifyBaseInventory<ESM::Container>(containerId, itemId, amount);
     }

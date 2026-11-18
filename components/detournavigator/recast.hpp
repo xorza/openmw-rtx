@@ -1,9 +1,9 @@
 #pragma once
 
-#include <Recast.h>
-
 #include <cstddef>
 #include <type_traits>
+
+#include <Recast.h>
 
 namespace DetourNavigator
 {

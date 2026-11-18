@@ -1,9 +1,8 @@
-#include "crashpadmonitorsystem.hpp"
-
 #include <array>
 #include <cerrno>
 #include <charconv>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
@@ -17,10 +16,6 @@
 #include <utility>
 #include <vector>
 
-#include <poll.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-
 #include <base/files/file_path.h>
 #include <base/logging.h>
 #include <client/crash_report_database.h>
@@ -28,13 +23,17 @@
 #include <handler/linux/crash_report_exception_handler.h>
 #include <handler/linux/exception_handler_server.h>
 #include <handler/prune_crash_reports_thread.h>
+#include <poll.h>
 #include <snapshot/exception_snapshot.h>
 #include <snapshot/linux/process_snapshot_linux.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #include <util/file/file_io.h>
 #include <util/linux/direct_ptrace_connection.h>
 
 #include <components/platform/wholefile.hpp>
 
+#include "crashpadmonitorsystem.hpp"
 #include "crashsummary.hpp"
 
 namespace Crash::Monitor
@@ -44,6 +43,7 @@ namespace Crash::Monitor
         // `pidfd_open`'s number, which every architecture shares from Linux 5.3 on: AlmaLinux 8's kernel headers,
         // which the release builds against, name `pidfd_send_signal`, backported, and no `SYS_pidfd_open`. A
         // kernel older than 5.3 answers ENOSYS, as it would to the named one.
+        // NOLINTNEXTLINE(google-runtime-int): syscall's number type
         constexpr long sPidfdOpen = 434;
     }
 
@@ -51,12 +51,13 @@ namespace Crash::Monitor
         : mId(id)
     {
         // Through `syscall`, since the C library does not wrap a pidfd everywhere.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
         mHold = Platform::UniqueHold<Closing>(syscall(sPidfdOpen, static_cast<pid_t>(id), 0));
     }
 
     void GameProcess::Closing::close(const Handle hold) noexcept
     {
-        ::close(static_cast<int>(hold));
+        ::close(static_cast<std::int32_t>(hold));
     }
 
     Ending GameProcess::end() const
@@ -65,7 +66,8 @@ namespace Crash::Monitor
         // to whatever process has the id now.
         if (mHold.get() < 0)
             return Ending::Failed;
-        if (syscall(SYS_pidfd_send_signal, static_cast<int>(mHold.get()), SIGKILL, nullptr, 0) == 0)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
+        if (syscall(SYS_pidfd_send_signal, static_cast<std::int32_t>(mHold.get()), SIGKILL, nullptr, 0) == 0)
             return Ending::Ended;
         return errno == ESRCH ? Ending::Gone : Ending::Failed;
     }
@@ -80,7 +82,7 @@ namespace Crash::Monitor
         // A pidfd reads as ready once its process has ended.
         if (mHold.get() < 0)
             return true;
-        pollfd polled{ .fd = static_cast<int>(mHold.get()), .events = POLLIN, .revents = 0 };
+        pollfd polled{ .fd = static_cast<std::int32_t>(mHold.get()), .events = POLLIN, .revents = 0 };
         return poll(&polled, 1, 0) != 0;
     }
 
@@ -125,7 +127,7 @@ namespace Crash::Monitor
             }
 
             bool HandleExceptionWithBroker(pid_t client, uid_t user,
-                const crashpad::ExceptionHandlerProtocol::ClientInformation& info, int broker,
+                const crashpad::ExceptionHandlerProtocol::ClientInformation& info, std::int32_t broker,
                 crashpad::UUID* report) override
             {
                 const std::scoped_lock lock(mParts.mReading);
@@ -157,14 +159,14 @@ namespace Crash::Monitor
         }
     }
 
-    int runHandler(std::vector<std::string>& arguments, const HandlerParts& parts)
+    std::int32_t runHandler(std::vector<std::string>& arguments, const HandlerParts& parts)
     {
         // **What `StartHandler` on Linux hands its handler and nothing else**: the database, the
         // annotations, the socket and that it is shared. Anything more is a client this monitor
         // was not built with.
         base::FilePath database;
         std::map<std::string, std::string> annotations;
-        int socket = -1;
+        std::int32_t socket = -1;
         bool shared = false;
         for (std::size_t at = 1; at < arguments.size(); ++at)
         {

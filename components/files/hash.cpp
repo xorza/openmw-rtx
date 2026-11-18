@@ -1,11 +1,11 @@
 #include "hash.hpp"
 
-#include <smhasher/MurmurHash3.h>
-
 #include <array>
 #include <cstdint>
 #include <istream>
 #include <string>
+
+#include <smhasher/MurmurHash3.h>
 
 namespace Files
 {
@@ -25,7 +25,7 @@ namespace Files
                 if (read == 0)
                     break;
                 std::array<std::uint64_t, 2> blockHash{ 0, 0 };
-                MurmurHash3_x64_128(value.data(), static_cast<int>(read), hash.data(), blockHash.data());
+                MurmurHash3_x64_128(value.data(), static_cast<std::int32_t>(read), hash.data(), blockHash.data());
                 hash = blockHash;
             }
             stream.clear();

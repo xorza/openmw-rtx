@@ -53,14 +53,15 @@ namespace Rtx
         /// The same, for `slots` and nothing else — what stops a texture being described twice. A
         /// list and not an offset, because a slot a departing cell freed is taken over wherever it
         /// sits.
-        void describe(const SceneDesc& scene, std::span<const Index> slots, PreparedImages* prepared, bool settled);
+        void describe(
+            const SceneDesc& scene, std::span<const TextureIndex> slots, PreparedImages* prepared, bool settled);
 
         /// A slot the last `describe` stood in for while its image with its chain made again is made: the
         /// file the image is made of, which the slot's owner asks after. Stood in for and not stood as its
         /// file, so the device is handed each file once, the image it keeps.
         struct Pending
         {
-            Index mSlot;
+            TextureIndex mSlot;
             osg::ref_ptr<const osg::Image> mSource;
             TextureEncoding mEncoding;
             TextureWrap mWrap;
@@ -74,11 +75,14 @@ namespace Rtx
         /// tells the slot (`TextureTable::stand`), so the slot is said to stand what it was last handed.
         struct Stood
         {
-            Index mSlot;
-            std::uint64_t mBytes;
+            TextureIndex mSlot;
+            std::uint64_t mBytes = 0;
 
             /// Whether it is the file's chain made again.
-            bool mMade;
+            bool mMade = false;
+
+            /// The level it was handed whole from, its readers' want (`TextureData::mWant`).
+            std::uint8_t mFrom = 0;
         };
 
         std::span<const Stood> getStood() const { return mStood; }
@@ -98,21 +102,21 @@ namespace Rtx
         /// The chunk a composite slot flattens, and which of its two layers the slot holds.
         struct Ground
         {
-            Index mMaterial = sNoIndex;
+            MaterialIndex mMaterial = sNoRow;
             bool mGloss = false;
         };
 
         /// One slot `describe` decided to describe, and what resolving it found.
         struct Kept
         {
-            Index mSlot = sNoIndex;
+            TextureIndex mSlot = sNoRow;
 
             /// What the scene's table binds the slot as, which the file's bytes are read as.
             TextureEncoding mEncoding = TextureEncoding::Colour;
 
             /// For a bake, the slot of the sprite texture it is made from on the device, or
-            /// `sNoIndex` where the table no longer holds that. Nothing for a slot that is no bake.
-            std::optional<Index> mBakedFrom{};
+            /// `sNoRow` where the table no longer holds that. Nothing for a slot that is no bake.
+            std::optional<TextureIndex> mBakedFrom{};
 
             /// The file's image, or why none reads. Null for a slot that names no file. Its finest level
             /// alone where `mMade` is not null.
@@ -161,7 +165,7 @@ namespace Rtx
 
         /// Every slot of the scene's table, which is what a rebuild asks about. Held rather than
         /// built, because a rebuild is a fifth of a second and none of it should be this.
-        std::vector<Index> mEverything;
+        std::vector<TextureIndex> mEverything;
 
         std::vector<Refusal> mRefusals;
     };

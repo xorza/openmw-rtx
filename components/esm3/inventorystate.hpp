@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <optional>
 
-#include "objectstate.hpp"
 #include <components/esm/refid.hpp>
+
+#include "objectstate.hpp"
 
 namespace ESM
 {
@@ -19,11 +21,11 @@ namespace ESM
         std::vector<ObjectState> mItems;
 
         // <Index in mItems, equipment slot>
-        std::map<uint32_t, int32_t> mEquipmentSlots;
+        std::map<std::uint32_t, std::int32_t> mEquipmentSlots;
 
         std::map<ESM::RefId, std::vector<std::pair<float, float>>> mPermanentMagicEffectMagnitudes;
 
-        std::optional<uint32_t> mSelectedEnchantItem; // For inventories only
+        std::optional<std::uint32_t> mSelectedEnchantItem; // For inventories only
 
         virtual ~InventoryState() = default;
 

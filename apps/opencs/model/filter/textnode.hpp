@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -14,18 +15,19 @@ namespace CSMFilter
 {
     class TextNode : public LeafNode
     {
-        int mColumnId;
+        std::int32_t mColumnId;
         std::string mText;
         QRegularExpression mRegExp;
 
     public:
-        TextNode(int columnId, std::string text);
+        TextNode(std::int32_t columnId, std::string text);
 
-        bool test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const override;
+        bool test(const CSMWorld::IdTableBase& table, std::int32_t row,
+            const std::map<std::int32_t, std::int32_t>& columns) const override;
         ///< \return Can the specified table row pass through to filter?
         /// \param columns column ID to column index mapping
 
-        std::vector<int> getReferencedColumns() const override;
+        std::vector<std::int32_t> getReferencedColumns() const override;
         ///< Return a list of the IDs of the columns referenced by this node. The column mapping
         /// passed into test as columns must contain all columns listed here.
 

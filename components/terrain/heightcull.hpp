@@ -1,8 +1,9 @@
 #pragma once
 
-#include <osg/Referenced>
-
+#include <cstdint>
 #include <limits>
+
+#include <osg/Referenced>
 
 #include <components/sceneutil/nodecallback.hpp>
 
@@ -23,8 +24,8 @@ namespace Terrain
         void setHighZ(float highZ) { mHighZ = highZ; }
         float getHighZ() const { return mHighZ; }
 
-        void setCullMask(unsigned int mask) { mMask = mask; }
-        unsigned int getCullMask() const { return mMask; }
+        void setCullMask(std::uint32_t mask) { mMask = mask; }
+        std::uint32_t getCullMask() const { return mMask; }
 
         void operator()(osg::Node* node, osg::NodeVisitor* nv)
         {
@@ -35,7 +36,7 @@ namespace Terrain
     private:
         float mLowZ{ -std::numeric_limits<float>::max() };
         float mHighZ{ std::numeric_limits<float>::max() };
-        unsigned int mMask{ ~0u };
+        std::uint32_t mMask{ ~0u };
     };
 
 }

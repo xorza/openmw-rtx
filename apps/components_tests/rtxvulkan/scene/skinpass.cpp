@@ -24,6 +24,7 @@
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/skinning.h>
@@ -66,10 +67,11 @@ namespace Rtx
         /// device's to the bit.
         TEST_F(RtxSkinPassTest, theKernelsPoseEachMeshIntoItsOwnRunAndLeaveTheRestAlone)
         {
+            SceneIdentities identities;
             Device& device = getDevice();
             CommandPool& pool = getPool();
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
 
             // One bone over the whole quad, every weight one.
             const std::array oneRuns{ Shaders::runWord(0, 1), Shaders::runWord(0, 1), Shaders::runWord(0, 1),
@@ -118,31 +120,30 @@ namespace Rtx
 
             // Each rig with the first mesh on it, and the second mesh on the one-bone rig by its
             // index: the slots come out as they would have with the rigs made first.
-            const DeformedMesh onOneBone = scene.addMesh(
+            const DeformedMesh onOneBone = Testing::addMesh(scene,
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
                 {}, oneBone);
-            const Index raised = onOneBone.mMesh;
-            scene.addMesh(
+            const MeshIndex raised = onOneBone.mMesh;
+            Testing::addMesh(scene,
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices });
-            const DeformedMesh onTwoBones = scene.addMesh(
+            const DeformedMesh onTwoBones = Testing::addMesh(scene,
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
                 {}, twoBones);
-            const Index blended = onTwoBones.mMesh;
+            const MeshIndex blended = onTwoBones.mMesh;
 
             // Held as a walk's identity holds it, so letting go of it below is what frees it.
             Testing::SceneHolds holds(scene);
             holds.mesh(blended);
-            const Index turned = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
-                                                   .mNormals = sideways,
-                                                   .mTangents = alongX,
-                                                   .mIndices = Testing::sQuadIndices },
+            const MeshIndex turned = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad,
+                    .mNormals = sideways,
+                    .mTangents = alongX,
+                    .mIndices = Testing::sQuadIndices },
                 {}, onOneBone.mDeformer);
-            const Index lifted = scene
-                                     .addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
-                                                  .mNormals = upward,
-                                                  .mIndices = Testing::sQuadIndices },
-                                         {}, lift)
-                                     .mMesh;
+            const MeshIndex lifted = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
+                {}, lift)
+                                         .mMesh;
 
             const osg::BoundingBoxf anywhere(osg::Vec3f(), osg::Vec3f(1.0f, 1.0f, 1.0f));
 
@@ -169,7 +170,7 @@ namespace Rtx
             // **One length, because the pass writes one space**, the bind offsets: the poses, normals and tangents
             // hold the four deforming quads and not the static one between them, whose normals are the scene's one
             // copy and never posed.
-            const auto vertices = static_cast<std::uint32_t>(scene.meshes().getPositions().size());
+            const std::uint32_t vertices = scene.meshes().getVertexRuns().getEnd();
             const std::uint32_t posedVertices = scene.deformers().getBindVertexCount();
             EXPECT_EQ(vertices, 20u) << "five quads of four vertices";
             EXPECT_EQ(posedVertices, 16u) << "the static quad took a run among the posed vertices";
@@ -177,7 +178,7 @@ namespace Rtx
             constexpr VkBufferUsageFlags readable
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-            SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            SlotBlocks<MeshIndex> poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 2, readable, "posed positions");
@@ -196,7 +197,7 @@ namespace Rtx
                 poses.settle(FrameSlot{ slot });
 
             Batch tableSetup(pool);
-            std::vector<Index> everyMesh;
+            std::vector<MeshIndex> everyMesh;
             SkinTables tables(
                 device, tableSetup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), 2, SceneRoom{});
             tableSetup.flush();
@@ -236,14 +237,14 @@ namespace Rtx
 
             EXPECT_TRUE(poseAndRead(FrameSlot{ 0 })) << "four meshes owed and nothing recorded";
 
-            const auto positionOf = [&](Index mesh, std::uint32_t vertex) {
+            const auto positionOf = [&](MeshIndex mesh, std::uint32_t vertex) {
                 return readAt<osg::Vec3f>(readPositions, scene.meshes().getRows()[mesh].mBindOffset + vertex);
             };
-            const auto normalOf = [&](Index mesh, std::uint32_t vertex) {
+            const auto normalOf = [&](MeshIndex mesh, std::uint32_t vertex) {
                 return Shaders::unpackNormal(
                     readAt<std::uint32_t>(readNormals, scene.meshes().getRows()[mesh].mBindOffset + vertex));
             };
-            const auto tangentOf = [&](Index mesh, std::uint32_t vertex) {
+            const auto tangentOf = [&](MeshIndex mesh, std::uint32_t vertex) {
                 return readAt<std::uint32_t>(readTangents, scene.meshes().getRows()[mesh].mBindOffset + vertex);
             };
 
@@ -328,11 +329,11 @@ namespace Rtx
             std::array<osg::Vec3f, 4> shifted = Testing::sUnitQuad;
             for (osg::Vec3f& corner : shifted)
                 corner += osg::Vec3f(1.0f, 0.0f, 0.0f);
-            const DeformedMesh moreArrived = scene.addMesh(
+            const DeformedMesh moreArrived = Testing::addMesh(scene,
                 MeshArrays{ .mPositions = shifted, .mNormals = upward, .mIndices = Testing::sQuadIndices }, {},
                 RigSpec{ .mRuns = twoRuns, .mInfluences = halfAndHalf, .mBones = 2 });
-            const Index twoMore = moreArrived.mDeformer;
-            const Index arrived = moreArrived.mMesh;
+            const DeformerIndex twoMore = moreArrived.mDeformer;
+            const MeshIndex arrived = moreArrived.mMesh;
             const MeshRange& taken = scene.meshes().getRows()[arrived];
             ASSERT_EQ(arrived, blended) << "the slot was not handed out again";
             ASSERT_EQ(taken.mBindOffset, went.mBindOffset) << "the bind run was not handed out again";
@@ -382,10 +383,11 @@ namespace Rtx
         /// - corner 2, in no group: its bind pose `(1, 1, 0)`, untouched by the transform.
         TEST_F(RtxSkinPassTest, theSkinTransformIsAppliedOnceToTheBlendAsCullAppliesIt)
         {
+            SceneIdentities identities;
             Device& device = getDevice();
             CommandPool& pool = getPool();
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const std::array runs{ Shaders::runWord(0, 1), Shaders::runWord(1, 2), Shaders::runWord(0, 0),
                 Shaders::runWord(0, 1) };
             const std::array influences{
@@ -399,12 +401,10 @@ namespace Rtx
                 osg::Vec3f(0.0f, 0.0f, 1.0f),
                 osg::Vec3f(0.0f, 0.0f, 1.0f),
             };
-            const Index mesh = scene
-                                   .addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
-                                                .mNormals = upward,
-                                                .mIndices = Testing::sQuadIndices },
-                                       {}, RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 2 })
-                                   .mMesh;
+            const MeshIndex mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
+                {}, RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 2 })
+                                       .mMesh;
 
             const std::array bones{ Testing::boneUp(4.0f), Shaders::GpuBone{} };
             Testing::poseRig(scene, mesh, bones, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f(11.0f, 1.0f, 4.0f)),
@@ -413,7 +413,7 @@ namespace Rtx
             const std::uint32_t posedVertices = scene.deformers().getBindVertexCount();
             constexpr VkBufferUsageFlags readable
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-            SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            SlotBlocks<MeshIndex> poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 1, readable, "posed positions");
@@ -429,7 +429,7 @@ namespace Rtx
             poses.settle(FrameSlot{ 0 });
 
             Batch tableSetup(pool);
-            std::vector<Index> everyMesh;
+            std::vector<MeshIndex> everyMesh;
             SkinTables tables(
                 device, tableSetup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), 1, SceneRoom{});
             tableSetup.flush();
@@ -478,10 +478,11 @@ namespace Rtx
         /// reads.
         TEST_F(RtxSkinPassTest, aPlacementWaitsForTheArrivalThatPosedTheFirstCopy)
         {
+            SceneIdentities identities;
             Device& device = getDevice();
             CommandPool& pool = getPool();
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
 
             const std::array oneRuns{ Shaders::runWord(0, 1), Shaders::runWord(0, 1), Shaders::runWord(0, 1),
                 Shaders::runWord(0, 1) };
@@ -496,17 +497,17 @@ namespace Rtx
             };
             const osg::BoundingBoxf anywhere(osg::Vec3f(), osg::Vec3f(1.0f, 1.0f, 1.0f));
 
-            const DeformedMesh body = scene.addMesh(
+            const DeformedMesh body = Testing::addMesh(scene,
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
                 {}, oneBone);
-            const Index first = body.mMesh;
+            const MeshIndex first = body.mMesh;
             const std::array atFive{ Testing::boneUp(5.0f) };
             Testing::poseRig(scene, first, atFive, anywhere);
 
             constexpr VkBufferUsageFlags readable
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-            SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            SlotBlocks<MeshIndex> poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 2, readable, "posed positions");
@@ -520,7 +521,7 @@ namespace Rtx
             poses.reserve(load, 4);
             normals.reserve(load, 4);
             tangents.reserve(load, 4);
-            std::vector<Index> everyMesh;
+            std::vector<MeshIndex> everyMesh;
             SkinTables tables(
                 device, load, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), 2, SceneRoom{});
             load.flush();
@@ -533,7 +534,7 @@ namespace Rtx
             // the first quad's bind pose is the one the growth copied.
             scene.clearArrivals();
             scene.clearPlacement();
-            const Index second = scene.addMesh(
+            const MeshIndex second = Testing::addMesh(scene,
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
                 {}, body.mDeformer);
             const std::array atTwo{ Testing::boneUp(2.0f) };
@@ -597,7 +598,7 @@ namespace Rtx
                 poses.at(FrameSlot{ 0 }).getBlock(0).copyTo(commands, read, poseBytes);
             });
 
-            const auto positionOf = [&](Index mesh, std::uint32_t vertex) {
+            const auto positionOf = [&](MeshIndex mesh, std::uint32_t vertex) {
                 return readAt<osg::Vec3f>(read, scene.meshes().getRows()[mesh].mBindOffset + vertex);
             };
             for (std::uint32_t vertex = 0; vertex < 4; ++vertex)

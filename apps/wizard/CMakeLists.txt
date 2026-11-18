@@ -25,6 +25,7 @@ target_sources(
                 importpage.hpp
                 installationtargetpage.hpp
                 intropage.hpp
+                installsfromdisc.hpp
                 languageselectionpage.hpp
                 mainwizard.hpp
                 methodselectionpage.hpp
@@ -49,8 +50,10 @@ if(NOT WIN32)
                     unshield/inisettings.hpp
                     unshield/unshieldworker.hpp
     )
-    target_compile_definitions(openmw-wizard PRIVATE OPENMW_USE_UNSHIELD)
+    target_compile_definitions(openmw-wizard PRIVATE OPENMW_USE_UNSHIELD=1)
     target_link_libraries(openmw-wizard PRIVATE Unshield::Unshield)
+else()
+    target_compile_definitions(openmw-wizard PRIVATE OPENMW_USE_UNSHIELD=0)
 endif()
 
 set_target_properties(

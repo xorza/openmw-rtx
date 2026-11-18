@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <sstream>
 #include <tuple>
@@ -73,7 +75,8 @@ void MWState::Character::addSlot(const ESM::SavedGame& profile)
     {
         auto c = description.consume();
         if (c <= 0x7F
-            && std::isalnum(static_cast<int>(c))) // Ignore multibyte characters and non alphanumeric characters
+            && std::isalnum(
+                static_cast<std::int32_t>(c))) // Ignore multibyte characters and non alphanumeric characters
             stream << static_cast<char>(c);
         else
             stream << '_';
@@ -83,7 +86,7 @@ void MWState::Character::addSlot(const ESM::SavedGame& profile)
     slot.mPath = mPath / (stream.str() + ext);
 
     // Append an index if necessary to ensure a unique file
-    int i = 0;
+    std::int32_t i = 0;
     while (std::filesystem::exists(slot.mPath))
     {
         const std::string test = stream.str() + " - " + std::to_string(++i);

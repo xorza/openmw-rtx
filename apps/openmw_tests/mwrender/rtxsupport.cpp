@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -180,7 +181,7 @@ namespace MWRender
             const RenderSupport& support = rtxSupport();
             for (const PictureRequest request :
                 { PictureRequest::ShaderReload, PictureRequest::LiveShaderReload, PictureRequest::StatsOverlay })
-                EXPECT_FALSE(support.declinedRequest(request).empty()) << static_cast<int>(request);
+                EXPECT_FALSE(support.declinedRequest(request).empty()) << static_cast<std::int32_t>(request);
             EXPECT_FALSE(support.declinedSetting("Post Processing", "enabled").empty());
         }
     }

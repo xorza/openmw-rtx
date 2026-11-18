@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <span>
 
 #include <components/files/configurationmanager.hpp>
@@ -31,7 +33,7 @@ namespace MWGui
 
         void updateWindowModeSettings();
 
-        void onResChange(int, int) override;
+        void onResChange(std::int32_t, std::int32_t) override;
 
         void refitText() override { layoutControlsBox(); }
 
@@ -70,35 +72,35 @@ namespace MWGui
         MyGUI::Widget* mScriptDisabled{};
         MyGUI::ScrollView* mScriptView{};
         LuaUi::LuaAdapter* mScriptAdapter{};
-        size_t mCurrentPage;
+        std::size_t mCurrentPage;
 
-        void onTabChanged(MyGUI::TabControl* sender, size_t index);
+        void onTabChanged(MyGUI::TabControl* sender, std::size_t index);
         void onOkButtonClicked(MyGUI::Widget* sender);
-        void onAnisotropyChanged(MyGUI::ComboBox* sender, size_t pos);
-        void onSliderChangePosition(MyGUI::ScrollBar* scroller, size_t pos);
-        void onSliderSettled(MyGUI::ScrollBar* scroller, size_t pos);
+        void onAnisotropyChanged(MyGUI::ComboBox* sender, std::size_t pos);
+        void onSliderChangePosition(MyGUI::ScrollBar* scroller, std::size_t pos);
+        void onSliderSettled(MyGUI::ScrollBar* scroller, std::size_t pos);
 
         /// Shows the value a slider's position stands for on its label, and `write`s it to its
         /// setting.
-        void takeSliderPosition(MyGUI::ScrollBar* scroller, size_t pos, bool write);
+        void takeSliderPosition(MyGUI::ScrollBar* scroller, std::size_t pos, bool write);
         void onButtonToggled(MyGUI::Widget* sender);
-        void onResolutionSelected(MyGUI::ListBox* sender, size_t index);
+        void onResolutionSelected(MyGUI::ListBox* sender, std::size_t index);
         void onResolutionAccept();
         void onResolutionCancel();
         void highlightCurrentResolution();
 
-        void onPrimaryLanguageChanged(MyGUI::ComboBox* sender, size_t pos) { onLanguageChanged(0, sender, pos); }
-        void onSecondaryLanguageChanged(MyGUI::ComboBox* sender, size_t pos) { onLanguageChanged(1, sender, pos); }
-        void onLanguageChanged(size_t langPriority, MyGUI::ComboBox* sender, size_t pos);
+        void onPrimaryLanguageChanged(MyGUI::ComboBox* sender, std::size_t pos) { onLanguageChanged(0, sender, pos); }
+        void onSecondaryLanguageChanged(MyGUI::ComboBox* sender, std::size_t pos) { onLanguageChanged(1, sender, pos); }
+        void onLanguageChanged(std::size_t langPriority, MyGUI::ComboBox* sender, std::size_t pos);
         void onGmstOverridesL10nChanged(MyGUI::Widget* sender);
 
-        void onWindowModeChanged(MyGUI::ComboBox* sender, size_t pos);
-        void onVSyncModeChanged(MyGUI::ComboBox* sender, size_t pos);
-        void onRayTracingUpscaleChanged(MyGUI::ComboBox* sender, size_t pos);
-        void onRayTracingUpscalerChanged(MyGUI::ComboBox* sender, size_t pos);
+        void onWindowModeChanged(MyGUI::ComboBox* sender, std::size_t pos);
+        void onVSyncModeChanged(MyGUI::ComboBox* sender, std::size_t pos);
+        void onRayTracingUpscaleChanged(MyGUI::ComboBox* sender, std::size_t pos);
+        void onRayTracingUpscalerChanged(MyGUI::ComboBox* sender, std::size_t pos);
 
         void onRebindAction(MyGUI::Widget* sender);
-        void onInputTabMouseWheel(MyGUI::Widget* sender, int rel);
+        void onInputTabMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
         void onResetDefaultBindings(MyGUI::Widget* sender);
         void onResetDefaultBindingsAccept();
         void onKeyboardSwitchClicked(MyGUI::Widget* sender);
@@ -107,7 +109,7 @@ namespace MWGui
         void onWindowResize(MyGUI::Window* sender);
 
         void onScriptFilterChange(MyGUI::EditBox*);
-        void onScriptListSelection(MyGUI::ListBox*, size_t index);
+        void onScriptListSelection(MyGUI::ListBox*, std::size_t index);
 
         void apply();
 

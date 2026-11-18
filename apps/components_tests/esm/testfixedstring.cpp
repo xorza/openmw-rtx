@@ -1,6 +1,9 @@
-#include "components/esm/defs.hpp"
-#include "components/esm/esmcommon.hpp"
+#include <cstdint>
+
 #include <gtest/gtest.h>
+
+#include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
 
 namespace
 {
@@ -79,9 +82,9 @@ namespace
             SCOPED_TRACE("4 bytes");
             ESM::NAME empty = ESM::NAME();
             EXPECT_TRUE(empty == "");
-            EXPECT_TRUE(empty == static_cast<uint32_t>(0));
+            EXPECT_TRUE(empty == static_cast<std::uint32_t>(0));
             EXPECT_TRUE(empty != someStr);
-            EXPECT_TRUE(empty != static_cast<uint32_t>(42));
+            EXPECT_TRUE(empty != static_cast<std::uint32_t>(42));
         }
         {
             SCOPED_TRACE("32 bytes");
@@ -94,9 +97,9 @@ namespace
     TEST(EsmFixedString, assign_should_zero_untouched_bytes_for_4)
     {
         ESM::NAME value;
-        value = static_cast<uint32_t>(0xFFFFFFFFu);
+        value = static_cast<std::uint32_t>(0xFFFFFFFFu);
         value.assign(std::string(1, 'a'));
-        EXPECT_EQ(value, static_cast<uint32_t>('a')) << value.toInt();
+        EXPECT_EQ(value, static_cast<std::uint32_t>('a')) << value.toInt();
     }
 
     TEST(EsmFixedString, assign_should_only_truncate_for_4)
@@ -130,8 +133,8 @@ namespace
     TEST(EsmFixedString, assignment_operator_is_supported_for_uint32)
     {
         ESM::NAME value;
-        value = static_cast<uint32_t>(0xFEDCBA98u);
-        EXPECT_EQ(value, static_cast<uint32_t>(0xFEDCBA98u)) << value.toInt();
+        value = static_cast<std::uint32_t>(0xFEDCBA98u);
+        EXPECT_EQ(value, static_cast<std::uint32_t>(0xFEDCBA98u)) << value.toInt();
     }
 
     TEST(EsmFixedString, construction_from_uint32_is_supported)

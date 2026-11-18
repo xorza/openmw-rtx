@@ -1,9 +1,10 @@
 #pragma once
 
-#include <sol/table.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <sol/table.hpp>
 
 namespace LuaUi
 {

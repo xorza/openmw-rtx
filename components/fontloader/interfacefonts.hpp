@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/toutf8/toutf8.hpp>
 #include <components/widgets/fontusers.hpp>
 
@@ -50,7 +52,7 @@ namespace Gui
         /// units, and what a row or a list sized to a line of text sizes by. `[GUI] font size` as
         /// the fonts were last fitted to: the fit is the setting's one reader, and each registry
         /// holds the size its users were last refitted at, which `fit` alone sets.
-        int getFontSize() const { return getFit().mFontSize; }
+        std::int32_t getFontSize() const { return getFit().mFontSize; }
 
         const FontUsers& getTexts() const { return mTexts; }
 

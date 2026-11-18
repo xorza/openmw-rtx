@@ -1,10 +1,14 @@
 #include "methodselectionpage.hpp"
-#include "mainwizard.hpp"
 
-#include <components/misc/scalableicon.hpp>
+#include <cstdint>
 
 #include <QDesktopServices>
 #include <QUrl>
+
+#include <components/misc/scalableicon.hpp>
+
+#include "installsfromdisc.hpp"
+#include "mainwizard.hpp"
 
 Wizard::MethodSelectionPage::MethodSelectionPage(QWidget* parent)
     : QWizardPage(parent)
@@ -17,10 +21,11 @@ Wizard::MethodSelectionPage::MethodSelectionPage(QWidget* parent)
     folderIcon->setIcon(Misc::ScalableIcon::load(":folder"));
     buyLinkButton->setIcon(Misc::ScalableIcon::load(":dollar"));
 
-#ifndef OPENMW_USE_UNSHIELD
-    retailDiscRadioButton->setEnabled(false);
-    existingLocationRadioButton->setChecked(true);
-#endif
+    if constexpr (!sInstallsFromDisc)
+    {
+        retailDiscRadioButton->setEnabled(false);
+        existingLocationRadioButton->setChecked(true);
+    }
 
     QFont font = existingLocationRadioButton->font();
     font.setBold(true);
@@ -32,7 +37,7 @@ Wizard::MethodSelectionPage::MethodSelectionPage(QWidget* parent)
     connect(buyLinkButton, &QPushButton::released, this, &MethodSelectionPage::handleBuyButton);
 }
 
-int Wizard::MethodSelectionPage::nextId() const
+std::int32_t Wizard::MethodSelectionPage::nextId() const
 {
     if (field(QStringLiteral("installation.retailDisc")).toBool())
         return MainWizard::Page_InstallationTarget;

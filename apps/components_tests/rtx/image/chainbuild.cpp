@@ -14,7 +14,6 @@
 #include <osg/Image>
 #include <osg/Texture> // IWYU pragma: keep: the S3TC and RGTC formats, which Windows's gl.h lacks
 #include <osg/ref_ptr>
-
 #include <rgbcx/bc7enc.h>
 #include <rgbcx/rgbcx.h>
 
@@ -40,16 +39,16 @@ namespace Rtx
             const std::vector<std::size_t>& levels, const std::vector<std::uint8_t>& bytes)
         {
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[bytes.size()];
+            auto* data = new std::uint8_t[bytes.size()];
             std::memcpy(data, bytes.data(), bytes.size());
-            image->setImage(static_cast<int>(side), static_cast<int>(side), 1, static_cast<GLint>(format), pixel,
-                GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setImage(static_cast<std::int32_t>(side), static_cast<std::int32_t>(side), 1,
+                static_cast<GLint>(format), pixel, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             osg::Image::MipmapDataType offsets;
             std::size_t at = 0;
             for (std::size_t level = 0; level + 1 < levels.size(); ++level)
             {
                 at += levels[level];
-                offsets.push_back(static_cast<unsigned int>(at));
+                offsets.push_back(static_cast<std::uint32_t>(at));
             }
             image->setMipmapLevels(offsets);
             image->setFileName("textures/tx_test_nh.dds");
@@ -90,7 +89,7 @@ namespace Rtx
         {
             Testing::TestTexture four;
             for (const std::uint8_t value : std::array<std::uint8_t, 8>{ 100, 200, 100, 200, 0, 40, 0, 40 })
-                for (int twice = 0; twice < 2; ++twice)
+                for (std::int32_t twice = 0; twice < 2; ++twice)
                     for (const std::uint8_t byte : { value, value, value, std::uint8_t{ 255 } })
                         four.mBytes.push_back(byte);
             four.mLevels.push_back(MipLevel{ 0, 4, 4 });
@@ -245,7 +244,7 @@ namespace Rtx
             ASSERT_EQ(encoded.size(), 32u);
             EXPECT_EQ(encoded.capacity(), 32u) << "the chain's room taken once, and no more";
             for (std::size_t block = 0; block < 2; ++block)
-                EXPECT_EQ(std::to_integer<unsigned>(encoded[block * 16]) & 0x3fu, 0x20u) << "block " << block;
+                EXPECT_EQ(std::to_integer<std::uint32_t>(encoded[block * 16]) & 0x3fu, 0x20u) << "block " << block;
             EXPECT_TRUE(Testing::isNear(
                 Testing::firstTexelOf(TextureFormat::Bc7Unorm, std::span(encoded).subspan(16)), texelOf(1, 0), 2));
         }
@@ -315,23 +314,23 @@ namespace Rtx
             for (std::uint32_t level = 0; level < 2; ++level)
             {
                 const std::span<const std::byte> first = chain.getTexels(level).first(4);
-                EXPECT_EQ(std::to_integer<int>(first[0]), 191) << "level " << level;
-                EXPECT_EQ(std::to_integer<int>(first[1]), 128) << "level " << level;
-                EXPECT_EQ(std::to_integer<int>(first[2]), 238) << "level " << level;
-                EXPECT_EQ(std::to_integer<int>(first[3]), 255) << "level " << level << ", no height";
+                EXPECT_EQ(std::to_integer<std::int32_t>(first[0]), 191) << "level " << level;
+                EXPECT_EQ(std::to_integer<std::int32_t>(first[1]), 128) << "level " << level;
+                EXPECT_EQ(std::to_integer<std::int32_t>(first[2]), 238) << "level " << level;
+                EXPECT_EQ(std::to_integer<std::int32_t>(first[3]), 255) << "level " << level << ", no height";
             }
 
             Misc::ByteBuffer opaque;
             chain.encodeBc7(TextureEncoding::Normal, opaque);
-            EXPECT_EQ(std::to_integer<unsigned>(opaque[0]) & 0x7fu, 0x40u) << "mode 6 for a block with no height";
+            EXPECT_EQ(std::to_integer<std::uint32_t>(opaque[0]) & 0x7fu, 0x40u) << "mode 6 for a block with no height";
 
             const osg::ref_ptr<osg::Image> cancelling = makeChained(
                 GL_RGBA8, GL_RGBA, 2, { 16 }, { 255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255 });
             chain.build(describe(*cancelling, TextureEncoding::Normal, levels, texels), 2);
             const std::span<const std::byte> up = chain.getTexels(1);
-            EXPECT_EQ(std::to_integer<int>(up[0]), 128);
-            EXPECT_EQ(std::to_integer<int>(up[1]), 128);
-            EXPECT_EQ(std::to_integer<int>(up[2]), 255);
+            EXPECT_EQ(std::to_integer<std::int32_t>(up[0]), 128);
+            EXPECT_EQ(std::to_integer<std::int32_t>(up[1]), 128);
+            EXPECT_EQ(std::to_integer<std::int32_t>(up[2]), 255);
         }
 
         /// **A colour's chain weighs it by its coverage, read in the file's own channel order**: a BGRA8
@@ -356,10 +355,10 @@ namespace Rtx
             chain.build(file, 2);
             const std::span<const std::byte> built = chain.getTexels(1);
             ASSERT_EQ(built.size(), 4u);
-            EXPECT_EQ(std::to_integer<int>(built[0]), 255) << "red, the solid texel's alone";
-            EXPECT_EQ(std::to_integer<int>(built[1]), 0) << "green";
-            EXPECT_EQ(std::to_integer<int>(built[2]), 0) << "blue";
-            EXPECT_EQ(std::to_integer<int>(built[3]), 64) << "a quarter's coverage";
+            EXPECT_EQ(std::to_integer<std::int32_t>(built[0]), 255) << "red, the solid texel's alone";
+            EXPECT_EQ(std::to_integer<std::int32_t>(built[1]), 0) << "green";
+            EXPECT_EQ(std::to_integer<std::int32_t>(built[2]), 0) << "blue";
+            EXPECT_EQ(std::to_integer<std::int32_t>(built[3]), 64) << "a quarter's coverage";
         }
 
         /// **A BC2 chain's alpha is written whole, into a buffer that held other bytes**: a 4x4 BC2 file
@@ -386,7 +385,7 @@ namespace Rtx
             chain.encode(file, 1, built);
             ASSERT_EQ(built.size(), 16u);
             for (std::size_t at = 0; at < 8; ++at)
-                EXPECT_EQ(std::to_integer<int>(built[at]), 0x88) << "alpha byte " << at;
+                EXPECT_EQ(std::to_integer<std::int32_t>(built[at]), 0x88) << "alpha byte " << at;
         }
 
         /// **A block-compressed chain is encoded in the file's own format**: a BC3 map of data of one
@@ -715,11 +714,11 @@ namespace Rtx
         TEST(RtxChainBuildTest, aLooseFilesOwnLevelsAreEncodedWholeInBc7WeighedByItsEncoding)
         {
             std::vector<std::uint8_t> bytes{ 30, 20, 10, 255 };
-            for (unsigned texel = 1; texel < 16; ++texel)
+            for (std::uint32_t texel = 1; texel < 16; ++texel)
                 bytes.insert(bytes.end(),
                     { static_cast<std::uint8_t>(texel * 29 + 201), static_cast<std::uint8_t>(texel * 151 + 97),
                         static_cast<std::uint8_t>(texel * 73 + 11), 255 });
-            for (int texel = 0; texel < 4; ++texel)
+            for (std::int32_t texel = 0; texel < 4; ++texel)
                 bytes.insert(bytes.end(), { 60, 120, 180, 255 });
             const osg::ref_ptr<osg::Image> image = makeChained(GL_RGBA8, GL_BGRA, 4, { 64, 16 }, bytes);
             std::vector<MipLevel> levels;

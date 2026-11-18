@@ -1,5 +1,13 @@
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <format>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Delegate.h>
 #include <MyGUI_InputManager.h>
@@ -7,13 +15,6 @@
 #include <MyGUI_RTTI.h>
 #include <MyGUI_TextBox.h>
 #include <MyGUI_Widget.h>
-
-#include <algorithm>
-#include <format>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -152,7 +153,7 @@ namespace Fx
                 mDragger->eventMouseWheel += MyGUI::newDelegate(this, &EditNumber::notifyMouseWheel);
             }
 
-            void notifyMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+            void notifyMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
             {
                 if (rel > 0)
                     increment(static_cast<T>(mUniform->mStep));
@@ -160,12 +161,13 @@ namespace Fx
                     increment(static_cast<T>(-mUniform->mStep));
             }
 
-            void notifyMouseButtonDragged(MyGUI::Widget* /*sender*/, int left, int top, MyGUI::MouseButton id)
+            void notifyMouseButtonDragged(
+                MyGUI::Widget* /*sender*/, std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
             {
                 if (id != MyGUI::MouseButton::Left)
                     return;
 
-                int delta = left - mLastPointerX;
+                std::int32_t delta = left - mLastPointerX;
 
                 // allow finer tuning when shift is pressed
                 constexpr double scaling = 20.0;
@@ -188,7 +190,8 @@ namespace Fx
                 mLastPointerX = left;
             }
 
-            void notifyMouseButtonPressed(MyGUI::Widget* /*sender*/, int left, int top, MyGUI::MouseButton id)
+            void notifyMouseButtonPressed(
+                MyGUI::Widget* /*sender*/, std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
             {
                 if (id != MyGUI::MouseButton::Left)
                     return;
@@ -222,7 +225,7 @@ namespace Fx
             MyGUI::TextBox* mValueLabel{ nullptr };
             T mValue{};
 
-            int mLastPointerX{ 0 };
+            std::int32_t mLastPointerX{ 0 };
         };
 
         class EditNumberFloat4 : public EditNumber<float, osg::Vec4f>
@@ -241,7 +244,7 @@ namespace Fx
         {
             MYGUI_RTTI_DERIVED(EditNumberFloat)
         };
-        class EditNumberInt : public EditNumber<int, int>
+        class EditNumberInt : public EditNumber<std::int32_t, std::int32_t>
         {
             MYGUI_RTTI_DERIVED(EditNumberInt)
         };
@@ -258,7 +261,7 @@ namespace Fx
 
         private:
             void initialiseOverride() override;
-            void notifyComboBoxChanged(MyGUI::ComboBox* sender, size_t pos);
+            void notifyComboBoxChanged(MyGUI::ComboBox* sender, std::size_t pos);
 
             MyGUI::ComboBox* mChoices{ nullptr };
         };

@@ -1,16 +1,16 @@
 #include "editor.hpp"
 
+#include <cstdint>
+#include <exception>
+#include <filesystem>
+#include <system_error>
+
 #include <QApplication>
 #include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMessageBox>
 #include <QRegularExpression>
-
-#include <exception>
-#include <filesystem>
-#include <system_error>
-
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/value_semantic.hpp>
 
@@ -20,13 +20,9 @@
 #include <apps/opencs/view/doc/filedialog.hpp>
 #include <apps/opencs/view/doc/newgame.hpp>
 #include <apps/opencs/view/doc/startup.hpp>
+#include <apps/opencs/view/doc/viewmanager.hpp>
 #include <apps/opencs/view/prefs/dialogue.hpp>
 #include <apps/opencs/view/tools/merge.hpp>
-
-#ifdef _WIN32
-#include <components/misc/windows.hpp>
-#endif
-
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -36,12 +32,11 @@
 #include <components/files/qtconversion.hpp>
 #include <components/misc/rng.hpp>
 #include <components/nifosg/nifloader.hpp>
+#include <components/platform/process.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
-#include "view/doc/viewmanager.hpp"
-
-CS::Editor::Editor(int argc, char** argv)
+CS::Editor::Editor(std::int32_t argc, char** argv)
     : mConfigVariables(readConfiguration())
     , mSettingsState(mCfgMgr)
     , mDocumentManager(mCfgMgr)
@@ -359,11 +354,7 @@ bool CS::Editor::makeIPCServer()
             return false;
         }
 
-#ifdef _WIN32
-        mPidFile << GetCurrentProcessId() << std::endl;
-#else
-        mPidFile << getpid() << std::endl;
-#endif
+        mPidFile << Platform::Process::currentId() << std::endl;
 
         mServer = new QLocalServer(this);
 
@@ -411,7 +402,7 @@ void CS::Editor::connectToIPCServer()
     mClientSocket->close();
 }
 
-int CS::Editor::run()
+std::int32_t CS::Editor::run()
 {
     if (mLocal.empty())
         return 1;

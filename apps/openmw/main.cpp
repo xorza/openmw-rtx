@@ -1,3 +1,11 @@
+#include <chrono>
+#include <cstdint>
+#include <filesystem>
+
+#include <boost/program_options/variables_map.hpp>
+#include <osg/Notify>
+
+#include <apps/openmw/mwgui/debugwindow.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
@@ -7,24 +15,9 @@
 #include <components/settings/values.hpp>
 #include <components/version/version.hpp>
 
-#include "mwgui/debugwindow.hpp"
-
 #include "engine.hpp"
+#include "entry.hpp"
 #include "options.hpp"
-
-#include <boost/program_options/variables_map.hpp>
-#include <osg/Notify>
-
-#if defined(_WIN32)
-#include <components/misc/windows.hpp>
-// makes __argc and __argv available on windows
-#include <cstdlib>
-
-extern "C" __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x00000001;
-#endif
-
-#include <chrono>
-#include <filesystem>
 
 /**
  * \brief Parses application command line and calls \ref Cfg::ConfigurationManager
@@ -37,7 +30,7 @@ extern "C" __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x
  */
 namespace
 {
-    bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::ConfigurationManager& cfgMgr)
+    bool parseOptions(std::int32_t argc, char** argv, OMW::Engine& engine, Files::ConfigurationManager& cfgMgr)
     {
         // Create a local alias for brevity
         namespace bpo = boost::program_options;
@@ -148,15 +141,15 @@ namespace
         engine.setCompileAllDialogue(variables["script-all-dialogue"].as<bool>());
         engine.setScriptConsoleMode(variables["script-console"].as<bool>());
         engine.setStartupScript(variables["script-run"].as<std::string>());
-        engine.setWarningsMode(variables["script-warn"].as<int>());
+        engine.setWarningsMode(variables["script-warn"].as<std::int32_t>());
         engine.setSaveGameFile(variables["load-savegame"].as<Files::MaybeQuotedPath>().u8string());
 
         // other settings
         Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
         engine.setSoundUsage(!variables["no-sound"].as<bool>());
-        engine.setActivationDistanceOverride(variables["activate-dist"].as<int>());
+        engine.setActivationDistanceOverride(variables["activate-dist"].as<std::int32_t>());
         engine.enableFontExport(variables["export-fonts"].as<bool>());
-        engine.setRandomSeed(variables["random-seed"].as<unsigned int>());
+        engine.setRandomSeed(variables["random-seed"].as<std::uint32_t>());
 
         return true;
     }
@@ -194,7 +187,7 @@ namespace
             {
                 while (!s.empty())
                 {
-                    size_t lineSize = 1;
+                    std::size_t lineSize = 1;
                     while (lineSize < s.size() && s[lineSize - 1] != '\n')
                         lineSize++;
                     Log(level) << s.substr(0, s[lineSize - 1] == '\n' ? lineSize - 1 : lineSize);
@@ -204,7 +197,7 @@ namespace
         }
     };
 
-    int runApplication(int argc, char* argv[])
+    std::int32_t runApplication(std::int32_t argc, char* argv[])
     {
         Platform::init();
 
@@ -221,17 +214,12 @@ namespace
     }
 }
 
-int main(int argc, char** argv)
+std::int32_t OMW::runGame(std::int32_t argc, char** argv)
 {
     return Debug::wrapApplication(&runApplication, argc, argv, "OpenMW");
 }
 
-// Platform specific for Windows when there is no console built into the executable.
-// Windows will call the WinMain function instead of main in this case, the normal
-// main function is then called with the __argc and __argv parameters.
-#if defined(_WIN32) && !defined(_CONSOLE)
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+int main(std::int32_t argc, char** argv)
 {
-    return main(__argc, __argv);
+    return OMW::runGame(argc, argv);
 }
-#endif

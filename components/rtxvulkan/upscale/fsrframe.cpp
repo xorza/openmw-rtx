@@ -42,8 +42,10 @@ namespace Rtx
         mParity = 1 - mParity;
 
         Shaders::FsrConstants& at = mConstants;
-        const Shaders::ivec2 render(static_cast<int>(frame.mRender.width), static_cast<int>(frame.mRender.height));
-        const Shaders::ivec2 output(static_cast<int>(frame.mOutput.width), static_cast<int>(frame.mOutput.height));
+        const Shaders::ivec2 render(
+            static_cast<std::int32_t>(frame.mRender.width), static_cast<std::int32_t>(frame.mRender.height));
+        const Shaders::ivec2 output(
+            static_cast<std::int32_t>(frame.mOutput.width), static_cast<std::int32_t>(frame.mOutput.height));
 
         at.mPreviousJitter = -frame.mPreviousJitter;
         at.mJitter = -frame.mCamera.mJitter;

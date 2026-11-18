@@ -1,9 +1,9 @@
 #pragma once
 
+#include <algorithm>
+
 #include <LinearMath/btTransform.h>
 #include <LinearMath/btVector3.h>
-
-#include <algorithm>
 
 namespace BulletHelpers
 {

@@ -1,5 +1,6 @@
-#include <QDir>
+#include <cstdint>
 
+#include <QDir>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
 
@@ -12,7 +13,7 @@
 
 namespace
 {
-    int runWizard(int argc, char* argv[])
+    std::int32_t runWizard(std::int32_t argc, char* argv[])
     {
         boost::program_options::variables_map variables;
         boost::program_options::options_description description;
@@ -42,7 +43,7 @@ namespace
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     return Debug::wrapApplication(runWizard, argc, argv, "Wizard");
 }

@@ -1,6 +1,7 @@
 #include "charactermanager.hpp"
 
 #include <cctype>
+#include <cstdint>
 #include <filesystem>
 #include <sstream>
 #include <utility>
@@ -64,7 +65,8 @@ MWState::Character* MWState::CharacterManager::createCharacter(const std::string
     {
         auto c = nameStream.consume();
         if (c <= 0x7F
-            && std::isalnum(static_cast<int>(c))) // Ignore multibyte characters and non alphanumeric characters
+            && std::isalnum(
+                static_cast<std::int32_t>(c))) // Ignore multibyte characters and non alphanumeric characters
             stream << static_cast<char>(c);
         else
             stream << '_';
@@ -73,7 +75,7 @@ MWState::Character* MWState::CharacterManager::createCharacter(const std::string
     std::filesystem::path path = mPath / stream.str();
 
     // Append an index if necessary to ensure a unique directory
-    int i = 0;
+    std::int32_t i = 0;
     while (std::filesystem::exists(path))
     {
         std::ostringstream test;

@@ -23,6 +23,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/derivedheaders.hpp>
 #include <apps/components_tests/rtx/support/heldimages.hpp>
 #include <apps/components_tests/rtx/support/image.hpp>
 #include <components/misc/result.hpp>
@@ -40,6 +41,7 @@
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/world/cloudshell.hpp>
@@ -91,8 +93,8 @@ namespace Rtx
         TEST(RtxSkyBuilderTest, aCloudBlendIsPassedThroughAndOneOutsideAShareIsAContractBroken)
         {
             SkyContent textures;
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = 3 });
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_rainy.dds", .mTexture = 5 });
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = TextureIndex(3) });
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_rainy.dds", .mTexture = TextureIndex(5) });
             textures.mShell = sShell;
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
@@ -122,7 +124,7 @@ namespace Rtx
         TEST(RtxSkyBuilderTest, aWeatherWithNoCloudTextureGetsNoDeck)
         {
             SkyContent textures;
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = 3 });
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = TextureIndex(3) });
             textures.mShell = sShell;
 
             EXPECT_EQ(textures.sheetNamed("tx_sky_clear.dds"), sClear);
@@ -228,7 +230,7 @@ namespace Rtx
         TEST(RtxSkyBuilderTest, theLayersOwnShapeReachesTheShader)
         {
             SkyContent textures;
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = 3 });
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = TextureIndex(3) });
             textures.mShell = sShell;
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
@@ -261,8 +263,8 @@ namespace Rtx
         TEST(RtxSkyBuilderTest, eachSheetIsTurnedByItsOwnWeathersStorm)
         {
             SkyContent textures;
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = 3 });
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_rainy.dds", .mTexture = 5 });
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = TextureIndex(3) });
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_rainy.dds", .mTexture = TextureIndex(5) });
             textures.mShell = sShell;
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
@@ -302,8 +304,8 @@ namespace Rtx
         TEST(RtxSkyBuilderTest, theLevelASheetIsReadAgainstCrossesWithTheSheet)
         {
             SkyContent textures;
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = 3 });
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_rainy.dds", .mTexture = 5 });
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = TextureIndex(3) });
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_rainy.dds", .mTexture = TextureIndex(5) });
             textures.mShell = sShell;
             textures.mSheets[sClear].mMean = 0.4f;
             textures.mSheets[sRain].mMean = 0.2f;
@@ -337,8 +339,10 @@ namespace Rtx
         TEST(RtxSkyBuilderTest, aDeckOutOfNoneFadesInAsTheArrivingSheetDoes)
         {
             SkyContent textures;
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = 3, .mMean = 0.4f });
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_rainy.dds", .mTexture = 5, .mMean = 0.2f });
+            textures.mSheets.push_back(
+                CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = TextureIndex(3), .mMean = 0.4f });
+            textures.mSheets.push_back(
+                CloudSheet{ .mName = "tx_sky_rainy.dds", .mTexture = TextureIndex(5), .mMean = 0.2f });
             textures.mShell = sShell;
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
@@ -382,7 +386,7 @@ namespace Rtx
         TEST(RtxSkyBuilderTest, aWeatherThatHidesTheSunHidesTheStarsWithIt)
         {
             SkyContent textures;
-            textures.mNight.mField = 8;
+            textures.mNight.mField = TextureIndex(8);
             textures.mNight.mTile = 0.9f;
             textures.mNight.mHorizon = 0.4f;
 
@@ -409,7 +413,7 @@ namespace Rtx
 
             // And a mesh that gave up no scale draws nothing, rather than dividing by it.
             SkyContent unread;
-            unread.mNight.mField = 8;
+            unread.mNight.mField = TextureIndex(8);
             EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, unread).mTexture, Rtx::Shaders::NO_TEXTURE);
         }
 
@@ -420,7 +424,8 @@ namespace Rtx
         /// holds is what makes every one of them given back: `SkyReader` keeps it.
         TEST(RtxSkyBuilderTest, whatTheSkyHoldsIsGivenBackWhole)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             VFS::Manager vfs;
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Testing::HeldImages images(&vfs, budget);
@@ -432,7 +437,7 @@ namespace Rtx
                 images.hold(moonFaceOf(moon), portrait);
             }
 
-            std::vector<TextureHold> moonHolds;
+            std::vector<ReadingHold> moonHolds;
             ThreadContent thread;
             const Rtx::MoonFaces moons
                 = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, thread, moonHolds);
@@ -442,18 +447,18 @@ namespace Rtx
             // The content as `addSkyContent` would leave it, built by hand: two decks and a night
             // sky of a field and one patch, held once each, and the rest unset.
             SkyContent content;
-            std::vector<TextureHold> skyHolds;
+            std::vector<ReadingHold> skyHolds;
             for (const std::string_view name : { "tx_sky_clear.dds", "tx_sky_cloudy.dds" })
             {
-                const Index deck = scene.textures().add(VFS::Path::NormalizedView("textures/deck.dds"));
+                const TextureIndex deck = scene.textures().add(VFS::Path::NormalizedView("textures/deck.dds"));
                 content.mSheets.push_back(CloudSheet{ .mName = std::string(name), .mTexture = deck });
-                skyHolds.push_back(scene.holdTexture(deck));
+                skyHolds.push_back(scene.holdReading(deck));
             }
             content.mNight.mField = scene.textures().add(VFS::Path::NormalizedView("textures/stars.dds"));
-            skyHolds.push_back(scene.holdTexture(content.mNight.mField));
+            skyHolds.push_back(scene.holdReading(content.mNight.mField));
             content.mNight.mPatches[0].mTexture
                 = scene.textures().add(VFS::Path::NormalizedView("textures/nebula.dds"));
-            skyHolds.push_back(scene.holdTexture(content.mNight.mPatches[0].mTexture));
+            skyHolds.push_back(scene.holdReading(content.mNight.mPatches[0].mTexture));
 
             EXPECT_EQ(scene.textures().getLiveCount(), 5u);
             EXPECT_EQ(scene.textures().getHolds(content.mSheets[sClear].mTexture), 2u)
@@ -481,6 +486,7 @@ namespace Rtx
         /// in. The same archive with Clear's as `A8` gives the deck a slot, and one refusal fewer.
         TEST(RtxSkyBuilderTest, aDeckSheetThisCannotUploadIsLeftOutRatherThanDrawnGrey)
         {
+            SceneIdentities identities;
             const std::unique_ptr<VFS::Manager> vfs
                 = TestingOpenMW::createTestVFS({ { VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), nullptr } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
@@ -494,15 +500,15 @@ namespace Rtx
                 = Testing::makeImage("textures/tx_sky_clear.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), rgb);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             const SkyContent content = addSkyContent(scene, scenes, sources(), thread, holds);
 
             ASSERT_EQ(content.mSheets.size(), 2u) << "both names held, so neither is asked again";
             EXPECT_EQ(content.drawable(0), nullptr) << "a grey sky";
             EXPECT_EQ(content.drawable(1), nullptr);
-            EXPECT_EQ(scene.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
+            EXPECT_EQ(scene.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoRow)
                 << "a slot the upload would stand in for";
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 5u)
                 << "both decks, the cloud cap, the atmosphere and the star dome";
@@ -514,10 +520,10 @@ namespace Rtx
                 = Testing::makeImage("textures/tx_sky_clear.dds", 4, 4, GL_ALPHA, GL_UNSIGNED_BYTE);
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), alpha);
 
-            SceneDesc taken;
-            std::vector<TextureHold> takenHolds;
+            SceneDesc taken(identities);
+            std::vector<ReadingHold> takenHolds;
             const SkyContent takenContent = addSkyContent(taken, scenes, sources(), thread, takenHolds);
-            EXPECT_NE(taken.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
+            EXPECT_NE(taken.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoRow)
                 << "an alpha-only deck left out";
             EXPECT_EQ(taken.refusals().count(Refused::SkyLayer), 4u)
                 << "Overcast's, the cap, the atmosphere, the stars";
@@ -529,6 +535,7 @@ namespace Rtx
         /// mean luminance of one over the alpha. Opened as the game opens it, a header holding no texels.
         TEST(RtxSkyBuilderTest, aSheetAScriptNamesIsOpenedOnceAndDrawn)
         {
+            SceneIdentities identities;
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS(
                 { { VFS::Path::NormalizedView("textures/tx_script_sky.dds"), nullptr } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
@@ -536,7 +543,7 @@ namespace Rtx
             Resource::NifFileManager nifs(vfs.get(), budget, nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
             Resource::SptFileManager trees(vfs.get(), 0);
-            images.setModelImages(Resource::ModelImages::Headers);
+            const Testing::DerivedHeaders derived(images);
             Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, budget);
 
             osg::ref_ptr<osg::Image> sheet = Testing::makeImage("textures/tx_script_sky.dds", 4, 4);
@@ -547,16 +554,16 @@ namespace Rtx
             }
             images.hold(VFS::Path::NormalizedView("textures/tx_script_sky.dds"), sheet);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             SkyContent content;
             const std::uint32_t at = addCloudSheet(scene, scenes, thread, holds, "tx_script_sky.dds", content);
 
             EXPECT_EQ(content.sheetNamed("tx_script_sky.dds"), at);
             const CloudSheet* const opened = content.drawable(at);
             ASSERT_NE(opened, nullptr);
-            EXPECT_NE(scene.textures().findFile(VFS::Path::NormalizedView("textures/tx_script_sky.dds")), sNoIndex);
+            EXPECT_NE(scene.textures().findFile(VFS::Path::NormalizedView("textures/tx_script_sky.dds")), sNoRow);
             EXPECT_NEAR(opened->mMean, 1.0f, 1e-5f);
 
             scene.drop(holds);
@@ -603,6 +610,7 @@ namespace Rtx
         /// first, which no upload takes, and four channels after it, which takes the first patch.
         TEST(RtxSkyBuilderTest, aStarSheetThisCannotUploadIsRefusedByNameAndLeftOut)
         {
+            SceneIdentities identities;
             constexpr VFS::Path::NormalizedView dome("meshes/sky_night_02.nif");
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { dome, nullptr } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
@@ -621,20 +629,20 @@ namespace Rtx
             night->addChild(patchOf(rgba));
             scenes.hold(dome, night);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             const Result<NightSky, std::string> sky = readNightSky(
                 scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), thread, holds);
             ASSERT_TRUE(sky.isOk()) << sky.error();
 
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 1u);
-            EXPECT_EQ(scene.textures().findFile(VFS::Path::NormalizedView("textures/star_rgb.dds")), sNoIndex)
+            EXPECT_EQ(scene.textures().findFile(VFS::Path::NormalizedView("textures/star_rgb.dds")), sNoRow)
                 << "a slot the upload would stand in for";
             EXPECT_EQ(sky.value().mPatches[0].mTexture,
                 scene.textures().findFile(VFS::Path::NormalizedView("textures/star_rgba.dds")));
-            EXPECT_NE(sky.value().mPatches[0].mTexture, sNoIndex);
-            EXPECT_EQ(sky.value().mPatches[1].mTexture, sNoIndex) << "the refused sheet took a patch";
+            EXPECT_NE(sky.value().mPatches[0].mTexture, sNoRow);
+            EXPECT_EQ(sky.value().mPatches[1].mTexture, sNoRow) << "the refused sheet took a patch";
 
             EXPECT_EQ(holds.size(), 1u) << "a hold on the one sheet it took";
             scene.drop(holds);
@@ -650,6 +658,7 @@ namespace Rtx
         /// nothing for them.
         TEST(RtxSkyBuilderTest, aSkyMeshTheArchivesDoNotHoldIsNamedAndTheSkyGoesOnWithoutIt)
         {
+            SceneIdentities identities;
             VFS::Manager vfs;
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Resource::ImageManager images(&vfs, budget);
@@ -657,9 +666,9 @@ namespace Rtx
             Resource::BgsmFileManager materials(&vfs, 0);
             Resource::SptFileManager trees(&vfs, 0);
             Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, budget);
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
 
             const Result<NightSky, std::string> night
                 = readNightSky(scene, scenes, VFS::Path::NormalizedView("meshes/sky_night_02.nif"),
@@ -673,9 +682,9 @@ namespace Rtx
                 << "the cloud cap, the atmosphere, the star dome, and the Clear and Overcast decks the sources name";
             EXPECT_EQ(content.mAtmosphere.mZenithShare, 0.0f) << "no atmosphere: the fog colour everywhere";
             EXPECT_EQ(content.mShell.mTiles, osg::Vec2f()) << "no layer to hang a deck on";
-            EXPECT_EQ(content.mNight.mField, sNoIndex) << "and no stars";
+            EXPECT_EQ(content.mNight.mField, sNoRow) << "and no stars";
             for (const NightSky::Patch& patch : content.mNight.mPatches)
-                EXPECT_EQ(patch.mTexture, sNoIndex);
+                EXPECT_EQ(patch.mTexture, sNoRow);
             EXPECT_TRUE(holds.empty()) << "a hold taken for a sky that is not there";
             EXPECT_TRUE(scene.isEmpty());
         }

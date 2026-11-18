@@ -1,15 +1,15 @@
 #pragma once
 
-#include <components/settings/sanitizerimpl.hpp>
-#include <components/settings/settingvalue.hpp>
+#include <cstdint>
+#include <string>
+#include <string_view>
 
 #include <osg/Math>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+#include <components/settings/sanitizerimpl.hpp>
+#include <components/settings/settingvalue.hpp>
 
 namespace Settings
 {
@@ -19,6 +19,6 @@ namespace Settings
 
         SettingValue<std::string> mCharacter{ mIndex, "Saves", "character" };
         SettingValue<bool> mAutosave{ mIndex, "Saves", "autosave" };
-        SettingValue<int> mMaxQuicksaves{ mIndex, "Saves", "max quicksaves", makeMaxSanitizerInt(1) };
+        SettingValue<std::int32_t> mMaxQuicksaves{ mIndex, "Saves", "max quicksaves", makeMaxSanitizerInt(1) };
     };
 }

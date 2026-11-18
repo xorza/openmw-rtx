@@ -25,6 +25,7 @@
 #include "held.hpp"
 #include "nightday.hpp"
 #include "prepared.hpp"
+#include "ringstanding.hpp"
 
 namespace Rtx
 {
@@ -169,6 +170,10 @@ namespace Rtx
         /// assert.
         bool standsAsHeld(const WorldAround& around) const;
 
+        /// What the held cells hold against what stands, by each cell's distance from `eye`, the eye's cell. A walk
+        /// of every placement, for a report.
+        RingStanding countStanding(const osg::Vec2i& eye) const;
+
     private:
         /// What the cell tables are ordered by, stated once so that no search can disagree with the
         /// insertion it is looking for. `osg::Vec2i` orders lexicographically already, which is the
@@ -198,6 +203,20 @@ namespace Rtx
         /// `holds` adopted it, disabled where a script said so, and sorted for `place`; and
         /// `held.mLights` from the cell's lamps, with what the game said of each.
         void adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds);
+
+        /// Fills `held.mAsks` from its placements and its ground, each material once at its finest footprint, and how
+        /// far its placements reach out (`RingAsk`). Nothing is asked until `askByDistance`.
+        void gatherAsks(HeldCell& held);
+
+        /// **Asks each material `cell` holds at the footprint its distance makes of it**, where the distance moved to
+        /// another band or what the eye resolves changed (`docs/architecture.md`, "A texture stands from the level its
+        /// nearest user asks"). The bands double from a cell's size, the first reaching it, and a cell asks the near
+        /// edge of the band before its own: its levels arrive a band ahead of the eye, as the ring reads a band ahead.
+        void askByDistance(HeldCell& cell, const WorldAround& around, bool sightMoved);
+
+        /// Takes back everything `cell` or `grass` asks, before what it holds is let go of.
+        void unaskAll(HeldCell& cell);
+        void unaskAll(HeldGrass& grass);
 
         /// Adopts a cell's ground into the scene, on rows held on the scene.
         void adoptGround(const PreparedCell& cell, HeldCell& held, const WorldAround& around, ExtractionStats& stats);
@@ -295,7 +314,9 @@ namespace Rtx
 
         /// Where the game holds each reference it moved, sorted by the reference: `moveReference`.
         /// The content stands a reference in one cell, which is the one cell that holds any of it,
-        /// found once it is held.
+        /// found once it is held. **Bounded by the content's references a script moves**, statics, doors and
+        /// lamps: an actor's move never reaches the ring (`MWRender::ringMayHold`), and the list goes with the
+        /// game (`forgetReferences`).
         struct Moved
         {
             ESM::RefNum mRefNum;
@@ -309,6 +330,9 @@ namespace Rtx
         std::vector<Terrain::GateState> mGates;
 
         NightDayMode mNightDay = NightDayMode::Default;
+
+        /// What the eye resolved at the last `place`, which every cell asked by.
+        Sight mSight{};
 
         std::uint32_t mPlaced = 0;
         std::uint32_t mGroundPlaced = 0;
@@ -342,6 +366,7 @@ namespace Rtx
             }
 
             dropSlots(*at);
+            unaskAll(*at);
             letGo(*at);
             if constexpr (std::is_same_v<Held, HeldCell>)
                 dropGround(*at);

@@ -1,8 +1,12 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
+#include <components/esm/refid.hpp>
+
 #include "timeadvancer.hpp"
 #include "windowbase.hpp"
-#include <components/esm/refid.hpp>
 
 namespace MWGui
 {
@@ -14,7 +18,7 @@ namespace MWGui
 
         void onOpen() override;
 
-        void setProgress(int cur, int total);
+        void setProgress(std::int32_t cur, std::int32_t total);
 
     protected:
         MyGUI::ProgressBar* mProgressBar{};
@@ -58,11 +62,11 @@ namespace MWGui
 
         TimeAdvancer mTimeAdvancer;
         bool mSleeping;
-        int mHours;
-        int mManualHours; // stores the hours to rest selected via slider
+        std::int32_t mHours;
+        std::int32_t mManualHours; // stores the hours to rest selected via slider
         float mFadeTimeRemaining;
 
-        int mInterruptAt;
+        std::int32_t mInterruptAt;
         ESM::RefId mInterruptCreatureList;
 
         WaitDialogProgressBar mProgressBar;
@@ -70,16 +74,16 @@ namespace MWGui
         void onUntilHealedButtonClicked(MyGUI::Widget* sender);
         void onWaitButtonClicked(MyGUI::Widget* sender);
         void onCancelButtonClicked(MyGUI::Widget* sender);
-        void onHourSliderChangedPosition(MyGUI::ScrollBar* sender, size_t position);
+        void onHourSliderChangedPosition(MyGUI::ScrollBar* sender, std::size_t position);
         void onKeyButtonPressed(MyGUI::Widget* sender, MyGUI::KeyCode key, MyGUI::Char character);
 
-        void onWaitingProgressChanged(int cur, int total);
+        void onWaitingProgressChanged(std::int32_t cur, std::int32_t total);
         void onWaitingInterrupted();
         void onWaitingFinished();
 
         void setCanRest(bool canRest);
 
-        void startWaiting(int hoursToWait);
+        void startWaiting(std::int32_t hoursToWait);
         void stopWaiting();
     };
 

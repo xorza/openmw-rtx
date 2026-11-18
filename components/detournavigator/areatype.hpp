@@ -1,15 +1,17 @@
 #pragma once
 
+#include <cstdint>
+
 #include <Recast.h>
 
 namespace DetourNavigator
 {
-    enum AreaType : unsigned char
+    enum AreaType : std::uint8_t
     {
         AreaType_null = RC_NULL_AREA,
-        AreaType_water,
-        AreaType_door,
-        AreaType_pathgrid,
+        AreaType_water = 1,
+        AreaType_door = 2,
+        AreaType_pathgrid = 3,
         AreaType_ground = RC_WALKABLE_AREA,
     };
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <iosfwd>
 #include <string>
@@ -14,7 +16,7 @@ namespace ESM
     public:
         constexpr ESM3ExteriorCellRefId() = default;
 
-        constexpr explicit ESM3ExteriorCellRefId(int32_t x, int32_t y) noexcept
+        constexpr explicit ESM3ExteriorCellRefId(std::int32_t x, std::int32_t y) noexcept
             : mX(x)
             , mY(y)
         {
@@ -24,8 +26,8 @@ namespace ESM
 
         std::string toDebugString() const;
 
-        int32_t getX() const { return mX; }
-        int32_t getY() const { return mY; }
+        std::int32_t getX() const { return mX; }
+        std::int32_t getY() const { return mY; }
 
         friend inline constexpr auto tie(const ESM3ExteriorCellRefId& value) noexcept
         {
@@ -41,8 +43,8 @@ namespace ESM
         friend struct std::hash<ESM3ExteriorCellRefId>;
 
     private:
-        int32_t mX = 0;
-        int32_t mY = 0;
+        std::int32_t mX = 0;
+        std::int32_t mY = 0;
     };
 }
 

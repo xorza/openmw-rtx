@@ -1,12 +1,12 @@
 #pragma once
 
-#include "recastallocutils.hpp"
-
-#include <RecastAlloc.h>
-
 #include <cassert>
 #include <memory>
 #include <vector>
+
+#include <RecastAlloc.h>
+
+#include "recastallocutils.hpp"
 
 namespace DetourNavigator
 {

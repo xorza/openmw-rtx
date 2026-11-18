@@ -1,17 +1,17 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 
-#include <osg/Vec2f>
-
 #include <MyGUI_ITexture.h>
-
-#include "windowpinnablebase.hpp"
+#include <osg/Vec2f>
 
 #include <components/esm3/custommarkerstate.hpp>
 #include <components/misc/constants.hpp>
+
+#include "windowpinnablebase.hpp"
 
 namespace MWRender
 {
@@ -55,7 +55,7 @@ namespace MWGui
 
         void clear();
 
-        size_t size() const;
+        std::size_t size() const;
 
         typedef std::multimap<ESM::RefId, ESM::CustomMarker> ContainerType;
 
@@ -80,7 +80,8 @@ namespace MWGui
         virtual ~LocalMapBase();
         LocalMapBase(const LocalMapBase&) = delete;
         LocalMapBase& operator=(const LocalMapBase&) = delete;
-        void init(MyGUI::ScrollView* widget, MyGUI::ImageBox* compass, int cellDistance = Constants::CellGridRadius);
+        void init(
+            MyGUI::ScrollView* widget, MyGUI::ImageBox* compass, std::int32_t cellDistance = Constants::CellGridRadius);
 
         void setActiveCell(const MWWorld::Cell& cell);
         void requestMapRender(const MWWorld::CellStore* cell);
@@ -90,7 +91,7 @@ namespace MWGui
         /// and taken from it as it now stands.
         void dropMapViews();
         void setPlayerDir(const float x, const float y);
-        void setPlayerPos(int cellX, int cellY, const float nx, const float ny);
+        void setPlayerPos(std::int32_t cellX, std::int32_t cellY, const float nx, const float ny);
 
         void onFrame(float dt);
 
@@ -110,8 +111,8 @@ namespace MWGui
             bool isPositionExplored() const;
 
             MWRender::LocalMap* mLocalMapRender;
-            int cellX;
-            int cellY;
+            std::int32_t cellX;
+            std::int32_t cellY;
             float nX;
             float nY;
             std::vector<std::string> notes;
@@ -151,14 +152,14 @@ namespace MWGui
             std::shared_ptr<MWRender::OffscreenView> mMapView;
             // nullopt until asked; nullptr where the local map had no fog for this segment
             std::optional<std::unique_ptr<MyGUI::ITexture>> mFogTexture;
-            int mCellX;
-            int mCellY;
+            std::int32_t mCellX;
+            std::int32_t mCellY;
         };
         std::vector<MapEntry> mMaps;
 
         // Keep track of created marker widgets, just to easily remove them later.
         std::vector<MarkerWidget*> mExteriorDoorMarkerWidgets;
-        std::map<std::pair<int, int>, std::vector<MarkerWidget*>> mExteriorDoorsByCell;
+        std::map<std::pair<std::int32_t, std::int32_t>, std::vector<MarkerWidget*>> mExteriorDoorsByCell;
         std::vector<MarkerWidget*> mInteriorDoorMarkerWidgets;
         std::vector<MyGUI::Widget*> mMagicMarkerWidgets;
         std::vector<MyGUI::Widget*> mCustomMarkerWidgets;
@@ -170,12 +171,12 @@ namespace MWGui
 
         void applyFogOfWar();
 
-        MyGUI::IntPoint getPosition(int cellX, int cellY, float nx, float ny) const;
+        MyGUI::IntPoint getPosition(std::int32_t cellX, std::int32_t cellY, float nx, float ny) const;
         MyGUI::IntPoint getMarkerPosition(float worldX, float worldY, MarkerUserData& markerPos) const;
         MyGUI::IntCoord getMarkerCoordinates(
-            float worldX, float worldY, MarkerUserData& markerPos, unsigned short markerSize) const;
+            float worldX, float worldY, MarkerUserData& markerPos, std::uint16_t markerSize) const;
         MarkerWidget* createDoorMarker(const std::string& name, float x, float y) const;
-        void updateMarkerCoordinates(MyGUI::Widget* widget, unsigned short markerSize) const;
+        void updateMarkerCoordinates(MyGUI::Widget* widget, std::uint16_t markerSize) const;
 
         virtual void notifyPlayerUpdate() {}
         virtual void centerView();
@@ -186,7 +187,7 @@ namespace MWGui
         void updateRequiredMaps();
 
         void updateMagicMarkers();
-        void addDetectionMarkers(int type);
+        void addDetectionMarkers(std::int32_t type);
 
         void redraw();
         float getWidgetSize() const;
@@ -233,7 +234,7 @@ namespace MWGui
         MyGUI::Button* mDeleteButton{};
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 
     class MapWindow : public MWGui::WindowPinnableBase, public LocalMapBase, public NoDrop
@@ -252,10 +253,10 @@ namespace MWGui
 
         /// adds the marker to the global map
         /// @param name The ESM::Cell::mName
-        void addVisitedLocation(const std::string& name, int x, int y);
+        void addVisitedLocation(const std::string& name, std::int32_t x, std::int32_t y);
 
         // reveals this cell's map on the global map
-        void cellExplored(int x, int y);
+        void cellExplored(std::int32_t x, std::int32_t y);
 
         void setGlobalMapPlayerPosition(float worldX, float worldY);
         void setGlobalMapPlayerDir(const float x, const float y);
@@ -272,7 +273,7 @@ namespace MWGui
         void clear() override;
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress);
-        void readRecord(ESM::ESMReader& reader, uint32_t type);
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type);
 
         void asyncPrepareSaveMap();
 
@@ -283,11 +284,11 @@ namespace MWGui
         void setActiveControllerWindow(bool active) override;
 
     private:
-        void onDragStart(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void onMouseDrag(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
+        void onDragStart(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void onMouseDrag(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
         void onWorldButtonClicked(MyGUI::Widget* sender);
         void onMapDoubleClicked(MyGUI::Widget* sender);
-        void onMapZoomed(MyGUI::Widget* sender, int rel);
+        void onMapZoomed(MyGUI::Widget* sender, std::int32_t rel);
         void zoomOnCursor(float speedDiff);
         void updateGlobalMap();
         void onCustomMarkerDoubleClicked(MyGUI::Widget* sender);
@@ -297,10 +298,10 @@ namespace MWGui
         void onNoteDoubleClicked(MyGUI::Widget* sender);
         void onChangeScrollWindowCoord(MyGUI::Widget* sender);
         void globalMapUpdatePlayer();
-        void setGlobalMapMarkerTooltip(MyGUI::Widget* widget, int x, int y);
-        float getMarkerSize(size_t agregatedWeight) const;
+        void setGlobalMapMarkerTooltip(MyGUI::Widget* widget, std::int32_t x, std::int32_t y);
+        float getMarkerSize(std::size_t agregatedWeight) const;
         void resizeGlobalMap();
-        void shiftMap(int dx, int dy);
+        void shiftMap(std::int32_t dx, std::int32_t dy);
         void worldPosToGlobalMapImageSpace(float x, float y, float& imageX, float& imageY) const;
         MyGUI::IntCoord createMarkerCoords(float x, float y, float agregatedWeight) const;
         MyGUI::Widget* createMarker(const std::string& name, float x, float y, float agregatedWeight);
@@ -317,7 +318,7 @@ namespace MWGui
         MyGUI::IntCoord mLastScrollWindowCoordinates;
 
         // Markers on global map
-        typedef std::pair<int, int> CellId;
+        typedef std::pair<std::int32_t, std::int32_t> CellId;
         std::set<CellId> mMarkers;
 
         MyGUI::Button* mEventBoxGlobal;

@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
-#include "components/esm3/quickkeys.hpp"
-
-#include "../mwworld/manualref.hpp"
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <components/esm3/quickkeys.hpp>
 
 #include "itemselection.hpp"
 #include "spellmodel.hpp"
@@ -23,7 +24,7 @@ namespace MWGui
     public:
         QuickKeysMenu();
 
-        void onResChange(int, int) override { center(); }
+        void onResChange(std::int32_t, std::int32_t) override { center(); }
 
         void onItemButtonClicked(MyGUI::Widget* sender);
         void onMagicButtonClicked(MyGUI::Widget* sender);
@@ -38,11 +39,11 @@ namespace MWGui
         void onOpen() override;
         void onClose() override;
 
-        void activateQuickKey(int index);
+        void activateQuickKey(std::int32_t index);
         void updateActivatedQuickKey();
 
         void write(ESM::ESMWriter& writer);
-        void readRecord(ESM::ESMReader& reader, uint32_t type);
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type);
         void clear() override;
 
         std::string_view getWindowIdForLua() const override { return "QuickKeys"; }
@@ -50,7 +51,7 @@ namespace MWGui
     private:
         struct keyData
         {
-            int index = -1;
+            std::int32_t index = -1;
             ItemWidget* button = nullptr;
             ESM::QuickKeys::Type type = ESM::QuickKeys::Type::Unassigned;
             ESM::RefId id;
@@ -72,12 +73,12 @@ namespace MWGui
         void onQuickKeyButtonClicked(MyGUI::Widget* sender);
         void onOkButtonClicked(MyGUI::Widget* sender);
         // Check if quick key is still valid
-        inline void validate(int index);
+        inline void validate(std::int32_t index);
         void unassign(keyData* key);
         void assignItem(MWWorld::Ptr item);
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 
     class QuickKeysMenuAssign : public WindowModal
@@ -95,7 +96,7 @@ namespace MWGui
         QuickKeysMenu* mParent;
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 
     class MagicSelectionDialog : public WindowModal

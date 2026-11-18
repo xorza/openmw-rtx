@@ -143,9 +143,9 @@ namespace MWRender
         /// no switch.
         Rtx::NightDayMode nightDayOf(const WorldState& world)
         {
-            static_assert(static_cast<unsigned int>(Rtx::NightDayMode::Default) == MWWorld::Default
-                && static_cast<unsigned int>(Rtx::NightDayMode::ExteriorNight) == MWWorld::ExteriorNight
-                && static_cast<unsigned int>(Rtx::NightDayMode::InteriorDay) == MWWorld::InteriorDay);
+            static_assert(static_cast<std::uint32_t>(Rtx::NightDayMode::Default) == MWWorld::Default
+                && static_cast<std::uint32_t>(Rtx::NightDayMode::ExteriorNight) == MWWorld::ExteriorNight
+                && static_cast<std::uint32_t>(Rtx::NightDayMode::InteriorDay) == MWWorld::InteriorDay);
 
             if (!world.mNightDayMode.has_value())
                 return Rtx::NightDayMode::Authored;
@@ -182,7 +182,7 @@ namespace MWRender
         /// What the world walk may see: `sWorldTraversal`, without the player or the actors where the eye's
         /// view mask leaves them out. Those two only, because the trace's ray mask hides every other class
         /// the view leaves out, and a walk past an actor would stand it in the class the player keeps on.
-        constexpr osg::Node::NodeMask worldTraversal(const unsigned int view)
+        constexpr osg::Node::NodeMask worldTraversal(const std::uint32_t view)
         {
             constexpr osg::Node::NodeMask walkedByView = Mask_Player | Mask_Actor;
 
@@ -190,15 +190,18 @@ namespace MWRender
         }
     }
 
-    WorldMirror::WorldMirror(
-        const MirrorKnobs& knobs, ContentStore::Store* const store, Rtx::PreparedImages* const prepared)
+    WorldMirror::WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* const store,
+        Rtx::PreparedImages* const prepared, Rtx::SceneIdentities& identities)
         : mStore(store)
         , mWalk{ .mContent{ store, ContentStore::Reach::Memory }, .mPrepared = prepared }
+        , mScene(identities, Rtx::sWorldRoom)
         , mKnobs(knobs)
         , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom)
         , mTraversal(worldTraversal(~0u))
     {
         mRing.setMinSize(knobs.mMinSize);
+        if (knobs.mDigests)
+            mScene.keepDigests();
         // The sky is not mirrored: the engine rebuilds it every frame, so walking it churns the identity maps
         // and makes every frame a full rebuild. The simple water is the local map's copy of the sea, which
         // would be placed twice. Only the one hidden bit is excluded, so the update traversal still reaches a
@@ -423,8 +426,11 @@ namespace MWRender
             .mVerticesUsed = meshes.getVertexRuns().getUsed(),
             .mIndexEnd = meshes.getIndexRuns().getEnd(),
             .mIndicesUsed = meshes.getIndexRuns().getUsed(),
+            .mRestingVertices = meshes.getRestingGeometry().mVertices,
+            .mRestingIndices = meshes.getRestingGeometry().mIndices,
+            .mGeometryBytes = meshes.getGeometryBytes(),
             .mLayerEnd = count(mScene.materials().getLayers()),
-            .mMaskEnd = count(mScene.materials().getMasks()),
+            .mMaskEnd = mScene.materials().getMaskRuns().getEnd(),
             .mRigRunEnd = count(deformers.getRuns()),
             .mInfluenceEnd = count(deformers.getInfluences()),
             .mOffsetEnd = count(deformers.getMorphOffsets()),
@@ -432,7 +438,10 @@ namespace MWRender
             .mBindVertexEnd = deformers.getBindVertexCount(),
             .mRestingTextures = static_cast<std::uint32_t>(mScene.textures().getResting().getCount()),
             .mRestingTextureBytes = mScene.textures().getResting().getBytes(),
+            .mAboveWant = mScene.textures().measureAboveWant(),
             .mReader = mRing.getReaderMemory(),
+            .mPrepared = mWalk.mPrepared != nullptr ? mWalk.mPrepared->getHeld() : Rtx::PreparedHeld{},
+            .mRing = mRing.countStanding(),
         };
     }
 
@@ -442,7 +451,7 @@ namespace MWRender
         mSeaCentre = stood.isExterior() ? seaCentre(stood.getGridX(), stood.getGridY()) : osg::Vec2f(0.f, 0.f);
     }
 
-    void WorldMirror::setViewMask(const unsigned int view)
+    void WorldMirror::setViewMask(const std::uint32_t view)
     {
         mTraversal = worldTraversal(view);
         mExtractor.setTraversalMask(mTraversal);
@@ -454,7 +463,7 @@ namespace MWRender
 
         // Whatever the loader hides with has to be inside what this mask excludes. A loader nobody has told
         // yet hides with nothing and passes: this catches the engine moving the bit.
-        assert((NifOsg::Loader::getHiddenNodeMask() & ~static_cast<unsigned int>(Mask_UpdateVisitor)) == 0
+        assert((NifOsg::Loader::getHiddenNodeMask() & ~static_cast<std::uint32_t>(Mask_UpdateVisitor)) == 0
             && "the loader hides with a bit the walk's mask does not exclude");
 
         // The world's clock and not this renderer's, or the controllers would run while the game
@@ -516,6 +525,7 @@ namespace MWRender
             .mExterior = frame.mWorld.mLocation == Location::Exterior,
             .mSimulationTime = frame.mWhen.getSimulationTime(),
             .mNightDay = nightDayOf(frame.mWorld),
+            .mSight = mSight,
         };
 
         // Told once a frame, because what the graph does not hold is the frame's to say: the precipitation

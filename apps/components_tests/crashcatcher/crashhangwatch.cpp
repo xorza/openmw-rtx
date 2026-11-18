@@ -74,7 +74,7 @@ namespace
     TEST(CrashHangWatchTest, aStartThatDrawsNothingIsNoHang)
     {
         Crash::HangWatch watch(sStart);
-        for (int second = 1; second <= 10; ++second)
+        for (std::int32_t second = 1; second <= 10; ++second)
             EXPECT_EQ(wakeAt(watch, std::chrono::seconds(second), 0, 2), Crash::HangAnswer(sQuiet));
     }
 
@@ -106,7 +106,7 @@ namespace
     {
         Crash::HangWatch watch(sStart);
         wakeAt(watch, 1s, 5, 0);
-        for (int second = 2; second <= 10; ++second)
+        for (std::int32_t second = 2; second <= 10; ++second)
             EXPECT_EQ(wakeAt(watch, std::chrono::seconds(second), 5, 0), Crash::HangAnswer(sQuiet));
     }
 

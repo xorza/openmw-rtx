@@ -1,8 +1,9 @@
 #pragma once
 
-#include <osg/Math>
-
 #include <algorithm>
+#include <cstdint>
+
+#include <osg/Math>
 
 namespace MWWorld
 {
@@ -16,7 +17,7 @@ namespace MWMechanics
     inline float getAngularVelocity(const float actorSpeed)
     {
         constexpr float degreesPerFrame = 15.f;
-        constexpr int framesPerSecond = 60;
+        constexpr std::int32_t framesPerSecond = 60;
         const float baseAngularVelocity = osg::DegreesToRadians(degreesPerFrame * framesPerSecond);
         const float baseSpeed = 200;
         return baseAngularVelocity * std::max(actorSpeed / baseSpeed, 1.0f);
@@ -27,7 +28,7 @@ namespace MWMechanics
     bool zTurn(const MWWorld::Ptr& actor, float targetAngleRadians,
         float epsilonRadians = static_cast<float>(osg::DegreesToRadians(0.5)));
 
-    bool smoothTurn(const MWWorld::Ptr& actor, float targetAngleRadians, int axis,
+    bool smoothTurn(const MWWorld::Ptr& actor, float targetAngleRadians, std::int32_t axis,
         float epsilonRadians = static_cast<float>(osg::DegreesToRadians(0.5)));
 
 }

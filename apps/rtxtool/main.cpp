@@ -138,6 +138,10 @@ namespace RtxTool
             framed.mSetup.mKernels = Rtx::KernelSet::Every;
             framed.mSetup.mRun.mMemoryBudget = line.mMemoryBudget;
             framed.mSetup.mCacheBudget = line.mCacheBudget;
+            if (line.mTransparentHugePages == TransparentHugePages::Off
+                && !Platform::Process::refuseTransparentHugePages())
+                throw std::runtime_error(
+                    "--transparent-huge-pages=off: the system would not take the process off them");
             framed.mSetup.mRun.mPipelineCode = line.mPipelineCode;
             framed.mSetup.mContentStore = std::visit(
                 [&](const auto& choice) -> std::optional<std::filesystem::path> {
@@ -166,7 +170,7 @@ namespace RtxTool
             if (watched)
             {
                 Settings::rtx().mIndirectLighting.set(derived.mIndirectLighting);
-                Settings::rtx().mBounceRays.set(static_cast<int>(derived.mBounceRays));
+                Settings::rtx().mBounceRays.set(static_cast<std::int32_t>(derived.mBounceRays));
             }
 
             return framed;
@@ -522,7 +526,7 @@ namespace RtxTool
                 << options;
         }
 
-        ExitStatus dispatch(int argc, char* argv[])
+        ExitStatus dispatch(std::int32_t argc, char* argv[])
         {
             Platform::init();
 
@@ -608,7 +612,7 @@ namespace RtxTool
                 Command{ read, config, own, shaders.getSet(), *chosen, shipped });
         }
 
-        int run(int argc, char* argv[])
+        std::int32_t run(std::int32_t argc, char* argv[])
         {
             // Failures are reported here rather than left to `Debug::wrapApplication`, which puts up
             // an SDL message box when stdin is not a terminal. This tool is meant to be usable over
@@ -631,11 +635,13 @@ namespace RtxTool
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
-    // **Huge pages before anything else**, since the process this starts keeps no thread and no
-    // state of this one: the figures a measured run reports move run to run on small ones.
-    Platform::Process::restartOnHugePages(argv);
+    // **Huge pages for a timed run, before anything else**, since the process this starts keeps no thread and no
+    // state of this one: a timed run's figures move run to run on small ones. Every other verb starts as the game
+    // does, asking for none, so the memory a tour reports is the game's.
+    if (argc > 1 && (std::string_view(argv[1]) == "bench" || std::string_view(argv[1]) == "noise"))
+        Platform::Process::restartOnHugePages(argv);
 
     // The catcher's box is off and the catcher is on: a dialog waiting for a click is a run that never finishes,
     // and a measured run that crashes or hangs should still leave the report a player's game would. Not

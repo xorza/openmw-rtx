@@ -1,5 +1,7 @@
 #include "errorhandler.hpp"
 
+#include <cstdint>
+
 namespace Compiler
 {
     ErrorHandler::ErrorHandler()
@@ -21,14 +23,14 @@ namespace Compiler
 
     // Return number of errors
 
-    int ErrorHandler::countErrors() const
+    std::int32_t ErrorHandler::countErrors() const
     {
         return mErrors;
     }
 
     // Return number of warnings
 
-    int ErrorHandler::countWarnings() const
+    std::int32_t ErrorHandler::countWarnings() const
     {
         return mWarnings;
     }
@@ -78,7 +80,7 @@ namespace Compiler
         mErrors = mWarnings = 0;
     }
 
-    void ErrorHandler::setWarningsMode(int mode)
+    void ErrorHandler::setWarningsMode(std::int32_t mode)
     {
         mWarningsMode = mode;
     }

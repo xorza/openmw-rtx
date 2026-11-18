@@ -49,7 +49,7 @@ namespace
         EXPECT_TRUE(get<bool>(lua, "util.vector2(1, 2) * 2 == util.vector2(2, 4)"));
         EXPECT_FLOAT_EQ(get<float>(lua, "util.vector2(3, 2) * v"), 17);
         EXPECT_FLOAT_EQ(get<float>(lua, "util.vector2(3, 2):dot(v)"), 17);
-        EXPECT_ERROR(lua.safe_script("v2, len = v.normalize()"),
+        Testing::expectError([&] { return lua.safe_script("v2, len = v.normalize()"); },
             "value is not a valid userdata"); // checks that it doesn't segfault
         lua.safe_script("v2, len = v:normalize()");
         EXPECT_FLOAT_EQ(get<float>(lua, "len"), 5);
@@ -85,7 +85,8 @@ namespace
         EXPECT_FLOAT_EQ(get<float>(lua, "util.vector3(3, 2, 1) * v"), 5 * 3 + 12 * 2 + 13 * 1);
         EXPECT_FLOAT_EQ(get<float>(lua, "util.vector3(3, 2, 1):dot(v)"), 5 * 3 + 12 * 2 + 13 * 1);
         EXPECT_TRUE(get<bool>(lua, "util.vector3(1, 0, 0) ^ util.vector3(0, 1, 0) == util.vector3(0, 0, 1)"));
-        EXPECT_ERROR(lua.safe_script("v2, len = util.vector3(3, 4, 0).normalize()"), "value is not a valid userdata");
+        Testing::expectError([&] { return lua.safe_script("v2, len = util.vector3(3, 4, 0).normalize()"); },
+            "value is not a valid userdata");
         lua.safe_script("v2, len = util.vector3(3, 4, 0):normalize()");
         EXPECT_FLOAT_EQ(get<float>(lua, "len"), 5);
         EXPECT_TRUE(get<bool>(lua, "v2 == util.vector3(3/5, 4/5, 0)"));
@@ -164,7 +165,8 @@ namespace
         EXPECT_EQ(get<std::string>(lua, "tostring(red)"), "(1, 0, 0, 1)");
         lua.safe_script("blue = util.color.commaString('0, 0, 1000, 255')");
         EXPECT_EQ(get<std::string>(lua, "tostring(blue)"), "(0, 0, 1, 1)");
-        EXPECT_ERROR(lua.safe_script("white = util.color.commaString('aaa')"), "Invalid comma-separated color");
+        Testing::expectError(
+            [&] { return lua.safe_script("white = util.color.commaString('aaa')"); }, "Invalid comma-separated color");
     }
 
     TEST_F(LuaUtilPackageTest, Transform)
@@ -172,7 +174,7 @@ namespace
         sol::state_view lua = mLuaState.unsafeState();
         lua["T"] = lua["util"]["transform"];
         lua["v"] = lua["util"]["vector3"];
-        EXPECT_ERROR(lua.safe_script("T.identity = nil"), "attempt to index");
+        Testing::expectError([&] { return lua.safe_script("T.identity = nil"); }, "attempt to index");
         EXPECT_EQ(getAsString(lua, "T.identity * v(3, 4, 5)"), "(3, 4, 5)");
         EXPECT_EQ(getAsString(lua, "T.move(1, 2, 3) * v(3, 4, 5)"), "(4, 6, 8)");
         EXPECT_EQ(getAsString(lua, "T.scale(1, -2, 3) * v(3, 4, 5)"), "(3, -8, 15)");
@@ -217,7 +219,7 @@ namespace
         EXPECT_FLOAT_EQ(get<float>(lua, "util.remap(-5, 0, 10, 0, 100)"), -50.0f);
         lua.safe_script("t = util.makeReadOnly({x = 1})");
         EXPECT_FLOAT_EQ(get<float>(lua, "t.x"), 1);
-        EXPECT_ERROR(lua.safe_script("t.y = 2"), "userdata value");
+        Testing::expectError([&] { return lua.safe_script("t.y = 2"); }, "userdata value");
     }
 
 }

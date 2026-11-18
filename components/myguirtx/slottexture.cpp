@@ -33,7 +33,7 @@ namespace MyGUIRtx
         struct ByteLayout
         {
             std::size_t mBytes = 0;
-            std::array<int, 4> mFrom{};
+            std::array<std::int32_t, 4> mFrom{};
         };
 
         /// The byte formats the game hands a picture in, each read as GL samples it: the colour as
@@ -76,7 +76,7 @@ namespace MyGUIRtx
         drop();
     }
 
-    void SlotTexture::take(const int width, const int height)
+    void SlotTexture::take(const std::int32_t width, const std::int32_t height)
     {
         drop();
 
@@ -117,10 +117,10 @@ namespace MyGUIRtx
         {
             // Byte by byte, a row at a time for a row the image pads: `getColor` is a call and a
             // conversion through floats a pixel, half a second for the global map's 33 million.
-            for (int y = 0; y < mHeight; ++y)
+            for (std::int32_t y = 0; y < mHeight; ++y)
             {
-                const std::uint8_t* from = image.data(0, static_cast<unsigned int>(y));
-                for (int x = 0; x < mWidth; ++x, into += 4, from += layout->mBytes)
+                const std::uint8_t* from = image.data(0, static_cast<std::uint32_t>(y));
+                for (std::int32_t x = 0; x < mWidth; ++x, into += 4, from += layout->mBytes)
                     for (std::size_t channel = 0; channel < 4; ++channel)
                         into[channel] = layout->mFrom[channel] < 0 ? 0xFF : from[layout->mFrom[channel]];
             }
@@ -161,11 +161,11 @@ namespace MyGUIRtx
             if (image.isCompressed())
                 Log(Debug::Warning) << "The interface texture \"" << mName
                                     << "\" is in a compressed format this backend does not decode, and may show wrong";
-            for (int y = 0; y < mHeight; ++y)
-                for (int x = 0; x < mWidth; ++x, into += 4)
+            for (std::int32_t y = 0; y < mHeight; ++y)
+                for (std::int32_t x = 0; x < mWidth; ++x, into += 4)
                 {
                     const osg::Vec4f colour
-                        = image.getColor(static_cast<unsigned int>(x), static_cast<unsigned int>(y));
+                        = image.getColor(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y));
                     into[0] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.r(), 0.f, 1.f) * 255.f));
                     into[1] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.g(), 0.f, 1.f) * 255.f));
                     into[2] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.b(), 0.f, 1.f) * 255.f));

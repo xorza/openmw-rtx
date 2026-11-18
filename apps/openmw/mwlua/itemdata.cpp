@@ -1,17 +1,17 @@
 #include "itemdata.hpp"
 
+#include <cstdint>
+#include <utility>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadench.hpp>
-#include <utility>
 
 #include "context.hpp"
 #include "objectvariant.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwmechanics/spellutil.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
 
 namespace MWLua
 {
@@ -114,7 +114,7 @@ namespace MWLua
                         {
                             // if the value set is less than 0, chargeInt and chargeIntRemainder is set to 0
                             ptr.getCellRef().setChargeIntRemainder(std::max(0.f, std::modf(cond, &cond)));
-                            ptr.getCellRef().setCharge(std::max(0, static_cast<int>(cond)));
+                            ptr.getCellRef().setCharge(std::max(0, static_cast<std::int32_t>(cond)));
                         }
                     }
                     else

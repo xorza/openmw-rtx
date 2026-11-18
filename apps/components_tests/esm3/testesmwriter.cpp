@@ -1,9 +1,11 @@
-#include <components/esm3/esmwriter.hpp>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <random>
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
-#include <random>
+#include <components/esm3/esmwriter.hpp>
 
 namespace ESM
 {
@@ -16,7 +18,7 @@ namespace ESM
         struct Esm3EsmWriterTest : public Test
         {
             std::minstd_rand mRandom;
-            std::uniform_int_distribution<short> mRefIdDistribution{ 'a', 'z' };
+            std::uniform_int_distribution<std::int16_t> mRefIdDistribution{ 'a', 'z' };
 
             std::string generateRandomString(std::size_t size)
             {

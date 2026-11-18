@@ -1,13 +1,15 @@
 #pragma once
 
-#include "bookpage.hpp"
-#include "journalviewmodel.hpp"
+#include <cstdint>
 
 #include <components/toutf8/toutf8.hpp>
 
+#include "bookpage.hpp"
+#include "journalviewmodel.hpp"
+
 namespace MWGui
 {
-    int getCyrillicIndexPageCount();
+    std::int32_t getCyrillicIndexPageCount();
 
     const MyGUI::Colour journalHeaderColour = MyGUI::Colour(0.60f, 0.00f, 0.00f);
 
@@ -24,7 +26,7 @@ namespace MWGui
         std::shared_ptr<TypesetBook> createTopicIndexBook();
 
         ToUTF8::FromType mEncoding;
-        int mIndexPagesCount;
+        std::int32_t mIndexPagesCount;
 
     private:
         std::shared_ptr<BookTypesetter> createTypesetter();

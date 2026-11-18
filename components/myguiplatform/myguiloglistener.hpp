@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -31,7 +32,7 @@ namespace MyGUIPlatform
         void flush() override;
 
         void log(std::string_view section, MyGUI::LogLevel level, const struct tm* time, std::string_view message,
-            std::string_view file, int line) override;
+            std::string_view file, std::int32_t line) override;
 
     private:
         std::ofstream mStream;

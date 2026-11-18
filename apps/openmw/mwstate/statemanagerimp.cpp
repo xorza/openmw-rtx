@@ -1,52 +1,46 @@
 #include "statemanagerimp.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <sstream>
+#include <utility>
 
 #include <SDL3/SDL_clipboard.h>
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwscript/globalscripts.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadclas.hpp>
-
-#include <components/l10n/manager.hpp>
-
-#include <components/loadinglistener/loadinglistener.hpp>
-
 #include <components/files/conversion.hpp>
+#include <components/l10n/manager.hpp>
+#include <components/loadinglistener/loadinglistener.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/settings/values.hpp>
-#include <utility>
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/globals.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
-
-#include "../mwscript/globalscripts.hpp"
 
 #include "quicksavemanager.hpp"
 
@@ -77,17 +71,17 @@ void MWState::StateManager::cleanup(bool force)
     }
 }
 
-std::map<int, int> MWState::StateManager::buildContentFileIndexMap(const ESM::ESMReader& reader) const
+std::map<std::int32_t, std::int32_t> MWState::StateManager::buildContentFileIndexMap(const ESM::ESMReader& reader) const
 {
     const std::vector<std::string>& current = MWBase::Environment::get().getWorld()->getContentFiles();
 
     const std::vector<ESM::Header::MasterData>& prev = reader.getGameFiles();
 
-    std::map<int, int> map;
+    std::map<std::int32_t, std::int32_t> map;
 
-    for (int iPrev = 0; std::cmp_less(iPrev, prev.size()); ++iPrev)
+    for (std::int32_t iPrev = 0; std::cmp_less(iPrev, prev.size()); ++iPrev)
     {
-        for (int iCurrent = 0; std::cmp_less(iCurrent, current.size()); ++iCurrent)
+        for (std::int32_t iCurrent = 0; std::cmp_less(iCurrent, current.size()); ++iCurrent)
             if (Misc::StringUtils::ciEqual(
                     prev[static_cast<std::size_t>(iPrev)].name, current[static_cast<std::size_t>(iCurrent)]))
             {
@@ -287,7 +281,7 @@ void MWState::StateManager::saveGame(std::string_view description, const Slot* s
         writer.setAuthor("");
         writer.setDescription("");
 
-        size_t recordCount = 1 // saved game header
+        std::size_t recordCount = 1 // saved game header
             + MWBase::Environment::get().getJournal()->countSavedGameRecords()
             + MWBase::Environment::get().getLuaManager()->countSavedGameRecords()
             + MWBase::Environment::get().getWorld()->countSavedGameRecords()
@@ -296,7 +290,7 @@ void MWState::StateManager::saveGame(std::string_view description, const Slot* s
             + MWBase::Environment::get().getMechanicsManager()->countSavedGameRecords()
             + MWBase::Environment::get().getInputManager()->countSavedGameRecords()
             + MWBase::Environment::get().getWindowManager()->countSavedGameRecords();
-        writer.setRecordCount(static_cast<int>(recordCount));
+        writer.setRecordCount(static_cast<std::int32_t>(recordCount));
 
         writer.save(stream);
 
@@ -323,7 +317,7 @@ void MWState::StateManager::saveGame(std::string_view description, const Slot* s
         MWBase::Environment::get().getWindowManager()->write(writer, listener);
 
         // Ensure we have written the number of records that was estimated
-        if (static_cast<size_t>(writer.getRecordCount()) != recordCount + 1) // 1 extra for TES3 record
+        if (static_cast<std::size_t>(writer.getRecordCount()) != recordCount + 1) // 1 extra for TES3 record
             Log(Debug::Warning) << "Warning: number of written savegame records does not match. Estimated: "
                                 << recordCount + 1 << ", written: " << writer.getRecordCount();
 
@@ -383,7 +377,7 @@ void MWState::StateManager::quickSave(std::string name)
     }
 
     Character* currentCharacter = getCurrentCharacter(); // Get current character
-    QuickSaveManager saveFinder(name, static_cast<unsigned int>(Settings::saves().mMaxQuicksaves));
+    QuickSaveManager saveFinder(name, static_cast<std::uint32_t>(Settings::saves().mMaxQuicksaves));
 
     if (currentCharacter)
     {
@@ -476,7 +470,7 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
         else if (version < ESM::MinSupportedSaveGameFormatVersion)
             throw SaveVersionTooOldError(version);
 
-        std::map<int, int> contentFileMap = buildContentFileIndexMap(reader);
+        std::map<std::int32_t, std::int32_t> contentFileMap = buildContentFileIndexMap(reader);
         reader.setContentFileMapping(&contentFileMap);
         MWBase::Environment::get().getLuaManager()->setContentFileMapping(contentFileMap);
 
@@ -493,8 +487,8 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
 
         bool firstPersonCam = false;
 
-        size_t total = reader.getFileSize();
-        int currentPercent = 0;
+        std::size_t total = reader.getFileSize();
+        std::int32_t currentPercent = 0;
         while (reader.hasMoreRecs())
         {
             ESM::NAME n = reader.getRecName();
@@ -602,8 +596,8 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
                     Log(Debug::Warning) << "Warning: Ignoring unknown record: " << n.toStringView();
                     reader.skipRecord();
             }
-            int progressPercent
-                = static_cast<int>(static_cast<float>(reader.getFileOffset()) / static_cast<float>(total) * 100);
+            auto progressPercent = static_cast<std::int32_t>(
+                static_cast<float>(reader.getFileOffset()) / static_cast<float>(total) * 100);
             if (progressPercent > currentPercent)
             {
                 listener.increaseProgress(static_cast<std::size_t>(progressPercent - currentPercent));
@@ -667,7 +661,7 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
         MWBase::Environment::get().getWorldScene()->markCellAsUnchanged();
 
         MWBase::Environment::get().getLuaManager()->gameLoaded();
-        for (int actorId : actorIdConverter.mGraveyard)
+        for (std::int32_t actorId : actorIdConverter.mGraveyard)
         {
             auto mapped = actorIdConverter.mMappings.find(actorId);
             if (mapped != actorIdConverter.mMappings.end())
@@ -763,7 +757,7 @@ void MWState::StateManager::update(float duration)
     // Note: It would be nicer to trigger this from InputManager, i.e. the very beginning of the frame update.
     if (mAskLoadRecent)
     {
-        int iButton = MWBase::Environment::get().getWindowManager()->readPressedButton();
+        std::int32_t iButton = MWBase::Environment::get().getWindowManager()->readPressedButton();
         MWState::Character* curCharacter = getCurrentCharacter();
         if (iButton == 0 && curCharacter)
         {
@@ -815,7 +809,7 @@ bool MWState::StateManager::confirmLoading(const std::vector<std::string_view>& 
     if (!fullList.empty())
         fullList.pop_back();
 
-    constexpr size_t missingPluginsDisplayLimit = 12;
+    constexpr std::size_t missingPluginsDisplayLimit = 12;
 
     std::vector<std::string> buttons;
     buttons.emplace_back("#{Interface:Yes}");
@@ -824,7 +818,8 @@ bool MWState::StateManager::confirmLoading(const std::vector<std::string_view>& 
     std::string message = "#{OMWEngine:MissingContentFilesConfirmation}";
 
     auto l10n = MWBase::Environment::get().getL10nManager()->getContext("OMWEngine");
-    message += l10n->formatMessage("MissingContentFilesList", { "files" }, { static_cast<int>(missingFiles.size()) });
+    message += l10n->formatMessage(
+        "MissingContentFilesList", { "files" }, { static_cast<std::int32_t>(missingFiles.size()) });
     auto cappedSize = std::min(missingFiles.size(), missingPluginsDisplayLimit);
     if (cappedSize == missingFiles.size())
     {
@@ -832,7 +827,7 @@ bool MWState::StateManager::confirmLoading(const std::vector<std::string_view>& 
     }
     else
     {
-        for (size_t i = 0; i < cappedSize - 1; ++i)
+        for (std::size_t i = 0; i < cappedSize - 1; ++i)
         {
             message += missingFiles[i];
             message += '\n';
@@ -841,10 +836,10 @@ bool MWState::StateManager::confirmLoading(const std::vector<std::string_view>& 
         message += "...";
     }
 
-    message
-        += l10n->formatMessage("MissingContentFilesListCopy", { "files" }, { static_cast<int>(missingFiles.size()) });
+    message += l10n->formatMessage(
+        "MissingContentFilesListCopy", { "files" }, { static_cast<std::int32_t>(missingFiles.size()) });
 
-    int selectedButton = -1;
+    std::int32_t selectedButton = -1;
     while (true)
     {
         auto windowManager = MWBase::Environment::get().getWindowManager();
@@ -867,7 +862,7 @@ bool MWState::StateManager::confirmLoading(const std::vector<std::string_view>& 
 
 void MWState::StateManager::writeScreenshot(std::vector<char>& imageData) const
 {
-    int screenshotW = 259 * 2, screenshotH = 133 * 2; // *2 to get some nice antialiasing
+    std::int32_t screenshotW = 259 * 2, screenshotH = 133 * 2; // *2 to get some nice antialiasing
 
     imageData = MWBase::Environment::get().getWorld()->screenshot(screenshotW, screenshotH);
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -34,7 +35,7 @@ namespace CrashTests
 
         /// The signal the run must end by, or nought. A shell that runs the mode as its child says
         /// it as `128 + mEndsBy`.
-        int mEndsBy = 0;
+        std::int32_t mEndsBy = 0;
 
         /// Whether the mode runs under an AppImage's keeper (`Crash::keepImageMounted`), whose run
         /// ends only once the monitor has: the package then stands when the run ends, not after.
@@ -76,7 +77,7 @@ namespace CrashTests
 
     /// Runs `mode` where it is one of this system's own, and answers what the process exits with;
     /// nothing where it is none of them.
-    std::optional<int> runModeOfThisSystem(std::string_view mode);
+    std::optional<std::int32_t> runModeOfThisSystem(std::string_view mode);
 
     /// What is wrong with what `mode`, one of this system's own, left in `folder` beyond what the
     /// shared check reads; nothing where all holds, or where it is none of them.
@@ -91,7 +92,7 @@ namespace CrashTests
 
     /// What a mode the game lives through ends with: the line saying so, and nought. The shared
     /// file's.
-    int livedOn();
+    std::int32_t livedOn();
 
     /// The whole of the file at `path`, or nothing where it cannot be read. The shared file's.
     std::string contentsOf(const std::filesystem::path& path);

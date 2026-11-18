@@ -1,5 +1,7 @@
 #include "declarationparser.hpp"
 
+#include <cstdint>
+
 #include <components/misc/strings/lower.hpp>
 
 #include "context.hpp"
@@ -44,7 +46,7 @@ bool Compiler::DeclarationParser::parseName(const std::string& name, const Token
     return Parser::parseName(name, loc, scanner);
 }
 
-bool Compiler::DeclarationParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+bool Compiler::DeclarationParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
 {
     if (mState == State_Begin)
     {
@@ -94,7 +96,7 @@ bool Compiler::DeclarationParser::parseKeyword(int keyword, const TokenLoc& loc,
     return Parser::parseKeyword(keyword, loc, scanner);
 }
 
-bool Compiler::DeclarationParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+bool Compiler::DeclarationParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
 {
     if (mState == State_End)
     {
@@ -110,7 +112,7 @@ bool Compiler::DeclarationParser::parseSpecial(int code, const TokenLoc& loc, Sc
     return Parser::parseSpecial(code, loc, scanner);
 }
 
-bool Compiler::DeclarationParser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
+bool Compiler::DeclarationParser::parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner)
 {
     if (mState == State_Name)
     {

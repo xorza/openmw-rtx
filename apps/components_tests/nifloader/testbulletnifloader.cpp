@@ -1,4 +1,17 @@
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <span>
+#include <type_traits>
+
+#include <gtest/gtest.h>
+
+#include <BulletCollision/CollisionShapes/btBoxShape.h>
+#include <BulletCollision/CollisionShapes/btCompoundShape.h>
+#include <BulletCollision/CollisionShapes/btTriangleMesh.h>
+
 #include <apps/components_tests/nif/node.hpp>
 #include <components/bullethelpers/processtrianglecallback.hpp>
 #include <components/misc/convert.hpp>
@@ -6,17 +19,6 @@
 #include <components/nif/extra.hpp>
 #include <components/nif/node.hpp>
 #include <components/nifbullet/bulletnifloader.hpp>
-
-#include <BulletCollision/CollisionShapes/btBoxShape.h>
-#include <BulletCollision/CollisionShapes/btCompoundShape.h>
-#include <BulletCollision/CollisionShapes/btTriangleMesh.h>
-
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <memory>
-#include <span>
-#include <type_traits>
 
 namespace
 {
@@ -29,10 +31,11 @@ namespace
     std::vector<btVector3> getTriangles(const btBvhTriangleMeshShape& shape)
     {
         std::vector<btVector3> result;
-        auto callback = BulletHelpers::makeProcessTriangleCallback([&](btVector3* triangle, int, int) {
-            for (std::size_t i = 0; i < 3; ++i)
-                result.push_back(triangle[i]);
-        });
+        auto callback
+            = BulletHelpers::makeProcessTriangleCallback([&](btVector3* triangle, std::int32_t, std::int32_t) {
+                  for (std::size_t i = 0; i < 3; ++i)
+                      result.push_back(triangle[i]);
+              });
         btVector3 aabbMin;
         btVector3 aabbMax;
         shape.getAabb(btTransform::getIdentity(), aabbMin, aabbMax);
@@ -53,7 +56,7 @@ namespace
 
     bool isNear(const btMatrix3x3& lhs, const btMatrix3x3& rhs)
     {
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
             if (!isNear(lhs[i], rhs[i]))
                 return false;
         return true;
@@ -98,7 +101,7 @@ static std::ostream& operator<<(std::ostream& stream, const btVector3& value)
 static std::ostream& operator<<(std::ostream& stream, const btMatrix3x3& value)
 {
     stream << "btMatrix3x3 {";
-    for (int i = 0; i < 3; ++i)
+    for (std::int32_t i = 0; i < 3; ++i)
         stream << value.getRow(i) << ", ";
     return stream << "}";
 }
@@ -114,11 +117,11 @@ static std::ostream& operator<<(std::ostream& stream, const btCompoundShape& val
 {
     stream << "btCompoundShape {" << value.getLocalScaling() << ", ";
     stream << "{";
-    for (int i = 0; i < value.getNumChildShapes(); ++i)
+    for (std::int32_t i = 0; i < value.getNumChildShapes(); ++i)
         stream << value.getChildShape(i) << ", ";
     stream << "},";
     stream << "{";
-    for (int i = 0; i < value.getNumChildShapes(); ++i)
+    for (std::int32_t i = 0; i < value.getNumChildShapes(); ++i)
         stream << value.getChildTransform(i) << ", ";
     stream << "}";
     return stream << "}";
@@ -136,10 +139,11 @@ namespace Resource
     {
         stream << "Resource::TriangleMeshShape {" << value.getLocalScaling() << ", "
                << value.usesQuantizedAabbCompression() << ", " << value.getOwnsBvh() << ", {";
-        auto callback = BulletHelpers::makeProcessTriangleCallback([&](btVector3* triangle, int, int) {
-            for (std::size_t i = 0; i < 3; ++i)
-                stream << triangle[i] << ", ";
-        });
+        auto callback
+            = BulletHelpers::makeProcessTriangleCallback([&](btVector3* triangle, std::int32_t, std::int32_t) {
+                  for (std::size_t i = 0; i < 3; ++i)
+                      stream << triangle[i] << ", ";
+              });
         btVector3 aabbMin;
         btVector3 aabbMax;
         value.getAabb(btTransform::getIdentity(), aabbMin, aabbMax);
@@ -197,7 +201,7 @@ namespace std
 {
     // gtest prints a standard type through an operator argument-dependent lookup finds in std.
     // NOLINTNEXTLINE(bugprone-std-namespace-modification)
-    static std::ostream& operator<<(std::ostream& stream, const map<int, int>& value)
+    static std::ostream& operator<<(std::ostream& stream, const map<std::int32_t, std::int32_t>& value)
     {
         stream << "std::map<int, int> {";
         for (const auto& v : value)
@@ -244,7 +248,7 @@ static bool operator==(const btCompoundShape& lhs, const btCompoundShape& rhs)
 {
     if (lhs.getNumChildShapes() != rhs.getNumChildShapes() || lhs.getLocalScaling() != rhs.getLocalScaling())
         return false;
-    for (int i = 0; i < lhs.getNumChildShapes(); ++i)
+    for (std::int32_t i = 0; i < lhs.getNumChildShapes(); ++i)
     {
         if (!compareObjects(lhs.getChildShape(i), rhs.getChildShape(i))
             || !isNear(lhs.getChildTransform(i), rhs.getChildTransform(i)))
@@ -311,8 +315,8 @@ namespace
     void copy(const btTransform& src, Nif::NiTransform& dst)
     {
         dst.mTranslation = Misc::Convert::makeOsgVec3f(src.getOrigin());
-        for (int row = 0; row < 3; ++row)
-            for (int column = 0; column < 3; ++column)
+        for (std::int32_t row = 0; row < 3; ++row)
+            for (std::int32_t column = 0; column < 3; ++column)
                 dst.mRotation.mValues[row][column] = static_cast<float>(src.getBasis().getRow(row)[column]);
     }
 

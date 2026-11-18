@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -15,9 +16,9 @@ namespace
     using Outcome = Crash::ProcessStat::Outcome;
 
     /// `text` as a descriptor reads it: the read end of a pipe whose write end is closed.
-    int descriptorOf(const std::string_view text)
+    std::int32_t descriptorOf(const std::string_view text)
     {
-        int ends[2];
+        std::int32_t ends[2];
         EXPECT_EQ(pipe(ends), 0);
         EXPECT_EQ(write(ends[1], text.data(), text.size()), static_cast<ssize_t>(text.size()));
         close(ends[1]);
@@ -26,7 +27,7 @@ namespace
 
     Crash::ProcessStat readText(const std::string_view text)
     {
-        const int descriptor = descriptorOf(text);
+        const std::int32_t descriptor = descriptorOf(text);
         const Crash::ProcessStat stat = Crash::readProcessStat(descriptor);
         close(descriptor);
         return stat;
@@ -45,8 +46,10 @@ namespace
         siginfo_t ended{};
         ASSERT_EQ(waitid(P_PID, static_cast<id_t>(child), &ended, WEXITED | WNOWAIT), 0);
         const std::string path = "/proc/" + std::to_string(child) + "/stat";
-        const int before = open(path.c_str(), O_RDONLY | O_CLOEXEC);
-        const int after = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
+        const std::int32_t before = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
+        const std::int32_t after = open(path.c_str(), O_RDONLY | O_CLOEXEC);
         ASSERT_NE(before, -1);
         ASSERT_NE(after, -1);
 
@@ -83,7 +86,8 @@ namespace
         EXPECT_EQ(longest.mParent, 42);
         EXPECT_EQ(readText(head + std::string(4096 - head.size(), '0')).mOutcome, Outcome::Unknown);
 
-        const int folder = open(std::filesystem::temp_directory_path().c_str(), O_RDONLY | O_CLOEXEC);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's open
+        const std::int32_t folder = open(std::filesystem::temp_directory_path().c_str(), O_RDONLY | O_CLOEXEC);
         ASSERT_NE(folder, -1);
         EXPECT_EQ(Crash::readProcessStat(folder).mOutcome, Outcome::Unknown);
         close(folder);

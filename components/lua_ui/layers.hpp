@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 
@@ -14,7 +15,7 @@ namespace LuaUi
     class Layer
     {
     public:
-        explicit Layer(size_t index)
+        explicit Layer(std::size_t index)
             : mName(at(index)->getName())
             , mCachedIndex(index)
         {
@@ -33,14 +34,14 @@ namespace LuaUi
             bool mInteractive;
         };
 
-        static size_t count() { return MyGUI::LayerManager::getInstance().getLayerCount(); }
+        static std::size_t count() { return MyGUI::LayerManager::getInstance().getLayerCount(); }
 
-        static size_t indexOf(std::string_view name);
+        static std::size_t indexOf(std::string_view name);
 
-        static void insert(size_t index, std::string_view name, Options options);
+        static void insert(std::size_t index, std::string_view name, Options options);
 
     private:
-        static MyGUI::ILayer* at(size_t index)
+        static MyGUI::ILayer* at(std::size_t index)
         {
             if (index >= count())
                 throw std::logic_error("Invalid layer index");
@@ -58,6 +59,6 @@ namespace LuaUi
             return p;
         }
         std::string mName;
-        size_t mCachedIndex;
+        std::size_t mCachedIndex;
     };
 }

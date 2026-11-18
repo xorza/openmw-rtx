@@ -1,6 +1,7 @@
 #include "stat.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <components/esm3/statstate.hpp>
 
@@ -215,7 +216,7 @@ namespace MWMechanics
     }
 }
 
-template class MWMechanics::Stat<int>;
+template class MWMechanics::Stat<std::int32_t>;
 template class MWMechanics::Stat<float>;
-template class MWMechanics::DynamicStat<int>;
+template class MWMechanics::DynamicStat<std::int32_t>;
 template class MWMechanics::DynamicStat<float>;

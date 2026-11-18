@@ -1,8 +1,8 @@
 #pragma once
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/sceneutil/controller.hpp>
 
-#include "../mwworld/ptr.hpp"
 #include "animation.hpp"
 
 namespace MWRender

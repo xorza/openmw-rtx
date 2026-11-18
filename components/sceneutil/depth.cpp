@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 
 #include <components/debug/debuglog.hpp>
-#include <components/sceneutil/glextensions.hpp>
 #include <components/settings/values.hpp>
+
+#include "glextensions.hpp"
 
 namespace SceneUtil
 {
@@ -132,7 +134,7 @@ namespace SceneUtil
 
         constexpr char errPreamble[] = "Postprocessing and floating point depth buffers disabled: ";
         std::vector<GLenum> requestedFormats;
-        unsigned int contextID = graphicsContext->getState()->getContextID();
+        std::uint32_t contextID = graphicsContext->getState()->getContextID();
         if (SceneUtil::AutoDepth::isReversed())
         {
             if (osg::isGLExtensionSupported(contextID, "GL_ARB_depth_buffer_float"))

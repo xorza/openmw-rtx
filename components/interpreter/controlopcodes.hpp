@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <stdexcept>
 
 #include "opcodes.hpp"
@@ -42,24 +43,24 @@ namespace Interpreter
     class OpJumpForward : public Opcode1
     {
     public:
-        void execute(Runtime& runtime, unsigned int arg0) override
+        void execute(Runtime& runtime, std::uint32_t arg0) override
         {
             if (arg0 == 0)
                 throw std::logic_error("infinite loop");
 
-            runtime.setPC(static_cast<int>(static_cast<unsigned int>(runtime.getPC()) + arg0 - 1));
+            runtime.setPC(static_cast<std::int32_t>(static_cast<std::uint32_t>(runtime.getPC()) + arg0 - 1));
         }
     };
 
     class OpJumpBackward : public Opcode1
     {
     public:
-        void execute(Runtime& runtime, unsigned int arg0) override
+        void execute(Runtime& runtime, std::uint32_t arg0) override
         {
             if (arg0 == 0)
                 throw std::logic_error("infinite loop");
 
-            runtime.setPC(static_cast<int>(static_cast<unsigned int>(runtime.getPC()) - arg0 - 1));
+            runtime.setPC(static_cast<std::int32_t>(static_cast<std::uint32_t>(runtime.getPC()) - arg0 - 1));
         }
     };
 }

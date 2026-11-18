@@ -44,14 +44,15 @@ namespace Rtx
 
             for (const auto& [format, expected] : sTable)
             {
-                EXPECT_EQ(toVulkanFormat(format), expected) << "layout " << static_cast<int>(format);
+                EXPECT_EQ(toVulkanFormat(format), expected) << "layout " << static_cast<std::int32_t>(format);
 
                 // A half's store may round toward nought, and no other format's here: the unsigned
                 // normalised ones round to nearest by the specification, and the integers store
                 // what they are handed.
                 const bool half = expected == VK_FORMAT_R16_SFLOAT || expected == VK_FORMAT_R16G16_SFLOAT
                     || expected == VK_FORMAT_R16G16B16A16_SFLOAT;
-                EXPECT_EQ(Shaders::mayRoundTowardNought(format), half) << "layout " << static_cast<int>(format);
+                EXPECT_EQ(Shaders::mayRoundTowardNought(format), half)
+                    << "layout " << static_cast<std::int32_t>(format);
             }
         }
 
@@ -134,7 +135,7 @@ namespace Rtx
                      StorageFormat::Rg16f, StorageFormat::Rg32f, StorageFormat::Rg32ui, StorageFormat::Rgba16,
                      StorageFormat::Rgba16f, StorageFormat::Rgba32f, StorageFormat::Rgba32ui, StorageFormat::R8ui })
                 EXPECT_EQ(formatInfoOf(toVulkanFormat(format)).mTexelBytes, texelBytes(format))
-                    << static_cast<int>(format);
+                    << static_cast<std::int32_t>(format);
 
             Testing::expectDies(
                 [] { formatInfoOf(VK_FORMAT_BC1_RGBA_SRGB_BLOCK); }, "no read-back is recorded for this image format");

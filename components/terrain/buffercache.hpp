@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
+#include <map>
+#include <mutex>
+
 #include <osg/Array>
 #include <osg/PrimitiveSet>
 #include <osg/ref_ptr>
-
-#include <map>
-#include <mutex>
 
 namespace Terrain
 {
@@ -17,10 +18,10 @@ namespace Terrain
         /// @param flags first 4*4 bits are LOD deltas on each edge, respectively (4 bits each)
         ///              next 4 bits are LOD level of the index buffer (LOD 0 = don't omit any vertices)
         /// @note Thread safe.
-        osg::ref_ptr<osg::DrawElements> getIndexBuffer(unsigned int numVerts, unsigned int flags);
+        osg::ref_ptr<osg::DrawElements> getIndexBuffer(std::uint32_t numVerts, std::uint32_t flags);
 
         /// @note Thread safe.
-        osg::ref_ptr<osg::Vec2Array> getUVBuffer(unsigned int numVerts);
+        osg::ref_ptr<osg::Vec2Array> getUVBuffer(std::uint32_t numVerts);
 
         void clearCache();
 
@@ -29,10 +30,10 @@ namespace Terrain
     private:
         // Index buffers are shared across terrain batches where possible. There is one index buffer for each
         // combination of LOD deltas and index buffer LOD we may need.
-        std::map<std::pair<int, int>, osg::ref_ptr<osg::DrawElements>> mIndexBufferMap;
+        std::map<std::pair<std::int32_t, std::int32_t>, osg::ref_ptr<osg::DrawElements>> mIndexBufferMap;
         std::mutex mIndexBufferMutex;
 
-        std::map<int, osg::ref_ptr<osg::Vec2Array>> mUvBufferMap;
+        std::map<std::int32_t, osg::ref_ptr<osg::Vec2Array>> mUvBufferMap;
         std::mutex mUvBufferMutex;
     };
 

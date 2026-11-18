@@ -1,29 +1,29 @@
 #include "filter.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/magiceffects.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "selectwrapper.hpp"
 
@@ -221,7 +221,7 @@ bool MWDialogue::Filter::testDisposition(const ESM::DialInfo& info, bool invert)
     if (isCreature)
         return true;
 
-    int actorDisposition = MWBase::Environment::get().getMechanicsManager()->getDerivedDisposition(mActor);
+    std::int32_t actorDisposition = MWBase::Environment::get().getMechanicsManager()->getDerivedDisposition(mActor);
     // For service refusal, the disposition check is inverted. However, a value of 0 still means "always succeed".
     return invert ? (info.mData.mDisposition == 0 || actorDisposition < info.mData.mDisposition)
                   : (actorDisposition >= info.mData.mDisposition);
@@ -243,7 +243,7 @@ bool MWDialogue::Filter::testFunctionLocal(const MWDialogue::SelectWrapper& sele
     if (type == ' ')
         return false; // script does not have a variable of this name.
 
-    int index = localDefs.getIndex(name);
+    std::int32_t index = localDefs.getIndex(name);
     if (index < 0)
         return false; // shouldn't happen, we checked that variable has a type above, so must exist
 
@@ -253,7 +253,7 @@ bool MWDialogue::Filter::testFunctionLocal(const MWDialogue::SelectWrapper& sele
     switch (type)
     {
         case 's':
-            return select.selectCompare(static_cast<int>(locals.mShorts[static_cast<std::size_t>(index)]));
+            return select.selectCompare(static_cast<std::int32_t>(locals.mShorts[static_cast<std::size_t>(index)]));
         case 'l':
             return select.selectCompare(locals.mLongs[static_cast<std::size_t>(index)]);
         case 'f':
@@ -325,7 +325,7 @@ bool MWDialogue::Filter::testSelectStructNumeric(const SelectWrapper& select) co
         {
             MWWorld::Ptr player = MWMechanics::getPlayer();
             return select.selectCompare(
-                static_cast<int>(player.getClass().getCreatureStats(player).getHealth().getRatio() * 100));
+                static_cast<std::int32_t>(player.getClass().getCreatureStats(player).getHealth().getRatio() * 100));
         }
 
         case ESM::DialogueCondition::Function_PcMagicka:
@@ -342,7 +342,7 @@ bool MWDialogue::Filter::testSelectStructNumeric(const SelectWrapper& select) co
         case ESM::DialogueCondition::Function_Health_Percent:
         {
             return select.selectCompare(
-                static_cast<int>(mActor.getClass().getCreatureStats(mActor).getHealth().getRatio() * 100));
+                static_cast<std::int32_t>(mActor.getClass().getCreatureStats(mActor).getHealth().getRatio() * 100));
         }
 
         default:
@@ -351,7 +351,7 @@ bool MWDialogue::Filter::testSelectStructNumeric(const SelectWrapper& select) co
     }
 }
 
-int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) const
+std::int32_t MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) const
 {
     MWWorld::Ptr player = MWMechanics::getPlayer();
 
@@ -381,7 +381,7 @@ int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) cons
         case ESM::DialogueCondition::Function_Alarm:
         case ESM::DialogueCondition::Function_Flee:
         {
-            int argument = select.getArgument();
+            std::int32_t argument = select.getArgument();
             if (argument < 0 || argument > 3)
             {
                 throw std::runtime_error("AiSetting index is out of range");
@@ -402,7 +402,8 @@ int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) cons
         case ESM::DialogueCondition::Function_PcLuck:
         {
             ESM::RefId attribute = ESM::Attribute::indexToRefId(select.getArgument());
-            return static_cast<int>(player.getClass().getCreatureStats(player).getAttribute(attribute).getModified());
+            return static_cast<std::int32_t>(
+                player.getClass().getCreatureStats(player).getAttribute(attribute).getModified());
         }
         case ESM::DialogueCondition::Function_PcBlock:
         case ESM::DialogueCondition::Function_PcArmorer:
@@ -433,11 +434,11 @@ int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) cons
         case ESM::DialogueCondition::Function_PcHandToHand:
         {
             ESM::RefId skill = ESM::Skill::indexToRefId(select.getArgument());
-            return static_cast<int>(player.getClass().getNpcStats(player).getSkill(skill).getModified());
+            return static_cast<std::int32_t>(player.getClass().getNpcStats(player).getSkill(skill).getModified());
         }
         case ESM::DialogueCondition::Function_FriendHit:
         {
-            int hits = mActor.getClass().getCreatureStats(mActor).getFriendlyHits();
+            std::int32_t hits = mActor.getClass().getCreatureStats(mActor).getFriendlyHits();
 
             return hits > 4 ? 4 : hits;
         }
@@ -454,9 +455,9 @@ int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) cons
         {
             const MWWorld::InventoryStore& store = player.getClass().getInventoryStore(player);
 
-            int value = 0;
+            std::int32_t value = 0;
 
-            for (int i = 0; i <= 15; ++i) // everything except things held in hands and ammunition
+            for (std::int32_t i = 0; i <= 15; ++i) // everything except things held in hands and ammunition
             {
                 MWWorld::ConstContainerStoreIterator slot = store.getSlot(i);
 
@@ -477,12 +478,12 @@ int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) cons
             if (faction.empty())
                 return 0;
 
-            int rank = getFactionRank(player, faction);
+            std::int32_t rank = getFactionRank(player, faction);
 
             if (rank >= 9)
                 return 0; // max rank
 
-            int result = 0;
+            std::int32_t result = 0;
 
             if (hasFactionRankSkillRequirements(player, faction, rank + 1))
                 result += 1;
@@ -517,8 +518,8 @@ int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) cons
             if (faction.empty())
                 return 0;
 
-            int rank = getFactionRank(player, faction);
-            int npcRank = mActor.getClass().getPrimaryFactionRank(mActor);
+            std::int32_t rank = getFactionRank(player, faction);
+            std::int32_t npcRank = mActor.getClass().getPrimaryFactionRank(mActor);
             return rank - npcRank;
         }
 
@@ -536,14 +537,14 @@ int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) cons
             if (factionId.empty())
                 return 0;
 
-            int value = 0;
+            std::int32_t value = 0;
 
             MWMechanics::NpcStats& playerStats = player.getClass().getNpcStats(player);
 
             auto playerFactionIt = playerStats.getFactionRanks().begin();
             for (; playerFactionIt != playerStats.getFactionRanks().end(); ++playerFactionIt)
             {
-                int reaction = MWBase::Environment::get().getDialogueManager()->getFactionReaction(
+                std::int32_t reaction = MWBase::Environment::get().getDialogueManager()->getFactionReaction(
                     factionId, playerFactionIt->first);
                 if (low ? reaction < value : reaction > value)
                     value = reaction;
@@ -681,14 +682,14 @@ bool MWDialogue::Filter::getSelectStructBoolean(const SelectWrapper& select) con
     }
 }
 
-int MWDialogue::Filter::getFactionRank(const MWWorld::Ptr& actor, const ESM::RefId& factionId) const
+std::int32_t MWDialogue::Filter::getFactionRank(const MWWorld::Ptr& actor, const ESM::RefId& factionId) const
 {
     MWMechanics::NpcStats& stats = actor.getClass().getNpcStats(actor);
     return stats.getFactionRank(factionId);
 }
 
 bool MWDialogue::Filter::hasFactionRankSkillRequirements(
-    const MWWorld::Ptr& actor, const ESM::RefId& factionId, int rank) const
+    const MWWorld::Ptr& actor, const ESM::RefId& factionId, std::int32_t rank) const
 {
     if (!actor.getClass().getNpcStats(actor).hasSkillsForRank(factionId, rank))
         return false;
@@ -704,7 +705,7 @@ bool MWDialogue::Filter::hasFactionRankSkillRequirements(
 }
 
 bool MWDialogue::Filter::hasFactionRankReputationRequirements(
-    const MWWorld::Ptr& actor, const ESM::RefId& factionId, int rank) const
+    const MWWorld::Ptr& actor, const ESM::RefId& factionId, std::int32_t rank) const
 {
     MWMechanics::NpcStats& stats = actor.getClass().getNpcStats(actor);
 
@@ -714,7 +715,7 @@ bool MWDialogue::Filter::hasFactionRankReputationRequirements(
         >= faction.mData.mRankData.at(static_cast<std::size_t>(rank)).mFactReputation;
 }
 
-MWDialogue::Filter::Filter(const MWWorld::Ptr& actor, int choice, bool talkedToPlayer)
+MWDialogue::Filter::Filter(const MWWorld::Ptr& actor, std::int32_t choice, bool talkedToPlayer)
     : mActor(actor)
     , mChoice(choice)
     , mTalkedToPlayer(talkedToPlayer)

@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../mwworld/registeredclass.hpp"
+#include <cstdint>
+
+#include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace MWClass
 {
@@ -30,10 +32,10 @@ namespace MWClass
         ESM::RefId getScript(const MWWorld::ConstPtr& ptr) const override;
         ///< Return name of the script attached to ptr
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
-        int getValue(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getValue(const MWWorld::ConstPtr& ptr) const override;
         ///< Return trade value of the object. Throws an exception, if the object can't be traded.
 
         const ESM::RefId& getUpSoundId(const MWWorld::ConstPtr& ptr) const override;
@@ -48,8 +50,8 @@ namespace MWClass
         ESM::RefId getEnchantment(const MWWorld::ConstPtr& ptr) const override;
         ///< @return the enchantment ID if the object is enchanted, otherwise an empty string
 
-        const ESM::RefId& applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId, int enchCharge,
-            const std::string& newName) const override;
+        const ESM::RefId& applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId,
+            std::int32_t enchCharge, const std::string& newName) const override;
         ///< Creates a new record using \a ptr as template, with the given name and the given enchantment applied to it.
 
         std::unique_ptr<MWWorld::Action> use(const MWWorld::Ptr& ptr, bool force = false) const override;
@@ -57,10 +59,10 @@ namespace MWClass
 
         VFS::Path::NormalizedView getModel(const MWWorld::ConstPtr& ptr) const override;
 
-        int getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const override;
 
         float getWeight(const MWWorld::ConstPtr& ptr) const override;
 
-        bool canSell(const MWWorld::ConstPtr& item, int npcServices) const override;
+        bool canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const override;
     };
 }

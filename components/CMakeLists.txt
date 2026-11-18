@@ -790,13 +790,12 @@ target_sources(
                 files/fixedpath.hpp
                 files/hash.hpp
                 files/istreamptr.hpp
-                files/linuxpath.hpp
+                files/targetpath.hpp
                 files/memorystream.hpp
                 files/multidircollection.hpp
                 files/openfile.hpp
                 files/streamwithbuffer.hpp
                 files/utils.hpp
-                files/windowspath.hpp
                 files/wineutils.hpp
 )
 
@@ -1557,9 +1556,9 @@ endif()
 
 # Where the system keeps a user's files and the game's install, which `files/fixedpath.hpp` asks of one system's file.
 if(WIN32)
-    target_sources(openmw-components PRIVATE files/windowspath.cpp)
+    target_sources(openmw-components PRIVATE files/targetpathwin32.cpp)
 elseif(LINUX)
-    target_sources(openmw-components PRIVATE files/linuxpath.cpp)
+    target_sources(openmw-components PRIVATE files/targetpathlinux.cpp)
 else()
     message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} needs a file of its own in components/files, as fixedpath.hpp asks")
 endif()
@@ -1575,11 +1574,11 @@ set_property(
         COMPILE_OPTIONS
             $<$<CXX_COMPILER_ID:Clang>:-Wno-shadow>
 )
-# The system-wide data and configuration folders `Files::LinuxPath` reads, none in the portable layout every
+# The system-wide data and configuration folders `Files::TargetPath` reads on Linux, none in the portable layout every
 # install has: the configuration beside the programs is the global one.
 set_property(
     SOURCE
-        files/linuxpath.cpp
+        files/targetpathlinux.cpp
     APPEND
     PROPERTY
         COMPILE_DEFINITIONS
@@ -1696,6 +1695,12 @@ target_sources(
                 process/processinvoker.hpp
                 vfs/qtconversion.hpp
 )
+# The system's look: Windows' dark mode, which Linux's styles follow themselves.
+if(WIN32)
+    target_sources(openmw-components-qt PRIVATE platform/applicationwin32.cpp)
+else()
+    target_sources(openmw-components-qt PRIVATE platform/applicationposix.cpp)
+endif()
 target_link_libraries(
     openmw-components-qt
     PUBLIC

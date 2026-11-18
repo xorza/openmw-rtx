@@ -1,10 +1,11 @@
 #include "compositemaprenderer.hpp"
 
+#include <algorithm>
+#include <cstddef>
+
 #include <osg/FrameBufferObject>
 #include <osg/RenderInfo>
 #include <osg/Texture2D>
-
-#include <algorithm>
 
 namespace Terrain
 {
@@ -102,7 +103,7 @@ namespace Terrain
         // should OSG be doing this on its own?
         state.haveAppliedTextureAttribute(state.getActiveTextureUnit(), osg::StateAttribute::TEXTURE);
 
-        for (size_t i = compositeMap.mCompiled; i < compositeMap.mDrawables.size(); ++i)
+        for (std::size_t i = compositeMap.mCompiled; i < compositeMap.mDrawables.size(); ++i)
         {
             osg::Drawable* drw = compositeMap.mDrawables[i];
             osg::StateSet* stateset = drw->getStateSet();
@@ -163,7 +164,7 @@ namespace Terrain
         }
     }
 
-    size_t CompositeMapRenderer::getCompileSetSize() const
+    std::size_t CompositeMapRenderer::getCompileSetSize() const
     {
         std::scoped_lock lock(mMutex);
         return mCompileSet.size();

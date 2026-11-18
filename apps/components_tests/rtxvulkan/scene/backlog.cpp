@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <gtest/gtest.h>
 
 #include <components/rtxvulkan/scene/bottomlevelstore.hpp>
@@ -12,9 +14,9 @@ namespace Rtx
         /// reaches. What is left keeps its order.
         TEST(RtxBacklogTest, aBacklogHoldsWhatIsOutstandingAndNoMore)
         {
-            Backlog<int> backlog;
+            Backlog<std::int32_t> backlog;
             backlog.push(0);
-            for (int pass = 1; pass <= 1000; ++pass)
+            for (std::int32_t pass = 1; pass <= 1000; ++pass)
             {
                 backlog.push(pass);
                 ASSERT_EQ(backlog.at(0), pass - 1);

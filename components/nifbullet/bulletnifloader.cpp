@@ -1,7 +1,9 @@
 #include "bulletnifloader.hpp"
-#include <memory>
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <tuple>
 #include <vector>
 
@@ -37,9 +39,9 @@ namespace NifBullet
 
         mShape->mFileHash = nif.getHash();
 
-        const size_t numRoots = nif.numRoots();
+        const std::size_t numRoots = nif.numRoots();
         std::vector<const Nif::NiAVObject*> roots;
-        for (size_t i = 0; i < numRoots; ++i)
+        for (std::size_t i = 0; i < numRoots; ++i)
         {
             const Nif::Record* r = nif.getRoot(i);
             if (!r)
@@ -299,8 +301,8 @@ namespace NifBullet
 
         btTransform trans;
         trans.setOrigin(Misc::Convert::toBullet(transform.getTrans()));
-        for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 3; ++j)
+        for (std::int32_t i = 0; i < 3; ++i)
+            for (std::int32_t j = 0; j < 3; ++j)
                 trans.getBasis()[i][j] = transform(j, i);
 
         if (!args.mAvoid)

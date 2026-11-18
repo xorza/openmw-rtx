@@ -1,5 +1,8 @@
 #include "cellborder.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/Array>
 #include <osg/GL>
 #include <osg/Geometry>
@@ -9,21 +12,20 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <components/esm3/loadland.hpp>
 
 #include "mask.hpp"
 
-#include "../../model/world/cellcoordinates.hpp"
-
 namespace
 {
-    constexpr int CellSize = ESM::Land::REAL_SIZE;
+    constexpr std::int32_t CellSize = ESM::Land::REAL_SIZE;
 
     /*
         The number of vertices per cell border is equal to the number of vertices per edge
         minus the duplicated corner vertices. An additional vertex to close the loop is NOT needed.
     */
-    constexpr unsigned VertexCount = (ESM::Land::LAND_SIZE * 4) - 4;
+    constexpr std::uint32_t VertexCount = (ESM::Land::LAND_SIZE * 4) - 4;
 }
 
 CSVRender::CellBorder::CellBorder(osg::Group* cellNode, const CSMWorld::CellCoordinates& coords)
@@ -54,8 +56,8 @@ void CSVRender::CellBorder::buildShape(const ESM::Land& esmLand)
 
     osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array();
 
-    int x = 0;
-    int y = 0;
+    std::int32_t x = 0;
+    std::int32_t y = 0;
 
     /*
         Traverse the cell border counter-clockwise starting at the SW corner vertex (0, 0).
@@ -107,7 +109,7 @@ void CSVRender::CellBorder::buildShape(const ESM::Land& esmLand)
         = new osg::DrawElementsUShort(osg::PrimitiveSet::LINE_STRIP, VertexCount + 1);
 
     // Assign one primitive to each vertex.
-    for (unsigned i = 0; i < VertexCount; ++i)
+    for (std::uint32_t i = 0; i < VertexCount; ++i)
         primitives->setElement(i, i);
 
     // Assign the last primitive to the first vertex to close the loop.
@@ -118,12 +120,12 @@ void CSVRender::CellBorder::buildShape(const ESM::Land& esmLand)
     mBaseNode->addChild(mBorderGeometry);
 }
 
-size_t CSVRender::CellBorder::landIndex(int x, int y)
+std::size_t CSVRender::CellBorder::landIndex(std::int32_t x, std::int32_t y)
 {
-    return static_cast<size_t>(y) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(x);
+    return static_cast<std::size_t>(y) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(x);
 }
 
-float CSVRender::CellBorder::scaleToWorld(int value)
+float CSVRender::CellBorder::scaleToWorld(std::int32_t value)
 {
     return (CellSize + 128) * static_cast<float>(value) / ESM::Land::LAND_SIZE;
 }

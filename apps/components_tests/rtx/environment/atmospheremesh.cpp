@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 #include <numbers>
 
 #include <gtest/gtest.h>
@@ -25,7 +26,7 @@ namespace Rtx
         osg::ref_ptr<osg::Node> makeAtmosphere(float high, float low)
         {
             osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-            for (int step = 0; step < 16; ++step)
+            for (std::int32_t step = 0; step < 16; ++step)
             {
                 const float angle = 2.0f * std::numbers::pi_v<float> * static_cast<float>(step) / 16.0f;
                 vertices->push_back(osg::Vec3f(1466.0f * std::cos(angle), 1466.0f * std::sin(angle), -high));
@@ -68,9 +69,9 @@ namespace Rtx
 
             // The closed form against the share itself, summed over the hemisphere: `2 ∫ z t dz` at
             // the middle of a hundred thousand bands.
-            constexpr int bands = 100000;
+            constexpr std::int32_t bands = 100000;
             double summed = 0.0;
-            for (int band = 0; band < bands; ++band)
+            for (std::int32_t band = 0; band < bands; ++band)
             {
                 const double up = (band + 0.5) / bands;
                 const auto elevation = static_cast<float>(std::asin(up));

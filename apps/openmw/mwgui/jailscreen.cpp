@@ -1,19 +1,19 @@
+#include "jailscreen.hpp"
+
+#include <cstdint>
+
 #include <MyGUI_Delegate.h>
 #include <MyGUI_ScrollBar.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwworld/class.hpp"
-
-#include "jailscreen.hpp"
 #include "mode.hpp"
 
 namespace MWGui
@@ -31,7 +31,7 @@ namespace MWGui
         center();
     }
 
-    void JailScreen::goToJail(int days)
+    void JailScreen::goToJail(std::int32_t days)
     {
         mDays = days;
 
@@ -66,10 +66,10 @@ namespace MWGui
         }
     }
 
-    void JailScreen::onJailProgressChanged(int cur, int /*total*/)
+    void JailScreen::onJailProgressChanged(std::int32_t cur, std::int32_t /*total*/)
     {
         mProgressBar->setScrollPosition(0);
-        mProgressBar->setTrackSize(static_cast<int>(static_cast<float>(cur)
+        mProgressBar->setTrackSize(static_cast<std::int32_t>(static_cast<float>(cur)
             / static_cast<float>(mProgressBar->getScrollRange()) * static_cast<float>(mProgressBar->getLineSize())));
     }
 

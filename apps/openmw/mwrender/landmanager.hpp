@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Object>
 
 #include <components/esm/exteriorcelllocation.hpp>
@@ -18,15 +20,15 @@ namespace MWRender
                             std::shared_ptr<const ESMTerrain::LandObject>>
     {
     public:
-        explicit LandManager(int loadFlags);
+        explicit LandManager(std::int32_t loadFlags);
 
         /// @note Will return nullptr if not found.
         std::shared_ptr<const ESMTerrain::LandObject> getLand(ESM::ExteriorCellLocation cellIndex);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
     private:
-        int mLoadFlags;
+        std::int32_t mLoadFlags;
     };
 
 }

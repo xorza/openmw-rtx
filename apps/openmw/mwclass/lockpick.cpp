@@ -1,24 +1,22 @@
 #include "lockpick.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actionequip.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadlock.hpp>
 #include <components/esm3/loadnpc.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/actionequip.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"
@@ -61,16 +59,16 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    std::pair<std::vector<int>, bool> Lockpick::getEquipmentSlots(const MWWorld::ConstPtr& ptr) const
+    std::pair<std::vector<std::int32_t>, bool> Lockpick::getEquipmentSlots(const MWWorld::ConstPtr& ptr) const
     {
-        std::vector<int> slots;
+        std::vector<std::int32_t> slots;
 
-        slots.push_back(static_cast<int>(MWWorld::InventoryStore::Slot_CarriedRight));
+        slots.push_back(static_cast<std::int32_t>(MWWorld::InventoryStore::Slot_CarriedRight));
 
         return std::make_pair(slots, false);
     }
 
-    int Lockpick::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Lockpick::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Lockpick>* ref = ptr.get<ESM::Lockpick>();
 
@@ -96,7 +94,7 @@ namespace MWClass
         return ref->mBase->mIcon.getNormalized();
     }
 
-    MWGui::ToolTipInfo Lockpick::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Lockpick::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Lockpick>* ref = ptr.get<ESM::Lockpick>();
 
@@ -107,7 +105,7 @@ namespace MWClass
 
         std::string text;
 
-        int remainingUses = getItemHealth(ptr);
+        std::int32_t remainingUses = getItemHealth(ptr);
 
         text += "\n#{sUses}: " + MWGui::ToolTips::toString(remainingUses);
         text += "\n#{sQuality}: " + MWGui::ToolTips::toString(ref->mBase->mData.mQuality);
@@ -141,7 +139,7 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
-    std::pair<int, std::string_view> Lockpick::canBeEquipped(
+    std::pair<std::int32_t, std::string_view> Lockpick::canBeEquipped(
         const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const
     {
         // Do not allow equip tools from inventory during attack
@@ -153,12 +151,12 @@ namespace MWClass
         return { 1, {} };
     }
 
-    bool Lockpick::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Lockpick::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::Picks) != 0;
     }
 
-    int Lockpick::getItemMaxHealth(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Lockpick::getItemMaxHealth(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Lockpick>* ref = ptr.get<ESM::Lockpick>();
 

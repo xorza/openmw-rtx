@@ -37,7 +37,7 @@ namespace Rtx::Testing
         {
             ASSERT_EQ(read.size(), built.getNumIndices());
             for (std::size_t at = 0; at < read.size(); ++at)
-                ASSERT_EQ(read[at], built.index(static_cast<unsigned int>(at))) << "index " << at;
+                ASSERT_EQ(read[at], built.index(static_cast<std::uint32_t>(at))) << "index " << at;
         }
 
         /// A cell with a land record is the storage's own grid, cut the way `Terrain::BufferCache`
@@ -69,11 +69,12 @@ namespace Rtx::Testing
             // same vertex carries 64, 128 and 255, which the sRGB curve takes to 0.05126946,
             // 0.21586050 and one — a colour a renderer that dropped the array would answer white
             // for, and one whose channels differ so that a decode that swapped them would show.
+            // Packed to halves on the reader's thread, the nearest of each: 0x2A90 is 0.0512695,
+            // 0x32E8 is 0.2158203 and 0x3C00 one.
             EXPECT_EQ(FakeLand::colourAt(64, 0), osg::Vec4ub(64, 128, 255, 255));
-            const osg::Vec3f& corner = ground.mColours[64 * verts];
-            EXPECT_FLOAT_EQ(corner.x(), 0.05126946f);
-            EXPECT_FLOAT_EQ(corner.y(), 0.21586050f);
-            EXPECT_FLOAT_EQ(corner.z(), 1.0f);
+            const Shaders::GpuVertexColour& corner = ground.mColours[64 * verts];
+            EXPECT_EQ(corner.mRedGreen, 0x2A90u | (0x32E8u << 16));
+            EXPECT_EQ(corner.mBlue, 0x3C00u);
 
             // **The game's own index buffer and the game's own corners**, from the class that
             // builds them for the rasterizer's chunks.
@@ -157,8 +158,11 @@ namespace Rtx::Testing
 
             // A cell with no record has no `VCLR` either, and white is what tints nothing.
             ASSERT_EQ(ground.mColours.size(), 4u);
-            for (const osg::Vec3f& colour : ground.mColours)
-                EXPECT_EQ(colour, osg::Vec3f(1.0f, 1.0f, 1.0f));
+            for (const Shaders::GpuVertexColour& colour : ground.mColours)
+            {
+                EXPECT_EQ(colour.mRedGreen, 0x3C003C00u);
+                EXPECT_EQ(colour.mBlue, 0x3C00u);
+            }
 
             Terrain::BufferCache buffers;
             expectSameTriangles(ground.mIndices, *buffers.getIndexBuffer(2, 0));
@@ -207,20 +211,20 @@ namespace Rtx::Testing
                 mAlpha->allocateImage(16, 16, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
                 mRgba->allocateImage(16, 16, 1, GL_RGBA, GL_UNSIGNED_BYTE);
 
-                for (int row = 0; row < 16; ++row)
+                for (std::int32_t row = 0; row < 16; ++row)
                 {
-                    unsigned char* alphaRow = mAlpha->data(0, static_cast<unsigned int>(row));
-                    unsigned char* rgbaRow = mRgba->data(0, static_cast<unsigned int>(row));
+                    std::uint8_t* alphaRow = mAlpha->data(0, static_cast<std::uint32_t>(row));
+                    std::uint8_t* rgbaRow = mRgba->data(0, static_cast<std::uint32_t>(row));
 
-                    for (int column = 0; column < 16; ++column)
+                    for (std::int32_t column = 0; column < 16; ++column)
                     {
-                        const auto value = static_cast<unsigned char>(row * 16 + column);
+                        const auto value = static_cast<std::uint8_t>(row * 16 + column);
                         alphaRow[column] = value;
 
                         rgbaRow[column * 4 + 0] = 7;
                         rgbaRow[column * 4 + 1] = 11;
                         rgbaRow[column * 4 + 2] = 13;
-                        rgbaRow[column * 4 + 3] = static_cast<unsigned char>(255 - value);
+                        rgbaRow[column * 4 + 3] = static_cast<std::uint8_t>(255 - value);
                     }
                 }
             }
@@ -261,10 +265,10 @@ namespace Rtx::Testing
                 ASSERT_EQ(layer.mWeights.mCount, 256u);
 
                 const std::span<const float> weights = layer.mWeights.in(std::span<const float>(ground.mWeights));
-                for (int row = 0; row < 16; ++row)
-                    for (int column = 0; column < 16; ++column)
+                for (std::int32_t row = 0; row < 16; ++row)
+                    for (std::int32_t column = 0; column < 16; ++column)
                         ASSERT_EQ(weights[static_cast<std::size_t>(row * 16 + column)],
-                            image.getColor(static_cast<unsigned int>(column), static_cast<unsigned int>(row)).a())
+                            image.getColor(static_cast<std::uint32_t>(column), static_cast<std::uint32_t>(row)).a())
                             << "texel " << column << ", " << row << " of " << image.getPixelFormat();
             };
 

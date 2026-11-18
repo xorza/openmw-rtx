@@ -20,12 +20,41 @@
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/packedstreams.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/skinning.h>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx::Testing
 {
+    /// `arrays` packed as a reader packs them (`PackedStreams::append`), shaped as `shape`, and added: the test's way
+    /// to `SceneDesc::addMesh`, each overload one of the scene's.
+    inline MeshIndex addMesh(SceneDesc& scene, const MeshArrays& arrays, const FoldedShape shape = {})
+    {
+        PackedStreams packed;
+        return scene.addMesh(packed.of(packed.append(arrays, shape)));
+    }
+
+    inline MeshIndex addMesh(
+        SceneDesc& scene, const MeshArrays& arrays, const FoldedShape shape, const DeformerIndex deformer)
+    {
+        PackedStreams packed;
+        return scene.addMesh(packed.of(packed.append(arrays, shape)), deformer);
+    }
+
+    inline DeformedMesh addMesh(SceneDesc& scene, const MeshArrays& arrays, const FoldedShape shape, const RigSpec& rig)
+    {
+        PackedStreams packed;
+        return scene.addMesh(packed.of(packed.append(arrays, shape)), rig);
+    }
+
+    inline DeformedMesh addMesh(
+        SceneDesc& scene, const MeshArrays& arrays, const FoldedShape shape, const MorphSpec& morph)
+    {
+        PackedStreams packed;
+        return scene.addMesh(packed.of(packed.append(arrays, shape)), morph);
+    }
+
     /// Two triangles of a quad, wound so its face points the way its corners were listed.
     inline constexpr std::array<std::uint32_t, 6> sQuadIndices{ 0, 1, 2, 0, 2, 3 };
 
@@ -129,27 +158,27 @@ namespace Rtx::Testing
             osg::Vec3f(0.0f, 1.0f, z) };
     }
 
-    inline Index addQuadMesh(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners = sUnitQuad)
+    inline MeshIndex addQuadMesh(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners = sUnitQuad)
     {
-        return scene.addMesh(MeshArrays{ .mPositions = corners, .mIndices = sQuadIndices });
+        return Testing::addMesh(scene, MeshArrays{ .mPositions = corners, .mIndices = sQuadIndices });
     }
 
     /// The colour of a test's plain surface: a grey of one half, which the values the tests work
     /// out by hand are written for. Stated as a material, because a surface with no material is
     /// white, as the game draws one, and a white floor bounces every ray at full strength.
-    inline Index addGrey(SceneDesc& scene)
+    inline MaterialIndex addGrey(SceneDesc& scene)
     {
         return scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f) });
     }
 
     /// A quad of `corners` placed in `scene` by `transform`, in `material`, or in a grey of its own
-    /// (`addGrey`) where it names none. `sNoIndex` places it with no material at all. Returns the
+    /// (`addGrey`) where it names none. `sNoRow` places it with no material at all. Returns the
     /// placement.
-    inline Index addQuad(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners,
-        std::optional<Index> material = std::nullopt, const osg::Matrixf& transform = osg::Matrixf::identity())
+    inline PlacementIndex addQuad(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners,
+        std::optional<MaterialIndex> material = std::nullopt, const osg::Matrixf& transform = osg::Matrixf::identity())
     {
-        const Index worn = material.has_value() ? *material : addGrey(scene);
-        const Index mesh = addQuadMesh(scene, corners);
+        const MaterialIndex worn = material.has_value() ? *material : addGrey(scene);
+        const MeshIndex mesh = addQuadMesh(scene, corners);
         return scene.addInstance(MeshInstance{ .mTransform = transform, .mMesh = mesh, .mMaterial = worn });
     }
 
@@ -157,10 +186,10 @@ namespace Rtx::Testing
     /// was placed.
     struct Model
     {
-        Index mMesh = 0;
-        Index mMaterial = 0;
-        Index mTexture = 0;
-        Index mPlacement = 0;
+        MeshIndex mMesh = MeshIndex(0);
+        MaterialIndex mMaterial = MaterialIndex(0);
+        TextureIndex mTexture = TextureIndex(0);
+        PlacementIndex mPlacement = PlacementIndex(0);
     };
 
     /// One triangle and one material naming `texture`, placed, so a mesh, a material and a texture
@@ -178,8 +207,8 @@ namespace Rtx::Testing
         const std::uint32_t indices[3] = { 0, 1, 2 };
 
         Model made;
-        made.mMesh = scene.addMesh(
-            MeshArrays{ .mPositions = positions, .mNormals = normals, .mTexCoords = uvs, .mIndices = indices });
+        made.mMesh = Testing::addMesh(
+            scene, MeshArrays{ .mPositions = positions, .mNormals = normals, .mTexCoords = uvs, .mIndices = indices });
 
         made.mTexture = scene.textures().add(texture, image);
 
@@ -204,12 +233,12 @@ namespace Rtx::Testing
     {
         const std::vector<std::uint32_t> runs(arrays.mPositions.size(), Shaders::runWord(0, 1));
         const std::array influences{ Shaders::GpuInfluence{ .mBone = 0, .mWeight = 1.0f } };
-        return scene.addMesh(arrays, {}, RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 });
+        return Testing::addMesh(scene, arrays, {}, RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 });
     }
 
     /// Poses a mesh on a rig by `bones` under `transform` for the skin's own, laid as the scene
     /// takes them.
-    inline void poseRig(SceneDesc& scene, Index mesh, std::span<const Shaders::GpuBone> bones,
+    inline void poseRig(SceneDesc& scene, MeshIndex mesh, std::span<const Shaders::GpuBone> bones,
         const osg::BoundingBoxf& reach, const Shaders::GpuBone& transform = toGpuBone(osg::Matrixf::identity()))
     {
         std::vector<PoseWord> words;
@@ -218,27 +247,30 @@ namespace Rtx::Testing
     }
 
     /// Poses a mesh on a morph by `weights`, laid as the scene takes them.
-    inline void poseMorph(SceneDesc& scene, Index mesh, std::span<const float> weights, const osg::BoundingBoxf& reach)
+    inline void poseMorph(
+        SceneDesc& scene, MeshIndex mesh, std::span<const float> weights, const osg::BoundingBoxf& reach)
     {
         std::vector<PoseWord> words;
         packWeights(weights, words);
         scene.pose(mesh, words, reach);
     }
 
-    /// The box `mesh`'s bind pose reaches carried through `bone`.
-    inline osg::BoundingBoxf reachUnder(const SceneDesc& scene, Index mesh, const osg::Matrixf& bone)
+    /// The box a bind pose's vertices, `bind`, reach carried through `bone`: the caller's, as the game's poser
+    /// states a reach, since the host keeps no geometry past a hand-over.
+    inline osg::BoundingBoxf reachUnder(std::span<const osg::Vec3f> bind, const osg::Matrixf& bone)
     {
         osg::BoundingBoxf reach;
-        for (const osg::Vec3f& vertex : scene.meshes().getMeshPositions(mesh))
+        for (const osg::Vec3f& vertex : bind)
             reach.expandBy(vertex * bone);
         return reach;
     }
 
-    /// Poses `mesh`, a mesh on a one-bone rig, by `bone`, with the box its bind pose reaches
+    /// Poses `mesh`, a mesh on a one-bone rig whose bind pose is `bind`, by `bone`, with the box `bind` reaches
     /// carried through the same transform.
-    inline void poseByOneBone(SceneDesc& scene, Index mesh, const osg::Matrixf& bone)
+    inline void poseByOneBone(
+        SceneDesc& scene, MeshIndex mesh, std::span<const osg::Vec3f> bind, const osg::Matrixf& bone)
     {
         const std::array rows{ toGpuBone(bone) };
-        poseRig(scene, mesh, rows, reachUnder(scene, mesh, bone));
+        poseRig(scene, mesh, rows, reachUnder(bind, bone));
     }
 }

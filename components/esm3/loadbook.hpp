@@ -1,11 +1,11 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
+
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm/refid.hpp>
-
-#include <cstdint>
-#include <string>
 
 namespace ESM
 {
@@ -27,7 +27,7 @@ namespace ESM
         {
             ESM::RefId mSkillId;
             float mWeight{};
-            int32_t mValue{}, mIsScroll{}, mEnchant{};
+            std::int32_t mValue{}, mIsScroll{}, mEnchant{};
         };
 
         BKDTstruct mData;
@@ -35,7 +35,7 @@ namespace ESM
         Path mModel;
         Path mIcon;
         std::string mText;
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
         RefId mScript, mEnchant;
 

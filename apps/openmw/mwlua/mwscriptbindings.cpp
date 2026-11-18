@@ -1,26 +1,27 @@
 #include "mwscriptbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+#include <utility>
+
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwscript/globalscripts.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/worldimp.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/strings/lower.hpp>
 
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwscript/globalscripts.hpp"
-#include "../mwscript/interpretercontext.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/worldimp.hpp"
-
 #include "context.hpp"
 #include "luamanagerimp.hpp"
 #include "object.hpp"
-
-#include <stdexcept>
-#include <utility>
 
 namespace MWLua
 {
@@ -116,7 +117,7 @@ namespace MWLua
             }
             else if (varType == 's' || varType == 'l')
             {
-                MWBase::Environment::get().getWorld()->setGlobalInt(name, static_cast<int>(value));
+                MWBase::Environment::get().getWorld()->setGlobalInt(name, static_cast<std::int32_t>(value));
             }
         }
     }
@@ -331,7 +332,7 @@ namespace MWLua
                     return sol::nullopt;
                 return getGlobalVariableValue(globalId);
             },
-            [](const GlobalStore& store, size_t index) -> sol::optional<float> {
+            [](const GlobalStore& store, std::size_t index) -> sol::optional<float> {
                 if (index < 1 || store.getSize() < index)
                     return sol::nullopt;
                 auto g = store.at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));
@@ -347,7 +348,7 @@ namespace MWLua
                     throw std::runtime_error("No variable \"" + std::string(globalId) + "\" in GlobalStore");
                 setGlobalVariableValue(globalId, val);
             },
-            [](const GlobalStore& store, size_t index, float val) {
+            [](const GlobalStore& store, std::size_t index, float val) {
                 if (index < 1 || store.getSize() < index)
                     return;
                 auto g = store.at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));
@@ -357,7 +358,7 @@ namespace MWLua
                 setGlobalVariableValue(globalId, val);
             });
         globalStoreT[sol::meta_function::pairs] = [](const GlobalStore& store) {
-            size_t index = 0;
+            std::size_t index = 0;
             return sol::as_function(
                 [index, &store](sol::this_state ts) mutable -> sol::optional<std::tuple<std::string, float>> {
                     if (index >= store.getSize())

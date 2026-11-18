@@ -1,11 +1,10 @@
 #pragma once
 
 #include <cstdint>
-
 #include <map>
 #include <memory>
 
-#include "../doc/document.hpp"
+#include <apps/opencs/model/doc/document.hpp>
 
 namespace CSMTools
 {
@@ -14,7 +13,8 @@ namespace CSMTools
         std::unique_ptr<CSMDoc::Document> mTarget;
         CSMDoc::Document& mSource;
         bool mCompleted;
-        std::map<std::pair<uint16_t, int>, int> mTextureIndices; // (texture, content file) -> new texture
+        std::map<std::pair<std::uint16_t, std::int32_t>, std::int32_t>
+            mTextureIndices; // (texture, content file) -> new texture
 
         explicit MergeState(CSMDoc::Document& source)
             : mSource(source)

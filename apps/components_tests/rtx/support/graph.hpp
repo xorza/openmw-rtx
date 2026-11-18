@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <initializer_list>
 #include <string>
 #include <string_view>
@@ -30,10 +31,10 @@ namespace Rtx::Testing
         return positions;
     }
 
-    inline osg::ref_ptr<osg::DrawElementsUInt> makeTriangles(std::initializer_list<unsigned int> indices)
+    inline osg::ref_ptr<osg::DrawElementsUInt> makeTriangles(std::initializer_list<std::uint32_t> indices)
     {
         osg::ref_ptr<osg::DrawElementsUInt> triangles = new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES);
-        for (const unsigned int index : indices)
+        for (const std::uint32_t index : indices)
             triangles->push_back(index);
         return triangles;
     }
@@ -65,7 +66,7 @@ namespace Rtx::Testing
         texture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
         texture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
 
-        const auto unit = static_cast<unsigned int>(state.getTextureAttributeList().size());
+        const auto unit = static_cast<std::uint32_t>(state.getTextureAttributeList().size());
         state.setTextureAttributeAndModes(unit, texture, osg::StateAttribute::ON);
         state.setTextureAttribute(
             unit, new SceneUtil::TextureType(std::string(sTextureRoleNames.name(role))), osg::StateAttribute::ON);

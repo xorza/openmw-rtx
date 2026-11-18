@@ -1,5 +1,6 @@
 #include "tableheadermouseeventhandler.hpp"
-#include "dragrecordtable.hpp"
+
+#include <cstdint>
 
 #include <QAction>
 #include <QEvent>
@@ -8,6 +9,8 @@
 #include <QMouseEvent>
 #include <QObject>
 #include <QPoint>
+
+#include "dragrecordtable.hpp"
 
 namespace CSVWorld
 {
@@ -49,7 +52,7 @@ namespace CSVWorld
     QMenu& TableHeaderMouseEventHandler::createContextMenu()
     {
         auto* menu = new QMenu(this);
-        for (int i = 0; i < table.model()->columnCount(); ++i)
+        for (std::int32_t i = 0; i < table.model()->columnCount(); ++i)
         {
             const auto& name = table.model()->headerData(i, Qt::Horizontal, Qt::DisplayRole);
             QAction* action{ new QAction(name.toString(), this) };

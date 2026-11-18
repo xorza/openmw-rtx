@@ -48,8 +48,8 @@ namespace
 
     using namespace EsmTool;
 
-    constexpr unsigned majorVersion = 1;
-    constexpr unsigned minorVersion = 3;
+    constexpr std::uint32_t majorVersion = 1;
+    constexpr std::uint32_t minorVersion = 3;
 
     // Create a local alias for brevity
     namespace bpo = boost::program_options;
@@ -60,10 +60,10 @@ namespace
         std::deque<std::unique_ptr<EsmTool::RecordBase>> mRecords;
         // Value: (Reference, Deleted flag)
         std::map<ESM::Cell*, std::deque<std::pair<ESM::CellRef, bool>>> mCellRefs;
-        std::map<int, int> mRecordStats;
+        std::map<std::int32_t, std::int32_t> mRecordStats;
     };
 
-    bool parseOptions(int argc, char** argv, Arguments& info)
+    bool parseOptions(std::int32_t argc, char** argv, Arguments& info)
     {
         bpo::options_description desc(R"(Inspect and extract from Morrowind ES files (ESM, ESP, ESS)
 Syntax: esmtool [options] mode infile [outfile]
@@ -212,13 +212,13 @@ Allowed options)");
 
     void loadCell(const Arguments& info, ESM::Cell& cell, ESM::ESMReader& esm, ESMData* data);
 
-    int load(const Arguments& info, ESMData* data);
-    int clone(const Arguments& info);
-    int comp(const Arguments& info);
+    std::int32_t load(const Arguments& info, ESMData* data);
+    std::int32_t clone(const Arguments& info);
+    std::int32_t comp(const Arguments& info);
 
 }
 
-int main(int argc, char** argv)
+int main(std::int32_t argc, char** argv)
 {
     try
     {
@@ -295,7 +295,7 @@ namespace
             std::cout << "    Enchantment charge: " << ref.mEnchantmentCharge << '\n';
             std::cout << "    Uses/health: " << ref.mChargeInt << '\n';
             std::cout << "    Count: " << ref.mCount << '\n';
-            std::cout << "    Blocked: " << static_cast<int>(ref.mReferenceBlocked) << '\n';
+            std::cout << "    Blocked: " << static_cast<std::int32_t>(ref.mReferenceBlocked) << '\n';
             std::cout << "    Deleted: " << deleted << '\n';
             if (!ref.mKey.empty())
                 std::cout << "    Key: " << ref.mKey << '\n';
@@ -336,7 +336,7 @@ namespace
             esm.getRecHeader();
             while (esm.hasMoreSubs())
             {
-                size_t offs = esm.getFileOffset();
+                std::size_t offs = esm.getFileOffset();
                 esm.getSubName();
                 esm.skipHSub();
                 n = esm.retSubName();
@@ -348,7 +348,7 @@ namespace
         }
     }
 
-    int loadTes3(const Arguments& info, std::unique_ptr<std::ifstream>&& stream, ESMData* data)
+    std::int32_t loadTes3(const Arguments& info, std::unique_ptr<std::ifstream>&& stream, ESMData* data)
     {
         std::cout << "Loading TES3 file: " << info.filename << '\n';
 
@@ -356,7 +356,7 @@ namespace
         ToUTF8::Utf8Encoder encoder(ToUTF8::calculateEncoding(info.encoding));
         esm.setEncoder(&encoder);
 
-        std::unordered_set<uint32_t> skipped;
+        std::unordered_set<std::uint32_t> skipped;
 
         try
         {
@@ -387,7 +387,7 @@ namespace
             while (esm.hasMoreRecs())
             {
                 const ESM::NAME n = esm.getRecName();
-                uint32_t flags = 0;
+                std::uint32_t flags = 0;
                 esm.getRecHeader(flags);
 
                 auto record = EsmTool::RecordBase::create(n);
@@ -407,7 +407,7 @@ namespace
                     continue;
                 }
 
-                record->setFlags(static_cast<std::uint32_t>(static_cast<int>(flags)));
+                record->setFlags(static_cast<std::uint32_t>(static_cast<std::int32_t>(flags)));
                 record->setPrintPlain(info.plain_given);
                 record->load(esm);
 
@@ -436,7 +436,7 @@ namespace
                 {
                     if (save)
                         data->mRecords.push_back(std::move(record));
-                    ++data->mRecordStats[static_cast<int>(n.toInt())];
+                    ++data->mRecordStats[static_cast<std::int32_t>(n.toInt())];
                 }
             }
         }
@@ -451,7 +451,7 @@ namespace
         return 0;
     }
 
-    int load(const Arguments& info, ESMData* data)
+    std::int32_t load(const Arguments& info, ESMData* data)
     {
         if (info.mRawFormat.has_value() && info.mode == "dump")
         {
@@ -507,7 +507,7 @@ namespace
         return -1;
     }
 
-    int clone(const Arguments& info)
+    std::int32_t clone(const Arguments& info)
     {
         if (info.outname.empty())
         {
@@ -522,20 +522,20 @@ namespace
             return 1;
         }
 
-        size_t recordCount = data.mRecords.size();
+        std::size_t recordCount = data.mRecords.size();
 
-        int digitCount = 1; // For a nicer output
+        std::int32_t digitCount = 1; // For a nicer output
         if (recordCount > 0)
-            digitCount = static_cast<int>(std::log10(recordCount)) + 1;
+            digitCount = static_cast<std::int32_t>(std::log10(recordCount)) + 1;
 
         std::cout << "Loaded " << recordCount << " records:\n\n";
 
-        int i = 0;
-        for (std::pair<int, int> stat : data.mRecordStats)
+        std::int32_t i = 0;
+        for (std::pair<std::int32_t, std::int32_t> stat : data.mRecordStats)
         {
             ESM::NAME name;
             name = static_cast<std::uint32_t>(stat.first);
-            int amount = stat.second;
+            std::int32_t amount = stat.second;
             std::cout << std::setw(digitCount) << amount << " " << name.toStringView() << "  ";
             if (++i % 3 == 0)
                 std::cout << '\n';
@@ -551,12 +551,12 @@ namespace
         esm.setEncoder(&encoder);
         esm.setHeader(data.mHeader);
         esm.setVersion(ESM::VER_130);
-        esm.setRecordCount(static_cast<int>(recordCount));
+        esm.setRecordCount(static_cast<std::int32_t>(recordCount));
 
         std::fstream save(info.outname, std::fstream::out | std::fstream::binary);
         esm.save(save);
 
-        int saved = 0;
+        std::int32_t saved = 0;
         for (auto& record : data.mRecords)
         {
             if (i <= 0)
@@ -580,9 +580,9 @@ namespace
             esm.endRecord(typeName);
 
             saved++;
-            int perc = recordCount == 0
+            std::int32_t perc = recordCount == 0
                 ? 100
-                : static_cast<int>((static_cast<float>(saved) / static_cast<float>(recordCount)) * 100);
+                : static_cast<std::int32_t>((static_cast<float>(saved) / static_cast<float>(recordCount)) * 100);
             if (perc % 10 == 0)
             {
                 std::cerr << "\r" << perc << "%";
@@ -597,7 +597,7 @@ namespace
         return 0;
     }
 
-    int comp(const Arguments& info)
+    std::int32_t comp(const Arguments& info)
     {
         if (info.filename.empty() || info.outname.empty())
         {

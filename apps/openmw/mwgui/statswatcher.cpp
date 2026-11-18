@@ -1,17 +1,15 @@
 #include "statswatcher.hpp"
 
+#include <cstdint>
+#include <string>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadrace.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/npcstats.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include <string>
 
 namespace MWGui
 {
@@ -164,7 +162,7 @@ namespace MWGui
             listener->setValue(id, value);
     }
 
-    void StatsWatcher::setValue(std::string_view id, int value)
+    void StatsWatcher::setValue(std::string_view id, std::int32_t value)
     {
         for (StatsListener* listener : mListeners)
             listener->setValue(id, value);

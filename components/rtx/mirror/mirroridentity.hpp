@@ -50,9 +50,12 @@ namespace Rtx
     };
 
     /// An entry that names a row by its index.
+    ///
+    /// @tparam I the row's table's index (`RowIndex`).
+    template <class I>
     struct Known
     {
-        Index mIndex = sNoIndex;
+        I mIndex = sNoRow;
         Reach mReach{};
     };
 
@@ -315,6 +318,6 @@ namespace Rtx
 
     /// What the scene knows one `osg` object as, keyed so the object cannot go while the entry
     /// stands. See `ByAddress`.
-    template <class T, class Held = Known>
+    template <class T, class Held>
     using Identity = Kept<boost::unordered_flat_map<osg::ref_ptr<T>, Held, ByAddress<T>, ByAddress<T>>>;
 }

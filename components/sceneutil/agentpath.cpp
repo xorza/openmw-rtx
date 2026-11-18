@@ -1,16 +1,17 @@
 #include "agentpath.hpp"
 
-#include "detourdebugdraw.hpp"
+#include <algorithm>
+#include <cstdint>
 
 #include <components/detournavigator/recastparams.hpp>
 #include <components/detournavigator/settings.hpp>
 
-#include <algorithm>
+#include "detourdebugdraw.hpp"
 
 namespace
 {
     void drawAgent(duDebugDraw& debugDraw, const osg::Vec3f& pos, const float radius, const float height,
-        const float climb, const unsigned color)
+        const float climb, const std::uint32_t color)
     {
         debugDraw.depthMask(false);
 

@@ -42,6 +42,10 @@ namespace RtxTool
 
         /// What the measured frames wrote that was not finite, summed, which only `Finite` reads.
         const Rtx::NotFinite& mNotFinite;
+
+        /// How many textures the scene had refused when the stop before it was written, which only
+        /// `TexturesReadable` reads: a refusal fails the stop it falls in and no later one.
+        std::uint32_t mTexturesRefusedBefore = 0;
     };
 
     /// Asks each of `checks` of what the frame `context` describes was handed and drew, and notes each answer, held

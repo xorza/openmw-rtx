@@ -1,5 +1,6 @@
 #include "journalcheck.hpp"
 
+#include <cstdint>
 #include <set>
 #include <string>
 #include <utility>
@@ -7,16 +8,14 @@
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/info.hpp>
 #include <apps/opencs/model/world/infocollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loaddial.hpp>
 #include <components/esm3/loadinfo.hpp>
-
-#include "../prefs/state.hpp"
 
 CSMTools::JournalCheckStage::JournalCheckStage(
     const CSMWorld::IdCollection<ESM::Dialogue>& journals, const CSMWorld::InfoCollection& journalInfos)
@@ -26,14 +25,14 @@ CSMTools::JournalCheckStage::JournalCheckStage(
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::JournalCheckStage::setup()
+std::int32_t CSMTools::JournalCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
     mInfosByTopic = mJournalInfos.getInfosByTopic();
     return mJournals.getSize();
 }
 
-void CSMTools::JournalCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::JournalCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Dialogue>& journalRecord = mJournals.getRecord(stage);
 
@@ -43,9 +42,9 @@ void CSMTools::JournalCheckStage::perform(int stage, CSMDoc::Messages& messages)
         return;
 
     const ESM::Dialogue& journal = journalRecord.get();
-    int statusNamedCount = 0;
-    int totalInfoCount = 0;
-    std::set<int> questIndices;
+    std::int32_t statusNamedCount = 0;
+    std::int32_t totalInfoCount = 0;
+    std::set<std::int32_t> questIndices;
 
     if (const auto infos = mInfosByTopic.find(journal.mId); infos != mInfosByTopic.end())
     {

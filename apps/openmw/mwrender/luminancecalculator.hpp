@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include <osg/FrameBufferObject>
 #include <osg/Program>
@@ -24,16 +26,16 @@ namespace MWRender
         explicit LuminanceCalculator(Shader::ShaderManager& shaderManager);
 
         void draw(const PingPongCanvas& canvas, osg::RenderInfo& renderInfo, osg::State& state, osg::GLExtensions* ext,
-            size_t frameId);
+            std::size_t frameId);
 
         bool isEnabled() const { return mEnabled; }
 
         void enable() { mEnabled = true; }
         void disable() { mEnabled = false; }
 
-        void dirty(int w, int h);
+        void dirty(std::int32_t w, std::int32_t h);
 
-        osg::ref_ptr<osg::Texture2D> getLuminanceTexture(size_t frameId) const;
+        osg::ref_ptr<osg::Texture2D> getLuminanceTexture(std::size_t frameId) const;
 
     private:
         void compile();
@@ -59,8 +61,8 @@ namespace MWRender
         bool mEnabled = false;
         bool mIsBlank = true;
 
-        int mWidth = 1;
-        int mHeight = 1;
+        std::int32_t mWidth = 1;
+        std::int32_t mHeight = 1;
         osg::Vec2f mScale = osg::Vec2f(1, 1);
     };
 }

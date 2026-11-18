@@ -4,6 +4,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 
 namespace Graphite
 {
@@ -11,18 +12,18 @@ namespace Graphite
     {
         using Linear = std::array<double, 3>;
 
-        double decode(int channel)
+        double decode(std::int32_t channel)
         {
             const double encoded = channel / 255.0;
             return encoded <= 0.04045 ? encoded / 12.92 : std::pow((encoded + 0.055) / 1.055, 2.4);
         }
 
-        int encode(double linear)
+        std::int32_t encode(double linear)
         {
             const double clamped = std::clamp(linear, 0.0, 1.0);
             const double encoded
                 = clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * std::pow(clamped, 1.0 / 2.4) - 0.055;
-            return static_cast<int>(std::lround(encoded * 255.0));
+            return static_cast<std::int32_t>(std::lround(encoded * 255.0));
         }
 
         Linear linearOf(QRgb colour)
@@ -64,7 +65,7 @@ namespace Graphite
         }
 
         /// What bisection halves an interval to: far under a step of the 8-bit grid.
-        constexpr int sHalvings = 60;
+        constexpr std::int32_t sHalvings = 60;
 
         /// The colour at Oklab `lightness` and the hue of (`a`, `b`), at their chroma where sRGB holds
         /// it and at the most sRGB holds there where it does not.
@@ -74,7 +75,7 @@ namespace Graphite
                 return linearOfOklab(lightness, a, b);
             double held = 0.0;
             double lost = 1.0;
-            for (int at = 0; at < sHalvings; ++at)
+            for (std::int32_t at = 0; at < sHalvings; ++at)
             {
                 const double scale = (held + lost) / 2.0;
                 (inGamut(linearOfOklab(lightness, a * scale, b * scale)) ? held : lost) = scale;
@@ -103,9 +104,9 @@ namespace Graphite
 
     QRgb over(QRgb ink, QRgb ground)
     {
-        const int alpha = qAlpha(ink);
-        const auto channel = [alpha](int from, int under) {
-            return static_cast<int>(std::lround((from * alpha + under * (255 - alpha)) / 255.0));
+        const std::int32_t alpha = qAlpha(ink);
+        const auto channel = [alpha](std::int32_t from, std::int32_t under) {
+            return static_cast<std::int32_t>(std::lround((from * alpha + under * (255 - alpha)) / 255.0));
         };
         return qRgb(
             channel(qRed(ink), qRed(ground)), channel(qGreen(ink), qGreen(ground)), channel(qBlue(ink), qBlue(ground)));
@@ -129,7 +130,7 @@ namespace Graphite
         const std::array<double, 3> lab = oklabOf(linearOf(ink));
         double under = lab[0];
         double clears = 1.0;
-        for (int at = 0; at < sHalvings; ++at)
+        for (std::int32_t at = 0; at < sHalvings; ++at)
         {
             const double lightness = (under + clears) / 2.0;
             (contrastOfLinear(atLightness(lightness, lab[1], lab[2]), ground) >= floor ? clears : under) = lightness;
@@ -138,7 +139,7 @@ namespace Graphite
         // Rounding to the grid can land a hair under the floor: a step a grid's worth up at a time,
         // which white, clearing it, bounds.
         constexpr double sStep = 1.0 / 255.0;
-        for (int step = 0; clears + sStep * static_cast<double>(step) <= 1.0 + sStep; ++step)
+        for (std::int32_t step = 0; clears + sStep * static_cast<double>(step) <= 1.0 + sStep; ++step)
         {
             const double lightness = clears + sStep * static_cast<double>(step);
             const QRgb rounded = opaqueOf(atLightness(std::min(lightness, 1.0), lab[1], lab[2]));

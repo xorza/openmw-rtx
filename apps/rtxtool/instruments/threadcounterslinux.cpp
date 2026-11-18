@@ -66,7 +66,7 @@ namespace RtxTool
         /// Cycles, the group's leader, then instructions and cache misses, on one kind of core.
         struct Group
         {
-            std::array<int, sEvents> mFds{ -1, -1, -1 };
+            std::array<std::int32_t, sEvents> mFds{ -1, -1, -1 };
 
             /// The kind's number in the events' upper half, nought on a part with one kind.
             std::uint64_t mKind = 0;
@@ -100,7 +100,7 @@ namespace RtxTool
         pid_t mThread = 0;
 
         /// Why the kernel refused the last event it refused, kept before a close could change it.
-        int mRefusal = 0;
+        std::int32_t mRefusal = 0;
 
         /// Why the window `start` opened counts nothing: the kernel refused to reset, read or enable a group.
         std::string_view mStartRefused{};
@@ -110,7 +110,7 @@ namespace RtxTool
         void closeAll()
         {
             for (Group& group : mGroups)
-                for (int& fd : group.mFds)
+                for (std::int32_t& fd : group.mFds)
                     if (fd >= 0)
                     {
                         close(fd);
@@ -137,7 +137,8 @@ namespace RtxTool
                         attr.read_format
                             = PERF_FORMAT_GROUP | PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
                     }
-                    group.mFds[at] = static_cast<int>(syscall(
+                    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
+                    group.mFds[at] = static_cast<std::int32_t>(syscall(
                         SYS_perf_event_open, &attr, mThread, -1, at == 0 ? -1 : group.mFds[0], PERF_FLAG_FD_CLOEXEC));
                     if (group.mFds[at] < 0)
                     {
@@ -162,6 +163,7 @@ namespace RtxTool
         : mEvents(std::make_unique<Events>())
     {
         Events& events = *mEvents;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
         events.mThread = static_cast<pid_t>(syscall(SYS_gettid));
 
         const std::optional<std::uint64_t> performance = kindNumbered("/sys/devices/cpu_core/type");
@@ -193,10 +195,12 @@ namespace RtxTool
         if (mEvents == nullptr)
             return;
 
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
         assert(static_cast<pid_t>(syscall(SYS_gettid)) == mEvents->mThread && "counted on another thread");
         mEvents->mStartRefused = {};
         for (Group& group : mEvents->mGroups)
         {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's ioctl
             if (ioctl(group.mFds[0], PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) == -1)
             {
                 mEvents->mStartRefused = "the kernel refused to reset the counters";
@@ -212,6 +216,7 @@ namespace RtxTool
             }
             group.mEnabledAt = before->mEnabled;
             group.mRunningAt = before->mRunning;
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's ioctl
             if (ioctl(group.mFds[0], PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP) == -1)
             {
                 mEvents->mStartRefused = "the kernel refused to start the counters";
@@ -228,6 +233,7 @@ namespace RtxTool
         // Every group stopped, whatever `start` managed: a group it enabled before one it could not counts on.
         bool stopped = true;
         for (const Group& group : mEvents->mGroups)
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's ioctl
             stopped = ioctl(group.mFds[0], PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP) != -1 && stopped;
         if (!mEvents->mStartRefused.empty())
             return ThreadCounts{ .mWhyNot = mEvents->mStartRefused };

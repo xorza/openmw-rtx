@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -395,12 +396,12 @@ namespace CSMWorld
 
         std::string getName(ColumnId column);
 
-        int getId(const std::string& name);
+        std::int32_t getId(const std::string& name);
         ///< Will return -1 for an invalid name.
 
         bool hasEnums(ColumnId column);
 
-        std::vector<std::pair<int, std::string>> getEnums(ColumnId column);
+        std::vector<std::pair<std::int32_t, std::string>> getEnums(ColumnId column);
         ///< Returns an empty vector, if \a column isn't an enum type column.
     }
 }

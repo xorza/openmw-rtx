@@ -1,5 +1,7 @@
 #include "shortcutsetting.hpp"
 
+#include <cstdint>
+
 #include <QEvent>
 #include <QKeyEvent>
 #include <QLabel>
@@ -8,9 +10,8 @@
 #include <QString>
 #include <QWidget>
 
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-
+#include "category.hpp"
+#include "setting.hpp"
 #include "shortcutmanager.hpp"
 #include "state.hpp"
 
@@ -23,7 +24,7 @@ namespace CSMPrefs
         , mEditorActive(false)
         , mEditorPos(0)
     {
-        for (int& mEditorKey : mEditorKeys)
+        for (std::int32_t& mEditorKey : mEditorKeys)
         {
             mEditorKey = 0;
         }
@@ -73,8 +74,8 @@ namespace CSMPrefs
             if (keyEvent->isAutoRepeat())
                 return true;
 
-            int mod = static_cast<int>(keyEvent->modifiers());
-            int key = keyEvent->key();
+            std::int32_t mod = static_cast<std::int32_t>(keyEvent->modifiers());
+            std::int32_t key = keyEvent->key();
 
             return handleEvent(target, mod, key, true);
         }
@@ -84,24 +85,24 @@ namespace CSMPrefs
             if (keyEvent->isAutoRepeat())
                 return true;
 
-            int mod = static_cast<int>(keyEvent->modifiers());
-            int key = keyEvent->key();
+            std::int32_t mod = static_cast<std::int32_t>(keyEvent->modifiers());
+            std::int32_t key = keyEvent->key();
 
             return handleEvent(target, mod, key, false);
         }
         else if (event->type() == QEvent::MouseButtonPress)
         {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
-            int mod = static_cast<int>(mouseEvent->modifiers());
-            int key = static_cast<int>(mouseEvent->button());
+            std::int32_t mod = static_cast<std::int32_t>(mouseEvent->modifiers());
+            auto key = static_cast<std::int32_t>(mouseEvent->button());
 
             return handleEvent(target, mod, key, true);
         }
         else if (event->type() == QEvent::MouseButtonRelease)
         {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
-            int mod = static_cast<int>(mouseEvent->modifiers());
-            int key = static_cast<int>(mouseEvent->button());
+            std::int32_t mod = static_cast<std::int32_t>(mouseEvent->modifiers());
+            auto key = static_cast<std::int32_t>(mouseEvent->button());
 
             return handleEvent(target, mod, key, false);
         }
@@ -113,10 +114,10 @@ namespace CSMPrefs
         return false;
     }
 
-    bool ShortcutSetting::handleEvent(QObject* target, int mod, int value, bool active)
+    bool ShortcutSetting::handleEvent(QObject* target, std::int32_t mod, std::int32_t value, bool active)
     {
         // Modifiers are handled differently
-        const int blacklist[] = { Qt::Key_Shift, Qt::Key_Control, Qt::Key_Meta, Qt::Key_Alt, Qt::Key_AltGr };
+        const std::int32_t blacklist[] = { Qt::Key_Shift, Qt::Key_Control, Qt::Key_Meta, Qt::Key_Alt, Qt::Key_AltGr };
 
         if (!mEditorActive)
         {
@@ -133,7 +134,7 @@ namespace CSMPrefs
         }
 
         // Handle blacklist
-        for (int i : blacklist)
+        for (std::int32_t i : blacklist)
         {
             if (value == i)
                 return true;
@@ -176,7 +177,7 @@ namespace CSMPrefs
         mButton->setChecked(false);
         mEditorActive = false;
         mEditorPos = 0;
-        for (int& mEditorKey : mEditorKeys)
+        for (std::int32_t& mEditorKey : mEditorKeys)
         {
             mEditorKey = 0;
         }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_IPointer.h>
 #include <MyGUI_ResourceImageSet.h>
 
@@ -29,13 +31,13 @@ namespace MWGui
         MyGUI::ResourceImageSetPtr getImageSet();
         MyGUI::IntPoint getHotSpot();
         MyGUI::IntSize getSize();
-        int getRotation();
+        std::int32_t getRotation();
 
     private:
         MyGUI::IntPoint mPoint;
         MyGUI::IntSize mSize;
         MyGUI::ResourceImageSetPtr mImageSet;
-        int mRotation; // rotation in degrees
+        std::int32_t mRotation; // rotation in degrees
     };
 
 }

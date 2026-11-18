@@ -61,7 +61,7 @@ namespace MWRender
         /// is its own: upstream's paging finds the chunk by position and cell, a ring by the number
         /// alone. The type is a parameter because it comes out of the world's store, which nothing
         /// below this can reach.
-        virtual bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) = 0;
+        virtual bool enableReference(std::int32_t type, const MWWorld::ConstPtr& ptr, bool enabled) = 0;
 
         /// The game moved, turned, scaled, deleted or animates the reference, which upstream's
         /// paging never stands again, whatever a script says of it later. `paged` is the reference
@@ -69,7 +69,8 @@ namespace MWRender
         /// by; `now` is where the game holds it after the change, the same reference unless a move
         /// took it to another cell (`World::moveObject`). A renderer that stands references itself
         /// may read where the game holds it now off `now`.
-        virtual void blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) = 0;
+        virtual void blacklistReference(std::int32_t type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now)
+            = 0;
 
         /// The cell grid has moved: what the game told the distance while the grid changed may now
         /// be applied. @return whether what the distance draws changed. A renderer that keeps no

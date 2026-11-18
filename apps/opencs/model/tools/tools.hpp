@@ -1,15 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 
-#include <apps/opencs/model/world/universalid.hpp>
-
-#include <components/toutf8/toutf8.hpp>
-
 #include <QObject>
 
-#include "../doc/operationholder.hpp"
+#include <apps/opencs/model/doc/operationholder.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 namespace CSMWorld
 {
@@ -42,9 +41,9 @@ namespace CSMTools
         CSMDoc::OperationHolder* mSearch;
         MergeOperation* mMergeOperation;
         CSMDoc::OperationHolder* mMerge;
-        std::map<int, ReportModel*> mReports;
-        int mNextReportNumber;
-        std::map<int, int> mActiveReports; // type, report number
+        std::map<std::int32_t, ReportModel*> mReports;
+        std::int32_t mNextReportNumber;
+        std::map<std::int32_t, std::int32_t> mActiveReports; // type, report number
         ToUTF8::FromType mEncoding;
 
         // not implemented
@@ -53,10 +52,10 @@ namespace CSMTools
 
         CSMDoc::OperationHolder* getVerifier();
 
-        CSMDoc::OperationHolder* get(int type);
+        CSMDoc::OperationHolder* get(std::int32_t type);
         ///< Returns a 0-pointer, if operation hasn't been used yet.
 
-        const CSMDoc::OperationHolder* get(int type) const;
+        const CSMDoc::OperationHolder* get(std::int32_t type) const;
         ///< Returns a 0-pointer, if operation hasn't been used yet.
 
     public:
@@ -77,23 +76,23 @@ namespace CSMTools
 
         void runMerge(std::unique_ptr<CSMDoc::Document> target);
 
-        void abortOperation(int type);
+        void abortOperation(std::int32_t type);
         ///< \attention The operation is not aborted immediately.
 
-        int getRunningOperations() const;
+        std::int32_t getRunningOperations() const;
 
         ReportModel* getReport(const CSMWorld::UniversalId& id);
         ///< The ownership of the returned report is not transferred.
 
     private slots:
 
-        void verifierMessage(const CSMDoc::Message& message, int type);
+        void verifierMessage(const CSMDoc::Message& message, std::int32_t type);
 
     signals:
 
-        void progress(int current, int max, int type);
+        void progress(std::int32_t current, std::int32_t max, std::int32_t type);
 
-        void done(int type, bool failed);
+        void done(std::int32_t type, bool failed);
 
         /// \attention When this signal is emitted, *this hands over the ownership of the
         /// document. This signal must be handled to avoid a leak.

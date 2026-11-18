@@ -1,17 +1,17 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
+#include <apps/openmw/mwbase/soundmanager.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/objectpool.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/settings/settings.hpp>
-
-#include "../mwbase/soundmanager.hpp"
 
 #include "regionsoundselector.hpp"
 #include "soundbuffer.hpp"
@@ -99,7 +99,7 @@ namespace MWSound
         osg::Vec3f mListenerUp;
         osg::Vec3f mListenerVel;
 
-        int mPausedSoundTypes[BlockerType::MaxCount] = {};
+        std::int32_t mPausedSoundTypes[BlockerType::MaxCount] = {};
 
         Sound* mUnderwaterSound;
         Sound* mNearWaterSound;
@@ -280,7 +280,8 @@ namespace MWSound
         bool getSoundPlaying(const MWWorld::ConstPtr& ptr, VFS::Path::NormalizedView fileName) const override;
         ///< Is the given sound currently playing on the given object?
 
-        void pauseSounds(MWSound::BlockerType blocker, int types = static_cast<int>(Type::Mask)) override;
+        void pauseSounds(
+            MWSound::BlockerType blocker, std::int32_t types = static_cast<std::int32_t>(Type::Mask)) override;
         ///< Pauses all currently playing sounds, including music.
 
         void resumeSounds(MWSound::BlockerType blocker) override;

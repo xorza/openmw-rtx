@@ -3,7 +3,6 @@
 #include <vector>
 
 #include <boost/container/flat_map.hpp>
-
 #include <osg/Vec2i>
 
 #include <components/esm/refid.hpp>

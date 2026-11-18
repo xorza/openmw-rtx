@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <optional>
 
@@ -15,20 +17,20 @@ namespace ESM
 
 namespace LuaUtil
 {
-    using ScriptIdsWithInitializationData = std::map<int, std::string_view>;
+    using ScriptIdsWithInitializationData = std::map<std::int32_t, std::string_view>;
 
     class ScriptsConfiguration
     {
     public:
         void init(ESM::LuaScriptsCfg, bool);
 
-        size_t size() const { return mScripts.size(); }
-        const ESM::LuaScriptCfg& operator[](size_t id) const { return mScripts[id]; }
+        std::size_t size() const { return mScripts.size(); }
+        const ESM::LuaScriptCfg& operator[](std::size_t id) const { return mScripts[id]; }
 
-        std::optional<int> findId(VFS::Path::NormalizedView path) const;
-        std::optional<int> mapId(int savedId) const;
+        std::optional<std::int32_t> findId(VFS::Path::NormalizedView path) const;
+        std::optional<std::int32_t> mapId(std::int32_t savedId) const;
 
-        bool isCustomScript(int id) const
+        bool isCustomScript(std::int32_t id) const
         {
             return mScripts[static_cast<std::size_t>(id)].mFlags & ESM::LuaScriptCfg::sCustom;
         }
@@ -38,7 +40,7 @@ namespace LuaUtil
         ScriptIdsWithInitializationData getPlayerConf() const { return getConfByFlag(ESM::LuaScriptCfg::sPlayer); }
         ScriptIdsWithInitializationData getLoadConf() const { return getConfByFlag(ESM::LuaScriptCfg::sLoad); }
         ScriptIdsWithInitializationData getLocalConf(
-            uint32_t type, const ESM::RefId& recordId, ESM::RefNum refnum) const;
+            std::uint32_t type, const ESM::RefId& recordId, ESM::RefNum refnum) const;
 
         void read(ESM::ESMReader&);
         void write(ESM::ESMWriter&) const;
@@ -47,18 +49,18 @@ namespace LuaUtil
         ScriptIdsWithInitializationData getConfByFlag(ESM::LuaScriptCfg::Flags flag) const;
 
         std::vector<ESM::LuaScriptCfg> mScripts;
-        std::map<VFS::Path::Normalized, int, std::less<>> mPathToIndex;
+        std::map<VFS::Path::Normalized, std::int32_t, std::less<>> mPathToIndex;
 
         struct DetailedConf
         {
-            int mScriptId;
+            std::int32_t mScriptId;
             bool mAttach;
             std::string_view mInitializationData;
         };
-        std::map<uint32_t, std::vector<int>> mScriptsPerType;
+        std::map<std::uint32_t, std::vector<std::int32_t>> mScriptsPerType;
         std::map<ESM::RefId, std::vector<DetailedConf>, std::less<>> mScriptsPerRecordId;
         std::map<ESM::RefNum, std::vector<DetailedConf>> mScriptsPerRefNum;
-        std::map<int, int> mScriptIdMapping;
+        std::map<std::int32_t, std::int32_t> mScriptIdMapping;
     };
 
     // Parse ESM::LuaScriptsCfg from text and add to `cfg`.

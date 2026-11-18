@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <unordered_map>
@@ -10,6 +11,7 @@
 
 #include <components/vfs/pathutil.hpp>
 
+#include "imageheader.hpp"
 #include "resourcemanager.hpp"
 
 namespace osgDB
@@ -46,15 +48,16 @@ namespace Resource
 
         osg::Image* getWarningImage();
 
-        /// Before any model is loaded, which every loader thread reads it for.
-        void setModelImages(ModelImages images) { mModelImages = images; }
+        /// Before any model is loaded, which every loader thread reads it for: headers with what derives each where
+        /// its file is read, and no deriver for texels, which the rasterizer reads from the graph.
+        void setModelImages(ModelImages images, HeaderDeriver deriver);
 
         /// What a model's texture at `path` holds, as `setModelImages` says: the image `getImage` hands out, or its
         /// header, the file read the first time a model names it and never again for a model. What every loader of
         /// a model's textures asks.
         osg::ref_ptr<osg::Image> getModelImage(VFS::Path::NormalizedView path);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
     private:
         /// The image at `path` read from the files, or the warning image where none reads: `getImage`'s one load.
@@ -64,6 +67,7 @@ namespace Resource
         osg::ref_ptr<osgDB::Options> mOptions;
 
         ModelImages mModelImages = ModelImages::Texels;
+        HeaderDeriver mDeriver;
 
         /// Every header made, by its file: tiny, and bounded by the files the content names, one each, so that
         /// every texture of one file names one header, as it named one image.

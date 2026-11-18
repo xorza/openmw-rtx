@@ -30,6 +30,18 @@ namespace Rtx
     ///
     /// Work names its images by address, so an image stays where it is from the call that names it to `record`. Kept
     /// and refilled per run, so what it holds settles at the busiest run so far.
+    /// **What the spreads' means are made at for a run whose largest group needs `largest`**, where they hold `held`:
+    /// `held` where it holds the group; else twice `held`, held to `room`, or the group where it is larger. Doubling
+    /// within the room, so a session's runs make them again a few times, each a device allocation the kernel clears,
+    /// rather than once each time a run's group outgrows the last (`docs/research/2026-11-17-longest-frames.md`).
+    constexpr VkDeviceSize meansGrownTo(const VkDeviceSize held, const VkDeviceSize largest, const VkDeviceSize room)
+    {
+        if (held >= largest)
+            return held;
+        const VkDeviceSize doubled = 2 * held < room ? 2 * held : room;
+        return largest > doubled ? largest : doubled;
+    }
+
     class TextureArrival
     {
     public:
@@ -45,6 +57,16 @@ namespace Rtx
         /// `image` by `regions`, whose offsets are into `staged`. `image` is met undefined.
         void upload(const StagingRun& staged, const Image& image, std::span<const VkBufferImageCopy> regions);
 
+        /// Copies `from`'s levels past its first `dropped` into `to`, every level `to` holds, on the device, nothing
+        /// read from the host: a texture moved to a smaller side (`Texture::standMovedDown`), or at its own, `dropped`
+        /// nought, out of a block given back (`Texture::standMovedOut`). `from` is met as a texture the trace samples
+        /// and left as one, since a frame in flight may still sample it; `to` is met undefined.
+        void copyLevels(const Image& from, std::uint32_t dropped, const Image& to);
+
+        /// Whether the run writes `image`, an upload's, a move's, a spread's or a bake's target: an image a later copy
+        /// of the same run may not read, its writes not yet ordered before it.
+        bool writes(const Image& image) const;
+
         /// `NormalSpreadPass` of `map` into `spread`, met undefined, through the run's means.
         void spread(const Image& map, const Image& spread);
 
@@ -56,7 +78,8 @@ namespace Rtx
         void record(Batch& batch, const TexturePasses& passes, GpuTimer* timer);
 
         /// How many bytes of means the spreads are carried through now, which an arrival that needs
-        /// more is priced the rest of (`TextureArray::costAt`).
+        /// more is priced the rest of (`TextureArray::costAt`): at most the room between two runs, means grown past it
+        /// for one map being given back as the run that grew them is recorded.
         VkDeviceSize getMeansBytes() const { return mMeans.get().getSize(); }
 
         /// The bytes of means an arrival needs whose spreads come to `total` together, the largest of
@@ -84,6 +107,13 @@ namespace Rtx
             const Image* mSpread;
         };
 
+        struct Move
+        {
+            const Image* mFrom;
+            std::uint32_t mDropped;
+            const Image* mTo;
+        };
+
         struct Bake
         {
             const Image* mSource;
@@ -102,7 +132,11 @@ namespace Rtx
         /// The copies' regions, every upload's in one run, moved along by where its bytes landed.
         std::vector<VkBufferImageCopy> mRegions;
 
+        /// One move's levels at a time, refilled for each.
+        std::vector<VkImageCopy> mMoveRegions;
+
         std::vector<Upload> mUploads;
+        std::vector<Move> mMoves;
         std::vector<Spread> mSpreads;
         std::vector<Bake> mBakes;
 

@@ -1,14 +1,15 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include <components/esm/luascripts.hpp>
 #include <components/esm/position.hpp>
-#include <components/esm3/formatversion.hpp>
 
 #include "animationstate.hpp"
 #include "cellref.hpp"
+#include "formatversion.hpp"
 #include "locals.hpp"
 
 namespace ESM
@@ -35,9 +36,9 @@ namespace ESM
         AnimationState mAnimationState;
         ActorIdConverter* mActorIdConverter = nullptr;
         FormatVersion mVersion = DefaultFormatVersion;
-        uint32_t mFlags = 0;
-        unsigned char mHasLocals = 0;
-        unsigned char mEnabled = 0;
+        std::uint32_t mFlags = 0;
+        std::uint8_t mHasLocals = 0;
+        std::uint8_t mEnabled = 0;
 
         // Is there any class-specific state following the ObjectState
         bool mHasCustomState = true;

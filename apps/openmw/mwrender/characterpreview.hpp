@@ -1,15 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
-#include <osg/ref_ptr>
 
 #include <osg/PositionAttitudeTransform>
+#include <osg/ref_ptr>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadnpc.hpp>
-
 #include <components/resource/resourcesystem.hpp>
-
-#include "../mwworld/ptr.hpp"
 
 #include "offscreenview.hpp"
 
@@ -35,11 +34,11 @@ namespace MWRender
         CharacterPreview(const CharacterPreview&) = delete;
         CharacterPreview& operator=(const CharacterPreview&) = delete;
         CharacterPreview(Renderer& renderer, Resource::ResourceSystem* resourceSystem, const MWWorld::Ptr& character,
-            int sizeX, int sizeY, const osg::Vec3f& position, const osg::Vec3f& lookAt);
+            std::int32_t sizeX, std::int32_t sizeY, const osg::Vec3f& position, const osg::Vec3f& lookAt);
         virtual ~CharacterPreview();
 
-        int getTextureWidth() const;
-        int getTextureHeight() const;
+        std::int32_t getTextureWidth() const;
+        std::int32_t getTextureHeight() const;
 
         void redraw();
 
@@ -72,8 +71,8 @@ namespace MWRender
         osg::ref_ptr<osg::PositionAttitudeTransform> mNode;
         std::string mCurrentAnimGroup;
 
-        int mSizeX;
-        int mSizeY;
+        std::int32_t mSizeX;
+        std::int32_t mSizeY;
     };
 
     class InventoryPreview : public CharacterPreview
@@ -84,17 +83,17 @@ namespace MWRender
         void updatePtr(const MWWorld::Ptr& ptr);
 
         void update(); // Render preview again, e.g. after changed equipment
-        void setViewport(int sizeX, int sizeY);
+        void setViewport(std::int32_t sizeX, std::int32_t sizeY);
 
-        int getSlotSelected(int posX, int posY);
+        std::int32_t getSlotSelected(std::int32_t posX, std::int32_t posY);
 
     protected:
         void onSetup() override;
 
     private:
         // How much of the picture the window shows. Zero until the window has been laid out.
-        int mExtentX = 0;
-        int mExtentY = 0;
+        std::int32_t mExtentX = 0;
+        std::int32_t mExtentY = 0;
     };
 
     class UpdateCameraCallback;

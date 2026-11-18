@@ -1,13 +1,13 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <vector>
 
+#include <LinearMath/btIDebugDraw.h>
 #include <osg/Array>
 #include <osg/PrimitiveSet>
 #include <osg/ref_ptr>
-
-#include <LinearMath/btIDebugDraw.h>
 
 namespace osg
 {
@@ -69,7 +69,7 @@ namespace MWRender
         void showCollisions();
 
         void drawContactPoint(const btVector3& pointOnB, const btVector3& normalOnB, btScalar /*distance*/,
-            int /*lifeTime*/, const btVector3& /*color*/) override
+            std::int32_t /*lifeTime*/, const btVector3& /*color*/) override
         {
             mCollisionViews.emplace_back(pointOnB, normalOnB);
         }
@@ -80,10 +80,10 @@ namespace MWRender
         void draw3dText(const btVector3& location, const char* textString) override {}
 
         // 0 for off, anything else for on.
-        void setDebugMode(int isOn) override;
+        void setDebugMode(std::int32_t isOn) override;
 
         // 0 for off, anything else for on.
-        int getDebugMode() const override;
+        std::int32_t getDebugMode() const override;
     };
 
 }

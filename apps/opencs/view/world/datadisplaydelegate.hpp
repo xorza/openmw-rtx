@@ -1,11 +1,12 @@
 #pragma once
 
-#include "enumdelegate.hpp"
-
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "enumdelegate.hpp"
 
 class QModelIndex;
 class QObject;
@@ -33,7 +34,7 @@ namespace CSVWorld
 
     struct Icon
     {
-        int mValue{};
+        std::int32_t mValue{};
         QIcon mIcon;
         QString mName;
     };
@@ -43,7 +44,7 @@ namespace CSVWorld
         Q_OBJECT
     public:
         typedef std::vector<Icon> IconList;
-        typedef std::vector<std::pair<int, QString>> ValueList;
+        typedef std::vector<std::pair<std::int32_t, QString>> ValueList;
 
     protected:
         enum DisplayMode
@@ -57,10 +58,10 @@ namespace CSVWorld
         IconList mIcons;
 
     private:
-        std::vector<std::pair<int, QPixmap>> mPixmaps;
+        std::vector<std::pair<std::int32_t, QPixmap>> mPixmaps;
         QSize mIconSize;
-        int mHorizontalMargin;
-        int mTextLeftOffset;
+        std::int32_t mHorizontalMargin;
+        std::int32_t mTextLeftOffset;
         QColor mPixmapsColor;
         qreal mUiScale;
 
@@ -80,7 +81,7 @@ namespace CSVWorld
         void setIconSize(const QSize& size);
 
         /// offset the horizontal position of the text from the right edge of the icon.  Default is 8 pixels.
-        void setTextLeftOffset(int offset);
+        void setTextLeftOffset(std::int32_t offset);
 
         bool eventFilter(QObject* target, QEvent* event) override;
 
@@ -89,7 +90,7 @@ namespace CSVWorld
         void updateDisplayMode(const std::string&);
 
         /// custom paint function for painting the icon.  Mode_IconAndText and Mode_Icon only.
-        void paintIcon(QPainter* painter, const QStyleOptionViewItem& option, int i) const;
+        void paintIcon(QPainter* painter, const QStyleOptionViewItem& option, std::int32_t i) const;
 
         /// rebuild the list of pixmaps from the provided icons (called when icon size is changed)
         void buildPixmaps();
@@ -108,7 +109,7 @@ namespace CSVWorld
         ///< The ownership of the returned CommandDelegate is transferred to the caller.
 
     protected:
-        void add(int enumValue, const QString& enumName, const QString& iconFilename);
+        void add(std::int32_t enumValue, const QString& enumName, const QString& iconFilename);
     };
 
 }

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/esm/refid.hpp>
 
 #include "windowbase.hpp"
@@ -36,8 +39,8 @@ namespace MWGui
 
         std::vector<ESM::RefId> mSpentAttributes;
 
-        size_t mPerCol;
-        unsigned int mCoinCount;
+        std::size_t mPerCol;
+        std::uint32_t mCoinCount;
 
         void onOkButtonClicked(MyGUI::Widget* sender);
         void onAttributeClicked(MyGUI::Widget* sender);
@@ -48,11 +51,11 @@ namespace MWGui
         void setAttributeValues();
 
         std::string_view getLevelupClassImage(
-            const int combatIncreases, const int magicIncreases, const int stealthIncreases);
+            const std::int32_t combatIncreases, const std::int32_t magicIncreases, const std::int32_t stealthIncreases);
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         std::vector<MyGUI::Button*> mAttributeButtons;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 
 }

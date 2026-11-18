@@ -1,8 +1,11 @@
 #include "l10n.hpp"
 
+#include <cstdint>
+
 #include <components/debug/debuglog.hpp>
 #include <components/l10n/manager.hpp>
-#include <components/lua/luastate.hpp>
+
+#include "luastate.hpp"
 
 namespace
 {
@@ -37,7 +40,7 @@ namespace
             // Argument names
             const auto str = LuaUtil::cast<std::string>(key);
             argNames.push_back(
-                icu::UnicodeString::fromUTF8(icu::StringPiece(str.data(), static_cast<int32_t>(str.size()))));
+                icu::UnicodeString::fromUTF8(icu::StringPiece(str.data(), static_cast<std::int32_t>(str.size()))));
         }
     }
 }

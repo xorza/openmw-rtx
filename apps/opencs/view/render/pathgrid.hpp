@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -8,10 +9,11 @@
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
-#include "../../model/world/cellcoordinates.hpp"
-#include "../../model/world/subcellcollection.hpp"
-#include "tagbase.hpp"
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/model/world/subcellcollection.hpp>
 #include <components/esm/refid.hpp>
+
+#include "tagbase.hpp"
 
 namespace osg
 {
@@ -50,7 +52,7 @@ namespace CSVRender
     class Pathgrid
     {
     public:
-        typedef std::vector<unsigned short> NodeList;
+        typedef std::vector<std::uint16_t> NodeList;
 
         Pathgrid(CSMWorld::Data& data, osg::Group* parent, const std::string& pathgridId,
             const CSMWorld::CellCoordinates& coordinates);
@@ -65,21 +67,21 @@ namespace CSVRender
         bool isSelected() const;
         const NodeList& getSelected() const;
         void selectAll();
-        void toggleSelected(unsigned short node); // Adds to end of vector
+        void toggleSelected(std::uint16_t node); // Adds to end of vector
         void invertSelected();
         void clearSelected();
 
         void moveSelected(const osg::Vec3d& offset);
-        void setDragOrigin(unsigned short node);
-        void setDragEndpoint(unsigned short node);
+        void setDragOrigin(std::uint16_t node);
+        void setDragEndpoint(std::uint16_t node);
         void setDragEndpoint(const osg::Vec3d& pos);
 
         void resetIndicators();
 
         void applyPoint(CSMWorld::CommandMacro& commands, const osg::Vec3d& worldPos);
         void applyPosition(CSMWorld::CommandMacro& commands);
-        void applyEdge(CSMWorld::CommandMacro& commands, unsigned short node1, unsigned short node2);
-        void applyEdges(CSMWorld::CommandMacro& commands, unsigned short node);
+        void applyEdge(CSMWorld::CommandMacro& commands, std::uint16_t node1, std::uint16_t node2);
+        void applyEdges(CSMWorld::CommandMacro& commands, std::uint16_t node);
         void applyRemoveNodes(CSMWorld::CommandMacro& commands);
         void applyRemoveEdges(CSMWorld::CommandMacro& commands);
 
@@ -99,7 +101,7 @@ namespace CSVRender
 
         NodeList mSelected;
         osg::Vec3d mMoveOffset;
-        unsigned short mDragOrigin;
+        std::uint16_t mDragOrigin;
 
         bool mChangeGeometry;
         bool mRemoveGeometry;
@@ -124,12 +126,12 @@ namespace CSVRender
 
         const CSMWorld::Pathgrid* getPathgridSource();
 
-        int edgeExists(const CSMWorld::Pathgrid& source, unsigned short node1, unsigned short node2);
-        void addEdge(CSMWorld::CommandMacro& commands, const CSMWorld::Pathgrid& source, unsigned short node1,
-            unsigned short node2);
-        void removeEdge(CSMWorld::CommandMacro& commands, const CSMWorld::Pathgrid& source, unsigned short node1,
-            unsigned short node2);
+        std::int32_t edgeExists(const CSMWorld::Pathgrid& source, std::uint16_t node1, std::uint16_t node2);
+        void addEdge(CSMWorld::CommandMacro& commands, const CSMWorld::Pathgrid& source, std::uint16_t node1,
+            std::uint16_t node2);
+        void removeEdge(CSMWorld::CommandMacro& commands, const CSMWorld::Pathgrid& source, std::uint16_t node1,
+            std::uint16_t node2);
 
-        int clampToCell(int v);
+        std::int32_t clampToCell(std::int32_t v);
     };
 }

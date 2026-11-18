@@ -1,9 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -35,9 +36,9 @@ namespace ESM
         };
 
         // Type
-        int32_t mType{};
+        std::int32_t mType{};
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mCreature, mSound;
 
         void load(ESMReader& esm, bool& isDeleted);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm3/loadcell.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/terrain/quadtreeworld.hpp>
@@ -26,12 +28,12 @@ namespace MWRender
             const MWWorld::GroundcoverStore& store);
         ~Groundcover() override;
 
-        osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, unsigned char lod, unsigned int lodFlags,
+        osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, std::uint8_t lod, std::uint32_t lodFlags,
             bool activeGrid, const osg::Vec3f& viewPoint, bool compile) override;
 
-        unsigned int getNodeMask() override;
+        std::uint32_t getNodeMask() override;
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
         struct GroundcoverEntry
         {

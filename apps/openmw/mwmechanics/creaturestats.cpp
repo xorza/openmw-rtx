@@ -1,19 +1,19 @@
 #include "creaturestats.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/creaturestats.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadmgef.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWMechanics
 {
@@ -86,17 +86,17 @@ namespace MWMechanics
         return mMagicEffects;
     }
 
-    int CreatureStats::getLevel() const
+    std::int32_t CreatureStats::getLevel() const
     {
         return mLevel;
     }
 
-    Stat<int> CreatureStats::getAiSetting(AiSetting index) const
+    Stat<std::int32_t> CreatureStats::getAiSetting(AiSetting index) const
     {
         return mAiSettings[static_cast<std::underlying_type_t<AiSetting>>(index)];
     }
 
-    const DynamicStat<float>& CreatureStats::getDynamic(int index) const
+    const DynamicStat<float>& CreatureStats::getDynamic(std::int32_t index) const
     {
         if (index < 0 || index > 2)
         {
@@ -168,7 +168,7 @@ namespace MWMechanics
         setDynamic(2, value);
     }
 
-    void CreatureStats::setDynamic(int index, const DynamicStat<float>& value)
+    void CreatureStats::setDynamic(std::int32_t index, const DynamicStat<float>& value)
     {
         if (index < 0 || index > 2)
             throw std::runtime_error("dynamic stat index is out of range");
@@ -186,19 +186,19 @@ namespace MWMechanics
         }
     }
 
-    void CreatureStats::setLevel(int level)
+    void CreatureStats::setLevel(std::int32_t level)
     {
         mLevel = level;
     }
 
-    void CreatureStats::setAiSetting(AiSetting index, Stat<int> value)
+    void CreatureStats::setAiSetting(AiSetting index, Stat<std::int32_t> value)
     {
         mAiSettings[static_cast<std::underlying_type_t<AiSetting>>(index)] = value;
     }
 
-    void CreatureStats::setAiSetting(AiSetting index, int base)
+    void CreatureStats::setAiSetting(AiSetting index, std::int32_t base)
     {
-        Stat<int> stat = getAiSetting(index);
+        Stat<std::int32_t> stat = getAiSetting(index);
         stat.setBase(base);
         setAiSetting(index, stat);
     }
@@ -278,7 +278,7 @@ namespace MWMechanics
         return mSpells.hasBlightDisease();
     }
 
-    int CreatureStats::getFriendlyHits() const
+    std::int32_t CreatureStats::getFriendlyHits() const
     {
         return mFriendlyHits;
     }
@@ -476,7 +476,7 @@ namespace MWMechanics
         if (state)
             mMovementFlags |= flag;
         else
-            mMovementFlags &= static_cast<unsigned int>(~flag);
+            mMovementFlags &= static_cast<std::uint32_t>(~flag);
     }
 
     bool CreatureStats::getStance(Stance flag) const
@@ -507,7 +507,7 @@ namespace MWMechanics
         for (const auto& [attribute, value] : mAttributes)
             value.writeState(state.mAttributes[attribute]);
 
-        for (size_t i = 0; i < state.mDynamic.size(); ++i)
+        for (std::size_t i = 0; i < state.mDynamic.size(); ++i)
             mDynamic[i].writeState(state.mDynamic[i]);
 
         state.mTradeTime = mLastRestock.toEsm();
@@ -535,7 +535,7 @@ namespace MWMechanics
         state.mLastHitObject = mLastHitObject;
         state.mLastHitAttemptObject = mLastHitAttemptObject;
         state.mRecalcDynamicStats = false;
-        state.mDrawState = static_cast<int>(mDrawState);
+        state.mDrawState = static_cast<std::int32_t>(mDrawState);
         state.mLevel = mLevel;
         state.mDeathAnimation = mDeathAnimation;
         state.mTimeOfDeath = mTimeOfDeath.toEsm();
@@ -549,7 +549,7 @@ namespace MWMechanics
         state.mSummonedCreatures = mSummonedCreatures;
 
         state.mHasAiSettings = true;
-        for (size_t i = 0; i < state.mAiSettings.size(); ++i)
+        for (std::size_t i = 0; i < state.mAiSettings.size(); ++i)
             mAiSettings[i].writeState(state.mAiSettings[i]);
 
         state.mMissingACDT = false;
@@ -562,7 +562,7 @@ namespace MWMechanics
             for (const auto& [attribute, value] : state.mAttributes)
                 mAttributes[attribute].readState(value);
 
-            for (size_t i = 0; i < state.mDynamic.size(); ++i)
+            for (std::size_t i = 0; i < state.mDynamic.size(); ++i)
                 mDynamic[i].readState(state.mDynamic[i]);
 
             mGoldPool = state.mGoldPool;
@@ -601,14 +601,14 @@ namespace MWMechanics
         mSummonedCreatures = state.mSummonedCreatures;
 
         if (state.mHasAiSettings)
-            for (size_t i = 0; i < state.mAiSettings.size(); ++i)
+            for (std::size_t i = 0; i < state.mAiSettings.size(); ++i)
                 mAiSettings[i].readState(state.mAiSettings[i]);
         if (state.mRecalcDynamicStats)
             recalculateMagicka();
         if (state.mAiSequence.mActorIdConverter)
         {
             for (auto& [_, refNum] : mSummonedCreatures)
-                state.mAiSequence.mActorIdConverter->convert(refNum, static_cast<int>(refNum.mIndex));
+                state.mAiSequence.mActorIdConverter->convert(refNum, static_cast<std::int32_t>(refNum.mIndex));
             auto& graveyard = state.mAiSequence.mActorIdConverter->mGraveyard;
             graveyard.insert(graveyard.end(), state.mSummonGraveyard.begin(), state.mSummonGraveyard.end());
         }
@@ -624,21 +624,21 @@ namespace MWMechanics
         return mLastRestock;
     }
 
-    void CreatureStats::setGoldPool(int pool)
+    void CreatureStats::setGoldPool(std::int32_t pool)
     {
         mGoldPool = pool;
     }
-    int CreatureStats::getGoldPool() const
+    std::int32_t CreatureStats::getGoldPool() const
     {
         return mGoldPool;
     }
 
-    signed char CreatureStats::getDeathAnimation() const
+    std::int8_t CreatureStats::getDeathAnimation() const
     {
         return mDeathAnimation;
     }
 
-    void CreatureStats::setDeathAnimation(signed char index)
+    void CreatureStats::setDeathAnimation(std::int8_t index)
     {
         mDeathAnimation = index;
     }
@@ -664,7 +664,7 @@ namespace MWMechanics
         }
     }
 
-    int CreatureStats::getAwarenessRoll()
+    std::int32_t CreatureStats::getAwarenessRoll()
     {
         if (mAwarenessRoll >= 0)
             return mAwarenessRoll;

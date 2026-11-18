@@ -5,6 +5,7 @@
 #include <bit>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <functional>
 #include <map>
@@ -87,7 +88,7 @@ namespace Rtx
         {
             std::vector<std::uint32_t> words(text.size() / 4 + 1, 0);
             for (std::size_t at = 0; at < text.size(); ++at)
-                words[at / 4] |= static_cast<std::uint32_t>(static_cast<unsigned char>(text[at])) << (8 * (at % 4));
+                words[at / 4] |= static_cast<std::uint32_t>(static_cast<std::uint8_t>(text[at])) << (8 * (at % 4));
             return words;
         }
 
@@ -95,7 +96,7 @@ namespace Rtx
         {
             std::string text;
             for (const std::uint32_t word : words)
-                for (int byte = 0; byte < 4; ++byte)
+                for (std::int32_t byte = 0; byte < 4; ++byte)
                 {
                     const char letter = static_cast<char>((word >> (8 * byte)) & 0xFFu);
                     if (letter == '\0')
@@ -1255,19 +1256,28 @@ namespace Rtx
             return found->second;
         }
 
-        std::uint32_t Pinner::scalarOf(std::uint32_t type) const
+        std::uint32_t Pinner::scalarOf(const std::uint32_t type) const
         {
-            const Type& shape = typeNamed(type);
-            switch (shape.mKind)
+            // A matrix's part is a vector and a vector's a scalar, so the scalar is two parts down at most: a
+            // module that nests deeper is not SPIR-V.
+            constexpr std::uint32_t sDeepest = 2;
+            std::uint32_t at = type;
+            for (std::uint32_t depth = 0; depth <= sDeepest; ++depth)
             {
-                case Kind::Float:
-                    return type;
-                case Kind::Vector:
-                case Kind::Matrix:
-                    return scalarOf(shape.mPart);
-                default:
-                    throw Rtx::InputError(std::format("%{} is no float, vector or matrix type", type));
+                const Type& shape = typeNamed(at);
+                switch (shape.mKind)
+                {
+                    case Kind::Float:
+                        return at;
+                    case Kind::Vector:
+                    case Kind::Matrix:
+                        at = shape.mPart;
+                        break;
+                    default:
+                        throw Rtx::InputError(std::format("%{} is no float, vector or matrix type", type));
+                }
             }
+            throw Rtx::InputError(std::format("%{} nests its scalar deeper than a matrix's", type));
         }
 
         std::uint32_t Pinner::floatConstant(std::uint32_t type, float value)

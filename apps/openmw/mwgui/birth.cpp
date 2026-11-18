@@ -1,23 +1,24 @@
 #include "birth.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ListBox.h>
 #include <MyGUI_ScrollView.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadspel.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
 
 #include "widgets.hpp"
 
@@ -109,8 +110,8 @@ namespace MWGui
     {
         mCurrentBirthId = birthId;
         mBirthList->setIndexSelected(MyGUI::ITEM_NONE);
-        size_t count = mBirthList->getItemCount();
-        for (size_t i = 0; i < count; ++i)
+        std::size_t count = mBirthList->getItemCount();
+        for (std::size_t i = 0; i < count; ++i)
         {
             if (*mBirthList->getItemDataAt<ESM::RefId>(i) == birthId)
             {
@@ -131,7 +132,7 @@ namespace MWGui
         eventDone(this);
     }
 
-    void BirthDialog::onAccept(MyGUI::ListBox* sender, size_t index)
+    void BirthDialog::onAccept(MyGUI::ListBox* sender, std::size_t index)
     {
         onSelectBirth(sender, index);
         if (mBirthList->getIndexSelected() == MyGUI::ITEM_NONE)
@@ -144,7 +145,7 @@ namespace MWGui
         eventBack();
     }
 
-    void BirthDialog::onSelectBirth(MyGUI::ListBox* /*sender*/, size_t index)
+    void BirthDialog::onSelectBirth(MyGUI::ListBox* /*sender*/, std::size_t index)
     {
         if (index == MyGUI::ITEM_NONE)
             return;
@@ -174,7 +175,7 @@ namespace MWGui
         }
         std::sort(birthSigns.begin(), birthSigns.end(), sortBirthSigns);
 
-        int index = 0;
+        std::int32_t index = 0;
         for (auto& birthsignPair : birthSigns)
         {
             mBirthList->addItem(birthsignPair.second->mName, birthsignPair.first);
@@ -204,7 +205,7 @@ namespace MWGui
             return;
 
         Widgets::MWSpellPtr spellWidget = nullptr;
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         MyGUI::IntCoord coord(0, 0, mSpellArea->getWidth(), lineHeight);
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
@@ -236,7 +237,7 @@ namespace MWGui
                 spells.push_back(spellId);
         }
 
-        int i = 0;
+        std::int32_t i = 0;
 
         struct
         {
@@ -244,7 +245,7 @@ namespace MWGui
             std::string_view label;
         } categories[3] = { { abilities, "sBirthsignmenu1" }, { powers, "sPowers" }, { spells, "sBirthsignmenu2" } };
 
-        for (size_t category = 0; category < 3; ++category)
+        for (std::size_t category = 0; category < 3; ++category)
         {
             if (!categories[category].spells.empty())
             {

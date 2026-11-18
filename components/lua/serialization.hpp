@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <sol/sol.hpp>
 
 #include <components/esm3/cellref.hpp>
@@ -24,7 +27,7 @@ namespace LuaUtil
         virtual bool deserialize(std::string_view typeName, std::string_view binaryData, lua_State*) const = 0;
 
     protected:
-        static void append(BinaryData&, std::string_view typeName, const void* data, size_t dataSize);
+        static void append(BinaryData&, std::string_view typeName, const void* data, std::size_t dataSize);
 
         static constexpr std::string_view sRefNumTypeName = "o";
         static void appendRefNum(BinaryData&, ESM::RefNum);
@@ -37,7 +40,7 @@ namespace LuaUtil
     {
     public:
         BasicSerializer() = default;
-        explicit BasicSerializer(std::function<int(int)> adjustContentFileIndexFn)
+        explicit BasicSerializer(std::function<std::int32_t(std::int32_t)> adjustContentFileIndexFn)
             : mAdjustContentFilesIndexFn(std::move(adjustContentFileIndexFn))
         {
         }
@@ -46,7 +49,7 @@ namespace LuaUtil
         bool serialize(LuaUtil::BinaryData& out, const sol::userdata& data) const override;
         bool deserialize(std::string_view typeName, std::string_view binaryData, lua_State* lua) const override;
 
-        std::function<int(int)> mAdjustContentFilesIndexFn;
+        std::function<std::int32_t(std::int32_t)> mAdjustContentFilesIndexFn;
     };
 
     BinaryData serialize(const sol::object&, const UserdataSerializer* customSerializer = nullptr);

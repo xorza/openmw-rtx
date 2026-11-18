@@ -1,10 +1,11 @@
 #pragma once
 
-#include <components/esm3/loadclas.hpp>
-
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <vector>
+
+#include <components/esm3/loadclas.hpp>
 
 #include "mode.hpp"
 #include "statswatcher.hpp"
@@ -67,10 +68,10 @@ namespace MWGui
         ESM::Class mPlayerClass;
 
         // Class generation vars
-        unsigned mGenerateClassStep; // Keeps track of current step in Generate Class dialog
+        std::uint32_t mGenerateClassStep; // Keeps track of current step in Generate Class dialog
         ESM::Class::Specialization mGenerateClassResponses[3]{};
-        unsigned mGenerateClassSpecializations[3]{}; // A counter for each specialization which is increased when an
-                                                     // answer is chosen
+        std::uint32_t mGenerateClassSpecializations[3]{}; // A counter for each specialization which is increased when
+                                                          // an answer is chosen
         ESM::RefId mGenerateClass; // In order: Combat, Magic, Stealth
 
         ////Dialog events
@@ -83,13 +84,13 @@ namespace MWGui
         void selectRace();
 
         // Class dialogs
-        void onClassChoice(int index);
+        void onClassChoice(std::int32_t index);
         void onPickClassDialogDone(WindowBase* parWindow);
         void onPickClassDialogBack();
         void onCreateClassDialogDone(WindowBase* parWindow);
         void onCreateClassDialogBack();
         void showClassQuestionDialog();
-        void onClassQuestionChosen(int index);
+        void onClassQuestionChosen(std::int32_t index);
         void onGenerateClassBack();
         void onGenerateClassDone(WindowBase* parWindow);
         void selectGeneratedClass();
@@ -104,7 +105,7 @@ namespace MWGui
         // Review dialog
         void onReviewDialogDone(WindowBase* parWindow);
         void onReviewDialogBack();
-        void onReviewActivateDialog(int parDialog);
+        void onReviewActivateDialog(std::int32_t parDialog);
 
         enum CSE // Creation Stage Enum
         {
@@ -119,6 +120,6 @@ namespace MWGui
 
         CSE mCreationStage; // Which state the character creating is in, controls back/next/ok buttons
 
-        void handleDialogDone(CSE currentStage, int nextMode);
+        void handleDialogDone(CSE currentStage, std::int32_t nextMode);
     };
 }

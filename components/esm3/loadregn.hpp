@@ -1,12 +1,13 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -17,10 +18,10 @@ namespace ESM
     namespace Weather
     {
         // Clear, Cloudy, Foggy, Overcast, Rain, Thunder, Ash, Blight, Snow, Blizzard
-        ESM::RefId indexToRefId(int index);
-        int refIdToIndex(ESM::RefId id);
+        ESM::RefId indexToRefId(std::int32_t index);
+        std::int32_t refIdToIndex(ESM::RefId id);
 
-        constexpr int Length = 10;
+        constexpr std::int32_t Length = 10;
     }
 
     /*
@@ -37,20 +38,20 @@ namespace ESM
         struct WEATstruct
         {
             // These are probabilities that add up to 100
-            std::map<RefId, uint8_t> mProbabilities;
+            std::map<RefId, std::uint8_t> mProbabilities;
         };
 
         // Reference to a sound that is played randomly in this region
         struct SoundRef
         {
             ESM::RefId mSound;
-            uint8_t mChance{};
+            std::uint8_t mChance{};
         };
 
         WEATstruct mData;
-        int32_t mMapColor{}; // RGBA
+        std::int32_t mMapColor{}; // RGBA
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         // sleepList refers to a leveled list of creatures you can meet if
         // you sleep outside in this region.
         RefId mId, mSleepList;

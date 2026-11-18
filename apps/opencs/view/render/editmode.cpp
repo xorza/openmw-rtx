@@ -1,5 +1,7 @@
 #include "editmode.hpp"
 
+#include <cstdint>
+
 #include <apps/opencs/view/widget/modebutton.hpp>
 
 #include "worldspacewidget.hpp"
@@ -23,14 +25,14 @@ const CSVRender::WorldspaceWidget& CSVRender::EditMode::getWorldspaceWidget() co
 }
 
 CSVRender::EditMode::EditMode(
-    WorldspaceWidget* worldspaceWidget, const QIcon& icon, unsigned int mask, const QString& tooltip, QWidget* parent)
+    WorldspaceWidget* worldspaceWidget, const QIcon& icon, std::uint32_t mask, const QString& tooltip, QWidget* parent)
     : ModeButton(icon, tooltip, parent)
     , mWorldspaceWidget(worldspaceWidget)
     , mMask(mask)
 {
 }
 
-unsigned int CSVRender::EditMode::getInteractionMask() const
+std::uint32_t CSVRender::EditMode::getInteractionMask() const
 {
     return mMask;
 }
@@ -38,7 +40,7 @@ unsigned int CSVRender::EditMode::getInteractionMask() const
 void CSVRender::EditMode::activate(CSVWidget::SceneToolbar* toolbar)
 {
     mWorldspaceWidget->setInteractionMask(mMask);
-    mWorldspaceWidget->clearSelection(static_cast<int>(~mMask));
+    mWorldspaceWidget->clearSelection(static_cast<std::int32_t>(~mMask));
 }
 
 void CSVRender::EditMode::setEditLock(bool locked) {}
@@ -75,13 +77,13 @@ bool CSVRender::EditMode::secondarySelectStartDrag(const QPoint& pos)
     return false;
 }
 
-void CSVRender::EditMode::drag(const QPoint& pos, int diffX, int diffY, double speedFactor) {}
+void CSVRender::EditMode::drag(const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor) {}
 
 void CSVRender::EditMode::dragCompleted(const QPoint& pos) {}
 
 void CSVRender::EditMode::dragAborted() {}
 
-void CSVRender::EditMode::dragWheel(int diff, double speedFactor) {}
+void CSVRender::EditMode::dragWheel(std::int32_t diff, double speedFactor) {}
 
 void CSVRender::EditMode::dragEnterEvent(QDragEnterEvent* event) {}
 
@@ -91,7 +93,7 @@ void CSVRender::EditMode::dragMoveEvent(QDragMoveEvent* event) {}
 
 void CSVRender::EditMode::mouseMoveEvent(QMouseEvent* event) {}
 
-int CSVRender::EditMode::getSubMode() const
+std::int32_t CSVRender::EditMode::getSubMode() const
 {
     return -1;
 }

@@ -100,7 +100,8 @@ namespace Rtx
     osg::Vec2i RipplePass::windowOf(const osg::Vec2f& eye)
     {
         const auto texel = [](const float along) {
-            return static_cast<int>(std::floor(along / Shaders::RIPPLE_TEXEL)) - static_cast<int>(sGrid / 2);
+            return static_cast<std::int32_t>(std::floor(along / Shaders::RIPPLE_TEXEL))
+                - static_cast<std::int32_t>(sGrid / 2);
         };
 
         return osg::Vec2i(texel(eye.x()), texel(eye.y()));

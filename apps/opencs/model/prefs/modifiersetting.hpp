@@ -1,9 +1,10 @@
 #pragma once
 
-#include "setting.hpp"
-
+#include <cstdint>
 #include <string>
 #include <utility>
+
+#include "setting.hpp"
 
 class QMutex;
 class QObject;
@@ -31,9 +32,9 @@ namespace CSMPrefs
         bool eventFilter(QObject* target, QEvent* event) override;
 
     private:
-        bool handleEvent(QObject* target, int mod, int value);
+        bool handleEvent(QObject* target, std::int32_t mod, std::int32_t value);
 
-        void storeValue(int modifier);
+        void storeValue(std::int32_t modifier);
         void resetState();
 
         QPushButton* mButton;

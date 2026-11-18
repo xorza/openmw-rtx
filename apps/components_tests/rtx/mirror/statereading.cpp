@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdint>
 #include <utility>
 
 #include <gtest/gtest.h>
@@ -204,8 +205,8 @@ namespace Rtx
                 colours->setVertexColorMode(read.mMode);
                 SurfaceDescription tinted;
                 describeStateSet(*state, tinted);
-                EXPECT_FLOAT_EQ(tinted.mOpacity, read.mOpacity) << static_cast<int>(read.mMode);
-                EXPECT_EQ(tinted.mVertexColour, read.mReplaces) << static_cast<int>(read.mMode);
+                EXPECT_FLOAT_EQ(tinted.mOpacity, read.mOpacity) << static_cast<std::int32_t>(read.mMode);
+                EXPECT_EQ(tinted.mVertexColour, read.mReplaces) << static_cast<std::int32_t>(read.mMode);
             }
             colours->setVertexColorMode(SceneUtil::VertexColorModes::Emission);
 
@@ -505,7 +506,7 @@ namespace Rtx
 
             // The four maps a mod's surfaces bind beside the diffuse are read, and say nothing unread.
             osg::ref_ptr<osg::StateSet> layered = new osg::StateSet;
-            for (const auto& [unit, name] : std::vector<std::pair<unsigned, const char*>>{
+            for (const auto& [unit, name] : std::vector<std::pair<std::uint32_t, const char*>>{
                      { 0, "detailMap" }, { 1, "decalMap" }, { 2, "glossMap" }, { 3, "bumpMap" } })
             {
                 layered->setTextureAttributeAndModes(unit, new osg::Texture2D(new osg::Image));
@@ -544,7 +545,7 @@ namespace Rtx
             // The matrix as `NifOsg` builds it from the `NiTexturingProperty`'s four numbers, entries row by row, and
             // the luma pair as it is handed over; each map at the unit it is bound at.
             osg::ref_ptr<osg::StateSet> bumped = new osg::StateSet;
-            for (const auto& [unit, name] : std::vector<std::pair<unsigned, const char*>>{
+            for (const auto& [unit, name] : std::vector<std::pair<std::uint32_t, const char*>>{
                      { 3, "detailMap" }, { 4, "decalMap" }, { 5, "bumpMap" }, { 6, "glossMap" } })
             {
                 bumped->setTextureAttributeAndModes(unit, new osg::Texture2D(new osg::Image));
@@ -561,7 +562,7 @@ namespace Rtx
             EXPECT_EQ(bump.mBumpMatrix, osg::Vec4f(0.5f, -0.25f, 0.125f, 2.0f));
             EXPECT_EQ(bump.mBumpLuma, osg::Vec2f(0.75f, 0.0625f));
             for (const SurfaceMap map : { SurfaceMap::Detail, SurfaceMap::Decal, SurfaceMap::Bump, SurfaceMap::Gloss })
-                EXPECT_NE(bump.getTexture(map), nullptr) << static_cast<int>(map);
+                EXPECT_NE(bump.getTexture(map), nullptr) << static_cast<std::int32_t>(map);
 
             // Encoded as each is read: the detail and the gloss maps as colour, the decal as the diffuse it lies on,
             // painted where the diffuse is, and the bump map as data.

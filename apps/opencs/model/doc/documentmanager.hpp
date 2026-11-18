@@ -1,11 +1,12 @@
 #pragma once
 
-#include <QObject>
-#include <QThread>
-
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
+
+#include <QObject>
+#include <QThread>
 
 #include <components/files/multidircollection.hpp>
 #include <components/toutf8/toutf8.hpp>
@@ -97,9 +98,9 @@ namespace CSMDoc
 
         void loadingStopped(CSMDoc::Document* document, bool completed, const std::string& error);
 
-        void nextStage(CSMDoc::Document* document, const std::string& name, int totalRecords);
+        void nextStage(CSMDoc::Document* document, const std::string& name, std::int32_t totalRecords);
 
-        void nextRecord(CSMDoc::Document* document, int records);
+        void nextRecord(CSMDoc::Document* document, std::int32_t records);
 
         void cancelLoading(CSMDoc::Document* document);
 

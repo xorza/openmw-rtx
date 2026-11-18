@@ -261,7 +261,7 @@ namespace Rtx
                 const double cosine = facing * sign;
                 const double k = 1.0 - eta * eta * (1.0 - cosine * cosine);
                 double bent[3];
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     bent[axis] = eta * incident[axis] + sign * (eta * cosine - std::sqrt(k)) * normal[axis];
                 const double along = bent[0] * incident[0] + bent[1] * incident[1] + bent[2] * incident[2];
                 return std::acos(std::min(along, 1.0));

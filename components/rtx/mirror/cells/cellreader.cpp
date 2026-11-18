@@ -148,6 +148,7 @@ namespace Rtx
                 into.mTemplate = nullptr;
 
             into.mGroundcover = groundcover;
+            into.trimSlack();
             if (!groundcover)
                 return;
 
@@ -268,7 +269,7 @@ namespace Rtx
         const osg::Vec3f anchor = anchorOf(ref.mRefId);
         const osg::Matrixf transform = transformOf(ref);
         const Result<std::optional<Light>, std::string_view> made
-            = makeLight(*record, anchor * transform, 0.0, static_cast<int>(ref.mRefNum.mIndex));
+            = makeLight(*record, anchor * transform, 0.0, static_cast<std::int32_t>(ref.mRefNum.mIndex));
         if (!made.isOk())
         {
             prepared.mRefusals.push_back(Refusal{
@@ -427,6 +428,8 @@ namespace Rtx
             const bool lent = model.mLent > 0;
             (spare ? measured.mSpareModels : lent ? measured.mLentModels : measured.mFiledModels) += 1;
             (spare ? measured.mSpareBytes : lent ? measured.mLentBytes : measured.mFiledBytes) += model.getRoomBytes();
+            if (!spare)
+                (lent ? measured.mLentContentBytes : measured.mFiledContentBytes) += model.getContentBytes();
         });
         return measured;
     }

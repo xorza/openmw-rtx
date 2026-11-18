@@ -1,11 +1,12 @@
 #include "boolsetting.hpp"
 
+#include <cstdint>
+
 #include <QCheckBox>
 #include <QMutexLocker>
 
-#include <apps/opencs/model/prefs/setting.hpp>
-
 #include "category.hpp"
+#include "setting.hpp"
 #include "state.hpp"
 
 CSMPrefs::BoolSetting::BoolSetting(
@@ -32,11 +33,7 @@ CSMPrefs::SettingWidgets CSMPrefs::BoolSetting::makeWidgets(QWidget* parent)
         mWidget->setToolTip(tooltip);
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     connect(mWidget, &QCheckBox::checkStateChanged, this, &BoolSetting::valueChanged);
-#else
-    connect(mWidget, &QCheckBox::stateChanged, this, &BoolSetting::valueChanged);
-#endif
 
     return SettingWidgets{ .mLabel = nullptr, .mInput = mWidget };
 }
@@ -49,7 +46,7 @@ void CSMPrefs::BoolSetting::updateWidget()
     }
 }
 
-void CSMPrefs::BoolSetting::valueChanged(int value)
+void CSMPrefs::BoolSetting::valueChanged(std::int32_t value)
 {
     setValue(value != Qt::Unchecked);
     getParent()->getState()->update(*this);

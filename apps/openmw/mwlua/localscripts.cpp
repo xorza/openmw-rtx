@@ -1,19 +1,24 @@
 #include "localscripts.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwmechanics/aicombat.hpp"
-#include "../mwmechanics/aiescort.hpp"
-#include "../mwmechanics/aifollow.hpp"
-#include "../mwmechanics/aipackage.hpp"
-#include "../mwmechanics/aipursue.hpp"
-#include "../mwmechanics/aisequence.hpp"
-#include "../mwmechanics/aitravel.hpp"
-#include "../mwmechanics/aiwander.hpp"
-#include "../mwmechanics/attacktype.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/ptr.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+#include <utility>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwmechanics/aicombat.hpp>
+#include <apps/openmw/mwmechanics/aiescort.hpp>
+#include <apps/openmw/mwmechanics/aifollow.hpp>
+#include <apps/openmw/mwmechanics/aipackage.hpp>
+#include <apps/openmw/mwmechanics/aipursue.hpp>
+#include <apps/openmw/mwmechanics/aisequence.hpp>
+#include <apps/openmw/mwmechanics/aitravel.hpp>
+#include <apps/openmw/mwmechanics/aiwander.hpp>
+#include <apps/openmw/mwmechanics/attacktype.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"
@@ -32,6 +37,23 @@ namespace sol
 
 namespace MWLua
 {
+    namespace
+    {
+        using ActorControls = MWBase::LuaManager::ActorControls;
+
+        /// A control's property: the field `member` read, and written with the controls marked changed.
+        template <auto member>
+        auto controlOf()
+        {
+            using Value = std::remove_cvref_t<decltype(std::declval<const ActorControls&>().*member)>;
+            return sol::property([](const ActorControls& controls) { return controls.*member; },
+                [](ActorControls& controls, const Value& value) {
+                    controls.*member = value;
+                    controls.mChanged = true;
+                });
+        }
+    }
+
     void SelfObject::cacheStat(LuaManager& manager, SelfObject::CachedStat key, sol::main_object value)
     {
         if (mStatsCache.empty())
@@ -50,24 +72,15 @@ namespace MWLua
     void LocalScripts::initializeSelfPackage(const Context& context)
     {
         auto lua = context.sol();
-        using ActorControls = MWBase::LuaManager::ActorControls;
         sol::usertype<ActorControls> controls = lua.new_usertype<ActorControls>("ActorControls");
-
-#define CONTROL(TYPE, FIELD)                                                                                           \
-    sol::property([](const ActorControls& c) { return c.FIELD; },                                                      \
-        [](ActorControls& c, const TYPE& v) {                                                                          \
-            c.FIELD = v;                                                                                               \
-            c.mChanged = true;                                                                                         \
-        })
-        controls["movement"] = CONTROL(float, mMovement);
-        controls["sideMovement"] = CONTROL(float, mSideMovement);
-        controls["pitchChange"] = CONTROL(float, mPitchChange);
-        controls["yawChange"] = CONTROL(float, mYawChange);
-        controls["run"] = CONTROL(bool, mRun);
-        controls["sneak"] = CONTROL(bool, mSneak);
-        controls["jump"] = CONTROL(bool, mJump);
-        controls["use"] = CONTROL(MWMechanics::AttackType, mUse);
-#undef CONTROL
+        controls["movement"] = controlOf<&ActorControls::mMovement>();
+        controls["sideMovement"] = controlOf<&ActorControls::mSideMovement>();
+        controls["pitchChange"] = controlOf<&ActorControls::mPitchChange>();
+        controls["yawChange"] = controlOf<&ActorControls::mYawChange>();
+        controls["run"] = controlOf<&ActorControls::mRun>();
+        controls["sneak"] = controlOf<&ActorControls::mSneak>();
+        controls["jump"] = controlOf<&ActorControls::mJump>();
+        controls["use"] = controlOf<&ActorControls::mUse>();
 
         sol::usertype<SelfObject> selfAPI
             = lua.new_usertype<SelfObject>("SelfObject", sol::base_classes, sol::bases<LObject, Object>());
@@ -132,10 +145,10 @@ namespace MWLua
                   if (p.getTypeId() == MWMechanics::AiPackageTypeId::Wander)
                   {
                       sol::table idles(lua, sol::create);
-                      const std::vector<unsigned char>& idle = static_cast<const MWMechanics::AiWander&>(p).getIdle();
+                      const std::vector<std::uint8_t>& idle = static_cast<const MWMechanics::AiWander&>(p).getIdle();
                       if (!idle.empty())
                       {
-                          for (size_t i = 0; i < idle.size(); ++i)
+                          for (std::size_t i = 0; i < idle.size(); ++i)
                           {
                               std::string_view groupName = MWMechanics::AiWander::getIdleGroupName(i);
                               idles[groupName] = idle[i];
@@ -206,7 +219,7 @@ namespace MWLua
                                         const osg::Vec3f& dest, bool repeat, bool cancelOther) {
             const MWWorld::Ptr& ptr = self.ptr();
             MWMechanics::AiSequence& ai = ptr.getClass().getCreatureStats(ptr).getAiSequence();
-            int gameHoursDuration = static_cast<int>(std::ceil(duration / 3600.0));
+            auto gameHoursDuration = static_cast<std::int32_t>(std::ceil(duration / 3600.0));
             auto* esmCell = cell.mStore->getCell();
             std::string_view cellNameId;
             if (!esmCell->isExterior())
@@ -215,14 +228,14 @@ namespace MWLua
                          getId(target.ptr()), cellNameId, gameHoursDuration, dest.x(), dest.y(), dest.z(), repeat),
                 ptr, cancelOther);
         };
-        selfAPI["_startAiWander"] = [](SelfObject& self, int distance, int duration, const sol::table& luaIdle,
-                                        bool repeat, bool cancelOther) {
+        selfAPI["_startAiWander"] = [](SelfObject& self, std::int32_t distance, std::int32_t duration,
+                                        const sol::table& luaIdle, bool repeat, bool cancelOther) {
             const MWWorld::Ptr& ptr = self.ptr();
             MWMechanics::AiSequence& ai = ptr.getClass().getCreatureStats(ptr).getAiSequence();
-            std::vector<unsigned char> idle;
+            std::vector<std::uint8_t> idle;
             // Lua index starts at 1
-            for (size_t i = 1; i <= luaIdle.size(); i++)
-                idle.emplace_back(luaIdle.get<unsigned char>(i));
+            for (std::size_t i = 1; i <= luaIdle.size(); i++)
+                idle.emplace_back(luaIdle.get<std::uint8_t>(i));
             ai.stack(MWMechanics::AiWander(distance, duration, 0, idle, repeat), ptr, cancelOther);
         };
         selfAPI["_startAiTravel"] = [](SelfObject& self, const osg::Vec3f& target, bool repeat, bool cancelOther) {

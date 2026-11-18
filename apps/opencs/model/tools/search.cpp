@@ -1,23 +1,23 @@
 #include "search.hpp"
 
-#include <QModelIndex>
-#include <QRegularExpression>
-#include <QString>
-
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
+#include <QModelIndex>
+#include <QRegularExpression>
+#include <QString>
+
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/world/columnbase.hpp>
 #include <apps/opencs/model/world/columns.hpp>
-
-#include "../doc/document.hpp"
-#include "../doc/messages.hpp"
-
-#include "../world/columnbase.hpp"
-#include "../world/commands.hpp"
-#include "../world/idtablebase.hpp"
-#include "../world/universalid.hpp"
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
 void CSMTools::Search::searchTextCell(const CSMWorld::IdTableBase* model, const QModelIndex& index,
     const CSMWorld::UniversalId& id, bool writable, CSMDoc::Messages& messages) const
@@ -27,18 +27,19 @@ void CSMTools::Search::searchTextCell(const CSMWorld::IdTableBase* model, const 
     QString search = QString::fromUtf8(mText.c_str());
     QString text = model->data(index).toString();
 
-    int pos = 0;
+    std::int32_t pos = 0;
 
     Qt::CaseSensitivity caseSensitivity = mCase ? Qt::CaseSensitive : Qt::CaseInsensitive;
-    while ((pos = static_cast<int>(text.indexOf(search, pos, caseSensitivity))) != -1)
+    while ((pos = static_cast<std::int32_t>(text.indexOf(search, pos, caseSensitivity))) != -1)
     {
         std::ostringstream hint;
         hint << (writable ? 'R' : 'r') << ": " << model->getColumnId(index.column()) << " " << pos << " "
              << search.length();
 
-        messages.add(id, formatDescription(text, pos, static_cast<int>(search.length())).toUtf8().data(), hint.str());
+        messages.add(
+            id, formatDescription(text, pos, static_cast<std::int32_t>(search.length())).toUtf8().data(), hint.str());
 
-        pos += static_cast<int>(search.length());
+        pos += static_cast<std::int32_t>(search.length());
     }
 }
 
@@ -56,8 +57,8 @@ void CSMTools::Search::searchRegExCell(const CSMWorld::IdTableBase* model, const
     {
         QRegularExpressionMatch match = i.next();
 
-        int pos = static_cast<int>(match.capturedStart());
-        int length = static_cast<int>(match.capturedLength());
+        auto pos = static_cast<std::int32_t>(match.capturedStart());
+        auto length = static_cast<std::int32_t>(match.capturedLength());
 
         std::ostringstream hint;
         hint << (writable ? 'R' : 'r') << ": " << model->getColumnId(index.column()) << " " << pos << " " << length;
@@ -72,11 +73,11 @@ void CSMTools::Search::searchRecordStateCell(const CSMWorld::IdTableBase* model,
     if (writable)
         throw std::logic_error("Record state can not be modified by search and replace");
 
-    int data = model->data(index).toInt();
+    std::int32_t data = model->data(index).toInt();
 
     if (data == mValue)
     {
-        std::vector<std::pair<int, std::string>> states
+        std::vector<std::pair<std::int32_t, std::string>> states
             = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_Modification);
 
         const std::string hint = "r: " + std::to_string(model->getColumnId(index.column()));
@@ -84,7 +85,7 @@ void CSMTools::Search::searchRecordStateCell(const CSMWorld::IdTableBase* model,
     }
 }
 
-QString CSMTools::Search::formatDescription(const QString& description, int pos, int length) const
+QString CSMTools::Search::formatDescription(const QString& description, std::int32_t pos, std::int32_t length) const
 {
     QString text(description);
 
@@ -156,7 +157,7 @@ CSMTools::Search::Search(Type type, bool caseSensitive, QRegularExpression value
         throw std::logic_error("Invalid search parameter (RegExp)");
 }
 
-CSMTools::Search::Search(Type type, bool caseSensitive, int value)
+CSMTools::Search::Search(Type type, bool caseSensitive, std::int32_t value)
     : mType(type)
     , mValue(value)
     , mCase(caseSensitive)
@@ -173,12 +174,13 @@ void CSMTools::Search::configure(const CSMWorld::IdTableBase* model)
 {
     mColumns.clear();
 
-    int columns = model->columnCount();
+    std::int32_t columns = model->columnCount();
 
-    for (int i = 0; i < columns; ++i)
+    for (std::int32_t i = 0; i < columns; ++i)
     {
         CSMWorld::ColumnBase::Display display = static_cast<CSMWorld::ColumnBase::Display>(
-            model->headerData(i, Qt::Horizontal, static_cast<int>(CSMWorld::ColumnBase::Role_Display)).toInt());
+            model->headerData(i, Qt::Horizontal, static_cast<std::int32_t>(CSMWorld::ColumnBase::Role_Display))
+                .toInt());
 
         bool consider = false;
 
@@ -224,9 +226,9 @@ void CSMTools::Search::configure(const CSMWorld::IdTableBase* model)
     mTypeColumn = model->findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
 }
 
-void CSMTools::Search::searchRow(const CSMWorld::IdTableBase* model, int row, CSMDoc::Messages& messages) const
+void CSMTools::Search::searchRow(const CSMWorld::IdTableBase* model, std::int32_t row, CSMDoc::Messages& messages) const
 {
-    for (int mColumn : mColumns)
+    for (std::int32_t mColumn : mColumns)
     {
         QModelIndex index = model->index(row, mColumn);
 
@@ -263,7 +265,7 @@ void CSMTools::Search::searchRow(const CSMWorld::IdTableBase* model, int row, CS
     }
 }
 
-void CSMTools::Search::setPadding(int before, int after)
+void CSMTools::Search::setPadding(std::int32_t before, std::int32_t after)
 {
     mPaddingBefore = before;
     mPaddingAfter = after;
@@ -275,11 +277,11 @@ void CSMTools::Search::replace(CSMDoc::Document& document, CSMWorld::IdTableBase
     std::istringstream stream(messageHint.c_str());
 
     char hint = 0, ignore = 0;
-    int columnId = 0, pos = 0, length = 0;
+    std::int32_t columnId = 0, pos = 0, length = 0;
 
     if (stream >> hint >> ignore >> columnId >> pos >> length)
     {
-        int column = model->findColumnIndex(static_cast<CSMWorld::Columns::ColumnId>(columnId));
+        std::int32_t column = model->findColumnIndex(static_cast<CSMWorld::Columns::ColumnId>(columnId));
 
         QModelIndex index = model->getModelIndex(id.getId(), column);
 
@@ -299,7 +301,7 @@ bool CSMTools::Search::verify(CSMDoc::Document& document, CSMWorld::IdTableBase*
 {
     CSMDoc::Messages messages(CSMDoc::Message::Severity_Info);
 
-    int row = model->getModelIndex(id.getId(), model->findColumnIndex(CSMWorld::Columns::ColumnId_Id)).row();
+    std::int32_t row = model->getModelIndex(id.getId(), model->findColumnIndex(CSMWorld::Columns::ColumnId_Id)).row();
 
     searchRow(model, row, messages);
 

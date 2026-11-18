@@ -4,11 +4,10 @@
 #include <QMutexLocker>
 #include <QString>
 
-#include <apps/opencs/model/prefs/setting.hpp>
-
-#include "../../view/widget/coloreditor.hpp"
+#include <apps/opencs/view/widget/coloreditor.hpp>
 
 #include "category.hpp"
+#include "setting.hpp"
 #include "state.hpp"
 
 CSMPrefs::ColourSetting::ColourSetting(

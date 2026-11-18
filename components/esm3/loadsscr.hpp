@@ -1,9 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -27,7 +28,7 @@ namespace ESM
         static std::string_view getRecordType() { return "StartScript"; }
 
         std::string mData;
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         // Load a record and add it to the list

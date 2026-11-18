@@ -3,8 +3,9 @@
 #include <cstdint>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
+
 #include "effectlist.hpp"
 
 namespace ESM
@@ -39,13 +40,13 @@ namespace ESM
 
         struct ENDTstruct
         {
-            int32_t mType;
-            int32_t mCost;
-            int32_t mCharge;
-            int32_t mFlags;
+            std::int32_t mType;
+            std::int32_t mCost;
+            std::int32_t mCharge;
+            std::int32_t mFlags;
         };
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
         ENDTstruct mData{};
         EffectList mEffects;

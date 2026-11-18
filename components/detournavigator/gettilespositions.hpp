@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "tilebounds.hpp"
 #include "tileposition.hpp"
 #include "tilespositionsrange.hpp"
@@ -27,17 +29,17 @@ namespace DetourNavigator
         const TileBounds& bounds, const RecastSettings& settings);
 
     TilesPositionsRange makeTilesPositionsRange(
-        const int cellSize, const btVector3& shift, const RecastSettings& settings);
+        const std::int32_t cellSize, const btVector3& shift, const RecastSettings& settings);
 
     template <class Callback>
     inline void getTilesPositions(const TilesPositionsRange& range, Callback&& callback)
     {
-        for (int tileX = range.mBegin.x(); tileX < range.mEnd.x(); ++tileX)
-            for (int tileY = range.mBegin.y(); tileY < range.mEnd.y(); ++tileY)
+        for (std::int32_t tileX = range.mBegin.x(); tileX < range.mEnd.x(); ++tileX)
+            for (std::int32_t tileY = range.mBegin.y(); tileY < range.mEnd.y(); ++tileY)
                 callback(TilePosition{ tileX, tileY });
     }
 
-    inline bool isInTilesPositionsRange(int begin, int end, int coordinate)
+    inline bool isInTilesPositionsRange(std::int32_t begin, std::int32_t end, std::int32_t coordinate)
     {
         return begin <= coordinate && coordinate < end;
     }

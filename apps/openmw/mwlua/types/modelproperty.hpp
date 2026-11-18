@@ -1,13 +1,12 @@
 #pragma once
 
-#include <components/esm/path.hpp>
-#include <components/misc/resourcehelpers.hpp>
-#include <components/vfs/pathutil.hpp>
-
 #include <sol/property.hpp>
 #include <sol/usertype.hpp>
 
-#include "../contentbindings.hpp"
+#include <apps/openmw/mwlua/contentbindings.hpp>
+#include <components/esm/path.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace MWLua
 {

@@ -1,14 +1,14 @@
 #include "livecellref.hpp"
 
+#include <cstdint>
 #include <sstream>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/objectstate.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
 
 #include "class.hpp"
 #include "esmstore.hpp"
@@ -17,21 +17,21 @@
 
 namespace MWWorld
 {
-    LiveCellRefBase::LiveCellRefBase(unsigned int type, const ESM::CellRef& cref)
+    LiveCellRefBase::LiveCellRefBase(std::uint32_t type, const ESM::CellRef& cref)
         : mClass(&Class::get(type))
         , mRef(cref)
         , mData(cref)
     {
     }
 
-    LiveCellRefBase::LiveCellRefBase(unsigned int type, const ESM4::Reference& cref)
+    LiveCellRefBase::LiveCellRefBase(std::uint32_t type, const ESM4::Reference& cref)
         : mClass(&Class::get(type))
         , mRef(cref)
         , mData(cref)
     {
     }
 
-    LiveCellRefBase::LiveCellRefBase(unsigned int type, const ESM4::ActorCharacter& cref)
+    LiveCellRefBase::LiveCellRefBase(std::uint32_t type, const ESM4::ActorCharacter& cref)
         : mClass(&Class::get(type))
         , mRef(cref)
         , mData(cref)
@@ -121,7 +121,7 @@ namespace MWWorld
         return true;
     }
 
-    unsigned int LiveCellRefBase::getType() const
+    std::uint32_t LiveCellRefBase::getType() const
     {
         return mClass->getType();
     }

@@ -1,5 +1,7 @@
 #include "creaturelevliststate.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -12,7 +14,7 @@ namespace ESM
 
         if (esm.getFormatVersion() <= MaxActorIdSaveGameFormatVersion)
         {
-            mSpawnedActor.mIndex = static_cast<uint32_t>(-1);
+            mSpawnedActor.mIndex = static_cast<std::uint32_t>(-1);
             esm.getHNOT(mSpawnedActor.mIndex, "SPAW");
         }
         else if (esm.peekNextSub("SPAW"))

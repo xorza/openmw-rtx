@@ -1,7 +1,9 @@
 #include "unarynode.hpp"
 
-#include <apps/opencs/model/filter/node.hpp>
+#include <cstdint>
 #include <utility>
+
+#include "node.hpp"
 
 CSMFilter::UnaryNode::UnaryNode(std::shared_ptr<Node> child, std::string name)
     : mChild(std::move(child))
@@ -19,7 +21,7 @@ CSMFilter::Node& CSMFilter::UnaryNode::getChild()
     return *mChild;
 }
 
-std::vector<int> CSMFilter::UnaryNode::getReferencedColumns() const
+std::vector<std::int32_t> CSMFilter::UnaryNode::getReferencedColumns() const
 {
     return mChild->getReferencedColumns();
 }

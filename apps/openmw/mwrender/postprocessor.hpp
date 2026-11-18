@@ -1,18 +1,19 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include <filesystem>
-
 #include <osg/Camera>
 #include <osg/FrameBufferObject>
 #include <osg/Group>
 #include <osg/Texture2D>
-
 #include <osgViewer/Viewer>
 
 #include <components/debug/debuglog.hpp>
@@ -23,8 +24,6 @@
 #include "opaqueblit.hpp"
 #include "pingpongcanvas.hpp"
 #include "transparentpass.hpp"
-
-#include <memory>
 
 namespace osgViewer
 {
@@ -118,17 +117,17 @@ namespace MWRender
 
         void traverse(osg::NodeVisitor& nv) override;
 
-        osg::ref_ptr<osg::FrameBufferObject> getFbo(FBOIndex index, unsigned int frameId)
+        osg::ref_ptr<osg::FrameBufferObject> getFbo(FBOIndex index, std::uint32_t frameId)
         {
             return mFbos[frameId][index];
         }
 
-        osg::ref_ptr<osg::Texture> getTexture(TextureIndex index, unsigned int frameId)
+        osg::ref_ptr<osg::Texture> getTexture(TextureIndex index, std::uint32_t frameId)
         {
             return mTextures[frameId][index];
         }
 
-        osg::ref_ptr<osg::FrameBufferObject> getPrimaryFbo(unsigned int frameId)
+        osg::ref_ptr<osg::FrameBufferObject> getPrimaryFbo(std::uint32_t frameId)
         {
             return mFbos[frameId][FBO_Multisample] ? mFbos[frameId][FBO_Multisample] : mFbos[frameId][FBO_Primary];
         }
@@ -146,7 +145,7 @@ namespace MWRender
         void resize();
 
         Status enableTechnique(
-            const std::shared_ptr<Fx::Technique>& technique, std::optional<int> location = std::nullopt);
+            const std::shared_ptr<Fx::Technique>& technique, std::optional<std::int32_t> location = std::nullopt);
 
         Status disableTechnique(const std::shared_ptr<Fx::Technique>& technique, bool dirty = true);
 
@@ -172,7 +171,8 @@ namespace MWRender
             (*it)->setValue(value);
         }
 
-        std::optional<size_t> getUniformSize(const std::shared_ptr<Fx::Technique>& technique, const std::string& name)
+        std::optional<std::size_t> getUniformSize(
+            const std::shared_ptr<Fx::Technique>& technique, const std::string& name)
         {
             auto it = technique->findUniform(name);
 
@@ -201,7 +201,7 @@ namespace MWRender
 
         void enable();
 
-        void setRenderTargetSize(int width, int height)
+        void setRenderTargetSize(std::int32_t width, std::int32_t height)
         {
             mWidth = width;
             mHeight = height;
@@ -215,8 +215,8 @@ namespace MWRender
 
         void disableDynamicShaders();
 
-        int renderWidth() const;
-        int renderHeight() const;
+        std::int32_t renderWidth() const;
+        std::int32_t renderHeight() const;
 
         void triggerShaderReload();
 
@@ -228,19 +228,19 @@ namespace MWRender
     private:
         void populateTechniqueFiles();
 
-        size_t frame() const { return mViewer->getFrameStamp()->getFrameNumber(); }
+        std::size_t frame() const { return mViewer->getFrameStamp()->getFrameNumber(); }
 
-        void createObjectsForFrame(size_t frameId);
+        void createObjectsForFrame(std::size_t frameId);
 
         void dirtyTechniques(bool dirtyAttachments = false);
 
-        void update(size_t frameId);
+        void update(std::size_t frameId);
 
         void reloadIfRequired();
 
         void updateLiveReload();
 
-        void cull(unsigned frameId, osgUtil::CullVisitor* cv);
+        void cull(std::uint32_t frameId, osgUtil::CullVisitor* cv);
 
         osg::ref_ptr<osg::Group> mRootNode;
         osg::ref_ptr<osg::Camera> mHUDCamera;
@@ -261,8 +261,8 @@ namespace MWRender
         osgViewer::Viewer* mViewer;
         const VFS::Manager* mVFS;
 
-        size_t mDirtyFrameId = 0;
-        size_t mLastFrameNumber = 0;
+        std::size_t mDirtyFrameId = 0;
+        std::size_t mLastFrameNumber = 0;
         double mLastSimulationTime = 0.0;
 
         bool mDirty = false;
@@ -282,10 +282,10 @@ namespace MWRender
         bool mNormalsSupported = false;
         bool mPrevPassLights = false;
 
-        int mGLSLVersion;
-        int mWidth;
-        int mHeight;
-        int mSamples;
+        std::int32_t mGLSLVersion;
+        std::int32_t mWidth;
+        std::int32_t mHeight;
+        std::int32_t mSamples;
 
         osg::ref_ptr<Fx::StateUpdater> mStateUpdater;
         osg::ref_ptr<PingPongCull> mPingPongCull;

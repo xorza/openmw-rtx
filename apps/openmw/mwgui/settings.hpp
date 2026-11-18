@@ -1,6 +1,6 @@
 #pragma once
 
-#include "components/settings/settingvalue.hpp"
+#include <components/settings/settingvalue.hpp>
 
 namespace MWGui
 {

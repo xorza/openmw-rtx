@@ -117,6 +117,9 @@ namespace Rtx
         VkBuffer getHandle() const { return mHandle.get(); }
         VkDeviceSize getSize() const { return mSize; }
 
+        /// The range the buffer was placed in.
+        const DeviceMemory& getMemory() const { return mMemory; }
+
         bool isEmpty() const { return mHandle.get() == VK_NULL_HANDLE; }
 
         /// Which memory this is in, so what grows it makes the same kind.

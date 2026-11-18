@@ -1,6 +1,7 @@
 
-#include <QDir>
+#include <cstdint>
 
+#include <QDir>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
 
@@ -15,7 +16,7 @@
 
 namespace
 {
-    int runLauncher(int argc, char* argv[])
+    std::int32_t runLauncher(std::int32_t argc, char* argv[])
     {
         Platform::init();
 
@@ -50,7 +51,7 @@ namespace
             if (result == Launcher::FirstRunDialogResultContinue)
                 mainWin.show();
 
-            int exitCode = app.exec();
+            std::int32_t exitCode = app.exec();
 
             return exitCode;
         }
@@ -62,7 +63,7 @@ namespace
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     return Debug::wrapApplication(runLauncher, argc, argv, "Launcher");
 }

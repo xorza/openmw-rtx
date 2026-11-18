@@ -1,19 +1,18 @@
 #pragma once
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/registeredclass.hpp>
 #include <components/esm4/inventory.hpp>
 #include <components/esm4/loadstat.hpp>
 #include <components/esm4/loadtree.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/environment.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/registeredclass.hpp"
 
 #include "classmodel.hpp"
 
@@ -26,13 +25,13 @@ namespace MWClass
             const MWWorld::Ptr& ptr, const std::string& model, MWRender::RenderingInterface& renderingInterface);
         void insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
             MWPhysics::PhysicsSystem& physics);
-        MWGui::ToolTipInfo getToolTipInfo(std::string_view name, int count);
+        MWGui::ToolTipInfo getToolTipInfo(std::string_view name, std::int32_t count);
 
         // We don't handle ESM4 player stats yet, so for resolving levelled object we use an arbitrary number.
-        constexpr int sDefaultLevel = 5;
+        constexpr std::int32_t sDefaultLevel = 5;
 
         template <class LevelledRecord, class TargetRecord>
-        const TargetRecord* resolveLevelled(const ESM::RefId& id, int level = sDefaultLevel)
+        const TargetRecord* resolveLevelled(const ESM::RefId& id, std::int32_t level = sDefaultLevel)
         {
             if (id.empty())
                 return nullptr;
@@ -78,7 +77,7 @@ namespace MWClass
         }
 
     protected:
-        explicit ESM4Base(unsigned type)
+        explicit ESM4Base(std::uint32_t type)
             : MWWorld::Class(type)
         {
         }
@@ -166,7 +165,7 @@ namespace MWClass
             return ptr.get<Record>()->mBase->mFullName;
         }
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override
         {
             return ESM4Impl::getToolTipInfo(getName(ptr), count);
         }

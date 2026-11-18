@@ -1,15 +1,6 @@
 #pragma once
 
-#include "gyroscopeaxis.hpp"
-#include "navmeshrendermode.hpp"
-#include "sanitizer.hpp"
-#include "settings.hpp"
-
-#include <components/debug/debuglog.hpp>
-#include <components/detournavigator/collisionshapetype.hpp>
-#include <components/rtx/frame/upscale.hpp>
-#include <components/vfs/pathutil.hpp>
-
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -17,6 +8,16 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include <components/debug/debuglog.hpp>
+#include <components/detournavigator/collisionshapetype.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/vfs/pathutil.hpp>
+
+#include "gyroscopeaxis.hpp"
+#include "navmeshrendermode.hpp"
+#include "sanitizer.hpp"
+#include "settings.hpp"
 
 namespace Settings
 {
@@ -57,36 +58,40 @@ namespace Settings
     }
 
     template <>
-    inline constexpr SettingValueType getSettingValueType<int>()
+    inline constexpr SettingValueType getSettingValueType<std::int32_t>()
     {
         return SettingValueType::Int;
     }
 
     template <>
-    inline constexpr SettingValueType getSettingValueType<unsigned int>()
+    inline constexpr SettingValueType getSettingValueType<std::uint32_t>()
     {
         return SettingValueType::UnsignedInt;
     }
 
     template <>
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     inline constexpr SettingValueType getSettingValueType<long>()
     {
         return SettingValueType::Long;
     }
 
     template <>
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     inline constexpr SettingValueType getSettingValueType<unsigned long>()
     {
         return SettingValueType::UnsignedLong;
     }
 
     template <>
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     inline constexpr SettingValueType getSettingValueType<long long>()
     {
         return SettingValueType::LongLong;
     }
 
     template <>
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     inline constexpr SettingValueType getSettingValueType<unsigned long long>()
     {
         return SettingValueType::UnsignedLongLong;
@@ -419,7 +424,7 @@ namespace Settings
                     // Vector types have no operator<< of their own. <osg/io_utils>
                     // supplies one, but pulling a rendering library into the settings
                     // headers for the sake of one warning message is not worth it.
-                    for (int i = 0; i < T::num_components; ++i)
+                    for (std::int32_t i = 0; i < T::num_components; ++i)
                     {
                         if (i != 0)
                             stream << ' ';

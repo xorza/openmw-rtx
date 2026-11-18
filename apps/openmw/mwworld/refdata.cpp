@@ -1,15 +1,15 @@
 #include "refdata.hpp"
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/localscripts.hpp>
 #include <components/esm3/objectstate.hpp>
 #include <components/esm4/loadachr.hpp>
 #include <components/esm4/loadrefr.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 
 #include "customdata.hpp"
-
-#include "../mwbase/world.hpp"
-
-#include "../mwlua/localscripts.hpp"
 
 namespace
 {
@@ -66,7 +66,7 @@ namespace MWWorld
         , mPhysicsPostponed(false)
         , mChanged(false)
     {
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
         {
             mPosition.pos[i] = 0;
             mPosition.rot[i] = 0;
@@ -124,7 +124,7 @@ namespace MWWorld
         // which will result in permanently suppressed activation if the reference script is removed.
         // This occurred when removing the animated containers mod, and the fix in MCP is to reset UseEnabled to true on
         // loading a game."
-        mFlags &= (static_cast<unsigned int>(~Flag_SuppressActivate));
+        mFlags &= (static_cast<std::uint32_t>(~Flag_SuppressActivate));
     }
 
     RefData::RefData(const RefData& refData)
@@ -134,7 +134,7 @@ namespace MWWorld
         try
         {
             copy(refData);
-            mFlags &= static_cast<unsigned int>(~(Flag_SuppressActivate | Flag_OnActivate | Flag_ActivationBuffered));
+            mFlags &= static_cast<std::uint32_t>(~(Flag_SuppressActivate | Flag_OnActivate | Flag_ActivationBuffered));
         }
         catch (...)
         {
@@ -236,7 +236,7 @@ namespace MWWorld
             return;
         mChanged = true;
         if (enabled)
-            mFlags &= static_cast<unsigned int>(~Flag_LocalScriptDisabled);
+            mFlags &= static_cast<std::uint32_t>(~Flag_LocalScriptDisabled);
         else
             mFlags |= Flag_LocalScriptDisabled;
     }
@@ -304,7 +304,7 @@ namespace MWWorld
     bool RefData::activateByScript()
     {
         bool ret = (mFlags & Flag_ActivationBuffered);
-        mFlags &= static_cast<unsigned int>(~(Flag_SuppressActivate | Flag_OnActivate));
+        mFlags &= static_cast<std::uint32_t>(~(Flag_SuppressActivate | Flag_OnActivate));
         return ret;
     }
 
@@ -325,7 +325,7 @@ namespace MWWorld
     {
         bool ret = mFlags & Flag_OnActivate;
         mFlags |= Flag_SuppressActivate;
-        mFlags &= (static_cast<unsigned int>(~Flag_OnActivate));
+        mFlags &= (static_cast<std::uint32_t>(~Flag_OnActivate));
         return ret;
     }
 

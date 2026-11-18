@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstdint>
+#include <mutex>
+
 #include <components/esm3/refnum.hpp>
 #include <components/resource/resourcemanager.hpp>
 #include <components/terrain/quadtreeworld.hpp>
-
-#include <mutex>
 
 namespace Resource
 {
@@ -22,19 +23,20 @@ namespace MWRender
         ObjectPaging(Resource::SceneManager* sceneManager, ESM::RefId worldspace);
         ~ObjectPaging() override = default;
 
-        osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, unsigned char lod, unsigned int lodFlags,
+        osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, std::uint8_t lod, std::uint32_t lodFlags,
             bool activeGrid, const osg::Vec3f& viewPoint, bool compile) override;
 
         osg::ref_ptr<osg::Node> createChunk(float size, const osg::Vec2f& center, bool activeGrid,
-            const osg::Vec3f& viewPoint, bool compile, unsigned char lod);
+            const osg::Vec3f& viewPoint, bool compile, std::uint8_t lod);
 
-        unsigned int getNodeMask() override;
-
-        /// @return true if view needs rebuild
-        bool enableObject(int type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell, bool enabled);
+        std::uint32_t getNodeMask() override;
 
         /// @return true if view needs rebuild
-        bool blacklistObject(int type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell);
+        bool enableObject(
+            std::int32_t type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell, bool enabled);
+
+        /// @return true if view needs rebuild
+        bool blacklistObject(std::int32_t type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell);
 
         void clear();
 
@@ -42,7 +44,7 @@ namespace MWRender
         /// @return true if view needs rebuild
         bool unlockCache();
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
         void getPagedRefnums(const osg::Vec4i& activeGrid, std::vector<ESM::RefNum>& out);
 
@@ -77,7 +79,7 @@ namespace MWRender
         SizeCache mSizeCache;
 
         std::mutex mLODNameCacheMutex;
-        typedef std::pair<std::string, unsigned char> LODNameCacheKey; // Key: mesh name, lod level
+        typedef std::pair<std::string, std::uint8_t> LODNameCacheKey; // Key: mesh name, lod level
         using LODNameCache = std::map<LODNameCacheKey, VFS::Path::Normalized>; // Cache: key, mesh name to use
         LODNameCache mLODNameCache;
     };
@@ -85,6 +87,6 @@ namespace MWRender
     struct RefnumMarker
     {
         ESM::RefNum mRefnum;
-        unsigned int mNumVertices = 0;
+        std::uint32_t mNumVertices = 0;
     };
 }

@@ -1,9 +1,10 @@
 #pragma once
 
-#include "setting.hpp"
-
+#include <cstdint>
 #include <string>
 #include <utility>
+
+#include "setting.hpp"
 
 class QCheckBox;
 
@@ -31,6 +32,6 @@ namespace CSMPrefs
 
     private slots:
 
-        void valueChanged(int value);
+        void valueChanged(std::int32_t value);
     };
 }

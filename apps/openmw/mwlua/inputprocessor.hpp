@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstdint>
+
 #include <SDL3/SDL_events.h>
 
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/sdlutil/events.hpp>
-
-#include "../mwbase/luamanager.hpp"
 
 namespace MWLua
 {
@@ -33,14 +34,15 @@ namespace MWLua
                         mKeyReleaseHandlers, std::get<SDL_KeyboardEvent>(event.mValue));
                     break;
                 case InputEvent::ControllerPressed:
-                    mScriptsContainer->callEngineHandlers(mControllerButtonPressHandlers, std::get<int>(event.mValue));
+                    mScriptsContainer->callEngineHandlers(
+                        mControllerButtonPressHandlers, std::get<std::int32_t>(event.mValue));
                     break;
                 case InputEvent::ControllerReleased:
                     mScriptsContainer->callEngineHandlers(
-                        mControllerButtonReleaseHandlers, std::get<int>(event.mValue));
+                        mControllerButtonReleaseHandlers, std::get<std::int32_t>(event.mValue));
                     break;
                 case InputEvent::Action:
-                    mScriptsContainer->callEngineHandlers(mActionHandlers, std::get<int>(event.mValue));
+                    mScriptsContainer->callEngineHandlers(mActionHandlers, std::get<std::int32_t>(event.mValue));
                     break;
                 case InputEvent::TouchPressed:
                     mScriptsContainer->callEngineHandlers(
@@ -54,10 +56,10 @@ namespace MWLua
                     mScriptsContainer->callEngineHandlers(mTouchpadMoved, std::get<SDLUtil::TouchEvent>(event.mValue));
                     break;
                 case InputEvent::MouseButtonPressed:
-                    mScriptsContainer->callEngineHandlers(mMouseButtonPress, std::get<int>(event.mValue));
+                    mScriptsContainer->callEngineHandlers(mMouseButtonPress, std::get<std::int32_t>(event.mValue));
                     break;
                 case InputEvent::MouseButtonReleased:
-                    mScriptsContainer->callEngineHandlers(mMouseButtonRelease, std::get<int>(event.mValue));
+                    mScriptsContainer->callEngineHandlers(mMouseButtonRelease, std::get<std::int32_t>(event.mValue));
                     break;
                 case InputEvent::MouseWheel:
                     auto wheelEvent = std::get<MWBase::LuaManager::InputEvent::WheelChange>(event.mValue);

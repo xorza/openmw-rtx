@@ -1,5 +1,7 @@
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -44,22 +46,22 @@ namespace
             )");
 
             lua.safe_script("mutable:set('x', 5)");
-            EXPECT_EQ(get<int>(lua, "mutable:get('x')"), 5);
-            EXPECT_EQ(get<int>(lua, "ro:get('x')"), 5);
+            EXPECT_EQ(get<std::int32_t>(lua, "mutable:get('x')"), 5);
+            EXPECT_EQ(get<std::int32_t>(lua, "ro:get('x')"), 5);
 
             EXPECT_THROW(lua.safe_script("ro:set('y', 3)"), std::exception);
 
             lua.safe_script("t1 = mutable:asTable()");
             lua.safe_script("t2 = ro:asTable()");
-            EXPECT_EQ(get<int>(lua, "t1.x"), 5);
-            EXPECT_EQ(get<int>(lua, "t2.x"), 5);
+            EXPECT_EQ(get<std::int32_t>(lua, "t1.x"), 5);
+            EXPECT_EQ(get<std::int32_t>(lua, "t2.x"), 5);
 
             lua.safe_script("mutable:reset()");
             EXPECT_TRUE(get<bool>(lua, "ro:get('x') == nil"));
 
             lua.safe_script("mutable:reset({x=4, y=7})");
-            EXPECT_EQ(get<int>(lua, "ro:get('x')"), 4);
-            EXPECT_EQ(get<int>(lua, "ro:get('y')"), 7);
+            EXPECT_EQ(get<std::int32_t>(lua, "ro:get('x')"), 4);
+            EXPECT_EQ(get<std::int32_t>(lua, "ro:get('y')"), 7);
 
             EXPECT_THAT(get<std::string>(lua, "table.concat(callbackCalls, ', ')"), "test_x, test_*, test_*");
         });
@@ -77,11 +79,11 @@ namespace
             lua["ro"] = storage.getReadOnlySection(lua, "test");
 
             lua.safe_script("mutable:set('x', { y = 'abc', z = 7 })");
-            EXPECT_EQ(get<int>(lua, "mutable:get('x').z"), 7);
+            EXPECT_EQ(get<std::int32_t>(lua, "mutable:get('x').z"), 7);
             EXPECT_THROW(lua.safe_script("mutable:get('x').z = 3"), std::exception);
             EXPECT_NO_THROW(lua.safe_script("mutable:getCopy('x').z = 3"));
-            EXPECT_EQ(get<int>(lua, "mutable:get('x').z"), 7);
-            EXPECT_EQ(get<int>(lua, "ro:get('x').z"), 7);
+            EXPECT_EQ(get<std::int32_t>(lua, "mutable:get('x').z"), 7);
+            EXPECT_EQ(get<std::int32_t>(lua, "ro:get('x').z"), 7);
             EXPECT_EQ(get<std::string>(lua, "ro:get('x').y"), "abc");
         });
     }
@@ -103,13 +105,13 @@ namespace
 
             const auto tmpFile = TestingOpenMW::outputFilePath("test_storage.bin");
             storage.save(lua, tmpFile);
-            EXPECT_EQ(get<int>(lua, "permanent:get('x')"), 1);
-            EXPECT_EQ(get<int>(lua, "temporary:get('y')"), 2);
+            EXPECT_EQ(get<std::int32_t>(lua, "permanent:get('x')"), 1);
+            EXPECT_EQ(get<std::int32_t>(lua, "temporary:get('y')"), 2);
 
             storage.clearTemporaryAndRemoveCallbacks();
             lua["permanent"] = storage.getMutableSection(lua, "permanent");
             lua["temporary"] = storage.getMutableSection(lua, "temporary");
-            EXPECT_EQ(get<int>(lua, "permanent:get('x')"), 1);
+            EXPECT_EQ(get<std::int32_t>(lua, "permanent:get('x')"), 1);
             EXPECT_TRUE(get<bool>(lua, "temporary:get('y') == nil"));
 
             lua.safe_script("permanent:set('x', 3)");
@@ -121,7 +123,7 @@ namespace
             lua["permanent"] = storage2.getMutableSection(lua, "permanent");
             lua["temporary"] = storage2.getMutableSection(lua, "temporary");
 
-            EXPECT_EQ(get<int>(lua, "permanent:get('x')"), 1);
+            EXPECT_EQ(get<std::int32_t>(lua, "permanent:get('x')"), 1);
             EXPECT_TRUE(get<bool>(lua, "permanent:get('z') == nil"));
             EXPECT_TRUE(get<bool>(lua, "temporary:get('y') == nil"));
         });

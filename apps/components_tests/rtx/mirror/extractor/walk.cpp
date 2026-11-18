@@ -46,6 +46,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/sceneutil/extradata.hpp>
 #include <components/sceneutil/stableidentity.hpp>
 
@@ -84,8 +85,8 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mInstances, 3u);
             EXPECT_EQ(mScene.meshes().getLiveCount(), 2u) << "one geometry made two meshes";
             EXPECT_EQ(mScene.meshes().getTriangleCount(), 4u);
-            EXPECT_EQ(
-                mScene.placements().getRows()[0].mInstance.mMesh, mScene.placements().getRows()[1].mInstance.mMesh);
+            EXPECT_EQ(mScene.placements().getRows()[PlacementIndex(0)].mInstance.mMesh,
+                mScene.placements().getRows()[PlacementIndex(1)].mInstance.mMesh);
         }
 
         /// **What a content file describes and this renderer cannot take is refused per drawable, once, and the walk
@@ -141,6 +142,7 @@ namespace Rtx::Testing
         /// frame. Honouring it without stepping shows frame zero for ever; stepping without honouring shows both.
         TEST_F(RtxSceneExtractorTest, aFlipbookShowsOneFrameAndThisWalkIsWhatAdvancesIt)
         {
+            Rtx::SceneIdentities identities;
             osg::ref_ptr<osg::MatrixTransform> first = new osg::MatrixTransform(osg::Matrix::translate(10.0, 0.0, 0.0));
             first->addChild(makeQuad());
             osg::ref_ptr<osg::MatrixTransform> second
@@ -158,8 +160,8 @@ namespace Rtx::Testing
 
             // A scene of its own each time, because the claim is what one walk put there. The clock
             // is the node's, so it carries across the two.
-            const auto shownAt = [&frames](double seconds) {
-                Rtx::SceneDesc scene;
+            const auto shownAt = [&frames, &identities](double seconds) {
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.setSimulationTime(seconds, 0.0);
@@ -189,9 +191,10 @@ namespace Rtx::Testing
         /// The marked node carries a real bit rather than none, so only a walk honouring its mask tells the runs apart.
         TEST_F(RtxSceneExtractorTest, aWalkLeavesOutWhatTheMaskItWasGivenExcludes)
         {
+            Rtx::SceneIdentities identities;
             constexpr osg::Node::NodeMask marked = 1u << 3;
 
-            const auto instancesUnder = [](std::optional<osg::Node::NodeMask> mask) {
+            const auto instancesUnder = [&identities](std::optional<osg::Node::NodeMask> mask) {
                 osg::ref_ptr<osg::Group> quiet = new osg::Group;
                 quiet->setNodeMask(marked);
                 quiet->addChild(makeQuad());
@@ -200,7 +203,7 @@ namespace Rtx::Testing
                 root->addChild(quiet);
                 root->addChild(makeQuad());
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 if (mask.has_value())
@@ -234,12 +237,12 @@ namespace Rtx::Testing
 
             EXPECT_EQ(stats.mMeshesAdded, 1u);
             EXPECT_EQ(stats.mMeshesReused, 1u);
-            const std::span<const Rtx::PlacementRow> placed = mScene.placements().getRows();
+            const auto placed = mScene.placements().getRows();
             ASSERT_EQ(placed.size(), 2u);
-            EXPECT_EQ(placed[0].mInstance.mMesh, placed[1].mInstance.mMesh);
+            EXPECT_EQ(placed[PlacementIndex(0)].mInstance.mMesh, placed[PlacementIndex(1)].mInstance.mMesh);
 
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(10.0f, 0.0f, 0.0f));
-            EXPECT_EQ(placedAt(mScene, 1), osg::Vec3f(0.0f, 20.0f, 0.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(10.0f, 0.0f, 0.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(1)), osg::Vec3f(0.0f, 20.0f, 0.0f));
         }
 
         /// **A branch a switch has turned off is not in the picture, and `osg::Switch::traverse` does not say so**:
@@ -265,7 +268,7 @@ namespace Rtx::Testing
             EXPECT_EQ(noon.mMeshesAdded, 1u);
             EXPECT_EQ(noon.mInstances, 1u);
             ASSERT_EQ(mScene.placements().getRows().size(), 1u);
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(10.0f, 0.0f, 0.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(10.0f, 0.0f, 0.0f));
 
             root->setSingleChildOn(1);
             mScene.clearPlacement();
@@ -280,9 +283,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mExtractor.retire().mMeshes, 1u);
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
             ASSERT_EQ(mScene.placements().getRows().size(), 2u);
-            EXPECT_FALSE(mScene.placements().isPlaced(0)) << "the day branch outlived the sweep";
-            ASSERT_TRUE(mScene.placements().isPlaced(1));
-            EXPECT_EQ(placedAt(mScene, 1), osg::Vec3f(0.0f, 20.0f, 0.0f));
+            EXPECT_FALSE(mScene.placements().isPlaced(PlacementIndex(0))) << "the day branch outlived the sweep";
+            ASSERT_TRUE(mScene.placements().isPlaced(PlacementIndex(1)));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(1)), osg::Vec3f(0.0f, 20.0f, 0.0f));
         }
 
         /// **An LOD stands its nearest level and nothing else, wherever the eye is**, and `osg::LOD::traverse` does
@@ -304,7 +307,7 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mMeshesAdded, 1u) << "the far level was read";
             EXPECT_EQ(stats.mInstances, 1u);
             ASSERT_EQ(mScene.placements().getRows().size(), 1u);
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(0.0f, 20.0f, 0.0f)) << "the far level stands";
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(0.0f, 20.0f, 0.0f)) << "the far level stands";
         }
 
         TEST_F(RtxSceneExtractorTest, theRootTransformIsAppliedAfterTheGraphsOwn)
@@ -316,7 +319,8 @@ namespace Rtx::Testing
 
             // The quad's (1,1,0) corner doubles to (2,2,0), then rises by five.
             ASSERT_EQ(mScene.placements().getRows().size(), 1u);
-            EXPECT_EQ(osg::Vec3f(1.0f, 1.0f, 0.0f) * mScene.placements().getRows()[0].mInstance.mTransform,
+            EXPECT_EQ(
+                osg::Vec3f(1.0f, 1.0f, 0.0f) * mScene.placements().getRows()[PlacementIndex(0)].mInstance.mTransform,
                 osg::Vec3f(2.0f, 2.0f, 5.0f));
         }
 
@@ -337,7 +341,7 @@ namespace Rtx::Testing
             walk(*scale);
 
             ASSERT_EQ(mScene.placements().getRows().size(), 1u);
-            const osg::Matrixf& place = mScene.placements().getRows()[0].mInstance.mTransform;
+            const osg::Matrixf& place = mScene.placements().getRows()[PlacementIndex(0)].mInstance.mTransform;
 
             // (1,0,0) shifts to (4,0,0), turns to (0,4,0), and scales to (0,8,0). Order is the whole
             // of what this asserts: composed the other way round it would be (0,2,0) moved to
@@ -385,7 +389,7 @@ namespace Rtx::Testing
 
             // And it still placed what was under it, at the transform it asked for.
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 1u);
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(0.0f, 0.0f, 4.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(0.0f, 0.0f, 4.0f));
         }
 
         /// A billboard turns toward the eye the walk was told, and stays where it stands under a walk told none.
@@ -415,7 +419,7 @@ namespace Rtx::Testing
                 mScene.clearPlacement();
                 walk(*parent, 0, frame);
                 EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
-                const osg::Matrixf& place = mScene.placements().getRows()[0].mInstance.mTransform;
+                const osg::Matrixf& place = mScene.placements().getRows()[PlacementIndex(0)].mInstance.mTransform;
                 return std::pair(osg::Matrixf::transform3x3(osg::Vec3f(0.0f, 0.0f, 1.0f), place),
                     osg::Matrixf::transform3x3(osg::Vec3f(0.0f, 1.0f, 0.0f), place));
             };
@@ -482,7 +486,7 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*collapsed, 0, 3);
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 1u);
-            EXPECT_TRUE(isFinite(mScene.placements().getRows()[0].mInstance.mTransform))
+            EXPECT_TRUE(isFinite(mScene.placements().getRows()[PlacementIndex(0)].mInstance.mTransform))
                 << "a billboard with no inverse was placed through one";
             EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u) << "a quad of no size was refused";
             mExtractor.retire();
@@ -536,10 +540,10 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.placements().getRows().size(), 2u);
 
             // The absolute one stands at its own translation and nowhere near the hundred above it.
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(0.0f, 0.0f, 7.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(0.0f, 0.0f, 7.0f));
 
             // The relative one carries it.
-            EXPECT_EQ(placedAt(mScene, 1), osg::Vec3f(100.0f, 100.0f, 107.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(1)), osg::Vec3f(100.0f, 100.0f, 107.0f));
         }
 
         /// The property the incremental mirror rests on: nothing changed, so nothing is added.
@@ -589,8 +593,8 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 2u);
             EXPECT_EQ(mScene.meshes().getRows().size(), 1u) << "one model is still one mesh";
 
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(10.0f, 0.0f, 0.0f));
-            EXPECT_EQ(placedAt(mScene, 1), osg::Vec3f(0.0f, 20.0f, 0.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(10.0f, 0.0f, 0.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(1)), osg::Vec3f(0.0f, 20.0f, 0.0f));
 
             // And they keep their own histories. Moving one must leave the other reporting nothing —
             // sharing a slot would have the still one inherit the mover's previous transform and
@@ -600,7 +604,7 @@ namespace Rtx::Testing
             mExtractor.extract(*shared, osg::Matrixf::translate(0.0f, 20.0f, 0.0f), 2);
 
             ASSERT_EQ(mScene.placements().getMoved().size(), 1u);
-            EXPECT_EQ(mScene.placements().getMoved()[0], 0u);
+            EXPECT_EQ(mScene.placements().getMoved()[0], PlacementIndex(0));
         }
 
         /// **A clockwise front is the placement's and not the material's**, as a fade is: the left and right body
@@ -613,7 +617,7 @@ namespace Rtx::Testing
             const osg::ref_ptr<osg::Node> quad = makeQuad();
             quad->getOrCreateStateSet();
 
-            const auto statingFront = [](osg::FrontFace::Mode mode, unsigned int flags = osg::StateAttribute::ON) {
+            const auto statingFront = [](osg::FrontFace::Mode mode, std::uint32_t flags = osg::StateAttribute::ON) {
                 osg::ref_ptr<osg::Group> group = new osg::Group;
                 group->getOrCreateStateSet()->setAttribute(new osg::FrontFace(mode), flags);
                 return group;
@@ -644,11 +648,12 @@ namespace Rtx::Testing
 
             const auto rows = mScene.placements().getRows();
             ASSERT_EQ(rows.size(), 4u);
-            EXPECT_TRUE(rows[0].mInstance.mClockwise) << "under the clockwise front";
-            EXPECT_FALSE(rows[1].mInstance.mClockwise) << "beside it, sharing its state set";
-            EXPECT_EQ(rows[0].mInstance.mMaterial, rows[1].mInstance.mMaterial) << "one material, two faces";
-            EXPECT_TRUE(rows[2].mInstance.mClockwise) << "an override above wins";
-            EXPECT_FALSE(rows[3].mInstance.mClockwise) << "except over a protected front";
+            EXPECT_TRUE(rows[PlacementIndex(0)].mInstance.mClockwise) << "under the clockwise front";
+            EXPECT_FALSE(rows[PlacementIndex(1)].mInstance.mClockwise) << "beside it, sharing its state set";
+            EXPECT_EQ(rows[PlacementIndex(0)].mInstance.mMaterial, rows[PlacementIndex(1)].mInstance.mMaterial)
+                << "one material, two faces";
+            EXPECT_TRUE(rows[PlacementIndex(2)].mInstance.mClockwise) << "an override above wins";
+            EXPECT_FALSE(rows[PlacementIndex(3)].mInstance.mClockwise) << "except over a protected front";
         }
 
         /// **Texture coordinates are read off the array's own type byte**, as `asVec2Array` asks, where a
@@ -678,7 +683,7 @@ namespace Rtx::Testing
 
             const Rtx::MeshTable& meshes = mScene.meshes();
             ASSERT_EQ(meshes.getRows().size(), 1u);
-            const std::span<const osg::Vec2f> coords = meshes.getRows()[0].mVertices.in(meshes.getTexCoords());
+            const std::span<const osg::Vec2f> coords = meshes.getArrival(MeshIndex(0)).mTexCoords;
             ASSERT_EQ(coords.size(), 4u);
             EXPECT_EQ(coords[1], osg::Vec2f(1.0f, 0.5f)) << "a pair per vertex is read";
             EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u) << "three components are no texture coordinate";

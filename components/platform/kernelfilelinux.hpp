@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -17,11 +18,11 @@ namespace Platform::KernelFile
 
         /// The `errno` of the read that failed; `EFBIG` where the text filled the buffer, which leaves
         /// unknown whether more followed; nought where the text was read to its end.
-        int mError = 0;
+        std::int32_t mError = 0;
     };
 
     /// The rest of `descriptor`, from where it stands, into `buffer`.
-    Read readOpened(int descriptor, std::span<char> buffer) noexcept;
+    Read readOpened(std::int32_t descriptor, std::span<char> buffer) noexcept;
 
     /// The whole of the file at `path`, into `buffer`: nothing where it cannot be opened or read, or
     /// does not fit.

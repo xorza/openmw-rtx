@@ -1,10 +1,13 @@
 #include "list.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 
-#include <algorithm>
 #include <components/misc/strings/algorithm.hpp>
 
 namespace Gui
@@ -30,7 +33,7 @@ namespace Gui
                 MyGUI::Align::Top | MyGUI::Align::Left | MyGUI::Align::Stretch, getName() + "_ScrollView");
     }
 
-    void MWList::addItem(std::string_view name, int verticalPadding)
+    void MWList::addItem(std::string_view name, std::int32_t verticalPadding)
     {
         mItems.emplace_back(name, verticalPadding);
     }
@@ -47,9 +50,9 @@ namespace Gui
 
     void MWList::redraw(bool scrollbarShown)
     {
-        constexpr int scrollbarShownScrollBarWidth = 20; // fetch this from skin?
-        const int scrollBarWidth = scrollbarShown ? scrollbarShownScrollBarWidth : 0;
-        int viewPosition = -mScrollView->getViewOffset().top;
+        constexpr std::int32_t scrollbarShownScrollBarWidth = 20; // fetch this from skin?
+        const std::int32_t scrollBarWidth = scrollbarShown ? scrollbarShownScrollBarWidth : 0;
+        std::int32_t viewPosition = -mScrollView->getViewOffset().top;
 
         while (mScrollView->getChildCount())
         {
@@ -57,7 +60,7 @@ namespace Gui
         }
 
         mItemHeight = 0;
-        int i = 0;
+        std::int32_t i = 0;
         for (const auto& item : mItems)
         {
             mItemHeight += item.mVPadding;
@@ -76,7 +79,7 @@ namespace Gui
                 button->setNeedKeyFocus(true);
 
                 // Morrowind list item text widgets are typically 18 pixels tall
-                int height = button->getTextSize().height + 2;
+                std::int32_t height = button->getTextSize().height + 2;
                 button->setSize(MyGUI::IntSize(button->getSize().width, height));
                 button->setUserData(i);
 
@@ -104,7 +107,7 @@ namespace Gui
         if (!scrollbarShown && mItemHeight > mClient->getSize().height)
             redraw(true);
 
-        int viewRange = mScrollView->getCanvasSize().height;
+        std::int32_t viewRange = mScrollView->getCanvasSize().height;
         viewPosition = std::min(viewPosition, viewRange);
         mScrollView->setViewOffset(MyGUI::IntPoint(0, -viewPosition));
     }
@@ -117,12 +120,12 @@ namespace Gui
             Base::setPropertyOverride(key, value);
     }
 
-    size_t MWList::getItemCount()
+    std::size_t MWList::getItemCount()
     {
         return mItems.size();
     }
 
-    const std::string& MWList::getItemNameAt(size_t at)
+    const std::string& MWList::getItemNameAt(std::size_t at)
     {
         assert(at < mItems.size() && "List item out of bounds");
         return mItems[at].mName;
@@ -147,20 +150,20 @@ namespace Gui
         mItems.clear();
     }
 
-    void MWList::onMouseWheelMoved(MyGUI::Widget* /*sender*/, int rel)
+    void MWList::onMouseWheelMoved(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         // NB view offset is negative
         if (static_cast<float>(mScrollView->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mScrollView->setViewOffset(
-                MyGUI::IntPoint(0, static_cast<int>(mScrollView->getViewOffset().top + rel * 0.3)));
+                MyGUI::IntPoint(0, static_cast<std::int32_t>(mScrollView->getViewOffset().top + rel * 0.3)));
     }
 
     void MWList::onItemSelected(MyGUI::Widget* sender)
     {
         std::string name = sender->castType<MyGUI::Button>()->getCaption();
-        int id = *sender->getUserData<int>();
+        std::int32_t id = *sender->getUserData<std::int32_t>();
         eventItemSelected(name, id);
         eventWidgetSelected(sender);
     }
@@ -177,7 +180,7 @@ namespace Gui
         mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
     }
 
-    void MWList::setViewOffset(int offset)
+    void MWList::setViewOffset(std::int32_t offset)
     {
         mScrollView->setViewOffset(MyGUI::IntPoint(0, offset));
     }

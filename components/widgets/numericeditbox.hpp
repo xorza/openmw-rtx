@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_EditBox.h>
 
 namespace Gui
@@ -15,33 +17,33 @@ namespace Gui
     public:
         NumericEditBox()
             : mValue(0)
-            , mMinValue(std::numeric_limits<int>::min())
-            , mMaxValue(std::numeric_limits<int>::max())
+            , mMinValue(std::numeric_limits<std::int32_t>::min())
+            , mMaxValue(std::numeric_limits<std::int32_t>::max())
         {
         }
 
         void initialiseOverride() override;
         void shutdownOverride() override;
 
-        typedef MyGUI::delegates::MultiDelegate<int> EventHandle_ValueChanged;
+        typedef MyGUI::delegates::MultiDelegate<std::int32_t> EventHandle_ValueChanged;
         EventHandle_ValueChanged eventValueChanged;
 
         /// @note Does not trigger eventValueChanged
-        void setValue(int value);
-        int getValue();
+        void setValue(std::int32_t value);
+        std::int32_t getValue();
 
-        void setMinValue(int minValue);
-        void setMaxValue(int maxValue);
+        void setMinValue(std::int32_t minValue);
+        void setMaxValue(std::int32_t maxValue);
 
     private:
         void onEditTextChange(MyGUI::EditBox* sender);
         void onKeyLostFocus(MyGUI::Widget* newWidget) override;
         void onKeyButtonPressed(MyGUI::KeyCode key, MyGUI::Char character) override;
 
-        int mValue;
+        std::int32_t mValue;
 
-        int mMinValue;
-        int mMaxValue;
+        std::int32_t mMinValue;
+        std::int32_t mMaxValue;
     };
 
 }

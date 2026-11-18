@@ -1,5 +1,15 @@
 #include "tilecachedrecastmeshmanager.hpp"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
+
+#include <boost/geometry/geometry.hpp> // IWYU pragma: keep: the strategies the R-tree's queries instantiate
+
+#include <components/bullethelpers/aabb.hpp>
+#include <components/misc/convert.hpp>
 
 #include "changetype.hpp"
 #include "gettilespositions.hpp"
@@ -8,27 +18,19 @@
 #include "stats.hpp"
 #include "updateguard.hpp"
 
-#include <components/bullethelpers/aabb.hpp>
-#include <components/misc/convert.hpp>
-
-#include <algorithm>
-#include <limits>
-
-#include <boost/geometry/geometry.hpp> // IWYU pragma: keep: the strategies the R-tree's queries instantiate
-
 namespace DetourNavigator
 {
     namespace
     {
         const TilesPositionsRange infiniteRange{
-            .mBegin = TilePosition(std::numeric_limits<int>::min(), std::numeric_limits<int>::min()),
-            .mEnd = TilePosition(std::numeric_limits<int>::max(), std::numeric_limits<int>::max()),
+            .mBegin = TilePosition(std::numeric_limits<std::int32_t>::min(), std::numeric_limits<std::int32_t>::min()),
+            .mEnd = TilePosition(std::numeric_limits<std::int32_t>::max(), std::numeric_limits<std::int32_t>::max()),
         };
 
         struct AddHeightfield
         {
             osg::Vec2i mCellPosition;
-            int mCellSize;
+            std::int32_t mCellSize;
             RecastMeshBuilder& mBuilder;
 
             void operator()(const HeightfieldSurface& v)
@@ -39,7 +41,8 @@ namespace DetourNavigator
             void operator()(HeightfieldPlane v) { mBuilder.addHeightfield(mCellPosition, mCellSize, v.mHeight); }
         };
 
-        TilePosition makeTilePosition(const boost::geometry::model::point<int, 2, boost::geometry::cs::cartesian>& v)
+        TilePosition makeTilePosition(
+            const boost::geometry::model::point<std::int32_t, 2, boost::geometry::cs::cartesian>& v)
         {
             return TilePosition(v.get<0>(), v.get<1>());
         }
@@ -251,10 +254,10 @@ namespace DetourNavigator
     }
 
     void TileCachedRecastMeshManager::addWater(
-        const osg::Vec2i& cellPosition, const int cellSize, const float level, const UpdateGuard* guard)
+        const osg::Vec2i& cellPosition, const std::int32_t cellSize, const float level, const UpdateGuard* guard)
     {
         const btVector3 shift = Misc::Convert::toBullet(getWaterShift3d(cellPosition, cellSize, level));
-        const std::optional<TilesPositionsRange> range = cellSize == std::numeric_limits<int>::max()
+        const std::optional<TilesPositionsRange> range = cellSize == std::numeric_limits<std::int32_t>::max()
             ? std::optional<TilesPositionsRange>()
             : makeTilesPositionsRange(cellSize, shift, mSettings);
         {
@@ -297,11 +300,11 @@ namespace DetourNavigator
         addChangedTiles(range);
     }
 
-    void TileCachedRecastMeshManager::addHeightfield(
-        const osg::Vec2i& cellPosition, const int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
+    void TileCachedRecastMeshManager::addHeightfield(const osg::Vec2i& cellPosition, const std::int32_t cellSize,
+        const HeightfieldShape& shape, const UpdateGuard* guard)
     {
         const btVector3 shift = getHeightfieldShift(shape, cellPosition, cellSize);
-        const std::optional<TilesPositionsRange> range = cellSize == std::numeric_limits<int>::max()
+        const std::optional<TilesPositionsRange> range = cellSize == std::numeric_limits<std::int32_t>::max()
             ? std::optional<TilesPositionsRange>()
             : makeTilesPositionsRange(cellSize, shift, mSettings);
         {

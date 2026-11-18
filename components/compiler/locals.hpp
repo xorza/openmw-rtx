@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <iosfwd>
 #include <string>
 #include <string_view>
@@ -21,14 +22,14 @@ namespace Compiler
         char getType(std::string_view name) const;
         ///< 's': short, 'l': long, 'f': float, ' ': does not exist.
 
-        int getIndex(std::string_view name) const;
+        std::int32_t getIndex(std::string_view name) const;
         ///< return index for local variable \a name (-1: does not exist).
 
         bool search(char type, std::string_view name) const;
 
         /// Return index for local variable \a name of type \a type (-1: variable does not
         /// exit).
-        int searchIndex(char type, std::string_view name) const;
+        std::int32_t searchIndex(char type, std::string_view name) const;
 
         const std::vector<std::string>& get(char type) const;
 

@@ -1,9 +1,9 @@
-#include <components/settings/shadermanager.hpp>
-#include <components/testing/util.hpp>
-
 #include <fstream>
 
 #include <gtest/gtest.h>
+
+#include <components/settings/shadermanager.hpp>
+#include <components/testing/util.hpp>
 
 namespace
 {

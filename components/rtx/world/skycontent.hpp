@@ -27,8 +27,8 @@ namespace Rtx
         /// too, with no texture, so it is asked once.
         std::string mName;
 
-        /// What the shader takes, or `sNoIndex` where the name did not open.
-        Index mTexture = sNoIndex;
+        /// What the shader takes, or `sNoRow` where the name did not open.
+        TextureIndex mTexture = sNoRow;
 
         /// The mean luminance of what the sheet paints, linear: what a texel is read as a ratio to, so the
         /// painting gives shape and not a level (each sheet is a photograph with that day's light in it).

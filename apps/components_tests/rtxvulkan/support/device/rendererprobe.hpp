@@ -67,6 +67,9 @@ namespace Rtx::Testing
         /// How long `slot`'s texture array is, holes included: nought where the slot holds nothing.
         std::uint32_t getTextureCount(SceneSlot slot) const;
 
+        /// Whether `slot` holds a scene the device built.
+        bool holdsScene(SceneSlot slot) const;
+
         /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum, which
         /// a frame in flight does not feel: the one it replaces goes to the graveyard
         /// (`WavePass::describe`).

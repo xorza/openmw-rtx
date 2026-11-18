@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include <osgParticle/BoxPlacer>
@@ -11,7 +12,6 @@
 #include <osgParticle/Shooter>
 
 #include <components/nif/particle.hpp> // NiGravity::ForceType
-
 #include <components/sceneutil/nodecallback.hpp>
 
 #include "controller.hpp" // ValueInterpolator
@@ -35,12 +35,12 @@ namespace NifOsg
 
         osgParticle::Particle* createParticle(const osgParticle::Particle* ptemplate) override;
 
-        void setQuota(int quota);
+        void setQuota(std::int32_t quota);
 
         void drawImplementation(osg::RenderInfo& renderInfo) const override;
 
     private:
-        int mQuota;
+        std::int32_t mQuota;
         osg::ref_ptr<osg::Vec3Array> mNormalArray;
     };
 
@@ -251,7 +251,7 @@ namespace NifOsg
     class FindGroupByRecordIndex : public osg::NodeVisitor
     {
     public:
-        explicit FindGroupByRecordIndex(unsigned int recordIndex);
+        explicit FindGroupByRecordIndex(std::uint32_t recordIndex);
 
         void apply(osg::Node& node) override;
 
@@ -266,7 +266,7 @@ namespace NifOsg
         osg::NodePath mFoundPath;
 
     private:
-        unsigned int mRecordIndex;
+        std::uint32_t mRecordIndex;
     };
 
     // Subclass emitter to support randomly choosing one of the child node's transforms for the emit position of new
@@ -274,7 +274,7 @@ namespace NifOsg
     class Emitter : public osgParticle::Emitter
     {
     public:
-        explicit Emitter(const std::vector<int>& targets);
+        explicit Emitter(const std::vector<std::int32_t>& targets);
         Emitter();
         Emitter(const Emitter& copy, const osg::CopyOp& copyop);
 
@@ -285,20 +285,20 @@ namespace NifOsg
         void setShooter(osgParticle::Shooter* shooter) { mShooter = shooter; }
         void setPlacer(osgParticle::Placer* placer) { mPlacer = placer; }
         void setCounter(osgParticle::Counter* counter) { mCounter = counter; }
-        void setGeometryEmitterTarget(std::optional<int> recordIndex) { mGeometryEmitterTarget = recordIndex; }
-        void setFlags(int flags) { mFlags = flags; }
+        void setGeometryEmitterTarget(std::optional<std::int32_t> recordIndex) { mGeometryEmitterTarget = recordIndex; }
+        void setFlags(std::int32_t flags) { mFlags = flags; }
 
     private:
         // NIF Record indices
-        std::vector<int> mTargets;
+        std::vector<std::int32_t> mTargets;
 
         osg::ref_ptr<osgParticle::Placer> mPlacer;
         osg::ref_ptr<osgParticle::Shooter> mShooter;
         osg::ref_ptr<osgParticle::Counter> mCounter;
 
-        int mFlags;
+        std::int32_t mFlags;
 
-        std::optional<int> mGeometryEmitterTarget;
+        std::optional<std::int32_t> mGeometryEmitterTarget;
         osg::observer_ptr<osg::Vec3Array> mCachedGeometryEmitter;
     };
 

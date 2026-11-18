@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <ostream>
@@ -8,11 +9,11 @@
 
 namespace ESM
 {
-    using FormId32 = uint32_t;
+    using FormId32 = std::uint32_t;
     struct FormId
     {
-        uint32_t mIndex = 0;
-        int32_t mContentFile = -1;
+        std::uint32_t mIndex = 0;
+        std::int32_t mContentFile = -1;
 
         constexpr bool hasContentFile() const { return mContentFile >= 0; }
         constexpr bool isSet() const { return mIndex != 0 || mContentFile != -1; }
@@ -22,7 +23,7 @@ namespace ESM
 
         std::string toString(std::string_view prefix = "") const;
         FormId32 toUint32() const;
-        static constexpr FormId fromUint32(FormId32 v) { return { v & 0xffffff, static_cast<int32_t>(v >> 24) }; }
+        static constexpr FormId fromUint32(FormId32 v) { return { v & 0xffffff, static_cast<std::int32_t>(v >> 24) }; }
     };
 
     inline constexpr bool operator==(const FormId& left, const FormId& right)
@@ -48,12 +49,12 @@ namespace std
     template <>
     struct hash<ESM::FormId>
     {
-        size_t operator()(const ESM::FormId& formId) const
+        std::size_t operator()(const ESM::FormId& formId) const
         {
-            static_assert(sizeof(ESM::FormId) == sizeof(uint64_t));
-            uint64_t s = 0;
+            static_assert(sizeof(ESM::FormId) == sizeof(std::uint64_t));
+            std::uint64_t s = 0;
             memcpy(&s, &formId, sizeof(ESM::FormId));
-            return hash<uint64_t>()(s);
+            return hash<std::uint64_t>()(s);
         }
     };
 

@@ -75,6 +75,53 @@ namespace
         EXPECT_EQ(Platform::LinuxText::availableMemory("MemAvailable: 2 MB\n"), std::nullopt);
     }
 
+    /// **A DRM client is its `drm-client-id` and its `drm-total-` and `drm-resident-` sizes, in bytes**, as amdgpu
+    /// writes them: client 224; a size in KiB is 1024 bytes a unit, one in MiB 1048576, one with no unit bytes; a
+    /// region the file names not is nought; a file with no `drm-driver` is no client, nor one with no id to tell it
+    /// from its duplicates, and a size or an id that is no number, or a size in a unit it does not name, is nothing.
+    TEST(RtxPlatformLinuxTextTest, aDrmClientIsItsIdAndItsTotalAndResidentSizesInBytes)
+    {
+        constexpr std::string_view handheld
+            = "pos:\t0\nflags:\t02100002\ndrm-driver:\tamdgpu\ndrm-client-id:\t224\n"
+              "drm-total-cpu:\t0\ndrm-resident-cpu:\t3 KiB\n"
+              "drm-total-gtt:\t12304 KiB\ndrm-resident-gtt:\t26584 KiB\n"
+              "drm-total-vram:\t2 MiB\ndrm-resident-vram:\t14372 KiB\n"
+              "drm-memory-vram:\t14372 KiB\ndrm-memory-gtt: \t26584 KiB\n";
+        EXPECT_EQ(Platform::LinuxText::driverClient(handheld),
+            (Platform::LinuxText::DriverClient{ .mId = 224,
+                .mMemory = Platform::Process::DriverMemory{ .mTotalVram = 2 * 1048576,
+                    .mResidentVram = 14372 * 1024,
+                    .mTotalGtt = 12304 * 1024,
+                    .mResidentGtt = 26584 * 1024,
+                    .mResidentCpu = 3 * 1024 } }));
+        EXPECT_EQ(Platform::LinuxText::driverClient("drm-driver:\tamdgpu\ndrm-client-id:\t7\ndrm-total-gtt:\t5\n"),
+            (Platform::LinuxText::DriverClient{
+                .mId = 7, .mMemory = Platform::Process::DriverMemory{ .mTotalGtt = 5 } }));
+        EXPECT_EQ(Platform::LinuxText::driverClient("pos:\t0\nflags:\t02\n"), std::nullopt) << "a socket's";
+        EXPECT_EQ(Platform::LinuxText::driverClient("drm-driver:\tamdgpu\ndrm-total-gtt:\t5\n"), std::nullopt)
+            << "no id";
+        EXPECT_EQ(Platform::LinuxText::driverClient("drm-driver:\tamdgpu\ndrm-client-id:\tx\n"), std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::driverClient("drm-driver:\tamdgpu\ndrm-client-id:\t1\ndrm-total-gtt:\tmany\n"),
+            std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::driverClient("drm-driver:\tamdgpu\ndrm-client-id:\t1\ndrm-total-gtt:\t5 GiB\n"),
+            std::nullopt);
+    }
+
+    /// **What the system leaves a process is `MemAvailable` less its `VmSwap`**: 8 kB available with 3 kB of the
+    /// process in swap is 5 kB, 5120 bytes; with more in swap than is available, none; with no swap line, all 8;
+    /// with no `MemAvailable`, nothing. The kernel counts what it freed by swapping the process out as available,
+    /// which the process takes back.
+    TEST(RtxPlatformLinuxTextTest, whatTheSystemLeavesAProcessIsMemAvailableLessItsSwap)
+    {
+        constexpr std::string_view meminfo = "MemTotal:       65000000 kB\nMemAvailable:          8 kB\n";
+        EXPECT_EQ(Platform::LinuxText::availableToProcess(meminfo, "RssAnon:\t2 kB\nVmSwap:\t       3 kB\n"),
+            std::optional<std::uint64_t>(5120));
+        EXPECT_EQ(Platform::LinuxText::availableToProcess(meminfo, "VmSwap:\t9 kB\n"), std::optional<std::uint64_t>(0));
+        EXPECT_EQ(
+            Platform::LinuxText::availableToProcess(meminfo, "RssAnon:\t2 kB\n"), std::optional<std::uint64_t>(8192));
+        EXPECT_EQ(Platform::LinuxText::availableToProcess("MemTotal: 1 kB\n", "VmSwap:\t3 kB\n"), std::nullopt);
+    }
+
     /// **The anonymous memory is `RssAnon` and `VmSwap`, in bytes**, from a status's tab-separated lines: 2 kB
     /// resident is 2048 bytes and 3 kB swapped 3072; nothing where either is missing or not in kilobytes.
     TEST(RtxPlatformLinuxTextTest, theAnonymousMemoryIsRssAnonAndVmSwapInBytes)
@@ -84,7 +131,7 @@ namespace
             "kB\n");
         ASSERT_TRUE(memory.has_value());
         EXPECT_EQ(memory->mResident, 2048u);
-        EXPECT_EQ(memory->mSwapped, 3072u);
+        EXPECT_EQ(memory->mNotResident, 3072u);
         EXPECT_EQ(Platform::LinuxText::anonymousMemory("RssAnon:\t2 kB\n"), std::nullopt) << "no swap line";
         EXPECT_EQ(Platform::LinuxText::anonymousMemory("RssAnon:\t2 MB\nVmSwap:\t3 kB\n"), std::nullopt);
     }

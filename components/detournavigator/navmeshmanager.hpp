@@ -1,5 +1,12 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+
+#include <osg/Vec3f>
+
 #include "agentbounds.hpp"
 #include "asyncnavmeshupdater.hpp"
 #include "cellgridbounds.hpp"
@@ -8,11 +15,6 @@
 #include "recastmeshtiles.hpp"
 #include "waitconditiontype.hpp"
 
-#include <osg/Vec3f>
-
-#include <map>
-#include <memory>
-
 class dtNavMesh;
 
 namespace DetourNavigator
@@ -20,7 +22,8 @@ namespace DetourNavigator
     class NavMeshManager
     {
     public:
-        explicit NavMeshManager(const Settings& settings, std::unique_ptr<NavMeshTileStore>&& store);
+        NavMeshManager(
+            const Settings& settings, std::unique_ptr<NavMeshTileStore>&& store, Resource::CacheBudget& budget);
 
         ScopedUpdateGuard makeUpdateGuard() { return mRecastMeshManager.makeUpdateGuard(); }
 
@@ -36,12 +39,12 @@ namespace DetourNavigator
 
         void addAgent(const AgentBounds& agentBounds);
 
-        void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard);
+        void addWater(const osg::Vec2i& cellPosition, std::int32_t cellSize, float level, const UpdateGuard* guard);
 
         void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
 
-        void addHeightfield(
-            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard);
+        void addHeightfield(const osg::Vec2i& cellPosition, std::int32_t cellSize, const HeightfieldShape& shape,
+            const UpdateGuard* guard);
 
         void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
 
@@ -66,7 +69,7 @@ namespace DetourNavigator
 
     private:
         const Settings& mSettings;
-        const int mMaxRadius;
+        const std::int32_t mMaxRadius;
         ESM::RefId mWorldspace;
         std::optional<CellGridBounds> mCellGridBounds;
         TileCachedRecastMeshManager mRecastMeshManager;

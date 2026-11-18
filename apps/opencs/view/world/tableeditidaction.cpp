@@ -1,10 +1,12 @@
 #include "tableeditidaction.hpp"
 
+#include <cstdint>
+
 #include <QTableView>
 
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/tablemimedata.hpp"
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
 
 CSVWorld::TableEditIdAction::TableEditIdAction(const QTableView& table, CSMWorld::Data& data, QWidget* parent)
     : QAction(parent)
@@ -14,7 +16,7 @@ CSVWorld::TableEditIdAction::TableEditIdAction(const QTableView& table, CSMWorld
 {
 }
 
-bool CSVWorld::TableEditIdAction::setCell(int row, int column)
+bool CSVWorld::TableEditIdAction::setCell(std::int32_t row, std::int32_t column)
 {
     QModelIndex index = mTable.model()->index(row, column);
     if (!index.isValid())

@@ -18,7 +18,9 @@
 #include <vector>
 
 #include <sched.h>
+// NOLINTNEXTLINE(modernize-deprecated-headers): POSIX's `kill`, which <csignal> need not declare
 #include <signal.h>
+#include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -64,9 +66,21 @@ namespace Platform::Process
         return path;
     }
 
-    std::vector<std::string> commandLine(const int argc, char** const argv)
+    std::vector<std::string> commandLine(const std::int32_t argc, char** const argv)
     {
         return std::vector<std::string>(argv, argv + argc);
+    }
+
+    void attachParentConsole() {}
+
+    bool standardErrorTakesColour()
+    {
+        return std::getenv("TERM") != nullptr && isatty(STDERR_FILENO) != 0;
+    }
+
+    std::string_view executableSuffix()
+    {
+        return "";
     }
 
     std::uint32_t currentId()
@@ -86,6 +100,7 @@ namespace Platform::Process
 
     std::uint64_t currentThreadId()
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
         return static_cast<std::uint64_t>(syscall(SYS_gettid));
     }
 
@@ -99,6 +114,12 @@ namespace Platform::Process
         if (const std::optional<std::filesystem::path> self = executable())
             execv(self->c_str(), argv);
         unsetenv("GLIBC_TUNABLES"); // NOLINT(concurrency-mt-unsafe): the process's first act, before any thread
+    }
+
+    bool refuseTransparentHugePages()
+    {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's prctl
+        return prctl(PR_SET_THP_DISABLE, 1, 0, 0, 0) == 0;
     }
 
     std::optional<float> hugePageShare()
@@ -129,6 +150,43 @@ namespace Platform::Process
         if (!status.has_value())
             return std::nullopt;
         return LinuxText::anonymousMemory(*status);
+    }
+
+    std::optional<PrivateMemoryHeld> privateMemoryHeld()
+    {
+        return std::nullopt;
+    }
+
+    std::optional<DriverMemory> driverMemory()
+    {
+        // Every open file's information, the DRM clients among them: one for the device, and any a library opened.
+        // **Each client once**: a file duplicated or shared states its client again, and the handheld's Vulkan
+        // device is two files of one client, which read the process's memory twice.
+        std::optional<DriverMemory> summed;
+        std::vector<std::uint64_t> counted;
+        std::error_code error;
+        std::array<char, 8192> buffer{};
+        for (const std::filesystem::directory_entry& entry :
+            std::filesystem::directory_iterator("/proc/self/fdinfo", error))
+        {
+            const std::optional<std::string_view> text = KernelFile::read(entry.path().c_str(), buffer);
+            if (!text.has_value())
+                continue;
+            const std::optional<LinuxText::DriverClient> client = LinuxText::driverClient(*text);
+            if (!client.has_value() || std::ranges::find(counted, client->mId) != counted.end())
+                continue;
+            counted.push_back(client->mId);
+            if (!summed.has_value())
+                summed.emplace();
+            DriverMemory& into = *summed;
+            const DriverMemory& held = client->mMemory;
+            into.mTotalVram += held.mTotalVram;
+            into.mResidentVram += held.mResidentVram;
+            into.mTotalGtt += held.mTotalGtt;
+            into.mResidentGtt += held.mResidentGtt;
+            into.mResidentCpu += held.mResidentCpu;
+        }
+        return summed;
     }
 
     std::size_t keepToPerformanceCores()
@@ -211,7 +269,7 @@ namespace Platform::Process
     {
         // Runs the command line its caller built.
         // NOLINTNEXTLINE(bugprone-command-processor)
-        const int status = std::system(line.c_str());
+        const std::int32_t status = std::system(line.c_str());
 
         // No shell at all: what a shell answers for a command it could not run.
         if (status == -1)

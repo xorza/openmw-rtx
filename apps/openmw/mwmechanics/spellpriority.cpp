@@ -1,25 +1,24 @@
 #include "spellpriority.hpp"
-#include "weaponpriority.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadspel.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
 #include "creaturestats.hpp"
 #include "spellresistance.hpp"
 #include "spellutil.hpp"
 #include "summoning.hpp"
+#include "weaponpriority.hpp"
 #include "weapontype.hpp"
 
 namespace
@@ -31,9 +30,10 @@ namespace
         Fatigue = 2
     };
 
-    int numEffectsToDispel(const MWWorld::Ptr& actor, ESM::RefId effectFilter = ESM::RefId(), bool negative = true)
+    std::int32_t numEffectsToDispel(
+        const MWWorld::Ptr& actor, ESM::RefId effectFilter = ESM::RefId(), bool negative = true)
     {
-        int toCure = 0;
+        std::int32_t toCure = 0;
         const MWMechanics::ActiveSpells& activeSpells = actor.getClass().getCreatureStats(actor).getActiveSpells();
         for (const auto& activeSpell : activeSpells)
         {
@@ -104,7 +104,7 @@ namespace
         {
             if (spell->mData.mType != ESM::Spell::ST_Spell)
                 continue;
-            int cost = MWMechanics::calcSpellCost(*spell);
+            std::int32_t cost = MWMechanics::calcSpellCost(*spell);
             if (static_cast<float>(cost) > current.getCurrent() && static_cast<float>(cost) < current.getModified())
                 return 2.f;
         }
@@ -114,9 +114,9 @@ namespace
 
 namespace MWMechanics
 {
-    int getRangeTypes(const ESM::EffectList& effects)
+    std::int32_t getRangeTypes(const ESM::EffectList& effects)
     {
-        int types = 0;
+        std::int32_t types = 0;
         for (const ESM::IndexedENAMstruct& effect : effects.mList)
         {
             if (effect.mData.mRange == ESM::RT_Self)
@@ -157,7 +157,7 @@ namespace MWMechanics
         }
 
         // Spells don't stack, so early out if the spell is still active on the target
-        int types = getRangeTypes(spell->mEffects);
+        std::int32_t types = getRangeTypes(spell->mEffects);
         if ((types & Self) && isSpellActive(actor, actor, spell->mId))
             return 0.f;
         if (((types & Touch) || (types & Target)) && !enemy.isEmpty() && isSpellActive(actor, enemy, spell->mId))
@@ -175,7 +175,7 @@ namespace MWMechanics
             ptr.getClass().getEnchantment(ptr));
 
         // Spells don't stack, so early out if the spell is still active on the target
-        int types = getRangeTypes(enchantment->mEffects);
+        std::int32_t types = getRangeTypes(enchantment->mEffects);
         if ((types & Self)
             && actor.getClass().getCreatureStats(actor).getActiveSpells().isSpellActive(ptr.getCellRef().getRefId()))
             return 0.f;
@@ -193,7 +193,7 @@ namespace MWMechanics
             if (actor.getClass().isNpc() && !actor.getClass().getInventoryStore(actor).isEquipped(ptr))
                 return 0.f;
 
-            int castCost = getEffectiveEnchantmentCastCost(*enchantment, actor);
+            std::int32_t castCost = getEffectiveEnchantmentCastCost(*enchantment, actor);
 
             if (ptr.getCellRef().getEnchantmentCharge() != -1
                 && ptr.getCellRef().getEnchantmentCharge() < static_cast<float>(castCost))
@@ -451,9 +451,9 @@ namespace MWMechanics
         }
         else if (effect.mEffectID == ESM::MagicEffect::Dispel)
         {
-            int numPositive = 0;
-            int numNegative = 0;
-            int diff = 0;
+            std::int32_t numPositive = 0;
+            std::int32_t numNegative = 0;
+            std::int32_t diff = 0;
 
             if (effect.mRange == ESM::RT_Self)
             {
@@ -499,7 +499,7 @@ namespace MWMechanics
             MWWorld::InventoryStore& inv = enemy.getClass().getInventoryStore(enemy);
 
             // According to UESP
-            static const int armorSlots[] = {
+            static const std::int32_t armorSlots[] = {
                 MWWorld::InventoryStore::Slot_CarriedLeft,
                 MWWorld::InventoryStore::Slot_Cuirass,
                 MWWorld::InventoryStore::Slot_LeftPauldron,
@@ -514,7 +514,7 @@ namespace MWMechanics
             bool enemyHasArmor = false;
 
             // Ignore enemy without armor
-            for (int armorSlot : armorSlots)
+            for (std::int32_t armorSlot : armorSlots)
             {
                 MWWorld::ContainerStoreIterator item = inv.getSlot(armorSlot);
 
@@ -552,7 +552,7 @@ namespace MWMechanics
                 && enemy.getClass().getCreatureStats(enemy).getAttribute(effect.mAttribute).getModified() <= 0)
                 return 0.f;
             {
-                int attributeIdx = ESM::Attribute::refIdToIndex(effect.mAttribute);
+                std::int32_t attributeIdx = ESM::Attribute::refIdToIndex(effect.mAttribute);
                 if (attributeIdx >= 0 && attributeIdx < ESM::Attribute::Length)
                 {
                     const float attributePriorities[ESM::Attribute::Length] = {

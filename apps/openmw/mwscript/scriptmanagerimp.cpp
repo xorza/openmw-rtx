@@ -9,20 +9,17 @@
 #include <string_view>
 #include <vector>
 
-#include <components/debug/debuglog.hpp>
-
-#include <components/esm/refid.hpp>
-#include <components/esm3/loadscpt.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/compiler/context.hpp>
 #include <components/compiler/exception.hpp>
 #include <components/compiler/quickfileparser.hpp>
 #include <components/compiler/scanner.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <components/debug/debuglog.hpp>
+#include <components/esm/refid.hpp>
+#include <components/esm3/loadscpt.hpp>
 
 #include "extensions.hpp"
 #include "interpretercontext.hpp"
@@ -40,7 +37,7 @@ namespace MWScript
                 return MWBase::Environment::get().getWorld()->getGlobalVariableType(name);
             }
 
-            int getGlobalInt(std::string_view name) const override
+            std::int32_t getGlobalInt(std::string_view name) const override
             {
                 return MWBase::Environment::get().getWorld()->getGlobalInt(name);
             }
@@ -50,14 +47,15 @@ namespace MWScript
                 return MWBase::Environment::get().getWorld()->getGlobalFloat(name);
             }
 
-            int getJournalIndex(const ESM::RefId& quest) const override
+            std::int32_t getJournalIndex(const ESM::RefId& quest) const override
             {
                 return MWBase::Environment::get().getJournal()->getJournalIndex(quest);
             }
         };
     }
 
-    ScriptManager::ScriptManager(const MWWorld::ESMStore& store, Compiler::Context& compilerContext, int warningsMode)
+    ScriptManager::ScriptManager(
+        const MWWorld::ESMStore& store, Compiler::Context& compilerContext, std::int32_t warningsMode)
         : mErrorHandler()
         , mStore(store)
         , mCompilerContext(compilerContext)
@@ -224,10 +222,10 @@ namespace MWScript
                             << mVisibilityGates.describe(undecided);
     }
 
-    std::pair<int, int> ScriptManager::compileAll()
+    std::pair<std::int32_t, std::int32_t> ScriptManager::compileAll()
     {
-        int count = 0;
-        int success = 0;
+        std::int32_t count = 0;
+        std::int32_t success = 0;
 
         for (auto& script : mStore.get<ESM::Script>())
         {

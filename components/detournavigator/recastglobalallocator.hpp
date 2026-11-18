@@ -1,11 +1,12 @@
 #pragma once
 
-#include "recasttempallocator.hpp"
+#include <cstddef>
+#include <cstdlib>
 
 #include <DetourAlloc.h>
 #include <RecastAlloc.h>
 
-#include <cstdlib>
+#include "recasttempallocator.hpp"
 
 namespace DetourNavigator
 {
@@ -14,11 +15,11 @@ namespace DetourNavigator
     public:
         static void init() { instance(); }
 
-        static void* recastAlloc(size_t size, rcAllocHint hint) { return alloc(size, hint == RC_ALLOC_TEMP); }
+        static void* recastAlloc(std::size_t size, rcAllocHint hint) { return alloc(size, hint == RC_ALLOC_TEMP); }
 
-        static void* detourAlloc(size_t size, dtAllocHint hint) { return alloc(size, hint == DT_ALLOC_TEMP); }
+        static void* detourAlloc(std::size_t size, dtAllocHint hint) { return alloc(size, hint == DT_ALLOC_TEMP); }
 
-        static void* alloc(size_t size, bool temp)
+        static void* alloc(std::size_t size, bool temp)
         {
             void* result = nullptr;
             if (rcLikely(temp))
@@ -60,7 +61,7 @@ namespace DetourNavigator
             return value;
         }
 
-        static void* allocPerm(size_t size)
+        static void* allocPerm(std::size_t size)
         {
             const auto ptr = std::malloc(size + sizeof(std::size_t));
             if (rcUnlikely(!ptr))

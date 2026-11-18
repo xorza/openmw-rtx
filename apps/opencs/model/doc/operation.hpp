@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -19,11 +20,11 @@ namespace CSMDoc
         Q_OBJECT
 
         State mType;
-        std::vector<std::pair<Stage*, int>> mStages; // stage, number of steps
-        std::vector<std::pair<Stage*, int>>::iterator mCurrentStage;
-        int mCurrentStep;
-        int mCurrentStepTotal;
-        int mTotalSteps;
+        std::vector<std::pair<Stage*, std::int32_t>> mStages; // stage, number of steps
+        std::vector<std::pair<Stage*, std::int32_t>>::iterator mCurrentStage;
+        std::int32_t mCurrentStep;
+        std::int32_t mCurrentStepTotal;
+        std::int32_t mTotalSteps;
         bool mFinalAlways;
         bool mError;
         bool mPrepared;
@@ -50,11 +51,11 @@ namespace CSMDoc
 
     signals:
 
-        void progress(int current, int max, int type);
+        void progress(std::int32_t current, std::int32_t max, std::int32_t type);
 
-        void reportMessage(const CSMDoc::Message& message, int type);
+        void reportMessage(const CSMDoc::Message& message, std::int32_t type);
 
-        void done(int type, bool failed);
+        void done(std::int32_t type, bool failed);
 
     public slots:
 

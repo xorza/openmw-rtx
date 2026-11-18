@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "setting.hpp"
 
 class QSpinBox;
@@ -11,12 +13,12 @@ namespace CSMPrefs
 {
     class Category;
 
-    class IntSetting final : public TypedSetting<int>
+    class IntSetting final : public TypedSetting<std::int32_t>
     {
         Q_OBJECT
 
-        int mMin;
-        int mMax;
+        std::int32_t mMin;
+        std::int32_t mMax;
         std::string mTooltip;
         QSpinBox* mWidget;
 
@@ -25,11 +27,11 @@ namespace CSMPrefs
             Category* parent, QMutex* mutex, std::string_view key, const QString& label, Settings::Index& index);
 
         // defaults to [0, std::numeric_limits<int>::max()]
-        IntSetting& setRange(int min, int max);
+        IntSetting& setRange(std::int32_t min, std::int32_t max);
 
-        IntSetting& setMin(int min);
+        IntSetting& setMin(std::int32_t min);
 
-        IntSetting& setMax(int max);
+        IntSetting& setMax(std::int32_t max);
 
         IntSetting& setTooltip(const std::string& tooltip);
 
@@ -40,6 +42,6 @@ namespace CSMPrefs
 
     private slots:
 
-        void valueChanged(int value);
+        void valueChanged(std::int32_t value);
     };
 }

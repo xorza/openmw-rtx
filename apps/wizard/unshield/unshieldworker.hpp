@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <QObject>
 #include <QReadWriteLock>
 #include <QStringList>
 #include <QWaitCondition>
-
 #include <libunshield.h>
 
 #include "inisettings.hpp"
@@ -44,7 +46,7 @@ namespace Wizard
 
         bool setupSettings();
 
-        size_t getMorrowindBsaFileSize(const QString& cabFile);
+        std::size_t getMorrowindBsaFileSize(const QString& cabFile);
 
     private:
         bool writeSettings();
@@ -62,14 +64,15 @@ namespace Wizard
         bool copyDirectory(const QString& source, const QString& destination, bool keepSource = true);
 
         bool extractCab(const QString& cabFile, const QString& destination);
-        bool extractFile(Unshield* unshield, const QString& destination, const QString& prefix, int index, int counter);
+        bool extractFile(Unshield* unshield, const QString& destination, const QString& prefix, std::int32_t index,
+            std::int32_t counter);
 
         bool findInCab(const QString& fileName, const QString& cabFile);
 
         QString findFile(const QString& fileName, const QString& path);
 
-        QStringList findFiles(const QString& fileName, const QString& path, int depth = 0, bool recursive = true,
-            bool directories = false, Qt::MatchFlags flags = Qt::MatchExactly);
+        QStringList findFiles(const QString& fileName, const QString& path, std::int32_t depth = 0,
+            bool recursive = true, bool directories = false, Qt::MatchFlags flags = Qt::MatchExactly);
 
         QStringList findDirectories(const QString& dirName, const QString& path, bool recursive = true);
 
@@ -120,6 +123,6 @@ namespace Wizard
         void textChanged(const QString& text);
 
         void error(const QString& text, const QString& details);
-        void progressChanged(int progress);
+        void progressChanged(std::int32_t progress);
     };
 }

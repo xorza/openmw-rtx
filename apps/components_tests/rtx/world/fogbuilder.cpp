@@ -24,19 +24,19 @@ namespace Rtx
 {
     namespace
     {
-        constexpr int sSize = static_cast<int>(Shaders::FOG_FIELD_SIZE);
-        constexpr int sLevels = static_cast<int>(Shaders::FOG_FIELD_LEVELS);
+        constexpr std::int32_t sSize = static_cast<std::int32_t>(Shaders::FOG_FIELD_SIZE);
+        constexpr std::int32_t sLevels = static_cast<std::int32_t>(Shaders::FOG_FIELD_LEVELS);
 
-        int sizeAt(int level)
+        std::int32_t sizeAt(std::int32_t level)
         {
-            return static_cast<int>(fogFieldSideAt(static_cast<std::uint32_t>(level)));
+            return static_cast<std::int32_t>(fogFieldSideAt(static_cast<std::uint32_t>(level)));
         }
 
         /// One texel of one level, as the two numbers the sampler hands back.
-        osg::Vec2f texelAt(const FogField noise, int level, int x, int y, int z)
+        osg::Vec2f texelAt(const FogField noise, std::int32_t level, std::int32_t x, std::int32_t y, std::int32_t z)
         {
-            const int size = sizeAt(level);
-            const auto wrap = [size](int v) { return ((v % size) + size) % size; };
+            const std::int32_t size = sizeAt(level);
+            const auto wrap = [size](std::int32_t v) { return ((v % size) + size) % size; };
 
             const std::size_t at = fogFieldOffsetAt(static_cast<std::uint32_t>(level))
                 + 2
@@ -50,24 +50,24 @@ namespace Rtx
 
         /// What `textureLod` gives at a wrapping coordinate: trilinear between the eight texels the
         /// point falls among, with the texel's own value sitting at its centre.
-        osg::Vec2f sampleAt(const FogField noise, int level, const osg::Vec3f& uvw)
+        osg::Vec2f sampleAt(const FogField noise, std::int32_t level, const osg::Vec3f& uvw)
         {
             const auto size = static_cast<float>(sizeAt(level));
             const osg::Vec3f grid(uvw.x() * size - 0.5f, uvw.y() * size - 0.5f, uvw.z() * size - 0.5f);
 
-            const int x0 = static_cast<int>(std::floor(grid.x()));
-            const int y0 = static_cast<int>(std::floor(grid.y()));
-            const int z0 = static_cast<int>(std::floor(grid.z()));
+            const auto x0 = static_cast<std::int32_t>(std::floor(grid.x()));
+            const auto y0 = static_cast<std::int32_t>(std::floor(grid.y()));
+            const auto z0 = static_cast<std::int32_t>(std::floor(grid.z()));
 
             const osg::Vec3f f(grid.x() - static_cast<float>(x0), grid.y() - static_cast<float>(y0),
                 grid.z() - static_cast<float>(z0));
 
             osg::Vec2f total(0.0f, 0.0f);
-            for (int corner = 0; corner < 8; ++corner)
+            for (std::int32_t corner = 0; corner < 8; ++corner)
             {
-                const int dx = corner & 1;
-                const int dy = (corner >> 1) & 1;
-                const int dz = (corner >> 2) & 1;
+                const std::int32_t dx = corner & 1;
+                const std::int32_t dy = (corner >> 1) & 1;
+                const std::int32_t dz = (corner >> 2) & 1;
 
                 const float weight = (dx != 0 ? f.x() : 1.0f - f.x()) * (dy != 0 ? f.y() : 1.0f - f.y())
                     * (dz != 0 ? f.z() : 1.0f - f.z());
@@ -85,7 +85,7 @@ namespace Rtx
         /// @param level which level of the chain to read every scale at. The shader picks it from the
         ///        march's own stride; a test says it outright, so it can ask about a level the shader
         ///        would never choose.
-        float shapeAt(const FogField noise, const osg::Vec3f& position, int level = 0)
+        float shapeAt(const FogField noise, const osg::Vec3f& position, std::int32_t level = 0)
         {
             const auto read = [&](const osg::Vec3f& at, float tile) {
                 return sampleAt(noise, level, osg::Vec3f(at.x() / tile, at.y() / tile, at.z() / tile));
@@ -188,9 +188,9 @@ namespace Rtx
             const FogField noise = sFogNoise;
 
             constexpr std::uint32_t count = 200000;
-            const int cap = static_cast<int>(Shaders::FOG_FIELD_COARSEST);
+            const auto cap = static_cast<std::int32_t>(Shaders::FOG_FIELD_COARSEST);
 
-            for (int level = 0; level <= cap; ++level)
+            for (std::int32_t level = 0; level <= cap; ++level)
             {
                 double total = 0.0;
                 double squares = 0.0;
@@ -263,13 +263,13 @@ namespace Rtx
         {
             const FogField noise = sFogNoise;
 
-            const int texelsPerCell = sSize / static_cast<int>(Shaders::FOG_FIELD_CELLS);
+            const std::int32_t texelsPerCell = sSize / static_cast<std::int32_t>(Shaders::FOG_FIELD_CELLS);
 
             double inside = 0.0;
             std::size_t insideCount = 0;
-            for (int z = 0; z < sSize; ++z)
-                for (int y = 0; y < sSize; ++y)
-                    for (int x = texelsPerCell - 1; x + 1 < sSize; x += texelsPerCell)
+            for (std::int32_t z = 0; z < sSize; ++z)
+                for (std::int32_t y = 0; y < sSize; ++y)
+                    for (std::int32_t x = texelsPerCell - 1; x + 1 < sSize; x += texelsPerCell)
                     {
                         inside
                             += double{ std::abs(texelAt(noise, 0, x, y, z).x() - texelAt(noise, 0, x + 1, y, z).x()) };
@@ -279,13 +279,13 @@ namespace Rtx
             const double typical = inside / static_cast<double>(insideCount);
 
             // The three faces, each against the slice that meets it on the other side.
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
             {
                 double across = 0.0;
-                for (int a = 0; a < sSize; ++a)
-                    for (int b = 0; b < sSize; ++b)
+                for (std::int32_t a = 0; a < sSize; ++a)
+                    for (std::int32_t b = 0; b < sSize; ++b)
                     {
-                        const auto pick = [&](int along) {
+                        const auto pick = [&](std::int32_t along) {
                             if (axis == 0)
                                 return texelAt(noise, 0, along, a, b);
                             if (axis == 1)
@@ -349,9 +349,9 @@ namespace Rtx
             const FogField noise = sFogNoise;
 
             constexpr std::uint32_t count = 100000;
-            const int cap = static_cast<int>(Shaders::FOG_FIELD_COARSEST);
+            const auto cap = static_cast<std::int32_t>(Shaders::FOG_FIELD_COARSEST);
 
-            const auto coverageAt = [&](int level) {
+            const auto coverageAt = [&](std::int32_t level) {
                 double total = 0.0;
                 for (std::uint32_t index = 1; index <= count; ++index)
                     total += double{ smoothstep(
@@ -360,7 +360,7 @@ namespace Rtx
                 return total / count;
             };
 
-            for (int level = 0; level <= cap; ++level)
+            for (std::int32_t level = 0; level <= cap; ++level)
                 EXPECT_NEAR(coverageAt(level), double{ Shaders::FOG_COVERAGE }, 0.05 * double{ Shaders::FOG_COVERAGE })
                     << "level " << level;
 

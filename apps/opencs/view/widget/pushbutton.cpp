@@ -1,14 +1,14 @@
 #include "pushbutton.hpp"
 
+#include <utility>
+
 #include <QKeyEvent>
 #include <QMouseEvent>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
-#include <utility>
-
-#include "../../model/prefs/shortcutmanager.hpp"
-#include "../../model/prefs/state.hpp"
+#include <apps/opencs/model/prefs/shortcutmanager.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 
 void CSVWidget::PushButton::processShortcuts()
 {

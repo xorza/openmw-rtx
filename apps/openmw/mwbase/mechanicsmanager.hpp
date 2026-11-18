@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -7,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace osg
 {
@@ -93,17 +94,17 @@ namespace MWBase
         ///< If the player is sleeping or waiting, this should be called every hour.
         /// @param sleep is the player sleeping or waiting?
 
-        virtual int getHoursToRest() const = 0;
+        virtual std::int32_t getHoursToRest() const = 0;
         ///< Calculate how many hours the player needs to rest in order to be fully healed
 
-        virtual int getBarterOffer(const MWWorld::Ptr& ptr, int basePrice, bool buying) = 0;
+        virtual std::int32_t getBarterOffer(const MWWorld::Ptr& ptr, std::int32_t basePrice, bool buying) = 0;
         ///< This is used by every service to determine the price of objects given the trading skills of the player and
         ///< NPC.
 
-        virtual int getDerivedDisposition(const MWWorld::Ptr& ptr, bool clamp = true) = 0;
+        virtual std::int32_t getDerivedDisposition(const MWWorld::Ptr& ptr, bool clamp = true) = 0;
         ///< Calculate the diposition of an NPC toward the player.
 
-        virtual int countDeaths(const ESM::RefId& id) const = 0;
+        virtual std::int32_t countDeaths(const ESM::RefId& id) const = 0;
         ///< Return the number of deaths for actors with the given ID.
 
         /// Check if \a observer is potentially aware of \a ptr. Does not do a line of sight check!
@@ -134,7 +135,7 @@ namespace MWBase
          * @return was the crime seen?
          */
         virtual bool commitCrime(const MWWorld::Ptr& ptr, const MWWorld::Ptr& victim, OffenseType type,
-            const ESM::RefId& factionId = ESM::RefId(), int arg = 0, bool victimAware = false) = 0;
+            const ESM::RefId& factionId = ESM::RefId(), std::int32_t arg = 0, bool victimAware = false) = 0;
         /// @return false if the attack was considered a "friendly hit" and forgiven
         virtual bool actorAttacked(const MWWorld::Ptr& victim, const MWWorld::Ptr& attacker) = 0;
 
@@ -145,7 +146,7 @@ namespace MWBase
         /// Utility to check if taking this item is illegal and calling commitCrime if so
         /// @param container The container the item is in; may be empty for an item in the world
         virtual void itemTaken(const MWWorld::Ptr& ptr, const MWWorld::Ptr& item, const MWWorld::Ptr& container,
-            int count, bool alarm = true) = 0;
+            std::int32_t count, bool alarm = true) = 0;
         /// Utility to check if unlocking this object is illegal and calling commitCrime if so
         virtual void unlockAttempted(const MWWorld::Ptr& ptr, const MWWorld::Ptr& item) = 0;
         /// Attempt sleeping in a bed. If this is illegal, call commitCrime.
@@ -161,15 +162,15 @@ namespace MWBase
             PT_Bribe100,
             PT_Bribe1000
         };
-        virtual void getPersuasionDispositionChange(
-            const MWWorld::Ptr& npc, PersuasionType type, bool& success, int& tempChange, int& permChange) = 0;
+        virtual void getPersuasionDispositionChange(const MWWorld::Ptr& npc, PersuasionType type, bool& success,
+            std::int32_t& tempChange, std::int32_t& permChange) = 0;
         ///< Perform a persuasion action on NPC
 
         virtual void forceStateUpdate(const MWWorld::Ptr& ptr) = 0;
         ///< Forces an object to refresh its animation state.
 
-        virtual bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, int mode,
-            uint32_t number = 1, bool scripted = false) = 0;
+        virtual bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, std::int32_t mode,
+            std::uint32_t number = 1, bool scripted = false) = 0;
         ///< Run animation for a MW-reference. Calls to this function for references that are currently not
         /// in the scene should be ignored.
         ///
@@ -177,7 +178,7 @@ namespace MWBase
         /// \param number How many times the animation should be run
         /// \param scripted Whether the animation should be treated as a scripted animation.
         /// \return Success or error
-        virtual bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops,
+        virtual bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, std::uint32_t loops,
             float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop) = 0;
         ///< Lua variant of playAnimationGroup. The mode parameter is omitted
         /// and forced to 0. modes 1 and 2 can be emulated by doing clearAnimationQueue() and
@@ -227,8 +228,8 @@ namespace MWBase
         /**ie AiFollow or AiEscort is active and the target is the actor **/
         virtual std::vector<MWWorld::Ptr> getActorsSidingWith(const MWWorld::Ptr& actor) = 0;
         virtual std::vector<MWWorld::Ptr> getActorsFollowing(const MWWorld::Ptr& actor) = 0;
-        virtual std::vector<int> getActorsFollowingIndices(const MWWorld::Ptr& actor) = 0;
-        virtual std::map<int, MWWorld::Ptr> getActorsFollowingByIndex(const MWWorld::Ptr& actor) = 0;
+        virtual std::vector<std::int32_t> getActorsFollowingIndices(const MWWorld::Ptr& actor) = 0;
+        virtual std::map<std::int32_t, MWWorld::Ptr> getActorsFollowingByIndex(const MWWorld::Ptr& actor) = 0;
 
         /// Returns a list of actors who are fighting the given actor within the fAlarmDistance
         /** ie AiCombat is active and the target is the actor **/
@@ -242,11 +243,11 @@ namespace MWBase
 
         virtual void playerLoaded() = 0;
 
-        virtual size_t countSavedGameRecords() const = 0;
+        virtual std::size_t countSavedGameRecords() const = 0;
 
         virtual void write(ESM::ESMWriter& writer, Loading::Listener& listener) const = 0;
 
-        virtual void readRecord(ESM::ESMReader& reader, uint32_t type) = 0;
+        virtual void readRecord(ESM::ESMReader& reader, std::uint32_t type) = 0;
 
         virtual void clear() = 0;
 
@@ -274,7 +275,7 @@ namespace MWBase
 
         /// List the owners that the player has stolen this item from (the owner can be an NPC or a faction).
         /// <Owner, item count>
-        virtual std::vector<std::pair<ESM::RefId, int>> getStolenItemOwners(const ESM::RefId& itemid) = 0;
+        virtual std::vector<std::pair<ESM::RefId, std::int32_t>> getStolenItemOwners(const ESM::RefId& itemid) = 0;
 
         /// Has the player stolen this item from the given owner?
         virtual bool isItemStolenFrom(const ESM::RefId& itemid, const MWWorld::Ptr& ptr) = 0;
@@ -292,14 +293,14 @@ namespace MWBase
         virtual void cleanupSummonedCreature(ESM::RefNum creature) = 0;
 
         virtual void confiscateStolenItemToOwner(
-            const MWWorld::Ptr& player, const MWWorld::Ptr& item, const MWWorld::Ptr& victim, int count) = 0;
+            const MWWorld::Ptr& player, const MWWorld::Ptr& item, const MWWorld::Ptr& victim, std::int32_t count) = 0;
         virtual bool isAttackPreparing(const MWWorld::Ptr& ptr) = 0;
         virtual bool isRunning(const MWWorld::Ptr& ptr) = 0;
         virtual bool isSneaking(const MWWorld::Ptr& ptr) = 0;
 
-        virtual void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const = 0;
+        virtual void reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const = 0;
 
-        virtual int getGreetingTimer(const MWWorld::Ptr& ptr) const = 0;
+        virtual std::int32_t getGreetingTimer(const MWWorld::Ptr& ptr) const = 0;
         virtual float getAngleToPlayer(const MWWorld::Ptr& ptr) const = 0;
         virtual MWMechanics::GreetingState getGreetingState(const MWWorld::Ptr& ptr) const = 0;
         virtual void fastForwardAi() const = 0;

@@ -2,29 +2,26 @@
 #include "combat.hpp"
 
 #include <array>
-
 #include <cmath>
-#include <components/misc/rng.hpp>
-#include <components/settings/values.hpp>
+#include <cstdint>
 
-#include <components/sceneutil/positionattitudetransform.hpp>
-
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadsoun.hpp>
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/globals.hpp"
-#include "../mwworld/inventorystore.hpp"
+#include <components/misc/rng.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/settings/values.hpp>
 
 #include "actorutil.hpp"
 #include "difficultyscaling.hpp"
@@ -132,9 +129,10 @@ namespace MWMechanics
             + 0.1f * attackerStats.getAttribute(ESM::Attribute::Luck).getModified();
         attackerTerm *= attackerStats.getFatigueTerm();
 
-        static const int iBlockMaxChance = gmst.find("iBlockMaxChance")->mValue.getInteger();
-        static const int iBlockMinChance = gmst.find("iBlockMinChance")->mValue.getInteger();
-        int x = std::clamp(static_cast<int>(blockerTerm - attackerTerm), iBlockMinChance, iBlockMaxChance);
+        static const std::int32_t iBlockMaxChance = gmst.find("iBlockMaxChance")->mValue.getInteger();
+        static const std::int32_t iBlockMinChance = gmst.find("iBlockMinChance")->mValue.getInteger();
+        std::int32_t x
+            = std::clamp(static_cast<std::int32_t>(blockerTerm - attackerTerm), iBlockMinChance, iBlockMaxChance);
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         if (Misc::Rng::roll0to99(prng) < x)
@@ -149,9 +147,9 @@ namespace MWMechanics
                 sndMgr->playSound3D(blocker, ESM::RefId::stringRefId("Heavy Armor Hit"), 1.0f, 1.0f);
 
             // Reduce shield durability by incoming damage
-            int shieldhealth = shield->getClass().getItemHealth(*shield);
+            std::int32_t shieldhealth = shield->getClass().getItemHealth(*shield);
 
-            shieldhealth -= std::min(shieldhealth, static_cast<int>(damage));
+            shieldhealth -= std::min(shieldhealth, static_cast<std::int32_t>(damage));
             shield->getCellRef().setCharge(shieldhealth);
             if (shieldhealth == 0)
                 inv.unequipItem(*shield);
@@ -183,7 +181,7 @@ namespace MWMechanics
         if (weapon.isEmpty())
             return false;
 
-        const int flags = weapon.get<ESM::Weapon>()->mBase->mData.mFlags;
+        const std::int32_t flags = weapon.get<ESM::Weapon>()->mBase->mData.mFlags;
         bool isSilver = flags & ESM::Weapon::Silver;
         bool isMagical = flags & ESM::Weapon::Magical;
         bool isEnchanted = !weapon.getClass().getEnchantment(weapon).empty();
@@ -212,7 +210,7 @@ namespace MWMechanics
         if (damage == 0 || weapon.isEmpty() || !actor.getClass().isNpc())
             return;
 
-        const int flags = weapon.get<ESM::Weapon>()->mBase->mData.mFlags;
+        const std::int32_t flags = weapon.get<ESM::Weapon>()->mBase->mData.mFlags;
         bool isSilver = flags & ESM::Weapon::Silver;
 
         if (isSilver && actor.getClass().getNpcStats(actor).isWerewolf())
@@ -240,7 +238,7 @@ namespace MWMechanics
             if (attacker == getPlayer())
                 MWBase::Environment::get().getWindowManager()->setEnemy(victim);
 
-            int skillValue = static_cast<int>(attacker.getClass().getSkill(attacker, weaponSkill));
+            auto skillValue = static_cast<std::int32_t>(attacker.getClass().getSkill(attacker, weaponSkill));
 
             if (static_cast<float>(Misc::Rng::roll0to99(world->getPrng()))
                 >= getHitChance(attacker, victim, skillValue))
@@ -317,7 +315,7 @@ namespace MWMechanics
         }
     }
 
-    float getHitChance(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, int skillValue)
+    float getHitChance(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, std::int32_t skillValue)
     {
         MWMechanics::CreatureStats& stats = attacker.getClass().getCreatureStats(attacker);
         const MWMechanics::MagicEffects& mageffects = stats.getMagicEffects();
@@ -429,7 +427,7 @@ namespace MWMechanics
         const bool weaphashealth = weapon.getClass().hasItemHealth(weapon);
         if (weaphashealth)
         {
-            int weaphealth = weapon.getClass().getItemHealth(weapon);
+            std::int32_t weaphealth = weapon.getClass().getItemHealth(weapon);
 
             bool godmode
                 = attacker == MWMechanics::getPlayer() && MWBase::Environment::get().getWorld()->getGodModeState();
@@ -444,7 +442,7 @@ namespace MWMechanics
                                                     ->mValue.getFloat();
                 float x = std::max(1.f, fWeaponDamageMult * damage);
 
-                weaphealth -= std::min(static_cast<int>(x), weaphealth);
+                weaphealth -= std::min(static_cast<std::int32_t>(x), weaphealth);
                 weapon.getCellRef().setCharge(weaphealth);
             }
 
@@ -497,7 +495,7 @@ namespace MWMechanics
         // 0 = Do not factor strength into hand-to-hand combat.
         // 1 = Factor into werewolf hand-to-hand combat.
         // 2 = Ignore werewolves.
-        const int factorStrength = Settings::game().mStrengthInfluencesHandToHand;
+        const std::int32_t factorStrength = Settings::game().mStrengthInfluencesHandToHand;
         if (factorStrength == 1 || (factorStrength == 2 && !isWerewolf))
         {
             damage
@@ -558,12 +556,12 @@ namespace MWMechanics
         }
     }
 
-    int getFightTerm(const MWWorld::Ptr& actor, const MWWorld::Ptr& target)
+    std::int32_t getFightTerm(const MWWorld::Ptr& actor, const MWWorld::Ptr& target)
     {
         const auto mechanicsManager = MWBase::Environment::get().getMechanicsManager();
-        int disposition = actor.getClass().isNpc() ? mechanicsManager->getDerivedDisposition(actor) : 50;
-        int fight = actor.getClass().getCreatureStats(actor).getAiSetting(AiSetting::Fight).getModified()
-            + static_cast<int>(
+        std::int32_t disposition = actor.getClass().isNpc() ? mechanicsManager->getDerivedDisposition(actor) : 50;
+        std::int32_t fight = actor.getClass().getCreatureStats(actor).getAiSetting(AiSetting::Fight).getModified()
+            + static_cast<std::int32_t>(
                 getFightDistanceBias(actor, target) + getFightDispositionBias(static_cast<float>(disposition)));
 
         return fight;
@@ -586,11 +584,11 @@ namespace MWMechanics
 
         float d = getAggroDistance(actor1, pos1, pos2);
 
-        static const int iFightDistanceBase = MWBase::Environment::get()
-                                                  .getESMStore()
-                                                  ->get<ESM::GameSetting>()
-                                                  .find("iFightDistanceBase")
-                                                  ->mValue.getInteger();
+        static const std::int32_t iFightDistanceBase = MWBase::Environment::get()
+                                                           .getESMStore()
+                                                           ->get<ESM::GameSetting>()
+                                                           .find("iFightDistanceBase")
+                                                           ->mValue.getInteger();
         static const float fFightDistanceMultiplier = MWBase::Environment::get()
                                                           .getESMStore()
                                                           ->get<ESM::GameSetting>()
@@ -635,7 +633,7 @@ namespace MWMechanics
             return false;
 
         // Aggression is easier if the target is a werewolf
-        int fight = getFightTerm(actor, target);
+        std::int32_t fight = getFightTerm(actor, target);
         if (actor.getClass().isNpc() && target.getClass().isNpc())
         {
             if (target.getClass().getNpcStats(target).isWerewolf()

@@ -28,7 +28,7 @@
 
 #include <cstdint>
 
-#include "components/esm/fourcc.hpp"
+#include <components/esm/fourcc.hpp>
 
 namespace ESM4
 {

@@ -19,10 +19,10 @@ namespace MyGUIRtx
 {
     namespace
     {
-        osg::ref_ptr<osg::Image> makePicture(const int width, const int height)
+        osg::ref_ptr<osg::Image> makePicture(const std::int32_t width, const std::int32_t height)
         {
             osg::ref_ptr<osg::Image> image = Rtx::Testing::makeImage("", width, height);
-            for (unsigned int at = 0; at < image->getTotalSizeInBytes(); ++at)
+            for (std::uint32_t at = 0; at < image->getTotalSizeInBytes(); ++at)
                 image->data()[at] = static_cast<std::uint8_t>(at);
             return image;
         }

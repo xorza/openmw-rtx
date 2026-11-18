@@ -1,16 +1,17 @@
 #pragma once
 
-#include "recast.hpp"
+#include <cstddef>
+#include <cstdint>
 
 #include <Recast.h>
 
-#include <cstddef>
+#include "recast.hpp"
 
 namespace DetourNavigator
 {
     struct PreparedNavMeshData
     {
-        unsigned int mUserId = 0;
+        std::uint32_t mUserId = 0;
         float mCellSize = 0;
         float mCellHeight = 0;
         rcPolyMesh mPolyMesh;

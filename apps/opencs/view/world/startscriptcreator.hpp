@@ -1,11 +1,11 @@
 #pragma once
 
-#include "genericcreator.hpp"
-
 #include <string>
 
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/world/creator.hpp>
+
+#include "creator.hpp"
+#include "genericcreator.hpp"
 
 class QObject;
 class QUndoStack;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <list>
 #include <queue>
@@ -7,10 +8,9 @@
 #include <variant>
 #include <vector>
 
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/esm3/activespells.hpp>
-
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/timestamp.hpp"
 
 #include "spellcasting.hpp"
 
@@ -39,7 +39,7 @@ namespace MWMechanics
             ESM::RefNum mCaster;
             ESM::RefNum mItem;
             ESM::ActiveSpells::Flags mFlags;
-            int mWorsenings;
+            std::int32_t mWorsenings;
             MWWorld::TimeStamp mNextWorsening;
             MWWorld::Ptr mSource;
 
@@ -70,7 +70,7 @@ namespace MWMechanics
 
             ESM::RefNum getCaster() const { return mCaster; }
 
-            int getWorsenings() const { return mWorsenings; }
+            std::int32_t getWorsenings() const { return mWorsenings; }
 
             const std::string& getDisplayName() const { return mDisplayName; }
 

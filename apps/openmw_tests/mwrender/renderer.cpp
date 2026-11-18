@@ -1,6 +1,7 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <span>
@@ -66,7 +67,7 @@ namespace MWRender
             /// Whether the world was to be drawn, at each `applyWorldShown`.
             /// What each `applyWorldShown` left a frame to draw: the world's view mask, or nothing under
             /// a cover.
-            std::vector<unsigned int> mApplied;
+            std::vector<std::uint32_t> mApplied;
 
             /// The simulation time of each `advance`, and how many times the interface was drawn.
             std::vector<double> mAdvanced;
@@ -98,7 +99,7 @@ namespace MWRender
             std::unique_ptr<MapOverlay> createMapOverlay(const MapOverlaySpec&) override { return nullptr; }
             MyGUI::ITexture& freezeFrame() override { throw std::logic_error("not asked"); }
             void renderGui() override { ++mGuiDrawn; }
-            void capture(osg::Image&, int, int) override {}
+            void capture(osg::Image&, std::int32_t, std::int32_t) override {}
             void saveScreenshot() override {}
             void setVSync(SDLUtil::VSyncMode) override {}
             osg::Timer_t getStartTick() const override { return 0; }
@@ -160,7 +161,7 @@ namespace MWRender
         /// window manager asks every frame.
         TEST(RendererTest, aCoverAndTwsAreTwoReasonsAndTwoAnswers)
         {
-            constexpr unsigned int hidden = ~sToggleWorldMask;
+            constexpr std::uint32_t hidden = ~sToggleWorldMask;
 
             RecordingRenderer renderer;
             EXPECT_EQ(renderer.worldViewMask(), ~0u);
@@ -169,23 +170,23 @@ namespace MWRender
             renderer.showWorld(false);
             EXPECT_FALSE(renderer.isWorldShown());
             EXPECT_TRUE(renderer.isWorldToggled());
-            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<std::uint32_t>{ 0u }));
 
             EXPECT_FALSE(renderer.toggleRenderMode(Render_Scene));
             EXPECT_FALSE(renderer.isWorldToggled());
-            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<std::uint32_t>{ 0u, 0u }));
 
             renderer.showWorld(true);
             EXPECT_TRUE(renderer.isWorldShown());
-            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u, hidden }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<std::uint32_t>{ 0u, 0u, hidden }));
 
             // The view mask's own word survives `tws`: the host's camera inside the player.
-            renderer.setViewMask(~static_cast<unsigned int>(Mask_Player));
-            EXPECT_EQ(renderer.worldViewMask(), hidden & ~static_cast<unsigned int>(Mask_Player));
+            renderer.setViewMask(~static_cast<std::uint32_t>(Mask_Player));
+            EXPECT_EQ(renderer.worldViewMask(), hidden & ~static_cast<std::uint32_t>(Mask_Player));
             renderer.setViewMask(~0u);
 
             EXPECT_TRUE(renderer.toggleRenderMode(Render_Scene));
-            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u, hidden, ~0u }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<std::uint32_t>{ 0u, 0u, hidden, ~0u }));
 
             // The rest are the game's own nodes, and a renderer that has none says so.
             EXPECT_FALSE(renderer.toggleRenderMode(Render_Wireframe));
@@ -413,7 +414,7 @@ namespace MWRender
         /// of its own, each with `describeStartFailure`'s words; a ray tracer that starts is handed back.
         TEST(MWRenderStartFailureTest, everyFailureOfTheRayTracerEndsTheStart)
         {
-            int asked = 0;
+            std::int32_t asked = 0;
             const std::filesystem::path logs = "/home/player/logs";
             const auto failing = [&asked](const auto& thrown) {
                 return [&asked, thrown]() -> std::unique_ptr<Renderer> {

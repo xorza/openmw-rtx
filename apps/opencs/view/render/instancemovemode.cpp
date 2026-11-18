@@ -4,7 +4,6 @@
 #include <QPixmap>
 
 #include <apps/opencs/view/widget/modebutton.hpp>
-
 #include <components/misc/scalableicon.hpp>
 
 class QWidget;

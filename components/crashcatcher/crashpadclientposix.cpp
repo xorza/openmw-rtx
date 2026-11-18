@@ -1,9 +1,8 @@
-#include "crashpadclientsystem.hpp"
-
 #include <array>
 #include <cerrno>
 #include <charconv>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -12,16 +11,16 @@
 #include <utility>
 #include <vector>
 
+#include <client/crashpad_client.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/prctl.h>
 #include <unistd.h>
 
-#include <client/crashpad_client.h>
-
 #include <components/platform/wholefile.hpp>
 
 #include "crashnote.hpp"
+#include "crashpadclientsystem.hpp"
 
 namespace Crash::Client
 {
@@ -29,7 +28,7 @@ namespace Crash::Client
     {
         /// The fatal signals whose handler `lostHooks` checks is still Crashpad's, which installs one
         /// for each, by name.
-        constexpr std::array<std::pair<int, std::string_view>, 7> sHooked{ {
+        constexpr std::array<std::pair<std::int32_t, std::string_view>, 7> sHooked{ {
             { SIGSEGV, "SIGSEGV" },
             { SIGBUS, "SIGBUS" },
             { SIGFPE, "SIGFPE" },
@@ -41,7 +40,7 @@ namespace Crash::Client
 
         static_assert(sHooked.size() <= SystemState{}.mHooks.size());
 
-        std::uintptr_t handlerOf(int signal)
+        std::uintptr_t handlerOf(std::int32_t signal)
         {
             struct sigaction current{};
             sigaction(signal, nullptr, &current);
@@ -50,9 +49,9 @@ namespace Crash::Client
         }
 
         /// The connection to the monitor, or -1 before there is one.
-        int handlerSocket()
+        std::int32_t handlerSocket()
         {
-            int socket = -1;
+            std::int32_t socket = -1;
             pid_t monitor = 0;
             return crashpad::CrashpadClient::GetHandlerSocket(&socket, &monitor) ? socket : -1;
         }
@@ -61,7 +60,8 @@ namespace Crash::Client
     void keepConnectionToThisProcess()
     {
         // `StartHandler` makes the pair with `socketpair` and no `SOCK_CLOEXEC`.
-        if (const int socket = handlerSocket(); socket >= 0)
+        if (const std::int32_t socket = handlerSocket(); socket >= 0)
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): POSIX's fcntl
             fcntl(socket, F_SETFD, fcntl(socket, F_GETFD) | FD_CLOEXEC);
     }
 
@@ -97,12 +97,12 @@ namespace Crash::Client
     {
         /// Yama's `ptrace_scope`, or nothing where the system has no Yama: then a process reads
         /// what its user's others are.
-        std::optional<int> yamaScope()
+        std::optional<std::int32_t> yamaScope()
         {
             std::string text;
             if (!Platform::readWhole("/proc/sys/kernel/yama/ptrace_scope", text, 64).isOk())
                 return std::nullopt;
-            int scope = 0;
+            std::int32_t scope = 0;
             if (std::from_chars(text.data(), text.data() + text.size(), scope).ec != std::errc{})
                 return std::nullopt;
             return scope;
@@ -111,13 +111,13 @@ namespace Crash::Client
 
     std::string describeReading()
     {
-        const std::optional<int> scope = yamaScope();
+        const std::optional<std::int32_t> scope = yamaScope();
         return scope.has_value() ? "Yama's ptrace_scope " + std::to_string(*scope) : "no Yama";
     }
 
     std::string_view unreadable()
     {
-        const int scope = yamaScope().value_or(0);
+        const std::int32_t scope = yamaScope().value_or(0);
         if (scope >= 3)
             return "Yama's ptrace_scope is 3, which lets no process read another";
         if (scope == 2 && geteuid() != 0)
@@ -128,7 +128,7 @@ namespace Crash::Client
     bool monitorRuns()
     {
         // The far end of the pair is the monitor's alone, so it closes when the monitor ends.
-        const int socket = handlerSocket();
+        const std::int32_t socket = handlerSocket();
         if (socket < 0)
             return false;
         pollfd polled{ .fd = socket, .events = POLLRDHUP, .revents = 0 };
@@ -140,6 +140,7 @@ namespace Crash::Client
     std::string_view letMonitorRead(std::uint32_t process)
     {
         // Linux without Yama answers EINVAL: any process of the user's reads another already.
+        // NOLINTNEXTLINE(google-runtime-int, cppcoreguidelines-pro-type-vararg): prctl's own
         if (prctl(PR_SET_PTRACER, static_cast<unsigned long>(process), 0, 0, 0) != 0 && errno != EINVAL)
             return "a hang's dump: the system would not let the monitor read the game";
         return {};

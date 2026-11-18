@@ -1,11 +1,10 @@
-#include "types.hpp"
-
-#include "../magictypebindings.hpp"
-#include "usertypeutil.hpp"
-
+#include <apps/openmw/mwlua/magictypebindings.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace MWLua
 {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Geometry>
 #include <osg/ref_ptr>
 
@@ -16,7 +18,7 @@ namespace SceneUtil
     osg::ref_ptr<osg::Geometry> createPathgridGeometry(const ESM::Pathgrid& pathgrid);
 
     osg::ref_ptr<osg::Geometry> createPathgridSelectedWireframe(
-        const ESM::Pathgrid& pathgrid, const std::vector<unsigned short>& selected);
+        const ESM::Pathgrid& pathgrid, const std::vector<std::uint16_t>& selected);
 
-    unsigned short getPathgridNode(unsigned vertexIndex);
+    std::uint16_t getPathgridNode(std::uint32_t vertexIndex);
 }

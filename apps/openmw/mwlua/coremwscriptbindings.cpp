@@ -1,8 +1,7 @@
 #include "coremwscriptbindings.hpp"
 
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadscpt.hpp>
-
-#include "../mwworld/esmstore.hpp"
 
 #include "context.hpp"
 #include "recordstore.hpp"

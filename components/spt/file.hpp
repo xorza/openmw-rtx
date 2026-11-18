@@ -48,22 +48,22 @@ namespace Spt
         Curve mStartAngle;
         Curve mGravityProfile;
 
-        int32_t mSegmentsCrossSection{};
-        int32_t mSegmentsLength{};
+        std::int32_t mSegmentsCrossSection{};
+        std::int32_t mSegmentsLength{};
         float mGenerationFirst{};
         float mGenerationLast{};
         float mGenerationFrequency{};
         float mTextureTilingU{};
         float mTextureTilingV{};
-        int8_t mTextureTilingUAbs{};
-        int8_t mTextureTilingVAbs{};
+        std::int8_t mTextureTilingUAbs{};
+        std::int8_t mTextureTilingVAbs{};
 
         void read(SPTStream& stream);
     };
 
     struct SPTLeafTextureMap
     {
-        int8_t mMakeBlossom{};
+        std::int8_t mMakeBlossom{};
         osg::Vec3f mColor;
         float mOrientationVariance{};
         std::string mFilename;
@@ -76,18 +76,18 @@ namespace Spt
     struct SPTLeafData
     {
         float mBlossomDistance{};
-        int32_t mBlossomDepth{};
+        std::int32_t mBlossomDepth{};
         float mBlossomWeight{};
-        int8_t mUnknown3003{};
+        std::int8_t mUnknown3003{};
         float mUnknown3004{};
         float mUnknown3005{};
-        int8_t mUnknown3006{};
+        std::int8_t mUnknown3006{};
         float mPlacementTolerance{};
-        int32_t mPlacementCollision{};
-        int8_t mLightingDimmingToggle{};
+        std::int32_t mPlacementCollision{};
+        std::int8_t mLightingDimmingToggle{};
         float mLightingDimming{};
 
-        int32_t mNumLeafTextures{};
+        std::int32_t mNumLeafTextures{};
         std::vector<SPTLeafTextureMap> mLeafTextures;
 
         void read(SPTStream& stream);
@@ -106,13 +106,13 @@ namespace Spt
 
     struct SPTLightingData
     {
-        int32_t mBranchStyle{};
+        std::int32_t mBranchStyle{};
         SPTLightingMaterial mBranchMaterial;
-        int32_t mLeafStyle{};
+        std::int32_t mLeafStyle{};
         SPTLightingMaterial mLeafMaterial;
         float mLeafLightingAdjust{};
-        int32_t mLeafStaticShadows{};
-        int32_t mFrondStyle{};
+        std::int32_t mLeafStaticShadows{};
+        std::int32_t mFrondStyle{};
         SPTLightingMaterial mFrondMaterial;
 
         void read(SPTStream& stream);
@@ -120,10 +120,10 @@ namespace Spt
 
     struct SPTLodBranchesData
     {
-        int32_t mBranchNumLods{};
+        std::int32_t mBranchNumLods{};
         float mBranchMinVol{};
         float mLeafReduction{};
-        int32_t mLeafNumLods{};
+        std::int32_t mLeafNumLods{};
         float mBranchMaxVol{};
         float mBranchFuzziness{};
         float mBranchRetention{};
@@ -133,7 +133,7 @@ namespace Spt
 
     struct SPTLodData
     {
-        int32_t mLeafTransitionMethod{};
+        std::int32_t mLeafTransitionMethod{};
         float mLeafRadius{};
         float mLeafExponent{};
         float mLeafSize{};
@@ -145,7 +145,7 @@ namespace Spt
 
     struct SPTWindData
     {
-        int32_t mFirstWindLevel{};
+        std::int32_t mFirstWindLevel{};
 
         void read(SPTStream& stream);
     };
@@ -161,8 +161,8 @@ namespace Spt
         std::vector<Quad> mBillboardQuads;
         std::vector<Quad> mFrondQuads;
         std::string mUnknown10005;
-        uint8_t mUnknown10006{};
-        uint8_t mUnknown10007{};
+        std::uint8_t mUnknown10006{};
+        std::uint8_t mUnknown10007{};
 
         void read(SPTStream& stream);
     };
@@ -180,20 +180,20 @@ namespace Spt
 
     struct SPTFrondData
     {
-        int32_t mGenerationLevel{};
-        int32_t mBladesOrExtruded{};
-        int32_t mBladeCount{};
+        std::int32_t mGenerationLevel{};
+        std::int32_t mBladesOrExtruded{};
+        std::int32_t mBladeCount{};
         std::string mExtrudedProfile;
-        int32_t mExtrudedSegments{};
-        int8_t mEnabled{};
-        int32_t mNumTextureMaps{};
-        int32_t mNumLods{};
+        std::int32_t mExtrudedSegments{};
+        std::int8_t mEnabled{};
+        std::int32_t mNumTextureMaps{};
+        std::int32_t mNumLods{};
         float mMaxArea{};
         float mMinArea{};
         float mFuzziness{};
         float mRetention{};
-        int32_t mMinExtrusionSegLength{};
-        int32_t mMinExtrusionSegProfile{};
+        std::int32_t mMinExtrusionSegLength{};
+        std::int32_t mMinExtrusionSegProfile{};
         std::vector<SPTFrondTextureMap> mTextureMaps;
 
         void read(SPTStream& stream);
@@ -225,7 +225,7 @@ namespace Spt
 
     struct SPTTrunkTilingEntry
     {
-        int8_t mRandomVOffset{};
+        std::int8_t mRandomVOffset{};
         float mTwist{};
     };
 
@@ -239,7 +239,7 @@ namespace Spt
     struct SPTFlaresEntry
     {
         float mSegmentsPack{};
-        int32_t mFlaresNumber{};
+        std::int32_t mFlaresNumber{};
         float mFlaresBalance{};
         float mRadialInfluence{};
         float mRadialInfluenceVariance{};
@@ -250,13 +250,13 @@ namespace Spt
         float mLengthDistanceVariance{};
         float mLengthExponent{};
 
-        bool readField(SPTStream& stream, int32_t section);
+        bool readField(SPTStream& stream, std::int32_t section);
     };
 
     struct SPTFlaresData
     {
         std::vector<SPTFlaresEntry> mEntries;
-        int32_t mFlareSeed{};
+        std::int32_t mFlareSeed{};
 
         void read(SPTStream& stream);
     };
@@ -281,8 +281,8 @@ namespace Spt
     struct SPTGlobalCompositeMapData
     {
         std::string mFilename;
-        uint8_t mUnknown20003{};
-        uint8_t mUnknown20004{};
+        std::uint8_t mUnknown20003{};
+        std::uint8_t mUnknown20004{};
         std::array<osg::Vec2f, 4> mTexCoords;
 
         void read(SPTStream& stream);
@@ -291,13 +291,13 @@ namespace Spt
     // Precomputed leaf cards per leaf LOD, written by the runtime library right after the header
     struct SPTLeafLodCard
     {
-        int32_t mUnknown7006{};
-        uint8_t mUnknown7007{};
-        uint8_t mUnknown7008{};
+        std::int32_t mUnknown7006{};
+        std::uint8_t mUnknown7007{};
+        std::uint8_t mUnknown7008{};
         osg::Vec3f mUnknown7010;
-        uint8_t mUnknown7011{};
-        uint8_t mUnknown7012{};
-        int32_t mUnknown7013{};
+        std::uint8_t mUnknown7011{};
+        std::uint8_t mUnknown7012{};
+        std::int32_t mUnknown7013{};
         osg::Vec3f mUnknown7015;
         float mUnknown7016{};
     };
@@ -328,7 +328,7 @@ namespace Spt
     struct SPTLeafPlacementData
     {
         float mUnknown24002{};
-        int32_t mUnknown24003{};
+        std::int32_t mUnknown24003{};
 
         void read(SPTStream& stream);
     };
@@ -336,11 +336,11 @@ namespace Spt
     struct SPTSupplementalFrondData
     {
         float mGenerationDistance{};
-        int32_t mGenerationDepth{};
-        int32_t mAboveCondition{};
-        int32_t mBelowCondition{};
-        int32_t mLengthSegmentOverride{};
-        int8_t mLengthSegmentOverrideEnabled{};
+        std::int32_t mGenerationDepth{};
+        std::int32_t mAboveCondition{};
+        std::int32_t mBelowCondition{};
+        std::int32_t mLengthSegmentOverride{};
+        std::int8_t mLengthSegmentOverrideEnabled{};
 
         void read(SPTStream& stream);
     };
@@ -351,11 +351,11 @@ namespace Spt
         float mSegmentsLengthKeep{};
         float mSegmentsCrossSectionKeep{};
         float mGenerationDistance{};
-        int32_t mGenerationDepth{};
-        int8_t mForkEnabled{};
+        std::int32_t mGenerationDepth{};
+        std::int8_t mForkEnabled{};
         float mForkBias{};
         float mForkAngle{};
-        int32_t mForkLimit{};
+        std::int32_t mForkLimit{};
         Curve mUnknown26013;
         Curve mUnknown26014;
         float mRoughnessVertFrequency{};
@@ -366,9 +366,9 @@ namespace Spt
         Curve mUnknown26020;
         float mRoughnessGnarl{};
         Curve mUnknown26022;
-        int8_t mRoughnessGnarlUnison{};
+        std::int8_t mRoughnessGnarlUnison{};
 
-        bool readField(SPTStream& stream, int32_t section);
+        bool readField(SPTStream& stream, std::int32_t section);
     };
 
     struct SPTSupplementalBranchData
@@ -380,9 +380,9 @@ namespace Spt
 
     struct SPTFloorData
     {
-        int8_t mEnabled{};
+        std::int8_t mEnabled{};
         float mValue{};
-        int32_t mLevel{};
+        std::int32_t mLevel{};
         float mExponent{};
         float mBias{};
 
@@ -391,9 +391,9 @@ namespace Spt
 
     struct SPTLeafSmoothingData
     {
-        int8_t mEnabled{};
+        std::int8_t mEnabled{};
         float mAmount{};
-        int32_t mDimmingDepth{};
+        std::int32_t mDimmingDepth{};
 
         void read(SPTStream& stream);
     };
@@ -414,7 +414,7 @@ namespace Spt
 
     struct SPTRootData
     {
-        int32_t mRootLevel{};
+        std::int32_t mRootLevel{};
         float mGenerationFirst{};
         float mGenerationLast{};
         float mGenerationFrequency{};
@@ -431,19 +431,19 @@ namespace Spt
     {
         float mSTiling{};
         float mTTiling{};
-        int8_t mSTilingAbsolute{};
-        int8_t mTTilingAbsolute{};
-        int8_t mRandomTOffset{};
+        std::int8_t mSTilingAbsolute{};
+        std::int8_t mTTilingAbsolute{};
+        std::int8_t mRandomTOffset{};
         float mTwist{};
         float mSOffset{};
         float mTOffset{};
-        int8_t mClampS{};
-        int8_t mClampT{};
+        std::int8_t mClampS{};
+        std::int8_t mClampT{};
         float mClampSLeft{};
         float mClampSRight{};
         float mClampTBottom{};
         float mClampTTop{};
-        int8_t mSynchToDiffuse{};
+        std::int8_t mSynchToDiffuse{};
     };
 
     struct SPTTexCoordData
@@ -485,7 +485,7 @@ namespace Spt
     {
         std::string mName;
         std::vector<SPTLeafMeshVertex> mVertices;
-        std::vector<int32_t> mIndices;
+        std::vector<std::int32_t> mIndices;
     };
 
     struct SPTMeshInfo
@@ -497,9 +497,9 @@ namespace Spt
 
     struct SPTLeafMeshEntry
     {
-        int8_t mUnknown72001{};
-        int32_t mUnknown72002{};
-        int32_t mUnknown72003{};
+        std::int8_t mUnknown72001{};
+        std::int32_t mUnknown72002{};
+        std::int32_t mUnknown72003{};
         float mUnknown72005{};
         float mUnknown72006{};
     };
@@ -522,7 +522,7 @@ namespace Spt
     {
         float mBranchFadeDistance{};
         float mFrondFadeDistance{};
-        int8_t mFadeExtrudedFronds{};
+        std::int8_t mFadeExtrudedFronds{};
         float mBillboardTransition{};
 
         void read(SPTStream& stream);
@@ -536,10 +536,10 @@ namespace Spt
         float mLodNearDistance{};
         float mSize{};
         float mSizeVariance{};
-        int32_t mSeed{};
-        int32_t mNumLevels{};
-        int8_t mUnknown2002{};
-        int32_t mUnknown2004{};
+        std::int32_t mSeed{};
+        std::int32_t mNumLevels{};
+        std::int8_t mUnknown2002{};
+        std::int32_t mUnknown2004{};
 
         std::vector<SPTLevelData> mLevelData;
         SPTLeafData mLeafData;
@@ -564,7 +564,7 @@ namespace Spt
         SPTGlobalCompositeMapData mCompositeMapGlobal;
         float mLeafRockAngleScalar{};
         float mLeafRustleAngleScalar{};
-        uint8_t mBranchWeightingFlexibility{};
+        std::uint8_t mBranchWeightingFlexibility{};
 
         SPTLightSeamData mLightSeam;
         SPTLeafPlacementData mLeafPlacement;
@@ -572,7 +572,7 @@ namespace Spt
         SPTSupplementalBranchData mSupplementalBranch;
         SPTFloorData mFloor;
         SPTLeafSmoothingData mLeafSmoothing;
-        int32_t mClusterFirstVisibleLevel{};
+        std::int32_t mClusterFirstVisibleLevel{};
         SPTStandardShaderData mStandardShader;
         SPTRootData mRoots;
         SPTTexCoordData mTexCoords;

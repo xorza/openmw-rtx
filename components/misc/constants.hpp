@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace Constants
@@ -26,14 +27,14 @@ namespace Constants
     constexpr float MaxFallSpeed = -4005.5f;
 
     // Size of one exterior cell in game units
-    constexpr int CellSizeInUnits = 8192;
-    constexpr int ESM4CellSizeInUnits = 4096;
+    constexpr std::int32_t CellSizeInUnits = 8192;
+    constexpr std::int32_t ESM4CellSizeInUnits = 4096;
 
     // Size of active cell grid in cells (it is a square with the (2 * CellGridRadius + 1) cells side)
-    constexpr int CellGridRadius = 1;
+    constexpr std::int32_t CellGridRadius = 1;
 
     // ESM4 cells are twice smaller, so the active grid should have more cells.
-    constexpr int ESM4CellGridRadius = CellGridRadius * 2;
+    constexpr std::int32_t ESM4CellGridRadius = CellGridRadius * 2;
 
     // A label to mark night/day visual switches
     const std::string NightDayLabel = "NightDaySwitch";

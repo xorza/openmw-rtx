@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Texture2D>
 
 #include <components/resource/resourcemanager.hpp>
@@ -22,7 +24,7 @@ namespace Terrain
 
         osg::ref_ptr<osg::Texture2D> getTexture(VFS::Path::NormalizedView name);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
     private:
         Resource::SceneManager* mSceneManager;

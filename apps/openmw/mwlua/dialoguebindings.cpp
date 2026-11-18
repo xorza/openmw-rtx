@@ -1,16 +1,18 @@
 #include "dialoguebindings.hpp"
 
-#include "context.hpp"
+#include <cstddef>
+#include <cstdint>
 
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/store.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/esm3/loaddial.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "context.hpp"
 
 namespace
 {
@@ -67,7 +69,7 @@ namespace
         };
         storeBindingsClass[sol::meta_function::length] = [](const StoreT& store) { return store.getSize(); };
         storeBindingsClass[sol::meta_function::index] = sol::overload(
-            [](const StoreT& store, size_t index) -> const ESM::Dialogue* {
+            [](const StoreT& store, std::size_t index) -> const ESM::Dialogue* {
                 if (index == 0)
                 {
                     return nullptr;
@@ -127,7 +129,7 @@ namespace
         recordInfosBindingsClass[sol::meta_function::length]
             = [](const DialogueInfos& store) { return store.parentDialogueRecord.mInfo.size(); };
         recordInfosBindingsClass[sol::meta_function::index]
-            = [](const DialogueInfos& store, size_t index) -> const ESM::DialInfo* {
+            = [](const DialogueInfos& store, std::size_t index) -> const ESM::DialInfo* {
             const ESM::Dialogue& dialogueRecord = store.parentDialogueRecord;
             if (index == 0 || index > dialogueRecord.mInfo.size())
             {
@@ -152,7 +154,7 @@ namespace
         recordInfoBindingsClass["text"]
             = sol::readonly_property([](const ESM::DialInfo& rec) -> std::string_view { return rec.mResponse; });
         recordInfoBindingsClass["questStage"]
-            = sol::readonly_property([](const ESM::DialInfo& rec) -> sol::optional<int> {
+            = sol::readonly_property([](const ESM::DialInfo& rec) -> sol::optional<std::int32_t> {
                   if (rec.mData.mType != ESM::Dialogue::Type::Journal)
                   {
                       return sol::nullopt;
@@ -220,7 +222,7 @@ namespace
                   return rec.mFaction.serializeText();
               });
         recordInfoBindingsClass["filterActorFactionRank"]
-            = sol::readonly_property([](const ESM::DialInfo& rec) -> sol::optional<int64_t> {
+            = sol::readonly_property([](const ESM::DialInfo& rec) -> sol::optional<std::int64_t> {
                   if (rec.mData.mType == ESM::Dialogue::Type::Journal || rec.mData.mRank == -1)
                   {
                       return sol::nullopt;
@@ -236,7 +238,7 @@ namespace
                   return rec.mCell.serializeText();
               });
         recordInfoBindingsClass["filterActorDisposition"]
-            = sol::readonly_property([](const ESM::DialInfo& rec) -> sol::optional<int> {
+            = sol::readonly_property([](const ESM::DialInfo& rec) -> sol::optional<std::int32_t> {
                   if (rec.mData.mType == ESM::Dialogue::Type::Journal)
                   {
                       return sol::nullopt;
@@ -260,7 +262,7 @@ namespace
                   return rec.mPcFaction.serializeText();
               });
         recordInfoBindingsClass["filterPlayerFactionRank"]
-            = sol::readonly_property([](const ESM::DialInfo& rec) -> sol::optional<int64_t> {
+            = sol::readonly_property([](const ESM::DialInfo& rec) -> sol::optional<std::int64_t> {
                   if (rec.mData.mType == ESM::Dialogue::Type::Journal || rec.mData.mPCrank == -1)
                   {
                       return sol::nullopt;
@@ -298,9 +300,9 @@ namespace
     {
         auto conditionBindingsClass = lua.new_usertype<ESM::DialogueCondition>("ESM3_Dialogue_Info_Condition");
         conditionBindingsClass["type"] = sol::readonly_property(
-            [](const ESM::DialogueCondition& condition) -> int { return condition.mFunction; });
+            [](const ESM::DialogueCondition& condition) -> std::int32_t { return condition.mFunction; });
         conditionBindingsClass["operator"] = sol::readonly_property(
-            [](const ESM::DialogueCondition& condition) -> int { return condition.mComparison; });
+            [](const ESM::DialogueCondition& condition) -> std::int32_t { return condition.mComparison; });
         conditionBindingsClass["value"] = sol::readonly_property([](const ESM::DialogueCondition& condition) -> double {
             return std::visit([](auto value) -> double { return value; }, condition.mValue);
         });

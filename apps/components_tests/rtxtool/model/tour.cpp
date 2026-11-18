@@ -29,6 +29,15 @@ namespace RtxTool
             return map;
         }
 
+        /// The plan's legs from the `from`th on, their numbers from nought: what a tour flies from a leg on.
+        std::vector<std::size_t> legsFrom(const TourPlan& plan, const std::size_t from = 0)
+        {
+            std::vector<std::size_t> legs;
+            for (std::size_t number = from; number < plan.mLegs.size(); ++number)
+                legs.push_back(number);
+            return legs;
+        }
+
         std::vector<const TourLeg*> legsOf(const TourPlan& plan, const LegKind kind)
         {
             std::vector<const TourLeg*> legs;
@@ -43,9 +52,10 @@ namespace RtxTool
         {
             const TourPlan plan = planTour(WorldMap{}, TourPacing{});
             EXPECT_TRUE(plan.mLegs.empty());
-            EXPECT_EQ(plan.getFrames(), 0u);
-            EXPECT_EQ(describePlan(plan, 7.0f), "the content gives a tour nothing to fly: no land and no room\n");
-            EXPECT_TRUE(stopsFor(plan).empty());
+            EXPECT_TRUE(plan.mLegs.empty());
+            EXPECT_EQ(describePlan(plan, legsFrom(plan), 7.0f),
+                "the content gives a tour nothing to fly: no land and no room\n");
+            EXPECT_TRUE(stopsFor(plan, legsFrom(plan)).empty());
         }
 
         /// **One cell is one leg across it, and the closing leg flies it again.** A row centred a radius above the
@@ -74,14 +84,14 @@ namespace RtxTool
             EXPECT_EQ(closing.mFirstFrame, 0u);
             EXPECT_EQ(closing.mHour, leg.mHour);
             EXPECT_EQ(closing.mTrack.back().mFrame, leg.mTrack.back().mFrame);
-            EXPECT_EQ(plan.getFrames(), 166u);
+            EXPECT_EQ(plan.mLegs.back().getFrames(), 83u) << "the closing leg, the first again";
 
             // The first land leg and the closing leg are the soak's two passes, and the closing leg covers its cells.
-            const std::vector<Stop> stops = stopsFor(plan);
+            const std::vector<Stop> stops = stopsFor(plan, legsFrom(plan));
             EXPECT_EQ(stops[0].mActions.mSoak, Actions::Soak::First);
             EXPECT_EQ(stops[1].mActions.mSoak, Actions::Soak::Again);
             EXPECT_EQ(stops[1].mActions.mCovers, std::vector<osg::Vec2i>{ osg::Vec2i(0, 0) });
-            EXPECT_EQ(stopsFor(plan, 1)[0].mActions.mSoak, Actions::Soak::Again)
+            EXPECT_EQ(stopsFor(plan, legsFrom(plan, 1))[0].mActions.mSoak, Actions::Soak::Again)
                 << "a tour begun past the first leg flies the closing leg with nothing to hold it against";
         }
 
@@ -131,7 +141,7 @@ namespace RtxTool
             EXPECT_FALSE(legs[2]->mContinues);
             EXPECT_EQ(legs[2]->mCells, std::vector<osg::Vec2i>{ osg::Vec2i(30, 6) });
 
-            const std::vector<Stop> stops = stopsFor(plan);
+            const std::vector<Stop> stops = stopsFor(plan, legsFrom(plan));
             EXPECT_TRUE(stops[1].mSchedule.mContinues);
             EXPECT_EQ(stops[1].mSchedule.mSpec.mWarm.mFrames, 0u);
             EXPECT_FALSE(stops[2].mSchedule.mContinues);
@@ -233,7 +243,7 @@ namespace RtxTool
             EXPECT_EQ(leg.getFrames(), 241u);
 
             // A tour of rooms alone has no soak: no land leg to fly again.
-            const std::vector<Stop> stops = stopsFor(plan);
+            const std::vector<Stop> stops = stopsFor(plan, legsFrom(plan));
             ASSERT_EQ(stops.size(), 1u);
             EXPECT_EQ(stops[0].mActions.mSoak, Actions::Soak::None);
             EXPECT_TRUE(stops[0].mActions.mCovers.empty());
@@ -265,8 +275,8 @@ namespace RtxTool
             const WorldMap map
                 = landAt({ osg::Vec2i(0, 0), osg::Vec2i(2, 0), osg::Vec2i(0, 3), osg::Vec2i(2, 3), osg::Vec2i(30, 6) });
             const TourPlan plan = planTour(map, TourPacing{});
-            const std::vector<Stop> whole = stopsFor(plan);
-            const std::vector<Stop> later = stopsFor(plan, 2);
+            const std::vector<Stop> whole = stopsFor(plan, legsFrom(plan));
+            const std::vector<Stop> later = stopsFor(plan, legsFrom(plan, 2));
             ASSERT_EQ(later.size(), whole.size() - 2);
             EXPECT_EQ(later[0].mName, whole[2].mName);
             EXPECT_EQ(later[0].mSky.mHour, whole[2].mSky.mHour);
@@ -278,12 +288,21 @@ namespace RtxTool
             EXPECT_EQ(fromLater.mCrossed, fromWhole.mCrossed);
             EXPECT_EQ(later[0].mSky.mClockTimes, 24.0f) << "at the pacing's rate";
 
-            const std::vector<Stop> fromSecond = stopsFor(plan, 1);
+            const std::vector<Stop> fromSecond = stopsFor(plan, legsFrom(plan, 1));
             EXPECT_FALSE(fromSecond[0].mSchedule.mContinues) << "the first leg flown is a cut";
             EXPECT_EQ(fromSecond[0].mSchedule.mSpec.mWarm.mFrames, sHistoryFrames);
 
+            // The second leg goes on from the first (`theSweepTurnsAtARowsEndAndCutsPastIt`) where the first flew just
+            // before it, and is a cut where the first is left out, as above. A leg flown past one left out keeps the
+            // whole tour's name, which its figures are held against.
+            ASSERT_TRUE(plan.mLegs[1].mContinues);
+            EXPECT_TRUE(stopsFor(plan, std::vector<std::size_t>{ 0, 1 })[1].mSchedule.mContinues);
+            const std::vector<Stop> sampled = stopsFor(plan, std::vector<std::size_t>{ 0, 2 });
+            ASSERT_EQ(sampled.size(), 2u);
+            EXPECT_EQ(sampled[1].mName, whole[2].mName);
+
             const TourPlan again = planTour(map, TourPacing{});
-            const std::vector<Stop> againStops = stopsFor(again);
+            const std::vector<Stop> againStops = stopsFor(again, legsFrom(again));
             ASSERT_EQ(againStops.size(), whole.size());
             for (std::size_t leg = 0; leg < plan.mLegs.size(); ++leg)
             {
@@ -305,7 +324,8 @@ namespace RtxTool
             map.mFiles = { "Morrowind.esm" };
             map.mRooms.push_back(Room{ .mName = "Vivec, Arena Pit", .mReferences = 959, .mEye = {} });
             map.mRoomsNoDoorEnters = 13;
-            const std::string text = describePlan(planTour(map, TourPacing{}), 6.0f);
+            const TourPlan plan = planTour(map, TourPacing{});
+            const std::string text = describePlan(plan, legsFrom(plan), 6.0f);
             EXPECT_NE(text.find("tour: 1 land cells across 1 x 1, rows every 3 cells at 12000 units a second, 2048 up"),
                 std::string::npos)
                 << text;
@@ -315,6 +335,14 @@ namespace RtxTool
             EXPECT_NE(text.find("13 rooms no door leads into left out"), std::string::npos) << text;
             // 83 + 241 + 83 frames at 6 ms: 407 · 6 / 60000 = 0.04 min.
             EXPECT_NE(text.find("407 frames, 0.0 min at 6 ms a frame"), std::string::npos) << text;
+            EXPECT_EQ(text.find("flown, as --legs"), std::string::npos) << "every leg flies";
+
+            // The room alone: the one leg listed, its 241 frames counted, and how many of the three fly said.
+            const std::string room = describePlan(plan, std::vector<std::size_t>{ 1 }, 6.0f);
+            EXPECT_NE(room.find("1 of them flown, as --legs and --every pick"), std::string::npos) << room;
+            EXPECT_NE(room.find("room  959 references"), std::string::npos) << room;
+            EXPECT_EQ(room.find("closing,"), std::string::npos) << room;
+            EXPECT_NE(room.find("241 frames, 0.0 min at 6 ms a frame"), std::string::npos) << room;
         }
     }
 }

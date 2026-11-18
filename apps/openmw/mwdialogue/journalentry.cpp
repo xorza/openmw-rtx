@@ -1,18 +1,15 @@
 #include "journalentry.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
 #include <components/esm3/journalentry.hpp>
-
 #include <components/interpreter/defines.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/globals.hpp"
-
-#include "../mwscript/interpretercontext.hpp"
 
 namespace MWDialogue
 {
@@ -78,12 +75,12 @@ namespace MWDialogue
         entry.mTopic = mTopic;
     }
 
-    JournalEntry JournalEntry::makeFromQuest(const ESM::RefId& topic, int index)
+    JournalEntry JournalEntry::makeFromQuest(const ESM::RefId& topic, std::int32_t index)
     {
         return JournalEntry(topic, idFromIndex(topic, index), MWWorld::Ptr());
     }
 
-    const ESM::RefId& JournalEntry::idFromIndex(const ESM::RefId& topic, int index)
+    const ESM::RefId& JournalEntry::idFromIndex(const ESM::RefId& topic, std::int32_t index)
     {
         const ESM::Dialogue* dialogue = MWBase::Environment::get().getESMStore()->get<ESM::Dialogue>().find(topic);
 
@@ -103,8 +100,8 @@ namespace MWDialogue
     {
     }
 
-    StampedJournalEntry::StampedJournalEntry(const ESM::RefId& topic, const ESM::RefId& infoId, int day, int month,
-        int dayOfMonth, const MWWorld::Ptr& actor)
+    StampedJournalEntry::StampedJournalEntry(const ESM::RefId& topic, const ESM::RefId& infoId, std::int32_t day,
+        std::int32_t month, std::int32_t dayOfMonth, const MWWorld::Ptr& actor)
         : JournalEntry(topic, infoId, actor)
         , mDay(day)
         , mMonth(month)
@@ -129,11 +126,11 @@ namespace MWDialogue
     }
 
     StampedJournalEntry StampedJournalEntry::makeFromQuest(
-        const ESM::RefId& topic, int index, const MWWorld::Ptr& actor)
+        const ESM::RefId& topic, std::int32_t index, const MWWorld::Ptr& actor)
     {
-        const int day = MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sDaysPassed);
-        const int month = MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sMonth);
-        const int dayOfMonth = MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sDay);
+        const std::int32_t day = MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sDaysPassed);
+        const std::int32_t month = MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sMonth);
+        const std::int32_t dayOfMonth = MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sDay);
 
         return StampedJournalEntry(topic, idFromIndex(topic, index), day, month, dayOfMonth, actor);
     }

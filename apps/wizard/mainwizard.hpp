@@ -1,14 +1,13 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QProcess>
 #include <QWizard>
 
-#ifndef Q_MOC_RUN
-#include <components/files/configurationmanager.hpp>
-
 #include <components/config/gamesettings.hpp>
 #include <components/config/launchersettings.hpp>
-#endif
+#include <components/files/configurationmanager.hpp>
 
 namespace Process
 {
@@ -73,7 +72,7 @@ namespace Wizard
 
     private slots:
 
-        void importerFinished(int exitCode, QProcess::ExitStatus exitStatus);
+        void importerFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
 
         void accept() override;
         void reject() override;

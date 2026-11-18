@@ -1,7 +1,8 @@
 #pragma once
 
-#include "context.hpp"
 #include <string>
+
+#include "context.hpp"
 
 namespace Interpreter
 {

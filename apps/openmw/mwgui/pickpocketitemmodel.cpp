@@ -1,18 +1,18 @@
 #include "pickpocketitemmodel.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/pickpocket.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/misc/rng.hpp>
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/pickpocket.hpp"
-
-#include "../mwworld/class.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWGui
 {
@@ -31,7 +31,7 @@ namespace MWGui
         if (hideItems)
         {
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-            for (size_t i = 0; i < mSourceModel->getItemCount(); ++i)
+            for (std::size_t i = 0; i < mSourceModel->getItemCount(); ++i)
             {
                 if (static_cast<float>(Misc::Rng::roll0to99(prng)) > chance)
                     mHiddenItems.push_back(mSourceModel->getItem(static_cast<ModelIndex>(i)));
@@ -48,12 +48,12 @@ namespace MWGui
     {
         if (index < 0)
             throw std::runtime_error("Invalid index supplied");
-        if (mItems.size() <= static_cast<size_t>(index))
+        if (mItems.size() <= static_cast<std::size_t>(index))
             throw std::runtime_error("Item index out of range");
         return mItems[static_cast<std::size_t>(index)];
     }
 
-    size_t PickpocketItemModel::getItemCount()
+    std::size_t PickpocketItemModel::getItemCount()
     {
         return mItems.size();
     }
@@ -62,7 +62,7 @@ namespace MWGui
     {
         mSourceModel->update();
         mItems.clear();
-        for (size_t i = 0; i < mSourceModel->getItemCount(); ++i)
+        for (std::size_t i = 0; i < mSourceModel->getItemCount(); ++i)
         {
             const ItemStack& item = mSourceModel->getItem(static_cast<ModelIndex>(i));
 
@@ -76,7 +76,7 @@ namespace MWGui
         }
     }
 
-    bool PickpocketItemModel::onDropItem(const MWWorld::Ptr& item, int count)
+    bool PickpocketItemModel::onDropItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         // don't allow "reverse pickpocket" (it will be handled by scripts after 1.0)
         return false;
@@ -101,7 +101,7 @@ namespace MWGui
         }
     }
 
-    bool PickpocketItemModel::onTakeItem(const MWWorld::Ptr& item, int count)
+    bool PickpocketItemModel::onTakeItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         if (mActor.getClass().getCreatureStats(mActor).getKnockedDown())
             return mSourceModel->onTakeItem(item, count);
@@ -116,7 +116,7 @@ namespace MWGui
         return success;
     }
 
-    bool PickpocketItemModel::stealItem(const MWWorld::Ptr& item, int count)
+    bool PickpocketItemModel::stealItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         MWWorld::Ptr player = MWMechanics::getPlayer();
         MWMechanics::Pickpocket pickpocket(player, mActor);

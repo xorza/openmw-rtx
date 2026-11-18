@@ -8,7 +8,6 @@
 #include <osg/Matrix>
 #include <osg/Node>
 #include <osg/NodeVisitor>
-
 #include <osg/ref_ptr>
 
 #include <components/misc/result.hpp>

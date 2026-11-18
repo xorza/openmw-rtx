@@ -1,16 +1,15 @@
 #include "weapontype.hpp"
 
-#include "creaturestats.hpp"
-#include "drawstate.hpp"
+#include <set>
 
-#include "../mwbase/environment.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/esm3/loadweap.hpp>
 
-#include <set>
+#include "creaturestats.hpp"
+#include "drawstate.hpp"
 
 namespace MWMechanics
 {

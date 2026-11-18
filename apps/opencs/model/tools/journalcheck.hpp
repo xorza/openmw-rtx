@@ -1,9 +1,10 @@
 #pragma once
 
-#include "../world/idcollection.hpp"
-#include "../world/infocollection.hpp"
+#include <cstdint>
 
-#include "../doc/stage.hpp"
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/infocollection.hpp>
 
 namespace CSMDoc
 {
@@ -29,10 +30,10 @@ namespace CSMTools
         JournalCheckStage(
             const CSMWorld::IdCollection<ESM::Dialogue>& journals, const CSMWorld::InfoCollection& journalInfos);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages
 
     private:

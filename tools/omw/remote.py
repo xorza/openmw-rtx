@@ -1,7 +1,9 @@
-"""`omw [flavour] remote <host> <verb> [args]`: openmw-rtxtool's `verb` on another Linux machine over SSH, with what
-it writes brought back. **Built where the release is**, so it asks no newer glibc than AlmaLinux 8's, and run there
-against the machine's own loader and driver, with the libraries it lacks beside it, **at the same path**, which the
-harness reads its folders at. Headless (`SESSION`); a measured run holds a SteamOS GPU clock at its top."""
+"""`omw [flavour] remote <host> [--env NAME=VALUE]... <verb> [args]`: openmw-rtxtool's `verb` on another machine over
+SSH, with what it writes brought back, under the environment the line names. A Windows host builds this commit in its
+own clone (`remotewindows`). A Linux one runs this desk's build: **built where the release is**, so it asks no newer
+glibc than AlmaLinux 8's, and run there against the machine's own loader and driver, with the libraries it lacks
+beside it, **at the same path**, which the harness reads its folders at. Headless (`SESSION`); a measured run holds a
+SteamOS GPU clock at its top."""
 
 import base64
 import os
@@ -11,7 +13,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from omw import noise
+from omw import noise, remotewindows
 from omw.build import Build
 from omw.package import (
     CONTAINER_DIR,
@@ -19,7 +21,7 @@ from omw.package import (
     needs_container,
     prepare_container,
 )
-from omw.system import WINDOWS, Refusal, output, require, run, status
+from omw.system import ROOT, WINDOWS, Refusal, output, require, run, status
 
 # What the run reads from the build: the binary, the configuration and the defaults beside it, and
 # the folders of the resources and of the harness, its shader sets among them.
@@ -114,9 +116,37 @@ def remote_line(args: list[str], verb: str, here: Path) -> RemoteLine:
     return line
 
 
-def remote_script(folder: Path, verb: str, args: list[str], measured: bool) -> str:
-    """What runs on the other machine, as bash: the harness's `verb` in `folder`, under its libraries. **Not
-    exec'd**, so the clock a measured run held is put back however the run ends."""
+@dataclass
+class EnvSplit:
+    """A remote line's environment, each name with its value, and its words from the verb on."""
+    env: list[tuple[str, str]]
+    words: list[str]
+
+
+def split_env(args: list[str]) -> EnvSplit:
+    """The `--env NAME=VALUE` words ahead of the verb, and the words from the verb on. A name the shell could not set,
+    and a value with no name, are refused."""
+    env: list[tuple[str, str]] = []
+    at = 0
+    while at < len(args) and (args[at] == "--env" or args[at].startswith("--env=")):
+        word = args[at].removeprefix("--env=") if args[at].startswith("--env=") else None
+        if word is None:
+            if at + 1 >= len(args):
+                raise Refusal("remote: --env names nothing")
+            at += 1
+            word = args[at]
+        name, equals, value = word.partition("=")
+        if not equals or not name.replace("_", "").isalnum() or name[0].isdigit():
+            raise Refusal(f"remote: --env takes NAME=VALUE, and {word!r} is none")
+        env.append((name, value))
+        at += 1
+    return EnvSplit(env=env, words=args[at:])
+
+
+def remote_script(folder: Path, verb: str, args: list[str], measured: bool,
+                  env: list[tuple[str, str]] | None = None) -> str:
+    """What runs on the other machine, as bash: the harness's `verb` in `folder`, under its libraries and the
+    environment the line names. **Not exec'd**, so the clock a measured run held is put back however the run ends."""
     libraries = shlex.quote(str(folder / LIBRARIES))
     lines = [
         "set -u",
@@ -125,6 +155,7 @@ def remote_script(folder: Path, verb: str, args: list[str], measured: bool) -> s
         SESSION,
         "trap 'exit 130' INT TERM",
     ]
+    lines += [f"export {name}={shlex.quote(value)}" for name, value in env or []]
     if measured:
         lines += [
             f'gpu() {{ busctl --user "$1" {GPU_LEVEL} "${{@:2}}"; }}',
@@ -145,10 +176,16 @@ def remote_script(folder: Path, verb: str, args: list[str], measured: bool) -> s
 
 def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int:
     if WINDOWS:
-        raise Refusal("remote is Linux's: the build it copies is a Linux one")
+        raise Refusal("remote is the desk's: it stages a Linux build or hands a commit over")
     if len(args) < 2:
-        raise Refusal("remote runs a harness verb on a host: `omw [flavour] remote <user@host> <verb> [args]`")
-    host, verb, rest = args[0], args[1], args[2:]
+        raise Refusal("remote runs a harness verb on a host: `omw [flavour] remote <user@host> [--env NAME=VALUE]... "
+                      "<verb> [args]`")
+    host = args[0]
+    split = split_env(args[1:])
+    env, words = split.env, split.words
+    if not words:
+        raise Refusal("remote: no verb follows the environment")
+    verb, rest = words[0], words[1:]
     if host.startswith("-"):
         raise Refusal(f"remote: {host!r} is no host, and ssh would read it as a switch")
     if verb not in harness_verbs:
@@ -162,7 +199,15 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
     line = remote_line(rest, verb, Path.cwd())
     if absent := [str(path) for path in line.inputs if not path.exists()]:
         raise Refusal(f"remote: nothing here to copy there: {', '.join(absent)}")
+    make_parents(line.outputs)
     ssh = require("ssh", "it is what reaches the other machine: ssh")
+    probe = subprocess.run([ssh, *SSH, host, "echo %OS%"], capture_output=True, text=True, check=False)
+    if probe.returncode == 255:
+        raise Refusal(f"remote: ssh reached no shell on {host}: {probe.stderr.strip()}")
+    if remotewindows.is_windows(probe.stdout):
+        scp = require("scp", "it is what copies the commit there and the files back: scp")
+        return remotewindows.remote_windows(ssh, scp, host, build.flavour, verb, line.args, env, line.outputs,
+                                            line.inputs, lambda command: output(["git", "-C", str(ROOT), *command]))
     rsync = require("rsync", "it is what copies the build there and the files back: rsync")
 
     folder = build.dir
@@ -189,7 +234,7 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
 
     # Not a `--counters` run: RADV holds the kernel's profiling clock under it whatever is set.
     held = verb in MEASURED and not any(word == "--counters" or word.startswith("--counters=") for word in rest)
-    script = remote_script(folder, verb, line.args, held)
+    script = remote_script(folder, verb, line.args, held, env)
     encoded = base64.b64encode(script.encode()).decode()
     # A terminal where this one has one, so Ctrl-C stops the run there and not only the connection.
     terminal = ["-tt"] if sys.stdin.isatty() else []
@@ -211,6 +256,18 @@ def build_refusal(host: str, parent: Path, status: int) -> str | None:
         return f"remote: ssh reached no shell on {host}, as it says above"
     return (f"{host} cannot write {parent}, where the build goes: make it once there with "
             f"`sudo mkdir -p {parent} && sudo chown $USER: {parent}`")
+
+
+def make_parents(outputs: list[Path]) -> None:
+    """Makes the folder each of `outputs` is brought back into, here, **before the run**: rsync and scp make no folder
+    above the one they copy, and a parent missing was a whole flight's files left on the other machine. One that cannot
+    be made is refused at once."""
+    for path in outputs:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            raise Refusal(f"remote: {path.parent}, where {path.name} comes back to, cannot be made here: "
+                          f"{error.strerror}") from error
 
 
 def fetch_note(status: int) -> str:

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mutex>
+#include <cassert>
 #include <optional>
 #include <string>
 
@@ -8,14 +8,15 @@
 #include <osg/Referenced>
 #include <osg/ref_ptr>
 
+#include <components/contentstore/store.hpp>
 #include <components/resource/imageheader.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "contentpreprocessor.hpp"
+#include "headerderived.hpp"
 #include "imagefactcache.hpp"
-#include <components/contentstore/store.hpp>
 
 namespace Rtx
 {
@@ -92,17 +93,8 @@ namespace Rtx
         /// The same, for a caller that keeps no entry.
         const MeanTexel& meanOf(const osg::Image& image) { return meanOf(factsOf(image), image); }
 
-        /// What every thread derived of a header's texels (`Resource::ImageHeader::derived`): the facts read so far,
-        /// each by whichever thread asked first.
-        struct SharedFacts : osg::Referenced
-        {
-            std::mutex mMutex;
-            ImageFacts mFacts;
-        };
-
-        /// The fact `member` of `image`: where it is a header, as any thread read it already, and read off its texels
-        /// and kept for every thread where none has, so a thread meeting a file the others read reads no texel
-        /// again once they are let go of; read off `image` itself where it holds its texels.
+        /// The fact `member` of `image`: where it is a header, as derived where its file was first read
+        /// (`ImageDerivation`), which reads nothing; read off `image` itself where it holds its texels.
         template <class Fact, class Read>
         Fact factOf(const osg::Image& image, std::optional<Fact> ImageFacts::* member, Read read)
         {
@@ -110,16 +102,11 @@ namespace Rtx
             if (header == nullptr)
                 return read(image);
 
-            auto& shared = header->derived<SharedFacts>();
-            {
-                const std::scoped_lock lock(shared.mMutex);
-                if (const std::optional<Fact>& known = shared.mFacts.*member; known.has_value())
-                    return *known;
-            }
-            const Fact made = read(*Resource::texelsOf(image));
-            const std::scoped_lock lock(shared.mMutex);
-            shared.mFacts.*member = made;
-            return made;
+            const std::optional<FileFacts>& derived = header->derived<HeaderDerived>().mFacts;
+            assert(derived.has_value() && "a header its manager handed out underived");
+            const std::optional<Fact>& fact = derived->mFacts.*member;
+            assert(fact.has_value() && "a derivation short of a fact");
+            return *fact;
         }
 
         /// `image`'s name (`SceneUtil::EmbeddedImage::nameOf`) normalised as the texture table

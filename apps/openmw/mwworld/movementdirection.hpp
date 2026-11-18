@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 namespace MWWorld
 {
-    using MovementDirectionFlags = unsigned char;
+    using MovementDirectionFlags = std::uint8_t;
 
     enum MovementDirectionFlag : MovementDirectionFlags
     {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace MWPhysics
 {
     static constexpr float sStepSizeDown = 62.0f;
@@ -13,7 +15,7 @@ namespace MWPhysics
     static constexpr float sGroundOffset = 1.0f;
 
     // Arbitrary number. To prevent infinite loops. They shouldn't happen but it's good to be prepared.
-    static constexpr int sMaxIterations = 8;
+    static constexpr std::int32_t sMaxIterations = 8;
     // Allows for more precise movement solving without getting stuck or snagging too easily.
     static constexpr float sCollisionMargin = 0.2f;
     // Allow for a small amount of penetration to prevent numerical precision issues from causing the "unstuck"ing code

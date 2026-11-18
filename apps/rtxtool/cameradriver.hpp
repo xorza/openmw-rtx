@@ -53,7 +53,7 @@ namespace RtxTool
         /// shows now (`SkyCrossing::ask`), at the weather's own `Transition_Delta` and the clock's
         /// speed; or at once, where `atOnce` asks or the clock is stopped. Nothing under a take's
         /// track, or where the player stands under no region's sky.
-        void turnSkyBy(const Stop& stop, int steps, bool atOnce);
+        void turnSkyBy(const Stop& stop, std::int32_t steps, bool atOnce);
 
         /// Puts the camera where the stop stands this frame, and points it where the stop asked. Every frame,
         /// because `omw/camera/camera.lua`'s `onActive` forces third person and a stop's teleport reactivates
@@ -109,7 +109,7 @@ namespace RtxTool
         static float transitionDeltaOf(Rtx::Weather weather);
 
         /// The chance `region` rolls `weather` at, in per cent, and nought where it names none.
-        static int chanceOf(const ESM::Region& region, Rtx::Weather weather);
+        static std::int32_t chanceOf(const ESM::Region& region, Rtx::Weather weather);
 
         /// Puts the player's body at `eye`, where a route or a track has the camera this frame.
         static void moveBodyTo(const osg::Vec3f& eye);
@@ -136,7 +136,7 @@ namespace RtxTool
 
         /// Whether the eye's view mask keeps `classes` in the picture: the player's own body, and the
         /// lamps (`Stand::mLamps`).
-        static void showInView(unsigned int classes, bool shown);
+        static void showInView(std::uint32_t classes, bool shown);
 
         /// Where the eye stood when the stop began, which a route flies from.
         osg::Vec3f mFrom;

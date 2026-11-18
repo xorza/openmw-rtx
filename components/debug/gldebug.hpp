@@ -1,7 +1,9 @@
 #pragma once
 
-#include <osgViewer/ViewerEventHandlers>
+#include <cstdint>
 #include <utility>
+
+#include <osgViewer/ViewerEventHandlers>
 
 namespace Debug
 {
@@ -58,7 +60,7 @@ namespace Debug
 
         void apply(osg::State& state) const override;
 
-        int compare(const StateAttribute& sa) const override;
+        std::int32_t compare(const StateAttribute& sa) const override;
 
         void releaseGLObjects(osg::State* state = nullptr) const override;
 
@@ -75,7 +77,7 @@ namespace Debug
         GLuint mId;
         std::string mMessage;
 
-        static std::map<unsigned int, std::vector<const DebugGroup*>> sLastAppliedStack;
+        static std::map<std::uint32_t, std::vector<const DebugGroup*>> sLastAppliedStack;
 
         friend EnableGLDebugOperation;
     };

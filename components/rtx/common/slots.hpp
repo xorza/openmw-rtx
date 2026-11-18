@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "index.hpp"
+#include "rowspan.hpp"
 
 namespace Rtx
 {
@@ -21,40 +22,43 @@ namespace Rtx
     /// `GuiTextures` keeps a slot's read-back buffer across its tenants, where `SlotRows::take`
     /// replaces a row whole. A byte per slot says whether it is on the heap, so
     /// a slot freed twice is an assert here and not two entries the heap hands out as two slots.
+    ///
+    /// @tparam I the table's row (`RowIndex`).
+    template <class I>
     class SlotPool
     {
     public:
-        /// A free slot, or `sNoIndex` where there is none and the caller has to append.
-        Index take()
+        /// A free slot, or none where there is none and the caller has to append.
+        I take()
         {
             if (mFree.empty())
-                return sNoIndex;
+                return sNoRow;
 
             std::pop_heap(mFree.begin(), mFree.end(), std::greater<>());
-            const Index index = mFree.back();
+            const I index = mFree.back();
             mFree.pop_back();
-            mIsFree[index] = 0;
+            mIsFree[index.at()] = 0;
 
             return index;
         }
 
         /// Puts `slot` back, so the next `take` may answer with it. The only way onto the list, or
         /// it is no heap and the pop above answers with whatever the top happens to be.
-        void free(Index slot)
+        void free(const I slot)
         {
             // Grown here and not by the table, as `SlotSet::addMakingRoom` grows: the first free of
             // a slot is after the growth that made it, and a free is not the frame path's busy part.
-            if (slot >= mIsFree.size())
-                mIsFree.resize(std::size_t{ slot } + 1, 0);
-            assert(mIsFree[slot] == 0 && "a slot freed twice");
+            if (slot.at() >= mIsFree.size())
+                mIsFree.resize(std::size_t{ slot.at() } + 1, 0);
+            assert(mIsFree[slot.at()] == 0 && "a slot freed twice");
 
-            mIsFree[slot] = 1;
+            mIsFree[slot.at()] = 1;
             mFree.push_back(slot);
             std::push_heap(mFree.begin(), mFree.end(), std::greater<>());
         }
 
         /// Whether `slot` is on the list — what a caller asks before it gives one back.
-        bool isFree(Index slot) const { return slot < mIsFree.size() && mIsFree[slot] != 0; }
+        bool isFree(const I slot) const { return slot.at() < mIsFree.size() && mIsFree[slot.at()] != 0; }
 
         /// How many slots stand empty, which a table subtracts from its length to count what lives.
         std::size_t size() const { return mFree.size(); }
@@ -69,7 +73,7 @@ namespace Rtx
 
     private:
         /// A min-heap of the slots nothing stands in.
-        std::vector<Index> mFree;
+        std::vector<I> mFree;
 
         /// A byte per slot ever freed, set for exactly the slots the heap holds.
         std::vector<std::uint8_t> mIsFree;
@@ -80,6 +84,9 @@ namespace Rtx
     /// appearing twice without searching the list — N²/2 comparisons for the N movers of a crowded
     /// cell. Kept together, because apart they fall out of step in the one direction nothing
     /// catches.
+    ///
+    /// @tparam I the table's row (`RowIndex`).
+    template <class I>
     class SlotSet
     {
         /// Where a slot stands. A slot taken out stays on the list as `Removed` until
@@ -110,48 +117,64 @@ namespace Rtx
         }
 
         /// Puts `slot` in the set, once however many times it is named.
-        void add(Index slot)
+        void add(const I slot)
         {
-            assert(slot < mStates.size() && "a slot the table has not grown to");
-            if (mStates[slot] == State::Listed)
+            assert(slot.at() < mStates.size() && "a slot the table has not grown to");
+            State& state = mStates[slot.at()];
+            if (state == State::Listed)
                 return;
 
-            if (mStates[slot] == State::Absent)
+            if (state == State::Absent)
                 mSlots.push_back(slot);
             else
                 --mRemoved;
-            mStates[slot] = State::Listed;
+            state = State::Listed;
         }
 
         /// The same, for a caller that is told one slot at a time and never sees the table.
-        void addMakingRoom(Index slot)
+        void addMakingRoom(const I slot)
         {
-            grow(std::size_t{ slot } + 1);
+            grow(std::size_t{ slot.at() } + 1);
             add(slot);
         }
 
         /// Takes `slot` out. The list is left holding it until `compact` runs, because a sweep
         /// takes thousands back and erasing from the middle is that many moves apiece; `getSlots`
         /// will not answer while one is outstanding.
-        void remove(Index slot)
+        void remove(const I slot)
         {
-            assert(slot < mStates.size() && "a slot the table has not grown to");
-            if (mStates[slot] != State::Listed)
+            assert(slot.at() < mStates.size() && "a slot the table has not grown to");
+            State& state = mStates[slot.at()];
+            if (state != State::Listed)
                 return;
 
-            mStates[slot] = State::Removed;
+            state = State::Removed;
             ++mRemoved;
         }
 
         /// Drops what `remove` took, in one pass over the list rather than one per slot. A table
         /// calls it once its sweep ends, before anything reads the list.
-        void compact();
+        void compact()
+        {
+            if (mRemoved == 0)
+                return;
+
+            std::erase_if(mSlots, [this](const I slot) {
+                State& state = mStates[slot.at()];
+                if (state != State::Removed)
+                    return false;
+
+                state = State::Absent;
+                return true;
+            });
+            mRemoved = 0;
+        }
 
         /// Whether `slot` is in the set. Answers while a `remove` is outstanding, where `getSlots`
         /// will not: the states are exact from the moment a slot is taken out.
-        bool has(Index slot) const { return slot < mStates.size() && mStates[slot] == State::Listed; }
+        bool has(const I slot) const { return slot.at() < mStates.size() && mStates[slot.at()] == State::Listed; }
 
-        std::span<const Index> getSlots() const
+        std::span<const I> getSlots() const
         {
             assert(mRemoved == 0 && "the list was read between a remove and the compact that settles it");
             return mSlots;
@@ -161,10 +184,17 @@ namespace Rtx
 
         /// Empties the set. Only the slots in it are put back, rather than the whole table: a
         /// worldspace is thousands of slots and what a frame names is tens.
-        void clear();
+        void clear()
+        {
+            for (const I slot : mSlots)
+                mStates[slot.at()] = State::Absent;
+
+            mSlots.clear();
+            mRemoved = 0;
+        }
 
     private:
-        std::vector<Index> mSlots;
+        std::vector<I> mSlots;
 
         /// A `State` per slot of the table beside it: `Absent` for exactly the slots `mSlots` does
         /// not name.
@@ -186,6 +216,9 @@ namespace Rtx
     /// gone, and one that went and was taken over is reported arrived. A backend then releases a slot it
     /// never built and builds into one it never released, both of which it takes as nothing, and the
     /// hand-over relies on it.
+    ///
+    /// @tparam I the table's row (`RowIndex`).
+    template <class I>
     class SlotChanges
     {
     public:
@@ -206,13 +239,25 @@ namespace Rtx
         /// Records `slot` as having arrived or gone. The last word wins and the earlier one is
         /// taken back, because what a reader has to know is where the slot stands at the end of the
         /// frame.
-        void note(Index slot, SlotNews what);
+        void note(const I slot, const SlotNews what)
+        {
+            const bool arriving = what == SlotNews::Arrived;
+            SlotSet<I>& taking = arriving ? mArrived : mFreed;
+            SlotSet<I>& giving = arriving ? mFreed : mArrived;
+
+            giving.remove(slot);
+            taking.add(slot);
+        }
 
         /// Settles what `note` took back, once the table's sweep ends and before the lists are read.
-        void compact();
+        void compact()
+        {
+            mArrived.compact();
+            mFreed.compact();
+        }
 
-        std::span<const Index> getArrived() const { return mArrived.getSlots(); }
-        std::span<const Index> getFreed() const { return mFreed.getSlots(); }
+        std::span<const I> getArrived() const { return mArrived.getSlots(); }
+        std::span<const I> getFreed() const { return mFreed.getSlots(); }
 
         /// Empties both sets.
         void clearArrivals()
@@ -222,8 +267,8 @@ namespace Rtx
         }
 
     private:
-        SlotSet mArrived;
-        SlotSet mFreed;
+        SlotSet<I> mArrived;
+        SlotSet<I> mFreed;
     };
 
     /// A table of fixed-size rows: the rows and the slots nothing stands in. A slot is never moved
@@ -232,7 +277,9 @@ namespace Rtx
     /// takes the lowest one (`SlotPool`). What a freed row holds is the table's business — a mesh
     /// row keeps its last tenant's offsets because a backend walks every slot, a material row is
     /// emptied — so `free` writes nothing.
-    template <class Row>
+    ///
+    /// @tparam I the table's row (`RowIndex`).
+    template <class Row, class I>
     class SlotRows
     {
     public:
@@ -244,7 +291,7 @@ namespace Rtx
         /// How many rows were ever freed, which is what says how many went between two looks.
         std::uint64_t getFreedCount() const { return mFreedCount; }
 
-        std::span<const Row> getRows() const { return mRows; }
+        RowSpan<const Row, I> getRows() const { return RowSpan<const Row, I>(std::span<const Row>(mRows)); }
 
         /// Room for `count` rows, so no take up to `count` moves the rows: a table that grows past
         /// its room copies every row on the frame that does it.
@@ -257,44 +304,44 @@ namespace Rtx
         /// Whether `slot` holds a row: what an index into this table has to name to mean anything,
         /// and what a placement's mesh or material is checked against. Asked of the free list, which
         /// keeps a byte per slot for it, so the answer has one source.
-        bool isLive(Index slot) const
+        bool isLive(const I slot) const
         {
-            assert(slot < mRows.size());
+            assert(slot.at() < mRows.size());
             return !mFree.isFree(slot);
         }
 
-        const Row& at(Index slot) const
+        const Row& at(const I slot) const
         {
-            assert(slot < mRows.size());
-            return mRows[slot];
+            assert(slot.at() < mRows.size());
+            return mRows[slot.at()];
         }
 
-        Row& at(Index slot)
+        Row& at(const I slot)
         {
-            assert(slot < mRows.size());
-            return mRows[slot];
+            assert(slot.at() < mRows.size());
+            return mRows[slot.at()];
         }
 
         /// Puts `row` in a free slot, or in a new one. Everything a table knows about a slot is in
         /// the row, so nothing beside the rows has to follow a growth. By value and moved in, so a
         /// row that owns a name is built once.
-        Index take(Row row)
+        I take(Row row)
         {
-            const Index index = mFree.take();
-            if (index == sNoIndex)
+            const I index = mFree.take();
+            if (index.isNone())
             {
                 mRows.push_back(std::move(row));
-                return static_cast<Index>(mRows.size() - 1);
+                return I(static_cast<std::uint32_t>(mRows.size() - 1));
             }
 
-            mRows[index] = std::move(row);
+            mRows[index.at()] = std::move(row);
             return index;
         }
 
         /// Puts `slot` back. What its row now holds is the caller's to have decided.
-        void free(Index slot)
+        void free(const I slot)
         {
-            assert(slot < mRows.size());
+            assert(slot.at() < mRows.size());
             assert(isLive(slot) && "a slot freed twice");
             mFree.free(slot);
             ++mFreedCount;
@@ -303,7 +350,7 @@ namespace Rtx
     private:
         std::vector<Row> mRows;
 
-        SlotPool mFree;
+        SlotPool<I> mFree;
 
         std::uint64_t mFreedCount = 0;
     };
@@ -316,25 +363,27 @@ namespace Rtx
     /// A base, readers public and the rest protected: a table's rows go in through its own `add` and
     /// out through its own drop, since the table alone knows what a freed row holds and what it gives
     /// back. Named apart from the tables' own `take`, `hold` and `drop`, which would hide them.
-    template <class Row>
+    ///
+    /// @tparam I the table's row (`RowIndex`).
+    template <class Row, class I>
     class HeldRows
     {
     public:
         std::size_t size() const { return mRows.size(); }
         std::size_t getLiveCount() const { return mRows.getLiveCount(); }
         std::uint64_t getFreedCount() const { return mRows.getFreedCount(); }
-        bool isLive(Index slot) const { return mRows.isLive(slot); }
-        std::span<const Row> getRows() const { return mRows.getRows(); }
+        bool isLive(const I slot) const { return mRows.isLive(slot); }
+        RowSpan<const Row, I> getRows() const { return mRows.getRows(); }
 
-        std::uint32_t getHolds(Index slot) const
+        std::uint32_t getHolds(const I slot) const
         {
-            assert(slot < mHolds.size());
-            return mHolds[slot];
+            assert(slot.at() < mHolds.size());
+            return mHolds[slot.at()];
         }
 
     protected:
-        const Row& rowAt(Index slot) const { return mRows.at(slot); }
-        Row& rowAt(Index slot) { return mRows.at(slot); }
+        const Row& rowAt(const I slot) const { return mRows.at(slot); }
+        Row& rowAt(const I slot) { return mRows.at(slot); }
 
         /// `SlotRows::reserve`, and the holds beside the rows.
         void reserveRows(std::size_t count)
@@ -345,39 +394,39 @@ namespace Rtx
 
         /// `SlotRows::take`, the slot arriving with no holds: the caller holds it before anything
         /// can drop it.
-        Index takeRow(Row row)
+        I takeRow(Row row)
         {
-            const Index index = mRows.take(std::move(row));
-            if (index == mHolds.size())
+            const I index = mRows.take(std::move(row));
+            if (index.at() == mHolds.size())
                 mHolds.push_back(0);
 
-            assert(mHolds[index] == 0 && "a free slot something still holds");
+            assert(mHolds[index.at()] == 0 && "a free slot something still holds");
             return index;
         }
 
-        void freeRow(Index slot)
+        void freeRow(const I slot)
         {
-            assert(mHolds[slot] == 0 && "a slot freed while something holds it");
+            assert(mHolds[slot.at()] == 0 && "a slot freed while something holds it");
             mRows.free(slot);
         }
 
-        void holdRow(Index slot)
+        void holdRow(const I slot)
         {
             assert(isLive(slot) && "a hold on a slot nothing stands in");
-            ++mHolds[slot];
+            ++mHolds[slot.at()];
         }
 
         /// Counts one holder off `slot`, and says whether that was the last, which is where the
         /// table frees the row.
-        bool dropRow(Index slot)
+        bool dropRow(const I slot)
         {
-            assert(slot < mHolds.size());
-            assert(mHolds[slot] > 0 && "a slot given back more often than it was held");
-            return --mHolds[slot] == 0;
+            assert(slot.at() < mHolds.size());
+            assert(mHolds[slot.at()] > 0 && "a slot given back more often than it was held");
+            return --mHolds[slot.at()] == 0;
         }
 
     private:
-        SlotRows<Row> mRows;
+        SlotRows<Row, I> mRows;
 
         /// How many things hold each row, parallel to the rows.
         std::vector<std::uint32_t> mHolds;

@@ -26,7 +26,7 @@ namespace Rtx::Testing
     {
         std::uint32_t value = 0;
         for (std::size_t i = 0; i < 4; ++i)
-            value = (value << 8) | static_cast<unsigned char>(bytes[at + i]);
+            value = (value << 8) | static_cast<std::uint8_t>(bytes[at + i]);
         return value;
     }
 

@@ -1,16 +1,17 @@
 #include "resourcehelpers.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <string_view>
 
 #include <components/esm/gameformat.hpp>
 #include <components/esm/refid.hpp>
-
-#include <components/misc/pathhelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
-
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "pathhelpers.hpp"
 
 namespace
 {
@@ -159,7 +160,7 @@ VFS::Path::Normalized Misc::ResourceHelpers::correctBookartPath(
 }
 
 VFS::Path::Normalized Misc::ResourceHelpers::correctBookartPath(
-    VFS::Path::NormalizedView resPath, int width, int height, const VFS::Manager& vfs)
+    VFS::Path::NormalizedView resPath, std::int32_t width, std::int32_t height, const VFS::Manager& vfs)
 {
     VFS::Path::Normalized image = correctBookartPath(resPath, vfs);
 
@@ -298,10 +299,10 @@ namespace
 }
 
 VFS::Path::Normalized Misc::ResourceHelpers::getLODMeshName(
-    ESM::GameFormat gameFormat, VFS::Path::NormalizedView resPath, const VFS::Manager& vfs, unsigned char lod)
+    ESM::GameFormat gameFormat, VFS::Path::NormalizedView resPath, const VFS::Manager& vfs, std::uint8_t lod)
 {
     const std::string_view distantMeshPattern = getDistantMeshPattern(gameFormat);
-    for (int l = lod; l >= 0; --l)
+    for (std::int32_t l = lod; l >= 0; --l)
     {
         std::stringstream patern;
         patern << distantMeshPattern << "_" << l;

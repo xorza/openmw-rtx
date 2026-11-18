@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "objectstate.hpp"
 
 namespace ESM
@@ -8,7 +10,7 @@ namespace ESM
 
     struct DoorState final : public ObjectState
     {
-        int32_t mDoorState = 0;
+        std::int32_t mDoorState = 0;
 
         void load(ESMReader& esm) override;
         void save(ESMWriter& esm, bool inInventory = false) const override;

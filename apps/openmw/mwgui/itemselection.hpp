@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_Delegate.h>
 
 #include "windowbase.hpp"
@@ -28,8 +30,8 @@ namespace MWGui
         EventHandle_Void eventDialogCanceled;
 
         void openContainer(const MWWorld::Ptr& container);
-        void setCategory(int category);
-        void setFilter(int filter);
+        void setCategory(std::int32_t category);
+        void setFilter(std::int32_t filter);
 
         SortFilterItemModel* getSortModel() { return mSortModel; }
 
@@ -37,7 +39,7 @@ namespace MWGui
         ItemView* mItemView{};
         SortFilterItemModel* mSortModel;
 
-        void onSelectedItem(int index);
+        void onSelectedItem(std::int32_t index);
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;

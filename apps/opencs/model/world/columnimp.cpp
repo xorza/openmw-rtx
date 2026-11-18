@@ -1,15 +1,17 @@
 #include "columnimp.hpp"
 
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/disabletag.hpp>
-#include <apps/opencs/model/world/land.hpp>
-#include <apps/opencs/model/world/record.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
 
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/loadltex.hpp>
 
-#include <stdexcept>
+#include "columnbase.hpp"
+#include "columns.hpp"
+#include "disabletag.hpp"
+#include "land.hpp"
+#include "record.hpp"
 
 namespace CSMWorld
 {
@@ -73,14 +75,14 @@ namespace CSMWorld
 
     QVariant LandNormalsColumn::get(const Record<Land>& record) const
     {
-        const int size = Land::LAND_NUM_VERTS * 3;
+        const std::int32_t size = Land::LAND_NUM_VERTS * 3;
         const Land& land = record.get();
 
         DataType values(size, 0);
 
         if (land.isDataLoaded(Land::DATA_VNML))
         {
-            for (int i = 0; i < size; ++i)
+            for (std::int32_t i = 0; i < size; ++i)
                 values[i] = land.getLandData()->mNormals[static_cast<std::size_t>(i)];
         }
 
@@ -99,7 +101,7 @@ namespace CSMWorld
         Land copy = record.get();
         copy.add(Land::DATA_VNML);
 
-        for (int i = 0; i < values.size(); ++i)
+        for (std::int32_t i = 0; i < values.size(); ++i)
         {
             copy.getLandData()->mNormals[static_cast<std::size_t>(i)] = values[i];
         }
@@ -120,14 +122,14 @@ namespace CSMWorld
 
     QVariant LandHeightsColumn::get(const Record<Land>& record) const
     {
-        const int size = Land::LAND_NUM_VERTS;
+        const std::int32_t size = Land::LAND_NUM_VERTS;
         const Land& land = record.get();
 
         DataType values(size, 0);
 
         if (land.isDataLoaded(Land::DATA_VHGT))
         {
-            for (int i = 0; i < size; ++i)
+            for (std::int32_t i = 0; i < size; ++i)
                 values[i] = land.getLandData()->mHeights[static_cast<std::size_t>(i)];
         }
 
@@ -146,7 +148,7 @@ namespace CSMWorld
         Land copy = record.get();
         copy.add(Land::DATA_VHGT);
 
-        for (int i = 0; i < values.size(); ++i)
+        for (std::int32_t i = 0; i < values.size(); ++i)
         {
             copy.getLandData()->mHeights[static_cast<std::size_t>(i)] = values[i];
         }
@@ -169,7 +171,7 @@ namespace CSMWorld
 
     QVariant LandColoursColumn::get(const Record<Land>& record) const
     {
-        const int size = Land::LAND_NUM_VERTS * 3;
+        const std::int32_t size = Land::LAND_NUM_VERTS * 3;
         const Land& land = record.get();
 
         // Missing VCLR should behave like default vertex colour (white),
@@ -179,7 +181,7 @@ namespace CSMWorld
 
         if (land.isDataLoaded(Land::DATA_VCLR))
         {
-            for (int i = 0; i < size; ++i)
+            for (std::int32_t i = 0; i < size; ++i)
                 values[i] = land.getLandData()->mColours[static_cast<std::size_t>(i)];
         }
 
@@ -198,7 +200,7 @@ namespace CSMWorld
         Land copy = record.get();
         copy.add(Land::DATA_VCLR);
 
-        for (int i = 0; i < values.size(); ++i)
+        for (std::int32_t i = 0; i < values.size(); ++i)
         {
             copy.getLandData()->mColours[static_cast<std::size_t>(i)] = values[i];
         }
@@ -221,14 +223,14 @@ namespace CSMWorld
 
     QVariant LandTexturesColumn::get(const Record<Land>& record) const
     {
-        const int size = Land::LAND_NUM_TEXTURES;
+        const std::int32_t size = Land::LAND_NUM_TEXTURES;
         const Land& land = record.get();
 
         DataType values(size, 0);
 
         if (land.isDataLoaded(Land::DATA_VTEX))
         {
-            for (int i = 0; i < size; ++i)
+            for (std::int32_t i = 0; i < size; ++i)
                 values[i] = land.getLandData()->mTextures[static_cast<std::size_t>(i)];
         }
 
@@ -247,7 +249,7 @@ namespace CSMWorld
         Land copy = record.get();
         copy.add(Land::DATA_VTEX);
 
-        for (int i = 0; i < values.size(); ++i)
+        for (std::int32_t i = 0; i < values.size(); ++i)
         {
             copy.getLandData()->mTextures[static_cast<std::size_t>(i)] = values[i];
         }
@@ -325,7 +327,7 @@ namespace CSMWorld
 
     std::optional<std::uint32_t> getSkillIndex(std::string_view value)
     {
-        int index = ESM::Skill::refIdToIndex(ESM::RefId::stringRefId(value));
+        std::int32_t index = ESM::Skill::refIdToIndex(ESM::RefId::stringRefId(value));
         if (index < 0)
             return std::nullopt;
         return static_cast<std::uint32_t>(index);

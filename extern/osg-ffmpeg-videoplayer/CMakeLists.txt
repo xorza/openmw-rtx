@@ -7,8 +7,6 @@ target_sources(
         audiodecoder.cpp
         include/osg-ffmpeg-videoplayer/audiodecoder.hpp
         include/osg-ffmpeg-videoplayer/audiofactory.hpp
-        include/osg-ffmpeg-videoplayer/libavformatdefines.hpp
-        include/osg-ffmpeg-videoplayer/libavutildefines.hpp
         include/osg-ffmpeg-videoplayer/videodefs.hpp
         include/osg-ffmpeg-videoplayer/videoplayer.hpp
         include/osg-ffmpeg-videoplayer/videostate.hpp

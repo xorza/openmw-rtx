@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <components/esm3/loadland.hpp>
@@ -21,7 +22,7 @@ namespace CSMWorld
         // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void load(ESM::ESMReader& esm, bool& isDeleted);
 
-        static std::string createUniqueRecordId(int x, int y);
-        static void parseUniqueRecordId(const std::string& id, int& x, int& y);
+        static std::string createUniqueRecordId(std::int32_t x, std::int32_t y);
+        static void parseUniqueRecordId(const std::string& id, std::int32_t& x, std::int32_t& y);
     };
 }

@@ -1,11 +1,11 @@
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <string>
 #include <vector>
 
-#include "apps/openmw/mwgui/weightedsearch.hpp"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <apps/openmw/mwgui/weightedsearch.hpp>
 
 namespace MWGui
 {

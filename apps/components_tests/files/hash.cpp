@@ -1,16 +1,16 @@
-#include <components/files/constrainedfilestream.hpp>
-#include <components/files/conversion.hpp>
-#include <components/files/hash.hpp>
-#include <components/testing/util.hpp>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <array>
 #include <fstream>
 #include <sstream>
 #include <string>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <components/files/constrainedfilestream.hpp>
+#include <components/files/conversion.hpp>
+#include <components/files/hash.hpp>
+#include <components/testing/util.hpp>
 
 namespace
 {

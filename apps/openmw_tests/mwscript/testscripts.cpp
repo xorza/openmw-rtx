@@ -1,7 +1,9 @@
-#include <gtest/gtest.h>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
+
+#include <gtest/gtest.h>
 
 #include "testutils.hpp"
 
@@ -63,7 +65,7 @@ namespace
         }
 
         template <typename T, typename... TArgs>
-        void installOpcode(int code, TArgs&&... args)
+        void installOpcode(std::int32_t code, TArgs&&... args)
         {
             mInterpreter.installSegment5<T>(code, std::forward<TArgs&&>(args)...);
         }
@@ -587,13 +589,13 @@ End)mwscript";
         {
             struct Algorithm
             {
-                int a;
-                int b;
-                int c;
-                int d;
-                int e;
+                std::int32_t a;
+                std::int32_t b;
+                std::int32_t c;
+                std::int32_t d;
+                std::int32_t e;
 
-                void run(int input)
+                void run(std::int32_t input)
                 {
                     a = input;
                     b = a + 1;
@@ -612,7 +614,7 @@ End)mwscript";
                 }
             } algorithm{};
             TestInterpreterContext context;
-            for (int i = 1; i < 1000; ++i)
+            for (std::int32_t i = 1; i < 1000; ++i)
             {
                 context.setLocalShort(0, i);
                 run(*script, context);
@@ -733,9 +735,9 @@ End)mwscript";
         if (const auto script = compile(sIssue2185))
         {
             TestInterpreterContext context;
-            for (int a = 0; a < 100; ++a)
+            for (std::int32_t a = 0; a < 100; ++a)
             {
-                for (int b = 0; b < 100; ++b)
+                for (std::int32_t b = 0; b < 100; ++b)
                 {
                     context.setLocalShort(0, a);
                     context.setLocalShort(1, b);
@@ -812,9 +814,9 @@ End)mwscript";
         if (const auto script = compile(sIssue3744))
         {
             TestInterpreterContext context;
-            for (int a = 0; a < 100; ++a)
+            for (std::int32_t a = 0; a < 100; ++a)
             {
-                for (int b = 0; b < 100; ++b)
+                for (std::int32_t b = 0; b < 100; ++b)
                 {
                     context.setLocalShort(0, a);
                     context.setLocalShort(1, b);
@@ -911,9 +913,9 @@ End)mwscript";
         if (const auto script = compile(sIssue4597))
         {
             TestInterpreterContext context;
-            for (int a = 0; a < 100; ++a)
+            for (std::int32_t a = 0; a < 100; ++a)
             {
-                for (int b = 0; b < 100; ++b)
+                for (std::int32_t b = 0; b < 100; ++b)
                 {
                     context.setLocalShort(0, a);
                     context.setLocalShort(1, b);

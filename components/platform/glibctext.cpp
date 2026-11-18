@@ -74,4 +74,19 @@ namespace Platform::GlibcText
         held.mInUse = held.mTaken - free;
         return held;
     }
+
+    bool namesTheHeapsSettings(std::string_view tunables)
+    {
+        while (!tunables.empty())
+        {
+            const std::size_t end = tunables.find(':');
+            const std::string_view entry = tunables.substr(0, end);
+            if (entry.starts_with("glibc.malloc.arena_max=") || entry.starts_with("glibc.malloc.mmap_threshold="))
+                return true;
+            if (end == std::string_view::npos)
+                break;
+            tunables.remove_prefix(end + 1);
+        }
+        return false;
+    }
 }

@@ -1,8 +1,8 @@
+#include <gtest/gtest.h>
+
 #include <components/esm/gameformat.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/testing/util.hpp>
-
-#include <gtest/gtest.h>
 
 namespace Misc::ResourceHelpers
 {

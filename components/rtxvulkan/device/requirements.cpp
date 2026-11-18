@@ -358,6 +358,7 @@ namespace Rtx
                 VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT | VK_IMAGE_CREATE_EXTENDED_USAGE_BIT,
                 "textures written under a curve");
             add(written, sWrittenTextureUsage, 0, "textures written");
+            add(toVulkanFormat(NORMAL_SPREAD_FORMAT), sWrittenTextureUsage, 0, "normal maps' spreads");
             return made;
         }();
         return images;

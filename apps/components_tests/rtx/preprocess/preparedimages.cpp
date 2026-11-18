@@ -3,8 +3,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <memory>
+#include <semaphore>
 #include <span>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -15,6 +19,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/ddsfile.hpp>
+#include <apps/components_tests/rtx/support/derivedheaders.hpp>
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/image.hpp>
 #include <components/contentstore/key.hpp>
@@ -30,11 +35,13 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/testing/util.hpp>
+#include <components/vfs/file.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -46,7 +53,7 @@ namespace Rtx
         Testing::Texel texelOf(const MadeImage& made, std::size_t level)
         {
             return Testing::firstTexelOf(
-                made.getWholeFormat().value(), std::span(made.getBytes()).subspan(made.getLevels()[level].mOffset));
+                made.getFormat(), std::span(made.getBytes()).subspan(made.getLevels()[level].mOffset));
         }
 
         /// A 4x4 BC1 normal map of two levels: its finest one block of (132, 130, 255), the first endpoint
@@ -56,7 +63,7 @@ namespace Rtx
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
                 data, osg::Image::USE_NEW_DELETE);
@@ -74,7 +81,7 @@ namespace Rtx
                 0, 0, 0, 0 //
             };
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
@@ -83,9 +90,9 @@ namespace Rtx
         }
 
         /// **A map's chain is pending, then made**: the first ask queues it and answers pending, and
-        /// once the threads are done a block map of data's is the box under the file's finest level, one
-        /// BC1 block of (132, 130, 255) where the file held black, standing on the file's own finest level and
-        /// holding none of it. Asked again while a texture holds it, it is the same image; let go of by
+        /// once the threads are done a block map of data's is whole in its file's format: the file's finest level
+        /// as it holds it, one BC1 block of (132, 130, 255), above the box of it, the same block where the file held
+        /// black. Asked again while a texture holds it, it is the same image; let go of by
         /// every holder, it is made again, from the store. Each making is one ask of the chain pass in the
         /// threads' figures, the second found. A hand keeps none of its scratch once the queue is drained.
         TEST(RtxPreparedImagesTest, aMapsImageIsPendingThenMadeAndHeldByWhatHoldsIt)
@@ -108,10 +115,13 @@ namespace Rtx
             osg::ref_ptr<const MadeImage> made
                 = prepared.find(*file, TextureEncoding::Data, TextureWrap::Repeat).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_FALSE(made->getWholeFormat().has_value()) << "the finest level is the file's";
-            ASSERT_EQ(made->getLevels().size(), 1u) << "the 2x2, as many levels as the file carries";
-            ASSERT_EQ(made->getBytes().size(), 8u) << "one BC1 block";
-            EXPECT_EQ(Testing::firstTexelOf(TextureFormat::Bc1RgbaUnorm, made->getBytes()),
+            EXPECT_EQ(made->getFormat(), TextureFormat::Bc1RgbaUnorm) << "whole, in the file's format";
+            ASSERT_EQ(made->getLevels().size(), 2u) << "the 4x4 and the 2x2, as many levels as the file carries";
+            ASSERT_EQ(made->getBytes().size(), 16u) << "a BC1 block a level";
+            EXPECT_EQ(Testing::firstTexelOf(TextureFormat::Bc1RgbaUnorm, std::span(made->getBytes()).first(8)),
+                (Testing::Texel{ 132, 130, 255, 255 }))
+                << "the file's finest as it holds it";
+            EXPECT_EQ(Testing::firstTexelOf(TextureFormat::Bc1RgbaUnorm, std::span(made->getBytes()).subspan(8)),
                 (Testing::Texel{ 132, 130, 255, 255 }));
 
             EXPECT_EQ(prepared.find(*file, TextureEncoding::Data, TextureWrap::Repeat).mImage, made)
@@ -168,7 +178,7 @@ namespace Rtx
         {
             const std::uint8_t bytes[] = { 10, 20, 255, 30, 40, 255, 50, 60, 255, 70, 80, 255, 1, 2, 3 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             file->setImage(2, 2, 1, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE, 1);
             file->setMipmapLevels(osg::Image::MipmapDataType{ 12 });
@@ -183,7 +193,7 @@ namespace Rtx
             const osg::ref_ptr<const MadeImage> loose
                 = prepared.find(*normals, TextureEncoding::Normal, TextureWrap::Repeat).mImage;
             ASSERT_NE(loose, nullptr);
-            EXPECT_EQ(loose->getWholeFormat(), TextureFormat::Bc7Unorm);
+            EXPECT_EQ(loose->getFormat(), TextureFormat::Bc7Unorm);
             ASSERT_EQ(loose->getLevels().size(), 2u);
             EXPECT_EQ(loose->getBytes().size(), 32u) << "a BC7 block a level";
             EXPECT_TRUE(Testing::isNear(texelOf(*loose, 1), { 122, 130, 255, 75 }, 2)) << "the mean's direction";
@@ -191,7 +201,7 @@ namespace Rtx
             const osg::ref_ptr<const MadeImage> widened
                 = prepared.find(*file, TextureEncoding::Normal, TextureWrap::Repeat).mImage;
             ASSERT_NE(widened, nullptr);
-            EXPECT_EQ(widened->getWholeFormat(), TextureFormat::Bc7Unorm);
+            EXPECT_EQ(widened->getFormat(), TextureFormat::Bc7Unorm);
             EXPECT_TRUE(Testing::isNear(texelOf(*widened, 1), { 64, 72, 223, 255 }, 2))
                 << "the widened mean's direction";
 
@@ -202,7 +212,7 @@ namespace Rtx
             const osg::ref_ptr<const MadeImage> blockMade
                 = prepared.find(*block, TextureEncoding::Normal, TextureWrap::Repeat).mImage;
             ASSERT_NE(blockMade, nullptr);
-            EXPECT_EQ(blockMade->getWholeFormat(), TextureFormat::Bc7Unorm);
+            EXPECT_EQ(blockMade->getFormat(), TextureFormat::Bc7Unorm);
             ASSERT_EQ(blockMade->getLevels().size(), 2u) << "4x4 and 2x2, as the file carries";
             EXPECT_TRUE(Testing::isNear(texelOf(*blockMade, 0), { 132, 130, 255, 255 }, 2))
                 << "the file's normal, unit";
@@ -218,7 +228,7 @@ namespace Rtx
                 const std::uint8_t bytes[] = { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
                     255, 255, red, 0, blue, 255 };
                 osg::ref_ptr<osg::Image> image = new osg::Image;
-                auto* data = new unsigned char[sizeof(bytes)];
+                auto* data = new std::uint8_t[sizeof(bytes)];
                 std::memcpy(data, bytes, sizeof(bytes));
                 image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
                 image->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
@@ -243,7 +253,7 @@ namespace Rtx
                 = prepared.find(*blue, TextureEncoding::Colour, TextureWrap::Repeat).mImage;
             ASSERT_NE(madeRed, nullptr);
             ASSERT_NE(madeBlue, nullptr);
-            EXPECT_EQ(madeRed->getWholeFormat(), TextureFormat::Bc7Srgb);
+            EXPECT_EQ(madeRed->getFormat(), TextureFormat::Bc7Srgb);
             ASSERT_EQ(madeRed->getLevels().size(), 2u);
             EXPECT_TRUE(Testing::isNear(texelOf(*madeRed, 1), { 255, 0, 0, 255 }, 2)) << "the file's own red";
             EXPECT_TRUE(Testing::isNear(texelOf(*madeBlue, 1), { 0, 0, 255, 255 }, 2)) << "the file's own blue";
@@ -271,7 +281,7 @@ namespace Rtx
             const osg::ref_ptr<const MadeImage> made
                 = prepared.find(*file, TextureEncoding::Painted, TextureWrap::Repeat).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_EQ(made->getWholeFormat(), TextureFormat::Bc1RgbaSrgb);
+            EXPECT_EQ(made->getFormat(), TextureFormat::Bc1RgbaSrgb);
             ASSERT_EQ(made->getLevels().size(), 2u);
             EXPECT_EQ(made->getBytes().size(), 16u);
             EXPECT_TRUE(Testing::isNear(texelOf(*made, 0), { 132, 130, 255, 255 }, 2)) << "a neutral estimate";
@@ -290,7 +300,7 @@ namespace Rtx
                 osg::ref_ptr<osg::Image> image = Testing::makeImage("", 2, 2);
                 for (std::size_t texel = 0; texel < 4; ++texel)
                 {
-                    std::fill_n(image->data() + texel * 4, 3, static_cast<unsigned char>(128));
+                    std::fill_n(image->data() + texel * 4, 3, static_cast<std::uint8_t>(128));
                     image->data()[texel * 4 + 3] = alpha;
                 }
                 image->setFileName(name);
@@ -310,21 +320,21 @@ namespace Rtx
             const osg::ref_ptr<const MadeImage> colour
                 = prepared.find(*diffuse, TextureEncoding::ConvertedColour, TextureWrap::Repeat, specular).mImage;
             ASSERT_NE(colour, nullptr);
-            EXPECT_EQ(colour->getWholeFormat(), TextureFormat::Bc7Srgb);
+            EXPECT_EQ(colour->getFormat(), TextureFormat::Bc7Srgb);
             ASSERT_EQ(colour->getLevels().size(), 2u);
             EXPECT_TRUE(Testing::isNear(texelOf(*colour, 0), { 164, 164, 164, 255 }, 2)) << "the base colour";
 
             const osg::ref_ptr<const MadeImage> map
                 = prepared.find(*specular, TextureEncoding::ConvertedSpecular, TextureWrap::Repeat, diffuse).mImage;
             ASSERT_NE(map, nullptr);
-            EXPECT_EQ(map->getWholeFormat(), TextureFormat::Bc7Unorm);
+            EXPECT_EQ(map->getFormat(), TextureFormat::Bc7Unorm);
             EXPECT_TRUE(Testing::isNear(texelOf(*map, 0), { 135, 76, 255, 255 }, 2)) << "metal, roughness, occlusion";
 
-            // **Keyed by the finest levels alone**, the one level a conversion reads: a diffuse whose
-            // second level differs is the same key, and one whose finest differs another.
-            const auto chained = [&](unsigned char finest, unsigned char second) {
+            // **Keyed by both files** (`hashFile`): a diffuse whose second level differs is another key, as one whose
+            // finest differs is.
+            const auto chained = [&](std::uint8_t finest, std::uint8_t second) {
                 osg::ref_ptr<osg::Image> image = new osg::Image;
-                auto* data = new unsigned char[20];
+                auto* data = new std::uint8_t[20];
                 std::fill_n(data, 16, finest);
                 std::fill_n(data + 16, 4, second);
                 image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
@@ -334,7 +344,10 @@ namespace Rtx
             };
             const auto keyOf = [&](const osg::Image& image) {
                 ChainBuild build;
-                ConversionPass pass(build);
+                TexelScratch scratch;
+                FileKeys keys(scratch);
+                TexelReads reads;
+                ConversionPass pass(build, keys, reads);
                 ContentStore::Digest digest(sContentPasses.name(ConversionPass::sPass), ConversionPass::sVersion);
                 pass.digest(
                     ConversionPass::Input{
@@ -342,8 +355,9 @@ namespace Rtx
                     digest);
                 return digest.getKey();
             };
-            EXPECT_EQ(keyOf(*chained(128, 9)), keyOf(*chained(128, 200))) << "the second level is not read";
-            EXPECT_NE(keyOf(*chained(128, 9)), keyOf(*chained(129, 9)));
+            EXPECT_EQ(keyOf(*chained(128, 9)), keyOf(*chained(128, 9)));
+            EXPECT_NE(keyOf(*chained(128, 9)), keyOf(*chained(128, 200))) << "the second level";
+            EXPECT_NE(keyOf(*chained(128, 9)), keyOf(*chained(129, 9))) << "the finest";
         }
 
         /// **A header's texels are read on the service's thread and handed out until let go of**: a DXT1 colour
@@ -359,7 +373,7 @@ namespace Rtx
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Resource::ImageManager images(vfs.get(), budget);
-            images.setModelImages(Resource::ModelImages::Headers);
+            const Testing::DerivedHeaders derived(images);
             const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
             ASSERT_TRUE(Resource::isHeader(*header));
             Resource::releaseTexels(*header);
@@ -369,7 +383,18 @@ namespace Rtx
             EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
             prepared.flush();
             EXPECT_TRUE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
+
+            // **One ask of the header for its file, its 48 bytes, held unhanded until a slot takes them.**
+            const ContentStats asked = prepared.takeStats();
+            EXPECT_EQ(asked.mTexelReads.count(TexelRead::File), 1u);
+            EXPECT_EQ(asked.mTexelReads.bytes(TexelRead::File), 48u);
+            EXPECT_EQ(asked.mTexelReads.count(TexelRead::Partner), 0u);
+            EXPECT_EQ(asked.mTexelReads.mChainsFoundWhole, 0u) << "no store";
+            EXPECT_EQ(prepared.getHeld().mEntries, 1u);
+            EXPECT_EQ(prepared.getHeld().mBytes, 48u);
             PreparedImage read = prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat);
+            EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "handed out, watched and no longer held";
+            EXPECT_EQ(prepared.getHeld().mBytes, 0u);
             EXPECT_FALSE(read.mPending);
             EXPECT_EQ(read.mImage, nullptr) << "a block colour's own chain stands";
             ASSERT_NE(read.mFile, nullptr);
@@ -385,8 +410,8 @@ namespace Rtx
                 return prepared.find(*header, TextureEncoding::Data, TextureWrap::Repeat);
             }();
             ASSERT_NE(data.mImage, nullptr);
-            EXPECT_FALSE(data.mImage->getWholeFormat().has_value()) << "coarser levels, in the file's format";
-            EXPECT_EQ(data.mFile, read.mFile) << "beside the file's finest, the same texels";
+            EXPECT_EQ(data.mImage->getFormat(), TextureFormat::Bc1RgbaUnorm) << "whole, in the file's format";
+            EXPECT_EQ(data.mFile, nullptr) << "a chain made reads none of its file";
 
             prepared.letGo(*header);
             EXPECT_EQ(budget.getHeld(), 0u) << "the manager let go of the texels the device has";
@@ -396,12 +421,135 @@ namespace Rtx
             // 4 by 4 in DXT1 with its chain: three levels of a block each, 24 bytes.
             const osg::ref_ptr<osg::Image> texels = new osg::Image;
             texels->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
-                GL_UNSIGNED_BYTE, new unsigned char[24]{}, osg::Image::USE_NEW_DELETE);
+                GL_UNSIGNED_BYTE, new std::uint8_t[24]{}, osg::Image::USE_NEW_DELETE);
             texels->setMipmapLevels(osg::Image::MipmapDataType{ 8, 16 });
             texels->setFileName("textures/tx_held.dds");
             const PreparedImage held = prepared.find(*texels, TextureEncoding::Colour, TextureWrap::Repeat);
             EXPECT_FALSE(held.mPending);
             EXPECT_EQ(held.mFile, texels);
+        }
+
+        /// **A header whose chain the store holds whole comes back with no read of its file** (`FileKeys`): a chainless
+        /// 8 by 8 DXT1 colour is made whole in BC7, its texels read once, by the run; let go of and asked again, its
+        /// chain is found under its header's key, and nothing of the file is read, its manager's cache left empty.
+        TEST(RtxPreparedImagesTest, aHeaderWhoseChainTheStoreHoldsWholeComesBackWithNoRead)
+        {
+            TestingOpenMW::VFSTestFile file(Testing::ddsDxt1(8, 8, 1, 0x55));
+            constexpr VFS::Path::NormalizedView path("textures/tx_whole.dds");
+            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(vfs.get(), budget);
+            const Testing::DerivedHeaders derived(images);
+            const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
+            Resource::releaseTexels(*header);
+            ASSERT_EQ(budget.getHeld(), 0u);
+
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
+            PreparedImages prepared(&store, 1);
+            const auto arrive = [&] {
+                EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
+                prepared.flush();
+                const PreparedImage arrived = prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat);
+                EXPECT_NE(arrived.mImage, nullptr);
+                if (arrived.mImage != nullptr)
+                    EXPECT_EQ(arrived.mImage->getFormat(), TextureFormat::Bc7Srgb);
+                EXPECT_EQ(arrived.mFile, nullptr) << "a whole chain reads none of its file";
+                prepared.letGo(*header);
+                return prepared.takeStats();
+            };
+
+            const ContentStats made = arrive();
+            EXPECT_EQ(made.at(ContentPassId::Chain).mHits, 0u);
+            EXPECT_EQ(made.mTexelReads.count(TexelRead::File), 1u) << "the run's read, and none for the upload";
+            EXPECT_EQ(budget.getHeld(), 0u);
+
+            const ContentStats found = arrive();
+            EXPECT_EQ(found.at(ContentPassId::Chain).mHits, 1u);
+            EXPECT_EQ(found.mTexelReads.count(TexelRead::File), 0u);
+            EXPECT_EQ(found.mTexelReads.mChainsFoundWhole, 1u);
+            EXPECT_EQ(budget.getHeld(), 0u) << "the file read again";
+        }
+
+        /// A file that opens only as many times as it is let: what holds a thread inside a read for as long as a test
+        /// needs a job in flight.
+        class GatedFile final : public VFS::File
+        {
+        public:
+            GatedFile(std::string content, std::ptrdiff_t opens)
+                : mContent(std::move(content))
+                , mOpens(opens)
+            {
+            }
+
+            Files::IStreamPtr open() override
+            {
+                mOpens.acquire();
+                return std::make_unique<std::stringstream>(mContent, std::ios_base::in);
+            }
+
+            std::filesystem::file_time_type getLastModified() const override { return {}; }
+            std::string getStem() const override { return "GatedFile"; }
+
+            void let() { mOpens.release(); }
+
+        private:
+            const std::string mContent;
+            std::counting_semaphore<> mOpens;
+        };
+
+        /// **What a slot that leaves was read for is forgotten, and kept for a slot that asks again** (`forget`): the
+        /// header made through one open, each job's read held at the file's next. A slot leaves while its read waits
+        /// and asks again before it lands: the read stands for it, 48 bytes unhanded. Forgotten once made, it goes at
+        /// once. Read as data and forgotten while it waits, it goes as its job lands: nothing is left held for the
+        /// session, and each slot that left while its file was read is counted. One that left before its job started
+        /// is cancelled.
+        TEST(RtxPreparedImagesTest, whatASlotThatLeavesWasReadForIsForgottenUnlessAskedAgain)
+        {
+            GatedFile file(Testing::ddsDxt1(8, 8, 3, 0x55), 1);
+            constexpr VFS::Path::NormalizedView path("textures/tx_gated.dds");
+            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(vfs.get(), budget);
+            const Testing::DerivedHeaders derived(images);
+            const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
+            Resource::releaseTexels(*header);
+
+            PreparedImages prepared(nullptr, 1);
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
+            prepared.forget(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr);
+            EXPECT_EQ(prepared.getHeld().mLeftPending, 1u);
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending)
+                << "asked again while its read waits";
+            file.let();
+            prepared.flush();
+            EXPECT_EQ(prepared.getHeld().mEntries, 1u) << "kept for the slot that asked again";
+            EXPECT_EQ(prepared.getHeld().mBytes, 48u);
+
+            prepared.forget(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr);
+            EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "made and forgotten, gone at once";
+            EXPECT_EQ(prepared.getHeld().mLeftPending, 1u) << "made, so it left nothing pending";
+            EXPECT_FALSE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
+
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Data, TextureWrap::Repeat).mPending);
+            prepared.forget(*header, TextureEncoding::Data, TextureWrap::Repeat, nullptr);
+            EXPECT_EQ(prepared.getHeld().mLeftPending, 2u);
+            file.let();
+            prepared.flush();
+            EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "what its job made went as it landed";
+            EXPECT_EQ(prepared.getEntryCount(), 0u) << "and its entry with it";
+            prepared.takeStats();
+
+            // **A job whose slot left before it started is cancelled**: the one hand held at the file's gate by a
+            // colour's read, a map of data queued behind it and forgotten reads nothing when its turn comes.
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Data, TextureWrap::Repeat).mPending);
+            prepared.forget(*header, TextureEncoding::Data, TextureWrap::Repeat, nullptr);
+            file.let();
+            prepared.flush();
+            const ContentStats cancelled = prepared.takeStats();
+            EXPECT_EQ(cancelled.mTexelReads.mCancelled, 1u);
+            EXPECT_EQ(cancelled.mTexelReads.count(TexelRead::File), 1u) << "the colour's read alone";
+            EXPECT_EQ(cancelled.at(ContentPassId::Chain).mAsked, 0u) << "no chain asked for the map";
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no
@@ -428,7 +576,7 @@ namespace Rtx
         {
             const std::uint8_t bytes[] = { 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             file->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             file->setFileName("textures/tx_rain.dds");
@@ -441,12 +589,15 @@ namespace Rtx
             const osg::ref_ptr<const MadeImage> made
                 = prepared.find(*file, TextureEncoding::Colour, TextureWrap::Repeat).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_EQ(made->getWholeFormat(), TextureFormat::Bc7Srgb);
+            EXPECT_EQ(made->getFormat(), TextureFormat::Bc7Srgb);
             EXPECT_TRUE(Testing::isNear(texelOf(*made, 1), { 255, 255, 255, 64 }, 2)) << "the coverage-weighed box";
 
             const auto keyOf = [](const osg::Image& image) {
                 ChainBuild build;
-                ChainPass pass(build);
+                TexelScratch scratch;
+                FileKeys keys(scratch);
+                TexelReads reads;
+                ChainPass pass(build, keys, reads);
                 ContentStore::Digest digest(sContentPasses.name(ChainPass::sPass), ChainPass::sVersion);
                 pass.digest(ChainPass::Input{ .mImage = image, .mEncoding = TextureEncoding::Colour }, digest);
                 return digest.getKey();
@@ -465,7 +616,7 @@ namespace Rtx
         {
             const std::uint8_t block[] = { 0x00, 0xf8, 0x00, 0x00, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
-            auto* data = new unsigned char[sizeof(block)];
+            auto* data = new std::uint8_t[sizeof(block)];
             std::memcpy(data, block, sizeof(block));
             file->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
                 data, osg::Image::USE_NEW_DELETE);
@@ -477,7 +628,7 @@ namespace Rtx
             const osg::ref_ptr<const MadeImage> made
                 = prepared.find(*file, TextureEncoding::Colour, TextureWrap::Repeat).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_EQ(made->getWholeFormat(), TextureFormat::Bc7Srgb);
+            EXPECT_EQ(made->getFormat(), TextureFormat::Bc7Srgb);
             ASSERT_EQ(made->getLevels().size(), 3u);
             EXPECT_EQ(made->getBytes().size(), 48u);
             EXPECT_TRUE(Testing::isNear(texelOf(*made, 2), { 255, 0, 0, 255 }, 2)) << "the box of red";
@@ -487,29 +638,30 @@ namespace Rtx
         /// `cut`, transparent black, a cut in BC1's one bit of alpha.
         osg::ref_ptr<osg::Image> makeBc1(std::uint32_t width, std::uint32_t height, std::uint32_t levels, bool cut)
         {
-            std::vector<unsigned char> bytes;
+            std::vector<std::uint8_t> bytes;
             osg::Image::MipmapDataType offsets;
             for (std::uint32_t level = 0; level < levels; ++level)
             {
                 if (level > 0)
-                    offsets.push_back(static_cast<unsigned int>(bytes.size()));
+                    offsets.push_back(static_cast<std::uint32_t>(bytes.size()));
                 const std::uint32_t across = (std::max(width >> level, 1u) + 3) / 4;
                 const std::uint32_t down = (std::max(height >> level, 1u) + 3) / 4;
                 for (std::uint32_t block = 0; block < across * down; ++block)
                 {
                     // Colour nought at or under colour one is BC1's three colours and a transparent
                     // black, which index three, set on every texel, names.
-                    const std::array<unsigned char, 8> white{ 0xff, 0xff, 0, 0, 0, 0, 0, 0 };
-                    const std::array<unsigned char, 8> hole{ 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-                    const std::array<unsigned char, 8>& written = cut ? hole : white;
+                    const std::array<std::uint8_t, 8> white{ 0xff, 0xff, 0, 0, 0, 0, 0, 0 };
+                    const std::array<std::uint8_t, 8> hole{ 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+                    const std::array<std::uint8_t, 8>& written = cut ? hole : white;
                     bytes.insert(bytes.end(), written.begin(), written.end());
                 }
             }
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[bytes.size()];
+            auto* data = new std::uint8_t[bytes.size()];
             std::memcpy(data, bytes.data(), bytes.size());
-            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
-                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setImage(static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), 1,
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data,
+                osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(offsets);
             image->setFileName("textures/tx_bc1.dds");
             return image;
@@ -530,15 +682,15 @@ namespace Rtx
             };
             ASSERT_EQ(sLargestBc7ChainSide, 512u) << "the edge this test stands at";
             EXPECT_EQ(made(*makeBc1(512, 4, 1, false), TextureEncoding::Colour), ChainForm::Bc7);
-            EXPECT_EQ(made(*makeBc1(516, 4, 1, false), TextureEncoding::Colour), ChainForm::Coarser);
+            EXPECT_EQ(made(*makeBc1(516, 4, 1, false), TextureEncoding::Colour), ChainForm::Own);
             EXPECT_EQ(made(*makeBc1(8, 8, 2, true), TextureEncoding::Painted), ChainForm::Bc7);
             EXPECT_EQ(made(*makeBc1(8, 8, 2, true), TextureEncoding::Data), ChainForm::Stands);
-            EXPECT_EQ(made(*makeBc1(8, 8, 2, false), TextureEncoding::Data), ChainForm::Coarser) << "no cut, made";
+            EXPECT_EQ(made(*makeBc1(8, 8, 2, false), TextureEncoding::Data), ChainForm::Own) << "no cut, made";
 
             // A file past the side a slot holds is built at no level, so its own chain stands: a build
             // of 32768 on a side would lay four gigabytes, past a level's 32-bit offset.
             ASSERT_EQ(Shaders::TEXTURE_SIDE_MOST, 16384u) << "the edge this test stands at";
-            EXPECT_EQ(made(*makeBc1(16384, 4, 1, false), TextureEncoding::Data), ChainForm::Coarser);
+            EXPECT_EQ(made(*makeBc1(16384, 4, 1, false), TextureEncoding::Data), ChainForm::Own);
             EXPECT_EQ(made(*makeBc1(16388, 4, 1, false), TextureEncoding::Data), ChainForm::Stands);
 
             // And a classic pair whose `_spec` is past it converts nothing, where one within it does.
@@ -556,14 +708,21 @@ namespace Rtx
         }
 
         /// **A chain whose making needs more than the system has left is not made**, and one that needs
-        /// nothing is: an exabyte against any machine's memory.
+        /// nothing is: an exabyte against any machine's memory. A preprocessor held to the rule makes what it
+        /// admits, and says so (`ChainRuns::WithinMemory`).
         TEST(RtxPreparedImagesTest, aChainPastWhatTheSystemHasLeftIsNotMade)
         {
             const osg::ref_ptr<osg::Image> file = makeBc1(8, 8, 1, false);
             ChainScratch vast;
             vast[ChainBuffer::File] = std::size_t{ 1 } << 60;
-            EXPECT_FALSE(PreparedImages::admits(vast, *file));
-            EXPECT_TRUE(PreparedImages::admits(ChainScratch{}, *file));
+            EXPECT_FALSE(admitsChain(vast, *file));
+            EXPECT_TRUE(admitsChain(ChainScratch{}, *file));
+
+            ContentPreprocessor held(nullptr, ContentStore::Reach::Disk, ChainRuns::WithinMemory);
+            MadeChain made;
+            EXPECT_TRUE(
+                held.chain(ChainPass::Input{ .mImage = *makeNormalMap(), .mEncoding = TextureEncoding::Data }, made));
+            EXPECT_NE(made.mForm, ChainForm::Stands) << "admitted, and made";
         }
 
         /// **A classic pair of two sizes is converted at the slot's own file's**: a 4x4 diffuse beside a 2x2
@@ -571,9 +730,9 @@ namespace Rtx
         /// file reading the other's nearest texel.
         TEST(RtxPreparedImagesTest, aClassicPairOfTwoSizesIsConvertedAtTheSlotsOwnFile)
         {
-            const auto make = [](int side, const char* name) {
+            const auto make = [](std::int32_t side, const char* name) {
                 osg::ref_ptr<osg::Image> image = Testing::makeImage("", side, side);
-                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
                 image->setFileName(name);
                 return image;
             };

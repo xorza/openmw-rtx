@@ -34,12 +34,12 @@ namespace Rtx
     std::optional<Weather> weatherNamed(std::string_view name);
 
     /// The weather the game's script id `id` numbers, or nothing for an id past the ten.
-    std::optional<Weather> weatherOfScriptId(int id);
+    std::optional<Weather> weatherOfScriptId(std::int32_t id);
 
     /// The game's script id for `weather`, which `ESM::Weather` counts along.
-    constexpr int scriptIdOf(Weather weather)
+    constexpr std::int32_t scriptIdOf(Weather weather)
     {
-        return static_cast<int>(weather);
+        return static_cast<std::int32_t>(weather);
     }
 
     /// How `ESM::Weather` spells `weather`.

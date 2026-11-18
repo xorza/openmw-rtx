@@ -16,10 +16,12 @@
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/instruments/threadcounters.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
+#include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -126,6 +128,16 @@ namespace RtxTool
     };
 
     /// What one place came to.
+    /// What the game holds beside the renderer at a place's end: its cell stores loaded and preloaded, which none is
+    /// let go of once loaded, and how many looks for room in the caches' budget found everything in use since the run
+    /// began (`Resource::CacheBudget::getStarvedLooks`).
+    struct GameHeld
+    {
+        std::uint32_t mLoadedCells = 0;
+        std::uint32_t mPreloadedCells = 0;
+        std::uint64_t mStarvedLooks = 0;
+    };
+
     struct BenchPlace
     {
         std::string mView;
@@ -191,8 +203,17 @@ namespace RtxTool
         /// high-water mark, and a route arrives at cells the last one did not.
         Rtx::MemoryReport mMemory;
 
+        /// What the graphics driver held for the process at the same moment, by region, where the system says
+        /// (`Platform::Process::driverMemory`): what of the device's memory the driver moved out of its reach.
+        std::optional<Platform::Process::DriverMemory> mDriver;
+
         /// What the content held on the host at the same moment, for the same reason.
         Rtx::ContentMemory mContent;
+
+        /// What every thread asked of the files' headers for their texels since the renderer started, by why.
+        Rtx::TexelReads mTexelReads;
+
+        GameHeld mGame;
     };
 
     /// What every place of a run stood under: the premises every figure rests on, so two records
@@ -258,7 +279,7 @@ namespace RtxTool
 
     /// The minute of the day `hour` is nearest to, in `[0, 1440)`: the one `describeHour` spells,
     /// for the title, which writes it without a string.
-    int minuteOfDay(float hour);
+    std::int32_t minuteOfDay(float hour);
 
     /// One place as the report prints it: what it stood in, what it was built out of, the four
     /// distributions, the device's own account, the clock and the frame rate.
@@ -271,6 +292,15 @@ namespace RtxTool
     /// What the host holds of the content as the line under a place's heaps says it, the line
     /// whole; nothing where the mirror holds nothing.
     std::string describeHostHeld(const Rtx::ContentMemory& content);
+
+    /// What the game holds beside the renderer as one line, or nothing where it holds no cell.
+    std::string describeGameHeld(const GameHeld& game);
+
+    /// What the ring holds against what stands by distance, as one line, or nothing where it holds no placement.
+    std::string describeRingStanding(const Rtx::RingStanding& ring);
+
+    /// The asks for the files' headers' texels by why, with their bytes, as one line, or nothing where none was asked.
+    std::string describeTexelReads(const Rtx::TexelReads& reads);
 
     /// The header as the lines the report opens with.
     std::string describeHeader(const BenchHeader& header);

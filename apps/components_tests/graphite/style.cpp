@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <vector>
 
@@ -30,15 +31,15 @@ namespace Graphite
 {
     namespace
     {
-        constexpr int sWidth = 80;
-        constexpr int sHeight = 24;
+        constexpr std::int32_t sWidth = 80;
+        constexpr std::int32_t sHeight = 24;
 
         /// What `draw` paints over the window's ground, read back: a pixel of it is what the screen shows.
         /// A ground no recipe paints, so a pixel a recipe leaves alone reads as left alone.
         constexpr QRgb sGround = qRgb(0x10, 0x20, 0x30);
 
-        QImage rendered(const std::function<void(QPainter&)>& draw, int width = sWidth, int height = sHeight,
-            QRgb ground = sDark.mWindow)
+        QImage rendered(const std::function<void(QPainter&)>& draw, std::int32_t width = sWidth,
+            std::int32_t height = sHeight, QRgb ground = sDark.mWindow)
         {
             QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
             image.fill(QColor::fromRgba(ground));
@@ -163,7 +164,7 @@ namespace Graphite
         /// behind it.
         TEST_F(GraphiteStyleTest, aFieldsEdgeTurnsTheAccentsWhenFocused)
         {
-            const auto at = [&](QStyle::State state, int lineWidth) {
+            const auto at = [&](QStyle::State state, std::int32_t lineWidth) {
                 auto option = optionOf<QStyleOptionFrame>(state);
                 option.lineWidth = lineWidth;
                 return primitive(QStyle::PE_PanelLineEdit, option);
@@ -446,7 +447,7 @@ namespace Graphite
                     100, 12, sGround)
                     .pixel(25, 8);
             };
-            const auto muted = [](int alpha) {
+            const auto muted = [](std::int32_t alpha) {
                 return blended(
                     qRgba(qRed(sDark.mTextMuted), qGreen(sDark.mTextMuted), qBlue(sDark.mTextMuted), alpha), sGround);
             };
@@ -480,7 +481,7 @@ namespace Graphite
         {
             auto option = optionOf<QStyleOptionButton>(sEnabled);
             option.text = QStringLiteral("Launch");
-            const int row = option.fontMetrics.height() + 14;
+            const std::int32_t row = option.fontMetrics.height() + 14;
             for (const QStyle::ContentsType type :
                 { QStyle::CT_PushButton, QStyle::CT_LineEdit, QStyle::CT_ComboBox, QStyle::CT_SpinBox })
             {
@@ -496,7 +497,7 @@ namespace Graphite
             }
             // A push button pads its text 12 either side and the hairline, never narrower than Fusion's.
             EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_PushButton, &option, QSize(200, 10), nullptr).width(), 226);
-            const int fusionShort
+            const std::int32_t fusionShort
                 = mStyle.baseStyle()->sizeFromContents(QStyle::CT_PushButton, &option, QSize(10, 10), nullptr).width();
             EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_PushButton, &option, QSize(10, 10), nullptr).width(),
                 std::max(fusionShort, 36));
@@ -527,7 +528,7 @@ namespace Graphite
         /// half way down, is the ground under the one and the edge over it under the other.
         TEST_F(GraphiteStyleTest, aGroupBoxWithNoTitleDrawsNoFrame)
         {
-            constexpr int tall = 60;
+            constexpr std::int32_t tall = 60;
             const auto at = [&](const QString& title) {
                 auto group = optionOf<QStyleOptionGroupBox>(sEnabled, QRect(0, 0, sWidth, tall));
                 group.text = title;
@@ -647,7 +648,7 @@ namespace Graphite
                                    QStyle::SubControl field) {
                 const QSize fusion = mStyle.baseStyle()->sizeFromContents(type, &option, contents, nullptr);
                 option.rect = QRect(QPoint(0, 0), fusion);
-                const int taken = mStyle.baseStyle()->subControlRect(control, &option, field, nullptr).width()
+                const std::int32_t taken = mStyle.baseStyle()->subControlRect(control, &option, field, nullptr).width()
                     - mStyle.subControlRect(control, &option, field, nullptr).width();
                 EXPECT_GT(taken, 0) << type;
                 EXPECT_EQ(mStyle.sizeFromContents(type, &option, contents, nullptr).width(), fusion.width() + taken)
@@ -694,8 +695,8 @@ namespace Graphite
                                          .toImage()
                                          .convertToFormat(QImage::Format_ARGB32);
                 std::vector<QRgb> inks;
-                for (int y = 0; y < drawn.height(); ++y)
-                    for (int x = 0; x < drawn.width(); ++x)
+                for (std::int32_t y = 0; y < drawn.height(); ++y)
+                    for (std::int32_t x = 0; x < drawn.width(); ++x)
                         if (qAlpha(drawn.pixel(x, y)) == 255
                             && std::find(inks.begin(), inks.end(), drawn.pixel(x, y)) == inks.end())
                             inks.push_back(drawn.pixel(x, y));

@@ -1,19 +1,19 @@
 #include "steering.hpp"
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwbase/environment.hpp"
 
 #include "movement.hpp"
 
 namespace MWMechanics
 {
 
-    bool smoothTurn(const MWWorld::Ptr& actor, float targetAngleRadians, int axis, float epsilonRadians)
+    bool smoothTurn(const MWWorld::Ptr& actor, float targetAngleRadians, std::int32_t axis, float epsilonRadians)
     {
         MWMechanics::Movement& movement = actor.getClass().getMovementSettings(actor);
         auto diff

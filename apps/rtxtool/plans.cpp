@@ -201,9 +201,13 @@ namespace RtxTool
         SessionRequest& request = hosted.mRequest;
         request.mStops = std::move(stops);
         request.mSetup = std::move(framed.mSetup);
+        // A tour's stops are planned once the world stands, and hash as the verb does.
+        request.mSetup.mMirror.mDigests = policy.mHashes || std::ranges::any_of(request.mStops, [](const Stop& stop) {
+            return stop.mActions.mHash || stop.mActions.mDigest;
+        });
         // The frame at the window's size, so the frame is shown pixel for pixel.
-        request.mSetup.mWindowPixels
-            = osg::Vec2i(static_cast<int>(framed.mWindow.mWidth), static_cast<int>(framed.mWindow.mHeight));
+        request.mSetup.mWindowPixels = osg::Vec2i(
+            static_cast<std::int32_t>(framed.mWindow.mWidth), static_cast<std::int32_t>(framed.mWindow.mHeight));
         request.mStep = framed.mStep;
         request.mPlayed = policy.mPlayed;
         request.mKeptFrames = outOf(command);
@@ -431,6 +435,8 @@ namespace RtxTool
                     pacing.mNamedRooms.push_back(view.mStand.mCell.getSpelling());
 
         framed.mSetup.mHeadless = !command.mLine.mBench.mWindow;
+        // **The game's own expiry**, as a tour's memory is a figure it reports, and no other run compares its frames.
+        framed.mSetup.mSteppedExpiry = MWRender::SteppedExpiry::AsTheGame;
         // The rate the step was made from and not one over the step, which rounds to 59.9999962.
         assert(pacing.mStep == sStepSeconds && "a tour steps at the measured rate, which its limit is held to");
         if (line.mPaced)
@@ -464,16 +470,16 @@ namespace RtxTool
             const WorldMap map = readMap();
             const std::chrono::duration<double> read = std::chrono::steady_clock::now() - reading;
             const TourPlan plan = planTour(map, pacing);
-            Debug::getRawStdout() << describePlan(plan, line.mFrameMs)
+            const Result<std::vector<std::size_t>, std::string> legs = line.mLegs.pick(plan);
+            if (!legs.isOk())
+                throw std::runtime_error(legs.error());
+            Debug::getRawStdout() << describePlan(plan, legs.value(), line.mFrameMs)
                                   << std::format("  the content's map read in {:.2f} s\n", read.count()) << std::flush;
             if (line.mPlan)
                 return std::vector<Stop>{};
-            if (line.mFrom > plan.mLegs.size())
-                throw std::runtime_error(
-                    std::format("--from={} is past the tour's last leg, {}", line.mFrom, plan.mLegs.size()));
 
             // Every claim a leg can answer, asked at its end.
-            std::vector<Stop> stops = stopsFor(plan, line.mFrom - 1);
+            std::vector<Stop> stops = stopsFor(plan, legs.value());
             for (Stop& stop : stops)
             {
                 applyPolicy(policy, stop);

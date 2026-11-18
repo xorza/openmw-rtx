@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QCompleter>
 #include <QStringListModel>
 
@@ -29,7 +31,7 @@ namespace Launcher
         void slotLoadedCellsChanged(const QStringList& cellNames);
 
     private slots:
-        void on_skipMenuCheckBox_stateChanged(int state);
+        void on_skipMenuCheckBox_stateChanged(std::int32_t state);
         void on_runScriptAfterStartupBrowseButton_clicked();
         void slotAnimSourcesToggled(bool checked);
         void slotObjectPagingToggled(bool checked);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Geometry>
 #include <osg/Vec2f>
 #include <osg/ref_ptr>
@@ -18,9 +20,9 @@ namespace MWRender
 
     /// Where the sea is centred under the exterior cell at `gridX`, `gridY`: the cell's middle, as
     /// `Water::getSceneNodeCoordinates` centres it. Indoors it stands at the origin.
-    inline osg::Vec2f seaCentre(int gridX, int gridY)
+    inline osg::Vec2f seaCentre(std::int32_t gridX, std::int32_t gridY)
     {
-        constexpr int half = Constants::CellSizeInUnits / 2;
+        constexpr std::int32_t half = Constants::CellSizeInUnits / 2;
         return osg::Vec2f(static_cast<float>(gridX * Constants::CellSizeInUnits + half),
             static_cast<float>(gridY * Constants::CellSizeInUnits + half));
     }

@@ -1,16 +1,8 @@
 #include "screencapture.hpp"
 
-#include <components/debug/debuglog.hpp>
-#include <components/files/conversion.hpp>
-#include <components/sceneutil/workqueue.hpp>
-
-#include <osg/Image>
-#include <osg/ref_ptr>
-#include <osgDB/ReaderWriter>
-#include <osgDB/Registry>
-
 #include <atomic>
 #include <cassert>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -18,13 +10,23 @@
 #include <string>
 #include <utility>
 
+#include <osg/Image>
+#include <osg/ref_ptr>
+#include <osgDB/ReaderWriter>
+#include <osgDB/Registry>
+
+#include <components/debug/debuglog.hpp>
+#include <components/files/conversion.hpp>
+
+#include "workqueue.hpp"
+
 namespace
 {
     class ScreenCaptureWorkItem : public SceneUtil::WorkItem
     {
     public:
         ScreenCaptureWorkItem(const osg::ref_ptr<osgViewer::ScreenCaptureHandler::CaptureOperation>& impl,
-            const osg::Image& image, unsigned int contextId)
+            const osg::Image& image, std::uint32_t contextId)
             : mImpl(impl)
             , mImage(new osg::Image(image))
             , mContextId(contextId)
@@ -52,7 +54,7 @@ namespace
     private:
         const osg::ref_ptr<osgViewer::ScreenCaptureHandler::CaptureOperation> mImpl;
         const osg::ref_ptr<const osg::Image> mImage;
-        const unsigned int mContextId;
+        const std::uint32_t mContextId;
         std::atomic_bool mAborted{ false };
     };
 }
@@ -63,7 +65,7 @@ namespace SceneUtil
         const std::filesystem::path& screenshotPath, const std::string& screenshotFormat, const osg::Image& image)
     {
         // Count screenshots.
-        int shotCount = 0;
+        std::int32_t shotCount = 0;
 
         // Find the first unused filename with a do-while
         std::ostringstream stream;
@@ -110,7 +112,7 @@ namespace SceneUtil
     {
     }
 
-    void WriteScreenshotToFileOperation::operator()(const osg::Image& image, const unsigned int /*contextId*/)
+    void WriteScreenshotToFileOperation::operator()(const osg::Image& image, const std::uint32_t /*contextId*/)
     {
         std::filesystem::path fileName;
         try
@@ -154,7 +156,7 @@ namespace SceneUtil
             item->waitTillDone();
     }
 
-    void AsyncScreenCaptureOperation::operator()(const osg::Image& image, const unsigned int contextId)
+    void AsyncScreenCaptureOperation::operator()(const osg::Image& image, const std::uint32_t contextId)
     {
         std::shared_ptr<SceneUtil::WorkItem> item = std::make_shared<ScreenCaptureWorkItem>(mImpl, image, contextId);
         mQueue->addWorkItem(item);

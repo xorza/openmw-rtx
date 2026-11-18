@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "context.hpp"
 #include "opcodes.hpp"
 #include "runtime.hpp"
@@ -12,7 +14,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Integer data = runtime[0].mInteger;
-            int index = runtime[1].mInteger;
+            std::int32_t index = runtime[1].mInteger;
 
             runtime.getContext().setLocalShort(index, data);
 
@@ -27,7 +29,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Integer data = runtime[0].mInteger;
-            int index = runtime[1].mInteger;
+            std::int32_t index = runtime[1].mInteger;
 
             runtime.getContext().setLocalLong(index, data);
 
@@ -42,7 +44,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Float data = runtime[0].mFloat;
-            int index = runtime[1].mInteger;
+            std::int32_t index = runtime[1].mInteger;
 
             runtime.getContext().setLocalFloat(index, data);
 
@@ -76,8 +78,8 @@ namespace Interpreter
     public:
         void execute(Runtime& runtime) override
         {
-            int index = runtime[0].mInteger;
-            int value = runtime.getContext().getLocalShort(index);
+            std::int32_t index = runtime[0].mInteger;
+            std::int32_t value = runtime.getContext().getLocalShort(index);
             runtime[0].mInteger = value;
         }
     };
@@ -87,8 +89,8 @@ namespace Interpreter
     public:
         void execute(Runtime& runtime) override
         {
-            int index = runtime[0].mInteger;
-            int value = runtime.getContext().getLocalLong(index);
+            std::int32_t index = runtime[0].mInteger;
+            std::int32_t value = runtime.getContext().getLocalLong(index);
             runtime[0].mInteger = value;
         }
     };
@@ -98,7 +100,7 @@ namespace Interpreter
     public:
         void execute(Runtime& runtime) override
         {
-            int index = runtime[0].mInteger;
+            std::int32_t index = runtime[0].mInteger;
             float value = runtime.getContext().getLocalFloat(index);
             runtime[0].mFloat = value;
         }
@@ -110,7 +112,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Integer data = runtime[0].mInteger;
-            int index = runtime[1].mInteger;
+            std::int32_t index = runtime[1].mInteger;
 
             std::string_view name = runtime.getStringLiteral(index);
 
@@ -127,7 +129,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Integer data = runtime[0].mInteger;
-            int index = runtime[1].mInteger;
+            std::int32_t index = runtime[1].mInteger;
 
             std::string_view name = runtime.getStringLiteral(index);
 
@@ -144,7 +146,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Float data = runtime[0].mFloat;
-            int index = runtime[1].mInteger;
+            std::int32_t index = runtime[1].mInteger;
 
             std::string_view name = runtime.getStringLiteral(index);
 
@@ -160,7 +162,7 @@ namespace Interpreter
     public:
         void execute(Runtime& runtime) override
         {
-            int index = runtime[0].mInteger;
+            std::int32_t index = runtime[0].mInteger;
             std::string_view name = runtime.getStringLiteral(index);
             Type_Integer value = runtime.getContext().getGlobalShort(name);
             runtime[0].mInteger = value;
@@ -172,7 +174,7 @@ namespace Interpreter
     public:
         void execute(Runtime& runtime) override
         {
-            int index = runtime[0].mInteger;
+            std::int32_t index = runtime[0].mInteger;
             std::string_view name = runtime.getStringLiteral(index);
             Type_Integer value = runtime.getContext().getGlobalLong(name);
             runtime[0].mInteger = value;
@@ -184,7 +186,7 @@ namespace Interpreter
     public:
         void execute(Runtime& runtime) override
         {
-            int index = runtime[0].mInteger;
+            std::int32_t index = runtime[0].mInteger;
             std::string_view name = runtime.getStringLiteral(index);
             Type_Float value = runtime.getContext().getGlobalFloat(name);
             runtime[0].mFloat = value;
@@ -263,7 +265,7 @@ namespace Interpreter
             std::string_view variable = runtime.getStringLiteral(index);
             runtime.pop();
 
-            int value = runtime.getContext().getMemberShort(id, variable, TGlobal);
+            std::int32_t value = runtime.getContext().getMemberShort(id, variable, TGlobal);
             runtime[0].mInteger = value;
         }
     };
@@ -280,7 +282,7 @@ namespace Interpreter
             std::string_view variable = runtime.getStringLiteral(index);
             runtime.pop();
 
-            int value = runtime.getContext().getMemberLong(id, variable, TGlobal);
+            std::int32_t value = runtime.getContext().getMemberLong(id, variable, TGlobal);
             runtime[0].mInteger = value;
         }
     };

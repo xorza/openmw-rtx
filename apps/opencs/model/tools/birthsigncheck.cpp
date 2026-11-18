@@ -1,21 +1,19 @@
 #include "birthsigncheck.hpp"
 
+#include <cstdint>
 #include <format>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/resources.hpp>
-
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
-#include "../prefs/state.hpp"
-
-#include "../world/universalid.hpp"
 
 CSMTools::BirthsignCheckStage::BirthsignCheckStage(
     const CSMWorld::IdCollection<ESM::BirthSign>& birthsigns, const CSMWorld::Resources& textures)
@@ -25,14 +23,14 @@ CSMTools::BirthsignCheckStage::BirthsignCheckStage(
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::BirthsignCheckStage::setup()
+std::int32_t CSMTools::BirthsignCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mBirthsigns.getSize();
 }
 
-void CSMTools::BirthsignCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::BirthsignCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::BirthSign>& record = mBirthsigns.getRecord(stage);
 

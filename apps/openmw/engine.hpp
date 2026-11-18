@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <optional>
 
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
@@ -13,8 +15,6 @@
 #include <components/misc/frameclock.hpp>
 #include <components/settings/settings.hpp>
 #include <components/translation/translation.hpp>
-
-#include "mwbase/environment.hpp"
 
 namespace Resource
 {
@@ -194,11 +194,11 @@ namespace OMW
         bool mUseSound;
         bool mCompileAll;
         bool mCompileAllDialogue;
-        int mWarningsMode;
+        std::int32_t mWarningsMode;
         std::string mFocusName;
         bool mScriptConsoleMode;
         std::filesystem::path mStartupScript;
-        int mActivationDistanceOverride;
+        std::int32_t mActivationDistanceOverride;
         std::filesystem::path mSaveGameFile;
         // Grab mouse?
         bool mGrab;
@@ -206,7 +206,7 @@ namespace OMW
         Misc::LoopClock mClock;
 
         bool mExportFonts;
-        unsigned int mRandomSeed;
+        std::uint32_t mRandomSeed;
         Debug::Level mMaxRecastLogLevel = Debug::Error;
 
         Compiler::Extensions mExtensions;
@@ -222,7 +222,7 @@ namespace OMW
 
         void executeLocalScripts();
 
-        bool frame(unsigned frameNumber, float frametime);
+        bool frame(std::uint32_t frameNumber, float frametime);
 
         /// Prepare engine for game play
         void prepareEngine();
@@ -288,16 +288,16 @@ namespace OMW
         void setStartupScript(const std::filesystem::path& path);
 
         /// Override the game setting specified activation distance.
-        void setActivationDistanceOverride(int distance);
+        void setActivationDistanceOverride(std::int32_t distance);
 
-        void setWarningsMode(int mode);
+        void setWarningsMode(std::int32_t mode);
 
         void enableFontExport(bool exportFonts);
 
         /// Set the save game file to load after initialising the engine.
         void setSaveGameFile(const std::filesystem::path& savegame);
 
-        void setRandomSeed(unsigned int seed);
+        void setRandomSeed(std::uint32_t seed);
 
         void setRecastMaxLogLevel(Debug::Level value) { mMaxRecastLogLevel = value; }
     };

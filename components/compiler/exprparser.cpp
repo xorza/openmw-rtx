@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <sstream>
 #include <stack>
@@ -23,7 +25,7 @@
 
 namespace Compiler
 {
-    int ExprParser::getPriority(char op)
+    std::int32_t ExprParser::getPriority(char op)
     {
         switch (op)
         {
@@ -60,7 +62,7 @@ namespace Compiler
         return 0;
     }
 
-    char ExprParser::getOperandType(int index) const
+    char ExprParser::getOperandType(std::int32_t index) const
     {
         assert(!mOperands.empty());
         assert(index >= 0);
@@ -167,7 +169,7 @@ namespace Compiler
         }
     }
 
-    void ExprParser::pushIntegerLiteral(int value)
+    void ExprParser::pushIntegerLiteral(std::int32_t value)
     {
         mNextOperand = false;
         mOperands.push_back('l');
@@ -198,7 +200,7 @@ namespace Compiler
         popOperator();
     }
 
-    int ExprParser::parseArguments(const std::string& arguments, Scanner& scanner)
+    std::int32_t ExprParser::parseArguments(const std::string& arguments, Scanner& scanner)
     {
         return parseArguments(arguments, scanner, mCode);
     }
@@ -238,7 +240,7 @@ namespace Compiler
     {
     }
 
-    bool ExprParser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
+    bool ExprParser::parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner)
     {
         if (!mExplicit.empty())
             return Parser::parseInt(value, loc, scanner);
@@ -356,7 +358,7 @@ namespace Compiler
         }
     }
 
-    bool ExprParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool ExprParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (const Extensions* extensions = getContext().getExtensions())
         {
@@ -413,7 +415,7 @@ namespace Compiler
                         start();
 
                         mTokenLoc = loc;
-                        int optionals = parseArguments(argumentType, scanner);
+                        std::int32_t optionals = parseArguments(argumentType, scanner);
 
                         extensions->generateFunctionCode(keyword, mCode, mLiterals, mExplicit, optionals);
                         mOperands.push_back(returnType);
@@ -444,7 +446,7 @@ namespace Compiler
                 if (extensions->isFunction(keyword, returnType, argumentType, hasExplicit))
                 {
                     mTokenLoc = loc;
-                    int optionals = parseArguments(argumentType, scanner);
+                    std::int32_t optionals = parseArguments(argumentType, scanner);
 
                     extensions->generateFunctionCode(keyword, mCode, mLiterals, "", optionals);
                     mOperands.push_back(returnType);
@@ -463,7 +465,7 @@ namespace Compiler
         return Parser::parseKeyword(keyword, loc, scanner);
     }
 
-    bool ExprParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+    bool ExprParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
     {
         if (!mExplicit.empty())
         {
@@ -639,11 +641,11 @@ namespace Compiler
         return mOperands[0];
     }
 
-    int ExprParser::parseArguments(const std::string& arguments, Scanner& scanner,
-        std::vector<Interpreter::Type_Code>& code, int ignoreKeyword, bool expectNames)
+    std::int32_t ExprParser::parseArguments(const std::string& arguments, Scanner& scanner,
+        std::vector<Interpreter::Type_Code>& code, std::int32_t ignoreKeyword, bool expectNames)
     {
         bool optional = false;
-        int optionalCount = 0;
+        std::int32_t optionalCount = 0;
 
         ExprParser parser(getErrorHandler(), getContext(), mLocals, mLiterals, true);
         StringParser stringParser(getErrorHandler(), getContext(), mLiterals);

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <components/esm3/loaddoor.hpp>
+#include <cstdint>
 
-#include "../mwworld/registeredclass.hpp"
+#include <apps/openmw/mwworld/registeredclass.hpp>
+#include <components/esm3/loaddoor.hpp>
 
 namespace MWClass
 {
@@ -36,7 +37,7 @@ namespace MWClass
         std::unique_ptr<MWWorld::Action> activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const override;
         ///< Generate action for activation
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
         static std::string getDestination(const MWWorld::LiveCellRef<ESM::Door>& door);

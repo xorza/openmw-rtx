@@ -2,14 +2,13 @@
 
 #include <osgAnimation/MorphGeometry>
 #include <osgAnimation/RigGeometry>
-
 #include <osgParticle/ParticleProcessor>
 #include <osgParticle/ParticleSystemUpdater>
 
-#include <components/sceneutil/controller.hpp>
-#include <components/sceneutil/morphgeometry.hpp>
-#include <components/sceneutil/riggeometry.hpp>
-#include <components/sceneutil/riggeometryosgaextension.hpp>
+#include "controller.hpp"
+#include "morphgeometry.hpp"
+#include "riggeometry.hpp"
+#include "riggeometryosgaextension.hpp"
 
 namespace SceneUtil
 {

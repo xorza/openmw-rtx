@@ -2,7 +2,6 @@
 
 #include <sol/state.hpp>
 #include <sol/table.hpp>
-
 #include <yaml-cpp/yaml.h>
 
 #include <components/lua/yamlloader.hpp>

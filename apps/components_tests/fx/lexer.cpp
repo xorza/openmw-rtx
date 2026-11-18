@@ -1,6 +1,6 @@
-#include <components/fx/lexer.hpp>
-
 #include <gtest/gtest.h>
+
+#include <components/fx/lexer.hpp>
 
 namespace
 {

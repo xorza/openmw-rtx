@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace Compiler
@@ -8,8 +9,8 @@ namespace Compiler
 
     struct TokenLoc
     {
-        int mColumn;
-        int mLine;
+        std::int32_t mColumn;
+        std::int32_t mLine;
         std::string mLiteral;
 
         TokenLoc()

@@ -2,9 +2,8 @@
 
 #include <memory>
 
+#include <apps/opencs/model/doc/operation.hpp>
 #include <components/toutf8/toutf8.hpp>
-
-#include "../doc/operation.hpp"
 
 #include "mergestate.hpp"
 

@@ -1,18 +1,17 @@
 #include "bodypartcheck.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/resources.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadbody.hpp>
-
-#include "../prefs/state.hpp"
 
 CSMTools::BodyPartCheckStage::BodyPartCheckStage(const CSMWorld::IdCollection<ESM::BodyPart>& bodyParts,
     const CSMWorld::Resources& meshes, const CSMWorld::IdCollection<ESM::Race>& races)
@@ -23,14 +22,14 @@ CSMTools::BodyPartCheckStage::BodyPartCheckStage(const CSMWorld::IdCollection<ES
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::BodyPartCheckStage::setup()
+std::int32_t CSMTools::BodyPartCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mBodyParts.getSize();
 }
 
-void CSMTools::BodyPartCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::BodyPartCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::BodyPart>& record = mBodyParts.getRecord(stage);
 

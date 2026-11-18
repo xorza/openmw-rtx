@@ -1,5 +1,20 @@
 #include "worldbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadarmo.hpp>
@@ -21,24 +36,10 @@
 #include <components/lua/luastate.hpp>
 #include <components/misc/finitevalues.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/action.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/store.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "luamanagerimp.hpp"
-
 #include "animationbindings.hpp"
 #include "context.hpp"
 #include "corebindings.hpp"
+#include "luamanagerimp.hpp"
 #include "mwscriptbindings.hpp"
 
 namespace MWLua
@@ -115,7 +116,7 @@ namespace MWLua
                 return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(
                     ESM::RefId::deserializeText(stringId), /*forceLoad=*/false) };
             };
-            api["getExteriorCell"] = [](int x, int y, const sol::object& cellOrName) {
+            api["getExteriorCell"] = [](std::int32_t x, std::int32_t y, const sol::object& cellOrName) {
                 ESM::RefId worldspace;
                 if (cellOrName.is<GCell>())
                     worldspace = cellOrName.as<GCell>().mStore->getCell()->getWorldSpace();
@@ -140,7 +141,7 @@ namespace MWLua
                 return cells3Store->getSize() + cells4Store->getSize();
             };
             cells[sol::meta_function::index]
-                = [cells3Store, cells4Store](const CellsStore&, size_t index) -> sol::optional<GCell> {
+                = [cells3Store, cells4Store](const CellsStore&, std::size_t index) -> sol::optional<GCell> {
                 if (index > cells3Store->getSize() + cells4Store->getSize() || index == 0)
                     return sol::nullopt;
 
@@ -187,7 +188,8 @@ namespace MWLua
                 objList.mIds->push_back(getId(object));
             return objList;
         };
-        api["createObject"] = [lua = context.mLua](std::string_view recordId, sol::optional<int> count) -> GObject {
+        api["createObject"]
+            = [lua = context.mLua](std::string_view recordId, sol::optional<std::int32_t> count) -> GObject {
             checkGameInitialized(lua);
             MWWorld::ManualRef mref(*MWBase::Environment::get().getESMStore(), ESM::RefId::deserializeText(recordId));
             const MWWorld::Ptr& ptr = mref.getPtr();

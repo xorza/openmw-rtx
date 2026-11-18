@@ -4,6 +4,7 @@
 
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/detournavigator/recastmesh.hpp> // IWYU pragma: keep: the mesh whole, which a shared pointer to it is read through
 #include <components/detournavigator/recastmeshtiles.hpp>
 #include <components/detournavigator/settings.hpp>
@@ -13,8 +14,6 @@
 #include <components/sceneutil/recastmesh.hpp>
 
 #include "vismask.hpp"
-
-#include "../mwbase/environment.hpp"
 
 namespace MWRender
 {

@@ -1,6 +1,8 @@
 #include "settingspage.hpp"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include <QCompleter>
@@ -9,11 +11,10 @@
 #include <QMenu>
 #include <QString>
 
+#include <apps/launcher/utils/openalutil.hpp>
 #include <components/config/gamesettings.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/settings/values.hpp>
-
-#include "utils/openalutil.hpp"
 
 namespace
 {
@@ -27,17 +28,17 @@ namespace
         value.set(checkbox.checkState() == Qt::Checked);
     }
 
-    void loadSettingInt(const Settings::SettingValue<int>& value, QComboBox& comboBox)
+    void loadSettingInt(const Settings::SettingValue<std::int32_t>& value, QComboBox& comboBox)
     {
         comboBox.setCurrentIndex(value);
     }
 
     void loadSettingInt(const Settings::SettingValue<DetourNavigator::CollisionShapeType>& value, QComboBox& comboBox)
     {
-        comboBox.setCurrentIndex(static_cast<int>(value.get()));
+        comboBox.setCurrentIndex(static_cast<std::int32_t>(value.get()));
     }
 
-    void saveSettingInt(const QComboBox& comboBox, Settings::SettingValue<int>& value)
+    void saveSettingInt(const QComboBox& comboBox, Settings::SettingValue<std::int32_t>& value)
     {
         value.set(comboBox.currentIndex());
     }
@@ -47,17 +48,17 @@ namespace
         value.set(static_cast<DetourNavigator::CollisionShapeType>(comboBox.currentIndex()));
     }
 
-    void loadSettingInt(const Settings::SettingValue<int>& value, QSpinBox& spinBox)
+    void loadSettingInt(const Settings::SettingValue<std::int32_t>& value, QSpinBox& spinBox)
     {
         spinBox.setValue(value);
     }
 
-    void saveSettingInt(const QSpinBox& spinBox, Settings::SettingValue<int>& value)
+    void saveSettingInt(const QSpinBox& spinBox, Settings::SettingValue<std::int32_t>& value)
     {
         value.set(spinBox.value());
     }
 
-    int toIndex(Settings::HrtfMode value)
+    std::int32_t toIndex(Settings::HrtfMode value)
     {
         switch (value)
         {
@@ -143,32 +144,33 @@ Launcher::SettingsPage::SettingsPage(
         openFileActions.push_back(action);
     }
 
-    connect(configsList, &QTreeWidget::customContextMenuRequested, [=, this](const QPoint& pos) {
-        if (configsList->currentItem())
-        {
-            QMenu contextMenu;
-
-            contextMenu.addAction(actionOpenDir);
-
-            bool topLevel = !configsList->currentItem()->parent();
-
-            for (qsizetype i = 0; i < openFileActions.size(); ++i)
+    connect(configsList, &QTreeWidget::customContextMenuRequested,
+        [actionOpenDir, openFileActions, this](const QPoint& pos) {
+            if (configsList->currentItem())
             {
-                if (configsList->currentItem()->data(0, Role_IsMainUserConfigDirectory).toBool()
-                    || configDirectoryFiles[static_cast<std::size_t>(i)].showInAllConfigDirectories)
-                {
-                    QVariant fileUrl = configsList->currentItem()->data(
-                        0, configDirectoryFiles[static_cast<std::size_t>(i)].itemDataRole);
-                    bool fileExists = fileUrl.isValid();
-                    openFileActions[i]->setEnabled(fileExists);
-                    openFileActions[i]->setVisible(topLevel || fileExists);
-                    contextMenu.addAction(openFileActions[i]);
-                }
-            }
+                QMenu contextMenu;
 
-            contextMenu.exec(configsList->mapToGlobal(pos));
-        }
-    });
+                contextMenu.addAction(actionOpenDir);
+
+                bool topLevel = !configsList->currentItem()->parent();
+
+                for (qsizetype i = 0; i < openFileActions.size(); ++i)
+                {
+                    if (configsList->currentItem()->data(0, Role_IsMainUserConfigDirectory).toBool()
+                        || configDirectoryFiles[static_cast<std::size_t>(i)].showInAllConfigDirectories)
+                    {
+                        QVariant fileUrl = configsList->currentItem()->data(
+                            0, configDirectoryFiles[static_cast<std::size_t>(i)].itemDataRole);
+                        bool fileExists = fileUrl.isValid();
+                        openFileActions[i]->setEnabled(fileExists);
+                        openFileActions[i]->setVisible(topLevel || fileExists);
+                        contextMenu.addAction(openFileActions[i]);
+                    }
+                }
+
+                contextMenu.exec(configsList->mapToGlobal(pos));
+            }
+        });
 }
 
 void Launcher::SettingsPage::loadCellsForAutocomplete(const QStringList& cellNames)
@@ -179,7 +181,7 @@ void Launcher::SettingsPage::loadCellsForAutocomplete(const QStringList& cellNam
     mCellNameCompleter.setCaseSensitivity(Qt::CaseSensitivity::CaseInsensitive);
 }
 
-void Launcher::SettingsPage::on_skipMenuCheckBox_stateChanged(int state)
+void Launcher::SettingsPage::on_skipMenuCheckBox_stateChanged(std::int32_t state)
 {
     startDefaultCharacterAtLabel->setEnabled(state == Qt::Checked);
     startDefaultCharacterAtField->setEnabled(state == Qt::Checked);
@@ -261,7 +263,8 @@ bool Launcher::SettingsPage::loadSettings()
         const std::string& selectedAudioDevice = Settings::sound().mDevice;
         if (selectedAudioDevice.empty() == false)
         {
-            int audioDeviceIndex = audioDeviceSelectorComboBox->findData(QString::fromStdString(selectedAudioDevice));
+            std::int32_t audioDeviceIndex
+                = audioDeviceSelectorComboBox->findData(QString::fromStdString(selectedAudioDevice));
             if (audioDeviceIndex != -1)
             {
                 audioDeviceSelectorComboBox->setCurrentIndex(audioDeviceIndex);
@@ -271,7 +274,8 @@ bool Launcher::SettingsPage::loadSettings()
         const std::string& selectedHRTFProfile = Settings::sound().mHrtf;
         if (selectedHRTFProfile.empty() == false)
         {
-            int hrtfProfileIndex = hrtfProfileSelectorComboBox->findData(QString::fromStdString(selectedHRTFProfile));
+            std::int32_t hrtfProfileIndex
+                = hrtfProfileSelectorComboBox->findData(QString::fromStdString(selectedHRTFProfile));
             if (hrtfProfileIndex != -1)
             {
                 hrtfProfileSelectorComboBox->setCurrentIndex(hrtfProfileIndex);
@@ -539,7 +543,7 @@ void Launcher::SettingsPage::saveSettings()
     {
         saveSettingBool(*grabCursorCheckBox, Settings::input().mGrabCursor);
 
-        int skipMenu = skipMenuCheckBox->checkState() == Qt::Checked;
+        std::int32_t skipMenu = skipMenuCheckBox->checkState() == Qt::Checked;
         if (skipMenu != mGameSettings.value("skip-menu").value.toInt())
             mGameSettings.setValue("skip-menu", { QString::number(skipMenu) });
 

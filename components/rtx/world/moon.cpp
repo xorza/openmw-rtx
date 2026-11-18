@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 
 #include <osg/Math>
 #include <osg/Quat>
@@ -101,7 +100,7 @@ namespace Rtx
             .mAlpha = placement.mAlpha,
             .mThroughAir = placement.mThroughAir,
             .mPaint = placement.mPaint,
-            .mFace = placement.mFace == sNoIndex ? Shaders::NO_TEXTURE : static_cast<std::uint32_t>(placement.mFace),
+            .mFace = placement.mFace == sNoRow ? Shaders::NO_TEXTURE : placement.mFace.at(),
         };
     }
 

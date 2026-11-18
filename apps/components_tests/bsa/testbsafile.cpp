@@ -1,14 +1,6 @@
 
-#include <components/bsa/bsafile.hpp>
-#include <components/files/memorystream.hpp>
-#include <components/testing/util.hpp>
-
-#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -22,6 +14,15 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <components/bsa/bsafile.hpp>
+#include <components/files/memorystream.hpp>
+#include <components/testing/util.hpp>
+
+#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
 
 namespace Bsa
 {
@@ -42,9 +43,9 @@ namespace Bsa
 
         struct Header
         {
-            uint32_t mFormat;
-            uint32_t mDirSize;
-            uint32_t mFileCount;
+            std::uint32_t mFormat;
+            std::uint32_t mDirSize;
+            std::uint32_t mFileCount;
         };
 
         struct Archive
@@ -411,7 +412,7 @@ namespace Bsa
 
         TEST(BSAFileTest, shouldHandleSomewhatLargeFiles)
         {
-            constexpr std::uint32_t maxUInt32 = std::numeric_limits<uint32_t>::max();
+            constexpr std::uint32_t maxUInt32 = std::numeric_limits<std::uint32_t>::max();
             constexpr std::uint32_t fileSize = maxUInt32 / 4;
             constexpr std::uint32_t fileOffset = maxUInt32 / 4 - 34;
             const Buffer buffer = makeBsaBuffer(fileSize, fileOffset);
@@ -439,7 +440,7 @@ namespace Bsa
 #ifndef _MSC_VER
         TEST(BSAFileTest, shouldHandleSingleFileAtTheEndOfLargeFile)
         {
-            constexpr std::uint32_t maxUInt32 = std::numeric_limits<uint32_t>::max();
+            constexpr std::uint32_t maxUInt32 = std::numeric_limits<std::uint32_t>::max();
             constexpr std::uint32_t fileSize = maxUInt32;
             constexpr std::uint32_t fileOffset = maxUInt32 - 34;
             const Buffer buffer = makeBsaBuffer(fileSize, fileOffset);
@@ -464,7 +465,7 @@ namespace Bsa
 
         TEST(BSAFileTest, shouldThrowExceptionOnTooBigAbsoluteOffset)
         {
-            constexpr std::uint32_t maxUInt32 = std::numeric_limits<uint32_t>::max();
+            constexpr std::uint32_t maxUInt32 = std::numeric_limits<std::uint32_t>::max();
             constexpr std::uint32_t fileSize = maxUInt32;
             constexpr std::uint32_t fileOffset = maxUInt32 - 34 + 1;
             const Buffer buffer = makeBsaBuffer(fileSize, fileOffset);

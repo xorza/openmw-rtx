@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QList>
 #include <QMimeData>
 
@@ -18,14 +20,14 @@ namespace ContentSelectorModel
         // Hides the base's member on purpose: it is called through the derived type.
         // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         ModelItem* parent() const;
-        int row() const;
+        std::int32_t row() const;
 
-        int childCount() const;
-        int childRow(ModelItem* child) const;
-        ModelItem* child(int row);
+        std::int32_t childCount() const;
+        std::int32_t childRow(ModelItem* child) const;
+        ModelItem* child(std::int32_t row);
 
         void appendChild(ModelItem* item);
-        void removeChild(int row);
+        void removeChild(std::int32_t row);
 
         bool hasFormat(const QString& mimetype) const override;
 

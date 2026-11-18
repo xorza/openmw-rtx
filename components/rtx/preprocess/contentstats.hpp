@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "contentpass.hpp"
+#include "texelreads.hpp"
 
 namespace Rtx
 {
@@ -33,6 +34,7 @@ namespace Rtx
     struct ContentStats
     {
         std::array<PassStats, sContentPassCount> mPasses{};
+        TexelReads mTexelReads{};
 
         PassStats& at(ContentPassId pass) { return mPasses[static_cast<std::size_t>(pass)]; }
         const PassStats& at(ContentPassId pass) const { return mPasses[static_cast<std::size_t>(pass)]; }
@@ -45,15 +47,20 @@ namespace Rtx
 
     /// What was preprocessed, by the thread that did it: the frame's — what its walks met the first
     /// time, and what the host read between them — the cell ring's reader, whose models the walk
-    /// adopted, the threads that make chains again (`PreparedImages`), and the loading screen's
-    /// (`ContentPreparation`). Apart, because only the first is a frame's time.
+    /// adopted, the threads that make chains again (`PreparedImages`), the loading screen's
+    /// (`ContentPreparation`), and the loaders that first read a file (`ImageDerivation`). Apart, because only the
+    /// first is a frame's time.
     struct Preprocessed
     {
         ContentStats mOnFrame;
         ContentStats mOffFrame{};
         ContentStats mPrepared{};
         ContentStats mLoading{};
+        ContentStats mDerived{};
 
         Preprocessed& operator+=(const Preprocessed& other);
+
+        /// The asks for a header's texels of every thread together.
+        TexelReads getTexelReads() const;
     };
 }

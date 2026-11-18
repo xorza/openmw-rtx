@@ -24,6 +24,11 @@ namespace Files
 
         int_type underflow() final;
 
+        /// What the buffer holds of `count` first, then the rest straight from the file into `into` where it is no
+        /// less than the buffer, one read and one copy where the base read the buffer's 8 KiB a call and copied each
+        /// twice: 2,731 reads for a 22 MiB image. A smaller rest goes through the buffer, as a short read does.
+        std::streamsize xsgetn(char* into, std::streamsize count) final;
+
         pos_type seekoff(off_type offset, std::ios_base::seekdir whence, std::ios_base::openmode mode) final;
 
         pos_type seekpos(pos_type pos, std::ios_base::openmode mode) final;

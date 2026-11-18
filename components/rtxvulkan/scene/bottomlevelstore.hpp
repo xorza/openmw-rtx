@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/renderer/roomwaits.hpp>
 #include <components/rtx/scene/deviceanswer.hpp>
@@ -79,6 +80,11 @@ namespace Rtx
         Refit,
     };
 
+    /// **A storage's block for a scene opened at no room**, a picture's or a view's, which holds a handful of models:
+    /// content's 64 MiB block for each of its two storages took 128 MiB for a picture of one room. A structure past it
+    /// is a block of its own size, as past any block.
+    inline constexpr VkDeviceSize sSmallSceneBlockBytes = VkDeviceSize{ 4 } << 20;
+
     /// One bottom-level acceleration structure per mesh, inside storage buffers at offsets, and the
     /// compaction that keeps them tight: a structure is built loose, the driver is asked what a tight
     /// copy would come to, and the copy is made in the storage that keeps it.
@@ -97,8 +103,9 @@ namespace Rtx
 
         /// @param buildRoom what one run of `build` may work in: `sStructureBuildRoom`, and less for
         ///        a test that splits a few meshes into runs.
-        /// @param blockBytes how large a block of either storage is made: content's block, and a unit
-        ///        for a test whose every structure is a block of its own size.
+        /// @param blockBytes how large a block of either storage is made: content's block for a world, a
+        ///        small scene's for a scene opened at no room (`sSmallSceneBlockBytes`), and a unit for a test
+        ///        whose every structure is a block of its own size.
         explicit BottomLevelStore(const Device& device, VkDeviceSize buildRoom = sStructureBuildRoom,
             VkDeviceSize blockBytes = sContentBlockBytes);
 
@@ -120,14 +127,14 @@ namespace Rtx
         /// @param compaction when the structures are copied out of the loose storage. Settled
         ///        flushes `batch` after each run, and what the caller recorded into it ahead runs
         ///        with the first.
-        void build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes, const BlockedBuffer& poses,
+        void build(Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> meshes, const BlockedBuffer& poses,
             const BlockedBuffer& positions, const BlockedBuffer& indices, std::uint64_t placement,
             BuildCompaction compaction, std::vector<Refusal>& refused);
 
         /// Destroys the structures of `meshes` and gives their storage back. Idempotent, because
         /// both the frame that places and the one that appends run it. The last frame's top level
         /// still names them, which their burial covers. A mesh that waited for room waits no more.
-        void release(std::span<const Index> meshes);
+        void release(std::span<const MeshIndex> meshes);
 
         /// `build` again of every mesh waiting for room, each over `poses` where it deforms, once a placement: those
         /// the room has come back for stand, and those it will not come back for, or has not in `sMostRoomWaits`
@@ -149,22 +156,27 @@ namespace Rtx
 
         std::size_t size() const { return mRows.size(); }
 
-        /// Whether the device had no room for a structure since the store was made, which a store
-        /// made against more room might have built. Kept past the mesh that went without, which
-        /// may since have gone: an answer that asks for a build too often and never too seldom.
-        bool wasRefusedRoom() const { return mRefusedRoom; }
+        /// Whether `mesh` is a row this has been handed, built or not.
+        bool holds(const MeshIndex mesh) const { return mRows.holds(mesh); }
+
+        /// Sets every mesh the device refused for room and left out waiting again (`buildWaiting`): what room the
+        /// device did not see coming, a reserve that shrank, may build now.
+        void waitAgain();
 
         /// Whether `mesh` has a structure: not where its slot is free, where it holds no triangle,
         /// or where the device had no room for it.
-        bool stands(const Index mesh) const { return !mRows[mesh].mStructure.isEmpty(); }
-        VkAccelerationStructureKHR getStructure(const Index mesh) const { return mRows[mesh].mStructure.getHandle(); }
-        VkDeviceAddress getAddress(const Index mesh) const { return mRows[mesh].mStructure.getAddress(); }
+        bool stands(const MeshIndex mesh) const { return !mRows[mesh].mStructure.isEmpty(); }
+        VkAccelerationStructureKHR getStructure(const MeshIndex mesh) const
+        {
+            return mRows[mesh].mStructure.getHandle();
+        }
+        VkDeviceAddress getAddress(const MeshIndex mesh) const { return mRows[mesh].mStructure.getAddress(); }
 
         /// Whether `mesh`'s structure was built with `ALLOW_UPDATE`, which is whether the scene's
         /// mesh deformed at the time it was built — `MeshRange::deforms`. Whether a mesh deforms is
         /// fixed when it arrives, so this is also whether the mesh can ever be refitted. False where
         /// no structure was made.
-        bool isUpdatable(const Index mesh) const { return mRows[mesh].mUpdatable; }
+        bool isUpdatable(const MeshIndex mesh) const { return mRows[mesh].mUpdatable; }
 
         /// What a refit of every structure that can be refit works in at once, each at the aligned end of the one
         /// before, and the rota's pick in a whole build's room where an update's was: what the refit's scratch is
@@ -173,7 +185,7 @@ namespace Rtx
 
         /// What `mesh`'s place in a refit works in: a whole build's scratch for a rebuild from nothing, an update's
         /// for the rest, as the store asked the driver when it was built.
-        VkDeviceSize getScratchFor(const Index mesh, const VkBuildAccelerationStructureModeKHR mode) const
+        VkDeviceSize getScratchFor(const MeshIndex mesh, const VkBuildAccelerationStructureModeKHR mode) const
         {
             return mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR ? mRows[mesh].mBuildScratch
                                                                           : mRows[mesh].mUpdateScratch;
@@ -185,14 +197,14 @@ namespace Rtx
         /// through it pays for as long as the body lives; one a placement, so no frame carries two and every frame
         /// carries the same (a threshold made frames alternate between one and none). Noted as built at
         /// `placement`.
-        Index pickRebuild(std::span<const Index> posed, std::uint64_t placement);
+        MeshIndex pickRebuild(std::span<const MeshIndex> posed, std::uint64_t placement);
 
         /// Reads every compaction answer whose placement has certainly run, and makes a tight
         /// structure for as many of the answered as this placement's budget takes. The set it
         /// returns names the meshes whose structures moved, whose rows the caller writes again.
         /// Counts the placement, which is what the readiness rule below reads; one call per
         /// placement.
-        const SlotSet& prepareCompaction();
+        const SlotSet<MeshIndex>& prepareCompaction();
 
         /// Copies each structure `prepareCompaction` made room for into it.
         void recordCompaction(VkCommandBuffer commands, GpuTimer* timer);
@@ -210,7 +222,7 @@ namespace Rtx
         VkDeviceSize getLooseLiveBytes() const { return mLooseStorage.getLiveBytes(); }
 
         /// Whether `mesh` waits for room the device refused it (`buildWaiting`).
-        bool isWaiting(Index mesh) const { return mesh < mRows.size() && mRows[mesh].mWaiting; }
+        bool isWaiting(MeshIndex mesh) const { return mRows.holds(mesh) && mRows[mesh].mWaiting; }
 
         /// What the structures still to be copied tight would come to, or nought where there are
         /// none and where the device would not say — what is left to save, falling to nothing over
@@ -221,6 +233,10 @@ namespace Rtx
         /// What those same structures occupy now. The pair says what compaction has left to give
         /// back.
         VkDeviceSize getCompactableNowBytes() const { return mCompactableNow; }
+
+        /// What the structures moved out of a block to empty it came to, since the store was made: what giving the
+        /// device's blocks back has cost in copies (`moveOut`).
+        VkDeviceSize getMovedOutBytes() const { return mMovedOut; }
 
     private:
         /// What the compaction knows about the structure in a slot — a state per slot and a
@@ -249,7 +265,7 @@ namespace Rtx
         /// `mAt` is the timeline value the batch it was recorded into rides.
         struct Ask
         {
-            Index mSlot = sNoIndex;
+            MeshIndex mSlot = sNoRow;
             std::uint64_t mAt = 0;
         };
 
@@ -278,7 +294,16 @@ namespace Rtx
         /// Makes a room in the kept storage for as many answered structures as `budget` takes, and
         /// queues the copy of each into its room for `recordCompaction`; the meshes it moved join
         /// `mMovedMeshes`. A new block is made at what is left of the budget.
-        void copyAnswered(VkDeviceSize budget);
+        /// What it took of `budget`.
+        VkDeviceSize copyAnswered(VkDeviceSize budget);
+
+        /// **Moves structures out of a block to give it back, while the device asks for one**
+        /// (`MemoryAllocator::asksForBlock`): the kept storage's block the fewest structures stand in, its standing
+        /// structures copied as they are into the other blocks' free runs, as many as `budget` takes, joining
+        /// `mMovedMeshes`; the block goes back once the last room cools (`StructureStorage::give`). A block begun is
+        /// emptied whole, the device asking or not, and a structure that finds no room ends it. One that refits, or
+        /// whose tight copy is still owed, stays: a refit records against the handle it was prepared with.
+        void moveOut(VkDeviceSize budget);
 
         /// What every answered structure's copy would take: a settled run's budget, which then
         /// copies them all into blocks of exactly that.
@@ -305,7 +330,7 @@ namespace Rtx
 
         /// Buries `slot`'s structure and forgets what the compaction knew about it, ahead of the
         /// slot being built again or given back. Idempotent: a slot holding nothing buries nothing.
-        void retire(Index slot);
+        void retire(MeshIndex slot);
 
         /// One mesh slot: its structure, in its room, and what the refit and the compaction know
         /// about it. One row and not six lists, so a slot cannot be half updated.
@@ -328,6 +353,9 @@ namespace Rtx
             /// Whether the mesh is one of `mWaiting`.
             bool mWaiting = false;
 
+            /// Whether the device last had no room for its structure, waiting or refused: one of `mShortOfRoom`.
+            bool mShortOfRoom = false;
+
             Compaction mCompaction;
         };
 
@@ -341,7 +369,7 @@ namespace Rtx
         StructureStorage mLooseStorage;
 
         /// One row per mesh slot, grown with the mesh table.
-        std::vector<Row> mRows;
+        RowVector<Row, MeshIndex> mRows;
 
         /// What a run of builds works in. Kept across builds rather than made per arrival, settling at
         /// the largest run — the build room, or one mesh past it — and grown by a replacement that
@@ -379,15 +407,15 @@ namespace Rtx
         std::uint32_t mCompactablePool = 0;
 
         /// What `getRefittable` answers, kept as each slot is built and retired.
-        SlotSet mRefittable;
+        SlotSet<MeshIndex> mRefittable;
 
         /// The slots built loose and not yet asked about, which is the whole of what the next
         /// question names: a walk of every slot for them missed the cache a slot, on every arrival.
-        std::vector<Index> mLoose;
+        std::vector<MeshIndex> mLoose;
 
         /// The questions outstanding, oldest first, and the slots answered and not yet copied.
         Backlog<Ask> mAsked;
-        Backlog<Index> mAnswered;
+        Backlog<MeshIndex> mAnswered;
 
         /// One run of consecutive slots' handles, and one run's answers. Refilled per run.
         std::vector<VkAccelerationStructureKHR> mAskScratch;
@@ -398,13 +426,17 @@ namespace Rtx
         VkDeviceSize mCompactableNow = 0;
         VkDeviceSize mCompactableTight = 0;
 
-        bool mRefusedRoom = false;
+        /// How many rows are short of room (`Row::mShortOfRoom`).
+        std::uint32_t mShortOfRoom = 0;
+
+        /// `row` short of room, or no longer, counted in `mShortOfRoom`.
+        void markShortOfRoom(Row& row, bool shortOfRoom);
 
         /// A mesh the device had no room for, waiting for room that is coming (`build`): what its structure takes, why
         /// the device refused it, and how many placements it has waited.
         struct Waiting
         {
-            Index mMesh = 0;
+            MeshIndex mMesh = sNoRow;
             MemoryRefusal mWhy = MemoryRefusal::NoRoom;
             std::uint32_t mWaited = 0;
         };
@@ -413,20 +445,30 @@ namespace Rtx
         /// `buildWaiting` builds again and the meshes of it, refilled each time.
         std::vector<Waiting> mWaiting;
         std::vector<Waiting> mRetrying;
-        std::vector<Index> mRetryingMeshes;
+        std::vector<MeshIndex> mRetryingMeshes;
 
         /// What each structure built since the last `takeAnswer` took at its build, in the order built; a slot built
         /// twice is said twice, the later last. What each copy made since gives back of the storage, and each structure
         /// the storage refused since that a resting mesh's eviction makes room for, said at the take while each still
         /// stands or waits.
         std::vector<StoodMesh> mResized;
-        std::vector<FitBytes> mFits;
+        std::vector<FitBytes<MeshIndex>> mFits;
         std::vector<RoomWant> mWants;
 
         /// What this placement copies, refilled each time. Kept so a compaction allocates nothing.
         std::vector<VkCopyAccelerationStructureInfoKHR> mCompactionCopies;
 
         /// The meshes those copies moved, whose placements the caller writes again.
-        SlotSet mMovedMeshes;
+        SlotSet<MeshIndex> mMovedMeshes;
+
+        /// The kept storage's block being emptied, and the meshes standing in it still to move, listed once as it is
+        /// chosen (`moveOut`).
+        std::optional<std::uint32_t> mEmptying;
+        std::vector<MeshIndex> mLeaving;
+        VkDeviceSize mMovedOut = 0;
+
+        /// How many takes the allocator had refused at the last placement, or when the store was made
+        /// (`MemoryAllocator::asksForBlock`).
+        std::uint64_t mRefusedSeen = 0;
     };
 }

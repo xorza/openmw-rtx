@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "setting.hpp"
 
 class QDoubleSpinBox;
@@ -12,7 +14,7 @@ namespace CSMPrefs
     {
         Q_OBJECT
 
-        int mPrecision;
+        std::int32_t mPrecision;
         double mMin;
         double mMax;
         std::string mTooltip;
@@ -22,7 +24,7 @@ namespace CSMPrefs
         explicit DoubleSetting(
             Category* parent, QMutex* mutex, std::string_view key, const QString& label, Settings::Index& index);
 
-        DoubleSetting& setPrecision(int precision);
+        DoubleSetting& setPrecision(std::int32_t precision);
 
         // defaults to [0, std::numeric_limits<double>::max()]
         DoubleSetting& setRange(double min, double max);

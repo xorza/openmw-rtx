@@ -1,13 +1,14 @@
-#include "types.hpp"
+#include <cstddef>
+#include <cstdint>
 
-#include "usertypeutil.hpp"
-
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 #include <components/esm3/effectlist.hpp> // IWYU pragma: keep: the effect list whole, which sol's container traits read
 #include <components/esm3/loadingr.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "../../mwmechanics/spellutil.hpp"
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace
 {
@@ -18,7 +19,7 @@ namespace
     struct MutableIngredientEffectsListItem
     {
         MWLua::MutableRecord<ESM::Ingredient> mIngredient;
-        uint32_t mIndex;
+        std::uint32_t mIndex;
     };
 }
 
@@ -42,9 +43,9 @@ namespace MWLua
 {
     namespace
     {
-        constexpr uint32_t numEffects = 4;
+        constexpr std::uint32_t numEffects = 4;
 
-        void blankIndex(ESM::Ingredient::IRDTstruct& data, uint32_t i)
+        void blankIndex(ESM::Ingredient::IRDTstruct& data, std::uint32_t i)
         {
             data.mEffectID[i] = {};
             data.mAttributes[i] = {};
@@ -60,7 +61,7 @@ namespace MWLua
             }
         }
 
-        void setFromTable(ESM::Ingredient::IRDTstruct& data, uint32_t i, const sol::lua_table& table)
+        void setFromTable(ESM::Ingredient::IRDTstruct& data, std::uint32_t i, const sol::lua_table& table)
         {
             addPropertyFromTable(table, "id", data.mEffectID[i]);
             addPropertyFromTable(table, "affectedAttribute", data.mAttributes[i]);
@@ -91,13 +92,13 @@ namespace MWLua
                         auto& ingred = rec.find();
                         if (value == sol::nil)
                         {
-                            for (uint32_t i = 0; i < numEffects; ++i)
+                            for (std::uint32_t i = 0; i < numEffects; ++i)
                                 blankIndex(ingred.mData, i);
                         }
                         else if (value.is<MutableIngredientEffectsList>())
                         {
                             const ESM::Ingredient& other = value.as<MutableIngredientEffectsList>().mIngredient.find();
-                            for (uint32_t i = 0; i < numEffects; ++i)
+                            for (std::uint32_t i = 0; i < numEffects; ++i)
                             {
                                 ingred.mData.mEffectID[i] = other.mData.mEffectID[i];
                                 ingred.mData.mAttributes[i] = other.mData.mAttributes[i];
@@ -107,8 +108,8 @@ namespace MWLua
                         else
                         {
                             const sol::table table = value;
-                            const size_t length = table.size();
-                            for (uint32_t i = 0; i < numEffects; ++i)
+                            const std::size_t length = table.size();
+                            for (std::uint32_t i = 0; i < numEffects; ++i)
                             {
                                 blankIndex(ingred.mData, i);
                                 if (i < length)
@@ -122,14 +123,14 @@ namespace MWLua
                     = [](const MutableIngredientEffectsList& list) { return numEffects; };
                 listType[sol::meta_function::index]
                     = [](const MutableIngredientEffectsList& list,
-                          uint32_t index) -> std::optional<MutableIngredientEffectsListItem> {
+                          std::uint32_t index) -> std::optional<MutableIngredientEffectsListItem> {
                     list.mIngredient.find();
                     if (index == 0 || index > numEffects)
                         return {};
                     return MutableIngredientEffectsListItem{ list.mIngredient, index - 1 };
                 };
                 listType[sol::meta_function::new_index]
-                    = [](MutableIngredientEffectsList& list, uint32_t i, const sol::object& value) {
+                    = [](MutableIngredientEffectsList& list, std::uint32_t i, const sol::object& value) {
                           ESM::Ingredient& ingred = list.mIngredient.find();
                           if (i == 0 || i > numEffects)
                               throw std::runtime_error("index out of range");
@@ -167,7 +168,7 @@ namespace MWLua
                 record["effects"]
                     = sol::readonly_property([lua = lua.lua_state()](const ESM::Ingredient& rec) -> sol::table {
                           sol::table res(lua, sol::create);
-                          for (uint32_t i = 0; i < 4; ++i)
+                          for (std::uint32_t i = 0; i < 4; ++i)
                               if (auto effect = MWMechanics::getIngredientEffect(&rec, i))
                                   res[LuaUtil::toLuaIndex(i)] = *effect;
                           return res;
@@ -197,8 +198,8 @@ namespace MWLua
         if (rec["effects"] != sol::nil)
         {
             const sol::table effects = rec["effects"];
-            const size_t length = effects.size();
-            for (uint32_t i = 0; i < numEffects; ++i)
+            const std::size_t length = effects.size();
+            for (std::uint32_t i = 0; i < numEffects; ++i)
             {
                 blankIndex(ingred.mData, i);
                 if (i < length)

@@ -1,16 +1,14 @@
-#include "types.hpp"
-#include "usertypeutil.hpp"
-
-#include "../localscripts.hpp"
-
+#include <apps/openmw/mwlua/localscripts.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm4/loaddoor.hpp>
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "apps/openmw/mwworld/class.hpp"
-#include "apps/openmw/mwworld/worldmodel.hpp"
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace sol
 {

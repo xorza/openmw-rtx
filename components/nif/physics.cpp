@@ -19,7 +19,7 @@ namespace Nif
     {
         void readBoneTransformGroup(NIFStream& stream, std::vector<bhkPoseArray::BoneTransform>& value)
         {
-            stream.readVectorOfRecords<uint32_t>(value);
+            stream.readVectorOfRecords<std::uint32_t>(value);
         }
     }
 
@@ -35,7 +35,7 @@ namespace Nif
     void bhkWorldObjectCInfo::read(NIFStream* nif)
     {
         nif->skip(4); // Unused
-        mPhaseType = static_cast<BroadPhaseType>(nif->get<uint8_t>());
+        mPhaseType = static_cast<BroadPhaseType>(nif->get<std::uint8_t>());
         nif->skip(3); // Unused
         mProperty.read(nif);
     }
@@ -63,14 +63,14 @@ namespace Nif
 
     void bhkEntityCInfo::read(NIFStream* nif)
     {
-        mResponseType = static_cast<HkResponseType>(nif->get<uint8_t>());
+        mResponseType = static_cast<HkResponseType>(nif->get<std::uint8_t>());
         nif->skip(1); // Unused
         nif->read(mProcessContactDelay);
     }
 
     void hkpMoppCode::read(NIFStream* nif)
     {
-        uint32_t dataSize = 0;
+        std::uint32_t dataSize = 0;
         nif->read(dataSize);
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 0))
             nif->read(mOffset);
@@ -112,10 +112,10 @@ namespace Nif
         nif->read(mMaterialIndex);
         nif->read(mReference);
         nif->read(mTransformIndex);
-        nif->readVector(mVertices, nif->get<uint32_t>());
-        nif->readVector(mIndices, nif->get<uint32_t>());
-        nif->readVector(mStrips, nif->get<uint32_t>());
-        nif->readVector(mWeldingInfos, nif->get<uint32_t>());
+        nif->readVector(mVertices, nif->get<std::uint32_t>());
+        nif->readVector(mIndices, nif->get<std::uint32_t>());
+        nif->readVector(mStrips, nif->get<std::uint32_t>());
+        nif->readVector(mWeldingInfos, nif->get<std::uint32_t>());
     }
 
     void bhkRigidBodyCInfo::read(NIFStream* nif)
@@ -129,7 +129,7 @@ namespace Nif
             {
                 if (nif->getBethVersion() >= 83)
                     nif->skip(4); // Unused
-                mResponseType = static_cast<HkResponseType>(nif->get<uint8_t>());
+                mResponseType = static_cast<HkResponseType>(nif->get<std::uint8_t>());
                 nif->skip(1); // Unused
                 nif->read(mProcessContactDelay);
             }
@@ -167,23 +167,23 @@ namespace Nif
             if (nif->getBethVersion() != NIFFile::BethVersion::BETHVER_FO4)
                 nif->read(mPenetrationDepth);
         }
-        mMotionType = static_cast<HkMotionType>(nif->get<uint8_t>());
+        mMotionType = static_cast<HkMotionType>(nif->get<std::uint8_t>());
         if (nif->getBethVersion() < 83)
-            mDeactivatorType = static_cast<HkDeactivatorType>(nif->get<uint8_t>());
+            mDeactivatorType = static_cast<HkDeactivatorType>(nif->get<std::uint8_t>());
         else
             nif->read(mEnableDeactivation);
-        mSolverDeactivation = static_cast<HkSolverDeactivation>(nif->get<uint8_t>());
+        mSolverDeactivation = static_cast<HkSolverDeactivation>(nif->get<std::uint8_t>());
         if (nif->getBethVersion() == NIFFile::BethVersion::BETHVER_FO4)
         {
             nif->skip(1);
             nif->read(mPenetrationDepth);
             nif->read(mTimeFactor);
             nif->skip(4);
-            mResponseType = static_cast<HkResponseType>(nif->get<uint8_t>());
+            mResponseType = static_cast<HkResponseType>(nif->get<std::uint8_t>());
             nif->skip(1); // Unused
             nif->read(mProcessContactDelay);
         }
-        mQualityType = static_cast<HkQualityType>(nif->get<uint8_t>());
+        mQualityType = static_cast<HkQualityType>(nif->get<std::uint8_t>());
         if (nif->getBethVersion() >= 83)
         {
             nif->read(mAutoRemoveLevel);
@@ -199,11 +199,11 @@ namespace Nif
 
     void bhkConstraintCInfo::read(NIFStream* nif)
     {
-        nif->get<uint32_t>(); // Number of entities, unused
+        nif->get<std::uint32_t>(); // Number of entities, unused
         mEntityA.read(nif);
         mEntityB.read(nif);
 
-        mPriority = static_cast<ConstraintPriority>(nif->get<uint32_t>());
+        mPriority = static_cast<ConstraintPriority>(nif->get<std::uint32_t>());
     }
 
     void bhkConstraintCInfo::post(Reader& nif)
@@ -244,7 +244,7 @@ namespace Nif
 
     void bhkConstraintMotorCInfo::read(NIFStream* nif)
     {
-        mType = static_cast<HkMotorType>(nif->get<uint8_t>());
+        mType = static_cast<HkMotorType>(nif->get<std::uint8_t>());
         switch (mType)
         {
             case HkMotorType::Motor_Position:
@@ -393,7 +393,7 @@ namespace Nif
 
     void bhkMalleableConstraintCInfo::read(NIFStream* nif)
     {
-        mType = static_cast<HkConstraintType>(nif->get<uint32_t>());
+        mType = static_cast<HkConstraintType>(nif->get<std::uint32_t>());
         mInfo.read(nif);
         switch (mType)
         {
@@ -432,7 +432,7 @@ namespace Nif
 
     void bhkWrappedConstraintData::read(NIFStream* nif)
     {
-        mType = static_cast<HkConstraintType>(nif->get<uint32_t>());
+        mType = static_cast<HkConstraintType>(nif->get<std::uint32_t>());
         mInfo.read(nif);
         switch (mType)
         {
@@ -513,12 +513,12 @@ namespace Nif
 
     void bhkPhysicsSystem::read(NIFStream* nif)
     {
-        nif->readVector(mData, nif->get<uint32_t>());
+        nif->readVector(mData, nif->get<std::uint32_t>());
     }
 
     void bhkRagdollSystem::read(NIFStream* nif)
     {
-        nif->readVector(mData, nif->get<uint32_t>());
+        nif->readVector(mData, nif->get<std::uint32_t>());
     }
 
     void bhkWorldObject::read(NIFStream* nif)
@@ -570,7 +570,7 @@ namespace Nif
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 0))
             nif->read(mScale);
         readRecordList(nif, mData);
-        nif->readVectorOfRecords<uint32_t>(mHavokFilters);
+        nif->readVectorOfRecords<std::uint32_t>(mHavokFilters);
     }
 
     void bhkNiTriStripsShape::post(Reader& nif)
@@ -581,7 +581,7 @@ namespace Nif
     void bhkPackedNiTriStripsShape::read(NIFStream* nif)
     {
         if (nif->getVersion() <= NIFFile::NIFVersion::VER_OB)
-            nif->readVectorOfRecords<uint16_t>(mSubshapes);
+            nif->readVectorOfRecords<std::uint16_t>(mSubshapes);
         nif->read(mUserData);
         nif->skip(4); // Unused
         nif->read(mRadius);
@@ -598,8 +598,8 @@ namespace Nif
 
     void hkPackedNiTriStripsData::read(NIFStream* nif)
     {
-        nif->readVectorOfRecords<uint32_t>(mTriangles);
-        uint32_t numVertices = 0;
+        nif->readVectorOfRecords<std::uint32_t>(mTriangles);
+        std::uint32_t numVertices = 0;
         nif->read(numVertices);
         bool compressed = false;
         if (nif->getVersion() >= NIFFile::NIFVersion::VER_BGS)
@@ -609,7 +609,7 @@ namespace Nif
         else
             nif->skip(std::size_t{ 6 } * numVertices); // Half-precision vectors are not currently supported
         if (nif->getVersion() >= NIFFile::NIFVersion::VER_BGS)
-            nif->readVectorOfRecords<uint16_t>(mSubshapes);
+            nif->readVectorOfRecords<std::uint16_t>(mSubshapes);
     }
 
     void bhkSphereRepShape::read(NIFStream* nif)
@@ -659,8 +659,8 @@ namespace Nif
 
         mVerticesProperty.read(nif);
         mNormalsProperty.read(nif);
-        nif->readVector(mVertices, nif->get<uint32_t>());
-        nif->readVector(mNormals, nif->get<uint32_t>());
+        nif->readVector(mVertices, nif->get<std::uint32_t>());
+        nif->readVector(mNormals, nif->get<std::uint32_t>());
     }
 
     void bhkConvexTransformShape::read(NIFStream* nif)
@@ -731,7 +731,7 @@ namespace Nif
         nif->read(mRadius);
         nif->skip(8); // Unknown
         nif->read(mScale);
-        nif->readVectorOfRecords<uint32_t>(mShapeProperties);
+        nif->readVectorOfRecords<std::uint32_t>(mShapeProperties);
         nif->skip(12); // Unknown
         readRecordList(nif, mDataList);
     }
@@ -746,7 +746,7 @@ namespace Nif
         bhkSphereRepShape::read(nif);
 
         mShapeProperty.read(nif);
-        nif->readVector(mSpheres, nif->get<uint32_t>());
+        nif->readVector(mSpheres, nif->get<std::uint32_t>());
     }
 
     void bhkListShape::read(NIFStream* nif)
@@ -755,7 +755,7 @@ namespace Nif
         mHavokMaterial.read(nif);
         mChildShapeProperty.read(nif);
         mChildFilterProperty.read(nif);
-        nif->readVectorOfRecords<uint32_t>(mHavokFilters);
+        nif->readVectorOfRecords<std::uint32_t>(mHavokFilters);
     }
 
     void bhkListShape::post(Reader& nif)
@@ -792,15 +792,15 @@ namespace Nif
         nif->read(mAabbMax);
         nif->read(mWeldingType);
         nif->read(mMaterialType);
-        nif->skip(static_cast<std::size_t>(nif->get<uint32_t>()) * 4); // Unused
-        nif->skip(static_cast<std::size_t>(nif->get<uint32_t>()) * 4); // Unused
-        nif->skip(static_cast<std::size_t>(nif->get<uint32_t>()) * 4); // Unused
-        nif->readVectorOfRecords<uint32_t>(mMaterials);
+        nif->skip(static_cast<std::size_t>(nif->get<std::uint32_t>()) * 4); // Unused
+        nif->skip(static_cast<std::size_t>(nif->get<std::uint32_t>()) * 4); // Unused
+        nif->skip(static_cast<std::size_t>(nif->get<std::uint32_t>()) * 4); // Unused
+        nif->readVectorOfRecords<std::uint32_t>(mMaterials);
         nif->skip(4); // Unused
-        nif->readVectorOfRecords<uint32_t>(mChunkTransforms);
-        nif->readVector(mBigVerts, nif->get<uint32_t>());
-        nif->readVectorOfRecords<uint32_t>(mBigTris);
-        nif->readVectorOfRecords<uint32_t>(mChunks);
+        nif->readVectorOfRecords<std::uint32_t>(mChunkTransforms);
+        nif->readVector(mBigVerts, nif->get<std::uint32_t>());
+        nif->readVectorOfRecords<std::uint32_t>(mBigTris);
+        nif->readVectorOfRecords<std::uint32_t>(mChunks);
         nif->skip(4); // Unused
     }
 
@@ -813,7 +813,7 @@ namespace Nif
         if (nif->getBethVersion() < 76)
             nif->read(mBodyFlags);
         else
-            mBodyFlags = nif->get<uint16_t>();
+            mBodyFlags = nif->get<std::uint16_t>();
     }
 
     void bhkAabbPhantom::read(NIFStream* nif)
@@ -875,7 +875,7 @@ namespace Nif
 
     void bhkBallSocketConstraintChain::read(NIFStream* nif)
     {
-        auto numPivots = nif->get<uint32_t>();
+        auto numPivots = nif->get<std::uint32_t>();
         if (numPivots % 2 != 0)
             throw Nif::Exception(
                 "Invalid number of constraints in bhkBallSocketConstraintChain", nif->getFile().getFilename());
@@ -976,7 +976,7 @@ namespace Nif
         nif->read(mFriction);
         nif->read(mRadius);
         mHavokMaterial.read(nif);
-        nif->readVectorOfRecords<uint32_t>(mConstraints);
+        nif->readVectorOfRecords<std::uint32_t>(mConstraints);
     }
 
     void bhkPoseArray::BoneTransform::read(NIFStream* nif)
@@ -988,8 +988,8 @@ namespace Nif
 
     void bhkPoseArray::read(NIFStream* nif)
     {
-        nif->readVector(mBones, nif->get<uint32_t>());
-        nif->readVectorOfRecords<uint32_t>(readBoneTransformGroup, mPoses);
+        nif->readVector(mBones, nif->get<std::uint32_t>());
+        nif->readVectorOfRecords<std::uint32_t>(readBoneTransformGroup, mPoses);
     }
 
 } // Namespace

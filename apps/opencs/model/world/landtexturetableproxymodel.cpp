@@ -1,6 +1,8 @@
 #include "landtexturetableproxymodel.hpp"
 
-#include <apps/opencs/model/world/idtableproxymodel.hpp>
+#include <cstdint>
+
+#include "idtableproxymodel.hpp"
 
 namespace CSMWorld
 {
@@ -9,7 +11,7 @@ namespace CSMWorld
     {
     }
 
-    bool LandTextureTableProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
+    bool LandTextureTableProxyModel::filterAcceptsRow(std::int32_t sourceRow, const QModelIndex& sourceParent) const
     {
         return IdTableProxyModel::filterAcceptsRow(sourceRow, sourceParent);
     }

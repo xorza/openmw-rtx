@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <set>
 #include <string>
@@ -23,7 +24,7 @@ namespace MWWorld
     public:
         // Game time.
         // Note that game time generally goes faster than the simulation time.
-        std::string_view getMonthName(int month = -1) const; // -1: current month
+        std::string_view getMonthName(std::int32_t month = -1) const; // -1: current month
         // The time of the day as the Calendar localization shows it.
         std::string formatTimeOfDay(float hour) const;
         TimeStamp getTimeStamp() const;
@@ -64,18 +65,18 @@ namespace MWWorld
     private:
         friend class World;
         void setup(Globals& globalVariables);
-        void updateGlobalInt(GlobalVariableName name, int value);
+        void updateGlobalInt(GlobalVariableName name, std::int32_t value);
         void updateGlobalFloat(GlobalVariableName name, float value);
         void advanceTime(double hours, Globals& globalVariables);
 
         void setHour(double hour);
-        void setDay(int day);
-        void setMonth(int month);
+        void setDay(std::int32_t day);
+        void setMonth(std::int32_t month);
 
-        int mDaysPassed = 0;
-        int mDay = 0;
-        int mMonth = 0;
-        int mYear = 0;
+        std::int32_t mDaysPassed = 0;
+        std::int32_t mDay = 0;
+        std::int32_t mMonth = 0;
+        std::int32_t mYear = 0;
         float mGameHour = 0.f;
         float mGameTimeScale = 0.f;
         float mSimulationTimeScale = 1.0;

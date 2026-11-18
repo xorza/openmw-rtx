@@ -1,15 +1,15 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 
-#include "../mwworld/livecellref.hpp"
-
-#include "../mwmechanics/drawstate.hpp"
-
+#include <apps/openmw/mwmechanics/drawstate.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadskil.hpp>
+
+#include "livecellref.hpp"
 
 namespace ESM
 {
@@ -42,8 +42,8 @@ namespace MWWorld
 
         bool mTeleported;
 
-        int mCurrentCrimeId; // the id assigned witnesses
-        int mPaidCrimeId; // the last id paid off (0 bounty)
+        std::int32_t mCurrentCrimeId; // the id assigned witnesses
+        std::int32_t mPaidCrimeId; // the last id paid off (0 bounty)
 
         typedef std::map<ESM::RefId, ESM::RefId> PreviousItems; // previous equipped items, needed for bound spells
         PreviousItems mPreviousItems;
@@ -106,11 +106,11 @@ namespace MWWorld
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) const;
 
-        bool readRecord(ESM::ESMReader& reader, uint32_t type);
+        bool readRecord(ESM::ESMReader& reader, std::uint32_t type);
 
-        int getNewCrimeId(); // get new id for witnesses
+        std::int32_t getNewCrimeId(); // get new id for witnesses
         void recordCrimeId(); // record the paid crime id when bounty is 0
-        int getCrimeId() const; // get the last paid crime id
+        std::int32_t getCrimeId() const; // get the last paid crime id
 
         void setPreviousItem(const ESM::RefId& boundItemId, const ESM::RefId& previousItemId);
         ESM::RefId getPreviousItem(const ESM::RefId& boundItemId);

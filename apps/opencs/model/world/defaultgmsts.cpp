@@ -1,12 +1,13 @@
 #include "defaultgmsts.hpp"
 
+#include <cstdint>
 #include <limits>
 
 const float FInf = std::numeric_limits<float>::infinity();
 const float FEps = std::numeric_limits<float>::epsilon();
 
-const int IMax = std::numeric_limits<int>::max();
-const int IMin = std::numeric_limits<int>::min();
+const std::int32_t IMax = std::numeric_limits<std::int32_t>::max();
+const std::int32_t IMin = std::numeric_limits<std::int32_t>::min();
 
 const char* CSMWorld::DefaultGmsts::Floats[CSMWorld::DefaultGmsts::FloatCount] = {
     "fAIFleeFleeMult",
@@ -1880,7 +1881,7 @@ const float CSMWorld::DefaultGmsts::FloatsDefaultValues[CSMWorld::DefaultGmsts::
     15.0f, // fWortChanceValue
 };
 
-const int CSMWorld::DefaultGmsts::IntsDefaultValues[CSMWorld::DefaultGmsts::IntCount] = {
+const std::int32_t CSMWorld::DefaultGmsts::IntsDefaultValues[CSMWorld::DefaultGmsts::IntCount] = {
     10, // i1stPersonSneakDelta
     50, // iAlarmAttack
     90, // iAlarmKilling
@@ -2491,7 +2492,7 @@ const float CSMWorld::DefaultGmsts::FloatLimits[CSMWorld::DefaultGmsts::FloatCou
     FInf, // fWortChanceValue
 };
 
-const int CSMWorld::DefaultGmsts::IntLimits[CSMWorld::DefaultGmsts::IntCount * 2] = {
+const std::int32_t CSMWorld::DefaultGmsts::IntLimits[CSMWorld::DefaultGmsts::IntCount * 2] = {
     IMin,
     IMax, // i1stPersonSneakDelta
     IMin,

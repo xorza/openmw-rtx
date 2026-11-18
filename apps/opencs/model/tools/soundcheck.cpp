@@ -1,18 +1,16 @@
 #include "soundcheck.hpp"
 
+#include <cstdint>
 #include <string>
-
-#include "../prefs/state.hpp"
-
-#include "../world/universalid.hpp"
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/resources.hpp>
-
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadsoun.hpp>
 
 CSMTools::SoundCheckStage::SoundCheckStage(
@@ -23,14 +21,14 @@ CSMTools::SoundCheckStage::SoundCheckStage(
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::SoundCheckStage::setup()
+std::int32_t CSMTools::SoundCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mSounds.getSize();
 }
 
-void CSMTools::SoundCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::SoundCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Sound>& record = mSounds.getRecord(stage);
 

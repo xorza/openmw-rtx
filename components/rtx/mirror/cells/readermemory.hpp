@@ -5,9 +5,9 @@
 namespace Rtx
 {
     /// What a reader keeps of the models it read: the room their buffers grew to, lent to the
-    /// frame, waiting as spares, and filed without a holder. A spare keeps the largest room any
-    /// model it held grew to, so the spare figure is what a long session pays for the reader's
-    /// never allocating.
+    /// frame, waiting as spares, and filed without a holder, and what the lent and the filed fill of
+    /// it. A spare keeps the largest room any model it held grew to, so the spare figure is what a
+    /// long session pays for the reader's never allocating.
     struct ReaderMemory
     {
         std::uint32_t mLentModels = 0;
@@ -20,5 +20,7 @@ namespace Rtx
         std::uint64_t mLentBytes = 0;
         std::uint64_t mSpareBytes = 0;
         std::uint64_t mFiledBytes = 0;
+        std::uint64_t mLentContentBytes = 0;
+        std::uint64_t mFiledContentBytes = 0;
     };
 }

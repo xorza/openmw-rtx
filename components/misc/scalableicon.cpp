@@ -1,5 +1,8 @@
 #include "scalableicon.hpp"
 
+#include <cstdint>
+#include <utility>
+
 #include <QApplication>
 #include <QDataStream>
 #include <QDebug>
@@ -10,7 +13,6 @@
 #include <QPainter>
 #include <QPalette>
 #include <QtSvg/QSvgRenderer>
-#include <utility>
 
 namespace Misc
 {
@@ -106,12 +108,12 @@ namespace Misc
         // For disabled icons use grayscale icons with 50% transparency
         QImage img = pix.toImage();
 
-        for (int x = 0; x < img.width(); x++)
+        for (std::int32_t x = 0; x < img.width(); x++)
         {
-            for (int y = 0; y < img.height(); y++)
+            for (std::int32_t y = 0; y < img.height(); y++)
             {
                 QColor n = img.pixelColor(x, y);
-                int gray = qGray(n.red(), n.green(), n.blue());
+                std::int32_t gray = qGray(n.red(), n.green(), n.blue());
                 img.setPixelColor(x, y, QColor(gray, gray, gray, n.alpha() / 2));
             }
         }

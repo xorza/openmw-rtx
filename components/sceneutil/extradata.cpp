@@ -3,7 +3,8 @@
 #include <osg/Node>
 
 #include <components/misc/osguservalues.hpp>
-#include <components/sceneutil/depth.hpp>
+
+#include "depth.hpp"
 
 namespace SceneUtil
 {

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <thread>
 #include <utility>
 
@@ -262,13 +263,13 @@ namespace MWRender
         applyPresentation();
     }
 
-    void Renderer::setViewMask(const unsigned int mask)
+    void Renderer::setViewMask(const std::uint32_t mask)
     {
         mViewMask = mask;
         applyViewMask();
     }
 
-    unsigned int Renderer::worldViewMask() const
+    std::uint32_t Renderer::worldViewMask() const
     {
         return mWorldToggled ? mViewMask : mViewMask & ~sToggleWorldMask;
     }
@@ -340,8 +341,8 @@ namespace MWRender
         SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
 
         const SDL_DisplayID display = SDLUtil::displayAt(Settings::video().mScreen);
-        const int width = Settings::video().mWindowWidth;
-        const int height = Settings::video().mWindowHeight;
+        const std::int32_t width = Settings::video().mWindowWidth;
+        const std::int32_t height = Settings::video().mWindowHeight;
         const bool border = Settings::video().mWindowBorder;
         SDL_WindowFlags flags = surfaceFlag | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if (!border)

@@ -1,5 +1,7 @@
 #include "texturemanager.hpp"
 
+#include <cstdint>
+
 #include <osg/Texture2D>
 
 #include <components/resource/imagemanager.hpp>
@@ -55,7 +57,7 @@ namespace Terrain
         return texture;
     }
 
-    void TextureManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void TextureManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Terrain Texture", frameNumber, mCache->getStats(), *stats);
     }

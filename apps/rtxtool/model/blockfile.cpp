@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <sstream>
 #include <stdexcept>
@@ -52,7 +54,7 @@ namespace RtxTool
             if (!value.has_value())
                 return std::nullopt;
 
-            result[static_cast<int>(axis)] = *value;
+            result[static_cast<std::int32_t>(axis)] = *value;
         }
 
         return result;
@@ -217,7 +219,7 @@ namespace RtxTool
         return {};
     }
 
-    Result<void, std::string_view> checkDay(const int day)
+    Result<void, std::string_view> checkDay(const std::int32_t day)
     {
         if (day < 0)
             return Err{ "is before the first day" };
@@ -294,9 +296,9 @@ namespace RtxTool
         return field.mValue == "true";
     }
 
-    int BlockFile::day(const BlockField& field) const
+    std::int32_t BlockFile::day(const BlockField& field) const
     {
-        const std::optional<int> value = wholeNumber<int>(field.mValue);
+        const std::optional<std::int32_t> value = wholeNumber<std::int32_t>(field.mValue);
         if (!value.has_value())
             refuseValue(field, "is not a whole number of days");
         if (const Result<void, std::string_view> checked = checkDay(*value); !checked.isOk())

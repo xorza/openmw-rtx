@@ -1,21 +1,30 @@
 #include "npcanimation.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+
 #include <osg/Depth>
 #include <osg/MatrixTransform>
-
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderBin>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/debug/debuglog.hpp>
-
-#include <components/misc/rng.hpp>
-
-#include <components/misc/resourcehelpers.hpp>
-
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/rng.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/depth.hpp>
@@ -24,21 +33,7 @@
 #include <components/sceneutil/userdata.hpp>
 #include <components/sceneutil/visitor.hpp>
 #include <components/settings/values.hpp>
-
 #include <components/vfs/manager.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/weapontype.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "actorutil.hpp"
 #include "postprocessor.hpp"
@@ -285,7 +280,7 @@ namespace MWRender
         mHeadAnimationTime = std::make_shared<HeadAnimationTime>(mPtr);
         mWeaponAnimationTime = std::make_shared<WeaponAnimationTime>(this);
 
-        for (size_t i = 0; i < ESM::PRT_Count; i++)
+        for (std::size_t i = 0; i < ESM::PRT_Count; i++)
         {
             mPartslots[i] = -1; // each slot is empty
             mPartPriorities[i] = 0;
@@ -348,7 +343,7 @@ namespace MWRender
 
                 state->applyAttribute(mDepth);
 
-                unsigned int frameId = state->getFrameStamp()->getFrameNumber() % 2;
+                std::uint32_t frameId = state->getFrameStamp()->getFrameNumber() % 2;
 
                 postProcessor->getFbo(PostProcessor::FBO_FirstPerson, frameId)->apply(*state);
                 glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -450,9 +445,9 @@ namespace MWRender
         MWBase::Environment::get().getMechanicsManager()->forceStateUpdate(mPtr);
     }
 
-    int NpcAnimation::getSlot(const osg::NodePath& path) const
+    std::int32_t NpcAnimation::getSlot(const osg::NodePath& path) const
     {
-        for (int i = 0; i < ESM::PRT_Count; ++i)
+        for (std::int32_t i = 0; i < ESM::PRT_Count; ++i)
         {
             const PartHolder* const part = mObjectParts[i].get();
             if (part == nullptr)
@@ -468,7 +463,7 @@ namespace MWRender
     void NpcAnimation::updateNpcBase()
     {
         clearAnimSources();
-        for (size_t i = 0; i < ESM::PRT_Count; i++)
+        for (std::size_t i = 0; i < ESM::PRT_Count; i++)
             removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
@@ -594,8 +589,8 @@ namespace MWRender
 
         static const struct
         {
-            int mSlot;
-            int mBasePriority;
+            std::int32_t mSlot;
+            std::int32_t mBasePriority;
         } slotlist[] = { // FIXME: Priority is based on the number of reserved slots. There should be a better way.
             { MWWorld::InventoryStore::Slot_Robe, 11 }, { MWWorld::InventoryStore::Slot_Skirt, 3 },
             { MWWorld::InventoryStore::Slot_Helmet, 0 }, { MWWorld::InventoryStore::Slot_Cuirass, 0 },
@@ -605,13 +600,13 @@ namespace MWRender
             { MWWorld::InventoryStore::Slot_Shirt, 0 }, { MWWorld::InventoryStore::Slot_Pants, 0 },
             { MWWorld::InventoryStore::Slot_CarriedLeft, 0 }, { MWWorld::InventoryStore::Slot_CarriedRight, 0 }
         };
-        static const size_t slotlistsize = sizeof(slotlist) / sizeof(slotlist[0]);
+        static const std::size_t slotlistsize = sizeof(slotlist) / sizeof(slotlist[0]);
 
         bool wasArrowAttached = isArrowAttached();
         mAmmunition.reset();
 
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
-        for (size_t i = 0; i < slotlistsize && mViewMode != VM_HeadOnly; i++)
+        for (std::size_t i = 0; i < slotlistsize && mViewMode != VM_HeadOnly; i++)
         {
             MWWorld::ConstContainerStoreIterator store = inv.getSlot(slotlist[i].mSlot);
 
@@ -623,7 +618,7 @@ namespace MWRender
             if (slotlist[i].mSlot == MWWorld::InventoryStore::Slot_Helmet)
                 removeIndividualPart(ESM::PRT_Hair);
 
-            int prio = 1;
+            std::int32_t prio = 1;
             bool enchantedGlow = !store->getClass().getEnchantment(*store).empty();
             osg::Vec4f glowColor = store->getClass().getEnchantmentColor(*store);
             if (store->getType() == ESM::Clothing::sRecordId)
@@ -687,7 +682,7 @@ namespace MWRender
 
         const std::vector<const ESM::BodyPart*>& parts
             = getBodyParts(race, !mNpc->isMale(), mViewMode == VM_FirstPerson, isWerewolf);
-        for (int part = ESM::PRT_Neck; part < ESM::PRT_Count; ++part)
+        for (std::int32_t part = ESM::PRT_Neck; part < ESM::PRT_Count; ++part)
         {
             if (mPartPriorities[part] < 1)
             {
@@ -749,7 +744,7 @@ namespace MWRender
         }
     }
 
-    void NpcAnimation::reserveIndividualPart(ESM::PartReferenceType type, int group, int priority)
+    void NpcAnimation::reserveIndividualPart(ESM::PartReferenceType type, std::int32_t group, std::int32_t priority)
     {
         if (priority > mPartPriorities[type])
         {
@@ -759,9 +754,9 @@ namespace MWRender
         }
     }
 
-    void NpcAnimation::removePartGroup(int group)
+    void NpcAnimation::removePartGroup(std::int32_t group)
     {
-        for (int i = 0; i < ESM::PRT_Count; i++)
+        for (std::int32_t i = 0; i < ESM::PRT_Count; i++)
         {
             if (mPartslots[i] == group)
                 removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
@@ -773,8 +768,8 @@ namespace MWRender
         return bodypart->mData.mFlags & ESM::BodyPart::BPF_Female;
     }
 
-    bool NpcAnimation::addOrReplaceIndividualPart(ESM::PartReferenceType type, int group, int priority,
-        VFS::Path::NormalizedView mesh, bool enchantedGlow, osg::Vec4f* glowColor, bool isLight)
+    bool NpcAnimation::addOrReplaceIndividualPart(ESM::PartReferenceType type, std::int32_t group,
+        std::int32_t priority, VFS::Path::NormalizedView mesh, bool enchantedGlow, osg::Vec4f* glowColor, bool isLight)
     {
         if (priority <= mPartPriorities[type])
             return false;
@@ -869,8 +864,8 @@ namespace MWRender
         return true;
     }
 
-    void NpcAnimation::addPartGroup(int group, int priority, const std::vector<ESM::PartReference>& parts,
-        bool enchantedGlow, osg::Vec4f* glowColor)
+    void NpcAnimation::addPartGroup(std::int32_t group, std::int32_t priority,
+        const std::vector<ESM::PartReference>& parts, bool enchantedGlow, osg::Vec4f* glowColor)
     {
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
         const MWWorld::Store<ESM::BodyPart>& partStore = store.get<ESM::BodyPart>();
@@ -1161,7 +1156,7 @@ namespace MWRender
     }
 
     // Remember body parts so we only have to search through the store once for each race/gender/viewmode combination
-    typedef std::map<std::pair<ESM::RefId, int>, std::vector<const ESM::BodyPart*>> RaceMapping;
+    typedef std::map<std::pair<ESM::RefId, std::int32_t>, std::vector<const ESM::BodyPart*>> RaceMapping;
     namespace
     {
         RaceMapping sRaceMapping;
@@ -1170,10 +1165,10 @@ namespace MWRender
     const std::vector<const ESM::BodyPart*>& NpcAnimation::getBodyParts(
         const ESM::RefId& race, bool female, bool firstPerson, bool werewolf)
     {
-        constexpr int flagFirstPerson = 1 << 1;
-        constexpr int flagFemale = 1 << 0;
+        constexpr std::int32_t flagFirstPerson = 1 << 1;
+        constexpr std::int32_t flagFemale = 1 << 0;
 
-        int flags = (werewolf ? -1 : 0);
+        std::int32_t flags = (werewolf ? -1 : 0);
         if (female)
             flags |= flagFemale;
         if (firstPerson)

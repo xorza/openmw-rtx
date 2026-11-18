@@ -1,17 +1,17 @@
 #include "serialization.hpp"
 
-#include "preparednavmeshdata.hpp"
-#include "recast.hpp"
+#include <cstddef>
+#include <cstring>
+#include <type_traits>
+#include <vector>
 
 #include <components/serialization/binaryreader.hpp>
 #include <components/serialization/binarywriter.hpp>
 #include <components/serialization/format.hpp>
 #include <components/serialization/sizeaccumulator.hpp>
 
-#include <cstddef>
-#include <cstring>
-#include <type_traits>
-#include <vector>
+#include "preparednavmeshdata.hpp"
+#include "recast.hpp"
 
 namespace DetourNavigator
 {
@@ -23,8 +23,8 @@ namespace DetourNavigator
             using Serialization::Format<mode, Format<mode>>::operator();
 
             template <class Visitor, class T>
-            auto operator()(Visitor&& visitor, T& value) const
-                -> std::enable_if_t<std::is_same_v<std::decay_t<T>, rcPolyMesh>>
+            auto operator()(Visitor&& visitor, T& value) const -> void
+                requires(std::is_same_v<std::decay_t<T>, rcPolyMesh>)
             {
                 visitor(*this, value.nverts);
                 visitor(*this, value.npolys);
@@ -57,8 +57,8 @@ namespace DetourNavigator
             }
 
             template <class Visitor, class T>
-            auto operator()(Visitor&& visitor, T& value) const
-                -> std::enable_if_t<std::is_same_v<std::decay_t<T>, rcPolyMeshDetail>>
+            auto operator()(Visitor&& visitor, T& value) const -> void
+                requires(std::is_same_v<std::decay_t<T>, rcPolyMeshDetail>)
             {
                 visitor(*this, value.nmeshes);
                 if constexpr (mode == Serialization::Mode::Read)
@@ -78,8 +78,8 @@ namespace DetourNavigator
             }
 
             template <class Visitor, class T>
-            auto operator()(Visitor&& visitor, T& value) const
-                -> std::enable_if_t<std::is_same_v<std::decay_t<T>, PreparedNavMeshData>>
+            auto operator()(Visitor&& visitor, T& value) const -> void
+                requires(std::is_same_v<std::decay_t<T>, PreparedNavMeshData>)
             {
                 if constexpr (mode == Serialization::Mode::Write)
                 {

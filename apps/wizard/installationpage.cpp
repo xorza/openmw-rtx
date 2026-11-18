@@ -1,5 +1,7 @@
 #include "installationpage.hpp"
 
+#include <cstdint>
+
 #include <QComboBox>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -9,7 +11,13 @@
 #include <components/debug/debuglog.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "installsfromdisc.hpp"
 #include "mainwizard.hpp"
+
+QWizardPage* Wizard::makeInstallationPage(QWidget* parent, Config::GameSettings& gameSettings)
+{
+    return new InstallationPage(parent, gameSettings);
+}
 
 Wizard::InstallationPage::InstallationPage(QWidget* parent, Config::GameSettings& gameSettings)
     : QWizardPage(parent)
@@ -89,7 +97,7 @@ void Wizard::InstallationPage::initializePage()
     // That way installing all three components would yield 300%
     // When one component is done the bar will be filled by 33%
 
-    int steps = 0;
+    std::int32_t steps = 0;
     if (!field(QStringLiteral("installation.retailDisc")).toBool())
     {
         steps += tribunal && !installation.hasTribunal;
@@ -97,7 +105,7 @@ void Wizard::InstallationPage::initializePage()
     }
     else
     {
-        steps = static_cast<int>(installing.count());
+        steps = static_cast<std::int32_t>(installing.count());
     }
 
     installProgressBar->setMinimum(0);
@@ -268,7 +276,7 @@ bool Wizard::InstallationPage::isComplete() const
     return mWizard->mError || mFinished;
 }
 
-int Wizard::InstallationPage::nextId() const
+std::int32_t Wizard::InstallationPage::nextId() const
 {
     if (!field(QStringLiteral("installation.retailDisc")).toBool() && !mWizard->mError)
         return MainWizard::Page_Import;

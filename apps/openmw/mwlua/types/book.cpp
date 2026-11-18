@@ -1,10 +1,11 @@
-#include "types.hpp"
-
-#include "usertypeutil.hpp"
+#include <cstdint>
 
 #include <components/esm3/loadbook.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace sol
 {
@@ -47,7 +48,7 @@ namespace MWLua
                 record["isScroll"] = sol::property(
                     std::move(getScroll), [](T& rec, bool value) { rec.find().mData.mIsScroll = value; });
                 record["enchantCapacity"] = sol::property(std::move(getEnchant), [](T& rec, Misc::FiniteFloat value) {
-                    rec.find().mData.mEnchant = static_cast<int32_t>(std::round(value.mValue * 10));
+                    rec.find().mData.mEnchant = static_cast<std::int32_t>(std::round(value.mValue * 10));
                 });
             }
             else
@@ -78,7 +79,7 @@ namespace MWLua
 
         if (rec["enchantCapacity"] != sol::nil)
             book.mData.mEnchant
-                = static_cast<int32_t>(std::round(rec["enchantCapacity"].get<Misc::FiniteFloat>() * 10));
+                = static_cast<std::int32_t>(std::round(rec["enchantCapacity"].get<Misc::FiniteFloat>() * 10));
         if (rec["mwscript"] != sol::nil)
         {
             std::string_view scriptId = rec["mwscript"].get<std::string_view>();

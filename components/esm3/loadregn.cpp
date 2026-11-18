@@ -1,12 +1,16 @@
 #include "loadregn.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <components/esm/common.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-#include <components/esm/common.hpp>
 
 namespace
 {
-    const static std::array<ESM::RefId, 10> sWeatherIds = {
+    const std::array<ESM::RefId, 10> sWeatherIds = {
         ESM::StringRefId("Clear"),
         ESM::StringRefId("Cloudy"),
         ESM::StringRefId("Foggy"),
@@ -24,19 +28,19 @@ namespace ESM
 {
     namespace Weather
     {
-        int refIdToIndex(ESM::RefId id)
+        std::int32_t refIdToIndex(ESM::RefId id)
         {
-            for (size_t i = 0; i < sWeatherIds.size(); ++i)
+            for (std::size_t i = 0; i < sWeatherIds.size(); ++i)
             {
                 if (id == sWeatherIds[i])
-                    return static_cast<int>(i);
+                    return static_cast<std::int32_t>(i);
             }
             return -1;
         }
 
-        ESM::RefId indexToRefId(int index)
+        ESM::RefId indexToRefId(std::int32_t index)
         {
-            if (index >= 0 && static_cast<size_t>(index) < sWeatherIds.size())
+            if (index >= 0 && static_cast<std::size_t>(index) < sWeatherIds.size())
                 return sWeatherIds[static_cast<std::size_t>(index)];
             return {};
         }
@@ -65,7 +69,7 @@ namespace ESM
                     esm.getSubHeader();
                     if (esm.getFormatVersion() <= ESM::MaxWeatherIndexFormatVersion)
                     {
-                        std::array<uint8_t, Weather::Length> probabilities{};
+                        std::array<std::uint8_t, Weather::Length> probabilities{};
                         // Cold weather not included before 1.3
                         if (esm.getSubSize() == Weather::Length)
                         {
@@ -80,7 +84,7 @@ namespace ESM
                         {
                             esm.fail("Don't know what to do in this version");
                         }
-                        for (int i = 0; i < Weather::Length; ++i)
+                        for (std::int32_t i = 0; i < Weather::Length; ++i)
                         {
                             if (probabilities[static_cast<std::size_t>(i)] != 0)
                                 mData.mProbabilities[Weather::indexToRefId(i)]
@@ -89,7 +93,7 @@ namespace ESM
                     }
                     else
                     {
-                        uint8_t chance = 0;
+                        std::uint8_t chance = 0;
                         esm.getT(chance);
                         ESM::RefId weather = esm.getRefId(esm.getSubSize() - sizeof(chance));
                         mData.mProbabilities[weather] = chance;
@@ -139,11 +143,11 @@ namespace ESM
 
         if (esm.getFormatVersion() <= ESM::MaxWeatherIndexFormatVersion)
         {
-            std::array<uint8_t, Weather::Length> probabilities{};
+            std::array<std::uint8_t, Weather::Length> probabilities{};
             probabilities.fill(0);
             for (const auto& [id, chance] : mData.mProbabilities)
             {
-                const int index = Weather::refIdToIndex(id);
+                const std::int32_t index = Weather::refIdToIndex(id);
                 if (index >= 0)
                     probabilities[static_cast<std::size_t>(index)] = chance;
             }

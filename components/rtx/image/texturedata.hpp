@@ -8,6 +8,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include <components/rtx/common/index.hpp>
@@ -92,7 +93,7 @@ namespace Rtx
     enum class TextureSource : std::uint8_t
     {
         /// A file the content named, decoded. `TextureData::mBytes` and `mLevels` are the file's
-        /// own, or its finest level with the chain the host made of it under it (`mCoarser`).
+        /// own, or the chain the host made of it (`MadeImage`).
         File,
 
         /// The light bake of a sprite texture — `TextureKind::SpriteLight` says what a bake is —
@@ -139,7 +140,7 @@ namespace Rtx
         /// Which row of the backend's texture array this is, which is the slot a material holds.
         /// Carried rather than implied by position, because a slot a departing cell freed is taken
         /// over wherever it sits.
-        Index mSlot = 0;
+        TextureIndex mSlot = TextureIndex(0);
 
         /// How the slot is addressed past its edges, which is the sampler a backend binds it
         /// through. The scene's table says, per slot.
@@ -149,9 +150,9 @@ namespace Rtx
         TextureSource mSource = TextureSource::File;
 
         /// What the source names, by the source: the sprite texture a bake is made from, or the
-        /// material row whose ground a composite or its gloss is. `sNoIndex` under `File` and
+        /// material row whose ground a composite or its gloss is. Nothing under `File` and
         /// `StandIn`, which are made from nothing but their own bytes.
-        Index mFrom = sNoIndex;
+        std::variant<std::monostate, TextureIndex, MaterialIndex> mFrom{};
 
         TextureFormat mFormat = TextureFormat::Bc1RgbaSrgb;
 
@@ -161,15 +162,13 @@ namespace Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
-        /// Every level, back to back, the levels indexing into it — or, where `mCoarser` is not empty,
-        /// the bytes the finest level lies in, whose bytes past it no level indexes. Empty under
-        /// `SpriteBake`, `GroundComposite` and `GroundGloss`, whose bytes are the device's.
-        std::span<const std::byte> mBytes{};
+        /// The first level a file's readers want it from (`TextureTable::getWant`): what it stands whole from
+        /// (`topLevel`). Nought for every other source, which stands from its finest.
+        std::uint8_t mWant = 0;
 
-        /// The levels after the finest where the host made them again (`MadeImage`), each level after
-        /// the first indexing into it: the file's finest level stays in `mBytes` where the file holds
-        /// it, and is not copied. Empty where every level is in `mBytes`.
-        std::span<const std::byte> mCoarser{};
+        /// Every level, back to back, the levels indexing into it. Empty under `SpriteBake`,
+        /// `GroundComposite` and `GroundGloss`, whose bytes are the device's.
+        std::span<const std::byte> mBytes{};
 
         std::span<const MipLevel> mLevels{};
 
@@ -186,25 +185,26 @@ namespace Rtx
                                                                                           : TextureCompanion::Neutral;
         }
 
-        /// The first level no wider and no taller than `side`, or nothing where every level is
-        /// larger: where a texture held to that side begins. The levels halve, so every level
-        /// after it is within the side too.
-        std::optional<std::uint32_t> firstLevelWithin(std::uint32_t side) const
+        /// **Where the texture stands whole from**: the level its readers want (`mWant`), its last where they want
+        /// past it, and never a level wider or taller than `side`; nothing where every level is larger than the side.
+        /// The levels halve, so every level after it is within the side too (`docs/architecture.md`, "A texture stands
+        /// from the level its nearest user asks").
+        std::optional<std::uint32_t> topLevel(std::uint32_t side) const
         {
             for (std::uint32_t level = 0; level < mLevels.size(); ++level)
                 if (std::max(mLevels[level].mWidth, mLevels[level].mHeight) <= side)
-                    return level;
+                    return std::max(
+                        level, std::min<std::uint32_t>(mWant, static_cast<std::uint32_t>(mLevels.size() - 1)));
 
             return std::nullopt;
         }
 
-        /// `level`'s own bytes, in `mBytes` or `mCoarser`, as its format lays it.
+        /// `level`'s own bytes, as its format lays it.
         std::span<const std::byte> bytesOf(std::uint32_t level) const
         {
             assert(level < mLevels.size() && "a level past the end of the chain");
             const MipLevel& at = mLevels[level];
-            const std::span<const std::byte> run = level > 0 && !mCoarser.empty() ? mCoarser : mBytes;
-            return run.subspan(at.mOffset, layoutOf(mFormat).levelBytes(at.mWidth, at.mHeight));
+            return mBytes.subspan(at.mOffset, layoutOf(mFormat).levelBytes(at.mWidth, at.mHeight));
         }
 
         /// How many bytes the levels from `level` on take as its format lays them: what an upload that

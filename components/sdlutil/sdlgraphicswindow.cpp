@@ -1,5 +1,7 @@
 #include "sdlgraphicswindow.hpp"
 
+#include <cstdint>
+
 #include <SDL3/SDL_video.h>
 
 #include "sdlvideowrapper.hpp"
@@ -49,7 +51,8 @@ namespace SDLUtil
         return true;
     }
 
-    bool GraphicsWindowSDL::setWindowRectangleImplementation(int x, int y, int width, int height)
+    bool GraphicsWindowSDL::setWindowRectangleImplementation(
+        std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height)
     {
         if (!mWindow)
             return false;
@@ -108,26 +111,26 @@ namespace SDLUtil
 
         // Update traits with what we've actually been given
         // Use intermediate to avoid signed/unsigned mismatch
-        int intermediateLocation = 0;
+        std::int32_t intermediateLocation = 0;
         SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &intermediateLocation);
-        _traits->red = static_cast<unsigned int>(intermediateLocation);
+        _traits->red = static_cast<std::uint32_t>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &intermediateLocation);
-        _traits->green = static_cast<unsigned int>(intermediateLocation);
+        _traits->green = static_cast<std::uint32_t>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &intermediateLocation);
-        _traits->blue = static_cast<unsigned int>(intermediateLocation);
+        _traits->blue = static_cast<std::uint32_t>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &intermediateLocation);
-        _traits->alpha = static_cast<unsigned int>(intermediateLocation);
+        _traits->alpha = static_cast<std::uint32_t>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &intermediateLocation);
-        _traits->depth = static_cast<unsigned int>(intermediateLocation);
+        _traits->depth = static_cast<std::uint32_t>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_STENCIL_SIZE, &intermediateLocation);
-        _traits->stencil = static_cast<unsigned int>(intermediateLocation);
+        _traits->stencil = static_cast<std::uint32_t>(intermediateLocation);
 
         SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &intermediateLocation);
         _traits->doubleBuffer = intermediateLocation;
         SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &intermediateLocation);
-        _traits->sampleBuffers = static_cast<unsigned int>(intermediateLocation);
+        _traits->sampleBuffers = static_cast<std::uint32_t>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &intermediateLocation);
-        _traits->samples = static_cast<unsigned int>(intermediateLocation);
+        _traits->samples = static_cast<std::uint32_t>(intermediateLocation);
 
         SDL_GL_MakeCurrent(oldWin, oldCtx);
 

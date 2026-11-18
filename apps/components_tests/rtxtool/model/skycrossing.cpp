@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdint>
 
 #include <gtest/gtest.h>
 
@@ -103,7 +104,7 @@ namespace RtxTool
                 SkyCrossing::shareOf(1.0f, 0.015f, 30.0f, 30.0f), SkyCrossing::shareOf(1.0f, 0.03f, 30.0f, 30.0f));
 
             SkyCrossing crossing(sClear, sRain, 0.0f);
-            for (int quarter = 1; quarter <= 3; ++quarter)
+            for (std::int32_t quarter = 1; quarter <= 3; ++quarter)
             {
                 crossing.advance(0.25f);
                 EXPECT_FLOAT_EQ(crossing.getCrossed(), 0.25f * static_cast<float>(quarter));

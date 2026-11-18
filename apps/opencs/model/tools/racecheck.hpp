@@ -1,8 +1,9 @@
 #pragma once
 
-#include "../world/idcollection.hpp"
+#include <cstdint>
 
-#include "../doc/stage.hpp"
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
 
 namespace CSMDoc
 {
@@ -23,17 +24,17 @@ namespace CSMTools
         bool mPlayable;
         bool mIgnoreBaseRecords;
 
-        void performPerRecord(int stage, CSMDoc::Messages& messages);
+        void performPerRecord(std::int32_t stage, CSMDoc::Messages& messages);
 
         void performFinal(CSMDoc::Messages& messages);
 
     public:
         explicit RaceCheckStage(const CSMWorld::IdCollection<ESM::Race>& races);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this tage will be appended to \a messages.
     };
 }

@@ -1,3 +1,20 @@
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <iomanip>
+#include <ios>
+#include <limits>
+#include <map>
+#include <ostream>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
+
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -23,22 +40,6 @@
 #include <components/version/version.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
-
-#include <cstddef>
-#include <filesystem>
-#include <iomanip>
-#include <ios>
-#include <limits>
-#include <map>
-#include <ostream>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
-
-#include <boost/program_options/parsers.hpp>
-#include <boost/program_options/value_semantic.hpp>
-#include <boost/program_options/variables_map.hpp>
 
 namespace
 {
@@ -103,7 +104,7 @@ namespace
         }
     };
 
-    int runBulletObjectTool(int argc, char* argv[])
+    std::int32_t runBulletObjectTool(std::int32_t argc, char* argv[])
     {
         Platform::init();
 
@@ -201,7 +202,7 @@ namespace
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     return Debug::wrapApplication(runBulletObjectTool, argc, argv, applicationName);
 }

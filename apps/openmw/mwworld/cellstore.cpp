@@ -1,10 +1,17 @@
 #include "cellstore.hpp"
-#include "magiceffects.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/recharge.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/cellstate.hpp>
@@ -39,16 +46,13 @@
 #include <components/esm3/npcstate.hpp>
 #include <components/esm3/objectstate.hpp>
 #include <components/esm3/readerscache.hpp>
-
 #include <components/esm4/loadachr.hpp>
-#include <components/esm4/loadcell.hpp>
-#include <components/esm4/loadrefr.hpp>
-
 #include <components/esm4/loadacti.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadalch.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadammo.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadarmo.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadbook.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm4/loadcell.hpp>
 #include <components/esm4/loadclot.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadcont.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadcrea.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
@@ -61,6 +65,7 @@
 #include <components/esm4/loadmisc.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadmstt.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadnpc.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm4/loadrefr.hpp>
 #include <components/esm4/loadscol.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadstat.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadterm.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
@@ -68,17 +73,10 @@
 #include <components/esm4/loadweap.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/misc/tuplehelpers.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/recharge.hpp"
-#include "../mwmechanics/spellutil.hpp"
-
 #include "class.hpp"
 #include "containerstore.hpp"
 #include "esmstore.hpp"
+#include "magiceffects.hpp"
 #include "ptr.hpp"
 #include "worldmodel.hpp"
 
@@ -309,7 +307,7 @@ namespace
 
     // this function allows us to link a CellRefList<T> to the associated recNameInt, and apply a function
     template <typename RecordType, typename Callable>
-    static void recNameSwitcher(MWWorld::CellRefList<RecordType>& store, ESM::RecNameInts recnNameInt, Callable&& f)
+    void recNameSwitcher(MWWorld::CellRefList<RecordType>& store, ESM::RecNameInts recnNameInt, Callable&& f)
     {
         if (RecordType::sRecordId == recnNameInt)
         {
@@ -421,7 +419,7 @@ namespace MWWorld
 
     namespace
     {
-        constexpr bool isESM4ActorRec(unsigned int rec)
+        constexpr bool isESM4ActorRec(std::uint32_t rec)
         {
             return rec == ESM::REC_NPC_4 || rec == ESM::REC_CREA4;
         }
@@ -464,7 +462,7 @@ namespace MWWorld
     // Found by argument-dependent lookup, which an unnamed namespace would hide.
     // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <typename X>
-    static bool operator==(const LiveCellRef<X>& ref, int pRefnum)
+    static bool operator==(const LiveCellRef<X>& ref, std::int32_t pRefnum)
     {
         return (ref.mRef.mRefnum == pRefnum);
     }
@@ -585,6 +583,13 @@ namespace MWWorld
         MergeVisitor visitor(mMergedRefs, mMovedHere, mMovedToAnotherCell);
         CellStoreImp::forEachInternal(visitor, const_cast<CellStore&>(*this), includeDeleted);
         visitor.merge();
+
+        mMergedIdHashes.clear();
+        mMergedIdHashes.reserve(mMergedRefs.size());
+        for (const LiveCellRefBase* ref : mMergedRefs)
+            mMergedIdHashes.push_back(std::hash<ESM::RefId>{}(ref->mRef.getRefId()));
+        std::sort(mMergedIdHashes.begin(), mMergedIdHashes.end());
+
         mMergedRefsNeedsUpdate = false;
     }
 
@@ -644,7 +649,9 @@ namespace MWWorld
         if (mState == State_Preloaded)
             return std::binary_search(mIds.begin(), mIds.end(), id);
 
-        return searchConst(id).isEmpty();
+        if (mMergedRefsNeedsUpdate)
+            updateMergedRefs();
+        return std::binary_search(mMergedIdHashes.begin(), mMergedIdHashes.end(), std::hash<ESM::RefId>{}(id));
     }
 
     namespace
@@ -672,6 +679,10 @@ namespace MWWorld
 
     Ptr CellStore::search(const ESM::RefId& id)
     {
+        // A store that cannot hold `id` is not walked: what a lookup over every loaded store spent its time in.
+        if (!hasId(id))
+            return Ptr();
+
         SearchVisitor<MWWorld::Ptr> searchVisitor(id);
         forEach(searchVisitor);
         return searchVisitor.mFound;
@@ -679,6 +690,9 @@ namespace MWWorld
 
     ConstPtr CellStore::searchConst(const ESM::RefId& id) const
     {
+        if (!hasId(id))
+            return ConstPtr();
+
         SearchVisitor<MWWorld::ConstPtr> searchVisitor(id);
         forEachConst(searchVisitor);
         return searchVisitor.mFound;
@@ -759,7 +773,7 @@ namespace MWWorld
             return; // this is a dynamically generated cell -> skipping.
 
         // Load references from all plugins that do something with this cell.
-        for (size_t i = 0; i < cell.mContextList.size(); i++)
+        for (std::size_t i = 0; i < cell.mContextList.size(); i++)
         {
             try
             {
@@ -845,7 +859,7 @@ namespace MWWorld
             return; // this is a dynamically generated cell -> skipping.
 
         // Load references from all plugins that do something with this cell.
-        for (size_t i = 0; i < cell.mContextList.size(); i++)
+        for (std::size_t i = 0; i < cell.mContextList.size(); i++)
         {
             try
             {
@@ -1062,14 +1076,14 @@ namespace MWWorld
 
         while (reader.isNextSub("OBJE"))
         {
-            unsigned int unused = 0;
+            std::uint32_t unused = 0;
             reader.getHT(unused);
 
             // load the RefID first so we know what type of object it is
             ESM::CellRef cref;
             cref.loadId(reader, true);
 
-            int type = mStore.find(cref.mRefID);
+            std::int32_t type = mStore.find(cref.mRefID);
             if (type == 0)
             {
                 Log(Debug::Warning) << "Dropping reference to " << cref.mRefID << " (object no longer exists)";
@@ -1240,7 +1254,7 @@ namespace MWWorld
     {
         if (mState == State_Loaded)
         {
-            static const int iMonthsToRespawn
+            static const std::int32_t iMonthsToRespawn
                 = mStore.get<ESM::GameSetting>().find("iMonthsToRespawn")->mValue.getInteger();
             if (MWBase::Environment::get().getWorld()->getTimeStamp() - mLastRespawn > 24 * 30 * iMonthsToRespawn)
             {

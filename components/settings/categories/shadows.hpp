@@ -1,15 +1,15 @@
 #pragma once
 
-#include <components/settings/sanitizerimpl.hpp>
-#include <components/settings/settingvalue.hpp>
+#include <cstdint>
+#include <string>
+#include <string_view>
 
 #include <osg/Math>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+#include <components/settings/sanitizerimpl.hpp>
+#include <components/settings/settingvalue.hpp>
 
 namespace Settings
 {
@@ -18,7 +18,7 @@ namespace Settings
         using WithIndex::WithIndex;
 
         SettingValue<bool> mEnableShadows{ mIndex, "Shadows", "enable shadows" };
-        SettingValue<int> mNumberOfShadowMaps{ mIndex, "Shadows", "number of shadow maps",
+        SettingValue<std::int32_t> mNumberOfShadowMaps{ mIndex, "Shadows", "number of shadow maps",
             makeClampSanitizerInt(1, 8) };
         SettingValue<float> mMaximumShadowMapDistance{ mIndex, "Shadows", "maximum shadow map distance" };
         SettingValue<float> mShadowFadeStart{ mIndex, "Shadows", "shadow fade start", makeClampSanitizerFloat(0, 1) };
@@ -29,7 +29,7 @@ namespace Settings
         SettingValue<bool> mEnableDebugOverlay{ mIndex, "Shadows", "enable debug overlay" };
         SettingValue<std::string> mComputeSceneBounds{ mIndex, "Shadows", "compute scene bounds",
             makeEnumSanitizerString({ "primitives", "bounds", "none" }) };
-        SettingValue<int> mShadowMapResolution{ mIndex, "Shadows", "shadow map resolution" };
+        SettingValue<std::int32_t> mShadowMapResolution{ mIndex, "Shadows", "shadow map resolution" };
         SettingValue<float> mMinimumLispsmNearFarRatio{ mIndex, "Shadows", "minimum lispsm near far ratio",
             makeMaxStrictSanitizerFloat(0) };
         SettingValue<float> mPolygonOffsetFactor{ mIndex, "Shadows", "polygon offset factor" };

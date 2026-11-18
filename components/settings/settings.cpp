@@ -1,8 +1,7 @@
 #include "settings.hpp"
-#include "migration.hpp"
-#include "parser.hpp"
-#include "values.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <sstream>
@@ -13,6 +12,10 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
+
+#include "migration.hpp"
+#include "parser.hpp"
+#include "values.hpp"
 
 namespace Settings
 {
@@ -39,7 +42,7 @@ namespace Settings
             return stream.str();
         }
 
-        int toInt(HrtfMode value)
+        std::int32_t toInt(HrtfMode value)
         {
             switch (value)
             {
@@ -51,7 +54,8 @@ namespace Settings
                     return 1;
             }
 
-            Log(Debug::Warning) << "Invalid HRTF mode value: " << static_cast<int>(value) << ", fallback to auto (-1)";
+            Log(Debug::Warning) << "Invalid HRTF mode value: " << static_cast<std::int32_t>(value)
+                                << ", fallback to auto (-1)";
             return -1;
         }
     }
@@ -103,7 +107,7 @@ namespace Settings
 
         // Load "settings.cfg" or "openmw-cs.cfg" from every config dir except the last one as additional default
         // settings.
-        for (int i = 0; i < static_cast<int>(paths.size()) - 1; ++i)
+        for (std::int32_t i = 0; i < static_cast<std::int32_t>(paths.size()) - 1; ++i)
         {
             const auto additionalDefaults = paths[static_cast<std::size_t>(i)] / userSettingsFile;
             if (std::filesystem::exists(additionalDefaults))
@@ -178,33 +182,37 @@ namespace Settings
         return parseNumberFromSetting<double>(getString(setting, category), setting, category);
     }
 
-    int Manager::getInt(std::string_view setting, std::string_view category)
+    std::int32_t Manager::getInt(std::string_view setting, std::string_view category)
     {
-        return parseNumberFromSetting<int>(getString(setting, category), setting, category);
+        return parseNumberFromSetting<std::int32_t>(getString(setting, category), setting, category);
     }
 
     std::uint64_t Manager::getUInt64(std::string_view setting, std::string_view category)
     {
-        return parseNumberFromSetting<uint64_t>(getString(setting, category), setting, category);
+        return parseNumberFromSetting<std::uint64_t>(getString(setting, category), setting, category);
     }
 
     std::size_t Manager::getSize(std::string_view setting, std::string_view category)
     {
-        return parseNumberFromSetting<size_t>(getString(setting, category), setting, category);
+        return parseNumberFromSetting<std::size_t>(getString(setting, category), setting, category);
     }
 
-    unsigned Manager::getUnsigned(std::string_view setting, std::string_view category)
+    std::uint32_t Manager::getUnsigned(std::string_view setting, std::string_view category)
     {
-        return parseNumberFromSetting<unsigned>(getString(setting, category), setting, category);
+        return parseNumberFromSetting<std::uint32_t>(getString(setting, category), setting, category);
     }
 
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     unsigned long Manager::getUnsignedLong(std::string_view setting, std::string_view category)
     {
+        // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
         return parseNumberFromSetting<unsigned long>(getString(setting, category), setting, category);
     }
 
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     unsigned long long Manager::getUnsignedLongLong(std::string_view setting, std::string_view category)
     {
+        // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
         return parseNumberFromSetting<unsigned long long>(getString(setting, category), setting, category);
     }
 
@@ -279,7 +287,7 @@ namespace Settings
         std::stringstream stream;
 
         // TODO: escape delimeters, new line characters, etc.
-        for (size_t i = 0; i < value.size(); ++i)
+        for (std::size_t i = 0; i < value.size(); ++i)
         {
             std::string item = value[i];
             Misc::StringUtils::trim(item);
@@ -292,7 +300,7 @@ namespace Settings
         setString(setting, category, stream.str());
     }
 
-    void Manager::setInt(std::string_view setting, std::string_view category, const int value)
+    void Manager::setInt(std::string_view setting, std::string_view category, const std::int32_t value)
     {
         std::ostringstream stream;
         stream << value;
@@ -365,21 +373,23 @@ namespace Settings
         }
     }
 
-    void Manager::set(std::string_view setting, std::string_view category, int value)
+    void Manager::set(std::string_view setting, std::string_view category, std::int32_t value)
     {
         setInt(setting, category, value);
     }
 
-    void Manager::set(std::string_view setting, std::string_view category, unsigned value)
+    void Manager::set(std::string_view setting, std::string_view category, std::uint32_t value)
     {
         setString(setting, category, serialize(value));
     }
 
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     void Manager::set(std::string_view setting, std::string_view category, unsigned long value)
     {
         setString(setting, category, serialize(value));
     }
 
+    // NOLINTNEXTLINE(google-runtime-int): a setting may be of each integer type
     void Manager::set(std::string_view setting, std::string_view category, unsigned long long value)
     {
         setString(setting, category, serialize(value));
@@ -417,7 +427,7 @@ namespace Settings
 
     void Manager::set(std::string_view setting, std::string_view category, DetourNavigator::CollisionShapeType value)
     {
-        setInt(setting, category, static_cast<int>(value));
+        setInt(setting, category, static_cast<std::int32_t>(value));
     }
 
     void Manager::set(std::string_view setting, std::string_view category, const std::vector<std::string>& value)
@@ -437,12 +447,12 @@ namespace Settings
 
     void Manager::set(std::string_view setting, std::string_view category, WindowMode value)
     {
-        setInt(setting, category, static_cast<int>(value));
+        setInt(setting, category, static_cast<std::int32_t>(value));
     }
 
     void Manager::set(std::string_view setting, std::string_view category, SDLUtil::VSyncMode value)
     {
-        setInt(setting, category, static_cast<int>(value));
+        setInt(setting, category, static_cast<std::int32_t>(value));
     }
 
     void Manager::set(std::string_view setting, std::string_view category, Rtx::Upscale value)

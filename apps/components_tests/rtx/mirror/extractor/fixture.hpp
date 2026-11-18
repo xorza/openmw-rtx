@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <source_location>
 #include <stdexcept>
@@ -32,6 +33,7 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/sceneutil/lightutil.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/riggeometry.hpp>
@@ -144,14 +146,15 @@ namespace Rtx::Testing
 
         /// The frame thread's, which production owns once and every extractor on it shares.
         WalkContext mContext{};
-        Rtx::SceneDesc mScene;
+        Rtx::SceneIdentities mIdentities;
+        Rtx::SceneDesc mScene{ mIdentities };
         SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom };
         double mWorldSeconds = 0.0;
     };
 
     /// Where the walk put instance `index`: the origin of its own space, carried through the
     /// transform the walk gave it.
-    inline osg::Vec3f placedAt(const Rtx::SceneDesc& scene, std::size_t index)
+    inline osg::Vec3f placedAt(const Rtx::SceneDesc& scene, Rtx::PlacementIndex index)
     {
         return osg::Vec3f() * scene.placements().getRows()[index].mInstance.mTransform;
     }
@@ -194,7 +197,7 @@ namespace Rtx::Testing
         /// **`RigGeometry` finds its skeleton here and nowhere else.** It walks the node path
         /// for one, and the pose traversal the mirror uses is handed the drawable on its own —
         /// so a rig that had never been through an update would have nothing to skin against.
-        void update(unsigned int traversal)
+        void update(std::uint32_t traversal)
         {
             osgUtil::UpdateVisitor visitor;
             visitor.setTraversalNumber(traversal);
@@ -241,7 +244,7 @@ namespace Rtx::Testing
     inline void expectRed(
         const osg::Vec3f& colour, float red, std::source_location where = std::source_location::current())
     {
-        const ::testing::ScopedTrace trace(where.file_name(), static_cast<int>(where.line()), "expectRed");
+        const ::testing::ScopedTrace trace(where.file_name(), static_cast<std::int32_t>(where.line()), "expectRed");
 
         EXPECT_NEAR(colour.x(), red, 1e-6f);
         EXPECT_EQ(colour.y(), 0.0f);

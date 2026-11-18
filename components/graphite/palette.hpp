@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QPalette>
 #include <QRgb>
 
@@ -99,7 +101,7 @@ namespace Graphite
 
     /// The most of the accent, in 255ths, the selection's tint takes, so it stays a tint under any
     /// accent: palantir's `SELECTION_MAX`.
-    inline constexpr int sSelectionMost = 61;
+    inline constexpr std::int32_t sSelectionMost = 61;
 
     /// The selection's tint: the accent at the most alpha, up to `sSelectionMost`, that keeps
     /// `mText` at 4.5:1 over a field washed with it, as palantir's `selection_wash` holds it. Blended

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "importinventory.hpp"
-
 #include <components/esm3/inventorystate.hpp>
+
+#include "importinventory.hpp"
 
 namespace ESSImport
 {

@@ -1,12 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
 
 #include <apps/opencs/model/world/universalid.hpp>
-
-#include "../world/dragrecordtable.hpp"
+#include <apps/opencs/view/world/dragrecordtable.hpp>
 
 class QAction;
 class QSortFilterProxyModel;
@@ -57,7 +57,7 @@ namespace CSVTools
         QAction* mReplaceAction;
         QAction* mRefreshAction;
         std::map<Qt::KeyboardModifiers, DoubleClickAction> mDoubleClickActions;
-        int mRefreshState;
+        std::int32_t mRefreshState;
 
     private:
         void contextMenuEvent(QContextMenuEvent* event) override;
@@ -72,7 +72,7 @@ namespace CSVTools
         /// 0 no refresh function exists. If the document current has the specified state
         /// the refresh function is disabled.
         ReportTable(CSMDoc::Document& document, const CSMWorld::UniversalId& id, bool richTextDescription,
-            int refreshState = 0, QWidget* parent = nullptr);
+            std::int32_t refreshState = 0, QWidget* parent = nullptr);
 
         std::vector<CSMWorld::UniversalId> getDraggedRecords() const override;
 
@@ -83,13 +83,13 @@ namespace CSVTools
         /// \param selection Only list selected rows.
         ///
         /// \return rows in the original model
-        std::vector<int> getReplaceIndices(bool selection) const;
+        std::vector<std::int32_t> getReplaceIndices(bool selection) const;
 
         /// \return underlying report model
         CSMTools::ReportModel* getReportModel() const { return mModel; }
 
         /// \param index row in the original model
-        void flagAsReplaced(int index);
+        void flagAsReplaced(std::int32_t index);
 
     private slots:
 
@@ -101,7 +101,7 @@ namespace CSVTools
 
     public slots:
 
-        void stateChanged(int state, CSMDoc::Document* document);
+        void stateChanged(std::int32_t state, CSMDoc::Document* document);
 
     signals:
 

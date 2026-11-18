@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -58,7 +59,7 @@ namespace Resource
         /// @note Throws an exception if the resource is not found.
         std::shared_ptr<const SceneUtil::KeyframeHolder> get(VFS::Path::NormalizedView name);
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override;
 
     private:
         /// The keyframes at `name` read from the files: `get`'s one load.

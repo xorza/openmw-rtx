@@ -5,7 +5,6 @@
 #include <iterator>
 #include <numbers>
 #include <span>
-
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -329,7 +328,7 @@ namespace Rtx
             EXPECT_EQ(paintedLight(map, 0.0f, 0.5f, TextureWrap::ClampT), 15.5f);
             EXPECT_EQ(paintedLight(map, 0.0f, 0.0f, TextureWrap::Clamp), 0.0f);
             for (const TextureWrap wrap : { TextureWrap::Repeat, TextureWrap::ClampS, TextureWrap::Clamp })
-                EXPECT_EQ(paintedLight(map, 4.5f / 32.0f, 0.5f, wrap), 4.0f) << static_cast<int>(wrap);
+                EXPECT_EQ(paintedLight(map, 4.5f / 32.0f, 0.5f, wrap), 4.0f) << static_cast<std::int32_t>(wrap);
 
             // The placement behind those reads: at `u = 0` the cells minus one and nought, half of the way;
             // minus one wraps to 31 where the axis repeats and holds at nought where it clamps; mid-cell four,

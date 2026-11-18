@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
@@ -32,9 +33,9 @@ namespace MWScript
         /// a space where there is none.
         virtual char getGlobalType(std::string_view name) const = 0;
 
-        virtual int getGlobalInt(std::string_view name) const = 0;
+        virtual std::int32_t getGlobalInt(std::string_view name) const = 0;
         virtual float getGlobalFloat(std::string_view name) const = 0;
-        virtual int getJournalIndex(const ESM::RefId& quest) const = 0;
+        virtual std::int32_t getJournalIndex(const ESM::RefId& quest) const = 0;
 
         /// A global's value whatever its type, exactly: a double holds a long whole.
         double getGlobal(std::string_view name) const
@@ -82,8 +83,8 @@ namespace MWScript
     /// it starts from.
     struct VisibilityWay
     {
-        std::vector<int> mShorts;
-        std::vector<int> mLongs;
+        std::vector<std::int32_t> mShorts;
+        std::vector<std::int32_t> mLongs;
         std::vector<float> mFloats;
 
         /// The globals the way wrote, each the way's own from then on.
@@ -103,7 +104,7 @@ namespace MWScript
     struct VisibilityLocal
     {
         char mType = 's';
-        int mIndex = 0;
+        std::int32_t mIndex = 0;
 
         bool operator==(const VisibilityLocal&) const = default;
     };

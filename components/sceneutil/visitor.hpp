@@ -1,10 +1,10 @@
 #pragma once
 
-#include <osg/MatrixTransform>
-#include <osg/NodeVisitor>
-
 #include <string_view>
 #include <unordered_map>
+
+#include <osg/MatrixTransform>
+#include <osg/NodeVisitor>
 
 #include <components/misc/strings/algorithm.hpp>
 

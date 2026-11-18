@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstdint>
 
 #include <gtest/gtest.h>
 
@@ -10,7 +11,7 @@ namespace MWRender
     {
         using std::chrono::milliseconds;
 
-        FramesAside::TimePoint at(const int ms)
+        FramesAside::TimePoint at(const std::int32_t ms)
         {
             return FramesAside::TimePoint(milliseconds(ms));
         }

@@ -4,10 +4,9 @@
 
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/activespells.hpp>
 #include <components/esm3/effectlist.hpp>
-
-#include "../mwworld/ptr.hpp"
 
 #include "movingtarget.hpp"
 

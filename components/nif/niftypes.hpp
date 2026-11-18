@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Matrixf>
 #include <osg/Quat>
 #include <osg/Vec3f>
@@ -38,15 +40,15 @@ namespace Nif
 
         Matrix3()
         {
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
+            for (std::int32_t i = 0; i < 3; ++i)
+                for (std::int32_t j = 0; j < 3; ++j)
                     mValues[i][j] = (i == j) ? 1.f : 0.f;
         }
 
         bool isIdentity() const
         {
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
+            for (std::int32_t i = 0; i < 3; ++i)
+                for (std::int32_t j = 0; j < 3; ++j)
                     if ((i == j) != (mValues[i][j] == 1))
                         return false;
             return true;
@@ -56,8 +58,8 @@ namespace Nif
         {
             osg::Matrixf osgMat;
 
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
+            for (std::int32_t i = 0; i < 3; ++i)
+                for (std::int32_t j = 0; j < 3; ++j)
                     osgMat(i, j) = mValues[j][i]; // NB: column/row major difference
 
             return osgMat;
@@ -75,8 +77,8 @@ namespace Nif
             osg::Matrixf transform;
             transform.setTrans(mTranslation);
 
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
+            for (std::int32_t i = 0; i < 3; ++i)
+                for (std::int32_t j = 0; j < 3; ++j)
                     transform(j, i) = mRotation.mValues[i][j] * mScale; // NB column/row major difference
 
             return transform;
@@ -101,7 +103,7 @@ namespace Nif
         {
             osg::Matrixf transform(mRotation);
             transform.setTrans(mTranslation);
-            for (int i = 0; i < 3; i++)
+            for (std::int32_t i = 0; i < 3; i++)
                 transform(i, i) *= mScale;
 
             return transform;

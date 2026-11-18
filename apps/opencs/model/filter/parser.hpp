@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -21,7 +22,7 @@ namespace CSMFilter
     {
         std::shared_ptr<Node> mFilter;
         std::string mInput;
-        int mIndex;
+        std::int32_t mIndex;
         bool mError;
         const CSMWorld::Data& mData;
 

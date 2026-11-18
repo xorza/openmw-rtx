@@ -1,9 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 #include <vector>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace ESM
 {
@@ -19,7 +20,7 @@ namespace MWDialogue
     class Filter
     {
         MWWorld::Ptr mActor;
-        int mChoice;
+        std::int32_t mChoice;
         bool mTalkedToPlayer;
 
         bool testActor(const ESM::DialInfo& info) const;
@@ -40,21 +41,22 @@ namespace MWDialogue
 
         bool testSelectStructNumeric(const SelectWrapper& select) const;
 
-        int getSelectStructInteger(const SelectWrapper& select) const;
+        std::int32_t getSelectStructInteger(const SelectWrapper& select) const;
 
         bool getSelectStructBoolean(const SelectWrapper& select) const;
 
-        int getFactionRank(const MWWorld::Ptr& actor, const ESM::RefId& factionId) const;
+        std::int32_t getFactionRank(const MWWorld::Ptr& actor, const ESM::RefId& factionId) const;
 
-        bool hasFactionRankSkillRequirements(const MWWorld::Ptr& actor, const ESM::RefId& factionId, int rank) const;
+        bool hasFactionRankSkillRequirements(
+            const MWWorld::Ptr& actor, const ESM::RefId& factionId, std::int32_t rank) const;
 
         bool hasFactionRankReputationRequirements(
-            const MWWorld::Ptr& actor, const ESM::RefId& factionId, int rank) const;
+            const MWWorld::Ptr& actor, const ESM::RefId& factionId, std::int32_t rank) const;
 
     public:
         using Response = std::pair<const ESM::Dialogue*, const ESM::DialInfo*>;
 
-        Filter(const MWWorld::Ptr& actor, int choice, bool talkedToPlayer);
+        Filter(const MWWorld::Ptr& actor, std::int32_t choice, bool talkedToPlayer);
 
         std::vector<Response> list(const ESM::Dialogue& dialogue, bool fallbackToInfoRefusal, bool searchAll,
             bool invertDisposition = false) const;

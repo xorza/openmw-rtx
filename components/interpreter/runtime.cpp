@@ -1,14 +1,17 @@
 #include "runtime.hpp"
-#include "program.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <stdexcept>
 #include <utility>
 
+#include "program.hpp"
+
 namespace Interpreter
 {
-    int Runtime::getIntegerLiteral(int index) const
+    std::int32_t Runtime::getIntegerLiteral(std::int32_t index) const
     {
         if (index < 0 || mProgram->mIntegers.size() <= static_cast<std::size_t>(index))
             throw std::out_of_range("Invalid integer index");
@@ -16,7 +19,7 @@ namespace Interpreter
         return mProgram->mIntegers[static_cast<std::size_t>(index)];
     }
 
-    float Runtime::getFloatLiteral(int index) const
+    float Runtime::getFloatLiteral(std::int32_t index) const
     {
         if (index < 0 || mProgram->mFloats.size() <= static_cast<std::size_t>(index))
             throw std::out_of_range("Invalid float index");
@@ -24,7 +27,7 @@ namespace Interpreter
         return mProgram->mFloats[static_cast<std::size_t>(index)];
     }
 
-    std::string_view Runtime::getStringLiteral(int index) const
+    std::string_view Runtime::getStringLiteral(std::int32_t index) const
     {
         if (index < 0 || mProgram->mStrings.size() <= static_cast<std::size_t>(index))
             throw std::out_of_range("Invalid string literal index");
@@ -75,7 +78,7 @@ namespace Interpreter
         mStack.pop_back();
     }
 
-    Data& Runtime::operator[](int index)
+    Data& Runtime::operator[](std::int32_t index)
     {
         if (index < 0 || std::cmp_greater_equal(index, mStack.size()))
             throw std::runtime_error("stack index out of range");

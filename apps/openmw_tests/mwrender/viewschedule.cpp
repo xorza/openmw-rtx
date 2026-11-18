@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -15,20 +16,20 @@ namespace MWRender
         {
             bool mWorld = false;
             bool mWaits = false;
-            int mDrawn = 0;
+            std::int32_t mDrawn = 0;
             bool mAbandoned = false;
             ViewSchedule<FakeView>* mSchedule = nullptr;
             FakeView* mForgets = nullptr;
 
             /// How many more draws it asks for from inside its own, as a picture awaiting its images
             /// does (`TracedView::draw`).
-            int mAgain = 0;
+            std::int32_t mAgain = 0;
 
             bool isOfWorld() const { return mWorld; }
-            bool waitsForGround(const int& /*ground*/) const { return mWaits; }
+            bool waitsForGround(const std::int32_t& /*ground*/) const { return mWaits; }
             void abandon() { mAbandoned = true; }
 
-            void draw(const int& /*ground*/, std::vector<const FakeView*>& order)
+            void draw(const std::int32_t& /*ground*/, std::vector<const FakeView*>& order)
             {
                 ++mDrawn;
                 order.push_back(this);
@@ -42,7 +43,7 @@ namespace MWRender
             }
         };
 
-        constexpr int sGround = 0;
+        constexpr std::int32_t sGround = 0;
 
         /// **Every subject and up to the budget of the world, in the order asked**: three tiles and
         /// a doll under a budget of two draw the first two tiles and the doll, and the third tile
@@ -116,7 +117,7 @@ namespace MWRender
             schedule.redraw(doll);
 
             std::vector<const FakeView*> order;
-            for (int flush = 0; flush < 4; ++flush)
+            for (std::int32_t flush = 0; flush < 4; ++flush)
                 schedule.draw(4, sGround, order);
             EXPECT_EQ(doll.mDrawn, 3);
             EXPECT_FALSE(schedule.hasDeferred());

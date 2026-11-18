@@ -1,7 +1,7 @@
 
-#include <components/detournavigator/settingsutils.hpp>
-
 #include <gtest/gtest.h>
+
+#include <components/detournavigator/settingsutils.hpp>
 
 namespace
 {

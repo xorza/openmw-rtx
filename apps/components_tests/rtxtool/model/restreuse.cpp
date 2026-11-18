@@ -7,6 +7,7 @@
 #include <apps/rtxtool/model/restreuse.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -22,11 +23,12 @@ namespace RtxTool
         /// 20 alone, one of 96 both, 60 MiB; one of 32 keeps the third, whose 20 falls in the first step.
         TEST(RtxRestReuseTest, aTextureWokenIsCountedByTheLeastCacheThatHeldIt)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             Rtx::TextureTable& textures = scene.textures();
             const auto rest = [&](const char* path, const std::uint64_t mebibytes) {
-                const Rtx::Index slot = textures.add(VFS::Path::NormalizedView(path));
-                textures.stand(slot, mebibytes * sMiB, false);
+                const Rtx::TextureIndex slot = textures.add(VFS::Path::NormalizedView(path));
+                textures.stand(slot, mebibytes * sMiB, false, 0);
                 scene.drop(scene.holdTexture(slot));
                 scene.compact();
                 return slot;
@@ -64,7 +66,7 @@ namespace RtxTool
 
             // **A mesh in the same order**: a quad whose structure takes 10 MiB rests, nothing resting after it, and
             // wakes needing only its own bytes.
-            const Rtx::Index quad = Rtx::Testing::addQuadMesh(scene);
+            const Rtx::MeshIndex quad = Rtx::Testing::addQuadMesh(scene);
             scene.standMesh(quad, 10 * sMiB);
             Rtx::Testing::letGoMesh(scene, quad);
             scene.compact();

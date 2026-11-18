@@ -1,10 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
 #include <components/esm3/loadscpt.hpp>
-
-#include "../doc/stage.hpp"
-
-#include "../world/idcollection.hpp"
 
 namespace CSMDoc
 {
@@ -29,7 +29,7 @@ namespace CSMTools
         StartScriptCheckStage(const CSMWorld::IdCollection<ESM::StartScript>& startScripts,
             const CSMWorld::IdCollection<ESM::Script>& scripts);
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
-        int setup() override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
+        std::int32_t setup() override;
     };
 }

@@ -1,23 +1,23 @@
 #include "mainmenu.hpp"
 
+#include <algorithm>
+#include <cstdint>
+
 #include <MyGUI_Gui.h>
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_TextBox.h>
 
-#include <algorithm>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/widgets/imagebutton.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/globals.hpp"
 
 #include "backgroundimage.hpp"
 #include "confirmationdialog.hpp"
@@ -70,7 +70,7 @@ namespace MWGui
         mThread = std::thread([this] { run(); });
     }
 
-    void MenuVideo::resize(int screenWidth, int screenHeight)
+    void MenuVideo::resize(std::int32_t screenWidth, std::int32_t screenHeight)
     {
         const bool stretch = Settings::gui().mStretchMenuBackground;
         mVideoBackground->setSize(screenWidth, screenHeight);
@@ -98,7 +98,7 @@ namespace MWGui
         }
     }
 
-    MainMenu::MainMenu(int w, int h, const VFS::Manager* vfs, const std::string& versionDescription)
+    MainMenu::MainMenu(std::int32_t w, std::int32_t h, const VFS::Manager* vfs, const std::string& versionDescription)
         : WindowBase("openmw_mainmenu.layout")
         , mWidth(w)
         , mHeight(h)
@@ -117,7 +117,7 @@ namespace MWGui
         updateMenu();
     }
 
-    void MainMenu::onResChange(int w, int h)
+    void MainMenu::onResChange(std::int32_t w, std::int32_t h)
     {
         mWidth = w;
         mHeight = h;
@@ -265,8 +265,8 @@ namespace MWGui
                 mVideo.emplace(mVFS);
 
             const auto& viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-            int screenWidth = viewSize.width;
-            int screenHeight = viewSize.height;
+            std::int32_t screenWidth = viewSize.width;
+            std::int32_t screenHeight = viewSize.height;
             mVideo->resize(screenWidth, screenHeight);
         }
         else
@@ -306,7 +306,7 @@ namespace MWGui
             mButtonBox
                 = mMainWidget->createWidget<MyGUI::Widget>({}, MyGUI::IntCoord(0, 0, 0, 0), MyGUI::Align::Default);
 
-        int curH = 0;
+        std::int32_t curH = 0;
 
         MWBase::StateManager::State state = MWBase::Environment::get().getStateManager()->getState();
 
@@ -352,7 +352,7 @@ namespace MWGui
         }
 
         // Start by hiding all buttons
-        int maxwidth = 0;
+        std::int32_t maxwidth = 0;
         for (const auto& buttonPair : mButtons)
         {
             buttonPair.second->setVisible(false);
@@ -376,20 +376,20 @@ namespace MWGui
             button->setImageCoord(MyGUI::IntCoord(0, 0, requested.width, requested.height));
             // Trim off some of the excessive padding
             // TODO: perhaps do this within ImageButton?
-            int height = requested.height;
-            button->setImageTile(
-                MyGUI::IntSize(requested.width, static_cast<int>(static_cast<float>(requested.height) - 16 * scale)));
-            button->setCoord(
-                static_cast<int>((static_cast<float>(maxwidth) - static_cast<float>(requested.width) / scale) / 2),
-                curH, static_cast<int>(static_cast<float>(requested.width) / scale),
-                static_cast<int>(static_cast<float>(height) / scale - 16));
-            curH += static_cast<int>(static_cast<float>(height) / scale - 16);
+            std::int32_t height = requested.height;
+            button->setImageTile(MyGUI::IntSize(
+                requested.width, static_cast<std::int32_t>(static_cast<float>(requested.height) - 16 * scale)));
+            button->setCoord(static_cast<std::int32_t>(
+                                 (static_cast<float>(maxwidth) - static_cast<float>(requested.width) / scale) / 2),
+                curH, static_cast<std::int32_t>(static_cast<float>(requested.width) / scale),
+                static_cast<std::int32_t>(static_cast<float>(height) / scale - 16));
+            curH += static_cast<std::int32_t>(static_cast<float>(height) / scale - 16);
         }
 
         if (state == MWBase::StateManager::State_NoGame)
         {
             // Align with the background image
-            int bottomPadding = 24;
+            std::int32_t bottomPadding = 24;
             mButtonBox->setCoord(mWidth / 2 - maxwidth / 2, mHeight - curH - bottomPadding, maxwidth, curH);
         }
         else

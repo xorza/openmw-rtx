@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include "containerstore.hpp"
 
 namespace ESM
@@ -29,29 +32,29 @@ namespace MWWorld
     class InventoryStore : public ContainerStore
     {
     public:
-        static constexpr int Slot_Helmet = 0;
-        static constexpr int Slot_Cuirass = 1;
-        static constexpr int Slot_Greaves = 2;
-        static constexpr int Slot_LeftPauldron = 3;
-        static constexpr int Slot_RightPauldron = 4;
-        static constexpr int Slot_LeftGauntlet = 5;
-        static constexpr int Slot_RightGauntlet = 6;
-        static constexpr int Slot_Boots = 7;
-        static constexpr int Slot_Shirt = 8;
-        static constexpr int Slot_Pants = 9;
-        static constexpr int Slot_Skirt = 10;
-        static constexpr int Slot_Robe = 11;
-        static constexpr int Slot_LeftRing = 12;
-        static constexpr int Slot_RightRing = 13;
-        static constexpr int Slot_Amulet = 14;
-        static constexpr int Slot_Belt = 15;
-        static constexpr int Slot_CarriedRight = 16;
-        static constexpr int Slot_CarriedLeft = 17;
-        static constexpr int Slot_Ammunition = 18;
+        static constexpr std::int32_t Slot_Helmet = 0;
+        static constexpr std::int32_t Slot_Cuirass = 1;
+        static constexpr std::int32_t Slot_Greaves = 2;
+        static constexpr std::int32_t Slot_LeftPauldron = 3;
+        static constexpr std::int32_t Slot_RightPauldron = 4;
+        static constexpr std::int32_t Slot_LeftGauntlet = 5;
+        static constexpr std::int32_t Slot_RightGauntlet = 6;
+        static constexpr std::int32_t Slot_Boots = 7;
+        static constexpr std::int32_t Slot_Shirt = 8;
+        static constexpr std::int32_t Slot_Pants = 9;
+        static constexpr std::int32_t Slot_Skirt = 10;
+        static constexpr std::int32_t Slot_Robe = 11;
+        static constexpr std::int32_t Slot_LeftRing = 12;
+        static constexpr std::int32_t Slot_RightRing = 13;
+        static constexpr std::int32_t Slot_Amulet = 14;
+        static constexpr std::int32_t Slot_Belt = 15;
+        static constexpr std::int32_t Slot_CarriedRight = 16;
+        static constexpr std::int32_t Slot_CarriedLeft = 17;
+        static constexpr std::int32_t Slot_Ammunition = 18;
 
-        static constexpr int Slots = 19;
+        static constexpr std::int32_t Slots = 19;
 
-        static constexpr int Slot_NoSlot = -1;
+        static constexpr std::int32_t Slot_NoSlot = -1;
 
     private:
         InventoryStoreListener* mInventoryListener = nullptr;
@@ -76,11 +79,11 @@ namespace MWWorld
         void fireEquipmentChangedEvent();
 
         void storeEquipmentState(
-            const MWWorld::LiveCellRefBase& ref, size_t index, ESM::InventoryState& inventory) const override;
-        void readEquipmentState(
-            const MWWorld::ContainerStoreIterator& iter, size_t index, const ESM::InventoryState& inventory) override;
+            const MWWorld::LiveCellRefBase& ref, std::size_t index, ESM::InventoryState& inventory) const override;
+        void readEquipmentState(const MWWorld::ContainerStoreIterator& iter, std::size_t index,
+            const ESM::InventoryState& inventory) override;
 
-        ContainerStoreIterator findSlot(int slot) const;
+        ContainerStoreIterator findSlot(std::int32_t slot) const;
 
     public:
         InventoryStore();
@@ -99,7 +102,7 @@ namespace MWWorld
         }
 
         ContainerStoreIterator add(
-            const ConstPtr& itemPtr, int count, bool allowAutoEquip = true, bool resolve = true) override;
+            const ConstPtr& itemPtr, std::int32_t count, bool allowAutoEquip = true, bool resolve = true) override;
         ///< Add the item pointed to by \a ptr to this container. (Stacks automatically if needed)
         /// Auto-equip items if specific conditions are fulfilled and allowAutoEquip is true (see the implementation).
         ///
@@ -111,15 +114,15 @@ namespace MWWorld
         /// @return if stacking happened, return iterator to the item that was stacked against, otherwise iterator to
         /// the newly inserted item.
 
-        void equip(int slot, const ContainerStoreIterator& iterator);
+        void equip(std::int32_t slot, const ContainerStoreIterator& iterator);
         ///< \warning \a iterator can not be an end()-iterator, use unequip function instead
 
         bool isEquipped(const MWWorld::ConstPtr& item);
         bool isEquipped(const ESM::RefId& id);
         ///< Utility function, returns true if the given item is equipped in any slot
 
-        ContainerStoreIterator getSlot(int slot);
-        ConstContainerStoreIterator getSlot(int slot) const;
+        ContainerStoreIterator getSlot(std::int32_t slot);
+        ConstContainerStoreIterator getSlot(std::int32_t slot) const;
 
         ContainerStoreIterator getPreferredShield();
 
@@ -133,12 +136,13 @@ namespace MWWorld
         ///< @return true if the two specified objects can stack with each other
 
         using ContainerStore::remove;
-        int remove(const Ptr& item, int count, bool equipReplacement = 0, bool resolve = true) override;
+        std::int32_t remove(
+            const Ptr& item, std::int32_t count, bool equipReplacement = 0, bool resolve = true) override;
         ///< Remove \a count item(s) designated by \a item from this inventory.
         ///
         /// @return the number of items actually removed
 
-        ContainerStoreIterator unequipSlot(int slot, bool applyUpdates = true);
+        ContainerStoreIterator unequipSlot(std::int32_t slot, bool applyUpdates = true);
         ///< Unequip \a slot.
         ///
         /// @return an iterator to the item that was previously in the slot
@@ -151,7 +155,7 @@ namespace MWWorld
         /// (it can be re-stacked so its count may be different than when it
         /// was equipped).
 
-        ContainerStoreIterator unequipItemQuantity(const Ptr& item, int count);
+        ContainerStoreIterator unequipItemQuantity(const Ptr& item, std::int32_t count);
         ///< Unequip a specific quantity of an item identified by its Ptr.
         /// An exception is thrown if the item is not currently equipped,
         /// if count <= 0, or if count > the item stack size.

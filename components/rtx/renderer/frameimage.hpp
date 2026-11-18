@@ -27,7 +27,7 @@ namespace Rtx
     };
 
     /// How many bytes a pixel of the result carries, which is its pixel format.
-    enum class Channels : int
+    enum class Channels : std::int32_t
     {
         /// The frame's own, and what a locked texture and a PNG take.
         Rgba = 4,
@@ -44,6 +44,6 @@ namespace Rtx
     /// which is `gluScaleImage`, because there is no GL context on this path. Null where either
     /// extent is zero or `frame.mPixels` is shorter than the frame it claims to be, because a
     /// picture of part of a frame is worse than none.
-    osg::ref_ptr<osg::Image> frameImage(
-        const TracedFrame& frame, int width, int height, RowOrder order, Channels channels = Channels::Rgba);
+    osg::ref_ptr<osg::Image> frameImage(const TracedFrame& frame, std::int32_t width, std::int32_t height,
+        RowOrder order, Channels channels = Channels::Rgba);
 }

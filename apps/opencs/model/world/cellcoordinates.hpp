@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <iosfwd>
 #include <string>
 #include <utility>
@@ -20,25 +21,25 @@ namespace CSMWorld
 {
     class CellCoordinates
     {
-        int mX;
-        int mY;
+        std::int32_t mX;
+        std::int32_t mY;
 
     public:
         CellCoordinates();
 
-        CellCoordinates(int x, int y);
+        CellCoordinates(std::int32_t x, std::int32_t y);
 
-        explicit CellCoordinates(const std::pair<int, int>& coordinates);
+        explicit CellCoordinates(const std::pair<std::int32_t, std::int32_t>& coordinates);
 
-        int getX() const;
+        std::int32_t getX() const;
 
-        int getY() const;
+        std::int32_t getY() const;
 
-        CellCoordinates move(int x, int y) const;
+        CellCoordinates move(std::int32_t x, std::int32_t y) const;
         ///< Return a copy of *this, moved by the given offset.
 
         /// Generate cell id string from x and y coordinates
-        static std::string generateId(int x, int y);
+        static std::string generateId(std::int32_t x, std::int32_t y);
 
         std::string getId(const std::string& worldspace) const;
         ///< Return the ID for the cell at these coordinates.
@@ -54,31 +55,31 @@ namespace CSMWorld
         static std::pair<CellCoordinates, bool> fromId(const std::string& id);
 
         /// \return cell coordinates such that given world coordinates are in it.
-        static std::pair<int, int> coordinatesToCellIndex(float x, float y);
+        static std::pair<std::int32_t, std::int32_t> coordinatesToCellIndex(float x, float y);
 
         /// Converts worldspace coordinates to global texture selection, taking in account the texture offset.
-        static std::pair<int, int> toTextureCoords(const osg::Vec3d& worldPos);
+        static std::pair<std::int32_t, std::int32_t> toTextureCoords(const osg::Vec3d& worldPos);
 
         /// Converts worldspace coordinates to global vertex selection.
-        static std::pair<int, int> toVertexCoords(const osg::Vec3d& worldPos);
+        static std::pair<std::int32_t, std::int32_t> toVertexCoords(const osg::Vec3d& worldPos);
 
         /// Converts global texture coordinate X to worldspace coordinate, offset by 0.25f.
-        static float textureGlobalXToWorldCoords(int textureGlobal);
+        static float textureGlobalXToWorldCoords(std::int32_t textureGlobal);
 
         /// Converts global texture coordinate Y to worldspace coordinate, offset by 0.25f.
-        static float textureGlobalYToWorldCoords(int textureGlobal);
+        static float textureGlobalYToWorldCoords(std::int32_t textureGlobal);
 
         /// Converts global vertex coordinate to worldspace coordinate
-        static float vertexGlobalToWorldCoords(int vertexGlobal);
+        static float vertexGlobalToWorldCoords(std::int32_t vertexGlobal);
 
         /// Converts global vertex coordinate to local cell's heightmap coordinates
-        static int vertexGlobalToInCellCoords(int vertexGlobal);
+        static std::int32_t vertexGlobalToInCellCoords(std::int32_t vertexGlobal);
 
         /// Converts global texture coordinates to cell id
-        static std::string textureGlobalToCellId(const std::pair<int, int>& textureGlobal);
+        static std::string textureGlobalToCellId(const std::pair<std::int32_t, std::int32_t>& textureGlobal);
 
         /// Converts global vertex coordinates to cell id
-        static std::string vertexGlobalToCellId(const std::pair<int, int>& vertexGlobal);
+        static std::string vertexGlobalToCellId(const std::pair<std::int32_t, std::int32_t>& vertexGlobal);
     };
 
     bool operator==(const CellCoordinates& left, const CellCoordinates& right);

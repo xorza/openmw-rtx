@@ -3,20 +3,21 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <limits>
 #include <sstream>
 
+#include <MyGUI_StringUtility.h>
+
+#include <components/lua/shapes/box.hpp>
 #include <components/misc/color.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/strings/algorithm.hpp>
 
-#include <MyGUI_StringUtility.h>
-
 #include "luastate.hpp"
 #include "util.hpp"
-
-#include "shapes/box.hpp"
 
 namespace sol
 {
@@ -159,13 +160,13 @@ namespace LuaUtil
             };
             vectorType["emul"] = [](const T& a, const T& b) {
                 T result;
-                for (int i = 0; i < T::num_components; ++i)
+                for (std::int32_t i = 0; i < T::num_components; ++i)
                     result.ptr()[i] = a.ptr()[i] * b.ptr()[i];
                 return result;
             };
             vectorType["ediv"] = [](const T& a, const T& b) {
                 T result;
-                for (int i = 0; i < T::num_components; ++i)
+                for (std::int32_t i = 0; i < T::num_components; ++i)
                     result.ptr()[i] = a.ptr()[i] / b.ptr()[i];
                 return result;
             };
@@ -173,7 +174,7 @@ namespace LuaUtil
                 std::stringstream ss;
                 ss << std::setprecision(std::numeric_limits<typename T::value_type>::max_exponent10);
                 ss << "(" << v[0];
-                for (int i = 1; i < T::num_components; ++i)
+                for (std::int32_t i = 1; i < T::num_components; ++i)
                     ss << ", " << v.ptr()[i];
                 ss << ")";
                 return ss.str();
@@ -217,7 +218,7 @@ namespace LuaUtil
         boxType["vertices"] = sol::readonly_property([lua](const Box& b) {
             sol::table table(lua, sol::create);
             const auto vertices = b.vertices();
-            for (size_t i = 0; i < vertices.size(); ++i)
+            for (std::size_t i = 0; i < vertices.size(); ++i)
                 table[toLuaIndex(static_cast<std::int64_t>(i))] = vertices[i];
             return table;
         });
@@ -249,7 +250,7 @@ namespace LuaUtil
         color["hex"] = [](std::string_view hex) { return Misc::Color::fromHex(hex); };
         color["commaString"] = [](std::string_view str) {
             auto wrongChars = std::count_if(
-                str.begin(), str.end(), [](unsigned char c) { return !std::isdigit(c) && c != ' ' && c != ','; });
+                str.begin(), str.end(), [](std::uint8_t c) { return !std::isdigit(c) && c != ' ' && c != ','; });
 
             if (wrongChars != 0)
             {
@@ -403,22 +404,22 @@ namespace LuaUtil
         }
         else
         {
-            util["bitOr"] = [](unsigned a, sol::variadic_args va) {
+            util["bitOr"] = [](std::uint32_t a, sol::variadic_args va) {
                 for (const auto& v : va)
-                    a |= cast<unsigned>(v);
+                    a |= cast<std::uint32_t>(v);
                 return a;
             };
-            util["bitAnd"] = [](unsigned a, sol::variadic_args va) {
+            util["bitAnd"] = [](std::uint32_t a, sol::variadic_args va) {
                 for (const auto& v : va)
-                    a &= cast<unsigned>(v);
+                    a &= cast<std::uint32_t>(v);
                 return a;
             };
-            util["bitXor"] = [](unsigned a, sol::variadic_args va) {
+            util["bitXor"] = [](std::uint32_t a, sol::variadic_args va) {
                 for (const auto& v : va)
-                    a ^= cast<unsigned>(v);
+                    a ^= cast<std::uint32_t>(v);
                 return a;
             };
-            util["bitNot"] = [](unsigned a) { return ~a; };
+            util["bitNot"] = [](std::uint32_t a) { return ~a; };
         }
 
         util["loadCode"] = [](const std::string& code, const sol::table& env, sol::this_state s) {

@@ -103,6 +103,17 @@ namespace Rtx
     };
 
     /// Where the eye stands and how much world there is around it, as one value the ring reads.
+    /// **What the eye resolves**, which a held cell asks its materials' textures by at its distance (`CellPlacer`):
+    /// the angle a pixel's cone opens by at the render size (`Shaders::Camera::mSpreadAngle`) and the frame's level
+    /// bias. A spread of nought asks the finest level of everything, which is what a frame with no camera yet is told.
+    struct Sight
+    {
+        float mSpreadAngle = 0.0f;
+        float mLevelBias = 0.0f;
+
+        bool operator==(const Sight&) const = default;
+    };
+
     struct WorldAround
     {
         /// What is read and where from. A world with no storage is a world with none.
@@ -136,5 +147,8 @@ namespace Rtx
         /// Which child the game's `NightDaySwitch`es show, which the ring's own copies of them
         /// follow: the town whose windows light at dusk is lit four cells away too.
         NightDayMode mNightDay = NightDayMode::Default;
+
+        /// What the eye resolves (`Sight`), the last frame's: told rather than asked, as the reach is.
+        Sight mSight{};
     };
 }

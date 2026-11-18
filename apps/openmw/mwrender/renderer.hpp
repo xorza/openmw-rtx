@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <functional>
@@ -164,10 +165,10 @@ namespace MWRender
 
         /// F1 to F12, as `index` nought to eleven, that this renderer has not declined
         /// (`SDLUtil::GraphicsListener::functionKey`).
-        virtual void functionKey(int index, SDLUtil::KeyChange change) {}
+        virtual void functionKey(std::int32_t index, SDLUtil::KeyChange change) {}
 
         /// The window's drawable size changed, in pixels (`SDLUtil::GraphicsListener::windowResized`).
-        virtual void windowResized(int x, int y, int width, int height) {}
+        virtual void windowResized(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) {}
 
         /// The resource system exists; keep it, and tell its scene manager what this renderer needs
         /// of every model it loads. Called once, before any model is loaded and before anything
@@ -250,8 +251,8 @@ namespace MWRender
         /// one vocabulary both renderers read, the rasterizer as its cull mask and the ray tracer
         /// as `describeView`. Kept here, so a screen that covers the world (`showWorld`) parks the
         /// rasterizer's camera without the game's answer moving.
-        void setViewMask(unsigned int mask);
-        unsigned int getViewMask() const { return mViewMask; }
+        void setViewMask(std::uint32_t mask);
+        std::uint32_t getViewMask() const { return mViewMask; }
 
         /// Whether the world is being shown at all; the interface is drawn either way. A loading
         /// screen and the main menu's cover say no, and want nothing animating behind them. Said as
@@ -270,7 +271,7 @@ namespace MWRender
         /// What the eye sees while the world is shown: the view mask, less `sToggleWorldMask`
         /// where `tws` hides the world. The sky, the water, the player and the effects stay, and
         /// both renderers draw them. Only the eye's: a map tile and the doll keep their own masks.
-        unsigned int worldViewMask() const;
+        std::uint32_t worldViewMask() const;
 
         /// The shader chain over the frame, or null where this renderer has none. Owned here,
         /// because what happens between the scene and the screen is the whole of what a renderer is
@@ -424,7 +425,7 @@ namespace MWRender
         /// reads the last picture it traced, which is this frame's world wherever the world is
         /// shown, `tws` included. Under a cover the two differ: the rasterizer's frame has no world
         /// in it, and the ray tracer's is the last world it showed.
-        virtual void capture(osg::Image& image, int width, int height) = 0;
+        virtual void capture(osg::Image& image, std::int32_t width, std::int32_t height) = 0;
 
         /// The screenshot key, which writes a file rather than handing back an image, through the
         /// writer `Engine` handed over.
@@ -571,7 +572,7 @@ namespace MWRender
         osg::ref_ptr<osg::FrameStamp> mFrameStamp;
         osg::ref_ptr<osg::Stats> mStats;
         osg::ref_ptr<osg::Group> mTraversalRoot;
-        unsigned int mViewMask = ~0u;
+        std::uint32_t mViewMask = ~0u;
         Misc::Presentation mPresentation;
         Misc::FrameBounds mFrameBounds;
 

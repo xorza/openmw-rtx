@@ -21,8 +21,8 @@
 #include <variant>
 #include <vector>
 
+#include <apps/openmw/mwmechanics/spelllist.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm/defs.hpp>
 #include <components/esm/esmcommon.hpp>
 #include <components/esm/luascripts.hpp>
@@ -42,7 +42,6 @@
 #include <components/lua/configuration.hpp>
 #include <components/misc/algorithm.hpp>
 
-#include "../mwmechanics/spelllist.hpp"
 #include "store.hpp"
 
 namespace
@@ -67,7 +66,7 @@ namespace
         std::set<ESM::RefId>& keyIDs, ESM::ReadersCache& readers)
     {
         // TODO: we have many similar copies of this code.
-        for (size_t i = 0; i < cell.mContextList.size(); i++)
+        for (std::size_t i = 0; i < cell.mContextList.size(); i++)
         {
             const auto index = static_cast<std::size_t>(cell.mContextList[i].index);
             const ESM::ReadersCache::BusyItem reader = readers.get(index);
@@ -255,7 +254,7 @@ namespace
 
 namespace MWWorld
 {
-    using IDMap = std::unordered_map<ESM::RefId, int>;
+    using IDMap = std::unordered_map<ESM::RefId, std::int32_t>;
 
     struct ESMStoreImp
     {
@@ -319,7 +318,7 @@ namespace MWWorld
         }
     };
 
-    int ESMStore::find(const ESM::RefId& id) const
+    std::int32_t ESMStore::find(const ESM::RefId& id) const
     {
         auto it = mStoreImp->mIds.find(id);
         if (it == mStoreImp->mIds.end())
@@ -329,7 +328,7 @@ namespace MWWorld
         return it->second;
     }
 
-    int ESMStore::findStatic(const ESM::RefId& id) const
+    std::int32_t ESMStore::findStatic(const ESM::RefId& id) const
     {
         auto it = mStoreImp->mStaticIds.find(id);
         if (it == mStoreImp->mStaticIds.end())
@@ -360,7 +359,7 @@ namespace MWWorld
 
     namespace
     {
-        bool isCacheableRecord(int id)
+        bool isCacheableRecord(std::int32_t id)
         {
             switch (id)
             {
@@ -515,7 +514,7 @@ namespace MWWorld
 
     void ESMStore::setIdType(const ESM::RefId& id, ESM::RecNameInts type)
     {
-        mStoreImp->mIds[id] = static_cast<int>(type);
+        mStoreImp->mIds[id] = static_cast<std::int32_t>(type);
     }
 
     ESM::LuaScriptsCfg ESMStore::getLuaScriptsCfg() const
@@ -570,12 +569,12 @@ namespace MWWorld
         mStoreImp->mIds.clear();
         for (const auto& [recordType, store] : mStoreImp->mRecNameToStore)
         {
-            if (isCacheableRecord(static_cast<int>(recordType)))
+            if (isCacheableRecord(static_cast<std::int32_t>(recordType)))
             {
                 std::vector<ESM::RefId> identifiers;
                 store->listIdentifier(identifiers);
                 for (auto& record : identifiers)
-                    mStoreImp->mIds[record] = static_cast<int>(recordType);
+                    mStoreImp->mIds[record] = static_cast<std::int32_t>(recordType);
             }
         }
     }
@@ -635,7 +634,7 @@ namespace MWWorld
         }
     }
 
-    int ESMStore::getRefCount(const ESM::RefId& id) const
+    std::int32_t ESMStore::getRefCount(const ESM::RefId& id) const
     {
         auto it = mRefInfo.find(id);
         if (it == mRefInfo.end())
@@ -733,7 +732,7 @@ namespace MWWorld
         }
     }
 
-    size_t ESMStore::countSavedGameRecords() const
+    std::size_t ESMStore::countSavedGameRecords() const
     {
         return 1 // DYNA (dynamic name counter)
             + get<ESM::Potion>().getDynamicSize() + get<ESM::Armor>().getDynamicSize()
@@ -778,7 +777,7 @@ namespace MWWorld
         get<ESM::Ingredient>().write(writer, progress);
     }
 
-    bool ESMStore::readRecord(ESM::ESMReader& reader, uint32_t typeId)
+    bool ESMStore::readRecord(ESM::ESMReader& reader, std::uint32_t typeId)
     {
         auto type = static_cast<ESM::RecNameInts>(typeId);
         switch (type)
@@ -812,7 +811,7 @@ namespace MWWorld
                 reader.getSubNameIs("COUN");
                 if (reader.getFormatVersion() <= ESM::MaxActiveSpellTypeVersion)
                 {
-                    uint32_t dynamicCount32 = 0;
+                    std::uint32_t dynamicCount32 = 0;
                     reader.getHT(dynamicCount32);
                     mDynamicCount = dynamicCount32;
                 }
@@ -844,7 +843,7 @@ namespace MWWorld
             ptr = result->second.lock();
         if (!ptr)
         {
-            int type = find(id);
+            std::int32_t type = find(id);
             ptr = std::make_shared<MWMechanics::SpellList>(id, type, autoCalc);
             if (result != mSpellListCache.end())
                 result->second = ptr;

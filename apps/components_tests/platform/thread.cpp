@@ -1,5 +1,6 @@
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <stop_token>
@@ -96,11 +97,11 @@ namespace Platform
         /// asked. Each waits a bounded while, so a broken order fails rather than hangs.
         TEST(PlatformThreadTest, everyThreadIsAskedToStopBeforeAnyIsJoined)
         {
-            std::atomic<int> stopped{ 0 };
-            std::atomic<int> waitedOut{ 0 };
+            std::atomic<std::int32_t> stopped{ 0 };
+            std::atomic<std::int32_t> waitedOut{ 0 };
             std::vector<std::jthread> hands;
             hands.reserve(3);
-            for (int at = 0; at < 3; ++at)
+            for (std::int32_t at = 0; at < 3; ++at)
                 hands.push_back(startThread("hand", [&](const std::stop_token& stop) {
                     while (!stop.stop_requested())
                         std::this_thread::yield();

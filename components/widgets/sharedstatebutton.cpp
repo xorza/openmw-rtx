@@ -1,5 +1,7 @@
 #include "sharedstatebutton.hpp"
 
+#include <cstdint>
+
 namespace Gui
 {
 
@@ -23,14 +25,14 @@ namespace Gui
         mSharedWith = shared;
     }
 
-    void SharedStateButton::onMouseButtonPressed(int left, int top, MyGUI::MouseButton id)
+    void SharedStateButton::onMouseButtonPressed(std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         mIsMousePressed = true;
         Base::onMouseButtonPressed(left, top, id);
         updateButtonState();
     }
 
-    void SharedStateButton::onMouseButtonReleased(int left, int top, MyGUI::MouseButton id)
+    void SharedStateButton::onMouseButtonReleased(std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         mIsMousePressed = false;
         Base::onMouseButtonReleased(left, top, id);

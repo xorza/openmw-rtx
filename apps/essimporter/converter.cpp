@@ -1,6 +1,7 @@
 #include "converter.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 
@@ -8,7 +9,6 @@
 
 #include <components/esm3/containerstate.hpp>
 #include <components/esm3/creaturestate.hpp>
-
 #include <components/misc/constants.hpp>
 
 #include "convertcntc.hpp"
@@ -44,7 +44,7 @@ namespace
         return index.find_first_not_of("0123456789ABCDEF") == std::string::npos;
     }
 
-    void splitIndexedRefId(const std::string& indexedRefId, int& refIndex, std::string& refId)
+    void splitIndexedRefId(const std::string& indexedRefId, std::int32_t& refIndex, std::string& refId)
     {
         std::stringstream stream;
         stream << std::hex << indexedRefId.substr(indexedRefId.size() - 8, 8);
@@ -57,7 +57,7 @@ namespace
     {
         if (isIndexedRefId(indexedRefId))
         {
-            int refIndex = 0;
+            std::int32_t refIndex = 0;
             std::string refId;
             splitIndexedRefId(indexedRefId, refIndex, refId);
 
@@ -81,8 +81,8 @@ namespace ESSImport
     {
         struct MAPH
         {
-            uint32_t size;
-            uint32_t value;
+            std::uint32_t size;
+            std::uint32_t value;
         };
     }
 
@@ -98,20 +98,20 @@ namespace ESSImport
 
         mGlobalMapImage = new osg::Image;
         mGlobalMapImage->allocateImage(
-            static_cast<int>(maph.size), static_cast<int>(maph.size), 1, GL_RGB, GL_UNSIGNED_BYTE);
+            static_cast<std::int32_t>(maph.size), static_cast<std::int32_t>(maph.size), 1, GL_RGB, GL_UNSIGNED_BYTE);
         memcpy(mGlobalMapImage->data(), data.data(), data.size());
 
         // to match openmw size
         // FIXME: filtering?
         mGlobalMapImage->scaleImage(
-            static_cast<int>(maph.size * 2), static_cast<int>(maph.size * 2), 1, GL_UNSIGNED_BYTE);
+            static_cast<std::int32_t>(maph.size * 2), static_cast<std::int32_t>(maph.size * 2), 1, GL_UNSIGNED_BYTE);
     }
 
     void ConvertFMAP::write(ESM::ESMWriter& esm) const
     {
-        int numcells = mGlobalMapImage->s() / 18; // NB truncating, doesn't divide perfectly
-                                                  // with the 512x512 map the game has by default
-        int cellSize = mGlobalMapImage->s() / numcells;
+        std::int32_t numcells = mGlobalMapImage->s() / 18; // NB truncating, doesn't divide perfectly
+                                                           // with the 512x512 map the game has by default
+        std::int32_t cellSize = mGlobalMapImage->s() / numcells;
 
         // Note the upper left corner of the (0,0) cell should be at (width/2, height/2)
 
@@ -121,9 +121,9 @@ namespace ESSImport
         mContext->mGlobalMapState.mBounds.mMaxY = numcells / 2;
 
         osg::ref_ptr<osg::Image> image2(new osg::Image);
-        int width = cellSize * numcells;
-        int height = cellSize * numcells;
-        std::vector<unsigned char> data;
+        std::int32_t width = cellSize * numcells;
+        std::int32_t height = cellSize * numcells;
+        std::vector<std::uint8_t> data;
         data.resize(static_cast<std::size_t>(width * height) * 4, 0);
 
         image2->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
@@ -140,21 +140,21 @@ namespace ESSImport
                 continue;
             }
 
-            int imageLeftSrc = mGlobalMapImage->s() / 2;
-            int imageTopSrc = mGlobalMapImage->t() / 2;
+            std::int32_t imageLeftSrc = mGlobalMapImage->s() / 2;
+            std::int32_t imageTopSrc = mGlobalMapImage->t() / 2;
             imageLeftSrc += exploredCell.first * cellSize;
             imageTopSrc -= exploredCell.second * cellSize;
-            int imageLeftDst = width / 2;
-            int imageTopDst = height / 2;
+            std::int32_t imageLeftDst = width / 2;
+            std::int32_t imageTopDst = height / 2;
             imageLeftDst += exploredCell.first * cellSize;
             imageTopDst -= exploredCell.second * cellSize;
-            for (int x = 0; x < cellSize; ++x)
-                for (int y = 0; y < cellSize; ++y)
+            for (std::int32_t x = 0; x < cellSize; ++x)
+                for (std::int32_t y = 0; y < cellSize; ++y)
                 {
-                    unsigned int col = *reinterpret_cast<unsigned int*>(mGlobalMapImage->data(
-                        static_cast<unsigned int>(imageLeftSrc + x), static_cast<unsigned int>(imageTopSrc + y), 0));
-                    *reinterpret_cast<unsigned int*>(image2->data(static_cast<unsigned int>(imageLeftDst + x),
-                        static_cast<unsigned int>(imageTopDst + y), 0)) = col;
+                    std::uint32_t col = *reinterpret_cast<std::uint32_t*>(mGlobalMapImage->data(
+                        static_cast<std::uint32_t>(imageLeftSrc + x), static_cast<std::uint32_t>(imageTopSrc + y), 0));
+                    *reinterpret_cast<std::uint32_t*>(image2->data(static_cast<std::uint32_t>(imageLeftDst + x),
+                        static_cast<std::uint32_t>(imageTopDst + y), 0)) = col;
                 }
         }
 
@@ -210,7 +210,7 @@ namespace ESSImport
         // seems to be a 1-bit pixel format, 16*16 pixels
         // TODO: add bleeding of FOW into neighbouring cells (openmw handles this by writing to the textures,
         // MW handles it when rendering only)
-        unsigned char nam8[32];
+        std::uint8_t nam8[32];
         // exterior has 1 NAM8, interior can have multiple ones, and have an extra 4 byte flag at the start
         // (probably offset of that specific fog texture?)
         while (esm.isNextSub("NAM8"))
@@ -329,7 +329,7 @@ namespace ESSImport
             }
             else
             {
-                int refIndex = 0;
+                std::int32_t refIndex = 0;
                 std::string outStringId;
                 splitIndexedRefId(cellref.mIndexedRefId, refIndex, outStringId);
                 out.mRefID = ESM::RefId::stringRefId(outStringId);

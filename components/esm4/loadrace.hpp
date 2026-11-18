@@ -31,11 +31,12 @@
 #include <map>
 #include <vector>
 
-#include "actor.hpp" // AttributeValues, BodyTemplate
 #include <components/esm/defs.hpp>
 #include <components/esm/formid.hpp>
 #include <components/esm/gameformat.hpp>
 #include <components/esm/path.hpp>
+
+#include "actor.hpp" // AttributeValues, BodyTemplate
 
 namespace ESM4
 {

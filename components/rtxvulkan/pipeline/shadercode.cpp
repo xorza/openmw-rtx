@@ -1,6 +1,7 @@
 #include "shadercode.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <format>
 #include <utility>
 
@@ -66,7 +67,7 @@ namespace Rtx
                     "binding {} of set {} is in the module and not in the layout", bound.mBinding, bound.mSet);
             if (!bindsAs(bound.mKind, stated->descriptorType))
                 return std::format("binding {} of set {} is descriptor type {} in the layout and another in the module",
-                    bound.mBinding, bound.mSet, static_cast<int>(stated->descriptorType));
+                    bound.mBinding, bound.mSet, static_cast<std::int32_t>(stated->descriptorType));
             if ((stated->stageFlags & stage) == 0)
                 return std::format(
                     "binding {} of set {} is declared for stages {:#x}, which leave out the module's {:#x}",
@@ -153,7 +154,7 @@ namespace Rtx
             const std::optional<std::uint32_t> components = componentsOf(fed->format);
             if (!components.has_value())
                 return std::format("the attribute at location {} is of format {}, whose components this does not count",
-                    input.mLocation, static_cast<int>(fed->format));
+                    input.mLocation, static_cast<std::int32_t>(fed->format));
             if (*components < input.mComponents)
                 return std::format("the input at location {} reads {} components of an attribute of {}",
                     input.mLocation, input.mComponents, *components);

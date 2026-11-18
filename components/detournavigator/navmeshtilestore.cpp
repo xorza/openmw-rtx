@@ -1,6 +1,7 @@
 #include "navmeshtilestore.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <span>
@@ -31,7 +32,7 @@ namespace DetourNavigator
 
         /// What `PreparedNavMeshData::mUserId` is for a tile the store answered, which the debug view draws
         /// brighter; a tile generated in this session has 0.
-        constexpr unsigned sStoredUserId = 1;
+        constexpr std::uint32_t sStoredUserId = 1;
 
         /// Each value a run of its own, in a fixed order, so no struct's padding reaches the key.
         void addSettings(ContentStore::Digest& digest, const RecastSettings& settings)
@@ -60,7 +61,7 @@ namespace DetourNavigator
             // builder, so two starts that added the objects in two orders key one tile alike.
             const Mesh& mesh = recastMesh.getMesh();
             digest.add(std::span<const float>(mesh.getVertices()));
-            digest.add(std::span<const int>(mesh.getIndices()));
+            digest.add(std::span<const std::int32_t>(mesh.getIndices()));
             digest.add(std::span<const AreaType>(mesh.getAreaTypes()));
 
             digest.add(static_cast<std::uint64_t>(recastMesh.getWater().size()));
@@ -147,20 +148,24 @@ namespace DetourNavigator
         {
             Log(Debug::Warning) << "A stored navmesh tile could not be read, and is made again: " << e.what();
         }
-        mStore.discard(key);
+        mStore.discard(key, sTileKind);
         return nullptr;
     }
 
     bool NavMeshTileStore::holds(const ContentStore::Key& key)
     {
-        return mStore.holds(key, ContentStore::Reach::Disk);
+        return mStore.holds(key, sTileKind, ContentStore::Reach::Disk);
     }
 
     void NavMeshTileStore::write(const ContentStore::Key& key, const PreparedNavMeshData& data)
     {
         const std::vector<std::byte> packed = Misc::compress(serialize(data));
-        mStore.write(
-            key, sTileKind, sTileVersion, Misc::ByteBuffer(packed.begin(), packed.end()), ContentStore::Reach::Disk);
+        mStore.write(ContentStore::Filed{ .mKey = key,
+                         .mKind = sTileKind,
+                         .mVersion = sTileVersion,
+                         .mPayload = Misc::ByteBuffer(packed.begin(), packed.end()),
+                         .mSegmentEnds = {} },
+            ContentStore::Reach::Disk);
     }
 
     void NavMeshTileStore::flush()

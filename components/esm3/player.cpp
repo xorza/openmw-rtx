@@ -1,6 +1,7 @@
 #include "player.hpp"
 
 #include <cmath>
+#include <cstdint>
 
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
@@ -47,7 +48,7 @@ namespace ESM
                 = esm.getFormatVersion() <= MaxClearModifiersFormatVersion && !mObject.mNpcStats.mIsWerewolf;
             if (esm.hasMoreSubs())
             {
-                for (int i = 0; i < ESM::Attribute::Length; ++i)
+                for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
                 {
                     StatState<float> attribute;
                     attribute.load(esm, intFallback);
@@ -58,7 +59,7 @@ namespace ESM
                     if (mObject.mNpcStats.mIsWerewolf)
                         mObject.mCreatureStats.mAttributes[id] = attribute;
                 }
-                for (int i = 0; i < ESM::Skill::Length; ++i)
+                for (std::int32_t i = 0; i < ESM::Skill::Length; ++i)
                 {
                     StatState<float> skill;
                     skill.load(esm, intFallback);
@@ -80,11 +81,11 @@ namespace ESM
             mSetWerewolfAcrobatics = false;
             float saveAttributes[ESM::Attribute::Length];
             esm.getHNT(saveAttributes, "WWAT");
-            for (int i = 0; i < ESM::Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
                 mSaveAttributes[ESM::Attribute::indexToRefId(i)] = saveAttributes[i];
             float saveSkills[ESM::Skill::Length];
             esm.getHNT(saveSkills, "WWSK");
-            for (int i = 0; i < ESM::Skill::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Skill::Length; ++i)
                 mSaveSkills[ESM::Skill::indexToRefId(i)] = saveSkills[i];
         }
         else
@@ -137,7 +138,7 @@ namespace ESM
         {
             // This branch is only used in tests. It probably shouldn't exist.
             float saveAttributes[ESM::Attribute::Length];
-            for (int i = 0; i < ESM::Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
             {
                 const auto it = mSaveAttributes.find(ESM::Attribute::indexToRefId(i));
                 if (it != mSaveAttributes.end())
@@ -146,7 +147,7 @@ namespace ESM
                     saveAttributes[i] = 0.f;
             }
             float saveSkills[ESM::Skill::Length];
-            for (int i = 0; i < ESM::Skill::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Skill::Length; ++i)
             {
                 const auto it = mSaveSkills.find(ESM::Skill::indexToRefId(i));
                 if (it != mSaveSkills.end())

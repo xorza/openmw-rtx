@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <functional>
 #include <mutex>
 
 #include <osg/CopyOp>
@@ -63,6 +64,12 @@ namespace Resource
         mutable std::mutex mDerivedMutex;
         mutable osg::ref_ptr<osg::Referenced> mDerived;
     };
+
+    /// **What a renderer derives of a file where its texels are first read**, handed the texels and the new header on
+    /// the thread that read them, before any other thread sees the header (`ImageManager::setModelImages`): what it
+    /// keys and learns of the file, kept on the header (`ImageHeader::derived`), so nothing reads the file again for
+    /// it. As OpenSceneGraph hooks every read through its registry's `ReadFileCallback`.
+    using HeaderDeriver = std::function<void(const osg::Image& texels, const ImageHeader& header)>;
 
     /// Whether `image` is a header (`ImageHeader`), whose texels its manager reads: asked without reading them.
     bool isHeader(const osg::Image& image);

@@ -30,6 +30,7 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -518,7 +519,8 @@ namespace Rtx
         /// matters is that the GUI lands on top of it and leaves the rest of the picture exactly as the trace left it.
         TEST_F(RtxGuiDrawTest, theGuiLandsOverATracedFrameAndLeavesTheRestOfItAlone)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             Testing::addQuad(scene, Testing::wallAt(200.0f));
 
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
@@ -545,9 +547,9 @@ namespace Rtx
 
         /// A level sheet of `extent` about the origin at z = 0, facing up.
         /// @param fade how much of the sheet the placement shows, as the game fades an actor.
-        SceneDesc makeSheet(float extent, float fade = 1.0f)
+        SceneDesc makeSheet(SceneIdentities& identities, float extent, float fade = 1.0f)
         {
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.addInstance(MeshInstance{ .mMesh = Testing::addQuadMesh(scene, Testing::sheetAt(extent, 0.0f)),
                 .mMaterial = Testing::addGrey(scene),
                 .mOpacity = fade });
@@ -585,6 +587,7 @@ namespace Rtx
         /// inside it changes nothing, and a picture traced at the room makes nothing.
         TEST_F(RtxGuiDrawTest, aViewsRoomIsMadeAsItIsAskedAndCountedWithTheFrame)
         {
+            SceneIdentities identities;
             const Device& device = mProbe.getDevice();
             MemoryAllocator& memory = device.getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
@@ -616,7 +619,7 @@ namespace Rtx
             mRenderer.reservePicture(8, 8);
             EXPECT_EQ(memory.getFrameReserve(), grown) << "a room inside the last one moved the reserve";
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f), {});
             const GuiSlot texture = mRenderer.addGuiTexture(wider, room.height);
             mHeld.push_back(texture);
             const VkDeviceSize before = memory.getHeld(heap, MemoryUse::Frame);
@@ -625,15 +628,37 @@ namespace Rtx
             EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), before) << "a picture at the room made a frame target";
         }
 
+        /// **A picture's room builds no world again**: a world the device holds with no room left for content, which
+        /// a larger reserve from a change of mode would build again, stands as it stood once a wider picture's room
+        /// grows the reserve.
+        TEST_F(RtxGuiDrawTest, aPicturesRoomBuildsNoWorldAgain)
+        {
+            SceneIdentities identities;
+            MemoryAllocator& memory = mProbe.getDevice().getMemory();
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f), {});
+            ASSERT_TRUE(mProbe.holdsScene(SceneSlot::world()));
+
+            const VkDeviceSize reserve = memory.getFrameReserve();
+            memory.limitBudget(VkDeviceSize{ 1 });
+            ASSERT_FALSE(memory.contentFits()) << "a budget of a byte holds no content";
+            mRenderer.reservePicture(mProbe.getPictureRoom().width + 16, mProbe.getPictureRoom().height);
+            const bool held = mProbe.holdsScene(SceneSlot::world());
+            const VkDeviceSize grown = memory.getFrameReserve();
+            memory.limitBudget(std::nullopt);
+            EXPECT_GT(grown, reserve) << "the reserve did not move, so nothing was asked of the world";
+            EXPECT_TRUE(held) << "a picture's room built the world again";
+        }
+
         /// **A picture from a viewpoint is the picture of the block its options lay over it**: the map camera's sheet
         /// under the map camera's sun, with a backdrop that stops where nothing was hit, traced once from the
         /// viewpoint and the options the seam takes and once from the block a test writes whole, with the sky source's
         /// shadow off as every picture has it. The lit sheet at the middle says the comparison has something in it.
         TEST_F(RtxGuiDrawTest, aPictureFromAViewpointIsThePictureOfTheBlockItsOptionsLayOverIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f), {});
 
             const GuiSlot stated = mRenderer.addGuiTexture(extent, extent);
             const GuiSlot written = mRenderer.addGuiTexture(extent, extent);
@@ -672,9 +697,10 @@ namespace Rtx
         /// opaque, and without one the picture says where it stops.
         TEST_F(RtxGuiDrawTest, aTracedPictureFillsAGuiTextureAndSaysWhereItStops)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f), {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
             mHeld.push_back(texture);
@@ -717,7 +743,7 @@ namespace Rtx
             // first left where it found it. It asks whether the two are ordered at all, which only the synchronization
             // layers answer.
             camera.mTransparentBackground = 0;
-            for (int again = 0; again < 2; ++again)
+            for (std::int32_t again = 0; again < 2; ++again)
                 mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
             EXPECT_EQ(inTexture(texture, extent, 5, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 255 }))
@@ -728,7 +754,7 @@ namespace Rtx
             // grey) and its alpha is the quarter: the backdrop it leaves is `0.75 * 255` = 191.25, held as 191, so `1
             // - 191 / 255` is 64 of 255 exactly. Taken straight, its colour would be four times the sheet's; covered
             // by the hit alone, it would not be drawn.
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f, 0.25f), {});
             camera.mTransparentBackground = 1;
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
             mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
@@ -747,11 +773,12 @@ namespace Rtx
         /// placement has to go into the copy the first trace is not reading. Read only after both are recorded.
         TEST_F(RtxGuiDrawTest, twoPicturesOfOneSubjectSceneEachShowTheirOwnPlacement)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(100.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 100.0f), {});
 
-            SceneDesc doll = makeSheet(25.0f);
+            SceneDesc doll = makeSheet(identities, 25.0f);
             const SceneSlot slot = mRenderer.addViewScene();
             mRenderer.setScene(slot, doll, {});
 
@@ -766,7 +793,7 @@ namespace Rtx
 
             mProbe.tracePicture(first, slot, camera, options);
 
-            ASSERT_TRUE(doll.placements().move(0, osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
+            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
             mRenderer.placeScene(slot, doll);
             mProbe.tracePicture(second, slot, camera, options);
 
@@ -780,9 +807,10 @@ namespace Rtx
         /// asked for.
         TEST_F(RtxGuiDrawTest, aTraceLeavesTheCopyItWasAskedForAndNoOther)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f), {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
             mHeld.push_back(texture);
@@ -812,10 +840,11 @@ namespace Rtx
         /// leaves the actor's side at the clear colour.
         TEST_F(RtxGuiDrawTest, aCameraLeavesOutTheClassesItsMaskDoesNotName)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
-            SceneDesc scene;
-            const Index sheet = Testing::addQuadMesh(scene, Testing::sheetAt(25.0f, 0.0f));
+            SceneDesc scene(identities);
+            const MeshIndex sheet = Testing::addQuadMesh(scene, Testing::sheetAt(25.0f, 0.0f));
             scene.addInstance(
                 MeshInstance{ .mTransform = osg::Matrixf::translate(-50.0f, 0.0f, 0.0f), .mMesh = sheet });
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::translate(50.0f, 0.0f, 0.0f),
@@ -848,12 +877,13 @@ namespace Rtx
         /// between the two leaves a bin of the puff in the slot's list for the second picture to ignore.
         TEST_F(RtxGuiDrawTest, aCameraWithoutTheParticleBitDrawsNoSprites)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> puff{ Testing::describeTexel(white) };
 
-            SceneDesc scene = makeSheet(25.0f);
-            const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+            SceneDesc scene = makeSheet(identities, 25.0f);
+            const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
             const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 50.0f),
                 .mRadius = 30.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -899,6 +929,7 @@ namespace Rtx
         /// the same ball, adding.
         TEST_F(RtxGuiDrawTest, aPuffOverNothingIsThereAsMuchAsItIsAnywhere)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> puff{ Testing::describeTexel(white) };
@@ -913,8 +944,8 @@ namespace Rtx
             };
 
             const auto laidWith = [&](bool additive) {
-                SceneDesc scene = makeSheet(25.0f);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                SceneDesc scene = makeSheet(identities, 25.0f);
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 50.0f),
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -955,10 +986,11 @@ namespace Rtx
         /// **The clear colour is exact.** It is written into an eight-bit unorm image, so one is 255 and not 254.
         TEST_F(RtxGuiDrawTest, aPictureShorterThanItsTextureLeavesTheRestAtTheClearColour)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
             constexpr std::uint32_t filled = 8;
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f), {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
             mHeld.push_back(texture);
@@ -987,13 +1019,14 @@ namespace Rtx
         /// geometry, and nothing about the frame may reach the doll's.
         TEST_F(RtxGuiDrawTest, aPictureCanBeOfASceneTheWorldDoesNotHold)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
             // Two hundred across is the whole box, so the world's sheet covers every pixel.
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(100.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 100.0f), {});
 
             const SceneSlot doll = mRenderer.addViewScene();
-            mRenderer.setScene(doll, makeSheet(25.0f), {});
+            mRenderer.setScene(doll, makeSheet(identities, 25.0f), {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
             mHeld.push_back(texture);
@@ -1031,10 +1064,11 @@ namespace Rtx
         /// **And a placement names one scene.** Moving the doll must leave the world's sheet where it is.
         TEST_F(RtxGuiDrawTest, aPlacementIntoAViewSceneReachesThePictureAndLeavesTheWorldAlone)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
-            const SceneDesc world = makeSheet(100.0f);
-            SceneDesc doll = makeSheet(25.0f);
+            const SceneDesc world = makeSheet(identities, 100.0f);
+            SceneDesc doll = makeSheet(identities, 25.0f);
 
             mRenderer.setScene(Rtx::SceneSlot::world(), world, {});
 
@@ -1062,21 +1096,21 @@ namespace Rtx
 
             // Out of the camera's box of two hundred altogether, so what the placement did shows as
             // the picture emptying rather than as a sheet a pixel narrower.
-            ASSERT_TRUE(doll.placements().move(0, osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
+            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
             mRenderer.placeScene(slot, doll);
 
             EXPECT_EQ(covered(slot), 0u) << "the placement did not reach the trace";
 
             // **Two placements before one trace**, which is what a drag does. The picture is the
             // second, so a scheme that carried only the first would show the sheet back in the box.
-            ASSERT_TRUE(doll.placements().move(0, osg::Matrixf::identity()));
+            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::identity()));
             mRenderer.placeScene(slot, doll);
-            ASSERT_TRUE(doll.placements().move(0, osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
+            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
             mRenderer.placeScene(slot, doll);
 
             EXPECT_EQ(covered(slot), 0u) << "the trace showed the first of two placements";
 
-            ASSERT_TRUE(doll.placements().move(0, osg::Matrixf::identity()));
+            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::identity()));
             mRenderer.placeScene(slot, doll);
 
             EXPECT_EQ(covered(slot), 4u) << "a placement brought it back";
@@ -1089,9 +1123,10 @@ namespace Rtx
         /// it going into a slot rather than coming back to main memory.
         TEST_F(RtxGuiDrawTest, theGuiDrawsWithAPictureTheTraceMade)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f), {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
             mHeld.push_back(texture);
@@ -1116,7 +1151,7 @@ namespace Rtx
             // f * 64 / 255` of itself. At `g` = 97 under the tone curve `look.h` states that is `97 f + 128 (1 - f *
             // 64 / 255)` = 160.56, or 161; blended straight it would be `97 * (f * 64 / 255) + 128 (1 - f * 64 / 255)`
             // = 124.09, or 124.
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f, 0.25f), {});
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
             mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
 
@@ -1149,9 +1184,10 @@ namespace Rtx
         /// at all: the same frame at an exposure of one is a different picture, and one is what a picture writes.
         TEST_F(RtxGuiDrawTest, aPictureInsideTheInterfaceLeavesTheFramesExposureAlone)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = sPictureSide;
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(identities, 25.0f), {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
             mHeld.push_back(texture);

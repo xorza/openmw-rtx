@@ -11,7 +11,7 @@ namespace ESM
     struct TimeStamp
     {
         float mHour;
-        int32_t mDay;
+        std::int32_t mDay;
 
         void load(ESMReader& esm, NAME name = "TIME");
     };

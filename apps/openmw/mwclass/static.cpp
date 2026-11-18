@@ -1,15 +1,13 @@
 #include "static.hpp"
 
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwphysics/physicssystem.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-#include "../mwrender/vismask.hpp"
 
 #include "classmodel.hpp"
 

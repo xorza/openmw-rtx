@@ -1,6 +1,7 @@
 #include "imageheader.hpp"
 
 #include <cassert>
+#include <cstdint>
 #include <string_view>
 
 #include <components/vfs/pathutil.hpp>
@@ -16,7 +17,7 @@ namespace Resource
         setFileName(pixels.getFileName());
         // No texels, and nothing to delete: the size, the format and the levels' offsets describe the file's.
         setImage(pixels.s(), pixels.t(), pixels.r(), pixels.getInternalTextureFormat(), pixels.getPixelFormat(),
-            pixels.getDataType(), nullptr, osg::Image::NO_DELETE, static_cast<int>(pixels.getPacking()),
+            pixels.getDataType(), nullptr, osg::Image::NO_DELETE, static_cast<std::int32_t>(pixels.getPacking()),
             pixels.getRowLength());
         setMipmapLevels(pixels.getMipmapLevels());
         setOrigin(pixels.getOrigin());

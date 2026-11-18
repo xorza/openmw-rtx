@@ -1,13 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <variant>
 
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwworld/cellstore.hpp>
 #include <components/esm3/cellref.hpp> // defines RefNum that is used as a unique id
 #include <components/lua/utilpackage.hpp>
-
-#include "../mwworld/cellstore.hpp"
 
 namespace MWLua
 {
@@ -72,7 +72,7 @@ namespace MWLua
         {
             ESM::RefNum mActor;
             std::string mSkill;
-            int useType;
+            std::int32_t useType;
             float scale;
         };
         struct OnSkillLevelUp
@@ -84,7 +84,7 @@ namespace MWLua
         struct OnJailTimeServed
         {
             ESM::RefNum mActor;
-            int mDays;
+            std::int32_t mDays;
         };
         struct OnDropped
         {

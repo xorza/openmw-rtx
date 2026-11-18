@@ -1,15 +1,17 @@
 #include "movementsolver.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <BulletCollision/CollisionDispatch/btCollisionWorld.h>
 #include <BulletCollision/CollisionShapes/btConvexShape.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/misc/convert.hpp>
-
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/esmstore.hpp"
 
 #include "actor.hpp"
 #include "collisiontype.hpp"
@@ -21,9 +23,6 @@
 #include "projectileconvexcallback.hpp"
 #include "stepper.hpp"
 #include "trace.h"
-
-#include <algorithm>
-#include <cmath>
 
 namespace MWPhysics
 {
@@ -46,8 +45,8 @@ namespace MWPhysics
             }
 
             btScalar addSingleResult(btManifoldPoint& contact, const btCollisionObjectWrapper* colObj0Wrap,
-                int /*partId0*/, int /*index0*/, const btCollisionObjectWrapper* colObj1Wrap, int /*partId1*/,
-                int /*index1*/) override
+                std::int32_t /*partId0*/, std::int32_t /*index0*/, const btCollisionObjectWrapper* colObj1Wrap,
+                std::int32_t /*partId1*/, std::int32_t /*index1*/) override
             {
                 if (isActor(colObj0Wrap->getCollisionObject()) && isActor(colObj1Wrap->getCollisionObject()))
                     return 0.0;
@@ -195,12 +194,12 @@ namespace MWPhysics
          */
         float remainingTime = time;
 
-        int numTimesSlid = 0;
+        std::int32_t numTimesSlid = 0;
         osg::Vec3f lastSlideNormal(0, 0, 1);
         osg::Vec3f lastSlideNormalFallback(0, 0, 1);
         bool forceGroundTest = false;
 
-        for (int iterations = 0; iterations < sMaxIterations && remainingTime > 0.0001f; ++iterations)
+        for (std::int32_t iterations = 0; iterations < sMaxIterations && remainingTime > 0.0001f; ++iterations)
         {
             osg::Vec3f nextpos = newPosition + velocity * remainingTime;
             bool underwater = newPosition.z() < swimlevel;

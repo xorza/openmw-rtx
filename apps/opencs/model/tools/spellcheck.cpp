@@ -1,17 +1,16 @@
 #include "spellcheck.hpp"
 
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadspel.hpp>
-
-#include "../prefs/state.hpp"
 
 #include "effectlistcheck.hpp"
 
@@ -21,14 +20,14 @@ CSMTools::SpellCheckStage::SpellCheckStage(const CSMWorld::IdCollection<ESM::Spe
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::SpellCheckStage::setup()
+std::int32_t CSMTools::SpellCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mSpells.getSize();
 }
 
-void CSMTools::SpellCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::SpellCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Spell>& record = mSpells.getRecord(stage);
 

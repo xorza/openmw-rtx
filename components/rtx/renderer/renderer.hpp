@@ -254,6 +254,10 @@ namespace Rtx
 
         std::uint64_t mTableBytes = 0;
 
+        /// What the device's vertex attributes and indices take, in whole blocks: as far as the host's runs reach,
+        /// the meshes placed, the meshes that rest and the holes the freed ones left (`ContentMemory`).
+        std::uint64_t mGeometryBytes = 0;
+
         /// What the structures are worked in beside the two above: the rows, their packing, the
         /// poses and the builds' scratch, which the device holds for the scene as surely.
         std::uint64_t mWorkBytes = 0;
@@ -262,6 +266,13 @@ namespace Rtx
         /// the device would not say: the difference from `mStructureBytes` is what compacting gives.
         std::uint64_t mCompactableBytes = 0;
         std::uint64_t mCompactableNowBytes = 0;
+
+        /// What the structures moved out of a block to give it back have come to since the scene was made: what the
+        /// device's memory past its budget has cost in copies.
+        std::uint64_t mStructureMovedBytes = 0;
+
+        /// The same of the textures moved out of a block to give it back.
+        std::uint64_t mTextureMovedBytes = 0;
 
         /// How many refitted structures the rota has built whole again since the scene was made. A
         /// refit keeps a structure's shape as its placements move and so loses its quality, which a
@@ -693,6 +704,11 @@ namespace Rtx
         /// What the renderer has taken from each of the device's memory heaps. Walks every
         /// allocation, so asked once at a place and never once a frame.
         virtual MemoryReport getMemoryReport() const = 0;
+
+        /// What the device claims of the host's caches, where its memory is the system's: memory it gave back lately
+        /// and is likely to take again, which the caches leave it (`Resource::CacheBudget::yieldTo`); nought where the
+        /// device has memory of its own. Asked once a frame.
+        virtual std::uint64_t getSystemClaim() const = 0;
 
         /// What the world scene is made of, as the backend last placed it. Only meaningful once
         /// `Renderer::setScene` has been called for the world.

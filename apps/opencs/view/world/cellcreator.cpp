@@ -1,5 +1,6 @@
 #include "cellcreator.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <sstream>
 
@@ -8,11 +9,11 @@
 #include <QSpinBox>
 
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/view/world/genericcreator.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
 
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtree.hpp"
+#include "genericcreator.hpp"
 
 class QUndoStack;
 
@@ -32,8 +33,8 @@ void CSVWorld::CellCreator::configureCreateCommand(CSMWorld::CreateCommand& comm
 {
     CSMWorld::IdTree* model = &dynamic_cast<CSMWorld::IdTree&>(*getData().getTableModel(getCollectionId()));
 
-    int parentIndex = model->findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
-    int index = model->findNestedColumnIndex(parentIndex, CSMWorld::Columns::ColumnId_Interior);
+    std::int32_t parentIndex = model->findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+    std::int32_t index = model->findNestedColumnIndex(parentIndex, CSMWorld::Columns::ColumnId_Interior);
     command.addNestedValue(parentIndex, index, mType->currentIndex() == 0);
 }
 
@@ -42,9 +43,9 @@ CSVWorld::CellCreator::CellCreator(CSMWorld::Data& worldData, QUndoStack& undoSt
 {
     mY = new QSpinBox(this);
     mY->setVisible(false);
-    mY->setMinimum(std::numeric_limits<int>::min());
-    mY->setMaximum(std::numeric_limits<int>::max());
-    connect(mY, qOverload<int>(&QSpinBox::valueChanged), this, &CellCreator::valueChanged);
+    mY->setMinimum(std::numeric_limits<std::int32_t>::min());
+    mY->setMaximum(std::numeric_limits<std::int32_t>::max());
+    connect(mY, qOverload<std::int32_t>(&QSpinBox::valueChanged), this, &CellCreator::valueChanged);
     insertAtBeginning(mY, true);
 
     mYLabel = new QLabel("Y", this);
@@ -53,9 +54,9 @@ CSVWorld::CellCreator::CellCreator(CSMWorld::Data& worldData, QUndoStack& undoSt
 
     mX = new QSpinBox(this);
     mX->setVisible(false);
-    mX->setMinimum(std::numeric_limits<int>::min());
-    mX->setMaximum(std::numeric_limits<int>::max());
-    connect(mX, qOverload<int>(&QSpinBox::valueChanged), this, &CellCreator::valueChanged);
+    mX->setMinimum(std::numeric_limits<std::int32_t>::min());
+    mX->setMaximum(std::numeric_limits<std::int32_t>::max());
+    connect(mX, qOverload<std::int32_t>(&QSpinBox::valueChanged), this, &CellCreator::valueChanged);
     insertAtBeginning(mX, true);
 
     mXLabel = new QLabel("X", this);
@@ -67,7 +68,7 @@ CSVWorld::CellCreator::CellCreator(CSMWorld::Data& worldData, QUndoStack& undoSt
     mType->addItem("Interior Cell");
     mType->addItem("Exterior Cell");
 
-    connect(mType, qOverload<int>(&QComboBox::currentIndexChanged), this, &CellCreator::setType);
+    connect(mType, qOverload<std::int32_t>(&QComboBox::currentIndexChanged), this, &CellCreator::setType);
 
     insertAtBeginning(mType, false);
 }
@@ -81,7 +82,7 @@ void CSVWorld::CellCreator::reset()
     GenericCreator::reset();
 }
 
-void CSVWorld::CellCreator::setType(int index)
+void CSVWorld::CellCreator::setType(std::int32_t index)
 {
     setManualEditing(index == 0);
     mXLabel->setVisible(index == 1);
@@ -99,7 +100,7 @@ void CSVWorld::CellCreator::setType(int index)
     update();
 }
 
-void CSVWorld::CellCreator::valueChanged(int index)
+void CSVWorld::CellCreator::valueChanged(std::int32_t index)
 {
     update();
 }

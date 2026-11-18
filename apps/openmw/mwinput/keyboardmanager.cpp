@@ -1,15 +1,15 @@
 #include "keyboardmanager.hpp"
 
 #include <cctype>
+#include <cstdint>
 
 #include <MyGUI_InputManager.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 #include "actions.hpp"
 #include "bindingsmanager.hpp"
@@ -50,7 +50,7 @@ namespace MWInput
             (!(SDLK_SCANCODE_MASK & arg.key) &&
                 // Don't trust isprint for symbols outside the extended ASCII range
                 ((kc == MyGUI::KeyCode::None && arg.key > 0xff)
-                    || (arg.key <= 255 && std::isprint(static_cast<int>(arg.key)))));
+                    || (arg.key <= 255 && std::isprint(static_cast<std::int32_t>(arg.key)))));
         if (kc != MyGUI::KeyCode::None && !mBindingsManager->isDetectingBindingState())
         {
             if (MWBase::Environment::get().getWindowManager()->injectKeyPress(kc, 0, arg.repeat))

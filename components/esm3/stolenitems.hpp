@@ -1,8 +1,10 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
+#include <cstdint>
 #include <map>
 #include <string>
+
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -12,7 +14,7 @@ namespace ESM
     // format 0, saved games only
     struct StolenItems
     {
-        typedef std::map<ESM::RefId, std::map<std::pair<ESM::RefId, bool>, int>> StolenItemsMap;
+        typedef std::map<ESM::RefId, std::map<std::pair<ESM::RefId, bool>, std::int32_t>> StolenItemsMap;
         StolenItemsMap mStolenItems;
 
         void load(ESMReader& esm);

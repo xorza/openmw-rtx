@@ -1,6 +1,7 @@
 #include "controlparser.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
 #include <stdexcept>
 
@@ -11,7 +12,7 @@
 
 namespace Compiler
 {
-    bool ControlParser::parseIfBody(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool ControlParser::parseIfBody(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (keyword == Scanner::K_endif || keyword == Scanner::K_elseif || keyword == Scanner::K_else)
         {
@@ -36,13 +37,13 @@ namespace Compiler
                     Codes block;
 
                     if (iter != mIfCode.rbegin())
-                        Generator::jump(iter->second, static_cast<int>(codes.size() + 1));
+                        Generator::jump(iter->second, static_cast<std::int32_t>(codes.size() + 1));
 
                     if (!iter->first.empty())
                     {
                         // if or elseif
                         std::copy(iter->first.begin(), iter->first.end(), std::back_inserter(block));
-                        Generator::jumpOnZero(block, static_cast<int>(iter->second.size() + 1));
+                        Generator::jumpOnZero(block, static_cast<std::int32_t>(iter->second.size() + 1));
                     }
 
                     std::copy(iter->second.begin(), iter->second.end(), std::back_inserter(block));
@@ -93,7 +94,7 @@ namespace Compiler
         }
     }
 
-    bool ControlParser::parseWhileBody(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool ControlParser::parseWhileBody(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (keyword == Scanner::K_endwhile)
         {
@@ -102,13 +103,13 @@ namespace Compiler
             Codes expr;
             mExprParser.append(expr);
 
-            Generator::jump(loop, -static_cast<int>(mCodeBlock.size() + expr.size()));
+            Generator::jump(loop, -static_cast<std::int32_t>(mCodeBlock.size() + expr.size()));
 
             std::copy(expr.begin(), expr.end(), std::back_inserter(mCode));
 
             Codes skip;
 
-            Generator::jumpOnZero(skip, static_cast<int>(mCodeBlock.size() + loop.size() + 1));
+            Generator::jumpOnZero(skip, static_cast<std::int32_t>(mCodeBlock.size() + loop.size() + 1));
 
             std::copy(skip.begin(), skip.end(), std::back_inserter(mCode));
 
@@ -116,7 +117,7 @@ namespace Compiler
 
             Codes loop2;
 
-            Generator::jump(loop2, -static_cast<int>(mCodeBlock.size() + expr.size() + skip.size()));
+            Generator::jump(loop2, -static_cast<std::int32_t>(mCodeBlock.size() + expr.size() + skip.size()));
 
             if (loop.size() != loop2.size())
                 throw std::logic_error("Internal compiler error: failed to generate a while loop");
@@ -185,7 +186,7 @@ namespace Compiler
         return Parser::parseName(name, loc, scanner);
     }
 
-    bool ControlParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool ControlParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (mState == StartState)
         {
@@ -231,7 +232,7 @@ namespace Compiler
         return Parser::parseKeyword(keyword, loc, scanner);
     }
 
-    bool ControlParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+    bool ControlParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
     {
         if (code == Scanner::S_newline)
         {

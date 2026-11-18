@@ -1,5 +1,11 @@
 #include "loader.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <utility>
+#include <vector>
+
 #include <QCloseEvent>
 #include <QCursor>
 #include <QDialogButtonBox>
@@ -8,17 +14,10 @@
 #include <QProgressBar>
 #include <QVBoxLayout>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/data.hpp>
-
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconversion.hpp>
-
-#include <filesystem>
-#include <stddef.h>
-#include <utility>
-#include <vector>
-
-#include "../../model/doc/document.hpp"
 
 void CSVDoc::LoadingDocument::closeEvent(QCloseEvent* event)
 {
@@ -92,10 +91,10 @@ CSVDoc::LoadingDocument::LoadingDocument(CSMDoc::Document* document)
     connect(mButtons, &QDialogButtonBox::rejected, this, qOverload<>(&LoadingDocument::cancel));
 }
 
-void CSVDoc::LoadingDocument::nextStage(const std::string& name, int fileRecords)
+void CSVDoc::LoadingDocument::nextStage(const std::string& name, std::int32_t fileRecords)
 {
     ++mFilesLoaded;
-    size_t numFiles = mDocument->getContentFiles().size();
+    std::size_t numFiles = mDocument->getContentFiles().size();
 
     mTotalRecordsLabel->setText(QString::fromUtf8(
         ("Loading: " + name + " (" + std::to_string(mFilesLoaded) + " of " + std::to_string((numFiles)) + ")")
@@ -109,7 +108,7 @@ void CSVDoc::LoadingDocument::nextStage(const std::string& name, int fileRecords
     mRecords = fileRecords;
 }
 
-void CSVDoc::LoadingDocument::nextRecord(int records)
+void CSVDoc::LoadingDocument::nextRecord(std::int32_t records)
 {
     if (records <= mRecords)
     {
@@ -191,7 +190,7 @@ void CSVDoc::Loader::loadingStopped(CSMDoc::Document* document, bool completed, 
     }
 }
 
-void CSVDoc::Loader::nextStage(CSMDoc::Document* document, const std::string& name, int fileRecords)
+void CSVDoc::Loader::nextStage(CSMDoc::Document* document, const std::string& name, std::int32_t fileRecords)
 {
     auto iter = mDocuments.find(document);
 
@@ -199,7 +198,7 @@ void CSVDoc::Loader::nextStage(CSMDoc::Document* document, const std::string& na
         iter->second->nextStage(name, fileRecords);
 }
 
-void CSVDoc::Loader::nextRecord(CSMDoc::Document* document, int records)
+void CSVDoc::Loader::nextRecord(CSMDoc::Document* document, std::int32_t records)
 {
     auto iter = mDocuments.find(document);
 

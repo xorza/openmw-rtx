@@ -1,6 +1,9 @@
 #include "launchersettings.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <ranges>
 
 #include <QDebug>
 #include <QDir>
@@ -11,7 +14,8 @@
 #include <QTextStream>
 
 #include <components/debug/debuglog.hpp>
-#include <ranges>
+#include <components/platform/file.hpp>
+#include <components/platform/localtime.hpp>
 
 #include "gamesettings.hpp"
 
@@ -42,13 +46,8 @@ namespace Config
         {
             // basically, use date and time as the name  e.g. YYYY-MM-DDThh:mm:ss
             const std::time_t rawtime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            tm timeinfo{};
-#ifdef _WIN32
-            (void)localtime_s(&timeinfo, &rawtime);
-#else
-            (void)localtime_r(&rawtime, &timeinfo);
-#endif
-            constexpr int base = 10;
+            const std::tm timeinfo = Platform::localTime(rawtime).value_or(std::tm{});
+            constexpr std::int32_t base = 10;
             QChar zeroPad('0');
             return QString("%1-%2-%3T%4:%5:%6")
                 .arg(timeinfo.tm_year + 1900, 4)
@@ -75,10 +74,10 @@ namespace Config
             return false;
         }
 
-        bool parseInt(const QString& value, int& out)
+        bool parseInt(const QString& value, std::int32_t& out)
         {
             bool ok = false;
-            const int converted = value.toInt(&ok);
+            const std::int32_t converted = value.toInt(&ok);
             if (ok)
                 out = converted;
             return ok;
@@ -87,7 +86,7 @@ namespace Config
         bool parseProfilePart(
             const QString& key, const QString& value, std::map<QString, LauncherSettings::Profile>& profiles)
         {
-            const int separator = static_cast<int>(key.lastIndexOf('/'));
+            const auto separator = static_cast<std::int32_t>(key.lastIndexOf('/'));
             if (separator == -1)
                 return false;
 
@@ -198,7 +197,7 @@ namespace Config
         }
 
         template <std::size_t size>
-        void writeKeyValue(const char (&key)[size], int value, QTextStream& stream)
+        void writeKeyValue(const char (&key)[size], std::int32_t value, QTextStream& stream)
         {
             stream << key << '=' << value << '\n';
         }
@@ -273,7 +272,7 @@ void Config::LauncherSettings::removeContentList(const QString& value)
     mProfiles.mValues.erase(value);
 
     mProfiles.mUnknown.removeIf([&](const QPair<QString, QString>& keyValue) {
-        const int separator = static_cast<int>(keyValue.first.lastIndexOf('/'));
+        const auto separator = static_cast<std::int32_t>(keyValue.first.lastIndexOf('/'));
         return separator != -1 && keyValue.first.left(separator) == value;
     });
 }
@@ -331,11 +330,7 @@ void Config::LauncherSettings::setContentList(const GameSettings& gameSettings)
     {
         const auto& listDirs = getDataDirectoryList(listName);
         constexpr auto compareDataDirectories = [](const SettingValue& dir, const QString& listDir) {
-#ifdef Q_OS_WINDOWS
-            constexpr auto caseSensitivity = Qt::CaseInsensitive;
-#else
-            constexpr auto caseSensitivity = Qt::CaseSensitive;
-#endif
+            const auto caseSensitivity = Platform::File::namesIgnoreCase() ? Qt::CaseInsensitive : Qt::CaseSensitive;
             return dir.originalRepresentation == listDir
                 || QDir::cleanPath(dir.originalRepresentation).compare(QDir::cleanPath(listDir), caseSensitivity) == 0;
         };

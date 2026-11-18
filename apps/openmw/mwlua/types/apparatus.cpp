@@ -1,10 +1,11 @@
-#include "types.hpp"
-
-#include "usertypeutil.hpp"
+#include <cstdint>
 
 #include <components/esm3/loadappa.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace sol
 {
@@ -18,7 +19,7 @@ namespace MWLua
 {
     namespace
     {
-        void validateApparatusType(int value)
+        void validateApparatusType(std::int32_t value)
         {
             if (value < ESM::Apparatus::MortarPestle || value > ESM::Apparatus::Retort)
                 throw std::runtime_error("Invalid apparatus type");
@@ -27,10 +28,11 @@ namespace MWLua
         template <class T>
         void addTypeProperty(sol::usertype<T>& record)
         {
-            const auto getter = [](const T& rec) -> int { return Types::RecordType<T>::asRecord(rec).mData.mType; };
+            const auto getter
+                = [](const T& rec) -> std::int32_t { return Types::RecordType<T>::asRecord(rec).mData.mType; };
             if constexpr (Types::RecordType<T>::isMutable)
             {
-                record["type"] = sol::property(std::move(getter), [](T& rec, int value) {
+                record["type"] = sol::property(std::move(getter), [](T& rec, std::int32_t value) {
                     validateApparatusType(value);
                     rec.find().mData.mType = value;
                 });
@@ -60,7 +62,7 @@ namespace MWLua
 
     sol::table makeApparatusTypeTable(const sol::state_view& lua)
     {
-        return LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(lua,
+        return LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, std::int32_t>(lua,
             {
                 { "MortarPestle", ESM::Apparatus::MortarPestle },
                 { "Alembic", ESM::Apparatus::Alembic },

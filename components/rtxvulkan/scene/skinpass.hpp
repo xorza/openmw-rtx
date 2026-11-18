@@ -37,7 +37,7 @@ namespace Rtx
 
         /// Where the posed vertices, normals and tangents go, each indexed by `MeshRange::mBindOffset`:
         /// a copy of the vertices a frame in flight, and one of the normals and tangents.
-        SlotBlocks& mPoses;
+        SlotBlocks<MeshIndex>& mPoses;
         BlockedBuffer& mNormals;
         BlockedBuffer& mTangents;
 
@@ -73,14 +73,14 @@ namespace Rtx
         /// throws the body from there to where it stands. The arrivals' runs are theirs alone, and
         /// a run a departed mesh held is written behind the frame that read it, since a dispatch
         /// recorded now runs behind it.
-        bool recordArrived(VkCommandBuffer commands, const Skinning& what, std::span<const Index> arrived) const;
+        bool recordArrived(VkCommandBuffer commands, const Skinning& what, std::span<const MeshIndex> arrived) const;
 
     private:
         /// One mesh's dispatch over the pose its copy holds, binding whichever of the two pipelines
         /// it needs where `bound` is not already it. The mesh deforms and has vertices, which the
         /// caller asked first. `into`, `normalsInto` and `tangentsInto` are `what`'s three tables at
         /// its own slot, taken once by the caller rather than per mesh.
-        void pose(VkCommandBuffer commands, const Skinning& what, Index index, BlockedBuffer& into,
+        void pose(VkCommandBuffer commands, const Skinning& what, MeshIndex index, BlockedBuffer& into,
             BlockedBuffer& normalsInto, BlockedBuffer& tangentsInto, const Pipeline*& bound) const;
 
         ComputePipeline<Shaders::SkinConstants> mSkin;

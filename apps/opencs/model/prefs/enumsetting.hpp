@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
@@ -36,6 +37,6 @@ namespace CSMPrefs
 
     private slots:
 
-        void valueChanged(int value);
+        void valueChanged(std::int32_t value);
     };
 }

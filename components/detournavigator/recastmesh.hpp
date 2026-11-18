@@ -1,31 +1,32 @@
 #pragma once
 
-#include "areatype.hpp"
-#include "version.hpp"
-
-#include <osg/Vec2i>
-#include <osg/Vec3f>
-
+#include <cstddef>
 #include <cstdint>
 #include <numeric>
 #include <tuple>
 #include <vector>
+
+#include <osg/Vec2i>
+#include <osg/Vec3f>
+
+#include "areatype.hpp"
+#include "version.hpp"
 
 namespace DetourNavigator
 {
     class Mesh
     {
     public:
-        Mesh(std::vector<int>&& indices, std::vector<float>&& vertices, std::vector<AreaType>&& areaTypes);
+        Mesh(std::vector<std::int32_t>&& indices, std::vector<float>&& vertices, std::vector<AreaType>&& areaTypes);
 
-        const std::vector<int>& getIndices() const noexcept { return mIndices; }
+        const std::vector<std::int32_t>& getIndices() const noexcept { return mIndices; }
         const std::vector<float>& getVertices() const noexcept { return mVertices; }
         const std::vector<AreaType>& getAreaTypes() const noexcept { return mAreaTypes; }
         std::size_t getVerticesCount() const noexcept { return mVertices.size() / 3; }
         std::size_t getTrianglesCount() const noexcept { return mAreaTypes.size(); }
 
     private:
-        std::vector<int> mIndices;
+        std::vector<std::int32_t> mIndices;
         std::vector<float> mVertices;
         std::vector<AreaType> mAreaTypes;
 
@@ -37,14 +38,14 @@ namespace DetourNavigator
 
         friend inline std::size_t getSize(const Mesh& value) noexcept
         {
-            return value.mIndices.size() * sizeof(int) + value.mVertices.size() * sizeof(float)
+            return value.mIndices.size() * sizeof(std::int32_t) + value.mVertices.size() * sizeof(float)
                 + value.mAreaTypes.size() * sizeof(AreaType);
         }
     };
 
     struct Water
     {
-        int mCellSize;
+        std::int32_t mCellSize;
         float mLevel;
     };
 
@@ -66,13 +67,13 @@ namespace DetourNavigator
         return tie(lhs) < tie(rhs);
     }
 
-    inline osg::Vec2f getWaterShift2d(const osg::Vec2i& cellPosition, int cellSize)
+    inline osg::Vec2f getWaterShift2d(const osg::Vec2i& cellPosition, std::int32_t cellSize)
     {
         return osg::Vec2f((static_cast<float>(cellPosition.x()) + 0.5f) * static_cast<float>(cellSize),
             (static_cast<float>(cellPosition.y()) + 0.5f) * static_cast<float>(cellSize));
     }
 
-    inline osg::Vec3f getWaterShift3d(const osg::Vec2i& cellPosition, int cellSize, float level)
+    inline osg::Vec3f getWaterShift3d(const osg::Vec2i& cellPosition, std::int32_t cellSize, float level)
     {
         return osg::Vec3f(getWaterShift2d(cellPosition, cellSize), level);
     }
@@ -80,7 +81,7 @@ namespace DetourNavigator
     struct Heightfield
     {
         osg::Vec2i mCellPosition;
-        int mCellSize{};
+        std::int32_t mCellSize{};
         std::uint8_t mLength{};
         float mMinHeight{};
         float mMaxHeight{};
@@ -104,7 +105,7 @@ namespace DetourNavigator
     struct FlatHeightfield
     {
         osg::Vec2i mCellPosition;
-        int mCellSize{};
+        std::int32_t mCellSize{};
         float mHeight{};
     };
 

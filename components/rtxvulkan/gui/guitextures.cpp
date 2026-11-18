@@ -62,11 +62,11 @@ namespace Rtx
         // memory held — and the pass never has to ask whether a texture is ready.
         image.clear(mBatch.getCommands(), Use::sUndefined, VkClearColorValue{}, Use::sFragmentSample);
 
-        if (const Index taken = mFree.take(); taken != sNoIndex)
+        if (const auto taken = mFree.take(); !taken.isNone())
         {
-            mImages[taken] = std::move(image);
-            mForms[taken] = AlphaForm::Straight;
-            return GuiSlot::at(taken);
+            mImages[taken.at()] = std::move(image);
+            mForms[taken.at()] = AlphaForm::Straight;
+            return GuiSlot::at(taken.at());
         }
 
         mImages.push_back(std::move(image));
@@ -153,7 +153,7 @@ namespace Rtx
         // because that would put a round trip on every window that closes. The draw two frames
         // back that sampled it is before that submit either way.
         mBatch.keep(std::move(mImages[slot.get()]));
-        mFree.free(slot.get());
+        mFree.free(RowIndex<struct GuiTextureRows>(slot.get()));
 
         // The buffer stays for whatever takes the slot next; what was in it is nobody's now.
         mCopies[slot.get()].mRides = Copy::sNever;

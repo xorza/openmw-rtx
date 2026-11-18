@@ -109,10 +109,10 @@ namespace Crash
         void answerGame(MonitorAnswer answer, std::uint32_t monitor) const;
 
         /// The game's side, once `wrapApplication` returns: it reached its end, with `code`.
-        void setEnd(int code) const;
+        void setEnd(std::int32_t code) const;
 
         /// What the game ended with where it reached its end, or nothing where it did not.
-        std::optional<int> getEnd() const;
+        std::optional<std::int32_t> getEnd() const;
 
         /// Hands the monitor the game's log, `log` in UTF-8, or says it cannot: no page, a path
         /// longer than `sPathCapacity`, or one handed over already. Once, from the thread that sets

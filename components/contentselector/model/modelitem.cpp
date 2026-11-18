@@ -1,5 +1,7 @@
 #include "modelitem.hpp"
 
+#include <cstdint>
+
 ContentSelectorModel::ModelItem::ModelItem(ModelItem* parent)
     : mParentItem(parent)
 {
@@ -28,7 +30,7 @@ bool ContentSelectorModel::ModelItem::hasFormat(const QString& mimetype) const
 
     return QMimeData::hasFormat(mimetype);
 }
-int ContentSelectorModel::ModelItem::row() const
+std::int32_t ContentSelectorModel::ModelItem::row() const
 {
     if (mParentItem)
         return 1;
@@ -38,19 +40,19 @@ int ContentSelectorModel::ModelItem::row() const
     return -1;
 }
 
-int ContentSelectorModel::ModelItem::childCount() const
+std::int32_t ContentSelectorModel::ModelItem::childCount() const
 {
-    return static_cast<int>(mChildItems.count());
+    return static_cast<std::int32_t>(mChildItems.count());
 }
 
-int ContentSelectorModel::ModelItem::childRow(ModelItem* child) const
+std::int32_t ContentSelectorModel::ModelItem::childRow(ModelItem* child) const
 {
     Q_ASSERT(child);
 
-    return static_cast<int>(mChildItems.indexOf(child));
+    return static_cast<std::int32_t>(mChildItems.indexOf(child));
 }
 
-ContentSelectorModel::ModelItem* ContentSelectorModel::ModelItem::child(int row)
+ContentSelectorModel::ModelItem* ContentSelectorModel::ModelItem::child(std::int32_t row)
 {
     return mChildItems.value(row);
 }
@@ -60,7 +62,7 @@ void ContentSelectorModel::ModelItem::appendChild(ModelItem* item)
     mChildItems.append(item);
 }
 
-void ContentSelectorModel::ModelItem::removeChild(int row)
+void ContentSelectorModel::ModelItem::removeChild(std::int32_t row)
 {
     mChildItems.removeAt(row);
 }

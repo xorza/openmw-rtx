@@ -1,16 +1,15 @@
 #include "animationextensions.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <components/compiler/opcodes.hpp>
-
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
 
 #include "ref.hpp"
 
@@ -36,7 +35,7 @@ namespace MWScript
             class OpPlayAnim : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -58,7 +57,7 @@ namespace MWScript
                     }
 
                     MWBase::Environment::get().getMechanicsManager()->playAnimationGroup(
-                        ptr, group, mode, std::numeric_limits<uint32_t>::max(), true);
+                        ptr, group, mode, std::numeric_limits<std::uint32_t>::max(), true);
                 }
             };
 
@@ -66,7 +65,7 @@ namespace MWScript
             class OpLoopAnim : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 

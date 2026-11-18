@@ -1,9 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <QObject>
-
 #include <osg/Vec3d>
 
 namespace osg
@@ -48,10 +48,10 @@ namespace CSVRender
         void setWheelMovementMultiplier(double value);
 
         // moves the camera to an intelligent position
-        void setup(osg::Group* root, unsigned int mask, const osg::Vec3d& up);
+        void setup(osg::Group* root, std::uint32_t mask, const osg::Vec3d& up);
 
-        virtual void handleMouseMoveEvent(int x, int y) = 0;
-        virtual void handleMouseScrollEvent(int x) = 0;
+        virtual void handleMouseMoveEvent(std::int32_t x, std::int32_t y) = 0;
+        virtual void handleMouseScrollEvent(std::int32_t x) = 0;
 
         virtual void update(double dt) = 0;
 
@@ -87,8 +87,8 @@ namespace CSVRender
         void fixUpAxis(const osg::Vec3d& up);
         void unfixUpAxis();
 
-        void handleMouseMoveEvent(int x, int y) override;
-        void handleMouseScrollEvent(int x) override;
+        void handleMouseMoveEvent(std::int32_t x, std::int32_t y) override;
+        void handleMouseScrollEvent(std::int32_t x) override;
 
         void update(double dt) override;
 
@@ -134,15 +134,15 @@ namespace CSVRender
         osg::Vec3d getCenter() const;
         double getOrbitSpeed() const;
         double getOrbitSpeedMultiplier() const;
-        unsigned int getPickingMask() const;
+        std::uint32_t getPickingMask() const;
 
         void setCenter(const osg::Vec3d& value);
         void setOrbitSpeed(double value);
         void setOrbitSpeedMultiplier(double value);
-        void setPickingMask(unsigned int value);
+        void setPickingMask(std::uint32_t value);
 
-        void handleMouseMoveEvent(int x, int y) override;
-        void handleMouseScrollEvent(int x) override;
+        void handleMouseMoveEvent(std::int32_t x, std::int32_t y) override;
+        void handleMouseScrollEvent(std::int32_t x) override;
 
         void update(double dt) override;
 
@@ -164,7 +164,7 @@ namespace CSVRender
         bool mNaviPrimary, mNaviSecondary;
         bool mFast, mFastAlternate;
         bool mLeft, mRight, mUp, mDown, mRollLeft, mRollRight;
-        unsigned int mPickingMask;
+        std::uint32_t mPickingMask;
         osg::Vec3d mCenter;
         double mDistance;
 

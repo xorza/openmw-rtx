@@ -2,6 +2,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <mutex>
 #include <set>
 #include <stdexcept>
@@ -23,7 +24,7 @@ namespace Rtx
         TEST(RtxParallelTest, everyIndexRunsOnceAndTheRunWaitsForAllOfThem)
         {
             constexpr std::size_t count = 64;
-            std::vector<std::atomic<int>> ran(count);
+            std::vector<std::atomic<std::int32_t>> ran(count);
 
             runInParallel(
                 "parallel", count, Hands::Every, std::stop_token{}, [] { return 0; },

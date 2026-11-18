@@ -31,9 +31,10 @@
 #include <cstdint>
 #include <string>
 
-#include "lighting.hpp"
 #include <components/esm/defs.hpp>
 #include <components/esm/formid.hpp>
+
+#include "lighting.hpp"
 
 namespace ESM4
 {

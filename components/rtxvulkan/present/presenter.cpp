@@ -1,5 +1,6 @@
 #include "presenter.hpp"
 
+#include <cstdint>
 #include <span>
 #include <utility>
 #include <vector>
@@ -27,8 +28,8 @@ namespace Rtx
         /// The window's size in pixels, which is not the size it was asked for on a scaled display.
         VkExtent2D drawableSize(SDL_Window* window)
         {
-            int width = 0;
-            int height = 0;
+            std::int32_t width = 0;
+            std::int32_t height = 0;
             SDL_GetWindowSizeInPixels(window, &width, &height);
             return VkExtent2D{ static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height) };
         }
@@ -277,9 +278,10 @@ namespace Rtx
         const VkCommandBuffer commands = recording.get();
 
         const VkExtent2D extent = mSwapchain.getExtent();
-        const osg::Vec2i frameSize(static_cast<int>(frame.getWidth()), static_cast<int>(frame.getHeight()));
-        const Misc::Presentation presentation
-            = Misc::present(frameSize, osg::Vec2i(static_cast<int>(extent.width), static_cast<int>(extent.height)));
+        const osg::Vec2i frameSize(
+            static_cast<std::int32_t>(frame.getWidth()), static_cast<std::int32_t>(frame.getHeight()));
+        const Misc::Presentation presentation = Misc::present(
+            frameSize, osg::Vec2i(static_cast<std::int32_t>(extent.width), static_cast<std::int32_t>(extent.height)));
         const osg::Vec2i& origin = presentation.mShownOrigin;
         const osg::Vec2i& shown = presentation.mShownSize;
 

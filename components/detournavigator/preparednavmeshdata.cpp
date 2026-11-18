@@ -1,8 +1,9 @@
 #include "preparednavmeshdata.hpp"
-#include "preparednavmeshdatatuple.hpp"
-#include "recast.hpp"
 
 #include <Recast.h>
+
+#include "preparednavmeshdatatuple.hpp"
+#include "recast.hpp"
 
 namespace
 {

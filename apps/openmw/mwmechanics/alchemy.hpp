@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/effectlist.hpp>
-
-#include "../mwworld/ptr.hpp"
 
 namespace ESM
 {
@@ -46,10 +47,10 @@ namespace MWMechanics
         TToolsContainer mTools;
         TIngredientsContainer mIngredients;
         TEffectsContainer mEffects;
-        int mValue;
+        std::int32_t mValue;
         std::string mPotionName;
 
-        void applyTools(int flags, float& value) const;
+        void applyTools(std::int32_t flags, float& value) const;
 
         void updateEffects();
 
@@ -75,17 +76,17 @@ namespace MWMechanics
 
         float getAlchemyFactor() const;
 
-        int countIngredients() const;
+        std::int32_t countIngredients() const;
 
         TEffectsIterator beginEffects() const;
 
         TEffectsIterator endEffects() const;
 
     public:
-        int countPotionsToBrew() const;
+        std::int32_t countPotionsToBrew() const;
         ///< calculates maximum amount of potions, which you can make from selected ingredients
 
-        static bool knownEffect(size_t potionEffectIndex, const MWWorld::Ptr& npc);
+        static bool knownEffect(std::size_t potionEffectIndex, const MWWorld::Ptr& npc);
         ///< Does npc have sufficient alchemy skill to know about this potion effect?
 
         void setAlchemist(const MWWorld::Ptr& npc);
@@ -111,7 +112,7 @@ namespace MWMechanics
         std::vector<EffectKey> listEffects() const;
         ///< List all effects shared by at least two ingredients.
 
-        int addIngredient(const MWWorld::Ptr& ingredient);
+        std::int32_t addIngredient(const MWWorld::Ptr& ingredient);
         ///< Add ingredient into the next free slot.
         ///
         /// \return Slot index or -1, if adding failed because of no free slot or the ingredient type being
@@ -120,16 +121,16 @@ namespace MWMechanics
         void addApparatus(const MWWorld::Ptr& apparatus);
         ///< Add apparatus into the appropriate slot.
 
-        void removeIngredient(size_t index);
+        void removeIngredient(std::size_t index);
         ///< Remove ingredient from slot (calling this function on an empty slot is a no-op).
 
-        void removeApparatus(size_t index);
+        void removeApparatus(std::size_t index);
         ///< Remove apparatus from slot.
 
         std::string suggestPotionName();
         ///< Suggest a name for the potion, based on the current effects
 
-        Result create(const std::string& name, int& count);
+        Result create(const std::string& name, std::int32_t& count);
         ///< Try to create potions from the ingredients, place them in the inventory of the alchemist and
         /// adjust the skills of the alchemist accordingly.
         /// \param name must not be an empty string, or Result_NoName is returned

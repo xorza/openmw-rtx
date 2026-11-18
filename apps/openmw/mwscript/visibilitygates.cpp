@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <ranges>
 #include <sstream>
@@ -10,6 +11,8 @@
 #include <string_view>
 #include <utility>
 
+#include <apps/openmw/mwrender/objectstorage.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/compiler/context.hpp>
 #include <components/compiler/errorhandler.hpp>
 #include <components/compiler/exception.hpp>
@@ -25,9 +28,6 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/interpreter/types.hpp>
 #include <components/misc/strings/lower.hpp>
-
-#include "../mwrender/objectstorage.hpp"
-#include "../mwworld/esmstore.hpp"
 
 namespace MWScript
 {
@@ -117,7 +117,7 @@ namespace MWScript
             {
             }
 
-            bool parseInt(int, const Compiler::TokenLoc&, Compiler::Scanner&) override { return other(); }
+            bool parseInt(std::int32_t, const Compiler::TokenLoc&, Compiler::Scanner&) override { return other(); }
             bool parseFloat(float, const Compiler::TokenLoc&, Compiler::Scanner&) override { return other(); }
             bool parseComment(const std::string&, const Compiler::TokenLoc&, Compiler::Scanner&) override
             {
@@ -125,7 +125,7 @@ namespace MWScript
             }
             void parseEOF(Compiler::Scanner&) override {}
 
-            bool parseKeyword(int keyword, const Compiler::TokenLoc&, Compiler::Scanner&) override
+            bool parseKeyword(std::int32_t keyword, const Compiler::TokenLoc&, Compiler::Scanner&) override
             {
                 mState = keyword == Compiler::Scanner::K_set ? State::Set : State::Line;
                 return true;
@@ -149,7 +149,7 @@ namespace MWScript
                 return true;
             }
 
-            bool parseSpecial(int code, const Compiler::TokenLoc&, Compiler::Scanner&) override
+            bool parseSpecial(std::int32_t code, const Compiler::TokenLoc&, Compiler::Scanner&) override
             {
                 if (code == Compiler::Scanner::S_newline)
                     mState = State::Line;

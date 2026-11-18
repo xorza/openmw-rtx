@@ -1,11 +1,11 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 
 #include <osg/Drawable>
-#include <osgAnimation/RigGeometry>
-
 #include <osg/NodeVisitor>
+#include <osgAnimation/RigGeometry>
 
 namespace SceneUtil
 {
@@ -47,7 +47,7 @@ namespace SceneUtil
         /// osg::Drawable::UpdateCallback
         void updateRigGeometry(OsgaRigGeometry* geom, osg::NodeVisitor* nv);
 
-        OsgaRigGeometry* getGeometry(int geometry);
+        OsgaRigGeometry* getGeometry(std::int32_t geometry);
 
         void accept(osg::NodeVisitor& nv) override;
         void accept(osg::PrimitiveFunctor&) const override;
@@ -62,12 +62,12 @@ namespace SceneUtil
         osg::MatrixTransform* mBackToOrigin; // This is used to move riggeometries from their slot locations to skeleton
                                              // origin in order to get correct deformations for bodyparts
 
-        unsigned int mLastFrameNumber;
+        std::uint32_t mLastFrameNumber;
         bool mIsBodyPart;
 
         void updateBackToOriginTransform(OsgaRigGeometry* geometry);
 
-        OsgaRigGeometry* getRigGeometryPerFrame(unsigned int frame) const;
+        OsgaRigGeometry* getRigGeometryPerFrame(std::uint32_t frame) const;
     };
 
 }

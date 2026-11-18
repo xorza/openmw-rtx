@@ -32,11 +32,13 @@ either expressed or implied, of the FreeBSD Project.
 
 #include "gldebug.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <memory>
-
-#include <components/debug/debuglog.hpp>
 #include <utility>
+
+#include "debuglog.hpp"
 
 // OpenGL constants not provided by OSG:
 #include <SDL3/SDL_opengl_glext.h>
@@ -49,7 +51,6 @@ namespace Debug
         void GL_APIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
             const GLchar* message, const void* userParam)
         {
-#ifdef GL_DEBUG_OUTPUT
             std::string srcStr;
             switch (source)
             {
@@ -111,7 +112,6 @@ namespace Debug
             }
 
             Log(logSeverity) << "OpenGL " << typeStr << " [" << srcStr << "]: " << message;
-#endif
         }
 
         class PushDebugGroup
@@ -136,10 +136,9 @@ namespace Debug
 
     void EnableGLDebugOperation::operator()(osg::GraphicsContext* graphicsContext)
     {
-#ifdef GL_DEBUG_OUTPUT
         OpenThreads::ScopedLock<OpenThreads::Mutex> lock(mMutex);
 
-        unsigned int contextID = graphicsContext->getState()->getContextID();
+        std::uint32_t contextID = graphicsContext->getState()->getContextID();
 
         typedef void(GL_APIENTRY * DEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
             const GLchar* message, const void* userParam);
@@ -177,7 +176,6 @@ namespace Debug
             Log(Info) << "OpenGL debug callback attached.";
         }
         else
-#endif
             Log(Error) << "Unable to attach OpenGL debug callback.";
     }
 
@@ -195,11 +193,7 @@ namespace Debug
     }
 
     DebugGroup::DebugGroup(std::string message, GLuint id)
-#ifdef GL_DEBUG_OUTPUT
         : mSource(GL_DEBUG_SOURCE_APPLICATION)
-#else
-        : mSource(0x824A)
-#endif
         , mId(id)
         , mMessage(std::move(message))
     {
@@ -225,19 +219,19 @@ namespace Debug
         auto& attributeVec = state.getAttributeVec(this);
         auto& lastAppliedStack = sLastAppliedStack[state.getContextID()];
 
-        size_t firstNonMatch = 0;
+        std::size_t firstNonMatch = 0;
         while (firstNonMatch < lastAppliedStack.size()
             && ((firstNonMatch < attributeVec.size()
                     && lastAppliedStack[firstNonMatch] == attributeVec[firstNonMatch].first)
                 || lastAppliedStack[firstNonMatch] == this))
             firstNonMatch++;
 
-        for (size_t i = lastAppliedStack.size(); i > firstNonMatch; --i)
+        for (std::size_t i = lastAppliedStack.size(); i > firstNonMatch; --i)
             lastAppliedStack[i - 1]->pop(state);
         lastAppliedStack.resize(firstNonMatch);
 
         lastAppliedStack.reserve(attributeVec.size());
-        for (size_t i = firstNonMatch; i < attributeVec.size(); ++i)
+        for (std::size_t i = firstNonMatch; i < attributeVec.size(); ++i)
         {
             const auto* group = static_cast<const DebugGroup*>(attributeVec[i].first);
             group->push(state);
@@ -250,7 +244,7 @@ namespace Debug
         }
     }
 
-    int DebugGroup::compare(const StateAttribute& sa) const
+    std::int32_t DebugGroup::compare(const StateAttribute& sa) const
     {
         // NOLINTNEXTLINE(modernize-use-auto): OSG's macro declares the type it is handed, which `auto` cannot be.
         COMPARE_StateAttribute_Types(DebugGroup, sa);
@@ -288,6 +282,6 @@ namespace Debug
             PushDebugGroup::sInstance->glPopDebugGroup();
     }
 
-    std::map<unsigned int, std::vector<const DebugGroup*>> DebugGroup::sLastAppliedStack{};
+    std::map<std::uint32_t, std::vector<const DebugGroup*>> DebugGroup::sLastAppliedStack{};
 
 }

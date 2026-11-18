@@ -1,9 +1,10 @@
 #include "magiceffects.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <components/esm3/loadmgef.hpp>
+#include "loadmgef.hpp"
 
 namespace ESM
 {
@@ -25,13 +26,13 @@ namespace ESM
             RefId effectId;
             if (esm.getFormatVersion() <= MaxSerializeEffectRefIdFormatVersion)
             {
-                int32_t id = 0;
+                std::int32_t id = 0;
                 esm.getHT(id);
                 effectId = ESM::MagicEffect::indexToRefId(id);
             }
             else
                 effectId = esm.getRefId();
-            std::pair<int32_t, float> params;
+            std::pair<std::int32_t, float> params;
             esm.getHNT(params.first, "BASE");
             if (esm.getFormatVersion() <= MaxClearModifiersFormatVersion)
                 params.second = 0.f;

@@ -100,8 +100,8 @@ namespace Rtx
         /// system draws with.
         struct HeldSprite
         {
-            TextureHold mSlot;
-            TextureHold mLighting;
+            ReadingHold mSlot;
+            ReadingHold mLighting;
             Reach mReach;
 
             /// How the system's sprites composite: one that adds is light and must not be lit.

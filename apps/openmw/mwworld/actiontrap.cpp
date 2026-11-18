@@ -1,9 +1,8 @@
 #include "actiontrap.hpp"
 
-#include "../mwmechanics/spellcasting.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/spellcasting.hpp>
 
 namespace MWWorld
 {

@@ -1,13 +1,14 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
+#include <components/esm3/loadnpc.hpp>
+
 #include "aipackagetypeid.hpp"
 #include "aistate.hpp"
-
-#include <components/esm3/loadnpc.hpp>
 
 namespace MWWorld
 {
@@ -40,8 +41,8 @@ namespace MWMechanics
         bool mDone{};
         bool mResetFriendlyHits{};
 
-        int mNumCombatPackages{};
-        int mNumPursuitPackages{};
+        std::int32_t mNumCombatPackages{};
+        std::int32_t mNumPursuitPackages{};
 
         /// Copy AiSequence
         void copy(const AiSequence& sequence);

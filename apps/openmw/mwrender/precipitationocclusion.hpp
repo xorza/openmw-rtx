@@ -1,9 +1,9 @@
 #pragma once
 
+#include <optional>
+
 #include <osg/Camera>
 #include <osg/Texture2D>
-
-#include <optional>
 
 namespace MWRender
 {

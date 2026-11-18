@@ -56,7 +56,8 @@ namespace Serialization
         }
 
         template <class Visitor, class T>
-        auto operator()(Visitor&& visitor, T&& value) const -> std::enable_if_t<isContiguousContainer<T>>
+        auto operator()(Visitor&& visitor, T&& value) const -> void
+            requires(isContiguousContainer<T>)
         {
             if constexpr (mode == Mode::Write)
                 visitor(self(), static_cast<std::uint64_t>(value.size()));

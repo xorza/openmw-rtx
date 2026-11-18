@@ -1,4 +1,16 @@
 #include "makenavmesh.hpp"
+
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+#include <DetourNavMesh.h>
+#include <DetourNavMeshBuilder.h>
+#include <Recast.h>
+
+#include <components/debug/debuglog.hpp>
+
 #include "debug.hpp"
 #include "exceptions.hpp"
 #include "flags.hpp"
@@ -12,20 +24,11 @@
 #include "settings.hpp"
 #include "settingsutils.hpp"
 
-#include "components/debug/debuglog.hpp"
-
-#include <DetourNavMesh.h>
-#include <DetourNavMeshBuilder.h>
-#include <Recast.h>
-
-#include <algorithm>
-#include <array>
-
 namespace DetourNavigator
 {
     namespace
     {
-        constexpr int walkableRadiusUpperLimit = 255;
+        constexpr std::int32_t walkableRadiusUpperLimit = 255;
 
         struct Rectangle
         {
@@ -72,18 +75,18 @@ namespace DetourNavigator
             return Flag_none;
         }
 
-        std::vector<unsigned char> getOffMeshConAreas(std::span<const OffMeshConnection> connections)
+        std::vector<std::uint8_t> getOffMeshConAreas(std::span<const OffMeshConnection> connections)
         {
-            std::vector<unsigned char> result;
+            std::vector<std::uint8_t> result;
             result.reserve(connections.size());
             std::transform(connections.begin(), connections.end(), std::back_inserter(result),
                 [](const OffMeshConnection& v) { return v.mAreaType; });
             return result;
         }
 
-        std::vector<unsigned short> getOffMeshFlags(std::span<const OffMeshConnection> connections)
+        std::vector<std::uint16_t> getOffMeshFlags(std::span<const OffMeshConnection> connections)
         {
-            std::vector<unsigned short> result;
+            std::vector<std::uint16_t> result;
             result.reserve(connections.size());
             std::transform(connections.begin(), connections.end(), std::back_inserter(result),
                 [](const OffMeshConnection& v) { return getFlag(v.mAreaType); });
@@ -110,24 +113,24 @@ namespace DetourNavigator
             return waterLevel - settings.mSwimHeightScale * agentHalfExtentsZ - agentHalfExtentsZ;
         }
 
-        int getWalkableHeight(const RecastSettings& settings, const AgentBounds& agentBounds)
+        std::int32_t getWalkableHeight(const RecastSettings& settings, const AgentBounds& agentBounds)
         {
-            return static_cast<int>(std::ceil(getHeight(settings, agentBounds) / settings.mCellHeight));
+            return static_cast<std::int32_t>(std::ceil(getHeight(settings, agentBounds) / settings.mCellHeight));
         }
 
-        int getWalkableRadius(const RecastSettings& settings, const AgentBounds& agentBounds)
+        std::int32_t getWalkableRadius(const RecastSettings& settings, const AgentBounds& agentBounds)
         {
-            return static_cast<int>(std::ceil(getRadius(settings, agentBounds) / settings.mCellSize));
+            return static_cast<std::int32_t>(std::ceil(getRadius(settings, agentBounds) / settings.mCellSize));
         }
 
         struct RecastParams
         {
             float mSampleDist = 0;
             float mSampleMaxError = 0;
-            int mMaxEdgeLen = 0;
-            int mWalkableClimb = 0;
-            int mWalkableHeight = 0;
-            int mWalkableRadius = 0;
+            std::int32_t mMaxEdgeLen = 0;
+            std::int32_t mWalkableClimb = 0;
+            std::int32_t mWalkableHeight = 0;
+            std::int32_t mWalkableRadius = 0;
         };
 
         RecastParams makeRecastParams(const RecastSettings& settings, const AgentBounds& agentBounds)
@@ -135,10 +138,10 @@ namespace DetourNavigator
             RecastParams result;
 
             result.mWalkableHeight = getWalkableHeight(settings, agentBounds);
-            result.mWalkableClimb = static_cast<int>(std::floor(getMaxClimb(settings) / settings.mCellHeight));
+            result.mWalkableClimb = static_cast<std::int32_t>(std::floor(getMaxClimb(settings) / settings.mCellHeight));
             result.mWalkableRadius = getWalkableRadius(settings, agentBounds);
             result.mMaxEdgeLen
-                = static_cast<int>(std::round(static_cast<float>(settings.mMaxEdgeLen) / settings.mCellSize));
+                = static_cast<std::int32_t>(std::round(static_cast<float>(settings.mMaxEdgeLen) / settings.mCellSize));
             result.mSampleDist
                 = settings.mDetailSampleDist < 0.9f ? 0 : settings.mCellSize * settings.mDetailSampleDist;
             result.mSampleMaxError = settings.mCellHeight * settings.mDetailSampleMaxError;
@@ -149,9 +152,9 @@ namespace DetourNavigator
         [[nodiscard]] bool initHeightfield(RecastContext& context, const TilePosition& tilePosition, float minZ,
             float maxZ, const RecastSettings& settings, rcHeightfield& solid)
         {
-            const int size = settings.mTileSize + settings.mBorderSize * 2;
-            const int width = size;
-            const int height = size;
+            const std::int32_t size = settings.mTileSize + settings.mBorderSize * 2;
+            const std::int32_t width = size;
+            const std::int32_t height = size;
             const float halfBoundsSize = static_cast<float>(size) * settings.mCellSize * 0.5f;
             const osg::Vec2f shift
                 = osg::Vec2f(static_cast<float>(tilePosition.x()) + 0.5f, static_cast<float>(tilePosition.y()) + 0.5f)
@@ -198,7 +201,7 @@ namespace DetourNavigator
         [[nodiscard]] bool rasterizeTriangles(RecastContext& context, const Mesh& mesh, const RecastSettings& settings,
             const RecastParams& params, rcHeightfield& solid)
         {
-            std::vector<unsigned char> areas(mesh.getAreaTypes().begin(), mesh.getAreaTypes().end());
+            std::vector<std::uint8_t> areas(mesh.getAreaTypes().begin(), mesh.getAreaTypes().end());
             std::vector<float> vertices = mesh.getVertices();
 
             constexpr std::size_t verticesPerTriangle = 3;
@@ -216,11 +219,12 @@ namespace DetourNavigator
             }
 
             rcClearUnwalkableTriangles(&context, settings.mMaxSlope, vertices.data(),
-                static_cast<int>(mesh.getVerticesCount()), mesh.getIndices().data(), static_cast<int>(areas.size()),
-                areas.data());
+                static_cast<std::int32_t>(mesh.getVerticesCount()), mesh.getIndices().data(),
+                static_cast<std::int32_t>(areas.size()), areas.data());
 
-            return rcRasterizeTriangles(&context, vertices.data(), static_cast<int>(mesh.getVerticesCount()),
-                mesh.getIndices().data(), areas.data(), static_cast<int>(areas.size()), solid, params.mWalkableClimb);
+            return rcRasterizeTriangles(&context, vertices.data(), static_cast<std::int32_t>(mesh.getVerticesCount()),
+                mesh.getIndices().data(), areas.data(), static_cast<std::int32_t>(areas.size()), solid,
+                params.mWalkableClimb);
         }
 
         [[nodiscard]] bool rasterizeTriangles(RecastContext& context, const Rectangle& rectangle, AreaType areaType,
@@ -253,10 +257,10 @@ namespace DetourNavigator
                 3, // triangle 1
             };
 
-            const std::array<unsigned char, 2> areas{ areaType, areaType };
+            const std::array<std::uint8_t, 2> areas{ areaType, areaType };
 
-            return rcRasterizeTriangles(&context, vertices.data(), static_cast<int>(vertices.size() / 3),
-                indices.data(), areas.data(), static_cast<int>(areas.size()), solid, params.mWalkableClimb);
+            return rcRasterizeTriangles(&context, vertices.data(), static_cast<std::int32_t>(vertices.size() / 3),
+                indices.data(), areas.data(), static_cast<std::int32_t>(areas.size()), solid, params.mWalkableClimb);
         }
 
         [[nodiscard]] bool rasterizeTriangles(RecastContext& context, float agentHalfExtentsZ,
@@ -322,13 +326,13 @@ namespace DetourNavigator
                     context, realTileBounds, recastMesh.getFlatHeightfields(), settings, params, solid);
         }
 
-        bool isValidWalkableHeight(int value)
+        bool isValidWalkableHeight(std::int32_t value)
         {
             return value >= 3;
         }
 
-        [[nodiscard]] bool buildCompactHeightfield(RecastContext& context, const int walkableHeight,
-            const int walkableClimb, rcHeightfield& solid, rcCompactHeightfield& compact)
+        [[nodiscard]] bool buildCompactHeightfield(RecastContext& context, const std::int32_t walkableHeight,
+            const std::int32_t walkableClimb, rcHeightfield& solid, rcCompactHeightfield& compact)
         {
             if (!isValidWalkableHeight(walkableHeight))
             {
@@ -347,12 +351,13 @@ namespace DetourNavigator
             return rcBuildCompactHeightfield(&context, walkableHeight, walkableClimb, solid, compact);
         }
 
-        bool isValidWalkableRadius(int value)
+        bool isValidWalkableRadius(std::int32_t value)
         {
             return 0 < value && value < walkableRadiusUpperLimit;
         }
 
-        [[nodiscard]] bool erodeWalkableArea(RecastContext& context, int walkableRadius, rcCompactHeightfield& compact)
+        [[nodiscard]] bool erodeWalkableArea(
+            RecastContext& context, std::int32_t walkableRadius, rcCompactHeightfield& compact)
         {
             if (!isValidWalkableRadius(walkableRadius))
             {
@@ -369,8 +374,8 @@ namespace DetourNavigator
             return rcBuildDistanceField(&context, compact);
         }
 
-        [[nodiscard]] bool buildRegions(RecastContext& context, rcCompactHeightfield& compact, const int borderSize,
-            const int minRegionArea, const int mergeRegionArea)
+        [[nodiscard]] bool buildRegions(RecastContext& context, rcCompactHeightfield& compact,
+            const std::int32_t borderSize, const std::int32_t minRegionArea, const std::int32_t mergeRegionArea)
         {
             if (borderSize < 0)
             {
@@ -396,7 +401,8 @@ namespace DetourNavigator
         }
 
         [[nodiscard]] bool buildContours(RecastContext& context, rcCompactHeightfield& compact, const float maxError,
-            const int maxEdgeLen, rcContourSet& contourSet, const int buildFlags = RC_CONTOUR_TESS_WALL_EDGES)
+            const std::int32_t maxEdgeLen, rcContourSet& contourSet,
+            const std::int32_t buildFlags = RC_CONTOUR_TESS_WALL_EDGES)
         {
             if (maxError < 0)
             {
@@ -414,7 +420,7 @@ namespace DetourNavigator
         }
 
         [[nodiscard]] bool buildPolyMesh(
-            RecastContext& context, rcContourSet& contourSet, const int maxVertsPerPoly, rcPolyMesh& polyMesh)
+            RecastContext& context, rcContourSet& contourSet, const std::int32_t maxVertsPerPoly, rcPolyMesh& polyMesh)
         {
             if (maxVertsPerPoly < 3)
             {
@@ -449,7 +455,7 @@ namespace DetourNavigator
 
         void setPolyMeshFlags(rcPolyMesh& polyMesh)
         {
-            for (int i = 0; i < polyMesh.npolys; ++i)
+            for (std::int32_t i = 0; i < polyMesh.npolys; ++i)
                 polyMesh.flags[i] = getFlag(static_cast<AreaType>(polyMesh.areas[i]));
         }
 
@@ -568,9 +574,9 @@ namespace DetourNavigator
     {
         const auto offMeshConVerts = getOffMeshVerts(offMeshConnections);
         const std::vector<float> offMeshConRad(offMeshConnections.size(), getRadius(settings, agentBounds));
-        const std::vector<unsigned char> offMeshConDir(offMeshConnections.size(), 0);
-        const std::vector<unsigned char> offMeshConAreas = getOffMeshConAreas(offMeshConnections);
-        const std::vector<unsigned short> offMeshConFlags = getOffMeshFlags(offMeshConnections);
+        const std::vector<std::uint8_t> offMeshConDir(offMeshConnections.size(), 0);
+        const std::vector<std::uint8_t> offMeshConAreas = getOffMeshConAreas(offMeshConnections);
+        const std::vector<std::uint16_t> offMeshConFlags = getOffMeshFlags(offMeshConnections);
 
         dtNavMeshCreateParams params{};
         params.verts = data.mPolyMesh.verts;
@@ -591,7 +597,7 @@ namespace DetourNavigator
         params.offMeshConAreas = offMeshConAreas.data();
         params.offMeshConFlags = offMeshConFlags.data();
         params.offMeshConUserID = nullptr;
-        params.offMeshConCount = static_cast<int>(offMeshConnections.size());
+        params.offMeshConCount = static_cast<std::int32_t>(offMeshConnections.size());
         params.walkableHeight = getHeight(settings, agentBounds);
         params.walkableRadius = getRadius(settings, agentBounds);
         params.walkableClimb = getMaxClimb(settings);
@@ -605,8 +611,8 @@ namespace DetourNavigator
         params.tileY = tile.y();
         params.tileLayer = 0;
 
-        unsigned char* navMeshData = nullptr;
-        int navMeshDataSize = 0;
+        std::uint8_t* navMeshData = nullptr;
+        std::int32_t navMeshDataSize = 0;
 
         if (!dtCreateNavMeshData(&params, &navMeshData, &navMeshDataSize))
             throw NavigatorException("Failed to create navmesh tile data");

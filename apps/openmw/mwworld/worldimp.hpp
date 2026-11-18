@@ -1,18 +1,19 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/misc/framestats.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/settings.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/world.hpp"
-#include "../mwphysics/raycasting.hpp"
 
 #include "contentloader.hpp"
 #include "datetimemanager.hpp"
@@ -120,7 +121,7 @@ namespace MWWorld
         std::filesystem::path mUserDataPath;
         std::filesystem::path mCachePath;
 
-        int mActivationDistanceOverride;
+        std::int32_t mActivationDistanceOverride;
 
         std::string mStartCell;
 
@@ -132,7 +133,7 @@ namespace MWWorld
         bool mTeleportEnabled;
         bool mLevitationEnabled;
         bool mGoToJail;
-        int mDaysInPrison;
+        std::int32_t mDaysInPrison;
         bool mPlayerTraveling;
         bool mPlayerInJail;
 
@@ -141,7 +142,7 @@ namespace MWWorld
         std::map<MWWorld::Ptr, MWWorld::DoorState> mDoorStates;
         ///< only holds doors that are currently moving. 1 = opening, 2 = closing
 
-        uint32_t mRandomSeed{};
+        std::uint32_t mRandomSeed{};
         bool mIdsRebuilt{};
 
         // not implemented
@@ -150,7 +151,8 @@ namespace MWWorld
 
         void initObjectInCell(const Ptr& object, CellStore& cell, bool adjustPos);
         Ptr moveObjectToCell(const Ptr& object, CellStore* cell, ESM::Position pos, bool adjustPos);
-        Ptr copyObjectToCell(const ConstPtr& object, CellStore* cell, ESM::Position pos, int count, bool adjustPos);
+        Ptr copyObjectToCell(
+            const ConstPtr& object, CellStore* cell, ESM::Position pos, std::int32_t count, bool adjustPos);
 
         void updateSoundListener();
 
@@ -183,8 +185,8 @@ namespace MWWorld
         void processDoors(float duration);
         ///< Run physics simulation and modify \a world accordingly.
 
-        void doPhysics(
-            float duration, Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats);
+        void doPhysics(float duration, Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber,
+            Misc::FrameStats& stats);
         ///< Run physics simulation and modify \a world accordingly.
 
         void updateNavigator();
@@ -222,7 +224,7 @@ namespace MWWorld
         void addContainerScripts(const Ptr& reference, CellStore* cell) override;
         void removeContainerScripts(const Ptr& reference) override;
 
-        World(Resource::ResourceSystem* resourceSystem, int activationDistanceOverride, std::string startCell,
+        World(Resource::ResourceSystem* resourceSystem, std::int32_t activationDistanceOverride, std::string startCell,
             std::filesystem::path userDataPath, std::filesystem::path cachePath);
 
         void loadData(const Files::Collections& fileCollections, const std::vector<std::string>& contentFiles,
@@ -236,19 +238,19 @@ namespace MWWorld
 
         ~World() override;
 
-        void setRandomSeed(uint32_t seed) override;
+        void setRandomSeed(std::uint32_t seed) override;
 
         void startNewGame(bool bypass) override;
         ///< \param bypass Bypass regular game start.
 
         void clear() override;
 
-        size_t countSavedGameRecords() const override;
-        size_t countSavedGameCells() const override;
+        std::size_t countSavedGameRecords() const override;
+        std::size_t countSavedGameCells() const override;
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) const override;
 
-        void readRecord(ESM::ESMReader& reader, uint32_t type) override;
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
 
         // switch to POV before showing player's death animation
         void useDeathCamera() override;
@@ -286,13 +288,13 @@ namespace MWWorld
         void getDoorMarkers(MWWorld::CellStore& cell, std::vector<DoorMarker>& out) override;
         ///< get a list of teleport door markers for a given cell, to be displayed on the local map
 
-        void setGlobalInt(GlobalVariableName name, int value) override;
+        void setGlobalInt(GlobalVariableName name, std::int32_t value) override;
         ///< Set value independently from real type.
 
         void setGlobalFloat(GlobalVariableName name, float value) override;
         ///< Set value independently from real type.
 
-        int getGlobalInt(GlobalVariableName name) const override;
+        std::int32_t getGlobalInt(GlobalVariableName name) const override;
         ///< Get value independently from real type.
 
         float getGlobalFloat(GlobalVariableName name) const override;
@@ -349,27 +351,27 @@ namespace MWWorld
 
         MWWorld::WeatherStore& getAllWeather() const override;
 
-        int getCurrentWeatherScriptId() const override;
+        std::int32_t getCurrentWeatherScriptId() const override;
         const MWWorld::Weather* getCurrentWeather() const override;
-        int getNextWeatherScriptId() const override;
+        std::int32_t getNextWeatherScriptId() const override;
         const MWWorld::Weather* getNextWeather() const override;
 
         float getWeatherTransition() const override;
 
         const MWRender::SkyState& getSkyState() const override;
 
-        unsigned int getNightDayMode() const override;
+        std::uint32_t getNightDayMode() const override;
 
-        int getMasserPhase() const override;
+        std::int32_t getMasserPhase() const override;
 
-        int getSecundaPhase() const override;
+        std::int32_t getSecundaPhase() const override;
 
         std::vector<MWWorld::Moon> getCurrentMoons() const override;
 
         void setMoonColour(bool red) override;
 
-        void modRegion(ESM::RefId regionid, const std::map<ESM::RefId, uint8_t>& chances) override;
-        const std::map<ESM::RefId, uint8_t>& getRegionWeatherChances(ESM::RefId regionid) const override;
+        void modRegion(ESM::RefId regionid, const std::map<ESM::RefId, std::uint8_t>& chances) override;
+        const std::map<ESM::RefId, std::uint8_t>& getRegionWeatherChances(ESM::RefId regionid) const override;
 
         void changeToInteriorCell(const std::string_view cellName, const ESM::Position& position, bool adjustPlayerPos,
             bool changeEvent = true) override;
@@ -417,7 +419,7 @@ namespace MWWorld
         ///< Place an object. Makes a copy of the Ptr.
 
         MWWorld::Ptr safePlaceObject(const MWWorld::ConstPtr& ptr, const MWWorld::ConstPtr& referenceObject,
-            MWWorld::CellStore* referenceCell, int direction, float distance) override;
+            MWWorld::CellStore* referenceCell, std::int32_t direction, float distance) override;
         ///< Place an object in a safe place next to \a referenceObject. \a direction and \a distance specify the wanted
         ///< placement
         /// relative to \a referenceObject (but the object may be placed somewhere else if the wanted location is
@@ -451,12 +453,12 @@ namespace MWWorld
 
         void update(float duration, bool paused);
         void updatePhysics(float duration, bool paused, Misc::FrameClock::time_point statsEpoch,
-            unsigned int frameNumber, Misc::FrameStats& stats);
+            std::uint32_t frameNumber, Misc::FrameStats& stats);
 
         void updateFocusObject();
 
         MWWorld::Ptr placeObject(
-            const MWWorld::Ptr& object, float cursorX, float cursorY, int amount, bool copy = true) override;
+            const MWWorld::Ptr& object, float cursorX, float cursorY, std::int32_t amount, bool copy = true) override;
         ///< copy and place an object into the gameworld at the specified cursor position
         /// @param object
         /// @param cursor X (relative 0-1)
@@ -464,7 +466,7 @@ namespace MWWorld
         /// @param number of objects to place
 
         MWWorld::Ptr dropObjectOnGround(
-            const MWWorld::Ptr& actor, const MWWorld::Ptr& object, int amount, bool copy = true) override;
+            const MWWorld::Ptr& actor, const MWWorld::Ptr& object, std::int32_t amount, bool copy = true) override;
         ///< copy and place an object into the gameworld at the given actor's position
         /// @param actor giving the dropped object position
         /// @param object
@@ -546,7 +548,7 @@ namespace MWWorld
 
         void enableActorCollision(const MWWorld::Ptr& actor, bool enable) override;
 
-        int canRest() const override;
+        std::int32_t canRest() const override;
         ///< check if the player is allowed to rest
 
         void rest(double hours) override;
@@ -558,7 +560,7 @@ namespace MWWorld
         void reattachPlayerCamera() override;
 
         /// \todo this does not belong here
-        std::vector<char> screenshot(int w, int h) override;
+        std::vector<char> screenshot(std::int32_t w, std::int32_t h) override;
 
         /// Find center of exterior cell above land surface
         /// \return false if exterior with given name not exists, true otherwise
@@ -703,7 +705,7 @@ namespace MWWorld
 
         bool isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const osg::Vec3f& position) const override;
 
-        void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const override;
+        void reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const override;
 
         std::vector<MWWorld::Ptr> getAll(const ESM::RefId& id) override;
 

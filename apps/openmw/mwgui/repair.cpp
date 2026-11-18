@@ -1,16 +1,14 @@
 #include "repair.hpp"
 
+#include <cstdint>
 #include <iomanip>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/esm3/loadrepa.hpp>
 #include <components/widgets/box.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwworld/class.hpp"
 
 #include "inventoryitemmodel.hpp"
 #include "itemchargeview.hpp"
@@ -75,7 +73,7 @@ namespace MWGui
     {
         MWWorld::LiveCellRef<ESM::Repair>* ref = mRepair.getTool().get<ESM::Repair>();
 
-        int uses = mRepair.getTool().getClass().getItemHealth(mRepair.getTool());
+        std::int32_t uses = mRepair.getTool().getClass().getItemHealth(mRepair.getTool());
 
         float quality = ref->mBase->mData.mQuality;
 

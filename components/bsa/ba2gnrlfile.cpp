@@ -1,6 +1,7 @@
 #include "ba2gnrlfile.hpp"
 
 #include <cassert>
+#include <cstdint>
 #include <format>
 
 #include <zlib.h>
@@ -18,7 +19,7 @@ namespace Bsa
     namespace
     {
         // special marker for invalid records,
-        constexpr uint64_t sInvalidOffset = std::numeric_limits<uint64_t>::max();
+        constexpr std::uint64_t sInvalidOffset = std::numeric_limits<std::uint64_t>::max();
     }
 
     BA2GNRLFile::FileRecord::FileRecord()
@@ -35,26 +36,26 @@ namespace Bsa
 
     BA2GNRLFile::~BA2GNRLFile() = default;
 
-    void BA2GNRLFile::loadFiles(uint32_t fileCount, std::istream& in)
+    void BA2GNRLFile::loadFiles(std::uint32_t fileCount, std::istream& in)
     {
         mFiles.clear();
         mFiles.reserve(fileCount);
-        for (uint32_t i = 0; i < fileCount; ++i)
+        for (std::uint32_t i = 0; i < fileCount; ++i)
         {
-            uint32_t nameHash = 0, extHash = 0, dirHash = 0;
-            in.read(reinterpret_cast<char*>(&nameHash), sizeof(uint32_t));
-            in.read(reinterpret_cast<char*>(&extHash), sizeof(uint32_t));
-            in.read(reinterpret_cast<char*>(&dirHash), sizeof(uint32_t));
+            std::uint32_t nameHash = 0, extHash = 0, dirHash = 0;
+            in.read(reinterpret_cast<char*>(&nameHash), sizeof(std::uint32_t));
+            in.read(reinterpret_cast<char*>(&extHash), sizeof(std::uint32_t));
+            in.read(reinterpret_cast<char*>(&dirHash), sizeof(std::uint32_t));
 
             FileRecord file;
-            uint32_t unknown = 0;
-            in.read(reinterpret_cast<char*>(&unknown), sizeof(uint32_t));
-            in.read(reinterpret_cast<char*>(&file.mOffset), sizeof(int64_t));
-            in.read(reinterpret_cast<char*>(&file.mPackedSize), sizeof(uint32_t));
-            in.read(reinterpret_cast<char*>(&file.mSize), sizeof(uint32_t));
+            std::uint32_t unknown = 0;
+            in.read(reinterpret_cast<char*>(&unknown), sizeof(std::uint32_t));
+            in.read(reinterpret_cast<char*>(&file.mOffset), sizeof(std::int64_t));
+            in.read(reinterpret_cast<char*>(&file.mPackedSize), sizeof(std::uint32_t));
+            in.read(reinterpret_cast<char*>(&file.mSize), sizeof(std::uint32_t));
 
-            uint32_t baadfood = 0;
-            in.read(reinterpret_cast<char*>(&baadfood), sizeof(uint32_t));
+            std::uint32_t baadfood = 0;
+            in.read(reinterpret_cast<char*>(&baadfood), sizeof(std::uint32_t));
             if (baadfood != 0xBAADF00D)
                 fail("Corrupted BSA");
 
@@ -78,10 +79,10 @@ namespace Bsa
             fail("File too small to be a valid BSA archive");
 
         // Get essential header numbers
-        uint32_t type = 0, fileCount = 0;
-        uint64_t fileTableOffset = 0;
+        std::uint32_t type = 0, fileCount = 0;
+        std::uint64_t fileTableOffset = 0;
         {
-            uint32_t header[4];
+            std::uint32_t header[4];
             input.read(reinterpret_cast<char*>(header), 16);
             input.read(reinterpret_cast<char*>(&fileTableOffset), 8);
 
@@ -96,7 +97,7 @@ namespace Bsa
                     break;
                 case BA2Version::StarfieldGeneral:
                 {
-                    uint64_t dummy = 0;
+                    std::uint64_t dummy = 0;
                     input.read(reinterpret_cast<char*>(&dummy), 8);
                     break;
                 }
@@ -115,11 +116,11 @@ namespace Bsa
 
         // Read the string table
         input.seekg(static_cast<std::streamoff>(fileTableOffset));
-        for (uint32_t i = 0; i < fileCount; ++i)
+        for (std::uint32_t i = 0; i < fileCount; ++i)
         {
             std::vector<char> fileName;
-            uint16_t fileNameSize = 0;
-            input.read(reinterpret_cast<char*>(&fileNameSize), sizeof(uint16_t));
+            std::uint16_t fileNameSize = 0;
+            input.read(reinterpret_cast<char*>(&fileNameSize), sizeof(std::uint16_t));
             fileName.resize(fileNameSize + 1);
             input.read(fileName.data(), fileNameSize);
             mFileNames.push_back(std::move(fileName));
@@ -133,7 +134,7 @@ namespace Bsa
     {
         for (const auto c : str)
         {
-            if (((static_cast<unsigned>(c) >> 7U) & 1U) != 0U)
+            if (((static_cast<std::uint32_t>(c) >> 7U) & 1U) != 0U)
             {
                 fail(std::format("File record {} contains unicode characters, refusing to load.", str));
             }
@@ -144,13 +145,13 @@ namespace Bsa
         const std::string_view fileName = path.stem();
         const std::string_view folder = path.parent().value();
 
-        uint32_t folderHash = generateHash(folder);
+        std::uint32_t folderHash = generateHash(folder);
         auto it = mFolders.find(folderHash);
         if (it == mFolders.end())
             return FileRecord(); // folder not found, return default which has offset of sInvalidOffset
 
-        uint32_t fileHash = generateHash(fileName);
-        uint32_t extHash = generateExtensionHash(path.extension().value());
+        std::uint32_t fileHash = generateHash(fileName);
+        std::uint32_t extHash = generateExtensionHash(path.extension().value());
         auto iter = it->second.find({ fileHash, extHash });
         if (iter == it->second.end())
             return FileRecord(); // file not found, return default which has offset of sInvalidOffset
@@ -175,7 +176,7 @@ namespace Bsa
 
     Files::IStreamPtr BA2GNRLFile::getFile(const FileRecord& fileRecord)
     {
-        const uint32_t inputSize = fileRecord.mPackedSize ? fileRecord.mPackedSize : fileRecord.mSize;
+        const std::uint32_t inputSize = fileRecord.mPackedSize ? fileRecord.mPackedSize : fileRecord.mSize;
         Files::IStreamPtr streamPtr = openRange(fileRecord.mOffset, inputSize);
         auto memoryStreamPtr = std::make_unique<MemoryInputStream>(fileRecord.mSize);
         if (fileRecord.mPackedSize)
@@ -183,7 +184,7 @@ namespace Bsa
             std::vector<char> buffer(inputSize);
             streamPtr->read(buffer.data(), inputSize);
             auto destSize = static_cast<uLongf>(fileRecord.mSize);
-            int ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData()), &destSize,
+            std::int32_t ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData()), &destSize,
                 reinterpret_cast<Bytef*>(buffer.data()), static_cast<uLong>(buffer.size()));
 
             if (ec != Z_OK)

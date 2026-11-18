@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 
 #include <osg/Camera>
 #include <osg/Geometry>
@@ -45,7 +46,7 @@ namespace MWRender
 
         void releaseGLObjects(osg::State* state) const override;
 
-        static constexpr size_t sRTTSize = 1024;
+        static constexpr std::size_t sRTTSize = 1024;
         // e.g. texel to cell unit ratio
         static constexpr float sWorldScaleFactor = 2.5;
 
@@ -64,7 +65,7 @@ namespace MWRender
 
         Resource::ResourceSystem* mResourceSystem;
 
-        size_t mPositionCount = 0;
+        std::size_t mPositionCount = 0;
         std::array<osg::Vec3f, 100> mPositions;
 
         std::array<State, 2> mState;

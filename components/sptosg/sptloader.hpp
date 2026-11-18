@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/spt/file.hpp>
-
 #include <osg/ref_ptr>
+
+#include <components/spt/file.hpp>
 
 namespace osg
 {

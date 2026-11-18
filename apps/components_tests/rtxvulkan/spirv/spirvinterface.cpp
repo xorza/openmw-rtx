@@ -332,6 +332,43 @@ namespace Rtx
             EXPECT_EQ(readInterface(module(true, 3)).mPushEnd, std::optional<std::uint32_t>(68u));
         }
 
+        /// **A block's types are walked to `sTypeDepthMost` levels, and a module past it is refused**: a push block
+        /// of a structure in a structure, `depth` deep, round a `float` at nought ends at 4 at 64 levels; one more
+        /// level, or a structure that holds itself, which SPIR-V forbids and a malformed module names, is refused
+        /// rather than walked until the stack ends.
+        TEST(RtxSpirvInterfaceTest, aBlockNestedPastItsDeepestOrRoundACycleIsRefused)
+        {
+            const auto instruction = [](spv::Op op, std::vector<std::uint32_t> operands) {
+                operands.insert(operands.begin(), (static_cast<std::uint32_t>(operands.size() + 1) << 16) | op);
+                return operands;
+            };
+            // Ids: the float, then a structure a level, the outermost the block, then its pointer and variable. The
+            // innermost holds the float, and where `cycle` says, the block's own first member is the block.
+            const auto module = [&](const std::uint32_t depth, const bool cycle) {
+                constexpr std::uint32_t sFloat = 1;
+                const std::uint32_t block = sFloat + depth;
+                const std::uint32_t pointer = block + 1;
+                const std::uint32_t variable = pointer + 1;
+                std::vector<std::uint32_t> words{ spv::MagicNumber, 0x00010600u, 0u, variable + 1, 0u };
+                const auto add = [&](const std::vector<std::uint32_t>& each) {
+                    words.insert(words.end(), each.begin(), each.end());
+                };
+                for (std::uint32_t structure = sFloat + 1; structure <= block; ++structure)
+                    add(instruction(spv::OpMemberDecorate, { structure, 0, spv::DecorationOffset, 0 }));
+                add(instruction(spv::OpTypeFloat, { sFloat, 32 }));
+                for (std::uint32_t structure = sFloat + 1; structure <= block; ++structure)
+                    add(instruction(spv::OpTypeStruct, { structure, cycle ? structure : structure - 1 }));
+                add(instruction(spv::OpTypePointer, { pointer, spv::StorageClassPushConstant, block }));
+                add(instruction(spv::OpVariable, { pointer, variable, spv::StorageClassPushConstant }));
+                return words;
+            };
+
+            // The block and 63 structures in it: the float, the 64th level, is the deepest read.
+            EXPECT_EQ(readInterface(module(sTypeDepthMost, false)).mPushEnd, std::optional<std::uint32_t>(4u));
+            EXPECT_THROW(readInterface(module(sTypeDepthMost + 1, false)), InputError) << "a level past the deepest";
+            EXPECT_THROW(readInterface(module(1, true)), InputError) << "a structure that holds itself";
+        }
+
         /// **A layout C++ cannot mirror is refused**: a structure of a 64-bit address at nought and a `uint` at eight
         /// ends at twelve, and C++ rounds it to its eight-byte alignment, sixteen. A member after it at twelve stands
         /// where C++ has padding, and one at sixteen where C++ has the next member; an array of it strided by twelve

@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -336,7 +337,7 @@ namespace Rtx
 
             // **Bounded, because a driver arrives every few weeks.** Enough others to pass the
             // bound, aged so the order is the file system's to state rather than the test's.
-            for (int at = 0; at < 6; ++at)
+            for (std::int32_t at = 0; at < 6; ++at)
             {
                 const std::filesystem::path old
                     = cacheDirectory / ("rtx-older-" + std::to_string(at) + ".pipelinecache");

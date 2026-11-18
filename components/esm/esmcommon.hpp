@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -133,8 +134,9 @@ namespace ESM
         return rhs.size() <= capacity || rhs[capacity] == '\0';
     }
 
-    template <std::size_t capacity, class T, typename = std::enable_if_t<std::is_same_v<T, char>>>
+    template <std::size_t capacity, class T>
     inline bool operator==(const FixedString<capacity>& lhs, const T* const& rhs) noexcept
+        requires(std::is_same_v<T, char>)
     {
         return lhs == std::string_view(rhs, capacity);
     }
@@ -155,8 +157,9 @@ namespace ESM
         return lhs.toInt() == rhs.toInt();
     }
 
-    template <class T, typename = std::enable_if_t<std::is_same_v<T, char>>>
+    template <class T>
     inline bool operator==(const FixedString<4>& lhs, const T* const& rhs) noexcept
+        requires(std::is_same_v<T, char>)
     {
         return lhs == std::string_view(rhs, 5);
     }
@@ -194,15 +197,15 @@ namespace ESM
         // When working with multiple esX files, we will generate lists of all files that
         //  actually contribute to a specific cell. Therefore, we need to store the index
         //  of the file belonging to this contest. See CellStore::(list/load)refs for details.
-        int index{};
-        std::vector<int> parentFileIndices;
+        std::int32_t index{};
+        std::vector<std::int32_t> parentFileIndices;
 
         // True if subName has been read but not used.
         bool subCached{};
 
         // File position. Only used for stored contexts, not regularly
         // updated within the reader itself.
-        size_t filePos{};
+        std::size_t filePos{};
     };
 
 }

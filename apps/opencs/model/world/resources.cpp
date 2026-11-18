@@ -1,17 +1,18 @@
 #include "resources.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
-#include <stddef.h>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
 
-#include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/misc/strings/lower.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
+
+#include "universalid.hpp"
 
 CSMWorld::Resources::Resources(
     const VFS::Manager* vfs, std::string baseDirectory, UniversalId::Type type, const char* const* extensions)
@@ -26,7 +27,7 @@ void CSMWorld::Resources::recreate(const VFS::Manager* vfs, const char* const* e
     mFiles.clear();
     mIndex.clear();
 
-    size_t baseSize = mBaseDirectory.size();
+    std::size_t baseSize = mBaseDirectory.size();
 
     for (const auto& filepath : vfs->getRecursiveDirectoryIterator())
     {
@@ -43,7 +44,7 @@ void CSMWorld::Resources::recreate(const VFS::Manager* vfs, const char* const* e
 
             std::string_view extension = view.substr(extensionIndex + 1);
 
-            int i = 0;
+            std::int32_t i = 0;
 
             for (; extensions[i]; ++i)
                 if (extensions[i] == extension)
@@ -55,23 +56,23 @@ void CSMWorld::Resources::recreate(const VFS::Manager* vfs, const char* const* e
 
         std::string file(view.substr(baseSize + 1));
         mFiles.push_back(file);
-        mIndex.emplace(std::move(file), static_cast<int>(mFiles.size()) - 1);
+        mIndex.emplace(std::move(file), static_cast<std::int32_t>(mFiles.size()) - 1);
     }
 }
 
-int CSMWorld::Resources::getSize() const
+std::int32_t CSMWorld::Resources::getSize() const
 {
-    return static_cast<int>(mFiles.size());
+    return static_cast<std::int32_t>(mFiles.size());
 }
 
-std::string CSMWorld::Resources::getId(int index) const
+std::string CSMWorld::Resources::getId(std::int32_t index) const
 {
     return mFiles.at(static_cast<std::size_t>(index));
 }
 
-int CSMWorld::Resources::getIndex(const std::string& id) const
+std::int32_t CSMWorld::Resources::getIndex(const std::string& id) const
 {
-    int index = searchId(id);
+    std::int32_t index = searchId(id);
 
     if (index == -1)
     {
@@ -84,7 +85,7 @@ int CSMWorld::Resources::getIndex(const std::string& id) const
     return index;
 }
 
-int CSMWorld::Resources::searchId(std::string_view id) const
+std::int32_t CSMWorld::Resources::searchId(std::string_view id) const
 {
     std::string id2 = Misc::StringUtils::lowerCase(id);
 

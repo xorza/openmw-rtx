@@ -1,27 +1,28 @@
-#include <components/debug/debuglog.hpp>
-#include <components/esm3/loadlevlist.hpp>
+#include "levelledlist.hpp"
+
+#include <cstdint>
 #include <utility>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwbase/environment.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/esm3/loadlevlist.hpp>
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
-#include "levelledlist.hpp"
 
 namespace MWMechanics
 {
 
-    ESM::RefId getLevelledItem(
-        const ESM::LevelledListBase* levItem, bool creature, Misc::Rng::Generator& prng, std::optional<int> level)
+    ESM::RefId getLevelledItem(const ESM::LevelledListBase* levItem, bool creature, Misc::Rng::Generator& prng,
+        std::optional<std::int32_t> level)
     {
         const std::vector<ESM::LevelledListBase::LevelItem>& items = levItem->mList;
 
-        int playerLevel = 0;
+        std::int32_t playerLevel = 0;
         if (level.has_value())
             playerLevel = *level;
         else
@@ -35,7 +36,7 @@ namespace MWMechanics
             return ESM::RefId();
 
         std::vector<const ESM::RefId*> candidates;
-        int highestLevel = 0;
+        std::int32_t highestLevel = 0;
         for (const auto& levelledItem : items)
         {
             if (std::cmp_greater(levelledItem.mLevel, highestLevel)

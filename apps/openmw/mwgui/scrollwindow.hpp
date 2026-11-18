@@ -1,8 +1,10 @@
 #pragma once
 
-#include "windowbase.hpp"
+#include <cstdint>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
+
+#include "windowbase.hpp"
 
 namespace Gui
 {
@@ -20,7 +22,7 @@ namespace MWGui
         void setInventoryAllowed(bool allowed);
 
         void onClose() override;
-        void onResChange(int, int) override { center(); }
+        void onResChange(std::int32_t, std::int32_t) override { center(); }
 
         std::string_view getWindowIdForLua() const override { return "Scroll"; }
 

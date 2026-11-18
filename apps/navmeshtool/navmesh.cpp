@@ -1,6 +1,14 @@
 #include "navmesh.hpp"
 
-#include "worldspacedata.hpp"
+#include <algorithm>
+#include <atomic>
+#include <condition_variable>
+#include <cstddef>
+#include <mutex>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
@@ -18,15 +26,7 @@
 #include <components/navmeshtool/protocol.hpp>
 #include <components/sceneutil/workqueue.hpp>
 
-#include <algorithm>
-#include <atomic>
-#include <condition_variable>
-#include <cstddef>
-#include <mutex>
-#include <string_view>
-#include <unordered_map>
-#include <utility>
-#include <vector>
+#include "worldspacedata.hpp"
 
 namespace NavMeshTool
 {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 
 namespace SceneUtil
 {
@@ -9,10 +10,10 @@ namespace SceneUtil
     /// take a transposed pair without a word.
     struct ImageRegion
     {
-        int mX = 0;
-        int mY = 0;
-        int mWidth = 0;
-        int mHeight = 0;
+        std::int32_t mX = 0;
+        std::int32_t mY = 0;
+        std::int32_t mWidth = 0;
+        std::int32_t mHeight = 0;
 
         bool empty() const { return mWidth <= 0 || mHeight <= 0; }
 
@@ -24,10 +25,10 @@ namespace SceneUtil
             if (other.empty())
                 return *this;
 
-            const int left = std::min(mX, other.mX);
-            const int bottom = std::min(mY, other.mY);
-            const int right = std::max(mX + mWidth, other.mX + other.mWidth);
-            const int top = std::max(mY + mHeight, other.mY + other.mHeight);
+            const std::int32_t left = std::min(mX, other.mX);
+            const std::int32_t bottom = std::min(mY, other.mY);
+            const std::int32_t right = std::max(mX + mWidth, other.mX + other.mWidth);
+            const std::int32_t top = std::max(mY + mHeight, other.mY + other.mHeight);
             return ImageRegion{ left, bottom, right - left, top - bottom };
         }
 

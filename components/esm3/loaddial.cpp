@@ -1,9 +1,11 @@
 #include "loaddial.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <stdexcept>
 
 namespace ESM
 {
@@ -44,7 +46,7 @@ namespace ESM
                 case fourCC("DATA"):
                 {
                     esm.getSubHeader();
-                    int size = static_cast<int>(esm.getSubSize());
+                    auto size = static_cast<std::int32_t>(esm.getSubSize());
                     if (size == 1)
                     {
                         esm.getT(mType);

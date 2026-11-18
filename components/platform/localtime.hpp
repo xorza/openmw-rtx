@@ -10,4 +10,7 @@ namespace Platform
     /// `seconds` since the epoch as the local calendar has them, or nothing where the system cannot
     /// say: a time past what its calendar holds.
     std::optional<std::tm> localTime(std::time_t seconds);
+
+    /// `seconds` since the epoch as UTC's calendar has them, or nothing where the system cannot say.
+    std::optional<std::tm> universalTime(std::time_t seconds);
 }

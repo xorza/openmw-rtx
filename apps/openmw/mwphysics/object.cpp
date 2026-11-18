@@ -1,6 +1,10 @@
 #include "object.hpp"
-#include "mtphysics.hpp"
+
+#include <cstdint>
 #include <memory>
+
+#include <BulletCollision/CollisionShapes/btCompoundShape.h>
+#include <LinearMath/btTransform.h>
 
 #include <components/bullethelpers/collisionobject.hpp>
 #include <components/debug/debuglog.hpp>
@@ -9,14 +13,12 @@
 #include <components/resource/bulletshape.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 
-#include <BulletCollision/CollisionShapes/btCompoundShape.h>
-
-#include <LinearMath/btTransform.h>
+#include "mtphysics.hpp"
 
 namespace MWPhysics
 {
     Object::Object(const MWWorld::Ptr& ptr, std::shared_ptr<Resource::BulletShapeInstance> shapeInstance,
-        const osg::Quat& rotation, int collisionType, PhysicsTaskScheduler* scheduler)
+        const osg::Quat& rotation, std::int32_t collisionType, PhysicsTaskScheduler* scheduler)
         : PtrHolder(ptr, osg::Vec3f())
         , mShapeInstance(std::move(shapeInstance))
         , mSolid(true)
@@ -124,7 +126,7 @@ namespace MWPhysics
             auto nodePathFound = mRecordIndexToNodePath.find(recordIndex);
             if (nodePathFound == mRecordIndexToNodePath.end())
             {
-                NifOsg::FindGroupByRecordIndex visitor(static_cast<unsigned int>(recordIndex));
+                NifOsg::FindGroupByRecordIndex visitor(static_cast<std::uint32_t>(recordIndex));
                 mPtr.getRefData().getBaseNode()->accept(visitor);
                 if (!visitor.mFound)
                 {
@@ -147,8 +149,8 @@ namespace MWPhysics
 
             btTransform transform;
             transform.setOrigin(Misc::Convert::toBullet(matrix.getTrans()) * compound->getLocalScaling());
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
+            for (std::int32_t i = 0; i < 3; ++i)
+                for (std::int32_t j = 0; j < 3; ++j)
                     transform.getBasis()[i][j] = matrix(j, i); // NB column/row major difference
 
             btCollisionShape* childShape = compound->getChildShape(shapeIndex);

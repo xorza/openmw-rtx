@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 
 #include "opcodes.hpp"
@@ -75,7 +76,7 @@ namespace Interpreter
     public:
         void execute(Runtime& runtime) override
         {
-            int result = C()(getData<T>(runtime[1]), getData<T>(runtime[0]));
+            std::int32_t result = C()(getData<T>(runtime[1]), getData<T>(runtime[0]));
 
             runtime.pop();
 

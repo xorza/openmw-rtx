@@ -1,9 +1,8 @@
-#include <apps/openmw/mwworld/positioncellgrid.hpp>
+#include <gtest/gtest.h>
 
+#include <apps/openmw/mwworld/positioncellgrid.hpp>
 #include <components/esm/util.hpp>
 #include <components/esm3/loadcell.hpp>
-
-#include <gtest/gtest.h>
 
 namespace MWWorld
 {

@@ -1,19 +1,18 @@
 #include "journalviewmodel.hpp"
 
+#include <cstddef>
 #include <unordered_map>
 
 #include <MyGUI_LanguageManager.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwdialogue/keywordsearch.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/translation/translation.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwdialogue/keywordsearch.hpp"
-#include "../mwworld/datetimemanager.hpp"
 
 namespace MWGui
 {
@@ -85,8 +84,8 @@ namespace MWGui
 
             struct Token
             {
-                size_t mStart;
-                size_t mEnd;
+                std::size_t mStart;
+                std::size_t mEnd;
                 const MWDialogue::Topic* mTopic;
             };
 
@@ -135,11 +134,12 @@ namespace MWGui
                 return mText;
             }
 
-            void visitSpans(std::function<void(const MWDialogue::Topic*, size_t, size_t)> visitor) const override
+            void visitSpans(
+                std::function<void(const MWDialogue::Topic*, std::size_t, std::size_t)> visitor) const override
             {
                 ensureLoaded();
 
-                size_t i = 0;
+                std::size_t i = 0;
                 for (const Token& token : mTokens)
                 {
                     if (i < token.mStart)

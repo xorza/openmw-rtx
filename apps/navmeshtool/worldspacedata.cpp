@@ -1,5 +1,18 @@
 ﻿#include "worldspacedata.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include <osg/Vec2i>
+
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/debug.hpp>
@@ -20,17 +33,6 @@
 #include <components/navmeshtool/protocol.hpp>
 #include <components/resource/bulletshapemanager.hpp>
 #include <components/vfs/manager.hpp>
-
-#include <osg/Vec2i>
-
-#include <algorithm>
-#include <memory>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
 
 namespace NavMeshTool
 {
@@ -97,7 +99,7 @@ namespace NavMeshTool
             for (std::size_t i = 0; i < cell.mContextList.size(); i++)
             {
                 ESM::ReadersCache::BusyItem reader = readers.get(static_cast<std::size_t>(cell.mContextList[i].index));
-                cell.restore(*reader, static_cast<std::size_t>(static_cast<int>(i)));
+                cell.restore(*reader, static_cast<std::size_t>(static_cast<std::int32_t>(i)));
                 ESM::CellRef cellRef;
                 bool deleted = false;
                 while (ESM::Cell::getNextRef(*reader, cellRef, deleted))
@@ -243,9 +245,9 @@ namespace NavMeshTool
                     const osg::Vec2i position = queue.front();
                     queue.pop_front();
 
-                    for (int x = position.x() - 1; x <= position.x() + 1; ++x)
+                    for (std::int32_t x = position.x() - 1; x <= position.x() + 1; ++x)
                     {
-                        for (int y = position.y() - 1; y <= position.y() + 1; ++y)
+                        for (std::int32_t y = position.y() - 1; y <= position.y() + 1; ++y)
                         {
                             const osg::Vec2i candidate(x, y);
 
@@ -394,7 +396,7 @@ namespace NavMeshTool
             else
             {
                 if ((cell.mData.mFlags & ESM::Cell::HasWater) != 0)
-                    manager.addWater(cellPosition, std::numeric_limits<int>::max(), cell.mWater, guard.get());
+                    manager.addWater(cellPosition, std::numeric_limits<std::int32_t>::max(), cell.mWater, guard.get());
             }
 
             forEachObject(

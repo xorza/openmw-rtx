@@ -1,18 +1,18 @@
 #include "containeritemmodel.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/manualref.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
 
 namespace
 {
@@ -78,12 +78,12 @@ namespace MWGui
     {
         if (index < 0)
             throw std::runtime_error("Invalid index supplied");
-        if (mItems.size() <= static_cast<size_t>(index))
+        if (mItems.size() <= static_cast<std::size_t>(index))
             throw std::runtime_error("Item index out of range");
         return mItems[static_cast<std::size_t>(index)];
     }
 
-    size_t ContainerItemModel::getItemCount()
+    std::size_t ContainerItemModel::getItemCount()
     {
         return mItems.size();
     }
@@ -100,28 +100,29 @@ namespace MWGui
         return -1;
     }
 
-    MWWorld::Ptr ContainerItemModel::addItem(const ItemStack& item, size_t count, bool allowAutoEquip)
+    MWWorld::Ptr ContainerItemModel::addItem(const ItemStack& item, std::size_t count, bool allowAutoEquip)
     {
         auto& source = mItemSources[0];
         MWWorld::ContainerStore& store = source.first.getClass().getContainerStore(source.first);
         if (item.mBase.getContainerStore() == &store)
             throw std::runtime_error("Item to add needs to be from a different container!");
-        return *store.add(item.mBase, static_cast<int>(count), allowAutoEquip);
+        return *store.add(item.mBase, static_cast<std::int32_t>(count), allowAutoEquip);
     }
 
-    MWWorld::Ptr ContainerItemModel::copyItem(const ItemStack& item, size_t count, bool allowAutoEquip)
+    MWWorld::Ptr ContainerItemModel::copyItem(const ItemStack& item, std::size_t count, bool allowAutoEquip)
     {
         auto& source = mItemSources[0];
         MWWorld::ContainerStore& store = source.first.getClass().getContainerStore(source.first);
         if (item.mBase.getContainerStore() == &store)
             throw std::runtime_error("Item to copy needs to be from a different container!");
-        MWWorld::ManualRef newRef(*MWBase::Environment::get().getESMStore(), item.mBase, static_cast<int>(count));
-        return *store.add(newRef.getPtr(), static_cast<int>(count), allowAutoEquip);
+        MWWorld::ManualRef newRef(
+            *MWBase::Environment::get().getESMStore(), item.mBase, static_cast<std::int32_t>(count));
+        return *store.add(newRef.getPtr(), static_cast<std::int32_t>(count), allowAutoEquip);
     }
 
-    void ContainerItemModel::removeItem(const ItemStack& item, size_t count)
+    void ContainerItemModel::removeItem(const ItemStack& item, std::size_t count)
     {
-        int toRemove = static_cast<int>(count);
+        auto toRemove = static_cast<std::int32_t>(count);
 
         for (auto& source : mItemSources)
         {
@@ -131,7 +132,7 @@ namespace MWGui
             {
                 if (stacks(*it, item.mBase))
                 {
-                    int quantity = it->mRef->mRef.getCount(false);
+                    std::int32_t quantity = it->mRef->mRef.getCount(false);
                     // If this is a restocking quantity, just don't remove it
                     if (quantity < 0 && mTrading)
                         toRemove += quantity;
@@ -146,7 +147,7 @@ namespace MWGui
         {
             if (stacks(source, item.mBase))
             {
-                int refCount = source.getCellRef().getCount();
+                std::int32_t refCount = source.getCellRef().getCount();
                 if (refCount - toRemove <= 0)
                     MWBase::Environment::get().getWorld()->deleteObject(source);
                 else
@@ -214,7 +215,7 @@ namespace MWGui
             }
         }
     }
-    bool ContainerItemModel::onDropItem(const MWWorld::Ptr& item, int count)
+    bool ContainerItemModel::onDropItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         if (mItemSources.empty())
             return false;
@@ -253,7 +254,7 @@ namespace MWGui
         return true;
     }
 
-    bool ContainerItemModel::onTakeItem(const MWWorld::Ptr& item, int count)
+    bool ContainerItemModel::onTakeItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         if (mItemSources.empty())
             return false;

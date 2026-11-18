@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -27,84 +28,61 @@
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
 
-#include <components/debug/debuglog.hpp>
-
-#include <components/misc/framestats.hpp>
-#include <components/misc/rng.hpp>
-
-#include <components/vfs/manager.hpp>
-#include <components/vfs/registerarchives.hpp>
-
-#include <components/sdlutil/imagetosurface.hpp>
-#include <components/sdlutil/sdlinputwrapper.hpp>
-
-#include <components/resource/resourcesystem.hpp>
-#include <components/resource/scenemanager.hpp>
-
-#include <components/compiler/extensions0.hpp>
-
-#include <components/sceneutil/workqueue.hpp>
-
-#include <components/files/configurationmanager.hpp>
-
-#include <components/version/version.hpp>
-
-#include <components/l10n/manager.hpp>
-
-#include <components/loadinglistener/asynclistener.hpp>
-#include <components/loadinglistener/loadinglistener.hpp>
-
-#include <components/sceneutil/screencapture.hpp>
-#include <components/sceneutil/unrefqueue.hpp>
-
 #include <apps/openmw/mwbase/statemanager.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwclass/classes.hpp>
+#include <apps/openmw/mwdialogue/dialoguemanagerimp.hpp>
+#include <apps/openmw/mwdialogue/journalimp.hpp>
+#include <apps/openmw/mwdialogue/scripttest.hpp>
 #include <apps/openmw/mwgui/mode.hpp>
+#include <apps/openmw/mwgui/windowmanagerimp.hpp>
+#include <apps/openmw/mwinput/inputmanagerimp.hpp>
+#include <apps/openmw/mwinput/rendererkeys.hpp>
+#include <apps/openmw/mwlua/luamanagerimp.hpp>
+#include <apps/openmw/mwlua/worker.hpp>
+#include <apps/openmw/mwmechanics/mechanicsmanagerimp.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/rtx/rtxstart.hpp>
 #include <apps/openmw/mwscript/compilercontext.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwscript/scriptmanagerimp.hpp>
+#include <apps/openmw/mwsound/constants.hpp>
+#include <apps/openmw/mwsound/soundmanagerimp.hpp>
+#include <apps/openmw/mwstate/statemanagerimp.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <apps/openmw/mwworld/localscripts.hpp>
 #include <apps/openmw/mwworld/store.hpp>
+#include <apps/openmw/mwworld/worldimp.hpp>
+#include <components/compiler/extensions0.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm/stringrefid.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/variant.hpp>
+#include <components/files/configurationmanager.hpp>
 #include <components/files/multidircollection.hpp>
+#include <components/l10n/manager.hpp>
 #include <components/l10n/messagebundles.hpp>
+#include <components/loadinglistener/asynclistener.hpp>
+#include <components/loadinglistener/loadinglistener.hpp>
+#include <components/misc/framestats.hpp>
+#include <components/misc/rng.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/resource/scenemanager.hpp>
+#include <components/sceneutil/screencapture.hpp>
+#include <components/sceneutil/unrefqueue.hpp>
+#include <components/sceneutil/workqueue.hpp>
+#include <components/sdlutil/imagetosurface.hpp>
+#include <components/sdlutil/sdlinputwrapper.hpp>
 #include <components/settings/settings.hpp>
 #include <components/settings/shadermanager.hpp>
 #include <components/settings/values.hpp>
 #include <components/toutf8/toutf8.hpp>
-
-#include "mwinput/inputmanagerimp.hpp"
-#include "mwinput/rendererkeys.hpp"
-
-#include "mwgui/windowmanagerimp.hpp"
-
-#include "mwlua/luamanagerimp.hpp"
-#include "mwlua/worker.hpp"
-
-#include "mwscript/interpretercontext.hpp"
-#include "mwscript/scriptmanagerimp.hpp"
-
-#include "mwsound/constants.hpp"
-#include "mwsound/soundmanagerimp.hpp"
-
-#include "mwworld/class.hpp"
-#include "mwworld/datetimemanager.hpp"
-#include "mwworld/worldimp.hpp"
-
-#include "mwrender/renderer.hpp"
-#include "mwrender/renderingmanager.hpp"
-#include "mwrender/rtx/rtxstart.hpp"
-
-#include "mwclass/classes.hpp"
-
-#include "mwdialogue/dialoguemanagerimp.hpp"
-#include "mwdialogue/journalimp.hpp"
-#include "mwdialogue/scripttest.hpp"
-
-#include "mwmechanics/mechanicsmanagerimp.hpp"
-
-#include "mwstate/statemanagerimp.hpp"
+#include <components/version/version.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/registerarchives.hpp>
 
 #include "profile.hpp"
 
@@ -145,7 +123,7 @@ namespace
 
         bool collectStats(const std::string& category) const override { return mStats->collectStats(category); }
 
-        void setAttribute(unsigned int frameNumber, const std::string& name, double value) override
+        void setAttribute(std::uint32_t frameNumber, const std::string& name, double value) override
         {
             mStats->setAttribute(frameNumber, name, value);
         }
@@ -168,7 +146,7 @@ void OMW::Engine::executeLocalScripts()
     }
 }
 
-bool OMW::Engine::frame(unsigned frameNumber, float frametime)
+bool OMW::Engine::frame(std::uint32_t frameNumber, float frametime)
 {
     const osg::Timer* const timer = osg::Timer::instance();
     // Stats times are relative to the renderer's start tick, so express it on the clock the subsystems use
@@ -684,14 +662,14 @@ void OMW::Engine::prepareEngine()
     // scripts
     if (mCompileAll)
     {
-        std::pair<int, int> result = mScriptManager->compileAll();
+        std::pair<std::int32_t, std::int32_t> result = mScriptManager->compileAll();
         if (result.first)
             Log(Debug::Info) << "compiled " << result.second << " of " << result.first << " scripts ("
                              << 100 * static_cast<double>(result.second) / result.first << "%)";
     }
     if (mCompileAllDialogue)
     {
-        std::pair<int, int> result = MWDialogue::ScriptTest::compileAll(&mExtensions, mWarningsMode);
+        std::pair<std::int32_t, std::int32_t> result = MWDialogue::ScriptTest::compileAll(&mExtensions, mWarningsMode);
         if (result.first)
             Log(Debug::Info) << "compiled " << result.second << " of " << result.first << " dialogue scripts ("
                              << 100 * static_cast<double>(result.second) / result.first << "%)";
@@ -708,7 +686,7 @@ void OMW::Engine::go()
     assert(!mContentFiles.empty());
 
     Log(Debug::Info) << "OSG version: " << osgGetVersion();
-    const int sdlVersion = SDL_GetVersion();
+    const std::int32_t sdlVersion = SDL_GetVersion();
     Log(Debug::Info) << "SDL version: " << SDL_VERSIONNUM_MAJOR(sdlVersion) << "." << SDL_VERSIONNUM_MINOR(sdlVersion)
                      << "." << SDL_VERSIONNUM_MICRO(sdlVersion);
 
@@ -785,7 +763,7 @@ void OMW::Engine::go()
 
         mRenderer->advance(timeManager.getRenderingSimulationTime());
 
-        const unsigned frameNumber = mRenderer->getFrameStamp().getFrameNumber();
+        const std::uint32_t frameNumber = mRenderer->getFrameStamp().getFrameNumber();
 
         if (!frame(frameNumber, static_cast<float>(dt)))
         {
@@ -838,12 +816,12 @@ void OMW::Engine::setStartupScript(const std::filesystem::path& path)
     mStartupScript = path;
 }
 
-void OMW::Engine::setActivationDistanceOverride(int distance)
+void OMW::Engine::setActivationDistanceOverride(std::int32_t distance)
 {
     mActivationDistanceOverride = distance;
 }
 
-void OMW::Engine::setWarningsMode(int mode)
+void OMW::Engine::setWarningsMode(std::int32_t mode)
 {
     mWarningsMode = mode;
 }
@@ -858,7 +836,7 @@ void OMW::Engine::setSaveGameFile(const std::filesystem::path& savegame)
     mSaveGameFile = savegame;
 }
 
-void OMW::Engine::setRandomSeed(unsigned int seed)
+void OMW::Engine::setRandomSeed(std::uint32_t seed)
 {
     mRandomSeed = seed;
 }

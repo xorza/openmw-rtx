@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <span>
@@ -167,7 +169,7 @@ namespace MWWorld
 
         struct RefInfo
         {
-            int mCount = 0;
+            std::int32_t mCount = 0;
             std::vector<const ESM::Cell*> mCells;
         };
 
@@ -176,7 +178,7 @@ namespace MWWorld
         std::vector<StoreBase*> mStores;
         std::vector<DynamicStore*> mDynamicStores;
 
-        uint64_t mDynamicCount;
+        std::uint64_t mDynamicCount;
 
         mutable std::unordered_map<ESM::RefId, std::weak_ptr<MWMechanics::SpellList>> mSpellListCache;
 
@@ -208,9 +210,9 @@ namespace MWWorld
         iterator end() const { return mDynamicStores.end(); }
 
         /// Look up the given ID in 'all'. Returns 0 if not found.
-        int find(const ESM::RefId& id) const;
+        std::int32_t find(const ESM::RefId& id) const;
 
-        int findStatic(const ESM::RefId& id) const;
+        std::int32_t findStatic(const ESM::RefId& id) const;
 
         ESMStore();
         ~ESMStore();
@@ -295,18 +297,18 @@ namespace MWWorld
         void setUp();
         void validateRecords(ESM::ReadersCache& readers);
 
-        size_t countSavedGameRecords() const;
+        std::size_t countSavedGameRecords() const;
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) const;
 
-        bool readRecord(ESM::ESMReader& reader, uint32_t typeId);
+        bool readRecord(ESM::ESMReader& reader, std::uint32_t typeId);
         ///< \return Known type?
 
         // To be called when we are done with dynamic record loading
         void checkPlayer();
 
         /// @return The number of instances defined in the base files. Excludes changes from the save file.
-        int getRefCount(const ESM::RefId& id) const;
+        std::int32_t getRefCount(const ESM::RefId& id) const;
 
         /// @return Cells defining the ref, exteriors first.
         std::span<const ESM::Cell* const> getRefCells(const ESM::RefId& id) const;

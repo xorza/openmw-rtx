@@ -1,13 +1,14 @@
 #pragma once
 
-#include <components/misc/mathutil.hpp>
-
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <utility>
+
+#include <components/misc/mathutil.hpp>
 
 namespace ESMTerrain
 {
@@ -42,8 +43,8 @@ namespace ESMTerrain
 
     struct CellSample
     {
-        int mCellX;
-        int mCellY;
+        std::int32_t mCellX;
+        std::int32_t mCellY;
         std::size_t mSrcRow;
         std::size_t mSrcCol;
         std::size_t mDstRow;
@@ -128,16 +129,16 @@ namespace ESMTerrain
         }
     }
 
-    inline int getBlendmapSize(float size, int textureSize)
+    inline std::int32_t getBlendmapSize(float size, std::int32_t textureSize)
     {
-        return static_cast<int>(static_cast<float>(textureSize) * size) + 1;
+        return static_cast<std::int32_t>(static_cast<float>(textureSize) * size) + 1;
     }
 
     inline std::pair<std::size_t, std::size_t> getBlendmapLocalRange(
-        int cell, int minCell, int textureSize, int min, int max)
+        std::int32_t cell, std::int32_t minCell, std::int32_t textureSize, std::int32_t min, std::int32_t max)
     {
-        const int cellMin = (cell - minCell) * textureSize;
-        const int cellMax = cellMin + textureSize - 1;
+        const std::int32_t cellMin = (cell - minCell) * textureSize;
+        const std::int32_t cellMax = cellMin + textureSize - 1;
         const std::size_t begin = min > cellMin ? static_cast<std::size_t>(min - cellMin) : 0;
         const std::size_t end
             = cellMax < max ? static_cast<std::size_t>(textureSize) : static_cast<std::size_t>(max - cellMin + 1);
@@ -147,7 +148,7 @@ namespace ESMTerrain
     }
 
     template <class F>
-    void sampleBlendmaps(float size, float minX, float minY, int textureSize, F&& f)
+    void sampleBlendmaps(float size, float minX, float minY, std::int32_t textureSize, F&& f)
     {
         if (size <= 0)
             throw std::invalid_argument("Invalid size for blendmap sampling: " + std::to_string(size));
@@ -155,12 +156,13 @@ namespace ESMTerrain
         if (textureSize <= 0)
             throw std::invalid_argument("Invalid texture size for blendmap sampling: " + std::to_string(textureSize));
 
-        int minCellX = static_cast<int>(std::floor(minX));
-        const int minCellY = static_cast<int>(std::floor(minY));
-        int minRow
-            = static_cast<int>((minX - static_cast<float>(minCellX)) * static_cast<float>((textureSize + 1))) - 1;
-        const int minCol
-            = static_cast<int>((minY - static_cast<float>(minCellY)) * static_cast<float>((textureSize + 1)));
+        auto minCellX = static_cast<std::int32_t>(std::floor(minX));
+        const auto minCellY = static_cast<std::int32_t>(std::floor(minY));
+        std::int32_t minRow
+            = static_cast<std::int32_t>((minX - static_cast<float>(minCellX)) * static_cast<float>((textureSize + 1)))
+            - 1;
+        const auto minCol
+            = static_cast<std::int32_t>((minY - static_cast<float>(minCellY)) * static_cast<float>((textureSize + 1)));
 
         if (minRow < 0)
         {
@@ -168,13 +170,13 @@ namespace ESMTerrain
             minRow += textureSize;
         }
 
-        const int maxRow = minRow + static_cast<int>(static_cast<float>(textureSize) * size);
-        const int maxCol = minCol + static_cast<int>(static_cast<float>(textureSize) * size);
-        const int maxCellX = minCellX + maxRow / textureSize;
-        const int maxCellY = minCellY + maxCol / textureSize;
+        const std::int32_t maxRow = minRow + static_cast<std::int32_t>(static_cast<float>(textureSize) * size);
+        const std::int32_t maxCol = minCol + static_cast<std::int32_t>(static_cast<float>(textureSize) * size);
+        const std::int32_t maxCellX = minCellX + maxRow / textureSize;
+        const std::int32_t maxCellY = minCellY + maxCol / textureSize;
 
         std::size_t baseDstCol = 0;
-        for (int cellY = minCellY; cellY <= maxCellY; ++cellY)
+        for (std::int32_t cellY = minCellY; cellY <= maxCellY; ++cellY)
         {
             std::size_t baseDstRow = 0;
 
@@ -182,7 +184,7 @@ namespace ESMTerrain
                 = getBlendmapLocalRange(cellY, minCellY, textureSize, minCol, maxCol);
             const std::size_t colCount = localEndCol - localBeginCol;
 
-            for (int cellX = minCellX; cellX <= maxCellX; ++cellX)
+            for (std::int32_t cellX = minCellX; cellX <= maxCellX; ++cellX)
             {
                 const auto [localBeginRow, localEndRow]
                     = getBlendmapLocalRange(cellX, minCellX, textureSize, minRow, maxRow);

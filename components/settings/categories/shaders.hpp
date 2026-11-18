@@ -1,15 +1,15 @@
 #pragma once
 
-#include <components/settings/sanitizerimpl.hpp>
-#include <components/settings/settingvalue.hpp>
+#include <cstdint>
+#include <string>
+#include <string_view>
 
 #include <osg/Math>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+#include <components/settings/sanitizerimpl.hpp>
+#include <components/settings/settingvalue.hpp>
 
 namespace Settings
 {
@@ -37,7 +37,7 @@ namespace Settings
         SettingValue<float> mMaximumLightDistance{ mIndex, "Shaders", "maximum light distance",
             makeMaxSanitizerFloat(0) };
         SettingValue<float> mLightFadeStart{ mIndex, "Shaders", "light fade start", makeClampSanitizerFloat(0, 1) };
-        SettingValue<int> mMaxLights{ mIndex, "Shaders", "max lights", makeClampSanitizerInt(2, 64) };
+        SettingValue<std::int32_t> mMaxLights{ mIndex, "Shaders", "max lights", makeClampSanitizerInt(2, 64) };
         SettingValue<float> mMinimumInteriorBrightness{ mIndex, "Shaders", "minimum interior brightness",
             makeClampSanitizerFloat(0, 1) };
         SettingValue<bool> mAntialiasAlphaTest{ mIndex, "Shaders", "antialias alpha test" };

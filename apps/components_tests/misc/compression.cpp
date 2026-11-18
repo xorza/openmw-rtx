@@ -1,8 +1,9 @@
-#include <components/misc/compression.hpp>
+#include <cstdint>
+#include <cstring>
 
 #include <gtest/gtest.h>
 
-#include <cstring>
+#include <components/misc/compression.hpp>
 
 namespace
 {
@@ -13,7 +14,7 @@ namespace
     {
         const std::vector<std::byte> data(1234);
         const std::vector<std::byte> compressed = compress(data);
-        int size = 0;
+        std::int32_t size = 0;
         std::memcpy(&size, compressed.data(), sizeof(size));
         EXPECT_EQ(size, data.size());
     }

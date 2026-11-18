@@ -2,20 +2,16 @@
 
 #include <algorithm>
 #include <cassert>
-#include <format>
 #include <iterator>
 #include <optional>
 #include <utility>
 
-#include <components/debug/debuglog.hpp>
-#include <components/platform/memory.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/resource/imageheader.hpp>
-#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/image/textureformat.hpp>
-#include <components/sceneutil/embeddedimage.hpp>
 
 #include "contentpreprocessor.hpp"
-#include <components/contentstore/store.hpp>
+#include "texelreads.hpp"
 
 namespace Rtx
 {
@@ -24,12 +20,12 @@ namespace Rtx
     struct PreparedImages::Hand
     {
         explicit Hand(ContentStore::Store* store)
-            : mContent(store, ContentStore::Reach::Disk)
+            : mContent(store, ContentStore::Reach::Disk, ChainRuns::WithinMemory)
         {
         }
 
         ContentPreprocessor mContent;
-        MadeChain mChain;
+        PooledChain mChain;
         std::jthread mWorker;
     };
 
@@ -46,6 +42,7 @@ namespace Rtx
 
     PreparedImages::PreparedImages(ContentStore::Store* const store, const std::size_t hands)
         : mStore(store)
+        , mPool(BufferPool::make(sPoolBytes))
     {
         assert(hands >= 1 && "no thread to make images on");
         for (std::size_t at = 0; at < hands; ++at)
@@ -94,6 +91,8 @@ namespace Rtx
 
             if (!entry->second.mMade)
             {
+                // Asked again before its job landed: the slot that left is not the last to want it.
+                entry->second.mLeft = false;
                 found = PreparedImage{ .mPending = true };
                 return false;
             }
@@ -139,8 +138,8 @@ namespace Rtx
         PreparedImage found;
         const bool chainStands = entry.mStands || take(entry.mHeld, entry.mWatched, found.mImage);
         const bool fileStands
-            = !entry.mReadsFile || !Resource::isHeader(file) || take(entry.mFileHeld, entry.mFileWatched, found.mFile);
-        if (entry.mReadsFile && found.mFile == nullptr && fileStands)
+            = !entry.mStands || !Resource::isHeader(file) || take(entry.mFileHeld, entry.mFileWatched, found.mFile);
+        if (entry.mStands && found.mFile == nullptr && fileStands)
             found.mFile = &file;
         if (chainStands && fileStands)
             return found;
@@ -175,6 +174,9 @@ namespace Rtx
 
     void PreparedImages::flush()
     {
+        // Past the pool's most while it waits: what it waits for is held until every job is made, so a worker that
+        // waited for room would wait on this waiter.
+        const BufferPool::Overdraft overdraft(*mPool);
         mMonitor.await([&] { return mQueue.empty() && mInFlight == 0; });
     }
 
@@ -186,6 +188,41 @@ namespace Rtx
     std::size_t PreparedImages::getEntryCount()
     {
         return mMonitor.under([&] { return mEntries.size(); });
+    }
+
+    void PreparedImages::forget(
+        const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap, const osg::Image* const partner)
+    {
+        mMonitor.give([&] {
+            const auto entry = mEntries.find(keyOf(file, encoding, wrap, partner));
+            if (entry == mEntries.end())
+                return false;
+            if (entry->second.mMade)
+                mEntries.erase(entry);
+            else
+            {
+                entry->second.mLeft = true;
+                ++mLeftPending;
+            }
+            return false;
+        });
+        Resource::releaseTexels(file);
+    }
+
+    PreparedHeld PreparedImages::getHeld()
+    {
+        return mMonitor.under([&] {
+            PreparedHeld held{ .mLeftPending = mLeftPending };
+            for (const auto& [key, entry] : mEntries)
+            {
+                if (entry.mHeld == nullptr && entry.mFileHeld == nullptr)
+                    continue;
+                ++held.mEntries;
+                held.mBytes += entry.mHeld != nullptr ? entry.mHeld->getBytes().size() : 0;
+                held.mBytes += entry.mFileHeld != nullptr ? entry.mFileHeld->getTotalSizeInBytesIncludingMipmaps() : 0;
+            }
+            return held;
+        });
     }
 
     std::size_t PreparedImages::getScratchBytes()
@@ -215,22 +252,6 @@ namespace Rtx
         mSweepAt = std::max<std::size_t>(1024, 2 * mEntries.size());
     }
 
-    bool PreparedImages::admits(const ChainScratch& scratch, const osg::Image& file)
-    {
-        // **A chain whose making needs more than the system has left is not made**, and its file's own
-        // chain draws: allocated on this thread, it ended the game. Asked as it starts and not as it is
-        // queued, since what the system has left moves with the world.
-        const std::optional<std::uint64_t> available = Platform::availableMemory();
-        if (!available.has_value() || scratch.total() <= *available)
-            return true;
-
-        Log(Debug::Warning) << "Ray tracing keeps the chain of \"" << SceneUtil::EmbeddedImage::nameOf(file)
-                            << "\" as it stands: making it again needs "
-                            << std::format("{:.1f} MiB, and the system has {:.1f} MiB left", mebibytes(scratch.total()),
-                                   mebibytes(*available));
-        return false;
-    }
-
     void PreparedImages::serve(Hand& hand, const std::stop_token& stop)
     {
         Job job;
@@ -240,41 +261,63 @@ namespace Rtx
                 job = std::move(mQueue.front());
                 mQueue.pop_front();
                 ++mInFlight;
+                // **A job whose slot left before it started is cancelled**: nothing waits for what it would read, and
+                // its entry goes now rather than as it lands (`forget`).
+                const auto entry = mEntries.find(job.mKey);
+                job.mCancelled = entry != mEntries.end() && entry->second.mLeft;
+                if (job.mCancelled)
+                    mEntries.erase(entry);
             },
             [&](const std::stop_token&) {
-                // Through the header a model holds, from its manager's cache or the file again.
-                osg::ref_ptr<const osg::Image> pixels = Resource::texelsOf(*job.mFile);
-                const osg::Image& file = *pixels;
+                if (job.mCancelled)
+                {
+                    mMonitor.hand([&] {
+                        --mInFlight;
+                        ++mStats.mTexelReads.mCancelled;
+                        job = Job{};
+                    });
+                    return;
+                }
+
+                // **The header a model holds, keyed by its derivation**: a chain the store holds whole reads nothing of
+                // the file, and a run reads its texels through the header.
+                const osg::Image& file = *job.mFile;
                 const auto [image, encoding, wrap, partner] = job.mKey;
+                osg::ref_ptr<const osg::Image> pixels;
 
                 std::optional<MadeLayout> layout;
                 if (job.mMakes && job.mPartner != nullptr)
                 {
-                    const osg::ref_ptr<const osg::Image> partnerPixels = Resource::texelsOf(*job.mPartner);
-                    const ConversionPass::Input input{
-                        .mImage = file, .mPartner = *partnerPixels, .mEncoding = encoding, .mWrap = wrap
-                    };
-                    if (admits(ConversionPass::scratchOf(input), file))
-                    {
-                        hand.mContent.convert(input, hand.mChain);
+                    const ConversionPass::Input input{ .mImage = file,
+                        .mPartner = *job.mPartner,
+                        .mEncoding = encoding,
+                        .mWrap = wrap,
+                        .mRead = &pixels };
+                    if (hand.mContent.convert(input, *mPool, stop, hand.mChain))
                         layout = ConversionPass::madeLayout(input, hand.mChain.mForm);
-                    }
                 }
                 else if (job.mMakes)
                 {
-                    const ChainPass::Input input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap };
-                    if (admits(ChainPass::scratchOf(input), file))
-                    {
-                        hand.mContent.chain(input, hand.mChain);
+                    const ChainPass::Input input{
+                        .mImage = file, .mEncoding = encoding, .mWrap = wrap, .mRead = &pixels
+                    };
+                    if (hand.mContent.chain(input, *mPool, stop, hand.mChain))
                         layout = ChainPass::madeLayout(input, hand.mChain.mForm);
-                    }
                 }
 
-                // The made levels move into the image that holds them; the file's finest level stays
-                // the file's where they are coarser (`MadeImage`).
+                // The made levels move into the image that holds them (`MadeImage`).
                 osg::ref_ptr<const MadeImage> made;
                 if (layout.has_value())
                     made = MadeImage::make(*layout, std::move(hand.mChain.mBytes));
+                hand.mChain.mBytes = PooledBuffer();
+
+                // The file's texels where the upload reads its levels, nothing made: a run's read, else one now. A
+                // chain made holds none.
+                const bool readsFile = made == nullptr;
+                if (!readsFile)
+                    pixels = nullptr;
+                else if (pixels == nullptr)
+                    pixels = readTexels(file, TexelRead::File, hand.mContent.texelReads());
 
                 // **A hand lets go of its chains' scratch once the queue is drained**, as the preparation's hands
                 // do: one miss on a 4096 map held some 106 MB on this thread for the session. Before the hand-over,
@@ -286,19 +329,24 @@ namespace Rtx
                 // left on this thread** once the job counts as done: a waiter that `flush` let go may drop
                 // the last reference it holds and find the image or the file gone, which a reference here
                 // kept alive a moment longer.
-                const ContentStats stats = hand.mContent.takeStats();
+                ContentStats stats = hand.mContent.takeStats();
+                // A chain the store answered reads nothing of its file for the upload, which a file that stands as
+                // shipped, its own levels read, is told apart by.
+                const std::uint32_t found
+                    = stats.at(ContentPassId::Chain).mHits + stats.at(ContentPassId::Conversion).mHits;
+                if (found > 0 && made != nullptr)
+                    ++stats.mTexelReads.mChainsFoundWhole;
                 mMonitor.hand([&] {
                     mStats += stats;
                     --mInFlight;
                     const auto entry = mEntries.find(job.mKey);
-                    if (entry != mEntries.end())
+                    if (entry != mEntries.end() && entry->second.mLeft)
+                        mEntries.erase(entry);
+                    else if (entry != mEntries.end())
                     {
-                        // The file's texels where the upload reads any of its levels, held where they are not the
-                        // file's own image, which its holder keeps.
-                        const bool readsFile = made == nullptr || !made->getWholeFormat().has_value();
+                        // The file's texels held where they are not the file's own image, which its holder keeps.
                         entry->second.mMade = true;
-                        entry->second.mStands = made == nullptr;
-                        entry->second.mReadsFile = readsFile;
+                        entry->second.mStands = readsFile;
                         entry->second.mHeld = made;
                         entry->second.mWatched = nullptr;
                         entry->second.mFileHeld = readsFile && pixels.get() != job.mFile.get() ? pixels : nullptr;

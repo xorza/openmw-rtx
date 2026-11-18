@@ -1,9 +1,10 @@
 #include "refiddata.hpp"
 
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-
+#include <cstdint>
 #include <memory>
+
+#include "record.hpp"
+#include "universalid.hpp"
 
 namespace ESM
 {
@@ -44,7 +45,7 @@ CSMWorld::RefIdData::RefIdData()
     mRecordContainers.insert(std::make_pair(UniversalId::Type_Weapon, &mWeapons));
 }
 
-CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::globalToLocalIndex(int index) const
+CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::globalToLocalIndex(std::int32_t index) const
 {
     for (auto recordContainer : mRecordContainers)
     {
@@ -57,14 +58,14 @@ CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::globalToLocalIndex(int inde
     throw std::runtime_error("RefIdData index out of range");
 }
 
-int CSMWorld::RefIdData::localToGlobalIndex(const LocalIndex& index) const
+std::int32_t CSMWorld::RefIdData::localToGlobalIndex(const LocalIndex& index) const
 {
     auto end = mRecordContainers.find(index.second);
 
     if (end == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
 
-    int globalIndex = index.first;
+    std::int32_t globalIndex = index.first;
 
     for (auto iter(mRecordContainers.begin()); iter != end; ++iter)
         globalIndex += iter->second->getSize();
@@ -82,7 +83,7 @@ CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::searchId(const ESM::RefId& 
     return iter->second;
 }
 
-unsigned int CSMWorld::RefIdData::getRecordFlags(const ESM::RefId& id) const
+std::uint32_t CSMWorld::RefIdData::getRecordFlags(const ESM::RefId& id) const
 {
     LocalIndex localIndex = searchId(id);
 
@@ -135,7 +136,7 @@ unsigned int CSMWorld::RefIdData::getRecordFlags(const ESM::RefId& id) const
     return 0;
 }
 
-void CSMWorld::RefIdData::erase(int index, int count)
+void CSMWorld::RefIdData::erase(std::int32_t index, std::int32_t count)
 {
     LocalIndex localIndex = globalToLocalIndex(index);
 
@@ -143,7 +144,7 @@ void CSMWorld::RefIdData::erase(int index, int count)
 
     while (count > 0 && iter != mRecordContainers.end())
     {
-        int size = iter->second->getSize();
+        std::int32_t size = iter->second->getSize();
 
         if (localIndex.first + count > size)
         {
@@ -198,9 +199,9 @@ void CSMWorld::RefIdData::appendRecord(UniversalId::Type type, const ESM::RefId&
     mIndex.insert(std::make_pair(id, LocalIndex(iter->second->getSize() - 1, type)));
 }
 
-int CSMWorld::RefIdData::getAppendIndex(UniversalId::Type type) const
+std::int32_t CSMWorld::RefIdData::getAppendIndex(UniversalId::Type type) const
 {
-    int index = 0;
+    std::int32_t index = 0;
 
     for (auto recordContainer : mRecordContainers)
     {
@@ -220,7 +221,7 @@ void CSMWorld::RefIdData::load(ESM::ESMReader& reader, bool base, CSMWorld::Univ
     if (found == mRecordContainers.end())
         throw std::logic_error("Invalid Referenceable ID type");
 
-    int index = found->second->load(reader, base);
+    std::int32_t index = found->second->load(reader, base);
     if (index != -1)
     {
         LocalIndex localIndex = LocalIndex(index, type);
@@ -235,13 +236,13 @@ void CSMWorld::RefIdData::load(ESM::ESMReader& reader, bool base, CSMWorld::Univ
     }
 }
 
-void CSMWorld::RefIdData::erase(const LocalIndex& index, int count)
+void CSMWorld::RefIdData::erase(const LocalIndex& index, std::int32_t count)
 {
     auto iter = mRecordContainers.find(index.second);
     if (iter == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
 
-    for (int i = index.first; i < index.first + count; ++i)
+    for (std::int32_t i = index.first; i < index.first + count; ++i)
     {
         auto result = mIndex.find(iter->second->getId(i));
 
@@ -250,8 +251,8 @@ void CSMWorld::RefIdData::erase(const LocalIndex& index, int count)
     }
 
     // Adjust the local indexes to avoid gaps between them after removal of records
-    int recordIndex = index.first + count;
-    int recordCount = iter->second->getSize();
+    std::int32_t recordIndex = index.first + count;
+    std::int32_t recordCount = iter->second->getSize();
     while (recordIndex < recordCount)
     {
         auto recordIndexFound = mIndex.find(iter->second->getId(recordIndex));
@@ -265,9 +266,9 @@ void CSMWorld::RefIdData::erase(const LocalIndex& index, int count)
     iter->second->erase(index.first, count);
 }
 
-int CSMWorld::RefIdData::getSize() const
+std::int32_t CSMWorld::RefIdData::getSize() const
 {
-    return static_cast<int>(mIndex.size());
+    return static_cast<std::int32_t>(mIndex.size());
 }
 
 std::vector<ESM::RefId> CSMWorld::RefIdData::getIds(bool listDeleted) const
@@ -290,7 +291,7 @@ std::vector<ESM::RefId> CSMWorld::RefIdData::getIds(bool listDeleted) const
     return ids;
 }
 
-void CSMWorld::RefIdData::save(int index, ESM::ESMWriter& writer) const
+void CSMWorld::RefIdData::save(std::int32_t index, ESM::ESMWriter& writer) const
 {
     LocalIndex localIndex = globalToLocalIndex(index);
 
@@ -415,7 +416,7 @@ void CSMWorld::RefIdData::insertRecord(
     mIndex.insert(std::make_pair(id, LocalIndex(iter->second->getSize() - 1, type)));
 }
 
-void CSMWorld::RefIdData::copyTo(int index, RefIdData& target) const
+void CSMWorld::RefIdData::copyTo(std::int32_t index, RefIdData& target) const
 {
     LocalIndex localIndex = globalToLocalIndex(index);
 

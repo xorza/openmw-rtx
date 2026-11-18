@@ -1,13 +1,15 @@
 #include "actor.hpp"
 
+#include <cstdint>
+
 #include <osg/Group>
 #include <osg/Node>
 #include <osg/Vec3d>
 
 #include <apps/opencs/model/world/actoradapter.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/mappings.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -15,8 +17,6 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/attach.hpp>
 #include <components/sceneutil/skeleton.hpp>
-
-#include "../../model/world/data.hpp"
 
 namespace CSVRender
 {
@@ -100,7 +100,7 @@ namespace CSVRender
 
     void Actor::loadBodyParts()
     {
-        for (int i = 0; i < ESM::PRT_Count; ++i)
+        for (std::int32_t i = 0; i < ESM::PRT_Count; ++i)
         {
             const auto type = static_cast<ESM::PartReferenceType>(i);
             attachBodyPart(type, getBodyPartMesh(mActorData->getPart(type)));
@@ -127,7 +127,7 @@ namespace CSVRender
 
         const auto& bodyParts = mData.getBodyParts();
 
-        const int index = bodyParts.searchId(bodyPartId);
+        const std::int32_t index = bodyParts.searchId(bodyPartId);
         if (index != -1 && !bodyParts.getRecord(index).isDeleted())
             return VFS::Path::join(meshPrefix, bodyParts.getRecord(index).get().mModel.getNormalized()).value();
         else

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <map>
 #include <memory>
@@ -14,8 +15,17 @@
 
 #include <osg/Matrixf>
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwgui/mode.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
@@ -32,19 +42,6 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwrender/animation.hpp"
 
 #include "constants.hpp"
 #include "ffmpegdecoder.hpp"
@@ -146,9 +143,9 @@ namespace MWSound
     // For combining PlayMode and Type flags
     // Found by argument-dependent lookup, which an unnamed namespace would hide.
     // NOLINTBEGIN(misc-use-anonymous-namespace)
-    static int operator|(PlayMode a, Type b)
+    static std::int32_t operator|(PlayMode a, Type b)
     {
-        return static_cast<int>(a) | static_cast<int>(b);
+        return static_cast<std::int32_t>(a) | static_cast<std::int32_t>(b);
     }
     // NOLINTEND(misc-use-anonymous-namespace)
 
@@ -829,7 +826,7 @@ namespace MWSound
         return false;
     }
 
-    void SoundManager::pauseSounds(BlockerType blocker, int types)
+    void SoundManager::pauseSounds(BlockerType blocker, std::int32_t types)
     {
         if (mOutput->isInitialized())
         {
@@ -847,8 +844,8 @@ namespace MWSound
         if (mOutput->isInitialized())
         {
             mPausedSoundTypes[blocker] = 0;
-            int types = static_cast<int>(Type::Mask);
-            for (int currentBlocker = 0; currentBlocker < BlockerType::MaxCount; currentBlocker++)
+            auto types = static_cast<std::int32_t>(Type::Mask);
+            for (std::int32_t currentBlocker = 0; currentBlocker < BlockerType::MaxCount; currentBlocker++)
             {
                 if (currentBlocker != blocker)
                     types &= ~mPausedSoundTypes[currentBlocker];
@@ -1339,8 +1336,8 @@ namespace MWSound
     // better
     void SoundDecoder::readAll(std::vector<char>& output)
     {
-        size_t total = output.size();
-        size_t got = 0;
+        std::size_t total = output.size();
+        std::size_t got = 0;
 
         output.resize(total + 32768);
         while ((got = read(&output[total], output.size() - total)) > 0)
@@ -1383,7 +1380,7 @@ namespace MWSound
         return "(unknown channel config)";
     }
 
-    size_t framesToBytes(size_t frames, ChannelConfig config, SampleType type)
+    std::size_t framesToBytes(std::size_t frames, ChannelConfig config, SampleType type)
     {
         switch (config)
         {
@@ -1418,7 +1415,7 @@ namespace MWSound
         return frames;
     }
 
-    size_t bytesToFrames(size_t bytes, ChannelConfig config, SampleType type)
+    std::size_t bytesToFrames(std::size_t bytes, ChannelConfig config, SampleType type)
     {
         return bytes / framesToBytes(1, config, type);
     }

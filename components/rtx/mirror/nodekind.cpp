@@ -1,11 +1,12 @@
 #include "nodekind.hpp"
 
+#include <typeinfo>
+
 #include <osg/LOD>
 #include <osg/Sequence>
 #include <osgParticle/ParticleProcessor>
 #include <osgParticle/ParticleSystem>
 #include <osgParticle/ParticleSystemUpdater>
-#include <typeinfo>
 
 #include <components/nifosg/autotransform.hpp>
 #include <components/sceneutil/lightmanager.hpp>

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <span>
@@ -40,8 +41,9 @@ namespace MWRender
             const ViewDescription described = describeView(spec.mMask);
             // Held to the frame's own sides, which every device chosen makes an image at: a map
             // tile is `[Map] local map resolution` times the raster scale, which nothing bounds.
-            const auto sideOf = [](int asked) {
-                return static_cast<std::uint32_t>(std::clamp(asked, 1, static_cast<int>(Rtx::sLargestFrameSide)));
+            const auto sideOf = [](std::int32_t asked) {
+                return static_cast<std::uint32_t>(
+                    std::clamp(asked, 1, static_cast<std::int32_t>(Rtx::sLargestFrameSide)));
             };
             return Rtx::ViewRequest{
                 .mWidth = sideOf(spec.mWidth),
@@ -59,13 +61,13 @@ namespace MWRender
     }
 
     TracedView::TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::PictureRenderer& backend,
-        ViewQueue& views, MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context)
+        ViewQueue& views, MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context, Rtx::SceneIdentities& identities)
         : mViews(views)
-        , mTrace(backend, requestFor(spec, kind), context)
+        , mTrace(backend, requestFor(spec, kind), context, identities)
         , mTexture(gui.takeTexture(views.nameView()))
     {
-        const int width = static_cast<int>(mTrace.getWidth());
-        const int height = static_cast<int>(mTrace.getHeight());
+        const auto width = static_cast<std::int32_t>(mTrace.getWidth());
+        const auto height = static_cast<std::int32_t>(mTrace.getHeight());
         mTexture->createManual(
             width, height, MyGUI::TextureUsage::Static | MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8A8);
 
@@ -75,7 +77,7 @@ namespace MWRender
             channel(spec.mClearColour.b()), channel(spec.mClearColour.a()) };
 
         auto* pixels = static_cast<std::uint8_t*>(mTexture->lock(MyGUI::TextureUsage::Write));
-        for (int i = 0; i < width * height; ++i)
+        for (std::int32_t i = 0; i < width * height; ++i)
             std::memcpy(pixels + static_cast<std::ptrdiff_t>(i * 4), colour, sizeof(colour));
         mTexture->unlock();
 
@@ -118,7 +120,7 @@ namespace MWRender
         return *mTexture;
     }
 
-    void TracedView::setExtent(int width, int height)
+    void TracedView::setExtent(std::int32_t width, std::int32_t height)
     {
         mTrace.setExtent(
             static_cast<std::uint32_t>(std::max(width, 1)), static_cast<std::uint32_t>(std::max(height, 1)));
@@ -179,8 +181,8 @@ namespace MWRender
         // One image a view, made once: a map tile asks a copy of every picture it paints, and an image each
         // time was a quarter of a megabyte allocated a tile. Its reader keeps nothing of it (`PendingPaints::finish`).
         mCopyState = CopyState::Queued;
-        const auto width = static_cast<int>(mTrace.getWidth());
-        const auto height = static_cast<int>(mTrace.getHeight());
+        const auto width = static_cast<std::int32_t>(mTrace.getWidth());
+        const auto height = static_cast<std::int32_t>(mTrace.getHeight());
         if (mCopy == nullptr || mCopy->s() != width || mCopy->t() != height)
         {
             mCopy = new osg::Image;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -58,7 +59,7 @@ namespace CSVDoc
 
         View* addView(CSMDoc::Document* document, const CSMWorld::UniversalId& id, const std::string& hint);
 
-        int countViews(const CSMDoc::Document* document) const;
+        std::int32_t countViews(const CSMDoc::Document* document) const;
         ///< Return number of views for \a document.
 
         bool closeRequest(View* view);
@@ -84,11 +85,12 @@ namespace CSVDoc
 
     private slots:
 
-        void documentStateChanged(int state, CSMDoc::Document* document);
+        void documentStateChanged(std::int32_t state, CSMDoc::Document* document);
 
-        void progress(int current, int max, int type, int threads, CSMDoc::Document* document);
+        void progress(std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads,
+            CSMDoc::Document* document);
 
-        void onExitWarningHandler(int state, CSMDoc::Document* document);
+        void onExitWarningHandler(std::int32_t state, CSMDoc::Document* document);
     };
 
 }

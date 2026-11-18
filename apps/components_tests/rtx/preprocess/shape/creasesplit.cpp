@@ -111,7 +111,7 @@ namespace Rtx
             ASSERT_EQ(shaped.mSources.size(), 16u);
             ASSERT_EQ(shaped.mKept.size(), 36u);
 
-            for (unsigned int mSource : shaped.mSources)
+            for (std::uint32_t mSource : shaped.mSources)
                 EXPECT_LT(mSource, 8u) << "an added vertex copies one the cube had";
 
             for (std::size_t t = 0; t < 12; ++t)
@@ -168,10 +168,10 @@ namespace Rtx
         /// a copy.
         TEST(RtxCreaseSplitTest, anOctagonalPrismStaysRoundAndAHexagonalOneIsCutIntoItsFaces)
         {
-            const auto prism = [](int sides, bool cut) {
+            const auto prism = [](std::int32_t sides, bool cut) {
                 std::vector<osg::Vec3f> positions;
                 std::vector<osg::Vec3f> normals;
-                for (int side = 0; side < sides; ++side)
+                for (std::int32_t side = 0; side < sides; ++side)
                 {
                     const double angle = side * 2.0 * std::numbers::pi / sides;
                     const osg::Vec3f out(

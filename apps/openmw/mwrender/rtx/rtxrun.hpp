@@ -22,6 +22,18 @@ namespace MWRender
     struct FrameContext;
     struct FrameReport;
 
+    /// What a run with a stated step keeps of what the game builds in its caches kept by time.
+    enum class SteppedExpiry
+    {
+        /// Everything, for as long as the run lasts: an expiry is decided on a loading thread and keeps what is
+        /// referenced at that moment, which the other loading threads change, so two runs that must agree frame for
+        /// frame would drop different models (`RtxRenderer::setResourceExpiry`).
+        Never,
+
+        /// What the game keeps: `[Cells] cache expiry delay`, for a run whose memory is the figure it reports.
+        AsTheGame,
+    };
+
     /// Everything a run decides once, before anything is built, that the game's renderer reads: the harness
     /// fills one from its command line and a played session from `[RTX]`, so a knob added here reaches both.
     struct RunSetup
@@ -63,6 +75,9 @@ namespace MWRender
         /// What the game's resource caches may hold at most, where the run states it (`Resource::CacheBudget::limit`):
         /// how a machine short of memory loads, on one that is not. Nothing to let them follow the system's memory.
         std::optional<std::uint64_t> mCacheBudget{};
+
+        /// What a stepped run keeps in the caches kept by time; a run on the wall keeps the setting whatever this says.
+        SteppedExpiry mSteppedExpiry = SteppedExpiry::Never;
 
         /// Where the content store stands (`ContentStore::Store`), or nothing for none: a played session's
         /// under the user's cache directory, the harness's where `--content-cache` says.

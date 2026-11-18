@@ -1,6 +1,8 @@
 #include "crashmonitorlog.hpp"
 
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <ctime>
 #include <format>
 #include <system_error>
@@ -24,7 +26,7 @@ namespace Crash
             const auto milliseconds
                 = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
             return std::format("[{:02}:{:02}:{:02}.{:03} E] ", local.tm_hour, local.tm_min, local.tm_sec,
-                static_cast<int>(milliseconds));
+                static_cast<std::int32_t>(milliseconds));
         }
     }
 

@@ -1,8 +1,8 @@
 #include "indexrefid.hpp"
 
-#include "serializerefid.hpp"
-
 #include <ostream>
+
+#include "serializerefid.hpp"
 
 namespace ESM
 {

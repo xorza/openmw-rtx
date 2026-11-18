@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/BufferTemplate>
 
 #include <components/sceneutil/lightmanager.hpp>
@@ -82,9 +84,9 @@ namespace Fx
 
         void setGameHour(float hour) { mData.get<GameHour>() = hour; }
 
-        void setWeatherId(int id) { mData.get<WeatherID>() = id; }
+        void setWeatherId(std::int32_t id) { mData.get<WeatherID>() = id; }
 
-        void setNextWeatherId(int id) { mData.get<NextWeatherID>() = id; }
+        void setNextWeatherId(std::int32_t id) { mData.get<NextWeatherID>() = id; }
 
         void setWaterHeight(float height) { mData.get<WaterHeight>() = height; }
 
@@ -94,7 +96,7 @@ namespace Fx
 
         void setDeltaSimulationTime(float time) { mData.get<DeltaSimulationTime>() = time; }
 
-        void setFrameNumber(int frame) { mData.get<FrameNumber>() = frame; }
+        void setFrameNumber(std::int32_t frame) { mData.get<FrameNumber>() = frame; }
 
         void setWindSpeed(float speed) { mData.get<WindSpeed>() = speed; }
 

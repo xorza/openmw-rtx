@@ -25,6 +25,24 @@ namespace Platform
 #endif
     }
 
+    void tuneHeap()
+    {
+#if defined(__GLIBC__)
+        const char* const tunables = std::getenv("GLIBC_TUNABLES");
+        if (tunables != nullptr && GlibcText::namesTheHeapsSettings(tunables))
+            return;
+        // NOLINTNEXTLINE(concurrency-mt-unsafe): called once by `init`, before any thread is made.
+        mallopt(M_ARENA_MAX, 4);
+        // NOLINTNEXTLINE(concurrency-mt-unsafe): called once by `init`, before any thread is made.
+        mallopt(M_MMAP_THRESHOLD, 1 << 20);
+#endif
+    }
+
+    bool heapReports()
+    {
+        return true;
+    }
+
     std::optional<HeapHeld> heapHeld()
     {
         // **A sanitizer's allocator first, where one is linked in**: it serves `malloc` in glibc's place, so glibc's

@@ -1,10 +1,12 @@
+#include "cursor.hpp"
+
+#include <cstdint>
+
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ResourceImageSet.h>
 #include <MyGUI_StringUtility.h>
 #include <MyGUI_Version.h>
 #include <MyGUI_XmlDocument.h>
-
-#include "cursor.hpp"
 
 namespace MWGui
 {
@@ -38,7 +40,7 @@ namespace MWGui
         }
     }
 
-    int ResourceImageSetPointerFix::getRotation()
+    std::int32_t ResourceImageSetPointerFix::getRotation()
     {
         return mRotation;
     }

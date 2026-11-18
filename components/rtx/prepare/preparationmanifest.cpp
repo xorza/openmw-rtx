@@ -256,7 +256,7 @@ namespace Rtx
                 if (key.mPass == ContentPassId::Shape)
                     return store.read(key.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion,
                         ContentStore::Reach::Disk, scratch);
-                return store.holds(key.mKey, ContentStore::Reach::Disk);
+                return store.holds(key.mKey, storeKindOf(key.mPass), ContentStore::Reach::Disk);
             });
             if (held)
                 return filed.mDigest;

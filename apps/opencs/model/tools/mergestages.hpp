@@ -1,18 +1,16 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
 
 #include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
 #include <components/toutf8/toutf8.hpp>
-
-#include "../doc/stage.hpp"
-
-#include "../world/data.hpp"
 
 #include "mergestate.hpp"
 
@@ -30,10 +28,10 @@ namespace CSMTools
     public:
         explicit StartMergeStage(MergeState& state);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 
@@ -45,10 +43,10 @@ namespace CSMTools
     public:
         FinishMergedDocumentStage(MergeState& state, ToUTF8::FromType encoding);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 
@@ -61,10 +59,10 @@ namespace CSMTools
     public:
         MergeIdCollectionStage(MergeState& state, Collection& (CSMWorld::Data::*accessor)());
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 
@@ -77,13 +75,13 @@ namespace CSMTools
     }
 
     template <typename RecordType, typename Collection>
-    int MergeIdCollectionStage<RecordType, Collection>::setup()
+    std::int32_t MergeIdCollectionStage<RecordType, Collection>::setup()
     {
         return (mState.mSource.getData().*mAccessor)().getSize();
     }
 
     template <typename RecordType, typename Collection>
-    void MergeIdCollectionStage<RecordType, Collection>::perform(int stage, CSMDoc::Messages& messages)
+    void MergeIdCollectionStage<RecordType, Collection>::perform(std::int32_t stage, CSMDoc::Messages& messages)
     {
         const Collection& source = (mState.mSource.getData().*mAccessor)();
         Collection& target = (mState.mTarget->getData().*mAccessor)();
@@ -102,25 +100,25 @@ namespace CSMTools
     public:
         explicit MergeRefIdsStage(MergeState& state);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 
     class MergeReferencesStage : public CSMDoc::Stage
     {
         MergeState& mState;
-        std::map<ESM::RefId, int> mIndex;
+        std::map<ESM::RefId, std::int32_t> mIndex;
 
     public:
         explicit MergeReferencesStage(MergeState& state);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 
@@ -132,10 +130,10 @@ namespace CSMTools
     public:
         explicit PopulateLandTexturesMergeStage(MergeState& state);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 
@@ -146,10 +144,10 @@ namespace CSMTools
     public:
         explicit MergeLandStage(MergeState& state);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 
@@ -162,10 +160,10 @@ namespace CSMTools
     public:
         explicit FixLandsAndLandTexturesMergeStage(MergeState& state);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 
@@ -178,10 +176,10 @@ namespace CSMTools
     public:
         explicit CleanupLandTexturesMergeStage(MergeState& state);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 }

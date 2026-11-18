@@ -1,13 +1,15 @@
 #pragma once
 
-#include "navigator.hpp"
-#include "navmeshmanager.hpp"
-#include "updateguard.hpp"
-
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
 #include <unordered_map>
+
+#include "navigator.hpp"
+#include "navmeshmanager.hpp"
+#include "updateguard.hpp"
 
 namespace DetourNavigator
 {
@@ -18,7 +20,8 @@ namespace DetourNavigator
          * @brief Navigator constructor initializes all internal data. Constructed object is ready to build a scene.
          * @param settings allows to customize navigator work. Constructor is only place to set navigator settings.
          */
-        explicit NavigatorImpl(Settings settings, std::unique_ptr<NavMeshTileStore>&& store);
+        /// @param budget what the caches of the process may hold, which its tiles are kept by, and which outlives it.
+        NavigatorImpl(Settings settings, std::unique_ptr<NavMeshTileStore>&& store, Resource::CacheBudget& budget);
 
         ScopedUpdateGuard makeUpdateGuard() override { return mNavMeshManager.makeUpdateGuard(); }
 
@@ -43,11 +46,12 @@ namespace DetourNavigator
 
         void removeObject(const ObjectId id, const UpdateGuard* guard) override;
 
-        void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard) override;
+        void addWater(
+            const osg::Vec2i& cellPosition, std::int32_t cellSize, float level, const UpdateGuard* guard) override;
 
         void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard) override;
 
-        void addHeightfield(const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape,
+        void addHeightfield(const osg::Vec2i& cellPosition, std::int32_t cellSize, const HeightfieldShape& shape,
             const UpdateGuard* guard) override;
 
         void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard) override;

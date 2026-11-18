@@ -1,18 +1,22 @@
 #pragma once
 
-#include "agentbounds.hpp"
-#include "preparednavmeshdata.hpp"
-#include "recastmesh.hpp"
-#include "tileposition.hpp"
-
 #include <atomic>
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <list>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <vector>
+
+#include <components/resource/cachebudget.hpp>
+
+#include "agentbounds.hpp"
+#include "preparednavmeshdata.hpp"
+#include "recastmesh.hpp"
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {
@@ -44,7 +48,10 @@ namespace DetourNavigator
 
     struct NavMeshTilesCacheStats;
 
-    class NavMeshTilesCache
+    /// The navigation mesh tiles prepared for recast meshes, kept by the caches' byte budget in their one
+    /// least-recently-used order (`Resource::CacheBudget`): a tile anything uses stays, and one nothing uses stays
+    /// until the caches pass their budget and it is the least recently used of them all.
+    class NavMeshTilesCache final : private Resource::BudgetedCache
     {
     public:
         struct Item
@@ -55,6 +62,9 @@ namespace DetourNavigator
             RecastMeshData mRecastMeshData;
             std::unique_ptr<PreparedNavMeshData> mPreparedNavMeshData;
             std::size_t mSize;
+
+            /// The budget's stamp of when it was last let go of, which orders the free items.
+            std::uint64_t mUsed = 0;
 
             Item(const AgentBounds& agentBounds, const TilePosition& changedTile, RecastMeshData&& recastMeshData,
                 std::size_t size)
@@ -123,7 +133,12 @@ namespace DetourNavigator
             ItemIterator mIterator;
         };
 
-        explicit NavMeshTilesCache(const std::size_t maxNavMeshDataSize);
+        /// @param budget what the caches of the process may hold, which outlives this.
+        explicit NavMeshTilesCache(Resource::CacheBudget& budget);
+        ~NavMeshTilesCache();
+
+        NavMeshTilesCache(const NavMeshTilesCache&) = delete;
+        NavMeshTilesCache& operator=(const NavMeshTilesCache&) = delete;
 
         Value get(const AgentBounds& agentBounds, const TilePosition& changedTile, const RecastMesh& recastMesh);
 
@@ -133,19 +148,27 @@ namespace DetourNavigator
         NavMeshTilesCacheStats getStats() const;
 
     private:
+        Resource::CacheBudget& mBudget;
         mutable std::mutex mMutex;
-        std::size_t mMaxNavMeshDataSize;
-        std::size_t mUsedNavMeshDataSize;
-        std::size_t mFreeNavMeshDataSize;
-        std::size_t mHitCount;
-        std::size_t mGetCount;
+        std::size_t mUsedNavMeshDataSize = 0;
+        std::size_t mFreeNavMeshDataSize = 0;
+        std::size_t mHitCount = 0;
+        std::size_t mGetCount = 0;
         std::list<Item> mBusyItems;
+
+        /// The items nothing uses, the most recently let go of first.
         std::list<Item> mFreeItems;
+
+        /// What evictions took since the last `destroyEvicted`, which the budget's worker destroys.
+        std::list<Item> mEvictedItems;
+
         std::map<std::tuple<AgentBounds, TilePosition, std::reference_wrapper<const RecastMeshData>>, ItemIterator,
             std::less<>>
             mValues;
 
-        void removeLeastRecentlyUsed();
+        std::optional<std::uint64_t> oldestUnheld() final;
+        bool evictOldest(std::uint64_t used) final;
+        void destroyEvicted() final;
 
         void acquireItemUnsafe(ItemIterator iterator);
 

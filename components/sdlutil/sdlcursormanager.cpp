@@ -1,6 +1,7 @@
 #include "sdlcursormanager.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <exception>
 #include <memory>
 #include <stdexcept>
@@ -118,7 +119,7 @@ namespace SDLUtil
         }
 
         /// `source` drawn into `width` × `height` pixels and turned by `rotDegrees`.
-        SurfaceUniquePtr draw(SDL_Surface& source, double rotDegrees, int width, int height)
+        SurfaceUniquePtr draw(SDL_Surface& source, double rotDegrees, std::int32_t width, std::int32_t height)
         {
             SurfaceUniquePtr target(SDL_CreateSurface(width, height, source.format), SDL_DestroySurface);
             if (target == nullptr)
@@ -145,15 +146,15 @@ namespace SDLUtil
         }
     }
 
-    void SDLCursorManager::createCursor(std::string_view name, double rotDegrees, osg::Image* image, int hotspotX,
-        int hotspotY, int width, int height, float displayScale)
+    void SDLCursorManager::createCursor(std::string_view name, double rotDegrees, osg::Image* image,
+        std::int32_t hotspotX, std::int32_t hotspotY, std::int32_t width, std::int32_t height, float displayScale)
     {
         if (mCursorMap.contains(name))
             return;
 
         const float divisor = baseDivisor(mScaling, displayScale);
-        const int baseWidth = std::max(1, windowPoints(width, divisor));
-        const int baseHeight = std::max(1, windowPoints(height, divisor));
+        const std::int32_t baseWidth = std::max(1, windowPoints(width, divisor));
+        const std::int32_t baseHeight = std::max(1, windowPoints(height, divisor));
 
         try
         {

@@ -1,11 +1,13 @@
 #include "scriptscontainer.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+
+#include <components/esm/luascripts.hpp>
 
 #include "scripttracker.hpp"
 #include "util.hpp"
-
-#include <components/esm/luascripts.hpp>
 
 namespace
 {
@@ -29,7 +31,7 @@ namespace LuaUtil
     static constexpr std::string_view HANDLER_LOAD = "onLoad";
     static constexpr std::string_view HANDLER_INTERFACE_OVERRIDE = "onInterfaceOverride";
 
-    int64_t ScriptsContainer::sInstanceCount = 0;
+    std::int64_t ScriptsContainer::sInstanceCount = 0;
 
     ScriptsContainer::ScriptsContainer(
         LuaUtil::LuaState* lua, std::string_view namePrefix, ScriptTracker* tracker, bool load)
@@ -50,7 +52,7 @@ namespace LuaUtil
         }
     }
 
-    void ScriptsContainer::printError(int scriptId, std::string_view msg, const std::exception& e) const
+    void ScriptsContainer::printError(std::int32_t scriptId, std::string_view msg, const std::exception& e) const
     {
         Log(Debug::Error) << mNamePrefix << "[" << scriptPath(scriptId) << "] " << msg << ": " << e.what();
     }
@@ -62,7 +64,7 @@ namespace LuaUtil
         mAPI.insert_or_assign(std::move(packageName), std::move(package));
     }
 
-    bool ScriptsContainer::addCustomScript(int scriptId, std::string_view initData)
+    bool ScriptsContainer::addCustomScript(std::int32_t scriptId, std::string_view initData)
     {
         assert(mLua.getConfiguration().isCustomScript(scriptId));
         bool ok = false;
@@ -88,8 +90,8 @@ namespace LuaUtil
         });
     }
 
-    bool ScriptsContainer::addScript(
-        LuaView& view, int scriptId, std::optional<sol::function>& onInit, std::optional<sol::function>& onLoad)
+    bool ScriptsContainer::addScript(LuaView& view, std::int32_t scriptId, std::optional<sol::function>& onInit,
+        std::optional<sol::function>& onLoad)
     {
         assert(scriptId >= 0 && std::cmp_less(scriptId, mLua.getConfiguration().size()));
         if (hasScript(scriptId))
@@ -201,7 +203,7 @@ namespace LuaUtil
         }
     }
 
-    bool ScriptsContainer::hasScript(int scriptId) const
+    bool ScriptsContainer::hasScript(std::int32_t scriptId) const
     {
         return std::visit(
             [&](auto&& variant) {
@@ -224,7 +226,7 @@ namespace LuaUtil
             mData);
     }
 
-    void ScriptsContainer::removeScript(int scriptId)
+    void ScriptsContainer::removeScript(std::int32_t scriptId)
     {
         LoadedData& data = ensureLoaded();
         auto scriptIter = data.mScripts.find(scriptId);
@@ -241,12 +243,12 @@ namespace LuaUtil
             removeHandler(handlers, scriptId);
     }
 
-    void ScriptsContainer::insertInterface(int scriptId, const Script& script)
+    void ScriptsContainer::insertInterface(std::int32_t scriptId, const Script& script)
     {
         assert(script.mInterface);
         const Script* prev = nullptr;
         const Script* next = nullptr;
-        int nextId = 0;
+        std::int32_t nextId = 0;
         LoadedData& data = ensureLoaded();
         for (const auto& [otherId, otherScript] : data.mScripts)
         {
@@ -287,12 +289,12 @@ namespace LuaUtil
             data.mPublicInterfaces[script.mInterfaceName] = *script.mInterface;
     }
 
-    void ScriptsContainer::removeInterface(int scriptId, const Script& script)
+    void ScriptsContainer::removeInterface(std::int32_t scriptId, const Script& script)
     {
         assert(script.mInterface);
         const Script* prev = nullptr;
         const Script* next = nullptr;
-        int nextId = 0;
+        std::int32_t nextId = 0;
         LoadedData& data = ensureLoaded();
         for (const auto& [otherId, otherScript] : data.mScripts)
         {
@@ -330,9 +332,9 @@ namespace LuaUtil
             data.mPublicInterfaces[script.mInterfaceName] = sol::nil;
     }
 
-    void ScriptsContainer::insertHandler(std::vector<Handler>& list, int scriptId, sol::function fn)
+    void ScriptsContainer::insertHandler(std::vector<Handler>& list, std::int32_t scriptId, sol::function fn)
     {
-        size_t pos = list.size();
+        std::size_t pos = list.size();
         list.emplace_back();
         while (pos > 0 && list[pos - 1].mScriptId > scriptId)
         {
@@ -343,7 +345,7 @@ namespace LuaUtil
         list[pos].mFn = std::move(fn);
     }
 
-    void ScriptsContainer::removeHandler(std::vector<Handler>& list, int scriptId)
+    void ScriptsContainer::removeHandler(std::vector<Handler>& list, std::int32_t scriptId)
     {
         list.erase(
             std::remove_if(list.begin(), list.end(), [scriptId](const Handler& h) { return h.mScriptId == scriptId; }),
@@ -368,7 +370,7 @@ namespace LuaUtil
                 return;
             }
             EventHandlerList& list = it->second;
-            for (size_t i = list.size(); i > 0; --i)
+            for (std::size_t i = list.size(); i > 0; --i)
             {
                 const Handler& h = list[i - 1];
                 try
@@ -392,7 +394,8 @@ namespace LuaUtil
             mEngineHandlers[h->mName] = h;
     }
 
-    void ScriptsContainer::callOnInit(LuaView& view, int scriptId, const sol::function& onInit, std::string_view data)
+    void ScriptsContainer::callOnInit(
+        LuaView& view, std::int32_t scriptId, const sol::function& onInit, std::string_view data)
     {
         try
         {
@@ -423,7 +426,7 @@ namespace LuaUtil
         }
         const auto& loadedData = std::get<LoadedData>(mData);
         const double currentRealTime = getRealTime();
-        std::map<int, std::vector<ESM::LuaTimer>> timers;
+        std::map<std::int32_t, std::vector<ESM::LuaTimer>> timers;
         auto saveTimerFn = [&](const Timer& timer, TimerType timerType) {
             if (!timer.mSerializable)
                 return;
@@ -471,12 +474,12 @@ namespace LuaUtil
         removeAllScripts();
         const ScriptsConfiguration& cfg = mLua.getConfiguration();
 
-        std::map<int, ScriptInfo> scripts;
+        std::map<std::int32_t, ScriptInfo> scripts;
         for (const auto& [scriptId, initData] : mAutoStartScripts)
             scripts[scriptId] = { initData, nullptr };
         for (const ESM::LuaScript& s : data.mScripts)
         {
-            std::optional<int> scriptId = cfg.mapId(s.mScriptId);
+            std::optional<std::int32_t> scriptId = cfg.mapId(s.mScriptId);
             if (!scriptId)
             {
                 Log(Debug::Verbose) << "Ignoring " << mNamePrefix << "[" << s.mScriptId << "]; script not registered";
@@ -547,7 +550,7 @@ namespace LuaUtil
 
         const ScriptsConfiguration& cfg = mLua.getConfiguration();
 
-        std::map<int, ScriptInfo> scripts;
+        std::map<std::int32_t, ScriptInfo> scripts;
         for (const auto& [scriptId, initData] : mAutoStartScripts)
             scripts[scriptId] = { initData, nullptr };
         for (const ESM::LuaScript& s : savedScripts)
@@ -682,7 +685,7 @@ namespace LuaUtil
             mData);
     }
 
-    ScriptsContainer::Script& ScriptsContainer::getScript(int scriptId)
+    ScriptsContainer::Script& ScriptsContainer::getScript(std::int32_t scriptId)
     {
         LoadedData& data = ensureLoaded();
         auto it = data.mScripts.find(scriptId);
@@ -692,7 +695,7 @@ namespace LuaUtil
     }
 
     void ScriptsContainer::registerTimerCallback(
-        int scriptId, std::string_view callbackName, sol::main_protected_function callback)
+        std::int32_t scriptId, std::string_view callbackName, sol::main_protected_function callback)
     {
         getScript(scriptId).mRegisteredCallbacks.emplace(std::string(callbackName), std::move(callback));
     }
@@ -704,7 +707,7 @@ namespace LuaUtil
     }
 
     void ScriptsContainer::setupSerializableTimer(
-        TimerType type, double time, int scriptId, std::string_view callbackName, sol::main_object callbackArg)
+        TimerType type, double time, std::int32_t scriptId, std::string_view callbackName, sol::main_object callbackArg)
     {
         Timer t;
         t.mCallback = std::string(callbackName);
@@ -723,7 +726,7 @@ namespace LuaUtil
     }
 
     void ScriptsContainer::setupUnsavableTimer(
-        TimerType type, double time, int scriptId, sol::main_protected_function callback)
+        TimerType type, double time, std::int32_t scriptId, sol::main_protected_function callback)
     {
         Timer t;
         t.mScriptId = scriptId;
@@ -757,7 +760,7 @@ namespace LuaUtil
             }
             else
             {
-                int64_t id = std::get<int64_t>(t.mCallback);
+                std::int64_t id = std::get<std::int64_t>(t.mCallback);
                 LuaUtil::call({ this, t.mScriptId }, script.mTemporaryCallbacks.at(id));
                 script.mTemporaryCallbacks.erase(id);
             }
@@ -799,7 +802,7 @@ namespace LuaUtil
         // averageValue = averageValue * (1-c) + newValue * c, once per frame. Frames the script
         // sat out only decay it, so they fold into a single power instead of being walked.
         constexpr float decayPerFrame = 1 - instructionCountAvgCoef;
-        const int64_t frames = mStatsFrame - script.mStatsFrame;
+        const std::int64_t frames = mStatsFrame - script.mStatsFrame;
         if (frames <= 0 || script.mStats.mAvgInstructionCount == 0)
             return script.mStats.mAvgInstructionCount;
         const float decay = frames == 1 ? decayPerFrame : std::pow(decayPerFrame, static_cast<float>(frames));
@@ -807,7 +810,7 @@ namespace LuaUtil
         return decayed < 5 ? 0 : decayed; // speeding up converge to zero if newValue is zero
     }
 
-    void ScriptsContainer::addInstructionCount(int scriptId, int64_t instructionCount)
+    void ScriptsContainer::addInstructionCount(std::int32_t scriptId, std::int64_t instructionCount)
     {
         if (auto* data = std::get_if<LoadedData>(&mData))
         {
@@ -822,9 +825,9 @@ namespace LuaUtil
         }
     }
 
-    void ScriptsContainer::addMemoryUsage(int scriptId, int64_t memoryDelta)
+    void ScriptsContainer::addMemoryUsage(std::int32_t scriptId, std::int64_t memoryDelta)
     {
-        int64_t* usage = std::visit(
+        std::int64_t* usage = std::visit(
             [&](auto&& variant) {
                 using T = std::decay_t<decltype(variant)>;
                 if constexpr (std::is_same_v<T, LoadedData>)
@@ -841,8 +844,8 @@ namespace LuaUtil
 
         if (mLua.getSettings().mLogMemoryUsage)
         {
-            int64_t after = *usage;
-            int64_t before = after - memoryDelta;
+            std::int64_t after = *usage;
+            std::int64_t before = after - memoryDelta;
             // Logging only if one of the most significant bits of used memory size was changed.
             // Otherwise it is too verbose.
             if ((before ^ after) * 8 > after)

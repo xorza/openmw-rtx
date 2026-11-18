@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osgViewer/ViewerEventHandlers>
 
 namespace osgViewer
@@ -50,7 +52,7 @@ namespace Resource
         void getUsage(osg::ApplicationUsage& usage) const override;
 
     private:
-        unsigned mPage = 0;
+        std::uint32_t mPage = 0;
         bool mInitialized = false;
         bool mOfflineCollect;
         osg::ref_ptr<osg::Switch> mSwitch;
@@ -58,7 +60,7 @@ namespace Resource
         osg::ref_ptr<osgText::Font> mTextFont;
         std::vector<std::string> mStatNames;
 
-        void setWindowSize(int w, int h);
+        void setWindowSize(std::int32_t w, std::int32_t h);
 
         void toggle(osgViewer::ViewerBase& viewer);
 

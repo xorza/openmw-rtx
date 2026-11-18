@@ -194,9 +194,10 @@ namespace Rtx
             const Passes passes(device);
 
             constexpr float amplitude = 0.5f;
-            constexpr int middle = static_cast<int>(sCount) / 2;
+            constexpr std::int32_t middle = static_cast<std::int32_t>(sCount) / 2;
 
-            for (const std::pair<int, int>& place : { std::pair{ 3, 0 }, std::pair{ 0, -2 }, std::pair{ 2, -5 } })
+            for (const std::pair<std::int32_t, std::int32_t>& place :
+                { std::pair{ 3, 0 }, std::pair{ 0, -2 }, std::pair{ 2, -5 } })
             {
                 const auto [alongX, alongY] = place;
 
@@ -271,8 +272,8 @@ namespace Rtx
 
             constexpr float amplitude = 0.5f;
             constexpr float rate = 2.9f;
-            constexpr int middle = static_cast<int>(sCount) / 2;
-            constexpr int alongX = 3;
+            constexpr std::int32_t middle = static_cast<std::int32_t>(sCount) / 2;
+            constexpr std::int32_t alongX = 3;
 
             std::vector<osg::Vec2f> table(sCells);
             std::vector<float> turning(sCells, 0.0f);

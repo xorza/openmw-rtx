@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <array>
 #include <memory>
 #include <mutex>
@@ -59,7 +60,7 @@ namespace SceneUtil {
         void cull(osgUtil::CullVisitor& cv) override;
 
         /** Resize any per context GLObject buffers to specified size. */
-        void resizeGLObjectBuffers(unsigned int maxSize) override;
+        void resizeGLObjectBuffers(std::uint32_t maxSize) override;
 
         /** If State is non-zero, this function releases any associated OpenGL objects for
         * the specified graphics context. Otherwise, releases OpenGL objects
@@ -137,7 +138,7 @@ namespace SceneUtil {
             typedef std::vector<osg::Vec3d> Vertices;
             Vertices corners;
 
-            typedef std::vector<unsigned int> Indices;
+            typedef std::vector<std::uint32_t> Indices;
             typedef std::vector<Indices> Faces;
             Faces faces;
 
@@ -183,7 +184,7 @@ namespace SceneUtil {
             osg::Vec3d                          lightDir;
             bool                                directionalLight;
 
-            typedef std::vector<unsigned int> ActiveTextureUnits;
+            typedef std::vector<std::uint32_t> ActiveTextureUnits;
             ActiveTextureUnits                   textureUnits;
         };
 
@@ -199,8 +200,8 @@ namespace SceneUtil {
 
             ViewDependentData*                  _viewDependentData;
 
-            unsigned int                        _textureUnit;
-            unsigned int                        _sm_i;
+            std::uint32_t                        _textureUnit;
+            std::uint32_t                        _sm_i;
             osg::ref_ptr<osg::Texture2D>        _texture;
             osg::ref_ptr<osg::Camera>           _camera;
         };
@@ -219,13 +220,13 @@ namespace SceneUtil {
 
             ShadowDataList& getShadowDataList() { return _shadowDataList; }
 
-            osg::StateSet* getStateSet(unsigned int traversalNumber) { return _stateset[traversalNumber % 2].get(); }
+            osg::StateSet* getStateSet(std::uint32_t traversalNumber) { return _stateset[traversalNumber % 2].get(); }
 
             virtual void releaseGLObjects(osg::State* = nullptr) const;
 
-            unsigned int numValidShadows(void) const { return _numValidShadows; }
+            std::uint32_t numValidShadows(void) const { return _numValidShadows; }
 
-            void setNumValidShadows(unsigned int numValidShadows) { _numValidShadows = numValidShadows; }
+            void setNumValidShadows(std::uint32_t numValidShadows) { _numValidShadows = numValidShadows; }
 
         protected:
             friend class MWShadowTechnique;
@@ -239,7 +240,7 @@ namespace SceneUtil {
             ShadowDataList              _shadowDataList;
             std::array<Uniforms, 2>     _uniforms;
 
-            unsigned int _numValidShadows{};
+            std::uint32_t _numValidShadows{};
         };
 
         virtual ViewDependentData* createViewDependentData(osgUtil::CullVisitor* cv);
@@ -264,17 +265,17 @@ namespace SceneUtil {
 
         virtual bool adjustPerspectiveShadowMapCameraSettings(osgUtil::RenderStage* renderStage, Frustum& frustum, LightData& positionedLight, osg::Camera* camera, double viewNear, double viewFar);
         
-        virtual void assignShadowStateSettings(osgUtil::CullVisitor& cv, osg::Camera* camera, unsigned int sm_i, Uniforms& uniforms);
+        virtual void assignShadowStateSettings(osgUtil::CullVisitor& cv, osg::Camera* camera, std::uint32_t sm_i, Uniforms& uniforms);
         
-        virtual void assignValidRegionSettings(osgUtil::CullVisitor& cv, osg::Camera* camera, unsigned int sm_i, Uniforms& uniforms);
+        virtual void assignValidRegionSettings(osgUtil::CullVisitor& cv, osg::Camera* camera, std::uint32_t sm_i, Uniforms& uniforms);
 
         virtual void cullShadowReceivingScene(osgUtil::CullVisitor* cv) const;
 
         virtual void cullShadowCastingScene(osgUtil::CullVisitor* cv, osg::Camera* camera) const;
 
-        virtual osg::StateSet* prepareStateSetForRenderingShadow(ViewDependentData& vdd, unsigned int traversalNumber) const;
+        virtual osg::StateSet* prepareStateSetForRenderingShadow(ViewDependentData& vdd, std::uint32_t traversalNumber) const;
 
-        void setWorldMask(unsigned int worldMask) { _worldMask = worldMask; }
+        void setWorldMask(std::uint32_t worldMask) { _worldMask = worldMask; }
 
         osg::ref_ptr<osg::StateSet> getOrCreateShadowsBinStateSet();
 
@@ -312,22 +313,22 @@ namespace SceneUtil {
 
         float                                   _shadowFadeStart = 0.0f;
 
-        unsigned int                            _worldMask = ~0u;
+        std::uint32_t                            _worldMask = ~0u;
 
         class DebugHUD final : public osg::Referenced
         {
         public:
-            explicit DebugHUD(int numberOfShadowMapsPerLight);
+            explicit DebugHUD(std::int32_t numberOfShadowMapsPerLight);
 
-            void draw(const osg::ref_ptr<osg::Texture2D>& texture, unsigned int shadowMapNumber, const osg::Matrixd &matrix, osgUtil::CullVisitor& cv);
+            void draw(const osg::ref_ptr<osg::Texture2D>& texture, std::uint32_t shadowMapNumber, const osg::Matrixd &matrix, osgUtil::CullVisitor& cv);
 
             void releaseGLObjects(osg::State* state = nullptr) const;
 
-            void setFrustumVertices(const osg::ref_ptr<osg::Vec3Array>& vertices, unsigned int traversalNumber);
+            void setFrustumVertices(const osg::ref_ptr<osg::Vec3Array>& vertices, std::uint32_t traversalNumber);
         protected:
             void addAnotherShadowMap();
 
-            static const int sDebugTextureUnit = 0;
+            static const std::int32_t sDebugTextureUnit = 0;
 
             std::vector<osg::ref_ptr<osg::Camera>> mDebugCameras;
             osg::ref_ptr<osg::Program> mDebugProgram;

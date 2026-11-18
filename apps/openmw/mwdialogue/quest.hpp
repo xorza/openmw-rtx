@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "topic.hpp"
 
 namespace ESM
@@ -12,7 +14,7 @@ namespace MWDialogue
     /// \brief A quest in progress or a completed quest
     class Quest : public Topic
     {
-        int mIndex;
+        std::int32_t mIndex;
         bool mFinished;
 
     public:
@@ -25,9 +27,9 @@ namespace MWDialogue
         std::string_view getName() const override;
         ///< May be an empty string
 
-        int getIndex() const;
+        std::int32_t getIndex() const;
 
-        void setIndex(int index);
+        void setIndex(std::int32_t index);
         ///< Calling this function with a non-existent index will throw an exception.
 
         bool isFinished() const;

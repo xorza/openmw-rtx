@@ -1,7 +1,8 @@
 #pragma once
 
-#include <osg/ref_ptr>
+#include <cstdint>
 
+#include <osg/ref_ptr>
 #include <osgViewer/Viewer>
 
 namespace MWRender
@@ -16,7 +17,7 @@ namespace MWRender
         ScreenshotManager(const ScreenshotManager&) = delete;
         ScreenshotManager& operator=(const ScreenshotManager&) = delete;
 
-        void screenshot(osg::Image* image, int w, int h);
+        void screenshot(osg::Image* image, std::int32_t w, std::int32_t h);
 
     private:
         osg::ref_ptr<osgViewer::Viewer> mViewer;

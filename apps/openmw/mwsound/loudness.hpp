@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <deque>
 #include <vector>
 
@@ -11,7 +12,7 @@ namespace MWSound
     class Sound_Loudness
     {
         float mSamplesPerSec;
-        int mSampleRate;
+        std::int32_t mSampleRate;
         ChannelConfig mChannelConfig;
         SampleType mSampleType;
 
@@ -27,7 +28,7 @@ namespace MWSound
          * @param chans channel layout of the buffer
          * @param type sample type of the buffer
          */
-        Sound_Loudness(float samplesPerSecond, int sampleRate, ChannelConfig chans, SampleType type)
+        Sound_Loudness(float samplesPerSecond, std::int32_t sampleRate, ChannelConfig chans, SampleType type)
             : mSamplesPerSec(samplesPerSecond)
             , mSampleRate(sampleRate)
             , mChannelConfig(chans)

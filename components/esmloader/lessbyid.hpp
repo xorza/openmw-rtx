@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
-
 #include <string_view>
+
+#include <components/esm/refid.hpp>
 
 namespace EsmLoader
 {

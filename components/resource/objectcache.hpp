@@ -19,12 +19,6 @@
 
 #pragma once
 
-#include "cachebudget.hpp"
-#include "cachestats.hpp"
-
-#include <osg/Node>
-#include <osg/ref_ptr>
-
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -39,6 +33,12 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <osg/Node>
+#include <osg/ref_ptr>
+
+#include "cachebudget.hpp"
+#include "cachestats.hpp"
 
 namespace osg
 {
@@ -61,12 +61,14 @@ namespace Resource
     // children, so a second refcount over the same object would be a bug, not a
     // design choice.
     template <class T>
+    // NOLINTNEXTLINE(google-runtime-int): use_count's type
     long useCount(const std::shared_ptr<T>& value)
     {
         return value.use_count();
     }
 
     template <class T>
+    // NOLINTNEXTLINE(google-runtime-int): use_count's type
     long useCount(const osg::ref_ptr<T>& value)
     {
         // nullptr is a storable value, so this has to answer for it; shared_ptr's
@@ -139,13 +141,24 @@ namespace Resource
             // Kept by a budget, an entry goes only to make room, which the budget makes once all its caches have
             // updated; what anything holds now is in use, and moves to the front of the order eviction reads from
             // the back.
+            //
+            // **In runs of `sTouchRun` entries, the lock let go between them**: a loader asking the cache waits for one
+            // run and not for the whole cache's thousands. Bounded by the entries the walk passes, which a key
+            // inserted behind it does not add to.
             if (mBudget != nullptr)
             {
-                const std::scoped_lock lock(mMutex);
-                for (auto& entry : mItems)
-                    if (useCount(entry.second.mValue) > 1)
-                        touch(entry);
-                return;
+                std::optional<KeyType> next;
+                while (true)
+                {
+                    const std::scoped_lock lock(mMutex);
+                    auto it = next.has_value() ? mItems.lower_bound(*next) : mItems.begin();
+                    for (std::size_t walked = 0; it != mItems.end() && walked < sTouchRun; ++it, ++walked)
+                        if (useCount(it->second.mValue) > 1)
+                            touch(*it);
+                    if (it == mItems.end())
+                        return;
+                    next = it->first;
+                }
             }
 
             std::vector<ValueType> objectsToRemove;
@@ -382,6 +395,9 @@ namespace Resource
             std::shared_future<ValueType> mResult = mPromise.get_future().share();
         };
 
+        /// How many entries `update` stamps under one hold of the lock.
+        static constexpr std::size_t sTouchRun = 256;
+
         std::map<KeyType, Item, std::less<>> mItems;
         mutable std::mutex mMutex;
         std::size_t mGet = 0;
@@ -405,6 +421,11 @@ namespace Resource
         /// Every key the cache let go of, whichever way, so a load of one again is counted: bounded by the keys the
         /// content can name, one entry each.
         std::set<KeyType, std::less<>> mGone;
+
+        /// What evictions let go of since the last `destroyEvicted`, which the budget's worker calls once a second:
+        /// bounded by what the inserting threads put in past the budget in that second, each insertion evicting as
+        /// many bytes as it added.
+        std::vector<ValueType> mEvicted;
 
         /// Puts `object` under `key`, counted as a load and by the budget, under the lock. An entry it replaces is
         /// let go of first.
@@ -500,20 +521,27 @@ namespace Resource
 
         bool evictOldest(std::uint64_t used) final
         {
-            ValueType value;
+            const std::scoped_lock lock(mMutex);
+            if (mOldest == nullptr || mOldest->second.mUsed != used || useCount(mOldest->second.mValue) > 1)
+                return false;
+            Entry& entry = *mOldest;
+            mEvicted.push_back(std::move(entry.second.mValue));
+            ++mExpired;
+            mGone.insert(entry.first);
+            forget(entry);
+            mItems.erase(mItems.find(entry.first));
+            return true;
+        }
+
+        void destroyEvicted() final
+        {
+            std::vector<ValueType> evicted;
             {
                 const std::scoped_lock lock(mMutex);
-                if (mOldest == nullptr || mOldest->second.mUsed != used || useCount(mOldest->second.mValue) > 1)
-                    return false;
-                Entry& entry = *mOldest;
-                value = std::move(entry.second.mValue);
-                ++mExpired;
-                mGone.insert(entry.first);
-                forget(entry);
-                mItems.erase(mItems.find(entry.first));
+                evicted.swap(mEvicted);
             }
-            // `value` goes here, outside the lock, as `update` lets its values go.
-            return true;
+            // Here, outside the lock, as `update` lets its values go.
+            evicted.clear();
         }
     };
 }

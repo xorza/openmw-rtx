@@ -1,6 +1,7 @@
 #include "stringparser.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
 
 #include <components/misc/strings/lower.hpp>
@@ -36,7 +37,7 @@ namespace Compiler
         return false;
     }
 
-    bool StringParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool StringParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (const Extensions* extensions = getContext().getExtensions())
         {
@@ -68,7 +69,7 @@ namespace Compiler
         return Parser::parseKeyword(keyword, loc, scanner);
     }
 
-    bool StringParser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
+    bool StringParser::parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner)
     {
         reportWarning("Treating integer argument as a string", loc);
         return parseName(loc.mLiteral, loc, scanner);

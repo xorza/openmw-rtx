@@ -1,5 +1,6 @@
 #include "selectwrapper.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 #include <type_traits>
 
@@ -50,7 +51,7 @@ ESM::DialogueCondition::Function MWDialogue::SelectWrapper::getFunction() const
     return mSelect.mFunction;
 }
 
-int MWDialogue::SelectWrapper::getArgument() const
+std::int32_t MWDialogue::SelectWrapper::getArgument() const
 {
     switch (mSelect.mFunction)
     {
@@ -247,7 +248,7 @@ MWDialogue::SelectWrapper::Type MWDialogue::SelectWrapper::getType() const
     };
 }
 
-bool MWDialogue::SelectWrapper::selectCompare(int value) const
+bool MWDialogue::SelectWrapper::selectCompare(std::int32_t value) const
 {
     return selectCompareImp(mSelect, value);
 }
@@ -259,7 +260,7 @@ bool MWDialogue::SelectWrapper::selectCompare(float value) const
 
 bool MWDialogue::SelectWrapper::selectCompare(bool value) const
 {
-    return selectCompareImp(mSelect, static_cast<int>(value));
+    return selectCompareImp(mSelect, static_cast<std::int32_t>(value));
 }
 
 std::string MWDialogue::SelectWrapper::getName() const

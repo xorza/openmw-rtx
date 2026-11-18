@@ -109,7 +109,7 @@ namespace Rtx
         /// @param freezes whether the reference roots this walk meets may be frozen and passed: the world walk's, which
         ///        is the one walked again every frame over the same graph.
         void begin(
-            const osg::Matrixf& root, std::size_t frame, unsigned int traversal, std::size_t identity, bool freezes);
+            const osg::Matrixf& root, std::size_t frame, std::uint32_t traversal, std::size_t identity, bool freezes);
 
         /// Stands the world's clock at `seconds` and moves the emitter clock on by the gap since
         /// the last call. See `SceneExtractor::setSimulationTime`.
@@ -186,7 +186,7 @@ namespace Rtx
         /// renderer may drive a particle system.
         osg::ref_ptr<osg::FrameStamp> mEmitterStamp = new osg::FrameStamp;
         double mEmitterSeconds = 0.0;
-        unsigned int mEmitterFrame = 0;
+        std::uint32_t mEmitterFrame = 0;
 
         /// Whether a `setSimulationTime` started the emitters' clock, which the first one does
         /// rather than step it.
@@ -215,7 +215,7 @@ namespace Rtx
         std::size_t mFrame = 0;
 
         /// The last number this walk posed at, so a caller handing back a stale one is caught.
-        unsigned int mTraversal = 0;
+        std::uint32_t mTraversal = 0;
 
         /// The local-to-world of the node being visited, above `mRoot`.
         osg::Matrix mHere;
@@ -229,13 +229,13 @@ namespace Rtx
 
         /// Which child of its parent the node being entered is. Set by the loop that descends,
         /// which is why every descent here is a loop of this walk's own and never `traverse`.
-        unsigned int mChildIndex = 0;
+        std::uint32_t mChildIndex = 0;
 
         /// How many nodes are above the one being entered; nought at the root.
-        unsigned int mDepth = 0;
+        std::uint32_t mDepth = 0;
 
         /// `SceneExtractor::setStampDepth`, read once at `begin`.
-        unsigned int mStampDepth = 0;
+        std::uint32_t mStampDepth = 0;
 
         /// `SceneExtractor::setEye`, read once at `begin`.
         std::optional<ViewBasis> mEye;
@@ -272,7 +272,7 @@ namespace Rtx
     }
 
     void SceneExtractor::Traversal::begin(
-        const osg::Matrixf& root, std::size_t frame, unsigned int traversal, std::size_t identity, const bool freezes)
+        const osg::Matrixf& root, std::size_t frame, std::uint32_t traversal, std::size_t identity, const bool freezes)
     {
         // The whole of what a traversal number promises. A state-set controller and an
         // `osg::Sequence` each keep the last number they ran at and do nothing for one they have
@@ -380,7 +380,7 @@ namespace Rtx
         // The frame and not this walk's own number, because the update traversal is what compares.
         if (auto* skeleton = as<SceneUtil::Skeleton>(kind, NodeKind::Skeleton, node))
         {
-            skeleton->markReached(static_cast<unsigned int>(mFrame));
+            skeleton->markReached(static_cast<std::uint32_t>(mFrame));
             mChangeable = true;
         }
         else if (auto* source = as<SceneUtil::LightSource>(kind, NodeKind::LightSource, node))
@@ -467,7 +467,7 @@ namespace Rtx
     {
         descendInWorld(
             node, kind, *this, [this](osg::Sequence& frames) { frames.traverse(mSequenceClock); },
-            [this](const unsigned int child) { mChildIndex = child; });
+            [this](const std::uint32_t child) { mChildIndex = child; });
     }
 
     /// Runs one node of an `osgParticle` simulation, and says whether that is what this node was. The whole of
@@ -486,7 +486,7 @@ namespace Rtx
         }
         else if (auto* updater = as<osgParticle::ParticleSystemUpdater>(kind, NodeKind::ParticleUpdater, node))
         {
-            for (unsigned int at = 0; at < updater->getNumParticleSystems(); ++at)
+            for (std::uint32_t at = 0; at < updater->getNumParticleSystems(); ++at)
                 keepRunning(*updater->getParticleSystem(at));
         }
         else
@@ -626,7 +626,8 @@ namespace Rtx
         // The placements before the resolvers go, each giving back what its own maps hold, so a
         // scene that outlives its extractor — a picture's, whose subject is replaced — holds
         // nothing of it.
-        mPlacements.clear([this](const Known& stood) { mScene.dropInstance(stood.mIndex, Stander::Walk); });
+        mPlacements.clear(
+            [this](const Known<PlacementIndex>& stood) { mScene.dropInstance(stood.mIndex, Stander::Walk); });
     }
 
     void SceneExtractor::setSimulationTime(double seconds, double step)
@@ -691,7 +692,7 @@ namespace Rtx
         // **The world walk freezes**, which is the one walked again every frame over the same
         // graph; what it froze under another mask is another view of every subtree.
         const bool freezes = ring != nullptr;
-        const unsigned int traversal = mContext.mTraversals.next();
+        const std::uint32_t traversal = mContext.mTraversals.next();
         if (freezes)
         {
             if (mFrozenMask != mTraversalMask)
@@ -764,7 +765,8 @@ namespace Rtx
         // renumber every bottom-level acceleration structure in the world on every crossing. The order does not matter,
         // because a placement holds what it stands on. Each map skips its walk where every entry was reached
         // (`Kept::whole`).
-        mPlacements.retire(mReleased, [this](const Known& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
+        mPlacements.retire(
+            mReleased, [this](const Known<PlacementIndex>& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
         mMeshes.retire(mReleased);
         mMaterials.retire(mReleased);
 
@@ -913,8 +915,8 @@ namespace Rtx
 
         // The mesh first: a surface nothing places has no material, and one resolved ahead of a
         // refused mesh held its textures and uploaded them for nothing.
-        const Index mesh = mMeshes.resolve(drawable, read, path);
-        if (mesh == sNoIndex)
+        const MeshIndex mesh = mMeshes.resolve(drawable, read, path);
+        if (mesh == sNoRow)
         {
             mFrozen.note(FrozenRoots::Key{ .mDrawable = &drawable });
             return changes;
@@ -950,7 +952,7 @@ namespace Rtx
         // What the sheet adds to the effect's lamp, read off the rows the placement stands on
         // this frame: a controller may have rewritten the material on the way here, and
         // `resolve` rewrote the row before this read.
-        if (glows.mEffect.has_value() && material.mIndex != sNoIndex)
+        if (glows.mEffect.has_value() && material.mIndex != sNoRow)
             mGlows[*glows.mEffect].addSheet(
                 mScene.materials().getRows()[material.mIndex], mScene.meshes().getRows()[mesh].mBounds, place, fade);
 
@@ -966,7 +968,7 @@ namespace Rtx
         // geometry was replaced, a state set a controller rewrote into another material, or a sibling that shifted into
         // this place is mirrored afresh under the identity it kept. Moved, the slot would carry the old surface at the
         // new place, and hold the old row, for as long as it stood.
-        Index& slot = held->second.mIndex;
+        PlacementIndex& slot = held->second.mIndex;
         const MeshInstance& standing = mScene.placements().getRows()[slot].mInstance;
         if (standing.mMesh != resolved.mMesh || standing.mMaterial != resolved.mMaterial
             || standing.mClass != resolved.mClass || standing.mClockwise != resolved.mClockwise

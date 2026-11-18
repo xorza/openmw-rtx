@@ -49,12 +49,12 @@ namespace Rtx
 
         bool isWordChar(const char c)
         {
-            return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+            return std::isalnum(static_cast<std::uint8_t>(c)) || c == '_';
         }
 
         std::size_t skipSpace(const std::string_view text, std::size_t at)
         {
-            while (at < text.size() && std::isspace(static_cast<unsigned char>(text[at])))
+            while (at < text.size() && std::isspace(static_cast<std::uint8_t>(text[at])))
                 ++at;
             return at;
         }
@@ -223,7 +223,7 @@ namespace Rtx
                     continue;
 
                 std::size_t end = at + std::string_view("Destroy").size();
-                while (end < code.size() && std::isalpha(static_cast<unsigned char>(code[end])))
+                while (end < code.size() && std::isalpha(static_cast<std::uint8_t>(code[end])))
                     ++end;
 
                 const std::size_t paren = skipSpace(code, end);
@@ -345,7 +345,7 @@ namespace Rtx
                         const std::optional<std::string> take = spelled(code, "addViewScene(");
                         return take.has_value() ? take : spelled(code, "dropViewScene(");
                     },
-                .mExample = "const Index scene = renderer.addViewScene();",
+                .mExample = "const SceneSlot scene = renderer.addViewScene();",
                 .mAllowedFiles = { "viewscene.cpp", "sceneholder.hpp", "vulkanrenderer.hpp", "vulkanrenderer.cpp",
                     "nullrenderer.hpp", "nullrenderer.cpp" },
                 .mFix = "hold an Rtx::ViewScene and delete the drop" },
@@ -772,7 +772,7 @@ namespace Rtx
                 const std::size_t cellEnd = line.find('|', 1);
                 std::string cell = line.substr(1, cellEnd == std::string::npos ? std::string::npos : cellEnd - 1);
                 cell.erase(0, skipSpace(cell, 0));
-                while (!cell.empty() && std::isspace(static_cast<unsigned char>(cell.back())))
+                while (!cell.empty() && std::isspace(static_cast<std::uint8_t>(cell.back())))
                     cell.pop_back();
                 if (cell == "folder")
                 {

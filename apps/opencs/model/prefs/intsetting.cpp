@@ -1,40 +1,40 @@
 
 #include "intsetting.hpp"
 
+#include <cstdint>
 #include <limits>
 
 #include <QLabel>
 #include <QMutexLocker>
 #include <QSpinBox>
 
-#include <apps/opencs/model/prefs/setting.hpp>
-
 #include "category.hpp"
+#include "setting.hpp"
 #include "state.hpp"
 
 CSMPrefs::IntSetting::IntSetting(
     Category* parent, QMutex* mutex, std::string_view key, const QString& label, Settings::Index& index)
     : TypedSetting(parent, mutex, key, label, index)
     , mMin(0)
-    , mMax(std::numeric_limits<int>::max())
+    , mMax(std::numeric_limits<std::int32_t>::max())
     , mWidget(nullptr)
 {
 }
 
-CSMPrefs::IntSetting& CSMPrefs::IntSetting::setRange(int min, int max)
+CSMPrefs::IntSetting& CSMPrefs::IntSetting::setRange(std::int32_t min, std::int32_t max)
 {
     mMin = min;
     mMax = max;
     return *this;
 }
 
-CSMPrefs::IntSetting& CSMPrefs::IntSetting::setMin(int min)
+CSMPrefs::IntSetting& CSMPrefs::IntSetting::setMin(std::int32_t min)
 {
     mMin = min;
     return *this;
 }
 
-CSMPrefs::IntSetting& CSMPrefs::IntSetting::setMax(int max)
+CSMPrefs::IntSetting& CSMPrefs::IntSetting::setMax(std::int32_t max)
 {
     mMax = max;
     return *this;
@@ -61,7 +61,7 @@ CSMPrefs::SettingWidgets CSMPrefs::IntSetting::makeWidgets(QWidget* parent)
         mWidget->setToolTip(tooltip);
     }
 
-    connect(mWidget, qOverload<int>(&QSpinBox::valueChanged), this, &IntSetting::valueChanged);
+    connect(mWidget, qOverload<std::int32_t>(&QSpinBox::valueChanged), this, &IntSetting::valueChanged);
 
     return SettingWidgets{ .mLabel = label, .mInput = mWidget };
 }
@@ -72,7 +72,7 @@ void CSMPrefs::IntSetting::updateWidget()
         mWidget->setValue(getValue());
 }
 
-void CSMPrefs::IntSetting::valueChanged(int value)
+void CSMPrefs::IntSetting::valueChanged(std::int32_t value)
 {
     setValue(value);
     getParent()->getState()->update(*this);

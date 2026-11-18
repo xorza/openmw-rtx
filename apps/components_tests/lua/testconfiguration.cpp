@@ -1,7 +1,9 @@
+#include <cstddef>
+#include <cstdint>
+#include <fstream>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
-#include <fstream>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -18,9 +20,9 @@ namespace
     using testing::ElementsAre;
     using testing::Pair;
 
-    std::vector<std::pair<int, std::string>> asVector(const LuaUtil::ScriptIdsWithInitializationData& d)
+    std::vector<std::pair<std::int32_t, std::string>> asVector(const LuaUtil::ScriptIdsWithInitializationData& d)
     {
-        std::vector<std::pair<int, std::string>> res;
+        std::vector<std::pair<std::int32_t, std::string>> res;
         for (const auto& [k, v] : d)
             res.emplace_back(k, std::string(v));
         return res;
@@ -75,14 +77,16 @@ namespace
     TEST(LuaConfigurationTest, InvalidOMWScripts)
     {
         ESM::LuaScriptsCfg cfg;
-        EXPECT_ERROR(LuaUtil::parseOMWScripts(cfg, "GLOBAL: something"),
+        Testing::expectError([&] { return LuaUtil::parseOMWScripts(cfg, "GLOBAL: something"); },
             "Lua script should have suffix '.lua', got: GLOBAL: something");
-        EXPECT_ERROR(LuaUtil::parseOMWScripts(cfg, "something.lua"), "No flags found in: something.lua");
+        Testing::expectError(
+            [&] { return LuaUtil::parseOMWScripts(cfg, "something.lua"); }, "No flags found in: something.lua");
 
         cfg.mScripts.clear();
         EXPECT_NO_THROW(LuaUtil::parseOMWScripts(cfg, "GLOBAL, PLAYER: something.lua"));
         LuaUtil::ScriptsConfiguration conf;
-        EXPECT_ERROR(conf.init(std::move(cfg), false), "Global script can not have local flags");
+        Testing::expectError(
+            [&] { return conf.init(std::move(cfg), false); }, "Global script can not have local flags");
     }
 
     TEST(LuaConfigurationTest, ConfInit)
@@ -141,7 +145,7 @@ namespace
         ESM::LuaScriptCfg& script3 = cfg.mScripts.emplace_back();
         script3.mScriptPath = VFS::Path::Normalized("script1.lua");
         script3.mFlags = ESM::LuaScriptCfg::sGlobal;
-        EXPECT_ERROR(conf.init(cfg, false), "Flags mismatch for script1.lua");
+        Testing::expectError([&] { return conf.init(cfg, false); }, "Flags mismatch for script1.lua");
     }
 
     TEST(LuaConfigurationTest, Serialization)
@@ -208,16 +212,16 @@ namespace
         loadedCfg.load(reader);
 
         ASSERT_EQ(loadedCfg.mScripts.size(), cfg.mScripts.size());
-        for (size_t i = 0; i < cfg.mScripts.size(); ++i)
+        for (std::size_t i = 0; i < cfg.mScripts.size(); ++i)
         {
             EXPECT_EQ(loadedCfg.mScripts[i].mScriptPath, cfg.mScripts[i].mScriptPath);
             EXPECT_EQ(loadedCfg.mScripts[i].mFlags, cfg.mScripts[i].mFlags);
             EXPECT_EQ(loadedCfg.mScripts[i].mInitializationData, cfg.mScripts[i].mInitializationData);
             ASSERT_EQ(loadedCfg.mScripts[i].mTypes.size(), cfg.mScripts[i].mTypes.size());
-            for (size_t j = 0; j < cfg.mScripts[i].mTypes.size(); ++j)
+            for (std::size_t j = 0; j < cfg.mScripts[i].mTypes.size(); ++j)
                 EXPECT_EQ(loadedCfg.mScripts[i].mTypes[j], cfg.mScripts[i].mTypes[j]);
             ASSERT_EQ(loadedCfg.mScripts[i].mRecords.size(), cfg.mScripts[i].mRecords.size());
-            for (size_t j = 0; j < cfg.mScripts[i].mRecords.size(); ++j)
+            for (std::size_t j = 0; j < cfg.mScripts[i].mRecords.size(); ++j)
             {
                 EXPECT_EQ(loadedCfg.mScripts[i].mRecords[j].mAttach, cfg.mScripts[i].mRecords[j].mAttach);
                 EXPECT_EQ(loadedCfg.mScripts[i].mRecords[j].mRecordId, cfg.mScripts[i].mRecords[j].mRecordId);
@@ -225,7 +229,7 @@ namespace
                     cfg.mScripts[i].mRecords[j].mInitializationData);
             }
             ASSERT_EQ(loadedCfg.mScripts[i].mRefs.size(), cfg.mScripts[i].mRefs.size());
-            for (size_t j = 0; j < cfg.mScripts[i].mRefs.size(); ++j)
+            for (std::size_t j = 0; j < cfg.mScripts[i].mRefs.size(); ++j)
             {
                 EXPECT_EQ(loadedCfg.mScripts[i].mRefs[j].mAttach, cfg.mScripts[i].mRefs[j].mAttach);
                 EXPECT_EQ(loadedCfg.mScripts[i].mRefs[j].mRefnumIndex, cfg.mScripts[i].mRefs[j].mRefnumIndex);

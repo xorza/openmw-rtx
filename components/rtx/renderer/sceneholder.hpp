@@ -9,6 +9,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/structurerevision.hpp>
 
 #include "slot.hpp"
@@ -25,7 +26,7 @@ namespace Rtx
         /// handing another description to a slot has to build, because the structures and the
         /// texture array are the first description's. Nought where nothing was built, which no
         /// description's identity is.
-        std::uint64_t mIdentity = 0;
+        SceneIdentity mIdentity{};
 
         /// `SceneDesc::getStructureRevision` as it stood at the last `setScene` or `extendScene`.
         StructureRevision mStructureRevision;
@@ -34,9 +35,13 @@ namespace Rtx
     /// What an arrival may take on the device, and what the budget leaves what rests (`SceneHolder::getArrivalRoom`).
     struct ArrivalRoom
     {
-        /// What a texture, the content given room last, may still take before the device refuses it: what a structure,
-        /// given room ahead of it, may take as well.
+        /// What a texture may still take before the device refuses it: what the content pools' blocks have free and the
+        /// whole blocks the ceiling leaves room for.
         std::uint64_t mFree = 0;
+
+        /// What a structure may still take: what the structure storages' blocks have free and the whole blocks the
+        /// structures' ceiling leaves room for.
+        std::uint64_t mStructureFree = 0;
 
         /// What the device's budget allows the process, every slot's content, the frame and what rests together: what
         /// is free and what the process holds, as the driver states it.

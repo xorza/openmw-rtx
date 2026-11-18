@@ -1,18 +1,17 @@
 #include "esm4base.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-#include "../mwrender/vismask.hpp"
-
-#include "../mwphysics/physicssystem.hpp"
-#include "../mwworld/ptr.hpp"
 
 namespace MWClass
 {
@@ -32,7 +31,7 @@ namespace MWClass
         physics.addObject(ptr, VFS::Path::toNormalized(model), rotation, MWPhysics::CollisionType_World);
     }
 
-    MWGui::ToolTipInfo ESM4Impl::getToolTipInfo(std::string_view name, int count)
+    MWGui::ToolTipInfo ESM4Impl::getToolTipInfo(std::string_view name, std::int32_t count)
     {
         MWGui::ToolTipInfo info;
         info.caption = MyGUI::TextIterator::toTagsString(MyGUI::UString(name)) + MWGui::ToolTips::getCountString(count);

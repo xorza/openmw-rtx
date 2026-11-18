@@ -204,7 +204,7 @@ namespace Rtx
             mPresenter
                 = std::make_unique<Presenter>(mDevice, std::move(mSurface), options.mWindow, options.mVerticalSync);
 
-        createTargets(options.mWidth, options.mHeight);
+        createTargets(options.mWidth, options.mHeight, ContentFollows::TheReserve);
     }
 
     VulkanRenderer::~VulkanRenderer()
@@ -235,10 +235,11 @@ namespace Rtx
         mProfile.mUpscale = upscale;
 
         const VkExtent2D output = mTarget.getExtent();
-        createTargets(output.width, output.height);
+        createTargets(output.width, output.height, ContentFollows::TheReserve);
     }
 
-    void VulkanRenderer::createTargets(std::uint32_t width, std::uint32_t height)
+    void VulkanRenderer::createTargets(
+        const std::uint32_t width, const std::uint32_t height, const ContentFollows follows)
     {
         assert(width > 0 && height > 0);
 
@@ -325,22 +326,24 @@ namespace Rtx
                 = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, reserved, mUpscaler, itsDeclared));
         }
 
-        // **The world is built again only where the reserve moving changes what it would stand as**: the
-        // hand-over after this finds its slot empty (`SceneUploader`) and stands every texture against the
-        // new room. A rebuild is every structure and texture in one flushed batch, seconds of a frame.
+        // **The world stays whatever the reserve does**: one that grows past what content holds is room made by
+        // textures moving down (`makeRoom`), copied on the device, what moved handed over whole again once the room is
+        // back; one that shrinks sets what the device refused for room waiting again, structures and textures, as the
+        // room it did not see coming is room after all (`DeviceScene::waitAgain`). A rebuild was every structure and
+        // texture in one flushed batch, seconds of a frame, and needed the host's copy of every mesh.
         const VkDeviceSize reserved = memory.getFrameReserve();
         memory.refreshBudget(mDevice.getTimeline().getNext());
         memory.reserveFrame(reserve);
-        const DeviceScene* const world = mScenes.find(SceneSlot::world());
-        const bool rebuildsWorld = world != nullptr && reserve != reserved
-            && (reserve > reserved ? !memory.contentFits() : world->wasHeldBack());
-        if (rebuildsWorld)
-        {
-            drain();
-            mReleasedWorld = world->describe().mIdentity;
-            mScenes.clear(SceneSlot::world());
-            mDevice.collectIdle();
-        }
+        DeviceScene* const world = mScenes.find(SceneSlot::world());
+        if (follows == ContentFollows::TheReserve && world != nullptr && reserve > reserved)
+            if (const VkDeviceSize over = memory.getContentOver(); over > 0)
+            {
+                Batch moved(mDevice.getPool());
+                world->makeTextureRoom(moved, mArrival, over);
+                moved.flush();
+            }
+        if (follows == ContentFollows::TheReserve && world != nullptr && reserve < reserved)
+            world->waitAgain();
 
         // **Placed again only where the arena moved**, which the device was drained for.
         mFrame.resize(moves, render, output, mProfile.mUpscale, std::move(declared), mUpscaler);
@@ -400,13 +403,7 @@ namespace Rtx
         // not yet carried keeps it until the submit that carries the picture has run.
         mScenes.clear(slot);
 
-        // The world a change of mode released, built again: its reports, sum, eye and wake go on describing
-        // it. Its motion does not: what moved since stands where the build found it.
-        const bool rebuilt = slot.isWorld() && std::exchange(mReleasedWorld, 0) == scene.getIdentity();
-        if (rebuilt)
-            mDescriber.lose(FramePast::resized());
-
-        if (slot.isWorld() && !rebuilt)
+        if (slot.isWorld())
         {
             // **A limit on memory, not a matter of safety.** The drain frees what the old world just
             // buried, so a second world does not hold two of everything at once.
@@ -507,9 +504,10 @@ namespace Rtx
     {
         // The device's room, which every slot's content shares.
         const VideoBudget video = mDevice.getMemory().getVideoBudget();
-        return ArrivalRoom{
-            .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture), .mBudget = video.mBudget, .mHeld = video.mHeld
-        };
+        return ArrivalRoom{ .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture),
+            .mStructureFree = mDevice.getMemory().getRoom(MemoryUse::Structure),
+            .mBudget = video.mBudget,
+            .mHeld = video.mHeld };
     }
 
     void VulkanRenderer::placeScene(const SceneSlot slot, const SceneDesc& scene)
@@ -561,6 +559,9 @@ namespace Rtx
         // so that the refit and the top level are counted.
         FrameRecord& frame = mRing.begin();
 
+        // The world's textures out of a block the device gives back, copied in the batch ahead of the placement.
+        held.moveTexturesOut(written, mArrival);
+
         // Submitted without a wait; the frame's trace, later on the queue, covers it. Nothing recorded is
         // nothing submitted, as for every frame of a standing camera in an empty place.
         Recording placement = mDevice.getPool().begin(mRing.takePlaceCommands(frame));
@@ -584,6 +585,11 @@ namespace Rtx
 
         held.readStats(mStats);
         mMedia.keepRipples(scene);
+    }
+
+    std::uint64_t VulkanRenderer::getSystemClaim() const
+    {
+        return mDevice.getMemory().getSystemClaim();
     }
 
     MemoryReport VulkanRenderer::getMemoryReport() const
@@ -640,7 +646,7 @@ namespace Rtx
         if ((was > 1) != (rays > 1) && mTarget.isOpen())
         {
             const VkExtent2D output = mTarget.getExtent();
-            createTargets(output.width, output.height);
+            createTargets(output.width, output.height, ContentFollows::TheReserve);
         }
     }
 
@@ -670,7 +676,7 @@ namespace Rtx
         if (width == mTarget.getExtent().width && height == mTarget.getExtent().height)
             return;
 
-        createTargets(width, height);
+        createTargets(width, height, ContentFollows::TheReserve);
     }
 
     void VulkanRenderer::showIn(std::uint32_t width, std::uint32_t height)
@@ -795,7 +801,7 @@ namespace Rtx
         // A frame that handed nothing over gives the ring a block back where an arrival grew it past what
         // it keeps (`StagingRing::shed`).
         if (!std::exchange(mHandedOver, false))
-            mDevice.getPool().getStaging().shed(sStagingKept);
+            mDevice.getPool().getStaging().shed(sStagingKept, mDevice.getTimeline().getKnownFinished());
 
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
@@ -997,7 +1003,7 @@ namespace Rtx
         // is left beside them.
         mPictureRoom = VkExtent2D{ std::max(mPictureRoom.width, width), std::max(mPictureRoom.height, height) };
         const VkExtent2D output = mTarget.getExtent();
-        createTargets(output.width, output.height);
+        createTargets(output.width, output.height, ContentFollows::Never);
     }
 
     SceneSlot VulkanRenderer::addViewScene()

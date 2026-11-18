@@ -1,14 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 
 #include <QMutex>
 #include <QObject>
 
-#ifndef Q_MOC_RUN
 #include <components/files/configurationmanager.hpp>
-#endif
 
 #include "category.hpp"
 #include "enumsetting.hpp"
@@ -63,7 +62,7 @@ namespace CSMPrefs
 
         void declareCategory(const std::string& key);
 
-        IntSetting& declareInt(Settings::SettingValue<int>& value, const QString& label);
+        IntSetting& declareInt(Settings::SettingValue<std::int32_t>& value, const QString& label);
 
         DoubleSetting& declareDouble(Settings::SettingValue<double>& value, const QString& label);
 

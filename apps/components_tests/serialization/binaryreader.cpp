@@ -1,13 +1,13 @@
-#include "format.hpp"
-
-#include <components/serialization/binaryreader.hpp>
+#include <cstdint>
+#include <cstring>
+#include <vector>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <cstdint>
-#include <cstring>
-#include <vector>
+#include <components/serialization/binaryreader.hpp>
+
+#include "format.hpp"
 
 namespace
 {

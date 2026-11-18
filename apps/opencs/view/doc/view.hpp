@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -39,8 +40,8 @@ namespace CSVDoc
 
         ViewManager& mViewManager;
         CSMDoc::Document* mDocument;
-        int mViewIndex;
-        int mViewTotal;
+        std::int32_t mViewIndex;
+        std::int32_t mViewTotal;
         QList<SubView*> mSubViews;
         QAction* mUndo{};
         QAction* mRedo{};
@@ -91,17 +92,17 @@ namespace CSVDoc
         void exitApplication();
 
         /// User preference function
-        void resizeViewWidth(int width);
+        void resizeViewWidth(std::int32_t width);
 
         /// User preference function
-        void resizeViewHeight(int height);
+        void resizeViewHeight(std::int32_t height);
 
         void updateScrollbar();
-        void updateWidth(bool isGrowLimit, int minSubViewWidth);
+        void updateWidth(bool isGrowLimit, std::int32_t minSubViewWidth);
         void createScrollArea();
 
     public:
-        View(ViewManager& viewManager, CSMDoc::Document* document, int totalViews);
+        View(ViewManager& viewManager, CSMDoc::Document* document, std::int32_t totalViews);
         ///< The ownership of \a document is not transferred to *this.
         View(const View&) = delete;
         View& operator=(const View&) = delete;
@@ -113,11 +114,11 @@ namespace CSVDoc
 
         CSMDoc::Document* getDocument();
 
-        void setIndex(int viewIndex, int totalViews);
+        void setIndex(std::int32_t viewIndex, std::int32_t totalViews);
 
         void updateDocumentState();
 
-        void updateProgress(int current, int max, int type, int threads);
+        void updateProgress(std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads);
 
         void toggleStatusBar(bool checked);
 
@@ -145,7 +146,7 @@ namespace CSVDoc
         ///< \param hint Suggested view point (e.g. coordinates in a 3D scene or a line number
         /// in a script).
 
-        void abortOperation(int type);
+        void abortOperation(std::int32_t type);
 
         void updateTitle();
 
@@ -262,7 +263,7 @@ namespace CSVDoc
 
         void closeRequest(SubView* subView);
 
-        void moveScrollBarToEnd(int min, int max);
+        void moveScrollBarToEnd(std::int32_t min, std::int32_t max);
 
         void merge();
 

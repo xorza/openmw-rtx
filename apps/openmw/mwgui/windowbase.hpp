@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include <SDL3/SDL_events.h>
 
 #include "layout.hpp"
@@ -13,8 +16,8 @@ namespace MWGui
 {
     class DragAndDrop;
 
-    size_t wrap(size_t index, size_t max, int delta);
-    void setControllerFocus(const std::vector<MyGUI::Button*>& buttons, size_t index, bool focused);
+    std::size_t wrap(std::size_t index, std::size_t max, std::int32_t delta);
+    void setControllerFocus(const std::vector<MyGUI::Button*>& buttons, std::size_t index, bool focused);
 
     struct ControllerButtons
     {
@@ -68,7 +71,7 @@ namespace MWGui
         virtual void clear() {}
 
         /// Called when GUI viewport changes size
-        virtual void onResChange(int width, int height) {}
+        virtual void onResChange(std::int32_t width, std::int32_t height) {}
 
         /// Lays out again what it sized by the interface's font size and keeps
         /// (`MWBase::WindowManager::getFontSize`): after a fit to another size, before the next frame

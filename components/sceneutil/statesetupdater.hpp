@@ -1,9 +1,11 @@
 #pragma once
 
-#include <components/sceneutil/nodecallback.hpp>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <map>
+
+#include "nodecallback.hpp"
 
 namespace osgUtil
 {
@@ -60,7 +62,7 @@ namespace SceneUtil
         void reset();
 
         /// How many times reset() ran, for an applier holding a StateSet of its own to set it up again.
-        unsigned int getGeneration() const { return mGeneration; }
+        std::uint32_t getGeneration() const { return mGeneration; }
 
     private:
         void applyCull(osg::Node* node, osgUtil::CullVisitor* cv);
@@ -69,7 +71,7 @@ namespace SceneUtil
 
         std::array<osg::ref_ptr<osg::StateSet>, 2> mStateSetsUpdate;
         std::map<osgUtil::CullVisitor*, osg::ref_ptr<osg::StateSet>> mStateSetsCull;
-        unsigned int mGeneration = 0;
+        std::uint32_t mGeneration = 0;
     };
 
     /// @brief A variant of the StateSetController that can be made up of multiple controllers all controlling the same
@@ -82,8 +84,8 @@ namespace SceneUtil
 
         META_Object(SceneUtil, CompositeStateSetUpdater)
 
-        size_t getNumControllers();
-        StateSetUpdater* getController(size_t i);
+        std::size_t getNumControllers();
+        StateSetUpdater* getController(std::size_t i);
 
         void addController(StateSetUpdater* ctrl);
 

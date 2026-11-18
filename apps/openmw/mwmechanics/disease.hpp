@@ -1,16 +1,16 @@
 #pragma once
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/format.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/ptr.hpp"
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
@@ -60,7 +60,7 @@ namespace MWMechanics
             else
                 continue;
 
-            int x = static_cast<int>(fDiseaseXferChance * 100 * resist);
+            auto x = static_cast<std::int32_t>(fDiseaseXferChance * 100 * resist);
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
             if (Misc::Rng::rollDice(10000, prng) < x)
             {

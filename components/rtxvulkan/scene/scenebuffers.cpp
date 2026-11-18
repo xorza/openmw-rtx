@@ -10,6 +10,7 @@
 #include <osg/Vec4f>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowspan.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -52,7 +53,8 @@ namespace Rtx
 
         // The optional maps cross as the scene's own index, so the scene's "none" has to be the one
         // the shaders test for.
-        static_assert(sNoIndex == Shaders::NO_TEXTURE, "a material's missing map crosses as a texture");
+        static_assert(
+            TextureIndex(sNoRow).at() == Shaders::NO_TEXTURE, "a material's missing map crosses as a texture");
 
         Shaders::GpuMaterial toGpu(const Material& material)
         {
@@ -60,12 +62,12 @@ namespace Rtx
             // with `Material::isCutout`, which decided whether traversal would ever make it. A
             // material with no diffuse names the neutral slot (`TEXTURE_NEUTRAL`) so the shader reads
             // one path, and ground that kept its stack says so with a bit.
-            const bool untextured = material.mDiffuse == sNoIndex;
+            const bool untextured = material.mDiffuse == sNoRow;
             const AlphaTest test
                 = material.isCutout() ? material.getAlphaTest() : AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
 
             return Shaders::GpuMaterial{
-                .mDiffuse = untextured ? Shaders::TEXTURE_NEUTRAL : material.mDiffuse,
+                .mDiffuse = untextured ? Shaders::TEXTURE_NEUTRAL : material.mDiffuse.at(),
                 .mAlphaReference = test.mReference,
 
                 // One where the surface is all there, so traversal branches on a number rather than
@@ -94,15 +96,15 @@ namespace Rtx
                 .mTextureTransform = material.mTextureTransform,
                 .mLayerOffset = material.mLayers.mOffset,
                 .mLayerCount = material.mLayers.mCount,
-                .mEmissive = material.mEmissive,
+                .mEmissive = material.mEmissive.at(),
                 .mDiffuseColour = material.mDiffuseColour,
                 .mAmbientColour = material.getAmbientColour(),
                 .mEmissiveColour = material.mEmissiveColour,
-                .mEnvironment = material.mEnvironment,
+                .mEnvironment = material.mEnvironment.at(),
                 .mEnvironmentColour = material.mEnvironmentColour,
-                .mDark = material.mDark,
-                .mNormal = material.mNormal,
-                .mSpecular = material.mSpecular,
+                .mDark = material.mDark.at(),
+                .mNormal = material.mNormal.at(),
+                .mSpecular = material.mSpecular.at(),
                 .mRelief = material.mRelief.has_value()
                     ? std::uint32_t{ material.mRelief->mLow } | std::uint32_t{ material.mRelief->mHigh } << 8u
                     : 0u,
@@ -116,10 +118,10 @@ namespace Rtx
             return Shaders::GpuMaterialMaps{
                 .mBumpMatrix = material.mBumpMatrix,
                 .mBumpLuma = material.mBumpLuma,
-                .mDetail = material.mDetail,
-                .mDecal = material.mDecal,
-                .mBump = material.mBump,
-                .mGloss = material.mGloss,
+                .mDetail = material.mDetail.at(),
+                .mDecal = material.mDecal.at(),
+                .mBump = material.mBump.at(),
+                .mGloss = material.mGloss.at(),
                 .mUnits = ((material.mDetailUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MAP_UNIT_DETAIL_SHIFT)
                     | ((material.mDecalUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MAP_UNIT_DECAL_SHIFT)
                     | ((material.mBumpUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MAP_UNIT_BUMP_SHIFT)
@@ -127,7 +129,7 @@ namespace Rtx
             };
         }
 
-        /// A drawable with no state set has no material, and `sNoIndex` is not somewhere the shader
+        /// A drawable with no state set has no material, and `sNoRow` is not somewhere the shader
         /// can be allowed to look. One untextured row costs less than a branch per hit, and every
         /// instance that had nothing points at it — `Shaders::MATERIAL_ROW_UNTEXTURED`.
         Shaders::GpuMaterial sentinelMaterial()
@@ -154,8 +156,8 @@ namespace Rtx
     }
 
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
-        std::span<const Index> everyMesh, std::span<const InstanceRecord> records, const std::uint32_t slots,
-        const SceneRoom& room)
+        std::span<const MeshIndex> everyMesh, RowSpan<const InstanceRecord, PlacementIndex> records,
+        const std::uint32_t slots, const SceneRoom& room)
         : mLayers(device, BufferKind::DeviceLocal, sTableKeptUsage, "layers")
         , mMasks(device, BufferKind::DeviceLocal, sTableKeptUsage, "masks")
         , mMeshTable(device, BufferKind::DeviceLocal, sTableFilledUsage, "meshes")
@@ -180,7 +182,7 @@ namespace Rtx
         // At the room or what the scene reaches, so the first stage copies nothing.
         mLayers.growTo(
             std::max<VkDeviceSize>(room.mLayers, scene.materials().getLayers().size()) * sizeof(Shaders::GpuLayer));
-        mMasks.growTo(std::max<VkDeviceSize>(room.mMasks, scene.materials().getMasks().size()) * sizeof(float));
+        mMasks.growTo(std::max<VkDeviceSize>(room.mMasks, scene.materials().getMaskRuns().getEnd()) * sizeof(float));
         writeMeshes(batch, scene, everyMesh);
         writeMaterialRuns(batch, scene, Runs::Whole);
         orderStagedWrites(batch);
@@ -208,49 +210,49 @@ namespace Rtx
         orderStagedWrites(batch);
     }
 
-    void SceneBuffers::writeMeshes(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes)
+    void SceneBuffers::writeMeshes(Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> meshes)
     {
         // Whole runs here and a mesh at a time afterwards. Only a skinned body's normals change,
         // so filling these when the mesh arrives is a load's cost and every frame after it pays for
         // what actually moved.
-        mTexCoords.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTexCoords().size()));
-        mSecondTexCoords.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getSecondTexCoords().size()));
-        mColours.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getColours().size()));
-        mPositions.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getPositions().size()));
+        const std::uint32_t vertices = scene.meshes().getVertexRuns().getEnd();
+        mTexCoords.reserve(batch, vertices);
+        mSecondTexCoords.reserve(batch, scene.meshes().getSecondRuns().getEnd());
+        mColours.reserve(batch, vertices);
+        mPositions.reserve(batch, vertices);
         const std::uint32_t posed = scene.deformers().getBindVertexCount();
-        mNormals.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getNormals().size()), posed);
-        mTangents.reserve(batch, static_cast<std::uint32_t>(scene.meshes().getTangents().size()), posed);
+        mNormals.reserve(batch, vertices, posed);
+        mTangents.reserve(batch, vertices, posed);
 
-        for (const Index mesh : meshes)
+        // **Out of the arrivals**, the host's one copy of a mesh, which goes once this hand-over has it.
+        for (const MeshIndex mesh : meshes)
         {
             const MeshRange& range = scene.meshes().getRows()[mesh];
             if (range.mVertices.empty())
                 continue;
 
-            const std::span<const std::uint32_t> normals = range.mVertices.in(scene.meshes().getNormals());
-            const std::span<const std::uint32_t> tangents = range.mVertices.in(scene.meshes().getTangents());
+            const MeshGeometry geometry = scene.meshes().getArrival(mesh);
             if (range.deforms())
             {
-                mNormals.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, normals);
-                mTangents.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, tangents);
+                mNormals.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, geometry.mNormals);
+                mTangents.getOwn().at(FrameSlot{}).writeAt(batch, range.mBindOffset, geometry.mTangents);
             }
             else
             {
-                mNormals.getShared().writeAt(batch, range.mVertices.mOffset, normals);
-                mTangents.getShared().writeAt(batch, range.mVertices.mOffset, tangents);
-                mPositions.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getPositions()));
+                mNormals.getShared().writeAt(batch, range.mVertices.mOffset, geometry.mNormals);
+                mTangents.getShared().writeAt(batch, range.mVertices.mOffset, geometry.mTangents);
+                mPositions.writeAt(batch, range.mVertices.mOffset, geometry.mPositions);
             }
 
-            mTexCoords.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getTexCoords()));
-            mColours.writeAt(batch, range.mVertices.mOffset, range.mVertices.in(scene.meshes().getColours()));
+            mTexCoords.writeAt(batch, range.mVertices.mOffset, geometry.mTexCoords);
+            mColours.writeAt(batch, range.mVertices.mOffset, geometry.mColours);
 
             if (!range.mSecondTexCoords.empty())
-                mSecondTexCoords.writeAt(batch, range.mSecondTexCoords.mOffset,
-                    range.mSecondTexCoords.in(scene.meshes().getSecondTexCoords()));
+                mSecondTexCoords.writeAt(batch, range.mSecondTexCoords.mOffset, geometry.mSecondTexCoords);
         }
 
         mMeshRows.resize(scene.meshes().getRows().size());
-        for (const Index at : meshes)
+        for (const MeshIndex at : meshes)
         {
             const MeshRange& mesh = scene.meshes().getRows()[at];
             mMeshRows[at] = Shaders::GpuMesh{
@@ -273,18 +275,18 @@ namespace Rtx
         if (mMeshTable.outgrow(std::max<std::size_t>(mMeshRows.size(), 1) * sizeof(Shaders::GpuMesh)))
         {
             if (!mMeshRows.empty())
-                stageInto(batch, mMeshTable.get(), 0, std::as_bytes(std::span<const Shaders::GpuMesh>(mMeshRows)));
+                stageInto(batch, mMeshTable.get(), 0, std::as_bytes(mMeshRows.items()));
             return;
         }
 
-        const std::span<const Shaders::GpuMesh> rows(mMeshRows);
+        const std::span<const Shaders::GpuMesh> rows = mMeshRows.items();
         for (std::size_t first = 0; first < meshes.size();)
         {
             std::size_t last = first;
-            while (last + 1 < meshes.size() && meshes[last + 1] == meshes[last] + 1)
+            while (last + 1 < meshes.size() && meshes[last + 1].at() == meshes[last].at() + 1)
                 ++last;
-            stageInto(batch, mMeshTable.get(), VkDeviceSize{ meshes[first] } * sizeof(Shaders::GpuMesh),
-                std::as_bytes(rows.subspan(meshes[first], last - first + 1)));
+            stageInto(batch, mMeshTable.get(), VkDeviceSize{ meshes[first].at() } * sizeof(Shaders::GpuMesh),
+                std::as_bytes(rows.subspan(meshes[first].at(), last - first + 1)));
             first = last + 1;
         }
     }
@@ -308,7 +310,7 @@ namespace Rtx
 
     void SceneBuffers::shade(const SceneDesc& scene, const FrameSlot slot, Uploads& uploads)
     {
-        const std::span<const Material> materials = scene.materials().getRows();
+        const auto materials = scene.materials().getRows();
 
         // Every row once, where the table is made, and the rows the scene wrote after: a material
         // added, or one a flipbook rewrote. The untextured row stands first (`MATERIAL_ROW_FIRST`),
@@ -318,20 +320,20 @@ namespace Rtx
         mMaterialMapTable.grow(materials.size() + Shaders::MATERIAL_ROW_FIRST);
 
         // Both rows of a material at once, so the two tables never disagree about one.
-        const auto write = [&](const Index row, const Material& material) {
+        const auto write = [&](const MaterialRecordIndex row, const Material& material) {
             mMaterialTable.write(row) = toGpu(material);
             mMaterialMapTable.write(row) = toGpuMaps(material);
         };
         if (made)
         {
-            mMaterialTable.write(Shaders::MATERIAL_ROW_UNTEXTURED) = sentinelMaterial();
-            mMaterialMapTable.write(Shaders::MATERIAL_ROW_UNTEXTURED) = toGpuMaps(Material{});
-            for (std::size_t at = 0; at < materials.size(); ++at)
-                write(static_cast<Index>(at + Shaders::MATERIAL_ROW_FIRST), materials[at]);
+            mMaterialTable.write(MaterialRecordIndex(Shaders::MATERIAL_ROW_UNTEXTURED)) = sentinelMaterial();
+            mMaterialMapTable.write(MaterialRecordIndex(Shaders::MATERIAL_ROW_UNTEXTURED)) = toGpuMaps(Material{});
+            for (const MaterialIndex at : everyRow<MaterialIndex>(materials.size()))
+                write(materialRecordOf(at), materials[at]);
         }
         else
-            for (const Index at : scene.materials().getWritten())
-                write(at + Shaders::MATERIAL_ROW_FIRST, materials[at]);
+            for (const MaterialIndex at : scene.materials().getWritten())
+                write(materialRecordOf(at), materials[at]);
 
         mMaterialTable.sync(slot, uploads);
         mMaterialMapTable.sync(slot, uploads);
@@ -343,36 +345,34 @@ namespace Rtx
     void SceneBuffers::writeMaterialRuns(Batch& batch, const SceneDesc& scene, const Runs runs)
     {
         const std::span<const MaterialLayer> layers = scene.materials().getLayers();
-        const std::span<const float> masks = scene.materials().getMasks();
+        const ArrivedRuns& arrived = scene.materials().getArrivedRuns();
 
         // On the queue, run by run: a run an arrival was given may still be read by a frame in
         // flight, and the copy recorded here runs behind that frame. A growth keeps what the table
         // holds, copied on the queue, so what is staged is what arrived and not megabytes of masks
-        // on a crossing frame. A table a scene is made with is staged whole, since the arrivals
-        // since the last clear are not every run a rebuilt world holds.
+        // on a crossing frame. A table a scene is made with stages its layers whole, since the
+        // arrivals since the last clear are not every layer run a world holds; its masks are its
+        // arrivals however it is made, the host's one copy of them, and a scene's first hand-over
+        // has every mask among them.
         mLayers.outgrowKeeping(batch, layers.size() * sizeof(Shaders::GpuLayer));
-        mMasks.outgrowKeeping(batch, masks.size() * sizeof(float));
+        mMasks.outgrowKeeping(batch, VkDeviceSize{ scene.materials().getMaskRuns().getEnd() } * sizeof(float));
 
         if (runs == Runs::Whole)
         {
             if (!layers.empty())
                 stageInto(batch, mLayers.get(), 0, std::as_bytes(layers));
-            if (!masks.empty())
-                stageInto(batch, mMasks.get(), 0, std::as_bytes(masks));
         }
         else
-        {
-            for (const Run run : scene.materials().getArrivedRuns().mLayers)
+            for (const Run run : arrived.mLayers)
                 stageInto(batch, mLayers.get(), run.mOffset * sizeof(Shaders::GpuLayer), std::as_bytes(run.in(layers)));
-            for (const Run run : scene.materials().getArrivedRuns().mMasks)
-                stageInto(batch, mMasks.get(), run.mOffset * sizeof(float), std::as_bytes(run.in(masks)));
-        }
+        for (const ArrivedMask& mask : arrived.mMasks)
+            stageInto(batch, mMasks.get(), mask.mRun.mOffset * sizeof(float), std::as_bytes(arrived.weightsOf(mask)));
 
         mStagedRuns = scene.materials().getRunRevision();
     }
 
-    void SceneBuffers::place(const SceneDesc& scene, std::span<const InstanceRecord> records,
-        std::span<const Index> changed, const FrameSlot slot, Uploads& uploads)
+    void SceneBuffers::place(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records,
+        std::span<const PlacementIndex> changed, const FrameSlot slot, Uploads& uploads)
     {
         shade(scene, slot, uploads);
 
@@ -384,23 +384,23 @@ namespace Rtx
         const std::size_t had = mInstanceTable.size();
         mInstanceTable.grow(records.size());
 
-        const auto placeRow = [&](const std::size_t at) {
+        const auto placeRow = [&](const PlacementIndex at) {
             const InstanceRecord& record = records[at];
             if (!record.mPlaced)
                 return;
 
-            Shaders::GpuInstance& row = mInstanceTable.write(static_cast<Index>(at));
-            row.mMesh = record.mMesh;
-            row.mMaterial = record.mMaterial == sNoIndex ? Shaders::MATERIAL_ROW_UNTEXTURED
-                                                         : record.mMaterial + Shaders::MATERIAL_ROW_FIRST;
+            Shaders::GpuInstance& row = mInstanceTable.write(at);
+            row.mMesh = record.mMesh.at();
+            row.mMaterial = record.mMaterial == sNoRow ? Shaders::MATERIAL_ROW_UNTEXTURED
+                                                       : materialRecordOf(record.mMaterial).at();
             row.mOpacity = record.mOpacity;
             row.mClass = record.mClass | (record.mLampBody ? Shaders::INSTANCE_LAMP_BODY : 0u);
 
-            const auto rowOf = [](const Transform3x4& transform, int r) {
+            const auto rowOf = [](const Transform3x4& transform, std::int32_t r) {
                 return osg::Vec4f(
                     transform.mRows[r][0], transform.mRows[r][1], transform.mRows[r][2], transform.mRows[r][3]);
             };
-            for (int r = 0; r < 3; ++r)
+            for (std::int32_t r = 0; r < 3; ++r)
             {
                 row.mMotion[r] = rowOf(record.mMotion, r);
                 row.mToWorld[r] = rowOf(record.mTransform, r);
@@ -412,10 +412,10 @@ namespace Rtx
         // thousands of placements and a frame moves hundreds; writing every row to change those was
         // a memcpy of megabytes a frame. Which copies are then behind is the table's own answer,
         // and it is the same answer the acceleration structure's rows get from the same list.
-        for (std::size_t at = had; at < records.size(); ++at)
+        for (const PlacementIndex at : rowsBetween<PlacementIndex>(had, records.size()))
             placeRow(at);
 
-        for (const Index at : changed)
+        for (const PlacementIndex at : changed)
             placeRow(at);
 
         mInstanceTable.sync(slot, uploads);
@@ -459,21 +459,25 @@ namespace Rtx
         else
         {
             // Each cell owed and its two runs of the list, in order, as one write a table.
-            mCellOrder.assign(tables.mLightCellsOwed.getRows().begin(), tables.mLightCellsOwed.getRows().end());
+            mCellOrder.clear();
+            for (const LightCellIndex cell : tables.mLightCellsOwed.getRows())
+                mCellOrder.push_back(cell.at());
             std::sort(mCellOrder.begin(), mCellOrder.end());
             mCellRuns.clear();
             mListRuns.clear();
             appendRowRuns(mCellOrder, sizeof(Shaders::GpuLightCell), mCellRuns);
-            for (const Index cell : mCellOrder)
+            for (const std::uint32_t cell : mCellOrder)
             {
                 const Shaders::GpuLightCell& held = lightCells[cell];
                 for (std::uint32_t key = 0; key < 2; ++key)
                 {
-                    const VkDeviceSize at = VkDeviceSize{ held.mFirst[static_cast<int>(key)] } * sizeof(std::uint32_t);
+                    const VkDeviceSize at
+                        = VkDeviceSize{ held.mFirst[static_cast<std::int32_t>(key)] } * sizeof(std::uint32_t);
                     appendRun(mListRuns,
                         CopyRun{ .mFrom = at,
                             .mTo = at,
-                            .mSize = VkDeviceSize{ held.mCount[static_cast<int>(key)] } * sizeof(std::uint32_t) });
+                            .mSize
+                            = VkDeviceSize{ held.mCount[static_cast<std::int32_t>(key)] } * sizeof(std::uint32_t) });
                 }
             }
             uploads.writeRuns(tables.mLightCells.get(), std::as_bytes(lightCells), mCellRuns);
@@ -555,15 +559,19 @@ namespace Rtx
 
     VkDeviceSize SceneBuffers::getBytes() const
     {
-        // The indices are not counted here: they are the acceleration's, which counts them
-        // (`SceneAcceleration::getIndexBytes`).
-        VkDeviceSize total = mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes()
-            + mPositions.getBytes() + mNormals.getBytes() + mTangents.getBytes() + mMeshTable.get().getSize()
-            + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes() + mMaterialTable.getBytes()
-            + mMaterialMapTable.getBytes();
+        VkDeviceSize total = mMeshTable.get().getSize() + mLayers.get().getSize() + mMasks.get().getSize()
+            + mInstanceTable.getBytes() + mMaterialTable.getBytes() + mMaterialMapTable.getBytes();
         for (const Tables& tables : mTables.live())
             total += tables.getBytes();
 
         return total;
+    }
+
+    VkDeviceSize SceneBuffers::getGeometryBytes() const
+    {
+        // The indices are not counted here: they are the acceleration's, which counts them
+        // (`SceneAcceleration::getIndexBytes`).
+        return mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes() + mPositions.getBytes()
+            + mNormals.getBytes() + mTangents.getBytes();
     }
 }

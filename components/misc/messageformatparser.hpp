@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 
 namespace Misc
@@ -35,8 +36,8 @@ namespace Misc
             HexLower = 'a'
         };
 
-        virtual void visitedPlaceholder(Placeholder placeholder, int flags, int width, int precision, Notation notation)
-            = 0;
+        virtual void visitedPlaceholder(Placeholder placeholder, std::int32_t flags, std::int32_t width,
+            std::int32_t precision, Notation notation) = 0;
         virtual void visitedCharacter(char c) = 0;
 
     public:

@@ -118,7 +118,7 @@ namespace
                 const std::size_t kept = Platform::Process::keepToPerformanceCores();
                 std::thread after(wait);
 
-                int failure = 0;
+                std::int32_t failure = 0;
                 if (kept != (performance.has_value() ? performance->size() : 0))
                     failure = 1;
 
@@ -137,6 +137,7 @@ namespace
                             && Platform::LinuxText::parseCpuList(std::string_view(line).substr(key.size() + 1))
                                 != performance)
                         {
+                            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): stdio, in a child
                             static_cast<void>(std::fprintf(stderr, "%s\n", line.c_str()));
                             failure = 2;
                         }

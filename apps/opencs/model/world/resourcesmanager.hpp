@@ -2,8 +2,7 @@
 
 #include <map>
 
-#include <apps/opencs/model/world/resources.hpp>
-
+#include "resources.hpp"
 #include "universalid.hpp"
 
 namespace VFS

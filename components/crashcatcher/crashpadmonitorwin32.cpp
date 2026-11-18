@@ -1,5 +1,3 @@
-#include "crashpadmonitorsystem.hpp"
-
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -18,6 +16,7 @@
 
 #include <components/misc/windows.hpp>
 
+#include "crashpadmonitorsystem.hpp"
 #include "crashsummary.hpp"
 
 namespace Crash::Monitor
@@ -113,14 +112,14 @@ namespace Crash::Monitor
         return use(snapshot);
     }
 
-    int runHandler(std::vector<std::string>& arguments, const HandlerParts& parts)
+    std::int32_t runHandler(std::vector<std::string>& arguments, const HandlerParts& parts)
     {
         std::vector<char*> argv;
         argv.reserve(arguments.size() + 1);
         for (std::string& argument : arguments)
             argv.push_back(argument.data());
         argv.push_back(nullptr);
-        return crashpad::HandlerMain(static_cast<int>(argv.size() - 1), argv.data(), &parts.mSources);
+        return crashpad::HandlerMain(static_cast<std::int32_t>(argv.size() - 1), argv.data(), &parts.mSources);
     }
 
     std::string describeExitCode(std::uint32_t code)

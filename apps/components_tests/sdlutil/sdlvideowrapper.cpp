@@ -1,6 +1,8 @@
-#include <components/sdlutil/sdlvideowrapper.hpp>
+#include <cstdint>
 
 #include <gtest/gtest.h>
+
+#include <components/sdlutil/sdlvideowrapper.hpp>
 
 namespace SDLUtil
 {
@@ -25,7 +27,8 @@ namespace SDLUtil
             // 1.4959096 in a float, and 2567 times it is 3839.9998, which truncated came to 3839 and
             // listed a mode a pixel narrower than the display's.
             const float fractional = 3840.0f / 2567.0f;
-            EXPECT_LT(static_cast<int>(2567.0f * fractional), 3840) << "the float falls short, or this proves nothing";
+            EXPECT_LT(static_cast<std::int32_t>(2567.0f * fractional), 3840)
+                << "the float falls short, or this proves nothing";
             EXPECT_EQ(displayPixels(2567, fractional), 3840);
             EXPECT_EQ(displayPixels(2560, 1.5f), 3840);
             EXPECT_EQ(displayPixels(1093, 1.25f), 1366);

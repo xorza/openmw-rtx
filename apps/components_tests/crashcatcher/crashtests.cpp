@@ -38,9 +38,8 @@
 #include <components/platform/process.hpp>
 #include <components/platform/thread.hpp>
 
-#include "zipreader.hpp"
-
 #include "crashtestssystem.hpp"
+#include "zipreader.hpp"
 
 namespace CrashTests
 {
@@ -88,20 +87,20 @@ namespace CrashTests
             return modes;
         }
 
-        int readAt(const volatile int* at)
+        std::int32_t readAt(const volatile std::int32_t* at)
         {
             return *at;
         }
 
-        int recurse(int depth);
+        std::int32_t recurse(std::int32_t depth);
 
         // **Called through pointers the compiler must read afresh**, so no call to either is inlined:
         // the fault stands in a frame of its own, and the recursion is not folded into a loop. Standard,
         // where an attribute that says `noinline` is each compiler's own spelling.
-        int (*volatile sReadAt)(const volatile int*) = readAt;
-        int (*volatile sRecurse)(int) = recurse;
+        std::int32_t (*volatile sReadAt)(const volatile std::int32_t*) = readAt;
+        std::int32_t (*volatile sRecurse)(std::int32_t) = recurse;
 
-        int recurse(int depth)
+        std::int32_t recurse(std::int32_t depth)
         {
             // A way out no call takes, so the compiler does not call the recursion endless and fold it.
             if (depth < 0)
@@ -116,9 +115,9 @@ namespace CrashTests
         }
 
         /// A tenth of a second a frame, as a game that draws slowly.
-        void frames(int count)
+        void frames(std::int32_t count)
         {
-            for (int i = 0; i < count; ++i)
+            for (std::int32_t i = 0; i < count; ++i)
             {
                 Crash::heartbeat();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -183,7 +182,7 @@ namespace CrashTests
         /// `<folder>/user data/crashes`, and `setupLogging` opens the log and hands it over, so what a mode writes
         /// afterwards goes through the stream the game writes its log with, the one the monitor's
         /// summaries have to survive.
-        int run(std::string_view mode, const std::filesystem::path& folder)
+        std::int32_t run(std::string_view mode, const std::filesystem::path& folder)
         {
             std::filesystem::create_directories(folder);
             Debug::setupLogging(folder, "crash-tests");
@@ -197,7 +196,7 @@ namespace CrashTests
                 // stack scan the catcher turns on, not the registers every dump reads around.
                 const char* volatile onTheStack = (new std::string(sHeapMarker))->data();
                 (void)onTheStack;
-                return sReadAt(reinterpret_cast<const volatile int*>(static_cast<std::uintptr_t>(0x10)));
+                return sReadAt(reinterpret_cast<const volatile std::int32_t*>(static_cast<std::uintptr_t>(0x10)));
             }
             if (mode == "stack-overflow")
                 return sRecurse(0);
@@ -225,19 +224,19 @@ namespace CrashTests
             if (mode == "two-threads")
             {
                 std::thread other(
-                    [] { sReadAt(reinterpret_cast<const volatile int*>(static_cast<std::uintptr_t>(0x10))); });
-                sReadAt(reinterpret_cast<const volatile int*>(static_cast<std::uintptr_t>(0x10)));
+                    [] { sReadAt(reinterpret_cast<const volatile std::int32_t*>(static_cast<std::uintptr_t>(0x10))); });
+                sReadAt(reinterpret_cast<const volatile std::int32_t*>(static_cast<std::uintptr_t>(0x10)));
                 other.join();
                 return 0;
             }
             if (mode == "note-table-full")
             {
                 // Each holds a note until the crash, which ends them all.
-                constexpr int sCrowd = 70;
+                constexpr std::int32_t sCrowd = 70;
                 std::latch crowded(sCrowd);
                 std::vector<std::jthread> crowd;
                 crowd.reserve(sCrowd);
-                for (int i = 0; i < sCrowd; ++i)
+                for (std::int32_t i = 0; i < sCrowd; ++i)
                     crowd.push_back(Platform::startThread("crash-tests", [&crowded, i] {
                         const Crash::NoteScope note("crowding the table as thread {}", i);
                         crowded.count_down();
@@ -245,7 +244,7 @@ namespace CrashTests
                             std::this_thread::sleep_for(std::chrono::seconds(1));
                     }));
                 crowded.wait();
-                return sReadAt(reinterpret_cast<const volatile int*>(static_cast<std::uintptr_t>(0x10)));
+                return sReadAt(reinterpret_cast<const volatile std::int32_t*>(static_cast<std::uintptr_t>(0x10)));
             }
             if (mode == "hang")
             {
@@ -286,7 +285,7 @@ namespace CrashTests
                 // as the late End waits, past the two seconds of them before it, so it still finds the
                 // game drawing.
                 stopUntilHangLogged(folder);
-                frames(20 + static_cast<int>(sLateEnd / std::chrono::milliseconds(100)));
+                frames(20 + static_cast<std::int32_t>(sLateEnd / std::chrono::milliseconds(100)));
                 return livedOn();
             }
             if (mode == "ended-at-once")
@@ -312,7 +311,7 @@ namespace CrashTests
                 stopUntilHangLogged(folder);
                 return livedOn();
             }
-            if (const std::optional<int> ended = runModeOfThisSystem(mode))
+            if (const std::optional<std::int32_t> ended = runModeOfThisSystem(mode))
                 return *ended;
             std::cerr << "crash-tests: no mode " << mode << '\n';
             return 2;
@@ -576,7 +575,7 @@ namespace CrashTests
             return Outcome{ .mFolder = folder, .mWrong = check(mode, folder, ended), .mTook = took };
         }
 
-        int matrix(const std::filesystem::path& self, const std::filesystem::path& root)
+        std::int32_t matrix(const std::filesystem::path& self, const std::filesystem::path& root)
         {
             // **Side by side, because the modes wait rather than work.** Each is a process with its own folder, and
             // six of them stand still for seconds while a hang limit passes: serially the matrix took 36 s, side by
@@ -605,7 +604,7 @@ namespace CrashTests
                     }));
             }
 
-            int failed = 0;
+            std::int32_t failed = 0;
             for (std::size_t at = 0; at < modes.size(); ++at)
             {
                 const Mode& mode = modes[at];
@@ -630,7 +629,7 @@ namespace CrashTests
         }
     }
 
-    int livedOn()
+    std::int32_t livedOn()
     {
         Log(Debug::Info) << "crash-tests lived on";
         return 0;
@@ -643,9 +642,9 @@ namespace CrashTests
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
-    if (const std::optional<int> monitored = Crash::runMonitorIfAsked(argc, argv))
+    if (const std::optional<std::int32_t> monitored = Crash::runMonitorIfAsked(argc, argv))
         return *monitored;
 
     if (argc == 3 && std::string_view(argv[1]) == "--matrix")
@@ -664,8 +663,8 @@ int main(int argc, char* argv[])
             Platform::Process::setEnvironment("OPENMW_CRASH_END", after->spell().c_str());
         CrashTests::prepareModeOfThisSystem(mode);
 
-        const int ended = Debug::wrapApplication(
-            [](int, char* arguments[]) {
+        const std::int32_t ended = Debug::wrapApplication(
+            [](std::int32_t, char* arguments[]) {
                 return CrashTests::run(arguments[1], std::filesystem::absolute(arguments[2]));
             },
             argc, argv, "crash-tests");

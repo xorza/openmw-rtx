@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -121,7 +122,7 @@ namespace MWRender
         void beginLoading() override;
         void endLoading() override;
 
-        void capture(osg::Image& image, int width, int height) override;
+        void capture(osg::Image& image, std::int32_t width, std::int32_t height) override;
         void saveScreenshot() override;
 
         void suspendDraw() override;
@@ -150,8 +151,8 @@ namespace MWRender
         /// Into the viewer's queue, for the handlers it carries: the stats overlay's keys, and
         /// the resize its own handlers reposition by. The graphics context follows the window too.
         void beginEvents() override;
-        void functionKey(int index, SDLUtil::KeyChange change) override;
-        void windowResized(int x, int y, int width, int height) override;
+        void functionKey(std::int32_t index, SDLUtil::KeyChange change) override;
+        void windowResized(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) override;
 
         /// Upstream's camera blit for the world map's overlay, hung under the traversal root.
         std::unique_ptr<MapOverlay> createMapOverlay(const MapOverlaySpec& spec) override;
@@ -184,7 +185,7 @@ namespace MWRender
         void installStatsOverlay(const VFS::Manager& vfs);
 
         /// One frame of the dump, into `mStatsFile`.
-        void reportStats(unsigned frameNumber);
+        void reportStats(std::uint32_t frameNumber);
 
         /// Makes the SDL window and the OpenGL context in it, retrying at half the antialiasing
         /// each time the driver refuses. Upstream's loop, unchanged.
@@ -208,14 +209,14 @@ namespace MWRender
         /// question**: a ray tracer builds no OpenGL objects and keeps none.
         void compileIncrementally();
 
-        int mMaxTextureUnits = 0;
+        std::int32_t mMaxTextureUnits = 0;
 
         /// Where `OPENMW_OSG_STATS_FILE` is written, or closed where nothing asked for it.
         std::ofstream mStatsFile;
 
         /// How many frames behind the dump runs: the draw thread reports a frame's figures after the
         /// main thread has moved on, and three frames is where they have all landed.
-        static constexpr unsigned sStatsReportDelay = 3;
+        static constexpr std::uint32_t sStatsReportDelay = 3;
 
         /// Before the viewer, so it goes after it. The base holds the camera and is destroyed last,
         /// so releasing the viewer does not on its own release the context the camera points at.
@@ -225,14 +226,14 @@ namespace MWRender
 
         /// What the update traversal runs with while the world is shown: the viewer's own, read
         /// once, because nothing but a cover ever writes it.
-        unsigned int mShownUpdateMask = 0;
+        std::uint32_t mShownUpdateMask = 0;
 
         /// What the compiler was given per frame before a loading screen took the whole of it.
         double mLoadingIcoMin = 0.0;
-        unsigned int mLoadingIcoMax = 0;
+        std::uint32_t mLoadingIcoMax = 0;
 
         /// Writes `mask` to the master camera and to the stereo pair, which are no-ops in mono.
-        void cull(unsigned int mask);
+        void cull(std::uint32_t mask);
 
         osg::ref_ptr<SceneUtil::SelectDepthFormatOperation> mSelectDepthFormatOperation;
         osg::ref_ptr<SceneUtil::Color::SelectColorFormatOperation> mSelectColorFormatOperation;

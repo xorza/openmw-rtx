@@ -1,9 +1,10 @@
 #pragma once
 
-#include "scenetool.hpp"
-
+#include <cstdint>
 #include <map>
 #include <string>
+
+#include "scenetool.hpp"
 
 class QHBoxLayout;
 class QMenu;
@@ -27,8 +28,8 @@ namespace CSVWidget
         QWidget* mPanel;
         QHBoxLayout* mLayout;
         std::map<ModeButton*, std::string> mButtons; // widget, id
-        int mButtonSize;
-        int mIconSize;
+        std::int32_t mButtonSize;
+        std::int32_t mIconSize;
         QString mToolTip;
         PushButton* mFirst;
         ModeButton* mCurrent;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -7,14 +8,13 @@
 
 #include <osg/Vec4f>
 
-#include "doorstate.hpp"
-#include "ptr.hpp"
-
-#include "../mwmechanics/aisetting.hpp"
-#include "../mwmechanics/damagesourcetype.hpp"
-
+#include <apps/openmw/mwmechanics/aisetting.hpp>
+#include <apps/openmw/mwmechanics/damagesourcetype.hpp>
 #include <components/esm/refid.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "doorstate.hpp"
+#include "ptr.hpp"
 
 namespace osg
 {
@@ -63,12 +63,12 @@ namespace MWWorld
     /// \brief Base class for referenceable esm records
     class Class
     {
-        const unsigned mType;
+        const std::uint32_t mType;
 
-        static std::map<unsigned, Class*>& getClasses();
+        static std::map<std::uint32_t, Class*>& getClasses();
 
     protected:
-        explicit Class(unsigned type)
+        explicit Class(std::uint32_t type)
             : mType(type)
         {
         }
@@ -83,7 +83,7 @@ namespace MWWorld
         Class(const Class&) = delete;
         Class& operator=(const Class&) = delete;
 
-        unsigned int getType() const { return mType; }
+        std::uint32_t getType() const { return mType; }
 
         virtual void insertObjectRendering(
             const Ptr& ptr, const std::string& mesh, MWRender::RenderingInterface& renderingInterface) const;
@@ -107,7 +107,7 @@ namespace MWWorld
         virtual bool hasToolTip(const ConstPtr& ptr) const;
         ///< @return true if this object has a tooltip when focused (default implementation: true)
 
-        virtual MWGui::ToolTipInfo getToolTipInfo(const ConstPtr& ptr, int count) const;
+        virtual MWGui::ToolTipInfo getToolTipInfo(const ConstPtr& ptr, std::int32_t count) const;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
         virtual bool showsInInventory(const ConstPtr& ptr) const;
@@ -122,13 +122,13 @@ namespace MWWorld
         virtual bool hasItemHealth(const ConstPtr& ptr) const;
         ///< \return Item health data available? (default implementation: false)
 
-        virtual int getItemHealth(const ConstPtr& ptr) const;
+        virtual std::int32_t getItemHealth(const ConstPtr& ptr) const;
         ///< Return current item health or throw an exception if class does not have item health
 
         virtual float getItemNormalizedHealth(const ConstPtr& ptr) const;
         ///< Return current item health re-scaled to maximum health
 
-        virtual int getItemMaxHealth(const ConstPtr& ptr) const;
+        virtual std::int32_t getItemMaxHealth(const ConstPtr& ptr) const;
         ///< Return item max health or throw an exception, if class does not have item health
         /// (default implementation: throw an exception)
 
@@ -137,7 +137,7 @@ namespace MWWorld
         ///< success.
         /// (default implementation: throw an exception)
 
-        virtual void hit(const Ptr& ptr, float attackStrength, float attackWindUp, int type = -1,
+        virtual void hit(const Ptr& ptr, float attackStrength, float attackWindUp, std::int32_t type = -1,
             const Ptr& victim = Ptr(), const osg::Vec3f& hitPosition = osg::Vec3f(), bool success = false) const;
         ///< Execute a melee hit on the victim at hitPosition, using the current weapon. If the hit was successful,
         ///< apply damage and process corresponding events.
@@ -211,7 +211,7 @@ namespace MWWorld
         virtual osg::Vec3f getRotationVector(const Ptr& ptr) const;
         ///< Return desired rotations, as euler angles. Sets getMovementSettings(ptr).mRotation to zero.
 
-        virtual std::pair<std::vector<int>, bool> getEquipmentSlots(const ConstPtr& ptr) const;
+        virtual std::pair<std::vector<std::int32_t>, bool> getEquipmentSlots(const ConstPtr& ptr) const;
         ///< \return first: Return IDs of the slot this object can be equipped in; second: can object
         /// stay stacked when equipped?
         ///
@@ -221,7 +221,7 @@ namespace MWWorld
         /// Return the index of the skill this item corresponds to when equipped.
         /// (default implementation: return empty ref id)
 
-        virtual int getValue(const ConstPtr& ptr) const;
+        virtual std::int32_t getValue(const ConstPtr& ptr) const;
         ///< Return trade value of the object. Throws an exception, if the object can't be traded.
         /// (default implementation: throws an exception)
 
@@ -242,7 +242,7 @@ namespace MWWorld
         ///< Consume an item, e. g. a potion.
 
         virtual void skillUsageSucceeded(
-            const MWWorld::Ptr& ptr, ESM::RefId skill, int usageType, float extraFactor = 1.f) const;
+            const MWWorld::Ptr& ptr, ESM::RefId skill, std::int32_t usageType, float extraFactor = 1.f) const;
         ///< Inform actor \a ptr that a skill use has succeeded.
         ///
         /// (default implementations: throws an exception)
@@ -273,16 +273,16 @@ namespace MWWorld
         ///< @return the enchantment ID if the object is enchanted, otherwise an empty string
         /// (default implementation: return empty string)
 
-        virtual int getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const;
+        virtual std::int32_t getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const;
         ///< @return the number of enchantment points available for possible enchanting
 
         virtual void adjustScale(const MWWorld::ConstPtr& ptr, osg::Vec3f& scale, bool rendering) const;
         /// @param rendering Indicates if the scale to adjust is for the rendering mesh, or for the collision mesh
 
-        virtual bool canSell(const MWWorld::ConstPtr& item, int npcServices) const;
+        virtual bool canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const;
         ///< Determine whether or not \a item can be sold to an npc with the given \a npcServices
 
-        virtual int getServices(const MWWorld::ConstPtr& actor) const;
+        virtual std::int32_t getServices(const MWWorld::ConstPtr& actor) const;
 
         virtual VFS::Path::NormalizedView getModel(const MWWorld::ConstPtr& ptr) const;
 
@@ -296,11 +296,11 @@ namespace MWWorld
         ///< Get a list of models to preload that this object may use (directly or indirectly). default implementation:
         ///< list getModel().
 
-        virtual const ESM::RefId& applyEnchantment(
-            const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId, int enchCharge, const std::string& newName) const;
+        virtual const ESM::RefId& applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId,
+            std::int32_t enchCharge, const std::string& newName) const;
         ///< Creates a new record using \a ptr as template, with the given name and the given enchantment applied to it.
 
-        virtual std::pair<int, std::string_view> canBeEquipped(
+        virtual std::pair<std::int32_t, std::string_view> canBeEquipped(
             const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const;
         ///< Return 0 if player cannot equip item. 1 if can equip. 2 if it's twohanded weapon. 3 if twohanded weapon
         ///< conflicts with that.
@@ -319,7 +319,7 @@ namespace MWWorld
         virtual bool allowTelekinesis(const MWWorld::ConstPtr& ptr) const { return true; }
         ///< Return whether this class of object can be activated with telekinesis
 
-        virtual Ptr copyToCell(const ConstPtr& ptr, CellStore& cell, int count) const;
+        virtual Ptr copyToCell(const ConstPtr& ptr, CellStore& cell, std::int32_t count) const;
 
         // Similar to `copyToCell`, but preserves RefNum and moves LuaScripts.
         // The original is expected to be removed after calling this function,
@@ -327,7 +327,7 @@ namespace MWWorld
         virtual Ptr moveToCell(const Ptr& ptr, CellStore& cell) const;
         Ptr moveToCell(const Ptr& ptr, CellStore& cell, const ESM::Position& pos) const;
 
-        Ptr copyToCell(const ConstPtr& ptr, CellStore& cell, const ESM::Position& pos, int count) const;
+        Ptr copyToCell(const ConstPtr& ptr, CellStore& cell, const ESM::Position& pos, std::int32_t count) const;
 
         virtual bool isActivator() const { return false; }
 
@@ -357,12 +357,12 @@ namespace MWWorld
         virtual void writeAdditionalState(const MWWorld::ConstPtr& ptr, ESM::ObjectState& state) const;
         ///< Write additional state from \a ptr into \a state.
 
-        static const Class& get(unsigned int key);
+        static const Class& get(std::uint32_t key);
         ///< If there is no class for this \a key, an exception is thrown.
 
         static void registerClass(Class& instance);
 
-        virtual int getBaseGold(const MWWorld::ConstPtr& ptr) const;
+        virtual std::int32_t getBaseGold(const MWWorld::ConstPtr& ptr) const;
 
         virtual bool isClass(const MWWorld::ConstPtr& ptr, std::string_view className) const;
 
@@ -375,10 +375,10 @@ namespace MWWorld
         /// Returns sound id
         virtual ESM::RefId getSound(const MWWorld::ConstPtr& ptr) const;
 
-        virtual int getBaseFightRating(const MWWorld::ConstPtr& ptr) const;
+        virtual std::int32_t getBaseFightRating(const MWWorld::ConstPtr& ptr) const;
 
         virtual ESM::RefId getPrimaryFaction(const MWWorld::ConstPtr& ptr) const;
-        virtual int getPrimaryFactionRank(const MWWorld::ConstPtr& ptr) const;
+        virtual std::int32_t getPrimaryFactionRank(const MWWorld::ConstPtr& ptr) const;
 
         /// Get the effective armor rating, factoring in the actor's skills, for the given armor.
         virtual float getSkillAdjustedArmorRating(
@@ -386,8 +386,9 @@ namespace MWWorld
 
         virtual osg::Vec4f getEnchantmentColor(const MWWorld::ConstPtr& item) const;
 
-        virtual void setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, int value) const;
+        virtual void setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, std::int32_t value) const;
 
-        virtual void modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, int amount) const;
+        virtual void modifyBaseInventory(
+            const ESM::RefId& actorId, const ESM::RefId& itemId, std::int32_t amount) const;
     };
 }

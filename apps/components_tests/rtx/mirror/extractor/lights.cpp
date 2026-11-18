@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 
 #include <gtest/gtest.h>
@@ -34,6 +35,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lampbody.hpp>
 #include <components/sceneutil/lightcommon.hpp>
@@ -405,10 +407,10 @@ namespace Rtx::Testing
 
             const auto rows = mScene.placements().getRows();
             ASSERT_EQ(rows.size(), 4u);
-            EXPECT_TRUE(rows[0].mInstance.mLampBody) << "the paper beside the light is its model";
-            EXPECT_FALSE(rows[1].mInstance.mLampBody) << "a quad beside the lantern";
-            EXPECT_FALSE(rows[2].mInstance.mLampBody) << "a negative lamp's model";
-            EXPECT_FALSE(rows[3].mInstance.mLampBody) << "a marker whose light has gone";
+            EXPECT_TRUE(rows[PlacementIndex(0)].mInstance.mLampBody) << "the paper beside the light is its model";
+            EXPECT_FALSE(rows[PlacementIndex(1)].mInstance.mLampBody) << "a quad beside the lantern";
+            EXPECT_FALSE(rows[PlacementIndex(2)].mInstance.mLampBody) << "a negative lamp's model";
+            EXPECT_FALSE(rows[PlacementIndex(3)].mInstance.mLampBody) << "a marker whose light has gone";
 
             ASSERT_EQ(mScene.lights().size(), 2u) << "one lamp a light, and no second for its marker";
             EXPECT_EQ(mScene.lights()[0].mPosition, osg::Vec3f(0.0f, 0.0f, 30.0f));
@@ -535,7 +537,7 @@ namespace Rtx::Testing
             // 300 actors with no flame against the world's room of 256 glows: each asks for none.
             ASSERT_LT(sWorldExtractorRoom.mEffects, 300u);
             osg::ref_ptr<osg::Group> town = new osg::Group;
-            for (int at = 0; at < 300; ++at)
+            for (std::int32_t at = 0; at < 300; ++at)
             {
                 osg::ref_ptr<osg::Group> bystander = new osg::Group;
                 bystander->setNodeMask(sActor);
@@ -553,6 +555,7 @@ namespace Rtx::Testing
         /// world's clock alone, which the walk holds, so the walk is where the two can agree.
         TEST_F(RtxSceneExtractorTest, aWalkMirrorsALampAtTheInstantItWasToldRatherThanAtRest)
         {
+            Rtx::SceneIdentities identities;
             ESM::Light record;
             record.mData.mRadius = 100;
             record.mData.mColor = 0x00FFFFFF;
@@ -561,8 +564,8 @@ namespace Rtx::Testing
             osg::ref_ptr<SceneUtil::LightSource> lamp
                 = SceneUtil::createLightSource(SceneUtil::LightCommon(record), sLightMask, /*isExterior=*/false);
 
-            const auto litAt = [&lamp](double seconds) {
-                Rtx::SceneDesc scene;
+            const auto litAt = [&lamp, &identities](double seconds) {
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.setSimulationTime(seconds, 0.0);
@@ -578,7 +581,7 @@ namespace Rtx::Testing
 
             // A slow pulse turns once in two seconds. Eight samples across it put one within an
             // eighth of a turn of an end, so the deepest is at least `0.75 * 0.375` from the middle.
-            for (int i = 0; i < 8; ++i)
+            for (std::int32_t i = 0; i < 8; ++i)
             {
                 const float lit = litAt(static_cast<double>(i) * 0.25);
 

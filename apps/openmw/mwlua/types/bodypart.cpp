@@ -1,8 +1,7 @@
-#include "types.hpp"
+#include <components/esm3/loadbody.hpp>
 
 #include "modelproperty.hpp"
-
-#include <components/esm3/loadbody.hpp>
+#include "types.hpp"
 
 namespace sol
 {

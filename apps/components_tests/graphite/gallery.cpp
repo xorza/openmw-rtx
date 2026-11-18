@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <set>
@@ -44,7 +45,7 @@ namespace Graphite
         }
 
         /// The height a widget lays out at, as its layout asks it.
-        int heightOf(const QWidget& widget)
+        std::int32_t heightOf(const QWidget& widget)
         {
             return widget.sizeHint().height();
         }
@@ -61,9 +62,9 @@ namespace Graphite
             ASSERT_GE(files.size(), 10u) << "the pages were not found";
 
             QPushButton reference(QStringLiteral("Row"));
-            const int row = heightOf(reference);
+            const std::int32_t row = heightOf(reference);
             QCheckBox toggleReference(QStringLiteral("Row"));
-            const int toggleRow = heightOf(toggleReference);
+            const std::int32_t toggleRow = heightOf(toggleReference);
             ASSERT_LT(toggleRow, row) << "a toggle as tall as a row proves nothing";
 
             QUiLoader loader;
@@ -91,16 +92,16 @@ namespace Graphite
                 // stood its field in the middle of a tall gap.
                 for (const QGridLayout* grid : page->findChildren<QGridLayout*>())
                 {
-                    std::set<std::pair<int, int>> taken;
-                    for (int item = 0; item < grid->count(); ++item)
+                    std::set<std::pair<std::int32_t, std::int32_t>> taken;
+                    for (std::int32_t item = 0; item < grid->count(); ++item)
                     {
-                        int top = 0;
-                        int left = 0;
-                        int rows = 0;
-                        int columns = 0;
+                        std::int32_t top = 0;
+                        std::int32_t left = 0;
+                        std::int32_t rows = 0;
+                        std::int32_t columns = 0;
                         grid->getItemPosition(item, &top, &left, &rows, &columns);
-                        for (int r = top; r < top + rows; ++r)
-                            for (int c = left; c < left + columns; ++c)
+                        for (std::int32_t r = top; r < top + rows; ++r)
+                            for (std::int32_t c = left; c < left + columns; ++c)
                                 EXPECT_TRUE(taken.insert({ r, c }).second)
                                     << name << ": " << grid->objectName().toStdString() << " holds two items at " << r
                                     << ", " << c;

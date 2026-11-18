@@ -29,7 +29,7 @@ namespace MWGui
                 MyGUI::ResourceManager::getInstance().load("openmw_journal.skin.xml");
             }
 
-            BookPage* makePage(int left)
+            BookPage* makePage(std::int32_t left)
             {
                 return MyGUI::Gui::getInstance().createWidget<BookPage>(
                     "MW_BookPage", MyGUI::IntCoord(left, 10, 240, 320), MyGUI::Align::Default, "Windows");
@@ -76,7 +76,7 @@ namespace MWGui
         {
             BookPageGui gui;
             BookPage* const page = gui.makePage(10);
-            int asked = 0;
+            std::int32_t asked = 0;
             page->adviseRetypeset(std::make_shared<Retypesetter>([&] {
                 ++asked;
                 page->showPage(gui.typeset(), 0);
@@ -100,7 +100,7 @@ namespace MWGui
             BookPageGui gui;
             BookPage* const page = gui.makePage(10);
             std::shared_ptr<TypesetBook> shown = gui.typeset();
-            int asked = 0;
+            std::int32_t asked = 0;
             page->adviseRetypeset(std::make_shared<Retypesetter>([&] {
                 ++asked;
                 shown = gui.typeset();
@@ -131,7 +131,7 @@ namespace MWGui
             BookPage* const right = gui.makePage(260);
             BookPage* const index = gui.makePage(510);
             BookPage* const empty = gui.makePage(760);
-            int asked = 0;
+            std::int32_t asked = 0;
             const auto showBoth = [&] {
                 const std::shared_ptr<TypesetBook> book = gui.typeset();
                 left->showPage(book, 0);
@@ -144,7 +144,7 @@ namespace MWGui
             left->adviseRetypeset(owner);
             right->adviseRetypeset(owner);
             index->adviseRetypeset(owner);
-            int askedEmpty = 0;
+            std::int32_t askedEmpty = 0;
             empty->adviseRetypeset(std::make_shared<Retypesetter>([&] { ++askedEmpty; }));
             showBoth();
             index->showPage(gui.typeset(), 0);

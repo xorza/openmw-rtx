@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "parser.hpp"
 #include "tokenloc.hpp"
 
@@ -20,7 +22,7 @@ namespace Compiler
     public:
         DiscardParser(ErrorHandler& errorHandler, const Context& context);
 
-        bool parseInt(int value, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle an int token.
         /// \return fetch another token?
 
@@ -32,7 +34,7 @@ namespace Compiler
         ///< Handle a name token.
         /// \return fetch another token?
 
-        bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a special character token.
         /// \return fetch another token?
 

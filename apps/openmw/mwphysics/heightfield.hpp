@@ -1,9 +1,7 @@
 #pragma once
 
-#include <LinearMath/btScalar.h>
-
+#include <cstdint>
 #include <memory>
-#include <vector>
 
 class btCollisionObject;
 class btHeightfieldTerrainShape;
@@ -22,8 +20,9 @@ namespace MWPhysics
     public:
         void operator=(const HeightField&) = delete;
         HeightField(const HeightField&) = delete;
-        HeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
-            std::shared_ptr<const ESMTerrain::LandObject> holdObject, PhysicsTaskScheduler* scheduler);
+        HeightField(const float* heights, std::int32_t x, std::int32_t y, std::int32_t size, std::int32_t verts,
+            float minH, float maxH, std::shared_ptr<const ESMTerrain::LandObject> holdObject,
+            PhysicsTaskScheduler* scheduler);
         ~HeightField();
 
         btCollisionObject* getCollisionObject();
@@ -34,9 +33,6 @@ namespace MWPhysics
         std::unique_ptr<btHeightfieldTerrainShape> mShape;
         std::unique_ptr<btCollisionObject> mCollisionObject;
         std::shared_ptr<const ESMTerrain::LandObject> mHoldObject;
-#if BT_BULLET_VERSION < 310
-        std::vector<btScalar> mHeights;
-#endif
 
         PhysicsTaskScheduler* mTaskScheduler;
     };

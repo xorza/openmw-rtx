@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <ranges>
 #include <span>
@@ -96,7 +97,7 @@ namespace Rtx
             /// between the file and here holds a triangle to the vertices it has.
             std::uint32_t mLargest = 0;
 
-            void operator()(unsigned int a, unsigned int b, unsigned int c)
+            void operator()(std::uint32_t a, std::uint32_t b, std::uint32_t c)
             {
                 if (a == b || b == c || a == c)
                     return;
@@ -201,7 +202,7 @@ namespace Rtx
         /// The coordinates bound at `unit`, or null where none are. An error where they are of a
         /// type this does not read, or where they do not match the vertices — `checkLength`.
         Result<const osg::Vec2Array*, std::string> readTexCoords(
-            const osg::Geometry& geometry, unsigned int unit, std::size_t vertices)
+            const osg::Geometry& geometry, std::uint32_t unit, std::size_t vertices)
         {
             const osg::Array* named = geometry.getTexCoordArray(unit);
             if (named == nullptr || named->getNumElements() == 0)
@@ -579,7 +580,7 @@ namespace Rtx
         };
         const osg::Vec2Array* second = nullptr;
         std::uint32_t unitStreams = 0;
-        for (unsigned int unit = 1; unit < geometry.getNumTexCoordArrays() && unit < 32; ++unit)
+        for (std::uint32_t unit = 1; unit < geometry.getNumTexCoordArrays() && unit < 32; ++unit)
         {
             if (unit == Shader::sTangentUnit)
                 continue;

@@ -1,17 +1,17 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <list>
 #include <string>
 #include <vector>
 
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwscript/compilercontext.hpp>
 #include <components/compiler/errorhandler.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/output.hpp>
 #include <components/files/configurationmanager.hpp>
-
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwscript/compilercontext.hpp"
 
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
@@ -41,7 +41,7 @@ namespace MWGui
         std::string mEditString;
         std::ofstream mCommandHistoryFile;
 
-        Console(int w, int h, bool consoleOnlyScripts, Files::ConfigurationManager& cfgMgr);
+        Console(std::int32_t w, std::int32_t h, bool consoleOnlyScripts, Files::ConfigurationManager& cfgMgr);
         ~Console() override;
 
         void onOpen() override;
@@ -90,14 +90,14 @@ namespace MWGui
         void findPreviousOccurrence(MyGUI::Widget* sender);
         void findOccurrence(SearchDirection direction);
         void findInHistoryText(
-            const std::string& historyText, SearchDirection direction, size_t firstIndex, size_t lastIndex);
+            const std::string& historyText, SearchDirection direction, std::size_t firstIndex, std::size_t lastIndex);
         void findWithRegex(
-            const std::string& historyText, SearchDirection direction, size_t firstIndex, size_t lastIndex);
+            const std::string& historyText, SearchDirection direction, std::size_t firstIndex, std::size_t lastIndex);
         void findWithStringSearch(
-            const std::string& historyText, SearchDirection direction, size_t firstIndex, size_t lastIndex);
-        void markOccurrence(size_t textPosition, size_t length);
-        size_t mCurrentOccurrenceIndex = std::string::npos;
-        size_t mCurrentOccurrenceLength = 0;
+            const std::string& historyText, SearchDirection direction, std::size_t firstIndex, std::size_t lastIndex);
+        void markOccurrence(std::size_t textPosition, std::size_t length);
+        std::size_t mCurrentOccurrenceIndex = std::string::npos;
+        std::size_t mCurrentOccurrenceLength = 0;
         std::string mCurrentSearchTerm;
         bool mCaseSensitiveSearch;
         bool mRegExSearch;

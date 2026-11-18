@@ -1,14 +1,13 @@
-#include "multiview.hpp"
-
-#include <osgUtil/CullVisitor>
-
-#include <osgViewer/Renderer>
+#include "frustum.hpp"
 
 #include <map>
 
+#include <osgUtil/CullVisitor>
+#include <osgViewer/Renderer>
+
 #include <components/sceneutil/mwshadowtechnique.hpp>
 
-#include "frustum.hpp"
+#include "multiview.hpp"
 
 namespace Stereo
 {

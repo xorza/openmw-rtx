@@ -28,22 +28,9 @@ namespace Rtx
 {
     namespace
     {
-        /// Appends `values` to `into` and answers the run they landed in. One statement, because a
-        /// run that named where it started and a count taken from another array is exactly what
-        /// `Rtx::Run` exists to stop.
-        template <class T>
-        Run appended(std::vector<T>& into, std::span<const T> values)
-        {
-            const Run run{ .mOffset = static_cast<std::uint32_t>(into.size()),
-                .mCount = static_cast<std::uint32_t>(values.size()) };
-            into.insert(into.end(), values.begin(), values.end());
-
-            return run;
-        }
-
         /// The modes child `at` of a day-night switch is shown in: each of the game's where
         /// `DayNightCallback` picks it, and `Authored` where it is the child the file opens on.
-        NightDayModes shownIn(const osg::Switch& branches, const unsigned int at)
+        NightDayModes shownIn(const osg::Switch& branches, const std::uint32_t at)
         {
             NightDayModes shown{ .mBits = 0 };
             if (branches.getValue(at))
@@ -52,7 +39,7 @@ namespace Rtx
             for (const NightDayMode mode :
                 { NightDayMode::Default, NightDayMode::ExteriorNight, NightDayMode::InteriorDay })
             {
-                const auto index = static_cast<unsigned int>(mode);
+                const auto index = static_cast<std::uint32_t>(mode);
                 if ((branches.getNumChildren() > index ? index : 0u) == at)
                     shown = shown | NightDayModes::only(mode);
             }
@@ -162,7 +149,9 @@ namespace Rtx
             return;
 
         // Here on the reader's thread, and not at the adoption, which is inside the frame's walk.
-        if (const Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
+        if (const Result<void, std::string> fits
+            = MeshTable::checkFits(reading.mArrays.mPositions.size(), reading.mArrays.mIndices.size());
+            !fits.isOk())
         {
             refuse(fits.error());
             return;
@@ -187,18 +176,10 @@ namespace Rtx
         part.mChain = Run{ .mOffset = chained, .mCount = static_cast<std::uint32_t>(into.mChains.size()) - chained };
         part.mLocal = osg::Matrixf(mHere);
         part.mClockwise = clockwiseThrough(mShading);
-        part.mShape = reading.mShape;
         part.mModes = mModes;
         into.mEmits = into.mEmits || (part.mMaterial.mDescribed.has_value() && part.mMaterial.mDescribed->emits());
 
-        part.mVertices = appended(into.mPositions, reading.mArrays.mPositions);
-        part.mNormals = appended(into.mNormals, reading.mArrays.mNormals);
-        part.mTexCoords = appended(into.mTexCoords, reading.mArrays.mTexCoords);
-        part.mSecondTexCoords = appended(into.mSecondTexCoords, reading.mArrays.mSecondTexCoords);
-        part.mUnitStreams = reading.mArrays.mUnitStreams;
-        part.mColours = appended(into.mColours, reading.mArrays.mColours);
-        part.mTangents = appended(into.mTangents, reading.mArrays.mTangents);
-        part.mIndices = appended(into.mIndices, reading.mArrays.mIndices);
+        part.mRuns = into.mStreams.append(reading.mArrays, reading.mShape);
 
         into.mParts.push_back(std::move(part));
     }
@@ -211,12 +192,12 @@ namespace Rtx
         osg::Switch* const branches = node.asSwitch();
         if (branches == nullptr || branches->getName() != Constants::NightDayLabel)
         {
-            descendInWorld(node, mKinds.of(node), *this, [](osg::Sequence&) {}, [](unsigned int) {});
+            descendInWorld(node, mKinds.of(node), *this, [](osg::Sequence&) {}, [](std::uint32_t) {});
             return;
         }
 
         const NightDayModes above = mModes;
-        for (unsigned int at = 0; at < branches->getNumChildren(); ++at)
+        for (std::uint32_t at = 0; at < branches->getNumChildren(); ++at)
         {
             // A branch no mode shows — past the third, and not the one the file opens on — would
             // be read to stand never.

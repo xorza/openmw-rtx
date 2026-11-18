@@ -1,22 +1,21 @@
 #include "spellmodel.hpp"
 
-#include <components/debug/debuglog.hpp>
-#include <components/misc/utf8stream.hpp>
-
-#include <components/esm3/loadench.hpp>
-#include <components/esm3/loadmgef.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <utility>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/spellutil.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/esm3/loadench.hpp>
+#include <components/esm3/loadmgef.hpp>
+#include <components/misc/utf8stream.hpp>
 
 namespace
 {
@@ -98,7 +97,7 @@ namespace MWGui
                 newSpell.mType = Spell::Type_Spell;
                 std::string cost = std::to_string(MWMechanics::calcSpellCost(*spell));
                 std::string chance
-                    = std::to_string(static_cast<int>(MWMechanics::getSpellSuccessChance(spell, mActor)));
+                    = std::to_string(static_cast<std::int32_t>(MWMechanics::getSpellSuccessChance(spell, mActor)));
                 newSpell.mCostColumn = std::format("{}/{}", cost, chance);
             }
             else
@@ -155,10 +154,10 @@ namespace MWGui
                     && item.getClass().canBeEquipped(item, mActor).first == 0)
                     continue;
 
-                int castCost = MWMechanics::getEffectiveEnchantmentCastCost(*enchant, mActor);
+                std::int32_t castCost = MWMechanics::getEffectiveEnchantmentCastCost(*enchant, mActor);
 
                 std::string cost = std::to_string(castCost);
-                int currentCharge = static_cast<int>(item.getCellRef().getEnchantmentCharge());
+                auto currentCharge = static_cast<std::int32_t>(item.getCellRef().getEnchantmentCharge());
                 if (currentCharge == -1)
                     currentCharge = MWMechanics::getEnchantmentCharge(*enchant);
                 std::string charge = std::to_string(currentCharge);
@@ -172,7 +171,7 @@ namespace MWGui
         std::stable_sort(mSpells.begin(), mSpells.end(), sortSpells);
     }
 
-    size_t SpellModel::getItemCount() const
+    std::size_t SpellModel::getItemCount() const
     {
         return mSpells.size();
     }

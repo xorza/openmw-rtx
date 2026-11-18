@@ -379,7 +379,7 @@ namespace Rtx
                 {
                     std::optional<std::size_t> ceiling;
                     std::ptrdiff_t named = -1;
-                    int alike = 0;
+                    std::int32_t alike = 0;
                     for (std::size_t row = 0; row < stated.mRows.size(); ++row)
                     {
                         const Row& candidate = stated.mRows[row];

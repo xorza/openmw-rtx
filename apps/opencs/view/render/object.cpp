@@ -1,8 +1,8 @@
 #include "object.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <exception>
-#include <stddef.h>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -11,19 +11,16 @@
 #include <osg/PolygonOffset>
 #include <osg/ShapeDrawable>
 
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/ref.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
-
-#include "../../model/world/cellcoordinates.hpp"
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-
 #include <components/debug/debuglog.hpp>
 #include <components/esm/esmbridge.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -35,6 +32,7 @@
 
 #include "actor.hpp"
 #include "mask.hpp"
+#include "tagbase.hpp"
 
 namespace CSVRender
 {
@@ -80,10 +78,10 @@ void CSVRender::Object::update()
     clear();
 
     const CSMWorld::RefIdCollection& referenceables = mData.getReferenceables();
-    const int typeIndex = referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
-    const int modelIndex = referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_Model);
+    const std::int32_t typeIndex = referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
+    const std::int32_t modelIndex = referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_Model);
 
-    int index = referenceables.searchId(mReferenceableId);
+    std::int32_t index = referenceables.searchId(mReferenceableId);
     const ESM::Light* light = nullptr;
 
     mBaseNode->removeChildren(0, mBaseNode->getNumChildren());
@@ -96,7 +94,7 @@ void CSVRender::Object::update()
 
     /// \todo check for Deleted state (error 1)
 
-    int recordType = referenceables.getData(index, typeIndex).toInt();
+    std::int32_t recordType = referenceables.getData(index, typeIndex).toInt();
     std::string model = referenceables.getData(index, modelIndex).toString().toUtf8().constData();
 
     if (recordType == CSMWorld::UniversalId::Type_Light)
@@ -285,7 +283,7 @@ bool CSVRender::Object::referenceableDataChanged(const QModelIndex& topLeft, con
 {
     const CSMWorld::RefIdCollection& referenceables = mData.getReferenceables();
 
-    int index = referenceables.searchId(mReferenceableId);
+    std::int32_t index = referenceables.searchId(mReferenceableId);
 
     if (index != -1 && index >= topLeft.row() && index <= bottomRight.row())
     {
@@ -297,11 +295,11 @@ bool CSVRender::Object::referenceableDataChanged(const QModelIndex& topLeft, con
     return false;
 }
 
-bool CSVRender::Object::referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+bool CSVRender::Object::referenceableAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     const CSMWorld::RefIdCollection& referenceables = mData.getReferenceables();
 
-    int index = referenceables.searchId(mReferenceableId);
+    std::int32_t index = referenceables.searchId(mReferenceableId);
 
     if (index != -1 && index >= start && index <= end)
     {
@@ -324,11 +322,11 @@ bool CSVRender::Object::referenceDataChanged(const QModelIndex& topLeft, const Q
 
     const CSMWorld::RefCollection& references = mData.getReferences();
 
-    int index = references.searchId(mReferenceId);
+    std::int32_t index = references.searchId(mReferenceId);
 
     if (index != -1 && index >= topLeft.row() && index <= bottomRight.row())
     {
-        int columnIndex = references.findColumnIndex(CSMWorld::Columns::ColumnId_ReferenceableId);
+        std::int32_t columnIndex = references.findColumnIndex(CSMWorld::Columns::ColumnId_ReferenceableId);
 
         adjustTransform();
 
@@ -371,19 +369,19 @@ bool CSVRender::Object::isEdited() const
     return mOverrideFlags;
 }
 
-void CSVRender::Object::setEdited(int flags)
+void CSVRender::Object::setEdited(std::int32_t flags)
 {
     bool discard = mOverrideFlags & ~flags;
-    int added = flags & ~mOverrideFlags;
+    std::int32_t added = flags & ~mOverrideFlags;
 
     mOverrideFlags = flags;
 
     if (added & Override_Position)
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
             mPositionOverride.pos[i] = getReference().mPos.pos[i];
 
     if (added & Override_Rotation)
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
             mPositionOverride.rot[i] = getReference().mPos.rot[i];
 
     if (added & Override_Scale)
@@ -398,11 +396,11 @@ ESM::Position CSVRender::Object::getPosition() const
     ESM::Position position = getReference().mPos;
 
     if (mOverrideFlags & Override_Position)
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
             position.pos[i] = mPositionOverride.pos[i];
 
     if (mOverrideFlags & Override_Rotation)
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
             position.rot[i] = mPositionOverride.rot[i];
 
     return position;
@@ -417,7 +415,7 @@ void CSVRender::Object::setPosition(const float position[3])
 {
     mOverrideFlags |= Override_Position;
 
-    for (int i = 0; i < 3; ++i)
+    for (std::int32_t i = 0; i < 3; ++i)
         mPositionOverride.pos[i] = position[i];
 
     adjustTransform();
@@ -427,7 +425,7 @@ void CSVRender::Object::setRotation(const float rotation[3])
 {
     mOverrideFlags |= Override_Rotation;
 
-    for (int i = 0; i < 3; ++i)
+    for (std::int32_t i = 0; i < 3; ++i)
         mPositionOverride.rot[i] = rotation[i];
 
     adjustTransform();
@@ -447,7 +445,7 @@ void CSVRender::Object::apply(CSMWorld::CommandMacro& commands)
     const CSMWorld::RefCollection& collection = mData.getReferences();
     QAbstractItemModel* model = mData.getTableModel(CSMWorld::UniversalId::Type_References);
 
-    int recordIndex = collection.getIndex(mReferenceId);
+    std::int32_t recordIndex = collection.getIndex(mReferenceId);
 
     if (mOverrideFlags & Override_Position)
     {
@@ -457,13 +455,13 @@ void CSVRender::Object::apply(CSMWorld::CommandMacro& commands)
         if (CSMWorld::CellCoordinates::isExteriorCell(ref.mCell))
         {
             // Find cell index at new position
-            std::pair<int, int> cellIndex
+            std::pair<std::int32_t, std::int32_t> cellIndex
                 = CSMWorld::CellCoordinates::coordinatesToCellIndex(mPositionOverride.pos[0], mPositionOverride.pos[1]);
-            std::pair<int, int> originalIndex = ref.getCellIndex();
+            std::pair<std::int32_t, std::int32_t> originalIndex = ref.getCellIndex();
 
-            int cellColumn = collection.findColumnIndex(
+            std::int32_t cellColumn = collection.findColumnIndex(
                 static_cast<CSMWorld::Columns::ColumnId>(CSMWorld::Columns::ColumnId_Cell));
-            int origCellColumn = collection.findColumnIndex(
+            std::int32_t origCellColumn = collection.findColumnIndex(
                 static_cast<CSMWorld::Columns::ColumnId>(CSMWorld::Columns::ColumnId_OriginalCell));
 
             if (cellIndex != originalIndex)
@@ -480,9 +478,9 @@ void CSVRender::Object::apply(CSMWorld::CommandMacro& commands)
             }
         }
 
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
         {
-            int column = collection.findColumnIndex(
+            std::int32_t column = collection.findColumnIndex(
                 static_cast<CSMWorld::Columns::ColumnId>(CSMWorld::Columns::ColumnId_PositionXPos + i));
 
             commands.push(
@@ -492,9 +490,9 @@ void CSVRender::Object::apply(CSMWorld::CommandMacro& commands)
 
     if (mOverrideFlags & Override_Rotation)
     {
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
         {
-            int column = collection.findColumnIndex(
+            std::int32_t column = collection.findColumnIndex(
                 static_cast<CSMWorld::Columns::ColumnId>(CSMWorld::Columns::ColumnId_PositionXRot + i));
 
             commands.push(new CSMWorld::ModifyCommand(
@@ -504,7 +502,7 @@ void CSVRender::Object::apply(CSMWorld::CommandMacro& commands)
 
     if (mOverrideFlags & Override_Scale)
     {
-        int column = collection.findColumnIndex(CSMWorld::Columns::ColumnId_Scale);
+        std::int32_t column = collection.findColumnIndex(CSMWorld::Columns::ColumnId_Scale);
 
         commands.push(new CSMWorld::ModifyCommand(*model, model->index(recordIndex, column), mScaleOverride));
     }

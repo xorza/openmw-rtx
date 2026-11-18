@@ -1,8 +1,7 @@
 #pragma once
 
-#include <QtGlobal>
-
 #include <QTextStream>
+#include <QtGlobal>
 
 namespace Misc
 {

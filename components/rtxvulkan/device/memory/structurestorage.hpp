@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -14,6 +15,7 @@
 #include "blocklist.hpp"
 #include "buffer.hpp"
 #include "bufferusage.hpp"
+#include "owedgrowth.hpp"
 
 namespace Rtx
 {
@@ -50,11 +52,22 @@ namespace Rtx
         /// Pinned: every structure placed here keeps a pointer to it, to give its room back.
         StructureStorage(const StructureStorage&) = delete;
         StructureStorage& operator=(const StructureStorage&) = delete;
-        ~StructureStorage() = default;
+
+        /// Takes what its blocks held free off the allocator's count.
+        ~StructureStorage();
 
         /// Room for a structure of `bytes`, taken from the first block that has it, else from a new block, or why the
         /// device has none: a block is memory a mesh can be left out for — `MemoryUse::Structure`.
         Result<StructureRoom, MemoryRefusal> take(const Device& device, VkDeviceSize bytes);
+
+        /// **The block to empty**: the live block the fewest units stand in, where another live block stands and the
+        /// others hold free room for every one of them, so moving them out could give it back. Nothing where no block
+        /// could be emptied so.
+        std::optional<std::uint32_t> blockToEmpty() const;
+
+        /// Room for a structure of `bytes` in a live block other than `avoid`, and never a new block: where a structure
+        /// moves to empty `avoid`. Nothing where no other block has the room.
+        std::optional<StructureRoom> takeOutside(VkDeviceSize bytes, std::uint32_t avoid);
 
         /// Takes a structure's room back once the timeline passes `until`, which is the stamp its
         /// handle was buried with. `AccelerationStructure`'s end, and nothing else.
@@ -112,5 +125,17 @@ namespace Rtx
         VkBufferUsageFlags mUsage = 0;
         std::string mName;
         VkDeviceSize mBlockBytes = 0;
+
+        /// Its next block, owed ahead of the textures once it first takes room (`OwedGrowth`).
+        OwedGrowth mOwed;
+
+        /// The allocator its blocks are counted on, once it first takes room, and what of them it last said is free:
+        /// what its blocks hold past the rooms handed out, those cooling among them
+        /// (`MemoryAllocator::noteStructureFree`).
+        MemoryAllocator* mMemory = nullptr;
+        VkDeviceSize mFreeSaid = 0;
+
+        /// Says what its blocks hold free now.
+        void sayFree();
     };
 }

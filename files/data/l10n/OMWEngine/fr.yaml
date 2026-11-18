@@ -7,7 +7,6 @@ ConsoleWindow: "Console"
 DebugWindow: "Fenêtre de débogage"
 LogViewer: "Journal"
 LuaProfiler: "Profileur Lua"
-PhysicsProfiler: "Profileur des performances de la physique"
 
 
 # Messages

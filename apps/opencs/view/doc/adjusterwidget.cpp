@@ -1,11 +1,11 @@
 #include "adjusterwidget.hpp"
 
+#include <filesystem>
+#include <stdexcept>
+
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QStyle>
-
-#include <filesystem>
-#include <stdexcept>
 
 #include <components/files/qtconversion.hpp>
 #include <components/misc/strings/lower.hpp>

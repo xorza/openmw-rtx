@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Vec2i>
 
 #include <components/esm/esmbridge.hpp>
@@ -24,9 +26,9 @@ namespace MWWorld
     {
         struct MoodData
         {
-            uint32_t mAmbiantColor;
-            uint32_t mDirectionalColor;
-            uint32_t mFogColor;
+            std::uint32_t mAmbiantColor;
+            std::uint32_t mDirectionalColor;
+            std::uint32_t mFogColor;
             float mFogDensity;
         };
 
@@ -34,8 +36,8 @@ namespace MWWorld
         explicit Cell(const ESM4::Cell& cell);
         explicit Cell(const ESM::Cell& cell);
 
-        int getGridX() const { return mGridPos.x(); }
-        int getGridY() const { return mGridPos.y(); }
+        std::int32_t getGridX() const { return mGridPos.x(); }
+        std::int32_t getGridY() const { return mGridPos.y(); }
         bool isExterior() const { return mIsExterior; }
         bool isQuasiExterior() const { return mIsQuasiExterior; }
         bool hasWater() const { return mHasWater; }

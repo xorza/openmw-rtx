@@ -1,5 +1,8 @@
+#include "spellcasting.hpp"
+
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -7,9 +10,16 @@
 #include <utility>
 #include <vector>
 
-#include "spellcasting.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <apps/openmw/mwworld/containerstore.hpp> // IWYU pragma: keep: the store whole, which a Ptr hands out
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/activespells.hpp>
 #include <components/esm3/loadalch.hpp>
@@ -23,18 +33,6 @@
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/format.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwrender/animation.hpp"
 
 #include "activespells.hpp"
 #include "actorutil.hpp"
@@ -108,7 +106,7 @@ namespace MWMechanics
             }
             // Get the actors in range of the effect
             std::vector<MWWorld::Ptr> objects;
-            static const int unitsPerFoot = static_cast<int>(std::ceil(Constants::UnitsPerFoot));
+            static const auto unitsPerFoot = static_cast<std::int32_t>(std::ceil(Constants::UnitsPerFoot));
             MWBase::Environment::get().getMechanicsManager()->getObjectsInRange(
                 mHitPosition, static_cast<float>(effectInfo.mData.mArea * unitsPerFoot), objects);
             for (const MWWorld::Ptr& affected : objects)
@@ -259,13 +257,13 @@ namespace MWMechanics
             ESM::WeaponType::Class weapclass = MWMechanics::getWeaponType(type)->mWeaponClass;
             isProjectile = (weapclass == ESM::WeaponType::Thrown || weapclass == ESM::WeaponType::Ammo);
         }
-        int type = enchantment->mData.mType;
+        std::int32_t type = enchantment->mData.mType;
 
         // Check if there's enough charge left
         if (!godmode
             && (type == ESM::Enchantment::WhenUsed || (!isProjectile && type == ESM::Enchantment::WhenStrikes)))
         {
-            int castCost = getEffectiveEnchantmentCastCost(*enchantment, mCaster);
+            std::int32_t castCost = getEffectiveEnchantmentCastCost(*enchantment, mCaster);
 
             if (item.getCellRef().getEnchantmentCharge() == -1)
                 item.getCellRef().setEnchantmentCharge(

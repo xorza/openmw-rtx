@@ -17,8 +17,8 @@ namespace Misc
 
     // Comes from https://stackoverflow.com/questions/2634690/good-hash-function-for-a-2d-index
     // Effective Java (2nd edition) is cited as the source
-    inline std::size_t hash2dCoord(int32_t x, int32_t y)
+    inline std::size_t hash2dCoord(std::int32_t x, std::int32_t y)
     {
-        return (53 + std::hash<int32_t>{}(x)) * 53 + std::hash<int32_t>{}(y);
+        return (53 + std::hash<std::int32_t>{}(x)) * 53 + std::hash<std::int32_t>{}(y);
     }
 }

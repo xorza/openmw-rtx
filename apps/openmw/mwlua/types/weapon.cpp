@@ -1,14 +1,14 @@
-#include "types.hpp"
+#include <cstdint>
 
-#include "modelproperty.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 
-#include "apps/openmw/mwbase/environment.hpp"
+#include "modelproperty.hpp"
+#include "types.hpp"
 
 namespace sol
 {
@@ -62,7 +62,7 @@ namespace
 
         if (rec["type"] != sol::nil)
         {
-            int weaponType = rec["type"].get<int>();
+            std::int32_t weaponType = rec["type"].get<std::int32_t>();
             ESM::RefId weaponTypeId = ESM::Weapon::indexToRefId(weaponType);
             if (weaponTypeId.empty())
                 throw std::runtime_error("Invalid Weapon Type provided: " + std::to_string(weaponType));
@@ -79,7 +79,7 @@ namespace
         if (rec["reach"] != sol::nil)
             weapon.mData.mReach = rec["reach"].get<Misc::FiniteFloat>();
         if (rec["enchantCapacity"] != sol::nil)
-            weapon.mData.mEnchant = static_cast<uint16_t>(std::round(rec["enchantCapacity"].get<float>() * 10));
+            weapon.mData.mEnchant = static_cast<std::uint16_t>(std::round(rec["enchantCapacity"].get<float>() * 10));
         if (rec["chopMinDamage"] != sol::nil)
             weapon.mData.mChop[0] = rec["chopMinDamage"];
         if (rec["chopMaxDamage"] != sol::nil)
@@ -103,7 +103,7 @@ namespace MWLua
     {
         sol::state_view lua = context.sol();
         const auto typeIndex = [](ESM::RefId id) { return ESM::Weapon::refIdToIndex(id); };
-        weapon["TYPE"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(lua,
+        weapon["TYPE"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, std::int32_t>(lua,
             {
                 { "ShortBladeOneHand", typeIndex(ESM::WeaponType::ShortBladeOneHand) },
                 { "LongBladeOneHand", typeIndex(ESM::WeaponType::LongBladeOneHand) },
@@ -143,26 +143,28 @@ namespace MWLua
         record["isSilver"] = sol::readonly_property(
             [](const ESM::Weapon& rec) -> bool { return rec.mData.mFlags & ESM::Weapon::Silver; });
         record["weight"] = sol::readonly_property([](const ESM::Weapon& rec) -> float { return rec.mData.mWeight; });
-        record["value"] = sol::readonly_property([](const ESM::Weapon& rec) -> int { return rec.mData.mValue; });
+        record["value"]
+            = sol::readonly_property([](const ESM::Weapon& rec) -> std::int32_t { return rec.mData.mValue; });
         record["type"] = sol::readonly_property(
-            [](const ESM::Weapon& rec) -> int { return ESM::Weapon::refIdToIndex(rec.mData.mType); });
-        record["health"] = sol::readonly_property([](const ESM::Weapon& rec) -> int { return rec.mData.mHealth; });
+            [](const ESM::Weapon& rec) -> std::int32_t { return ESM::Weapon::refIdToIndex(rec.mData.mType); });
+        record["health"]
+            = sol::readonly_property([](const ESM::Weapon& rec) -> std::int32_t { return rec.mData.mHealth; });
         record["speed"] = sol::readonly_property([](const ESM::Weapon& rec) -> float { return rec.mData.mSpeed; });
         record["reach"] = sol::readonly_property([](const ESM::Weapon& rec) -> float { return rec.mData.mReach; });
         record["enchantCapacity"] = sol::readonly_property(
             [](const ESM::Weapon& rec) -> float { return static_cast<float>(rec.mData.mEnchant) * 0.1f; });
         record["chopMinDamage"]
-            = sol::readonly_property([](const ESM::Weapon& rec) -> int { return rec.mData.mChop[0]; });
+            = sol::readonly_property([](const ESM::Weapon& rec) -> std::int32_t { return rec.mData.mChop[0]; });
         record["chopMaxDamage"]
-            = sol::readonly_property([](const ESM::Weapon& rec) -> int { return rec.mData.mChop[1]; });
+            = sol::readonly_property([](const ESM::Weapon& rec) -> std::int32_t { return rec.mData.mChop[1]; });
         record["slashMinDamage"]
-            = sol::readonly_property([](const ESM::Weapon& rec) -> int { return rec.mData.mSlash[0]; });
+            = sol::readonly_property([](const ESM::Weapon& rec) -> std::int32_t { return rec.mData.mSlash[0]; });
         record["slashMaxDamage"]
-            = sol::readonly_property([](const ESM::Weapon& rec) -> int { return rec.mData.mSlash[1]; });
+            = sol::readonly_property([](const ESM::Weapon& rec) -> std::int32_t { return rec.mData.mSlash[1]; });
         record["thrustMinDamage"]
-            = sol::readonly_property([](const ESM::Weapon& rec) -> int { return rec.mData.mThrust[0]; });
+            = sol::readonly_property([](const ESM::Weapon& rec) -> std::int32_t { return rec.mData.mThrust[0]; });
         record["thrustMaxDamage"]
-            = sol::readonly_property([](const ESM::Weapon& rec) -> int { return rec.mData.mThrust[1]; });
+            = sol::readonly_property([](const ESM::Weapon& rec) -> std::int32_t { return rec.mData.mThrust[1]; });
     }
 
 }

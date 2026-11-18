@@ -1,9 +1,12 @@
 #pragma once
 
-#include "referenceinterface.hpp"
-#include "windowbase.hpp"
+#include <cstddef>
+#include <cstdint>
 
 #include <components/misc/notnullptr.hpp>
+
+#include "referenceinterface.hpp"
+#include "windowbase.hpp"
 
 namespace MWGui
 {
@@ -46,7 +49,7 @@ namespace MWGui
         ItemView* mItemView{};
         SortFilterItemModel* mSortModel;
         CompanionItemModel* mModel;
-        int mSelectedItem;
+        std::int32_t mSelectedItem;
         bool mUpdateNextFrame;
 
         Misc::NotNullPtr<DragAndDrop> mDragAndDrop;
@@ -58,13 +61,13 @@ namespace MWGui
         Widgets::MWDynamicStat* mEncumbranceBar{};
         MessageBoxManager* mMessageBoxManager;
 
-        void onItemSelected(int index);
+        void onItemSelected(std::int32_t index);
         void onNameFilterChanged(MyGUI::EditBox* sender);
         void onBackgroundSelected();
         void dragItem(MyGUI::Widget* sender, std::size_t count);
         void transferItem(MyGUI::Widget* sender, std::size_t count);
 
-        void onMessageBoxButtonClicked(int button);
+        void onMessageBoxButtonClicked(std::int32_t button);
 
         void updateEncumbranceBar();
 

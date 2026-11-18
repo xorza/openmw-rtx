@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <QAbstractProxyModel>
@@ -21,7 +22,7 @@ namespace CSMWorld
     {
         Q_OBJECT
 
-        const int mParentColumn;
+        const std::int32_t mParentColumn;
         IdTree* mMainModel;
         std::string mId;
 
@@ -31,7 +32,7 @@ namespace CSMWorld
 
         std::string getParentId() const;
 
-        int getParentColumn() const;
+        std::int32_t getParentColumn() const;
 
         CSMWorld::IdTree* model() const;
 
@@ -39,19 +40,20 @@ namespace CSMWorld
 
         QModelIndex mapToSource(const QModelIndex& proxyIndex) const override;
 
-        int rowCount(const QModelIndex& index) const override;
+        std::int32_t rowCount(const QModelIndex& index) const override;
 
-        int columnCount(const QModelIndex& parent) const override;
+        std::int32_t columnCount(const QModelIndex& parent) const override;
 
-        QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
+        QModelIndex index(
+            std::int32_t row, std::int32_t column, const QModelIndex& parent = QModelIndex()) const override;
 
         QModelIndex parent(const QModelIndex& index) const override;
 
-        QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+        QVariant headerData(std::int32_t section, Qt::Orientation orientation, std::int32_t role) const override;
 
-        QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+        QVariant data(const QModelIndex& index, std::int32_t role = Qt::DisplayRole) const override;
 
-        bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
+        bool setData(const QModelIndex& index, const QVariant& value, std::int32_t role = Qt::EditRole) override;
 
         Qt::ItemFlags flags(const QModelIndex& index) const override;
 
@@ -61,13 +63,13 @@ namespace CSMWorld
         bool indexIsParent(const QModelIndex& index);
 
     private slots:
-        void forwardRowsAboutToInserted(const QModelIndex& parent, int first, int last);
+        void forwardRowsAboutToInserted(const QModelIndex& parent, std::int32_t first, std::int32_t last);
 
-        void forwardRowsInserted(const QModelIndex& parent, int first, int last);
+        void forwardRowsInserted(const QModelIndex& parent, std::int32_t first, std::int32_t last);
 
-        void forwardRowsAboutToRemoved(const QModelIndex& parent, int first, int last);
+        void forwardRowsAboutToRemoved(const QModelIndex& parent, std::int32_t first, std::int32_t last);
 
-        void forwardRowsRemoved(const QModelIndex& parent, int first, int last);
+        void forwardRowsRemoved(const QModelIndex& parent, std::int32_t first, std::int32_t last);
 
         void forwardResetStart(const QString& id);
 

@@ -1,17 +1,18 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
-
-#include "aipackage.hpp"
-#include "loadcont.hpp"
-#include "spelllist.hpp"
-#include "transport.hpp"
 
 #include <components/esm/attr.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm/refid.hpp>
+
+#include "aipackage.hpp"
+#include "loadcont.hpp"
+#include "spelllist.hpp"
+#include "transport.hpp"
 
 namespace ESM
 {
@@ -54,32 +55,32 @@ namespace ESM
 
         struct NPDTstruct
         {
-            std::map<ESM::RefId, int32_t> mAttributes;
-            int32_t mType{};
+            std::map<ESM::RefId, std::int32_t> mAttributes;
+            std::int32_t mType{};
             // For creatures we obviously have to use ints, not shorts and
             // bytes like we use for NPCs.... this file format just makes so
             // much sense! (Still, _much_ easier to decode than the NIFs.)
-            int32_t mLevel{};
+            std::int32_t mLevel{};
 
-            int32_t mHealth{}, mMana{}, mFatigue{}; // Stats
-            int32_t mSoul{}; // The creatures soul value (used with soul gems.)
+            std::int32_t mHealth{}, mMana{}, mFatigue{}; // Stats
+            std::int32_t mSoul{}; // The creatures soul value (used with soul gems.)
             // Creatures have generalized combat, magic and stealth stats which substitute for
             // the specific skills (in the same way as specializations).
-            int32_t mCombat{}, mMagic{}, mStealth{};
-            int32_t mAttack[6]{}; // AttackMin1, AttackMax1, ditto2, ditto3
-            int32_t mGold{};
+            std::int32_t mCombat{}, mMagic{}, mStealth{};
+            std::int32_t mAttack[6]{}; // AttackMin1, AttackMax1, ditto2, ditto3
+            std::int32_t mGold{};
 
-            int32_t getAttribute(ESM::RefId) const;
+            std::int32_t getAttribute(ESM::RefId) const;
         }; // 96 byte
 
         NPDTstruct mData;
 
-        int32_t mBloodType{};
-        unsigned char mFlags{};
+        std::int32_t mBloodType{};
+        std::uint8_t mFlags{};
 
         float mScale{};
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mScript;
         std::string mName;
         Path mModel;

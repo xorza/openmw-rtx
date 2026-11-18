@@ -99,8 +99,8 @@ namespace RtxTool
         /// 4.3 times that with Athletics at the figure above.
         constexpr float sBoostedSpeed = 2000.0f;
 
-        constexpr int sBoostedLevel = 255;
-        constexpr int sBoostedGold = 10'000'000;
+        constexpr std::int32_t sBoostedLevel = 255;
+        constexpr std::int32_t sBoostedGold = 10'000'000;
 
         /// Puts the sky under `weather` over the player's region, as `changeweather` would.
         void setWeather(MWBase::World& world, const Rtx::Weather weather)
@@ -341,7 +341,7 @@ namespace RtxTool
         return hold;
     }
 
-    int Staging::newGameDaysPassed()
+    std::int32_t Staging::newGameDaysPassed()
     {
         const ESM::Global* global = MWBase::Environment::get().getESMStore()->get<ESM::Global>().find(
             ESM::RefId::stringRefId(MWWorld::Globals::sDaysPassed.getValue()));

@@ -1,17 +1,12 @@
 #include "actoradapter.hpp"
 
-#include <QModelIndex>
-
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include <apps/opencs/model/prefs/state.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/refidcollection.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
+#include <QModelIndex>
 
+#include <apps/opencs/model/prefs/state.hpp>
 #include <components/esm3/loadarmo.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/esm3/loadcont.hpp>
@@ -20,7 +15,12 @@
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/mappings.hpp>
 
+#include "columns.hpp"
 #include "data.hpp"
+#include "idcollection.hpp"
+#include "record.hpp"
+#include "refidcollection.hpp"
+#include "universalid.hpp"
 
 namespace CSMWorld
 {
@@ -177,7 +177,7 @@ namespace CSMWorld
         return mDependencies.contains(id);
     }
 
-    void ActorAdapter::ActorData::setPart(ESM::PartReferenceType index, const ESM::RefId& partId, int priority)
+    void ActorAdapter::ActorData::setPart(ESM::PartReferenceType index, const ESM::RefId& partId, std::int32_t priority)
     {
         auto it = mParts.find(index);
         if (it != mParts.end())
@@ -253,12 +253,12 @@ namespace CSMWorld
         return data;
     }
 
-    void ActorAdapter::handleReferenceablesInserted(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleReferenceablesInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Only rows added at the top level are pertinent. Others are caught by dataChanged handler.
         if (!parent.isValid())
         {
-            for (int row = start; row <= end; ++row)
+            for (std::int32_t row = start; row <= end; ++row)
             {
                 auto refId = mReferenceables.getId(row);
                 markDirtyDependency(refId);
@@ -271,15 +271,15 @@ namespace CSMWorld
 
     void ActorAdapter::handleReferenceableChanged(const QModelIndex& topLeft, const QModelIndex& botRight)
     {
-        int start = getHighestIndex(topLeft).row();
-        int end = getHighestIndex(botRight).row();
+        std::int32_t start = getHighestIndex(topLeft).row();
+        std::int32_t end = getHighestIndex(botRight).row();
 
         // A change to record status (ex. Deleted) returns an invalid botRight
         if (end == -1)
             end = start;
 
         // Handle each record
-        for (int row = start; row <= end; ++row)
+        for (std::int32_t row = start; row <= end; ++row)
         {
             auto refId = mReferenceables.getId(row);
             markDirtyDependency(refId);
@@ -289,12 +289,13 @@ namespace CSMWorld
         updateDirty();
     }
 
-    void ActorAdapter::handleReferenceablesAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleReferenceablesAboutToBeRemoved(
+        const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Only rows at the top are pertinent.
         if (!parent.isValid())
         {
-            for (int row = start; row <= end; ++row)
+            for (std::int32_t row = start; row <= end; ++row)
             {
                 auto refId = mReferenceables.getId(row);
                 markDirtyDependency(refId);
@@ -302,18 +303,18 @@ namespace CSMWorld
         }
     }
 
-    void ActorAdapter::handleReferenceablesRemoved(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleReferenceablesRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Changes specified in handleReferenceablesAboutToBeRemoved
         updateDirty();
     }
 
-    void ActorAdapter::handleRacesInserted(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleRacesInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Only rows added at the top are pertinent.
         if (!parent.isValid())
         {
-            for (int row = start; row <= end; ++row)
+            for (std::int32_t row = start; row <= end; ++row)
             {
                 auto raceId = mReferenceables.getId(row);
                 markDirtyDependency(raceId);
@@ -326,14 +327,14 @@ namespace CSMWorld
 
     void ActorAdapter::handleRaceChanged(const QModelIndex& topLeft, const QModelIndex& botRight)
     {
-        int start = getHighestIndex(topLeft).row();
-        int end = getHighestIndex(botRight).row();
+        std::int32_t start = getHighestIndex(topLeft).row();
+        std::int32_t end = getHighestIndex(botRight).row();
 
         // A change to record status (ex. Deleted) returns an invalid botRight
         if (end == -1)
             end = start;
 
-        for (int row = start; row <= end; ++row)
+        for (std::int32_t row = start; row <= end; ++row)
         {
             auto raceId = mRaces.getId(row);
             markDirtyDependency(raceId);
@@ -343,12 +344,12 @@ namespace CSMWorld
         updateDirty();
     }
 
-    void ActorAdapter::handleRacesAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleRacesAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Only changes at the top are pertinent.
         if (!parent.isValid())
         {
-            for (int row = start; row <= end; ++row)
+            for (std::int32_t row = start; row <= end; ++row)
             {
                 auto raceId = mRaces.getId(row);
                 markDirtyDependency(raceId);
@@ -356,18 +357,18 @@ namespace CSMWorld
         }
     }
 
-    void ActorAdapter::handleRacesRemoved(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleRacesRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Changes specified in handleRacesAboutToBeRemoved
         updateDirty();
     }
 
-    void ActorAdapter::handleBodyPartsInserted(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleBodyPartsInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Only rows added at the top are pertinent.
         if (!parent.isValid())
         {
-            for (int row = start; row <= end; ++row)
+            for (std::int32_t row = start; row <= end; ++row)
             {
                 // Race specified by part may need update
                 auto& record = mBodyParts.getRecord(row);
@@ -387,14 +388,14 @@ namespace CSMWorld
 
     void ActorAdapter::handleBodyPartChanged(const QModelIndex& topLeft, const QModelIndex& botRight)
     {
-        int start = getHighestIndex(topLeft).row();
-        int end = getHighestIndex(botRight).row();
+        std::int32_t start = getHighestIndex(topLeft).row();
+        std::int32_t end = getHighestIndex(botRight).row();
 
         // A change to record status (ex. Deleted) returns an invalid botRight
         if (end == -1)
             end = start;
 
-        for (int row = start; row <= end; ++row)
+        for (std::int32_t row = start; row <= end; ++row)
         {
             // Race specified by part may need update
             auto& record = mBodyParts.getRecord(row);
@@ -412,12 +413,12 @@ namespace CSMWorld
         updateDirty();
     }
 
-    void ActorAdapter::handleBodyPartsAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleBodyPartsAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Only changes at the top are pertinent.
         if (!parent.isValid())
         {
-            for (int row = start; row <= end; ++row)
+            for (std::int32_t row = start; row <= end; ++row)
             {
                 auto partId = mBodyParts.getId(row);
                 markDirtyDependency(partId);
@@ -425,7 +426,7 @@ namespace CSMWorld
         }
     }
 
-    void ActorAdapter::handleBodyPartsRemoved(const QModelIndex& parent, int start, int end)
+    void ActorAdapter::handleBodyPartsRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
     {
         // Changes specified in handleBodyPartsAboutToBeRemoved
         updateDirty();
@@ -454,7 +455,7 @@ namespace CSMWorld
 
     void ActorAdapter::setupActor(const ESM::RefId& id, const ActorDataPtr& data)
     {
-        int index = mReferenceables.searchId(id);
+        std::int32_t index = mReferenceables.searchId(id);
         if (index == -1)
         {
             // Record does not exist
@@ -472,8 +473,8 @@ namespace CSMWorld
             return;
         }
 
-        const int typeColumn = mReferenceables.findColumnIndex(Columns::ColumnId_RecordType);
-        int type = mReferenceables.getData(index, typeColumn).toInt();
+        const std::int32_t typeColumn = mReferenceables.findColumnIndex(Columns::ColumnId_RecordType);
+        std::int32_t type = mReferenceables.getData(index, typeColumn).toInt();
         if (type == UniversalId::Type_Creature)
         {
             // Valid creature record
@@ -496,7 +497,7 @@ namespace CSMWorld
 
     void ActorAdapter::setupRace(const ESM::RefId& id, const RaceDataPtr& data)
     {
-        int index = mRaces.searchId(id);
+        std::int32_t index = mRaces.searchId(id);
         if (index == -1)
         {
             // Record does not exist
@@ -520,7 +521,7 @@ namespace CSMWorld
         data->reset_data(id, scaleStats, race.mData.mFlags & ESM::Race::Beast);
 
         // Setup body parts
-        for (int i = 0; i < mBodyParts.getSize(); ++i)
+        for (std::int32_t i = 0; i < mBodyParts.getSize(); ++i)
         {
             auto& partRecord = mBodyParts.getRecord(i);
 
@@ -546,7 +547,7 @@ namespace CSMWorld
     void ActorAdapter::setupNpc(const ESM::RefId& id, const ActorDataPtr& data)
     {
         // Common setup, record is known to exist and is not deleted
-        int index = mReferenceables.searchId(id);
+        std::int32_t index = mReferenceables.searchId(id);
         auto& npc = dynamic_cast<const Record<ESM::NPC>&>(mReferenceables.getRecord(index)).get();
 
         RaceDataPtr raceData = getRaceData(npc.mRace);
@@ -568,7 +569,7 @@ namespace CSMWorld
 
     void ActorAdapter::addNpcItem(const ESM::RefId& itemId, ActorDataPtr data)
     {
-        int index = mReferenceables.searchId(itemId);
+        std::int32_t index = mReferenceables.searchId(itemId);
         if (index == -1)
         {
             // Item does not exist yet
@@ -585,7 +586,7 @@ namespace CSMWorld
         }
 
         // Convenience function to add a parts list to actor data
-        auto addParts = [&](const std::vector<ESM::PartReference>& list, int priority) {
+        auto addParts = [&](const std::vector<ESM::PartReference>& list, std::int32_t priority) {
             for (auto& part : list)
             {
                 ESM::RefId partId;
@@ -604,8 +605,8 @@ namespace CSMWorld
             }
         };
 
-        const int typeColumn = mReferenceables.findColumnIndex(Columns::ColumnId_RecordType);
-        int type = mReferenceables.getData(index, typeColumn).toInt();
+        const std::int32_t typeColumn = mReferenceables.findColumnIndex(Columns::ColumnId_RecordType);
+        std::int32_t type = mReferenceables.getData(index, typeColumn).toInt();
         if (type == UniversalId::Type_Armor)
         {
             auto& armor = dynamic_cast<const Record<ESM::Armor>&>(record).get();
@@ -638,7 +639,7 @@ namespace CSMWorld
                 reservedList.emplace_back(pr);
             }
 
-            int priority = static_cast<int>(parts.size());
+            auto priority = static_cast<std::int32_t>(parts.size());
             addParts(clothing.mParts.mParts, priority);
             addParts(reservedList, priority);
 
@@ -650,7 +651,7 @@ namespace CSMWorld
     void ActorAdapter::setupCreature(const ESM::RefId& id, const ActorDataPtr& data)
     {
         // Record is known to exist and is not deleted
-        int index = mReferenceables.searchId(id);
+        std::int32_t index = mReferenceables.searchId(id);
         auto& creature = dynamic_cast<const Record<ESM::Creature>&>(mReferenceables.getRecord(index)).get();
 
         data->reset_data(id, creature.mModel.getOriginal(), true);

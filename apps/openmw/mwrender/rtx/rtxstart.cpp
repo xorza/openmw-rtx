@@ -5,12 +5,11 @@
 #include <stdexcept>
 #include <string>
 
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
-
-#include <apps/openmw/mwrender/renderer.hpp>
 
 namespace MWRender
 {

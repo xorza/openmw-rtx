@@ -1,14 +1,14 @@
 #pragma once
 
-#include <QTableWidget>
-
+#include <cstdint>
 #include <string>
 
+#include <QTableWidget>
+
+#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/world/scriptcontext.hpp>
 #include <components/compiler/errorhandler.hpp>
 #include <components/compiler/extensions.hpp>
-
-#include "../../model/doc/messages.hpp"
-#include "../../model/world/scriptcontext.hpp"
 
 namespace Compiler
 {
@@ -40,7 +40,8 @@ namespace CSVWorld
         void report(const std::string& message, Type type) override;
         ///< Report a file related error
 
-        void addMessage(const std::string& message, CSMDoc::Message::Severity severity, int line = -1, int column = -1);
+        void addMessage(const std::string& message, CSMDoc::Message::Severity severity, std::int32_t line = -1,
+            std::int32_t column = -1);
 
         void setWarningsMode(const std::string& value);
 
@@ -62,10 +63,10 @@ namespace CSVWorld
 
         void settingChanged(const CSMPrefs::Setting* setting);
 
-        void cellClicked(int row, int column);
+        void cellClicked(std::int32_t row, std::int32_t column);
 
     signals:
 
-        void highlightError(int line, int column);
+        void highlightError(std::int32_t line, std::int32_t column);
     };
 }

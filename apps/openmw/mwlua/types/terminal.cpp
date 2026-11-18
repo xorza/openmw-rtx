@@ -1,9 +1,8 @@
-#include "types.hpp"
-
-#include "modelproperty.hpp"
-
 #include <components/esm4/loadterm.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "modelproperty.hpp"
+#include "types.hpp"
 
 namespace sol
 {

@@ -25,6 +25,7 @@
 #include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -73,9 +74,10 @@ namespace Rtx::Testing
         /// first of anything legitimately allocates (descriptor pools, driver caches, command buffer size).
         TEST_F(RtxFrameCostTest, aWarmRendererDrawsAStillFrameWithoutTheHeap)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
-            constexpr int warmUpFrames = 16;
-            constexpr int measuredFrames = 32;
+            constexpr std::int32_t warmUpFrames = 16;
+            constexpr std::int32_t measuredFrames = 32;
 
             // What a frame is allowed, and why. Zero is the claim; a constant rather than a literal
             // zero is so that a path which must allocate can be admitted deliberately, with the
@@ -86,12 +88,12 @@ namespace Rtx::Testing
 
             // A wall to trace, and a second one behind it skinned to one bone so that there is a body
             // to pose.
-            SceneDesc scene = makeWall();
-            const Index body
+            SceneDesc scene = makeWall(identities);
+            const MeshIndex body
                 = addOneBoneBody(scene, MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }).mMesh;
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::translate(0.0f, 100.0f, 0.0f), .mMesh = body });
-            poseByOneBone(scene, body, osg::Matrixf::identity());
-            const Index puff = scene.textures().add(VFS::Path::NormalizedView("puff.dds"));
+            poseByOneBone(scene, body, sWallQuad, osg::Matrixf::identity());
+            const TextureIndex puff = scene.textures().add(VFS::Path::NormalizedView("puff.dds"));
 
             renderer.resize(size, size);
             renderer.setScene(Rtx::SceneSlot::world(), scene, {});
@@ -114,7 +116,7 @@ namespace Rtx::Testing
                 scene.clearPlacement();
                 const osg::Matrixf bone = osg::Matrixf::translate(0.0f, walked, 0.0f);
                 packRig(toGpuBone(osg::Matrixf::identity()), std::array{ toGpuBone(bone) }, words);
-                scene.pose(body, words, reachUnder(scene, body, bone));
+                scene.pose(body, words, reachUnder(sWallQuad, bone));
                 renderer.placeScene(Rtx::SceneSlot::world(), scene);
             };
 
@@ -149,11 +151,11 @@ namespace Rtx::Testing
                     renderer.finishFrame();
                 };
 
-                for (int i = 0; i < warmUpFrames; ++i)
+                for (std::int32_t i = 0; i < warmUpFrames; ++i)
                     frame();
 
                 const std::size_t spent = Testing::allocationsIn([&] {
-                    for (int i = 0; i < measuredFrames; ++i)
+                    for (std::int32_t i = 0; i < measuredFrames; ++i)
                         frame();
                 });
 
@@ -183,10 +185,10 @@ namespace Rtx::Testing
                 RendererProbe(renderer).traceFrame(camera, FrameOptions{});
                 renderer.finishFrame();
             };
-            for (int i = 0; i < 32; ++i)
+            for (std::int32_t i = 0; i < 32; ++i)
                 rise();
             EXPECT_EQ(Testing::allocationsIn([&] {
-                for (int i = 0; i < 32; ++i)
+                for (std::int32_t i = 0; i < 32; ++i)
                     rise();
             }),
                 0u)
@@ -226,7 +228,7 @@ namespace Rtx::Testing
             const std::vector<std::uint8_t> texels(std::size_t{ extent } * extent * 4, 0xFF);
             const std::array<MipLevel, 1> levels{ MipLevel{ 0, extent, extent } };
 
-            const auto describe = [&](std::uint32_t slot) {
+            const auto describe = [&](TextureIndex slot) {
                 return TextureData{
                     .mSlot = slot,
                     .mFormat = TextureFormat::Rgba8Unorm,
@@ -248,14 +250,15 @@ namespace Rtx::Testing
             // Held across the arrivals as a scene holds its own, and never written to: a device
             // with room refuses nothing.
             DeviceAnswer answer;
-            const auto arrive = [&](Batch& batch, std::uint32_t slot) {
+            const auto arrive = [&](Batch& batch, TextureIndex slot) {
                 const TextureData described = describe(slot);
-                array.write(batch, passes, rooms, std::span(&described, 1), answer, WhenRoomless::Refuses, nullptr);
+                array.write(batch, passes, rooms, std::span(&described, 1), TextureArray::noWants(), answer,
+                    WhenRoomless::Refuses, nullptr);
             };
 
             {
                 Batch warm(pool);
-                arrive(warm, 0);
+                arrive(warm, TextureIndex(0));
                 warm.flush();
             }
 
@@ -266,7 +269,7 @@ namespace Rtx::Testing
 
             const std::size_t spent = Testing::allocationsIn([&] {
                 for (std::uint32_t slot = 1; slot <= measured; ++slot)
-                    arrive(batch, slot);
+                    arrive(batch, TextureIndex(slot));
             });
 
             batch.flush();

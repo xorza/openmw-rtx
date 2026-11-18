@@ -1,9 +1,9 @@
 #pragma once
 
+#include <string>
+
 #include <QString>
 #include <QWidget>
-
-#include <string>
 
 class QLabel;
 class QLineEdit;

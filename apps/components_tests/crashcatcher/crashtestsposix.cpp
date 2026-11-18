@@ -1,8 +1,8 @@
-#include "crashtestssystem.hpp"
-
 #include <charconv>
 #include <chrono>
 #include <csignal>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -21,6 +21,8 @@
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/platform/process.hpp>
+
+#include "crashtestssystem.hpp"
 
 namespace CrashTests
 {
@@ -174,7 +176,7 @@ namespace CrashTests
         }
     }
 
-    std::optional<int> runModeOfThisSystem(std::string_view mode)
+    std::optional<std::int32_t> runModeOfThisSystem(std::string_view mode)
     {
         if (mode == "folder-unopened" || mode == "report-unwritable")
             return livedOn();
@@ -256,7 +258,7 @@ namespace CrashTests
                     std::filesystem::directory_iterator());
                 return !unread && threads > 1;
             };
-            for (int waited = 0; running(); ++waited)
+            for (std::int32_t waited = 0; running(); ++waited)
             {
                 if (waited == 1000)
                     return 3;
@@ -281,7 +283,7 @@ namespace CrashTests
         }
         if (mode == "killed-from-outside")
         {
-            for (int i = 0; i < 5; ++i)
+            for (std::int32_t i = 0; i < 5; ++i)
             {
                 Crash::heartbeat();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -290,7 +292,7 @@ namespace CrashTests
         }
         if (mode == "stopped-past-limit")
         {
-            for (int i = 0; i < 5; ++i)
+            for (std::int32_t i = 0; i < 5; ++i)
             {
                 Crash::heartbeat();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -307,7 +309,7 @@ namespace CrashTests
                 return 3;
             static_cast<void>(raise(SIGSTOP));
 
-            for (int i = 0; i < 20; ++i)
+            for (std::int32_t i = 0; i < 20; ++i)
             {
                 Crash::heartbeat();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));

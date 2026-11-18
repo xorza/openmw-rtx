@@ -1,14 +1,14 @@
 #pragma once
 
-#include "areatype.hpp"
+#include <functional>
 #include <memory>
-
-#include <components/resource/bulletshape.hpp>
+#include <vector>
 
 #include <LinearMath/btTransform.h>
 
-#include <functional>
-#include <vector>
+#include <components/resource/bulletshape.hpp>
+
+#include "areatype.hpp"
 
 class btCollisionShape;
 class btCompoundShape;

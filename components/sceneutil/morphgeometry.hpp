@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Geometry>
 
 namespace SceneUtil
@@ -59,10 +61,10 @@ namespace SceneUtil
         MorphTargetList& getMorphTargetList() { return mMorphTargets; }
 
         /** Return the \c MorphTarget at position \c i.*/
-        inline const MorphTarget& getMorphTarget(unsigned int i) const { return mMorphTargets[i]; }
+        inline const MorphTarget& getMorphTarget(std::uint32_t i) const { return mMorphTargets[i]; }
 
         /** Return the \c MorphTarget at position \c i.*/
-        inline MorphTarget& getMorphTarget(unsigned int i) { return mMorphTargets[i]; }
+        inline MorphTarget& getMorphTarget(std::uint32_t i) { return mMorphTargets[i]; }
 
         osg::ref_ptr<osg::Geometry> getSourceGeometry() const;
 
@@ -80,9 +82,9 @@ namespace SceneUtil
         osg::ref_ptr<osg::Geometry> mSourceGeometry;
 
         osg::ref_ptr<osg::Geometry> mGeometry[2];
-        osg::Geometry* getGeometry(unsigned int frame) const;
+        osg::Geometry* getGeometry(std::uint32_t frame) const;
 
-        unsigned int mLastFrameNumber;
+        std::uint32_t mLastFrameNumber;
         bool mDirty; // Have any morph targets changed?
 
         mutable bool mMorphedBoundingBox;

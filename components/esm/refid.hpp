@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <iosfwd>
 #include <string>
@@ -67,7 +69,7 @@ namespace ESM
         // identified by index (i.e. ESM3 SKIL).
         static RefId index(RecNameInts recordType, std::uint32_t value) { return RefId(IndexRefId(recordType, value)); }
 
-        static RefId esm3ExteriorCell(int32_t x, int32_t y) { return RefId(ESM3ExteriorCellRefId(x, y)); }
+        static RefId esm3ExteriorCell(std::int32_t x, std::int32_t y) { return RefId(ESM3ExteriorCellRefId(x, y)); }
 
         constexpr RefId() noexcept
             : mValue(EmptyRefId{})
@@ -171,8 +173,8 @@ namespace ESM
 
         template <class F, class... T>
         friend constexpr auto visit(F&& f, T&&... v)
-            -> std::enable_if_t<(std::is_same_v<std::decay_t<T>, RefId> && ...),
-                decltype(std::visit(std::forward<F>(f), std::forward<T>(v).mValue...))>
+            -> decltype(std::visit(std::forward<F>(f), std::forward<T>(v).mValue...))
+            requires((std::is_same_v<std::decay_t<T>, RefId> && ...))
         {
             return std::visit(std::forward<F>(f), std::forward<T>(v).mValue...);
         }

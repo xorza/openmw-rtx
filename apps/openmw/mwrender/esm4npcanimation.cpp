@@ -1,5 +1,11 @@
 #include "esm4npcanimation.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwclass/esm4npc.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm4/loadarma.hpp>
 #include <components/esm4/loadarmo.hpp>
 #include <components/esm4/loadclot.hpp>
@@ -8,14 +14,9 @@
 #include <components/esm4/loadhdpt.hpp>
 #include <components/esm4/loadnpc.hpp>
 #include <components/esm4/loadrace.hpp>
-
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwclass/esm4npc.hpp"
-#include "../mwworld/esmstore.hpp"
 
 namespace MWRender
 {
@@ -146,7 +147,7 @@ namespace MWRender
     }
 
     void ESM4NpcAnimation::insertHeadParts(
-        const std::vector<ESM::FormId>& partIds, std::set<uint32_t>& usedHeadPartTypes)
+        const std::vector<ESM::FormId>& partIds, std::set<std::uint32_t>& usedHeadPartTypes)
     {
         const MWWorld::ESMStore* store = MWBase::Environment::get().getESMStore();
         for (ESM::FormId partId : partIds)
@@ -217,10 +218,10 @@ namespace MWRender
             std::sort(armorAddons.begin(), armorAddons.end(),
                 [](auto x, auto y) { return x->mMalePriority > y->mMalePriority; });
 
-        uint32_t usedParts = 0;
+        std::uint32_t usedParts = 0;
         for (const ESM4::ArmorAddon* arma : armorAddons)
         {
-            const uint32_t covers = arma->mBodyTemplate.bodyPart;
+            const std::uint32_t covers = arma->mBodyTemplate.bodyPart;
             // if body is already covered, skip to avoid clipping
             if (covers & usedParts & ESM4::Armor::TES5_Body)
                 continue;
@@ -232,7 +233,7 @@ namespace MWRender
             }
         }
 
-        std::set<uint32_t> usedHeadPartTypes;
+        std::set<std::uint32_t> usedHeadPartTypes;
         if (usedParts & ESM4::Armor::TES5_Hair)
             usedHeadPartTypes.insert(ESM4::HeadPart::Type_Hair);
         insertHeadParts(traits.mHeadParts, usedHeadPartTypes);

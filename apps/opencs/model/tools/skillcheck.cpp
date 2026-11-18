@@ -1,16 +1,16 @@
 #include "skillcheck.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
-
-#include "../prefs/state.hpp"
-
-#include "../world/universalid.hpp"
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadskil.hpp>
 
 CSMTools::SkillCheckStage::SkillCheckStage(const CSMWorld::IdCollection<ESM::Skill>& skills)
@@ -19,14 +19,14 @@ CSMTools::SkillCheckStage::SkillCheckStage(const CSMWorld::IdCollection<ESM::Ski
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::SkillCheckStage::setup()
+std::int32_t CSMTools::SkillCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mSkills.getSize();
 }
 
-void CSMTools::SkillCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::SkillCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Skill>& record = mSkills.getRecord(stage);
 
@@ -41,7 +41,7 @@ void CSMTools::SkillCheckStage::perform(int stage, CSMDoc::Messages& messages)
     if (skill.mDescription.empty())
         messages.add(id, "Description is missing", "", CSMDoc::Message::Severity_Warning);
 
-    for (int i = 0; i < 4; ++i)
+    for (std::int32_t i = 0; i < 4; ++i)
         if (skill.mData.mUseValue[static_cast<std::size_t>(i)] < 0)
         {
             messages.add(id, "Use value #" + std::to_string(i) + " is negative", "", CSMDoc::Message::Severity_Error);

@@ -30,7 +30,8 @@
 #include <vector>
 
 #include <components/esm/formid.hpp>
-#include <components/esm4/reader.hpp>
+
+#include "reader.hpp"
 
 namespace ESM4
 {
@@ -102,7 +103,7 @@ namespace ESM4
     struct CellGroup
     {
         ESM::FormId mCell; // CELL record for this cell group
-        int mCellModIndex; // from which file to get the CELL record (e.g. may have been updated)
+        std::int32_t mCellModIndex; // from which file to get the CELL record (e.g. may have been updated)
 
         // For retrieving parent group size (for lazy loading or skipping) and sub-block number / grid
         // NOTE: There can be more than one file that adds/modifies records to this cell group

@@ -3,16 +3,14 @@
 #include <string>
 #include <string_view>
 
+#include <QObject>
 #include <osg/Group>
 #include <osg/PositionAttitudeTransform>
 #include <osg/ref_ptr>
 
-#include <QObject>
-
+#include <apps/opencs/model/world/actoradapter.hpp>
 #include <components/esm3/loadarmo.hpp>
 #include <components/sceneutil/visitor.hpp>
-
-#include "../../model/world/actoradapter.hpp"
 
 namespace CSMWorld
 {

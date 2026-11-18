@@ -1,5 +1,8 @@
 #include "postprocessorhud.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Align.h>
 #include <MyGUI_Button.h>
 #include <MyGUI_Delegate.h>
@@ -16,26 +19,22 @@
 #include <MyGUI_WidgetInput.h>
 #include <MyGUI_Window.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/postprocessor.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/fx/technique.hpp>
 #include <components/fx/widgets.hpp>
-
 #include <components/misc/utf8stream.hpp>
 #include <components/settings/settings.hpp>
-
 #include <components/widgets/box.hpp>
-
-#include "../mwrender/postprocessor.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWGui
 {
     namespace
     {
-        std::shared_ptr<Fx::Technique>& getTechnique(const MyGUI::ListBox& list, size_t selected)
+        std::shared_ptr<Fx::Technique>& getTechnique(const MyGUI::ListBox& list, std::size_t selected)
         {
             return *list.getItemDataAt<std::shared_ptr<Fx::Technique>>(selected);
         }
@@ -109,14 +108,14 @@ namespace MWGui
 
     void PostProcessorHud::notifyResetButtonClicked(MyGUI::Widget* /*sender*/)
     {
-        for (size_t i = 1; i < mConfigArea->getChildCount(); ++i)
+        for (std::size_t i = 1; i < mConfigArea->getChildCount(); ++i)
         {
             if (auto* child = dynamic_cast<Fx::Widgets::UniformBase*>(mConfigArea->getChildAt(i)))
                 child->toDefault();
         }
     }
 
-    void PostProcessorHud::notifyListChangePosition(MyGUI::ListBox* sender, size_t index)
+    void PostProcessorHud::notifyListChangePosition(MyGUI::ListBox* sender, std::size_t index)
     {
         if (sender == mActiveList)
             mInactiveList->clearIndexSelected();
@@ -133,7 +132,7 @@ namespace MWGui
     {
         auto* list = enabled ? mInactiveList : mActiveList;
 
-        size_t selected = list->getIndexSelected();
+        std::size_t selected = list->getIndexSelected();
 
         if (selected != MyGUI::ITEM_NONE)
         {
@@ -166,13 +165,13 @@ namespace MWGui
     {
         auto* processor = MWBase::Environment::get().getWorld()->getPostProcessor();
 
-        size_t selected = mActiveList->getIndexSelected();
+        std::size_t selected = mActiveList->getIndexSelected();
 
         if (selected == MyGUI::ITEM_NONE)
             return;
 
-        size_t index = direction == Direction::Up ? selected - 1 : selected + 1;
-        index = std::clamp<size_t>(index, 0, mActiveList->getItemCount() - 1);
+        std::size_t index = direction == Direction::Up ? selected - 1 : selected + 1;
+        index = std::clamp<std::size_t>(index, 0, mActiveList->getItemCount() - 1);
 
         if (index != selected)
         {
@@ -180,7 +179,7 @@ namespace MWGui
             if (technique->getDynamic() || technique->getInternal())
                 return;
 
-            if (processor->enableTechnique(technique, static_cast<int>(index) - mOffset)
+            if (processor->enableTechnique(technique, static_cast<std::int32_t>(index) - mOffset)
                 != MWRender::PostProcessor::Status_Error)
                 processor->saveChain();
         }
@@ -249,23 +248,23 @@ namespace MWGui
         toggleMode(Settings::ShaderManager::Mode::Normal);
     }
 
-    void PostProcessorHud::onResChange(int width, int height)
+    void PostProcessorHud::onResChange(std::int32_t width, std::int32_t height)
     {
         layout();
     }
 
     void PostProcessorHud::layout()
     {
-        constexpr int padding = 12;
-        constexpr int padding2 = padding * 2;
+        constexpr std::int32_t padding = 12;
+        constexpr std::int32_t padding2 = padding * 2;
         mShaderInfo->setCoord(
             padding, padding, mConfigLayout->getSize().width - padding2 - padding, mShaderInfo->getTextSize().height);
 
-        int totalHeight = mShaderInfo->getTop() + mShaderInfo->getTextSize().height + padding;
+        std::int32_t totalHeight = mShaderInfo->getTop() + mShaderInfo->getTextSize().height + padding;
 
         mConfigArea->setCoord({ padding, totalHeight, mShaderInfo->getSize().width, mConfigLayout->getHeight() });
 
-        int childHeights = 0;
+        std::int32_t childHeights = 0;
         MyGUI::EnumeratorWidgetPtr enumerator = mConfigArea->getEnumerator();
         while (enumerator.next())
         {
@@ -281,16 +280,16 @@ namespace MWGui
         mConfigLayout->setSize(mConfigLayout->getWidth(), mConfigLayout->getParentSize().height - padding2);
     }
 
-    void PostProcessorHud::notifyMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void PostProcessorHud::notifyMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         double offset = mConfigLayout->getViewOffset().top + rel * 0.3;
         if (offset > 0)
             mConfigLayout->setViewOffset(MyGUI::IntPoint(0, 0));
         else
-            mConfigLayout->setViewOffset(MyGUI::IntPoint(0, static_cast<int>(offset)));
+            mConfigLayout->setViewOffset(MyGUI::IntPoint(0, static_cast<std::int32_t>(offset)));
     }
 
-    void PostProcessorHud::select(ListWrapper* list, size_t index)
+    void PostProcessorHud::select(ListWrapper* list, std::size_t index)
     {
         list->setIndexSelected(index);
         notifyListChangePosition(list, index);
@@ -473,7 +472,7 @@ namespace MWGui
             MyGUI::Widget* oldFocus = MyGUI::InputManager::getInstance().getKeyFocusWidget();
             if (oldFocus == mFilter)
                 return;
-            size_t index = widget->findItemIndexWith(focusHint);
+            std::size_t index = widget->findItemIndexWith(focusHint);
 
             if (index != MyGUI::ITEM_NONE)
             {

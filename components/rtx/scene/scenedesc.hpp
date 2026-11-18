@@ -29,6 +29,7 @@
 #include "restqueue.hpp"
 #include "ripple.hpp"
 #include "rowhold.hpp"
+#include "sceneidentities.hpp"
 #include "sceneroom.hpp"
 #include "sprite.hpp"
 #include "structurerevision.hpp"
@@ -41,14 +42,14 @@ namespace Rtx
     /// deformer's for the meshes that will share it.
     struct DeformedMesh
     {
-        Index mMesh = sNoIndex;
-        Index mDeformer = sNoIndex;
+        MeshIndex mMesh = sNoRow;
+        DeformerIndex mDeformer = sNoRow;
     };
 
     /// What one particle system's sprites are, as `SceneDesc::addEmitter` stands them.
     struct EmitterSpec
     {
-        Index mTexture{};
+        TextureIndex mTexture{};
         BlendKind mBlend{};
 
         /// How wide the quads are against their own axis, per unit of `Sprite::mRadius`, or nought for sprites
@@ -56,8 +57,8 @@ namespace Rtx
         /// `SpriteEmitter::mWidth`.
         float mWidth = 0.0f;
 
-        /// The bake of `mTexture`'s alpha, or `sNoIndex` — `SpriteEmitter::mLighting`.
-        Index mLighting = sNoIndex;
+        /// The bake of `mTexture`'s alpha, or `sNoRow` — `SpriteEmitter::mLighting`.
+        TextureIndex mLighting = sNoRow;
 
         /// Whether the sprites fall from the sky (`EMITTER_FALLS`), and whether the emitter is on the arms
         /// (`EMITTER_FIRST_PERSON`).
@@ -72,12 +73,13 @@ namespace Rtx
     class SceneDesc
     {
     public:
-        /// A scene opened at nought, which grows as it is filled: a picture's, or a test's.
-        SceneDesc();
+        /// A scene opened at nought, which grows as it is filled: a picture's, or a test's. Its identity, and the one
+        /// a move leaves it, are `identities`', which outlives it.
+        explicit SceneDesc(SceneIdentities& identities);
 
         /// A scene whose rows are reserved at `room`, as its backend's tables are, so no arrival up to
         /// the room moves a host table either.
-        explicit SceneDesc(const SceneRoom& room);
+        SceneDesc(SceneIdentities& identities, const SceneRoom& room);
 
         /// Moved whole: no table holds a reference to a sibling, so what a moved description's
         /// tables reach is its own. Every fact that crosses two tables is asked of this class,
@@ -92,43 +94,42 @@ namespace Rtx
         ~SceneDesc() = default;
 
         /// Which description this is, for a backend that holds a slot built from one: never
-        /// nought, never handed out twice in a process, and carried by a move, which leaves the
+        /// nought, never handed out twice by its source (`SceneIdentities`), and carried by a move, which leaves the
         /// source a fresh one — so a slot can say what it was built from without naming an address
         /// a later description may take over, and no two descriptions share one.
-        std::uint64_t getIdentity() const { return mIdentity.mValue; }
+        SceneIdentity getIdentity() const { return mIdentity.mValue; }
 
         /// The room the scene was opened at, which a backend makes its tables at: one answer, the
         /// host's, to how far either side grows before a table is made again.
         const SceneRoom& getRoom() const { return mRoom; }
 
-        /// Copies the vertex data into the shared buffers and returns the new mesh's index. Every
-        /// attribute but `MeshArrays::mPositions` may be empty; when one is not it must match the
-        /// positions in length, `MeshArrays::mIndices` must be a whole number of triangles
-        /// addressing only those vertices, and the mesh must fit a block (`MeshTable::checkFits`):
-        /// asserted, as a contract on the caller, which refuses what does not hold.
+        /// Takes runs of the device's streams for `mesh`, packed by its reader (`PackedStreams`), files its geometry
+        /// with the arrivals until the next hand-over (`MeshArrivals`) and returns the new mesh's index. The mesh must
+        /// fit a block (`MeshTable::checkFits`): asserted, as a contract on the caller, which refuses what does not
+        /// hold.
         ///
-        /// **A static mesh is the one its content is** (`meshKeyOf`): the mesh filed under the key these arrays
-        /// make, taken back where it rests, or a new one filed under it — so a mesh resting on the device costs
-        /// nothing to place again, and two drawables of one geometry are one mesh.
-        Index addMesh(const MeshArrays& arrays, FoldedShape shape = {});
+        /// **A static mesh is the one its content is** (`PackedMesh::mKey`): the mesh filed under its key, taken back
+        /// where it rests, or a new one filed under it — so a mesh resting on the device costs nothing to place again,
+        /// and two drawables of one geometry are one mesh.
+        MeshIndex addMesh(const PackedMesh& mesh);
 
         /// A mesh that deforms, on `deformer`, the rig or the morph that poses it, whose vertex count must be this
-        /// mesh's: it hands over its bind pose, which stays in the shared buffers as long as the mesh does, and is a
+        /// mesh's: it hands over its bind pose, which stays in the device's runs as long as the mesh does, and is a
         /// copy per instance, filed under no key.
-        Index addMesh(const MeshArrays& arrays, FoldedShape shape, Index deformer);
+        MeshIndex addMesh(const PackedMesh& mesh, DeformerIndex deformer);
 
         /// `addMesh` for a mesh that brings the skin or the targets that pose it. The deformer row
         /// and the mesh row are made in one call, so a deformer no mesh stands on cannot exist — a
         /// row nothing would free, because a deformer goes with its last mesh. The spec poses exactly
         /// this mesh's vertices (`checkPoses`) and the mesh fits a block, both asserted. A second
         /// mesh on the same skin names the deformer answered here through the overload above.
-        DeformedMesh addMesh(const MeshArrays& arrays, FoldedShape shape, const RigSpec& rig);
-        DeformedMesh addMesh(const MeshArrays& arrays, FoldedShape shape, const MorphSpec& morph);
+        DeformedMesh addMesh(const PackedMesh& mesh, const RigSpec& rig);
+        DeformedMesh addMesh(const PackedMesh& mesh, const MorphSpec& morph);
 
-        /// Whether a deformer of `posed` vertices can pose `arrays`, and why not where they are
+        /// Whether a deformer of `posed` vertices can pose a mesh of `vertices`, and why not where they are
         /// of another length. Both counts come out of a content file, so whoever reads them asks
         /// this before `addMesh`, which asserts it.
-        static Result<void, std::string> checkPoses(Index posed, const MeshArrays& arrays);
+        static Result<void, std::string> checkPoses(std::uint32_t posed, std::size_t vertices);
 
         /// Poses one deforming mesh: its bone rows or its target weights as `packRig` or
         /// `packWeights` lays them, and the box the pose reaches — the whole of what the host says
@@ -136,12 +137,12 @@ namespace Rtx
         /// pose. The words must be as many as the deformer's pose takes. The mesh joins
         /// `getDeformed` for the frame unless nothing moved: words equal to the ones already held
         /// write nothing, so an actor standing still costs no dispatch and no refit.
-        void pose(Index mesh, std::span<const PoseWord> words, const osg::BoundingBoxf& bounds);
+        void pose(MeshIndex mesh, std::span<const PoseWord> words, const osg::BoundingBoxf& bounds);
 
         /// Puts `material` in a slot of the material table, holding every texture it names, and
         /// returns it. The one way in: a material names textures, and what crosses two tables is
         /// this class's to do.
-        Index addMaterial(const Material& material);
+        MaterialIndex addMaterial(const Material& material);
 
         /// Rewrites a material in place, keeping its slot and everything standing on it — for
         /// shading that animates: a `NifOsg` flipbook or alpha controller rewrites its state set
@@ -149,7 +150,7 @@ namespace Rtx
         /// traversal is told — its kind, cutout, translucent — rewrites every placement wearing it,
         /// because those go into the acceleration structure's row; a flipbook turning costs the
         /// placements nothing.
-        void setMaterial(Index material, const Material& what);
+        void setMaterial(MaterialIndex material, const Material& what);
 
         void addLight(const Light& light);
 
@@ -159,18 +160,30 @@ namespace Rtx
         /// structure is named by a mesh index. A material freed gives back the textures it named,
         /// and its layer and mask runs go with it. What holds a row: the identity a walk met it
         /// under, each placement standing on it, a ground cell the ring stood, and the sky's own
-        /// sheets. A texture hold of nothing — `sNoIndex`, or the neutral texel a layer names where
+        /// sheets. A texture hold of nothing — `sNoRow`, or the neutral texel a layer names where
         /// the table had no room — is empty or costs nothing, and a drop of an empty hold changes no
         /// count; a mesh and a material are held by a row that is one.
-        MeshHold holdMesh(Index mesh);
-        MaterialHold holdMaterial(Index material);
-        TextureHold holdTexture(Index texture);
+        MeshHold holdMesh(MeshIndex mesh);
+        MaterialHold holdMaterial(MaterialIndex material);
+        TextureHold holdTexture(TextureIndex texture);
         void drop(MeshHold&& hold);
         void drop(MaterialHold&& hold);
         void drop(TextureHold&& hold);
 
         /// Gives back every hold in `holds`, and empties it.
-        void drop(std::vector<TextureHold>& holds);
+        void drop(std::vector<ReadingHold>& holds);
+
+        /// `takeTexture` and `holdTexture` for a holder that reads the texture itself, and its drop (`ReadingHold`):
+        /// the hold asks its finest level until it is given back.
+        ReadingHold takeReading(
+            VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat);
+        ReadingHold holdReading(TextureIndex texture);
+        void drop(ReadingHold&& hold);
+
+        /// One ask more, and one fewer, of `material` at footprint `step` (`MaterialTable::ask`): a cell of the ring,
+        /// at its own distance. The walk's placements ask through `addInstance` and `dropInstance`.
+        void askMaterial(MaterialIndex material, std::size_t step) { mMaterials.ask(mTextures, material, step); }
+        void unaskMaterial(MaterialIndex material, std::size_t step) { mMaterials.unask(mTextures, material, step); }
 
         /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
         /// caller: what a surface, a sprite, a sky layer and a moon turn their image into —
@@ -184,11 +197,11 @@ namespace Rtx
         /// placement's name for as long as it stands: the custom index a hit reads back, and what
         /// lets a mirror move a placement instead of rebuilding the list it was in. The mesh and the
         /// material it names must be live rows, which is asserted.
-        Index addInstance(const MeshInstance& instance);
+        PlacementIndex addInstance(const MeshInstance& instance);
 
         /// Empties the placement in `slot` — `PlacementTable::drop` — and gives back the holds it
         /// took on its mesh and its material.
-        void dropInstance(Index slot, Stander by);
+        void dropInstance(PlacementIndex slot, Stander by);
 
         /// Whether every live row of every table is held, or is a texture that rests until its room is
         /// needed — what a caller that took a slot and forgot to hold it breaks: a row nothing can ever
@@ -257,7 +270,7 @@ namespace Rtx
 
         /// The pose a deforming mesh was last given, in words. Crosses two tables: the mesh row
         /// says where its run sits, and the deformers hold it.
-        std::span<const PoseWord> getMeshPose(Index mesh) const;
+        std::span<const PoseWord> getMeshPose(MeshIndex mesh) const;
 
         /// Every placement's own box in the world, clipped to `region` and with the water left
         /// out: the sea is one sheet a hundred and fifty cells across, so a caller asking how far the
@@ -286,22 +299,35 @@ namespace Rtx
         /// **Frees, for each of `wants`, what surely leaves it room** (`docs/architecture.md`, "What waits is given the
         /// resting row that surely leaves it room"): the row
         /// that has rested longest of its kind's that gives back at least its hole where it can take it, or, with
-        /// none, what rested longest across the tables until its hole is given back, holes that may join; answers the
-        /// bytes given back, each slot reported freed by its table.
+        /// none, what rested longest until its hole is given back, holes that may join — across the tables for a
+        /// texture, of the meshes alone for a structure, which takes no texture's room; answers the bytes given back,
+        /// each slot reported freed by its table.
         std::uint64_t evictFor(std::span<const RoomWant> wants);
+
+        /// Frees `slot`, a texture that rests, out of its turn: what one the device moved down for room comes to, as a
+        /// rest holds the file whole (`TextureTable::stand`), and a slot reported freed is the backend's to drop.
+        void evictRestingTexture(TextureIndex slot);
 
         /// The bytes everything that rests stands on the device.
         std::uint64_t getRestingBytes() const;
 
         /// What the device stands of `mesh`'s bottom-level structure, the device's answer (`DeviceAnswer`): what lets a
         /// static mesh rest, and what its rest holds.
-        void standMesh(Index mesh, std::uint64_t structureBytes);
+        void standMesh(MeshIndex mesh, std::uint64_t structureBytes);
 
         /// What the device's tight copy of `mesh`'s structure gives back once it rests (`MeshTable::fit`).
-        void fitMesh(Index mesh, std::uint64_t bytes);
+        void fitMesh(MeshIndex mesh, std::uint64_t bytes, std::uint64_t alignment);
 
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();
+
+        /// Makes a digest of each mesh and each mask as it arrives (`MeshTable::keepDigests`,
+        /// `MaterialTable::keepDigests`), which nothing reads but the harness: asked before anything arrives.
+        void keepDigests()
+        {
+            mMeshes.keepDigests();
+            mMaterials.keepDigests();
+        }
 
         /// Says a walk is placing into this scene, and that the sweep after it has run: the
         /// extractor's two calls, at every walk and at every `retire`. What they keep is the turn
@@ -337,28 +363,31 @@ namespace Rtx
         /// leave the source a fresh one.
         struct Identity
         {
-            Identity()
-                : mValue(next())
+            explicit Identity(SceneIdentities& source)
+                : mSource(&source)
+                , mValue(source.next())
             {
             }
 
             Identity(Identity&& other) noexcept
-                : mValue(std::exchange(other.mValue, next()))
+                : mSource(other.mSource)
+                , mValue(std::exchange(other.mValue, other.mSource->next()))
             {
             }
 
             Identity& operator=(Identity&& other) noexcept
             {
                 if (this != &other)
-                    mValue = std::exchange(other.mValue, next());
+                {
+                    mSource = other.mSource;
+                    mValue = std::exchange(other.mValue, other.mSource->next());
+                }
                 return *this;
             }
             ~Identity() = default;
 
-            /// The next value no description has held.
-            static std::uint64_t next() noexcept;
-
-            std::uint64_t mValue;
+            SceneIdentities* mSource;
+            SceneIdentity mValue;
         };
 
         Identity mIdentity;
@@ -373,7 +402,7 @@ namespace Rtx
         RestLimit mRestLimit;
         DeformerTable mDeformers;
 
-        /// Every mesh, and the shared buffers its triangles live in.
+        /// Every mesh, its runs, and the geometry that arrived since the last hand-over.
         MeshTable mMeshes;
 
         /// The materials, their terrain layers and the weights those place.

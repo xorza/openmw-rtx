@@ -1,13 +1,11 @@
-#include "types.hpp"
-
-#include "usertypeutil.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadmisc.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace sol
 {

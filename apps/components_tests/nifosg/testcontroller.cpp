@@ -1,8 +1,11 @@
-#include <components/nifosg/controller.hpp>
-#include <gtest/gtest.h>
 #include <memory>
+
+#include <gtest/gtest.h>
+
 #include <osg/FrameStamp>
 #include <osg/StateSet>
+
+#include <components/nifosg/controller.hpp>
 
 TEST(NifOsgUVControllerTest, updatesEveryTextureUnit)
 {

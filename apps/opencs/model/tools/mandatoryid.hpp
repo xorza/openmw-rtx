@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include "../doc/stage.hpp"
-#include "../world/universalid.hpp"
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm/refid.hpp>
 
 namespace CSMDoc
@@ -30,10 +31,10 @@ namespace CSMTools
         MandatoryIdStage(const CSMWorld::CollectionBase& idCollection, CSMWorld::UniversalId collectionId,
             const std::vector<ESM::RefId>& ids);
 
-        int setup() override;
+        std::int32_t setup() override;
         ///< \return number of steps
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
         ///< Messages resulting from this tage will be appended to \a messages.
     };
 }

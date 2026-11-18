@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <span>
 
+#include <apps/openmw/mwrender/landmanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/loadinglistener/reporter.hpp>
 #include <components/misc/constants.hpp>
@@ -19,8 +22,6 @@
 #include <components/terrain/view.hpp>
 #include <components/terrain/world.hpp>
 #include <components/vfs/manager.hpp>
-
-#include "../mwrender/landmanager.hpp"
 
 #include "cellstore.hpp"
 #include "class.hpp"
@@ -180,7 +181,7 @@ namespace MWWorld
 
         void doWork() override
         {
-            for (unsigned int i = 0; i < mTerrainViews.size() && i < mPreloadPositions.size() && !mAbort; ++i)
+            for (std::uint32_t i = 0; i < mTerrainViews.size() && i < mPreloadPositions.size() && !mAbort; ++i)
             {
                 mTerrainViews[i]->reset();
                 mWorld->preload(mTerrainViews[i].get(), mPreloadPositions[i].mPosition,
@@ -239,6 +240,14 @@ namespace MWWorld
         clearAllTasks();
     }
 
+    bool CellPreloader::admitsPreload()
+    {
+        if (mResourceSystem->getCacheBudget().hasRoom())
+            return true;
+        ++mSkipped;
+        return false;
+    }
+
     void CellPreloader::preload(CellStore& cell, double timestamp)
     {
         if (!mWorkQueue)
@@ -260,13 +269,9 @@ namespace MWWorld
             return;
         }
 
-        // A preload is a guess, dropped where the caches are past their budget with everything in use, and asked
-        // again on a later frame as the scene asks; the cell loads when the player arrives if the guess never fits.
-        if (!mResourceSystem->getCacheBudget().hasRoom())
-        {
-            ++mSkipped;
+        // The cell loads when the player arrives if the guess never fits.
+        if (!admitsPreload())
             return;
-        }
 
         while (mPreloadCells.size() >= mMaxCacheSize)
         {
@@ -425,7 +430,7 @@ namespace MWWorld
                 mTerrainViews.resize(positions.size());
             else if (mTerrainViews.size() < positions.size())
             {
-                for (size_t i = mTerrainViews.size(); i < positions.size(); ++i)
+                for (std::size_t i = mTerrainViews.size(); i < positions.size(); ++i)
                     mTerrainViews.emplace_back(mTerrain->createView());
             }
 
@@ -477,7 +482,7 @@ namespace MWWorld
         mPreloadCells.clear();
     }
 
-    void CellPreloader::reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const
+    void CellPreloader::reportStats(std::uint32_t frameNumber, Misc::FrameStats& stats) const
     {
         stats.setAttribute(frameNumber, "CellPreloader Count", static_cast<double>(mPreloadCells.size()));
         stats.setAttribute(frameNumber, "CellPreloader Added", static_cast<double>(mAdded));

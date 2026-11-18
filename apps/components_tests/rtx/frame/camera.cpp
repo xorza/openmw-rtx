@@ -53,7 +53,7 @@ namespace Rtx
             const osg::Vec3f nearest(eye);
 
             bool floatMoved = false;
-            for (int step = 0; step < 16; ++step)
+            for (std::int32_t step = 0; step < 16; ++step)
             {
                 const double heading = step * 0.37;
                 const double pitch = (step % 5 - 2) * 0.3;
@@ -287,7 +287,7 @@ namespace Rtx
             EXPECT_EQ(wide.mHeight, 100u);
 
             // The same axes, only longer.
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
             {
                 EXPECT_NEAR(wide.mBasis.mRight[axis] / wide.mBasis.mRight.length(),
                     narrow.mEyes.mWorld.mBasis.mRight[axis] / narrow.mEyes.mWorld.mBasis.mRight.length(), 1e-6f)

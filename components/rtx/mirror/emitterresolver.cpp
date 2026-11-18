@@ -120,7 +120,7 @@ namespace Rtx
         // Held, because nothing else can name them. An emitter is a placement and is thrown
         // away every frame, so this entry is the only lasting thing that says the sprite is in
         // use; the scene frees the slots when the sweep lets go of them.
-        held.mSlot = mScene.takeTexture(mThread.pathOf(*held.mSprite), *held.mSprite, held.mWrap);
+        held.mSlot = mScene.takeReading(mThread.pathOf(*held.mSprite), *held.mSprite, held.mWrap);
         if (held.mSlot.empty())
         {
             held.mRefused.refuse(sSpriteTake, freed);
@@ -141,14 +141,14 @@ namespace Rtx
         // The bake is keyed on the file, so two emitters drawing with one texture share one
         // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
         // where the sprite stands, because the bake is of its alpha.
-        const Index bake = mScene.textures().addSpriteLight(mThread.pathOf(*held.mSprite));
-        if (bake == sNoIndex)
+        const TextureIndex bake = mScene.textures().addSpriteLight(mThread.pathOf(*held.mSprite));
+        if (bake == sNoRow)
         {
             held.mRefused.refuse(sLightingTake, freed);
             return;
         }
 
-        held.mLighting = mScene.holdTexture(bake);
+        held.mLighting = mScene.holdReading(bake);
     }
 
     void EmitterResolver::releaseSprite(HeldSprite& held)
@@ -309,8 +309,8 @@ namespace Rtx
         std::string_view refused;
 
         mSpriteScratch.clear();
-        const int alive = particles.numParticles();
-        for (int at = 0; at < alive; ++at)
+        const std::int32_t alive = particles.numParticles();
+        for (std::int32_t at = 0; at < alive; ++at)
         {
             const osgParticle::Particle* particle = particles.getParticle(at);
 
@@ -337,7 +337,7 @@ namespace Rtx
 
         // An untextured system is the white texel coloured by its particles, as the rasterizer
         // draws one, and lit as a flat card, having no alpha to bake.
-        const Index texture = held.mUntextured ? Shaders::TEXTURE_NEUTRAL : held.mSlot.get();
+        const TextureIndex texture = held.mUntextured ? TextureIndex(Shaders::TEXTURE_NEUTRAL) : held.mSlot.get();
         mScene.addEmitter(mSpriteScratch,
             EmitterSpec{ .mTexture = texture,
                 .mBlend = held.mBlend,

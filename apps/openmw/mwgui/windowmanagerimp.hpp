@@ -6,6 +6,9 @@
    and retrieving information from the Gui.
 **/
 
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -13,10 +16,12 @@
 #include <string_view>
 #include <vector>
 
+#include <MyGUI_Gui.h>
+#include <MyGUI_KeyCode.h>
+#include <MyGUI_Types.h>
 #include <osg/Vec2i>
 
-#include "../mwbase/windowmanager.hpp"
-
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/misc/guarded.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/sdlutil/events.hpp>
@@ -36,11 +41,6 @@
 #include "textcolours.hpp"
 #include "tooltips.hpp"
 #include "windowbase.hpp"
-
-#include <MyGUI_Gui.h>
-#include <MyGUI_KeyCode.h>
-#include <MyGUI_Types.h>
-#include <filesystem>
 
 namespace MyGUI
 {
@@ -125,7 +125,7 @@ namespace MWGui
     class WindowManager : public MWBase::WindowManager
     {
     public:
-        typedef std::pair<std::string, int> Faction;
+        typedef std::pair<std::string, std::int32_t> Faction;
         typedef std::vector<Faction> FactionList;
 
         WindowManager(MWRender::Renderer& renderer, Resource::ResourceSystem* resourceSystem,
@@ -155,7 +155,7 @@ namespace MWGui
         void popGuiMode(bool forceExit = false) override;
         void removeGuiMode(GuiMode mode) override; ///< can be anywhere in the stack
 
-        void goToJail(int days) override;
+        void goToJail(std::int32_t days) override;
 
         GuiMode getMode() const override;
         bool containsMode(GuiMode mode) const override;
@@ -210,14 +210,14 @@ namespace MWGui
         void setFocusObject(const MWWorld::Ptr& focus) override;
         void setFocusObjectScreenCoords(float x, float y) override;
 
-        void getMousePosition(int& x, int& y) override;
+        void getMousePosition(std::int32_t& x, std::int32_t& y) override;
         void getMousePosition(float& x, float& y) override;
         void setDragDrop(bool dragDrop) override;
         bool getWorldMouseOver() override;
 
         float getScalingFactor() const override;
         float getRasterScale() const override;
-        int getFontSize() const override;
+        std::int32_t getFontSize() const override;
 
         bool toggleFogOfWar() override;
         bool toggleFullHelp() override; ///< show extra info in item tooltips (owner, script)
@@ -235,12 +235,12 @@ namespace MWGui
         void setSneakVisibility(bool visible) override;
 
         /// activate selected quick key
-        void activateQuickKey(int index) override;
+        void activateQuickKey(std::int32_t index) override;
         /// update activated quick key state (if action executing was delayed for some reason)
         void updateActivatedQuickKey() override;
 
         const ESM::RefId& getSelectedSpell() override { return mSelectedSpell; }
-        void setSelectedSpell(const ESM::RefId& spellId, int successChancePercent) override;
+        void setSelectedSpell(const ESM::RefId& spellId, std::int32_t successChancePercent) override;
         void setSelectedEnchantItem(const MWWorld::Ptr& item) override;
         const MWWorld::Ptr& getSelectedEnchantItem() const override;
         void setSelectedWeapon(const MWWorld::Ptr& item) override;
@@ -260,7 +260,7 @@ namespace MWGui
         void allowMouse() override;
         void notifyInputActionBound() override;
 
-        void addVisitedLocation(const std::string& name, int x, int y) override;
+        void addVisitedLocation(const std::string& name, std::int32_t x, std::int32_t y) override;
 
         /// Hides dialog and schedules dialog to be deleted.
         void removeDialog(std::unique_ptr<Layout>&& dialog) override;
@@ -275,15 +275,16 @@ namespace MWGui
         void staticMessageBox(std::string_view message) override;
         void removeStaticMessageBox() override;
         void interactiveMessageBox(std::string_view message, const std::vector<std::string>& buttons = {},
-            bool block = false, int defaultFocus = -1) override;
+            bool block = false, std::int32_t defaultFocus = -1) override;
         void scriptMessageBox(std::string_view message, const std::vector<std::string>& buttons) override;
 
         /// Whether `scriptMessageBox` shows its box: the engine's host's answer
         /// (`OMW::EngineHost::showsScriptMessageBoxes`).
         void setScriptMessageBoxesShown(bool shown) { mScriptMessageBoxesShown = shown; }
 
-        int readPressedButton() override; ///< returns the index of the pressed button or -1 if no button was pressed
-                                          ///< (->MessageBoxmanager->InteractiveMessageBox)
+        std::int32_t
+        readPressedButton() override; ///< returns the index of the pressed button or -1 if no button was pressed
+                                      ///< (->MessageBoxmanager->InteractiveMessageBox)
 
         void update(float duration);
 
@@ -301,8 +302,8 @@ namespace MWGui
         void processChangedSettings(const Settings::CategorySettingVector& changed) override;
 
         void windowVisibilityChange(bool visible) override;
-        void windowResized(int x, int y) override;
-        void windowSized(int width, int height) override;
+        void windowResized(std::int32_t x, std::int32_t y) override;
+        void windowSized(std::int32_t width, std::int32_t height) override;
         void windowDisplayChanged() override;
         void windowClosed() override;
         bool isWindowVisible() const override;
@@ -325,8 +326,8 @@ namespace MWGui
         void showSoulgemDialog(MWWorld::Ptr item) override;
 
         void changePointer(const std::string& name) override;
-        void createLuaCursor(const std::string& name, const std::string& path, int width, int height, int hotspotX,
-            int hotspotY, double rotation) override;
+        void createLuaCursor(const std::string& name, const std::string& path, std::int32_t width, std::int32_t height,
+            std::int32_t hotspotX, std::int32_t hotspotY, double rotation) override;
         void removeLuaCursor(const std::string& name) override;
         void setLuaCursorOverride(const std::string& name) override;
         std::string getCurrentCursorName() const override;
@@ -347,8 +348,8 @@ namespace MWGui
         void clear() override;
 
         void write(ESM::ESMWriter& writer, Loading::Listener& progress) override;
-        void readRecord(ESM::ESMReader& reader, uint32_t type) override;
-        size_t countSavedGameRecords() const override;
+        void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
+        std::size_t countSavedGameRecords() const override;
 
         /// Does the current stack of GUI-windows permit saving?
         bool isSavingAllowed() const override;
@@ -373,9 +374,9 @@ namespace MWGui
         /// Fade the screen out to black, over \a time seconds
         void fadeScreenOut(const float time, bool clearQueue, float delay) override;
         /// Fade the screen to a specified percentage of black, over \a time seconds
-        void fadeScreenTo(const int percent, const float time, bool clearQueue, float delay) override;
+        void fadeScreenTo(const std::int32_t percent, const float time, bool clearQueue, float delay) override;
         /// Darken the screen to a specified percentage
-        void setBlindness(const int percent) override;
+        void setBlindness(const std::int32_t percent) override;
 
         void activateHitOverlay(bool interrupt) override;
         void setWerewolfOverlay(bool set) override;
@@ -398,7 +399,7 @@ namespace MWGui
 
         const MWGui::TextColours& getTextColours() override;
 
-        bool injectKeyPress(MyGUI::KeyCode key, unsigned int text, bool repeat = false) override;
+        bool injectKeyPress(MyGUI::KeyCode key, std::uint32_t text, bool repeat = false) override;
         bool injectKeyRelease(MyGUI::KeyCode key) override;
 
         const std::string& getVersionDescription() const override;
@@ -409,9 +410,9 @@ namespace MWGui
         void asyncPrepareSaveMap() override;
 
         WindowBase* getActiveControllerWindow() override;
-        int getControllerMenuHeight() override;
+        std::int32_t getControllerMenuHeight() override;
         void cycleActiveControllerWindow(bool next) override;
-        void setActiveControllerWindow(GuiMode mode, size_t activeIndex) override;
+        void setActiveControllerWindow(GuiMode mode, std::size_t activeIndex) override;
         bool getControllerTooltipVisible() const override { return mControllerTooltipVisible; }
         void setControllerTooltipVisible(bool visible) override;
         bool getControllerTooltipEnabled() const override { return mControllerTooltipEnabled; }
@@ -505,7 +506,7 @@ namespace MWGui
         bool mCursorActive;
         bool mCursorInteractionEnabled;
 
-        int mPlayerBounty;
+        std::int32_t mPlayerBounty;
 
         void setCursorVisible(bool visible) override;
 
@@ -529,7 +530,7 @@ namespace MWGui
         // The currently active stack of GUI modes (top mode is the one we are in).
         std::vector<GuiMode> mGuiModes;
         // The active window for controller mode for each GUI mode.
-        std::map<GuiMode, size_t> mActiveControllerWindows;
+        std::map<GuiMode, std::size_t> mActiveControllerWindows;
         // Current tooltip visibility state (can be disabled by mouse movement)
         bool mControllerTooltipVisible = false;
         // User preference for tooltips (persists across mouse/controller switches)
@@ -639,7 +640,7 @@ namespace MWGui
         // Key pressed while playing a video
         void onVideoKeyPressed(MyGUI::Widget* sender, MyGUI::KeyCode key, MyGUI::Char value);
 
-        void sizeVideo(int screenWidth, int screenHeight);
+        void sizeVideo(std::int32_t screenWidth, std::int32_t screenHeight);
 
         /// The scale the interface takes in the frame the renderer presents now, on the window's
         /// display.

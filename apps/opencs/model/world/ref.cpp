@@ -1,5 +1,7 @@
 #include "ref.hpp"
 
+#include <cstdint>
+
 #include "cellcoordinates.hpp"
 
 CSMWorld::CellRef::CellRef()
@@ -8,7 +10,7 @@ CSMWorld::CellRef::CellRef()
 {
 }
 
-std::pair<int, int> CSMWorld::CellRef::getCellIndex() const
+std::pair<std::int32_t, std::int32_t> CSMWorld::CellRef::getCellIndex() const
 {
     return CellCoordinates::coordinatesToCellIndex(mPos.pos[0], mPos.pos[1]);
 }

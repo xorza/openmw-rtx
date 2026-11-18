@@ -1,20 +1,21 @@
 #include "controllermanager.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_InputManager.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwgui/windowbase.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/files/conversion.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwgui/windowbase.hpp"
 
 #include "actions.hpp"
 #include "bindingsmanager.hpp"
@@ -38,7 +39,7 @@ namespace MWInput
     {
         if (!controllerBindingsFile.empty())
         {
-            const int result
+            const std::int32_t result
                 = SDL_AddGamepadMappingsFromFile(Files::pathToUnicodeString(controllerBindingsFile).c_str());
             if (result < 0)
                 Log(Debug::Error) << "Failed to add game controller mappings from file \"" << controllerBindingsFile
@@ -47,7 +48,7 @@ namespace MWInput
 
         if (!userControllerBindingsFile.empty())
         {
-            const int result
+            const std::int32_t result
                 = SDL_AddGamepadMappingsFromFile(Files::pathToUnicodeString(userControllerBindingsFile).c_str());
             if (result < 0)
                 Log(Debug::Error) << "Failed to add game controller mappings from user file \""
@@ -55,19 +56,19 @@ namespace MWInput
         }
 
         // Open all presently connected sticks
-        int numSticks = 0;
+        std::int32_t numSticks = 0;
         SDL_JoystickID* sticks = SDL_GetJoysticks(&numSticks);
         if (sticks == nullptr)
             Log(Debug::Error) << "Failed to get the joysticks: " << SDL_GetError();
 
-        for (int i = 0; i < numSticks; i++)
+        for (std::int32_t i = 0; i < numSticks; i++)
         {
             const SDL_JoystickID stick = sticks[i];
             if (SDL_IsGamepad(stick))
             {
                 SDL_GamepadDeviceEvent evt{};
                 evt.which = stick;
-                static const int fakeDeviceID = 1;
+                static const std::int32_t fakeDeviceID = 1;
                 ControllerManager::controllerAdded(fakeDeviceID, evt);
                 if (const char* name = SDL_GetGamepadNameForID(stick))
                     Log(Debug::Info) << "Detected game controller: " << name;
@@ -128,7 +129,7 @@ namespace MWInput
         }
     }
 
-    void ControllerManager::buttonPressed(int deviceID, const SDL_GamepadButtonEvent& arg)
+    void ControllerManager::buttonPressed(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg)
     {
         if (!Settings::input().mEnableController || mBindingsManager->isDetectingBindingState())
             return;
@@ -173,7 +174,7 @@ namespace MWInput
             mBindingsManager->controllerButtonPressed(deviceID, arg);
     }
 
-    void ControllerManager::buttonReleased(int deviceID, const SDL_GamepadButtonEvent& arg)
+    void ControllerManager::buttonReleased(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg)
     {
         if (mBindingsManager->isDetectingBindingState())
         {
@@ -218,7 +219,7 @@ namespace MWInput
         mBindingsManager->controllerButtonReleased(deviceID, arg);
     }
 
-    void ControllerManager::axisMoved(int deviceID, const SDL_GamepadAxisEvent& arg)
+    void ControllerManager::axisMoved(std::int32_t deviceID, const SDL_GamepadAxisEvent& arg)
     {
         if (mBindingsManager->isDetectingBindingState())
         {
@@ -244,7 +245,7 @@ namespace MWInput
         mBindingsManager->controllerAxisMoved(deviceID, arg);
     }
 
-    void ControllerManager::controllerAdded(int deviceID, const SDL_GamepadDeviceEvent& arg)
+    void ControllerManager::controllerAdded(std::int32_t deviceID, const SDL_GamepadDeviceEvent& arg)
     {
         mBindingsManager->controllerAdded(deviceID, arg);
         enableGyroSensor();
@@ -345,9 +346,10 @@ namespace MWInput
 
     bool ControllerManager::gamepadToGuiControl(const SDL_GamepadAxisEvent& arg)
     {
-        const int triggerPressThreshold = Settings::gui().mControllerTriggerPressThreshold;
-        const int rawTriggerReleaseThreshold = Settings::gui().mControllerTriggerReleaseThreshold;
-        const int triggerReleaseThreshold = std::clamp(rawTriggerReleaseThreshold, 0, triggerPressThreshold - 1);
+        const std::int32_t triggerPressThreshold = Settings::gui().mControllerTriggerPressThreshold;
+        const std::int32_t rawTriggerReleaseThreshold = Settings::gui().mControllerTriggerReleaseThreshold;
+        const std::int32_t triggerReleaseThreshold
+            = std::clamp(rawTriggerReleaseThreshold, 0, triggerPressThreshold - 1);
 
         auto handleTriggerPress = [&](Sint16 value, bool& triggerGuiPressed, const auto& onPress) {
             if (value >= triggerPressThreshold && !triggerGuiPressed)
@@ -496,7 +498,7 @@ namespace MWInput
         return std::array<float, 3>({ gyro[0], gyro[1], gyro[2] });
     }
 
-    int ControllerManager::getControllerType()
+    std::int32_t ControllerManager::getControllerType()
     {
         SDL_Gamepad* cntrl = mBindingsManager->getControllerOrNull();
         if (cntrl)
@@ -504,9 +506,9 @@ namespace MWInput
         return 0;
     }
 
-    std::string ControllerManager::getControllerButtonIcon(int button)
+    std::string ControllerManager::getControllerButtonIcon(std::int32_t button)
     {
-        int controllerType = ControllerManager::getControllerType();
+        std::int32_t controllerType = ControllerManager::getControllerType();
 
         bool isXbox = controllerType == SDL_GAMEPAD_TYPE_XBOX360 || controllerType == SDL_GAMEPAD_TYPE_XBOXONE;
         bool isPsx = controllerType == SDL_GAMEPAD_TYPE_PS3 || controllerType == SDL_GAMEPAD_TYPE_PS4
@@ -582,9 +584,9 @@ namespace MWInput
         }
     }
 
-    std::string ControllerManager::getControllerAxisIcon(int axis)
+    std::string ControllerManager::getControllerAxisIcon(std::int32_t axis)
     {
-        int controllerType = ControllerManager::getControllerType();
+        std::int32_t controllerType = ControllerManager::getControllerType();
 
         bool isXbox = controllerType == SDL_GAMEPAD_TYPE_XBOX360 || controllerType == SDL_GAMEPAD_TYPE_XBOXONE;
         bool isSwitch = controllerType == SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO;
@@ -614,17 +616,17 @@ namespace MWInput
         }
     }
 
-    void ControllerManager::touchpadMoved(int deviceId, const SDLUtil::TouchEvent& arg)
+    void ControllerManager::touchpadMoved(std::int32_t deviceId, const SDLUtil::TouchEvent& arg)
     {
         MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::TouchMoved, arg });
     }
 
-    void ControllerManager::touchpadPressed(int deviceId, const SDLUtil::TouchEvent& arg)
+    void ControllerManager::touchpadPressed(std::int32_t deviceId, const SDLUtil::TouchEvent& arg)
     {
         MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::TouchPressed, arg });
     }
 
-    void ControllerManager::touchpadReleased(int deviceId, const SDLUtil::TouchEvent& arg)
+    void ControllerManager::touchpadReleased(std::int32_t deviceId, const SDLUtil::TouchEvent& arg)
     {
         MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::TouchReleased, arg });
     }

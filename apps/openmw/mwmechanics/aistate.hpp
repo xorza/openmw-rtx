@@ -1,9 +1,9 @@
 #pragma once
 
+#include <memory>
+
 #include "aistatefwd.hpp"
 #include "aitemporarybase.hpp"
-
-#include <memory>
 
 namespace MWMechanics
 {

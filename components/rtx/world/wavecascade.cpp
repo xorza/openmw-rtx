@@ -77,9 +77,9 @@ namespace Rtx
         osg::Vec2d wavevectorAt(const WaveCascade& cascade, const std::size_t at)
         {
             const double step = double{ Shaders::TAU } / double{ cascade.mTile.mExtent };
-            const int half = static_cast<int>(cascade.mTile.mGrid) / 2;
-            const int row = static_cast<int>(at / cascade.mTile.mGrid) - half;
-            const int column = static_cast<int>(at % cascade.mTile.mGrid) - half;
+            const std::int32_t half = static_cast<std::int32_t>(cascade.mTile.mGrid) / 2;
+            const std::int32_t row = static_cast<std::int32_t>(at / cascade.mTile.mGrid) - half;
+            const std::int32_t column = static_cast<std::int32_t>(at % cascade.mTile.mGrid) - half;
 
             return osg::Vec2d(step * column, step * row);
         }
@@ -196,7 +196,7 @@ namespace Rtx
             const WaveCascade& cascade = cascades[index];
             const float texel = cascade.mTile.mExtent / static_cast<float>(cascade.mTile.mGrid);
             const float step = Shaders::TAU / cascade.mTile.mExtent;
-            const int half = static_cast<int>(cascade.mTile.mGrid) / 2;
+            const std::int32_t half = static_cast<std::int32_t>(cascade.mTile.mGrid) / 2;
 
             // One power response per axis index per level, because the chain is separable; written
             // out rather than evaluated inside the sum, which would be five million sines a tile.
@@ -209,7 +209,8 @@ namespace Rtx
                 const auto count = static_cast<float>(std::size_t{ 1 } << level);
                 for (std::size_t along = 0; along < cascade.mTile.mGrid; ++along)
                 {
-                    const float phase = 0.5f * step * static_cast<float>(static_cast<int>(along) - half) * texel;
+                    const float phase
+                        = 0.5f * step * static_cast<float>(static_cast<std::int32_t>(along) - half) * texel;
                     const float turn = std::sin(phase);
                     const float kernel = std::abs(turn) < 1e-6f ? 1.0f : std::sin(count * phase) / (count * turn);
 

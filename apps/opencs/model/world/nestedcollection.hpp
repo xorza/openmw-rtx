@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "columns.hpp"
 
 class QVariant;
@@ -16,28 +18,31 @@ namespace CSMWorld
         NestedCollection() = default;
         virtual ~NestedCollection() = default;
 
-        virtual void addNestedRow(int row, int col, int position) = 0;
+        virtual void addNestedRow(std::int32_t row, std::int32_t col, std::int32_t position) = 0;
 
-        virtual void removeNestedRows(int row, int column, int subRow) = 0;
+        virtual void removeNestedRows(std::int32_t row, std::int32_t column, std::int32_t subRow) = 0;
 
-        virtual QVariant getNestedData(int row, int column, int subRow, int subColumn) const = 0;
+        virtual QVariant getNestedData(
+            std::int32_t row, std::int32_t column, std::int32_t subRow, std::int32_t subColumn) const = 0;
 
-        virtual void setNestedData(int row, int column, const QVariant& data, int subRow, int subColumn) = 0;
+        virtual void setNestedData(std::int32_t row, std::int32_t column, const QVariant& data, std::int32_t subRow,
+            std::int32_t subColumn) = 0;
 
-        virtual NestedTableWrapperBase* nestedTable(int row, int column) const = 0;
+        virtual NestedTableWrapperBase* nestedTable(std::int32_t row, std::int32_t column) const = 0;
 
-        virtual void setNestedTable(int row, int column, const NestedTableWrapperBase& nestedTable) = 0;
+        virtual void setNestedTable(std::int32_t row, std::int32_t column, const NestedTableWrapperBase& nestedTable)
+            = 0;
 
-        virtual int getNestedRowsCount(int row, int column) const;
+        virtual std::int32_t getNestedRowsCount(std::int32_t row, std::int32_t column) const;
 
-        virtual int getNestedColumnsCount(int row, int column) const;
+        virtual std::int32_t getNestedColumnsCount(std::int32_t row, std::int32_t column) const;
 
-        virtual NestableColumn* getNestableColumn(int column) = 0;
+        virtual NestableColumn* getNestableColumn(std::int32_t column) = 0;
 
-        virtual int searchNestedColumnIndex(int parentColumn, Columns::ColumnId id);
+        virtual std::int32_t searchNestedColumnIndex(std::int32_t parentColumn, Columns::ColumnId id);
         ///< \return the column index or -1 if the requested column wasn't found.
 
-        virtual int findNestedColumnIndex(int parentColumn, Columns::ColumnId id);
+        virtual std::int32_t findNestedColumnIndex(std::int32_t parentColumn, Columns::ColumnId id);
         ///< \return the column index or throws an exception if the requested column wasn't found.
     };
 }

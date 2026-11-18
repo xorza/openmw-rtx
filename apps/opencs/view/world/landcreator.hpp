@@ -1,12 +1,13 @@
 #pragma once
 
-#include "genericcreator.hpp"
-
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <apps/opencs/model/world/universalid.hpp>
+
+#include "genericcreator.hpp"
 
 namespace CSMWorld
 {
@@ -48,6 +49,6 @@ namespace CSVWorld
 
     private slots:
 
-        void coordChanged(int value);
+        void coordChanged(std::int32_t value);
     };
 }

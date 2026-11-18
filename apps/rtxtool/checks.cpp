@@ -230,7 +230,10 @@ namespace RtxTool
 
                 case Check::TexturesReadable:
                 {
-                    const std::uint32_t refused = scene.refusals().count(Rtx::Refused::Texture);
+                    // Since the stop before: one refusal fails the stop it falls in, where a count since the run
+                    // began failed every stop after it.
+                    const std::uint32_t refused
+                        = scene.refusals().count(Rtx::Refused::Texture) - facts.mTexturesRefusedBefore;
                     found = std::format("{} of {} textures refused", refused, scene.textures().getRows().size());
                     return refused == 0;
                 }

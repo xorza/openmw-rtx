@@ -2,33 +2,27 @@
 
 #include <algorithm>
 #include <cmath>
-#include <components/debug/debuglog.hpp>
+#include <cstdint>
 
-#include <components/sceneutil/positionattitudetransform.hpp>
-
-#include <components/esm3/loadcell.hpp>
-
-#include <components/esm/util.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/compiler/opcodes.hpp>
-
+#include <components/debug/debuglog.hpp>
+#include <components/esm/util.hpp>
+#include <components/esm3/loadcell.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
+#include <components/sceneutil/positionattitudetransform.hpp>
 
 #include "interpretercontext.hpp"
 #include "ref.hpp"
@@ -104,7 +98,7 @@ namespace MWScript
 
                         const float* const pos1 = to.getRefData().getPosition().pos;
                         const float* const pos2 = from.getRefData().getPosition().pos;
-                        for (int i = 0; i < 3; ++i)
+                        for (std::int32_t i = 0; i < 3; ++i)
                             diff[i] = pos1[i] - pos2[i];
 
                         distance
@@ -618,7 +612,7 @@ namespace MWScript
                     if (!actor.isInCell())
                         throw std::runtime_error("actor is not in a cell");
 
-                    for (int i = 0; i < count; ++i)
+                    for (std::int32_t i = 0; i < count; ++i)
                     {
                         // create item
                         MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), itemID, 1);

@@ -1,14 +1,15 @@
 #include "protocol.hpp"
 
-#include <components/serialization/binaryreader.hpp>
-#include <components/serialization/binarywriter.hpp>
-#include <components/serialization/format.hpp>
-#include <components/serialization/sizeaccumulator.hpp>
-
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+
+#include <components/serialization/binaryreader.hpp>
+#include <components/serialization/binarywriter.hpp>
+#include <components/serialization/format.hpp>
+#include <components/serialization/sizeaccumulator.hpp>
 
 namespace NavMeshTool
 {
@@ -23,7 +24,7 @@ namespace NavMeshTool
                     stream << '\'' << v << '\'';
                 else
                     stream << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(2)
-                           << static_cast<int>(v);
+                           << static_cast<std::int32_t>(v);
                 stream << ' ';
             }
             return stream.str();
@@ -35,8 +36,8 @@ namespace NavMeshTool
             using Serialization::Format<mode, Format<mode>>::operator();
 
             template <class Visitor, class T>
-            auto operator()(Visitor&& visitor, T& value) const
-                -> std::enable_if_t<std::is_same_v<std::decay_t<T>, Message>>
+            auto operator()(Visitor&& visitor, T& value) const -> void
+                requires(std::is_same_v<std::decay_t<T>, Message>)
             {
                 if constexpr (mode == Serialization::Mode::Write)
                     visitor(*this, messageMagic);
@@ -57,29 +58,29 @@ namespace NavMeshTool
             }
 
             template <class Visitor, class T>
-            auto operator()(Visitor&& visitor, T& value) const
-                -> std::enable_if_t<std::is_same_v<std::decay_t<T>, ExpectedCells>>
+            auto operator()(Visitor&& visitor, T& value) const -> void
+                requires(std::is_same_v<std::decay_t<T>, ExpectedCells>)
             {
                 visitor(*this, value.mCount);
             }
 
             template <class Visitor, class T>
-            auto operator()(Visitor&& visitor, T& value) const
-                -> std::enable_if_t<std::is_same_v<std::decay_t<T>, ProcessedCells>>
+            auto operator()(Visitor&& visitor, T& value) const -> void
+                requires(std::is_same_v<std::decay_t<T>, ProcessedCells>)
             {
                 visitor(*this, value.mCount);
             }
 
             template <class Visitor, class T>
-            auto operator()(Visitor&& visitor, T& value) const
-                -> std::enable_if_t<std::is_same_v<std::decay_t<T>, ExpectedTiles>>
+            auto operator()(Visitor&& visitor, T& value) const -> void
+                requires(std::is_same_v<std::decay_t<T>, ExpectedTiles>)
             {
                 visitor(*this, value.mCount);
             }
 
             template <class Visitor, class T>
-            auto operator()(Visitor&& visitor, T& value) const
-                -> std::enable_if_t<std::is_same_v<std::decay_t<T>, GeneratedTiles>>
+            auto operator()(Visitor&& visitor, T& value) const -> void
+                requires(std::is_same_v<std::decay_t<T>, GeneratedTiles>)
             {
                 visitor(*this, value.mCount);
             }

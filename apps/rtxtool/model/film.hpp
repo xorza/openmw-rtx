@@ -138,7 +138,7 @@ namespace RtxTool
         float mAspect = 16.0f / 9.0f;
 
         /// Which day a take stands on where its first key names none.
-        int mDay = 0;
+        std::int32_t mDay = 0;
 
         /// Seconds as a whole count of frames at the step, one at least: `BenchSpan`'s count,
         /// which is what the session turns a span's seconds into.
@@ -285,7 +285,7 @@ namespace RtxTool
 
     /// Its constant rate factor, the quality it holds: eighteen is what "visually lossless" means
     /// in practice for H.264.
-    inline constexpr int sVideoQuality = 18;
+    inline constexpr std::int32_t sVideoQuality = 18;
 
     /// The pixel layout every player reads, where H.264's default out of RGB frames is one most
     /// of them do not.

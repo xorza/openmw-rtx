@@ -1,9 +1,9 @@
-#include "apps/opencs/model/world/universalid.hpp"
+#include <array>
+#include <stdexcept>
 
 #include <gtest/gtest.h>
 
-#include <array>
-#include <stdexcept>
+#include <apps/opencs/model/world/universalid.hpp>
 
 namespace CSMWorld
 {

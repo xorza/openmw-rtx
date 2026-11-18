@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../mwworld/ptr.hpp"
+#include <cstdint>
+
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace MWMechanics
 {
@@ -12,7 +14,7 @@ namespace MWMechanics
 
         /// Steal some items
         /// @return Was the thief detected?
-        bool pick(const MWWorld::Ptr& item, int count);
+        bool pick(const MWWorld::Ptr& item, std::int32_t count);
         /// End the pickpocketing process
         /// @return Was the thief detected?
         bool finish();

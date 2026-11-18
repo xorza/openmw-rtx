@@ -1,15 +1,16 @@
 #pragma once
 
-#include <components/settings/sanitizerimpl.hpp>
-#include <components/settings/settingvalue.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <string_view>
 
 #include <osg/Math>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+#include <components/settings/sanitizerimpl.hpp>
+#include <components/settings/settingvalue.hpp>
 
 namespace Settings
 {
@@ -17,7 +18,7 @@ namespace Settings
     {
         using WithIndex::WithIndex;
 
-        SettingValue<int> mAnisotropy{ mIndex, "General", "anisotropy", makeClampSanitizerInt(0, 16) };
+        SettingValue<std::int32_t> mAnisotropy{ mIndex, "General", "anisotropy", makeClampSanitizerInt(0, 16) };
         SettingValue<std::string> mScreenshotFormat{ mIndex, "General", "screenshot format",
             makeEnumSanitizerString({ "jpg", "png", "tga" }) };
         SettingValue<std::string> mTextureMagFilter{ mIndex, "General", "texture mag filter",
@@ -31,6 +32,7 @@ namespace Settings
         SettingValue<bool> mGmstOverridesL10n{ mIndex, "General", "gmst overrides l10n" };
         SettingValue<std::size_t> mLogBufferSize{ mIndex, "General", "log buffer size" };
         SettingValue<std::size_t> mConsoleHistoryBufferSize{ mIndex, "General", "console history buffer size" };
-        SettingValue<int> mCrashHangSeconds{ mIndex, "General", "crash hang seconds", makeClampSanitizerInt(0, 86400) };
+        SettingValue<std::int32_t> mCrashHangSeconds{ mIndex, "General", "crash hang seconds",
+            makeClampSanitizerInt(0, 86400) };
     };
 }

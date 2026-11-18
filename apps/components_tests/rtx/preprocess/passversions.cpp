@@ -70,13 +70,13 @@ namespace Rtx
             const std::array<std::uint8_t, 16>& bytes, const std::vector<std::uint8_t>& second = {})
         {
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[bytes.size() + second.size()];
+            auto* data = new std::uint8_t[bytes.size() + second.size()];
             std::memcpy(data, bytes.data(), bytes.size());
             if (!second.empty())
                 std::memcpy(data + bytes.size(), second.data(), second.size());
             image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             if (!second.empty())
-                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(bytes.size()) });
+                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<std::uint32_t>(bytes.size()) });
             image->setFileName("textures/tx_guard.dds");
             return image;
         }
@@ -88,7 +88,7 @@ namespace Rtx
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0x1b, 0x6c, 0xb1, 0xe4, //
                 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::memcpy(data, bytes, sizeof(bytes));
             image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
                 data, osg::Image::USE_NEW_DELETE);
@@ -124,6 +124,12 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> painted = makeImage(paint);
             const MeanTexel mean = content.meanTexel(*painted);
             const AlphaRange span = content.alphaRange(*painted);
+            const bool solid = content.reachesSolid(*painted);
+            const std::array<std::uint8_t, 16> opaque{ 255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255,
+                255 };
+            const bool falls = content.fallsBelowSolid(*makeImage(opaque));
+            ASSERT_TRUE(solid);
+            ASSERT_FALSE(falls);
 
             const std::array<std::uint8_t, 16> heights{ 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112,
                 128, 251, 200 };
@@ -132,9 +138,9 @@ namespace Rtx
                 ChainPass::Input{ .mImage = *makeImage(heights, { 0, 0, 0, 0 }), .mEncoding = TextureEncoding::Normal },
                 chain);
             ASSERT_EQ(chain.mForm, ChainForm::Bc7);
-            MadeChain coarser;
-            content.chain(ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data }, coarser);
-            ASSERT_EQ(coarser.mForm, ChainForm::Coarser);
+            MadeChain data;
+            content.chain(ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data }, data);
+            ASSERT_EQ(data.mForm, ChainForm::Own);
             MadeChain own;
             content.chain(
                 ChainPass::Input{
@@ -160,20 +166,24 @@ namespace Rtx
                 Recorded{ "texel mean", TexelMean::sVersion, digestOf(mean) },
                 Recorded{ "alpha span", AlphaSpan::sVersion, digestOf(span) },
                 Recorded{ "chain in BC7", ChainPass::sVersion, digestOf(chain) },
-                Recorded{ "coarser chain", ChainPass::sVersion, digestOf(coarser) },
+                Recorded{ "data chain", ChainPass::sVersion, digestOf(data) },
                 Recorded{ "painted chain", ChainPass::sVersion, digestOf(own) },
                 Recorded{ "specular kind", SpecularKind::sVersion, digestOf(kind) },
                 Recorded{ "conversion", ConversionPass::sVersion, digestOf(converted) },
+                Recorded{ "solid reach", SolidReach::sVersion, digestOf(solid) },
+                Recorded{ "solid fall", SolidFall::sVersion, digestOf(falls) },
             };
             const std::array recorded{
                 Recorded{ "shape", 4, 0xfe8b49f90aed1c6d },
                 Recorded{ "texel mean", 1, 0xfaa7e2c796ee8c55 },
                 Recorded{ "alpha span", 1, 0xb02496efa84a6d00 },
-                Recorded{ "chain in BC7", 7, 0xfa7ed3b85133af96 },
-                Recorded{ "coarser chain", 7, 0xece598d212e9cf22 },
-                Recorded{ "painted chain", 7, 0xfa62c3fe1604e007 },
+                Recorded{ "chain in BC7", 8, 0x49e28ea38c0ba847 },
+                Recorded{ "data chain", 8, 0x6bf8b7518c018d9e },
+                Recorded{ "painted chain", 8, 0x75154d36494e4adb },
                 Recorded{ "specular kind", 1, 0x5eac70df15eeb2ef },
-                Recorded{ "conversion", 4, 0x3cf77b53dd5e0330 },
+                Recorded{ "conversion", 5, 0xed492221331d8e6e },
+                Recorded{ "solid reach", 1, 0x5eac70df15eeb2ef },
+                Recorded{ "solid fall", 1, 0x6d2d432d2156abeb },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
             {

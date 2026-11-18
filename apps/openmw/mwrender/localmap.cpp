@@ -29,6 +29,9 @@
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/fogstate.hpp>
@@ -40,11 +43,6 @@
 #include <components/sceneutil/paintedtexture.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/storage.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/cellstore.hpp"
 
 #include "offscreenview.hpp"
 #include "pixels.hpp"
@@ -58,13 +56,13 @@ namespace
         return val * val;
     }
 
-    std::pair<int, int> divideIntoSegments(const osg::BoundingBox& bounds, int mapSize)
+    std::pair<std::int32_t, std::int32_t> divideIntoSegments(const osg::BoundingBox& bounds, std::int32_t mapSize)
     {
         osg::Vec2f min(bounds.xMin(), bounds.yMin());
         osg::Vec2f max(bounds.xMax(), bounds.yMax());
         osg::Vec2f length = max - min;
-        const int segsX = static_cast<int>(std::ceil(length.x() / static_cast<float>(mapSize)));
-        const int segsY = static_cast<int>(std::ceil(length.y() / static_cast<float>(mapSize)));
+        const auto segsX = static_cast<std::int32_t>(std::ceil(length.x() / static_cast<float>(mapSize)));
+        const auto segsY = static_cast<std::int32_t>(std::ceil(length.y() / static_cast<float>(mapSize)));
         return { segsX, segsY };
     }
 }
@@ -98,9 +96,9 @@ namespace MWRender
     {
     }
 
-    int LocalMap::mapResolution() const
+    std::int32_t LocalMap::mapResolution() const
     {
-        return static_cast<int>(static_cast<float>(Settings::map().mLocalMapResolution)
+        return static_cast<std::int32_t>(static_cast<float>(Settings::map().mLocalMapResolution)
             * MWBase::Environment::get().getWindowManager()->getRasterScale());
     }
 
@@ -156,9 +154,9 @@ namespace MWRender
             fog->mFogTextures.reserve(
                 static_cast<std::size_t>(segments.first) * static_cast<std::size_t>(segments.second));
 
-            for (int x = 0; x < segments.first; ++x)
+            for (std::int32_t x = 0; x < segments.first; ++x)
             {
-                for (int y = 0; y < segments.second; ++y)
+                for (std::int32_t y = 0; y < segments.second; ++y)
                 {
                     const auto it = mInteriorSegments.find(std::make_pair(x, y));
                     if (it == mInteriorSegments.end())
@@ -177,15 +175,15 @@ namespace MWRender
         }
     }
 
-    void LocalMap::draw(
-        int segmentX, int segmentY, float left, float top, const osg::Vec3d& upVector, const DepthRange& range)
+    void LocalMap::draw(std::int32_t segmentX, std::int32_t segmentY, float left, float top, const osg::Vec3d& upVector,
+        const DepthRange& range)
     {
         MapSegment& segment = mInterior ? mInteriorSegments[std::make_pair(segmentX, segmentY)]
                                         : mExteriorSegments[std::make_pair(segmentX, segmentY)];
 
         // Rebuilt where the depth range or the resolution moved, because both are in the view's
         // description and a view is described once
-        const int resolution = mapResolution();
+        const std::int32_t resolution = mapResolution();
         if (segment.mView && (segment.mRange != range || segment.mResolution != resolution))
             segment.mView.reset();
 
@@ -223,8 +221,8 @@ namespace MWRender
             return;
         }
 
-        int cellX = cell->getCell()->getGridX();
-        int cellY = cell->getCell()->getGridY();
+        std::int32_t cellX = cell->getCell()->getGridX();
+        std::int32_t cellY = cell->getCell()->getGridY();
 
         MapSegment& segment = mExteriorSegments[std::make_pair(cellX, cellY)];
         const std::uint8_t neighbourFlags = getExteriorNeighbourFlags(cellX, cellY);
@@ -247,7 +245,7 @@ namespace MWRender
                 std::make_pair(cell->getCell()->getGridX(), cell->getCell()->getGridY()), MapSegment{});
     }
 
-    void LocalMap::removeExteriorCell(int x, int y)
+    void LocalMap::removeExteriorCell(std::int32_t x, std::int32_t y)
     {
         mExteriorSegments.erase({ x, y });
     }
@@ -260,7 +258,7 @@ namespace MWRender
             mInteriorSegments.clear();
     }
 
-    std::shared_ptr<OffscreenView> LocalMap::getMapView(int x, int y)
+    std::shared_ptr<OffscreenView> LocalMap::getMapView(std::int32_t x, std::int32_t y)
     {
         auto& segments(mInterior ? mInteriorSegments : mExteriorSegments);
         auto found = segments.find(std::make_pair(x, y));
@@ -275,7 +273,7 @@ namespace MWRender
         return mRenderer.getGroundReach();
     }
 
-    std::unique_ptr<MyGUI::ITexture> LocalMap::makeFogOfWarGuiTexture(int x, int y)
+    std::unique_ptr<MyGUI::ITexture> LocalMap::makeFogOfWarGuiTexture(std::int32_t x, std::int32_t y)
     {
         auto& segments(mInterior ? mInteriorSegments : mExteriorSegments);
         auto found = segments.find(std::make_pair(x, y));
@@ -288,8 +286,8 @@ namespace MWRender
     {
         mInterior = false;
 
-        const int x = cell->getCell()->getGridX();
-        const int y = cell->getCell()->getGridY();
+        const std::int32_t x = cell->getCell()->getGridX();
+        const std::int32_t y = cell->getCell()->getGridY();
 
         std::optional<DepthRange> land;
         DepthRange heights;
@@ -354,8 +352,8 @@ namespace MWRender
         // Rotate the cell and merge the rotated corners to the bounding box
         osg::Vec2f origCenter(bounds.center().x(), bounds.center().y());
         osg::Vec3f origCorners[8];
-        for (int i = 0; i < 8; ++i)
-            origCorners[i] = mBounds.corner(static_cast<unsigned int>(i));
+        for (std::int32_t i = 0; i < 8; ++i)
+            origCorners[i] = mBounds.corner(static_cast<std::uint32_t>(i));
 
         for (auto corner : origCorners)
         {
@@ -380,8 +378,8 @@ namespace MWRender
         // Both the cell bounds and the NorthMarker rotation could be changed by the content files or exchanged models.
         // If they changed by too much then parts of the interior might not be covered by the map anymore.
         // The following code detects this, and discards the CellStore's fog state if it needs to.
-        int xOffset = 0;
-        int yOffset = 0;
+        std::int32_t xOffset = 0;
+        std::int32_t yOffset = 0;
         if (const ESM::FogState* fog = cell->getFog())
         {
             if (std::abs(mAngle - fog->mNorthMarkerAngle) < osg::DegreesToRadians(5.f))
@@ -394,7 +392,7 @@ namespace MWRender
                 else if (fog->mBounds.mMinX > mBounds.xMin())
                 {
                     float diff = fog->mBounds.mMinX - mBounds.xMin();
-                    xOffset = static_cast<int>(std::ceil(diff / static_cast<float>(mMapWorldSize)));
+                    xOffset = static_cast<std::int32_t>(std::ceil(diff / static_cast<float>(mMapWorldSize)));
                     mBounds.xMin() = fog->mBounds.mMinX - static_cast<float>(xOffset * mMapWorldSize);
                 }
                 if (fog->mBounds.mMinY < mBounds.yMin())
@@ -404,7 +402,7 @@ namespace MWRender
                 else if (fog->mBounds.mMinY > mBounds.yMin())
                 {
                     float diff = fog->mBounds.mMinY - mBounds.yMin();
-                    yOffset = static_cast<int>(std::ceil(diff / static_cast<float>(mMapWorldSize)));
+                    yOffset = static_cast<std::int32_t>(std::ceil(diff / static_cast<float>(mMapWorldSize)));
                     mBounds.yMin() = fog->mBounds.mMinY - static_cast<float>(yOffset * mMapWorldSize);
                 }
                 mBounds.xMax() = std::max(fog->mBounds.mMaxX, mBounds.xMax());
@@ -424,9 +422,9 @@ namespace MWRender
         osg::Quat cameraOrient(mAngle, osg::Vec3d(0, 0, -1));
 
         auto segments = divideIntoSegments(mBounds, mMapWorldSize);
-        for (int x = 0; x < segments.first; ++x)
+        for (std::int32_t x = 0; x < segments.first; ++x)
         {
-            for (int y = 0; y < segments.second; ++y)
+            for (std::int32_t y = 0; y < segments.second; ++y)
             {
                 osg::Vec2f start
                     = min + osg::Vec2f(static_cast<float>(mMapWorldSize * x), static_cast<float>(mMapWorldSize * y));
@@ -464,20 +462,21 @@ namespace MWRender
         }
     }
 
-    void LocalMap::worldToInteriorMapPosition(osg::Vec2f pos, float& nX, float& nY, int& x, int& y) const
+    void LocalMap::worldToInteriorMapPosition(
+        osg::Vec2f pos, float& nX, float& nY, std::int32_t& x, std::int32_t& y) const
     {
         pos = rotatePoint(pos, mCenter, mAngle);
 
         osg::Vec2f min(mBounds.xMin(), mBounds.yMin());
 
-        x = static_cast<int>(std::ceil((pos.x() - min.x()) / static_cast<float>(mMapWorldSize)) - 1);
-        y = static_cast<int>(std::ceil((pos.y() - min.y()) / static_cast<float>(mMapWorldSize)) - 1);
+        x = static_cast<std::int32_t>(std::ceil((pos.x() - min.x()) / static_cast<float>(mMapWorldSize)) - 1);
+        y = static_cast<std::int32_t>(std::ceil((pos.y() - min.y()) / static_cast<float>(mMapWorldSize)) - 1);
 
         nX = (pos.x() - min.x() - static_cast<float>(mMapWorldSize * x)) / static_cast<float>(mMapWorldSize);
         nY = 1.0f - (pos.y() - min.y() - static_cast<float>(mMapWorldSize * y)) / static_cast<float>(mMapWorldSize);
     }
 
-    osg::Vec2f LocalMap::interiorMapToWorldPosition(float nX, float nY, int x, int y) const
+    osg::Vec2f LocalMap::interiorMapToWorldPosition(float nX, float nY, std::int32_t x, std::int32_t y) const
     {
         osg::Vec2f min(mBounds.xMin(), mBounds.yMin());
         osg::Vec2f pos(static_cast<float>(mMapWorldSize) * (nX + static_cast<float>(x)) + min.x(),
@@ -487,7 +486,7 @@ namespace MWRender
         return pos;
     }
 
-    bool LocalMap::isPositionExplored(float nX, float nY, int x, int y)
+    bool LocalMap::isPositionExplored(float nX, float nY, std::int32_t x, std::int32_t y)
     {
         auto& segments(mInterior ? mInteriorSegments : mExteriorSegments);
         const MapSegment& segment = segments[std::make_pair(x, y)];
@@ -497,17 +496,17 @@ namespace MWRender
         nX = std::clamp(nX, 0.f, 1.f);
         nY = std::clamp(nY, 0.f, 1.f);
 
-        int texU = static_cast<int>((sFogOfWarResolution - 1) * nX);
-        int texV = static_cast<int>((sFogOfWarResolution - 1) * nY);
+        auto texU = static_cast<std::int32_t>((sFogOfWarResolution - 1) * nX);
+        auto texV = static_cast<std::int32_t>((sFogOfWarResolution - 1) * nY);
 
         const std::uint32_t clr
-            = reinterpret_cast<const uint32_t*>(segment.mFogOfWarImage->data())[texV * sFogOfWarResolution + texU];
-        uint8_t alpha = (clr >> 24);
+            = reinterpret_cast<const std::uint32_t*>(segment.mFogOfWarImage->data())[texV * sFogOfWarResolution + texU];
+        std::uint8_t alpha = (clr >> 24);
         return alpha < 200;
     }
 
-    void LocalMap::updatePlayer(const osg::Vec3f& position, const osg::Quat& orientation, float& u, float& v, int& x,
-        int& y, osg::Vec3f& direction)
+    void LocalMap::updatePlayer(const osg::Vec3f& position, const osg::Quat& orientation, float& u, float& v,
+        std::int32_t& x, std::int32_t& y, osg::Vec3f& direction)
     {
         // retrieve the x,y grid coordinates the player is in
         osg::Vec2f pos(position.x(), position.y());
@@ -523,8 +522,8 @@ namespace MWRender
         {
             direction = orientation * osg::Vec3f(0, 1, 0);
 
-            x = static_cast<int>(std::ceil(pos.x() / static_cast<float>(mMapWorldSize)) - 1);
-            y = static_cast<int>(std::ceil(pos.y() / static_cast<float>(mMapWorldSize)) - 1);
+            x = static_cast<std::int32_t>(std::ceil(pos.x() / static_cast<float>(mMapWorldSize)) - 1);
+            y = static_cast<std::int32_t>(std::ceil(pos.y() / static_cast<float>(mMapWorldSize)) - 1);
 
             // convert from world coordinates to texture UV coordinates
             u = std::abs((pos.x() - static_cast<float>((mMapWorldSize * x))) / static_cast<float>(mMapWorldSize));
@@ -538,9 +537,9 @@ namespace MWRender
         const float exploreRadiusUV = exploreRadius / sFogOfWarResolution; // explore radius from 0 to 1 (UV space)
 
         // change the affected fog of war textures (in a 3x3 grid around the player)
-        for (int mx = -mCellDistance; mx <= mCellDistance; ++mx)
+        for (std::int32_t mx = -mCellDistance; mx <= mCellDistance; ++mx)
         {
-            for (int my = -mCellDistance; my <= mCellDistance; ++my)
+            for (std::int32_t my = -mCellDistance; my <= mCellDistance; ++my)
             {
                 // is this texture affected at all?
                 bool affected = false;
@@ -556,8 +555,8 @@ namespace MWRender
                 if (!affected)
                     continue;
 
-                int texX = x + mx;
-                int texY = y + my * -1;
+                std::int32_t texX = x + mx;
+                std::int32_t texY = y + my * -1;
 
                 auto& segments(mInterior ? mInteriorSegments : mExteriorSegments);
                 MapSegment& segment = segments[std::make_pair(texX, texY)];
@@ -569,9 +568,9 @@ namespace MWRender
 
                 // The box round every texel that changed, which is what is sent up
                 SceneUtil::ImageRegion changed;
-                for (int texV = 0; texV < sFogOfWarResolution; ++texV)
+                for (std::int32_t texV = 0; texV < sFogOfWarResolution; ++texV)
                 {
-                    for (int texU = 0; texU < sFogOfWarResolution; ++texU)
+                    for (std::int32_t texU = 0; texU < sFogOfWarResolution; ++texU)
                     {
                         float sqrDist = square(static_cast<float>((texU + mx * (sFogOfWarResolution - 1)))
                                             - u * (sFogOfWarResolution - 1))
@@ -600,9 +599,9 @@ namespace MWRender
         }
     }
 
-    std::uint8_t LocalMap::getExteriorNeighbourFlags(int cellX, int cellY) const
+    std::uint8_t LocalMap::getExteriorNeighbourFlags(std::int32_t cellX, std::int32_t cellY) const
     {
-        constexpr std::tuple<NeighbourCellFlag, int, int> flags[] = {
+        constexpr std::tuple<NeighbourCellFlag, std::int32_t, std::int32_t> flags[] = {
             { NeighbourCellTopLeft, -1, -1 },
             { NeighbourCellTopCenter, 0, -1 },
             { NeighbourCellTopRight, 1, -1 },
@@ -646,7 +645,7 @@ namespace MWRender
         osg::ref_ptr<osg::Image> image = new osg::Image;
         image->allocateImage(sFogOfWarResolution, sFogOfWarResolution, 1, GL_RGBA, GL_UNSIGNED_BYTE);
         assert(image->isDataContiguous());
-        std::vector<uint32_t> data;
+        std::vector<std::uint32_t> data;
         data.resize(sFogOfWarResolution * sFogOfWarResolution, 0xff000000);
 
         memcpy(image->data(), data.data(), data.size() * 4);

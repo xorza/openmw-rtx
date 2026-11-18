@@ -1,7 +1,6 @@
 #include "placementtable.hpp"
 
 #include <cassert>
-#include <cstddef>
 #include <span>
 #include <vector>
 
@@ -29,7 +28,7 @@ namespace Rtx
         };
     }
 
-    void PlacementTable::count(const Index slot)
+    void PlacementTable::count(const PlacementIndex slot)
     {
         const InstanceCounts share = shareOf(mRows.at(slot));
         mCounts.mPlaced += share.mPlaced;
@@ -47,7 +46,7 @@ namespace Rtx
             mPresent.addMakingRoom(slot);
     }
 
-    void PlacementTable::discount(const Index slot)
+    void PlacementTable::discount(const PlacementIndex slot)
     {
         const InstanceCounts share = shareOf(mRows.at(slot));
         mCounts.mPlaced -= share.mPlaced;
@@ -65,12 +64,12 @@ namespace Rtx
             mPresent.remove(slot);
     }
 
-    Index PlacementTable::add(const MeshInstance& instance, const Material::Traversed& worn)
+    PlacementIndex PlacementTable::add(const MeshInstance& instance, const Material::Traversed& worn)
     {
         // Standing where it is, not arriving from wherever the last tenant left. A reused slot
         // would otherwise inherit a previous transform from something else entirely, and a motion
         // vector built from that points across the frame.
-        const Index slot = mRows.take(PlacementRow{
+        const PlacementIndex slot = mRows.take(PlacementRow{
             .mInstance = instance,
             .mPrevious = instance.mTransform,
             .mWorn = worn,
@@ -84,48 +83,49 @@ namespace Rtx
         return slot;
     }
 
-    void PlacementTable::link(
-        const Index slot, const Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::* const links)
+    template <class Key>
+    void PlacementTable::link(const PlacementIndex slot, const Key key, RowVector<PlacementIndex, Key>& heads,
+        PlacementLinks PlacementRow::* const links)
     {
-        if (key == sNoIndex)
+        if (key == sNoRow)
             return;
 
         // Grown with the materials or the meshes rather than with the slots, on the arrival that
         // first names a key this high: their table grows on the same frame.
-        if (key >= heads.size())
-            heads.resize(std::size_t{ key } + 1, sNoIndex);
+        heads.growTo(key, sNoRow);
 
         PlacementLinks& at = mRows.at(slot).*links;
-        const Index first = heads[key];
+        const PlacementIndex first = heads[key];
         at = PlacementLinks{ .mNext = first };
-        if (first != sNoIndex)
+        if (first != sNoRow)
             (mRows.at(first).*links).mPrevious = slot;
         heads[key] = slot;
     }
 
-    void PlacementTable::unlink(
-        const Index slot, const Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::* const links)
+    template <class Key>
+    void PlacementTable::unlink(const PlacementIndex slot, const Key key, RowVector<PlacementIndex, Key>& heads,
+        PlacementLinks PlacementRow::* const links)
     {
-        if (key == sNoIndex)
+        if (key == sNoRow)
             return;
 
         PlacementLinks& at = mRows.at(slot).*links;
-        if (at.mPrevious != sNoIndex)
+        if (at.mPrevious != sNoRow)
             (mRows.at(at.mPrevious).*links).mNext = at.mNext;
         else
             heads[key] = at.mNext;
-        if (at.mNext != sNoIndex)
+        if (at.mNext != sNoRow)
             (mRows.at(at.mNext).*links).mPrevious = at.mPrevious;
 
         at = PlacementLinks{};
     }
 
-    void PlacementTable::rewriteWearing(const Index material, const Material::Traversed& worn)
+    void PlacementTable::rewriteWearing(const MaterialIndex material, const Material::Traversed& worn)
     {
-        if (material >= mFirstWearing.size())
+        if (!mFirstWearing.holds(material))
             return;
 
-        for (Index slot = mFirstWearing[material]; slot != sNoIndex; slot = mRows.at(slot).mWearing.mNext)
+        for (PlacementIndex slot = mFirstWearing[material]; slot != sNoRow; slot = mRows.at(slot).mWearing.mNext)
         {
             discount(slot);
             mRows.at(slot).mWorn = worn;
@@ -134,7 +134,7 @@ namespace Rtx
         }
     }
 
-    void PlacementTable::fade(const Index slot, const float opacity)
+    void PlacementTable::fade(const PlacementIndex slot, const float opacity)
     {
         PlacementRow& row = mRows.at(slot);
         assert(isPlaced(slot) && "a slot nothing stands in");
@@ -151,7 +151,7 @@ namespace Rtx
         mMoved.addMakingRoom(slot);
     }
 
-    bool PlacementTable::move(const Index slot, const osg::Matrixf& transform)
+    bool PlacementTable::move(const PlacementIndex slot, const osg::Matrixf& transform)
     {
         PlacementRow& row = mRows.at(slot);
         assert(isPlaced(slot) && "a slot nothing stands in");
@@ -165,7 +165,7 @@ namespace Rtx
         return true;
     }
 
-    bool PlacementTable::jump(const Index slot, const osg::Matrixf& transform)
+    bool PlacementTable::jump(const PlacementIndex slot, const osg::Matrixf& transform)
     {
         const bool moved = move(slot, transform);
 
@@ -180,7 +180,7 @@ namespace Rtx
         return moved;
     }
 
-    void PlacementTable::drop(const Index slot, const Stander by)
+    void PlacementTable::drop(const PlacementIndex slot, const Stander by)
     {
         PlacementRow& row = mRows.at(slot);
         assert(isPlaced(slot) && "a slot dropped twice, or one nothing stood in");
@@ -198,12 +198,12 @@ namespace Rtx
     }
 
     void PlacementTable::describePresences(
-        std::span<const MeshRange> meshes, std::vector<Shaders::GpuPresence>& into) const
+        RowSpan<const MeshRange, MeshIndex> meshes, std::vector<Shaders::GpuPresence>& into) const
     {
         into.clear();
         into.reserve(mPresent.getSlots().size());
 
-        for (const Index slot : mPresent.getSlots())
+        for (const PlacementIndex slot : mPresent.getSlots())
         {
             const PlacementRow& row = mRows.at(slot);
             const MeshInstance& placed = row.mInstance;
@@ -230,7 +230,7 @@ namespace Rtx
         // written whole with no motion, and a rewrite a frame later would recompute its row, two inverses, for
         // nothing.
         mSettled.clear();
-        for (const Index slot : mMoved.getSlots())
+        for (const PlacementIndex slot : mMoved.getSlots())
         {
             PlacementRow& row = mRows.at(slot);
             if (row.mPrevious == row.mInstance.mTransform)

@@ -4,9 +4,7 @@
 #include <cstdlib>
 #include <limits>
 
-#if defined(__linux__)
 #include <sys/prctl.h>
-#endif
 
 namespace Rtx::Testing::TestPlatform
 {
@@ -30,11 +28,6 @@ namespace Rtx::Testing::TestPlatform
         // **Non-dumpable on Linux, where a zero core limit is not enough.** With `core_pattern` a pipe to
         // `systemd-coredump`, the kernel starts the collector for every abort whatever the limit says,
         // which was most of what a death test cost; non-dumpable starts nothing.
-#if defined(__linux__)
         prctl(PR_SET_DUMPABLE, 0);
-#else
-        const rlimit none{ .rlim_cur = 0, .rlim_max = 0 };
-        setrlimit(RLIMIT_CORE, &none);
-#endif
     }
 }

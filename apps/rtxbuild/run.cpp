@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <limits>
 #include <ostream>
@@ -34,7 +35,7 @@ namespace
         Verb{ "specular-albedo", "<table.cpp>", 1, 1, &RtxBuild::specularAlbedo },
     };
 
-    int usage(std::ostream& errors)
+    std::int32_t usage(std::ostream& errors)
     {
         errors << "usage: openmw-rtx-build <verb> <arguments>, where <verb> is one of\n";
         for (const Verb& verb : sVerbs)
@@ -45,7 +46,7 @@ namespace
 
 namespace RtxBuild
 {
-    int run(const std::span<char* const> line, std::ostream& errors)
+    std::int32_t run(const std::span<char* const> line, std::ostream& errors)
     {
         if (line.size() < 2)
             return usage(errors);

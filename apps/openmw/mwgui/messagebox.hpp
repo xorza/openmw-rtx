@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "windowbase.hpp"
@@ -25,7 +27,7 @@ namespace MWGui
         void createMessageBox(std::string_view message, bool stat = false);
         void removeStaticMessageBox();
         bool createInteractiveMessageBox(std::string_view message, const std::vector<std::string>& buttons,
-            bool immediate = false, int defaultFocus = -1);
+            bool immediate = false, std::int32_t defaultFocus = -1);
         bool isInteractiveMessageBox();
 
         std::size_t getMessagesCount();
@@ -38,18 +40,18 @@ namespace MWGui
         bool removeMessageBox(MessageBox* msgbox);
 
         /// @param reset Reset the pressed button to -1 after reading it.
-        int readPressedButton(bool reset = true);
+        std::int32_t readPressedButton(bool reset = true);
 
         void resetInteractiveMessageBox();
 
-        void setLastButtonPressed(int index);
+        void setLastButtonPressed(std::int32_t index);
 
-        typedef MyGUI::delegates::MultiDelegate<int> EventHandle_Int;
+        typedef MyGUI::delegates::MultiDelegate<std::int32_t> EventHandle_Int;
 
         // Note: this delegate unassigns itself after it was fired, i.e. works once.
         EventHandle_Int eventButtonPressed;
 
-        void onButtonPressed(int button)
+        void onButtonPressed(std::int32_t button)
         {
             eventButtonPressed(button);
             eventButtonPressed.clear();
@@ -64,7 +66,7 @@ namespace MWGui
         std::unique_ptr<InteractiveMessageBox> mInterMessageBoxe;
         MessageBox* mStaticMessageBox;
         float mMessageBoxSpeed;
-        int mLastButtonPressed;
+        std::int32_t mLastButtonPressed;
         bool mVisible = true;
     };
 
@@ -73,8 +75,8 @@ namespace MWGui
     public:
         MessageBox(MessageBoxManager& parMessageBoxManager, std::string_view message);
         const std::string& getMessage() { return mMessage; }
-        int getHeight();
-        void update(int height);
+        std::int32_t getHeight();
+        void update(std::int32_t height);
         void setVisible(bool value) override;
 
         float mCurrentTime;
@@ -84,17 +86,17 @@ namespace MWGui
         MessageBoxManager& mMessageBoxManager;
         std::string mMessage;
         MyGUI::EditBox* mMessageWidget{};
-        int mBottomPadding;
-        int mNextBoxPadding;
+        std::int32_t mBottomPadding;
+        std::int32_t mNextBoxPadding;
     };
 
     class InteractiveMessageBox : public WindowModal
     {
     public:
         InteractiveMessageBox(MessageBoxManager& parMessageBoxManager, const std::string& message,
-            const std::vector<std::string>& buttons, bool immediate, size_t defaultFocus);
+            const std::vector<std::string>& buttons, bool immediate, std::size_t defaultFocus);
         void mousePressed(MyGUI::Widget* widget);
-        int readPressedButton();
+        std::int32_t readPressedButton();
 
         MyGUI::Widget* getDefaultKeyFocus() override;
 
@@ -112,10 +114,10 @@ namespace MWGui
         MyGUI::Widget* mButtonsWidget{};
         std::vector<MyGUI::Button*> mButtons;
 
-        int mButtonPressed;
-        size_t mDefaultFocus;
+        std::int32_t mButtonPressed;
+        std::size_t mDefaultFocus;
         bool mImmediate;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 
 }

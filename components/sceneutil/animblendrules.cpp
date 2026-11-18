@@ -1,16 +1,16 @@
 #include "animblendrules.hpp"
 
+#include <cstddef>
 #include <iterator>
 #include <ranges>
+#include <stdexcept>
 #include <utility>
 
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <components/debug/debuglog.hpp>
-
-#include <stdexcept>
-#include <yaml-cpp/yaml.h>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/lower.hpp>
 
 namespace SceneUtil
 {
@@ -20,7 +20,7 @@ namespace SceneUtil
         {
             std::string group;
             std::string key;
-            size_t delimiterInd = full.find(':');
+            std::size_t delimiterInd = full.find(':');
 
             Misc::StringUtils::lowerCaseInPlace(full);
 

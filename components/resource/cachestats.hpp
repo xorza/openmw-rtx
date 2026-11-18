@@ -36,5 +36,5 @@ namespace Resource
 
     void addCacheStatsAttibutes(std::string_view prefix, std::vector<std::string>& out);
 
-    void reportStats(std::string_view prefix, unsigned frameNumber, const CacheStats& src, osg::Stats& dst);
+    void reportStats(std::string_view prefix, std::uint32_t frameNumber, const CacheStats& src, osg::Stats& dst);
 }

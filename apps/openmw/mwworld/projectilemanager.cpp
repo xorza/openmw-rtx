@@ -1,5 +1,7 @@
 #include "projectilemanager.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <memory>
 #include <optional>
@@ -8,8 +10,25 @@
 #include <osg/PositionAttitudeTransform>
 #include <osg/Vec2f>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/spellcasting.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwphysics/projectile.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/util.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwsound/sound.hpp>
 #include <components/debug/debuglog.hpp>
-
+#include <components/esm/quaternion.hpp>
+#include <components/esm/vector3.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -17,50 +36,22 @@
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/projectilestate.hpp>
-
-#include <components/esm/quaternion.hpp>
-#include <components/esm/vector3.hpp>
-
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/visitor.hpp>
-
 #include <components/settings/values.hpp>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/spellcasting.hpp"
-
-#include "../mwrender/animation.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/util.hpp"
-#include "../mwrender/vismask.hpp"
-
-#include "../mwsound/sound.hpp"
-
-#include "../mwphysics/physicssystem.hpp"
-#include "../mwphysics/projectile.hpp"
+#include "class.hpp"
+#include "esmstore.hpp"
+#include "inventorystore.hpp"
+#include "manualref.hpp"
+#include "worldmodel.hpp"
 
 namespace
 {
@@ -106,7 +97,7 @@ namespace
 
         // Estimate the flight time to the current position, then refine it once using the predicted position
         osg::Vec3f predicted = target.mPosition;
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
             const osg::Vec2f offset(predicted.x() - launchPos.x(), predicted.y() - launchPos.y());
             const float flightTime = offset.length() / projectileSpeed;
@@ -134,7 +125,7 @@ namespace
             effects = &ench->mEffects;
         }
 
-        int count = 0;
+        std::int32_t count = 0;
         speed = 0.0f;
         ESM::EffectList projectileEffects;
         for (const ESM::IndexedENAMstruct& effect : effects->mList)
@@ -199,7 +190,7 @@ namespace
                 = MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().find(enam.mData.mEffectID);
             lightDiffuseColor += magicEffect->getColor();
         }
-        size_t numberOfEffects = effects.mList.size();
+        std::size_t numberOfEffects = effects.mList.size();
         lightDiffuseColor /= static_cast<float>(numberOfEffects);
 
         return lightDiffuseColor;
@@ -294,7 +285,7 @@ namespace MWWorld
 
         if (state.mIdMagic.size() > 1)
         {
-            for (size_t iter = 1; iter != state.mIdMagic.size(); ++iter)
+            for (std::size_t iter = 1; iter != state.mIdMagic.size(); ++iter)
             {
                 std::ostringstream nodeName;
                 nodeName << "Dummy" << std::setw(2) << std::setfill('0') << iter;
@@ -764,7 +755,7 @@ namespace MWWorld
         }
     }
 
-    bool ProjectileManager::readRecord(ESM::ESMReader& reader, uint32_t type)
+    bool ProjectileManager::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_PROJ)
         {
@@ -868,7 +859,7 @@ namespace MWWorld
         return false;
     }
 
-    size_t ProjectileManager::countSavedGameRecords() const
+    std::size_t ProjectileManager::countSavedGameRecords() const
     {
         return mMagicBolts.size() + mProjectiles.size();
     }
@@ -879,9 +870,10 @@ namespace MWWorld
         if (reader.mActorIdConverter)
         {
             for (ProjectileState& projectile : mProjectiles)
-                reader.mActorIdConverter->convert(projectile.mCaster, static_cast<int>(projectile.mCaster.mIndex));
+                reader.mActorIdConverter->convert(
+                    projectile.mCaster, static_cast<std::int32_t>(projectile.mCaster.mIndex));
             for (MagicBoltState& bolt : mMagicBolts)
-                reader.mActorIdConverter->convert(bolt.mCaster, static_cast<int>(bolt.mCaster.mIndex));
+                reader.mActorIdConverter->convert(bolt.mCaster, static_cast<std::int32_t>(bolt.mCaster.mIndex));
         }
     }
 

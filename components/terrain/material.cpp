@@ -1,5 +1,8 @@
 #include "material.hpp"
 
+#include <cstdint>
+#include <mutex>
+
 #include <osg/BlendFunc>
 #include <osg/Capability>
 #include <osg/Depth>
@@ -12,14 +15,12 @@
 #include <components/shader/shadermanager.hpp>
 #include <components/stereo/stereomanager.hpp>
 
-#include <mutex>
-
 namespace
 {
     class BlendmapTexMat
     {
     public:
-        static const osg::ref_ptr<osg::Uniform>& value(const int blendmapScale)
+        static const osg::ref_ptr<osg::Uniform>& value(const std::int32_t blendmapScale)
         {
             static BlendmapTexMat instance;
             return instance.get(static_cast<float>(blendmapScale));
@@ -181,12 +182,12 @@ namespace Terrain
 {
     std::vector<osg::ref_ptr<osg::StateSet>> createPasses(Resource::SceneManager* sceneManager,
         const std::vector<TextureLayer>& layers, const std::vector<osg::ref_ptr<osg::Texture2D>>& blendmaps,
-        int blendmapScale, float layerTileSize, bool isComposite, bool esm4terrain)
+        std::int32_t blendmapScale, float layerTileSize, bool isComposite, bool esm4terrain)
     {
         auto& shaderManager = sceneManager->getShaderManager();
         std::vector<osg::ref_ptr<osg::StateSet>> passes;
 
-        unsigned int blendmapIndex = 0;
+        std::uint32_t blendmapIndex = 0;
         for (auto it = layers.begin(); it != layers.end(); ++it)
         {
             bool firstLayer = (it == layers.begin());

@@ -1,5 +1,6 @@
 #include "cell.hpp"
 
+#include <cstdint>
 #include <ranges>
 #include <set>
 #include <utility>
@@ -10,13 +11,23 @@
 #include <osg/NodeVisitor>
 #include <osg/Referenced>
 
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/cell.hpp>
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/land.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/ref.hpp>
+#include <apps/opencs/model/world/refcollection.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/terrain/terraingrid.hpp>
-
-#include "../../model/doc/document.hpp"
-#include "../../model/world/idtable.hpp"
 
 #include "cellarrow.hpp"
 #include "cellborder.hpp"
@@ -26,21 +37,9 @@
 #include "mask.hpp"
 #include "objectmarker.hpp"
 #include "pathgrid.hpp"
+#include "tagbase.hpp"
 #include "terrainstorage.hpp"
 #include "worldspacewidget.hpp"
-
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/commands.hpp>
-#include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/land.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/ref.hpp>
-#include <apps/opencs/model/world/refcollection.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
 
 namespace CSVRender
 {
@@ -92,13 +91,13 @@ std::map<std::string, CSVRender::Object*>::iterator CSVRender::Cell::removeObjec
     return iter;
 }
 
-bool CSVRender::Cell::addObjects(int start, int end)
+bool CSVRender::Cell::addObjects(std::int32_t start, std::int32_t end)
 {
     bool modified = false;
 
     const CSMWorld::RefCollection& collection = mData.getReferences();
 
-    for (int i = start; i <= end; ++i)
+    for (std::int32_t i = start; i <= end; ++i)
     {
         const auto& cellId = ESM::RefId::stringRefId(collection.getRecord(i).get().mCell.toString());
 
@@ -198,13 +197,13 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
         CSMWorld::IdTable& references
             = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
 
-        int rows = references.rowCount();
+        std::int32_t rows = references.rowCount();
 
         addObjects(0, rows - 1);
 
         if (mUpdateLand)
         {
-            int landIndex = document.getData().getLand().searchId(mId);
+            std::int32_t landIndex = document.getData().getLand().searchId(mId);
             if (landIndex == -1)
             {
                 CSMWorld::IdTable& landTable
@@ -243,7 +242,7 @@ bool CSVRender::Cell::referenceableDataChanged(const QModelIndex& topLeft, const
     return modified;
 }
 
-bool CSVRender::Cell::referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+bool CSVRender::Cell::referenceableAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (parent.isValid())
         return false;
@@ -265,14 +264,14 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
     CSMWorld::IdTable& references
         = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
 
-    int idColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-    int cellColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
-    int stateColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
+    std::int32_t idColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t cellColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+    std::int32_t stateColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
 
     // list IDs in cell
     std::map<std::string, bool> ids; // id, deleted state
 
-    for (int i = topLeft.row(); i <= bottomRight.row(); ++i)
+    for (std::int32_t i = topLeft.row(); i <= bottomRight.row(); ++i)
     {
         auto cell
             = ESM::RefId::stringRefId(references.data(references.index(i, cellColumn)).toString().toUtf8().constData());
@@ -282,7 +281,7 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
             std::string id = Misc::StringUtils::lowerCase(
                 references.data(references.index(i, idColumn)).toString().toUtf8().constData());
 
-            int state = references.data(references.index(i, stateColumn)).toInt();
+            std::int32_t state = references.data(references.index(i, stateColumn)).toInt();
 
             ids.insert(std::make_pair(id, state == CSMWorld::RecordBase::State_Deleted));
         }
@@ -329,7 +328,7 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
     return modified;
 }
 
-bool CSVRender::Cell::referenceAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+bool CSVRender::Cell::referenceAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (parent.isValid())
         return false;
@@ -340,18 +339,18 @@ bool CSVRender::Cell::referenceAboutToBeRemoved(const QModelIndex& parent, int s
     CSMWorld::IdTable& references
         = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
 
-    int idColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t idColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
 
     bool modified = false;
 
-    for (int row = start; row <= end; ++row)
+    for (std::int32_t row = start; row <= end; ++row)
         if (removeObject(references.data(references.index(row, idColumn)).toString().toUtf8().constData()))
             modified = true;
 
     return modified;
 }
 
-bool CSVRender::Cell::referenceAdded(const QModelIndex& parent, int start, int end)
+bool CSVRender::Cell::referenceAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (parent.isValid())
         return false;
@@ -362,18 +361,19 @@ bool CSVRender::Cell::referenceAdded(const QModelIndex& parent, int start, int e
     return addObjects(start, end);
 }
 
-void CSVRender::Cell::setAlteredHeight(int inCellX, int inCellY, float height)
+void CSVRender::Cell::setAlteredHeight(std::int32_t inCellX, std::int32_t inCellY, float height)
 {
     mTerrainStorage->setAlteredHeight(inCellX, inCellY, height);
     mUpdateLand = true;
 }
 
-float CSVRender::Cell::getSumOfAlteredAndTrueHeight(int cellX, int cellY, int inCellX, int inCellY)
+float CSVRender::Cell::getSumOfAlteredAndTrueHeight(
+    std::int32_t cellX, std::int32_t cellY, std::int32_t inCellX, std::int32_t inCellY)
 {
     return mTerrainStorage->getSumOfAlteredAndTrueHeight(cellX, cellY, inCellX, inCellY);
 }
 
-float* CSVRender::Cell::getAlteredHeight(int inCellX, int inCellY)
+float* CSVRender::Cell::getAlteredHeight(std::int32_t inCellX, std::int32_t inCellY)
 {
     return mTerrainStorage->getAlteredHeight(inCellX, inCellY);
 }
@@ -401,13 +401,13 @@ void CSVRender::Cell::landDataChanged(const QModelIndex& topLeft, const QModelIn
     mUpdateLand = true;
 }
 
-void CSVRender::Cell::landAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::Cell::landAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     mLandDeleted = true;
     unloadLand();
 }
 
-void CSVRender::Cell::landAdded(const QModelIndex& parent, int start, int end)
+void CSVRender::Cell::landAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     mUpdateLand = true;
     mLandDeleted = false;
@@ -418,12 +418,12 @@ void CSVRender::Cell::landTextureChanged(const QModelIndex& topLeft, const QMode
     mUpdateLand = true;
 }
 
-void CSVRender::Cell::landTextureAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::Cell::landTextureAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     mUpdateLand = true;
 }
 
-void CSVRender::Cell::landTextureAdded(const QModelIndex& parent, int start, int end)
+void CSVRender::Cell::landTextureAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     mUpdateLand = true;
 }
@@ -445,9 +445,9 @@ void CSVRender::Cell::reloadAssets()
         mCellWater->reloadAssets();
 }
 
-void CSVRender::Cell::setSelection(int elementMask, Selection mode)
+void CSVRender::Cell::setSelection(std::int32_t elementMask, Selection mode)
 {
-    if (static_cast<unsigned int>(elementMask) & Mask_Reference)
+    if (static_cast<std::uint32_t>(elementMask) & Mask_Reference)
     {
         for (Object* object : mObjects | std::views::values)
         {
@@ -472,7 +472,7 @@ void CSVRender::Cell::setSelection(int elementMask, Selection mode)
         }
         mSelectionMarker->updateSelectionMarker();
     }
-    if (mPathgrid && static_cast<unsigned int>(elementMask) & Mask_Pathgrid)
+    if (mPathgrid && static_cast<std::uint32_t>(elementMask) & Mask_Pathgrid)
     {
         // Only one pathgrid may be selected, so some operations will only have an effect
         // if the pathgrid is already focused
@@ -495,7 +495,7 @@ void CSVRender::Cell::setSelection(int elementMask, Selection mode)
     }
 }
 
-void CSVRender::Cell::selectAllWithSameParentId(int elementMask)
+void CSVRender::Cell::selectAllWithSameParentId(std::int32_t elementMask)
 {
     std::set<std::string> ids;
 
@@ -570,9 +570,9 @@ void CSVRender::Cell::selectWithinDistance(const osg::Vec3d& point, float distan
     mSelectionMarker->updateSelectionMarker();
 }
 
-void CSVRender::Cell::setCellArrows(int mask)
+void CSVRender::Cell::setCellArrows(std::int32_t mask)
 {
-    for (int i = 0; i < 4; ++i)
+    for (std::int32_t i = 0; i < 4; ++i)
     {
         auto direction = static_cast<CellArrow::Direction>(1 << i);
 
@@ -593,7 +593,7 @@ void CSVRender::Cell::setCellMarker()
     bool cellExists = false;
     bool isInteriorCell = false;
 
-    int cellIndex = mData.getCells().searchId(mId);
+    std::int32_t cellIndex = mData.getCells().searchId(mId);
     if (cellIndex > -1)
     {
         const CSMWorld::Record<CSMWorld::Cell>& cellRecord = mData.getCells().getRecord(cellIndex);
@@ -617,7 +617,7 @@ bool CSVRender::Cell::isDeleted() const
     return mDeleted;
 }
 
-osg::ref_ptr<CSVRender::TagBase> CSVRender::Cell::getSnapTarget(unsigned int elementMask) const
+osg::ref_ptr<CSVRender::TagBase> CSVRender::Cell::getSnapTarget(std::uint32_t elementMask) const
 {
     osg::ref_ptr<TagBase> result;
 
@@ -655,7 +655,7 @@ void CSVRender::Cell::unhideAll()
     }
 }
 
-std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getSelection(unsigned int elementMask) const
+std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getSelection(std::uint32_t elementMask) const
 {
     std::vector<osg::ref_ptr<TagBase>> result;
 
@@ -670,7 +670,7 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getSelection(unsi
     return result;
 }
 
-std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getEdited(unsigned int elementMask) const
+std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getEdited(std::uint32_t elementMask) const
 {
     std::vector<osg::ref_ptr<TagBase>> result;
 
@@ -682,7 +682,7 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getEdited(unsigne
     return result;
 }
 
-void CSVRender::Cell::setSubMode(int subMode, unsigned int elementMask)
+void CSVRender::Cell::setSubMode(std::int32_t subMode, std::uint32_t elementMask)
 {
     mSubMode = subMode;
     mSubModeElementMask = elementMask;
@@ -691,7 +691,7 @@ void CSVRender::Cell::setSubMode(int subMode, unsigned int elementMask)
         mSelectionMarker->setSubMode(subMode);
 }
 
-void CSVRender::Cell::reset(unsigned int elementMask)
+void CSVRender::Cell::reset(std::uint32_t elementMask)
 {
     if (elementMask & Mask_Reference)
         for (Object* object : mObjects | std::views::values)

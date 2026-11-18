@@ -1,9 +1,7 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
-
-#include <osg-ffmpeg-videoplayer/libavformatdefines.hpp>
-#include <osg-ffmpeg-videoplayer/libavutildefines.hpp>
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -26,11 +24,11 @@ extern "C"
 #pragma warning(pop)
 #endif
 
-#include <components/files/istreamptr.hpp>
-
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <components/files/istreamptr.hpp>
 
 #include "sounddecoder.hpp"
 
@@ -85,14 +83,10 @@ namespace MWSound
 
         SwrContext* mSwr;
         enum AVSampleFormat mOutputSampleFormat;
-#if OPENMW_FFMPEG_5_OR_GREATER
         AVChannelLayout mOutputChannelLayout;
-#else
-        int64_t mOutputChannelLayout;
-#endif
-        uint8_t* mDataBuf;
-        uint8_t** mFrameData;
-        int mDataBufLen;
+        std::uint8_t* mDataBuf;
+        std::uint8_t** mFrameData;
+        std::int32_t mDataBufLen;
 
         bool getNextPacket();
 
@@ -116,26 +110,22 @@ namespace MWSound
         // positioned at mStreamBase.
         void applyArtShims();
 
-        static int readPacket(void* userData, uint8_t* buf, int bufSize);
-#if OPENMW_FFMPEG_CONST_WRITEPACKET
-        static int writePacket(void* userData, const uint8_t* buf, int bufSize);
-#else
-        static int writePacket(void* userData, uint8_t* buf, int bufSize);
-#endif
-        static int64_t seek(void* userData, int64_t offset, int whence);
+        static std::int32_t readPacket(void* userData, std::uint8_t* buf, std::int32_t bufSize);
+        static std::int32_t writePacket(void* userData, const std::uint8_t* buf, std::int32_t bufSize);
+        static std::int64_t seek(void* userData, std::int64_t offset, std::int32_t whence);
 
         bool getAVAudioData();
-        size_t readAVAudioData(void* data, size_t length);
+        std::size_t readAVAudioData(void* data, std::size_t length);
 
         void open(VFS::Path::NormalizedView fname) override;
         void close() override;
 
         std::string getName() override;
-        void getInfo(int* samplerate, ChannelConfig* chans, SampleType* type) override;
+        void getInfo(std::int32_t* samplerate, ChannelConfig* chans, SampleType* type) override;
 
-        size_t read(char* buffer, size_t bytes) override;
+        std::size_t read(char* buffer, std::size_t bytes) override;
         void readAll(std::vector<char>& output) override;
-        size_t getSampleOffset() override;
+        std::size_t getSampleOffset() override;
 
     public:
         FFmpegDecoder& operator=(const FFmpegDecoder& rhs) = delete;

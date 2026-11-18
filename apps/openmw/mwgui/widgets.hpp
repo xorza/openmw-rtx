@@ -1,11 +1,12 @@
 #pragma once
 
-#include "../mwmechanics/stat.hpp"
+#include <cstdint>
 
 #include <MyGUI_Delegate.h>
 #include <MyGUI_TextBox.h>
 #include <MyGUI_Widget.h>
 
+#include <apps/openmw/mwmechanics/stat.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/effectlist.hpp>
@@ -58,10 +59,10 @@ namespace MWGui
             ESM::RefId mEffectID, mSkill, mAttribute;
 
             // value of -1 here means the value is unavailable
-            int mMagnMin, mMagnMax, mRange, mDuration;
+            std::int32_t mMagnMin, mMagnMax, mRange, mDuration;
 
             // value of 0 -> no area effect
-            int mArea;
+            std::int32_t mArea;
         };
 
         typedef std::vector<SpellEffectParams> SpellEffectList;
@@ -168,8 +169,8 @@ namespace MWGui
              * duration
              * @param various flags, see MWEffectList::EffectFlags
              */
-            void createEffectWidgets(
-                std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator, MyGUI::IntCoord& coord, int flags);
+            void createEffectWidgets(std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator,
+                MyGUI::IntCoord& coord, std::int32_t flags);
 
             const ESM::RefId& getSpellId() const { return mId; }
 
@@ -213,7 +214,7 @@ namespace MWGui
              * @param various flags, see MWEffectList::EffectFlags
              */
             void createEffectWidgets(std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator,
-                MyGUI::IntCoord& coord, bool center, int flags);
+                MyGUI::IntCoord& coord, bool center, std::int32_t flags);
 
         protected:
             ~MWEffectList() override;
@@ -237,7 +238,7 @@ namespace MWGui
 
             void setSpellEffect(const SpellEffectParams& params);
 
-            int getRequestedWidth() const { return mRequestedWidth; }
+            std::int32_t getRequestedWidth() const { return mRequestedWidth; }
 
             void setStateSelected(bool selected);
 
@@ -247,14 +248,14 @@ namespace MWGui
             void initialiseOverride() override;
 
         private:
-            static constexpr int sIconOffset = 24;
+            static constexpr std::int32_t sIconOffset = 24;
 
             void updateWidgets();
 
             SpellEffectParams mEffectParams;
             MyGUI::ImageBox* mImageWidget;
             MyGUI::TextBox* mTextWidget;
-            int mRequestedWidth;
+            std::int32_t mRequestedWidth;
         };
         typedef MWSpellEffect* MWSpellEffectPtr;
 
@@ -264,11 +265,11 @@ namespace MWGui
         public:
             MWDynamicStat();
 
-            void setValue(int cur, int max);
+            void setValue(std::int32_t cur, std::int32_t max);
             void setTitle(std::string_view text);
 
-            int getValue() const { return mValue; }
-            int getMax() const { return mMax; }
+            std::int32_t getValue() const { return mValue; }
+            std::int32_t getMax() const { return mMax; }
 
         protected:
             ~MWDynamicStat() override;
@@ -276,7 +277,7 @@ namespace MWGui
             void initialiseOverride() override;
 
         private:
-            int mValue, mMax;
+            std::int32_t mValue, mMax;
             MyGUI::TextBox* mTextWidget;
             MyGUI::ProgressBar* mBarWidget;
             MyGUI::TextBox* mBarTextWidget;

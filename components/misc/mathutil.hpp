@@ -1,13 +1,14 @@
 #pragma once
 
+#include <cmath>
+#include <cstdint>
+#include <type_traits>
+
 #include <osg/Math>
 #include <osg/Matrixf>
 #include <osg/Quat>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
-
-#include <cmath>
-#include <type_traits>
 
 namespace Misc
 {
@@ -81,11 +82,11 @@ namespace Misc
         return ((x > 0) && ((x & (x - 1)) == 0));
     }
 
-    inline int nextPowerOfTwo(int v)
+    inline std::int32_t nextPowerOfTwo(std::int32_t v)
     {
         if (isPowerOfTwo(v))
             return v;
-        int depth = 0;
+        std::int32_t depth = 0;
         while (v)
         {
             v >>= 1;

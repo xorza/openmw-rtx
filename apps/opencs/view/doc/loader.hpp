@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -34,9 +35,9 @@ namespace CSVDoc
         QLabel* mError;
         QListWidget* mMessages;
         QVBoxLayout* mLayout;
-        int mRecords;
-        int mTotalRecords;
-        int mFilesLoaded;
+        std::int32_t mRecords;
+        std::int32_t mTotalRecords;
+        std::int32_t mFilesLoaded;
 
     private:
         void closeEvent(QCloseEvent* event) override;
@@ -44,9 +45,9 @@ namespace CSVDoc
     public:
         explicit LoadingDocument(CSMDoc::Document* document);
 
-        void nextStage(const std::string& name, int fileRecords);
+        void nextStage(const std::string& name, std::int32_t fileRecords);
 
-        void nextRecord(int records);
+        void nextRecord(std::int32_t records);
 
         void abort(const std::string& error);
 
@@ -88,9 +89,9 @@ namespace CSVDoc
 
         void loadingStopped(CSMDoc::Document* document, bool completed, const std::string& error);
 
-        void nextStage(CSMDoc::Document* document, const std::string& name, int fileRecords);
+        void nextStage(CSMDoc::Document* document, const std::string& name, std::int32_t fileRecords);
 
-        void nextRecord(CSMDoc::Document* document, int records);
+        void nextRecord(CSMDoc::Document* document, std::int32_t records);
 
         void loadMessage(CSMDoc::Document* document, const std::string& message);
     };

@@ -2,15 +2,16 @@
 
 #include <algorithm>
 #include <cmath>
-
-#include <components/l10n/manager.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <components/l10n/manager.hpp>
 
 #include "duration.hpp"
 #include "globals.hpp"
@@ -18,7 +19,7 @@
 
 namespace
 {
-    static int getDaysPerMonth(int month)
+    std::int32_t getDaysPerMonth(std::int32_t month)
     {
         switch (month)
         {
@@ -76,18 +77,18 @@ namespace MWWorld
 
         mGameHour = duration.getHours();
 
-        if (const int days = duration.getDays(); days > 0)
+        if (const std::int32_t days = duration.getDays(); days > 0)
             setDay(days + mDay);
     }
 
-    void DateTimeManager::setDay(int day)
+    void DateTimeManager::setDay(std::int32_t day)
     {
         day = std::max(day, 1);
 
-        int month = mMonth;
+        std::int32_t month = mMonth;
         while (true)
         {
-            int days = getDaysPerMonth(month);
+            std::int32_t days = getDaysPerMonth(month);
             if (day <= days)
                 break;
 
@@ -128,14 +129,14 @@ namespace MWWorld
         return timeStamp;
     }
 
-    void DateTimeManager::setMonth(int month)
+    void DateTimeManager::setMonth(std::int32_t month)
     {
         month = std::max(month, 0);
 
-        int years = month / 12;
+        std::int32_t years = month / 12;
         month = month % 12;
 
-        int days = getDaysPerMonth(month);
+        std::int32_t days = getDaysPerMonth(month);
         mDay = std::min(mDay, days);
 
         mMonth = month;
@@ -149,7 +150,7 @@ namespace MWWorld
         hours += static_cast<double>(mGameHour);
         setHour(hours);
 
-        int days = static_cast<int>(hours / 24);
+        auto days = static_cast<std::int32_t>(hours / 24);
         if (days > 0)
             mDaysPassed += days;
 
@@ -167,15 +168,15 @@ namespace MWWorld
             auto calendarL10n = MWBase::Environment::get().getL10nManager()->getContext("Calendar");
             std::string prefix = "month";
             std::vector<std::string> months;
-            int count = 12;
+            std::int32_t count = 12;
             months.reserve(static_cast<std::size_t>(count));
-            for (int i = 1; i <= count; ++i)
+            for (std::int32_t i = 1; i <= count; ++i)
                 months.push_back(calendarL10n->formatMessage(prefix + std::to_string(i), {}, {}));
             return months;
         }
     }
 
-    std::string_view DateTimeManager::getMonthName(int month) const
+    std::string_view DateTimeManager::getMonthName(std::int32_t month) const
     {
         static std::vector<std::string> months = getMonthNames();
 
@@ -189,8 +190,8 @@ namespace MWWorld
 
     std::string DateTimeManager::formatTimeOfDay(float hour) const
     {
-        const int minutes = static_cast<int>(hour * 60);
-        const int hour24 = minutes / 60;
+        const auto minutes = static_cast<std::int32_t>(hour * 60);
+        const std::int32_t hour24 = minutes / 60;
         auto calendarL10n = MWBase::Environment::get().getL10nManager()->getContext("Calendar");
         const std::string period = calendarL10n->formatMessage(hour24 < 12 ? "am" : "pm", {}, {});
         return calendarL10n->formatMessage("timeFormat", { "hour", "hour12", "minute", "period" },
@@ -222,15 +223,15 @@ namespace MWWorld
         }
         else if (name == Globals::sDay)
         {
-            setDay(static_cast<int>(value));
+            setDay(static_cast<std::int32_t>(value));
         }
         else if (name == Globals::sMonth)
         {
-            setMonth(static_cast<int>(value));
+            setMonth(static_cast<std::int32_t>(value));
         }
         else if (name == Globals::sYear)
         {
-            mYear = static_cast<int>(value);
+            mYear = static_cast<std::int32_t>(value);
         }
         else if (name == Globals::sTimeScale)
         {
@@ -238,11 +239,11 @@ namespace MWWorld
         }
         else if (name == Globals::sDaysPassed)
         {
-            mDaysPassed = static_cast<int>(value);
+            mDaysPassed = static_cast<std::int32_t>(value);
         }
     }
 
-    void DateTimeManager::updateGlobalInt(GlobalVariableName name, int value)
+    void DateTimeManager::updateGlobalInt(GlobalVariableName name, std::int32_t value)
     {
         if (name == Globals::sGameHour)
         {

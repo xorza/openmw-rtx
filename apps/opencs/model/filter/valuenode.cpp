@@ -1,12 +1,13 @@
 #include "valuenode.hpp"
 
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
 
-#include "../world/idtablebase.hpp"
+#include <apps/opencs/model/world/idtablebase.hpp>
 
-CSMFilter::ValueNode::ValueNode(int columnId, Type lowerType, Type upperType, double lower, double upper)
+CSMFilter::ValueNode::ValueNode(std::int32_t columnId, Type lowerType, Type upperType, double lower, double upper)
     : mColumnId(columnId)
     , mLower(lower)
     , mUpper(upper)
@@ -15,7 +16,8 @@ CSMFilter::ValueNode::ValueNode(int columnId, Type lowerType, Type upperType, do
 {
 }
 
-bool CSMFilter::ValueNode::test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const
+bool CSMFilter::ValueNode::test(
+    const CSMWorld::IdTableBase& table, std::int32_t row, const std::map<std::int32_t, std::int32_t>& columns) const
 {
     const auto iter = columns.find(mColumnId);
 
@@ -66,9 +68,9 @@ bool CSMFilter::ValueNode::test(const CSMWorld::IdTableBase& table, int row, con
     return true;
 }
 
-std::vector<int> CSMFilter::ValueNode::getReferencedColumns() const
+std::vector<std::int32_t> CSMFilter::ValueNode::getReferencedColumns() const
 {
-    return std::vector<int>(1, mColumnId);
+    return std::vector<std::int32_t>(1, mColumnId);
 }
 
 std::string CSMFilter::ValueNode::toString(bool numericColumns) const

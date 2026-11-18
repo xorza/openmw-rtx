@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "halfstep.hpp"
+
+#include <gtest/gtest.h>
 
 namespace Rtx::Testing
 {

@@ -1,5 +1,25 @@
 #pragma once
 
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <iosfwd>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <set>
+#include <thread>
+#include <tuple>
+
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/index/rtree.hpp>
+
+#include <components/contentstore/key.hpp>
+
 #include "agentbounds.hpp"
 #include "changetype.hpp"
 #include "clock.hpp"
@@ -13,24 +33,6 @@
 #include "tilecachedrecastmeshmanager.hpp"
 #include "tileposition.hpp"
 #include "waitconditiontype.hpp"
-
-#include <components/contentstore/key.hpp>
-
-#include <boost/geometry/geometries/point.hpp>
-#include <boost/geometry/index/rtree.hpp>
-
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <deque>
-#include <iosfwd>
-#include <list>
-#include <memory>
-#include <mutex>
-#include <optional>
-#include <set>
-#include <thread>
-#include <tuple>
 
 class dtNavMesh;
 
@@ -83,10 +85,10 @@ namespace DetourNavigator
 
         std::optional<JobIt> pop(TilePosition playerTile);
 
-        void update(TilePosition playerTile, int maxTiles, std::vector<JobIt>& removing);
+        void update(TilePosition playerTile, std::int32_t maxTiles, std::vector<JobIt>& removing);
 
     private:
-        using IndexPoint = boost::geometry::model::point<int, 2, boost::geometry::cs::cartesian>;
+        using IndexPoint = boost::geometry::model::point<std::int32_t, 2, boost::geometry::cs::cartesian>;
         using UpdatingMap = std::map<TilePosition, std::deque<JobIt>>;
         using IndexValue = std::pair<IndexPoint, UpdatingMap::iterator>;
 
@@ -115,7 +117,7 @@ namespace DetourNavigator
 
         std::optional<JobIt> pop(TilePosition playerTile, std::chrono::steady_clock::time_point now);
 
-        void update(TilePosition playerTile, int maxTiles, std::chrono::steady_clock::time_point now);
+        void update(TilePosition playerTile, std::int32_t maxTiles, std::chrono::steady_clock::time_point now);
 
     private:
         std::vector<JobIt> mRemoving;
@@ -193,7 +195,7 @@ namespace DetourNavigator
         /// @param clock what a job's delay is timed by, which outlives the updater.
         AsyncNavMeshUpdater(const Settings& settings, TileCachedRecastMeshManager& recastMeshManager,
             OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshTileStore>&& store,
-            const Clock& clock = steadyClock());
+            Resource::CacheBudget& budget, const Clock& clock = steadyClock());
         ~AsyncNavMeshUpdater();
 
         void post(const AgentBounds& agentBounds, const SharedNavMeshCacheItem& navMeshCacheItem,

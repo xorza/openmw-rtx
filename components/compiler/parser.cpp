@@ -1,10 +1,12 @@
 #include "parser.hpp"
 
+#include <cstdint>
+
+#include <components/misc/strings/lower.hpp>
+
 #include "errorhandler.hpp"
 #include "exception.hpp"
 #include "scanner.hpp"
-
-#include <components/misc/strings/lower.hpp>
 
 namespace Compiler
 {
@@ -69,7 +71,7 @@ namespace Compiler
     //
     // - Default-implementation: Report an error.
 
-    bool Parser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
+    bool Parser::parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner)
     {
         if (!(mOptional && mEmpty))
             reportSeriousError("Unexpected numeric value", loc);
@@ -114,7 +116,7 @@ namespace Compiler
     //
     // - Default-implementation: Report an error.
 
-    bool Parser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool Parser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         if (!(mOptional && mEmpty))
             reportSeriousError("Unexpected keyword", loc);
@@ -129,7 +131,7 @@ namespace Compiler
     //
     // - Default-implementation: Report an error.
 
-    bool Parser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+    bool Parser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
     {
         if (!(mOptional && mEmpty))
             reportSeriousError("Unexpected special token", loc);

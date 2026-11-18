@@ -1,14 +1,11 @@
-#include <components/misc/strings/conversion.hpp>
-#include <components/toutf8/toutf8.hpp>
-
-#include <gtest/gtest.h>
-
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 
-#ifndef OPENMW_PROJECT_SOURCE_DIR
-#define OPENMW_PROJECT_SOURCE_DIR "."
-#endif
+#include <gtest/gtest.h>
+
+#include <components/misc/strings/conversion.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 namespace
 {
@@ -46,7 +43,7 @@ namespace
     TEST(Utf8EncoderTest, getUtf8ShouldReturnAsciiOnlyAsIs)
     {
         std::string input;
-        for (int c = 1; c <= std::numeric_limits<char>::max(); ++c)
+        for (std::int32_t c = 1; c <= std::numeric_limits<char>::max(); ++c)
             input.push_back(static_cast<char>(c));
         Utf8Encoder encoder(FromType::CP437);
         const std::string_view result = encoder.getUtf8(input);
@@ -98,7 +95,7 @@ namespace
     TEST(Utf8EncoderTest, getLegacyEncShouldReturnAsciiOnlyAsIs)
     {
         std::string input;
-        for (int c = 1; c <= std::numeric_limits<char>::max(); ++c)
+        for (std::int32_t c = 1; c <= std::numeric_limits<char>::max(); ++c)
             input.push_back(static_cast<char>(c));
         Utf8Encoder encoder(FromType::CP437);
         const std::string_view result = encoder.getLegacyEnc(input);

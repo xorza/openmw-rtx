@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -43,7 +45,10 @@ namespace MWScript
         /// @note var needs to be in lowercase
         ///
         /// \note Locals will be automatically configured first, if necessary
-        bool setVarByInt(const ESM::RefId& script, std::string_view var, int val) { return setVar(script, var, val); }
+        bool setVarByInt(const ESM::RefId& script, std::string_view var, std::int32_t val)
+        {
+            return setVar(script, var, val);
+        }
         bool setVar(const ESM::RefId& script, std::string_view var, double val);
 
         /// \note Locals will be automatically configured first, if necessary
@@ -57,9 +62,9 @@ namespace MWScript
         ///
         /// \note Locals will be automatically configured first, if necessary
         double getVarAsDouble(const ESM::RefId& script, std::string_view var);
-        int getIntVar(const ESM::RefId& script, std::string_view var)
+        std::int32_t getIntVar(const ESM::RefId& script, std::string_view var)
         {
-            return static_cast<int>(getVarAsDouble(script, var));
+            return static_cast<std::int32_t>(getVarAsDouble(script, var));
         }
         float getFloatVar(const ESM::RefId& script, std::string_view var)
         {

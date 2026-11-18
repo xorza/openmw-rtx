@@ -1,5 +1,21 @@
-#include "navmesh.hpp"
-#include "worldspacedata.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <iostream>
+#include <map>
+#include <regex>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
@@ -17,6 +33,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/multidircollection.hpp>
+#include <components/platform/file.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/bulletshapemanager.hpp>
@@ -32,28 +49,8 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
 
-#include <algorithm>
-#include <cstddef>
-#include <filesystem>
-#include <iostream>
-#include <map>
-#include <regex>
-#include <string>
-#include <string_view>
-#include <thread>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
-#include <boost/program_options/options_description.hpp>
-#include <boost/program_options/parsers.hpp>
-#include <boost/program_options/value_semantic.hpp>
-#include <boost/program_options/variables_map.hpp>
-
-#ifdef WIN32
-#include <fcntl.h>
-#include <io.h>
-#endif
+#include "navmesh.hpp"
+#include "worldspacedata.hpp"
 
 namespace NavMeshTool
 {
@@ -133,7 +130,7 @@ namespace NavMeshTool
             return result;
         }
 
-        int runNavMeshTool(int argc, char* argv[])
+        std::int32_t runNavMeshTool(std::int32_t argc, char* argv[])
         {
             Platform::init();
 
@@ -191,10 +188,8 @@ namespace NavMeshTool
 
             const std::regex worldspaceFilter(variables["worldspace-filter"].as<std::string>());
 
-#ifdef WIN32
             if (writeBinaryLog)
-                _setmode(_fileno(stderr), _O_BINARY);
-#endif
+                Platform::File::makeStandardErrorBinary();
 
             Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
 
@@ -320,7 +315,7 @@ namespace NavMeshTool
     }
 }
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     return Debug::wrapApplication(NavMeshTool::runNavMeshTool, argc, argv, NavMeshTool::applicationName);
 }

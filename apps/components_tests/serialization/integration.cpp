@@ -1,12 +1,12 @@
-#include "format.hpp"
+#include <vector>
+
+#include <gtest/gtest.h>
 
 #include <components/serialization/binaryreader.hpp>
 #include <components/serialization/binarywriter.hpp>
 #include <components/serialization/sizeaccumulator.hpp>
 
-#include <gtest/gtest.h>
-
-#include <vector>
+#include "format.hpp"
 
 namespace
 {

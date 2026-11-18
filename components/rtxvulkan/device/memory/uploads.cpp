@@ -27,12 +27,12 @@ namespace Rtx
         into.push_back(run);
     }
 
-    void appendRowRuns(const std::span<const Index> rows, const VkDeviceSize stride, std::vector<CopyRun>& into)
+    void appendRowRuns(const std::span<const std::uint32_t> rows, const VkDeviceSize stride, std::vector<CopyRun>& into)
     {
         assert(std::ranges::adjacent_find(rows, std::greater_equal<>()) == rows.end()
             && "rows out of order or named twice, which would write one row twice and join no runs");
 
-        for (const Index row : rows)
+        for (const std::uint32_t row : rows)
         {
             const VkDeviceSize at = VkDeviceSize{ row } * stride;
             appendRun(into, CopyRun{ .mFrom = at, .mTo = at, .mSize = stride });

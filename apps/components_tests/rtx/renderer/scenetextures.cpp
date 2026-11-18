@@ -8,6 +8,7 @@
 #include <span>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -35,6 +36,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/embeddedimage.hpp>
@@ -76,7 +78,17 @@ namespace Rtx
             };
             for (const Case& one : { Case{ 16, 0 }, Case{ 15, 1 }, Case{ 8, 1 }, Case{ 7, 2 }, Case{ 4, 2 },
                      Case{ 3, std::nullopt }, Case{ 0, std::nullopt } })
-                EXPECT_EQ(texture.firstLevelWithin(one.mSide), one.mFirst) << "held to " << one.mSide;
+                EXPECT_EQ(texture.topLevel(one.mSide), one.mFirst) << "held to " << one.mSide;
+
+            // **Wanted from a level, it stands whole from there**, past which the side holds it; a want past the
+            // chain stands its last level.
+            TextureData wanted = texture;
+            wanted.mWant = 1;
+            EXPECT_EQ(wanted.topLevel(16), 1u);
+            EXPECT_EQ(wanted.topLevel(4), 2u) << "the side holds it coarser than its want";
+            EXPECT_EQ(wanted.topLevel(3), std::nullopt);
+            wanted.mWant = 9;
+            EXPECT_EQ(wanted.topLevel(16), 2u);
 
             EXPECT_EQ(texture.bytesFrom(0), 672u);
             EXPECT_EQ(texture.bytesFrom(1), 160u);
@@ -85,8 +97,8 @@ namespace Rtx
             // The stand-in is one block of four, and a device that took less has nothing to begin at.
             const TextureData standIn = describeStandIn();
             EXPECT_EQ(standIn.mSource, TextureSource::StandIn);
-            EXPECT_EQ(standIn.firstLevelWithin(4), 0u);
-            EXPECT_EQ(standIn.firstLevelWithin(3), std::nullopt);
+            EXPECT_EQ(standIn.topLevel(4), 0u);
+            EXPECT_EQ(standIn.topLevel(3), std::nullopt);
             EXPECT_EQ(standIn.bytesFrom(0), 8u) << "one BC1 block";
         }
 
@@ -292,13 +304,13 @@ namespace Rtx
         /// description refuses before it reads.
         TEST(RtxSceneTexturesTest, levelsLaidPastWhatALevelsOffsetReachesAreRefused)
         {
-            constexpr int side = 32768;
-            unsigned char unread = 0;
+            constexpr std::int32_t side = 32768;
+            std::uint8_t unread = 0;
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("textures/tx_vast.dds");
             image->setImage(
                 side, side, 1, GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, &unread, osg::Image::NO_DELETE);
-            image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(side) * side });
+            image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<std::uint32_t>(side) * side });
 
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
@@ -336,17 +348,18 @@ namespace Rtx
         /// same volume in R5G6B5 is 42 bytes of first slices at nought, 64 and 72, widened to 84.
         TEST(RtxSceneTexturesTest, aVolumeIsDescribedAsItsFirstSliceAtEveryLevel)
         {
+            Rtx::SceneIdentities identities;
             const auto makeVolume = [](GLenum pixelFormat, GLenum type, std::size_t texel) {
                 const std::size_t total = (64 + 64 + 16 + 4) / 4 * texel;
-                auto* bytes = new unsigned char[total];
+                auto* bytes = new std::uint8_t[total];
                 for (std::size_t at = 0; at < total; ++at)
-                    bytes[at] = static_cast<unsigned char>(at);
+                    bytes[at] = static_cast<std::uint8_t>(at);
 
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->setFileName("textures/tx_volume.dds");
                 image->setImage(4, 4, 2, GL_RGBA, pixelFormat, type, bytes, osg::Image::USE_NEW_DELETE);
                 image->setMipmapLevels(osg::Image::MipmapDataType{
-                    static_cast<unsigned int>(32 * texel), static_cast<unsigned int>(36 * texel) });
+                    static_cast<std::uint32_t>(32 * texel), static_cast<std::uint32_t>(36 * texel) });
                 return image;
             };
 
@@ -420,7 +433,7 @@ namespace Rtx
             odd->setFileName(std::string(oddPath.value()));
             EXPECT_EQ(Rtx::laidBytes(*odd, Rtx::readFormat(*odd)), 0u) << "a format with no layout was counted";
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             Testing::addModel(scene, rgbaPath, rgba);
             Testing::addModel(scene, oddPath, odd);
 
@@ -442,7 +455,7 @@ namespace Rtx
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("textures/tx_deep.dds");
             image->setImage(
-                4, 4, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new unsigned char[sBytes], osg::Image::USE_NEW_DELETE);
+                4, 4, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new std::uint8_t[sBytes], osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(osg::Image::MipmapDataType{ 64, 80, 84, 88 });
             ASSERT_EQ(image->getNumMipmapLevels(), 5u) << "the header's count, which is what this is about";
 
@@ -464,11 +477,11 @@ namespace Rtx
         /// the two levels' offsets are nought and eight bytes.
         osg::ref_ptr<osg::Image> makeSixteenBit(GLenum type, GLint internal, const std::array<std::uint16_t, 5>& words)
         {
-            auto* bytes = new unsigned char[words.size() * 2];
+            auto* bytes = new std::uint8_t[words.size() * 2];
             for (std::size_t at = 0; at < words.size(); ++at)
             {
-                bytes[at * 2] = static_cast<unsigned char>(words[at] & 0xFF);
-                bytes[at * 2 + 1] = static_cast<unsigned char>(words[at] >> 8);
+                bytes[at * 2] = static_cast<std::uint8_t>(words[at] & 0xFF);
+                bytes[at * 2 + 1] = static_cast<std::uint8_t>(words[at] >> 8);
             }
 
             osg::ref_ptr<osg::Image> image = new osg::Image;
@@ -618,13 +631,13 @@ namespace Rtx
 
             for (const Case& one : cases)
             {
-                auto* bytes = new unsigned char[one.mFile.size()];
+                auto* bytes = new std::uint8_t[one.mFile.size()];
                 std::copy(one.mFile.begin(), one.mFile.end(), bytes);
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->setFileName("textures/tx_bytes.tga");
                 image->setImage(2, 2, 1, static_cast<GLint>(one.mPixelFormat), one.mPixelFormat, one.mType, bytes,
                     osg::Image::USE_NEW_DELETE, 1);
-                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(4 * one.mBytes) });
+                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<std::uint32_t>(4 * one.mBytes) });
 
                 std::vector<Rtx::MipLevel> levels;
                 std::vector<std::byte> texels;
@@ -657,7 +670,7 @@ namespace Rtx
 
             osg::ref_ptr<osg::Image> padded = new osg::Image;
             padded->setFileName("textures/tx_padded.dds");
-            padded->setImage(3, 1, 1, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, new unsigned char[8],
+            padded->setImage(3, 1, 1, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, new std::uint8_t[8],
                 osg::Image::USE_NEW_DELETE, 4);
             const Result<Rtx::TextureData, std::string> rows
                 = describeImage(*padded, Rtx::TextureEncoding::Colour, levels, texels);
@@ -672,7 +685,7 @@ namespace Rtx
             osg::ref_ptr<osg::Image> shifted = new osg::Image;
             shifted->setFileName("textures/tx_shifted.dds");
             shifted->setImage(
-                2, 2, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new unsigned char[24], osg::Image::USE_NEW_DELETE);
+                2, 2, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new std::uint8_t[24], osg::Image::USE_NEW_DELETE);
             shifted->setMipmapLevels(osg::Image::MipmapDataType{ 20 });
             const Result<Rtx::TextureData, std::string> offset
                 = describeImage(*shifted, Rtx::TextureEncoding::Colour, levels, texels);
@@ -697,6 +710,7 @@ namespace Rtx
         /// spent and not measured, the shape the frame-path guards use.
         TEST(RtxSceneTexturesTest, describingAnArrivalASecondTimeReachesTheHeapNotAtAll)
         {
+            Rtx::SceneIdentities identities;
             // **Kept under the name the image carries**, so the slot and the name the description
             // comes back with are one path rather than two.
             constexpr VFS::Path::NormalizedView path("textures/tx_test.dds");
@@ -707,7 +721,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView sixteen("textures/tx_sixteen.dds");
             const osg::ref_ptr<osg::Image> widened = makeSixteenBit(GL_UNSIGNED_SHORT_5_6_5, GL_RGB, { 0, 0, 0, 0, 0 });
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             Testing::addModel(scene, path, image);
             Testing::addModel(scene, sixteen, widened);
 
@@ -740,16 +754,17 @@ namespace Rtx
         /// table, so a backend taking position for slot would put every texture above the gap one place too low.
         TEST(RtxSceneTexturesTest, aFreedSlotIsNotDescribedAndTheOthersKeepTheirSlots)
         {
+            Rtx::SceneIdentities identities;
 
             // Two models, because a texture is only given back when the last material naming it is.
             // The placement's drop gives back the last holds on its mesh and its material, and the
             // material's texture goes with it.
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             const Testing::Model going = Testing::addModel(scene, VFS::Path::NormalizedView("textures/freed.dds"));
             const Testing::Model staying = Testing::addModel(scene, VFS::Path::NormalizedView("textures/named.dds"));
 
             scene.dropInstance(going.mPlacement, Rtx::Stander::Walk);
-            ASSERT_EQ(going.mTexture, 0u) << "the gap has to be below something to be a gap";
+            ASSERT_EQ(going.mTexture, Rtx::TextureIndex(0)) << "the gap has to be below something to be a gap";
             ASSERT_FALSE(scene.textures().isLive(going.mTexture));
             ASSERT_TRUE(scene.textures().isLive(staying.mTexture));
 
@@ -765,7 +780,7 @@ namespace Rtx
                 EXPECT_EQ(described.getRefusals()[0].mWhy, "no image reads from the file") << which;
             };
 
-            const std::array<Rtx::Index, 2> both{ going.mTexture, staying.mTexture };
+            const std::array<Rtx::TextureIndex, 2> both{ going.mTexture, staying.mTexture };
 
             // One loader for both, which is how the uploader holds it: the second call clears what
             // the first left and answers on its own.
@@ -783,10 +798,11 @@ namespace Rtx
         /// sprite that could not be read gets, counted once.
         TEST(RtxSceneTexturesTest, aSpriteLightBakeNamesItsSourcesSlotAndOneWithNoneGetsTheStandIn)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
-            Rtx::SceneDesc scene;
-            const Rtx::Index bake = scene.textures().addSpriteLight(smoke);
+            Rtx::SceneDesc scene(identities);
+            const Rtx::TextureIndex bake = scene.textures().addSpriteLight(smoke);
 
             SceneTextures described;
             described.describeAll(scene, nullptr, false);
@@ -794,18 +810,18 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mSlot, bake);
             EXPECT_EQ(described.getDescriptions()[0].mName, "stand-in");
             EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::StandIn);
-            EXPECT_EQ(described.getDescriptions()[0].mFrom, Rtx::sNoIndex);
+            EXPECT_TRUE(std::holds_alternative<std::monostate>(described.getDescriptions()[0].mFrom));
             ASSERT_EQ(described.getRefusals().size(), 1u);
             EXPECT_EQ(described.getRefusals()[0].mWhy, "the texture it bakes is no longer held");
 
             // The emitter holds the source under a wrap of its own beside the bake; the bake finds
             // it whichever wrap that was, and is then a bake and not a texture.
-            const Rtx::Index source = scene.textures().add(smoke, Rtx::TextureWrap::ClampS);
+            const Rtx::TextureIndex source = scene.textures().add(smoke, Rtx::TextureWrap::ClampS);
             described.describe(scene, std::span(&bake, 1), nullptr, false);
             ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 });
             EXPECT_EQ(described.getDescriptions()[0].mSlot, bake);
             EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::SpriteBake);
-            EXPECT_EQ(described.getDescriptions()[0].mFrom, source);
+            EXPECT_EQ(std::get<Rtx::TextureIndex>(described.getDescriptions()[0].mFrom), source);
             EXPECT_TRUE(described.getDescriptions()[0].mBytes.empty()) << "a bake carries no bytes";
             EXPECT_TRUE(described.getDescriptions()[0].mLevels.empty()) << "a bake is shaped like its source";
             EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Neutral);
@@ -817,7 +833,8 @@ namespace Rtx
         /// on a later frame, which no queue sees, describes both of its slots as the arrival did.
         TEST(RtxSceneTexturesTest, aCompositeNamesItsChunkOnTheFrameItArrivesAndOnEveryRebuild)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             const std::array<Rtx::MaterialLayer, 2> layers{ Rtx::MaterialLayer{ .mDiffuse = 0 },
                 Rtx::MaterialLayer{ .mDiffuse = 1, .mFlags = Shaders::LAYER_AUTHORED } };
             scene.textures().add(VFS::Path::NormalizedView("textures/under.dds"));
@@ -826,23 +843,23 @@ namespace Rtx
             chunk.mKind = Rtx::MaterialKind::Terrain;
             chunk.mFlatten = GroundFlattening::Every;
             chunk.mLayers = scene.materials().addLayers(layers);
-            const Rtx::Index material = scene.addMaterial(chunk);
+            const Rtx::MaterialIndex material = scene.addMaterial(chunk);
 
             Rtx::CompositeQueue queue;
             ASSERT_EQ(queue.advance(scene), 1u);
-            const Rtx::Index albedo = scene.materials().getRows()[material].mDiffuse;
-            const Rtx::Index gloss = scene.materials().getRows()[material].mSpecular;
-            ASSERT_NE(albedo, Rtx::sNoIndex);
-            ASSERT_NE(gloss, Rtx::sNoIndex) << "a layer that reflects gives the chunk a gloss";
+            const Rtx::TextureIndex albedo = scene.materials().getRows()[material].mDiffuse;
+            const Rtx::TextureIndex gloss = scene.materials().getRows()[material].mSpecular;
+            ASSERT_NE(albedo, Rtx::sNoRow);
+            ASSERT_NE(gloss, Rtx::sNoRow) << "a layer that reflects gives the chunk a gloss";
 
             const auto check = [&](const SceneTextures& described, const char* when) {
-                const auto find = [&](const Rtx::Index slot) {
+                const auto find = [&](const Rtx::TextureIndex slot) {
                     return std::ranges::find(described.getDescriptions(), slot, &Rtx::TextureData::mSlot);
                 };
                 const auto ground = find(albedo);
                 ASSERT_NE(ground, described.getDescriptions().end()) << when;
                 EXPECT_EQ(ground->mSource, Rtx::TextureSource::GroundComposite) << when;
-                EXPECT_EQ(ground->mFrom, material) << when;
+                EXPECT_EQ(std::get<Rtx::MaterialIndex>(ground->mFrom), material) << when;
                 EXPECT_EQ(ground->mFormat, Rtx::TextureFormat::Bc7Srgb) << when;
                 EXPECT_TRUE(ground->mBytes.empty()) << when << ": a composite carries no bytes";
                 EXPECT_TRUE(ground->mLevels.empty()) << when << ": a composite is shaped by the pass";
@@ -851,7 +868,7 @@ namespace Rtx
                 const auto glossy = find(gloss);
                 ASSERT_NE(glossy, described.getDescriptions().end()) << when;
                 EXPECT_EQ(glossy->mSource, Rtx::TextureSource::GroundGloss) << when;
-                EXPECT_EQ(glossy->mFrom, material) << when;
+                EXPECT_EQ(std::get<Rtx::MaterialIndex>(glossy->mFrom), material) << when;
                 EXPECT_EQ(glossy->mFormat, Rtx::TextureFormat::Bc7Unorm) << when;
                 // The rebuild describes the layers' files too, which this test never read.
                 for (const Rtx::Refusal& refused : described.getRefusals())
@@ -875,12 +892,13 @@ namespace Rtx
         /// described as that level and nothing more, and a describe reads no texel for it.
         TEST(RtxSceneTexturesTest, aFileWithoutAChainIsDescribedAsItsOneLevel)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
 
             osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
-            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             Testing::addModel(scene, path, image);
 
             SceneTextures described;
@@ -894,25 +912,25 @@ namespace Rtx
                 << "a colour file has nothing measured beside it";
         }
 
-        /// **A made coarser chain is described as the file's finest level, spanned where the file holds
-        /// it, with the made levels under it**: a 4x4 BC1 map of data of two levels, its finest one block
-        /// of (132, 130, 255) and its second black, is made a 2x2 level in a block of its own, the box of
-        /// that normal; the description spans the file's 8 bytes for its finest and comes to 8 + 8 = 16
-        /// from it.
-        TEST(RtxSceneTexturesTest, aMadeCoarserChainIsTheFilesFinestLevelWithTheMadeLevelsUnderIt)
+        /// **A chain made in its file's format is described whole, as it was made**: a 4x4 BC1 map of data of two
+        /// levels, its finest one block of (132, 130, 255) and its second black, is made whole, its finest as the
+        /// file holds it above the box of that normal, the same block; the description spans the made image's 8 + 8
+        /// = 16 bytes and none of the file's.
+        TEST(RtxSceneTexturesTest, aChainMadeInItsFilesFormatIsDescribedWhole)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_block_data.dds");
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> image = new osg::Image;
-            auto* data = new unsigned char[sizeof(bytes)];
+            auto* data = new std::uint8_t[sizeof(bytes)];
             std::copy(std::begin(bytes), std::end(bytes), data);
             image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
                 data, osg::Image::USE_NEW_DELETE);
             image->setMipmapLevels(osg::Image::MipmapDataType{ 8 });
             image->setFileName(std::string(path.value()));
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Data);
             PreparedImages prepared(nullptr, 1);
             SceneTextures described;
@@ -923,15 +941,15 @@ namespace Rtx
             EXPECT_EQ(made.mFormat, TextureFormat::Bc1RgbaUnorm);
             ASSERT_EQ(made.mLevels.size(), 2u);
             EXPECT_TRUE(made.levelsFit());
-            EXPECT_EQ(made.bytesOf(0).data(), reinterpret_cast<const std::byte*>(image->data()))
-                << "the file's finest level was copied";
-            EXPECT_EQ(made.mCoarser.size(), 8u);
-            EXPECT_EQ(made.bytesOf(1).data(), made.mCoarser.data());
+            EXPECT_NE(made.bytesOf(0).data(), reinterpret_cast<const std::byte*>(image->data()))
+                << "the file's own bytes, which a made chain reads none of";
+            EXPECT_EQ(made.mBytes.size(), 16u);
+            EXPECT_EQ(Testing::firstTexelOf(made.mFormat, made.bytesOf(0)), (Testing::Texel{ 132, 130, 255, 255 }));
             EXPECT_EQ(Testing::firstTexelOf(made.mFormat, made.bytesOf(1)), (Testing::Texel{ 132, 130, 255, 255 }));
             EXPECT_EQ(made.bytesFrom(0), 16u);
             EXPECT_EQ(made.bytesFrom(1), 8u);
             TextureData shortRun = made;
-            shortRun.mCoarser = made.mCoarser.first(7);
+            shortRun.mBytes = made.mBytes.first(15);
             EXPECT_FALSE(shortRun.levelsFit()) << "a last level a byte short of its run";
             scene.drop(std::move(held));
         }
@@ -941,13 +959,14 @@ namespace Rtx
         /// chain is made, is the stand-in; made, it is two BC7 levels.
         TEST(RtxSceneTexturesTest, aNormalMapOfTwoChannelsStandsInUntilItsChainIsMade)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_two_n.dds");
             osg::ref_ptr<osg::Image> image
                 = Testing::makeImage("", 4, 4, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
-            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(0));
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(0));
             image->setFileName(std::string(path.value()));
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Normal);
             SceneTextures described;
             described.describeAll(scene, nullptr, false);
@@ -971,15 +990,16 @@ namespace Rtx
         /// is the stand-in, and is refused nowhere.
         TEST(RtxSceneTexturesTest, aClassicSpecularMapStandsInUntilItIsConverted)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_ore_spec.dds|textures/tx_ore.dds");
             osg::ref_ptr<osg::Image> specular = Testing::makeImage("", 2, 2);
-            std::fill_n(specular->data(), 16, static_cast<unsigned char>(128));
+            std::fill_n(specular->data(), 16, static_cast<std::uint8_t>(128));
             specular->setFileName("textures/tx_ore_spec.dds");
             osg::ref_ptr<osg::Image> diffuse = Testing::makeImage("", 2, 2);
-            std::fill_n(diffuse->data(), 16, static_cast<unsigned char>(128));
+            std::fill_n(diffuse->data(), 16, static_cast<std::uint8_t>(128));
             diffuse->setFileName("textures/tx_ore.dds");
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             TextureHold held = scene.takeTexture(
                 path, *specular, TextureWrap::Repeat, TextureEncoding::ConvertedSpecular, diffuse.get());
             SceneTextures described;
@@ -1002,9 +1022,10 @@ namespace Rtx
         /// made**, so the device is handed the file once, as the chain it keeps.
         TEST(RtxSceneTexturesTest, aWholeChainMadeInBc7IsDescribedAsItWasMade)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
             osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
-            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
 
             constexpr VFS::Path::NormalizedView widenedPath("textures/tx_rgb.dds");
             osg::ref_ptr<osg::Image> widened = Testing::makeImage(widenedPath.value(), 2, 2, GL_RGB, GL_UNSIGNED_BYTE);
@@ -1015,8 +1036,8 @@ namespace Rtx
                 widened->data()[texel * 3 + 2] = 255;
             }
 
-            Rtx::SceneDesc scene;
-            Testing::addModel(scene, path, image);
+            Rtx::SceneDesc scene(identities);
+            const Testing::Model read = Testing::addModel(scene, path, image);
             Testing::addModel(scene, widenedPath, widened);
 
             PreparedImages prepared(nullptr, 1);
@@ -1038,7 +1059,6 @@ namespace Rtx
             EXPECT_EQ(made.mWidth, 4u);
             ASSERT_EQ(made.mLevels.size(), 3u);
             EXPECT_TRUE(made.levelsFit());
-            EXPECT_TRUE(made.mCoarser.empty());
             EXPECT_EQ(made.bytesFrom(0), 48u);
             EXPECT_EQ(made.mName, path.value());
             EXPECT_TRUE(
@@ -1059,6 +1079,21 @@ namespace Rtx
             EXPECT_TRUE(described.getStood()[1].mMade);
             EXPECT_TRUE(Testing::isNear(Testing::firstTexelOf(laid.mFormat, laid.bytesOf(1)), { 255, 0, 255, 255 }, 2))
                 << "the made second level";
+            EXPECT_EQ(described.getStood()[0].mFrom, 0u) << "the walk's placement asks the finest";
+
+            // **Wanted from level 1, it stands whole from there**: the walk's placement taken out, its material
+            // asked at step 31, footprint -1, plus the 4-square file's offset 0.5 log2(16) = 2: level 1, whose
+            // levels from there are two BC7 blocks, 32 bytes.
+            MaterialHold kept = scene.holdMaterial(read.mMaterial);
+            scene.dropInstance(read.mPlacement, Stander::Walk);
+            scene.askMaterial(read.mMaterial, 31);
+            described.describeAll(scene, &prepared, true);
+            ASSERT_EQ(described.getStood().size(), 2u);
+            EXPECT_EQ(described.getDescriptions()[0].mWant, 1u);
+            EXPECT_EQ(described.getStood()[0].mFrom, 1u);
+            EXPECT_EQ(described.getStood()[0].mBytes, 32u);
+            scene.unaskMaterial(read.mMaterial, 31);
+            scene.drop(std::move(kept));
         }
     }
 }

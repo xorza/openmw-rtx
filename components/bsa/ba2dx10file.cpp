@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <format>
 #include <istream>
@@ -22,45 +24,45 @@ namespace Bsa
 
     BA2DX10File::~BA2DX10File() = default;
 
-    void BA2DX10File::loadFiles(uint32_t fileCount, std::istream& in)
+    void BA2DX10File::loadFiles(std::uint32_t fileCount, std::istream& in)
     {
         mFiles.clear();
         mFiles.reserve(fileCount);
-        for (uint32_t i = 0; i < fileCount; ++i)
+        for (std::uint32_t i = 0; i < fileCount; ++i)
         {
-            uint32_t nameHash = 0, extHash = 0, dirHash = 0;
-            in.read(reinterpret_cast<char*>(&nameHash), sizeof(uint32_t));
-            in.read(reinterpret_cast<char*>(&extHash), sizeof(uint32_t));
-            in.read(reinterpret_cast<char*>(&dirHash), sizeof(uint32_t));
+            std::uint32_t nameHash = 0, extHash = 0, dirHash = 0;
+            in.read(reinterpret_cast<char*>(&nameHash), sizeof(std::uint32_t));
+            in.read(reinterpret_cast<char*>(&extHash), sizeof(std::uint32_t));
+            in.read(reinterpret_cast<char*>(&dirHash), sizeof(std::uint32_t));
 
             FileRecord file;
-            uint8_t unknown = 0;
-            in.read(reinterpret_cast<char*>(&unknown), sizeof(uint8_t));
+            std::uint8_t unknown = 0;
+            in.read(reinterpret_cast<char*>(&unknown), sizeof(std::uint8_t));
 
-            uint8_t nbChunks = 0;
-            in.read(reinterpret_cast<char*>(&nbChunks), sizeof(uint8_t));
+            std::uint8_t nbChunks = 0;
+            in.read(reinterpret_cast<char*>(&nbChunks), sizeof(std::uint8_t));
 
             file.mTextureChunks.resize(nbChunks);
 
-            uint16_t chunkHeaderSize = 0;
-            in.read(reinterpret_cast<char*>(&chunkHeaderSize), sizeof(uint16_t));
+            std::uint16_t chunkHeaderSize = 0;
+            in.read(reinterpret_cast<char*>(&chunkHeaderSize), sizeof(std::uint16_t));
             if (chunkHeaderSize != 24)
                 fail("Corrupted BSA");
 
-            in.read(reinterpret_cast<char*>(&file.mHeight), sizeof(uint16_t));
-            in.read(reinterpret_cast<char*>(&file.mWidth), sizeof(uint16_t));
-            in.read(reinterpret_cast<char*>(&file.mNumMips), sizeof(uint8_t));
-            in.read(reinterpret_cast<char*>(&file.mDXGIFormat), sizeof(uint8_t));
-            in.read(reinterpret_cast<char*>(&file.mCubeMaps), sizeof(uint16_t));
+            in.read(reinterpret_cast<char*>(&file.mHeight), sizeof(std::uint16_t));
+            in.read(reinterpret_cast<char*>(&file.mWidth), sizeof(std::uint16_t));
+            in.read(reinterpret_cast<char*>(&file.mNumMips), sizeof(std::uint8_t));
+            in.read(reinterpret_cast<char*>(&file.mDXGIFormat), sizeof(std::uint8_t));
+            in.read(reinterpret_cast<char*>(&file.mCubeMaps), sizeof(std::uint16_t));
             for (auto& texture : file.mTextureChunks)
             {
-                in.read(reinterpret_cast<char*>(&texture.mOffset), sizeof(int64_t));
-                in.read(reinterpret_cast<char*>(&texture.mPackedSize), sizeof(uint32_t));
-                in.read(reinterpret_cast<char*>(&texture.mSize), sizeof(uint32_t));
-                in.read(reinterpret_cast<char*>(&texture.mStartMip), sizeof(uint16_t));
-                in.read(reinterpret_cast<char*>(&texture.mEndMip), sizeof(uint16_t));
-                uint32_t baadfood = 0;
-                in.read(reinterpret_cast<char*>(&baadfood), sizeof(uint32_t));
+                in.read(reinterpret_cast<char*>(&texture.mOffset), sizeof(std::int64_t));
+                in.read(reinterpret_cast<char*>(&texture.mPackedSize), sizeof(std::uint32_t));
+                in.read(reinterpret_cast<char*>(&texture.mSize), sizeof(std::uint32_t));
+                in.read(reinterpret_cast<char*>(&texture.mStartMip), sizeof(std::uint16_t));
+                in.read(reinterpret_cast<char*>(&texture.mEndMip), sizeof(std::uint16_t));
+                std::uint32_t baadfood = 0;
+                in.read(reinterpret_cast<char*>(&baadfood), sizeof(std::uint32_t));
                 if (baadfood != 0xBAADF00D)
                     fail("Corrupted BSA");
             }
@@ -83,10 +85,10 @@ namespace Bsa
             fail("File too small to be a valid BSA archive");
 
         // Get essential header numbers
-        uint32_t type = 0, fileCount = 0;
-        uint64_t fileTableOffset = 0;
+        std::uint32_t type = 0, fileCount = 0;
+        std::uint64_t fileTableOffset = 0;
         {
-            uint32_t header[4];
+            std::uint32_t header[4];
             input.read(reinterpret_cast<char*>(header), 16);
             input.read(reinterpret_cast<char*>(&fileTableOffset), 8);
 
@@ -101,9 +103,9 @@ namespace Bsa
                     break;
                 case BA2Version::StarfieldDDS:
                 {
-                    uint64_t dummy = 0;
+                    std::uint64_t dummy = 0;
                     input.read(reinterpret_cast<char*>(&dummy), 8);
-                    uint32_t compressionMethod = 0;
+                    std::uint32_t compressionMethod = 0;
                     input.read(reinterpret_cast<char*>(&compressionMethod), 4);
                     if (compressionMethod == 3)
                         fail("Unsupported LZ4-compressed DDS BA2");
@@ -124,11 +126,11 @@ namespace Bsa
 
         // Read the string table
         input.seekg(static_cast<std::streamoff>(fileTableOffset));
-        for (uint32_t i = 0; i < fileCount; ++i)
+        for (std::uint32_t i = 0; i < fileCount; ++i)
         {
             std::vector<char> fileName;
-            uint16_t fileNameSize = 0;
-            input.read(reinterpret_cast<char*>(&fileNameSize), sizeof(uint16_t));
+            std::uint16_t fileNameSize = 0;
+            input.read(reinterpret_cast<char*>(&fileNameSize), sizeof(std::uint16_t));
             fileName.resize(fileNameSize + 1);
             input.read(fileName.data(), fileNameSize);
             mFileNames.push_back(std::move(fileName));
@@ -142,7 +144,7 @@ namespace Bsa
     {
         for (const auto c : str)
         {
-            if (((static_cast<unsigned>(c) >> 7U) & 1U) != 0U)
+            if (((static_cast<std::uint32_t>(c) >> 7U) & 1U) != 0U)
             {
                 fail(std::format("File record {} contains unicode characters, refusing to load.", str));
             }
@@ -153,13 +155,13 @@ namespace Bsa
         const std::string_view fileName = path.stem();
         const std::string_view folder = path.parent().value();
 
-        uint32_t folderHash = generateHash(folder);
+        std::uint32_t folderHash = generateHash(folder);
         auto it = mFolders.find(folderHash);
         if (it == mFolders.end())
             return std::nullopt; // folder not found
 
-        uint32_t fileHash = generateHash(fileName);
-        uint32_t extHash = generateExtensionHash(path.extension().value());
+        std::uint32_t fileHash = generateHash(fileName);
+        std::uint32_t extHash = generateExtensionHash(path.extension().value());
         auto iter = it->second.find({ fileHash, extHash });
         if (iter == it->second.end())
             return std::nullopt; // file not found
@@ -172,39 +174,39 @@ namespace Bsa
     {
         struct DDSHeader
         {
-            uint32_t mSize = 0;
-            uint32_t mFlags = 0;
-            uint32_t mHeight = 0;
-            uint32_t mWidth = 0;
-            uint32_t mPitchOrLinearSize = 0;
-            uint32_t mDepth = 0;
-            uint32_t mMipMapCount = 0;
-            uint32_t mReserved1[11] = {};
+            std::uint32_t mSize = 0;
+            std::uint32_t mFlags = 0;
+            std::uint32_t mHeight = 0;
+            std::uint32_t mWidth = 0;
+            std::uint32_t mPitchOrLinearSize = 0;
+            std::uint32_t mDepth = 0;
+            std::uint32_t mMipMapCount = 0;
+            std::uint32_t mReserved1[11] = {};
             struct
             {
-                uint32_t mSize = 0;
-                uint32_t mFlags = 0;
-                uint32_t mFourCC = 0;
-                uint32_t mRGBBitCount = 0;
-                uint32_t mRBitMask = 0;
-                uint32_t mGBitMask = 0;
-                uint32_t mBBitMask = 0;
-                uint32_t mABitMask = 0;
+                std::uint32_t mSize = 0;
+                std::uint32_t mFlags = 0;
+                std::uint32_t mFourCC = 0;
+                std::uint32_t mRGBBitCount = 0;
+                std::uint32_t mRBitMask = 0;
+                std::uint32_t mGBitMask = 0;
+                std::uint32_t mBBitMask = 0;
+                std::uint32_t mABitMask = 0;
             } mPixelFormat;
-            uint32_t mCaps = 0;
-            uint32_t mCaps2 = 0;
-            uint32_t mCaps3 = 0;
-            uint32_t mCaps4 = 0;
-            uint32_t mReserved2 = 0;
+            std::uint32_t mCaps = 0;
+            std::uint32_t mCaps2 = 0;
+            std::uint32_t mCaps3 = 0;
+            std::uint32_t mCaps4 = 0;
+            std::uint32_t mReserved2 = 0;
         };
 
         struct DDSHeaderDX10 : DDSHeader
         {
-            int32_t mDXGIFormat = 0;
-            uint32_t mResourceDimension = 0;
-            uint32_t mMiscFlags = 0;
-            uint32_t mArraySize = 0;
-            uint32_t mMiscFlags2 = 0;
+            std::int32_t mDXGIFormat = 0;
+            std::uint32_t mResourceDimension = 0;
+            std::uint32_t mMiscFlags = 0;
+            std::uint32_t mArraySize = 0;
+            std::uint32_t mMiscFlags2 = 0;
         };
     }
 
@@ -223,38 +225,38 @@ namespace Bsa
         fail("Add file is not implemented for compressed BSA: " + filename);
     }
 
-    constexpr const uint32_t DDSD_CAPS = 0x00000001;
-    constexpr const uint32_t DDSD_HEIGHT = 0x00000002;
-    constexpr const uint32_t DDSD_WIDTH = 0x00000004;
-    constexpr const uint32_t DDSD_PITCH = 0x00000008;
-    constexpr const uint32_t DDSD_PIXELFORMAT = 0x00001000;
-    constexpr const uint32_t DDSD_MIPMAPCOUNT = 0x00020000;
-    constexpr const uint32_t DDSD_LINEARSIZE = 0x00080000;
+    constexpr const std::uint32_t DDSD_CAPS = 0x00000001;
+    constexpr const std::uint32_t DDSD_HEIGHT = 0x00000002;
+    constexpr const std::uint32_t DDSD_WIDTH = 0x00000004;
+    constexpr const std::uint32_t DDSD_PITCH = 0x00000008;
+    constexpr const std::uint32_t DDSD_PIXELFORMAT = 0x00001000;
+    constexpr const std::uint32_t DDSD_MIPMAPCOUNT = 0x00020000;
+    constexpr const std::uint32_t DDSD_LINEARSIZE = 0x00080000;
 
-    constexpr const uint32_t DDSCAPS_COMPLEX = 0x00000008;
-    constexpr const uint32_t DDSCAPS_TEXTURE = 0x00001000;
-    constexpr const uint32_t DDSCAPS_MIPMAP = 0x00400000;
+    constexpr const std::uint32_t DDSCAPS_COMPLEX = 0x00000008;
+    constexpr const std::uint32_t DDSCAPS_TEXTURE = 0x00001000;
+    constexpr const std::uint32_t DDSCAPS_MIPMAP = 0x00400000;
 
-    constexpr const uint32_t DDSCAPS2_CUBEMAP = 0x00000200;
-    constexpr const uint32_t DDSCAPS2_POSITIVEX = 0x00000400;
-    constexpr const uint32_t DDSCAPS2_NEGATIVEX = 0x00000800;
-    constexpr const uint32_t DDSCAPS2_POSITIVEY = 0x00001000;
-    constexpr const uint32_t DDSCAPS2_NEGATIVEY = 0x00002000;
-    constexpr const uint32_t DDSCAPS2_POSITIVEZ = 0x00004000;
-    constexpr const uint32_t DDSCAPS2_NEGATIVEZ = 0x00008000;
+    constexpr const std::uint32_t DDSCAPS2_CUBEMAP = 0x00000200;
+    constexpr const std::uint32_t DDSCAPS2_POSITIVEX = 0x00000400;
+    constexpr const std::uint32_t DDSCAPS2_NEGATIVEX = 0x00000800;
+    constexpr const std::uint32_t DDSCAPS2_POSITIVEY = 0x00001000;
+    constexpr const std::uint32_t DDSCAPS2_NEGATIVEY = 0x00002000;
+    constexpr const std::uint32_t DDSCAPS2_POSITIVEZ = 0x00004000;
+    constexpr const std::uint32_t DDSCAPS2_NEGATIVEZ = 0x00008000;
 
-    constexpr const uint32_t DDPF_ALPHAPIXELS = 0x00000001;
-    constexpr const uint32_t DDPF_ALPHA = 0x00000002;
-    constexpr const uint32_t DDPF_FOURCC = 0x00000004;
-    constexpr const uint32_t DDPF_RGB = 0x00000040;
-    constexpr const uint32_t DDPF_LUMINANCE = 0x00020000;
+    constexpr const std::uint32_t DDPF_ALPHAPIXELS = 0x00000001;
+    constexpr const std::uint32_t DDPF_ALPHA = 0x00000002;
+    constexpr const std::uint32_t DDPF_FOURCC = 0x00000004;
+    constexpr const std::uint32_t DDPF_RGB = 0x00000040;
+    constexpr const std::uint32_t DDPF_LUMINANCE = 0x00020000;
 
-    constexpr const uint32_t DDS_DIMENSION_TEXTURE2D = 0x00000003;
-    constexpr const uint32_t DDS_RESOURCE_MISC_TEXTURECUBE = 0x00000004;
+    constexpr const std::uint32_t DDS_DIMENSION_TEXTURE2D = 0x00000003;
+    constexpr const std::uint32_t DDS_RESOURCE_MISC_TEXTURECUBE = 0x00000004;
 
     namespace
     {
-        enum DXGI : uint8_t
+        enum DXGI : std::uint8_t
         {
             DXGI_FORMAT_UNKNOWN = 0,
             DXGI_FORMAT_R32G32B32A32_TYPELESS,
@@ -465,7 +467,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_LINEARSIZE;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<std::int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth * fileRecord.mHeight / 2;
                 break;
             }
@@ -479,7 +481,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_LINEARSIZE;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<std::int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth * fileRecord.mHeight;
                 break;
             }
@@ -492,7 +494,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_PITCH;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<std::int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth * 4;
                 break;
             }
@@ -502,7 +504,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_PITCH;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<std::int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth * 2;
                 break;
             }
@@ -513,7 +515,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_PITCH;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<std::int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth;
                 break;
             }
@@ -608,10 +610,10 @@ namespace Bsa
         }
 
         const bool isDx10 = header.mPixelFormat.mFourCC == ESM::fourCC("DX10");
-        const size_t headerSize = isDx10 ? sizeof(DDSHeaderDX10) : sizeof(DDSHeader);
+        const std::size_t headerSize = isDx10 ? sizeof(DDSHeaderDX10) : sizeof(DDSHeader);
 
-        size_t textureSize = sizeof(uint32_t) + headerSize; //"DDS " + header
-        uint32_t maxPackedChunkSize = 0;
+        std::size_t textureSize = sizeof(std::uint32_t) + headerSize; //"DDS " + header
+        std::uint32_t maxPackedChunkSize = 0;
         for (const auto& textureChunk : fileRecord.mTextureChunks)
         {
             textureSize += textureChunk.mSize;
@@ -622,22 +624,22 @@ namespace Bsa
         char* buff = memoryStreamPtr->getRawData();
         std::vector<char> inputBuffer(maxPackedChunkSize);
 
-        uint32_t dds = ESM::fourCC("DDS ");
-        buff = static_cast<char*>(std::memcpy(buff, &dds, sizeof(uint32_t))) + sizeof(uint32_t);
+        std::uint32_t dds = ESM::fourCC("DDS ");
+        buff = static_cast<char*>(std::memcpy(buff, &dds, sizeof(std::uint32_t))) + sizeof(std::uint32_t);
         std::memcpy(buff, &header, headerSize);
 
-        size_t offset = sizeof(uint32_t) + headerSize;
+        std::size_t offset = sizeof(std::uint32_t) + headerSize;
         // append chunks
         for (const auto& c : fileRecord.mTextureChunks)
         {
-            const uint32_t inputSize = c.mPackedSize != 0 ? c.mPackedSize : c.mSize;
+            const std::uint32_t inputSize = c.mPackedSize != 0 ? c.mPackedSize : c.mSize;
             Files::IStreamPtr streamPtr = openRange(static_cast<std::uint64_t>(c.mOffset), inputSize);
             if (c.mPackedSize != 0)
             {
                 streamPtr->read(inputBuffer.data(), c.mPackedSize);
                 auto destSize = static_cast<uLongf>(c.mSize);
-                int ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData() + offset), &destSize,
-                    reinterpret_cast<Bytef*>(inputBuffer.data()), static_cast<uLong>(c.mPackedSize));
+                std::int32_t ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData() + offset),
+                    &destSize, reinterpret_cast<Bytef*>(inputBuffer.data()), static_cast<uLong>(c.mPackedSize));
 
                 if (ec != Z_OK)
                     fail("zlib uncompress failed: " + std::string(::zError(ec)));

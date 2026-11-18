@@ -1,5 +1,7 @@
 #include "itemselection.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_TextBox.h>
 
@@ -50,19 +52,19 @@ namespace MWGui
             mItemView->setActiveControllerWindow(true);
     }
 
-    void ItemSelectionDialog::setCategory(int category)
+    void ItemSelectionDialog::setCategory(std::int32_t category)
     {
         mSortModel->setCategory(category);
         mItemView->update();
     }
 
-    void ItemSelectionDialog::setFilter(int filter)
+    void ItemSelectionDialog::setFilter(std::int32_t filter)
     {
         mSortModel->setFilter(filter);
         mItemView->update();
     }
 
-    void ItemSelectionDialog::onSelectedItem(int index)
+    void ItemSelectionDialog::onSelectedItem(std::int32_t index)
     {
         ItemStack item = mSortModel->getItem(index);
         eventItemSelected(item.mBase);

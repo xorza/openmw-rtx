@@ -11,7 +11,6 @@
 #include <gtest/gtest.h>
 
 #include <osg/Vec3d>
-
 #include <volk.h>
 #include <vulkan/vulkan_core.h>
 
@@ -134,7 +133,7 @@ namespace Rtx
         {
             osg::Vec3d normal;
             for (std::size_t axis = 0; axis < 3; ++axis)
-                normal[static_cast<int>(axis)] = 2.0 * texels[at * 4 + axis] / 255.0 - 1.0;
+                normal[static_cast<std::int32_t>(axis)] = 2.0 * texels[at * 4 + axis] / 255.0 - 1.0;
             normal.normalize();
             return normal;
         }
@@ -144,17 +143,17 @@ namespace Rtx
         double lossOf(const osg::Vec3d (&vectors)[4], const double (&losses)[4])
         {
             double apart = 0.0;
-            for (int one = 0; one < 4; ++one)
-                for (int other = one + 1; other < 4; ++other)
+            for (std::int32_t one = 0; one < 4; ++one)
+                for (std::int32_t other = one + 1; other < 4; ++other)
                     apart += (vectors[one] - vectors[other]).length2();
             return (losses[0] + losses[1] + losses[2] + losses[3]) / 4.0 + apart / 16.0;
         }
 
         /// A lost roughness as the byte it is stored in.
-        int byteOf(double loss)
+        std::int32_t byteOf(double loss)
         {
             const float roughness = Shaders::slopeRoughness(Shaders::normalSpreadSlopes(static_cast<float>(loss)));
-            return static_cast<int>(std::lround(roughness * 255.0f));
+            return static_cast<std::int32_t>(std::lround(roughness * 255.0f));
         }
 
         /// **What each level of a normal map lost of the normals it averages**, by hand and against the device. A map
@@ -205,17 +204,17 @@ namespace Rtx
                 quarterLosses[quarter] = lossOf(normals, { 0.0, 0.0, 0.0, 0.0 });
             }
 
-            EXPECT_EQ(int{ spread[0][0] }, 0) << "a quarter that agrees with itself loses nothing";
-            EXPECT_EQ(int{ spread[0][2] }, 0);
-            EXPECT_EQ(int{ spread[0][3] }, 0);
+            EXPECT_EQ(std::int32_t{ spread[0][0] }, 0) << "a quarter that agrees with itself loses nothing";
+            EXPECT_EQ(std::int32_t{ spread[0][2] }, 0);
+            EXPECT_EQ(std::int32_t{ spread[0][3] }, 0);
             EXPECT_NEAR(quarterLosses[1], 0.5, 1e-5);
             EXPECT_EQ(byteOf(quarterLosses[1]), 221);
-            EXPECT_NEAR(int{ spread[0][1] }, byteOf(quarterLosses[1]), 1) << "the leaning quarter";
+            EXPECT_NEAR(std::int32_t{ spread[0][1] }, byteOf(quarterLosses[1]), 1) << "the leaning quarter";
 
             const double whole = lossOf(quarterMeans, quarterLosses);
             EXPECT_NEAR(whole, 0.1411, 1e-4);
             EXPECT_EQ(byteOf(whole), 157);
-            EXPECT_NEAR(int{ spread[1][0] }, byteOf(whole), 1) << "the whole map";
+            EXPECT_NEAR(std::int32_t{ spread[1][0] }, byteOf(whole), 1) << "the whole map";
 
             std::vector<std::uint8_t> line;
             for (const std::uint8_t* texel : { flat, flat, right })
@@ -224,7 +223,7 @@ namespace Rtx
             EXPECT_NEAR(third, 0.1289, 1e-4);
             const std::vector<std::vector<std::uint8_t>> spreadLine = spreadOf(line, 3, 1);
             ASSERT_EQ(spreadLine.size(), 1u);
-            EXPECT_NEAR(int{ spreadLine[0][0] }, byteOf(third), 1) << "the odd line's last texel was dropped";
+            EXPECT_NEAR(std::int32_t{ spreadLine[0][0] }, byteOf(third), 1) << "the odd line's last texel was dropped";
         }
 
         /// **The spreads of a group work in the room the group before used**, and come out as they do where every map
@@ -258,7 +257,7 @@ namespace Rtx
             EXPECT_EQ(apart.mMeans.size() * sizeof(float), one) << "two groups did not share one map's room";
             EXPECT_EQ(together.mMeans.size() * sizeof(float), 2 * one) << "one group did not hold both maps";
             EXPECT_EQ(apart.mLevels, together.mLevels) << "a group in the room the one before used came out otherwise";
-            EXPECT_NE(int{ apart.mLevels[1][0][1] }, 0) << "the second map's leaning quarter lost nothing";
+            EXPECT_NE(std::int32_t{ apart.mLevels[1][0][1] }, 0) << "the second map's leaning quarter lost nothing";
         }
 
         /// **A texel that points nowhere stands in as the flat normal**, where it was normalised to a NaN that the
@@ -283,7 +282,7 @@ namespace Rtx
             EXPECT_EQ(means[1], 0.0f);
             EXPECT_EQ(means[2], 1.0f) << "the mean of a normal that points nowhere";
             EXPECT_TRUE(std::isfinite(means[3]));
-            EXPECT_EQ(int{ spread[0][0] }, 0) << "four that agree lost something";
+            EXPECT_EQ(std::int32_t{ spread[0][0] }, 0) << "four that agree lost something";
         }
     }
 }

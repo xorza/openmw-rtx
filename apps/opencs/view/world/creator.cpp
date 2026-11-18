@@ -1,16 +1,17 @@
 #include "creator.hpp"
 
+#include <cstdint>
+#include <stdexcept>
+
 #include <apps/opencs/model/world/scope.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
-#include <stdexcept>
 
 namespace CSMDoc
 {
     class Document;
 }
 
-void CSVWorld::Creator::setScope(unsigned int scope)
+void CSVWorld::Creator::setScope(std::uint32_t scope)
 {
     if (scope != CSMWorld::Scope_Content)
         throw std::logic_error("Invalid scope in creator");

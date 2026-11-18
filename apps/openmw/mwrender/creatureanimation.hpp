@@ -1,6 +1,9 @@
 #pragma once
 
-#include "../mwworld/inventorystore.hpp"
+#include <cstdint>
+
+#include <apps/openmw/mwworld/inventorystore.hpp>
+
 #include "actoranimation.hpp"
 #include "weaponanimation.hpp"
 
@@ -41,7 +44,7 @@ namespace MWRender
 
         void updateParts();
 
-        void updatePart(PartHolderPtr& scene, int slot);
+        void updatePart(PartHolderPtr& scene, std::int32_t slot);
 
         void attachArrow() override;
         void detachArrow() override;

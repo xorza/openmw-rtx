@@ -44,7 +44,7 @@ namespace MWRender
             ref.mRefNum.mIndex = plant.mIndex;
             ref.mRefNum.mContentFile = 0;
             ref.mRefID = ESM::RefId::stringRefId("fern");
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
             {
                 ref.mPos.pos[axis] = plant.mPosition[axis];
                 ref.mPos.rot[axis] = plant.mRotation[axis];
@@ -62,7 +62,7 @@ namespace MWRender
             writer.endRecord(ESM::REC_CELL);
         }
 
-        ESM::Cell exteriorAt(int x, int y)
+        ESM::Cell exteriorAt(std::int32_t x, std::int32_t y)
         {
             ESM::Cell cell;
             cell.blank();

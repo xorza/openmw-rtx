@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <iosfwd>
@@ -41,8 +42,8 @@ namespace Bsa
         Unknown = 0x0,
         Uncompressed = 0x100,
         Compressed = 0x415342, // B, S, A,
-        BA2GNRL, // used by FO4, BSA which contains files
-        BA2DX10 // used by FO4, BSA which contains textures
+        BA2GNRL = 4281155, // used by FO4, BSA which contains files
+        BA2DX10 = 4281156 // used by FO4, BSA which contains textures
     };
 
     /**
@@ -55,8 +56,8 @@ namespace Bsa
 #pragma pack(1)
         struct Hash
         {
-            uint32_t mLow;
-            uint32_t mHigh;
+            std::uint32_t mLow;
+            std::uint32_t mHigh;
         };
 #pragma pack(pop)
 
@@ -66,11 +67,11 @@ namespace Bsa
             // File size and offset in file. We store the offset from the
             // beginning of the file, not the offset into the data buffer
             // (which is what is stored in the archive.)
-            uint32_t mFileSize = 0;
-            uint64_t mOffset = 0;
+            std::uint32_t mFileSize = 0;
+            std::uint64_t mOffset = 0;
             Hash mHash{};
-            uint32_t mNameOffset = 0;
-            uint32_t mNameSize = 0;
+            std::uint32_t mNameOffset = 0;
+            std::uint32_t mNameSize = 0;
             std::vector<char>* mNamesBuffer = nullptr;
 
             std::string_view name() const { return std::string_view(mNamesBuffer->data() + mNameOffset, mNameSize); }

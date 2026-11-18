@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <istream>
 #include <optional>
@@ -64,7 +65,7 @@ namespace RtxTool
 
     /// Whether `day` is a day of the game — days from the first, and never before it — and why not
     /// where it is not: the rule a view file and the command line both refuse by.
-    Result<void, std::string_view> checkDay(int day);
+    Result<void, std::string_view> checkDay(std::int32_t day);
 
     /// Whether `weather` is one of the weathers the content files name, and why not where it is not.
     Result<void, std::string_view> checkWeather(std::string_view weather);
@@ -138,7 +139,7 @@ namespace RtxTool
         bool boolean(const BlockField& field) const;
 
         /// A whole number of days from the one a new game begins on.
-        int day(const BlockField& field) const;
+        std::int32_t day(const BlockField& field) const;
 
         /// A weapon's id as the content files spell it, which only the game can resolve: here,
         /// anything but nothing.

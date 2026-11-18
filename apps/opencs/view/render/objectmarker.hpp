@@ -1,5 +1,13 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+
+#include <osg/Node>
+#include <osg/Vec3d>
+#include <osg/ref_ptr>
+
 #include "object.hpp"
 
 namespace osg
@@ -20,9 +28,9 @@ namespace CSVRender
     class ObjectMarkerTag : public ObjectTag
     {
     public:
-        ObjectMarkerTag(Object* object, int axis);
+        ObjectMarkerTag(Object* object, std::int32_t axis);
 
-        int mAxis;
+        std::int32_t mAxis;
     };
 
     class ObjectMarker
@@ -39,7 +47,7 @@ namespace CSVRender
         std::string mLastHitNode;
         std::unordered_map<std::string, SceneUtil::Material*> mLastHighlightedNodes;
         float mMarkerScale;
-        int mSubMode;
+        std::int32_t mSubMode;
 
         ObjectMarker(WorldspaceWidget* worldspaceWidget, Resource::ResourceSystem* resourceSystem);
 
@@ -71,9 +79,9 @@ namespace CSVRender
 
         void resetMarkerHighlight();
 
-        void updateMarkerHighlight(const std::string_view hitNode, const int axis);
+        void updateMarkerHighlight(const std::string_view hitNode, const std::int32_t axis);
 
-        void setSubMode(const int subMode);
+        void setSubMode(const std::int32_t subMode);
 
         void updateScale(const float scale);
     };

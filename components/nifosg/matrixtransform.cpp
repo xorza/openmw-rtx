@@ -1,5 +1,7 @@
 #include "matrixtransform.hpp"
 
+#include <cstdint>
+
 namespace NifOsg
 {
     MatrixTransform::MatrixTransform(const Nif::NiTransform& transform)
@@ -22,8 +24,8 @@ namespace NifOsg
         mScale = scale;
 
         // Rescale the node using the known components.
-        for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 3; ++j)
+        for (std::int32_t i = 0; i < 3; ++i)
+            for (std::int32_t j = 0; j < 3; ++j)
                 _matrix(i, j) = mRotationScale.mValues[j][i] * mScale; // NB: column/row major difference
 
         _inverseDirty = true;
@@ -35,9 +37,9 @@ namespace NifOsg
         // First override the rotation ignoring the scale.
         _matrix.setRotate(rotation);
 
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
         {
-            for (int j = 0; j < 3; ++j)
+            for (std::int32_t j = 0; j < 3; ++j)
             {
                 // Update the current decomposed rotation and restore the known scale.
                 mRotationScale.mValues[j][i] = static_cast<float>(_matrix(i, j)); // NB: column/row major difference
@@ -55,8 +57,8 @@ namespace NifOsg
         mRotationScale = rotation;
 
         // Reorient the node using the known components.
-        for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 3; ++j)
+        for (std::int32_t i = 0; i < 3; ++i)
+            for (std::int32_t j = 0; j < 3; ++j)
                 _matrix(i, j) = mRotationScale.mValues[j][i] * mScale; // NB: column/row major difference
 
         _inverseDirty = true;

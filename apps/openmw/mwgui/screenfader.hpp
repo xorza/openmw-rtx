@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <deque>
 #include <memory>
 
@@ -45,7 +46,7 @@ namespace MWGui
 
         void fadeIn(const float time, float delay = 0);
         void fadeOut(const float time, float delay = 0);
-        void fadeTo(const int percent, const float time, float delay = 0);
+        void fadeTo(const std::int32_t percent, const float time, float delay = 0);
 
         void clear() override;
 

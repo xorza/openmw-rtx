@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <gtest/gtest.h>
 
 #include <osg/Array>
@@ -47,12 +49,30 @@ namespace
         differ->addChild(triangleWearing(stateOf(red), 0.0f));
         differ->addChild(triangleWearing(stateOf(osg::Vec4f(0.0f, 1.0f, 0.0f, 1.0f)), 2.0f));
 
+        // One state, but one triangle coloured a vertex at a time and one not: what the arrays bind differs.
+        const auto coloured = [&](float x) {
+            osg::ref_ptr<osg::Geometry> triangle = triangleWearing(stateOf(red), x);
+            osg::ref_ptr<osg::Vec4Array> colours = new osg::Vec4Array(3);
+            triangle->setColorArray(colours, osg::Array::BIND_PER_VERTEX);
+            return triangle;
+        };
+        osg::ref_ptr<osg::Group> bound = new osg::Group;
+        bound->addChild(coloured(0.0f));
+        bound->addChild(triangleWearing(stateOf(red), 2.0f));
+        osg::ref_ptr<osg::Group> boundAlike = new osg::Group;
+        boundAlike->addChild(coloured(0.0f));
+        boundAlike->addChild(coloured(2.0f));
+
         SceneUtil::Optimizer optimizer;
         optimizer.optimize(equal, SceneUtil::Optimizer::MERGE_GEOMETRY);
         optimizer.optimize(differ, SceneUtil::Optimizer::MERGE_GEOMETRY);
+        optimizer.optimize(bound, SceneUtil::Optimizer::MERGE_GEOMETRY);
+        optimizer.optimize(boundAlike, SceneUtil::Optimizer::MERGE_GEOMETRY);
 
         EXPECT_EQ(equal->getNumChildren(), 1u) << "two equal states as two objects";
         EXPECT_EQ(differ->getNumChildren(), 2u) << "two states that differ";
+        EXPECT_EQ(bound->getNumChildren(), 2u) << "a colour array bound to the vertices and none";
+        EXPECT_EQ(boundAlike->getNumChildren(), 1u) << "two colour arrays bound to the vertices";
     }
 
     /// What a node may have done to it as the game's `Resource::SceneManager` permits it, which lets a group that
@@ -60,7 +80,7 @@ namespace
     struct AsTheGamePermits final : SceneUtil::Optimizer::IsOperationPermissibleForObjectCallback
     {
         bool isOperationPermissibleForObjectImplementation(
-            const SceneUtil::Optimizer*, const osg::Node*, unsigned int) const override
+            const SceneUtil::Optimizer*, const osg::Node*, std::uint32_t) const override
         {
             return true;
         }

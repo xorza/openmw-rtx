@@ -1,7 +1,6 @@
 #pragma once
 
-#include "editmode.hpp"
-
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -9,13 +8,12 @@
 
 #include <QWidget>
 
-#ifndef Q_MOC_RUN
-#include "../../model/world/columnimp.hpp"
-#include "../widget/brushshapes.hpp"
-#include "brushdraw.hpp"
-#endif
-
+#include <apps/opencs/model/world/columnimp.hpp>
+#include <apps/opencs/view/widget/brushshapes.hpp>
 #include <components/esm3/loadland.hpp>
+
+#include "brushdraw.hpp"
+#include "editmode.hpp"
 
 class QDragMoveEvent;
 class QDropEvent;
@@ -89,13 +87,13 @@ namespace CSVRender
         bool secondarySelectStartDrag(const QPoint& pos) override;
 
         /// \brief Handle texture edit behavior during dragging
-        void drag(const QPoint& pos, int diffX, int diffY, double speedFactor) override;
+        void drag(const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor) override;
 
         /// \brief End texture editing command macro
         void dragCompleted(const QPoint& pos) override;
 
         void dragAborted() override;
-        void dragWheel(int diff, double speedFactor) override;
+        void dragWheel(std::int32_t diff, double speedFactor) override;
         void dragMoveEvent(QDragMoveEvent* event) override;
 
         void mouseMoveEvent(QMouseEvent* event) override;
@@ -107,10 +105,10 @@ namespace CSVRender
         void editTerrainTextureGrid(const WorldspaceHitResult& hit);
 
         /// \brief Check if global selection coordinate belongs to cell in view
-        bool isInCellSelection(int globalSelectionX, int globalSelectionY);
+        bool isInCellSelection(std::int32_t globalSelectionX, std::int32_t globalSelectionY);
 
         /// \brief Handle brush mechanics for texture selection
-        void selectTerrainTextures(const std::pair<int, int>& texCoords, unsigned char selectMode);
+        void selectTerrainTextures(const std::pair<std::int32_t, std::int32_t>& texCoords, std::uint8_t selectMode);
 
         /// \brief Push texture edits to command macro
         void pushEditToCommand(CSMWorld::LandTexturesColumn::DataType& newLandGrid, CSMDoc::Document& document,
@@ -121,25 +119,25 @@ namespace CSVRender
 
         std::string mCellId;
         ESM::RefId mBrushTexture;
-        int mBrushSize;
+        std::int32_t mBrushSize;
         CSVWidget::BrushShape mBrushShape;
         std::unique_ptr<BrushDraw> mBrushDraw;
-        std::vector<std::pair<int, int>> mCustomBrushShape;
+        std::vector<std::pair<std::int32_t, std::int32_t>> mCustomBrushShape;
         CSVWidget::SceneToolTextureBrush* mTextureBrushScenetool;
-        int mDragMode;
+        std::int32_t mDragMode;
         osg::Group* mParentNode;
         bool mIsEditing;
         std::shared_ptr<TerrainSelection> mTerrainTextureSelection;
 
-        const int cellSize{ ESM::Land::REAL_SIZE };
-        const int landTextureSize{ ESM::Land::LAND_TEXTURE_SIZE };
+        const std::int32_t cellSize{ ESM::Land::REAL_SIZE };
+        const std::int32_t landTextureSize{ ESM::Land::LAND_TEXTURE_SIZE };
 
     signals:
         void passBrushTexture(ESM::RefId brushTexture);
 
     public slots:
         void handleDropEvent(QDropEvent* event);
-        void setBrushSize(int brushSize);
+        void setBrushSize(std::int32_t brushSize);
         void setBrushShape(CSVWidget::BrushShape brushShape);
         void setBrushTexture(ESM::RefId brushTexture);
     };

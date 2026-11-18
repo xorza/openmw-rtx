@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -37,7 +38,7 @@ namespace Rtx
 
             for (const Refused untouched :
                 { Refused::Texture, Refused::SkyLayer, Refused::Moon, Refused::Emitter, Refused::Sprites })
-                EXPECT_EQ(refusals.count(untouched), 0u) << static_cast<int>(untouched);
+                EXPECT_EQ(refusals.count(untouched), 0u) << static_cast<std::int32_t>(untouched);
 
             // What a reader thread held is reported as if it had been reported here.
             const std::vector<Refusal> held{
@@ -82,15 +83,15 @@ namespace Rtx
         /// types that convert into each other is never ambiguous.
         TEST(RtxResultTypeTest, aResultHoldsAValueOrAnErrorAndSaysWhich)
         {
-            const Result<std::optional<int>, std::string_view> seven = 7;
+            const Result<std::optional<std::int32_t>, std::string_view> seven = 7;
             ASSERT_TRUE(seven.isOk());
-            EXPECT_EQ(seven.value(), std::optional<int>(7));
+            EXPECT_EQ(seven.value(), std::optional<std::int32_t>(7));
 
-            const Result<std::optional<int>, std::string_view> nothing = std::nullopt;
+            const Result<std::optional<std::int32_t>, std::string_view> nothing = std::nullopt;
             ASSERT_TRUE(nothing.isOk()) << "nothing is a value, and not an error";
             EXPECT_FALSE(nothing.value().has_value());
 
-            const Result<std::optional<int>, std::string_view> refused = Err{ "no such number" };
+            const Result<std::optional<std::int32_t>, std::string_view> refused = Err{ "no such number" };
             ASSERT_FALSE(refused.isOk());
             EXPECT_EQ(refused.error(), "no such number");
 

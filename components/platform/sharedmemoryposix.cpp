@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -30,7 +31,7 @@ namespace Platform
         // **Made afresh and never opened as it stood**: a name an earlier process of this user
         // left is given up and made again, and one another user holds cannot be given up — the
         // directory is sticky — so the second make fails as the first did.
-        int descriptor = shm_open(made.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
+        std::int32_t descriptor = shm_open(made.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
         if (descriptor < 0 && errno == EEXIST && shm_unlink(made.c_str()) == 0)
             descriptor = shm_open(made.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
         if (descriptor < 0)
@@ -56,7 +57,7 @@ namespace Platform
     {
         SharedMemory memory;
         const std::string opened = systemName(name);
-        const int descriptor = shm_open(opened.c_str(), O_RDWR, 0600);
+        const std::int32_t descriptor = shm_open(opened.c_str(), O_RDWR, 0600);
         if (descriptor < 0)
             return memory;
 

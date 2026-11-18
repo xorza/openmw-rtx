@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <QValidator>
@@ -16,7 +17,7 @@ namespace CSVWorld
         explicit IdValidator(bool relaxed = false, QObject* parent = nullptr);
         ///< \param relaxed Relaxed rules for IDs that also functino as user visible text
 
-        State validate(QString& input, int& pos) const override;
+        State validate(QString& input, std::int32_t& pos) const override;
 
         void setNamespace(const std::string& value);
 

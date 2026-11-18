@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <span>
 
 namespace RtxTool
@@ -12,7 +13,7 @@ namespace RtxTool
         bool mFromRest = false;
         bool mToRest = false;
 
-        unsigned getRests() const { return (mFromRest ? 1u : 0u) + (mToRest ? 1u : 0u); }
+        std::uint32_t getRests() const { return (mFromRest ? 1u : 0u) + (mToRest ? 1u : 0u); }
     };
 
     /// The speeds a leg's two keys are passed at where one of them is not the leg's own: nought at

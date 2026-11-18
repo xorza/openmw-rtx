@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 
 namespace Loading
@@ -14,7 +15,7 @@ namespace MWWorld
     {
         virtual ~ContentLoader() = default;
 
-        virtual void load(const std::filesystem::path& filepath, int& index, Loading::Listener* listener) = 0;
+        virtual void load(const std::filesystem::path& filepath, std::int32_t& index, Loading::Listener* listener) = 0;
     };
 
 } /* namespace MWWorld */

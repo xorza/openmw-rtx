@@ -1,9 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <stdexcept>
 #include <string>
+
+#include <components/esm/attr.hpp>
+#include <components/esm/refid.hpp>
+#include <components/esm3/magiceffects.hpp>
 
 #include "activespells.hpp"
 #include "aisequence.hpp"
@@ -12,10 +17,6 @@
 #include "magiceffects.hpp"
 #include "spells.hpp"
 #include "stat.hpp"
-
-#include <components/esm/attr.hpp>
-#include <components/esm/refid.hpp>
-#include <components/esm3/magiceffects.hpp>
 
 namespace ESM
 {
@@ -26,9 +27,9 @@ namespace MWMechanics
 {
     struct CorprusStats
     {
-        static constexpr int sWorseningPeriod = 24;
+        static constexpr std::int32_t sWorseningPeriod = 24;
 
-        int mWorsenings[ESM::Attribute::Length]{};
+        std::int32_t mWorsenings[ESM::Attribute::Length]{};
         MWWorld::TimeStamp mNextWorsening;
     };
 
@@ -43,13 +44,13 @@ namespace MWMechanics
         Spells mSpells;
         ActiveSpells mActiveSpells;
         MagicEffects mMagicEffects;
-        Stat<int> mAiSettings[4];
+        Stat<std::int32_t> mAiSettings[4];
         AiSequence mAiSequence;
         bool mDead = false;
         bool mDeathAnimationFinished = false;
         bool mDied = false; // flag for OnDeath script function
         bool mMurdered = false;
-        int mFriendlyHits = 0;
+        std::int32_t mFriendlyHits = 0;
         bool mTalkedTo = false;
         bool mAlarmed = false;
         bool mAttacked = false;
@@ -58,7 +59,7 @@ namespace MWMechanics
         bool mKnockdownOverOneFrame = false;
         bool mHitRecovery = false;
         bool mBlock = false;
-        unsigned int mMovementFlags = 0;
+        std::uint32_t mMovementFlags = 0;
 
         float mFallHeight = 0.f;
 
@@ -69,7 +70,7 @@ namespace MWMechanics
         MWWorld::TimeStamp mLastRestock;
 
         // The pool of merchant gold (not in inventory)
-        int mGoldPool = 0;
+        std::int32_t mGoldPool = 0;
 
         // Stores an actor that attacked this actor. Only one is stored at a time, and it is not changed if a different
         // actor attacks. It is cleared when combat ends.
@@ -84,16 +85,16 @@ namespace MWMechanics
         std::multimap<ESM::RefId, ESM::RefNum> mSummonedCreatures; // <Effect, Actor>
 
         float mAwarenessTimer = 0.f;
-        int mAwarenessRoll = -1;
+        std::int32_t mAwarenessRoll = -1;
 
     protected:
         std::string mAttackType;
-        int mLevel = 0;
+        std::int32_t mLevel = 0;
         bool mAttackingOrSpell = false;
 
     private:
         // The index of the death animation that was played, or -1 if none played
-        signed char mDeathAnimation = -1;
+        std::int8_t mDeathAnimation = -1;
 
         bool mTeleported = false;
 
@@ -120,7 +121,7 @@ namespace MWMechanics
 
         const DynamicStat<float>& getFatigue() const;
 
-        const DynamicStat<float>& getDynamic(int index) const;
+        const DynamicStat<float>& getDynamic(std::int32_t index) const;
 
         const Spells& getSpells() const;
 
@@ -131,7 +132,7 @@ namespace MWMechanics
         bool getAttackingOrSpell() const { return mAttackingOrSpell; }
         std::string_view getAttackType() const { return mAttackType; }
 
-        int getLevel() const;
+        std::int32_t getLevel() const;
 
         Spells& getSpells();
 
@@ -149,17 +150,17 @@ namespace MWMechanics
 
         void setFatigue(const DynamicStat<float>& value);
 
-        void setDynamic(int index, const DynamicStat<float>& value);
+        void setDynamic(std::int32_t index, const DynamicStat<float>& value);
 
         void setAttackingOrSpell(bool attackingOrSpell) { mAttackingOrSpell = attackingOrSpell; }
 
         void setAttackType(std::string_view attackType) { mAttackType = attackType; }
 
-        void setLevel(int level);
+        void setLevel(std::int32_t level);
 
-        void setAiSetting(AiSetting index, Stat<int> value);
-        void setAiSetting(AiSetting index, int base);
-        Stat<int> getAiSetting(AiSetting index) const;
+        void setAiSetting(AiSetting index, Stat<std::int32_t> value);
+        void setAiSetting(AiSetting index, std::int32_t base);
+        Stat<std::int32_t> getAiSetting(AiSetting index) const;
 
         const AiSequence& getAiSequence() const;
 
@@ -193,7 +194,7 @@ namespace MWMechanics
 
         bool hasBlightDisease() const;
 
-        int getFriendlyHits() const;
+        std::int32_t getFriendlyHits() const;
         ///< Number of friendly hits received.
 
         void friendlyHit();
@@ -268,11 +269,11 @@ namespace MWMechanics
         void setLastRestockTime(MWWorld::TimeStamp tradeTime);
         MWWorld::TimeStamp getLastRestockTime() const;
 
-        void setGoldPool(int pool);
-        int getGoldPool() const;
+        void setGoldPool(std::int32_t pool);
+        std::int32_t getGoldPool() const;
 
-        signed char getDeathAnimation() const; // -1 means not decided
-        void setDeathAnimation(signed char index);
+        std::int8_t getDeathAnimation() const; // -1 means not decided
+        void setDeathAnimation(std::int8_t index);
 
         MWWorld::TimeStamp getTimeOfDeath() const;
 
@@ -285,6 +286,6 @@ namespace MWMechanics
         const std::map<ESM::RefId, AttributeValue>& getAttributes() const { return mAttributes; }
 
         void updateAwareness(float duration);
-        int getAwarenessRoll();
+        std::int32_t getAwarenessRoll();
     };
 }

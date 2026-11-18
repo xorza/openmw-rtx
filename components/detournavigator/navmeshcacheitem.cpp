@@ -1,4 +1,12 @@
 #include "navmeshcacheitem.hpp"
+
+#include <cstddef>
+#include <cstdint>
+#include <ostream>
+#include <sstream>
+
+#include <DetourNavMesh.h>
+
 #include "debug.hpp"
 #include "makenavmesh.hpp"
 #include "navmeshdata.hpp"
@@ -7,29 +15,24 @@
 #include "settings.hpp"
 #include "tileposition.hpp"
 
-#include <DetourNavMesh.h>
-
-#include <ostream>
-#include <sstream>
-
 namespace
 {
     using DetourNavigator::TilePosition;
 
     bool removeTile(dtNavMesh& navMesh, const TilePosition& position)
     {
-        const int layer = 0;
+        const std::int32_t layer = 0;
         const auto tileRef = navMesh.getTileRefAt(position.x(), position.y(), layer);
         if (tileRef == 0)
             return false;
-        unsigned char** const data = nullptr;
-        int* const dataSize = nullptr;
+        std::uint8_t** const data = nullptr;
+        std::int32_t* const dataSize = nullptr;
         return dtStatusSucceed(navMesh.removeTile(tileRef, data, dataSize));
     }
 
-    dtStatus addTile(dtNavMesh& navMesh, unsigned char* data, int size)
+    dtStatus addTile(dtNavMesh& navMesh, std::uint8_t* data, std::int32_t size)
     {
-        const int doNotTransferOwnership = 0;
+        const std::int32_t doNotTransferOwnership = 0;
         const dtTileRef lastRef = 0;
         dtTileRef* const result = nullptr;
         return navMesh.addTile(data, size, doNotTransferOwnership, lastRef, result);
@@ -61,12 +64,12 @@ namespace DetourNavigator
             case UpdateNavMeshStatus::restored:
                 return stream << "restored";
         }
-        return stream << "unknown(" << static_cast<unsigned>(value) << ")";
+        return stream << "unknown(" << static_cast<std::uint32_t>(value) << ")";
     }
 
     const dtMeshTile* getTile(const dtNavMesh& navMesh, const TilePosition& position)
     {
-        const int layer = 0;
+        const std::int32_t layer = 0;
         return navMesh.getTileAt(position.x(), position.y(), layer);
     }
 

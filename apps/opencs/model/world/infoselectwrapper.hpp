@@ -1,12 +1,13 @@
 #pragma once
 
-#include <stddef.h>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 
-#include <components/esm3/loadinfo.hpp>
-
 #include <QVariant>
+
+#include <components/esm3/loadinfo.hpp>
 
 namespace CSMWorld
 {
@@ -45,10 +46,10 @@ namespace CSMWorld
         void updateHasVariable();
         void updateComparisonType();
 
-        std::pair<int, int> getConditionIntRange() const;
+        std::pair<std::int32_t, std::int32_t> getConditionIntRange() const;
         std::pair<float, float> getConditionFloatRange() const;
 
-        std::pair<int, int> getValidIntRange() const;
+        std::pair<std::int32_t, std::int32_t> getValidIntRange() const;
         std::pair<float, float> getValidFloatRange() const;
 
         template <typename Type1, typename Type2>
@@ -87,7 +88,7 @@ namespace CSMWorld
         void setFunctionName(ESM::DialogueCondition::Function name);
         void setRelationType(ESM::DialogueCondition::Comparison type);
         void setVariableName(const std::string& name);
-        void setValue(int value);
+        void setValue(std::int32_t value);
         void setValue(float value);
 
     private:

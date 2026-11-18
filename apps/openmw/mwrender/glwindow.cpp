@@ -1,5 +1,6 @@
 #include "glwindow.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -26,7 +27,7 @@ namespace MWRender
 
     GlWindow::GlWindow(const SDLUtil::VSyncMode vsync)
     {
-        auto antialiasing = static_cast<unsigned>(Settings::video().mAntialiasing);
+        auto antialiasing = static_cast<std::uint32_t>(Settings::video().mAntialiasing);
 
         // Read when `openWindow` makes the window, so set before it.
         checkSDLError(SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8));
@@ -40,7 +41,7 @@ namespace MWRender
         if (antialiasing > 0)
         {
             checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1));
-            checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, static_cast<int>(antialiasing)));
+            checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, static_cast<std::int32_t>(antialiasing)));
         }
 
         osg::ref_ptr<SDLUtil::GraphicsWindowSDL>& graphicsWindow = mGraphics;
@@ -57,8 +58,9 @@ namespace MWRender
                         Log(Debug::Warning) << "Warning: " << antialiasing << "x antialiasing not supported, trying "
                                             << antialiasing / 2;
                         antialiasing /= 2;
-                        Settings::video().mAntialiasing.set(static_cast<int>(antialiasing));
-                        checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, static_cast<int>(antialiasing)));
+                        Settings::video().mAntialiasing.set(static_cast<std::int32_t>(antialiasing));
+                        checkSDLError(
+                            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, static_cast<std::int32_t>(antialiasing)));
                         continue;
                     }
                     else
@@ -75,7 +77,7 @@ namespace MWRender
             SDL_GetWindowSizeInPixels(mWindow.get(), &traits->width, &traits->height);
             traits->windowName = SDL_GetWindowTitle(mWindow.get());
             traits->windowDecoration = !(SDL_GetWindowFlags(mWindow.get()) & SDL_WINDOW_BORDERLESS);
-            traits->screenNum = static_cast<int>(SDL_GetDisplayForWindow(mWindow.get()));
+            traits->screenNum = static_cast<std::int32_t>(SDL_GetDisplayForWindow(mWindow.get()));
             traits->vsync = 0;
             traits->inheritedWindowData = new SDLUtil::GraphicsWindowSDL::WindowData(mWindow.get());
 
@@ -90,8 +92,8 @@ namespace MWRender
                 graphicsWindow->closeImplementation();
                 mWindow.reset();
                 antialiasing /= 2;
-                Settings::video().mAntialiasing.set(static_cast<int>(antialiasing));
-                checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, static_cast<int>(antialiasing)));
+                Settings::video().mAntialiasing.set(static_cast<std::int32_t>(antialiasing));
+                checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, static_cast<std::int32_t>(antialiasing)));
                 continue;
             }
 

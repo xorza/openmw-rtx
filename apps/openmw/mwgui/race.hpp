@@ -1,8 +1,12 @@
 #pragma once
 
-#include "windowbase.hpp"
-#include <components/esm/refid.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+
+#include <components/esm/refid.hpp>
+
+#include "windowbase.hpp"
 
 namespace MWRender
 {
@@ -57,8 +61,8 @@ namespace MWGui
         EventHandle_WindowBase eventDone;
 
     protected:
-        void onPreviewScroll(MyGUI::Widget* sender, int delta);
-        void onHeadRotate(MyGUI::ScrollBar* scroll, size_t position);
+        void onPreviewScroll(MyGUI::Widget* sender, std::int32_t delta);
+        void onHeadRotate(MyGUI::ScrollBar* scroll, std::size_t position);
 
         void onSelectPreviousGender(MyGUI::Widget* sender);
         void onSelectNextGender(MyGUI::Widget* sender);
@@ -69,8 +73,8 @@ namespace MWGui
         void onSelectPreviousHair(MyGUI::Widget* sender);
         void onSelectNextHair(MyGUI::Widget* sender);
 
-        void onSelectRace(MyGUI::ListBox* sender, size_t index);
-        void onAccept(MyGUI::ListBox* sender, size_t index);
+        void onSelectRace(MyGUI::ListBox* sender, std::size_t index);
+        void onAccept(MyGUI::ListBox* sender, std::size_t index);
 
         void onOkClicked(MyGUI::Widget* sender);
         void onBackClicked(MyGUI::Widget* sender);
@@ -82,7 +86,7 @@ namespace MWGui
         void updatePreview();
         void recountParts();
 
-        void getBodyParts(int part, std::vector<ESM::RefId>& out);
+        void getBodyParts(std::int32_t part, std::vector<ESM::RefId>& out);
 
         std::vector<ESM::RefId> mAvailableHeads;
         std::vector<ESM::RefId> mAvailableHairs;
@@ -99,7 +103,7 @@ namespace MWGui
         MyGUI::Widget* mSpellPowerList{};
         std::vector<MyGUI::Widget*> mSpellPowerItems;
 
-        size_t mGenderIndex, mFaceIndex, mHairIndex;
+        std::size_t mGenderIndex, mFaceIndex, mHairIndex;
 
         ESM::RefId mCurrentRaceId;
 

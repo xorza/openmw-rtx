@@ -1,7 +1,9 @@
 #include "constrainedfilestreambuf.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
+#include <ios>
 #include <memory>
 #include <utility>
 
@@ -37,6 +39,27 @@ namespace Files
             return traits_type::eof();
 
         return traits_type::to_int_type(*gptr());
+    }
+
+    std::streamsize ConstrainedFileStreamBuf::xsgetn(char* const into, const std::streamsize count)
+    {
+        const std::streamsize buffered = std::min<std::streamsize>(egptr() - gptr(), count);
+        if (buffered > 0)
+        {
+            std::copy_n(gptr(), buffered, into);
+            // At most the buffer's 8 KiB, which an int holds.
+            gbump(static_cast<std::int32_t>(buffered));
+        }
+        const std::streamsize rest = count - buffered;
+        if (std::cmp_less(rest, mBuffer.size()))
+            return buffered + std::streambuf::xsgetn(into + buffered, rest);
+
+        const std::size_t wanted = std::min(static_cast<std::size_t>(rest), mSize - mPosition);
+        const std::size_t got = wanted == 0 ? 0 : File::readAt(*mFile, mOrigin + mPosition, into + buffered, wanted);
+        mPosition += got;
+        // Nothing buffered past the read: the next read fetches from where this one ended.
+        setg(nullptr, nullptr, nullptr);
+        return buffered + static_cast<std::streamsize>(got);
     }
 
     std::streambuf::pos_type ConstrainedFileStreamBuf::seekoff(

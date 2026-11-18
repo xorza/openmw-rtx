@@ -1,12 +1,14 @@
 #include "loadingr.hpp"
 
-#include "esmreader.hpp"
-#include "esmwriter.hpp"
+#include <cstdint>
 
 #include <components/esm/attr.hpp>
-#include <components/esm3/loadmgef.hpp>
-#include <components/esm3/loadskil.hpp>
 #include <components/misc/concepts.hpp>
+
+#include "esmreader.hpp"
+#include "esmwriter.hpp"
+#include "loadmgef.hpp"
+#include "loadskil.hpp"
 
 namespace ESM
 {
@@ -16,21 +18,21 @@ namespace ESM
         struct EsmIRDTstruct
         {
             float mWeight;
-            int32_t mValue, mEffectID[4], mSkills[4], mAttributes[4];
+            std::int32_t mValue, mEffectID[4], mSkills[4], mAttributes[4];
         };
 
         // IRDT format used in saves
         struct ValueAndWeight
         {
             float mWeight;
-            int32_t mValue;
+            std::int32_t mValue;
         };
 
         void toBinary(const Ingredient::IRDTstruct& src, EsmIRDTstruct& dst)
         {
             dst.mWeight = src.mWeight;
             dst.mValue = src.mValue;
-            for (int i = 0; i < 4; ++i)
+            for (std::int32_t i = 0; i < 4; ++i)
             {
                 dst.mEffectID[i] = ESM::MagicEffect::refIdToIndex(src.mEffectID[i]);
                 dst.mSkills[i] = ESM::Skill::refIdToIndex(src.mSkills[i]);
@@ -42,7 +44,7 @@ namespace ESM
         {
             dst.mWeight = src.mWeight;
             dst.mValue = src.mValue;
-            for (int i = 0; i < 4; ++i)
+            for (std::int32_t i = 0; i < 4; ++i)
             {
                 dst.mEffectID[i] = ESM::MagicEffect::indexToRefId(src.mEffectID[i]);
                 dst.mSkills[i] = ESM::Skill::indexToRefId(src.mSkills[i]);
@@ -99,7 +101,7 @@ namespace ESM
                         esm.getSubComposite(bin);
                         mData.mWeight = bin.mWeight;
                         mData.mValue = bin.mValue;
-                        for (int i = 0; i < 4 && esm.isNextSub("ENID"); ++i)
+                        for (std::int32_t i = 0; i < 4 && esm.isNextSub("ENID"); ++i)
                         {
                             mData.mEffectID[i] = esm.getRefId();
                             mData.mSkills[i] = esm.getHNORefId("ENSK");
@@ -133,7 +135,7 @@ namespace ESM
         if (esm.getFormatVersion() <= MaxIngredientIndexFormatVersion)
         {
             // horrible hack to fix broken data in records
-            for (int i = 0; i < 4; ++i)
+            for (std::int32_t i = 0; i < 4; ++i)
             {
                 if (mData.mEffectID[i] != ESM::MagicEffect::AbsorbAttribute
                     && mData.mEffectID[i] != ESM::MagicEffect::DamageAttribute
@@ -179,10 +181,10 @@ namespace ESM
         {
             ValueAndWeight bin{ .mWeight = mData.mWeight, .mValue = mData.mValue };
             esm.writeNamedComposite("IRDT", bin);
-            int max = 4;
+            std::int32_t max = 4;
             while (max > 0 && mData.mEffectID[max - 1].empty())
                 --max;
-            for (int i = 0; i < max; ++i)
+            for (std::int32_t i = 0; i < max; ++i)
             {
                 esm.writeHNRefId("ENID", mData.mEffectID[i]);
                 esm.writeHNORefId("ENSK", mData.mSkills[i]);
@@ -198,7 +200,7 @@ namespace ESM
         mRecordFlags = 0;
         mData.mWeight = 0;
         mData.mValue = 0;
-        for (int i = 0; i < 4; ++i)
+        for (std::int32_t i = 0; i < 4; ++i)
         {
             mData.mEffectID[i] = ESM::MagicEffect::WaterBreathing;
             mData.mSkills[i] = ESM::RefId();

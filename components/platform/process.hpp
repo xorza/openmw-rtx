@@ -42,7 +42,19 @@ namespace Platform::Process
     /// This process's command line as UTF-8, from the `argc` and `argv` its `main` was handed: on
     /// Windows from the wide line the system keeps, because `argv` is in the system's code page
     /// there.
-    std::vector<std::string> commandLine(int argc, char** argv);
+    std::vector<std::string> commandLine(std::int32_t argc, char** argv);
+
+    /// The parent's console taken on, where the process has none and its parent does, with its streams that were not
+    /// redirected and UTF-8 for its output: Windows', where a program built for the window starts without one. Nothing
+    /// on Linux, where a process's terminal is its parent's already.
+    void attachParentConsole();
+
+    /// Whether the standard error is a terminal that takes ANSI colours: a Windows console in virtual terminal mode,
+    /// or, there and on Linux, a character device under a `TERM`.
+    bool standardErrorTakesColour();
+
+    /// What the system ends a program's file name with: `.exe` on Windows, nothing on Linux.
+    std::string_view executableSuffix();
 
     /// This process's id, as the system numbers processes: what a reading that names processes
     /// tells this one from the rest by.
@@ -86,7 +98,7 @@ namespace Platform::Process
         std::uint32_t mExitCode = 0;
 
         /// The signal that ended it, on a system that has them. Nought where it exited.
-        int mSignal = 0;
+        std::int32_t mSignal = 0;
 
         bool succeeded() const { return mExitCode == 0 && mSignal == 0; }
 
@@ -123,6 +135,12 @@ namespace Platform::Process
     /// of 0.40 to 0.49 ms, and on huge pages 0.41 each.
     void restartOnHugePages(char** argv);
 
+    /// Takes the process off transparent huge pages from here on, for every mapping it makes and every child it starts
+    /// (Linux's `PR_SET_THP_DISABLE`), and answers whether the system took it: what a run that asks what a kernel
+    /// giving huge pages to every mapping adds to the heap's free memory sets. A system with no transparent huge pages,
+    /// Windows among them, already runs without, and answers true.
+    bool refuseTransparentHugePages();
+
     /// `Platform::LinuxText::hugePageShare` of this process, now. Nothing on a system that is not Linux,
     /// or where the rollup cannot be read.
     std::optional<float> hugePageShare();
@@ -132,15 +150,56 @@ namespace Platform::Process
     /// Nothing on a system that is not Linux, or where the counters cannot be read.
     std::optional<std::uint64_t> compactionStalls();
 
-    /// What a process holds of anonymous memory, as the system counts it: resident, and swapped out — on Windows the
-    /// private memory committed and not in its working set, which the pagefile holds or nothing has touched yet.
+    /// What a process holds of anonymous memory, as the system counts it: resident, and not resident. **Not resident is
+    /// not the same on every system, and is named for what both are**: on Linux what is swapped out (`VmSwap`); on
+    /// Windows the private memory committed and not in the working set, which counts what the page file holds, what the
+    /// system trimmed onto its standby list and an integrated GPU's pages alike. The Windows machine's Repack tour
+    /// called 13.3 GiB of 15.9 not resident with its device held under 4 GiB, its frames as fast as with 7.2 GiB
+    /// (`docs/research/2026-11-18-handheld-rooms-and-device-memory.md`).
     struct AnonymousMemory
     {
         std::uint64_t mResident = 0;
-        std::uint64_t mSwapped = 0;
+        std::uint64_t mNotResident = 0;
     };
 
     /// `AnonymousMemory` of this process, now: what a run on a machine short of memory reads at every stop, since
     /// what it holds the system takes from everything else. Nothing where the system does not say.
     std::optional<AnonymousMemory> anonymousMemory();
+
+    /// **What holds a process's committed private memory**, split by who keeps it: the regions of the heaps the
+    /// process's allocators keep, and every other private region, with how many there are, the largest of them and how
+    /// many are that large, which is what names a driver's or a library's own allocation by the size it takes.
+    struct PrivateMemoryHeld
+    {
+        std::uint64_t mHeaps = 0;
+        std::uint64_t mOther = 0;
+        std::uint32_t mOtherRegions = 0;
+        std::uint64_t mLargestOther = 0;
+        std::uint32_t mLargestOtherRegions = 0;
+    };
+
+    /// `PrivateMemoryHeld` of this process, now, walked region by region and every heap block by block under the heap's
+    /// lock, so asked once a run, at its end: what names the memory a Windows process holds past its heap. Nothing on
+    /// Linux, where `anonymousMemory` and the heap's own report (`Platform::heapHeld`) already part the two, and where
+    /// the system does not say.
+    std::optional<PrivateMemoryHeld> privateMemoryHeld();
+
+    /// **What the graphics driver holds for this process**, by the regions the kernel's DRM accounting names for it
+    /// (`drm-usage-stats`, amdgpu's regions): what its buffers come to in the device's own memory (`vram`) and in the
+    /// system's memory the device maps (`gtt`), what of each stands there now, and what the driver moved out to the
+    /// system's memory beyond the device's reach (`cpu`), where a buffer waits to be moved back before the device can
+    /// read it. Read once a stop, every client of the process summed. Nothing on a system or driver that states none.
+    struct DriverMemory
+    {
+        std::uint64_t mTotalVram = 0;
+        std::uint64_t mResidentVram = 0;
+        std::uint64_t mTotalGtt = 0;
+        std::uint64_t mResidentGtt = 0;
+        std::uint64_t mResidentCpu = 0;
+
+        bool operator==(const DriverMemory&) const = default;
+    };
+
+    /// `DriverMemory` of this process, now.
+    std::optional<DriverMemory> driverMemory();
 }

@@ -1,10 +1,13 @@
 #include "tracedground.hpp"
 
+#include <cstdint>
+
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <components/esm/defs.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/util.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
@@ -26,7 +29,7 @@ namespace MWRender
     }
 
     TracedGround::TracedGround(
-        const GroundSpec& spec, Resource::SceneManager& scenes, const unsigned int nodeMask, Rtx::CellRing& ring)
+        const GroundSpec& spec, Resource::SceneManager& scenes, const std::uint32_t nodeMask, Rtx::CellRing& ring)
         : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, *this, nodeMask, spec.mWorldspace)
         , mRing(ring)
     {
@@ -42,14 +45,35 @@ namespace MWRender
         return mRing.placementsIn(cell);
     }
 
-    bool TracedGround::enableReference(int type, const MWWorld::ConstPtr& ptr, const bool enabled)
+    bool TracedGround::enableReference(std::int32_t type, const MWWorld::ConstPtr& ptr, const bool enabled)
     {
         mRing.setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);
         return false;
     }
 
-    void TracedGround::blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now)
+    bool ringMayHold(const std::int32_t type)
     {
+        switch (type)
+        {
+            case ESM::REC_NPC_:
+            case ESM::REC_CREA:
+            case ESM::REC_LEVC:
+            case ESM::REC_NPC_4:
+            case ESM::REC_CREA4:
+            case ESM::REC_LVLC4:
+            case ESM::REC_LVLN4:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    void TracedGround::blacklistReference(
+        std::int32_t type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now)
+    {
+        if (!ringMayHold(type))
+            return;
+
         const ESM::RefNum refnum = now.getCellRef().getRefNum();
         if (now.getCellRef().getCount() == 0)
         {

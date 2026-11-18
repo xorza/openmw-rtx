@@ -1,5 +1,4 @@
-#include "crashtestssystem.hpp"
-
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <optional>
@@ -9,6 +8,8 @@
 #include <intrin.h>
 
 #include <components/misc/windows.hpp>
+
+#include "crashtestssystem.hpp"
 
 namespace CrashTests
 {
@@ -68,7 +69,7 @@ namespace CrashTests
         return std::nullopt;
     }
 
-    std::optional<int> runModeOfThisSystem(std::string_view mode)
+    std::optional<std::int32_t> runModeOfThisSystem(std::string_view mode)
     {
         if (mode == "pure-call")
         {

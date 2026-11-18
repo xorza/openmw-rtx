@@ -1,14 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include <MyGUI_Types.h>
 #include <osg/Vec2f>
 
+#include <apps/openmw/mwbase/inputmanager.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/settings/settings.hpp>
-
-#include "../mwbase/inputmanager.hpp"
 
 namespace SDLUtil
 {
@@ -77,7 +77,7 @@ namespace MWInput
         /// would point at another widget after the interface is laid out at another scale, until
         /// the mouse moved.
         osg::Vec2f mGuiCursor;
-        int mMouseWheel;
+        std::int32_t mMouseWheel;
         bool mMouseLookEnabled;
         bool mGuiCursorEnabled;
         MWBase::CursorMode mCursorMode;

@@ -79,10 +79,16 @@ namespace Rtx
         std::vector<ModuleInput> mInputs;
     };
 
+    /// The most levels `readInterface` walks down a block's types — a member, an element or a component a level — past
+    /// which it refuses the module: a type nests far shallower in every module the tree writes (a vector in a structure
+    /// in an array in a block, four levels), and a module whose types name one another round in a cycle, which SPIR-V
+    /// forbids, is refused rather than walked until the stack ends.
+    inline constexpr std::uint32_t sTypeDepthMost = 64;
+
     /// `module`'s interface, in one walk of its words.
     ///
     /// @throws InputError for words that are no module, or a resource, a specialization constant, a
-    ///         push block's member or an input of a type this does not know, naming it: the module
-    ///         is the installation's, as its file is (`readSpirv`).
+    ///         push block's member or an input of a type this does not know, naming it, or types nested past
+    ///         `sTypeDepthMost`: the module is the installation's, as its file is (`readSpirv`).
     ModuleInterface readInterface(std::span<const std::uint32_t> module);
 }

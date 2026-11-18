@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "windowbase.hpp"
 
 namespace MWGui
@@ -13,7 +15,7 @@ namespace MWGui
         void setPinButtonVisible(bool visible);
 
     private:
-        void onPinButtonPressed(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
+        void onPinButtonPressed(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
 
     protected:
         virtual void onPinToggled() = 0;

@@ -1,16 +1,13 @@
-#include "components/misc/strings/conversion.hpp"
-#include "components/settings/parser.hpp"
-#include "components/settings/values.hpp"
-
-#include <components/rtx/common/error.hpp>
-#include <components/rtx/frame/upscale.hpp>
+#include <cstdint>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#ifndef OPENMW_PROJECT_SOURCE_DIR
-#define OPENMW_PROJECT_SOURCE_DIR "."
-#endif
+#include <components/misc/strings/conversion.hpp>
+#include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/settings/parser.hpp>
+#include <components/settings/values.hpp>
 
 namespace Settings
 {
@@ -119,7 +116,7 @@ namespace Settings
         {
             Manager::mUserSettings[std::make_pair("category", "value")] = "13";
             Index index;
-            SettingValue<int> value{ index, "category", "value", 42 };
+            SettingValue<std::int32_t> value{ index, "category", "value", 42 };
             EXPECT_EQ(value.get(), 13);
             value.reset();
             EXPECT_EQ(value.get(), 42);
@@ -129,7 +126,7 @@ namespace Settings
         {
             Manager::mUserSettings[std::make_pair("category", "value")] = "2";
             Index index;
-            SettingValue<int> value{ index, "category", "value", -1, Settings::makeClampSanitizerInt(0, 1) };
+            SettingValue<std::int32_t> value{ index, "category", "value", -1, Settings::makeClampSanitizerInt(0, 1) };
             EXPECT_EQ(value.get(), 1);
             value.reset();
             EXPECT_EQ(value.get(), 0);
@@ -138,7 +135,7 @@ namespace Settings
         TEST_F(SettingsValuesTest, constructorWithDefaultShouldFallbackToDefault)
         {
             Index index;
-            const SettingValue<int> value{ index, "category", "value", 42 };
+            const SettingValue<std::int32_t> value{ index, "category", "value", 42 };
             EXPECT_EQ(value.get(), 42);
         }
 
@@ -165,29 +162,29 @@ namespace Settings
         TEST_F(SettingsValuesTest, moveConstructorShouldThrowOnMissingSetting)
         {
             Index index;
-            SettingValue<int> defaultValue{ index, "category", "value", 42 };
-            EXPECT_THROW([&] { SettingValue<int> value(std::move(defaultValue)); }(), std::runtime_error);
+            SettingValue<std::int32_t> defaultValue{ index, "category", "value", 42 };
+            EXPECT_THROW([&] { SettingValue<std::int32_t> value(std::move(defaultValue)); }(), std::runtime_error);
         }
 
         TEST_F(SettingsValuesTest, findShouldThrowExceptionOnTypeMismatch)
         {
             Index index;
             Values values(index);
-            EXPECT_THROW(index.find<int>("Camera", "field of view"), std::invalid_argument);
+            EXPECT_THROW(index.find<std::int32_t>("Camera", "field of view"), std::invalid_argument);
         }
 
         TEST_F(SettingsValuesTest, findShouldReturnNullptrForAbsentSetting)
         {
             Index index;
             Values values(index);
-            EXPECT_EQ(index.find<int>("foo", "bar"), nullptr);
+            EXPECT_EQ(index.find<std::int32_t>("foo", "bar"), nullptr);
         }
 
         TEST_F(SettingsValuesTest, getShouldThrowExceptionForAbsentSetting)
         {
             Index index;
             Values values(index);
-            EXPECT_THROW(index.get<int>("foo", "bar").get(), std::invalid_argument);
+            EXPECT_THROW(index.get<std::int32_t>("foo", "bar").get(), std::invalid_argument);
         }
 
         TEST_F(SettingsValuesTest, setShouldChangeManagerUserSettings)

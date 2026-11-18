@@ -1,31 +1,27 @@
 #include "statsextensions.hpp"
 
-#include <components/esm3/loadcrea.hpp>
-#include <components/esm3/loadnpc.hpp>
+#include <cstdint>
 
-#include "../mwworld/esmstore.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/compiler/opcodes.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadfact.hpp>
+#include <components/esm3/loadmgef.hpp>
+#include <components/esm3/loadnpc.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include <components/esm3/loadmgef.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "ref.hpp"
 
@@ -189,10 +185,10 @@ namespace MWScript
             template <class R>
             class OpGetDynamic : public Interpreter::Opcode0
             {
-                int mIndex;
+                std::int32_t mIndex;
 
             public:
-                explicit OpGetDynamic(int index)
+                explicit OpGetDynamic(std::int32_t index)
                     : mIndex(index)
                 {
                 }
@@ -221,10 +217,10 @@ namespace MWScript
             template <class R>
             class OpSetDynamic : public Interpreter::Opcode0
             {
-                int mIndex;
+                std::int32_t mIndex;
 
             public:
-                explicit OpSetDynamic(int index)
+                explicit OpSetDynamic(std::int32_t index)
                     : mIndex(index)
                 {
                 }
@@ -251,17 +247,17 @@ namespace MWScript
             template <class R>
             class OpModDynamic : public Interpreter::Opcode0
             {
-                int mIndex;
+                std::int32_t mIndex;
 
             public:
-                explicit OpModDynamic(int index)
+                explicit OpModDynamic(std::int32_t index)
                     : mIndex(index)
                 {
                 }
 
                 void execute(Interpreter::Runtime& runtime) override
                 {
-                    int peek = R::implicit ? 0 : runtime[0].mInteger;
+                    std::int32_t peek = R::implicit ? 0 : runtime[0].mInteger;
 
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -303,10 +299,10 @@ namespace MWScript
             template <class R>
             class OpModCurrentDynamic : public Interpreter::Opcode0
             {
-                int mIndex;
+                std::int32_t mIndex;
 
             public:
-                explicit OpModCurrentDynamic(int index)
+                explicit OpModCurrentDynamic(std::int32_t index)
                     : mIndex(index)
                 {
                 }
@@ -345,10 +341,10 @@ namespace MWScript
             template <class R>
             class OpGetDynamicGetRatio : public Interpreter::Opcode0
             {
-                int mIndex;
+                std::int32_t mIndex;
 
             public:
-                explicit OpGetDynamicGetRatio(int index)
+                explicit OpGetDynamicGetRatio(std::int32_t index)
                     : mIndex(index)
                 {
                 }
@@ -469,7 +465,7 @@ namespace MWScript
                     MWBase::World* world = MWBase::Environment::get().getWorld();
                     MWWorld::Ptr player = world->getPlayerPtr();
 
-                    int bounty = static_cast<int>(runtime[0].mFloat);
+                    auto bounty = static_cast<std::int32_t>(runtime[0].mFloat);
                     runtime.pop();
                     player.getClass().getNpcStats(player).setBounty(bounty);
 
@@ -485,8 +481,9 @@ namespace MWScript
                 {
                     MWBase::World* world = MWBase::Environment::get().getWorld();
                     MWWorld::Ptr player = world->getPlayerPtr();
-                    int bounty = std::max(
-                        0, static_cast<int>(runtime[0].mFloat) + player.getClass().getNpcStats(player).getBounty());
+                    std::int32_t bounty = std::max(0,
+                        static_cast<std::int32_t>(runtime[0].mFloat)
+                            + player.getClass().getNpcStats(player).getBounty());
                     player.getClass().getNpcStats(player).setBounty(bounty);
                     runtime.pop();
                     if (bounty == 0)
@@ -583,7 +580,7 @@ namespace MWScript
 
                     if (ptr.getClass().isActor())
                         ptr.getClass().getCreatureStats(ptr).getActiveSpells().purgeEffect(
-                            ptr, ESM::MagicEffect::indexToRefId(static_cast<int>(effectId)));
+                            ptr, ESM::MagicEffect::indexToRefId(static_cast<std::int32_t>(effectId)));
                 }
             };
 
@@ -612,7 +609,7 @@ namespace MWScript
             class OpPCJoinFaction : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr actor = R()(runtime, false);
 
@@ -642,7 +639,7 @@ namespace MWScript
             class OpPCRaiseRank : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr actor = R()(runtime, false);
 
@@ -669,7 +666,7 @@ namespace MWScript
                         }
                         else
                         {
-                            int currentRank = player.getClass().getNpcStats(player).getFactionRank(factionID);
+                            std::int32_t currentRank = player.getClass().getNpcStats(player).getFactionRank(factionID);
                             player.getClass().getNpcStats(player).setFactionRank(factionID, currentRank + 1);
                         }
                     }
@@ -680,7 +677,7 @@ namespace MWScript
             class OpPCLowerRank : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr actor = R()(runtime, false);
 
@@ -701,7 +698,7 @@ namespace MWScript
                     if (!factionID.empty())
                     {
                         MWWorld::Ptr player = MWMechanics::getPlayer();
-                        int currentRank = player.getClass().getNpcStats(player).getFactionRank(factionID);
+                        std::int32_t currentRank = player.getClass().getNpcStats(player).getFactionRank(factionID);
                         player.getClass().getNpcStats(player).setFactionRank(factionID, currentRank - 1);
                     }
                 }
@@ -711,7 +708,7 @@ namespace MWScript
             class OpGetPCRank : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr ptr = R()(runtime, false);
 
@@ -804,7 +801,7 @@ namespace MWScript
             class OpGetPCFacRep : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr ptr = R()(runtime, false);
 
@@ -832,7 +829,7 @@ namespace MWScript
             class OpSetPCFacRep : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr ptr = R()(runtime, false);
 
@@ -863,7 +860,7 @@ namespace MWScript
             class OpModPCFacRep : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr ptr = R()(runtime, false);
 
@@ -960,7 +957,7 @@ namespace MWScript
             class OpPcExpelled : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr ptr = R()(runtime, false);
 
@@ -990,7 +987,7 @@ namespace MWScript
             class OpPcExpell : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr ptr = R()(runtime, false);
 
@@ -1016,7 +1013,7 @@ namespace MWScript
             class OpPcClearExpelled : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::ConstPtr ptr = R()(runtime, false);
 
@@ -1056,12 +1053,12 @@ namespace MWScript
 
                     // If we already changed rank for this NPC, modify current rank in the NPC stats.
                     // Otherwise take rank from base NPC record, increase it and put it to NPC data.
-                    int currentRank = ptr.getClass().getNpcStats(ptr).getFactionRank(factionID);
+                    std::int32_t currentRank = ptr.getClass().getNpcStats(ptr).getFactionRank(factionID);
                     if (currentRank >= 0)
                         ptr.getClass().getNpcStats(ptr).setFactionRank(factionID, currentRank + 1);
                     else
                     {
-                        int rank = ptr.getClass().getPrimaryFactionRank(ptr);
+                        std::int32_t rank = ptr.getClass().getPrimaryFactionRank(ptr);
                         ptr.getClass().getNpcStats(ptr).joinFaction(factionID);
                         ptr.getClass().getNpcStats(ptr).setFactionRank(factionID, rank + 1);
                     }
@@ -1088,14 +1085,14 @@ namespace MWScript
 
                     // If we already changed rank for this NPC, modify current rank in the NPC stats.
                     // Otherwise take rank from base NPC record, decrease it and put it to NPC data.
-                    int currentRank = ptr.getClass().getNpcStats(ptr).getFactionRank(factionID);
+                    std::int32_t currentRank = ptr.getClass().getNpcStats(ptr).getFactionRank(factionID);
                     if (currentRank == 0)
                         return;
                     else if (currentRank > 0)
                         ptr.getClass().getNpcStats(ptr).setFactionRank(factionID, currentRank - 1);
                     else
                     {
-                        int rank = ptr.getClass().getPrimaryFactionRank(ptr);
+                        std::int32_t rank = ptr.getClass().getPrimaryFactionRank(ptr);
                         ptr.getClass().getNpcStats(ptr).joinFaction(factionID);
                         ptr.getClass().getNpcStats(ptr).setFactionRank(factionID, std::max(0, rank - 1));
                     }
@@ -1302,7 +1299,7 @@ namespace MWScript
                     if (mPositiveEffect == ESM::MagicEffect::ResistFrost)
                         currentValue += effects.getOrDefault(ESM::MagicEffect::FrostShield).getMagnitude();
 
-                    int ret = static_cast<int>(currentValue);
+                    auto ret = static_cast<std::int32_t>(currentValue);
                     runtime.push(ret);
                 }
             };
@@ -1324,7 +1321,7 @@ namespace MWScript
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
-                    int arg = runtime[0].mInteger;
+                    std::int32_t arg = runtime[0].mInteger;
                     runtime.pop();
 
                     if (!ptr.getClass().isActor())
@@ -1345,7 +1342,7 @@ namespace MWScript
                     if (mPositiveEffect == ESM::MagicEffect::ResistFrost)
                         currentValue += effects.getOrDefault(ESM::MagicEffect::FrostShield).getMagnitude();
 
-                    arg -= static_cast<int>(currentValue);
+                    arg -= static_cast<std::int32_t>(currentValue);
 
                     if (!mPositiveEffect.empty())
                         effects.modifyBase(mPositiveEffect, arg);
@@ -1371,7 +1368,7 @@ namespace MWScript
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
-                    int arg = runtime[0].mInteger;
+                    std::int32_t arg = runtime[0].mInteger;
                     runtime.pop();
 
                     if (!ptr.getClass().isActor())
@@ -1409,7 +1406,8 @@ namespace MWScript
                     auto& effects = player.getClass().getCreatureStats(player).getMagicEffects();
                     float delta = std::clamp(arg * 100.f, 0.f, 100.f)
                         - effects.getOrDefault(ESM::MagicEffect::NightEye).getMagnitude();
-                    effects.modifyBase(MWMechanics::EffectKey(ESM::MagicEffect::NightEye), static_cast<int>(delta));
+                    effects.modifyBase(
+                        MWMechanics::EffectKey(ESM::MagicEffect::NightEye), static_cast<std::int32_t>(delta));
                 }
             };
 
@@ -1426,7 +1424,8 @@ namespace MWScript
                     float newBase = std::clamp(nightEye.getMagnitude() + arg * 100.f, 0.f, 100.f);
                     newBase -= nightEye.getModifier();
                     float delta = std::clamp(newBase, 0.f, 100.f) - nightEye.getMagnitude();
-                    effects.modifyBase(MWMechanics::EffectKey(ESM::MagicEffect::NightEye), static_cast<int>(delta));
+                    effects.modifyBase(
+                        MWMechanics::EffectKey(ESM::MagicEffect::NightEye), static_cast<std::int32_t>(delta));
                 }
             };
 
@@ -1439,7 +1438,7 @@ namespace MWScript
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {
-            for (int i = 0; i < Compiler::Stats::numberOfAttributes; ++i)
+            for (std::int32_t i = 0; i < Compiler::Stats::numberOfAttributes; ++i)
             {
                 ESM::RefId id = ESM::Attribute::indexToRefId(i);
                 interpreter.installSegment5<OpGetAttribute<ImplicitRef>>(Compiler::Stats::opcodeGetAttribute + i, id);
@@ -1455,7 +1454,7 @@ namespace MWScript
                     Compiler::Stats::opcodeModAttributeExplicit + i, id);
             }
 
-            for (int i = 0; i < Compiler::Stats::numberOfDynamics; ++i)
+            for (std::int32_t i = 0; i < Compiler::Stats::numberOfDynamics; ++i)
             {
                 interpreter.installSegment5<OpGetDynamic<ImplicitRef>>(Compiler::Stats::opcodeGetDynamic + i, i);
                 interpreter.installSegment5<OpGetDynamic<ExplicitRef>>(
@@ -1480,7 +1479,7 @@ namespace MWScript
                     Compiler::Stats::opcodeGetDynamicGetRatioExplicit + i, i);
             }
 
-            for (int i = 0; i < Compiler::Stats::numberOfSkills; ++i)
+            for (std::int32_t i = 0; i < Compiler::Stats::numberOfSkills; ++i)
             {
                 ESM::RefId id = ESM::Skill::indexToRefId(i);
                 interpreter.installSegment5<OpGetSkill<ImplicitRef>>(Compiler::Stats::opcodeGetSkill + i, id);
@@ -1613,7 +1612,7 @@ namespace MWScript
                 { ESM::MagicEffect::Sanctuary, ESM::RefId() },
             };
 
-            for (int i = 0; i < 24; ++i)
+            for (std::int32_t i = 0; i < 24; ++i)
             {
                 const ESM::RefId& positive = sMagicEffects[i].mPositiveEffect;
                 const ESM::RefId& negative = sMagicEffects[i].mNegativeEffect;

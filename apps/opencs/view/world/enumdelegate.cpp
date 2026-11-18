@@ -1,22 +1,24 @@
 #include "enumdelegate.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include <QApplication>
 #include <QComboBox>
 
-#include "../../model/world/commands.hpp"
+#include <apps/opencs/model/world/commands.hpp>
 
-#include <apps/opencs/view/world/util.hpp>
+#include "util.hpp"
 
-int CSVWorld::EnumDelegate::getValueIndex(const QModelIndex& index, int role) const
+std::int32_t CSVWorld::EnumDelegate::getValueIndex(const QModelIndex& index, std::int32_t role) const
 {
     if (index.isValid() && index.data(role).isValid())
     {
-        int value = index.data(role).toInt();
+        std::int32_t value = index.data(role).toInt();
 
-        int size = static_cast<int>(mValues.size());
-        for (int i = 0; i < size; ++i)
+        auto size = static_cast<std::int32_t>(mValues.size());
+        for (std::int32_t i = 0; i < size; ++i)
         {
             if (value == mValues.at(static_cast<std::size_t>(i)).first)
             {
@@ -44,12 +46,12 @@ void CSVWorld::EnumDelegate::setModelDataImp(QWidget* editor, QAbstractItemModel
     }
 }
 
-void CSVWorld::EnumDelegate::addCommands(QAbstractItemModel* model, const QModelIndex& index, int type) const
+void CSVWorld::EnumDelegate::addCommands(QAbstractItemModel* model, const QModelIndex& index, std::int32_t type) const
 {
     getUndoStack().push(new CSMWorld::ModifyCommand(*model, index, type));
 }
 
-CSVWorld::EnumDelegate::EnumDelegate(const std::vector<std::pair<int, QString>>& values,
+CSVWorld::EnumDelegate::EnumDelegate(const std::vector<std::pair<std::int32_t, QString>>& values,
     CSMWorld::CommandDispatcher* dispatcher, CSMDoc::Document& document, QObject* parent)
     : CommandDelegate(dispatcher, document, parent)
     , mValues(values)
@@ -82,7 +84,7 @@ void CSVWorld::EnumDelegate::setEditorData(QWidget* editor, const QModelIndex& i
 {
     if (auto* comboBox = dynamic_cast<QComboBox*>(editor))
     {
-        int role = Qt::EditRole;
+        std::int32_t role = Qt::EditRole;
         if (tryDisplay && !index.data(role).isValid())
         {
             role = Qt::DisplayRole;
@@ -92,7 +94,7 @@ void CSVWorld::EnumDelegate::setEditorData(QWidget* editor, const QModelIndex& i
             }
         }
 
-        int valueIndex = getValueIndex(index, role);
+        std::int32_t valueIndex = getValueIndex(index, role);
         if (valueIndex != -1)
         {
             comboBox->setCurrentIndex(valueIndex);
@@ -103,7 +105,7 @@ void CSVWorld::EnumDelegate::setEditorData(QWidget* editor, const QModelIndex& i
 void CSVWorld::EnumDelegate::paint(
     QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
-    int valueIndex = getValueIndex(index);
+    std::int32_t valueIndex = getValueIndex(index);
     if (valueIndex != -1)
     {
         QStyleOptionViewItem itemOption(option);
@@ -114,7 +116,7 @@ void CSVWorld::EnumDelegate::paint(
 
 QSize CSVWorld::EnumDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
-    int valueIndex = getValueIndex(index);
+    std::int32_t valueIndex = getValueIndex(index);
     if (valueIndex != -1)
     {
         // Calculate the size hint as for a combobox.
@@ -140,19 +142,19 @@ CSVWorld::EnumDelegateFactory::EnumDelegateFactory(const char** names, bool allo
     if (allowNone)
         add(-1, "");
 
-    for (int i = 0; names[i]; ++i)
+    for (std::int32_t i = 0; names[i]; ++i)
         add(i, names[i]);
 }
 
 CSVWorld::EnumDelegateFactory::EnumDelegateFactory(
-    const std::vector<std::pair<int, std::string>>& names, bool allowNone)
+    const std::vector<std::pair<std::int32_t, std::string>>& names, bool allowNone)
 {
     if (allowNone)
         add(-1, "");
 
-    int size = static_cast<int>(names.size());
+    auto size = static_cast<std::int32_t>(names.size());
 
-    for (int i = 0; i < size; ++i)
+    for (std::int32_t i = 0; i < size; ++i)
         add(names[static_cast<std::size_t>(i)].first, names[static_cast<std::size_t>(i)].second.c_str());
 }
 
@@ -162,7 +164,7 @@ CSVWorld::CommandDelegate* CSVWorld::EnumDelegateFactory::makeDelegate(
     return new EnumDelegate(mValues, dispatcher, document, parent);
 }
 
-void CSVWorld::EnumDelegateFactory::add(int value, const QString& name)
+void CSVWorld::EnumDelegateFactory::add(std::int32_t value, const QString& name)
 {
     auto pair = std::make_pair(value, name);
 

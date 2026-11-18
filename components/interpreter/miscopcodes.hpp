@@ -1,15 +1,17 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <vector>
 
+#include <components/misc/messageformatparser.hpp>
+
 #include "defines.hpp"
 #include "opcodes.hpp"
 #include "runtime.hpp"
-
-#include <components/misc/messageformatparser.hpp>
 
 namespace Interpreter
 {
@@ -20,14 +22,14 @@ namespace Interpreter
         Runtime& mRuntime;
 
     protected:
-        void visitedPlaceholder(
-            Placeholder placeholder, int flags, int width, int precision, Notation notation) override
+        void visitedPlaceholder(Placeholder placeholder, std::int32_t flags, std::int32_t width, std::int32_t precision,
+            Notation notation) override
         {
             std::string formatString;
 
             if (placeholder == StringPlaceholder)
             {
-                int index = mRuntime[0].mInteger;
+                std::int32_t index = mRuntime[0].mInteger;
                 mRuntime.pop();
 
                 std::string_view value = mRuntime.getStringLiteral(index);
@@ -132,10 +134,10 @@ namespace Interpreter
     class OpMessageBox : public Opcode1
     {
     public:
-        void execute(Runtime& runtime, unsigned int arg0) override
+        void execute(Runtime& runtime, std::uint32_t arg0) override
         {
             // message
-            int index = runtime[0].mInteger;
+            std::int32_t index = runtime[0].mInteger;
             runtime.pop();
             std::string_view message = runtime.getStringLiteral(index);
 
@@ -164,7 +166,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             // message
-            int index = runtime[0].mInteger;
+            std::int32_t index = runtime[0].mInteger;
             runtime.pop();
             std::string_view message = runtime.getStringLiteral(index);
 

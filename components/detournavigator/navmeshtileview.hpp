@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 struct dtMeshHeader;
 struct dtPoly;
 struct dtPolyDetail;
@@ -16,13 +18,13 @@ namespace DetourNavigator
         const float* mVerts;
         const dtPolyDetail* mDetailMeshes;
         const float* mDetailVerts;
-        const unsigned char* mDetailTris;
+        const std::uint8_t* mDetailTris;
         const dtBVNode* mBvTree;
         const dtOffMeshConnection* mOffMeshCons;
 
         friend bool operator==(const NavMeshTileConstView& lhs, const NavMeshTileConstView& rhs) noexcept;
     };
 
-    NavMeshTileConstView asNavMeshTileConstView(const unsigned char* data);
+    NavMeshTileConstView asNavMeshTileConstView(const std::uint8_t* data);
     NavMeshTileConstView asNavMeshTileConstView(const dtMeshTile& tile);
 }

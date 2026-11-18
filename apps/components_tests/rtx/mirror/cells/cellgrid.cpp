@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -98,8 +99,8 @@ namespace Rtx
                 // (-2, -2) to (2, 2), and of its 25 cells the four corners stand sqrt(2) * 1.5 = 2.12
                 // cells away and are out.
                 std::vector<osg::Vec2i> expected;
-                for (int x = -2; x <= 2; ++x)
-                    for (int y = -2; y <= 2; ++y)
+                for (std::int32_t x = -2; x <= 2; ++x)
+                    for (std::int32_t y = -2; y <= 2; ++y)
                         if (!((x == -2 || x == 2) && (y == -2 || y == 2)))
                             expected.emplace_back(x, y);
 

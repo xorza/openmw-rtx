@@ -1,8 +1,10 @@
 #include "scenetoolbar.hpp"
 
+#include <cstdint>
+
 #include <QVBoxLayout>
 
-#include "../../model/prefs/shortcut.hpp"
+#include <apps/opencs/model/prefs/shortcut.hpp>
 
 #include "scenetool.hpp"
 
@@ -14,7 +16,7 @@ void CSVWidget::SceneToolbar::focusInEvent(QFocusEvent* event)
         dynamic_cast<QWidgetItem&>(*mLayout->itemAt(0)).widget()->setFocus();
 }
 
-CSVWidget::SceneToolbar::SceneToolbar(int buttonSize, QWidget* parent)
+CSVWidget::SceneToolbar::SceneToolbar(std::int32_t buttonSize, QWidget* parent)
     : QWidget(parent)
     , mButtonSize(buttonSize)
     , mIconSize(buttonSize - 6)
@@ -38,7 +40,7 @@ void CSVWidget::SceneToolbar::addTool(SceneTool* tool, SceneTool* insertPoint)
         mLayout->addWidget(tool, 0, Qt::AlignTop);
     else
     {
-        int index = mLayout->indexOf(insertPoint);
+        std::int32_t index = mLayout->indexOf(insertPoint);
         mLayout->insertWidget(index + 1, tool, 0, Qt::AlignTop);
     }
 }
@@ -48,12 +50,12 @@ void CSVWidget::SceneToolbar::removeTool(SceneTool* tool)
     mLayout->removeWidget(tool);
 }
 
-int CSVWidget::SceneToolbar::getButtonSize() const
+std::int32_t CSVWidget::SceneToolbar::getButtonSize() const
 {
     return mButtonSize;
 }
 
-int CSVWidget::SceneToolbar::getIconSize() const
+std::int32_t CSVWidget::SceneToolbar::getIconSize() const
 {
     return mIconSize;
 }

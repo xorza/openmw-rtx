@@ -231,14 +231,14 @@ namespace RtxTool
 
     void StopWriter::writeImage(const Writing& into, const osg::Image& drawn, const std::filesystem::path& file)
     {
-        const int width = drawn.s();
-        const int height = drawn.t();
+        const std::int32_t width = drawn.s();
+        const std::int32_t height = drawn.t();
         const auto stride = static_cast<std::size_t>(width) * 4;
         mPixels.resize(stride * static_cast<std::size_t>(height));
 
-        for (int row = 0; row < height; ++row)
+        for (std::int32_t row = 0; row < height; ++row)
             std::memcpy(mPixels.data() + stride * static_cast<std::size_t>(row),
-                drawn.data(0, static_cast<unsigned int>(height - 1 - row)), stride);
+                drawn.data(0, static_cast<std::uint32_t>(height - 1 - row)), stride);
 
         if (!writePicture(into, file, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mPixels))
             return;
@@ -318,19 +318,19 @@ namespace RtxTool
     void StopWriter::reportFound(const Writing& into, const std::string& needle)
     {
         const Rtx::SceneDesc& scene = into.mContext.mMirror.getScene();
-        const std::span<const Rtx::TextureRow> rows = scene.textures().getRows();
+        const auto rows = scene.textures().getRows();
 
         // **Found by texture and reported by placement**, because a mesh carries no name of its own
         // once it is a run of triangles: what a walk keeps is the material it arrived wearing, and a
         // material names the file it samples.
         std::uint32_t met = 0;
-        scene.placements().forEachPlaced([&](Rtx::Index, const Rtx::PlacementRow& row) {
+        scene.placements().forEachPlaced([&](Rtx::PlacementIndex, const Rtx::PlacementRow& row) {
             const Rtx::MeshInstance& instance = row.mInstance;
-            if (instance.mMaterial == Rtx::sNoIndex)
+            if (instance.mMaterial == Rtx::sNoRow)
                 return;
 
             const Rtx::Material& material = scene.materials().getRows()[instance.mMaterial];
-            if (material.mDiffuse == Rtx::sNoIndex)
+            if (material.mDiffuse == Rtx::sNoRow)
                 return;
 
             const std::string_view path = rows[material.mDiffuse].mPath.value();

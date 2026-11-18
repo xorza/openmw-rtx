@@ -1,8 +1,10 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
+#include <cstdint>
 #include <string>
 #include <vector>
+
+#include <components/esm/refid.hpp>
 
 /*! \brief
  * Adapters acts as indirection layer, abstracting details of the record types (in the wrappers) from the higher levels
@@ -30,10 +32,11 @@ namespace CSMWorld
         RefIdAdapter& operator=(const RefIdAdapter&) = delete;
         virtual ~RefIdAdapter() = default;
 
-        virtual QVariant getData(const RefIdColumn* column, const RefIdData& data, int idnex) const = 0;
+        virtual QVariant getData(const RefIdColumn* column, const RefIdData& data, std::int32_t idnex) const = 0;
         ///< If called on the nest column, should return QVariant(true).
 
-        virtual void setData(const RefIdColumn* column, RefIdData& data, int index, const QVariant& value) const = 0;
+        virtual void setData(
+            const RefIdColumn* column, RefIdData& data, std::int32_t index, const QVariant& value) const = 0;
         ///< If the data type does not match an exception is thrown.
 
         virtual ESM::RefId getId(const RecordBase& record) const = 0;
@@ -48,24 +51,27 @@ namespace CSMWorld
 
         virtual ~NestedRefIdAdapterBase() = default;
 
-        virtual void setNestedData(const RefIdColumn* column, RefIdData& data, int row, const QVariant& value,
-            int subRowIndex, int subColIndex) const = 0;
+        virtual void setNestedData(const RefIdColumn* column, RefIdData& data, std::int32_t row, const QVariant& value,
+            std::int32_t subRowIndex, std::int32_t subColIndex) const = 0;
 
-        virtual QVariant getNestedData(
-            const RefIdColumn* column, const RefIdData& data, int index, int subRowIndex, int subColIndex) const = 0;
+        virtual QVariant getNestedData(const RefIdColumn* column, const RefIdData& data, std::int32_t index,
+            std::int32_t subRowIndex, std::int32_t subColIndex) const = 0;
 
-        virtual int getNestedColumnsCount(const RefIdColumn* column, const RefIdData& data) const = 0;
+        virtual std::int32_t getNestedColumnsCount(const RefIdColumn* column, const RefIdData& data) const = 0;
 
-        virtual int getNestedRowsCount(const RefIdColumn* column, const RefIdData& data, int index) const = 0;
+        virtual std::int32_t getNestedRowsCount(
+            const RefIdColumn* column, const RefIdData& data, std::int32_t index) const = 0;
 
-        virtual void removeNestedRow(const RefIdColumn* column, RefIdData& data, int index, int rowToRemove) const = 0;
+        virtual void removeNestedRow(
+            const RefIdColumn* column, RefIdData& data, std::int32_t index, std::int32_t rowToRemove) const = 0;
 
-        virtual void addNestedRow(const RefIdColumn* column, RefIdData& data, int index, int position) const = 0;
+        virtual void addNestedRow(
+            const RefIdColumn* column, RefIdData& data, std::int32_t index, std::int32_t position) const = 0;
 
-        virtual void setNestedTable(
-            const RefIdColumn* column, RefIdData& data, int index, const NestedTableWrapperBase& nestedTable) const = 0;
+        virtual void setNestedTable(const RefIdColumn* column, RefIdData& data, std::int32_t index,
+            const NestedTableWrapperBase& nestedTable) const = 0;
 
-        virtual NestedTableWrapperBase* nestedTable(const RefIdColumn* column, const RefIdData& data, int index) const
-            = 0;
+        virtual NestedTableWrapperBase* nestedTable(
+            const RefIdColumn* column, const RefIdData& data, std::int32_t index) const = 0;
     };
 }

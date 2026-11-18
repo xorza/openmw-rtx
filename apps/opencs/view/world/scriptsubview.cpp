@@ -1,33 +1,32 @@
 #include "scriptsubview.hpp"
 
+#include <cstdint>
 #include <istream>
 #include <vector>
 
 #include <QSplitter>
 #include <QTimer>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
-#include <apps/opencs/view/world/creator.hpp>
-#include <apps/opencs/view/world/scripthighlighter.hpp>
-
 #include <components/debug/debuglog.hpp>
 
-#include "../../model/doc/document.hpp"
-#include "../../model/prefs/state.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/universalid.hpp"
-
+#include "creator.hpp"
 #include "genericcreator.hpp"
 #include "recordbuttonbar.hpp"
 #include "scriptedit.hpp"
 #include "scripterrortable.hpp"
+#include "scripthighlighter.hpp"
 #include "tablebottombox.hpp"
 
 void CSVWorld::ScriptSubView::addButtonBar()
@@ -73,7 +72,7 @@ void CSVWorld::ScriptSubView::updateDeletedState()
 
 void CSVWorld::ScriptSubView::adjustSplitter()
 {
-    QList<int> sizes;
+    QList<std::int32_t> sizes;
 
     if (mErrors->rowCount())
     {
@@ -116,7 +115,7 @@ CSVWorld::ScriptSubView::ScriptSubView(const CSMWorld::UniversalId& id, CSMDoc::
     mErrors = new ScriptErrorTable(document, this);
     mMain->addWidget(mErrors);
 
-    QList<int> sizes;
+    QList<std::int32_t> sizes;
     sizes << 1 << 0;
     mMain->setSizes(sizes);
 
@@ -212,7 +211,7 @@ void CSVWorld::ScriptSubView::useHint(const std::string& hint)
     if (hint.empty())
         return;
 
-    int line = 0, column = 0;
+    std::int32_t line = 0, column = 0;
     char c = 0;
     std::istringstream stream(hint.c_str() + 1);
     switch (hint[0])
@@ -222,8 +221,8 @@ void CSVWorld::ScriptSubView::useHint(const std::string& hint)
         {
             QModelIndex index = mModel->getModelIndex(getUniversalId().getId(), mColumn);
             QString source = mModel->data(index).toString();
-            int stringSize = static_cast<int>(source.length());
-            int pos = 0, dummy = 0;
+            auto stringSize = static_cast<std::int32_t>(source.length());
+            std::int32_t pos = 0, dummy = 0;
             if (!(stream >> c >> dummy >> pos))
                 return;
 
@@ -234,7 +233,7 @@ void CSVWorld::ScriptSubView::useHint(const std::string& hint)
                 pos = stringSize;
             }
 
-            for (int i = 0; i <= pos; ++i)
+            for (std::int32_t i = 0; i <= pos; ++i)
             {
                 if (source[i] == '\n')
                 {
@@ -287,7 +286,7 @@ void CSVWorld::ScriptSubView::dataChanged(const QModelIndex& topLeft, const QMod
 
     bool updateRequired = false;
 
-    for (int i = topLeft.row(); i <= bottomRight.row(); ++i)
+    for (std::int32_t i = topLeft.row(); i <= bottomRight.row(); ++i)
     {
         std::string id = mModel->data(mModel->index(i, mIdColumn)).toString().toUtf8().constData();
         if (mErrors->clearLocals(id))
@@ -317,11 +316,11 @@ void CSVWorld::ScriptSubView::dataChanged(const QModelIndex& topLeft, const QMod
         recompile();
 }
 
-void CSVWorld::ScriptSubView::rowsAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVWorld::ScriptSubView::rowsAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     bool updateRequired = false;
 
-    for (int i = start; i <= end; ++i)
+    for (std::int32_t i = start; i <= end; ++i)
     {
         std::string id = mModel->data(mModel->index(i, mIdColumn)).toString().toUtf8().constData();
         if (mErrors->clearLocals(id))
@@ -337,9 +336,9 @@ void CSVWorld::ScriptSubView::rowsAboutToBeRemoved(const QModelIndex& parent, in
         emit closeRequest();
 }
 
-void CSVWorld::ScriptSubView::switchToRow(int row)
+void CSVWorld::ScriptSubView::switchToRow(std::int32_t row)
 {
-    int idColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t idColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
     std::string id = mModel->data(mModel->index(row, idColumn)).toString().toUtf8().constData();
     setUniversalId(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Script, id));
 
@@ -358,7 +357,7 @@ void CSVWorld::ScriptSubView::switchToId(const std::string& id)
     switchToRow(mModel->getModelIndex(id, 0).row());
 }
 
-void CSVWorld::ScriptSubView::highlightError(int line, int column)
+void CSVWorld::ScriptSubView::highlightError(std::int32_t line, std::int32_t column)
 {
     QTextCursor cursor = mEditor->textCursor();
 

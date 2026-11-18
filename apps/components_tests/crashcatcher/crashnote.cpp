@@ -95,7 +95,7 @@ namespace
     {
         const Crash::NoteScope noted("filling the table");
 
-        for (int crowd = 0; crowd < 2; ++crowd)
+        for (std::int32_t crowd = 0; crowd < 2; ++crowd)
         {
             const std::uint32_t refusedBefore = readAll().mRefused;
             std::latch noting(Crash::sNoteThreads);
@@ -153,7 +153,7 @@ namespace
     TEST(CrashNoteTest, aCutFallsBeforeACharacterAndNeverInsideOne)
     {
         std::string omega;
-        for (int i = 0; i < 200; ++i)
+        for (std::int32_t i = 0; i < 200; ++i)
             omega += reinterpret_cast<const char*>(u8"Ω");
 
         {

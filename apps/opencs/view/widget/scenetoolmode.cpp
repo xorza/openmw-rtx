@@ -1,5 +1,7 @@
 #include "scenetoolmode.hpp"
 
+#include <utility>
+
 #include <QContextMenuEvent>
 #include <QEvent>
 #include <QFrame>
@@ -7,14 +9,11 @@
 #include <QIcon>
 #include <QMenu>
 
-#include <apps/opencs/view/widget/pushbutton.hpp>
-#include <apps/opencs/view/widget/scenetool.hpp>
-
 #include <components/misc/scalableicon.hpp>
 
-#include <utility>
-
 #include "modebutton.hpp"
+#include "pushbutton.hpp"
+#include "scenetool.hpp"
 #include "scenetoolbar.hpp"
 
 void CSVWidget::SceneToolMode::contextMenuEvent(QContextMenuEvent* event)

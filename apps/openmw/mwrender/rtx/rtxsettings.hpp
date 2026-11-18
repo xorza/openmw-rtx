@@ -17,7 +17,7 @@ namespace MWRender
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
         Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Auto;
         bool mIndirectLighting = true;
-        int mBounceRays = 1;
+        std::int32_t mBounceRays = 1;
         float mDistantLandCells = 0.0f;
         float mViewingDistance = 0.0f;
         bool mObjectPaging = true;
@@ -26,7 +26,7 @@ namespace MWRender
         float mGroundcoverDistance = 0.0f;
         float mGroundcoverDensity = 0.0f;
         bool mGroundcoverPointLighting = true;
-        int mAnisotropy = 0;
+        std::int32_t mAnisotropy = 0;
         float mGamma = 1.0f;
         bool mLitEnvironmentMaps = false;
 

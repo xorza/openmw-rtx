@@ -1,9 +1,10 @@
 #pragma once
 
-#include <osg/Node>
-
+#include <cstdint>
 #include <map>
 #include <memory>
+
+#include <osg/Node>
 
 namespace osg
 {
@@ -42,7 +43,7 @@ namespace SceneUtil
             osg::ref_ptr<osg::Camera> mCamera;
             osg::ref_ptr<osg::Texture> mColorTexture;
             osg::ref_ptr<osg::Texture> mDepthTexture;
-            unsigned int mFrameNumber = 0;
+            std::uint32_t mFrameNumber = 0;
         };
 
         using ViewDependentDataMap = std::map<osgUtil::CullVisitor*, std::shared_ptr<ViewDependentData>>;
@@ -57,8 +58,8 @@ namespace SceneUtil
                                       //! create texture arrays if multiview is enabled.
         };
 
-        RTTNode(uint32_t textureWidth, uint32_t textureHeight, uint32_t samples, bool generateMipmaps,
-            int renderOrderNum, StereoAwareness stereoAwareness, bool addMSAAIntermediateTarget);
+        RTTNode(std::uint32_t textureWidth, std::uint32_t textureHeight, std::uint32_t samples, bool generateMipmaps,
+            std::int32_t renderOrderNum, StereoAwareness stereoAwareness, bool addMSAAIntermediateTarget);
         ~RTTNode() override;
         RTTNode(const RTTNode&) = delete;
         RTTNode& operator=(const RTTNode&) = delete;
@@ -84,9 +85,9 @@ namespace SceneUtil
 
         void cull(osgUtil::CullVisitor* cv);
 
-        uint32_t width() const { return mTextureWidth; }
-        uint32_t height() const { return mTextureHeight; }
-        uint32_t samples() const { return mSamples; }
+        std::uint32_t width() const { return mTextureWidth; }
+        std::uint32_t height() const { return mTextureHeight; }
+        std::uint32_t samples() const { return mSamples; }
         bool generatesMipmaps() const { return mGenerateMipmaps; }
 
         void setColorBufferInternalFormat(GLint internalFormat);
@@ -109,13 +110,13 @@ namespace SceneUtil
         ViewDependentData* getViewDependentData(osgUtil::CullVisitor* cv);
 
         ViewDependentDataMap mViewDependentDataMap;
-        uint32_t mTextureWidth;
-        uint32_t mTextureHeight;
-        uint32_t mSamples;
+        std::uint32_t mTextureWidth;
+        std::uint32_t mTextureHeight;
+        std::uint32_t mSamples;
         bool mGenerateMipmaps;
         GLint mColorBufferInternalFormat;
         GLint mDepthBufferInternalFormat;
-        int mRenderOrderNum;
+        std::int32_t mRenderOrderNum;
         StereoAwareness mStereoAwareness;
         bool mAddMSAAIntermediateTarget;
     };

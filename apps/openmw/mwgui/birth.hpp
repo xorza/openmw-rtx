@@ -1,7 +1,10 @@
 #pragma once
 
-#include "windowbase.hpp"
+#include <cstddef>
+
 #include <components/esm/refid.hpp>
+
+#include "windowbase.hpp"
 
 namespace MWGui
 {
@@ -40,9 +43,9 @@ namespace MWGui
         EventHandle_WindowBase eventDone;
 
     protected:
-        void onSelectBirth(MyGUI::ListBox* sender, size_t index);
+        void onSelectBirth(MyGUI::ListBox* sender, std::size_t index);
 
-        void onAccept(MyGUI::ListBox* sender, size_t index);
+        void onAccept(MyGUI::ListBox* sender, std::size_t index);
         void onOkClicked(MyGUI::Widget* sender);
         void onBackClicked(MyGUI::Widget* sender);
 

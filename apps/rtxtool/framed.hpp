@@ -107,7 +107,7 @@ namespace RtxTool
         std::optional<float> mStep = sStepSeconds;
 
         /// Which day, counted from the one a new game begins on. Only the moons read it.
-        int mDay = 0;
+        std::int32_t mDay = 0;
     };
 
     /// What a setting is where nobody has set it: the shipped defaults, out of the `defaults.bin` beside the
@@ -157,9 +157,9 @@ namespace RtxTool
     struct CellPreload
     {
         float mDistance = 0.0f;
-        int mThreads = 0;
-        int mCacheMin = 0;
-        int mCacheMax = 0;
+        std::int32_t mThreads = 0;
+        std::int32_t mCacheMin = 0;
+        std::int32_t mCacheMax = 0;
 
         void writeSettings() const;
     };
@@ -169,11 +169,11 @@ namespace RtxTool
     /// at `fBaseRunMultiplier + fAthleticsRunBonus · Athletics/100` = 1.75 + 0.5 times it.
     inline constexpr float sPlayerRunSpeed = 150.0f * 2.25f;
 
-    /// The game's preloading for a flight at `speed` units a second, made to work as it does for a running player:
-    /// the shipped `preload distance` scaled by the flight's speed over a player's, so it begins as many seconds
-    /// ahead of a crossing; the cache the game itself asks for when the ring and the cells around a teleport do not
-    /// fit (50); and as many threads as the shipped file's single one would need to keep pace, at most the ring's
-    /// sixteen cells and the processor's own less the frame's.
+    /// The game's preloading for a flight at `speed` units a second, made to keep pace as it does for a running
+    /// player: the shipped `preload distance`, which is the doors' reach and not a lead in time; the cache the game
+    /// itself asks for when the ring and the cells around a teleport do not fit (50); and as many threads as the
+    /// shipped file's single one would need to keep pace, at most the ring's sixteen cells and the processor's own
+    /// less the frame's.
     CellPreload preloadFlownAt(const ShippedDefaults& shipped, float speed);
 
     /// **The one rule for what a run's line names**: each setting the line names is the line's,

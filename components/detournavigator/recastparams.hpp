@@ -1,13 +1,13 @@
 #pragma once
 
-#include "agentbounds.hpp"
-
-#include <osg/Vec3f>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <numbers>
+
+#include <osg/Vec3f>
+
+#include "agentbounds.hpp"
 
 namespace DetourNavigator
 {

@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -23,6 +24,7 @@
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/look.h>
@@ -72,6 +74,7 @@ namespace Rtx
         /// 0.078102.
         TEST(RtxMoonBuilderTest, aMoonIsAsWideAsTheGameDrawsIt)
         {
+            SceneIdentities identities;
             EXPECT_NEAR(moonAngularRadius(94.0f), 0.181881f, 1e-6f);
             EXPECT_NEAR(moonAngularRadius(40.0f), 0.078102f, 1e-6f);
 
@@ -86,7 +89,7 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> portrait = Testing::makeImage("", 2, 2);
             for (std::size_t texel = 0; texel < 4; ++texel)
             {
-                unsigned char* const at = portrait->data() + texel * 4;
+                std::uint8_t* const at = portrait->data() + texel * 4;
                 at[0] = 255;
                 at[1] = 0;
                 at[2] = 0;
@@ -95,9 +98,9 @@ namespace Rtx
             portrait->setFileName(std::string(moonFaceOf(Moon::Masser).value()));
             images.hold(moonFaceOf(Moon::Masser), portrait);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent content;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             const MoonFaces faces = addMoonFaces(scene, images, MoonSizes{ masser, secunda }, content, holds);
 
             // **A face that opens is lit as it is painted, and one that does not as the shipped
@@ -110,7 +113,7 @@ namespace Rtx
             EXPECT_EQ(faces.of(Moon::Secunda).mRadius, moonAngularRadius(secunda));
             EXPECT_EQ(scene.textures().getRows()[faces.of(Moon::Masser).mSlot].mImage, portrait)
                 << "the portrait was not kept";
-            EXPECT_EQ(faces.of(Moon::Secunda).mSlot, sNoIndex);
+            EXPECT_EQ(faces.of(Moon::Secunda).mSlot, sNoRow);
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 1u) << "the face that did not open";
             scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
@@ -118,8 +121,8 @@ namespace Rtx
 
             // A size of nought is the quad of no extent the game draws, and no refusal; one below
             // nought, or not a number, is a size the game draws and this does not.
-            SceneDesc broken;
-            std::vector<TextureHold> brokenHolds;
+            SceneDesc broken(identities);
+            std::vector<ReadingHold> brokenHolds;
             const MoonFaces unsized = addMoonFaces(broken, images, MoonSizes{ -3.0f, 0.0f }, content, brokenHolds);
             EXPECT_EQ(unsized.of(Moon::Masser).mRadius, 0.0f);
             EXPECT_EQ(unsized.of(Moon::Secunda).mRadius, 0.0f);
@@ -236,7 +239,7 @@ namespace Rtx
 
             // And it keeps climbing into itself, with no step anywhere along the way.
             float below = 0.0f;
-            for (int step = 1; step <= 90; ++step)
+            for (std::int32_t step = 1; step <= 90; ++step)
             {
                 const MoonPlacement at
                     = placeMoon(configured(), Moon::Masser, static_cast<float>(step), 35.0f, 0.0f, /*alpha=*/1.0f);
@@ -310,7 +313,7 @@ namespace Rtx
                 return describeMoon(moon, towardSun);
             };
             const auto expectNear = [](const osg::Vec3f& got, const osg::Vec3f& expected, std::string_view what) {
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(got[axis], expected[axis], 1e-6f) << what << ", axis " << axis;
             };
 

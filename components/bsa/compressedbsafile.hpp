@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <limits>
 #include <map>
 
@@ -92,7 +93,7 @@ namespace Bsa
             std::uint64_t mHash{};
             std::vector<char> mName;
             std::uint32_t mSize{ 0u };
-            std::uint32_t mOffset{ std::numeric_limits<uint32_t>::max() };
+            std::uint32_t mOffset{ std::numeric_limits<std::uint32_t>::max() };
         };
 
         struct FolderRecord

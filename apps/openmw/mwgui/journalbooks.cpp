@@ -1,8 +1,10 @@
 #include "journalbooks.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
+#include <cstddef>
+#include <cstdint>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/misc/utf8stream.hpp>
 
 #include "textcolours.hpp"
@@ -28,7 +30,7 @@ namespace
         {
         }
 
-        void operator()(const MWDialogue::Topic* topic, size_t begin, size_t end)
+        void operator()(const MWDialogue::Topic* topic, std::size_t begin, std::size_t end)
         {
             MWGui::BookTypesetter::Style* style = mBodyStyle;
 
@@ -147,7 +149,7 @@ namespace
 namespace MWGui
 {
 
-    int getCyrillicIndexPageCount()
+    std::int32_t getCyrillicIndexPageCount()
     {
         // For small font size split alphabet to two columns (2x15 characers), for big font size split it to three
         // colums (3x10 characters).
@@ -242,7 +244,7 @@ namespace MWGui
         std::string buffer;
 
         BookTypesetter::Style* body = typesetter->createStyle({}, MyGUI::Colour::Black);
-        for (int i = 0; i < 26; ++i)
+        for (std::int32_t i = 0; i < 26; ++i)
         {
             buffer = "( ";
             buffer += ch;
@@ -277,13 +279,13 @@ namespace MWGui
         // for small font size split alphabet to two columns (2x15 characers), for big font size split it to three
         // colums (3x10 characters).
         mIndexPagesCount = getCyrillicIndexPageCount();
-        int sectionBreak = 30 / mIndexPagesCount;
+        std::int32_t sectionBreak = 30 / mIndexPagesCount;
 
-        unsigned char ch[3] = { 0xd0, 0x90, 0x00 }; // CYRILLIC CAPITAL A is a 0xd090 in UTF-8
+        std::uint8_t ch[3] = { 0xd0, 0x90, 0x00 }; // CYRILLIC CAPITAL A is a 0xd090 in UTF-8
 
         std::string buffer;
 
-        for (int i = 0; i < 32; ++i)
+        for (std::int32_t i = 0; i < 32; ++i)
         {
             buffer = "( ";
             buffer += static_cast<char>(ch[0]);

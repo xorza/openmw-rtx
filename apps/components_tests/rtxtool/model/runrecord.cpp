@@ -226,20 +226,120 @@ namespace RtxTool
             // second's 900 + 100 = 1000, with the heap there 300 MiB taken and 250 in use, 50 free, of which the
             // five arenas keep 2, 30, 0, 10 and 8: the four keeping the most, 30, 10, 8 and 2.
             constexpr std::uint64_t sMiB = std::uint64_t{ 1 } << 20;
-            record.noteHostMemory("first", { .mResident = 1000 * sMiB, .mSwapped = 200 * sMiB },
+            record.noteHostMemory("first", { .mResident = 1000 * sMiB, .mNotResident = 200 * sMiB },
                 Platform::HeapHeld{ .mTaken = 300 * sMiB,
                     .mInUse = 250 * sMiB,
                     .mArenas = { { .mTaken = 40 * sMiB, .mFree = 2 * sMiB },
                         { .mTaken = 100 * sMiB, .mFree = 30 * sMiB }, { .mTaken = 20 * sMiB, .mFree = 0 },
                         { .mTaken = 60 * sMiB, .mFree = 10 * sMiB }, { .mTaken = 80 * sMiB, .mFree = 8 * sMiB } } });
-            record.noteHostMemory("second", { .mResident = 900 * sMiB, .mSwapped = 100 * sMiB }, std::nullopt);
+            record.noteHostMemory("second", { .mResident = 900 * sMiB, .mNotResident = 100 * sMiB }, std::nullopt);
+
+            // **The device's peak by use**: balmora's 100 + 50 + 300 + 600 = 1050 MiB over seyda-neen's nought and
+            // vivec's 100 + 50 + 200 + 650 = 1000; what is kept for the frame and the rooms are no use.
+            BenchPlace balmora;
+            balmora.mView = "balmora";
+            balmora.mMemory.mUses = Rtx::MemoryUses{ .mFrame = 100 * sMiB,
+                .mFrameReserve = 400 * sMiB,
+                .mEssential = 50 * sMiB,
+                .mStructures = 300 * sMiB,
+                .mStructureRoom = 70 * sMiB,
+                .mTextures = 600 * sMiB,
+                .mTextureRoom = 80 * sMiB };
+            BenchPlace vivec;
+            vivec.mView = "vivec";
+            vivec.mMemory.mUses = Rtx::MemoryUses{ .mFrame = 100 * sMiB,
+                .mFrameReserve = 4000 * sMiB,
+                .mEssential = 50 * sMiB,
+                .mStructures = 200 * sMiB,
+                .mStructureRoom = 7000 * sMiB,
+                .mTextures = 650 * sMiB,
+                .mTextureRoom = 8000 * sMiB };
+            // **The geometry's peak**, host and device together: vivec's 40 + 60 MiB over balmora's 30 + 50.
+            balmora.mContent = Rtx::ContentMemory{
+                .mVertexEnd = 1'000'000, .mGeometryBytes = 30 * sMiB, .mReader = {}, .mPrepared = {}
+            };
+            balmora.mScene.mGeometryBytes = 50 * sMiB;
+            vivec.mContent = Rtx::ContentMemory{ .mVertexEnd = 1'600'000,
+                .mVerticesUsed = 1'500'000,
+                .mIndexEnd = 3'000'000,
+                .mIndicesUsed = 2'400'000,
+                .mRestingVertices = 300'000,
+                .mRestingIndices = 600'000,
+                .mGeometryBytes = 40 * sMiB,
+                .mReader = {},
+                .mPrepared = {},
+                .mRing = {} };
+            vivec.mScene.mGeometryBytes = 60 * sMiB;
+            // **The ring, the prepared images, the reader and the game at their peaks**, and what only grows at the
+            // last stop: vivec's 10 - 4 = 6 meshes standing nowhere over balmora's 3 - 3, its 2 MiB unhanded over 1;
+            // balmora's reader room of 10 MiB over vivec's 8; vivec's 40 cell stores over 30.
+            constexpr std::uint64_t sVertices = 1'000'000;
+            vivec.mContent.mRing.mByDistance[2] = Rtx::RingDistance{ .mPlacements = 20,
+                .mPlacementsStanding = 9,
+                .mMeshes = 10,
+                .mMeshesStanding = 4,
+                .mVertices = sVertices,
+                .mVerticesStanding = 4 * sVertices / 10 };
+            balmora.mContent.mRing.mByDistance[0]
+                = Rtx::RingDistance{ .mPlacements = 3, .mPlacementsStanding = 3, .mMeshes = 3, .mMeshesStanding = 3 };
+            vivec.mContent.mPrepared = Rtx::PreparedHeld{ .mEntries = 5, .mBytes = 2 * sMiB, .mLeftPending = 4 };
+            balmora.mContent.mPrepared = Rtx::PreparedHeld{ .mEntries = 9, .mBytes = 1 * sMiB, .mLeftPending = 3 };
+            balmora.mContent.mReader = Rtx::ReaderMemory{ .mLentBytes = 10 * sMiB, .mLentContentBytes = 5 * sMiB };
+            vivec.mContent.mReader = Rtx::ReaderMemory{ .mSpareBytes = 8 * sMiB };
+            // **The textures above their want at their most**: balmora's 30 MiB of 120 stood whole, a quarter, over
+            // vivec's 10 of 200; and of those resting, vivec's 500 of 800, 62.5%, over balmora's 100 of 400.
+            balmora.mContent.mAboveWant = Rtx::TexturesAboveWant{ .mStood = 120 * sMiB,
+                .mAbove = 30 * sMiB,
+                .mTextures = 12,
+                .mRestingStood = 400 * sMiB,
+                .mRestingAbove = 100 * sMiB };
+            vivec.mContent.mAboveWant = Rtx::TexturesAboveWant{ .mStood = 200 * sMiB,
+                .mAbove = 10 * sMiB,
+                .mTextures = 3,
+                .mRestingStood = 800 * sMiB,
+                .mRestingAbove = 500 * sMiB };
+            balmora.mGame = GameHeld{ .mLoadedCells = 30, .mStarvedLooks = 2 };
+            vivec.mGame = GameHeld{ .mLoadedCells = 40, .mPreloadedCells = 1, .mStarvedLooks = 7 };
+            record.add(balmora);
+            record.add(vivec);
 
             record.finish(request);
-            EXPECT_NE(
-                record.getReport().find("\nthe process held at most 1200.0 MiB of anonymous memory, 200.0 MiB of it "
-                                        "swapped out, at first; there the heap took 300.0 MiB, 50.0 MiB of it free, in "
-                                        "5 arenas, the most free 30.0 of 100.0 MiB, 10.0 of 60.0 MiB, 8.0 of 80.0 MiB, "
-                                        "2.0 of 40.0 MiB\n"),
+            EXPECT_NE(record.getReport().find("\nthe device held at most 1050.0 MiB by use, at balmora: frame 100.0 of "
+                                              "400.0 kept   essential 50.0   structures 300.0, room 70.0   textures "
+                                              "600.0, room 80.0\n"),
+                std::string::npos)
+                << record.getReport();
+            EXPECT_NE(record.getReport().find("\nthe textures stood above their want at most 30.0 of 120.0 MiB stood "
+                                              "whole, 25.0%, in 12 textures, at balmora\n"),
+                std::string::npos)
+                << record.getReport();
+            EXPECT_NE(record.getReport().find("\nthe resting textures stood above their last want at most 500.0 of "
+                                              "800.0 MiB, 62.5%, at vivec\n"),
+                std::string::npos)
+                << record.getReport();
+            EXPECT_NE(record.getReport().find("\nthe geometry reached at most 1.60 M vertices and 3.00 M indices, at "
+                                              "vivec: 0.30 M and 0.60 M of them resting, 0.10 M and 0.60 M in holes; "
+                                              "40.0 MiB on the host, 60.0 MiB on the device\n"),
+                std::string::npos)
+                << record.getReport();
+            EXPECT_NE(record.getReport().find("\nthe ring held at most 6 meshes standing in no placement, 0.60 M "
+                                              "vertices, at vivec\nthe prepared images held at most 5 unhanded, 2.0 "
+                                              "MiB, at vivec\nthe reader held at most 10.0 MiB of room for 5.0 MiB of "
+                                              "models, at balmora\nthe game held at most 40 cell stores loaded, at "
+                                              "vivec\n4 slots left while their files were read\n7 looks for room in "
+                                              "the caches found all in use\n"),
+                std::string::npos)
+                << record.getReport();
+            unplayed.add(BenchPlace{});
+            unplayed.finish(SessionRequest{});
+            EXPECT_NE(unplayed.getReport().find("\n2 places"), std::string::npos) << unplayed.getReport();
+            EXPECT_EQ(unplayed.getReport().find("the device held"), std::string::npos)
+                << "a renderer that said nothing";
+            EXPECT_NE(record.getReport().find(
+                          "\nthe process held at most 1200.0 MiB of anonymous memory, 200.0 MiB of it "
+                          "not resident, at first; there the heap took 300.0 MiB, 50.0 MiB of it free, in "
+                          "5 arenas, the most free 30.0 of 100.0 MiB, 10.0 of 60.0 MiB, 8.0 of 80.0 MiB, "
+                          "2.0 of 40.0 MiB\n"),
                 std::string::npos)
                 << record.getReport();
             std::ostringstream read;

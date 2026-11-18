@@ -1,17 +1,18 @@
 #include "factionbindings.hpp"
-#include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/store.hpp"
-
 #include "idcollectionbindings.hpp"
+#include "recordstore.hpp"
 
 namespace
 {
@@ -19,9 +20,10 @@ namespace
     {
         std::string mRankName;
         ESM::RefId mFactionId;
-        size_t mRankIndex;
+        std::size_t mRankIndex;
 
-        FactionRank(const ESM::RefId& factionId, const ESM::RankData& data, std::string_view rankName, size_t rankIndex)
+        FactionRank(
+            const ESM::RefId& factionId, const ESM::RankData& data, std::string_view rankName, std::size_t rankIndex)
             : ESM::RankData(data)
             , mRankName(rankName)
             , mFactionId(factionId)
@@ -38,13 +40,13 @@ namespace
     struct MutableFactionRank
     {
         MWLua::MutableRecord<ESM::Faction> mFaction;
-        uint32_t mIndex;
+        std::uint32_t mIndex;
     };
 
     struct MutableFactionRankAttributes
     {
         MWLua::MutableRecord<ESM::Faction> mFaction;
-        uint32_t mIndex;
+        std::uint32_t mIndex;
 
         ESM::RankData& find() { return mFaction.find().mData.mRankData[mIndex]; }
 
@@ -55,15 +57,15 @@ namespace
     {
         MWLua::MutableRecord<ESM::Faction> mFaction;
 
-        std::map<ESM::RefId, int32_t>& find() { return mFaction.find().mReactions; }
+        std::map<ESM::RefId, std::int32_t>& find() { return mFaction.find().mReactions; }
 
-        const std::map<ESM::RefId, int32_t>& find() const { return mFaction.find().mReactions; }
+        const std::map<ESM::RefId, std::int32_t>& find() const { return mFaction.find().mReactions; }
     };
 
-    template <size_t N>
+    template <std::size_t N>
     using RefIdArrayAccessor = std::array<ESM::RefId, N> ESM::Faction::FADTstruct::*;
 
-    template <size_t N>
+    template <std::size_t N>
     struct MutableFactionArray
     {
         MWLua::MutableRecord<ESM::Faction> mFaction;
@@ -105,7 +107,7 @@ namespace sol
     struct is_automagical<MutableFactionReactions> : std::false_type
     {
     };
-    template <size_t T>
+    template <std::size_t T>
     struct is_automagical<MutableFactionArray<T>> : std::false_type
     {
     };
@@ -115,7 +117,7 @@ namespace MWLua
 {
     namespace
     {
-        void setFromTable(int32_t& attribute1, int32_t& attribute2, const sol::object& value)
+        void setFromTable(std::int32_t& attribute1, std::int32_t& attribute2, const sol::object& value)
         {
             if (value == sol::nil)
             {
@@ -131,7 +133,7 @@ namespace MWLua
             else
             {
                 auto attributeValues = value.as<sol::lua_table>();
-                const size_t length = attributeValues.size();
+                const std::size_t length = attributeValues.size();
                 attribute1 = 0;
                 attribute2 = 0;
                 if (length > 0)
@@ -153,8 +155,8 @@ namespace MWLua
         void setFromTable(
             std::array<std::string, 10>& ranks, std::array<ESM::RankData, 10>& rankData, const sol::lua_table& table)
         {
-            const size_t length = table.size();
-            for (size_t i = 0; i < ranks.size(); ++i)
+            const std::size_t length = table.size();
+            for (std::size_t i = 0; i < ranks.size(); ++i)
             {
                 if (i >= length)
                 {
@@ -166,22 +168,22 @@ namespace MWLua
             }
         }
 
-        void setFromTable(std::map<ESM::RefId, int32_t>& reactions, const sol::lua_table& table)
+        void setFromTable(std::map<ESM::RefId, std::int32_t>& reactions, const sol::lua_table& table)
         {
             reactions.clear();
             for (const auto& [key, reaction] : table)
             {
                 const ESM::RefId id = ESM::RefId::deserializeText(key.as<std::string_view>());
                 if (!id.empty())
-                    reactions[id] = reaction.as<int>();
+                    reactions[id] = reaction.as<std::int32_t>();
             }
         }
 
-        template <size_t N>
+        template <std::size_t N>
         void setFromTable(std::array<ESM::RefId, N>& ids, const sol::lua_table& table)
         {
-            const size_t length = table.size();
-            for (uint32_t i = 0; i < N; ++i)
+            const std::size_t length = table.size();
+            for (std::uint32_t i = 0; i < N; ++i)
             {
                 if (i >= length)
                     ids[i] = {};
@@ -194,8 +196,8 @@ namespace MWLua
         {
             auto attrT = lua.new_usertype<MutableFactionRankAttributes>("ESM3_MutableFactionRankAttributes");
             attrT[sol::meta_function::length] = [](const MutableFactionRankAttributes&) { return 2; };
-            attrT[sol::meta_function::index]
-                = [](const MutableFactionRankAttributes& attributes, uint32_t index) -> std::optional<int32_t> {
+            attrT[sol::meta_function::index] = [](const MutableFactionRankAttributes& attributes,
+                                                   std::uint32_t index) -> std::optional<std::int32_t> {
                 const ESM::RankData& data = attributes.find();
                 if (index == 1)
                     return data.mAttribute1;
@@ -204,7 +206,7 @@ namespace MWLua
                 return {};
             };
             attrT[sol::meta_function::new_index]
-                = [](MutableFactionRankAttributes& attributes, uint32_t index, int32_t value) {
+                = [](MutableFactionRankAttributes& attributes, std::uint32_t index, std::int32_t value) {
                       ESM::RankData& data = attributes.find();
                       if (index == 1)
                           data.mAttribute1 = value;
@@ -225,24 +227,24 @@ namespace MWLua
                     rec.mFaction.find().mRanks[rec.mIndex] = value;
                 });
             rankT["primarySkillValue"] = sol::property(
-                [](const MutableFactionRank& rec) -> int {
+                [](const MutableFactionRank& rec) -> std::int32_t {
                     return rec.mFaction.find().mData.mRankData[rec.mIndex].mPrimarySkill;
                 },
-                [](MutableFactionRank& rec, int value) {
+                [](MutableFactionRank& rec, std::int32_t value) {
                     rec.mFaction.find().mData.mRankData[rec.mIndex].mPrimarySkill = value;
                 });
             rankT["favouredSkillValue"] = sol::property(
-                [](const MutableFactionRank& rec) -> int {
+                [](const MutableFactionRank& rec) -> std::int32_t {
                     return rec.mFaction.find().mData.mRankData[rec.mIndex].mFavouredSkill;
                 },
-                [](MutableFactionRank& rec, int value) {
+                [](MutableFactionRank& rec, std::int32_t value) {
                     rec.mFaction.find().mData.mRankData[rec.mIndex].mFavouredSkill = value;
                 });
             rankT["factionReputation"] = sol::property(
-                [](const MutableFactionRank& rec) -> int {
+                [](const MutableFactionRank& rec) -> std::int32_t {
                     return rec.mFaction.find().mData.mRankData[rec.mIndex].mFactReputation;
                 },
-                [](MutableFactionRank& rec, int value) {
+                [](MutableFactionRank& rec, std::int32_t value) {
                     rec.mFaction.find().mData.mRankData[rec.mIndex].mFactReputation = value;
                 });
             rankT["attributeValues"] = sol::property(
@@ -256,14 +258,14 @@ namespace MWLua
             ranksT[sol::meta_function::length]
                 = [](const MutableFactionRanks& ranks) { return ranks.mFaction.find().mRanks.size(); };
             ranksT[sol::meta_function::index]
-                = [](const MutableFactionRanks& ranks, uint32_t index) -> std::optional<MutableFactionRank> {
+                = [](const MutableFactionRanks& ranks, std::uint32_t index) -> std::optional<MutableFactionRank> {
                 const ESM::Faction& faction = ranks.mFaction.find();
                 if (index == 0 || index > faction.mRanks.size())
                     return {};
                 return MutableFactionRank{ ranks.mFaction, index - 1 };
             };
             ranksT[sol::meta_function::new_index]
-                = [](MutableFactionRanks& ranks, uint32_t i, const sol::object& value) {
+                = [](MutableFactionRanks& ranks, std::uint32_t i, const sol::object& value) {
                       ESM::Faction& faction = ranks.mFaction.find();
                       if (i == 0 || i > faction.mRanks.size())
                           throw std::runtime_error("index out of range");
@@ -299,7 +301,7 @@ namespace MWLua
                     {
                         const ESM::Faction& other = value.as<MutableFactionRanks>().mFaction.find();
                         assert(other.mData.mRankData.size() == other.mRanks.size());
-                        for (size_t i = 0; i < faction.mRanks.size(); ++i)
+                        for (std::size_t i = 0; i < faction.mRanks.size(); ++i)
                         {
                             faction.mRanks[i] = other.mRanks[i];
                             faction.mData.mRankData[i] = other.mData.mRankData[i];
@@ -316,7 +318,7 @@ namespace MWLua
             record[sol::meta_function::length]
                 = [](const MutableFactionReactions& reactions) { return reactions.find().size(); };
             record[sol::meta_function::index]
-                = [](const MutableFactionReactions& reactions, std::string_view id) -> std::optional<int32_t> {
+                = [](const MutableFactionReactions& reactions, std::string_view id) -> std::optional<std::int32_t> {
                 const auto& map = reactions.find();
                 const auto it = map.find(ESM::RefId::deserializeText(id));
                 if (it != map.end())
@@ -330,13 +332,13 @@ namespace MWLua
                       if (value == sol::nil)
                           map.erase(faction);
                       else
-                          map[faction] = value.as<int32_t>();
+                          map[faction] = value.as<std::int32_t>();
                   };
             record[sol::meta_function::pairs] = [](const MutableFactionReactions& obj) {
                 return std::make_tuple(
                     sol::as_function(
                         [](sol::this_state ts, const MutableFactionReactions& reactions,
-                            const sol::object& key) mutable -> std::optional<std::tuple<ESM::RefId, int32_t>> {
+                            const sol::object& key) mutable -> std::optional<std::tuple<ESM::RefId, std::int32_t>> {
                             const auto& map = reactions.find();
                             auto it = map.begin();
                             if (key != sol::nil)
@@ -364,19 +366,20 @@ namespace MWLua
                 });
         }
 
-        template <size_t N>
+        template <std::size_t N>
         auto addMutableRefIdArrayType(sol::state_view& lua, std::string_view name, RefIdArrayAccessor<N> accessor)
         {
             using Array = MutableFactionArray<N>;
             auto arrayT = lua.new_usertype<Array>(name);
             arrayT[sol::meta_function::length] = [](const Array& array) { return array.find().size(); };
-            arrayT[sol::meta_function::index] = [](const Array& array, uint32_t index) -> std::optional<ESM::RefId> {
+            arrayT[sol::meta_function::index]
+                = [](const Array& array, std::uint32_t index) -> std::optional<ESM::RefId> {
                 const auto& ids = array.find();
                 if (index == 0 || index > ids.size())
                     return {};
                 return ids[index - 1];
             };
-            arrayT[sol::meta_function::new_index] = [](Array& array, uint32_t i, const sol::object& value) {
+            arrayT[sol::meta_function::new_index] = [](Array& array, std::uint32_t i, const sol::object& value) {
                 auto& ids = array.find();
                 if (i == 0 || i > ids.size())
                     throw std::runtime_error("index out of range");
@@ -397,7 +400,7 @@ namespace MWLua
                     else if (value.is<Array>())
                     {
                         const auto& other = value.as<Array>().find();
-                        for (size_t i = 0; i < N; ++i)
+                        for (std::size_t i = 0; i < N; ++i)
                             ids[i] = other[i];
                     }
                     else
@@ -429,7 +432,7 @@ namespace MWLua
             {
                 record["ranks"] = sol::readonly_property([lua = lua.lua_state()](const ESM::Faction& rec) {
                     sol::table res(lua, sol::create);
-                    for (size_t i = 0; i < rec.mRanks.size() && i < rec.mData.mRankData.size(); i++)
+                    for (std::size_t i = 0; i < rec.mRanks.size() && i < rec.mData.mRankData.size(); i++)
                     {
                         if (rec.mRanks[i].empty())
                             break;
@@ -508,14 +511,14 @@ namespace MWLua
         rankT["name"]
             = sol::readonly_property([](const FactionRank& rec) -> std::string_view { return rec.mRankName; });
         rankT["primarySkillValue"]
-            = sol::readonly_property([](const FactionRank& rec) -> int { return rec.mPrimarySkill; });
+            = sol::readonly_property([](const FactionRank& rec) -> std::int32_t { return rec.mPrimarySkill; });
         rankT["favouredSkillValue"]
-            = sol::readonly_property([](const FactionRank& rec) -> int { return rec.mFavouredSkill; });
+            = sol::readonly_property([](const FactionRank& rec) -> std::int32_t { return rec.mFavouredSkill; });
         rankT["factionReputation"]
-            = sol::readonly_property([](const FactionRank& rec) -> int { return rec.mFactReputation; });
+            = sol::readonly_property([](const FactionRank& rec) -> std::int32_t { return rec.mFactReputation; });
         // deprecated
         rankT["factionReaction"]
-            = sol::readonly_property([](const FactionRank& rec) -> int { return rec.mFactReputation; });
+            = sol::readonly_property([](const FactionRank& rec) -> std::int32_t { return rec.mFactReputation; });
         rankT["attributeValues"] = sol::readonly_property([lua = lua.lua_state()](const FactionRank& rec) {
             sol::table res(lua, sol::create);
             res.add(rec.mAttribute1);

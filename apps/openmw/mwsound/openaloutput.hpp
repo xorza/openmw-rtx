@@ -1,16 +1,18 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <mutex>
 #include <string>
 #include <vector>
 
-#include <components/vfs/pathutil.hpp>
+#include <AL/al.h>
+#include <AL/alc.h>
+#include <AL/alext.h>
 
-#include "al.h"
-#include "alc.h"
-#include "alext.h"
+#include <components/vfs/pathutil.hpp>
 
 #include "soundoutput.hpp"
 
@@ -72,8 +74,9 @@ namespace MWSound
 
         float getTimeScaledPitch(SoundBase* sound);
 
-        static void eventCallback(
-            ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message, void* userParam);
+        // `noexcept`, as OpenAL's callback type is: nothing may unwind into the library's thread.
+        static void eventCallback(ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message,
+            void* userParam) noexcept;
 
         void onDisconnect();
 
@@ -86,8 +89,8 @@ namespace MWSound
 
         std::vector<std::string> enumerateHrtf() override;
 
-        std::pair<Sound_Handle, size_t> loadSound(VFS::Path::NormalizedView fname) override;
-        size_t unloadSound(Sound_Handle data) override;
+        std::pair<Sound_Handle, std::size_t> loadSound(VFS::Path::NormalizedView fname) override;
+        std::size_t unloadSound(Sound_Handle data) override;
 
         bool playSound(Sound* sound, Sound_Handle data, float offset) override;
         bool playSound3D(Sound* sound, Sound_Handle data, float offset) override;
@@ -110,8 +113,8 @@ namespace MWSound
         void updateListener(const osg::Vec3f& pos, const osg::Vec3f& atdir, const osg::Vec3f& updir,
             const osg::Vec3f& vel, Environment env) override;
 
-        void pauseSounds(int types) override;
-        void resumeSounds(int types) override;
+        void pauseSounds(std::int32_t types) override;
+        void resumeSounds(std::int32_t types) override;
 
         void pauseActiveDevice() override;
         void resumeActiveDevice() override;

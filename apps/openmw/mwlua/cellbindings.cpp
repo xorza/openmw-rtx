@@ -1,5 +1,13 @@
 #include "cellbindings.hpp"
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/types/types.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
@@ -19,7 +27,6 @@
 #include <components/esm3/loadrepa.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
-
 #include <components/esm4/loadacti.hpp>
 #include <components/esm4/loadalch.hpp>
 #include <components/esm4/loadammo.hpp>
@@ -39,18 +46,8 @@
 #include <components/esm4/loadstat.hpp>
 #include <components/esm4/loadtree.hpp>
 #include <components/esm4/loadweap.hpp>
-
 #include <components/misc/convert.hpp>
-
 #include <components/translation/translation.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "types/types.hpp"
 
 namespace sol
 {
@@ -170,7 +167,7 @@ namespace MWLua
                               ok = false;
                           else
                           {
-                              uint32_t typeId = ids[*type];
+                              std::uint32_t typeId = ids[*type];
                               switch (typeId)
                               {
                                   case ESM::REC_INTERNAL_PLAYER:

@@ -1,5 +1,7 @@
 #include "gamesettings.hpp"
 
+#include <cstdint>
+
 #include <QDir>
 #include <QProgressDialog>
 #include <QRegularExpression>
@@ -33,7 +35,7 @@ void Config::GameSettings::validatePaths()
 
     mDataDirs.clear();
 
-    QProgressDialog progressBar("Validating paths", {}, 0, static_cast<int>(paths.size() + 1));
+    QProgressDialog progressBar("Validating paths", {}, 0, static_cast<std::int32_t>(paths.size() + 1));
     progressBar.setWindowModality(Qt::WindowModal);
     progressBar.setValue(0);
 
@@ -552,7 +554,7 @@ bool Config::GameSettings::hasMaster()
 {
     bool result = false;
     QList<SettingValue> content = mSettings.values(QString(Config::GameSettings::sContentKey));
-    for (int i = 0; i < content.count(); ++i)
+    for (std::int32_t i = 0; i < content.count(); ++i)
     {
         if (content.at(i).value.endsWith(QLatin1String(".omwgame"), Qt::CaseInsensitive)
             || content.at(i).value.endsWith(QLatin1String(".esm"), Qt::CaseInsensitive))

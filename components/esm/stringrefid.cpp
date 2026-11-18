@@ -1,14 +1,17 @@
 #include "stringrefid.hpp"
-#include "serializerefid.hpp"
 
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <ostream>
 #include <system_error>
 #include <unordered_set>
 
-#include "components/misc/guarded.hpp"
-#include "components/misc/strings/algorithm.hpp"
-#include "components/misc/utf8stream.hpp"
+#include <components/misc/guarded.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/utf8stream.hpp>
+
+#include "serializerefid.hpp"
 
 namespace ESM
 {
@@ -33,7 +36,7 @@ namespace ESM
             return &*it;
         }
 
-        void addHex(unsigned char value, std::string& result)
+        void addHex(std::uint8_t value, std::string& result)
         {
             const std::size_t size = 2 + getHexIntegralSize(value);
             const std::size_t shift = result.size();
@@ -86,8 +89,8 @@ namespace ESM
         std::string result;
         result.reserve(2 + mValue->size());
         result.push_back('"');
-        const auto* ptr = reinterpret_cast<const unsigned char*>(mValue->data());
-        const auto* const end = reinterpret_cast<const unsigned char*>(mValue->data() + mValue->size());
+        const auto* ptr = reinterpret_cast<const std::uint8_t*>(mValue->data());
+        const auto* const end = reinterpret_cast<const std::uint8_t*>(mValue->data() + mValue->size());
         while (ptr != end)
         {
             if (Utf8Stream::isAscii(*ptr))

@@ -47,7 +47,7 @@ namespace Crash
 
     /// Runs the monitor where this process was started as one, and answers its exit code, which `main` returns;
     /// nothing otherwise. Called first in `main`, before anything else starts.
-    std::optional<int> runMonitorIfAsked(int argc, char** argv);
+    std::optional<std::int32_t> runMonitorIfAsked(std::int32_t argc, char** argv);
 
     /// **Under an AppImage, keeps the image mounted while a process it started runs a program from
     /// it**, the monitors among them: this process forks, and returns in the child, which goes on as
@@ -78,7 +78,7 @@ namespace Crash
     /// **The game reached its end**, with `code`, which the monitor reads once the game is gone: a game
     /// gone without it was ended from outside, or crashed past every handler. Once, as
     /// `wrapApplication` returns. Nothing where no catcher is installed.
-    void reachedEnd(int code);
+    void reachedEnd(std::int32_t code);
 
     /// The signals and filters whose handler is no longer the catcher's, by name: a library that
     /// installs its own after the catcher, as a graphics driver may, takes the crashes it does not

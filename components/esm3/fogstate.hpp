@@ -10,7 +10,7 @@ namespace ESM
 
     struct FogTexture
     {
-        int32_t mX{}, mY{}; // Only used for interior cells
+        std::int32_t mX{}, mY{}; // Only used for interior cells
         std::vector<char> mImageData;
 
         // Saves at or below MaxOldFogOfWarFormatVersion stored these as TGA, newer ones

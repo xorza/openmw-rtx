@@ -47,7 +47,7 @@ namespace Rtx
     }
 
     void SceneTextures::describe(
-        const SceneDesc& scene, std::span<const Index> slots, PreparedImages* const prepared, const bool settled)
+        const SceneDesc& scene, std::span<const TextureIndex> slots, PreparedImages* const prepared, const bool settled)
     {
         mPending.clear();
         mStood.clear();
@@ -56,7 +56,7 @@ namespace Rtx
         // asked one at a time and each waited for, they would be read and made one after another.
         if (settled && prepared != nullptr)
         {
-            for (const Index slot : slots)
+            for (const TextureIndex slot : slots)
                 if (scene.textures().isLive(slot) && isFile(scene.textures().getRows()[slot]))
                     mFound.push_back(findUpload(scene.textures().getRows()[slot], prepared));
             prepared->flush();
@@ -69,7 +69,7 @@ namespace Rtx
 
         mKept.reserve(slots.size());
 
-        for (const Index slot : slots)
+        for (const TextureIndex slot : slots)
         {
             // A free slot is not a texture. `SceneDesc` empties one the last thing naming it
             // gave back and leaves it in the table until something takes it over; describing it
@@ -97,13 +97,11 @@ namespace Rtx
 
             // **A file stands in while it is read and its chain made**, and is handed to the device once, as
             // the image it keeps: stood as it is meanwhile, it was handed over twice, and a widened one was
-            // widened here, on the frame an arrival lands on, into a copy nothing keeps. A whole chain is
+            // widened here, on the frame an arrival lands on, into a copy nothing keeps. A chain made is
             // named by the slot's image and needs none of its texels.
             if (made.mImage != nullptr)
             {
-                const bool whole = made.mImage->getWholeFormat().has_value();
-                assert((whole || made.mFile != nullptr) && "coarser levels handed over without their file's finest");
-                kept.mImage = whole ? row.mImage : made.mFile;
+                kept.mImage = row.mImage;
                 kept.mFormat = row.mFormat;
                 kept.mMade = made.mImage;
             }
@@ -140,12 +138,12 @@ namespace Rtx
         for (const Kept& kept : mKept)
             if (kept.mImage.isOk() && kept.mImage.value() != nullptr)
             {
-                if (kept.mMade == nullptr || !kept.mMade->getWholeFormat().has_value())
+                if (kept.mMade == nullptr)
                 {
                     levels += kept.mImage.value()->getNumMipmapLevels();
                     texels += laidBytes(*kept.mImage.value(), kept.mFormat);
                 }
-                if (kept.mMade != nullptr)
+                else
                     levels += kept.mMade->getLevels().size();
             }
         mLevels.reserve(levels);
@@ -178,9 +176,18 @@ namespace Rtx
             if (row.mKind == TextureKind::File)
             {
                 const bool whole = described.isOk() && data.mSource == TextureSource::File && !kept.mStandsIn;
+
+                // **Whole is from its want** (`TextureData::topLevel`): a file its readers want from a coarser level
+                // stands and stages none of the finer.
+                const std::uint8_t want = scene.textures().getWant(kept.mSlot);
+                const auto from = static_cast<std::uint8_t>(
+                    data.mLevels.empty() ? 0 : std::min<std::size_t>(want, data.mLevels.size() - 1));
+                if (whole)
+                    data.mWant = from;
                 mStood.push_back(Stood{ .mSlot = kept.mSlot,
-                    .mBytes = whole ? data.mBytes.size() + data.mCoarser.size() : 0,
-                    .mMade = whole && kept.mMade != nullptr });
+                    .mBytes = whole ? data.bytesFrom(from) : 0,
+                    .mMade = whole && kept.mMade != nullptr,
+                    .mFrom = whole ? from : std::uint8_t{ 0 } });
             }
             mDescriptions.push_back(data);
         }
@@ -207,14 +214,14 @@ namespace Rtx
 
         if (const osg::Image* image = kept.mImage.value().get())
         {
-            // **A whole chain made in a format of its own** stands as it was made, under its file's name.
-            if (kept.mMade != nullptr && kept.mMade->getWholeFormat().has_value())
+            // **A chain made** stands as it was made, under its file's name.
+            if (kept.mMade != nullptr)
             {
                 const MadeImage& made = *kept.mMade;
                 const std::size_t at = mLevels.size();
                 mLevels.insert(mLevels.end(), made.getLevels().begin(), made.getLevels().end());
                 const MipLevel& top = made.getLevels().front();
-                return TextureData{ .mFormat = *made.getWholeFormat(),
+                return TextureData{ .mFormat = made.getFormat(),
                     .mEncoding = kept.mEncoding,
                     .mWidth = top.mWidth,
                     .mHeight = top.mHeight,
@@ -223,31 +230,13 @@ namespace Rtx
                     .mName = SceneUtil::EmbeddedImage::nameOf(*image) };
             }
 
-            Result<TextureData, std::string> read
-                = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
-            if (!read.isOk() || kept.mMade == nullptr)
-                return read;
-
-            // **The file's finest level and the made levels under it**, in place of the levels the
-            // file carried, which the description laid last in the table.
-            TextureData described = read.value();
-            assert(layoutOf(described.mFormat).mBytes == kept.mMade->getLaid().mBytes
-                && "a chain made at another layout than its file is described at");
-            assert(layoutOf(described.mFormat).mSide == kept.mMade->getLaid().mSide
-                && "a chain made at another layout than its file is described at");
-            const auto at = static_cast<std::size_t>(described.mLevels.data() - mLevels.data());
-            mLevels.resize(at + 1);
-            mLevels.insert(mLevels.end(), kept.mMade->getLevels().begin(), kept.mMade->getLevels().end());
-            described.mLevels = std::span<const MipLevel>(mLevels).subspan(at);
-            described.mCoarser = kept.mMade->getBytes();
-            assert(described.levelsFit() && "a made chain short of its levels");
-            return described;
+            return describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
         }
 
         if (kept.mBakedFrom.has_value())
         {
             // A source the table no longer holds is a bake of nothing.
-            if (*kept.mBakedFrom == sNoIndex)
+            if (*kept.mBakedFrom == sNoRow)
                 return Err{ "the texture it bakes is no longer held" };
 
             return TextureData{

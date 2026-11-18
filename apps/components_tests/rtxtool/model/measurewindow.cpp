@@ -77,18 +77,24 @@ namespace RtxTool
             EXPECT_EQ(window.getMeasuredIndex(), 2u);
         }
 
-        /// **A flight that goes on from the stop before is measured from its first frame**, whole or not: its world is
-        /// the one that stop flew through (`WorldStands::Already`). Awaited, the same frames open nothing until one
-        /// stands whole.
-        TEST(RtxMeasureWindowTest, aWorldStandingAlreadyIsMeasuredFromItsFirstFrame)
+        /// **A flight that goes on from the stop before is measured from its second frame**, whole or not: its world
+        /// is the one that stop flew through (`WorldStands::Already`), and its first frame's wall time holds what ran
+        /// between the two stops. Awaited, the same frames open nothing until one stands whole.
+        TEST(RtxMeasureWindowTest, aWorldStandingAlreadyIsMeasuredFromItsSecondFrame)
         {
             MeasureWindow going(0, 30, false, WorldStands::Already);
             EXPECT_EQ(going.getSinceWhole(), 0u) << "a world that stood stood from before the first frame";
+            EXPECT_EQ(going.getMeasuredIndex(), std::nullopt) << "the frame the stops change on is ahead";
+            EXPECT_EQ(going.getWarmup(), 1u);
+            const MeasureWindow::Taken changing = going.take(standing(5));
+            EXPECT_FALSE(changing.mOpened);
+            EXPECT_EQ(changing.mOutcome, Outcome::Ahead);
             EXPECT_EQ(going.getMeasuredIndex(), 0u);
             const MeasureWindow::Taken first = going.take(standing(5));
             EXPECT_TRUE(first.mOpened);
             EXPECT_EQ(first.mOutcome, Outcome::Measured);
-            EXPECT_EQ(going.getMeasuredFrom(), 0u);
+            EXPECT_EQ(going.getMeasuredFrom(), 1u) << "the second frame, traced at one seen";
+            EXPECT_EQ(going.getSinceWhole(), 2u);
             EXPECT_EQ(going.take(standing(3)).mOutcome, Outcome::Measured);
 
             MeasureWindow awaited(0, 30, false);
@@ -204,7 +210,7 @@ namespace RtxTool
         /// nothing, having no cell before it. A crossing that appended closes as no rebuild.
         TEST(RtxMeasureWindowTest, aCrossingClosesWithTheSpanOfTheFrameThatCrossed)
         {
-            const int cells[2]{};
+            const std::int32_t cells[2]{};
             MeasureWindow window(0, 30, false);
             const auto at = [&](const void* cell, double frameMs, bool rebuilt, double walkMs = 0.0) {
                 WindowFrame frame = standing(0, frameMs);

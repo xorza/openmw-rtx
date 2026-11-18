@@ -1,6 +1,7 @@
 #include "groundcovershapes.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <osg/Array>
 #include <osg/BoundingBox>
@@ -127,7 +128,7 @@ namespace MWRender
     float GroundcoverShapes::reach(const osg::BoundingBox& box)
     {
         float widest = 0.0f;
-        for (unsigned int corner = 0; corner < 8; ++corner)
+        for (std::uint32_t corner = 0; corner < 8; ++corner)
             widest = std::max(widest, box.corner(corner).length());
         return widest;
     }

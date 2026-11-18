@@ -213,17 +213,17 @@ namespace Rtx
 
     PaintedAxis paintedAxis(const float at, const bool clamps)
     {
-        constexpr int extent = static_cast<int>(ShadingMap::sExtent);
+        constexpr auto extent = static_cast<std::int32_t>(ShadingMap::sExtent);
 
         // Along an axis that clamps, the point is held inside the texture and a cell past the edge is
         // the edge's; along one that repeats, the point and the cells wrap. The half-texel back puts the
         // lowest cell at minus one, which the wrap takes to the far edge — the point of a tiling map.
         const float placed = (clamps ? std::clamp(at, 0.0f, 1.0f) : at - std::floor(at)) * extent - 0.5f;
-        const auto index = [clamps](int cell) {
+        const auto index = [clamps](std::int32_t cell) {
             return static_cast<std::uint32_t>(
                 clamps ? std::clamp(cell, 0, extent - 1) : (cell % extent + extent) % extent);
         };
-        const auto low = static_cast<int>(std::floor(placed));
+        const auto low = static_cast<std::int32_t>(std::floor(placed));
         return PaintedAxis{ .mLow = index(low), .mHigh = index(low + 1), .mAcross = placed - static_cast<float>(low) };
     }
 

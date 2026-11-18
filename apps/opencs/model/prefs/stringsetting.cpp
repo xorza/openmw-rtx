@@ -5,9 +5,8 @@
 #include <QLineEdit>
 #include <QMutexLocker>
 
-#include <apps/opencs/model/prefs/setting.hpp>
-
 #include "category.hpp"
+#include "setting.hpp"
 #include "state.hpp"
 
 CSMPrefs::StringSetting::StringSetting(

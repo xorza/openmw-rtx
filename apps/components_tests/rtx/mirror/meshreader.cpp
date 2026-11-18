@@ -34,7 +34,9 @@
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/packedstreams.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/shader/automaps.hpp>
 
 namespace Rtx::Testing
@@ -45,7 +47,8 @@ namespace Rtx::Testing
         /// insists on.
         struct Resolving
         {
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             ExtractionStats mStats;
             MirrorPass mPass;
             ContentPreprocessor mContent;
@@ -348,7 +351,7 @@ namespace Rtx::Testing
             // What `NifOsg` builds from a `NiGeometryData`: four floats a vertex.
             osg::ref_ptr<osg::Geometry> floats = makeQuad();
             osg::ref_ptr<osg::Vec4Array> asFloats = new osg::Vec4Array;
-            for (int at = 0; at < 4; ++at)
+            for (std::int32_t at = 0; at < 4; ++at)
                 asFloats->push_back(osg::Vec4f(64.0f / 255.0f, 128.0f / 255.0f, 1.0f, 1.0f));
             floats->setColorArray(asFloats, osg::Array::BIND_PER_VERTEX);
 
@@ -366,7 +369,7 @@ namespace Rtx::Testing
             // What a `BSTriShape` and `Terrain::Storage` build: one byte a channel.
             osg::ref_ptr<osg::Geometry> bytes = makeQuad();
             osg::ref_ptr<osg::Vec4ubArray> asBytes = new osg::Vec4ubArray;
-            for (int at = 0; at < 4; ++at)
+            for (std::int32_t at = 0; at < 4; ++at)
                 asBytes->push_back(osg::Vec4ub(64, 128, 255, 255));
             bytes->setColorArray(asBytes, osg::Array::BIND_PER_VERTEX);
 
@@ -428,7 +431,7 @@ namespace Rtx::Testing
         TEST(RtxMeshReaderTest, anArrayThatDoesNotMatchTheVerticesRefusesTheFaceAndSaysWhich)
         {
             const auto pairs = [](std::size_t count) {
-                osg::ref_ptr<osg::Vec2Array> array = new osg::Vec2Array(static_cast<unsigned int>(count));
+                osg::ref_ptr<osg::Vec2Array> array = new osg::Vec2Array(static_cast<std::uint32_t>(count));
                 return array;
             };
 
@@ -580,36 +583,42 @@ namespace Rtx::Testing
             ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad), {}), nullptr, reading).value(),
                 MeshRead::Triangles);
 
+            PackedStreams packed;
+            const PackedMesh packedReading = packed.of(packed.append(reading.mArrays, reading.mShape));
             Resolving adopted;
-            const Index mesh = adopted.mResolver.adopt(*quad, reading);
-            EXPECT_EQ(mesh, 0u);
+            const MeshIndex mesh = adopted.mResolver.adopt(*quad, packedReading);
+            EXPECT_EQ(mesh, MeshIndex(0));
             EXPECT_EQ(adopted.mStats.mMeshesAdded, 1u);
 
             Resolving resolved;
-            EXPECT_EQ(resolved.mResolver.resolve(*quad, readDrawable(*quad, NodeKinds{}.of(*quad), {}), {}), 0u);
+            EXPECT_EQ(
+                resolved.mResolver.resolve(*quad, readDrawable(*quad, NodeKinds{}.of(*quad), {}), {}), MeshIndex(0));
 
             const SceneDesc& left = adopted.mScene;
             const SceneDesc& right = resolved.mScene;
-            EXPECT_EQ(left.meshes().getRows()[0].mVertices.mCount, right.meshes().getRows()[0].mVertices.mCount);
-            EXPECT_EQ(left.meshes().getRows()[0].mIndices.mCount, right.meshes().getRows()[0].mIndices.mCount);
-            EXPECT_EQ(left.deformers().kindOf(left.meshes().getRows()[0]), Deform::None);
-            const std::span<const osg::Vec3f> leftPositions = left.meshes().getMeshPositions(0);
-            const std::span<const osg::Vec3f> rightPositions = right.meshes().getMeshPositions(0);
-            const std::span<const std::uint32_t> leftIndices = left.meshes().getMeshIndices(0);
-            const std::span<const std::uint32_t> rightIndices = right.meshes().getMeshIndices(0);
+            EXPECT_EQ(left.meshes().getRows()[MeshIndex(0)].mVertices.mCount,
+                right.meshes().getRows()[MeshIndex(0)].mVertices.mCount);
+            EXPECT_EQ(left.meshes().getRows()[MeshIndex(0)].mIndices.mCount,
+                right.meshes().getRows()[MeshIndex(0)].mIndices.mCount);
+            EXPECT_EQ(left.deformers().kindOf(left.meshes().getRows()[MeshIndex(0)]), Deform::None);
+            const std::span<const osg::Vec3f> leftPositions = left.meshes().getArrival(MeshIndex(0)).mPositions;
+            const std::span<const osg::Vec3f> rightPositions = right.meshes().getArrival(MeshIndex(0)).mPositions;
+            const std::span<const std::uint32_t> leftIndices = left.meshes().getArrival(MeshIndex(0)).mIndices;
+            const std::span<const std::uint32_t> rightIndices = right.meshes().getArrival(MeshIndex(0)).mIndices;
             EXPECT_EQ(std::vector(leftPositions.begin(), leftPositions.end()),
                 std::vector(rightPositions.begin(), rightPositions.end()));
             EXPECT_EQ(std::vector(leftIndices.begin(), leftIndices.end()),
                 std::vector(rightIndices.begin(), rightIndices.end()));
 
             // The walk meeting the drawable after the ring adopted it finds the ring's mesh.
-            EXPECT_EQ(adopted.mResolver.resolve(*quad, readDrawable(*quad, NodeKinds{}.of(*quad), {}), {}), 0u);
+            EXPECT_EQ(
+                adopted.mResolver.resolve(*quad, readDrawable(*quad, NodeKinds{}.of(*quad), {}), {}), MeshIndex(0));
             EXPECT_EQ(adopted.mStats.mMeshesAdded, 1u) << "resolved to the mesh already held";
             EXPECT_EQ(adopted.mStats.mMeshesReused, 1u);
 
             // And adopting again holds rather than adds, answering the same mesh — and a hold is what
             // keeps the entry through a sweep the walk did not stamp it in.
-            EXPECT_EQ(adopted.mResolver.adopt(*quad, reading), mesh);
+            EXPECT_EQ(adopted.mResolver.adopt(*quad, packedReading), mesh);
             EXPECT_EQ(adopted.mStats.mMeshesAdded, 1u);
 
             adopted.mResolver.release(*quad);

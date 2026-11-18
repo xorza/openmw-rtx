@@ -1,11 +1,11 @@
 #include "luastate.hpp"
 
-#ifndef NO_LUAJIT
-#include <luajit.h>
-#endif // NO_LUAJIT
-
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+
+#include <luajit.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
@@ -62,7 +62,7 @@ namespace LuaUtil
         "tonumber", "tostring", "type", "unpack", "xpcall", "rawequal", "rawget", "rawset", "setmetatable" };
     static const std::string safePackages[] = { "coroutine", "math", "string", "table", "utf8" };
 
-    static constexpr int64_t countHookStep = 1000;
+    static constexpr std::int64_t countHookStep = 1000;
 
     bool LuaState::sProfilerEnabled = true;
 
@@ -85,23 +85,23 @@ namespace LuaUtil
         }
     }
 
-    void* LuaState::trackingAllocator(void* ud, void* ptr, size_t osize, size_t nsize)
+    void* LuaState::trackingAllocator(void* ud, void* ptr, std::size_t osize, std::size_t nsize)
     {
         auto* self = static_cast<LuaState*>(ud);
-        const uint64_t smallAllocSize = self->mSettings.mSmallAllocMaxSize;
-        const uint64_t memoryLimit = self->mSettings.mMemoryLimit;
+        const std::uint64_t smallAllocSize = self->mSettings.mSmallAllocMaxSize;
+        const std::uint64_t memoryLimit = self->mSettings.mMemoryLimit;
 
         if (!ptr)
             osize = 0;
-        int64_t smallAllocDelta = 0, bigAllocDelta = 0;
+        std::int64_t smallAllocDelta = 0, bigAllocDelta = 0;
         if (osize <= smallAllocSize)
-            smallAllocDelta -= static_cast<int64_t>(osize);
+            smallAllocDelta -= static_cast<std::int64_t>(osize);
         else
-            bigAllocDelta -= static_cast<int64_t>(osize);
+            bigAllocDelta -= static_cast<std::int64_t>(osize);
         if (nsize <= smallAllocSize)
-            smallAllocDelta += static_cast<int64_t>(nsize);
+            smallAllocDelta += static_cast<std::int64_t>(nsize);
         else
-            bigAllocDelta += static_cast<int64_t>(nsize);
+            bigAllocDelta += static_cast<std::int64_t>(nsize);
 
         if (bigAllocDelta > 0 && memoryLimit > 0 && self->mTotalMemoryUsage + nsize - osize > memoryLimit)
         {
@@ -140,11 +140,11 @@ namespace LuaUtil
             {
                 if (!self->mActiveScriptIdStack.empty())
                     id = self->mActiveScriptIdStack.back();
-                bigAllocDelta = static_cast<int64_t>(nsize);
+                bigAllocDelta = static_cast<std::int64_t>(nsize);
             }
             if (id.mIndex >= 0)
             {
-                if (static_cast<size_t>(id.mIndex) >= self->mMemoryUsage.size())
+                if (static_cast<std::size_t>(id.mIndex) >= self->mMemoryUsage.size())
                     self->mMemoryUsage.resize(static_cast<std::size_t>(id.mIndex) + 1);
                 self->mMemoryUsage[static_cast<std::size_t>(id.mIndex)] += bigAllocDelta;
             }
@@ -196,12 +196,10 @@ namespace LuaUtil
             sol.open_libraries(sol::lib::base, sol::lib::coroutine, sol::lib::math, sol::lib::bit32, sol::lib::string,
                 sol::lib::table, sol::lib::os, sol::lib::debug);
 
-#ifndef NO_LUAJIT
             sol.open_libraries(sol::lib::jit);
-#endif // NO_LUAJIT
 
             mSeedRandom = sol["math"]["randomseed"];
-            mSeedRandom(static_cast<unsigned>(std::time(nullptr)));
+            mSeedRandom(static_cast<std::uint32_t>(std::time(nullptr)));
             sol["math"]["randomseed"] = [] {};
 
             sol["utf8"] = LuaUtf8::initUtf8Package(sol);
@@ -354,7 +352,7 @@ namespace LuaUtil
         return ro[sol::metatable_key].get<sol::table>()["t"];
     }
 
-    void LuaState::seedRandom(const unsigned seed)
+    void LuaState::seedRandom(const std::uint32_t seed)
     {
         protectedCall([&](LuaView&) { throwIfError(mSeedRandom(seed)); });
     }
@@ -459,11 +457,7 @@ namespace LuaUtil
 
     std::string getLuaVersion()
     {
-#ifdef NO_LUAJIT
-        return LUA_RELEASE;
-#else
         return LUA_RELEASE " (" LUAJIT_VERSION ")";
-#endif
     }
 
     std::string toString(const sol::object& obj)
@@ -479,11 +473,11 @@ namespace LuaUtil
     std::string Internal::formatCastingError(const sol::object& obj, const std::type_info& t)
     {
         const char* typeName = t.name();
-        if (t == typeid(int))
+        if (t == typeid(std::int32_t))
             typeName = "int";
-        else if (t == typeid(unsigned))
+        else if (t == typeid(std::uint32_t))
             typeName = "uint32";
-        else if (t == typeid(size_t))
+        else if (t == typeid(std::size_t))
             typeName = "size_t";
         else if (t == typeid(float))
             typeName = "float";

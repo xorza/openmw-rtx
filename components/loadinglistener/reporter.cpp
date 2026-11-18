@@ -1,9 +1,10 @@
 #include "reporter.hpp"
-#include "loadinglistener.hpp"
 
 #include <condition_variable>
 #include <cstddef>
 #include <mutex>
+
+#include "loadinglistener.hpp"
 
 namespace Loading
 {

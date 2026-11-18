@@ -1,8 +1,8 @@
 #pragma once
 
-#if defined(__linux__)
-
 #include <filesystem>
+#include <string>
+#include <string_view>
 #include <vector>
 
 /**
@@ -11,12 +11,14 @@
 namespace Files
 {
 
-    /**
-     * \struct LinuxPath
-     */
-    struct LinuxPath
+    /// The application's name as its system names its folders: `openmw` on Linux, `OpenMW` on Windows.
+    std::string_view applicationName();
+
+    /// Where the system keeps a user's files and the game's install: one struct over `targetpathlinux.cpp` and
+    /// `targetpathwin32.cpp`, which CMake chooses.
+    struct TargetPath
     {
-        explicit LinuxPath(std::string applicationName);
+        explicit TargetPath(std::string applicationName);
 
         /**
          * \brief Return path to the user directory.
@@ -59,5 +61,3 @@ namespace Files
     };
 
 } /* namespace Files */
-
-#endif /* defined(__linux__) */

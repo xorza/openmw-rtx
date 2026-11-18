@@ -128,7 +128,7 @@ namespace MWRender
 
         /// Which child every `NightDaySwitch` of the world's objects shows, `World::getNightDayMode`,
         /// or nothing where `day night switches` is off and each shows the child its file opens on.
-        std::optional<unsigned int> mNightDayMode;
+        std::optional<std::uint32_t> mNightDayMode;
 
         /// Game seconds since the game began, `MWWorld::DateTimeManager::getGameTime`: the stars are turned by
         /// the clock and not a sum of frames, so a clock set or run forward turns them with it.
@@ -140,12 +140,12 @@ namespace MWRender
 
         /// Which weather the sky is under, as a script id: an index into the ten
         /// `MWWorld::WeatherManager` registers.
-        int mWeatherId = 0;
+        std::int32_t mWeatherId = 0;
 
         /// Which one it is turning into, and nothing while it is turning into none: the world says -1 there,
         /// and a default of zero would say "a transition to Clear, just finished". The two fields below are
         /// read unconditionally and hold whatever the weather manager last left.
-        std::optional<int> mNextWeatherId;
+        std::optional<std::int32_t> mNextWeatherId;
 
         /// How far that transition has left to run: one when it begins and zero when it ends, the
         /// weather manager's own mix being `1 - this`. Meaningless without `mNextWeatherId`.

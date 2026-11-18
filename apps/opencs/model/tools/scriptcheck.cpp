@@ -1,29 +1,26 @@
 #include "scriptcheck.hpp"
 
+#include <cstdint>
 #include <exception>
 #include <sstream>
 #include <string>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/scriptcontext.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/compiler/exception.hpp>
 #include <components/compiler/extensions0.hpp>
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/scanner.hpp>
 #include <components/compiler/tokenloc.hpp>
 #include <components/esm3/loadscpt.hpp>
-
-#include "../doc/document.hpp"
-
-#include "../world/data.hpp"
-
-#include "../prefs/state.hpp"
 
 CSMDoc::Message::Severity CSMTools::ScriptCheckStage::getSeverity(Type type)
 {
@@ -79,7 +76,7 @@ CSMTools::ScriptCheckStage::ScriptCheckStage(const CSMDoc::Document& document)
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::ScriptCheckStage::setup()
+std::int32_t CSMTools::ScriptCheckStage::setup()
 {
     std::string warnings = CSMPrefs::get()["Scripts"]["warnings"].toString();
 
@@ -100,7 +97,7 @@ int CSMTools::ScriptCheckStage::setup()
     return mDocument.getData().getScripts().getSize();
 }
 
-void CSMTools::ScriptCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::ScriptCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Script>& record = mDocument.getData().getScripts().getRecord(stage);
 

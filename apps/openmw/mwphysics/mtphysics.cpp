@@ -1,6 +1,8 @@
 #include "mtphysics.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <optional>
@@ -13,18 +15,15 @@
 #include <LinearMath/btIDebugDraw.h>
 #include <LinearMath/btThreads.h>
 
-#include "components/debug/debuglog.hpp"
-#include "components/misc/convert.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/misc/barrier.hpp>
+#include <components/misc/convert.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-
-#include "../mwworld/class.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 #include "actor.hpp"
 #include "contacttestwrapper.h"
@@ -305,12 +304,12 @@ namespace MWPhysics
 {
     namespace
     {
-        unsigned getMaxBulletSupportedThreads()
+        std::uint32_t getMaxBulletSupportedThreads()
         {
             auto broad = std::make_unique<btDbvtBroadphase>();
             assert(BT_MAX_THREAD_COUNT > 0);
-            return std::min<unsigned>(
-                static_cast<unsigned int>(broad->m_rayTestStacks.size()), BT_MAX_THREAD_COUNT - 1);
+            return std::min<std::uint32_t>(
+                static_cast<std::uint32_t>(broad->m_rayTestStacks.size()), BT_MAX_THREAD_COUNT - 1);
         }
 
         LockingPolicy detectLockingPolicy()
@@ -323,7 +322,7 @@ namespace MWPhysics
             return LockingPolicy::ExclusiveLocksOnly;
         }
 
-        unsigned getNumThreads(LockingPolicy lockingPolicy)
+        std::uint32_t getNumThreads(LockingPolicy lockingPolicy)
         {
             switch (lockingPolicy)
             {
@@ -332,8 +331,8 @@ namespace MWPhysics
                 case LockingPolicy::ExclusiveLocksOnly:
                     return 1;
                 case LockingPolicy::AllowSharedLocks:
-                    return static_cast<unsigned>(std::clamp<int>(
-                        Settings::physics().mAsyncNumThreads, 0, static_cast<int>(getMaxBulletSupportedThreads())));
+                    return static_cast<std::uint32_t>(std::clamp<std::int32_t>(Settings::physics().mAsyncNumThreads, 0,
+                        static_cast<std::int32_t>(getMaxBulletSupportedThreads())));
             }
 
             throw std::runtime_error("Unsupported LockingPolicy: "
@@ -422,7 +421,7 @@ namespace MWPhysics
         if (mNumThreads >= 1)
         {
             Log(Debug::Info) << "Using " << mNumThreads << " async physics threads";
-            for (unsigned i = 0; i < mNumThreads; ++i)
+            for (std::uint32_t i = 0; i < mNumThreads; ++i)
                 mThreads.emplace_back([&] { worker(); });
         }
         else
@@ -451,10 +450,10 @@ namespace MWPhysics
             thread.join();
     }
 
-    std::tuple<unsigned, float> PhysicsTaskScheduler::calculateStepConfig(float timeAccum) const
+    std::tuple<std::uint32_t, float> PhysicsTaskScheduler::calculateStepConfig(float timeAccum) const
     {
-        unsigned maxAllowedSteps = 2;
-        auto numSteps = static_cast<unsigned>(timeAccum / mDefaultPhysicsDt);
+        std::uint32_t maxAllowedSteps = 2;
+        auto numSteps = static_cast<std::uint32_t>(timeAccum / mDefaultPhysicsDt);
 
         // adjust maximum step count based on whether we're likely physics bottlenecked or not
         // if maxAllowedSteps ends up higher than numSteps, we will not invoke delta time
@@ -475,7 +474,7 @@ namespace MWPhysics
             maxAllowedSteps = 1;
         // physics is fairly cheap; limit based on expense
         if (budgetMeasurement < 0.5f)
-            maxAllowedSteps = static_cast<unsigned>(std::ceil(1.f / budgetMeasurement));
+            maxAllowedSteps = static_cast<std::uint32_t>(std::ceil(1.f / budgetMeasurement));
         // limit to a reasonable amount
         maxAllowedSteps = std::min(10u, maxAllowedSteps);
 
@@ -498,7 +497,7 @@ namespace MWPhysics
     }
 
     void PhysicsTaskScheduler::applyQueuedMovements(float& timeAccum, std::vector<Simulation>& simulations,
-        Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats)
+        Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats)
     {
         assert(mSimulations != &simulations);
 
@@ -509,7 +508,7 @@ namespace MWPhysics
     }
 
     void PhysicsTaskScheduler::prepareWork(float& timeAccum, std::vector<Simulation>& simulations,
-        Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats)
+        Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats)
     {
         // This function run in the main thread.
         // While the mSimulationMutex is held, background physics threads can't run.
@@ -543,7 +542,7 @@ namespace MWPhysics
         mPhysicsDt = newDelta;
         mSimulations = &simulations;
         mAdvanceSimulation = (mRemainingSteps != 0);
-        mNumJobs = static_cast<int>(mSimulations->size());
+        mNumJobs = static_cast<std::int32_t>(mSimulations->size());
         mNextLOS.store(0, std::memory_order_relaxed);
         mNextJob.store(0, std::memory_order_release);
 
@@ -637,14 +636,15 @@ namespace MWPhysics
         obj->getCollisionShape()->getAabb(obj->getWorldTransform(), min, max);
     }
 
-    void PhysicsTaskScheduler::setCollisionFilterMask(btCollisionObject* collisionObject, int collisionFilterMask)
+    void PhysicsTaskScheduler::setCollisionFilterMask(
+        btCollisionObject* collisionObject, std::int32_t collisionFilterMask)
     {
         MaybeExclusiveLock lock(mCollisionWorldMutex, mLockingPolicy);
         collisionObject->getBroadphaseHandle()->m_collisionFilterMask = collisionFilterMask;
     }
 
     void PhysicsTaskScheduler::addCollisionObject(
-        btCollisionObject* collisionObject, int collisionFilterGroup, int collisionFilterMask)
+        btCollisionObject* collisionObject, std::int32_t collisionFilterGroup, std::int32_t collisionFilterMask)
     {
         MaybeExclusiveLock lock(mCollisionWorldMutex, mLockingPolicy);
         mCollisionObjects.insert(collisionObject);
@@ -691,8 +691,8 @@ namespace MWPhysics
     void PhysicsTaskScheduler::refreshLOSCache()
     {
         MaybeSharedLock lock(mLOSCacheMutex, mLockingPolicy);
-        int job = 0;
-        int numLOS = static_cast<int>(mLOSCache.size());
+        std::int32_t job = 0;
+        auto numLOS = static_cast<std::int32_t>(mLOSCache.size());
         while ((job = mNextLOS.fetch_add(1, std::memory_order_relaxed)) < numLOS)
         {
             auto& req = mLOSCache[static_cast<std::size_t>(job)];
@@ -779,7 +779,7 @@ namespace MWPhysics
         while (mRemainingSteps)
         {
             mPreStepBarrier->wait([this] { afterPreStep(); });
-            int job = 0;
+            std::int32_t job = 0;
             const Visitors::Move impl{ mPhysicsDt, mCollisionWorld, *mWorldFrameData };
             const Visitors::WithLockedPtr<Visitors::Move, MaybeLock> vis{ impl, mCollisionWorldMutex, mLockingPolicy };
             while ((job = mNextJob.fetch_add(1, std::memory_order_relaxed)) < mNumJobs)
@@ -793,7 +793,7 @@ namespace MWPhysics
     }
 
     void PhysicsTaskScheduler::updateStats(
-        Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats)
+        Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats)
     {
         if (!stats.collectStats("engine"))
             return;

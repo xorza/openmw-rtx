@@ -1,6 +1,9 @@
 #pragma once
 
-#include "../mwworld/ptr.hpp"
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/effectlist.hpp>
 
 namespace MWGui
@@ -20,7 +23,7 @@ namespace MWGui
         std::string mCostColumn; // Cost/chance or Cost/charge
         ESM::RefId mId; // Item ID or spell ID
         MWWorld::Ptr mItem; // Only for Type_EnchantedItem
-        int mCount; // Only for Type_EnchantedItem
+        std::int32_t mCount; // Only for Type_EnchantedItem
         bool mSelected; // Is this the currently selected spell/item (only one can be selected at a time)
         bool mActive; // (Items only) is the item equipped?
 
@@ -40,14 +43,14 @@ namespace MWGui
         SpellModel(const MWWorld::Ptr& actor, std::string filter);
         explicit SpellModel(const MWWorld::Ptr& actor);
 
-        typedef int ModelIndex;
+        typedef std::int32_t ModelIndex;
 
         void update();
 
         Spell getItem(ModelIndex index) const;
         ///< throws for invalid index
 
-        size_t getItemCount() const;
+        std::size_t getItemCount() const;
         ModelIndex getSelectedIndex() const;
         ///< returns -1 if nothing is selected
 

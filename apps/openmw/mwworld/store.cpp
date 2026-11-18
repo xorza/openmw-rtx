@@ -14,10 +14,6 @@
 #include <vector>
 
 #include <components/debug/debuglog.hpp>
-
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
-
 #include <components/esm/attr.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm/esmbridge.hpp>
@@ -28,6 +24,8 @@
 #include <components/esm/path.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/cellref.hpp>
+#include <components/esm3/esmreader.hpp>
+#include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
@@ -111,7 +109,7 @@
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/rng.hpp>
 
-#include "../mwworld/cell.hpp"
+#include "cell.hpp"
 
 namespace
 {
@@ -165,7 +163,7 @@ namespace MWWorld
         mStatic.insert_or_assign(idx, std::move(record));
     }
     template <typename T>
-    size_t IndexedStore<T>::getSize() const
+    std::size_t IndexedStore<T>::getSize() const
     {
         return mStatic.size();
     }
@@ -174,7 +172,7 @@ namespace MWWorld
     {
     }
     template <typename T>
-    const T* IndexedStore<T>::search(int index) const
+    const T* IndexedStore<T>::search(std::int32_t index) const
     {
         typename Static::const_iterator it = mStatic.find(index);
         if (it != mStatic.end())
@@ -182,7 +180,7 @@ namespace MWWorld
         return nullptr;
     }
     template <typename T>
-    const T* IndexedStore<T>::find(int index) const
+    const T* IndexedStore<T>::find(std::int32_t index) const
     {
         const T* ptr = search(index);
         if (ptr == nullptr)
@@ -330,13 +328,13 @@ namespace MWWorld
     }
 
     template <class T, class Id>
-    size_t TypedDynamicStore<T, Id>::getSize() const
+    std::size_t TypedDynamicStore<T, Id>::getSize() const
     {
         return mShared.size();
     }
 
     template <class T, class Id>
-    size_t TypedDynamicStore<T, Id>::getDynamicSize() const
+    std::size_t TypedDynamicStore<T, Id>::getDynamicSize() const
     {
         return mDynamic.size();
     }
@@ -468,7 +466,7 @@ namespace MWWorld
     //=========================================================================
     Store<ESM::LandTexture>::Store() = default;
 
-    const ESM::Path* Store<ESM::LandTexture>::search(std::uint32_t index, int plugin) const
+    const ESM::Path* Store<ESM::LandTexture>::search(std::uint32_t index, std::int32_t plugin) const
     {
         auto mapping = mMappings.find(PluginIndex{ plugin, index });
         if (mapping == mMappings.end())
@@ -479,14 +477,14 @@ namespace MWWorld
         return &texture->second;
     }
 
-    size_t Store<ESM::LandTexture>::getSize() const
+    std::size_t Store<ESM::LandTexture>::getSize() const
     {
         return mStatic.size();
     }
 
     RecordId Store<ESM::LandTexture>::load(ESM::ESMReader& esm)
     {
-        const int plugin = esm.getIndex();
+        const std::int32_t plugin = esm.getIndex();
 
         ESM::LandTexture lt;
         bool isDeleted = false;
@@ -511,7 +509,7 @@ namespace MWWorld
     // Land
     //=========================================================================
     Store<ESM::Land>::~Store() = default;
-    size_t Store<ESM::Land>::getSize() const
+    std::size_t Store<ESM::Land>::getSize() const
     {
         return mStatic.size();
     }
@@ -523,14 +521,14 @@ namespace MWWorld
     {
         return iterator(mStatic.end());
     }
-    const ESM::Land* Store<ESM::Land>::search(int x, int y) const
+    const ESM::Land* Store<ESM::Land>::search(std::int32_t x, std::int32_t y) const
     {
-        std::pair<int, int> comp(x, y);
+        std::pair<std::int32_t, std::int32_t> comp(x, y);
         if (auto it = mStatic.find(comp); it != mStatic.end() && it->mX == x && it->mY == y)
             return &*it;
         return nullptr;
     }
-    const ESM::Land* Store<ESM::Land>::find(int x, int y) const
+    const ESM::Land* Store<ESM::Land>::find(std::int32_t x, std::int32_t y) const
     {
         const ESM::Land* ptr = search(x, y);
         if (ptr == nullptr)
@@ -640,9 +638,9 @@ namespace MWWorld
 
         return nullptr;
     }
-    const ESM::Cell* Store<ESM::Cell>::search(int x, int y) const
+    const ESM::Cell* Store<ESM::Cell>::search(std::int32_t x, std::int32_t y) const
     {
-        std::pair<int, int> key(x, y);
+        std::pair<std::int32_t, std::int32_t> key(x, y);
         auto it = mExt.find(key);
         if (it != mExt.end())
             return it->second;
@@ -653,16 +651,16 @@ namespace MWWorld
 
         return nullptr;
     }
-    const ESM::Cell* Store<ESM::Cell>::searchStatic(int x, int y) const
+    const ESM::Cell* Store<ESM::Cell>::searchStatic(std::int32_t x, std::int32_t y) const
     {
         auto it = mExt.find(std::make_pair(x, y));
         if (it != mExt.end())
             return (it->second);
         return nullptr;
     }
-    const ESM::Cell* Store<ESM::Cell>::searchOrCreate(int x, int y)
+    const ESM::Cell* Store<ESM::Cell>::searchOrCreate(std::int32_t x, std::int32_t y)
     {
-        std::pair<int, int> key(x, y);
+        std::pair<std::int32_t, std::int32_t> key(x, y);
         auto it = mExt.find(key);
         if (it != mExt.end())
             return (it->second);
@@ -706,7 +704,7 @@ namespace MWWorld
         }
         return ptr;
     }
-    const ESM::Cell* Store<ESM::Cell>::find(int x, int y) const
+    const ESM::Cell* Store<ESM::Cell>::find(std::int32_t x, std::int32_t y) const
     {
         const ESM::Cell* ptr = search(x, y);
         if (ptr == nullptr)
@@ -829,15 +827,15 @@ namespace MWWorld
     {
         return iterator(mSharedExt.end());
     }
-    size_t Store<ESM::Cell>::getSize() const
+    std::size_t Store<ESM::Cell>::getSize() const
     {
         return mSharedInt.size() + mSharedExt.size();
     }
-    size_t Store<ESM::Cell>::getExtSize() const
+    std::size_t Store<ESM::Cell>::getExtSize() const
     {
         return mSharedExt.size();
     }
-    size_t Store<ESM::Cell>::getIntSize() const
+    std::size_t Store<ESM::Cell>::getIntSize() const
     {
         return mSharedInt.size();
     }
@@ -860,7 +858,7 @@ namespace MWWorld
         ESM::Cell* insertedCell = &mCells.emplace(cell.mId, cell).first->second;
         if (cell.isExterior())
         {
-            std::pair<int, int> key(cell.getGridX(), cell.getGridY());
+            std::pair<std::int32_t, std::int32_t> key(cell.getGridX(), cell.getGridY());
 
             // duplicate insertions are avoided by search(ESM::Cell &)
             auto result = mDynamicExt.emplace(key, insertedCell).first;
@@ -922,7 +920,7 @@ namespace MWWorld
 
         return RecordId(ESM::RefId(), isDeleted);
     }
-    size_t Store<ESM::Pathgrid>::getSize() const
+    std::size_t Store<ESM::Pathgrid>::getSize() const
     {
         return mStatic.size();
     }
@@ -1076,7 +1074,7 @@ namespace MWWorld
         return mShared.end();
     }
 
-    size_t Store<ESM::Dialogue>::getSize() const
+    std::size_t Store<ESM::Dialogue>::getSize() const
     {
         return mShared.size();
     }

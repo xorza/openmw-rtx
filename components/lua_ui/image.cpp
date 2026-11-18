@@ -1,8 +1,9 @@
 #include "image.hpp"
 
-#include <MyGUI_RenderManager.h>
-
 #include <algorithm>
+#include <cstdint>
+
+#include <MyGUI_RenderManager.h>
 
 #include "resources.hpp"
 
@@ -10,8 +11,8 @@ namespace LuaUi
 {
     void LuaTileRect::_setAlign(const MyGUI::IntSize& /*oldSize*/)
     {
-        const int width = std::max(0, mCroppedParent->getWidth() - mPadding.mLeft - mPadding.mRight);
-        const int height = std::max(0, mCroppedParent->getHeight() - mPadding.mTop - mPadding.mBottom);
+        const std::int32_t width = std::max(0, mCroppedParent->getWidth() - mPadding.mLeft - mPadding.mRight);
+        const std::int32_t height = std::max(0, mCroppedParent->getHeight() - mPadding.mTop - mPadding.mBottom);
 
         mCoord.set(mPadding.mLeft, mPadding.mTop, width, height);
         mTileSize = mSetTileSize;
@@ -46,9 +47,9 @@ namespace LuaUi
         MyGUI::IntCoord atlasCoord;
         if (resource)
         {
-            atlasCoord
-                = MyGUI::IntCoord(static_cast<int>(resource->mOffset.x()), static_cast<int>(resource->mOffset.y()),
-                    static_cast<int>(resource->mSize.x()), static_cast<int>(resource->mSize.y()));
+            atlasCoord = MyGUI::IntCoord(static_cast<std::int32_t>(resource->mOffset.x()),
+                static_cast<std::int32_t>(resource->mOffset.y()), static_cast<std::int32_t>(resource->mSize.x()),
+                static_cast<std::int32_t>(resource->mSize.y()));
             setImageTexture(resource->mPath);
         }
 

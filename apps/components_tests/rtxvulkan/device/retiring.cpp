@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -14,20 +15,20 @@ namespace Rtx
         /// 1, 1, 2 and 5 let go of the first two at 1, nothing more at 1 again, and the rest at 5.
         TEST(RtxRetiringTest, aWaitLetsGoOfThePrefixItsStampReaches)
         {
-            Retiring<int> held;
+            Retiring<std::int32_t> held;
             held.hold(1, 10);
             held.hold(1, 11);
             held.hold(2, 12);
             held.hold(5, 13);
 
-            std::vector<int> let;
-            held.releaseThrough(1, [&](int each) { let.push_back(each); });
-            EXPECT_EQ(let, (std::vector<int>{ 10, 11 }));
+            std::vector<std::int32_t> let;
+            held.releaseThrough(1, [&](std::int32_t each) { let.push_back(each); });
+            EXPECT_EQ(let, (std::vector<std::int32_t>{ 10, 11 }));
             EXPECT_EQ(held.size(), 2u);
-            held.releaseThrough(1, [&](int each) { let.push_back(each); });
+            held.releaseThrough(1, [&](std::int32_t each) { let.push_back(each); });
             EXPECT_EQ(held.size(), 2u) << "a wait at the same stamp let go of more";
-            held.releaseThrough(5, [&](int each) { let.push_back(each); });
-            EXPECT_EQ(let, (std::vector<int>{ 10, 11, 12, 13 }));
+            held.releaseThrough(5, [&](std::int32_t each) { let.push_back(each); });
+            EXPECT_EQ(let, (std::vector<std::int32_t>{ 10, 11, 12, 13 }));
             EXPECT_EQ(held.size(), 0u);
         }
 
@@ -35,18 +36,19 @@ namespace Rtx
         /// while a wait lets go of each stamp two behind, then all of them, come out as they went in.
         TEST(RtxRetiringTest, orderHoldsAcrossTheRingsWrapAndItsGrowth)
         {
-            Retiring<int> held;
-            std::vector<int> let;
-            for (int each = 0; each < 100; ++each)
+            Retiring<std::int32_t> held;
+            std::vector<std::int32_t> let;
+            for (std::int32_t each = 0; each < 100; ++each)
             {
                 held.hold(static_cast<std::uint64_t>(each / 3), each);
                 if (each % 3 == 2 && each / 3 >= 2)
-                    held.releaseThrough(static_cast<std::uint64_t>(each / 3 - 2), [&](int one) { let.push_back(one); });
+                    held.releaseThrough(
+                        static_cast<std::uint64_t>(each / 3 - 2), [&](std::int32_t one) { let.push_back(one); });
             }
-            held.releaseThrough(100, [&](int one) { let.push_back(one); });
+            held.releaseThrough(100, [&](std::int32_t one) { let.push_back(one); });
 
             ASSERT_EQ(let.size(), 100u);
-            for (int each = 0; each < 100; ++each)
+            for (std::int32_t each = 0; each < 100; ++each)
                 EXPECT_EQ(let[static_cast<std::size_t>(each)], each);
         }
 
@@ -55,7 +57,7 @@ namespace Rtx
         {
             Testing::expectAssertDies(
                 [] {
-                    Retiring<int> held;
+                    Retiring<std::int32_t> held;
                     held.hold(5, 1);
                     held.hold(4, 2);
                 },

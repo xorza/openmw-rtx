@@ -1,6 +1,3 @@
-#include "crash.hpp"
-#include "crashinstall.hpp"
-
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -28,7 +25,9 @@
 #include <components/misc/result.hpp>
 #include <components/platform/process.hpp>
 
+#include "crash.hpp"
 #include "crashhangwatch.hpp"
+#include "crashinstall.hpp"
 #include "crashmonitorarguments.hpp"
 #include "crashnote.hpp"
 #include "crashpadclientsystem.hpp"
@@ -239,7 +238,7 @@ namespace Crash
             catcher().mPage.setReportPath(Files::pathToUnicodeString(folder));
     }
 
-    void reachedEnd(int code)
+    void reachedEnd(std::int32_t code)
     {
         if (Client::isInstalled())
             catcher().mPage.setEnd(code);

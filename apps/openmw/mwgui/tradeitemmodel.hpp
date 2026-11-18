@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "itemmodel.hpp"
 
 namespace MWGui
@@ -17,18 +19,18 @@ namespace MWGui
         bool allowedToUseItems() const override;
 
         ItemStack getItem(ModelIndex index) override;
-        size_t getItemCount() override;
+        std::size_t getItemCount() override;
 
         void update() override;
 
-        void borrowItemFromUs(ModelIndex itemIndex, size_t count);
+        void borrowItemFromUs(ModelIndex itemIndex, std::size_t count);
 
-        void borrowItemToUs(ModelIndex itemIndex, ItemModel* source, size_t count);
+        void borrowItemToUs(ModelIndex itemIndex, ItemModel* source, std::size_t count);
         ///< @note itemIndex points to an item in \a source
 
-        void returnItemBorrowedToUs(ModelIndex itemIndex, size_t count);
+        void returnItemBorrowedToUs(ModelIndex itemIndex, std::size_t count);
 
-        void returnItemBorrowedFromUs(ModelIndex itemIndex, ItemModel* source, size_t count);
+        void returnItemBorrowedFromUs(ModelIndex itemIndex, ItemModel* source, std::size_t count);
 
         /// Update borrowed items in this model
         void updateBorrowed();
@@ -46,7 +48,7 @@ namespace MWGui
 
     private:
         void borrowImpl(const ItemStack& item, std::vector<ItemStack>& out);
-        void unborrowImpl(const ItemStack& item, size_t count, std::vector<ItemStack>& out);
+        void unborrowImpl(const ItemStack& item, std::size_t count, std::vector<ItemStack>& out);
 
         std::vector<ItemStack> mItems;
 

@@ -1,8 +1,10 @@
 #pragma once
 
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/registeredclass.hpp"
+#include <cstdint>
+
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace ESM
 {
@@ -59,7 +61,7 @@ namespace MWClass
         bool hasToolTip(const MWWorld::ConstPtr& ptr) const override;
         ///< @return true if this object has a tooltip when focused (default implementation: true)
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
         MWWorld::ContainerStore& getContainerStore(const MWWorld::Ptr& ptr) const override;
@@ -90,6 +92,7 @@ namespace MWClass
 
         bool useAnim() const override;
 
-        void modifyBaseInventory(const ESM::RefId& containerId, const ESM::RefId& itemId, int amount) const override;
+        void modifyBaseInventory(
+            const ESM::RefId& containerId, const ESM::RefId& itemId, std::int32_t amount) const override;
     };
 }

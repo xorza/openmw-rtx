@@ -1,26 +1,25 @@
 #pragma once
 
-#include "../mwbase/environment.hpp"
+#include <algorithm>
+#include <cstdint>
+#include <string_view>
 
-#include "../mwworld/esmstore.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/misc/strings/algorithm.hpp>
-
-#include <algorithm>
-#include <string_view>
 
 namespace MWMechanics
 {
     template <class T>
-    void modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, int amount)
+    void modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, std::int32_t amount)
     {
         T copy = *MWBase::Environment::get().getESMStore()->get<T>().find(actorId);
         for (auto& it : copy.mInventory.mList)
         {
             if (it.mItem == itemId)
             {
-                const int sign = it.mCount < 1 ? -1 : 1;
+                const std::int32_t sign = it.mCount < 1 ? -1 : 1;
                 it.mCount = sign * std::max(it.mCount * sign + amount, 0);
                 MWBase::Environment::get().getESMStore()->overrideRecord(copy);
                 return;

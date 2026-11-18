@@ -1,17 +1,15 @@
 #include "regioncheck.hpp"
 
+#include <cstdint>
 #include <string>
-
-#include "../prefs/state.hpp"
-
-#include "../world/universalid.hpp"
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadregn.hpp>
 
 CSMTools::RegionCheckStage::RegionCheckStage(const CSMWorld::IdCollection<ESM::Region>& regions)
@@ -20,14 +18,14 @@ CSMTools::RegionCheckStage::RegionCheckStage(const CSMWorld::IdCollection<ESM::R
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::RegionCheckStage::setup()
+std::int32_t CSMTools::RegionCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mRegions.getSize();
 }
 
-void CSMTools::RegionCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::RegionCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Region>& record = mRegions.getRecord(stage);
 
@@ -46,7 +44,7 @@ void CSMTools::RegionCheckStage::perform(int stage, CSMDoc::Messages& messages)
     /// \todo test that the ID in mSleeplist exists
 
     // test that chances add up to 100
-    unsigned chances = 0;
+    std::uint32_t chances = 0;
     for (const auto& [_, chance] : region.mData.mProbabilities)
         chances += chance;
     if (chances != 100)

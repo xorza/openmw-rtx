@@ -1,18 +1,18 @@
 #include "inventoryitemmodel.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <utility>
 
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/manualref.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
 
 namespace MWGui
 {
@@ -26,12 +26,12 @@ namespace MWGui
     {
         if (index < 0)
             throw std::runtime_error("Invalid index supplied");
-        if (mItems.size() <= static_cast<size_t>(index))
+        if (mItems.size() <= static_cast<std::size_t>(index))
             throw std::runtime_error("Item index out of range");
         return mItems[static_cast<std::size_t>(index)];
     }
 
-    size_t InventoryItemModel::getItemCount()
+    std::size_t InventoryItemModel::getItemCount()
     {
         return mItems.size();
     }
@@ -48,36 +48,38 @@ namespace MWGui
         return -1;
     }
 
-    MWWorld::Ptr InventoryItemModel::addItem(const ItemStack& item, size_t count, bool allowAutoEquip)
+    MWWorld::Ptr InventoryItemModel::addItem(const ItemStack& item, std::size_t count, bool allowAutoEquip)
     {
         if (item.mBase.getContainerStore() == &mActor.getClass().getContainerStore(mActor))
             throw std::runtime_error("Item to add needs to be from a different container!");
-        return *mActor.getClass().getContainerStore(mActor).add(item.mBase, static_cast<int>(count), allowAutoEquip);
+        return *mActor.getClass().getContainerStore(mActor).add(
+            item.mBase, static_cast<std::int32_t>(count), allowAutoEquip);
     }
 
-    MWWorld::Ptr InventoryItemModel::copyItem(const ItemStack& item, size_t count, bool allowAutoEquip)
+    MWWorld::Ptr InventoryItemModel::copyItem(const ItemStack& item, std::size_t count, bool allowAutoEquip)
     {
         if (item.mBase.getContainerStore() == &mActor.getClass().getContainerStore(mActor))
             throw std::runtime_error("Item to copy needs to be from a different container!");
 
-        MWWorld::ManualRef newRef(*MWBase::Environment::get().getESMStore(), item.mBase, static_cast<int>(count));
+        MWWorld::ManualRef newRef(
+            *MWBase::Environment::get().getESMStore(), item.mBase, static_cast<std::int32_t>(count));
         return *mActor.getClass().getContainerStore(mActor).add(
-            newRef.getPtr(), static_cast<int>(count), allowAutoEquip);
+            newRef.getPtr(), static_cast<std::int32_t>(count), allowAutoEquip);
     }
 
-    void InventoryItemModel::removeItem(const ItemStack& item, size_t count)
+    void InventoryItemModel::removeItem(const ItemStack& item, std::size_t count)
     {
-        int removed = 0;
+        std::int32_t removed = 0;
         // Re-equipping makes sense only if a target has inventory
         if (mActor.getClass().hasInventoryStore(mActor))
         {
             MWWorld::InventoryStore& store = mActor.getClass().getInventoryStore(mActor);
-            removed = store.remove(item.mBase, static_cast<int>(count), true);
+            removed = store.remove(item.mBase, static_cast<std::int32_t>(count), true);
         }
         else
         {
             MWWorld::ContainerStore& store = mActor.getClass().getContainerStore(mActor);
-            removed = store.remove(item.mBase, static_cast<int>(count));
+            removed = store.remove(item.mBase, static_cast<std::int32_t>(count));
         }
 
         std::stringstream error;
@@ -90,13 +92,13 @@ namespace MWGui
         else if (std::cmp_less(removed, count))
         {
             error << "Not enough items '" << item.mBase.getCellRef().getRefId() << "' in the stack to remove ("
-                  << static_cast<int>(count) << " requested, " << removed << " found)";
+                  << static_cast<std::int32_t>(count) << " requested, " << removed << " found)";
             throw std::runtime_error(error.str());
         }
     }
 
     MWWorld::Ptr InventoryItemModel::moveItem(
-        const ItemStack& item, size_t count, ItemModel* otherModel, bool allowAutoEquip)
+        const ItemStack& item, std::size_t count, ItemModel* otherModel, bool allowAutoEquip)
     {
         // Can't move conjured items: This is a general fix that also takes care of issues with taking conjured items
         // via the 'Take All' button.
@@ -132,7 +134,7 @@ namespace MWGui
         }
     }
 
-    bool InventoryItemModel::onTakeItem(const MWWorld::Ptr& item, int count)
+    bool InventoryItemModel::onTakeItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         // Looting a dead corpse is considered OK
         if (mActor.getClass().isActor() && mActor.getClass().getCreatureStats(mActor).isDead())

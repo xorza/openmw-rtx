@@ -3,9 +3,8 @@
 #include <QDropEvent>
 
 #include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
-#include "../../model/world/tablemimedata.hpp"
 
 const CSMWorld::TableMimeData* CSVWorld::DragDropUtils::getTableMimeData(const QDropEvent& event)
 {

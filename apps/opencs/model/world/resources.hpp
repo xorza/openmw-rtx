@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <string_view>
@@ -16,7 +17,7 @@ namespace CSMWorld
 {
     class Resources
     {
-        std::map<std::string, int> mIndex;
+        std::map<std::string, std::int32_t> mIndex;
         std::vector<std::string> mFiles;
         std::string mBaseDirectory;
         UniversalId::Type mType;
@@ -28,13 +29,13 @@ namespace CSMWorld
 
         void recreate(const VFS::Manager* vfs, const char* const* extensions = nullptr);
 
-        int getSize() const;
+        std::int32_t getSize() const;
 
-        std::string getId(int index) const;
+        std::string getId(std::int32_t index) const;
 
-        int getIndex(const std::string& id) const;
+        std::int32_t getIndex(const std::string& id) const;
 
-        int searchId(std::string_view id) const;
+        std::int32_t searchId(std::string_view id) const;
 
         UniversalId::Type getType() const;
     };

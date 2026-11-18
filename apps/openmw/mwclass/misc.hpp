@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../mwworld/registeredclass.hpp"
+#include <cstdint>
+
+#include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace MWClass
 {
@@ -11,7 +13,8 @@ namespace MWClass
         Miscellaneous();
 
     public:
-        MWWorld::Ptr copyToCell(const MWWorld::ConstPtr& ptr, MWWorld::CellStore& cell, int count) const override;
+        MWWorld::Ptr copyToCell(
+            const MWWorld::ConstPtr& ptr, MWWorld::CellStore& cell, std::int32_t count) const override;
         MWWorld::Ptr moveToCell(const MWWorld::Ptr& ptr, MWWorld::CellStore& cell) const override;
 
         void insertObjectRendering(const MWWorld::Ptr& ptr, const std::string& model,
@@ -28,13 +31,13 @@ namespace MWClass
         std::unique_ptr<MWWorld::Action> activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const override;
         ///< Generate action for activation
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
         ESM::RefId getScript(const MWWorld::ConstPtr& ptr) const override;
         ///< Return name of the script attached to ptr
 
-        int getValue(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getValue(const MWWorld::ConstPtr& ptr) const override;
         ///< Return trade value of the object. Throws an exception, if the object can't be traded.
 
         const ESM::RefId& getUpSoundId(const MWWorld::ConstPtr& ptr) const override;
@@ -53,7 +56,7 @@ namespace MWClass
 
         float getWeight(const MWWorld::ConstPtr& ptr) const override;
 
-        bool canSell(const MWWorld::ConstPtr& item, int npcServices) const override;
+        bool canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const override;
 
         bool isKey(const MWWorld::ConstPtr& ptr) const override;
 

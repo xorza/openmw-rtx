@@ -1,5 +1,7 @@
 #include "colorpickerpopup.hpp"
 
+#include <cstdint>
+
 #include <QColorDialog>
 #include <QEvent>
 #include <QKeyEvent>
@@ -11,7 +13,7 @@ CSVWidget::ColorPickerPopup::ColorPickerPopup(QWidget* parent)
     : QFrame(parent)
 {
     setWindowFlags(Qt::Popup);
-    setFrameStyle(QFrame::Box | static_cast<int>(QFrame::Plain));
+    setFrameStyle(QFrame::Box | static_cast<std::int32_t>(QFrame::Plain));
     hide();
 
     mColorPicker = new QColorDialog(this);

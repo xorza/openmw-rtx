@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 namespace DetourNavigator
 {
-    using Flags = unsigned short;
+    using Flags = std::uint16_t;
 
     enum Flag : Flags
     {

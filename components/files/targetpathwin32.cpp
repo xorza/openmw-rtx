@@ -1,4 +1,4 @@
-#include "windowspath.hpp"
+#include "targetpath.hpp"
 
 #include <algorithm>
 #include <utility>
@@ -77,12 +77,17 @@ namespace Files
         }
     }
 
-    WindowsPath::WindowsPath(std::string applicationName)
+    std::string_view applicationName()
+    {
+        return "OpenMW";
+    }
+
+    TargetPath::TargetPath(std::string applicationName)
         : mName(std::move(applicationName))
     {
     }
 
-    std::filesystem::path WindowsPath::getUserConfigPath() const
+    std::filesystem::path TargetPath::getUserConfigPath() const
     {
         std::filesystem::path userPath = std::filesystem::current_path();
 
@@ -98,20 +103,20 @@ namespace Files
         return userPath / "My Games" / mName;
     }
 
-    std::filesystem::path WindowsPath::getUserDataPath() const
+    std::filesystem::path TargetPath::getUserDataPath() const
     {
         // Have some chaos, windows people!
         return getUserConfigPath();
     }
 
-    std::filesystem::path WindowsPath::getGlobalConfigPath() const
+    std::filesystem::path TargetPath::getGlobalConfigPath() const
     {
         // The concept of a global config path is absurd on Windows.
         // Always use local config instead.
         return {};
     }
 
-    std::filesystem::path WindowsPath::getLocalPath() const
+    std::filesystem::path TargetPath::getLocalPath() const
     {
         std::filesystem::path localPath = std::filesystem::current_path() / "";
 
@@ -132,17 +137,17 @@ namespace Files
         return localPath;
     }
 
-    std::filesystem::path WindowsPath::getGlobalDataPath() const
+    std::filesystem::path TargetPath::getGlobalDataPath() const
     {
         return getGlobalConfigPath();
     }
 
-    std::filesystem::path WindowsPath::getCachePath() const
+    std::filesystem::path TargetPath::getCachePath() const
     {
         return getUserConfigPath() / "cache";
     }
 
-    std::filesystem::path WindowsPath::getUserLocalDataPath() const
+    std::filesystem::path TargetPath::getUserLocalDataPath() const
     {
         // `%LOCALAPPDATA%` and not Documents, where the rest of the user's files are: Controlled
         // Folder Access guards Documents and OneDrive may sync it, neither what a downloaded
@@ -155,7 +160,7 @@ namespace Files
         return localPath;
     }
 
-    std::vector<std::filesystem::path> WindowsPath::getInstallPaths() const
+    std::vector<std::filesystem::path> TargetPath::getInstallPaths() const
     {
         std::vector<std::filesystem::path> paths;
         {

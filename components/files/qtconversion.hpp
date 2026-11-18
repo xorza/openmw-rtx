@@ -1,7 +1,8 @@
 #pragma once
 
-#include <QString>
 #include <filesystem>
+
+#include <QString>
 
 namespace Files
 {

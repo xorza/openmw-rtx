@@ -1,8 +1,8 @@
 #pragma once
 
-#include "util.hpp"
-
 #include <apps/opencs/model/world/columnbase.hpp>
+
+#include "util.hpp"
 
 class QModelIndex;
 class QObject;

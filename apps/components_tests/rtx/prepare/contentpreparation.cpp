@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -48,7 +49,7 @@ namespace Rtx
                 mNormals = new osg::Image;
                 const std::uint8_t bytes[]
                     = { 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112, 128, 251, 200, 0, 0, 0, 0 };
-                auto* data = new unsigned char[sizeof(bytes)];
+                auto* data = new std::uint8_t[sizeof(bytes)];
                 std::memcpy(data, bytes, sizeof(bytes));
                 mNormals->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
                 mNormals->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
@@ -242,7 +243,7 @@ namespace Rtx
                         lost.push_back(key);
                 ASSERT_FALSE(lost.empty()) << "the second model filed no entry of its own";
                 for (const StoredKey& key : lost)
-                    ASSERT_TRUE(std::filesystem::remove(store.pathOf(key.mKey)));
+                    ASSERT_TRUE(std::filesystem::remove(store.pathOf(key.mKey, storeKindOf(key.mPass))));
 
                 ContentStore::Store reopened(folder, sContentStorePolicy);
                 const PreparationSetup lostSetup{ .mContent = content,
@@ -253,7 +254,7 @@ namespace Rtx
                 EXPECT_EQ(prepare(lostSetup, both).mWalked, 1u) << "the model whose entry was lost, and no other";
                 reopened.flush();
                 for (const StoredKey& key : lost)
-                    EXPECT_TRUE(std::filesystem::exists(reopened.pathOf(key.mKey)));
+                    EXPECT_TRUE(std::filesystem::exists(reopened.pathOf(key.mKey, storeKindOf(key.mPass))));
             }
 
             prepare(setup, { "meshes/a.nif" });

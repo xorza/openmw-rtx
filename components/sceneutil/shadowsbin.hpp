@@ -1,8 +1,9 @@
 #pragma once
 
 #include <array>
-#include <osgUtil/RenderBin>
 #include <unordered_set>
+
+#include <osgUtil/RenderBin>
 
 namespace osg
 {

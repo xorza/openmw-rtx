@@ -94,7 +94,7 @@ namespace Rtx
     {
         const double scaled = static_cast<double>(value * 255.0f) + 0.5;
         const double held = scaled > 0.0 ? (scaled < 255.0 ? scaled : 255.0) : 0.0;
-        return static_cast<std::byte>(static_cast<int>(held));
+        return static_cast<std::byte>(static_cast<std::int32_t>(held));
     }
 
     /// `DisplayCurve::encodedByte`, for a caller outside a loop.

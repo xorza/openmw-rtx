@@ -4,6 +4,8 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <mutex>
 #include <span>
@@ -214,7 +216,6 @@ namespace Rtx
         TextureData first = file;
         first.mLevels = file.mLevels.first(read);
         first.mBytes = file.mBytes.first(file.mLevels[read - 1].mOffset + file.bytesOf(read - 1).size());
-        first.mCoarser = {};
         mAlpha.build(first);
 
         // Each buffer grown to the size this build needs and no more, as `scratchOf` predicts it.
@@ -257,7 +258,7 @@ namespace Rtx
                     {
                         const osg::Vec3f& colour = mBand[std::size_t{ y - row } * level.mWidth + x];
                         const std::size_t into = mLevels[at].texelOffset(x, y, sTexel);
-                        for (int channel = 0; channel < 3; ++channel)
+                        for (std::int32_t channel = 0; channel < 3; ++channel)
                             mTexels[into + static_cast<std::size_t>(channel)] = unitByte(colour[channel]);
                         mTexels[into + 3] = static_cast<std::byte>(mAlpha.at(at, x, y));
                     }
@@ -286,8 +287,8 @@ namespace Rtx
                     for (const std::uint32_t dy : { 0u, 1u, 2u })
                         for (const std::uint32_t dx : { 0u, 1u, 2u })
                         {
-                            const float weight
-                                = across.mWeights[static_cast<int>(dx)] * down.mWeights[static_cast<int>(dy)];
+                            const float weight = across.mWeights[static_cast<std::int32_t>(dx)]
+                                * down.mWeights[static_cast<std::int32_t>(dy)];
                             const std::uint32_t sx = std::min(across.mFirst + dx, above.mWidth - 1);
                             const std::uint32_t sy = std::min(down.mFirst + dy, above.mHeight - 1);
                             const std::size_t from = above.texelOffset(sx, sy, sTexel);
@@ -311,7 +312,7 @@ namespace Rtx
 
                     const osg::Vec3f mean = coverage && painted > 0.0f ? weighed / painted : even;
                     const std::size_t into = level.texelOffset(x, y, sTexel);
-                    for (int channel = 0; channel < 3; ++channel)
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
                         mTexels[into + static_cast<std::size_t>(channel)]
                             = encoded ? curve.encodedByte(mean[channel]) : unitByte(mean[channel]);
                     mTexels[into + 3] = unitByte(painted);
@@ -346,11 +347,11 @@ namespace Rtx
                     const float factor = paintedLight(painted, mColumns[x], row);
                     const std::size_t into = level.texelOffset(x, y, sTexel);
                     osg::Vec3f light;
-                    for (int channel = 0; channel < 3; ++channel)
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
                         light[channel] = curve.toLinear(
                             std::to_integer<std::uint8_t>(mTexels[into + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f divided = Rtx::delit(light, factor);
-                    for (int channel = 0; channel < 3; ++channel)
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
                         mTexels[into + static_cast<std::size_t>(channel)] = curve.encodedByte(divided[channel]);
                 }
             }
@@ -429,7 +430,8 @@ namespace Rtx
                     for (const std::uint32_t dy : { 0u, 1u, 2u })
                         for (const std::uint32_t dx : { 0u, 1u, 2u })
                             boxed[lane] += rows[dy][std::min(across.mFirst + dx, above.mWidth - 1)]
-                                * (across.mWeights[static_cast<int>(dx)] * down.mWeights[static_cast<int>(dy)]);
+                                * (across.mWeights[static_cast<std::int32_t>(dx)]
+                                    * down.mWeights[static_cast<std::int32_t>(dy)]);
                     means.mX[lane] = boxed[lane].x();
                     means.mY[lane] = boxed[lane].y();
                     means.mZ[lane] = boxed[lane].z();
@@ -443,7 +445,8 @@ namespace Rtx
         // Each row of the level under `at` boxed once the rows of `at` its box reads stand, below `to`,
         // and each boxed row in turn boxing the level under it: the row `y` reads `2 y` to `2 y + 2`, so a
         // ring holds the two rows before the finest's band of four, and a coarser level's rows come one
-        // at a time. At the end of a level every row under it is boxed, its last rows held to its edge.
+        // at a time. At the end of a level every row under it is boxed, its last rows held to its edge. A call goes
+        // one level down and the last level stops it, so it nests no deeper than the chain's levels.
         const auto boxUnder = [&](const auto& self, std::size_t at, std::uint32_t to) -> void {
             if (at + 1 >= mLevels.size())
                 return;

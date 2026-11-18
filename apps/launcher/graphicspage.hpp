@@ -1,13 +1,14 @@
 #pragma once
 
-#include "ui_graphicspage.h"
-
+#include <cstdint>
 #include <memory>
 #include <span>
 
 #include <components/dlss/dlss.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/settings/windowmode.hpp>
+
+#include "ui_graphicspage.h"
 
 class QNetworkAccessManager;
 
@@ -34,10 +35,10 @@ namespace Launcher
         bool loadSettings();
 
     public slots:
-        void screenChanged(int screen);
+        void screenChanged(std::int32_t screen);
 
     private slots:
-        void slotFullScreenChanged(int mode);
+        void slotFullScreenChanged(std::int32_t mode);
         void slotStandardToggled(bool checked);
         void slotFramerateLimitToggled(bool checked);
         void downloadDlss();
@@ -64,9 +65,9 @@ namespace Launcher
         std::unique_ptr<DlssDownload> mDlssDownload;
 
         bool mDlssInstalled = false;
-        int mLoadedDistantLandCells = 0;
+        std::int32_t mLoadedDistantLandCells = 0;
 
-        static QStringList getAvailableResolutions(int screen);
+        static QStringList getAvailableResolutions(std::int32_t screen);
         static QRect getMaximumResolution();
 
         bool setupSDL();

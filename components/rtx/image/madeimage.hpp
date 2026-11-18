@@ -2,52 +2,47 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <span>
 #include <vector>
 
 #include <osg/Referenced>
 #include <osg/ref_ptr>
 
-#include <components/misc/bytebuffer.hpp>
+#include <components/rtx/common/bufferpool.hpp>
 
 #include "texturedata.hpp"
 #include "textureformat.hpp"
 
 namespace Rtx
 {
-    /// Where a made chain's levels stand in a `width` by `height` file: `mCount` levels from level
-    /// `mFirst` down, in `mFormat`. A whole chain starts at the finest; a coarser one at the level under
-    /// it, in the file's own format, so the slot keeps the file's finest.
+    /// Where a made chain's levels stand in a `width` by `height` file: `mCount` levels from the finest
+    /// down, in `mFormat`.
     struct MadeLayout
     {
         TextureFormat mFormat{};
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
-        std::uint32_t mFirst = 0;
         std::uint32_t mCount = 0;
 
         /// The bytes of its levels, back to back.
         std::size_t bytes() const;
     };
 
-    /// A file's chain made again by the host (`ChainPass`), in one of two shapes. **Coarser**: the levels after the
-    /// file's finest, which a slot describes under the file's own finest level (`TextureData::mCoarser`), so the finest
-    /// is neither copied nor held. **Whole**: every level from the finest down in a format of its own (BC7), which a
-    /// slot describes as it stands.
+    /// A file's chain made again by the host (`ChainPass`): every level from the finest down, in BC7 or the file's own
+    /// format, which a slot describes as it stands and reads nothing of its file for.
     class MadeImage final : public osg::Referenced
     {
     public:
         /// `bytes` laid at `layout`, which they fill exactly: what reaches here is a pass's run or a
-        /// stored entry its pass found to fit its file (`ChainPass::fits`).
-        static osg::ref_ptr<const MadeImage> make(const MadeLayout& layout, Misc::ByteBuffer bytes);
+        /// stored entry its pass found to fit its file (`ChainPass::fits`). Its buffer goes back to its pool as the
+        /// made image goes, the device having its copy.
+        static osg::ref_ptr<const MadeImage> make(const MadeLayout& layout, PooledBuffer bytes);
 
-        /// The format of a whole chain, or nothing for coarser levels, which are in their file's.
-        std::optional<TextureFormat> getWholeFormat() const { return mWholeFormat; }
+        TextureFormat getFormat() const { return mFormat; }
 
-        /// Coarser: the levels after the finest. Whole: every level. Each offset into `getBytes`.
+        /// Every level, each offset into `getBytes`.
         std::span<const MipLevel> getLevels() const { return mLevels; }
-        std::span<const std::byte> getBytes() const { return mBytes; }
+        std::span<const std::byte> getBytes() const { return mBytes.bytes(); }
 
         /// The layout the levels are laid at.
         const TexelLayout& getLaid() const { return mLaid; }
@@ -56,8 +51,8 @@ namespace Rtx
         MadeImage() = default;
         ~MadeImage() override = default;
 
-        std::optional<TextureFormat> mWholeFormat;
-        Misc::ByteBuffer mBytes;
+        TextureFormat mFormat{};
+        PooledBuffer mBytes;
         std::vector<MipLevel> mLevels;
         TexelLayout mLaid{};
     };

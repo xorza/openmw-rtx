@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <iosfwd>
 #include <type_traits>
 #include <vector>
 
-#include "components/esm/decompose.hpp"
-#include "components/esm/esmcommon.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/decompose.hpp>
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/refid.hpp>
 
 #include "loadtes3.hpp"
 
@@ -30,30 +32,30 @@ namespace ESM
     public:
         ESMWriter();
 
-        unsigned int getVersion() const;
+        std::uint32_t getVersion() const;
 
         // Set various header data (Header::Data). All of the below functions must be called before writing,
         // otherwise this data will be left uninitialized.
-        void setVersion(unsigned int ver = 0x3fa66666);
-        void setType(int type);
+        void setVersion(std::uint32_t ver = 0x3fa66666);
+        void setType(std::int32_t type);
         void setEncoder(ToUTF8::Utf8Encoder* encoder);
         void setAuthor(std::string_view author);
         void setDescription(std::string_view desc);
         void setHeader(const Header& value) { mHeader = value; }
 
         // Set the record count for writing it in the file header
-        void setRecordCount(int count);
+        void setRecordCount(std::int32_t count);
         // Counts how many records we have actually written.
         // It is a good idea to compare this with the value you wrote into the header (setRecordCount)
         // It should be the record count you set + 1 (1 additional record for the TES3 header)
-        int getRecordCount() const { return mRecordCount; }
+        std::int32_t getRecordCount() const { return mRecordCount; }
 
         FormatVersion getFormatVersion() const { return mHeader.mFormatVersion; }
         void setFormatVersion(FormatVersion value);
 
         void clearMaster();
 
-        void addMaster(std::string_view name, uint64_t size);
+        void addMaster(std::string_view name, std::uint64_t size);
 
         void save(std::ostream& file);
         ///< Start saving a file by writing the TES3 header.
@@ -62,7 +64,7 @@ namespace ESM
         ///< \note Does not close the stream.
 
         void writeHNString(NAME name, std::string_view data);
-        void writeHNString(NAME name, std::string_view data, size_t size);
+        void writeHNString(NAME name, std::string_view data, std::size_t size);
         void writeHNCString(NAME name, std::string_view data)
         {
             startSubRecord(name);
@@ -144,7 +146,7 @@ namespace ESM
         void writeT(NAME data) = delete;
 
         template <typename T, std::size_t size>
-        void writeHNT(NAME name, const T (&data)[size], int) = delete;
+        void writeHNT(NAME name, const T (&data)[size], std::int32_t) = delete;
 
         template <typename T>
         void writeHNT(NAME name, const T& data, std::size_t size)
@@ -168,18 +170,18 @@ namespace ESM
         }
 
         template <typename T>
-        void writeT(const T& data, size_t size)
+        void writeT(const T& data, std::size_t size)
         {
             static_assert(!std::is_pointer_v<T>);
             write(reinterpret_cast<const char*>(&data), size);
         }
 
-        void startRecord(NAME name, uint32_t flags = 0);
-        void startRecord(uint32_t name, uint32_t flags = 0);
+        void startRecord(NAME name, std::uint32_t flags = 0);
+        void startRecord(std::uint32_t name, std::uint32_t flags = 0);
         /// @note Sub-record hierarchies are not properly supported in ESMReader. This should be fixed later.
         void startSubRecord(NAME name);
         void endRecord(NAME name);
-        void endRecord(uint32_t name);
+        void endRecord(std::uint32_t name);
         void writeMaybeFixedSizeString(const std::string& data, std::size_t size);
         void writeHString(std::string_view data);
         void writeHCString(std::string_view data);
@@ -192,7 +194,7 @@ namespace ESM
 
         void writeName(NAME name);
 
-        void write(const char* data, size_t size);
+        void write(const char* data, std::size_t size);
 
         void writeFormId(const ESM::FormId&, bool wide = false, NAME tag = "FRMR");
 
@@ -203,7 +205,7 @@ namespace ESM
         std::ostream* mStream;
         std::streampos mHeaderPos;
         ToUTF8::Utf8Encoder* mEncoder;
-        int mRecordCount;
+        std::int32_t mRecordCount;
 
         Header mHeader;
 

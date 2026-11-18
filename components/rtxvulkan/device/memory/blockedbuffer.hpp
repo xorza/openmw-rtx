@@ -12,6 +12,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
+#include "owedgrowth.hpp"
 
 namespace Rtx
 {
@@ -121,5 +122,8 @@ namespace Rtx
         /// growth.
         std::vector<VkDeviceAddress> mAddresses;
         Buffer mTable;
+
+        /// The next block, once opened (`OwedGrowth`).
+        OwedGrowth mOwed;
     };
 }

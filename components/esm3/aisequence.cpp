@@ -1,12 +1,13 @@
 #include "aisequence.hpp"
 
-#include "esmreader.hpp"
-#include "esmwriter.hpp"
+#include <algorithm>
+#include <cstdint>
+#include <memory>
 
 #include <components/misc/concepts.hpp>
 
-#include <algorithm>
-#include <memory>
+#include "esmreader.hpp"
+#include "esmwriter.hpp"
 
 namespace ESM
 {
@@ -44,7 +45,7 @@ namespace ESM
         {
             if (esm.getFormatVersion() <= MaxActorIdSaveGameFormatVersion)
             {
-                refNum.mIndex = static_cast<uint32_t>(-1);
+                refNum.mIndex = static_cast<std::uint32_t>(-1);
                 esm.getHNOT(refNum.mIndex, name);
             }
             else if (esm.peekNextSub(name))
@@ -102,7 +103,8 @@ namespace ESM
                 // The exact value of mDuration only matters for repeating packages.
                 // Previously mRemainingDuration could be negative even when mDuration was 0. Checking for > 0 should
                 // fix old saves.
-                mData.mDuration = static_cast<int16_t>(std::max<float>(mRemainingDuration > 0, mRemainingDuration));
+                mData.mDuration
+                    = static_cast<std::int16_t>(std::max<float>(mRemainingDuration > 0, mRemainingDuration));
             }
         }
 
@@ -139,7 +141,8 @@ namespace ESM
                 // The exact value of mDuration only matters for repeating packages.
                 // Previously mRemainingDuration could be negative even when mDuration was 0. Checking for > 0 should
                 // fix old saves.
-                mData.mDuration = static_cast<int16_t>(std::max<float>(mRemainingDuration > 0, mRemainingDuration));
+                mData.mDuration
+                    = static_cast<std::int16_t>(std::max<float>(mRemainingDuration > 0, mRemainingDuration));
             }
         }
 
@@ -234,10 +237,10 @@ namespace ESM
         void AiSequence::load(ESMReader& esm)
         {
             mActorIdConverter = esm.mActorIdConverter;
-            int count = 0;
+            std::int32_t count = 0;
             while (esm.isNextSub("AIPK"))
             {
-                int32_t type = 0;
+                std::int32_t type = 0;
                 esm.getHT(type);
 
                 mPackages.emplace_back();

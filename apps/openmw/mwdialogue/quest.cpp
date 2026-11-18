@@ -1,13 +1,12 @@
 #include "quest.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/queststate.hpp>
-
-#include "../mwbase/luamanager.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
 
 namespace MWDialogue
 {
@@ -43,12 +42,12 @@ namespace MWDialogue
         return {};
     }
 
-    int Quest::getIndex() const
+    std::int32_t Quest::getIndex() const
     {
         return mIndex;
     }
 
-    void Quest::setIndex(int index)
+    void Quest::setIndex(std::int32_t index)
     {
         // The index must be set even if no related journal entry was found
         MWBase::Environment::get().getLuaManager()->questUpdated(mTopic, index);

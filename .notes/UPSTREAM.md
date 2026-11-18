@@ -88,6 +88,9 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   function; `CacheStats` counts loads, waits and reloads. Two threads that missed one model both loaded it. Its test of
   a throwing load holds the loader's catch until the waiter is joined, since the exception both share is freed through
   a count in libstdc++, which ThreadSanitizer cannot see.
+- `ConstrainedFileStreamBuf::xsgetn` reads a request no smaller than its buffer straight into the caller's memory: one
+  read and one copy in place of 2,731 reads of 8 KiB for a 22 MiB image. Cost: a conflict with an edit to the stream
+  buffer, already the fork's. Approved with item 12 of the tree and content memory plan (2026-11-17).
 - An archive opened once and read by position (`Platform::File::readAt`): `Bsa::BSAFile` holds a `Files::SharedFile`,
   and each entry's `ConstrainedFileStreamBuf` keeps its own position, where each entry opened the archive again (18,082
   opens of `Morrowind.bsa` in 75 s); POSIX `pread`, Windows `ReadFile` at an `OVERLAPPED`'s offset, the file shared for
@@ -97,13 +100,30 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   in place of `cache expiry delay`; each load states its bytes (`Resource::Loaded`), and `navmeshtool` and
   `bulletobjecttool` hand a budget of nought. A run may hold it under a limit (`CacheBudget::limit`, the harness's
   `--cache-budget`), so the desk loads as a machine short of memory does. Cost: also a conflict with an edit to the
-  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager.
+  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager. The budget counts the heap's free memory, which the
+  system counts as the process's (`ResourceSystem::updateCache` reads `Platform::heapHeld` with the system's figure);
+  an eviction keeps its value until the deriving worker destroys it (`BudgetedCache::destroyEvicted`), so an inserting
+  thread, the frame's among them, destroys nothing; and `GenericObjectCache::update` stamps a budgeted cache in runs of
+  256 entries, the lock let go between them. Approved with item 10 of the tree and content memory plan (2026-11-17).
 - `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
-  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs.
+  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. `Scene::preloadTeleportDoorDestinations` asks
+  the same (`CellPreloader::admitsPreload`) before `findCell` loads a door's destination, which a skipped preload had
+  loaded all the same. Cost: a conflict with an edit to that loop. Approved with item 10 of the tree and content
+  memory plan (2026-11-17).
 - A model's texture holds the file's header and not its texels where the renderer reads texels itself
   (`ImageManager::getModelImage` in place of `getImage` in the NIF loader's `getTextureImage`, `attachAutoMaps` and the
   scene manager's image reader; `Resource::ModelImages::Headers`, `Resource::ImageHeader`, `Resource::texelsOf`,
   `releaseTexels`): cached models held 7.6 GiB of texels under the PBR replacers while the device held 2.2.
+  `ImageManager::setModelImages` takes a `Resource::HeaderDeriver` with the `Headers` mode, and `getModelImage` hands
+  it a file's texels and its new header before the header is filed, so the renderer keys a file and learns its facts
+  where it reads it, and never reads it again for either. Cost: the fork's own lines in upstream's file. Approved with
+  item 12 of the tree and content memory plan (2026-11-17).
+- The navigator's tile cache under the caches' byte budget (`DetourNavigator::NavMeshTilesCache` a
+  `Resource::BudgetedCache`, the budget handed down from `makeNavigator`), and `[Navigator] max nav mesh tiles cache
+  size` gone with its default: a fixed 256 MiB, full on every tour, outside the budget every other cache yields to. Its
+  tests hold the budget's semantics: a tile past the budget is handed over and kept while used. Cost: a conflict with
+  an edit to `navmeshtilescache.{hpp,cpp}`, the navigator's constructors, or the setting. Approved with item 10 of the
+  tree and content memory plan (2026-11-17).
 - The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`) in place of its SQLite database,
   which leaves the build: one store for what the fork derives from the content, shared across profiles, its key
   versioned (`DetourNavigatorTileVersionTest`). A tile is keyed on its recast mesh's triangles, so `MeshSource` and
@@ -190,6 +210,14 @@ and upstream's two Lua storage tests writing there.
 
 **Faults fixed**:
 
+- **A script's reference lookup walked every reference of every loaded cell store** (the user's yes, 2026-11-18,
+  `docs/research/2026-11-17-longest-frames.md`): `World::searchPtr`, `WorldModel::getPtrByRefId` and `getAll` asked
+  each of some 3,065 stores, and a loaded store answered only by visiting its refs, 288 ms and 1.9 s frames on the
+  handheld. A loaded `CellStore` keeps its merged refs' id hashes sorted, rebuilt with the merged list. `hasId`
+  answers from them, and `search`, `searchConst` and `getAll`'s walk ask it first. The same refs answer, in the same
+  order. `hasId` for a loaded store returned the inverse of its search, unreached until now. Cost: a conflict with an
+  upstream edit to `CellStore::updateMergedRefs`, `hasId`, `search` or `WorldModel::getAll`.
+
 - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1` holds for every error).
 - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote in place, so a crash or a full disk left
   part of either: both write through `Platform::writeWhole`, synced (`openmw-platform-io`), and a save the system could
@@ -266,6 +294,45 @@ and upstream's two Lua storage tests writing there.
 - Every header of `apps/` and `components/` guarded by `#pragma once`, upstream's 1,400 guards among them, held by `omw
   lint pragmas`; the headers GLSL reads keep their guards (`portable.h`). Cost: also a header upstream adds with a
   guard, which the lint names.
+- Every conditional the pinned set and the compiler floors decide, unwrapped or deleted (2026-11-17): FFmpeg 4's paths
+  and `osg-ffmpeg-videoplayer`'s two version headers; Bullet before 3.25's heightfield copy and debug lines; Qt before
+  6.7; MSVC before 19.44's `operator==` overloads; GCC's test workarounds; 32-bit Windows; `NO_LUAJIT`, `USE_OPENXR`'s
+  layout, `DEBUG_GROUPSTACK`, `O_BINARY`, and the physics profiler tab `BT_NO_PROFILE` never let a build show; OpenAL's
+  `ALC_ALL_DEVICES_SPECIFIER` fallback; the test path fallbacks to `"."`; Qt 4's `Q_MOC_RUN` guards; the rasterizer's
+  multiview, GLES and OSG 3.6.5 branches, the pinned OSG carrying OSG #1028's fix. `OPENMW_USE_UNSHIELD` is `0` or `1`
+  on every build, read into `Wizard::sInstallsFromDisc`, and the installation page made by
+  `Wizard::makeInstallationPage`, which a Windows build names only in a discarded branch. Cost: a conflict with an
+  upstream edit to a branch it unwrapped.
+- Macros a function or a template does (2026-11-17): the vendored OpenAL Soft 1.23 headers go for the set's
+  `<AL/alext.h>`, `<AL/efx.h>` and `<AL/efx-presets.h>`, whose event callback type is `noexcept`; the GL enum fallbacks
+  for Khronos's `<GL/glext.h>` after OSG's headers, which ends `GL_RGB10_A2` spelled as `GL_RGB10_A2UI`'s value and the
+  name `GL_SRGB_ALPHA8`, which is GL's `GL_SRGB_ALPHA`; `CONTROL` as a template on the member pointer;
+  `MATERIAL_FUNC` as function templates on the accessors, held by a round-trip test; `COMPARE_BINDING` as an ordered
+  comparison of the bindings, held by the optimizer's test; MyGUI's platform macros as functions that take the call
+  site as a `std::source_location`; `RUN_TEST_FOR_TYPES` as `forEachType`; `EXPECT_ERROR` as `Testing::expectError`;
+  the editor's hand guard around `Q_DECLARE_METATYPE(std::filesystem::path)` as one header. `cppcoreguidelines-macro-
+  usage` on. Cost: a conflict with an upstream edit to a macro's uses.
+- Includes in AGENTS.md's five blocks, which clang-format forms (`IncludeBlocks: Regroup`, 2026-11-17), and every
+  quoted path of another folder spelled from the root (`"../mwbase/world.hpp"` is `<apps/openmw/mwbase/world.hpp>`),
+  which `omw format` writes and `omw merge-file` writes on upstream's side too: 1,528 sources. Cost: a merge's
+  conflicts stay where the edits overlap, as the merge driver lays out both sides first.
+- Every integer type as `<cstdint>`'s fixed widths, `std::`-qualified (AGENTS.md, "Fixed-width integers",
+  2026-11-17): 2,019 sources rewritten by `omw format`, which `omw merge-file` applies to upstream's side, and held by
+  `google-runtime-int` and `modernize-deprecated-headers`. Each `long` chosen by hand: the Lua `seek` offset is
+  `std::int64_t`, which ends its 32 bits on Windows; a code point `std::uint32_t`; an API's own `long` kept with its
+  reason. The editor's queued scroll calls its slot through a lambda, not a string. A declaration a cast initialises
+  is `auto` (`modernize-use-auto`, which a type name of five letters or more now reaches). Cost: a conflict with an
+  upstream edit only where it overlaps the fork's, as the merge driver rewrites upstream's side first.
+- No system branch outside `components/platform` (2026-11-17): the calendar through `Platform::localTime` and the new
+  `universalTime`; the idle thread priority through `Platform::lowerThisThreadToIdle`, its error the system's (Linux's
+  from `pthread_setschedparam`'s result, where `errno` was read); the console, its colours, the executable's suffix,
+  binary standard error and whether names ignore case through `Platform::Process` and `Platform::File`;
+  `Files::LinuxPath` and `Files::WindowsPath` one `Files::TargetPath` over `targetpathlinux.cpp` and
+  `targetpathwin32.cpp`, with the application's folder name there; `Platform::Application`'s dark mode in
+  `applicationwin32.cpp`; `Platform::init` a pair; `WinMain` and AMD's export in `mainwin32.cpp`, both entries
+  running `OMW::runGame`, where `WinMain` called `main`; `std::endian` for the byte order; the editor's dark
+  resource and its numeric locale on every system. The MSVC debug runtime's log sink goes, as no build links that
+  runtime; the launcher's undefined `expansions` goes. Cost: a conflict with an upstream edit to a branch it moved.
 
 **The build** (`docs/build.md`). Cost: a conflict with every upstream change to a CMake list, an option, a found package
 or the install, which the merge places in this layout:

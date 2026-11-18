@@ -2,6 +2,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <vector>
 
@@ -15,6 +16,7 @@
 #include <apps/components_tests/rtxvulkan/support/device/readback.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/world/fognoise.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -31,22 +33,22 @@ namespace Rtx
         };
 
         /// Where texel `(x, y)` of the finest level begins in a read-back of it: four halves a texel.
-        std::size_t texelOf(const int x, const int y)
+        std::size_t texelOf(const std::int32_t x, const std::int32_t y)
         {
             return (static_cast<std::size_t>(y) * Shaders::RIPPLE_GRID + static_cast<std::size_t>(x)) * 4;
         }
 
         /// Presses `impulses` and records `frames` frames on the water's clock, each `sixtieths`
         /// long — one sixtieth unless a test of the step's length says otherwise.
-        void run(RipplePass& ripples, CommandPool& pool, std::span<const RippleImpulse> impulses, const int frames,
-            const double sixtieths = 1.0)
+        void run(RipplePass& ripples, CommandPool& pool, std::span<const RippleImpulse> impulses,
+            const std::int32_t frames, const double sixtieths = 1.0)
         {
             const double frame = sixtieths / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
             Testing::submitAndWaitWriting(pool, [&](VkCommandBuffer commands, Uploads& uploads) {
                 // The first record stands the window, at a clock that steps nothing; each one after
                 // steps, and the first step presses the impulses, for the time it covers.
                 ripples.record(commands, uploads, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
-                for (int at = 1; at <= frames; ++at)
+                for (std::int32_t at = 1; at <= frames; ++at)
                     ripples.record(commands, uploads, FrameSlot{ 0 },
                         at == 1 ? impulses : std::span<const RippleImpulse>(), osg::Vec2f(0.0f, 0.0f), at * frame,
                         nullptr);
@@ -55,15 +57,15 @@ namespace Rtx
 
         /// How far from the middle texel the ring's outermost crest stands along +x: the last
         /// texel at a local peak of the slope over a tenth of the largest within sixty texels.
-        int frontOf(const std::vector<float>& surface)
+        std::int32_t frontOf(const std::vector<float>& surface)
         {
-            constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
+            constexpr auto centre = static_cast<std::int32_t>(Shaders::RIPPLE_GRID / 2);
             float largest = 0.0f;
-            for (int away = 0; away <= 60; ++away)
+            for (std::int32_t away = 0; away <= 60; ++away)
                 largest = std::max(largest, std::abs(surface[texelOf(centre + away, centre)]));
 
-            int front = 0;
-            for (int away = 1; away < 60; ++away)
+            std::int32_t front = 0;
+            for (std::int32_t away = 1; away < 60; ++away)
             {
                 const float here = std::abs(surface[texelOf(centre + away, centre)]);
                 const bool crest = here >= std::abs(surface[texelOf(centre + away - 1, centre)])
@@ -122,11 +124,11 @@ namespace Rtx
 
             // The eye's own texel: the impulse landed on the middle texel's centre, which the
             // window puts at the grid's middle.
-            constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
+            constexpr auto centre = static_cast<std::int32_t>(Shaders::RIPPLE_GRID / 2);
 
             float largestSlope = 0.0f;
             float largestCurvature = 0.0f;
-            for (int away = 0; away <= 40; ++away)
+            for (std::int32_t away = 0; away <= 40; ++away)
             {
                 largestSlope = std::max(largestSlope, std::abs(surface[texelOf(centre + away, centre)]));
                 largestCurvature = std::max(largestCurvature, std::abs(curvature[texelOf(centre + away, centre)]));
@@ -142,11 +144,11 @@ namespace Rtx
             const float radius = footfall[0].mSize / Shaders::RIPPLE_TEXEL;
             const float carried = std::sqrt(Shaders::RIPPLE_STIFFNESS) * 60.0f;
             EXPECT_NEAR(static_cast<float>(frontOf(surface)), carried + radius, 2.0f) << "the front's crest";
-            for (int away = static_cast<int>(std::ceil(carried + 2.0f * radius)); away <= 60; ++away)
+            for (auto away = static_cast<std::int32_t>(std::ceil(carried + 2.0f * radius)); away <= 60; ++away)
                 EXPECT_LT(std::abs(surface[texelOf(centre + away, centre)]), 0.01f * largestSlope)
                     << "a slope " << away << " texels out, past the rim";
 
-            for (int away = 200; away <= 210; ++away)
+            for (std::int32_t away = 200; away <= 210; ++away)
             {
                 EXPECT_EQ(surface[texelOf(centre + away, centre)], 0.0f) << "a slope " << away << " texels out";
                 EXPECT_EQ(surface[texelOf(centre + away, centre) + 1], 0.0f) << "a slope " << away << " texels out";
@@ -154,7 +156,7 @@ namespace Rtx
 
             // Symmetric about the stamp: the x slope at `+d` is the negative of the one at `-d`,
             // and along the axis the y slope is nought.
-            for (int away = 1; away <= 40; ++away)
+            for (std::int32_t away = 1; away <= 40; ++away)
             {
                 const float east = surface[texelOf(centre + away, centre)];
                 const float west = surface[texelOf(centre - away, centre)];
@@ -183,15 +185,15 @@ namespace Rtx
             const std::array<RippleImpulse, 1> footfall{ RippleImpulse{
                 .mAt = osg::Vec2f(middle, middle), .mSize = 12.0f } };
 
-            const auto spreadAt = [&](const int frames, const double sixtieths) {
+            const auto spreadAt = [&](const std::int32_t frames, const double sixtieths) {
                 RipplePass ripples(getDevice());
                 run(ripples, getPool(), footfall, frames, sixtieths);
                 const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
 
-                constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
+                constexpr auto centre = static_cast<std::int32_t>(Shaders::RIPPLE_GRID / 2);
                 double moment = 0.0;
                 double total = 0.0;
-                for (int away = 0; away <= 80; ++away)
+                for (std::int32_t away = 0; away <= 80; ++away)
                 {
                     const double slope = surface[texelOf(centre + away, centre)];
                     moment += away * slope * slope;
@@ -251,10 +253,10 @@ namespace Rtx
             run(ripples, getPool(), impulses, 10);
 
             const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
-            constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
+            constexpr auto centre = static_cast<std::int32_t>(Shaders::RIPPLE_GRID / 2);
             float near = 0.0f;
             float east = 0.0f;
-            for (int away = -10; away <= 10; ++away)
+            for (std::int32_t away = -10; away <= 10; ++away)
             {
                 near = std::max(near, std::abs(surface[texelOf(centre + away, centre)]));
                 east = std::max(east, std::abs(surface[texelOf(centre + 100 + away, centre)]));
@@ -275,7 +277,7 @@ namespace Rtx
             const float middle = 0.5f * Shaders::RIPPLE_TEXEL;
             const std::array<RippleImpulse, 1> footfall{ RippleImpulse{
                 .mAt = osg::Vec2f(middle, middle), .mSize = 4.0f * Shaders::RIPPLE_TEXEL } };
-            constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
+            constexpr auto centre = static_cast<std::int32_t>(Shaders::RIPPLE_GRID / 2);
 
             for (const double sixtieths : { 1.0, 0.5, 1.25 })
             {
@@ -311,14 +313,14 @@ namespace Rtx
 
             // What stood `d` texels east of the middle now stands `d - 100` texels east of it, one
             // step older: the ring is still there, and not where the eye went.
-            constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
+            constexpr auto centre = static_cast<std::int32_t>(Shaders::RIPPLE_GRID / 2);
             float found = 0.0f;
-            for (int away = -40; away <= 40; ++away)
+            for (std::int32_t away = -40; away <= 40; ++away)
                 found = std::max(found, std::abs(after[texelOf(centre + away - 100, centre)]));
             EXPECT_GT(found, 1.0e-3f) << "the ring did not come across with the window";
 
             float atEye = 0.0f;
-            for (int away = -5; away <= 5; ++away)
+            for (std::int32_t away = -5; away <= 5; ++away)
                 atEye = std::max(atEye, std::abs(after[texelOf(centre + away, centre)]));
             EXPECT_EQ(atEye, 0.0f) << "still water where the eye went";
         }
@@ -329,20 +331,21 @@ namespace Rtx
         /// that, every trace of a frame the game paused on handed the pass the last footfalls again.
         TEST_F(RtxRipplePassTest, aPlacementsFootfallIsPressedOnceHoweverOftenItIsTraced)
         {
+            SceneIdentities identities;
             const double sixtieth = 1.0 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
 
             // The window stood first, at a clock that steps nothing; the traces of the placement then
             // all at one clock, the first of them stepping, and thirty steps after.
-            const auto field = [&](const int traces) {
+            const auto field = [&](const std::int32_t traces) {
                 TraceMedia media(getDevice(), sFogNoise);
                 Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
                     media.stepRipples(commands, uploads, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
                     media.keepRipples(scene);
-                    for (int trace = 0; trace < traces; ++trace)
+                    for (std::int32_t trace = 0; trace < traces; ++trace)
                         media.stepRipples(commands, uploads, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), sixtieth, nullptr);
-                    for (int step = 2; step <= 31; ++step)
+                    for (std::int32_t step = 2; step <= 31; ++step)
                         media.stepRipples(
                             commands, uploads, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), step * sixtieth, nullptr);
                 });
@@ -395,7 +398,7 @@ namespace Rtx
             ASSERT_TRUE(ripples.isStill()) << "a thousand sixtieths left the field moving";
 
             Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
-                for (int step = 1; step <= 30; ++step)
+                for (std::int32_t step = 1; step <= 30; ++step)
                 {
                     clock += sixtieth;
                     ripples.record(commands, uploads, FrameSlot{ 0 },

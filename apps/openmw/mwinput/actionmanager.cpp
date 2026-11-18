@@ -1,25 +1,23 @@
 #include "actionmanager.hpp"
 
-#include <MyGUI_InputManager.h>
+#include <cstdint>
 
+#include <MyGUI_InputManager.h>
 #include <SDL3/SDL_keyboard.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/globals.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
-
-#include "../mwrender/renderer.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 
 #include "actions.hpp"
 #include "bindingsmanager.hpp"
@@ -53,7 +51,7 @@ namespace MWInput
         mTimeIdle = 0.f;
     }
 
-    void ActionManager::executeAction(int action)
+    void ActionManager::executeAction(std::int32_t action)
     {
         MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::Action, action });
         const auto inputManager = MWBase::Environment::get().getInputManager();
@@ -236,7 +234,7 @@ namespace MWInput
         MWBase::Environment::get().getWindowManager()->toggleConsole();
     }
 
-    void ActionManager::quickKey(int index)
+    void ActionManager::quickKey(std::int32_t index)
     {
         if (!MWBase::Environment::get().getInputManager()->getControlSwitch("playercontrols")
             || !MWBase::Environment::get().getInputManager()->getControlSwitch("playerfighting")
@@ -274,7 +272,7 @@ namespace MWInput
         return env.getMechanicsManager()->isSneaking(env.getWorld()->getPlayer().getPlayer());
     }
 
-    void ActionManager::handleGuiArrowKey(int action)
+    void ActionManager::handleGuiArrowKey(std::int32_t action)
     {
         bool joystickUsed = MWBase::Environment::get().getInputManager()->joystickLastUsed();
         // This is currently keyboard-specific code

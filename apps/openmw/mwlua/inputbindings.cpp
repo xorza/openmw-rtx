@@ -1,18 +1,20 @@
 #include "inputbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_mouse.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwinput/actions.hpp>
 #include <components/lua/inputactions.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwinput/actions.hpp"
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"
@@ -53,7 +55,8 @@ namespace MWLua
                 else
                     return std::string();
             });
-            keyEvent["code"] = sol::readonly_property([](const SDL_KeyboardEvent& e) -> int { return e.scancode; });
+            keyEvent["code"]
+                = sol::readonly_property([](const SDL_KeyboardEvent& e) -> std::int32_t { return e.scancode; });
             keyEvent["withShift"]
                 = sol::readonly_property([](const SDL_KeyboardEvent& e) -> bool { return e.mod & SDL_KMOD_SHIFT; });
             keyEvent["withCtrl"]
@@ -69,9 +72,9 @@ namespace MWLua
         context.cachePackage("openmw_input_touchpadevent", [&lua]() {
             auto touchpadEvent = lua.new_usertype<SDLUtil::TouchEvent>("TouchpadEvent");
             touchpadEvent["device"]
-                = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> int { return e.mDevice; });
+                = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> std::int32_t { return e.mDevice; });
             touchpadEvent["finger"]
-                = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> int { return e.mFinger; });
+                = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> std::int32_t { return e.mFinger; });
             touchpadEvent["position"]
                 = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> osg::Vec2f { return { e.mX, e.mY }; });
             touchpadEvent["pressure"]
@@ -181,7 +184,7 @@ namespace MWLua
                                 std::string_view key, const sol::table& callback, sol::table dependencies) {
             std::vector<std::string_view> parsedDependencies;
             parsedDependencies.reserve(dependencies.size());
-            for (size_t i = 1; i <= dependencies.size(); ++i)
+            for (std::size_t i = 1; i <= dependencies.size(); ++i)
             {
                 sol::object dependency = dependencies[i];
                 if (!dependency.is<std::string_view>())
@@ -224,9 +227,9 @@ namespace MWLua
             = [manager = context.mLuaManager](std::string_view key) { manager->inputTriggers().activate(key); };
 
         api["isIdle"] = [input]() { return input->isIdle(); };
-        api["isActionPressed"] = [input](int action) { return input->actionIsActive(action); };
+        api["isActionPressed"] = [input](std::int32_t action) { return input->actionIsActive(action); };
         api["isKeyPressed"] = [](SDL_Scancode code) -> bool {
-            int maxCode = 0;
+            std::int32_t maxCode = 0;
             const auto* state = SDL_GetKeyboardState(&maxCode);
             if (code >= 0 && code < maxCode)
                 return state[code] != 0;
@@ -237,10 +240,11 @@ namespace MWLua
         api["isCtrlPressed"] = []() -> bool { return SDL_GetModState() & SDL_KMOD_CTRL; };
         api["isAltPressed"] = []() -> bool { return SDL_GetModState() & SDL_KMOD_ALT; };
         api["isSuperPressed"] = []() -> bool { return SDL_GetModState() & SDL_KMOD_GUI; };
-        api["isControllerButtonPressed"]
-            = [input](int button) { return input->isControllerButtonPressed(static_cast<SDL_GamepadButton>(button)); };
+        api["isControllerButtonPressed"] = [input](std::int32_t button) {
+            return input->isControllerButtonPressed(static_cast<SDL_GamepadButton>(button));
+        };
         api["isMouseButtonPressed"]
-            = [](int button) -> bool { return SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_MASK(button); };
+            = [](std::int32_t button) -> bool { return SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_MASK(button); };
         api["_isGamepadCursorActive"] = [input]() -> bool { return input->isGamepadGuiCursorEnabled(); };
         api["_isControllerMenusEnabled"] = []() -> bool { return Settings::gui().mControllerMenus; };
         api["_setGamepadCursorActive"] = [input](bool v) {
@@ -249,7 +253,7 @@ namespace MWLua
         };
         api["getMouseMoveX"] = [input]() { return input->getMouseMoveX(); };
         api["getMouseMoveY"] = [input]() { return input->getMouseMoveY(); };
-        api["getAxisValue"] = [input](int axis) {
+        api["getAxisValue"] = [input](std::int32_t axis) {
             if (axis < SDL_GAMEPAD_AXIS_COUNT)
                 return input->getControllerAxisValue(static_cast<SDL_GamepadAxis>(axis));
             else
@@ -355,20 +359,22 @@ namespace MWLua
                     { "Max", SDL_GAMEPAD_BUTTON_COUNT },
                 }));
 
-        api["CONTROLLER_AXIS"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(lua,
-            {
-                { "LeftX", SDL_GAMEPAD_AXIS_LEFTX },
-                { "LeftY", SDL_GAMEPAD_AXIS_LEFTY },
-                { "RightX", SDL_GAMEPAD_AXIS_RIGHTX },
-                { "RightY", SDL_GAMEPAD_AXIS_RIGHTY },
-                { "TriggerLeft", SDL_GAMEPAD_AXIS_LEFT_TRIGGER },
-                { "TriggerRight", SDL_GAMEPAD_AXIS_RIGHT_TRIGGER },
+        api["CONTROLLER_AXIS"]
+            = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, std::int32_t>(lua,
+                {
+                    { "LeftX", SDL_GAMEPAD_AXIS_LEFTX },
+                    { "LeftY", SDL_GAMEPAD_AXIS_LEFTY },
+                    { "RightX", SDL_GAMEPAD_AXIS_RIGHTX },
+                    { "RightY", SDL_GAMEPAD_AXIS_RIGHTY },
+                    { "TriggerLeft", SDL_GAMEPAD_AXIS_LEFT_TRIGGER },
+                    { "TriggerRight", SDL_GAMEPAD_AXIS_RIGHT_TRIGGER },
 
-                { "LookUpDown", SDL_GAMEPAD_AXIS_COUNT + static_cast<int>(MWInput::A_LookUpDown) },
-                { "LookLeftRight", SDL_GAMEPAD_AXIS_COUNT + static_cast<int>(MWInput::A_LookLeftRight) },
-                { "MoveForwardBackward", SDL_GAMEPAD_AXIS_COUNT + static_cast<int>(MWInput::A_MoveForwardBackward) },
-                { "MoveLeftRight", SDL_GAMEPAD_AXIS_COUNT + static_cast<int>(MWInput::A_MoveLeftRight) },
-            }));
+                    { "LookUpDown", SDL_GAMEPAD_AXIS_COUNT + static_cast<std::int32_t>(MWInput::A_LookUpDown) },
+                    { "LookLeftRight", SDL_GAMEPAD_AXIS_COUNT + static_cast<std::int32_t>(MWInput::A_LookLeftRight) },
+                    { "MoveForwardBackward",
+                        SDL_GAMEPAD_AXIS_COUNT + static_cast<std::int32_t>(MWInput::A_MoveForwardBackward) },
+                    { "MoveLeftRight", SDL_GAMEPAD_AXIS_COUNT + static_cast<std::int32_t>(MWInput::A_MoveLeftRight) },
+                }));
 
         api["KEY"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, SDL_Scancode>(lua,
             {

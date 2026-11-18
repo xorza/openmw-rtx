@@ -2,8 +2,8 @@
 
 #include <components/debug/debuglog.hpp>
 
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
+#include "esmreader.hpp"
+#include "esmwriter.hpp"
 
 namespace ESM
 {

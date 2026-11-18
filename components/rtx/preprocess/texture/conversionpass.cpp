@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string>
 
@@ -49,23 +51,12 @@ namespace Rtx
             return std::min(static_cast<std::uint32_t>((static_cast<double>(at) + 0.5) * extent / of), extent - 1);
         }
 
-        /// What the run reads of `file`: its format and its finest level, the one level a conversion
-        /// reads of either file.
-        void addFinest(const TextureData& file, ContentStore::Digest& digest)
-        {
-            digest.add(file.mFormat);
-            digest.add(file.mLevels.front().mWidth);
-            digest.add(file.mLevels.front().mHeight);
-            digest.add(file.bytesOf(0));
-        }
-
         /// `file` with its finest level alone, as a reader of nothing else takes it.
         TextureData finestOf(const TextureData& file)
         {
             TextureData finest = file;
             finest.mLevels = file.mLevels.first(1);
             finest.mBytes = file.mBytes.first(file.mLevels.front().mOffset + file.bytesOf(0).size());
-            finest.mCoarser = {};
             return finest;
         }
     }
@@ -83,25 +74,19 @@ namespace Rtx
             = (specular - osg::Vec3f(dielectric, dielectric, dielectric) * (1.0f - metal)) / std::max(metal, sEpsilon);
         const float blend = metal * metal;
         osg::Vec3f base = fromDiffuse * (1.0f - blend) + fromSpecular * blend;
-        for (int channel = 0; channel < 3; ++channel)
+        for (std::int32_t channel = 0; channel < 3; ++channel)
             base[channel] = std::clamp(base[channel], 0.0f, 1.0f);
         return ConvertedTexel{ .mBase = base, .mMetal = metal };
     }
 
     void ConversionPass::describe(const Input& input)
     {
-        if (mImage.get() == &input.mImage && mPartner.get() == &input.mPartner && mEncoding == input.mEncoding
-            && mWrap == input.mWrap)
-            return;
-
-        mImage = &input.mImage;
-        mPartner = &input.mPartner;
-        mEncoding = input.mEncoding;
-        mWrap = input.mWrap;
+        mImage = readTexels(input.mImage, input.mWhy, mReads);
+        mPartner = readTexels(input.mPartner, input.mPartnerWhy, mReads);
 
         const bool colour = input.mEncoding == TextureEncoding::ConvertedColour;
-        const osg::Image& diffuse = colour ? input.mImage : input.mPartner;
-        const osg::Image& specular = colour ? input.mPartner : input.mImage;
+        const osg::Image& diffuse = colour ? *mImage : *mPartner;
+        const osg::Image& specular = colour ? *mPartner : *mImage;
 
         mDiffuseLevels.clear();
         mDiffuseTexels.clear();
@@ -126,16 +111,10 @@ namespace Rtx
 
     void ConversionPass::digest(const Input& input, ContentStore::Digest& digest)
     {
-        describe(input);
-        const bool converted = converts();
-        digest.add(converted);
-        if (!converted)
-            return;
-
         digest.add(input.mEncoding);
         digest.add(input.mWrap);
-        addFinest(*mDiffuse, digest);
-        addFinest(*mSpecular, digest);
+        digest.add(mKeys.of(input.mImage));
+        digest.add(mKeys.of(input.mPartner));
     }
 
     void ConversionPass::run(const Input& input, Output& output)
@@ -185,7 +164,7 @@ namespace Rtx
 
                     const std::size_t from = (std::size_t{ dy } * lit.mWidth + dx) * 4;
                     osg::Vec3f light;
-                    for (int channel = 0; channel < 3; ++channel)
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
                         light[channel] = curve.toLinear(
                             std::to_integer<std::uint8_t>(delit[from + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f highlight = toLinear(mHighlights[std::size_t{ sy } * shine.mWidth + sx]);
@@ -194,7 +173,7 @@ namespace Rtx
                     const std::size_t into = (std::size_t{ y } * own.mWidth + x) * 4;
                     if (colour)
                     {
-                        for (int channel = 0; channel < 3; ++channel)
+                        for (std::int32_t channel = 0; channel < 3; ++channel)
                             mConverted[into + static_cast<std::size_t>(channel)]
                                 = curve.encodedByte(converted.mBase[channel]);
                         mConverted[into + 3] = delit[from + 3];
@@ -238,6 +217,8 @@ namespace Rtx
             }
         }
 
+        if (input.mRead != nullptr)
+            *input.mRead = mImage;
         release();
     }
 
@@ -249,7 +230,7 @@ namespace Rtx
 
         const auto width = static_cast<std::uint32_t>(image.s());
         const auto height = static_cast<std::uint32_t>(image.t());
-        MadeLayout laid{ .mWidth = width, .mHeight = height, .mFirst = 0, .mCount = levelsTo1x1(width, height) };
+        MadeLayout laid{ .mWidth = width, .mHeight = height, .mCount = levelsTo1x1(width, height) };
         if (form == ChainForm::Bc7)
         {
             laid.mFormat = bc7FormatOf(input.mEncoding);
@@ -264,9 +245,14 @@ namespace Rtx
         return laid;
     }
 
+    void ConversionPass::segmentEndsOf(const Input& input, const Output& output, std::vector<std::uint64_t>& ends)
+    {
+        segmentEndsOfLayout(madeLayout(input, output.mForm), output, ends);
+    }
+
     bool ConversionPass::fits(const Input& input, const Output& output)
     {
-        return fillsLayout(madeLayout(input, output.mForm), output);
+        return fillsLayout(madeLayout(input, output.mForm), output.mForm, output.mBytes.size());
     }
 
     ChainScratch ConversionPass::scratchOf(const Input& input)

@@ -1,10 +1,13 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
+#include <components/misc/notnullptr.hpp>
+
 #include "itemmodel.hpp"
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
-
-#include <components/misc/notnullptr.hpp>
 
 namespace MyGUI
 {
@@ -58,14 +61,14 @@ namespace MWGui
         MWGui::ItemView* mItemView{};
         SortFilterItemModel* mSortModel;
         ItemModel* mModel;
-        int mSelectedItem;
+        std::int32_t mSelectedItem;
         bool mUpdateNextFrame;
         bool mTreatNextOpenAsLoot;
         MyGUI::Button* mDisposeCorpseButton{};
         MyGUI::Button* mTakeButton{};
         MyGUI::Button* mCloseButton{};
 
-        void onItemSelected(int index);
+        void onItemSelected(std::int32_t index);
         void onBackgroundSelected();
         void dragItem(MyGUI::Widget* sender, std::size_t count);
         void transferItem(MyGUI::Widget* sender, std::size_t count);

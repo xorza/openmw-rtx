@@ -1,5 +1,8 @@
 #include "esmterrain.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <components/esm3/loadland.hpp>
 #include <components/esm4/loadland.hpp>
 #include <components/misc/constants.hpp>
@@ -8,7 +11,7 @@ namespace
 {
     constexpr std::uint16_t textures[ESM::LandRecordData::sLandNumTextures]{ 0 };
 
-    std::unique_ptr<const ESM::LandRecordData> loadData(const ESM::Land& land, int loadFlags)
+    std::unique_ptr<const ESM::LandRecordData> loadData(const ESM::Land& land, std::int32_t loadFlags)
     {
         std::unique_ptr<ESM::LandRecordData> result = std::make_unique<ESM::LandRecordData>();
         land.loadData(loadFlags, *result);
@@ -21,7 +24,7 @@ namespace ESM
     LandData::LandData() = default;
 }
 
-ESM::LandData::LandData(const ESM::Land& land, int loadFlags)
+ESM::LandData::LandData(const ESM::Land& land, std::int32_t loadFlags)
     : mData(loadData(land, loadFlags))
     , mHeights(mData->mHeights)
     , mNormals(mData->mNormals)
@@ -36,7 +39,7 @@ ESM::LandData::LandData(const ESM::Land& land, int loadFlags)
 {
 }
 
-ESM::LandData::LandData(const ESM4::Land& land, int /*loadFlags*/)
+ESM::LandData::LandData(const ESM4::Land& land, std::int32_t /*loadFlags*/)
     : mHeightsData(ESM4::Land::sLandNumVerts)
     , mNormals(land.mVertNorm)
     , mColors(land.mVertColr)
@@ -50,7 +53,7 @@ ESM::LandData::LandData(const ESM4::Land& land, int /*loadFlags*/)
     , mIsEsm4(true)
 {
     float rowOffset = land.mHeightMap.heightOffset;
-    for (int y = 0; y < mLandSize; y++)
+    for (std::int32_t y = 0; y < mLandSize; y++)
     {
         rowOffset += static_cast<float>(land.mHeightMap.gradientData[static_cast<std::ptrdiff_t>(y * mLandSize)]);
 
@@ -60,7 +63,7 @@ ESM::LandData::LandData(const ESM4::Land& land, int /*loadFlags*/)
         mMaxHeight = std::max(mMaxHeight, heightY);
 
         float colOffset = rowOffset;
-        for (int x = 1; x < mLandSize; x++)
+        for (std::int32_t x = 1; x < mLandSize; x++)
         {
             colOffset += static_cast<float>(land.mHeightMap.gradientData[y * mLandSize + x]);
             const float heightX = colOffset * ESM4::Land::sHeightScale;
@@ -73,7 +76,7 @@ ESM::LandData::LandData(const ESM4::Land& land, int /*loadFlags*/)
 
     mHeights = mHeightsData;
 
-    for (int i = 0; i < 4; ++i)
+    for (std::int32_t i = 0; i < 4; ++i)
         mEsm4Textures[static_cast<std::size_t>(i)] = land.mTextures[i];
 }
 

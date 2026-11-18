@@ -1,12 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 
-#include <osg/Vec3f>
-
 #include <BulletCollision/CollisionShapes/btBvhTriangleMeshShape.h>
 #include <BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h>
+#include <osg/Vec3f>
 
 #include <components/vfs/pathutil.hpp>
 
@@ -52,7 +52,7 @@ namespace Resource
         // mCollisionShape is a btCompoundShape (which consists of one or more child shapes).
         // In this map, for each animated collision shape,
         // we store the node's record index mapped to the child index of the shape in the btCompoundShape.
-        std::map<int, int> mAnimatedShapes;
+        std::map<std::int32_t, std::int32_t> mAnimatedShapes;
 
         VFS::Path::Normalized mFileName;
         std::string mFileHash;

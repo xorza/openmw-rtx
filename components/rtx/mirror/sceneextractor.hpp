@@ -154,7 +154,7 @@ namespace Rtx
         /// How far under a walk's root a `SceneUtil::StableIdentity` is looked for: nought is the root alone, which is
         /// what a caller that stamps nothing wants. The game stamps the scene root's children and grandchildren and
         /// says two; a look deeper than the stamps go is a line of every node loaded for nothing.
-        void setStampDepth(unsigned int depth) { mStampDepth = depth; }
+        void setStampDepth(std::uint32_t depth) { mStampDepth = depth; }
 
         /// Where the walks that follow are looked at from, for a billboard to face: the camera's own basis,
         /// `viewBasisOf` its inverse view. Nothing, which is what a fresh extractor holds, leaves a billboard at its
@@ -299,7 +299,7 @@ namespace Rtx
         /// reachable through that interface and not in front of every reader of this class. The two adoptions mean
         /// anything only inside a walk; the two releases are allowed between walks as well (`detach`) because giving a
         /// hold back reads nothing of a walk.
-        Index adoptMesh(const osg::Drawable& drawable, const MeshReading& reading) override
+        MeshIndex adoptMesh(const osg::Drawable& drawable, const PackedMesh& reading) override
         {
             mPhase.expect(Phase::Walking);
             return mMeshes.adopt(drawable, reading);
@@ -408,7 +408,7 @@ namespace Rtx
         osg::Node::NodeMask mTraversalMask;
 
         /// See `setStampDepth`.
-        unsigned int mStampDepth = 0;
+        std::uint32_t mStampDepth = 0;
 
         /// Which drawables are the sea. Zero means none of them, which is every caller that has not
         /// said otherwise.
@@ -448,7 +448,7 @@ namespace Rtx
 
         /// Which slot each placement holds, and when it was last met. One lookup a placement a
         /// frame, and the scene keeps the transform.
-        Kept<boost::unordered_flat_map<std::size_t, Known>> mPlacements{ mPass };
+        Kept<boost::unordered_flat_map<std::size_t, Known<PlacementIndex>>> mPlacements{ mPass };
 
         /// The drawables the walk met, and what poses the ones that deform.
         MeshResolver mMeshes{ mScene, mPass, mContext.mContent.mPreprocessor };
@@ -476,7 +476,7 @@ namespace Rtx
         /// The number of the world walk in progress or last made, which a frozen run it met
         /// carries, and the traversal mask the frozen subtrees were walked under: a mask that
         /// changes is a view that sees another part of every subtree.
-        unsigned int mWorldWalk = 0;
+        std::uint32_t mWorldWalk = 0;
         osg::Node::NodeMask mFrozenMask = 0;
 
         /// How many meshes and materials the scene had freed at the last retire, which the next

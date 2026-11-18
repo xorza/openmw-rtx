@@ -1,15 +1,17 @@
 #include "itemmodel.hpp"
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
+#include <cstddef>
+#include <cstdint>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
 
 namespace MWGui
 {
 
-    ItemStack::ItemStack(const MWWorld::Ptr& base, ItemModel* creator, size_t count)
+    ItemStack::ItemStack(const MWWorld::Ptr& base, ItemModel* creator, std::size_t count)
         : mType(Type_Normal)
         , mFlags(0)
         , mCreator(creator)
@@ -55,7 +57,8 @@ namespace MWGui
 
     ItemModel::ItemModel() {}
 
-    MWWorld::Ptr ItemModel::moveItem(const ItemStack& item, size_t count, ItemModel* otherModel, bool allowAutoEquip)
+    MWWorld::Ptr ItemModel::moveItem(
+        const ItemStack& item, std::size_t count, ItemModel* otherModel, bool allowAutoEquip)
     {
         removeItem(item, count);
         // If we removed the entire stack we can transfer it instead of creating a copy with a different RefNum
@@ -69,12 +72,12 @@ namespace MWGui
         return true;
     }
 
-    bool ItemModel::onDropItem(const MWWorld::Ptr& item, int count)
+    bool ItemModel::onDropItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         return true;
     }
 
-    bool ItemModel::onTakeItem(const MWWorld::Ptr& item, int count)
+    bool ItemModel::onTakeItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         return true;
     }
@@ -84,12 +87,12 @@ namespace MWGui
         return mSourceModel->allowedToUseItems();
     }
 
-    MWWorld::Ptr ProxyItemModel::copyItem(const ItemStack& item, size_t count, bool allowAutoEquip)
+    MWWorld::Ptr ProxyItemModel::copyItem(const ItemStack& item, std::size_t count, bool allowAutoEquip)
     {
         return mSourceModel->copyItem(item, count, allowAutoEquip);
     }
 
-    void ProxyItemModel::removeItem(const ItemStack& item, size_t count)
+    void ProxyItemModel::removeItem(const ItemStack& item, std::size_t count)
     {
         mSourceModel->removeItem(item, count);
     }
@@ -97,7 +100,7 @@ namespace MWGui
     ItemModel::ModelIndex ProxyItemModel::mapToSource(ModelIndex index)
     {
         const ItemStack& itemToSearch = getItem(index);
-        for (size_t i = 0; i < mSourceModel->getItemCount(); ++i)
+        for (std::size_t i = 0; i < mSourceModel->getItemCount(); ++i)
         {
             const ItemStack& item = mSourceModel->getItem(static_cast<ModelIndex>(i));
             if (item.mBase == itemToSearch.mBase)
@@ -109,7 +112,7 @@ namespace MWGui
     ItemModel::ModelIndex ProxyItemModel::mapFromSource(ModelIndex index)
     {
         const ItemStack& itemToSearch = mSourceModel->getItem(index);
-        for (size_t i = 0; i < getItemCount(); ++i)
+        for (std::size_t i = 0; i < getItemCount(); ++i)
         {
             const ItemStack& item = getItem(static_cast<ModelIndex>(i));
             if (item.mBase == itemToSearch.mBase)
@@ -133,17 +136,17 @@ namespace MWGui
         mSourceModel->onClose();
     }
 
-    bool ProxyItemModel::onDropItem(const MWWorld::Ptr& item, int count)
+    bool ProxyItemModel::onDropItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         return mSourceModel->onDropItem(item, count);
     }
 
-    bool ProxyItemModel::onTakeItem(const MWWorld::Ptr& item, int count)
+    bool ProxyItemModel::onTakeItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         return mSourceModel->onTakeItem(item, count);
     }
 
-    MWWorld::Ptr ProxyItemModel::addItem(const ItemStack& item, size_t count, bool allowAutoEquip)
+    MWWorld::Ptr ProxyItemModel::addItem(const ItemStack& item, std::size_t count, bool allowAutoEquip)
     {
         return mSourceModel->addItem(item, count, allowAutoEquip);
     }

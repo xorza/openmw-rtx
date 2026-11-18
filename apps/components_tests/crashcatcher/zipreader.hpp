@@ -11,9 +11,9 @@
 #include <utility>
 #include <vector>
 
-#include <components/files/conversion.hpp>
-
 #include <zlib.h>
+
+#include <components/files/conversion.hpp>
 
 namespace CrashTests
 {
@@ -49,7 +49,7 @@ namespace CrashTests
                 return 0;
             }
             return static_cast<std::uint32_t>(
-                static_cast<unsigned char>(bytes[at]) | static_cast<unsigned char>(bytes[at + 1]) << 8);
+                static_cast<std::uint8_t>(bytes[at]) | static_cast<std::uint8_t>(bytes[at + 1]) << 8);
         };
         const auto u32 = [&](std::size_t at) { return u16(at) | u16(at + 2) << 16; };
 
@@ -111,7 +111,7 @@ namespace CrashTests
             stream.avail_in = compressed;
             stream.next_out = reinterpret_cast<Bytef*>(entry.mContent.data());
             stream.avail_out = size;
-            const int result = inflate(&stream, Z_FINISH);
+            const std::int32_t result = inflate(&stream, Z_FINISH);
             const bool whole = result == Z_STREAM_END && stream.total_in == compressed && stream.total_out == size;
             inflateEnd(&stream);
             if (!whole)

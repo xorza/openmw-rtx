@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -149,11 +150,11 @@ namespace CSMWorld
             Display_NestedHeader
         };
 
-        int mColumnId;
-        int mFlags;
+        std::int32_t mColumnId;
+        std::int32_t mFlags;
         Display mDisplayType;
 
-        ColumnBase(int columnId, Display displayType, int flag);
+        ColumnBase(std::int32_t columnId, Display displayType, std::int32_t flag);
 
         virtual ~ColumnBase() = default;
 
@@ -164,7 +165,7 @@ namespace CSMWorld
 
         virtual std::string getTitle() const;
 
-        virtual int getId() const;
+        virtual std::int32_t getId() const;
 
         static bool isId(Display display);
 
@@ -178,7 +179,7 @@ namespace CSMWorld
         std::vector<NestableColumn*> mNestedColumns;
 
     public:
-        NestableColumn(int columnId, Display displayType, int flag);
+        NestableColumn(std::int32_t columnId, Display displayType, std::int32_t flag);
 
         ~NestableColumn() override;
         NestableColumn(const NestableColumn&) = delete;
@@ -186,7 +187,7 @@ namespace CSMWorld
 
         void addColumn(CSMWorld::NestableColumn* column);
 
-        const ColumnBase& nestedColumn(int subColumn) const;
+        const ColumnBase& nestedColumn(std::int32_t subColumn) const;
 
         bool hasChildren() const;
     };
@@ -194,7 +195,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct Column : public NestableColumn
     {
-        Column(int columnId, Display displayType, int flags = Flag_Table | Flag_Dialogue)
+        Column(std::int32_t columnId, Display displayType, std::int32_t flags = Flag_Table | Flag_Dialogue)
             : NestableColumn(columnId, displayType, flags)
         {
         }
@@ -210,7 +211,8 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct NestedParentColumn : public Column<ESXRecordT>
     {
-        explicit NestedParentColumn(int id, int flags = ColumnBase::Flag_Dialogue, bool fixedRows = false)
+        explicit NestedParentColumn(
+            std::int32_t id, std::int32_t flags = ColumnBase::Flag_Dialogue, bool fixedRows = false)
             : Column<ESXRecordT>(id, ColumnBase::Display_NestedHeader, flags)
             , mFixedRows(fixedRows)
         {
@@ -239,7 +241,8 @@ namespace CSMWorld
 
     struct NestedChildColumn : public NestableColumn
     {
-        NestedChildColumn(int id, Display display, int flags = ColumnBase::Flag_Dialogue, bool isEditable = true);
+        NestedChildColumn(
+            std::int32_t id, Display display, std::int32_t flags = ColumnBase::Flag_Dialogue, bool isEditable = true);
 
         bool isEditable() const override;
 

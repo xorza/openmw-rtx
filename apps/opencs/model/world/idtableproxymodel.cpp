@@ -1,26 +1,28 @@
 #include "idtableproxymodel.hpp"
 
-#include <QAbstractItemModel>
-#include <QModelIndex>
-#include <QSortFilterProxyModel>
-#include <QString>
-
+#include <cstddef>
+#include <cstdint>
 #include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include <QAbstractItemModel>
+#include <QModelIndex>
+#include <QSortFilterProxyModel>
+#include <QString>
+
 #include <apps/opencs/model/filter/node.hpp>
-#include <apps/opencs/model/world/columns.hpp>
 
 #include "columnbase.hpp"
+#include "columns.hpp"
 #include "idtablebase.hpp"
 
 class QObject;
 
 namespace
 {
-    std::string_view getEnumValue(const std::vector<std::pair<int, std::string>>& values, int index)
+    std::string_view getEnumValue(const std::vector<std::pair<std::int32_t, std::string>>& values, std::int32_t index)
     {
         if (index < 0 || std::cmp_greater_equal(index, values.size()))
         {
@@ -37,14 +39,14 @@ void CSMWorld::IdTableProxyModel::updateColumnMap()
     mColumnMap.clear();
     if (mFilter)
     {
-        std::vector<int> columns = mFilter->getReferencedColumns();
-        for (int column : columns)
+        std::vector<std::int32_t> columns = mFilter->getReferencedColumns();
+        for (std::int32_t column : columns)
             mColumnMap.insert(std::make_pair(
                 column, mSourceModel->searchColumnIndex(static_cast<CSMWorld::Columns::ColumnId>(column))));
     }
 }
 
-bool CSMWorld::IdTableProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
+bool CSMWorld::IdTableProxyModel::filterAcceptsRow(std::int32_t sourceRow, const QModelIndex& sourceParent) const
 {
     Q_ASSERT(mSourceModel != nullptr);
 
@@ -69,7 +71,7 @@ CSMWorld::IdTableProxyModel::IdTableProxyModel(QObject* parent)
     setSortCaseSensitivity(Qt::CaseInsensitive);
 
     mFilterTimer.setSingleShot(true);
-    int intervalSetting = CSMPrefs::State::get()["ID Tables"]["filter-delay"].toInt();
+    std::int32_t intervalSetting = CSMPrefs::State::get()["ID Tables"]["filter-delay"].toInt();
     mFilterTimer.setInterval(intervalSetting);
 
     connect(&CSMPrefs::State::get(), &CSMPrefs::State::settingChanged, this,
@@ -77,7 +79,7 @@ CSMWorld::IdTableProxyModel::IdTableProxyModel(QObject* parent)
     connect(&mFilterTimer, &QTimer::timeout, this, [this]() { this->timerTimeout(); });
 }
 
-QModelIndex CSMWorld::IdTableProxyModel::getModelIndex(const std::string& id, int column) const
+QModelIndex CSMWorld::IdTableProxyModel::getModelIndex(const std::string& id, std::int32_t column) const
 {
     Q_ASSERT(mSourceModel != nullptr);
 
@@ -121,11 +123,11 @@ bool CSMWorld::IdTableProxyModel::lessThan(const QModelIndex& left, const QModel
     return QSortFilterProxyModel::lessThan(left, right);
 }
 
-QString CSMWorld::IdTableProxyModel::getRecordId(int sourceRow) const
+QString CSMWorld::IdTableProxyModel::getRecordId(std::int32_t sourceRow) const
 {
     Q_ASSERT(mSourceModel != nullptr);
 
-    int idColumn = mSourceModel->findColumnIndex(Columns::ColumnId_Id);
+    std::int32_t idColumn = mSourceModel->findColumnIndex(Columns::ColumnId_Id);
     return mSourceModel->data(mSourceModel->index(sourceRow, idColumn)).toString();
 }
 
@@ -149,7 +151,8 @@ void CSMWorld::IdTableProxyModel::settingChanged(const CSMPrefs::Setting* settin
     }
 }
 
-void CSMWorld::IdTableProxyModel::sourceRowsInserted(const QModelIndex& parent, int /*start*/, int end)
+void CSMWorld::IdTableProxyModel::sourceRowsInserted(
+    const QModelIndex& parent, std::int32_t /*start*/, std::int32_t end)
 {
     if (!parent.isValid())
     {
@@ -157,7 +160,10 @@ void CSMWorld::IdTableProxyModel::sourceRowsInserted(const QModelIndex& parent, 
     }
 }
 
-void CSMWorld::IdTableProxyModel::sourceRowsRemoved(const QModelIndex& /*parent*/, int /*start*/, int /*end*/) {}
+void CSMWorld::IdTableProxyModel::sourceRowsRemoved(
+    const QModelIndex& /*parent*/, std::int32_t /*start*/, std::int32_t /*end*/)
+{
+}
 
 void CSMWorld::IdTableProxyModel::sourceDataChanged(const QModelIndex& /*topLeft*/, const QModelIndex& /*bottomRight*/)
 {

@@ -2,9 +2,9 @@
 
 #include <memory>
 
-#include "windowbase.hpp"
+#include <apps/openmw/mwmechanics/repair.hpp>
 
-#include "../mwmechanics/repair.hpp"
+#include "windowbase.hpp"
 
 namespace MWGui
 {

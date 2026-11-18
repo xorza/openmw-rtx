@@ -27,6 +27,7 @@
 #include "loadrefr.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 
 #include "reader.hpp"
@@ -131,14 +132,14 @@ void ESM4::Reference::load(ESM4::Reader& reader)
                 // 1 or 4 bytes
                 if (subHdr.dataSize == 1)
                 {
-                    uint8_t data = 0;
+                    std::uint8_t data = 0;
                     reader.get(data);
                     // std::cout << "REFR XSED " << std::hex << (int)data << std::endl;
                     break;
                 }
                 else if (subHdr.dataSize == 4)
                 {
-                    uint32_t data = 0;
+                    std::uint32_t data = 0;
                     reader.get(data);
                     // std::cout << "REFR XSED " << std::hex << (int)data << std::endl;
                     break;
@@ -173,7 +174,7 @@ void ESM4::Reference::load(ESM4::Reader& reader)
             {
                 if (subHdr.dataSize == 4)
                 {
-                    uint32_t data = 0;
+                    std::uint32_t data = 0;
                     reader.get(data);
                     // std::cout << "REFR XACT " << std::hex << (int)data << std::endl;
                     break;

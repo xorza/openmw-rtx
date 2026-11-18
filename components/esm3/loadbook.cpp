@@ -1,10 +1,12 @@
 #include "loadbook.hpp"
 
+#include <cstdint>
+
+#include <components/misc/concepts.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <components/esm3/loadskil.hpp>
-#include <components/misc/concepts.hpp>
+#include "loadskil.hpp"
 
 namespace ESM
 {
@@ -13,7 +15,7 @@ namespace ESM
         struct EsmBKDTstruct
         {
             float mWeight;
-            int32_t mValue, mIsScroll, mSkillId, mEnchant;
+            std::int32_t mValue, mIsScroll, mSkillId, mEnchant;
         };
 
         void toBinary(const Book::BKDTstruct& src, EsmBKDTstruct& dst)

@@ -1,10 +1,11 @@
 #pragma once
 
-#include "windowbase.hpp"
+#include <cstdint>
 
-#include "../mwworld/ptr.hpp"
-
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/widgets/imagebutton.hpp>
+
+#include "windowbase.hpp"
 
 namespace MWGui
 {
@@ -16,7 +17,7 @@ namespace MWGui
         void setPtr(const MWWorld::Ptr& book) override;
         void setInventoryAllowed(bool allowed);
 
-        void onResChange(int, int) override { center(); }
+        void onResChange(std::int32_t, std::int32_t) override { center(); }
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
         std::string_view getWindowIdForLua() const override { return "Book"; }
@@ -27,7 +28,7 @@ namespace MWGui
         void onPrevPageButtonClicked(MyGUI::Widget* sender);
         void onCloseButtonClicked(MyGUI::Widget* sender);
         void onTakeButtonClicked(MyGUI::Widget* sender);
-        void onMouseWheel(MyGUI::Widget* sender, int rel);
+        void onMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
         void setTakeButtonShow(bool show);
 
         void onKeyButtonPressed(MyGUI::Widget* sender, MyGUI::KeyCode key, MyGUI::Char character);
@@ -39,7 +40,7 @@ namespace MWGui
         void clearPages();
 
     private:
-        typedef std::pair<int, int> Page;
+        typedef std::pair<std::int32_t, std::int32_t> Page;
         typedef std::vector<Page> Pages;
 
         Gui::ImageButton* mCloseButton{};
@@ -52,7 +53,7 @@ namespace MWGui
         MyGUI::Widget* mLeftPage{};
         MyGUI::Widget* mRightPage{};
 
-        unsigned int mCurrentPage; // 0 is first page
+        std::uint32_t mCurrentPage; // 0 is first page
         Pages mPages;
 
         MWWorld::Ptr mBook;

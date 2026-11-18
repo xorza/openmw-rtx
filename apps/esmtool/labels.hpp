@@ -6,16 +6,16 @@
 
 #include <components/esm3/aipackage.hpp>
 
-std::string_view bodyPartLabel(int idx);
-std::string_view meshPartLabel(int idx);
-std::string_view meshTypeLabel(int idx);
-std::string_view clothingTypeLabel(int idx);
-std::string_view armorTypeLabel(int idx);
-std::string_view dialogTypeLabel(int idx);
-std::string_view questStatusLabel(int idx);
-std::string_view creatureTypeLabel(int idx);
-std::string_view soundTypeLabel(int idx);
-std::string_view weaponTypeLabel(int idx);
+std::string_view bodyPartLabel(std::int32_t idx);
+std::string_view meshPartLabel(std::int32_t idx);
+std::string_view meshTypeLabel(std::int32_t idx);
+std::string_view clothingTypeLabel(std::int32_t idx);
+std::string_view armorTypeLabel(std::int32_t idx);
+std::string_view dialogTypeLabel(std::int32_t idx);
+std::string_view questStatusLabel(std::int32_t idx);
+std::string_view creatureTypeLabel(std::int32_t idx);
+std::string_view soundTypeLabel(std::int32_t idx);
+std::string_view weaponTypeLabel(std::int32_t idx);
 
 // This function's a bit different because the types are record types,
 // not consecutive values.
@@ -24,7 +24,7 @@ std::string_view aiTypeLabel(ESM::AiPackageType type);
 // This one's also a bit different, because it enumerates dialog
 // select rule functions, not types.  Structurally, it still converts
 // indexes to strings for display.
-std::string_view ruleFunction(int idx);
+std::string_view ruleFunction(std::int32_t idx);
 
 // The labels below here can all be loaded from GMSTs, but are not
 // currently because among other things, that requires loading the
@@ -35,34 +35,34 @@ std::string_view ruleFunction(int idx);
 // and the indexes for referencing the types in other records in the
 // database.  Then a single label function could work for all types.
 
-std::string_view spellTypeLabel(int idx);
-std::string_view specializationLabel(int idx);
-std::string_view apparatusTypeLabel(int idx);
-std::string_view rangeTypeLabel(int idx);
-std::string_view schoolLabel(int idx);
-std::string_view enchantTypeLabel(int idx);
+std::string_view spellTypeLabel(std::int32_t idx);
+std::string_view specializationLabel(std::int32_t idx);
+std::string_view apparatusTypeLabel(std::int32_t idx);
+std::string_view rangeTypeLabel(std::int32_t idx);
+std::string_view schoolLabel(std::int32_t idx);
+std::string_view enchantTypeLabel(std::int32_t idx);
 
 // The are the flag functions that convert a bitmask into a list of
 // human readble strings representing the set bits.
 
-std::string bodyPartFlags(int flags);
-std::string cellFlags(int flags);
-std::string containerFlags(int flags);
-std::string creatureFlags(int flags);
-std::string enchantmentFlags(int flags);
-std::string factionFlags(int flags);
+std::string bodyPartFlags(std::int32_t flags);
+std::string cellFlags(std::int32_t flags);
+std::string containerFlags(std::int32_t flags);
+std::string creatureFlags(std::int32_t flags);
+std::string enchantmentFlags(std::int32_t flags);
+std::string factionFlags(std::int32_t flags);
 std::string landFlags(std::uint32_t flags);
-std::string creatureListFlags(int flags);
-std::string itemListFlags(int flags);
-std::string lightFlags(int flags);
-std::string magicEffectFlags(int flags);
-std::string npcFlags(int flags);
-std::string potionFlags(int flags);
-std::string raceFlags(int flags);
-std::string spellFlags(int flags);
-std::string weaponFlags(int flags);
+std::string creatureListFlags(std::int32_t flags);
+std::string itemListFlags(std::int32_t flags);
+std::string lightFlags(std::int32_t flags);
+std::string magicEffectFlags(std::int32_t flags);
+std::string npcFlags(std::int32_t flags);
+std::string potionFlags(std::int32_t flags);
+std::string raceFlags(std::int32_t flags);
+std::string spellFlags(std::int32_t flags);
+std::string weaponFlags(std::int32_t flags);
 
-std::string recordFlags(uint32_t flags);
+std::string recordFlags(std::uint32_t flags);
 
 // Missing flags functions:
 // aiServicesFlags, possibly more

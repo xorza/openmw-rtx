@@ -1,5 +1,7 @@
 #include "skipparser.hpp"
 
+#include <cstdint>
+
 #include "errorhandler.hpp"
 #include "scanner.hpp"
 
@@ -17,7 +19,7 @@ namespace Compiler
             getErrorHandler().warning("Extra argument", loc);
     }
 
-    bool SkipParser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
+    bool SkipParser::parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner)
     {
         reportStrayArgument(loc);
         return true;
@@ -35,13 +37,13 @@ namespace Compiler
         return true;
     }
 
-    bool SkipParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+    bool SkipParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
     {
         reportStrayArgument(loc);
         return true;
     }
 
-    bool SkipParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+    bool SkipParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
     {
         if (code == Scanner::S_newline)
         {

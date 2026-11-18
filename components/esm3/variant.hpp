@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <iosfwd>
 #include <string>
 #include <tuple>
@@ -24,7 +25,7 @@ namespace ESM
     class Variant
     {
         VarType mType;
-        std::variant<std::monostate, int32_t, float, std::string> mData;
+        std::variant<std::monostate, std::int32_t, float, std::string> mData;
 
     public:
         enum Format
@@ -53,7 +54,7 @@ namespace ESM
         {
         }
 
-        explicit Variant(int32_t value)
+        explicit Variant(std::int32_t value)
             : mType(VT_Long)
             , mData(value)
         {
@@ -70,7 +71,7 @@ namespace ESM
         const std::string& getString() const;
         ///< Will throw an exception, if value can not be represented as a string.
 
-        int32_t getInteger() const;
+        std::int32_t getInteger() const;
         ///< Will throw an exception, if value can not be represented as an integer (implicit
         /// casting of float values is permitted).
 
@@ -92,7 +93,7 @@ namespace ESM
         void setString(std::string&& value);
         ///< Will throw an exception, if type is not compatible with string.
 
-        void setInteger(int32_t value);
+        void setInteger(std::int32_t value);
         ///< Will throw an exception, if type is not compatible with integer.
 
         void setFloat(float value);

@@ -1,14 +1,14 @@
 #pragma once
 
-#include "aitemporarybase.hpp"
-#include "typedaipackage.hpp"
-
+#include <cstdint>
 #include <string>
 #include <string_view>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm/defs.hpp>
 
-#include "../mwworld/ptr.hpp"
+#include "aitemporarybase.hpp"
+#include "typedaipackage.hpp"
 
 namespace ESM::AiSequence
 {
@@ -69,7 +69,7 @@ namespace MWMechanics
 
         bool isCommanded() const;
 
-        int getFollowIndex() const;
+        std::int32_t getFollowIndex() const;
 
         void fastForward(const MWWorld::Ptr& actor, AiState& state) override;
 
@@ -93,8 +93,8 @@ namespace MWMechanics
         const float mZ;
         const std::string mCellId;
         bool mActive; // have we spotted the target?
-        const int mFollowIndex;
+        const std::int32_t mFollowIndex;
 
-        static int mFollowIndexCounter;
+        static std::int32_t mFollowIndexCounter;
     };
 }

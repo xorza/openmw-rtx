@@ -12,8 +12,9 @@
 #include <type_traits>
 #include <typeinfo>
 
-#include <components/files/istreamptr.hpp>
 #include <components/misc/endianness.hpp>
+
+#include "istreamptr.hpp"
 
 namespace Files
 {

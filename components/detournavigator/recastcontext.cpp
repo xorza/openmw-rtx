@@ -1,9 +1,12 @@
 #include "recastcontext.hpp"
-#include "debug.hpp"
+
+#include <cstddef>
+#include <cstdint>
+#include <sstream>
 
 #include <components/debug/debuglog.hpp>
 
-#include <sstream>
+#include "debug.hpp"
 
 namespace DetourNavigator
 {
@@ -40,7 +43,7 @@ namespace DetourNavigator
     {
     }
 
-    void RecastContext::doLog(const rcLogCategory category, const char* msg, const int len)
+    void RecastContext::doLog(const rcLogCategory category, const char* msg, const std::int32_t len)
     {
         if (msg == nullptr || len <= 0)
             return;

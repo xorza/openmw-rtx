@@ -1,8 +1,9 @@
+#include "projectileconvexcallback.hpp"
+
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 
 #include "collisiontype.hpp"
 #include "projectile.hpp"
-#include "projectileconvexcallback.hpp"
 
 namespace MWPhysics
 {

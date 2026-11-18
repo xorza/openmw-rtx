@@ -1,10 +1,11 @@
-#include "types.hpp"
+#include <cstdint>
 
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadmisc.hpp>
 #include <components/esm3/loadspel.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "apps/openmw/mwworld/esmstore.hpp"
+#include "types.hpp"
 
 namespace MWLua
 {
@@ -20,8 +21,8 @@ namespace MWLua
                 return sol::nullopt;
             return MWBase::Environment::get().getESMStore()->get<ESM::Miscellaneous>().find(key);
         };
-        lockable["lock"] = [](const GObject& object, sol::optional<int> lockLevel) {
-            int level = 1;
+        lockable["lock"] = [](const GObject& object, sol::optional<std::int32_t> lockLevel) {
+            std::int32_t level = 1;
 
             if (lockLevel)
                 level = lockLevel.value();

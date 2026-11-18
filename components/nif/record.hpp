@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace Nif
@@ -324,7 +325,7 @@ namespace Nif
     {
         RecordType mRecordType{ RC_MISSING };
         std::string mRecordName;
-        unsigned int mRecordIndex{ ~0u };
+        std::uint32_t mRecordIndex{ ~0u };
 
         Record() = default;
 

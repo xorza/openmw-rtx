@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -196,7 +197,7 @@ namespace RtxTool
 
         /// **A tour plans its legs where the world stands, from the map the world gives, and goes on past a leg
         /// that fails**: two islands a sea apart, a room of the content's own and one `[interiors]` names, flown from
-        /// `--from` on under the tour's row, each leg a track the session follows. `--plan` flies nothing.
+        /// its `--legs` under the tour's row, each leg a track the session follows. `--plan` flies nothing.
         TEST_F(RtxPlanTest, aTourPlansWhereTheWorldStandsAndGoesOnPastAFailedLeg)
         {
             const auto map = [] {
@@ -212,7 +213,7 @@ namespace RtxTool
             framed.mWindow.mWidth = sTourFrame.mWidth;
             framed.mWindow.mHeight = sTourFrame.mHeight;
             const HostedRun run = planOf(
-                Verb::Tour, {},
+                Verb::Tour, { "--every=1" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); }, framed);
             const SessionRequest& request = run.mRequest;
             EXPECT_TRUE(request.mStops.empty()) << "nothing to fly until the world stands";
@@ -220,13 +221,14 @@ namespace RtxTool
             EXPECT_EQ(request.mStep, sStepSeconds);
             EXPECT_EQ(request.mSetup.mWindowPixels, osg::Vec2i(800, 600)) << "the tour's own frame";
 
-            // A player's preloading at the flight's speed: 12000 over a running player's 337.5 is 35.6 times, so the
-            // shipped 1000 units of warning become 35,556 and its one thread 36, held to the ring's 16 cells and to
+            // A player's preloading at the flight's speed: the doors' reach the shipped 1000 units, and 12000 over a
+            // running player's 337.5 is 35.6 times, so its one thread becomes 36, held to the ring's 16 cells and to
             // what the processor spares.
             ASSERT_TRUE(run.mPreload.has_value());
-            EXPECT_FLOAT_EQ(run.mPreload->mDistance, 1000.0f * 12000.0f / 337.5f);
+            EXPECT_FLOAT_EQ(run.mPreload->mDistance, 1000.0f) << "the doors' reach a player's";
+            EXPECT_EQ(request.mSetup.mSteppedExpiry, MWRender::SteppedExpiry::AsTheGame) << "the game's own expiry";
             EXPECT_EQ(run.mPreload->mThreads,
-                std::min(16, std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1)));
+                std::min(16, std::max(1, static_cast<std::int32_t>(std::thread::hardware_concurrency()) - 1)));
             EXPECT_EQ(run.mPreload->mCacheMin, 12) << "the shipped least, so what expired makes room";
             EXPECT_EQ(run.mPreload->mCacheMax, 50)
                 << "the grid and its ring, 25, around where the player is and will be";
@@ -271,15 +273,32 @@ namespace RtxTool
             }),
                 "--fail-on names no kind of finding called \"stall\"");
 
-            const HostedRun later = planOf(Verb::Tour, { "--from=4" },
+            // A line that names no --every flies every fourth land leg and room, the first of each, and the closing
+            // leg: of two land legs and two rooms, the first of each.
+            const HostedRun sampled = planOf(Verb::Tour, {},
+                [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
+            std::vector<std::string> sampledNames;
+            for (const Stop& stop : sampled.mRequest.mPlanWhereTheWorldStands(30.0f))
+                sampledNames.push_back(stop.mName);
+            EXPECT_EQ(sampledNames,
+                (std::vector<std::string>{ "leg-1-land-0,1", "leg-3-room-Arrille's Tradehouse", "leg-5-closing-0,1" }));
+
+            const HostedRun later = planOf(Verb::Tour, { "--legs=4-", "--every=1" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
             EXPECT_EQ(
                 later.mRequest.mPlanWhereTheWorldStands(30.0f).front().mName, "leg-4-room-Balmora, Guild of Mages");
 
-            const HostedRun past = planOf(Verb::Tour, { "--from=6" },
+            // The rooms alone, every second of them: the first room, under the whole tour's name.
+            const HostedRun rooms = planOf(Verb::Tour, { "--legs=rooms", "--every=2" },
+                [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
+            const std::vector<Stop> roomStops = rooms.mRequest.mPlanWhereTheWorldStands(30.0f);
+            ASSERT_EQ(roomStops.size(), 1u);
+            EXPECT_EQ(roomStops.front().mName, "leg-3-room-Arrille's Tradehouse");
+
+            const HostedRun past = planOf(Verb::Tour, { "--legs=6" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { past.mRequest.mPlanWhereTheWorldStands(30.0f); }),
-                "--from=6 is past the tour's last leg, 5");
+                "--legs names leg 6, past the tour's last, 5");
 
             // Held to the step, a tour's frames are limited to its rate; a pace or a leg the line cannot mean is
             // refused.
@@ -295,10 +314,10 @@ namespace RtxTool
             }),
                 "--pace=walk is neither card nor real");
             EXPECT_EQ(Rtx::Testing::refusalOf([&] {
-                planOf(Verb::Tour, { "--from=0" },
+                planOf(Verb::Tour, { "--legs=0" },
                     [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
             }),
-                "--from=0 names no leg: a tour's legs are counted from one");
+                "--legs names leg 0 in \"0\": a tour's legs are counted from one");
 
             const HostedRun planned = planOf(Verb::Tour, { "--plan" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });

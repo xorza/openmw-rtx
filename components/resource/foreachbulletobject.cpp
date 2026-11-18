@@ -1,5 +1,11 @@
 #include "foreachbulletobject.hpp"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/cellref.hpp>
@@ -10,12 +16,9 @@
 #include <components/esmloader/lessbyid.hpp>
 #include <components/esmloader/record.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/resource/bulletshapemanager.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <algorithm>
-#include <utility>
-#include <vector>
+#include "bulletshapemanager.hpp"
 
 namespace Resource
 {
@@ -57,7 +60,7 @@ namespace Resource
             {
                 const ESM::ReadersCache::BusyItem reader
                     = readers.get(static_cast<std::size_t>(cell.mContextList[i].index));
-                cell.restore(*reader, static_cast<std::size_t>(static_cast<int>(i)));
+                cell.restore(*reader, static_cast<std::size_t>(static_cast<std::int32_t>(i)));
                 ESM::CellRef cellRef;
                 bool deleted = false;
                 while (ESM::Cell::getNextRef(*reader, cellRef, deleted))

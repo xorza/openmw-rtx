@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../mwworld/registeredclass.hpp"
+#include <cstdint>
+
+#include <apps/openmw/mwworld/registeredclass.hpp>
 
 #include "actor.hpp"
 
@@ -21,7 +23,7 @@ namespace MWClass
 
         MWWorld::Ptr copyToCellImpl(const MWWorld::ConstPtr& ptr, MWWorld::CellStore& cell) const override;
 
-        static int getSndGenTypeFromName(const MWWorld::Ptr& ptr, std::string_view name);
+        static std::int32_t getSndGenTypeFromName(const MWWorld::Ptr& ptr, std::string_view name);
 
         // cached GMSTs
         struct GMST
@@ -54,7 +56,7 @@ namespace MWClass
         bool hasToolTip(const MWWorld::ConstPtr& ptr) const override;
         ///< @return true if this object has a tooltip when focused (default implementation: true)
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
         MWMechanics::CreatureStats& getCreatureStats(const MWWorld::Ptr& ptr) const override;
@@ -62,7 +64,7 @@ namespace MWClass
 
         bool evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, osg::Vec3f& hitPosition) const override;
 
-        void hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, int type,
+        void hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, std::int32_t type,
             const MWWorld::Ptr& victim, const osg::Vec3f& hitPosition, bool success) const override;
 
         void onHit(const MWWorld::Ptr& ptr, const std::map<std::string, float>& damages, ESM::RefId object,
@@ -95,7 +97,7 @@ namespace MWClass
         bool isEssential(const MWWorld::ConstPtr& ptr) const override;
         ///< Is \a ptr essential? (i.e. may losing \a ptr make the game unwinnable)
 
-        int getServices(const MWWorld::ConstPtr& actor) const override;
+        std::int32_t getServices(const MWWorld::ConstPtr& actor) const override;
 
         bool isPersistent(const MWWorld::ConstPtr& actor) const override;
 
@@ -126,18 +128,19 @@ namespace MWClass
         void writeAdditionalState(const MWWorld::ConstPtr& ptr, ESM::ObjectState& state) const override;
         ///< Write additional state from \a ptr into \a state.
 
-        int getBaseGold(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getBaseGold(const MWWorld::ConstPtr& ptr) const override;
 
         void respawn(const MWWorld::Ptr& ptr) const override;
 
-        int getBaseFightRating(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getBaseFightRating(const MWWorld::ConstPtr& ptr) const override;
 
         void adjustScale(const MWWorld::ConstPtr& ptr, osg::Vec3f& scale, bool rendering) const override;
         /// @param rendering Indicates if the scale to adjust is for the rendering mesh, or for the collision mesh
 
-        void setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, int value) const override;
+        void setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, std::int32_t value) const override;
 
-        void modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, int amount) const override;
+        void modifyBaseInventory(
+            const ESM::RefId& actorId, const ESM::RefId& itemId, std::int32_t amount) const override;
 
         float getWalkSpeed(const MWWorld::Ptr& ptr) const override;
 

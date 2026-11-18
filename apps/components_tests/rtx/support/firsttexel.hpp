@@ -20,5 +20,5 @@ namespace Rtx::Testing
 
     /// Whether every channel of `got` is within `step` of `want`: a block holds one colour to its
     /// endpoints' precision, and a test of a made chain names the colour and that step.
-    ::testing::AssertionResult isNear(const Texel& got, const Texel& want, int step);
+    ::testing::AssertionResult isNear(const Texel& got, const Texel& want, std::int32_t step);
 }

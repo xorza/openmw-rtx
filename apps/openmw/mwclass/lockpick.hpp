@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../mwworld/registeredclass.hpp"
+#include <cstdint>
+
+#include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace ESM
 {
@@ -32,17 +34,17 @@ namespace MWClass
         std::unique_ptr<MWWorld::Action> activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const override;
         ///< Generate action for activation
 
-        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const override;
         ///< @return the content of the tool tip to be displayed. raises exception if the object has no tooltip.
 
         ESM::RefId getScript(const MWWorld::ConstPtr& ptr) const override;
         ///< Return name of the script attached to ptr
 
-        std::pair<std::vector<int>, bool> getEquipmentSlots(const MWWorld::ConstPtr& ptr) const override;
+        std::pair<std::vector<std::int32_t>, bool> getEquipmentSlots(const MWWorld::ConstPtr& ptr) const override;
         ///< \return first: Return IDs of the slot this object can be equipped in; second: can object
         /// stay stacked when equipped?
 
-        int getValue(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getValue(const MWWorld::ConstPtr& ptr) const override;
         ///< Return trade value of the object. Throws an exception, if the object can't be traded.
 
         const ESM::RefId& getUpSoundId(const MWWorld::ConstPtr& ptr) const override;
@@ -54,7 +56,7 @@ namespace MWClass
         VFS::Path::NormalizedView getInventoryIcon(const MWWorld::ConstPtr& ptr) const override;
         ///< Return name of inventory icon.
 
-        std::pair<int, std::string_view> canBeEquipped(
+        std::pair<std::int32_t, std::string_view> canBeEquipped(
             const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const override;
 
         std::unique_ptr<MWWorld::Action> use(const MWWorld::Ptr& ptr, bool force = false) const override;
@@ -62,11 +64,11 @@ namespace MWClass
 
         VFS::Path::NormalizedView getModel(const MWWorld::ConstPtr& ptr) const override;
 
-        bool canSell(const MWWorld::ConstPtr& item, int npcServices) const override;
+        bool canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const override;
 
         float getWeight(const MWWorld::ConstPtr& ptr) const override;
 
-        int getItemMaxHealth(const MWWorld::ConstPtr& ptr) const override;
+        std::int32_t getItemMaxHealth(const MWWorld::ConstPtr& ptr) const override;
         ///< Return item max health or throw an exception, if class does not have item health
 
         bool hasItemHealth(const MWWorld::ConstPtr& ptr) const override { return true; }

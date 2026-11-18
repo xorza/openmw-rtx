@@ -1,20 +1,20 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "statstate.hpp"
-
-#include "components/esm/defs.hpp"
+#include <components/esm/attr.hpp>
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 #include "activespells.hpp"
 #include "aisequence.hpp"
-#include "components/esm/attr.hpp"
-#include "components/esm/refid.hpp"
 #include "magiceffects.hpp"
 #include "spellstate.hpp"
+#include "statstate.hpp"
 #include "timestamp.hpp"
 
 namespace ESM
@@ -27,7 +27,7 @@ namespace ESM
     {
         struct CorprusStats
         {
-            std::array<int32_t, Attribute::Length> mWorsenings;
+            std::array<std::int32_t, Attribute::Length> mWorsenings;
             TimeStamp mNextWorsening;
         };
 
@@ -39,15 +39,15 @@ namespace ESM
         AiSequence::AiSequence mAiSequence;
 
         bool mHasAiSettings{};
-        std::array<StatState<int>, 4> mAiSettings;
+        std::array<StatState<std::int32_t>, 4> mAiSettings;
 
-        std::map<SummonKey, int> mSummonedCreatureMap;
+        std::map<SummonKey, std::int32_t> mSummonedCreatureMap;
         std::multimap<ESM::RefId, RefNum> mSummonedCreatures;
-        std::vector<int> mSummonGraveyard;
+        std::vector<std::int32_t> mSummonGraveyard;
 
         TimeStamp mTradeTime{};
-        int32_t mGoldPool{};
-        int32_t mActorId{};
+        std::int32_t mGoldPool{};
+        std::int32_t mActorId{};
 
         enum Flags
         {
@@ -77,15 +77,15 @@ namespace ESM
         bool mKnockdownOverOneFrame{};
         bool mHitRecovery{};
         bool mBlock{};
-        uint32_t mMovementFlags{};
+        std::uint32_t mMovementFlags{};
         float mFallHeight{};
         ESM::RefId mLastHitObject;
         ESM::RefId mLastHitAttemptObject;
         bool mRecalcDynamicStats{};
-        int32_t mDrawState{};
-        int8_t mDeathAnimation{};
+        std::int32_t mDrawState{};
+        std::int8_t mDeathAnimation{};
         TimeStamp mTimeOfDeath{};
-        int32_t mLevel{};
+        std::int32_t mLevel{};
         bool mMissingACDT{};
 
         std::map<ESM::RefId, CorprusStats> mCorprusSpells;

@@ -1,6 +1,7 @@
 #include "autotransform.hpp"
 
 #include <cmath>
+#include <cstdint>
 
 #include <osg/CullStack>
 
@@ -17,8 +18,8 @@ namespace NifOsg
         , mMode(mode)
     {
         osg::Matrixd rotMat;
-        for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 3; ++j)
+        for (std::int32_t i = 0; i < 3; ++i)
+            for (std::int32_t j = 0; j < 3; ++j)
                 rotMat(i, j) = mRotationScale.mValues[j][i];
         mBaseRotation = rotMat.getRotate();
         mRotation = mBaseRotation;
@@ -44,8 +45,8 @@ namespace NifOsg
         MatrixTransform::setRotation(rotation);
 
         osg::Matrixd rotMat;
-        for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 3; ++j)
+        for (std::int32_t i = 0; i < 3; ++i)
+            for (std::int32_t j = 0; j < 3; ++j)
                 rotMat(i, j) = rotation.mValues[j][i];
 
         mBaseRotation = rotMat.getRotate();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -43,7 +44,7 @@ namespace Compiler
         std::string mMemberName;
         bool mReferenceMember;
         std::vector<std::string> mPotentialButtons;
-        unsigned int mNumButtons{ 0 };
+        std::uint32_t mNumButtons{ 0 };
         std::string mExplicit;
         char mType;
         ExprParser mExprParser;
@@ -57,7 +58,7 @@ namespace Compiler
         ///< \param allowExpression Allow lines consisting of a naked expression
         /// (result is send to the messagebox interface)
 
-        bool parseInt(int value, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle an int token.
         /// \return fetch another token?
 
@@ -69,11 +70,11 @@ namespace Compiler
         ///< Handle a name token.
         /// \return fetch another token?
 
-        bool parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a keyword token.
         /// \return fetch another token?
 
-        bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a special character token.
         /// \return fetch another token?
 
@@ -87,8 +88,8 @@ namespace Compiler
         std::string mArguments;
 
     protected:
-        void visitedPlaceholder(
-            Placeholder placeholder, int flags, int width, int precision, Notation notation) override;
+        void visitedPlaceholder(Placeholder placeholder, std::int32_t flags, std::int32_t width, std::int32_t precision,
+            Notation notation) override;
         void visitedCharacter(char c) override {}
 
     public:

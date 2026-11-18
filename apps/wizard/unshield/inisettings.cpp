@@ -1,12 +1,13 @@
 #include "inisettings.hpp"
 
+#include <cstdint>
+#include <fstream>
+
 #include <QDebug>
 #include <QFile>
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
-
-#include <fstream>
 
 #include <components/files/qtconversion.hpp>
 
@@ -150,16 +151,16 @@ bool Wizard::IniSettings::writeFile(const QString& path, std::ifstream& stream, 
         section.append(QLatin1Char(']'));
         const QString& key(fullKey.at(1));
 
-        int index = static_cast<int>(buffer.lastIndexOf(section));
+        auto index = static_cast<std::int32_t>(buffer.lastIndexOf(section));
         if (index == -1)
         {
             // Add the section to the end of the file, because it's not found
             buffer.append(QString("\n%1\n").arg(section));
-            index = static_cast<int>(buffer.lastIndexOf(section));
+            index = static_cast<std::int32_t>(buffer.lastIndexOf(section));
         }
 
         // Look for the next section
-        index = static_cast<int>(buffer.indexOf(QLatin1Char('['), index + 1));
+        index = static_cast<std::int32_t>(buffer.indexOf(QLatin1Char('['), index + 1));
 
         if (index == -1)
         {
@@ -197,11 +198,11 @@ bool Wizard::IniSettings::parseInx(const QString& path)
         const QByteArray data(file.readAll());
         const QByteArray pattern("\x21\x00\x1A\x01\x04\x00\x04\x97\xFF\x06", 10);
 
-        int i = 0;
-        while ((i = static_cast<int>(data.indexOf(pattern, i))) != -1)
+        std::int32_t i = 0;
+        while ((i = static_cast<std::int32_t>(data.indexOf(pattern, i))) != -1)
         {
 
-            int next = static_cast<int>(data.indexOf(pattern, i + 1));
+            auto next = static_cast<std::int32_t>(data.indexOf(pattern, i + 1));
             if (next == -1)
                 break;
 
@@ -217,11 +218,12 @@ bool Wizard::IniSettings::parseInx(const QString& path)
             // Remove the pattern from the beginning
             array.remove(0, 12);
 
-            int index = static_cast<int>(array.indexOf("\x06"));
+            auto index = static_cast<std::int32_t>(array.indexOf("\x06"));
             const QString section(array.left(index));
 
             // Figure how many characters to read for the key
-            int length = static_cast<int>(array.indexOf("\x06", section.length() + 3) - (section.length() + 3));
+            auto length
+                = static_cast<std::int32_t>(array.indexOf("\x06", section.length() + 3) - (section.length() + 3));
             const QString key(array.mid(section.length() + 3, length));
 
             QString value(array.mid(section.length() + key.length() + 6));

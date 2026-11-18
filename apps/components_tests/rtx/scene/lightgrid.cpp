@@ -32,9 +32,9 @@ namespace Rtx
         std::vector<std::uint32_t> runIn(const LightGrid& grid, std::uint32_t cell, std::uint32_t key)
         {
             const Shaders::GpuLightCell& held = grid.getCells()[cell];
-            const auto first = grid.getList().begin() + held.mFirst[static_cast<int>(key)];
+            const auto first = grid.getList().begin() + held.mFirst[static_cast<std::int32_t>(key)];
 
-            return std::vector<std::uint32_t>(first, first + held.mCount[static_cast<int>(key)]);
+            return std::vector<std::uint32_t>(first, first + held.mCount[static_cast<std::int32_t>(key)]);
         }
 
         std::vector<std::uint32_t> lampsIn(const LightGrid& grid, std::uint32_t x, std::uint32_t y, std::uint32_t z)
@@ -117,8 +117,8 @@ namespace Rtx
             lights[1].mIntensity = osg::Vec3f(-1.0f, -1.0f, -1.0f);
             grid.rebuild(lights);
             EXPECT_FALSE(grid.wasMadeAgain());
-            EXPECT_EQ(std::vector<Index>(grid.getRewritten().begin(), grid.getRewritten().end()),
-                std::vector<Index>{ middle });
+            EXPECT_EQ(std::vector<LightCellIndex>(grid.getRewritten().begin(), grid.getRewritten().end()),
+                std::vector<LightCellIndex>{ LightCellIndex(middle) });
             EXPECT_EQ(lampsIn(grid, 1, 1, 1), (std::vector<std::uint32_t>{ 0u, 2u }));
             EXPECT_EQ(runIn(grid, middle, 1), std::vector<std::uint32_t>{ 1u });
         }
@@ -357,8 +357,9 @@ namespace Rtx
             lights[0].mPosition.x() = 300.0f;
             EXPECT_EQ(Testing::allocationsIn([&] { grid.rebuild(lights); }), 0u);
             EXPECT_FALSE(grid.wasMadeAgain());
-            EXPECT_EQ(std::vector<Index>(grid.getRewritten().begin(), grid.getRewritten().end()),
-                (std::vector<Index>{ cellAt(grid, 1, 1, 1), cellAt(grid, 2, 1, 1) }));
+            EXPECT_EQ(std::vector<LightCellIndex>(grid.getRewritten().begin(), grid.getRewritten().end()),
+                (std::vector<LightCellIndex>{
+                    LightCellIndex(cellAt(grid, 1, 1, 1)), LightCellIndex(cellAt(grid, 2, 1, 1)) }));
             EXPECT_EQ(grid.getOrigin(), osg::Vec3f(-356.0f, -356.0f, -356.0f)) << "the grid was made again";
             EXPECT_EQ(grid.getSize(), osg::Vec3ui(19u, 3u, 3u));
             EXPECT_TRUE(lampsIn(grid, 1, 1, 1).empty());
@@ -369,10 +370,11 @@ namespace Rtx
             EXPECT_EQ(Testing::allocationsIn([&] { grid.rebuild(lights); }), 0u);
             EXPECT_FALSE(grid.wasMadeAgain())
                 << "a lamp carried past the others into the spare cell made the grid again";
-            std::vector<Index> rewritten(grid.getRewritten().begin(), grid.getRewritten().end());
+            std::vector<LightCellIndex> rewritten(grid.getRewritten().begin(), grid.getRewritten().end());
             std::ranges::sort(rewritten);
-            EXPECT_EQ(
-                rewritten, (std::vector<Index>{ cellAt(grid, 0, 1, 1), cellAt(grid, 1, 1, 1), cellAt(grid, 2, 1, 1) }));
+            EXPECT_EQ(rewritten,
+                (std::vector<LightCellIndex>{ LightCellIndex(cellAt(grid, 0, 1, 1)),
+                    LightCellIndex(cellAt(grid, 1, 1, 1)), LightCellIndex(cellAt(grid, 2, 1, 1)) }));
             EXPECT_EQ(lampsIn(grid, 0, 1, 1), std::vector<std::uint32_t>{ 0u });
             EXPECT_EQ(lampsIn(grid, 1, 1, 1), std::vector<std::uint32_t>{ 0u });
             EXPECT_TRUE(lampsIn(grid, 2, 1, 1).empty());
@@ -415,9 +417,10 @@ namespace Rtx
             lights[2].mPosition.x() = 2048.0f;
             grid.rebuild(lights);
             EXPECT_FALSE(grid.wasMadeAgain());
-            std::vector<Index> rewritten(grid.getRewritten().begin(), grid.getRewritten().end());
+            std::vector<LightCellIndex> rewritten(grid.getRewritten().begin(), grid.getRewritten().end());
             std::ranges::sort(rewritten);
-            EXPECT_EQ(rewritten, (std::vector<Index>{ near, cellAt(grid, 9, 1, 1) }));
+            EXPECT_EQ(rewritten,
+                (std::vector<LightCellIndex>{ LightCellIndex(near), LightCellIndex(cellAt(grid, 9, 1, 1)) }));
             EXPECT_EQ(grid.getCells()[near].mFirst[0], 0u) << "a lamp entered the full run before the other left it";
             EXPECT_EQ(lampsIn(grid, 1, 1, 1), (std::vector<std::uint32_t>{ 0u, 1u }));
             EXPECT_EQ(lampsIn(grid, 9, 1, 1), std::vector<std::uint32_t>{ 2u });
@@ -495,7 +498,7 @@ namespace Rtx
                 light.mPosition = osg::Vec3f(next(500.0f, 3596.0f), next(500.0f, 3596.0f), next(400.0f, 624.0f));
                 light.mReach = next(50.0f, 400.0f);
             };
-            for (int lamp = 0; lamp < 30; ++lamp)
+            for (std::int32_t lamp = 0; lamp < 30; ++lamp)
                 place(lights.emplace_back());
 
             const auto runsOf = [](const LightGrid& grid) {
@@ -511,9 +514,9 @@ namespace Rtx
             std::vector<std::vector<std::uint32_t>> had = runsOf(grid);
             std::size_t madeAgain = 0;
             std::size_t traded = 0;
-            for (int step = 0; step < 300; ++step)
+            for (std::int32_t step = 0; step < 300; ++step)
             {
-                for (int moves = 0; moves < 4; ++moves)
+                for (std::int32_t moves = 0; moves < 4; ++moves)
                 {
                     Light& light = lights[2 + static_cast<std::size_t>(next(0.0f, 30.0f))];
                     const float roll = next(0.0f, 1.0f);
@@ -544,7 +547,8 @@ namespace Rtx
                     {
                         if (runs[at] != had[at])
                         {
-                            EXPECT_NE(std::ranges::find(grid.getRewritten(), static_cast<Index>(at / 2)),
+                            EXPECT_NE(std::ranges::find(
+                                          grid.getRewritten(), LightCellIndex(static_cast<std::uint32_t>(at / 2))),
                                 grid.getRewritten().end())
                                 << "cell " << at / 2 << " changed at step " << step << " and was not owed";
                         }

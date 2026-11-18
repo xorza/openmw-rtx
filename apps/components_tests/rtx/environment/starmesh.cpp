@@ -1,5 +1,6 @@
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,6 +28,7 @@
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/world/nightsky.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -52,7 +54,7 @@ namespace Rtx
             patch->setVertexArray(vertices);
             patch->setTexCoordArray(0, coords, osg::Array::BIND_PER_VERTEX);
             osg::ref_ptr<osg::DrawElementsUShort> triangles = new osg::DrawElementsUShort(GL_TRIANGLES);
-            for (const unsigned short index : std::array<unsigned short, 6>{ 0, 1, 2, 0, 2, 3 })
+            for (const std::uint16_t index : std::array<std::uint16_t, 6>{ 0, 1, 2, 0, 2, 3 })
                 triangles->push_back(index);
             patch->addPrimitiveSet(triangles);
             return patch;
@@ -60,10 +62,10 @@ namespace Rtx
 
         /// A state set binding a sheet of `file` on the first unit: four grey texels, which the
         /// upload takes.
-        osg::ref_ptr<osg::StateSet> binding(const std::string& file, unsigned int flags = osg::StateAttribute::ON)
+        osg::ref_ptr<osg::StateSet> binding(const std::string& file, std::uint32_t flags = osg::StateAttribute::ON)
         {
             osg::ref_ptr<osg::Image> image = Testing::makeImage("", 2, 2);
-            for (int at = 0; at < 16; ++at)
+            for (std::int32_t at = 0; at < 16; ++at)
                 image->data()[at] = 128;
             image->setFileName(file);
 
@@ -77,9 +79,9 @@ namespace Rtx
         struct Given
         {
             SceneDesc& mScene;
-            std::vector<TextureHold>& mHolds;
+            std::vector<ReadingHold>& mHolds;
 
-            Given(SceneDesc& scene, std::vector<TextureHold>& holds)
+            Given(SceneDesc& scene, std::vector<ReadingHold>& holds)
                 : mScene(scene)
                 , mHolds(holds)
             {
@@ -87,7 +89,7 @@ namespace Rtx
 
             ~Given()
             {
-                for (TextureHold& hold : mHolds)
+                for (ReadingHold& hold : mHolds)
                     mScene.drop(std::move(hold));
             }
             Given(const Given&) = delete;
@@ -102,6 +104,7 @@ namespace Rtx
         /// over its own, as the rasterizer's state stack resolves the two.
         TEST(RtxNightSkyTest, aPatchStandsWhereTheGraphPlacesItAndWearsTheSheetItsPathBinds)
         {
+            SceneIdentities identities;
             const osg::Matrix turn = osg::Matrix::rotate(osg::PI_2, osg::X_AXIS);
             osg::ref_ptr<osg::MatrixTransform> dome = new osg::MatrixTransform(turn);
 
@@ -120,16 +123,16 @@ namespace Rtx
             locked->addChild(own);
             dome->addChild(locked);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
 
             const Given given{ scene, holds };
 
             const NightSky sky = readNightSky(scene, *dome, thread, holds);
 
             const NightSky::Patch& overhead = sky.mPatches[0];
-            ASSERT_NE(overhead.mTexture, sNoIndex) << "the sheet two nodes up was not found";
+            ASSERT_NE(overhead.mTexture, sNoRow) << "the sheet two nodes up was not found";
             EXPECT_EQ(
                 scene.textures().getRows()[overhead.mTexture].mPath, VFS::Path::NormalizedView("textures/nebula.dds"));
 
@@ -144,7 +147,7 @@ namespace Rtx
             EXPECT_NEAR(overhead.mAngularRadius, std::atan(0.05f * std::sqrt(2.0f)), 1e-5f);
 
             const NightSky::Patch& overridden = sky.mPatches[1];
-            ASSERT_NE(overridden.mTexture, sNoIndex);
+            ASSERT_NE(overridden.mTexture, sNoRow);
             EXPECT_EQ(scene.textures().getRows()[overridden.mTexture].mPath,
                 VFS::Path::NormalizedView("textures/warrior.dds"))
                 << "the parent's OVERRIDE gave way to the drawable's own";
@@ -157,11 +160,12 @@ namespace Rtx
         /// up, both over the span that makes it a field.
         TEST(RtxNightSkyTest, aFieldsTileIsAWholeNumberOfThemAroundTheSky)
         {
+            SceneIdentities identities;
             constexpr float rate = 1.3f;
-            constexpr int columns = 16;
+            constexpr std::int32_t columns = 16;
             osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
             osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
-            for (int column = 0; column <= columns; ++column)
+            for (std::int32_t column = 0; column <= columns; ++column)
                 for (const float elevation : { 0.1f, 1.4f })
                 {
                     const float azimuth = 2.0f * osg::PIf * static_cast<float>(column) / columns;
@@ -175,22 +179,22 @@ namespace Rtx
             band->setVertexArray(vertices);
             band->setTexCoordArray(0, coords, osg::Array::BIND_PER_VERTEX);
             osg::ref_ptr<osg::DrawElementsUShort> triangles = new osg::DrawElementsUShort(GL_TRIANGLES);
-            for (int column = 0; column < columns; ++column)
-                for (const int corner : { 0, 2, 3, 0, 3, 1 })
-                    triangles->push_back(static_cast<unsigned short>(2 * column + corner));
+            for (std::int32_t column = 0; column < columns; ++column)
+                for (const std::int32_t corner : { 0, 2, 3, 0, 3, 1 })
+                    triangles->push_back(static_cast<std::uint16_t>(2 * column + corner));
             band->addPrimitiveSet(triangles);
             band->setStateSet(binding("textures/stars.dds"));
 
             osg::ref_ptr<osg::Group> dome = new osg::Group;
             dome->addChild(band);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
-            std::vector<TextureHold> holds;
+            std::vector<ReadingHold> holds;
             const Given given{ scene, holds };
 
             const NightSky sky = readNightSky(scene, *dome, thread, holds);
-            ASSERT_NE(sky.mField, sNoIndex) << "the band was not read as a field";
+            ASSERT_NE(sky.mField, sNoRow) << "the band was not read as a field";
             EXPECT_FLOAT_EQ(sky.mTile, osg::PIf / 4.0f);
         }
     }

@@ -1,9 +1,11 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
+
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -13,7 +15,7 @@ namespace ESM
     struct RegionWeatherState
     {
         RefId mWeather;
-        std::map<RefId, uint8_t> mChances;
+        std::map<RefId, std::uint8_t> mChances;
     };
 
     struct WeatherState

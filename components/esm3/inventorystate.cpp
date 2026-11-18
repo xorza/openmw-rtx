@@ -1,15 +1,16 @@
 #include "inventorystate.hpp"
 
+#include <cmath>
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <cmath>
 
 namespace ESM
 {
     namespace
     {
-        constexpr uint32_t sInvalidSlot = static_cast<uint32_t>(-1);
+        constexpr std::uint32_t sInvalidSlot = static_cast<std::uint32_t>(-1);
     }
 
     void InventoryState::load(ESMReader& esm)
@@ -17,7 +18,7 @@ namespace ESM
         // obsolete
         while (esm.isNextSub("IOBJ"))
         {
-            esm.skipHT<int32_t>();
+            esm.skipHT<std::int32_t>();
 
             ObjectState state;
 
@@ -30,7 +31,7 @@ namespace ESM
             mItems.push_back(state);
         }
 
-        uint32_t itemsCount = 0;
+        std::uint32_t itemsCount = 0;
         esm.getHNOT(itemsCount, "ICNT");
         for (; itemsCount > 0; --itemsCount)
         {
@@ -49,13 +50,13 @@ namespace ESM
             mItems.push_back(state);
         }
 
-        std::map<std::pair<ESM::RefId, std::string>, int32_t> levelledItemMap;
+        std::map<std::pair<ESM::RefId, std::string>, std::int32_t> levelledItemMap;
         // Next item is Levelled item
         while (esm.isNextSub("LEVM"))
         {
             // Get its name
             ESM::RefId id = esm.getRefId();
-            int32_t count = 0;
+            std::int32_t count = 0;
             // Then get its count
             esm.getHNT(count, "COUN");
             std::string parentGroup = esm.getHNString("LGRP");
@@ -80,29 +81,29 @@ namespace ESM
         while (esm.isNextSub("EQUI"))
         {
             esm.getSubHeader();
-            int32_t equipIndex = 0;
+            std::int32_t equipIndex = 0;
             esm.getT(equipIndex);
-            int32_t slot = 0;
+            std::int32_t slot = 0;
             esm.getT(slot);
-            mEquipmentSlots[static_cast<uint32_t>(equipIndex)] = slot;
+            mEquipmentSlots[static_cast<std::uint32_t>(equipIndex)] = slot;
         }
 
         if (esm.isNextSub("EQIP"))
         {
             esm.getSubHeader();
-            uint32_t slotsCount = 0;
+            std::uint32_t slotsCount = 0;
             esm.getT(slotsCount);
             for (; slotsCount > 0; --slotsCount)
             {
-                int32_t equipIndex = 0;
+                std::int32_t equipIndex = 0;
                 esm.getT(equipIndex);
-                int32_t slot = 0;
+                std::int32_t slot = 0;
                 esm.getT(slot);
-                mEquipmentSlots[static_cast<uint32_t>(equipIndex)] = slot;
+                mEquipmentSlots[static_cast<std::uint32_t>(equipIndex)] = slot;
             }
         }
 
-        uint32_t selectedEnchantItem = sInvalidSlot;
+        std::uint32_t selectedEnchantItem = sInvalidSlot;
         esm.getHNOT(selectedEnchantItem, "SELE");
         if (selectedEnchantItem == sInvalidSlot)
             mSelectedEnchantItem.reset();
@@ -114,7 +115,7 @@ namespace ESM
         for (const auto& entry : levelledItemMap)
         {
             const ESM::RefId& id = entry.first.first;
-            const int count = entry.second;
+            const std::int32_t count = entry.second;
             for (auto& item : mItems)
             {
                 if (item.mRef.mCount == count && id == item.mRef.mRefID)
@@ -125,7 +126,7 @@ namespace ESM
 
     void InventoryState::save(ESMWriter& esm) const
     {
-        auto itemsCount = static_cast<uint32_t>(mItems.size());
+        auto itemsCount = static_cast<std::uint32_t>(mItems.size());
         if (itemsCount > 0)
         {
             esm.writeHNT("ICNT", itemsCount);
@@ -146,7 +147,7 @@ namespace ESM
             }
         }
 
-        auto slotsCount = static_cast<uint32_t>(mEquipmentSlots.size());
+        auto slotsCount = static_cast<std::uint32_t>(mEquipmentSlots.size());
         if (slotsCount > 0)
         {
             esm.startSubRecord("EQIP");

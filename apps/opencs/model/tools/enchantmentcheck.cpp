@@ -1,19 +1,16 @@
 #include "enchantmentcheck.hpp"
 
-#include <stddef.h>
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadench.hpp>
-
-#include "../prefs/state.hpp"
-
-#include "../world/universalid.hpp"
 
 #include "effectlistcheck.hpp"
 
@@ -23,14 +20,14 @@ CSMTools::EnchantmentCheckStage::EnchantmentCheckStage(const CSMWorld::IdCollect
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::EnchantmentCheckStage::setup()
+std::int32_t CSMTools::EnchantmentCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mEnchantments.getSize();
 }
 
-void CSMTools::EnchantmentCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::EnchantmentCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::Enchantment>& record = mEnchantments.getRecord(stage);
 

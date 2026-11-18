@@ -1,18 +1,18 @@
 #include "recharge.hpp"
 
 #include <algorithm>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/format.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
@@ -59,7 +59,7 @@ namespace MWMechanics
         float x = (player.getClass().getSkill(player, ESM::Skill::Enchant) + intelligenceTerm + luckTerm)
             * stats.getFatigueTerm();
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        int roll = Misc::Rng::roll0to99(prng);
+        std::int32_t roll = Misc::Rng::roll0to99(prng);
         if (static_cast<float>(roll) < x)
         {
             const ESM::RefId& soul = gem.getCellRef().getSoul();
@@ -70,7 +70,7 @@ namespace MWMechanics
             const ESM::Enchantment* enchantment
                 = MWBase::Environment::get().getESMStore()->get<ESM::Enchantment>().find(
                     item.getClass().getEnchantment(item));
-            const int maxCharge = MWMechanics::getEnchantmentCharge(*enchantment);
+            const std::int32_t maxCharge = MWMechanics::getEnchantmentCharge(*enchantment);
             item.getCellRef().setEnchantmentCharge(
                 std::min(item.getCellRef().getEnchantmentCharge() + restored, static_cast<float>(maxCharge)));
 

@@ -56,7 +56,8 @@ namespace
         std::filesystem::path mFolder;
     };
 
-    std::tm localOf(int year, int month, int day, int hour, int minute, int second)
+    std::tm localOf(std::int32_t year, std::int32_t month, std::int32_t day, std::int32_t hour, std::int32_t minute,
+        std::int32_t second)
     {
         std::tm local{};
         local.tm_year = year - 1900;
@@ -223,13 +224,13 @@ namespace
         for (std::size_t i = 0; i < value.size(); ++i)
         {
             const char c = value[i];
-            if (c == '%' && i + 2 < value.size() && std::isxdigit(static_cast<unsigned char>(value[i + 1]))
-                && std::isxdigit(static_cast<unsigned char>(value[i + 2])))
+            if (c == '%' && i + 2 < value.size() && std::isxdigit(static_cast<std::uint8_t>(value[i + 1]))
+                && std::isxdigit(static_cast<std::uint8_t>(value[i + 2])))
             {
                 text += static_cast<char>(std::stoi(std::string(value.substr(i + 1, 2)), nullptr, 16));
                 i += 2;
             }
-            else if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '.' || c == '_' || c == '~')
+            else if (std::isalnum(static_cast<std::uint8_t>(c)) || c == '-' || c == '.' || c == '_' || c == '~')
                 text += c;
             else
                 return std::nullopt;
@@ -358,7 +359,7 @@ namespace
 
         std::vector<std::filesystem::path> written;
         written.reserve(12);
-        for (int minute = 0; minute < 12; ++minute)
+        for (std::int32_t minute = 0; minute < 12; ++minute)
             written.push_back(
                 Crash::writeSessionPackage(reports, "OpenMW", {}, dumps, localOf(2026, 9, 27, 14, minute, 0)).mZip);
         written.push_back(

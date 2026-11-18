@@ -1,14 +1,16 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+#include <vector>
+
+#include <components/esm3/loadpgrd.hpp>
+
 #include "aitemporarybase.hpp"
 #include "aitimer.hpp"
 #include "pathfinding.hpp"
 #include "typedaipackage.hpp"
-
-#include <components/esm3/loadpgrd.hpp>
-
-#include <string_view>
-#include <vector>
 
 namespace ESM
 {
@@ -48,8 +50,8 @@ namespace MWMechanics
         bool mIsWanderingManually;
         bool mCanWanderAlongPathGrid;
 
-        unsigned short mIdleAnimation;
-        std::vector<unsigned short> mBadIdles; // Idle animations that when called cause errors
+        std::uint16_t mIdleAnimation;
+        std::vector<std::uint16_t> mBadIdles; // Idle animations that when called cause errors
 
         bool mPopulateAvailablePositions;
 
@@ -60,7 +62,7 @@ namespace MWMechanics
         bool mTrimCurrentPosition;
 
         float mCheckIdlePositionTimer;
-        int mStuckCount;
+        std::int32_t mStuckCount;
 
         bool mGreeting{ false };
 
@@ -83,7 +85,8 @@ namespace MWMechanics
             \param timeOfDay Currently unimplemented. Not functional in the original engine.
             \param idle Chances of each idle to play (9 in total)
             \param repeat Repeat wander or not **/
-        AiWander(int distance, int duration, int timeOfDay, const std::vector<unsigned char>& idle, bool repeat);
+        AiWander(std::int32_t distance, std::int32_t duration, std::int32_t timeOfDay,
+            const std::vector<std::uint8_t>& idle, bool repeat);
 
         explicit AiWander(const ESM::AiSequence::AiWander* wander);
 
@@ -115,13 +118,13 @@ namespace MWMechanics
 
         bool isStationary() const { return mDistance == 0; }
 
-        std::optional<int> getDistance() const override { return mDistance; }
+        std::optional<std::int32_t> getDistance() const override { return mDistance; }
 
         std::optional<float> getDuration() const override { return static_cast<float>(mDuration); }
 
-        const std::vector<unsigned char>& getIdle() const { return mIdle; }
+        const std::vector<std::uint8_t>& getIdle() const { return mIdle; }
 
-        static std::string_view getIdleGroupName(size_t index) { return sIdleSelectToGroupName[index]; }
+        static std::string_view getIdleGroupName(std::size_t index) { return sIdleSelectToGroupName[index]; }
 
         void resetInitialPosition() override;
 
@@ -130,9 +133,9 @@ namespace MWMechanics
 
         /// Have the given actor play an idle animation
         /// @return Success or error
-        bool playIdle(const MWWorld::Ptr& actor, unsigned short idleSelect);
-        bool checkIdle(const MWWorld::Ptr& actor, unsigned short idleSelect);
-        unsigned short getRandomIdle() const;
+        bool playIdle(const MWWorld::Ptr& actor, std::uint16_t idleSelect);
+        bool checkIdle(const MWWorld::Ptr& actor, std::uint16_t idleSelect);
+        std::uint16_t getRandomIdle() const;
         void setPathToAnAllowedPosition(
             const MWWorld::Ptr& actor, AiWanderStorage& storage, const ESM::Position& actorPos);
         void evadeObstacles(const MWWorld::Ptr& actor, AiWanderStorage& storage);
@@ -144,17 +147,17 @@ namespace MWMechanics
         void onChooseActionStatePerFrameActions(const MWWorld::Ptr& actor, AiWanderStorage& storage);
         bool reactionTimeActions(const MWWorld::Ptr& actor, AiWanderStorage& storage, ESM::Position& pos);
         inline bool isPackageCompleted() const;
-        void wanderNearStart(const MWWorld::Ptr& actor, AiWanderStorage& storage, int wanderDistance);
+        void wanderNearStart(const MWWorld::Ptr& actor, AiWanderStorage& storage, std::int32_t wanderDistance);
         bool destinationIsAtWater(const MWWorld::Ptr& actor, const osg::Vec3f& destination);
         void completeManualWalking(const MWWorld::Ptr& actor, AiWanderStorage& storage);
         bool isNearAllowedPosition(const MWWorld::Ptr& actor, const AiWanderStorage& storage, float distance) const;
 
         // how far the actor can wander from the spawn point
-        const unsigned mDistance;
-        const unsigned mDuration;
+        const std::uint32_t mDistance;
+        const std::uint32_t mDuration;
         float mRemainingDuration;
-        const int mTimeOfDay;
-        const std::vector<unsigned char> mIdle;
+        const std::int32_t mTimeOfDay;
+        const std::vector<std::uint8_t> mIdle;
 
         bool mStoredInitialActorPosition;
         // Note: an original engine does not reset coordinates even when actor changes a cell
@@ -178,8 +181,8 @@ namespace MWMechanics
 
         void setCurrentPositionToClosestAllowedPosition(AiWanderStorage& storage);
 
-        void addNonPathGridAllowedPoints(const ESM::Pathgrid* pathGrid, size_t pointIndex, AiWanderStorage& storage,
-            const Misc::CoordinateConverter& converter);
+        void addNonPathGridAllowedPoints(const ESM::Pathgrid* pathGrid, std::size_t pointIndex,
+            AiWanderStorage& storage, const Misc::CoordinateConverter& converter);
 
         void addPositionBetweenPathgridPoints(
             const ESM::Pathgrid::Point& start, const ESM::Pathgrid::Point& end, AiWanderStorage& storage);

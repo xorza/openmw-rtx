@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -7,11 +8,9 @@
 #include <QObject>
 #include <QTimer>
 #include <QWidget>
-
 #include <osg/PositionAttitudeTransform>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
-
 #include <osgViewer/CompositeViewer>
 
 class QMouseEvent;
@@ -76,7 +75,7 @@ namespace CSVRender
         /// Initiates a request to redraw the view
         void flagAsModified();
 
-        void setVisibilityMask(unsigned int mask);
+        void setVisibilityMask(std::uint32_t mask);
 
         osg::Camera* getCamera();
 

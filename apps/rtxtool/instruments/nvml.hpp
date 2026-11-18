@@ -77,7 +77,7 @@ namespace RtxTool
         };
 
         using Device = void*;
-        using Return = int;
+        using Return = std::int32_t;
 
         /// A started library, ended as it goes: held by the shutdown it is ended with, and built
         /// only once `nvmlInit_v2` answered success.
@@ -91,7 +91,7 @@ namespace RtxTool
 
         /// Fills `mScratch` with the samples newer than `mCursor`, answering the driver's own
         /// word for how it went.
-        Return fetch(unsigned& count);
+        Return fetch(std::uint32_t& count);
 
         Platform::Library::ScopedHandle mLibrary;
 
@@ -104,11 +104,13 @@ namespace RtxTool
         Return (*mInit)() = nullptr;
         Return (*mShutdown)() = nullptr;
         Return (*mHandleByBusId)(const char*, Device*) = nullptr;
-        Return (*mClockInfo)(Device, int, unsigned*) = nullptr;
-        Return (*mTemperature)(Device, int, unsigned*) = nullptr;
+        Return (*mClockInfo)(Device, std::int32_t, std::uint32_t*) = nullptr;
+        Return (*mTemperature)(Device, std::int32_t, std::uint32_t*) = nullptr;
+        // NOLINTNEXTLINE(google-runtime-int): NVML's type
         Return (*mEventReasons)(Device, unsigned long long*) = nullptr;
-        Return (*mProcessUtilization)(Device, RawSample*, unsigned*, unsigned long long) = nullptr;
-        Return (*mProcessName)(unsigned, char*, unsigned) = nullptr;
+        // NOLINTNEXTLINE(google-runtime-int): NVML's type
+        Return (*mProcessUtilization)(Device, RawSample*, std::uint32_t*, unsigned long long) = nullptr;
+        Return (*mProcessName)(std::uint32_t, char*, std::uint32_t) = nullptr;
 
         /// The driver's clock at the newest sample read, which the next read counts from.
         std::uint64_t mCursor = 0;

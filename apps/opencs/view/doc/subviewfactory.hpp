@@ -2,7 +2,7 @@
 
 #include <map>
 
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/universalid.hpp>
 
 namespace CSMDoc
 {

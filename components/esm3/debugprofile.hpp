@@ -1,9 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -23,14 +24,14 @@ namespace ESM
             Flag_Global = 4 // make available from main menu (i.e. not location specific)
         };
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         std::string mDescription;
 
         std::string mScriptText;
 
-        uint32_t mFlags{};
+        std::uint32_t mFlags{};
 
         void load(ESMReader& esm, bool& isDeleted);
         void save(ESMWriter& esm, bool isDeleted = false) const;

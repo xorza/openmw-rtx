@@ -17,7 +17,6 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
-
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/instruments/wholenumber.hpp>
@@ -529,6 +528,11 @@ namespace RtxTool
             "them more: how a machine short of memory loads, its models and images let go and read "
             "again, on one that is not. Not given, what the system leaves them less a GiB");
 
+        option(sFramed, "transparent-huge-pages", bpo::value<std::string>()->default_value("system"),
+            "system, or off to take the process off transparent huge pages before it loads anything: what a "
+            "kernel that gives every mapping huge pages adds to the heap's free memory, which a tour's report "
+            "says. Linux alone has them, and elsewhere a run already has none");
+
         option(sFramed, "pipeline-code", bpo::value<std::string>()->default_value(""),
             "write what the driver compiled each pipeline to, as text, to <dir>/<pipeline>.txt, "
             "numbered where pipelines share a name: on "
@@ -808,9 +812,18 @@ namespace RtxTool
             std::format("how long each weather of a film's --turn-weather, {:g} s unless named, or of a tour's "
                         "circuit, {:g} unless named, stands before it crosses into the next",
                 pacing.mWeatherHold, touring.mWeatherHold));
-        option({ Verb::Tour }, "from", number(anyNumber<std::uint32_t>())->default_value(1),
-            "the leg a tour begins at, counted from one as --plan numbers them: the rest flown after a crash, each "
-            "leg under the hour and the sky the whole tour would have stood it under");
+        option({ Verb::Tour }, "legs", bpo::value<std::string>()->default_value(""),
+            "the legs a tour flies, every one unless named: land, rooms, closing, a leg's number counted from one as "
+            "--plan numbers them, a-b the legs from a to b, a- the legs from a on (the rest after a crash), comma "
+            "separated and taken together; each leg under the hour and the sky the whole tour would have stood it "
+            "under, so it holds against the same leg of a whole tour");
+        option({ Verb::Tour }, "every", number(anyNumber<std::uint32_t>())->default_value(sEveryLeg),
+            std::format(
+                "of the legs --legs names, every Nth land leg and every Nth room flies, the first of each, and "
+                "the closing leg, {} unless named: a sample whose legs' p99 median stood within 3.1 ms and 12% "
+                "of the whole tour's over twelve tours, and which a whole tour's same legs hold exactly. 1 flies "
+                "every leg named, which a release's verdict, a fault's hunt and the rest after a crash ask",
+                sEveryLeg));
         option({ Verb::Tour }, "rooms", number(anyNumber<std::uint32_t>())->default_value(touring.mRooms),
             std::format("how many rooms a tour shares out among the content files by the rooms each adds, never "
                         "under {} a file nor over what it has, each file's with the most references",
@@ -907,7 +920,7 @@ namespace RtxTool
             bpo::value<Files::MaybeQuotedPath>()->default_value(Files::MaybeQuotedPath(), ""),
             "start from this savegame rather than from a new game");
 
-        option(sFramed, "random-seed", number(anyNumber<unsigned int>())->default_value(42),
+        option(sFramed, "random-seed", number(anyNumber<std::uint32_t>())->default_value(42),
             "seed the world's random draws, so two runs of one build draw the same world");
 
         Files::ConfigurationManager::addCommonOptions(result.mDescription);
@@ -948,7 +961,7 @@ namespace RtxTool
             : verb == Verb::Tour    ? sTourFrame
                                     : parseSize(text("size"));
         frame.mFieldOfView = real("fov");
-        frame.mDay = { variables["day"].as<int>(), named("day") };
+        frame.mDay = { variables["day"].as<std::int32_t>(), named("day") };
         if (const Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
             throw std::runtime_error(std::format("--day={} {}", frame.mDay.mValue, checked.error()));
         frame.mUpscale = { Rtx::sUpscaleNames.require(text("upscale"), "an upscale mode"), named("upscale") };
@@ -965,6 +978,10 @@ namespace RtxTool
             frame.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
         if (named("cache-budget"))
             frame.mCacheBudget = variables["cache-budget"].as<std::uint64_t>() * 1024 * 1024;
+        if (const std::string& pages = text("transparent-huge-pages"); pages == "off")
+            frame.mTransparentHugePages = TransparentHugePages::Off;
+        else if (pages != "system")
+            throw std::runtime_error("--transparent-huge-pages is system or off, and not \"" + pages + "\"");
         frame.mPipelineCode = text("pipeline-code");
         if (const std::string& store = text("content-cache"); store == "off")
             frame.mContentCache = NoContentCache{};
@@ -1019,8 +1036,8 @@ namespace RtxTool
             .mHud = on("hud"),
             .mSpellHands = on("spell-hands"),
             .mVanity = on("vanity"),
-            .mNightEye = variables["night-eye"].as<int>(),
-            .mRandomSeed = variables["random-seed"].as<unsigned int>(),
+            .mNightEye = variables["night-eye"].as<std::int32_t>(),
+            .mRandomSeed = variables["random-seed"].as<std::uint32_t>(),
         };
 
         // Each says how long a stop runs, which is one answer.
@@ -1099,9 +1116,10 @@ namespace RtxTool
             touring.mWeatherHold = real("weather-hold");
         touring.mRooms = count("rooms");
         tour.mFrameMs = real("frame-ms");
-        if (count("from") == 0)
-            throw std::runtime_error("--from=0 names no leg: a tour's legs are counted from one");
-        tour.mFrom = count("from");
+        const Result<LegSelection, std::string> legs = LegSelection::parse(text("legs"), count("every"));
+        if (!legs.isOk())
+            throw std::runtime_error(legs.error());
+        tour.mLegs = legs.value();
         if (const std::string& pace = text("pace"); pace == "real")
             tour.mPaced = true;
         else if (pace != "card")

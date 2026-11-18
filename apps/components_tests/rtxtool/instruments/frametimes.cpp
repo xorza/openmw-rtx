@@ -2,6 +2,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -133,7 +134,7 @@ namespace RtxTool
             // second default: at sixty frames p99 is the worst frame and says nothing.
             std::vector<double> hundred;
             hundred.reserve(100);
-            for (int at = 100; at >= 1; --at)
+            for (std::int32_t at = 100; at >= 1; --at)
                 hundred.push_back(static_cast<double>(at));
 
             const FrameTimes large = summarise(hundred);
@@ -225,7 +226,7 @@ namespace RtxTool
             // Ten frames. `trace` runs in all of them at 4 ms, and `blas` in the first two at
             // 20 ms and 10 ms — a pass that costs the run 30 ms and three of them per frame.
             const Rtx::GpuSpan trace{ .mZone = Rtx::FrameZone::Trace, .mMs = 4.0 };
-            for (int frame = 0; frame < 10; ++frame)
+            for (std::int32_t frame = 0; frame < 10; ++frame)
             {
                 const Rtx::GpuSpan blas{ .mZone = Rtx::FrameZone::Blas, .mMs = frame == 0 ? 20.0 : 10.0 };
                 const std::vector<Rtx::GpuSpan> spans
@@ -276,7 +277,7 @@ namespace RtxTool
 
             std::span<const GpuZone> again;
             EXPECT_EQ(Rtx::Testing::allocationsIn([&] {
-                for (int frame = 0; frame < 10; ++frame)
+                for (std::int32_t frame = 0; frame < 10; ++frame)
                     breakdown.add(std::span<const Rtx::GpuSpan>(&trace, 1));
                 again = breakdown.summariseZones();
             }),
@@ -421,7 +422,7 @@ namespace RtxTool
 
             // Three more frames the device wrote no timestamp for, which is what the first frames
             // of a run look like.
-            for (int frame = 0; frame < 3; ++frame)
+            for (std::int32_t frame = 0; frame < 3; ++frame)
                 breakdown.add({});
 
             const std::span<const GpuZone> zones = breakdown.summariseZones();

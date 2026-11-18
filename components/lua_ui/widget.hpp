@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <vector>
@@ -81,7 +82,7 @@ namespace LuaUi
         void mouseWheel(MyGUI::Widget*, float, float, float, float);
 
         virtual bool isTextInput() { return false; }
-        bool collectWarnings(Warnings& warnings, int depth, bool generateWarningStrings) const;
+        bool collectWarnings(Warnings& warnings, std::int32_t depth, bool generateWarningStrings) const;
         std::string diagnosticName() const;
 
     protected:
@@ -90,7 +91,8 @@ namespace LuaUi
         void clearEvents(MyGUI::Widget* w);
 
         sol::object keyEvent(LuaUtil::LuaView& view, MyGUI::KeyCode) const;
-        sol::object mouseEvent(LuaUtil::LuaView& view, int left, int top, MyGUI::MouseButton button) const;
+        sol::object mouseEvent(
+            LuaUtil::LuaView& view, std::int32_t left, std::int32_t top, MyGUI::MouseButton button) const;
 
         MyGUI::IntSize parentSize() const;
         // Size available for content, i.e., parent size minus padding
@@ -201,12 +203,12 @@ namespace LuaUi
 
         void keyPress(MyGUI::Widget*, MyGUI::KeyCode, MyGUI::Char);
         void keyRelease(MyGUI::Widget*, MyGUI::KeyCode);
-        void mouseMove(MyGUI::Widget*, int, int);
-        void mouseDrag(MyGUI::Widget*, int, int, MyGUI::MouseButton);
+        void mouseMove(MyGUI::Widget*, std::int32_t, std::int32_t);
+        void mouseDrag(MyGUI::Widget*, std::int32_t, std::int32_t, MyGUI::MouseButton);
         void mouseClick(MyGUI::Widget*);
         void mouseDoubleClick(MyGUI::Widget*);
-        void mousePress(MyGUI::Widget*, int, int, MyGUI::MouseButton);
-        void mouseRelease(MyGUI::Widget*, int, int, MyGUI::MouseButton);
+        void mousePress(MyGUI::Widget*, std::int32_t, std::int32_t, MyGUI::MouseButton);
+        void mouseRelease(MyGUI::Widget*, std::int32_t, std::int32_t, MyGUI::MouseButton);
         void focusGain(MyGUI::Widget*, MyGUI::Widget*);
         void focusLoss(MyGUI::Widget*, MyGUI::Widget*);
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "importcrec.hpp"
-
 #include <components/esm3/creaturestate.hpp>
+
+#include "importcrec.hpp"
 
 namespace ESSImport
 {

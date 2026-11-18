@@ -1,6 +1,7 @@
 #include "mainwizard.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include <QDateTime>
 #include <QDebug>
@@ -19,13 +20,10 @@
 #include "existinginstallationpage.hpp"
 #include "importpage.hpp"
 #include "installationtargetpage.hpp"
+#include "installsfromdisc.hpp"
 #include "intropage.hpp"
 #include "languageselectionpage.hpp"
 #include "methodselectionpage.hpp"
-
-#ifdef OPENMW_USE_UNSHIELD
-#include "installationpage.hpp"
-#endif
 
 Wizard::MainWizard::MainWizard(Files::ConfigurationManager&& cfgMgr, QWidget* parent)
     : QWizard(parent)
@@ -42,7 +40,7 @@ Wizard::MainWizard::MainWizard(Files::ConfigurationManager&& cfgMgr, QWidget* pa
     // Set the property for comboboxes to the text instead of index
     setDefaultProperty("QComboBox", "currentText", "currentIndexChanged");
 
-    connect(mImporterInvoker->getProcess(), qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+    connect(mImporterInvoker->getProcess(), qOverload<std::int32_t, QProcess::ExitStatus>(&QProcess::finished), this,
         &MainWizard::importerFinished);
 
     Log(Debug::Info) << "Started OpenMW Wizard on " << QDateTime::currentDateTime().toString().toUtf8().constData();
@@ -242,15 +240,14 @@ void Wizard::MainWizard::setupPages()
     setPage(Page_ExistingInstallation, new ExistingInstallationPage(this));
     setPage(Page_InstallationTarget, new InstallationTargetPage(this, mCfgMgr));
     setPage(Page_ComponentSelection, new ComponentSelectionPage(this));
-#ifdef OPENMW_USE_UNSHIELD
-    setPage(Page_Installation, new InstallationPage(this, mGameSettings));
-#endif
+    if constexpr (sInstallsFromDisc)
+        setPage(Page_Installation, makeInstallationPage(this, mGameSettings));
     setPage(Page_Import, new ImportPage(this));
     setPage(Page_Conclusion, new ConclusionPage(this));
     setStartId(Page_Intro);
 }
 
-void Wizard::MainWizard::importerFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void Wizard::MainWizard::importerFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitCode != 0 || exitStatus == QProcess::CrashExit)
         return;

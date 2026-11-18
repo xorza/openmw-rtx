@@ -1,22 +1,21 @@
 #include "pathgridcreator.hpp"
 
-#include <QLabel>
-
+#include <cstdint>
 #include <memory>
 
+#include <QLabel>
+
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idcompletionmanager.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/subcellcollection.hpp>
-#include <apps/opencs/view/world/genericcreator.hpp>
+#include <apps/opencs/view/widget/droplineedit.hpp>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/columns.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idcompletionmanager.hpp"
-#include "../../model/world/idtable.hpp"
-
-#include "../widget/droplineedit.hpp"
+#include "genericcreator.hpp"
 
 class QUndoStack;
 
@@ -56,7 +55,7 @@ void CSVWorld::PathgridCreator::cloneMode(const std::string& originId, const CSM
 
     // Look up cloned record in pathgrids table and set cell ID text.
     CSMWorld::IdTable& table = getPathgridsTable();
-    int column = table.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t column = table.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
     mCell->setText(table.data(table.getModelIndex(originId, column)).toString());
 }
 

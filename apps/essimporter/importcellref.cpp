@@ -1,10 +1,10 @@
 #include "importcellref.hpp"
 
 #include <cmath>
+#include <cstdint>
+
 #include <components/esm3/esmreader.hpp>
 #include <components/misc/concepts.hpp>
-
-#include <cstdint>
 
 namespace ESSImport
 {
@@ -37,7 +37,7 @@ namespace ESSImport
         esm.getHNT(mRefNum.mIndex, "FRMR");
 
         // this is required since openmw supports more than 255 content files
-        int pluginIndex = static_cast<int>((mRefNum.mIndex & 0xff000000) >> 24);
+        auto pluginIndex = static_cast<std::int32_t>((mRefNum.mIndex & 0xff000000) >> 24);
         mRefNum.mContentFile = pluginIndex - 1;
         mRefNum.mIndex &= 0x00ffffff;
 
@@ -154,7 +154,7 @@ namespace ESSImport
         {
             // occurs on levelled creature spawner references
             // probably some identifier for the creature that has been spawned?
-            unsigned char lvcr = 0;
+            std::uint8_t lvcr = 0;
             esm.getHT(lvcr);
             // std::cout << "LVCR: " << (int)lvcr << std::endl;
         }
@@ -165,13 +165,13 @@ namespace ESSImport
         // DATA should occur for all references, except levelled creature spawners
         // I've seen DATA *twice* on a creature record, and with the exact same content too! weird
         // alarmvoi0000.ess
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
             esm.getOptionalComposite("DATA", mPos);
 
         mDeleted = 0;
         if (esm.isNextSub("DELE"))
         {
-            uint32_t deleted = 0;
+            std::uint32_t deleted = 0;
             esm.getHT(deleted);
             mDeleted = ((deleted >> 24) & 0x2) != 0; // the other 3 bytes seem to be uninitialized garbage
         }

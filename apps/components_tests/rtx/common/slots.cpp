@@ -1,4 +1,6 @@
 #include <cstddef>
+#include <cstdint>
+#include <initializer_list>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -18,9 +20,21 @@ namespace Rtx
 {
     namespace
     {
+        /// The rows of the tables these tests stand up, a table of their own.
+        using Row = RowIndex<struct TestRows>;
+
+        /// `at` as rows, in order: what a list of slots is held against.
+        std::vector<Row> rowsAt(std::initializer_list<std::uint32_t> at)
+        {
+            std::vector<Row> rows;
+            for (const std::uint32_t one : at)
+                rows.emplace_back(one);
+            return rows;
+        }
+
         /// A table that hands its rows' protected half to the test, as a table's own `add` and drop
         /// call it.
-        struct HeldInts : HeldRows<int>
+        struct HeldInts : HeldRows<std::int32_t, Row>
         {
             using HeldRows::dropRow;
             using HeldRows::freeRow;
@@ -36,8 +50,8 @@ namespace Rtx
         TEST(RtxSlotRowsTest, aRowIsFreedByTheDropAfterWhichNothingHoldsIt)
         {
             HeldInts rows;
-            const Index first = rows.takeRow(1);
-            const Index second = rows.takeRow(2);
+            const Row first = rows.takeRow(1);
+            const Row second = rows.takeRow(2);
             ASSERT_EQ(rows.getLiveCount(), 2u);
             EXPECT_EQ(rows.getHolds(second), 0u) << "a row arrives with no holds";
 
@@ -56,7 +70,7 @@ namespace Rtx
             EXPECT_TRUE(rows.isLive(first));
 
             // A freed slot is taken over with no holds, whatever its last tenant carried.
-            const Index again = rows.takeRow(4);
+            const Row again = rows.takeRow(4);
             EXPECT_EQ(again, second) << "the lowest free slot";
             EXPECT_EQ(rows.getHolds(again), 0u);
 
@@ -67,13 +81,13 @@ namespace Rtx
 
         struct Keyed
         {
-            int mKey = 0;
-            int mValue = 0;
+            std::int32_t mKey = 0;
+            std::int32_t mValue = 0;
         };
 
         struct KeyOfKeyed
         {
-            int operator()(const Keyed& row) const { return row.mKey; }
+            std::int32_t operator()(const Keyed& row) const { return row.mKey; }
         };
 
         /// **One comparator orders the rows and finds them by the key alone**, so a `flat_set` of
@@ -81,12 +95,12 @@ namespace Rtx
         /// on both sides, a key on either, and a key against a key: the four shapes a set asks.
         TEST(RtxKeyedLessTest, rowsAreOrderedAndFoundByTheKeyInsideThem)
         {
-            boost::container::flat_set<Keyed, KeyedLess<int, KeyOfKeyed>, std::vector<Keyed>> rows;
-            for (const int key : { 3, 1, 5, 4, 2 })
+            boost::container::flat_set<Keyed, KeyedLess<std::int32_t, KeyOfKeyed>, std::vector<Keyed>> rows;
+            for (const std::int32_t key : { 3, 1, 5, 4, 2 })
                 rows.insert(Keyed{ .mKey = key, .mValue = key * 10 });
 
             ASSERT_EQ(rows.size(), 5u);
-            int expected = 1;
+            std::int32_t expected = 1;
             for (const Keyed& row : rows)
                 EXPECT_EQ(row.mKey, expected++) << "the rows are not in the key's order";
 
@@ -104,39 +118,41 @@ namespace Rtx
             EXPECT_EQ(rows.find(5)->mValue, 55);
         }
 
-        /// **A buffer keeps its room within twice what it holds, and gives back the rest whole**:
-        /// eight slots kept under four held, and given back under three, which is the boundary
-        /// `dropSlack` draws; an empty buffer with no room is left as it is.
-        TEST(RtxScratchTest, aBufferKeepsItsRoomUpToTwiceWhatItHoldsAndNoMore)
+        /// **A buffer keeps its room within twice what it holds, and shrinks to what it holds past that, keeping
+        /// it**: eight slots kept under four held, and three left under three, which is the boundary `trimSlack`
+        /// draws; an empty buffer gives its room back, and one with no room is left as it is.
+        TEST(RtxScratchTest, aBufferKeepsItsRoomUpToTwiceWhatItHoldsAndShrinksToItPastThat)
         {
-            const auto roomAfter = [](const std::size_t held) {
-                std::vector<int> buffer;
+            const auto trimmed = [](const std::size_t held) {
+                std::vector<std::int32_t> buffer;
                 buffer.reserve(8);
                 EXPECT_EQ(buffer.capacity(), 8u);
-                buffer.resize(held);
-                dropSlack(buffer);
-                return buffer.capacity();
+                for (std::size_t at = 0; at < held; ++at)
+                    buffer.push_back(static_cast<std::int32_t>(10 * at));
+                trimSlack(buffer);
+                return buffer;
             };
 
-            EXPECT_EQ(roomAfter(4), 8u) << "eight is twice four";
-            EXPECT_EQ(roomAfter(5), 8u);
-            EXPECT_EQ(roomAfter(3), 0u) << "eight is more than twice three";
-            EXPECT_EQ(roomAfter(0), 0u);
+            EXPECT_EQ(trimmed(4).capacity(), 8u) << "eight is twice four";
+            EXPECT_EQ(trimmed(5).capacity(), 8u);
+            EXPECT_EQ(trimmed(3).capacity(), 3u) << "eight is more than twice three";
+            EXPECT_EQ(trimmed(3), (std::vector<std::int32_t>{ 0, 10, 20 })) << "what it held, kept";
+            EXPECT_EQ(trimmed(0).capacity(), 0u);
 
-            std::vector<int> none;
-            dropSlack(none);
+            std::vector<std::int32_t> none;
+            trimSlack(none);
             EXPECT_EQ(none.capacity(), 0u);
         }
 
         struct Reading : Lent
         {
-            int mValue = 0;
+            std::int32_t mValue = 0;
 
             void reuse() { reuseKeeping(*this); }
         };
 
         /// Fills a reading with `value`, for a take.
-        auto valued(const int value)
+        auto valued(const std::int32_t value)
         {
             return [value](Reading& reading) { reading.mValue = value; };
         }
@@ -148,11 +164,11 @@ namespace Rtx
         /// elements' room: the assignment of an empty initializer list.
         TEST(RtxScratchTest, aBufferLetGoOfHoldsNoRoom)
         {
-            std::vector<int> braced(100);
+            std::vector<std::int32_t> braced(100);
             braced = {};
             EXPECT_EQ(braced.capacity(), 100u) << "a brace list gave its room back, and this proves nothing";
 
-            std::vector<int> held(100);
+            std::vector<std::int32_t> held(100);
             letGoOf(held);
             EXPECT_TRUE(held.empty());
             EXPECT_EQ(held.capacity(), 0u);
@@ -197,7 +213,7 @@ namespace Rtx
             std::vector<Reading*> taken;
             taken.reserve(1000);
             EXPECT_LT(Testing::allocationsIn([&] {
-                for (int at = 0; at < 1000; ++at)
+                for (std::int32_t at = 0; at < 1000; ++at)
                     taken.push_back(&spares.take(valued(at)));
             }),
                 1000u + 40u)
@@ -210,13 +226,13 @@ namespace Rtx
                 0u)
                 << "a give-back reached the heap";
 
-            Recycled<std::vector<int>> recycled;
-            std::vector<std::vector<int>> out;
+            Recycled<std::vector<std::int32_t>> recycled;
+            std::vector<std::vector<std::int32_t>> out;
             out.reserve(100);
-            for (int at = 0; at < 100; ++at)
+            for (std::int32_t at = 0; at < 100; ++at)
                 out.push_back(recycled.take());
             EXPECT_EQ(Testing::allocationsIn([&] {
-                for (std::vector<int>& value : out)
+                for (std::vector<std::int32_t>& value : out)
                     recycled.give(std::move(value));
             }),
                 0u)
@@ -252,22 +268,22 @@ namespace Rtx
         /// not, and the two questions every table asks of it read the same byte.
         TEST(RtxSlotPoolTest, aSlotIsFreeFromItsFreeToItsTake)
         {
-            SlotPool pool;
-            EXPECT_FALSE(pool.isFree(3)) << "a slot nothing ever freed";
-            EXPECT_EQ(pool.take(), sNoIndex);
+            SlotPool<Row> pool;
+            EXPECT_FALSE(pool.isFree(Row(3))) << "a slot nothing ever freed";
+            EXPECT_EQ(pool.take(), sNoRow);
 
-            pool.free(3);
-            pool.free(1);
-            EXPECT_TRUE(pool.isFree(3));
-            EXPECT_TRUE(pool.isFree(1));
-            EXPECT_FALSE(pool.isFree(2));
+            pool.free(Row(3));
+            pool.free(Row(1));
+            EXPECT_TRUE(pool.isFree(Row(3)));
+            EXPECT_TRUE(pool.isFree(Row(1)));
+            EXPECT_FALSE(pool.isFree(Row(2)));
 
-            EXPECT_EQ(pool.take(), 1u) << "the lowest";
-            EXPECT_FALSE(pool.isFree(1));
-            EXPECT_TRUE(pool.isFree(3));
-            EXPECT_EQ(pool.take(), 3u);
-            EXPECT_FALSE(pool.isFree(3));
-            EXPECT_EQ(pool.take(), sNoIndex);
+            EXPECT_EQ(pool.take(), Row(1)) << "the lowest";
+            EXPECT_FALSE(pool.isFree(Row(1)));
+            EXPECT_TRUE(pool.isFree(Row(3)));
+            EXPECT_EQ(pool.take(), Row(3));
+            EXPECT_FALSE(pool.isFree(Row(3)));
+            EXPECT_EQ(pool.take(), sNoRow);
         }
 
         /// **A slot freed twice is the pool's assert**, and not two entries on the heap handing one
@@ -275,9 +291,9 @@ namespace Rtx
         /// slot already dropped.
         TEST(RtxSlotPoolTest, aSlotFreedTwiceDies)
         {
-            SlotPool pool;
-            pool.free(2);
-            Testing::expectAssertDies([&] { pool.free(2); }, "a slot freed twice");
+            SlotPool<Row> pool;
+            pool.free(Row(2));
+            Testing::expectAssertDies([&] { pool.free(Row(2)); }, "a slot freed twice");
         }
 
         /// **A slot taken out and named again before the compact stands in the list once, where it
@@ -287,38 +303,38 @@ namespace Rtx
         /// slots still out — 7 and 5 here, with 3 put back and 9 never touched.
         TEST(RtxSlotSetTest, aSlotNamedAgainBeforeTheCompactIsListedOnceWhereItStood)
         {
-            SlotSet set;
+            SlotSet<Row> set;
             set.grow(10);
-            for (const Index slot : { 3u, 7u, 5u, 9u })
+            for (const Row slot : rowsAt({ 3, 7, 5, 9 }))
                 set.add(slot);
 
-            set.remove(3);
-            set.remove(7);
-            set.remove(7);
-            set.remove(5);
-            set.remove(2);
-            EXPECT_FALSE(set.has(3)) << "the flag is exact before the compact";
-            EXPECT_FALSE(set.has(2));
+            set.remove(Row(3));
+            set.remove(Row(7));
+            set.remove(Row(7));
+            set.remove(Row(5));
+            set.remove(Row(2));
+            EXPECT_FALSE(set.has(Row(3))) << "the flag is exact before the compact";
+            EXPECT_FALSE(set.has(Row(2)));
             Testing::expectAssertDies([&] { (void)set.getSlots(); }, "between a remove and the compact");
 
-            set.add(3);
-            set.add(3);
-            EXPECT_TRUE(set.has(3));
+            set.add(Row(3));
+            set.add(Row(3));
+            EXPECT_TRUE(set.has(Row(3)));
             set.compact();
-            EXPECT_EQ(std::vector<Index>(set.getSlots().begin(), set.getSlots().end()), (std::vector<Index>{ 3, 9 }));
-            EXPECT_FALSE(set.has(7));
+            EXPECT_EQ(std::vector<Row>(set.getSlots().begin(), set.getSlots().end()), rowsAt({ 3, 9 }));
+            EXPECT_FALSE(set.has(Row(7)));
 
             // A slot compacted away is absent, so naming it again appends it.
-            set.add(7);
-            set.remove(9);
-            set.add(9);
-            EXPECT_EQ(std::vector<Index>(set.getSlots().begin(), set.getSlots().end()), (std::vector<Index>{ 3, 9, 7 }))
+            set.add(Row(7));
+            set.remove(Row(9));
+            set.add(Row(9));
+            EXPECT_EQ(std::vector<Row>(set.getSlots().begin(), set.getSlots().end()), rowsAt({ 3, 9, 7 }))
                 << "a slot put back before the compact needs none";
 
             set.clear();
             EXPECT_TRUE(set.empty());
-            EXPECT_FALSE(set.has(3));
-            set.add(9);
+            EXPECT_FALSE(set.has(Row(3)));
+            set.add(Row(9));
             EXPECT_EQ(set.getSlots().size(), 1u) << "a cleared set kept a flag";
         }
 
@@ -327,21 +343,19 @@ namespace Rtx
         /// and was taken over is reported arrived — each once, however often it changed sides.
         TEST(RtxSlotChangesTest, theLastWordWinsAndOneCompactSettlesBothLists)
         {
-            SlotChanges changes;
+            SlotChanges<Row> changes;
             changes.grow(8);
-            changes.note(1, SlotNews::Arrived);
-            changes.note(2, SlotNews::Arrived);
-            changes.note(4, SlotNews::Freed);
-            changes.note(1, SlotNews::Freed);
-            changes.note(4, SlotNews::Arrived);
-            changes.note(4, SlotNews::Freed);
-            changes.note(4, SlotNews::Arrived);
+            changes.note(Row(1), SlotNews::Arrived);
+            changes.note(Row(2), SlotNews::Arrived);
+            changes.note(Row(4), SlotNews::Freed);
+            changes.note(Row(1), SlotNews::Freed);
+            changes.note(Row(4), SlotNews::Arrived);
+            changes.note(Row(4), SlotNews::Freed);
+            changes.note(Row(4), SlotNews::Arrived);
             changes.compact();
 
-            EXPECT_EQ(std::vector<Index>(changes.getArrived().begin(), changes.getArrived().end()),
-                (std::vector<Index>{ 2, 4 }));
-            EXPECT_EQ(
-                std::vector<Index>(changes.getFreed().begin(), changes.getFreed().end()), (std::vector<Index>{ 1 }));
+            EXPECT_EQ(std::vector<Row>(changes.getArrived().begin(), changes.getArrived().end()), rowsAt({ 2, 4 }));
+            EXPECT_EQ(std::vector<Row>(changes.getFreed().begin(), changes.getFreed().end()), rowsAt({ 1 }));
         }
 
         /// **An object given back twice is the pool's assert**, and not two entries on the spare

@@ -1,12 +1,12 @@
 #include "searchbox.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 #include <QGridLayout>
 
-#include "../../model/world/columns.hpp"
-
-#include "../../model/tools/search.hpp"
+#include <apps/opencs/model/tools/search.hpp>
+#include <apps/opencs/model/world/columns.hpp>
 
 void CSVTools::SearchBox::updateSearchButtons()
 {
@@ -51,7 +51,7 @@ CSVTools::SearchBox::SearchBox(QWidget* parent)
     mLayout = new QGridLayout(this);
 
     // search panel
-    std::vector<std::pair<int, std::string>> states
+    std::vector<std::pair<std::int32_t, std::string>> states
         = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_Modification);
     states.resize(states.size() - 1); // ignore erased state
 
@@ -63,7 +63,7 @@ CSVTools::SearchBox::SearchBox(QWidget* parent)
     mMode.addItem(tr("ID"));
     mMode.addItem(tr("ID (RegEx)"));
     mMode.addItem(tr("Record State"));
-    connect(&mMode, qOverload<int>(&QComboBox::activated), this, &SearchBox::modeSelected);
+    connect(&mMode, qOverload<std::int32_t>(&QComboBox::activated), this, &SearchBox::modeSelected);
     mLayout->addWidget(&mMode, 0, 0);
 
     connect(&mText, &QLineEdit::textChanged, this, &SearchBox::textChanged);
@@ -114,9 +114,9 @@ void CSVTools::SearchBox::setSearchMode(bool enabled)
     updateSearchButtons();
 }
 
-void CSVTools::SearchBox::setSearchResultCount(int resultCount)
+void CSVTools::SearchBox::setSearchResultCount(std::int32_t resultCount)
 {
-    int priorResultCount = mSearchResultCount;
+    std::int32_t priorResultCount = mSearchResultCount;
     mSearchResultCount = resultCount;
 
     // Update search buttons only if we're changing between zero and non-zero
@@ -178,7 +178,7 @@ void CSVTools::SearchBox::focus()
     mInput.currentWidget()->setFocus();
 }
 
-void CSVTools::SearchBox::modeSelected(int index)
+void CSVTools::SearchBox::modeSelected(std::int32_t index)
 {
     switch (index)
     {

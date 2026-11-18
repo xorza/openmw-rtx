@@ -7,7 +7,7 @@
 
 #include <osg/Image>
 
-#include <components/contentstore/key.hpp>
+#include <components/resource/imageheader.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/textureformat.hpp>
 
@@ -22,6 +22,7 @@ namespace Rtx
 
     void FinestTexels::describe(const osg::Image& image)
     {
+        assert(!Resource::isHeader(image) && "a texture pass handed a header, whose facts its derivation holds");
         mImage = &image;
         mFinest = describeFinest(image, mScratch);
     }
@@ -30,24 +31,6 @@ namespace Rtx
     {
         mFinest.reset();
         mImage = nullptr;
-    }
-
-    void FinestTexels::addTo(ContentStore::Digest& digest) const
-    {
-        const bool described = mFinest.has_value();
-        digest.add(described);
-        if (!described)
-            return;
-
-        const TextureData& finest = *mFinest;
-        const MipLevel& level = finest.mLevels.front();
-        digest.add(finest.mFormat);
-        digest.add(finest.mEncoding);
-        digest.add(level.mWidth);
-        digest.add(level.mHeight);
-
-        assert(finest.levelsFit() && "a key of a description short of its bytes");
-        digest.add(finest.bytesOf(0));
     }
 
     bool solidReachOf(const std::optional<TextureData>& finest, TexelScratch&)

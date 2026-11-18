@@ -1,12 +1,12 @@
-#include "format.hpp"
-
-#include <components/serialization/sizeaccumulator.hpp>
-
-#include <gtest/gtest.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <variant>
+
+#include <gtest/gtest.h>
+
+#include <components/serialization/sizeaccumulator.hpp>
+
+#include "format.hpp"
 
 namespace
 {

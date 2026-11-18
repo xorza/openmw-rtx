@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -22,7 +23,7 @@ namespace EsmTool
     {
     protected:
         std::string mId;
-        uint32_t mFlags;
+        std::uint32_t mFlags;
         ESM::NAME mType{};
         bool mPrintPlain;
 
@@ -37,9 +38,9 @@ namespace EsmTool
 
         virtual std::string getId() const = 0;
 
-        uint32_t getFlags() const { return mFlags; }
+        std::uint32_t getFlags() const { return mFlags; }
 
-        void setFlags(uint32_t flags) { mFlags = flags; }
+        void setFlags(std::uint32_t flags) { mFlags = flags; }
 
         ESM::NAME getType() const { return mType; }
 

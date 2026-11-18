@@ -1,52 +1,49 @@
 #include "creature.hpp"
 
+#include <cmath>
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
-#include <cmath>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/aisetting.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/creaturecustomdataresetter.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/difficultyscaling.hpp>
+#include <apps/openmw/mwmechanics/disease.hpp>
+#include <apps/openmw/mwmechanics/inventory.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwmechanics/movement.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/setbaseaisetting.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actionopen.hpp>
+#include <apps/openmw/mwworld/actiontalk.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/failedaction.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/localscripts.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/creaturestate.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadsndg.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/aisetting.hpp"
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/creaturecustomdataresetter.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/difficultyscaling.hpp"
-#include "../mwmechanics/disease.hpp"
-#include "../mwmechanics/inventory.hpp"
-#include "../mwmechanics/magiceffects.hpp"
-#include "../mwmechanics/movement.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/setbaseaisetting.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/actionopen.hpp"
-#include "../mwworld/actiontalk.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/failedaction.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/localscripts.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-
-#include "../mwgui/tooltips.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"
@@ -200,7 +197,7 @@ namespace MWClass
         {
             const auto& invStore
                 = static_cast<const MWWorld::InventoryStore&>(*customData->asCreatureCustomData().mContainerStore);
-            for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+            for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
             {
                 MWWorld::ConstContainerStoreIterator equipped = invStore.getSlot(slot);
                 if (equipped != invStore.end())
@@ -256,7 +253,7 @@ namespace MWClass
         return static_cast<float>(Misc::Rng::roll0to99(world->getPrng())) < hitchance;
     }
 
-    void Creature::hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, int type,
+    void Creature::hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, std::int32_t type,
         const MWWorld::Ptr& victim, const osg::Vec3f& hitPosition, bool success) const
     {
         MWMechanics::CreatureStats& stats = getCreatureStats(ptr);
@@ -295,7 +292,7 @@ namespace MWClass
         }
 
         MWWorld::LiveCellRef<ESM::Creature>* ref = ptr.get<ESM::Creature>();
-        int min = 0, max = 0;
+        std::int32_t min = 0, max = 0;
         switch (type)
         {
             case 0:
@@ -317,7 +314,7 @@ namespace MWClass
         bool healthdmg = true;
         if (!weapon.isEmpty())
         {
-            const unsigned char* attack = nullptr;
+            const std::uint8_t* attack = nullptr;
             if (type == ESM::Weapon::AT_Chop)
                 attack = weapon.get<ESM::Weapon>()->mBase->mData.mChop.data();
             else if (type == ESM::Weapon::AT_Slash)
@@ -549,7 +546,7 @@ namespace MWClass
         return !aiSeq.isInCombat() || aiSeq.isFleeing();
     }
 
-    MWGui::ToolTipInfo Creature::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Creature::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Creature>* ref = ptr.get<ESM::Creature>();
 
@@ -575,7 +572,7 @@ namespace MWClass
         return stats.getAttribute(ESM::Attribute::Strength).getModified() * 5;
     }
 
-    int Creature::getServices(const MWWorld::ConstPtr& actor) const
+    std::int32_t Creature::getServices(const MWWorld::ConstPtr& actor) const
     {
         return actor.get<ESM::Creature>()->mBase->mAiData.mServices;
     }
@@ -588,7 +585,7 @@ namespace MWClass
 
     ESM::RefId Creature::getSoundIdFromSndGen(const MWWorld::Ptr& ptr, std::string_view name) const
     {
-        int type = getSndGenTypeFromName(ptr, name);
+        std::int32_t type = getSndGenTypeFromName(ptr, name);
         if (type < 0)
             return ESM::RefId();
 
@@ -675,7 +672,7 @@ namespace MWClass
         return isFlagBitSet(ptr, static_cast<ESM::Creature::Flags>(ESM::Creature::Walks | ESM::Creature::Bipedal));
     }
 
-    int Creature::getSndGenTypeFromName(const MWWorld::Ptr& ptr, std::string_view name)
+    std::int32_t Creature::getSndGenTypeFromName(const MWWorld::Ptr& ptr, std::string_view name)
     {
         if (name == "left")
         {
@@ -794,7 +791,7 @@ namespace MWClass
         customData.mCreatureStats.writeState(creatureState.mCreatureStats);
     }
 
-    int Creature::getBaseGold(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Creature::getBaseGold(const MWWorld::ConstPtr& ptr) const
     {
         return ptr.get<ESM::Creature>()->mBase->mData.mGold;
     }
@@ -842,7 +839,7 @@ namespace MWClass
         }
     }
 
-    int Creature::getBaseFightRating(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Creature::getBaseFightRating(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Creature>* ref = ptr.get<ESM::Creature>();
         return ref->mBase->mAiData.mFight;
@@ -854,12 +851,12 @@ namespace MWClass
         scale *= ref->mBase->mScale;
     }
 
-    void Creature::setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, int value) const
+    void Creature::setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, std::int32_t value) const
     {
-        MWMechanics::setBaseAISetting<ESM::Creature>(id, setting, static_cast<unsigned char>(value));
+        MWMechanics::setBaseAISetting<ESM::Creature>(id, setting, static_cast<std::uint8_t>(value));
     }
 
-    void Creature::modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, int amount) const
+    void Creature::modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, std::int32_t amount) const
     {
         MWMechanics::modifyBaseInventory<ESM::Creature>(actorId, itemId, amount);
     }

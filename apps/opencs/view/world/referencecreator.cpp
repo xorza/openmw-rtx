@@ -1,23 +1,22 @@
 #include "referencecreator.hpp"
 
-#include <QLabel>
-
+#include <cstdint>
 #include <memory>
 
+#include <QLabel>
+
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idcompletionmanager.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
-#include <apps/opencs/view/world/genericcreator.hpp>
+#include <apps/opencs/view/widget/droplineedit.hpp>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/columns.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idcompletionmanager.hpp"
-#include "../../model/world/idtable.hpp"
-
-#include "../widget/droplineedit.hpp"
+#include "genericcreator.hpp"
 
 std::string CSVWorld::ReferenceCreator::getId() const
 {
@@ -27,8 +26,8 @@ std::string CSVWorld::ReferenceCreator::getId() const
 void CSVWorld::ReferenceCreator::configureCreateCommand(CSMWorld::CreateCommand& command) const
 {
     // Set cellID
-    int cellIdColumn = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()))
-                           .findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+    std::int32_t cellIdColumn = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()))
+                                    .findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
 
     command.addValue(cellIdColumn, mCell->text());
 }
@@ -90,7 +89,7 @@ void CSVWorld::ReferenceCreator::cloneMode(const std::string& originId, const CS
     CSMWorld::IdTable& referenceTable
         = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(CSMWorld::UniversalId::Type_References));
 
-    int cellIdColumn = referenceTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+    std::int32_t cellIdColumn = referenceTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
 
     mCell->setText(referenceTable.data(referenceTable.getModelIndex(originId, cellIdColumn)).toString());
 

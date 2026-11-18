@@ -1,6 +1,8 @@
 #include "stats.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -8,22 +10,20 @@
 #include <utility>
 #include <variant>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
 #include "context.hpp"
 #include "localscripts.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
 #include "objectvariant.hpp"
 #include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
 
 namespace
 {
@@ -89,23 +89,24 @@ namespace MWLua
 
     namespace
     {
-        static void setCreatureValue(Index, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
+        void setCreatureValue(Index, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
         {
             auto& stats = ptr.getClass().getCreatureStats(ptr);
             if (prop == "current")
-                stats.setLevel(LuaUtil::cast<int>(value));
+                stats.setLevel(LuaUtil::cast<std::int32_t>(value));
         }
 
-        static void setNpcValue(Index index, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
+        void setNpcValue(Index index, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
         {
             auto& stats = ptr.getClass().getNpcStats(ptr);
             if (prop == "progress")
-                stats.setLevelProgress(LuaUtil::cast<int>(value));
+                stats.setLevelProgress(LuaUtil::cast<std::int32_t>(value));
             else if (prop == "skillIncreasesForAttribute")
-                stats.setSkillIncreasesForAttribute(std::get<ESM::RefId>(index), LuaUtil::cast<int>(value));
+                stats.setSkillIncreasesForAttribute(std::get<ESM::RefId>(index), LuaUtil::cast<std::int32_t>(value));
             else if (prop == "skillIncreasesForSpecialization")
                 stats.setSkillIncreasesForSpecialization(
-                    static_cast<ESM::Class::Specialization>(std::get<int>(index)), LuaUtil::cast<int>(value));
+                    static_cast<ESM::Class::Specialization>(std::get<std::int32_t>(index)),
+                    LuaUtil::cast<std::int32_t>(value));
         }
 
         class SkillIncreasesForAttributeStats
@@ -151,7 +152,7 @@ namespace MWLua
             {
             }
 
-            sol::object get(const Context& context, int specialization) const
+            sol::object get(const Context& context, std::int32_t specialization) const
             {
                 if (!mObject.ptr().getClass().isNpc())
                     return sol::nil;
@@ -163,7 +164,7 @@ namespace MWLua
                     });
             }
 
-            void set(const Context& context, int specialization, const sol::object& value) const
+            void set(const Context& context, std::int32_t specialization, const sol::object& value) const
             {
                 const auto& ptr = mObject.ptr();
                 if (!ptr.getClass().isNpc())
@@ -239,9 +240,9 @@ namespace MWLua
         class DynamicStat
         {
             ObjectVariant mObject;
-            int mIndex;
+            std::int32_t mIndex;
 
-            DynamicStat(ObjectVariant object, int index)
+            DynamicStat(ObjectVariant object, std::int32_t index)
                 : mObject(std::move(object))
                 , mIndex(index)
             {
@@ -261,7 +262,7 @@ namespace MWLua
             {
                 if (!object.ptr().getClass().isActor())
                     return {};
-                int index = std::get<int>(i);
+                std::int32_t index = std::get<std::int32_t>(i);
                 return DynamicStat{ std::move(object), index };
             }
 
@@ -274,7 +275,7 @@ namespace MWLua
 
             static void setValue(Index i, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
             {
-                int index = std::get<int>(i);
+                std::int32_t index = std::get<std::int32_t>(i);
                 auto& stats = ptr.getClass().getCreatureStats(ptr);
                 auto stat = stats.getDynamic(index);
                 float floatValue = LuaUtil::cast<float>(value);
@@ -454,16 +455,18 @@ namespace MWLua
             template <class G>
             sol::object get(const Context& context, std::string_view prop, G getter) const
             {
-                return getValue(context, mObject, &AIStat::setValue, static_cast<int>(mIndex), prop,
+                return getValue(context, mObject, &AIStat::setValue, static_cast<std::int32_t>(mIndex), prop,
                     [this, getter](const MWWorld::Ptr& ptr) {
                         return (ptr.getClass().getCreatureStats(ptr).getAiSetting(mIndex).*getter)();
                     });
             }
 
-            int getModified(const Context& context) const
+            std::int32_t getModified(const Context& context) const
             {
-                auto base = LuaUtil::cast<int>(get(context, "base", &MWMechanics::Stat<int>::getBase));
-                auto modifier = LuaUtil::cast<int>(get(context, "modifier", &MWMechanics::Stat<int>::getModifier));
+                auto base
+                    = LuaUtil::cast<std::int32_t>(get(context, "base", &MWMechanics::Stat<std::int32_t>::getBase));
+                auto modifier = LuaUtil::cast<std::int32_t>(
+                    get(context, "modifier", &MWMechanics::Stat<std::int32_t>::getModifier));
                 return std::max(0, base + modifier);
             }
 
@@ -478,15 +481,15 @@ namespace MWLua
             {
                 SelfObject* obj = mObject.asSelfObject();
                 obj->cacheStat(*context.mLuaManager,
-                    SelfObject::CachedStat{ &AIStat::setValue, static_cast<int>(mIndex), prop }, value);
+                    SelfObject::CachedStat{ &AIStat::setValue, static_cast<std::int32_t>(mIndex), prop }, value);
             }
 
             static void setValue(Index i, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
             {
-                auto index = static_cast<MWMechanics::AiSetting>(std::get<int>(i));
+                auto index = static_cast<MWMechanics::AiSetting>(std::get<std::int32_t>(i));
                 auto& stats = ptr.getClass().getCreatureStats(ptr);
                 auto stat = stats.getAiSetting(index);
-                int intValue = LuaUtil::cast<int>(value);
+                std::int32_t intValue = LuaUtil::cast<std::int32_t>(value);
                 if (prop == "base")
                     stat.setBase(intValue);
                 else if (prop == "modifier")
@@ -529,7 +532,7 @@ namespace MWLua
             static void setValue(Index i, std::string_view prop, const MWWorld::Ptr& ptr, const sol::object& value)
             {
                 MWMechanics::NpcStats& stats = ptr.getClass().getNpcStats(ptr);
-                int intValue = LuaUtil::cast<int>(value);
+                std::int32_t intValue = LuaUtil::cast<std::int32_t>(value);
                 stats.setReputation(intValue);
             }
         };
@@ -567,9 +570,9 @@ namespace MWLua
             }
         }
 
-        int32_t getSpecialization(std::string_view id)
+        std::int32_t getSpecialization(std::string_view id)
         {
-            for (int32_t i = ESM::Class::Combat; i <= ESM::Class::Stealth; ++i)
+            for (std::int32_t i = ESM::Class::Combat; i <= ESM::Class::Stealth; ++i)
             {
                 if (ESM::Class::specializationIndexToLuaId[static_cast<std::size_t>(i)] == id)
                     return i;
@@ -611,15 +614,15 @@ namespace MWLua
             else if (value.is<MutableSkillGain>())
             {
                 const auto& other = value.as<MutableSkillGain>().find();
-                for (size_t i = 0; i < skill.mData.mUseValue.size(); ++i)
+                for (std::size_t i = 0; i < skill.mData.mUseValue.size(); ++i)
                     skill.mData.mUseValue[i] = other[i];
             }
             else
             {
                 auto table = value.as<sol::lua_table>();
-                const size_t length = table.size();
+                const std::size_t length = table.size();
                 skill.mData.mUseValue.fill(0.f);
-                for (size_t i = 0; i < skill.mData.mUseValue.size() && i < length; ++i)
+                for (std::size_t i = 0; i < skill.mData.mUseValue.size() && i < length; ++i)
                     skill.mData.mUseValue[i]
                         = table.get<Misc::FiniteFloat>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(i)));
             }
@@ -671,14 +674,14 @@ namespace MWLua
                 auto gainT = lua.new_usertype<MutableSkillGain>("ESM3_MutableSkillGain");
                 gainT[sol::meta_function::length] = [](const MutableSkillGain& array) { return array.find().size(); };
                 gainT[sol::meta_function::index]
-                    = [](const MutableSkillGain& array, uint32_t index) -> std::optional<float> {
+                    = [](const MutableSkillGain& array, std::uint32_t index) -> std::optional<float> {
                     const auto& values = array.find();
                     if (index == 0 || index > values.size())
                         return {};
                     return values[index - 1];
                 };
                 gainT[sol::meta_function::new_index]
-                    = [](MutableSkillGain& array, uint32_t index, Misc::FiniteFloat value) {
+                    = [](MutableSkillGain& array, std::uint32_t index, Misc::FiniteFloat value) {
                           auto& values = array.find();
                           if (index == 0 || index > values.size())
                               throw std::runtime_error("index out of range");
@@ -700,7 +703,7 @@ namespace MWLua
                 });
                 record["skillGain"] = sol::readonly_property([lua](const ESM::Skill& rec) -> sol::table {
                     sol::table res(lua, sol::create);
-                    int index = 1;
+                    std::int32_t index = 1;
                     for (float skillGain : rec.mData.mUseValue)
                         res[index++] = skillGain;
                     return res;
@@ -780,7 +783,7 @@ namespace MWLua
         // ESM::Class::specializationIndexToLuaId.at(rec.mData.mSpecialization)
         auto skillIncreasesForSpecializationStatsT
             = lua.new_usertype<SkillIncreasesForSpecializationStats>("skillIncreasesForSpecializationStats");
-        for (int i = 0; i < 3; i++)
+        for (std::int32_t i = 0; i < 3; i++)
         {
             std::string_view index = ESM::Class::specializationIndexToLuaId.at(static_cast<std::size_t>(i));
             skillIncreasesForSpecializationStatsT[index]
@@ -823,8 +826,8 @@ namespace MWLua
             attributes[ESM::RefId(attribute.mId).serializeText()] = addIndexedAccessor<AttributeStat>(attribute.mId);
 
         auto aiStatT = lua.new_usertype<AIStat>("AIStat");
-        addProp(context, aiStatT, "base", &MWMechanics::Stat<int>::getBase);
-        addProp(context, aiStatT, "modifier", &MWMechanics::Stat<int>::getModifier);
+        addProp(context, aiStatT, "base", &MWMechanics::Stat<std::int32_t>::getBase);
+        addProp(context, aiStatT, "modifier", &MWMechanics::Stat<std::int32_t>::getModifier);
         aiStatT["modified"] = sol::readonly_property([=](const AIStat& stat) { return stat.getModified(context); });
         sol::table ai(lua, sol::create);
         stats["ai"] = LuaUtil::makeReadOnly(ai);

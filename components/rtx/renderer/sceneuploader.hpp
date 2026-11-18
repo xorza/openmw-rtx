@@ -9,8 +9,11 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 
+#include "arrivalwindow.hpp"
 #include "framespend.hpp"
 #include "sceneholder.hpp"
 #include "scenetextures.hpp"
@@ -104,6 +107,11 @@ namespace Rtx
         /// derived from the budget").
         static constexpr std::uint64_t sOthersShare = 10;
 
+        /// **The most of what rests a hand-over counts on moving down rather than evicting**: what the device copies
+        /// of what stands at most in one (`TextureArray::sMoveCopyMost`, 64 MiB), which the core states again since it
+        /// names no backend.
+        static constexpr std::uint64_t sRestShrinkMost = std::uint64_t{ 64 } << 20;
+
         /// **What everything that rests may stand**: what `room`'s budget leaves of what is in use, less other
         /// programs' share, where in use is what the process holds less the `resting` bytes in it, so that what rests
         /// does not shrink its own limit. Nought where use fills the budget.
@@ -129,7 +137,7 @@ namespace Rtx
         void serveWaits(SceneDesc& scene, PreparedImages* prepared, bool settled, std::uint64_t free);
 
         /// Frees what rests, the oldest first, until the device's room holds an arrival of `arriving` bytes of textures
-        /// beside the structures it may build.
+        /// in the pools' room beside the structures it may build in the storages'.
         void evictForRoom(SceneDesc& scene, const ArrivalRoom& room, std::uint64_t arriving);
 
         /// **Evicts for each want of the last answer what surely leaves it room** (`SceneDesc::evictFor`), once: a want
@@ -138,31 +146,39 @@ namespace Rtx
         void serveWants(SceneDesc& scene);
 
         /// Whether a want of `kind` for `slot` was evicted for and its room is not yet the device's.
-        bool isCooling(RestKind kind, Index slot) const;
+        bool isCooling(const RoomWaiter& waiter) const;
 
-        /// Files the textures the last answer named stood short, and forgets those this hand-over described and the
-        /// device stood whole: a wait handed over again, or every one under a rebuild, which describes the whole table.
-        void waitForRoom(const TextureTable& textures);
+        /// Files the textures the last answer named stood short, and forgets those `described` and the device stood
+        /// whole: a wait handed over again, or every one under a rebuild, which describes the whole table; nothing is
+        /// described on a hand-over that only places. One `scene` let go of is passed over, and one that rests is
+        /// evicted.
+        void waitForRoom(SceneDesc& scene, std::span<const SceneTextures::Stood> described);
+
+        /// Files `stood`, a live slot that does not rest, as waiting for its whole file: what `described` handed over
+        /// of it, or what it stood before the device moved it down.
+        void fileWait(SceneDesc& scene, const ShortTexture& stood, std::span<const SceneTextures::Stood> described);
+
+        /// Evicts each texture the device moved down while it rested that rests still (`mMovedResting`), and files one
+        /// taken again since as waiting.
+        void settleMovedResting(SceneDesc& scene);
 
         /// Whether `slot` waits for room.
-        bool isWaiting(Index slot) const;
+        bool isWaiting(TextureIndex slot) const;
 
         /// What an arrival is described into, and the storage the descriptions point at. Held, so
         /// an arrival frame does not pay for the buffers; nothing reads them between calls.
         SceneTextures mTextures;
 
         /// The slots stood in for while their images are made: asked after at every hand-over, and
-        /// stood once made (`TextureTable::prepare`).
+        /// stood once made (`SceneTextures::getPending`).
         std::vector<SceneTextures::Pending> mPending;
 
-        /// The most bytes one extension has handed the device, of its arriving files and the structures it built: the
-        /// room what rests leaves free (`SceneDesc::evictResting`), and the step it comes down to its limit by
-        /// (`RestLimit::mStep`). Not a rebuild's, which hands over the whole world and would pace nothing.
-        std::uint64_t mLargestArrival = 0;
-
-        /// The same of the structures alone: the room an arrival's structures may take, which only the device knows
-        /// once it built them, beside its textures, which the descriptions say before (`evictForRoom`).
-        std::uint64_t mLargestStructures = 0;
+        /// The most bytes one recent extension has handed the device, of its arriving files and the structures it
+        /// built: the room what rests leaves free (`SceneDesc::evictResting`), and the step it comes down to its limit
+        /// by (`RestLimit::mStep`); and of the structures alone, the room an arrival's structures may take, which only
+        /// the device knows once it built them, beside its textures, which the descriptions say before
+        /// (`evictForRoom`). Not a rebuild's, which hands over the whole world and would pace nothing.
+        ArrivalWindow mArrivals;
 
         /// What the device made of a hand-over (`SceneHolder::takeAnswer`), refilled each time.
         DeviceAnswer mAnswer;
@@ -176,15 +192,21 @@ namespace Rtx
         /// A wait the hand-over stood whole goes, and with it what was read.
         struct TextureWait
         {
-            Index mSlot = sNoIndex;
+            TextureIndex mSlot = sNoRow;
             osg::ref_ptr<const osg::Image> mSource;
             std::uint64_t mFileBytes = 0;
             std::uint64_t mStoodBytes = 0;
             std::uint32_t mWaited = 0;
             bool mReading = false;
 
+            /// How the read was asked, while `mReading`: what a wait that ends before it was handed forgets
+            /// (`PreparedImages::forget`), its slot perhaps another file's by then.
+            TextureEncoding mEncoding{};
+            TextureWrap mWrap{};
+            osg::ref_ptr<const osg::Image> mPartner;
+
             /// What the read handed back where it was ready at once, held until the hand-over describes it.
-            PreparedImage mRead;
+            PreparedImage mRead{};
 
             /// What the device's room has to hold for it to stand whole: what it lacks of its file.
             std::uint64_t getLacking() const { return mFileBytes - std::min(mStoodBytes, mFileBytes); }
@@ -193,12 +215,15 @@ namespace Rtx
         /// The textures waiting for room, each slot once, so no more than the texture table's capacity.
         std::vector<TextureWait> mTextureWaits;
 
+        /// The textures the last answer said the device moved down while they rested, no more than it named: settled
+        /// at the next hand-over (`settleMovedResting`).
+        std::vector<ShortTexture> mMovedResting;
+
         /// A want evicted for (`serveWants`): whose, and the hand-over from which the room its eviction gave back is
         /// the device's.
         struct WantCooling
         {
-            RestKind mKind = RestKind::Texture;
-            Index mSlot = sNoIndex;
+            RoomWaiter mWaiter;
             std::uint64_t mUntil = 0;
         };
 

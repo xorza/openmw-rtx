@@ -1,11 +1,12 @@
 #include "worker.hpp"
 
-#include "luamanagerimp.hpp"
+#include <cstdint>
 
-#include "apps/openmw/profile.hpp"
-
+#include <apps/openmw/profile.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/settings/values.hpp>
+
+#include "luamanagerimp.hpp"
 
 namespace MWLua
 {
@@ -13,7 +14,7 @@ namespace MWLua
     {
         // Step size (roughly KBytes of GC work) per background-loop lua_gc call.
         // Small enough that finishGc() never waits long for the step in flight.
-        constexpr int sGcStepSize = 10;
+        constexpr std::int32_t sGcStepSize = 10;
     }
 
     Worker::Worker(LuaManager& manager)
@@ -33,7 +34,8 @@ namespace MWLua
         }
     }
 
-    void Worker::allowUpdate(Misc::FrameClock::time_point statsEpoch, unsigned frameNumber, Misc::FrameStats& stats)
+    void Worker::allowUpdate(
+        Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats)
     {
         if (!mThread)
             return;
@@ -44,7 +46,8 @@ namespace MWLua
         mCV.notify_one();
     }
 
-    void Worker::finishUpdate(Misc::FrameClock::time_point statsEpoch, unsigned frameNumber, Misc::FrameStats& stats)
+    void Worker::finishUpdate(
+        Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats)
     {
         if (mThread)
         {
@@ -57,7 +60,7 @@ namespace MWLua
 
     void Worker::gc()
     {
-        const int steps = Settings::lua().mGcStepsPerFrame;
+        const std::int32_t steps = Settings::lua().mGcStepsPerFrame;
         if (steps <= 0)
             return;
         if (!mThread)
@@ -94,7 +97,7 @@ namespace MWLua
         }
     }
 
-    void Worker::update(Misc::FrameClock::time_point statsEpoch, unsigned frameNumber, Misc::FrameStats& stats)
+    void Worker::update(Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats)
     {
         OMW::ScopedProfile<OMW::UserStatsType::Lua> profile(statsEpoch, frameNumber, stats);
 

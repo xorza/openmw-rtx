@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace Compiler
@@ -12,9 +13,9 @@ namespace Compiler
 
     class ErrorHandler
     {
-        int mWarnings;
-        int mErrors;
-        int mWarningsMode;
+        std::int32_t mWarnings;
+        std::int32_t mErrors;
+        std::int32_t mWarningsMode;
         bool mDowngradeErrors;
 
     protected:
@@ -43,10 +44,10 @@ namespace Compiler
         bool isGood() const;
         ///< Was compiling successful?
 
-        int countErrors() const;
+        std::int32_t countErrors() const;
         ///< Return number of errors
 
-        int countWarnings() const;
+        std::int32_t countWarnings() const;
         ///< Return number of warnings
 
         void warning(const std::string& message, const TokenLoc& loc);
@@ -61,7 +62,7 @@ namespace Compiler
         virtual void reset();
         ///< Remove all previous error/warning events
 
-        void setWarningsMode(int mode);
+        void setWarningsMode(std::int32_t mode);
         ///< // 0 ignore, 1 rate as warning, 2 rate as error
 
         /// Treat errors as warnings.

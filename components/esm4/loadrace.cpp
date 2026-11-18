@@ -27,6 +27,8 @@
 #include "loadrace.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <format>
 #include <optional>
@@ -53,7 +55,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
     mGameFormat = reader.gameFormat();
 
     bool isMale = false;
-    int currPart = -1; // 0 = head, 1 = body, 2 = egt, 3 = hkx
+    std::int32_t currPart = -1; // 0 = head, 1 = body, 2 = egt, 3 = hkx
     std::optional<std::uint32_t> currentIndex;
 
     while (reader.getSubRecordHeader())
@@ -115,7 +117,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                 {
                     std::uint8_t skill = 0;
                     std::uint8_t bonus = 0;
-                    for (unsigned int i = 0; i < 8; ++i)
+                    for (std::uint32_t i = 0; i < 8; ++i)
                     {
                         reader.get(skill);
                         reader.get(bonus);
@@ -131,7 +133,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                 {
                     std::uint8_t skill = 0;
                     std::uint8_t bonus = 0;
-                    for (unsigned int i = 0; i < 7; ++i)
+                    for (std::uint32_t i = 0; i < 7; ++i)
                     {
                         reader.get(skill);
                         reader.get(bonus);
@@ -156,7 +158,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                     reader.get(dummy); // accleration rate
                     reader.get(dummy); // decleration rate
 
-                    uint32_t dummy2 = 0;
+                    std::uint32_t dummy2 = 0;
                     reader.get(dummy2); // size
                     reader.get(dummy2); // head biped object
                     reader.get(dummy2); // hair biped object
@@ -418,7 +420,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                 {
                     std::size_t numHairChoices = subHdr.dataSize / sizeof(ESM::FormId32);
                     mHairChoices.resize(numHairChoices);
-                    for (unsigned int i = 0; i < numHairChoices; ++i)
+                    for (std::uint32_t i = 0; i < numHairChoices; ++i)
                         reader.getFormId(mHairChoices.at(i));
                 }
 
@@ -428,7 +430,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
             {
                 std::size_t numEyeChoices = subHdr.dataSize / sizeof(ESM::FormId32);
                 mEyeChoices.resize(numEyeChoices);
-                for (unsigned int i = 0; i < numEyeChoices; ++i)
+                for (std::uint32_t i = 0; i < numEyeChoices; ++i)
                     reader.getFormId(mEyeChoices.at(i));
 
                 break;
@@ -511,7 +513,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                 {
                     // equipment type flags meant to be uint32 ???  GLOB reference? shows up in
                     // SCRO in sript records and CTDA in INFO records
-                    uint32_t dummy = 0;
+                    std::uint32_t dummy = 0;
                     reader.get(dummy);
                 }
                 else
@@ -538,7 +540,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
             case ESM::fourCC("KWDA"):
             {
                 ESM::FormId formid;
-                for (unsigned int i = 0; i < mNumKeywords; ++i)
+                for (std::uint32_t i = 0; i < mNumKeywords; ++i)
                     reader.getFormId(formid);
                 break;
             }

@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <vector>
 
 #include <QWidget>
 
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/universalid.hpp>
 
 class QPushButton;
 class QGroupBox;
@@ -44,8 +45,8 @@ namespace CSVWorld
         QPushButton* mCancelButton;
         QGroupBox* mTypeGroup;
         CheckBoxMap mTypeCheckBoxes;
-        int mNumUsedCheckBoxes;
-        int mNumChecked;
+        std::int32_t mNumUsedCheckBoxes;
+        std::int32_t mNumChecked;
 
         Mode mMode;
         CSMWorld::CommandDispatcher* mCommandDispatcher;
@@ -70,7 +71,7 @@ namespace CSVWorld
 
     private slots:
         void performExtendedCommand();
-        void checkBoxStateChanged(int state);
+        void checkBoxStateChanged(std::int32_t state);
         void dataIdListChanged();
 
     signals:

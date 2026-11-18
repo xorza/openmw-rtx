@@ -1,15 +1,15 @@
 #include "repair.hpp"
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/format.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
@@ -28,7 +28,7 @@ namespace MWMechanics
         player.getClass().getContainerStore(player).unstack(mTool);
 
         // reduce number of uses left
-        int uses = mTool.getClass().getItemHealth(mTool);
+        std::int32_t uses = mTool.getClass().getItemHealth(mTool);
         uses -= std::min(uses, 1);
         mTool.getCellRef().setCharge(uses);
 
@@ -50,14 +50,14 @@ namespace MWMechanics
         float x = (0.1f * pcStrength + 0.1f * pcLuck + armorerSkill) * fatigueTerm;
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        int roll = Misc::Rng::roll0to99(prng);
+        std::int32_t roll = Misc::Rng::roll0to99(prng);
         if (static_cast<float>(roll) <= x)
         {
-            int y = static_cast<int>(fRepairAmountMult * toolQuality * static_cast<float>(roll));
+            auto y = static_cast<std::int32_t>(fRepairAmountMult * toolQuality * static_cast<float>(roll));
             y = std::max(1, y);
 
             // repair by 'y' points
-            int charge = itemToRepair.getClass().getItemHealth(itemToRepair);
+            std::int32_t charge = itemToRepair.getClass().getItemHealth(itemToRepair);
             charge = std::min(charge + y, itemToRepair.getClass().getItemMaxHealth(itemToRepair));
             itemToRepair.getCellRef().setCharge(charge);
 

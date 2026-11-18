@@ -1,6 +1,7 @@
 #include "loadsndg.hpp"
 
-#include "components/esm/defs.hpp"
+#include <components/esm/defs.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 

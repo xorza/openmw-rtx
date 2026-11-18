@@ -1,8 +1,10 @@
 #include "viewdata.hpp"
 
-#include "quadtreenode.hpp"
-
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+
+#include "quadtreenode.hpp"
 
 namespace Terrain
 {
@@ -32,7 +34,7 @@ namespace Terrain
 
     void ViewData::add(QuadTreeNode* node)
     {
-        unsigned int index = mNumEntries++;
+        std::uint32_t index = mNumEntries++;
 
         if (index + 1 > mEntries.size())
             mEntries.resize(index + 1);
@@ -56,7 +58,7 @@ namespace Terrain
     void ViewData::reset()
     {
         // clear any unused entries
-        for (unsigned int i = mNumEntries; i < mEntries.size(); ++i)
+        for (std::uint32_t i = mNumEntries; i < mEntries.size(); ++i)
             mEntries[i].set(nullptr);
 
         // reset index for next frame
@@ -167,7 +169,7 @@ namespace Terrain
             {
                 if (vd->getWorldUpdateRevision() != mWorldUpdateRevision)
                 {
-                    vd->setWorldUpdateRevision(static_cast<int>(mWorldUpdateRevision));
+                    vd->setWorldUpdateRevision(static_cast<std::int32_t>(mWorldUpdateRevision));
                     vd->clear();
                 }
                 vd->setViewPoint(viewPoint);
@@ -192,14 +194,14 @@ namespace Terrain
             vd = &mViewVector.back();
         }
         mUsedViews.push_back(vd);
-        vd->setWorldUpdateRevision(static_cast<int>(mWorldUpdateRevision));
+        vd->setWorldUpdateRevision(static_cast<std::int32_t>(mWorldUpdateRevision));
         return vd;
     }
 
     std::unique_ptr<ViewData> ViewDataMap::createIndependentView() const
     {
         auto vd = std::make_unique<ViewData>();
-        vd->setWorldUpdateRevision(static_cast<int>(mWorldUpdateRevision));
+        vd->setWorldUpdateRevision(static_cast<std::int32_t>(mWorldUpdateRevision));
         return vd;
     }
 

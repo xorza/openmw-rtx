@@ -1,6 +1,8 @@
 #include "pathgrid.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <list>
 #include <set>
 
@@ -44,7 +46,7 @@ namespace
         return manhattan(a, b);
     }
 
-    constexpr size_t NoIndex = static_cast<size_t>(-1);
+    constexpr std::size_t NoIndex = static_cast<std::size_t>(-1);
 }
 
 namespace MWMechanics
@@ -55,19 +57,19 @@ namespace MWMechanics
         std::vector<Node>& mGraph;
 
         // variables used to calculate connected components
-        int mSCCId = 0;
-        size_t mSCCIndex = 0;
-        std::vector<size_t> mSCCStack;
-        std::vector<std::pair<size_t, size_t>> mSCCPoint; // first is index, second is lowlink
+        std::int32_t mSCCId = 0;
+        std::size_t mSCCIndex = 0;
+        std::vector<std::size_t> mSCCStack;
+        std::vector<std::pair<std::size_t, std::size_t>> mSCCPoint; // first is index, second is lowlink
 
         // v is the pathgrid point index (some call them vertices)
-        void recursiveStrongConnect(const size_t v)
+        void recursiveStrongConnect(const std::size_t v)
         {
             mSCCPoint[v].first = mSCCIndex; // index
             mSCCPoint[v].second = mSCCIndex; // lowlink
             mSCCIndex++;
             mSCCStack.push_back(v);
-            size_t w = 0;
+            std::size_t w = 0;
 
             for (const auto& edge : mGraph[v].edges)
             {
@@ -123,11 +125,11 @@ namespace MWMechanics
             // both of these are set to zero in the constructor
             // mSCCId = 0; // how many strongly connected components in this cell
             // mSCCIndex = 0;
-            size_t pointsSize = graph.mPathgrid->mPoints.size();
-            mSCCPoint.resize(pointsSize, std::pair<size_t, size_t>(NoIndex, NoIndex));
+            std::size_t pointsSize = graph.mPathgrid->mPoints.size();
+            mSCCPoint.resize(pointsSize, std::pair<std::size_t, std::size_t>(NoIndex, NoIndex));
             mSCCStack.reserve(pointsSize);
 
-            for (size_t v = 0; v < pointsSize; ++v)
+            for (std::size_t v = 0; v < pointsSize; ++v)
             {
                 if (mSCCPoint[v].first == NoIndex) // undefined (haven't visited)
                     recursiveStrongConnect(v);
@@ -192,12 +194,12 @@ namespace MWMechanics
 
     const PathgridGraph PathgridGraph::sEmpty = {};
 
-    bool PathgridGraph::isPointConnected(const size_t start, const size_t end) const
+    bool PathgridGraph::isPointConnected(const std::size_t start, const std::size_t end) const
     {
         return (mGraph[start].componentId == mGraph[end].componentId);
     }
 
-    void PathgridGraph::getNeighbouringPoints(const size_t index, ESM::Pathgrid::PointList& nodes) const
+    void PathgridGraph::getNeighbouringPoints(const std::size_t index, ESM::Pathgrid::PointList& nodes) const
     {
         for (const auto& edge : mGraph[index].edges)
         {
@@ -233,7 +235,7 @@ namespace MWMechanics
      *       pathgrid points form (currently they are converted to world
      *       coordinates).  Essentially trading speed w/ memory.
      */
-    std::deque<ESM::Pathgrid::Point> PathgridGraph::aStarSearch(const size_t start, const size_t goal) const
+    std::deque<ESM::Pathgrid::Point> PathgridGraph::aStarSearch(const std::size_t start, const std::size_t goal) const
     {
         std::deque<ESM::Pathgrid::Point> path;
         if (!isPointConnected(start, goal))
@@ -241,20 +243,20 @@ namespace MWMechanics
             return path; // there is no path, return an empty path
         }
 
-        size_t graphSize = mGraph.size();
+        std::size_t graphSize = mGraph.size();
         std::vector<float> gScore(graphSize, -1);
         std::vector<float> fScore(graphSize, -1);
-        std::vector<size_t> graphParent(graphSize, NoIndex);
+        std::vector<std::size_t> graphParent(graphSize, NoIndex);
 
         // gScore & fScore keep costs for each pathgrid point in mPoints
         gScore[start] = 0;
         fScore[start] = costAStar(mPathgrid->mPoints[start], mPathgrid->mPoints[goal]);
 
-        std::list<size_t> openset;
-        std::set<size_t> closedset;
+        std::list<std::size_t> openset;
+        std::set<std::size_t> closedset;
         openset.push_back(start);
 
-        size_t current = start;
+        std::size_t current = start;
 
         while (!openset.empty())
         {
@@ -272,7 +274,7 @@ namespace MWMechanics
                 if (!closedset.contains(edge.index))
                 {
                     // not in closedset - i.e. have not traversed this edge destination
-                    size_t dest = edge.index;
+                    std::size_t dest = edge.index;
                     float tentativeG = gScore[current] + edge.cost;
                     bool isInOpenSet = std::find(openset.begin(), openset.end(), dest) != openset.end();
                     if (!isInOpenSet || tentativeG < gScore[dest])

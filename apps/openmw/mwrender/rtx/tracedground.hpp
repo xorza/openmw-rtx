@@ -2,10 +2,9 @@
 
 #include <cstdint>
 
+#include <apps/openmw/mwrender/ground.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
-
-#include <apps/openmw/mwrender/ground.hpp>
 
 #include "tracedterrain.hpp"
 
@@ -29,6 +28,11 @@ namespace MWRender
     bool standsAway(
         bool sameWorldspace, const ESM::Position& standing, const ESM::Position& placed, ESM::RefId worldspace);
 
+    /// **Whether a record of `type` can be a reference the cell ring holds**: an actor or a list of them is a body the
+    /// scene graph mirrors and the physics moves on every frame, which no held cell stands, and whose every move the
+    /// ring would otherwise keep for good (`CellPlacer::moveReference`).
+    bool ringMayHold(std::int32_t type);
+
     /// The ground and the distance as the ray tracer has them: a `TracedTerrain` that draws no
     /// chunks, and the mirror's cell ring, which stands the distant statics itself. What the game
     /// says of a reference reaches the ring through this and the mirror, the way it reaches the
@@ -37,7 +41,7 @@ namespace MWRender
     {
     public:
         TracedGround(
-            const GroundSpec& spec, Resource::SceneManager& scenes, unsigned int nodeMask, Rtx::CellRing& ring);
+            const GroundSpec& spec, Resource::SceneManager& scenes, std::uint32_t nodeMask, Rtx::CellRing& ring);
 
         Terrain::World& getTerrain() override { return mTerrain; }
 
@@ -45,11 +49,12 @@ namespace MWRender
         /// own walk, so the game has nothing to rebuild here. The rest of what the reference says
         /// is the paging's, and the seam's default answers the two questions a ring has no cache
         /// and no grid for.
-        bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) override;
+        bool enableReference(std::int32_t type, const MWWorld::ConstPtr& ptr, bool enabled) override;
 
         /// Where the game holds the reference now, to the ring (`CellPlacer::moveReference`), or
         /// that it is gone, where the game deleted it.
-        void blacklistReference(int type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) override;
+        void blacklistReference(
+            std::int32_t type, const MWWorld::ConstPtr& paged, const MWWorld::ConstPtr& now) override;
         void setGate(std::uint32_t gate, Terrain::GateState state) override;
 
         void clear() override;

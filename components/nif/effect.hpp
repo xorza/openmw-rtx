@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "node.hpp"
 
 namespace Nif
@@ -65,7 +67,7 @@ namespace Nif
 
     struct NiTextureEffect : NiDynamicEffect
     {
-        enum class TextureType : uint32_t
+        enum class TextureType : std::uint32_t
         {
             ProjectedLight = 0,
             ProjectedShadow = 1,
@@ -73,7 +75,7 @@ namespace Nif
             FogMap = 3,
         };
 
-        enum class CoordGenType : uint32_t
+        enum class CoordGenType : std::uint32_t
         {
             WorldParallel = 0,
             WorldPerspective = 1,
@@ -84,13 +86,13 @@ namespace Nif
 
         Matrix3 mProjectionRotation;
         osg::Vec3f mProjectionPosition;
-        uint32_t mFilterMode{};
+        std::uint32_t mFilterMode{};
         NiSourceTexturePtr mTexture;
-        uint16_t mMaxAnisotropy{ 0 };
-        uint32_t mClampMode{};
+        std::uint16_t mMaxAnisotropy{ 0 };
+        std::uint32_t mClampMode{};
         TextureType mTextureType{};
         CoordGenType mCoordGenType{};
-        uint8_t mEnableClipPlane{};
+        std::uint8_t mEnableClipPlane{};
         osg::Plane mClipPlane;
 
         void read(NIFStream* nif) override;

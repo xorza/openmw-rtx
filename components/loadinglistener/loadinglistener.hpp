@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -31,11 +32,11 @@ namespace Loading
         virtual void loadingOff() {}
 
         /// Set the total range of progress (e.g. the number of objects to load).
-        virtual void setProgressRange(size_t range) {}
+        virtual void setProgressRange(std::size_t range) {}
         /// Set current progress. Valid range is [0, progressRange)
-        virtual void setProgress(size_t value) {}
+        virtual void setProgress(std::size_t value) {}
         /// Increase current progress, default by 1.
-        virtual void increaseProgress(size_t increase = 1) {}
+        virtual void increaseProgress(std::size_t increase = 1) {}
 
         virtual ~Listener() = default;
     };

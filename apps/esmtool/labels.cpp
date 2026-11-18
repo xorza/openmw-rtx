@@ -1,5 +1,6 @@
 #include "labels.hpp"
 
+#include <cstdint>
 #include <format>
 
 #include <components/esm3/dialoguecondition.hpp>
@@ -19,7 +20,7 @@
 #include <components/esm3/loadspel.hpp>
 #include <components/esm3/loadweap.hpp>
 
-std::string_view bodyPartLabel(int idx)
+std::string_view bodyPartLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 26)
     {
@@ -58,7 +59,7 @@ std::string_view bodyPartLabel(int idx)
         return "Invalid";
 }
 
-std::string_view meshPartLabel(int idx)
+std::string_view meshPartLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= ESM::BodyPart::MP_Tail)
     {
@@ -85,7 +86,7 @@ std::string_view meshPartLabel(int idx)
         return "Invalid";
 }
 
-std::string_view meshTypeLabel(int idx)
+std::string_view meshTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= ESM::BodyPart::MT_Armor)
     {
@@ -100,7 +101,7 @@ std::string_view meshTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view clothingTypeLabel(int idx)
+std::string_view clothingTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 9)
     {
@@ -122,7 +123,7 @@ std::string_view clothingTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view armorTypeLabel(int idx)
+std::string_view armorTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 10)
     {
@@ -145,7 +146,7 @@ std::string_view armorTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view dialogTypeLabel(int idx)
+std::string_view dialogTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 4)
     {
@@ -164,7 +165,7 @@ std::string_view dialogTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view questStatusLabel(int idx)
+std::string_view questStatusLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 4)
     {
@@ -181,7 +182,7 @@ std::string_view questStatusLabel(int idx)
         return "Invalid";
 }
 
-std::string_view creatureTypeLabel(int idx)
+std::string_view creatureTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 3)
     {
@@ -197,7 +198,7 @@ std::string_view creatureTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view soundTypeLabel(int idx)
+std::string_view soundTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 7)
     {
@@ -217,7 +218,7 @@ std::string_view soundTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view weaponTypeLabel(int idx)
+std::string_view weaponTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 13)
     {
@@ -263,7 +264,7 @@ std::string_view aiTypeLabel(ESM::AiPackageType type)
     return "Invalid";
 }
 
-std::string_view spellTypeLabel(int idx)
+std::string_view spellTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 5)
     {
@@ -281,7 +282,7 @@ std::string_view spellTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view specializationLabel(int idx)
+std::string_view specializationLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 2)
     {
@@ -296,7 +297,7 @@ std::string_view specializationLabel(int idx)
         return "Invalid";
 }
 
-std::string_view apparatusTypeLabel(int idx)
+std::string_view apparatusTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 3)
     {
@@ -312,7 +313,7 @@ std::string_view apparatusTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view rangeTypeLabel(int idx)
+std::string_view rangeTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 2)
     {
@@ -327,7 +328,7 @@ std::string_view rangeTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view schoolLabel(int idx)
+std::string_view schoolLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 5)
     {
@@ -345,7 +346,7 @@ std::string_view schoolLabel(int idx)
         return "Invalid";
 }
 
-std::string_view enchantTypeLabel(int idx)
+std::string_view enchantTypeLabel(std::int32_t idx)
 {
     if (idx >= 0 && idx <= 3)
     {
@@ -361,7 +362,7 @@ std::string_view enchantTypeLabel(int idx)
         return "Invalid";
 }
 
-std::string_view ruleFunction(int idx)
+std::string_view ruleFunction(std::int32_t idx)
 {
     if (idx >= ESM::DialogueCondition::Function_FacReactionLowest
         && idx <= ESM::DialogueCondition::Function_PcWerewolfKills)
@@ -452,7 +453,7 @@ std::string_view ruleFunction(int idx)
 // defined bits in the ESM component.  The names of the flag bits are
 // very inconsistent.
 
-std::string bodyPartFlags(int flags)
+std::string bodyPartFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -461,14 +462,15 @@ std::string bodyPartFlags(int flags)
         properties += "Female ";
     if (flags & ESM::BodyPart::BPF_NotPlayable)
         properties += "NotPlayable ";
-    int unused = static_cast<int>((0xFFFFFFFF ^ (ESM::BodyPart::BPF_Female | ESM::BodyPart::BPF_NotPlayable)));
+    auto unused
+        = static_cast<std::int32_t>((0xFFFFFFFF ^ (ESM::BodyPart::BPF_Female | ESM::BodyPart::BPF_NotPlayable)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string cellFlags(int flags)
+std::string cellFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -484,7 +486,7 @@ std::string cellFlags(int flags)
     // This used value is not in the ESM component.
     if (flags & 0x00000040)
         properties += "Unknown ";
-    int unused = static_cast<int>(0xFFFFFFFF
+    auto unused = static_cast<std::int32_t>(0xFFFFFFFF
         ^ (ESM::Cell::HasWater | ESM::Cell::Interior | ESM::Cell::NoSleep | ESM::Cell::QuasiEx | 0x00000040));
     if (flags & unused)
         properties += "Invalid ";
@@ -492,7 +494,7 @@ std::string cellFlags(int flags)
     return properties;
 }
 
-std::string containerFlags(int flags)
+std::string containerFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -503,7 +505,7 @@ std::string containerFlags(int flags)
         properties += "Organic ";
     if (flags & ESM::Container::Respawn)
         properties += "Respawn ";
-    int unused = static_cast<int>(
+    auto unused = static_cast<std::int32_t>(
         (0xFFFFFFFF ^ (ESM::Container::Unknown | ESM::Container::Organic | ESM::Container::Respawn)));
     if (flags & unused)
         properties += "Invalid ";
@@ -511,7 +513,7 @@ std::string containerFlags(int flags)
     return properties;
 }
 
-std::string creatureFlags(int flags)
+std::string creatureFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -532,7 +534,7 @@ std::string creatureFlags(int flags)
         properties += "Weapon ";
     if (flags & ESM::Creature::Essential)
         properties += "Essential ";
-    int unused = static_cast<int>(0xFFFFFFFF
+    auto unused = static_cast<std::int32_t>(0xFFFFFFFF
         ^ (ESM::Creature::Base | ESM::Creature::Walks | ESM::Creature::Swims | ESM::Creature::Flies
             | ESM::Creature::Bipedal | ESM::Creature::Respawn | ESM::Creature::Weapon | ESM::Creature::Essential));
     if (flags & unused)
@@ -541,20 +543,20 @@ std::string creatureFlags(int flags)
     return properties;
 }
 
-std::string enchantmentFlags(int flags)
+std::string enchantmentFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
         properties += "[None] ";
     if (flags & ESM::Enchantment::Autocalc)
         properties += "Autocalc ";
-    if (static_cast<unsigned int>(flags) & (0xFFFFFFFF ^ ESM::Enchantment::Autocalc))
+    if (static_cast<std::uint32_t>(flags) & (0xFFFFFFFF ^ ESM::Enchantment::Autocalc))
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string factionFlags(int flags)
+std::string factionFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -576,7 +578,7 @@ std::string landFlags(std::uint32_t flags)
         properties += "Colors ";
     if (flags & ESM::Land::Flag_Textures)
         properties += "Textures ";
-    int unused = static_cast<int>(
+    auto unused = static_cast<std::int32_t>(
         0xFFFFFFFF ^ (ESM::Land::Flag_HeightsNormals | ESM::Land::Flag_Colors | ESM::Land::Flag_Textures));
     if (flags & static_cast<std::uint32_t>(unused))
         properties += "Invalid ";
@@ -584,7 +586,7 @@ std::string landFlags(std::uint32_t flags)
     return properties;
 }
 
-std::string itemListFlags(int flags)
+std::string itemListFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -593,28 +595,28 @@ std::string itemListFlags(int flags)
         properties += "AllLevels ";
     if (flags & ESM::ItemLevList::Each)
         properties += "Each ";
-    int unused = static_cast<int>((0xFFFFFFFF ^ (ESM::ItemLevList::AllLevels | ESM::ItemLevList::Each)));
+    auto unused = static_cast<std::int32_t>((0xFFFFFFFF ^ (ESM::ItemLevList::AllLevels | ESM::ItemLevList::Each)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string creatureListFlags(int flags)
+std::string creatureListFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
         properties += "[None] ";
     if (flags & ESM::CreatureLevList::AllLevels)
         properties += "AllLevels ";
-    int unused = static_cast<int>((0xFFFFFFFF ^ ESM::CreatureLevList::AllLevels));
+    auto unused = static_cast<std::int32_t>((0xFFFFFFFF ^ ESM::CreatureLevList::AllLevels));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string lightFlags(int flags)
+std::string lightFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -637,7 +639,7 @@ std::string lightFlags(int flags)
         properties += "Negative ";
     if (flags & ESM::Light::OffDefault)
         properties += "OffDefault ";
-    int unused = static_cast<int>(0xFFFFFFFF
+    auto unused = static_cast<std::int32_t>(0xFFFFFFFF
         ^ (ESM::Light::Dynamic | ESM::Light::Fire | ESM::Light::Carry | ESM::Light::Flicker | ESM::Light::FlickerSlow
             | ESM::Light::Pulse | ESM::Light::PulseSlow | ESM::Light::Negative | ESM::Light::OffDefault));
     if (flags & unused)
@@ -646,7 +648,7 @@ std::string lightFlags(int flags)
     return properties;
 }
 
-std::string magicEffectFlags(int flags)
+std::string magicEffectFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -688,13 +690,13 @@ std::string magicEffectFlags(int flags)
     if (flags & ESM::MagicEffect::NegativeLight)
         properties += "NegativeLight ";
 
-    if (static_cast<unsigned int>(flags) & 0xFFFC0000)
+    if (static_cast<std::uint32_t>(flags) & 0xFFFC0000)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string npcFlags(int flags)
+std::string npcFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -711,7 +713,7 @@ std::string npcFlags(int flags)
         properties += "Essential ";
     // Whether corpses persist is a bit that is unaccounted for,
     // however relatively few NPCs have this bit set.
-    int unused
+    std::int32_t unused
         = (0xFF ^ (ESM::NPC::Base | ESM::NPC::Autocalc | ESM::NPC::Female | ESM::NPC::Respawn | ESM::NPC::Essential));
     if (flags & unused)
         properties += "Invalid ";
@@ -719,7 +721,7 @@ std::string npcFlags(int flags)
     return properties;
 }
 
-std::string raceFlags(int flags)
+std::string raceFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -729,14 +731,14 @@ std::string raceFlags(int flags)
         properties += "Playable ";
     if (flags & ESM::Race::Beast)
         properties += "Beast ";
-    int unused = static_cast<int>((0xFFFFFFFF ^ (ESM::Race::Playable | ESM::Race::Beast)));
+    auto unused = static_cast<std::int32_t>((0xFFFFFFFF ^ (ESM::Race::Playable | ESM::Race::Beast)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string spellFlags(int flags)
+std::string spellFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -747,15 +749,15 @@ std::string spellFlags(int flags)
         properties += "PCStart ";
     if (flags & ESM::Spell::F_Always)
         properties += "Always ";
-    int unused
-        = static_cast<int>((0xFFFFFFFF ^ (ESM::Spell::F_Autocalc | ESM::Spell::F_PCStart | ESM::Spell::F_Always)));
+    auto unused = static_cast<std::int32_t>(
+        (0xFFFFFFFF ^ (ESM::Spell::F_Autocalc | ESM::Spell::F_PCStart | ESM::Spell::F_Always)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string weaponFlags(int flags)
+std::string weaponFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -767,14 +769,14 @@ std::string weaponFlags(int flags)
         properties += "Magical ";
     if (flags & ESM::Weapon::Silver)
         properties += "Silver ";
-    int unused = static_cast<int>((0xFFFFFFFF ^ (ESM::Weapon::Magical | ESM::Weapon::Silver)));
+    auto unused = static_cast<std::int32_t>((0xFFFFFFFF ^ (ESM::Weapon::Magical | ESM::Weapon::Silver)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string recordFlags(uint32_t flags)
+std::string recordFlags(std::uint32_t flags)
 {
     std::string properties;
     if (flags == 0)
@@ -787,21 +789,21 @@ std::string recordFlags(uint32_t flags)
         properties += "Ignored ";
     if (flags & ESM::FLAG_Blocked)
         properties += "Blocked ";
-    int unused = ~(ESM::FLAG_Deleted | ESM::FLAG_Persistent | ESM::FLAG_Ignored | ESM::FLAG_Blocked);
+    std::int32_t unused = ~(ESM::FLAG_Deleted | ESM::FLAG_Persistent | ESM::FLAG_Ignored | ESM::FLAG_Blocked);
     if (flags & static_cast<std::uint32_t>(unused))
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
 }
 
-std::string potionFlags(int flags)
+std::string potionFlags(std::int32_t flags)
 {
     std::string properties;
     if (flags == 0)
         properties += "[None] ";
     if (flags & ESM::Potion::Autocalc)
         properties += "Autocalc ";
-    if (static_cast<unsigned int>(flags) & (0xFFFFFFFF ^ ESM::Enchantment::Autocalc))
+    if (static_cast<std::uint32_t>(flags) & (0xFFFFFFFF ^ ESM::Enchantment::Autocalc))
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;

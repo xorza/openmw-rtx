@@ -2,30 +2,35 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <ranges>
 #include <span>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include <osg/Matrixf>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/common/rowspan.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
-#include <components/rtx/scene/foldedshape.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/scene/textureasks.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/terrain/pagedcellref.hpp>
 
@@ -296,6 +301,7 @@ namespace Rtx
         adoptGround(cell, held, around, stats);
         held.mModels.assign(cell.mModels.begin(), cell.mModels.end());
         adoptPlacements(cell, held, holds);
+        gatherAsks(held);
 
         [[maybe_unused]] const auto [at, fresh] = mCells.insert(std::move(held));
         assert(fresh && "a cell adopted twice");
@@ -324,17 +330,19 @@ namespace Rtx
 
             // A table with no room left names the neutral texel: the device reads a layer's slot
             // with no test, as it reads a material's diffuse.
-            const Index slot = mScene.textures().add(layer.mTexture->mPath, layer.mTexture->mImage.get(),
+            const TextureIndex slot = mScene.textures().add(layer.mTexture->mPath, layer.mTexture->mImage.get(),
                 TextureWrap::Repeat, layerEncodingOf(layer.mDiffuseSpec));
-            row.mDiffuse = slot != sNoIndex ? slot : Shaders::TEXTURE_NEUTRAL;
+            row.mDiffuse = slot != sNoRow ? slot.at() : Shaders::TEXTURE_NEUTRAL;
 
             // A normal map tiles with the diffuse; one the table has no room for is no normal map,
             // and the layer keeps the chunk's normal and its own coordinates.
             if (layer.mNormalTexture != nullptr)
             {
-                row.mNormal = mScene.textures().add(layer.mNormalTexture->mPath, layer.mNormalTexture->mImage.get(),
-                    TextureWrap::Repeat, TextureEncoding::Normal);
-                if (layer.mRelief.has_value() && row.mNormal != sNoIndex)
+                row.mNormal = mScene.textures()
+                                  .add(layer.mNormalTexture->mPath, layer.mNormalTexture->mImage.get(),
+                                      TextureWrap::Repeat, TextureEncoding::Normal)
+                                  .at();
+                if (layer.mRelief.has_value() && row.mNormal != Shaders::NO_TEXTURE)
                 {
                     row.mFlags |= Shaders::LAYER_PARALLAX;
                     relief = relief.has_value() ? AlphaRange{ .mLow = std::min(relief->mLow, layer.mRelief->mLow),
@@ -347,7 +355,7 @@ namespace Rtx
             if (layer.mDiffuseSpec)
                 row.mFlags |= Shaders::LAYER_AUTHORED;
 
-            mapped = mapped || row.mNormal != sNoIndex || row.mFlags != 0;
+            mapped = mapped || row.mNormal != Shaders::NO_TEXTURE || row.mFlags != 0;
 
             // The row keeps no count: `maskOf` reads the grid's area back, so the run
             // the table hands out has to be exactly that long, which the reader asserts as it reads.
@@ -379,12 +387,7 @@ namespace Rtx
         stands.mStood.mMaterial = mScene.addMaterial(material);
 
         // A heightfield is neither a sheet nor closed, and no fold is needed to say so.
-        stands.mStood.mMesh = mScene.addMesh(MeshArrays{ .mPositions = ground.mPositions,
-                                                 .mNormals = ground.mNormals,
-                                                 .mTexCoords = ground.mTexCoords,
-                                                 .mColours = ground.mColours,
-                                                 .mIndices = ground.mIndices },
-            FoldedShape{});
+        stands.mStood.mMesh = mScene.addMesh(ground.mesh());
 
         // Held on the scene, because no drawable and no state set will ever name them:
         // `dropGround` is what lets go.
@@ -527,7 +530,7 @@ namespace Rtx
             return;
 
         mScene.dropInstance(stood.mSlot, Stander::Ring);
-        stood.mSlot = sNoIndex;
+        stood.mSlot = sNoRow;
         --standing;
     }
 
@@ -560,8 +563,94 @@ namespace Rtx
         }
         held.mModels.assign(grass.mModels.begin(), grass.mModels.end());
 
+        // Each material once, at the finest footprint, for as long as the cell's grass is held.
+        for (const Placement& placement : held.mPlacements)
+            if (placement.mStood.mMaterial != sNoRow)
+                held.mAsked.push_back(placement.mStood.mMaterial);
+        std::ranges::sort(held.mAsked);
+        held.mAsked.erase(std::ranges::unique(held.mAsked).begin(), held.mAsked.end());
+        for (const MaterialIndex material : held.mAsked)
+            mScene.askMaterial(material, 0);
+
         [[maybe_unused]] const auto [at, fresh] = mGrass.insert(std::move(held));
         assert(fresh && "a cell's grass adopted twice");
+    }
+
+    void CellPlacer::gatherAsks(HeldCell& held)
+    {
+        const auto meshes = mScene.meshes().getRows();
+        held.mAsks.clear();
+
+        // `0.5 log2(density / scale²)`, the density of the sets the mesh brings at their least: a mesh with no second
+        // set reads every unit through its first (`MeshArrays::mUnitStreams`).
+        const auto ask = [&](const Stood& stood) {
+            if (stood.mMaterial == sNoRow || stood.mMesh == sNoRow)
+                return;
+            const MeshRange& mesh = meshes[stood.mMesh];
+            const float density = mesh.mSecondTexCoords.mCount > 0
+                ? std::min(mesh.mUvDensity.mFirst, mesh.mUvDensity.mSecond)
+                : mesh.mUvDensity.mFirst;
+            held.mAsks.push_back(RingAsk{ .mMaterial = stood.mMaterial,
+                .mFootprint = 0.5f * std::log2(density) - std::log2(placedScale(stood.mTransform)) });
+        };
+        for (const Placement& placement : held.mPlacements)
+            ask(placement.mStood);
+        if (held.mGround.mStands)
+            ask(held.mGround.mStood);
+
+        // One a material, at its finest.
+        std::ranges::sort(held.mAsks, [](const RingAsk& left, const RingAsk& right) {
+            return left.mMaterial != right.mMaterial ? left.mMaterial < right.mMaterial
+                                                     : left.mFootprint < right.mFootprint;
+        });
+        held.mAsks.erase(std::ranges::unique(held.mAsks, {}, &RingAsk::mMaterial).begin(), held.mAsks.end());
+
+        // Largest first, so the first is how far any placement reaches past the square.
+        held.mReachOut = held.mPlacements.empty() ? 0.0f : held.mPlacements.front().mRadius;
+    }
+
+    void CellPlacer::askByDistance(HeldCell& cell, const WorldAround& around, const bool sightMoved)
+    {
+        const CellGrid& grid = around.mWorld.mGrid;
+        const float size = grid.getCellSize();
+        const float distance
+            = std::max(0.0f, std::sqrt(grid.distanceSquaredTo(cell.mCell, around.mEye)) - cell.mReachOut);
+        const float asked = distance < size ? 0.0f : size * std::exp2(std::floor(std::log2(distance / size)) - 1.0f);
+        if (!sightMoved && cell.mAskedAt == asked)
+            return;
+        cell.mAskedAt = asked;
+
+        // The cone's width at the distance asked, as a level: minus infinity at no distance or no spread, which asks
+        // the finest. A footprint of plus infinity, a mesh of no triangles, against it is not a number, the finest too.
+        const float cone = std::log2(asked * mSight.mSpreadAngle) + mSight.mLevelBias;
+        for (RingAsk& ask : cell.mAsks)
+        {
+            const auto step = static_cast<std::uint8_t>(footprintStep(ask.mFootprint + cone));
+            if (ask.mStep == step)
+                continue;
+            mScene.askMaterial(ask.mMaterial, step);
+            if (ask.mStep.has_value())
+                mScene.unaskMaterial(ask.mMaterial, *ask.mStep);
+            ask.mStep = step;
+        }
+    }
+
+    void CellPlacer::unaskAll(HeldCell& cell)
+    {
+        for (RingAsk& ask : cell.mAsks)
+            if (ask.mStep.has_value())
+            {
+                mScene.unaskMaterial(ask.mMaterial, *ask.mStep);
+                ask.mStep.reset();
+            }
+        cell.mAskedAt.reset();
+    }
+
+    void CellPlacer::unaskAll(HeldGrass& grass)
+    {
+        for (const MaterialIndex material : grass.mAsked)
+            mScene.unaskMaterial(material, 0);
+        grass.mAsked.clear();
     }
 
     void CellPlacer::dropSlots()
@@ -595,6 +684,49 @@ namespace Rtx
             drop(cell.mGround.mStood, mGroundPlaced);
     }
 
+    RingStanding CellPlacer::countStanding(const osg::Vec2i& eye) const
+    {
+        // Each mesh at the nearest cell holding it, and standing where any placement of it stands anywhere.
+        constexpr std::uint8_t sNowhere = std::numeric_limits<std::uint8_t>::max();
+        static_assert(sRingDistances < sNowhere, "a distance told from a mesh no cell holds");
+        const auto meshes = mScene.meshes().getRows();
+        std::vector<std::uint8_t> nearest(meshes.size(), sNowhere);
+        std::vector<bool> standing(meshes.size(), false);
+
+        RingStanding counted;
+        for (const HeldCell& cell : mCells)
+        {
+            const std::int32_t away = std::max(std::abs(cell.mCell.x() - eye.x()), std::abs(cell.mCell.y() - eye.y()));
+            const auto distance
+                = static_cast<std::uint8_t>(std::min(static_cast<std::size_t>(away), sRingDistances - 1));
+            RingDistance& at = counted.mByDistance[distance];
+            for (const Placement& placement : cell.mPlacements)
+            {
+                const bool stood = placement.mStood.isStanding();
+                ++at.mPlacements;
+                at.mPlacementsStanding += stood ? 1 : 0;
+                const MeshIndex mesh = placement.mStood.mMesh;
+                assert(meshes.holds(mesh) && "a placement of a mesh the scene does not hold");
+                nearest[mesh.at()] = std::min(nearest[mesh.at()], distance);
+                standing[mesh.at()] = standing[mesh.at()] || stood;
+            }
+        }
+
+        for (const MeshIndex mesh : everyRow<MeshIndex>(meshes.size()))
+        {
+            if (nearest[mesh.at()] == sNowhere)
+                continue;
+            RingDistance& at = counted.mByDistance[nearest[mesh.at()]];
+            const std::uint32_t vertices = meshes[mesh].mVertices.mCount;
+            const bool stood = standing[mesh.at()];
+            ++at.mMeshes;
+            at.mVertices += vertices;
+            at.mMeshesStanding += stood ? 1 : 0;
+            at.mVerticesStanding += stood ? vertices : 0;
+        }
+        return counted;
+    }
+
     bool CellPlacer::standsAsHeld(const WorldAround& around) const
     {
         for (const HeldCell& cell : mCells)
@@ -614,8 +746,8 @@ namespace Rtx
         if (!wanted)
             return true;
 
-        const std::span<const PlacementRow> placed = mScene.placements().getRows();
-        if (stood.mSlot >= placed.size())
+        const auto placed = mScene.placements().getRows();
+        if (!placed.holds(stood.mSlot))
             return false;
 
         const MeshInstance& standing = placed[stood.mSlot].mInstance;
@@ -671,17 +803,24 @@ namespace Rtx
     bool CellPlacer::standsNoMore() const
     {
         std::uint32_t standing = 0;
-        mScene.placements().forEachPlaced(
-            [&](Index, const PlacementRow& row) { standing += row.mInstance.mStander == Stander::Ring ? 1u : 0u; });
+        mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
+            standing += row.mInstance.mStander == Stander::Ring ? 1u : 0u;
+        });
 
         return standing == getPlaced() + getGroundPlaced() + getGrassPlaced();
     }
 
     std::uint32_t CellPlacer::place(const WorldAround& around)
     {
+        const bool sightMoved = around.mSight != mSight;
+        mSight = around.mSight;
+
         std::uint32_t lit = 0;
         for (HeldCell& cell : mCells)
+        {
+            askByDistance(cell, around, sightMoved);
             lit += place(cell, around);
+        }
 
         // What a walk touches is a cell's grass crossing the reach, and nothing on a standing frame.
         for (HeldGrass& grass : mGrass)
@@ -767,8 +906,8 @@ namespace Rtx
             if (!standsBy(lamp.mState))
                 continue;
 
-            const Result<std::optional<Light>, std::string_view> light = makeLight(
-                lamp.mRecord, lamp.mPosition, around.mSimulationTime, static_cast<int>(lamp.mState.mRefNum.mIndex));
+            const Result<std::optional<Light>, std::string_view> light = makeLight(lamp.mRecord, lamp.mPosition,
+                around.mSimulationTime, static_cast<std::int32_t>(lamp.mState.mRefNum.mIndex));
             assert(light.isOk() && "a lamp the reader carried that the frame refuses");
             if (!light.value().has_value())
                 continue;

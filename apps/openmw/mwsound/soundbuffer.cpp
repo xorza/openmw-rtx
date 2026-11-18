@@ -1,8 +1,10 @@
 #include "soundbuffer.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <algorithm>
+#include <cmath>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadsoun.hpp>
 #include <components/esm4/loadsndr.hpp>
@@ -11,9 +13,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include <algorithm>
-#include <cmath>
 
 namespace MWSound
 {

@@ -1,15 +1,17 @@
 #include "navigator.hpp"
+
+#include <components/debug/debuglog.hpp>
+#include <components/files/conversion.hpp>
+
 #include "navigatorimpl.hpp"
 #include "navigatorstub.hpp"
 #include "navmeshtilestore.hpp"
 #include "recastglobalallocator.hpp"
 
-#include <components/debug/debuglog.hpp>
-#include <components/files/conversion.hpp>
-
 namespace DetourNavigator
 {
-    std::unique_ptr<Navigator> makeNavigator(const Settings& settings, const std::filesystem::path& cachePath)
+    std::unique_ptr<Navigator> makeNavigator(
+        const Settings& settings, const std::filesystem::path& cachePath, Resource::CacheBudget& budget)
     {
         DetourNavigator::RecastGlobalAllocator::init();
 
@@ -21,7 +23,7 @@ namespace DetourNavigator
             store = std::make_unique<NavMeshTileStore>(folder);
         }
 
-        return std::make_unique<NavigatorImpl>(settings, std::move(store));
+        return std::make_unique<NavigatorImpl>(settings, std::move(store), budget);
     }
 
     std::unique_ptr<Navigator> makeNavigatorStub()

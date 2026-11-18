@@ -8,48 +8,36 @@
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderStage>
 
-#ifdef OSG_HAS_MULTIVIEW
-#include <osg/Texture2DMultisampleArray>
-#endif
+// After OpenSceneGraph's headers, which include the system's <GL/gl.h> that Khronos's extension header builds on:
+// Windows' names stop at GL 1.1.
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+
+#include <GL/glext.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/sceneutil/nodecallback.hpp>
-#include <components/stereo/stereomanager.hpp>
 
-#include <algorithm>
+#include "stereomanager.hpp"
 
 namespace Stereo
 {
     namespace
     {
-        bool getMultiviewSupportedImpl(unsigned int contextID)
+        bool getMultiviewSupportedImpl(std::uint32_t contextID)
         {
-#ifdef OSG_HAS_MULTIVIEW
-            if (!osg::isGLExtensionSupported(contextID, "GL_OVR_multiview"))
-            {
-                Log(Debug::Verbose) << "Disabling Multiview (opengl extension \"GL_OVR_multiview\" not supported)";
-                return false;
-            }
-
-            if (!osg::isGLExtensionSupported(contextID, "GL_OVR_multiview2"))
-            {
-                Log(Debug::Verbose) << "Disabling Multiview (opengl extension \"GL_OVR_multiview2\" not supported)";
-                return false;
-            }
-            return true;
-#else
             Log(Debug::Verbose) << "Disabling Multiview (OSG does not support multiview)";
             return false;
-#endif
         }
 
-        bool getMultiviewSupported(unsigned int contextID)
+        bool getMultiviewSupported(std::uint32_t contextID)
         {
             static bool supported = getMultiviewSupportedImpl(contextID);
             return supported;
         }
 
-        bool getTextureViewSupportedImpl(unsigned int contextID)
+        bool getTextureViewSupportedImpl(std::uint32_t contextID)
         {
             if (!osg::isGLExtensionOrVersionSupported(contextID, "ARB_texture_view", 4.3f))
             {
@@ -59,13 +47,13 @@ namespace Stereo
             return true;
         }
 
-        bool getTextureViewSupported(unsigned int contextID)
+        bool getTextureViewSupported(std::uint32_t contextID)
         {
             static bool supported = getTextureViewSupportedImpl(contextID);
             return supported;
         }
 
-        bool getMultiviewImpl(unsigned int contextID)
+        bool getMultiviewImpl(std::uint32_t contextID)
         {
             if (!Stereo::getStereo())
             {
@@ -88,7 +76,7 @@ namespace Stereo
             return true;
         }
 
-        bool getMultiview(unsigned int contextID)
+        bool getMultiview(std::uint32_t contextID)
         {
             static bool multiView = getMultiviewImpl(contextID);
             return multiView;
@@ -105,7 +93,7 @@ namespace Stereo
         return getMultiview(0);
     }
 
-    void configureExtensions(unsigned int contextID, bool enableMultiview)
+    void configureExtensions(std::uint32_t contextID, bool enableMultiview)
     {
         getTextureViewSupported(contextID);
         getMultiviewSupported(contextID);
@@ -144,18 +132,18 @@ namespace Stereo
         class Texture2DViewSubloadCallback : public osg::Texture2D::SubloadCallback
         {
         public:
-            Texture2DViewSubloadCallback(osg::Texture2DArray* textureArray, int layer);
+            Texture2DViewSubloadCallback(osg::Texture2DArray* textureArray, std::int32_t layer);
 
             void load(const osg::Texture2D& texture, osg::State& state) const override;
             void subload(const osg::Texture2D& texture, osg::State& state) const override;
 
         private:
             osg::ref_ptr<osg::Texture2DArray> mTextureArray;
-            int mLayer;
+            std::int32_t mLayer;
         };
     }
 
-    Texture2DViewSubloadCallback::Texture2DViewSubloadCallback(osg::Texture2DArray* textureArray, int layer)
+    Texture2DViewSubloadCallback::Texture2DViewSubloadCallback(osg::Texture2DArray* textureArray, std::int32_t layer)
         : mTextureArray(textureArray)
         , mLayer(layer)
     {
@@ -200,9 +188,6 @@ namespace Stereo
             // OSG should always give immutable storage to sized internal formats, but does not do so for depth formats.
             // Fortunately, we can just call glTexStorage3D here to make it immutable. This probably discards depth info
             // for that frame, but whatever.
-#ifndef GL_TEXTURE_IMMUTABLE_FORMAT
-#define GL_TEXTURE_IMMUTABLE_FORMAT 0x912F
-#endif
             // Store any current binding and re-apply it after so i don't mess with state.
             GLint oldBinding = 0;
             glGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, &oldBinding);
@@ -233,7 +218,7 @@ namespace Stereo
     }
 
     osg::ref_ptr<osg::Texture2D> createTextureView_Texture2DFromTexture2DArray(
-        osg::Texture2DArray* textureArray, int layer)
+        osg::Texture2DArray* textureArray, std::int32_t layer)
     {
         if (!getTextureViewSupported())
         {
@@ -259,100 +244,7 @@ namespace Stereo
         return texture2d;
     }
 
-#ifdef OSG_HAS_MULTIVIEW
-    //! Draw callback that, if set on a RenderStage, resolves MSAA after draw. Needed when using custom fbo/resolve fbos
-    //! on renderstages in combination with multiview.
-    struct MultiviewMSAAResolveCallback : public osgUtil::RenderBin::DrawCallback
-    {
-        void drawImplementation(
-            osgUtil::RenderBin* bin, osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous) override
-        {
-            osgUtil::RenderStage* stage = static_cast<osgUtil::RenderStage*>(bin);
-            auto msaaFbo = stage->getFrameBufferObject();
-            auto resolveFbo = stage->getMultisampleResolveFramebufferObject();
-            if (msaaFbo != mMsaaFbo)
-            {
-                mMsaaFbo = msaaFbo;
-                setupMsaaLayers();
-            }
-            if (resolveFbo != mFbo)
-            {
-                mFbo = resolveFbo;
-                setupLayers();
-            }
-
-            // Null the resolve framebuffer to keep osg from doing redundant work.
-            stage->setMultisampleResolveFramebufferObject(nullptr);
-
-            // Do the actual render work
-            bin->drawImplementation(renderInfo, previous);
-
-            // Blit layers
-            osg::State& state = *renderInfo.getState();
-            osg::GLExtensions* ext = state.get<osg::GLExtensions>();
-            for (int i = 0; i < 2; i++)
-            {
-                mLayers[i]->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
-                mMsaaLayers[i]->apply(state, osg::FrameBufferObject::READ_FRAMEBUFFER);
-                ext->glBlitFramebuffer(0, 0, mWidth, mHeight, 0, 0, mWidth, mHeight,
-                    GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT, GL_NEAREST);
-            }
-            msaaFbo->apply(state, osg::FrameBufferObject::READ_DRAW_FRAMEBUFFER);
-        }
-
-        void setupLayers()
-        {
-            const auto& attachments = mFbo->getAttachmentMap();
-            for (int i = 0; i < 2; i++)
-            {
-                mLayers[i] = new osg::FrameBufferObject;
-                // Intentionally not using ref& so attachment can be non-const
-                for (auto [component, attachment] : attachments)
-                {
-                    osg::Texture2DArray* texture = static_cast<osg::Texture2DArray*>(attachment.getTexture());
-                    mLayers[i]->setAttachment(component, osg::FrameBufferAttachment(texture, i));
-                    mWidth = texture->getTextureWidth();
-                    mHeight = texture->getTextureHeight();
-                }
-            }
-        }
-
-        void setupMsaaLayers()
-        {
-            const auto& attachments = mMsaaFbo->getAttachmentMap();
-            for (int i = 0; i < 2; i++)
-            {
-                mMsaaLayers[i] = new osg::FrameBufferObject;
-                // Intentionally not using ref& so attachment can be non-const
-                for (auto [component, attachment] : attachments)
-                {
-                    osg::Texture2DMultisampleArray* texture
-                        = static_cast<osg::Texture2DMultisampleArray*>(attachment.getTexture());
-                    mMsaaLayers[i]->setAttachment(component, osg::FrameBufferAttachment(texture, i));
-                    mWidth = texture->getTextureWidth();
-                    mHeight = texture->getTextureHeight();
-                }
-            }
-        }
-
-        osg::ref_ptr<osg::FrameBufferObject> mFbo;
-        osg::ref_ptr<osg::FrameBufferObject> mMsaaFbo;
-        osg::ref_ptr<osg::FrameBufferObject> mLayers[2];
-        osg::ref_ptr<osg::FrameBufferObject> mMsaaLayers[2];
-        int mWidth;
-        int mHeight;
-    };
-#endif
-
-    void setMultiviewMSAAResolveCallback(osgUtil::RenderStage* renderStage)
-    {
-#ifdef OSG_HAS_MULTIVIEW
-        if (Stereo::getMultiview())
-        {
-            renderStage->setDrawCallback(new MultiviewMSAAResolveCallback);
-        }
-#endif
-    }
+    void setMultiviewMSAAResolveCallback(osgUtil::RenderStage* renderStage) {}
 
     void setMultiviewMatrices(
         osg::StateSet* stateset, const std::array<osg::Matrix, 2>& projection, bool createInverseMatrices)
@@ -381,7 +273,7 @@ namespace Stereo
         }
     }
 
-    void setMultiviewCompatibleTextureSize(osg::Texture* tex, int w, int h)
+    void setMultiviewCompatibleTextureSize(osg::Texture* tex, std::int32_t w, std::int32_t h)
     {
         switch (tex->getTextureTarget())
         {
@@ -394,37 +286,14 @@ namespace Stereo
             case GL_TEXTURE_2D_MULTISAMPLE:
                 static_cast<osg::Texture2DMultisample*>(tex)->setTextureSize(w, h);
                 break;
-#ifdef OSG_HAS_MULTIVIEW
-            case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-                static_cast<osg::Texture2DMultisampleArray*>(tex)->setTextureSize(w, h, 2);
-                break;
-#endif
             default:
                 throw std::logic_error("Invalid texture type received");
         }
     }
 
-    osg::ref_ptr<osg::Texture> createMultiviewCompatibleTexture(int width, int height, int samples)
+    osg::ref_ptr<osg::Texture> createMultiviewCompatibleTexture(
+        std::int32_t width, std::int32_t height, std::int32_t samples)
     {
-#ifdef OSG_HAS_MULTIVIEW
-        if (Stereo::getMultiview())
-        {
-            if (samples > 1)
-            {
-                auto tex = new osg::Texture2DMultisampleArray();
-                tex->setTextureSize(width, height, 2);
-                tex->setNumSamples(samples);
-                return tex;
-            }
-            else
-            {
-                auto tex = new osg::Texture2DArray();
-                tex->setTextureSize(width, height, 2);
-                return tex;
-            }
-        }
-        else
-#endif
         {
             if (samples > 1)
             {
@@ -460,30 +329,14 @@ namespace Stereo
                 auto* tex2dMsaa = static_cast<osg::Texture2DMultisample*>(tex);
                 return osg::FrameBufferAttachment(tex2dMsaa);
             }
-#ifdef OSG_HAS_MULTIVIEW
-            case GL_TEXTURE_2D_ARRAY:
-            {
-                auto* tex2dArray = static_cast<osg::Texture2DArray*>(tex);
-                return osg::FrameBufferAttachment(tex2dArray, osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER, 0);
-            }
-            case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-            {
-                auto* tex2dMsaaArray = static_cast<osg::Texture2DMultisampleArray*>(tex);
-                return osg::FrameBufferAttachment(tex2dMsaaArray, osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER, 0);
-            }
-#endif
             default:
                 throw std::logic_error("Invalid texture type received");
         }
     }
 
-    unsigned int osgFaceControlledByMultiviewShader()
+    std::uint32_t osgFaceControlledByMultiviewShader()
     {
-#ifdef OSG_HAS_MULTIVIEW
-        return osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER;
-#else
         return 0;
-#endif
     }
 
     class UpdateRenderStagesCallback
@@ -506,7 +359,7 @@ namespace Stereo
 
             if (!Stereo::getMultiview())
             {
-                auto eye = static_cast<int>(Stereo::Manager::instance().getEye(cv));
+                auto eye = static_cast<std::int32_t>(Stereo::Manager::instance().getEye(cv));
                 if (eye < 2)
                 {
                     if (msaa)
@@ -534,7 +387,7 @@ namespace Stereo
         osg::ref_ptr<osg::StateSet> mViewportStateset;
     };
 
-    MultiviewFramebuffer::MultiviewFramebuffer(int width, int height, int samples)
+    MultiviewFramebuffer::MultiviewFramebuffer(std::int32_t width, std::int32_t height, std::int32_t samples)
         : mWidth(width)
         , mHeight(height)
         , mSamples(samples)
@@ -551,21 +404,10 @@ namespace Stereo
     {
         if (mMultiview)
         {
-#ifdef OSG_HAS_MULTIVIEW
-            mMultiviewColorTexture = createTextureArray(sourceFormat, sourceType, internalFormat);
-            mMultiviewFbo->setAttachment(osg::Camera::COLOR_BUFFER,
-                osg::FrameBufferAttachment(
-                    mMultiviewColorTexture, osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER, 0));
-            for (unsigned i = 0; i < 2; i++)
-            {
-                mColorTexture[i] = createTextureView_Texture2DFromTexture2DArray(mMultiviewColorTexture.get(), i);
-                mLayerFbo[i]->setAttachment(osg::Camera::COLOR_BUFFER, osg::FrameBufferAttachment(mColorTexture[i]));
-            }
-#endif
         }
         else
         {
-            for (unsigned i = 0; i < 2; i++)
+            for (std::uint32_t i = 0; i < 2; i++)
             {
                 if (mSamples > 1)
                     mLayerMsaaFbo[i]->setAttachment(osg::Camera::COLOR_BUFFER,
@@ -581,22 +423,10 @@ namespace Stereo
     {
         if (mMultiview)
         {
-#ifdef OSG_HAS_MULTIVIEW
-            mMultiviewDepthTexture = createTextureArray(sourceFormat, sourceType, internalFormat);
-            mMultiviewFbo->setAttachment(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER,
-                osg::FrameBufferAttachment(
-                    mMultiviewDepthTexture, osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER, 0));
-            for (unsigned i = 0; i < 2; i++)
-            {
-                mDepthTexture[i] = createTextureView_Texture2DFromTexture2DArray(mMultiviewDepthTexture.get(), i);
-                mLayerFbo[i]->setAttachment(
-                    osg::Camera::PACKED_DEPTH_STENCIL_BUFFER, osg::FrameBufferAttachment(mDepthTexture[i]));
-            }
-#endif
         }
         else
         {
-            for (unsigned i = 0; i < 2; i++)
+            for (std::uint32_t i = 0; i < 2; i++)
             {
                 if (mSamples > 1)
                     mLayerMsaaFbo[i]->setAttachment(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER,
@@ -614,12 +444,12 @@ namespace Stereo
         return mMultiviewFbo;
     }
 
-    osg::FrameBufferObject* MultiviewFramebuffer::layerFbo(int i)
+    osg::FrameBufferObject* MultiviewFramebuffer::layerFbo(std::int32_t i)
     {
         return mLayerFbo[static_cast<std::size_t>(i)];
     }
 
-    osg::FrameBufferObject* MultiviewFramebuffer::layerMsaaFbo(int i)
+    osg::FrameBufferObject* MultiviewFramebuffer::layerMsaaFbo(std::int32_t i)
     {
         return mLayerMsaaFbo[static_cast<std::size_t>(i)];
     }
@@ -634,38 +464,17 @@ namespace Stereo
         return mMultiviewDepthTexture;
     }
 
-    osg::Texture2D* MultiviewFramebuffer::layerColorBuffer(int i)
+    osg::Texture2D* MultiviewFramebuffer::layerColorBuffer(std::int32_t i)
     {
         return mColorTexture[static_cast<std::size_t>(i)];
     }
 
-    osg::Texture2D* MultiviewFramebuffer::layerDepthBuffer(int i)
+    osg::Texture2D* MultiviewFramebuffer::layerDepthBuffer(std::int32_t i)
     {
         return mDepthTexture[static_cast<std::size_t>(i)];
     }
     void MultiviewFramebuffer::attachTo(osg::Camera* camera)
     {
-#ifdef OSG_HAS_MULTIVIEW
-        if (mMultiview)
-        {
-            if (mMultiviewColorTexture)
-            {
-                camera->attach(osg::Camera::COLOR_BUFFER, mMultiviewColorTexture, 0,
-                    osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER, false, mSamples);
-                camera->getBufferAttachmentMap()[osg::Camera::COLOR_BUFFER]._internalFormat
-                    = mMultiviewColorTexture->getInternalFormat();
-                camera->getBufferAttachmentMap()[osg::Camera::COLOR_BUFFER]._mipMapGeneration = false;
-            }
-            if (mMultiviewDepthTexture)
-            {
-                camera->attach(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER, mMultiviewDepthTexture, 0,
-                    osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER, false, mSamples);
-                camera->getBufferAttachmentMap()[osg::Camera::PACKED_DEPTH_STENCIL_BUFFER]._internalFormat
-                    = mMultiviewDepthTexture->getInternalFormat();
-                camera->getBufferAttachmentMap()[osg::Camera::PACKED_DEPTH_STENCIL_BUFFER]._mipMapGeneration = false;
-            }
-        }
-#endif
         camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
 
         if (!mCullCallback)
@@ -675,19 +484,6 @@ namespace Stereo
 
     void MultiviewFramebuffer::detachFrom(osg::Camera* camera)
     {
-#ifdef OSG_HAS_MULTIVIEW
-        if (mMultiview)
-        {
-            if (mMultiviewColorTexture)
-            {
-                camera->detach(osg::Camera::COLOR_BUFFER);
-            }
-            if (mMultiviewDepthTexture)
-            {
-                camera->detach(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER);
-            }
-        }
-#endif
         camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER);
         if (mCullCallback)
             camera->removeCullCallback(mCullCallback);
@@ -727,18 +523,13 @@ namespace Stereo
     namespace
     {
         osg::FrameBufferAttachment makeSingleLayerAttachmentFromMultilayerAttachment(
-            osg::FrameBufferAttachment attachment, int layer)
+            osg::FrameBufferAttachment attachment, std::int32_t layer)
         {
             osg::Texture* tex = attachment.getTexture();
 
             if (tex->getTextureTarget() == GL_TEXTURE_2D_ARRAY)
                 return osg::FrameBufferAttachment(
-                    static_cast<osg::Texture2DArray*>(tex), static_cast<unsigned int>(layer), 0);
-
-#ifdef OSG_HAS_MULTIVIEW
-            if (tex->getTextureTarget() == GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
-                return osg::FrameBufferAttachment(static_cast<osg::Texture2DMultisampleArray*>(tex), layer, 0);
-#endif
+                    static_cast<osg::Texture2DArray*>(tex), static_cast<std::uint32_t>(layer), 0);
 
             Log(Debug::Error) << "Attempted to extract a layer from an unlayered texture";
 
@@ -775,7 +566,7 @@ namespace Stereo
 
         osg::GLExtensions* ext = state.get<osg::GLExtensions>();
 
-        for (int view : { 0, 1 })
+        for (std::int32_t view : { 0, 1 })
         {
             mResolveLayers[static_cast<std::size_t>(view)]->apply(
                 state, osg::FrameBufferObject::BindTarget::DRAW_FRAMEBUFFER);
@@ -814,44 +605,10 @@ namespace Stereo
         }
     }
 
-#ifdef OSG_HAS_MULTIVIEW
-    namespace
-    {
-        struct MultiviewFrustumCallback final : public osg::CullSettings::InitialFrustumCallback
-        {
-            MultiviewFrustumCallback(Stereo::InitialFrustumCallback* ifc)
-                : mIfc(ifc)
-            {
-            }
-
-            void setInitialFrustum(osg::CullStack& cullStack, osg::Polytope& frustum) const override
-            {
-                bool nearCulling = false;
-                bool farCulling = false;
-                osg::BoundingBoxd bb;
-                mIfc->setInitialFrustum(cullStack, bb, nearCulling, farCulling);
-                frustum.setToBoundingBox(bb, nearCulling, farCulling);
-            }
-
-            Stereo::InitialFrustumCallback* mIfc;
-        };
-    }
-#endif
-
     InitialFrustumCallback::InitialFrustumCallback(osg::Camera* camera)
         : mCamera(camera)
     {
-#ifdef OSG_HAS_MULTIVIEW
-        camera->setInitialFrustumCallback(new MultiviewFrustumCallback(this));
-#endif
     }
 
-    InitialFrustumCallback::~InitialFrustumCallback()
-    {
-#ifdef OSG_HAS_MULTIVIEW
-        osg::ref_ptr<osg::Camera> camera;
-        if (mCamera.lock(camera))
-            camera->setInitialFrustumCallback(nullptr);
-#endif
-    }
+    InitialFrustumCallback::~InitialFrustumCallback() {}
 }

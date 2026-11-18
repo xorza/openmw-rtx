@@ -4,12 +4,26 @@
 #include <cassert>
 #include <utility>
 
+#include <components/rtxvulkan/device/device.hpp>
+
 #include "barriers.hpp"
 #include "batch.hpp"
 #include "imageuse.hpp"
 
 namespace Rtx
 {
+    GrowableBuffer::GrowableBuffer(
+        const Device& device, BufferKind kind, VkBufferUsageFlags usage, const char* name, const Growth growth)
+        : mDevice(&device)
+        , mKind(kind)
+        , mUsage(usage)
+        , mName(name)
+        , mOwed(growth == Growth::Doubling && (kind == BufferKind::DeviceLocal || kind == BufferKind::HostWritten)
+                  ? OwedGrowth(device.getMemory(), MemoryUse::Essential)
+                  : OwedGrowth())
+    {
+    }
+
     bool GrowableBuffer::growTo(const VkDeviceSize bytes)
     {
         assert(mDevice != nullptr && "a buffer grown before its owner said what it is");
@@ -18,6 +32,8 @@ namespace Rtx
             return false;
 
         mBuffer = Buffer::make(MemoryUse::Essential, *mDevice, mKind, bytes, mUsage, mName);
+        // Its next growth makes it again at twice its size, beside this one until the frames reading it are done.
+        mOwed.set(2 * mBuffer.getSize());
         return true;
     }
 
@@ -27,6 +43,15 @@ namespace Rtx
             return false;
 
         return growTo(std::max(bytes, mBuffer.getSize() * 2));
+    }
+
+    void GrowableBuffer::letGo(Batch& batch)
+    {
+        if (mBuffer.isEmpty())
+            return;
+        batch.keep(std::move(mBuffer));
+        mBuffer = Buffer();
+        mOwed.set(0);
     }
 
     void GrowableBuffer::outgrowKeeping(Batch& batch, const VkDeviceSize bytes)

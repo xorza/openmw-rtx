@@ -1,9 +1,8 @@
 #include "light4.hpp"
 
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-#include "../mwworld/ptr.hpp"
-
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm4/loadligh.hpp>
 
 namespace MWClass

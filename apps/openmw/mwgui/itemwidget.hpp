@@ -1,8 +1,10 @@
 #pragma once
 
-#include <components/vfs/pathutil.hpp>
+#include <cstdint>
 
 #include <MyGUI_Widget.h>
+
+#include <components/vfs/pathutil.hpp>
 
 namespace MWWorld
 {
@@ -31,7 +33,7 @@ namespace MWGui
         };
 
         /// Set count to be displayed in a textbox over the item
-        void setCount(int count);
+        void setCount(std::int32_t count);
 
         /// \a ptr may be empty
         void setItem(const MWWorld::Ptr& ptr, ItemState state = None);

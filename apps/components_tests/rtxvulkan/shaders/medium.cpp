@@ -1,6 +1,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 
 #include <gtest/gtest.h>
@@ -16,10 +17,10 @@ namespace Rtx
         /// under any tolerance below.
         double integral(const std::function<double(double)>& integrand, double length)
         {
-            constexpr int intervals = 20000;
+            constexpr std::int32_t intervals = 20000;
             const double step = length / intervals;
             double sum = integrand(0.0) + integrand(length);
-            for (int at = 1; at < intervals; ++at)
+            for (std::int32_t at = 1; at < intervals; ++at)
                 sum += (at % 2 == 1 ? 4.0 : 2.0) * integrand(at * step);
             return sum * step / 3.0;
         }
@@ -97,12 +98,12 @@ namespace Rtx
                 span);
             const double kept = std::exp(-2.5);
 
-            const auto through = [&](int pieces, bool factors) {
+            const auto through = [&](std::int32_t pieces, bool factors) {
                 Shaders::FogColumn column;
                 column.mScattered = Shaders::vec3();
                 column.mTransmittance = 1.0f;
                 column.mSunward = 0.0f;
-                for (int piece = 0; piece < pieces; ++piece)
+                for (std::int32_t piece = 0; piece < pieces; ++piece)
                 {
                     const float middle = (static_cast<float>(piece) + 0.5f) / static_cast<float>(pieces);
                     Shaders::FogSlice slice = Shaders::fogSliceBetween(dense, thin, middle);
@@ -114,7 +115,7 @@ namespace Rtx
             };
 
             double before = 0.0;
-            for (const int pieces : { 1, 2, 4, 8, 64 })
+            for (const std::int32_t pieces : { 1, 2, 4, 8, 64 })
             {
                 const Shaders::FogColumn column = through(pieces, false);
                 EXPECT_NEAR(static_cast<double>(column.mTransmittance), kept, kept * 1e-5) << pieces << " pieces";
@@ -154,12 +155,13 @@ namespace Rtx
                         for (std::size_t channel = 0; channel < 3; ++channel)
                         {
                             const auto extinction
-                                = static_cast<double>(Shaders::WATER_EXTINCTION[static_cast<int>(channel)]);
+                                = static_cast<double>(Shaders::WATER_EXTINCTION[static_cast<std::int32_t>(channel)]);
                             const double rising = 1.0 - static_cast<double>(slant) * static_cast<double>(direction[2]);
                             const double truth
                                 = integral([&](double t) { return extinction * std::exp(-extinction * rising * t); },
                                     static_cast<double>(path));
-                            EXPECT_NEAR(static_cast<double>(gathered[static_cast<int>(channel)]), truth, truth * 5e-6)
+                            EXPECT_NEAR(
+                                static_cast<double>(gathered[static_cast<std::int32_t>(channel)]), truth, truth * 5e-6)
                                 << "over " << path << " toward " << direction[2] << " at a slant of " << slant
                                 << ", channel " << channel;
                         }

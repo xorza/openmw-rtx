@@ -1,8 +1,11 @@
 #include "componentselectionpage.hpp"
 
+#include <cstdint>
+
 #include <QMessageBox>
 #include <QPushButton>
 
+#include "installsfromdisc.hpp"
 #include "mainwizard.hpp"
 
 Wizard::ComponentSelectionPage::ComponentSelectionPage(QWidget* parent)
@@ -105,11 +108,10 @@ bool Wizard::ComponentSelectionPage::validatePage()
     return true;
 }
 
-int Wizard::ComponentSelectionPage::nextId() const
+std::int32_t Wizard::ComponentSelectionPage::nextId() const
 {
-#ifdef OPENMW_USE_UNSHIELD
-    if (isCommitPage())
-        return MainWizard::Page_Installation;
-#endif
+    if constexpr (sInstallsFromDisc)
+        if (isCommitPage())
+            return MainWizard::Page_Installation;
     return MainWizard::Page_Import;
 }

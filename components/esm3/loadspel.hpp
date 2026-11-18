@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
+
 #include "effectlist.hpp"
 
 namespace ESM
@@ -38,13 +40,13 @@ namespace ESM
 
         struct SPDTstruct
         {
-            int32_t mType; // SpellType
-            int32_t mCost; // Mana cost
-            int32_t mFlags; // Flags
+            std::int32_t mType; // SpellType
+            std::int32_t mCost; // Mana cost
+            std::int32_t mFlags; // Flags
         };
 
         SPDTstruct mData{};
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         std::string mName;
         RefId mId;
         EffectList mEffects;

@@ -1,5 +1,6 @@
 #include "util.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <utility>
@@ -13,37 +14,35 @@
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/view/world/scripthighlighter.hpp>
-
-#include "../../model/world/commanddispatcher.hpp"
-
-#include "../widget/coloreditor.hpp"
-#include "../widget/droplineedit.hpp"
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/view/widget/coloreditor.hpp>
+#include <apps/opencs/view/widget/droplineedit.hpp>
 
 #include "dialoguespinbox.hpp"
 #include "scriptedit.hpp"
+#include "scripthighlighter.hpp"
 
 CSVWorld::NastyTableModelHack::NastyTableModelHack(QAbstractItemModel& model)
     : mModel(model)
 {
 }
 
-int CSVWorld::NastyTableModelHack::rowCount(const QModelIndex& parent) const
+std::int32_t CSVWorld::NastyTableModelHack::rowCount(const QModelIndex& parent) const
 {
     return mModel.rowCount(parent);
 }
 
-int CSVWorld::NastyTableModelHack::columnCount(const QModelIndex& parent) const
+std::int32_t CSVWorld::NastyTableModelHack::columnCount(const QModelIndex& parent) const
 {
     return mModel.columnCount(parent);
 }
 
-QVariant CSVWorld::NastyTableModelHack::data(const QModelIndex& index, int role) const
+QVariant CSVWorld::NastyTableModelHack::data(const QModelIndex& index, std::int32_t role) const
 {
     return mModel.data(index, role);
 }
 
-bool CSVWorld::NastyTableModelHack::setData(const QModelIndex& index, const QVariant& value, int role)
+bool CSVWorld::NastyTableModelHack::setData(const QModelIndex& index, const QVariant& value, std::int32_t role)
 {
     mData = value;
     return true;
@@ -110,7 +109,7 @@ CSMDoc::Document& CSVWorld::CommandDelegate::getDocument() const
 
 CSMWorld::ColumnBase::Display CSVWorld::CommandDelegate::getDisplayTypeFromIndex(const QModelIndex& index) const
 {
-    int rawDisplay = index.data(CSMWorld::ColumnBase::Role_Display).toInt();
+    std::int32_t rawDisplay = index.data(CSMWorld::ColumnBase::Role_Display).toInt();
     return static_cast<CSMWorld::ColumnBase::Display>(rawDisplay);
 }
 
@@ -204,34 +203,34 @@ QWidget* CSVWorld::CommandDelegate::createEditor(QWidget* parent, const QStyleOp
         case CSMWorld::ColumnBase::Display_Integer:
         {
             auto* sb = new DialogueSpinBox(parent);
-            sb->setRange(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+            sb->setRange(std::numeric_limits<std::int32_t>::min(), std::numeric_limits<std::int32_t>::max());
             return sb;
         }
 
         case CSMWorld::ColumnBase::Display_SignedInteger8:
         {
             auto* sb = new DialogueSpinBox(parent);
-            sb->setRange(std::numeric_limits<signed char>::min(), std::numeric_limits<signed char>::max());
+            sb->setRange(std::numeric_limits<std::int8_t>::min(), std::numeric_limits<std::int8_t>::max());
             return sb;
         }
         case CSMWorld::ColumnBase::Display_SignedInteger16:
         {
             auto* sb = new DialogueSpinBox(parent);
-            sb->setRange(std::numeric_limits<short>::min(), std::numeric_limits<short>::max());
+            sb->setRange(std::numeric_limits<std::int16_t>::min(), std::numeric_limits<std::int16_t>::max());
             return sb;
         }
 
         case CSMWorld::ColumnBase::Display_UnsignedInteger8:
         {
             auto* sb = new DialogueSpinBox(parent);
-            sb->setRange(0, std::numeric_limits<unsigned char>::max());
+            sb->setRange(0, std::numeric_limits<std::uint8_t>::max());
             return sb;
         }
 
         case CSMWorld::ColumnBase::Display_UnsignedInteger16:
         {
             auto* sb = new DialogueSpinBox(parent);
-            sb->setRange(0, std::numeric_limits<unsigned short>::max());
+            sb->setRange(0, std::numeric_limits<std::uint16_t>::max());
             return sb;
         }
 

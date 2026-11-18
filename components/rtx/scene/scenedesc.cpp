@@ -1,12 +1,12 @@
 #include "scenedesc.hpp"
 
 #include <algorithm>
-#include <atomic>
 #include <cassert>
 #include <cmath>
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 
 #include <osg/Image>
 #include <osg/Vec3f>
@@ -20,17 +20,14 @@
 
 namespace Rtx
 {
-    namespace
+    SceneDesc::SceneDesc(SceneIdentities& identities)
+        : mIdentity(identities)
     {
-        /// Atomic, because a picture's description is built wherever a view is made and the
-        /// tests build theirs on any thread.
-        std::atomic<std::uint64_t> sIdentities{ 0 };
     }
 
-    SceneDesc::SceneDesc() = default;
-
-    SceneDesc::SceneDesc(const SceneRoom& room)
-        : mRoom(room)
+    SceneDesc::SceneDesc(SceneIdentities& identities, const SceneRoom& room)
+        : mIdentity(identities)
+        , mRoom(room)
     {
         mMeshes.reserve(room.mMeshes);
         mMaterials.reserve(room);
@@ -39,71 +36,64 @@ namespace Rtx
         mPlacements.reserve(room);
     }
 
-    std::uint64_t SceneDesc::Identity::next() noexcept
+    MeshIndex SceneDesc::addMesh(const PackedMesh& mesh)
     {
-        return ++sIdentities;
-    }
-
-    Index SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape)
-    {
-        const MeshKey key = meshKeyOf(arrays, shape);
-        if (const Index known = mMeshes.find(key); known != sNoIndex)
+        if (const MeshIndex known = mMeshes.find(mesh.mKey); known != sNoRow)
             return known;
-        return mMeshes.add(mDeformers, arrays, shape, key);
+        return mMeshes.add(mDeformers, mesh);
     }
 
-    Index SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape, const Index deformer)
+    MeshIndex SceneDesc::addMesh(const PackedMesh& mesh, const DeformerIndex deformer)
     {
-        assert(deformer != sNoIndex && "a static mesh added on a deformer");
-        return mMeshes.add(mDeformers, arrays, shape, deformer);
+        assert(deformer != sNoRow && "a static mesh added on a deformer");
+        return mMeshes.add(mDeformers, mesh, deformer);
     }
 
-    Result<void, std::string> SceneDesc::checkPoses(const Index posed, const MeshArrays& arrays)
+    Result<void, std::string> SceneDesc::checkPoses(const std::uint32_t posed, const std::size_t vertices)
     {
-        if (posed != arrays.mPositions.size())
-            return Err{ "it has " + std::to_string(arrays.mPositions.size()) + " vertices on a rig or morph of "
+        if (posed != vertices)
+            return Err{ "it has " + std::to_string(vertices) + " vertices on a rig or morph of "
                 + std::to_string(posed) };
 
         return {};
     }
 
-    DeformedMesh SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape, const RigSpec& rig)
+    DeformedMesh SceneDesc::addMesh(const PackedMesh& mesh, const RigSpec& rig)
     {
-        assert(checkPoses(rig.getVertexCount(), arrays).isOk() && "a rig that does not pose its mesh");
-        assert(MeshTable::checkFits(arrays).isOk() && "a mesh past a block");
+        assert(checkPoses(rig.getVertexCount(), mesh.mPositions.size()).isOk() && "a rig that does not pose its mesh");
 
-        const Index deformer = mDeformers.addRig(rig);
+        const DeformerIndex deformer = mDeformers.addRig(rig);
         return DeformedMesh{
-            .mMesh = mMeshes.add(mDeformers, arrays, shape, deformer),
+            .mMesh = mMeshes.add(mDeformers, mesh, deformer),
             .mDeformer = deformer,
         };
     }
 
-    DeformedMesh SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape, const MorphSpec& morph)
+    DeformedMesh SceneDesc::addMesh(const PackedMesh& mesh, const MorphSpec& morph)
     {
-        assert(checkPoses(morph.getVertexCount(), arrays).isOk() && "targets that do not pose their mesh");
-        assert(MeshTable::checkFits(arrays).isOk() && "a mesh past a block");
+        assert(
+            checkPoses(morph.getVertexCount(), mesh.mPositions.size()).isOk() && "targets that do not pose their mesh");
 
-        const Index deformer = mDeformers.addMorph(morph);
+        const DeformerIndex deformer = mDeformers.addMorph(morph);
         return DeformedMesh{
-            .mMesh = mMeshes.add(mDeformers, arrays, shape, deformer),
+            .mMesh = mMeshes.add(mDeformers, mesh, deformer),
             .mDeformer = deformer,
         };
     }
 
-    Index SceneDesc::addMaterial(const Material& material)
+    MaterialIndex SceneDesc::addMaterial(const Material& material)
     {
         return mMaterials.add(mTextures, material);
     }
 
-    void SceneDesc::pose(Index mesh, std::span<const PoseWord> words, const osg::BoundingBoxf& bounds)
+    void SceneDesc::pose(MeshIndex mesh, std::span<const PoseWord> words, const osg::BoundingBoxf& bounds)
     {
-        assert(mesh < mMeshes.size());
+        assert(mesh.at() < mMeshes.size());
         if (mDeformers.pose(mMeshes.getRows()[mesh], words))
             mMeshes.notePosed(mesh, bounds);
     }
 
-    void SceneDesc::setMaterial(Index material, const Material& what)
+    void SceneDesc::setMaterial(MaterialIndex material, const Material& what)
     {
         if (!mMaterials.set(mTextures, material, what))
             return;
@@ -151,19 +141,19 @@ namespace Rtx
 
         // Each sprite names the emitter that placed it as it is copied in: this is the one place
         // that knows, and a tile's list is sprites that have to say when their run changed.
-        const auto emitter = static_cast<Index>(mEmitters.size());
+        const auto emitter = static_cast<std::uint32_t>(mEmitters.size());
         mEmitters.push_back(SpriteEmitter{
             .mCentre = centre,
             .mReach = reach,
-            .mFirst = static_cast<Index>(mSprites.size()),
-            .mCount = static_cast<Index>(sprites.size()),
-            .mTexture = spec.mTexture,
+            .mFirst = static_cast<std::uint32_t>(mSprites.size()),
+            .mCount = static_cast<std::uint32_t>(sprites.size()),
+            .mTexture = spec.mTexture.at(),
             .mFlags = (spec.mBlend != BlendKind::Over ? Shaders::EMITTER_ADDITIVE : 0u)
                 | (spec.mBlend == BlendKind::AddWhole ? Shaders::EMITTER_ADD_WHOLE : 0u)
                 | (spec.mFalls ? Shaders::EMITTER_FALLS : 0u)
                 | (spec.mFirstPerson ? Shaders::EMITTER_FIRST_PERSON : 0u),
             .mWidth = width,
-            .mLighting = spec.mLighting,
+            .mLighting = spec.mLighting.at(),
         });
 
         for (const Sprite& sprite : sprites)
@@ -173,49 +163,61 @@ namespace Rtx
         }
     }
 
-    Index SceneDesc::addInstance(const MeshInstance& instance)
+    PlacementIndex SceneDesc::addInstance(const MeshInstance& instance)
     {
-        assert(
-            instance.mMesh < mMeshes.size() && mMeshes.isLive(instance.mMesh) && "a placement of a mesh nothing holds");
-        assert((instance.mMaterial == sNoIndex || mMaterials.isLive(instance.mMaterial))
+        assert(instance.mMesh.at() < mMeshes.size() && mMeshes.isLive(instance.mMesh)
+            && "a placement of a mesh nothing holds");
+        assert((instance.mMaterial == sNoRow || mMaterials.isLive(instance.mMaterial))
             && "a placement wearing a material nothing holds");
 
         // A plain opaque surface where the instance carries no material, which the untextured
         // test scenes place.
-        const Material::Traversed worn = instance.mMaterial == sNoIndex
+        const Material::Traversed worn = instance.mMaterial == sNoRow
             ? Material::Traversed{}
             : mMaterials.getRows()[instance.mMaterial].getTraversed();
 
         mMeshes.hold(instance.mMesh);
-        if (instance.mMaterial != sNoIndex)
+        if (instance.mMaterial != sNoRow)
+        {
             mMaterials.hold(instance.mMaterial);
+
+            // **The walk's placements ask the finest footprint**: they are the active grid's, which stand whole
+            // (`docs/architecture.md`, "A texture stands from the level its nearest user asks"). The ring asks by
+            // its cells' distance (`askMaterial`).
+            if (instance.mStander == Stander::Walk)
+                mMaterials.ask(mTextures, instance.mMaterial, 0);
+        }
 
         return mPlacements.add(instance, worn);
     }
 
-    void SceneDesc::dropInstance(const Index slot, const Stander by)
+    void SceneDesc::dropInstance(const PlacementIndex slot, const Stander by)
     {
         const MeshInstance stood = mPlacements.getRows()[slot].mInstance;
         mPlacements.drop(slot, by);
 
         mMeshes.drop(mDeformers, stood.mMesh);
-        if (stood.mMaterial != sNoIndex)
+        if (stood.mMaterial != sNoRow)
+        {
+            if (stood.mStander == Stander::Walk)
+                mMaterials.unask(mTextures, stood.mMaterial, 0);
             mMaterials.drop(mTextures, stood.mMaterial);
+        }
     }
 
-    MeshHold SceneDesc::holdMesh(const Index mesh)
+    MeshHold SceneDesc::holdMesh(const MeshIndex mesh)
     {
         mMeshes.hold(mesh);
         return MeshHold(mesh);
     }
 
-    MaterialHold SceneDesc::holdMaterial(const Index material)
+    MaterialHold SceneDesc::holdMaterial(const MaterialIndex material)
     {
         mMaterials.hold(material);
         return MaterialHold(material);
     }
 
-    TextureHold SceneDesc::holdTexture(const Index texture)
+    TextureHold SceneDesc::holdTexture(const TextureIndex texture)
     {
         mTextures.hold(texture);
         return TextureHold(texture);
@@ -239,9 +241,9 @@ namespace Rtx
             mTextures.drop(hold.release());
     }
 
-    void SceneDesc::drop(std::vector<TextureHold>& holds)
+    void SceneDesc::drop(std::vector<ReadingHold>& holds)
     {
-        for (TextureHold& hold : holds)
+        for (ReadingHold& hold : holds)
             drop(std::move(hold));
         holds.clear();
     }
@@ -252,21 +254,46 @@ namespace Rtx
         return TextureHold(mTextures.take(path, image, wrap, encoding, partner));
     }
 
+    ReadingHold SceneDesc::takeReading(
+        const VFS::Path::NormalizedView path, const osg::Image& image, const TextureWrap wrap)
+    {
+        const TextureIndex slot = mTextures.take(path, image, wrap);
+        mTextures.ask(slot, 0);
+        return ReadingHold(slot);
+    }
+
+    ReadingHold SceneDesc::holdReading(const TextureIndex texture)
+    {
+        mTextures.hold(texture);
+        mTextures.ask(texture, 0);
+        return ReadingHold(texture);
+    }
+
+    void SceneDesc::drop(ReadingHold&& hold)
+    {
+        if (hold.empty())
+            return;
+
+        const TextureIndex texture = hold.release();
+        mTextures.unask(texture, 0);
+        mTextures.drop(texture);
+    }
+
     bool SceneDesc::isConsistent() const
     {
-        for (Index slot = 0; slot < mMeshes.size(); ++slot)
+        for (const MeshIndex slot : everyRow<MeshIndex>(mMeshes.size()))
             if (mMeshes.isLive(slot) && mMeshes.getHolds(slot) == 0 && !mMeshes.getRows()[slot].mRest.mResting)
                 return false;
 
-        for (Index slot = 0; slot < mMaterials.size(); ++slot)
+        for (const MaterialIndex slot : everyRow<MaterialIndex>(mMaterials.size()))
             if (mMaterials.isLive(slot) && mMaterials.getHolds(slot) == 0)
                 return false;
 
-        for (Index slot = 0; slot < mTextures.getRows().size(); ++slot)
+        for (const TextureIndex slot : everyRow<TextureIndex>(mTextures.getRows().size()))
             if (mTextures.isLive(slot) && mTextures.getHolds(slot) == 0 && !mTextures.getRows()[slot].mRest.mResting)
                 return false;
 
-        for (Index slot = 0; slot < mDeformers.getRows().size(); ++slot)
+        for (const DeformerIndex slot : everyRow<DeformerIndex>(mDeformers.getRows().size()))
             if (mDeformers.isLive(slot) && mDeformers.getHolds(slot) == 0)
                 return false;
 
@@ -353,10 +380,10 @@ namespace Rtx
     std::uint64_t SceneDesc::releaseOldestResting()
     {
         const std::uint64_t before = getRestingBytes();
-        const Index texture = mTextures.getResting().first();
-        const Index mesh = mMeshes.getResting().first();
-        const bool textureFirst = mesh == sNoIndex
-            || (texture != sNoIndex
+        const TextureIndex texture = mTextures.getResting().first();
+        const MeshIndex mesh = mMeshes.getResting().first();
+        const bool textureFirst = mesh == sNoRow
+            || (texture != sNoRow
                 && mTextures.getRows()[texture].mRest.mFiledAt <= mMeshes.getRows()[mesh].mRest.mFiledAt);
         if (textureFirst)
             mTextures.releaseOldest();
@@ -373,12 +400,32 @@ namespace Rtx
         const std::uint64_t before = getRestingBytes();
         for (const RoomWant& want : wants)
         {
-            const bool fitted = want.mKind == RestKind::Texture ? mTextures.releaseFitting(want.mHole)
-                                                                : mMeshes.releaseFitting(mDeformers, want.mHole);
-            for (std::uint64_t freed = 0; !fitted && freed < want.mHole && getRestingBytes() > 0;)
-                freed += releaseOldestResting();
+            const bool texture = std::holds_alternative<TextureIndex>(want.mWaiter);
+            const bool fitted = texture ? mTextures.releaseFitting(want.mHole, want.mAlignment)
+                                        : mMeshes.releaseFitting(mDeformers, want.mHole, want.mAlignment);
+            // **A structure's want frees meshes alone**: a texture's range gives back room in the pools, which no
+            // structure takes, its storages being blocks of their own. A texture's frees what rested longest across
+            // the tables, a mesh whose block empties giving the heap room a pool's block takes.
+            for (std::uint64_t freed = 0; !fitted && freed < want.mHole;)
+            {
+                const std::uint64_t resting = getRestingBytes();
+                if (!texture && mMeshes.getResting().first() != sNoRow)
+                    mMeshes.releaseOldest(mDeformers);
+                else if (texture && resting > 0)
+                    releaseOldestResting();
+                else
+                    break;
+                freed += resting - getRestingBytes();
+            }
         }
         return before - getRestingBytes();
+    }
+
+    void SceneDesc::evictRestingTexture(const TextureIndex slot)
+    {
+        assert(mTextures.isLive(slot) && "a texture evicted that the table holds no more");
+        assert(mTextures.getRows()[slot].mRest.mResting && "a texture evicted out of its turn that does not rest");
+        mTextures.release(slot);
     }
 
     std::uint64_t SceneDesc::getRestingBytes() const
@@ -386,12 +433,12 @@ namespace Rtx
         return mTextures.getResting().getBytes() + mMeshes.getResting().getBytes();
     }
 
-    void SceneDesc::fitMesh(const Index mesh, const std::uint64_t bytes)
+    void SceneDesc::fitMesh(const MeshIndex mesh, const std::uint64_t bytes, const std::uint64_t alignment)
     {
-        mMeshes.fit(mesh, bytes);
+        mMeshes.fit(mesh, bytes, alignment);
     }
 
-    void SceneDesc::standMesh(const Index mesh, const std::uint64_t structureBytes)
+    void SceneDesc::standMesh(const MeshIndex mesh, const std::uint64_t structureBytes)
     {
         mMeshes.stand(mesh, structureBytes);
     }
@@ -404,7 +451,7 @@ namespace Rtx
         mDeformers.clearArrivals();
     }
 
-    std::span<const PoseWord> SceneDesc::getMeshPose(const Index mesh) const
+    std::span<const PoseWord> SceneDesc::getMeshPose(const MeshIndex mesh) const
     {
         return mDeformers.getMeshPose(mMeshes.getRows()[mesh]);
     }
@@ -412,7 +459,7 @@ namespace Rtx
     osg::BoundingBoxf SceneDesc::getContentBoundsWithin(const osg::BoundingBoxf& region) const
     {
         osg::BoundingBoxf bounds;
-        mPlacements.forEachPlaced([&](Index, const PlacementRow& row) {
+        mPlacements.forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
             // What the row keeps of its material, which an instance with none holds as a surface:
             // not a backdrop — the untextured test scenes place those, and a caller framing one
             // means to see it.

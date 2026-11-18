@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_ComboBox.h>
 #include <MyGUI_EditBox.h>
@@ -71,11 +73,11 @@ namespace Gui
 
     protected:
         void setPropertyOverride(std::string_view key, std::string_view value) override;
-        int getWidth();
+        std::int32_t getWidth();
         std::string mFontSize;
         bool mShrink = false;
         bool mWasResized = false;
-        int mMaxWidth = 0;
+        std::int32_t mMaxWidth = 0;
     };
 
     class AutoSizedButton : public AutoSizedWidget, public Button
@@ -109,9 +111,9 @@ namespace Gui
 
         virtual bool _setPropertyImpl(std::string_view key, std::string_view value);
 
-        int mSpacing; // how much space to put between elements
+        std::int32_t mSpacing; // how much space to put between elements
 
-        int mPadding; // outer padding
+        std::int32_t mPadding; // outer padding
 
         bool mAutoResize; // auto resize the box so that it exactly fits all elements
     };

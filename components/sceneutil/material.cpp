@@ -1,5 +1,7 @@
 #include "material.hpp"
 
+#include <cstdint>
+
 #include <osg/State>
 #include <osg/StateSet>
 #include <osg/Uniform>
@@ -34,7 +36,7 @@ namespace SceneUtil
         addOrUpdate("material.shininess", osg::Uniform::FLOAT, mConfig.mShininess);
         addOrUpdate("material.emissiveMult", osg::Uniform::FLOAT, mConfig.mEmissiveMult);
         addOrUpdate("material.specStrength", osg::Uniform::FLOAT, mConfig.mSpecularStrength);
-        addOrUpdate("material.vertexColorMode", osg::Uniform::INT, static_cast<int>(mConfig.mVertexColorMode));
+        addOrUpdate("material.vertexColorMode", osg::Uniform::INT, static_cast<std::int32_t>(mConfig.mVertexColorMode));
     }
 
     void Material::updateStateSet(osg::StateSet* stateset) const
@@ -47,10 +49,10 @@ namespace SceneUtil
         stateset->getOrCreateUniform("material.emissiveMult", osg::Uniform::FLOAT)->set(mConfig.mEmissiveMult);
         stateset->getOrCreateUniform("material.specStrength", osg::Uniform::FLOAT)->set(mConfig.mSpecularStrength);
         stateset->getOrCreateUniform("material.vertexColorMode", osg::Uniform::INT)
-            ->set(static_cast<int>(mConfig.mVertexColorMode));
+            ->set(static_cast<std::int32_t>(mConfig.mVertexColorMode));
     }
 
-    int Material::compare(const StateAttribute& sa) const
+    std::int32_t Material::compare(const StateAttribute& sa) const
     {
         // NOLINTNEXTLINE(modernize-use-auto): OSG's macro declares the type it is handed, which `auto` cannot be.
         COMPARE_StateAttribute_Types(Material, sa);

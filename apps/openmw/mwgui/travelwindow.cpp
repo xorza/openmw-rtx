@@ -1,30 +1,29 @@
 #include "travelwindow.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ScrollView.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/actionteleport.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/actionteleport.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/store.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
 
 namespace MWGui
 {
@@ -48,13 +47,13 @@ namespace MWGui
 
     void TravelWindow::addDestination(const ESM::RefId& name, const ESM::Position& pos, bool interior)
     {
-        int price = 0;
+        std::int32_t price = 0;
 
         const MWWorld::Store<ESM::GameSetting>& gmst
             = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();
 
         MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
         if (!mPtr.getCell()->isExterior())
         {
@@ -67,9 +66,9 @@ namespace MWGui
                 + std::pow(pos.pos[2] - playerPos.pos[2], 2));
             float fTravelMult = gmst.find("fTravelMult")->mValue.getFloat();
             if (fTravelMult != 0)
-                price = static_cast<int>(d / static_cast<double>(fTravelMult));
+                price = static_cast<std::int32_t>(d / static_cast<double>(fTravelMult));
             else
-                price = static_cast<int>(d);
+                price = static_cast<std::int32_t>(d);
         }
 
         // Add price for the travelling followers
@@ -77,12 +76,12 @@ namespace MWGui
         MWWorld::ActionTeleport::getFollowers(player, followers, !interior);
 
         // Apply followers cost, unlike vanilla the first follower doesn't travel for free
-        price *= 1 + static_cast<int>(followers.size());
+        price *= 1 + static_cast<std::int32_t>(followers.size());
 
         price = std::max(1, price);
         price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
         auto* toAdd = mDestinationsView->createWidget<MyGUI::Button>(
             "SandTextButton", 0, mCurrentY, 200, lineHeight, MyGUI::Align::Default);
@@ -174,10 +173,10 @@ namespace MWGui
 
     void TravelWindow::onTravelButtonClick(MyGUI::Widget* sender)
     {
-        const int price = Misc::StringUtils::toNumeric<int>(sender->getUserString("price"), 0);
+        const auto price = Misc::StringUtils::toNumeric<std::int32_t>(sender->getUserString("price"), 0);
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
         if (playerGold < price)
             return;
@@ -209,7 +208,7 @@ namespace MWGui
                                               ->get<ESM::GameSetting>()
                                               .find("fTravelTimeMult")
                                               ->mValue.getFloat();
-            int hours = static_cast<int>(d / fTravelTimeMult);
+            auto hours = static_cast<std::int32_t>(d / fTravelTimeMult);
             MWBase::Environment::get().getMechanicsManager()->rest(hours, true);
             MWBase::Environment::get().getWorld()->advanceTime(hours);
         }
@@ -237,7 +236,7 @@ namespace MWGui
     void TravelWindow::updateLabels()
     {
         MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
         mPlayerGold->setCaptionWithReplacing("#{sGold}: " + MyGUI::utility::toString(playerGold));
         mPlayerGold->setCoord(8, mPlayerGold->getTop(), mPlayerGold->getTextSize().width, mPlayerGold->getHeight());
@@ -249,13 +248,13 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->exitCurrentGuiMode();
     }
 
-    void TravelWindow::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
+    void TravelWindow::onMouseWheel(MyGUI::Widget* /*sender*/, std::int32_t rel)
     {
         if (static_cast<float>(mDestinationsView->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mDestinationsView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mDestinationsView->setViewOffset(MyGUI::IntPoint(0,
-                static_cast<int>(
+                static_cast<std::int32_t>(
                     static_cast<float>(mDestinationsView->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
@@ -297,8 +296,9 @@ namespace MWGui
             mDestinationsView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
         {
-            const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
-            mDestinationsView->setViewOffset(MyGUI::IntPoint(0, -lineHeight * static_cast<int>(mControllerFocus - 5)));
+            const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+            mDestinationsView->setViewOffset(
+                MyGUI::IntPoint(0, -lineHeight * static_cast<std::int32_t>(mControllerFocus - 5)));
         }
 
         return true;

@@ -1,18 +1,18 @@
 #include "journalimp.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/journalentry.hpp>
 #include <components/esm3/queststate.hpp>
-
 #include <components/misc/strings/algorithm.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWDialogue
 {
@@ -76,7 +76,7 @@ namespace MWDialogue
         mTopics.clear();
     }
 
-    void Journal::addEntry(const ESM::RefId& id, int index, const MWWorld::Ptr& actor)
+    void Journal::addEntry(const ESM::RefId& id, std::int32_t index, const MWWorld::Ptr& actor)
     {
         // bail out if we already have heard this...
         const ESM::RefId& infoId = JournalEntry::idFromIndex(id, index);
@@ -113,7 +113,7 @@ namespace MWDialogue
         }
     }
 
-    void Journal::setJournalIndex(const ESM::RefId& id, int index)
+    void Journal::setJournalIndex(const ESM::RefId& id, std::int32_t index)
     {
         Quest& quest = getOrStartQuest(id);
 
@@ -139,7 +139,7 @@ namespace MWDialogue
             mTopics.erase(mTopics.find(topicId)); // All responses removed -> remove topic
     }
 
-    int Journal::getJournalIndex(const ESM::RefId& id) const
+    std::int32_t Journal::getJournalIndex(const ESM::RefId& id) const
     {
         auto iter = mQuests.find(id);
 
@@ -149,7 +149,7 @@ namespace MWDialogue
         return iter->second.getIndex();
     }
 
-    size_t Journal::countSavedGameRecords() const
+    std::size_t Journal::countSavedGameRecords() const
     {
         std::size_t count = mQuests.size();
 
@@ -211,7 +211,7 @@ namespace MWDialogue
         }
     }
 
-    void Journal::readRecord(ESM::ESMReader& reader, uint32_t type)
+    void Journal::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_JOUR)
         {

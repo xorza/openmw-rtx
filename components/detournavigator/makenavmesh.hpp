@@ -1,12 +1,13 @@
 #pragma once
 
-#include "recastmesh.hpp"
-#include "tileposition.hpp"
+#include <cstdint>
+#include <memory>
+#include <span>
 
 #include <components/esm/refid.hpp>
 
-#include <memory>
-#include <span>
+#include "recastmesh.hpp"
+#include "tileposition.hpp"
 
 class dtNavMesh;
 struct rcConfig;
@@ -30,7 +31,7 @@ namespace DetourNavigator
         return getLength(lhs - rhs);
     }
 
-    inline bool shouldAddTile(const TilePosition& changedTile, const TilePosition& playerTile, int maxTiles)
+    inline bool shouldAddTile(const TilePosition& changedTile, const TilePosition& playerTile, std::int32_t maxTiles)
     {
         const auto expectedTilesCount = std::ceil(osg::PI * osg::square(getDistance(changedTile, playerTile)));
         return expectedTilesCount <= maxTiles;

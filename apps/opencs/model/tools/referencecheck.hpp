@@ -1,9 +1,10 @@
 #pragma once
 
-#include "../world/idcollection.hpp"
-#include "../world/refcollection.hpp"
+#include <cstdint>
 
-#include "../doc/stage.hpp"
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/refcollection.hpp>
 
 namespace ESM
 {
@@ -32,8 +33,8 @@ namespace CSMTools
             const CSMWorld::IdCollection<CSMWorld::Cell>& cells, const CSMWorld::IdCollection<ESM::Faction>& factions,
             const CSMWorld::IdCollection<ESM::BodyPart>& bodyparts);
 
-        void perform(int stage, CSMDoc::Messages& messages) override;
-        int setup() override;
+        void perform(std::int32_t stage, CSMDoc::Messages& messages) override;
+        std::int32_t setup() override;
 
     private:
         const CSMWorld::RefCollection& mReferences;

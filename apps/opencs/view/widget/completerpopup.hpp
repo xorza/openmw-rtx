@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QListView>
 
 namespace CSVWidget
@@ -9,6 +11,6 @@ namespace CSVWidget
     public:
         explicit CompleterPopup(QWidget* parent = nullptr);
 
-        int sizeHintForRow(int row) const override;
+        std::int32_t sizeHintForRow(std::int32_t row) const override;
     };
 }

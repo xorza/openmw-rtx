@@ -714,14 +714,14 @@ namespace Rtx
             const auto addStorm = [](Layer& into) {
                 into.addEmitter(0.0f, osg::Vec3f());
                 for (float x : { 30.0f, 60.0f, 120.0f, 250.0f })
-                    for (int y = -12; y <= 12; ++y)
-                        for (int z = -8; z <= 8; z += 2)
+                    for (std::int32_t y = -12; y <= 12; ++y)
+                        for (std::int32_t z = -8; z <= 8; z += 2)
                             into.addSprite(
                                 osg::Vec3f(x, static_cast<float>(y) * 4.0f, static_cast<float>(z) * 3.0f), 1.5f);
 
                 into.addEmitter(0.1f, osg::Vec3f(0.0f, 0.0f, -1.0f));
                 for (float x : { 25.0f, 75.0f, 150.0f })
-                    for (int y = -10; y <= 10; ++y)
+                    for (std::int32_t y = -10; y <= 10; ++y)
                         into.addSprite(osg::Vec3f(x, static_cast<float>(y) * 5.0f, 2.0f), 4.0f);
             };
             const auto addPuffs = [](Layer& into) {
@@ -779,8 +779,8 @@ namespace Rtx
             Layer puffsFirst;
             addPuffs(puffsFirst);
             puffsFirst.addEmitter(0.0f, osg::Vec3f());
-            for (int y = 10; y <= 50; ++y)
-                for (int z = -8; z <= 8; z += 2)
+            for (std::int32_t y = 10; y <= 50; ++y)
+                for (std::int32_t z = -8; z <= 8; z += 2)
                     puffsFirst.addSprite(
                         osg::Vec3f(200.0f, static_cast<float>(y) * 2.0f, static_cast<float>(z) * 3.0f), 1.5f);
             ASSERT_GT(puffsFirst.mSprites.size(), 6 * Shaders::SPRITE_RUNS_LANES)
@@ -807,14 +807,14 @@ namespace Rtx
             constexpr std::uint32_t height = 1080;
 
             Layer layer;
-            for (int column = 0; column < 19; ++column)
+            for (std::int32_t column = 0; column < 19; ++column)
             {
                 layer.addEmitter(0.0f, osg::Vec3f());
 
                 const float x
                     = column < 3 ? 2.0f + static_cast<float>(column) : 40.0f + static_cast<float>(column) * 9.0f;
                 const float y = column < 3 ? 0.0f : static_cast<float>(column % 5) * 20.0f - 40.0f;
-                for (int puff = 0; puff < 20; ++puff)
+                for (std::int32_t puff = 0; puff < 20; ++puff)
                     layer.addSprite(
                         osg::Vec3f(x, y, static_cast<float>(puff) * 6.0f - 30.0f), column < 3 ? 25.0f : 8.0f);
             }

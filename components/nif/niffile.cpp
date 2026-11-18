@@ -1,13 +1,15 @@
 #include "niffile.hpp"
 
-#include <components/debug/debuglog.hpp>
-#include <components/files/hash.hpp>
-
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <map>
 #include <sstream>
+
+#include <components/debug/debuglog.hpp>
+#include <components/files/hash.hpp>
 
 #include "controller.hpp"
 #include "data.hpp"
@@ -538,10 +540,10 @@ namespace Nif
 
     std::string Reader::versionToString(std::uint32_t version)
     {
-        int major = static_cast<int>((version >> 24) & 0xFF);
-        int minor = static_cast<int>((version >> 16) & 0xFF);
-        int patch = static_cast<int>((version >> 8) & 0xFF);
-        int rev = static_cast<int>(version & 0xFF);
+        auto major = static_cast<std::int32_t>((version >> 24) & 0xFF);
+        auto minor = static_cast<std::int32_t>((version >> 16) & 0xFF);
+        auto patch = static_cast<std::int32_t>((version >> 8) & 0xFF);
+        auto rev = static_cast<std::int32_t>(version & 0xFF);
 
         std::stringstream stream;
         stream << major << "." << minor << "." << patch << "." << rev;
@@ -686,7 +688,7 @@ namespace Nif
             }
 
             // Record separator. Some Havok records in Oblivion do not have it.
-            if (hasRecordSeparators && !rec.starts_with("bhk") && nif.get<int32_t>())
+            if (hasRecordSeparators && !rec.starts_with("bhk") && nif.get<std::int32_t>())
                 throw Nif::Exception("Non-zero separator precedes " + rec + ", index " + std::to_string(i), mFilename);
 
             const auto entry = factories.find(rec);
@@ -702,13 +704,13 @@ namespace Nif
             assert(r != nullptr);
             assert(r->mRecordType != RC_MISSING);
             r->mRecordName = std::move(rec);
-            r->mRecordIndex = static_cast<unsigned>(i);
+            r->mRecordIndex = static_cast<std::uint32_t>(i);
             r->read(&nif);
             mRecords.push_back(std::move(r));
         }
 
         // Determine which records are roots
-        const auto rootsCount = nif.get<uint32_t>();
+        const auto rootsCount = nif.get<std::uint32_t>();
         mRoots.reserve(rootsCount);
         constexpr std::uint32_t maxDoesNotPointWarnings = 10;
         std::uint32_t doesNotPointWarnings = 0;

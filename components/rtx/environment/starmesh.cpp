@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -81,14 +82,14 @@ namespace Rtx
             const std::vector<Bearing>* mBearings = nullptr;
             std::vector<float> mRates;
 
-            void operator()(unsigned int a, unsigned int b, unsigned int c)
+            void operator()(std::uint32_t a, std::uint32_t b, std::uint32_t c)
             {
                 take(a, b);
                 take(b, c);
                 take(c, a);
             }
 
-            void take(unsigned int i, unsigned int j)
+            void take(std::uint32_t i, std::uint32_t j)
             {
                 if (i >= mBearings->size() || j >= mBearings->size())
                     return;
@@ -266,7 +267,7 @@ namespace Rtx
     }
 
     NightSky readNightSky(
-        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<TextureHold>& holds)
+        SceneDesc& scene, const osg::Node& mesh, ThreadContent& thread, std::vector<ReadingHold>& holds)
     {
         NightSky sky;
 
@@ -277,16 +278,16 @@ namespace Rtx
         std::size_t next = 0;
         for (const Layer& layer : read.mLayers)
         {
-            TextureHold held = takeSkySheet(
+            ReadingHold held = takeSkySheet(
                 scene, VFS::Path::Normalized(SceneUtil::EmbeddedImage::nameOf(*layer.mImage)), *layer.mImage);
-            const Index slot = held.get();
-            if (slot == sNoIndex)
+            const TextureIndex slot = held.get();
+            if (slot == sNoRow)
                 continue;
 
             if (std::min(layer.mUvSpan.x(), layer.mUvSpan.y()) > sTiledSpan)
             {
                 // The first that looks like one and no more: a second is given back at once.
-                if (sky.mField != sNoIndex)
+                if (sky.mField != sNoRow)
                 {
                     scene.drop(std::move(held));
                     continue;
@@ -330,7 +331,7 @@ namespace Rtx
 
     Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
-        std::vector<TextureHold>& holds)
+        std::vector<ReadingHold>& holds)
     {
         const VFS::Path::NormalizedView chosen = scenes.getVFS()->exists(mesh) ? mesh : fallback;
 

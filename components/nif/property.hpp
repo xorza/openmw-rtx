@@ -13,7 +13,7 @@ namespace Nif
 
     struct NiTextureTransform
     {
-        enum class Method : uint32_t
+        enum class Method : std::uint32_t
         {
             // Back = inverse of mOrigin.
             // FromMaya = inverse of the V axis with a positive translation along V of 1 unit.
@@ -33,7 +33,7 @@ namespace Nif
 
     struct NiTexturingProperty : NiProperty
     {
-        enum class ApplyMode : uint32_t
+        enum class ApplyMode : std::uint32_t
         {
             Replace = 0,
             Decal = 1,
@@ -58,10 +58,10 @@ namespace Nif
         {
             bool mEnabled{};
             NiSourceTexturePtr mSourceTexture;
-            uint32_t mClamp{};
-            uint32_t mFilter{};
-            uint16_t mMaxAnisotropy{};
-            uint32_t mUVSet{};
+            std::uint32_t mClamp{};
+            std::uint32_t mFilter{};
+            std::uint16_t mMaxAnisotropy{};
+            std::uint32_t mUVSet{};
             bool mHasTransform{};
             NiTextureTransform mTransform;
 
@@ -72,12 +72,12 @@ namespace Nif
             bool wrapS() const { return mClamp & 2; }
         };
 
-        uint16_t mFlags{ 0u };
+        std::uint16_t mFlags{ 0u };
         ApplyMode mApplyMode{ ApplyMode::Modulate };
 
         std::vector<Texture> mTextures;
         std::vector<Texture> mShaderTextures;
-        std::vector<uint32_t> mShaderIds;
+        std::vector<std::uint32_t> mShaderIds;
 
         osg::Vec2f mEnvMapLumaBias;
         osg::Vec4f mBumpMapMatrix;
@@ -89,12 +89,12 @@ namespace Nif
 
     struct NiShadeProperty : NiProperty
     {
-        uint16_t mFlags{ 0u };
+        std::uint16_t mFlags{ 0u };
 
         void read(NIFStream* nif) override;
     };
 
-    enum class BSShaderType : uint32_t
+    enum class BSShaderType : std::uint32_t
     {
         ShaderType_TallGrass = 0,
         ShaderType_Default = 1,
@@ -131,16 +131,16 @@ namespace Nif
     struct BSSPRefractionParams
     {
         float mStrength{ 0.f };
-        int32_t mPeriod{ 0 };
+        std::int32_t mPeriod{ 0 };
 
         void read(NIFStream* nif);
     };
 
     struct BSShaderProperty : NiShadeProperty
     {
-        uint32_t mType{ 0u }, mShaderFlags1{ 0u }, mShaderFlags2{ 0u };
+        std::uint32_t mType{ 0u }, mShaderFlags1{ 0u }, mShaderFlags2{ 0u };
         float mEnvMapScale{ 0.f };
-        std::vector<uint32_t> mShaderFlags1Hashes, mShaderFlags2Hashes;
+        std::vector<std::uint32_t> mShaderFlags1Hashes, mShaderFlags2Hashes;
         osg::Vec2f mUVOffset, mUVScale;
 
         void read(NIFStream* nif) override;
@@ -157,7 +157,7 @@ namespace Nif
 
     struct BSShaderLightingProperty : BSShaderProperty
     {
-        uint32_t mClamp{ 3 };
+        std::uint32_t mClamp{ 3 };
 
         void read(NIFStream* nif) override;
 
@@ -184,7 +184,7 @@ namespace Nif
         void read(NIFStream* nif) override;
     };
 
-    enum class SkyObjectType : uint32_t
+    enum class SkyObjectType : std::uint32_t
     {
         SkyTexture = 0,
         SkySunglare = 1,
@@ -216,7 +216,7 @@ namespace Nif
         void read(NIFStream* nif) override;
     };
 
-    enum class BSLightingShaderType : uint32_t
+    enum class BSLightingShaderType : std::uint32_t
     {
         ShaderType_Default = 0,
         ShaderType_EnvMap = 1,
@@ -302,7 +302,7 @@ namespace Nif
         osg::Vec3f mEmissive;
         float mEmissiveMult{ 1.f };
         std::string mRootMaterial;
-        uint32_t mClamp{ 3 };
+        std::uint32_t mClamp{ 3 };
         float mAlpha{ 1.f };
         float mRefractionStrength{};
         float mGlossiness{ 80.f };
@@ -349,9 +349,9 @@ namespace Nif
     struct BSEffectShaderProperty : BSShaderProperty
     {
         std::string mSourceTexture;
-        uint8_t mClamp{};
-        uint8_t mLightingInfluence{};
-        uint8_t mEnvMapMinLOD{};
+        std::uint8_t mClamp{};
+        std::uint8_t mLightingInfluence{};
+        std::uint8_t mEnvMapMinLOD{};
         osg::Vec4f mFalloffParams;
         float mRefractionPower{};
         osg::Vec4f mBaseColor;
@@ -407,7 +407,7 @@ namespace Nif
             Flag_CubeMap = 0x2000,
         };
 
-        uint32_t mFlags{};
+        std::uint32_t mFlags{};
 
         void read(NIFStream* nif) override;
     };
@@ -421,8 +421,8 @@ namespace Nif
             Flag_NoSorter = 0x2000,
         };
 
-        uint16_t mFlags{};
-        uint8_t mThreshold{};
+        std::uint16_t mFlags{};
+        std::uint8_t mThreshold{};
 
         void read(NIFStream* nif) override;
 
@@ -458,28 +458,28 @@ namespace Nif
             http://niftools.sourceforge.net/doc/nif/NiAlphaProperty.html
         */
 
-        int sourceBlendMode() const { return (mFlags >> 1) & 0xF; }
-        int destinationBlendMode() const { return (mFlags >> 5) & 0xF; }
-        int alphaTestMode() const { return (mFlags >> 10) & 0x7; }
+        std::int32_t sourceBlendMode() const { return (mFlags >> 1) & 0xF; }
+        std::int32_t destinationBlendMode() const { return (mFlags >> 5) & 0xF; }
+        std::int32_t alphaTestMode() const { return (mFlags >> 10) & 0x7; }
     };
 
     struct NiDitherProperty : NiProperty
     {
-        uint16_t mFlags{};
+        std::uint16_t mFlags{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiFogProperty : NiProperty
     {
-        enum Flags : uint16_t
+        enum Flags : std::uint16_t
         {
             Enabled = 0x02,
             Radial = 0x08,
             VertexAlpha = 0x10,
         };
 
-        uint16_t mFlags{};
+        std::uint16_t mFlags{};
         float mFogDepth{};
         osg::Vec3f mColour;
 
@@ -492,7 +492,7 @@ namespace Nif
 
     struct NiMaterialProperty : NiProperty
     {
-        uint16_t mFlags{ 0u };
+        std::uint16_t mFlags{ 0u };
         osg::Vec3f mAmbient{ 1.f, 1.f, 1.f };
         osg::Vec3f mDiffuse{ 1.f, 1.f, 1.f };
         osg::Vec3f mSpecular;
@@ -513,7 +513,7 @@ namespace Nif
 
     struct NiStencilProperty : NiProperty
     {
-        enum class TestFunc : uint32_t
+        enum class TestFunc : std::uint32_t
         {
             Never = 0,
             Less = 1,
@@ -525,7 +525,7 @@ namespace Nif
             Always = 7,
         };
 
-        enum class Action : uint32_t
+        enum class Action : std::uint32_t
         {
             Keep = 0,
             Zero = 1,
@@ -535,7 +535,7 @@ namespace Nif
             Invert = 5,
         };
 
-        enum class DrawMode : uint32_t
+        enum class DrawMode : std::uint32_t
         {
             Default = 0,
             CounterClockwise = 1,
@@ -543,11 +543,11 @@ namespace Nif
             Both = 3,
         };
 
-        uint16_t mFlags{ 0u };
+        std::uint16_t mFlags{ 0u };
         bool mEnabled{};
         TestFunc mTestFunction{};
-        uint32_t mStencilRef{};
-        uint32_t mStencilMask{};
+        std::uint32_t mStencilRef{};
+        std::uint32_t mStencilMask{};
         Action mFailAction{};
         Action mZFailAction{};
         Action mPassAction{};
@@ -558,20 +558,20 @@ namespace Nif
 
     struct NiVertexColorProperty : NiProperty
     {
-        enum class VertexMode : uint32_t
+        enum class VertexMode : std::uint32_t
         {
             VertMode_SrcIgnore = 0,
             VertMode_SrcEmissive = 1,
             VertMode_SrcAmbDif = 2
         };
 
-        enum class LightMode : uint32_t
+        enum class LightMode : std::uint32_t
         {
             LightMode_Emissive = 0,
             LightMode_EmiAmbDif = 1
         };
 
-        uint16_t mFlags{};
+        std::uint16_t mFlags{};
         VertexMode mVertexMode{};
         LightMode mLightingMode{};
 
@@ -587,8 +587,8 @@ namespace Nif
 
     struct NiZBufferProperty : NiProperty
     {
-        uint16_t mFlags{};
-        uint32_t mTestFunction{};
+        std::uint16_t mFlags{};
+        std::uint32_t mTestFunction{};
 
         void read(NIFStream* nif) override;
 

@@ -1,31 +1,26 @@
 #pragma once
 
-#include <boost/program_options/variables_map.hpp>
-
-#include <QLockFile>
-#include <QObject>
-#include <QString>
-
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
 
-#ifndef Q_MOC_RUN
+#include <QLockFile>
+#include <QObject>
+#include <QString>
+#include <boost/program_options/variables_map.hpp>
+
+#include <apps/opencs/model/doc/documentmanager.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/view/doc/filedialog.hpp>
+#include <apps/opencs/view/doc/newgame.hpp>
+#include <apps/opencs/view/doc/startup.hpp>
+#include <apps/opencs/view/prefs/dialogue.hpp>
+#include <apps/opencs/view/tools/merge.hpp>
 #include <components/files/configurationmanager.hpp>
-#endif
-
 #include <components/files/multidircollection.hpp>
-
-#include "model/doc/documentmanager.hpp"
-#include "model/prefs/state.hpp"
-
-#include "view/doc/filedialog.hpp"
-#include "view/doc/newgame.hpp"
-#include "view/doc/startup.hpp"
-#include "view/prefs/dialogue.hpp"
-#include "view/tools/merge.hpp"
 
 class QLocalServer;
 class QLocalSocket;
@@ -76,13 +71,13 @@ namespace CS
         Editor& operator=(const Editor&);
 
     public:
-        Editor(int argc, char** argv);
+        Editor(std::int32_t argc, char** argv);
         ~Editor() override;
 
         bool makeIPCServer();
         void connectToIPCServer();
 
-        int run();
+        std::int32_t run();
         ///< \return error status
 
     private slots:

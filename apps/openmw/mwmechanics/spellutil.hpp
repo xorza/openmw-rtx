@@ -1,8 +1,9 @@
 #pragma once
 
-#include <components/esm3/loadskil.hpp>
-
+#include <cstdint>
 #include <optional>
+
+#include <components/esm3/loadskil.hpp>
 
 namespace ESM
 {
@@ -33,14 +34,14 @@ namespace MWMechanics
 
     float calcEffectCost(const ESM::ENAMstruct& effect, const ESM::MagicEffect* magicEffect = nullptr,
         const EffectCostMethod method = EffectCostMethod::GameSpell);
-    int calcSpellCost(const ESM::Spell& spell);
+    std::int32_t calcSpellCost(const ESM::Spell& spell);
 
-    int getEffectiveEnchantmentCastCost(float castCost, const MWWorld::Ptr& actor);
-    int getEffectiveEnchantmentCastCost(const ESM::Enchantment& enchantment, const MWWorld::Ptr& actor);
-    int getEnchantmentCharge(const ESM::Enchantment& enchantment);
+    std::int32_t getEffectiveEnchantmentCastCost(float castCost, const MWWorld::Ptr& actor);
+    std::int32_t getEffectiveEnchantmentCastCost(const ESM::Enchantment& enchantment, const MWWorld::Ptr& actor);
+    std::int32_t getEnchantmentCharge(const ESM::Enchantment& enchantment);
 
-    int getPotionValue(const ESM::Potion& potion);
-    std::optional<ESM::IndexedENAMstruct> getIngredientEffect(const ESM::Ingredient* ingredient, uint32_t index);
+    std::int32_t getPotionValue(const ESM::Potion& potion);
+    std::optional<ESM::IndexedENAMstruct> getIngredientEffect(const ESM::Ingredient* ingredient, std::uint32_t index);
     std::optional<ESM::EffectList> rollIngredientEffect(MWWorld::Ptr caster, const ESM::Ingredient* ingredient);
 
     /**

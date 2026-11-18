@@ -1,6 +1,8 @@
 #include "utf8.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <utility>
 
@@ -8,14 +10,14 @@ namespace
 {
     constexpr std::string_view UTF8PATT = "[%z\x01-\x7F\xC2-\xF4][\x80-\xBF]*"; // %z is deprecated in Lua5.2
     // constexpr uint32_t MAXUTF = 0x7FFFFFFFu;
-    constexpr uint32_t MAXUNICODE = 0x10FFFFu;
+    constexpr std::uint32_t MAXUNICODE = 0x10FFFFu;
 
     inline bool isNilOrNone(const sol::stack_proxy arg)
     {
         return (arg.get_type() == sol::type::lua_nil || arg.get_type() == sol::type::none);
     }
 
-    inline std::int64_t getInteger(const sol::stack_proxy arg, const size_t n, std::string_view name)
+    inline std::int64_t getInteger(const sol::stack_proxy arg, const std::size_t n, std::string_view name)
     {
         double integer = NAN;
         if (!arg.is<double>())
@@ -32,10 +34,10 @@ namespace
     // If the input 'pos' is negative, it is treated as counting from the end of the string,
     // where -1 represents the last character position, -2 represents the second-to-last position,
     // and so on. If 'pos' is non-negative, it is used as-is.
-    inline void relativePosition(int64_t& pos, const size_t len)
+    inline void relativePosition(std::int64_t& pos, const std::size_t len)
     {
         if (pos < 0)
-            pos = std::max<int64_t>(0, static_cast<long>(static_cast<std::size_t>(pos) + len + 1));
+            pos = std::max<std::int64_t>(0, static_cast<std::int64_t>(static_cast<std::size_t>(pos) + len + 1));
     }
 
     inline void codepointToUTF8(char32_t codepoint, std::string& str)
@@ -67,12 +69,13 @@ namespace
     }
 
     // returns: first - character pos in bytes, second - character codepoint
-    std::pair<int64_t, int64_t> decodeNextUTF8Character(std::string_view s, std::vector<int64_t>& posByte)
+    std::pair<std::int64_t, std::int64_t> decodeNextUTF8Character(
+        std::string_view s, std::vector<std::int64_t>& posByte)
     {
-        const int64_t pos = posByte.back() - 1;
-        const auto ch = static_cast<unsigned char>(s[static_cast<std::size_t>(pos)]);
-        int64_t codepoint = -1;
-        size_t byteSize = 0;
+        const std::int64_t pos = posByte.back() - 1;
+        const auto ch = static_cast<std::uint8_t>(s[static_cast<std::size_t>(pos)]);
+        std::int64_t codepoint = -1;
+        std::size_t byteSize = 0;
 
         if ((ch & 0b10000000) == 0)
         {
@@ -96,21 +99,21 @@ namespace
         }
 
         // construct codepoint for non-ascii
-        for (size_t i = 1; i < byteSize; ++i)
+        for (std::size_t i = 1; i < byteSize; ++i)
         {
             // if not a continuation byte
             if ((static_cast<std::size_t>(pos) + i) >= s.size()
-                || (static_cast<unsigned char>(s[static_cast<std::size_t>(pos) + i]) & 0b11000000) != 0b10000000)
+                || (static_cast<std::uint8_t>(s[static_cast<std::size_t>(pos) + i]) & 0b11000000) != 0b10000000)
             {
                 return std::make_pair(0, -1);
             }
             codepoint
-                = (codepoint << 6) | (static_cast<unsigned char>(s[static_cast<std::size_t>(pos) + i]) & 0b00111111);
+                = (codepoint << 6) | (static_cast<std::uint8_t>(s[static_cast<std::size_t>(pos) + i]) & 0b00111111);
         }
 
-        std::pair<size_t, int64_t> res = std::make_pair(posByte.back(), codepoint);
+        std::pair<std::size_t, std::int64_t> res = std::make_pair(posByte.back(), codepoint);
 
-        posByte.push_back(static_cast<long>(static_cast<std::size_t>(posByte.back())
+        posByte.push_back(static_cast<std::int64_t>(static_cast<std::size_t>(posByte.back())
             + byteSize)); /* the next character (if exists) starts at this byte */
 
         return res;
@@ -128,9 +131,9 @@ namespace LuaUtf8
 
         utf8["char"] = [](const sol::variadic_args args) -> std::string {
             std::string result{};
-            for (size_t i = 0; i < args.size(); ++i)
+            for (std::size_t i = 0; i < args.size(); ++i)
             {
-                int64_t codepoint = getInteger(args[static_cast<std::ptrdiff_t>(i)], (i + 1), "char");
+                std::int64_t codepoint = getInteger(args[static_cast<std::ptrdiff_t>(i)], (i + 1), "char");
                 if (codepoint < 0 || std::cmp_greater(codepoint, MAXUNICODE))
                     throw std::runtime_error(std::format("bad argument #{} to 'char' (value out of range)", i + 1));
 
@@ -140,25 +143,26 @@ namespace LuaUtf8
         };
 
         utf8["codes"] = [](std::string_view s) {
-            return sol::as_function(
-                [s, posByte = std::vector<int64_t>{ 1 }]() mutable -> sol::optional<std::pair<int64_t, int64_t>> {
-                    if (std::cmp_less_equal(posByte.back(), s.size()))
-                    {
-                        const auto pair = decodeNextUTF8Character(s, posByte);
-                        if (pair.second == -1)
-                            throw std::runtime_error(std::format("Invalid UTF-8 code at position {}", posByte.size()));
+            return sol::as_function([s, posByte = std::vector<std::int64_t>{ 1 }]() mutable
+                                        -> sol::optional<std::pair<std::int64_t, std::int64_t>> {
+                if (std::cmp_less_equal(posByte.back(), s.size()))
+                {
+                    const auto pair = decodeNextUTF8Character(s, posByte);
+                    if (pair.second == -1)
+                        throw std::runtime_error(std::format("Invalid UTF-8 code at position {}", posByte.size()));
 
-                        return pair;
-                    }
-                    return sol::nullopt;
-                });
+                    return pair;
+                }
+                return sol::nullopt;
+            });
         };
 
-        utf8["len"] = [](std::string_view s,
-                          const sol::variadic_args args) -> std::variant<size_t, std::pair<sol::object, int64_t>> {
-            const size_t len = s.size();
-            int64_t iv = isNilOrNone(args[0]) ? 1 : getInteger(args[0], 2, "len");
-            int64_t fv = isNilOrNone(args[1]) ? -1 : getInteger(args[1], 3, "len");
+        utf8["len"]
+            = [](std::string_view s,
+                  const sol::variadic_args args) -> std::variant<std::size_t, std::pair<sol::object, std::int64_t>> {
+            const std::size_t len = s.size();
+            std::int64_t iv = isNilOrNone(args[0]) ? 1 : getInteger(args[0], 2, "len");
+            std::int64_t fv = isNilOrNone(args[1]) ? -1 : getInteger(args[1], 3, "len");
 
             relativePosition(iv, len);
             relativePosition(fv, len);
@@ -171,7 +175,7 @@ namespace LuaUtf8
             if (len == 0)
                 return len;
 
-            std::vector<int64_t> posByte = { iv };
+            std::vector<std::int64_t> posByte = { iv };
 
             while (posByte.back() <= fv)
             {
@@ -182,10 +186,10 @@ namespace LuaUtf8
         };
 
         utf8["codepoint"]
-            = [](std::string_view s, const sol::variadic_args args) -> sol::as_returns_t<std::vector<int64_t>> {
-            size_t len = s.size();
-            int64_t iv = isNilOrNone(args[0]) ? 1 : getInteger(args[0], 2, "codepoint");
-            int64_t fv = isNilOrNone(args[1]) ? iv : getInteger(args[1], 3, "codepoint");
+            = [](std::string_view s, const sol::variadic_args args) -> sol::as_returns_t<std::vector<std::int64_t>> {
+            std::size_t len = s.size();
+            std::int64_t iv = isNilOrNone(args[0]) ? 1 : getInteger(args[0], 2, "codepoint");
+            std::int64_t fv = isNilOrNone(args[1]) ? iv : getInteger(args[1], 3, "codepoint");
 
             relativePosition(iv, len);
             relativePosition(fv, len);
@@ -196,10 +200,10 @@ namespace LuaUtf8
                 throw std::runtime_error("bad argument #3 to 'codepoint' (final position out of bounds)");
 
             if (iv > fv)
-                return sol::as_returns(std::vector<int64_t>{}); /* empty interval; return nothing */
+                return sol::as_returns(std::vector<std::int64_t>{}); /* empty interval; return nothing */
 
-            std::vector<int64_t> posByte = { iv };
-            std::vector<int64_t> codepoints;
+            std::vector<std::int64_t> posByte = { iv };
+            std::vector<std::int64_t> codepoints;
 
             while (posByte.back() <= fv)
             {
@@ -211,26 +215,26 @@ namespace LuaUtf8
             return sol::as_returns(std::move(codepoints));
         };
 
-        utf8["offset"]
-            = [](std::string_view s, const int64_t n, const sol::variadic_args args) -> sol::optional<int64_t> {
-            size_t len = s.size();
-            int64_t iv = 0;
+        utf8["offset"] = [](std::string_view s, const std::int64_t n,
+                             const sol::variadic_args args) -> sol::optional<std::int64_t> {
+            std::size_t len = s.size();
+            std::int64_t iv = 0;
 
             if (isNilOrNone(args[0]))
             {
                 if (n >= 0)
                     iv = 1;
                 else
-                    iv = static_cast<int64_t>(s.size() + 1);
+                    iv = static_cast<std::int64_t>(s.size() + 1);
             }
             else
                 iv = getInteger(args[0], 3, "offset");
 
-            std::vector<int64_t> posByte = { 1 };
+            std::vector<std::int64_t> posByte = { 1 };
 
             relativePosition(iv, len);
 
-            if (iv > static_cast<int64_t>(len) + 1)
+            if (iv > static_cast<std::int64_t>(len) + 1)
                 throw std::runtime_error("bad argument #3 to 'offset' (position out of bounds)");
 
             while (std::cmp_less_equal(posByte.back(), len))

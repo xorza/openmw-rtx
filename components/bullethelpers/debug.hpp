@@ -1,11 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <iomanip>
 #include <limits>
 #include <ostream>
 
 #include <BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
-
 #include <LinearMath/btVector3.h>
 
 inline std::ostream& operator<<(std::ostream& stream, const btVector3& value)
@@ -63,6 +63,6 @@ inline std::ostream& operator<<(std::ostream& stream, BroadphaseNativeTypes valu
 #undef SHAPE_NAME
 #endif
         default:
-            return stream << "undefined(" << static_cast<int>(value) << ")";
+            return stream << "undefined(" << static_cast<std::int32_t>(value) << ")";
     }
 }

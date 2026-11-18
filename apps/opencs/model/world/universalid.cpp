@@ -1,6 +1,7 @@
 #include "universalid.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <span>
 #include <sstream>
@@ -174,7 +175,7 @@ namespace
     {
         std::span<const TypeData> operator()(std::monostate /*value*/) const { return sNoArg; }
 
-        std::span<const TypeData> operator()(int /*value*/) const { return sIndexArg; }
+        std::span<const TypeData> operator()(std::int32_t /*value*/) const { return sIndexArg; }
 
         template <class T>
         std::span<const TypeData> operator()(const T& /*value*/) const
@@ -244,7 +245,7 @@ CSMWorld::UniversalId::UniversalId(const std::string& universalId)
 
                 std::istringstream stream(universalId.substr(index + 2));
 
-                int indexValue = 0;
+                std::int32_t indexValue = 0;
                 if (stream >> indexValue)
                 {
                     mValue = indexValue;
@@ -290,7 +291,7 @@ CSMWorld::UniversalId::UniversalId(Type type)
     for (const TypeData& value : sIndexArg)
         if (type == value.mType)
         {
-            mValue = int{};
+            mValue = std::int32_t{};
             mClass = value.mClass;
             return;
         }
@@ -331,7 +332,7 @@ CSMWorld::UniversalId::UniversalId(Type type, const UniversalId& id)
 {
 }
 
-CSMWorld::UniversalId::UniversalId(Type type, int index)
+CSMWorld::UniversalId::UniversalId(Type type, std::int32_t index)
     : mType(type)
     , mValue(index)
 {
@@ -372,9 +373,9 @@ const std::string& CSMWorld::UniversalId::getId() const
     throw std::logic_error("invalid access to ID of " + ::toString(getArgumentType()) + " UniversalId");
 }
 
-int CSMWorld::UniversalId::getIndex() const
+std::int32_t CSMWorld::UniversalId::getIndex() const
 {
-    if (const int* result = std::get_if<int>(&mValue))
+    if (const std::int32_t* result = std::get_if<std::int32_t>(&mValue))
         return *result;
 
     throw std::logic_error("invalid access to index of " + ::toString(getArgumentType()) + " UniversalId");
@@ -432,7 +433,7 @@ std::vector<CSMWorld::UniversalId::Type> CSMWorld::UniversalId::listReferenceabl
     return list;
 }
 
-std::vector<CSMWorld::UniversalId::Type> CSMWorld::UniversalId::listTypes(int classes)
+std::vector<CSMWorld::UniversalId::Type> CSMWorld::UniversalId::listTypes(std::int32_t classes)
 {
     std::vector<CSMWorld::UniversalId::Type> list;
 

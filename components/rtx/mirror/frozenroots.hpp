@@ -52,9 +52,9 @@ namespace Rtx
             std::size_t mIdentity = 0;
             const osg::StateSet* mStateSet = nullptr;
             const osg::Node* mFirstChild = nullptr;
-            unsigned int mChildren = 0;
+            std::uint32_t mChildren = 0;
             const osg::Callback* mUpdate = nullptr;
-            unsigned int mUpdating = 0;
+            std::uint32_t mUpdating = 0;
 
             static Face of(const osg::Node& root, const osg::Matrix& world, std::size_t identity);
         };
@@ -71,9 +71,9 @@ namespace Rtx
             std::size_t mIdentity = 0;
             osg::ref_ptr<const osg::StateSet> mStateSet;
             osg::ref_ptr<const osg::Node> mFirstChild;
-            unsigned int mChildren = 0;
+            std::uint32_t mChildren = 0;
             osg::ref_ptr<const osg::Callback> mUpdate;
-            unsigned int mUpdating = 0;
+            std::uint32_t mUpdating = 0;
 
             /// Names `face` from here on, and lets go of what it named and `face` does not, into
             /// `released`.
@@ -102,7 +102,7 @@ namespace Rtx
         /// gives a hold, which this holds no reference to.
         struct Holders
         {
-            Kept<boost::unordered_flat_map<std::size_t, Known>>& mPlacements;
+            Kept<boost::unordered_flat_map<std::size_t, Known<PlacementIndex>>>& mPlacements;
             MeshResolver& mMeshes;
             MaterialResolver& mMaterials;
 
@@ -124,7 +124,7 @@ namespace Rtx
         /// `stats` as walked and passed where it is, and thawed where it is not, for the walk to
         /// descend into it as any other. `walk` is the world walk's number, which the run is
         /// stamped as met by. A thawed root is walked, and its face kept.
-        bool pass(const osg::Node& root, const Face& face, unsigned int walk, Holders holders, ExtractionStats& stats);
+        bool pass(const osg::Node& root, const Face& face, std::uint32_t walk, Holders holders, ExtractionStats& stats);
 
         /// Starts recording what the world walk resolves under the root it is about to descend into,
         /// from `instances`, the walk's count of them so far.
@@ -141,7 +141,7 @@ namespace Rtx
         /// face asks for no update and did not change on this walk: held from here on, through
         /// `holders`. `instances` is the walk's count so far, which the root's own count is taken
         /// from.
-        void end(const osg::Node& root, const Face& face, bool changeable, unsigned int walk, Holders holders,
+        void end(const osg::Node& root, const Face& face, bool changeable, std::uint32_t walk, Holders holders,
             std::uint32_t instances);
 
         /// Ends a recording a throw left open, so the next walk's root is not recorded inside it.
@@ -152,7 +152,7 @@ namespace Rtx
         /// `Holders::mReleased`. Then files the roots the walk froze for the first time, which wait
         /// apart until here: filed as they froze, a walk that replaced the grid would hold the roots it
         /// left and the ones it met at once, twice the grid, past the room of one.
-        void thawUnmet(unsigned int walk, Holders holders);
+        void thawUnmet(std::uint32_t walk, Holders holders);
 
         /// Thaws every root, into `Holders::mReleased`.
         void thawAll(Holders holders);
@@ -168,15 +168,15 @@ namespace Rtx
             std::uint32_t mInstances = 0;
 
             /// The world walk that last met it, and the one that last found its face changed.
-            unsigned int mMet = 0;
-            unsigned int mMoved = 0;
+            std::uint32_t mMet = 0;
+            std::uint32_t mMoved = 0;
 
             /// Whether its keys are held and the walk passes it: false while it stands thawed.
             bool mHolding = false;
         };
 
         /// Stamps `frozen` as met by `walk`, and counts it among the walk's met.
-        void meet(Frozen& frozen, unsigned int walk);
+        void meet(Frozen& frozen, std::uint32_t walk);
 
         /// Gives a frozen subtree's holds back, as the walk that thaws it or a sweep that missed it.
         void thaw(Frozen& frozen, Holders holders);
@@ -202,7 +202,7 @@ namespace Rtx
 
         /// How many runs the world walk `mMetBy` met, which `thawUnmet` skips its scan by.
         std::size_t mMet = 0;
-        unsigned int mMetBy = 0;
+        std::uint32_t mMetBy = 0;
 
         std::uint32_t mPastRoom = 0;
     };

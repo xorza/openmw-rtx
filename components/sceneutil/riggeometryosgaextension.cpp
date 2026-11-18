@@ -1,10 +1,11 @@
 #include "riggeometryosgaextension.hpp"
 
-#include <osgAnimation/RigGeometry>
+#include <cstddef>
+#include <cstdint>
 
 #include <osg/Drawable>
 #include <osg/NodeVisitor>
-
+#include <osgAnimation/RigGeometry>
 #include <osgUtil/CullVisitor>
 
 #include <components/crashcatcher/crash.hpp>
@@ -85,7 +86,7 @@ namespace SceneUtil
 
     void RigGeometryHolder::setSourceRigGeometry(const osg::ref_ptr<OsgaRigGeometry>& sourceRigGeometry)
     {
-        for (unsigned int i = 0; i < 2; ++i)
+        for (std::uint32_t i = 0; i < 2; ++i)
             mGeometry.at(i) = nullptr;
 
         mSourceRigGeometry = sourceRigGeometry;
@@ -93,7 +94,7 @@ namespace SceneUtil
         _boundingBox = mSourceRigGeometry->getComputeBoundingBoxCallback()->computeBound(*mSourceRigGeometry);
         _boundingSphere = osg::BoundingSphere(_boundingBox);
 
-        for (unsigned int i = 0; i < 2; ++i)
+        for (std::uint32_t i = 0; i < 2; ++i)
         {
             const OsgaRigGeometry& from = *sourceRigGeometry;
 
@@ -209,7 +210,7 @@ namespace SceneUtil
         geom->update();
     }
 
-    OsgaRigGeometry* RigGeometryHolder::getGeometry(int geometry)
+    OsgaRigGeometry* RigGeometryHolder::getGeometry(std::int32_t geometry)
     {
         return mGeometry.at(static_cast<std::size_t>(geometry)).get();
     }
@@ -243,7 +244,7 @@ namespace SceneUtil
             if (stateset)
                 cv->pushStateSet(stateset);
 
-            unsigned int traversalNumber = nv.getTraversalNumber();
+            std::uint32_t traversalNumber = nv.getTraversalNumber();
             if (mLastFrameNumber == traversalNumber)
             {
                 OsgaRigGeometry& geom = *getRigGeometryPerFrame(mLastFrameNumber);
@@ -299,7 +300,7 @@ namespace SceneUtil
         getRigGeometryPerFrame(mLastFrameNumber)->accept(func);
     }
 
-    OsgaRigGeometry* RigGeometryHolder::getRigGeometryPerFrame(unsigned int frame) const
+    OsgaRigGeometry* RigGeometryHolder::getRigGeometryPerFrame(std::uint32_t frame) const
     {
         return mGeometry.at(frame % 2).get();
     }

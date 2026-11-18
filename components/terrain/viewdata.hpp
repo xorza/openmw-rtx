@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <vector>
@@ -21,7 +22,7 @@ namespace Terrain
 
         QuadTreeNode* mNode;
 
-        unsigned int mLodFlags;
+        std::uint32_t mLodFlags;
         osg::ref_ptr<osg::Node> mRenderingNode;
     };
 
@@ -45,8 +46,8 @@ namespace Terrain
 
         void copyFrom(const ViewData& other);
 
-        unsigned int getNumEntries() const { return mNumEntries; }
-        ViewDataEntry& getEntry(unsigned int i) { return mEntries[i]; }
+        std::uint32_t getNumEntries() const { return mNumEntries; }
+        ViewDataEntry& getEntry(std::uint32_t i) { return mEntries[i]; }
 
         double getLastUsageTimeStamp() const { return mLastUsageTimeStamp; }
         void setLastUsageTimeStamp(double timeStamp) { mLastUsageTimeStamp = timeStamp; }
@@ -73,10 +74,10 @@ namespace Terrain
             }
         }
 
-        unsigned int getWorldUpdateRevision() const { return mWorldUpdateRevision; }
-        void setWorldUpdateRevision(int updateRevision)
+        std::uint32_t getWorldUpdateRevision() const { return mWorldUpdateRevision; }
+        void setWorldUpdateRevision(std::int32_t updateRevision)
         {
-            mWorldUpdateRevision = static_cast<unsigned int>(updateRevision);
+            mWorldUpdateRevision = static_cast<std::uint32_t>(updateRevision);
         }
 
         void buildNodeIndex();
@@ -86,13 +87,13 @@ namespace Terrain
     private:
         std::vector<ViewDataEntry> mEntries;
         std::vector<const QuadTreeNode*> mNodes;
-        unsigned int mNumEntries;
+        std::uint32_t mNumEntries;
         double mLastUsageTimeStamp;
         bool mChanged;
         osg::Vec3f mViewPoint;
         bool mHasViewPoint;
         osg::Vec4i mActiveGrid;
-        unsigned int mWorldUpdateRevision;
+        std::uint32_t mWorldUpdateRevision;
     };
 
     class ViewDataMap
@@ -129,7 +130,7 @@ namespace Terrain
         float mReuseDistance;
         float mExpiryDelay; // time in seconds for unused view to be removed
 
-        unsigned int mWorldUpdateRevision;
+        std::uint32_t mWorldUpdateRevision;
 
         std::deque<ViewData*> mUsedViews;
         std::deque<ViewData*> mUnusedViews;

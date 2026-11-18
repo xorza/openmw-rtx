@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -25,7 +26,7 @@ namespace CSMDoc
         ESM::ESMWriter mWriter;
         std::filesystem::path mProjectPath;
         bool mProjectFile;
-        std::map<ESM::RefId, std::deque<int>> mSubRecords; // record ID, list of subrecords
+        std::map<ESM::RefId, std::deque<std::int32_t>> mSubRecords; // record ID, list of subrecords
 
     public:
         SavingState(Operation& operation, std::filesystem::path projectPath, ToUTF8::FromType encoding);
@@ -46,9 +47,9 @@ namespace CSMDoc
         bool isProjectFile() const;
         ///< Currently saving project file? (instead of content file)
 
-        const std::deque<int>* findSubRecord(const ESM::RefId& refId) const;
+        const std::deque<std::int32_t>* findSubRecord(const ESM::RefId& refId) const;
 
-        std::deque<int>& getOrInsertSubRecord(const ESM::RefId& refId);
+        std::deque<std::int32_t>& getOrInsertSubRecord(const ESM::RefId& refId);
 
         void clearSubRecords();
     };

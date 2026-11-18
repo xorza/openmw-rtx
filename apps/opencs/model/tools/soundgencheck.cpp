@@ -1,19 +1,17 @@
 #include "soundgencheck.hpp"
 
+#include <cstdint>
 #include <string>
-
-#include "../prefs/state.hpp"
-
-#include "../world/refiddata.hpp"
-#include "../world/universalid.hpp"
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/refidcollection.hpp>
-
+#include <apps/opencs/model/world/refiddata.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadsndg.hpp>
 #include <components/esm3/loadsoun.hpp>
 
@@ -26,14 +24,14 @@ CSMTools::SoundGenCheckStage::SoundGenCheckStage(const CSMWorld::IdCollection<ES
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::SoundGenCheckStage::setup()
+std::int32_t CSMTools::SoundGenCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 
     return mSoundGens.getSize();
 }
 
-void CSMTools::SoundGenCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::SoundGenCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::SoundGenerator>& record = mSoundGens.getRecord(stage);
 

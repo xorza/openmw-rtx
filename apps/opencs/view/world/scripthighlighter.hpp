@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -7,11 +8,10 @@
 #include <QSyntaxHighlighter>
 #include <QTextCharFormat>
 
+#include <apps/opencs/model/world/scriptcontext.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/nullerrorhandler.hpp>
 #include <components/compiler/parser.hpp>
-
-#include "../../model/world/scriptcontext.hpp"
 
 class QTextDocument;
 
@@ -65,7 +65,7 @@ namespace CSVWorld
         std::string mMarkedWord;
 
     private:
-        bool parseInt(int value, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner) override;
+        bool parseInt(std::int32_t value, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner) override;
         ///< Handle an int token.
         /// \return fetch another token?
 
@@ -77,11 +77,11 @@ namespace CSVWorld
         ///< Handle a name token.
         /// \return fetch another token?
 
-        bool parseKeyword(int keyword, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner) override;
+        bool parseKeyword(std::int32_t keyword, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner) override;
         ///< Handle a keyword token.
         /// \return fetch another token?
 
-        bool parseSpecial(int code, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner) override;
+        bool parseSpecial(std::int32_t code, const Compiler::TokenLoc& loc, Compiler::Scanner& scanner) override;
         ///< Handle a special character token.
         /// \return fetch another token?
 

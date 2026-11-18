@@ -1,7 +1,6 @@
 #pragma once
 
 #include <MyGUI_OverlappedLayer.h>
-
 #include <osg/ref_ptr>
 
 namespace osg

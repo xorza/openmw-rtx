@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 #include <components/misc/windows.hpp>
 
@@ -13,9 +14,10 @@ namespace Platform
     void nameThisThread(std::string_view name)
     {
         name = name.substr(0, sThreadNameLength);
-        const int length = MultiByteToWideChar(CP_UTF8, 0, name.data(), static_cast<int>(name.size()), nullptr, 0);
+        const std::int32_t length
+            = MultiByteToWideChar(CP_UTF8, 0, name.data(), static_cast<std::int32_t>(name.size()), nullptr, 0);
         std::wstring wide(static_cast<std::size_t>(length), L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, name.data(), static_cast<int>(name.size()), wide.data(), length);
+        MultiByteToWideChar(CP_UTF8, 0, name.data(), static_cast<std::int32_t>(name.size()), wide.data(), length);
         SetThreadDescription(GetCurrentThread(), wide.c_str());
     }
 
@@ -25,7 +27,7 @@ namespace Platform
         if (FAILED(GetThreadDescription(GetCurrentThread(), &wide)))
             return {};
 
-        const int length = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
+        const std::int32_t length = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
         std::string name(static_cast<std::size_t>(length > 0 ? length - 1 : 0), '\0');
         WideCharToMultiByte(CP_UTF8, 0, wide, -1, name.data(), length, nullptr, nullptr);
         LocalFree(wide);
@@ -43,5 +45,13 @@ namespace Platform
         const auto ticks
             = [](const FILETIME& time) { return std::uint64_t{ time.dwHighDateTime } << 32 | time.dwLowDateTime; };
         return std::chrono::nanoseconds(static_cast<std::int64_t>((ticks(kernel) + ticks(user)) * 100));
+    }
+
+    std::error_code lowerThisThreadToIdle()
+    {
+        if (SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST)
+            && SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN))
+            return {};
+        return std::error_code(static_cast<std::int32_t>(GetLastError()), std::system_category());
     }
 }

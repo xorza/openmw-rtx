@@ -1,18 +1,17 @@
 #include "weaponanimation.hpp"
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/weapontype.hpp"
 
 #include "animation.hpp"
 #include "rotatecontroller.hpp"
@@ -173,7 +172,7 @@ namespace MWRender
     void WeaponAnimation::addControllers(const Animation::NodeMap& nodes,
         std::vector<std::pair<osg::ref_ptr<osg::Node>, osg::ref_ptr<osg::Callback>>>& map, osg::Node* objectRoot)
     {
-        for (int i = 0; i < 2; ++i)
+        for (std::int32_t i = 0; i < 2; ++i)
         {
             mSpineControllers[i] = nullptr;
 

@@ -1,14 +1,10 @@
 #include "soundbindings.hpp"
-#include "recordstore.hpp"
 
-#include "types/usertypeutil.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadsoun.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/settings/values.hpp>
@@ -16,6 +12,7 @@
 
 #include "luamanagerimp.hpp"
 #include "objectvariant.hpp"
+#include "recordstore.hpp"
 
 namespace
 {

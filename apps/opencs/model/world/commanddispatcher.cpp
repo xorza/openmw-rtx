@@ -2,33 +2,32 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <QAbstractItemModel>
 #include <QModelIndex>
 #include <QObject>
 #include <QVariant>
 
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/model/world/idtablebase.hpp>
-#include <apps/opencs/model/world/ref.hpp>
-#include <apps/opencs/model/world/refcollection.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-
+#include <apps/opencs/model/doc/document.hpp>
 #include <components/esm3/loaddial.hpp>
 #include <components/misc/constants.hpp>
-#include <utility>
 
-#include "../doc/document.hpp"
-
+#include "columnbase.hpp"
+#include "columns.hpp"
 #include "commandmacro.hpp"
 #include "commands.hpp"
+#include "data.hpp"
 #include "idtable.hpp"
+#include "idtablebase.hpp"
 #include "idtableproxymodel.hpp"
 #include "record.hpp"
+#include "ref.hpp"
+#include "refcollection.hpp"
+#include "universalid.hpp"
 
 std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() const
 {
@@ -36,11 +35,11 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() cons
 
     auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
 
-    int stateColumnIndex = model.findColumnIndex(Columns::ColumnId_Modification);
+    std::int32_t stateColumnIndex = model.findColumnIndex(Columns::ColumnId_Modification);
 
     for (const auto& entry : mSelection)
     {
-        int row = model.getModelIndex(entry, 0).row();
+        std::int32_t row = model.getModelIndex(entry, 0).row();
 
         // check record state
         RecordBase::State state
@@ -50,11 +49,11 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() cons
             continue;
 
         // check other columns (only relevant for a subset of the tables)
-        int dialogueTypeIndex = model.searchColumnIndex(Columns::ColumnId_DialogueType);
+        std::int32_t dialogueTypeIndex = model.searchColumnIndex(Columns::ColumnId_DialogueType);
 
         if (dialogueTypeIndex != -1)
         {
-            int type = model.data(model.index(row, dialogueTypeIndex)).toInt();
+            std::int32_t type = model.data(model.index(row, dialogueTypeIndex)).toInt();
 
             if (type != ESM::Dialogue::Topic && type != ESM::Dialogue::Journal)
                 continue;
@@ -77,11 +76,11 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getRevertableRecords() con
     if (model.getFeatures() & IdTable::Feature_ReorderWithinTopic)
         return result;
 
-    int stateColumnIndex = model.findColumnIndex(Columns::ColumnId_Modification);
+    std::int32_t stateColumnIndex = model.findColumnIndex(Columns::ColumnId_Modification);
 
     for (const auto& entry : mSelection)
     {
-        int row = model.getModelIndex(entry, 0).row();
+        std::int32_t row = model.getModelIndex(entry, 0).row();
 
         // check record state
         RecordBase::State state
@@ -158,7 +157,7 @@ void CSMWorld::CommandDispatcher::executeModify(
 
     std::unique_ptr<CSMWorld::UpdateCellCommand> modifyCell;
 
-    int columnId = model->data(index, ColumnBase::Role_ColumnId).toInt();
+    std::int32_t columnId = model->data(index, ColumnBase::Role_ColumnId).toInt();
 
     if (columnId == Columns::ColumnId_PositionXPos || columnId == Columns::ColumnId_PositionYPos)
     {
@@ -171,12 +170,12 @@ void CSMWorld::CommandDispatcher::executeModify(
         {
             auto* proxy = dynamic_cast<IdTableProxyModel*>(model);
 
-            int row = proxy ? proxy->mapToSource(index).row() : index.row();
+            std::int32_t row = proxy ? proxy->mapToSource(index).row() : index.row();
 
             // This is not guaranteed to be the same as \a model, since a proxy could be used.
             auto& model2 = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
 
-            int cellColumn = model2.searchColumnIndex(Columns::ColumnId_Cell);
+            std::int32_t cellColumn = model2.searchColumnIndex(Columns::ColumnId_Cell);
 
             if (cellColumn != -1)
             {
@@ -217,7 +216,7 @@ void CSMWorld::CommandDispatcher::executeDelete()
 
     auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
 
-    int columnIndex = model.findColumnIndex(Columns::ColumnId_Id);
+    std::int32_t columnIndex = model.findColumnIndex(Columns::ColumnId_Id);
 
     CommandMacro macro(mDocument.getUndoStack(), rows.size() > 1 ? "Delete multiple records" : "");
     for (const auto& row : rows)
@@ -249,7 +248,7 @@ void CSMWorld::CommandDispatcher::executeRevert()
 
     auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
 
-    int columnIndex = model.findColumnIndex(Columns::ColumnId_Id);
+    std::int32_t columnIndex = model.findColumnIndex(Columns::ColumnId_Id);
 
     CommandMacro macro(mDocument.getUndoStack(), rows.size() > 1 ? "Revert multiple records" : "");
     for (const auto& row : rows)
@@ -275,9 +274,9 @@ void CSMWorld::CommandDispatcher::executeExtendedDelete()
 
             const RefCollection& collection = mDocument.getData().getReferences();
 
-            int size = collection.getSize();
+            std::int32_t size = collection.getSize();
 
-            for (int i = size - 1; i >= 0; --i)
+            for (std::int32_t i = size - 1; i >= 0; --i)
             {
                 const Record<CellRef>& record = collection.getRecord(i);
 
@@ -308,9 +307,9 @@ void CSMWorld::CommandDispatcher::executeExtendedRevert()
 
             const RefCollection& collection = mDocument.getData().getReferences();
 
-            int size = collection.getSize();
+            std::int32_t size = collection.getSize();
 
-            for (int i = size - 1; i >= 0; --i)
+            for (std::int32_t i = size - 1; i >= 0; --i)
             {
                 const Record<CellRef>& record = collection.getRecord(i);
 

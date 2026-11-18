@@ -1,9 +1,9 @@
 #pragma once
 
+#include <string>
+
 #include <components/esm/refid.hpp>
 #include <components/esm3/formatversion.hpp>
-
-#include <string>
 
 namespace ESM
 {

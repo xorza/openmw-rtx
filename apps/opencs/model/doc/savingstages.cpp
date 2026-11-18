@@ -1,7 +1,6 @@
 #include "savingstages.hpp"
 
-#include <QUndoStack>
-
+#include <cstdint>
 #include <filesystem>
 #include <sstream>
 #include <stdexcept>
@@ -9,8 +8,10 @@
 #include <utility>
 #include <vector>
 
-#include <apps/opencs/model/doc/savingstate.hpp>
+#include <QUndoStack>
+
 #include <apps/opencs/model/world/cell.hpp>
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/info.hpp>
@@ -23,7 +24,6 @@
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm/esmcommon.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -33,9 +33,8 @@
 #include <components/esm3/loadpgrd.hpp>
 #include <components/files/conversion.hpp>
 
-#include "../world/cellcoordinates.hpp"
-
 #include "document.hpp"
+#include "savingstate.hpp"
 
 CSMDoc::OpenSaveStage::OpenSaveStage(Document& document, SavingState& state, bool projectFile)
     : mDocument(document)
@@ -44,12 +43,12 @@ CSMDoc::OpenSaveStage::OpenSaveStage(Document& document, SavingState& state, boo
 {
 }
 
-int CSMDoc::OpenSaveStage::setup()
+std::int32_t CSMDoc::OpenSaveStage::setup()
 {
     return 1;
 }
 
-void CSMDoc::OpenSaveStage::perform(int stage, Messages& messages)
+void CSMDoc::OpenSaveStage::perform(std::int32_t stage, Messages& messages)
 {
     mState.start(mDocument, mProjectFile);
 
@@ -66,12 +65,12 @@ CSMDoc::WriteHeaderStage::WriteHeaderStage(Document& document, SavingState& stat
 {
 }
 
-int CSMDoc::WriteHeaderStage::setup()
+std::int32_t CSMDoc::WriteHeaderStage::setup()
 {
     return 1;
 }
 
-void CSMDoc::WriteHeaderStage::perform(int stage, Messages& messages)
+void CSMDoc::WriteHeaderStage::perform(std::int32_t stage, Messages& messages)
 {
     mState.getWriter().setVersion();
 
@@ -117,13 +116,13 @@ CSMDoc::WriteDialogueCollectionStage::WriteDialogueCollectionStage(Document& doc
 {
 }
 
-int CSMDoc::WriteDialogueCollectionStage::setup()
+std::int32_t CSMDoc::WriteDialogueCollectionStage::setup()
 {
     mInfosByTopic = mInfos.getInfosByTopic();
     return mTopics.getSize();
 }
 
-void CSMDoc::WriteDialogueCollectionStage::perform(int stage, Messages& messages)
+void CSMDoc::WriteDialogueCollectionStage::perform(std::int32_t stage, Messages& messages)
 {
     ESM::ESMWriter& writer = mState.getWriter();
     const CSMWorld::Record<ESM::Dialogue>& topic = mTopics.getRecord(stage);
@@ -212,12 +211,12 @@ CSMDoc::WriteRefIdCollectionStage::WriteRefIdCollectionStage(Document& document,
 {
 }
 
-int CSMDoc::WriteRefIdCollectionStage::setup()
+std::int32_t CSMDoc::WriteRefIdCollectionStage::setup()
 {
     return mDocument.getData().getReferenceables().getSize();
 }
 
-void CSMDoc::WriteRefIdCollectionStage::perform(int stage, Messages& messages)
+void CSMDoc::WriteRefIdCollectionStage::perform(std::int32_t stage, Messages& messages)
 {
     mDocument.getData().getReferenceables().save(stage, mState.getWriter());
 }
@@ -228,24 +227,24 @@ CSMDoc::CollectionReferencesStage::CollectionReferencesStage(Document& document,
 {
 }
 
-int CSMDoc::CollectionReferencesStage::setup()
+std::int32_t CSMDoc::CollectionReferencesStage::setup()
 {
     mState.clearSubRecords();
 
-    int size = mDocument.getData().getReferences().getSize();
+    std::int32_t size = mDocument.getData().getReferences().getSize();
 
-    int steps = size / 100;
+    std::int32_t steps = size / 100;
     if (size % 100)
         ++steps;
 
     return steps;
 }
 
-void CSMDoc::CollectionReferencesStage::perform(int stage, Messages& messages)
+void CSMDoc::CollectionReferencesStage::perform(std::int32_t stage, Messages& messages)
 {
-    int size = mDocument.getData().getReferences().getSize();
+    std::int32_t size = mDocument.getData().getReferences().getSize();
 
-    for (int i = stage * 100; i < stage * 100 + 100 && i < size; ++i)
+    for (std::int32_t i = stage * 100; i < stage * 100 + 100 && i < size; ++i)
     {
         const CSMWorld::Record<CSMWorld::CellRef>& record = mDocument.getData().getReferences().getRecord(i);
 
@@ -253,7 +252,7 @@ void CSMDoc::CollectionReferencesStage::perform(int stage, Messages& messages)
         {
             ESM::RefId cellId = record.get().mOriginalCell.empty() ? record.get().mCell : record.get().mOriginalCell;
 
-            std::deque<int>& indices = mState.getOrInsertSubRecord(cellId);
+            std::deque<std::int32_t>& indices = mState.getOrInsertSubRecord(cellId);
 
             // collect moved references at the end of the container
 
@@ -262,7 +261,7 @@ void CSMDoc::CollectionReferencesStage::perform(int stage, Messages& messages)
             if (!interior)
             {
                 // recalculate the ref's cell location
-                std::pair<int, int> index = record.get().getCellIndex();
+                std::pair<std::int32_t, std::int32_t> index = record.get().getCellIndex();
                 cellId = ESM::RefId::stringRefId(ESM::RefId::esm3ExteriorCell(index.first, index.second).toString());
             }
 
@@ -283,16 +282,16 @@ CSMDoc::WriteCellCollectionStage::WriteCellCollectionStage(Document& document, S
 {
 }
 
-int CSMDoc::WriteCellCollectionStage::setup()
+std::int32_t CSMDoc::WriteCellCollectionStage::setup()
 {
     return mDocument.getData().getCells().getSize();
 }
 
-void CSMDoc::WriteCellCollectionStage::writeReferences(const std::deque<int>& references, bool interior)
+void CSMDoc::WriteCellCollectionStage::writeReferences(const std::deque<std::int32_t>& references, bool interior)
 {
     ESM::ESMWriter& writer = mState.getWriter();
 
-    for (int reference : references)
+    for (std::int32_t reference : references)
     {
         const CSMWorld::Record<CSMWorld::CellRef>& ref = mDocument.getData().getReferences().getRecord(reference);
 
@@ -309,7 +308,7 @@ void CSMDoc::WriteCellCollectionStage::writeReferences(const std::deque<int>& re
             std::ostringstream stream;
             if (!interior)
             {
-                std::pair<int, int> index = refRecord.getCellIndex();
+                std::pair<std::int32_t, std::int32_t> index = refRecord.getCellIndex();
                 stream << "#" << index.first << " " << index.second;
             }
 
@@ -338,17 +337,17 @@ void CSMDoc::WriteCellCollectionStage::writeReferences(const std::deque<int>& re
     }
 }
 
-void CSMDoc::WriteCellCollectionStage::perform(int stage, Messages& messages)
+void CSMDoc::WriteCellCollectionStage::perform(std::int32_t stage, Messages& messages)
 {
     ESM::ESMWriter& writer = mState.getWriter();
     const CSMWorld::Record<CSMWorld::Cell>& cell = mDocument.getData().getCells().getRecord(stage);
     const CSMWorld::RefIdCollection& referenceables = mDocument.getData().getReferenceables();
     const CSMWorld::RefIdData& refIdData = referenceables.getDataSet();
 
-    std::deque<int> tempRefs;
-    std::deque<int> persistentRefs;
+    std::deque<std::int32_t> tempRefs;
+    std::deque<std::int32_t> persistentRefs;
 
-    const std::deque<int>* references = mState.findSubRecord(cell.get().mId);
+    const std::deque<std::int32_t>* references = mState.findSubRecord(cell.get().mId);
 
     if (cell.isModified() || cell.mState == CSMWorld::RecordBase::State_Deleted || references != nullptr)
     {
@@ -357,7 +356,7 @@ void CSMDoc::WriteCellCollectionStage::perform(int stage, Messages& messages)
 
         if (references != nullptr)
         {
-            for (int reference : *references)
+            for (std::int32_t reference : *references)
             {
                 const CSMWorld::Record<CSMWorld::CellRef>& ref
                     = mDocument.getData().getReferences().getRecord(reference);
@@ -365,7 +364,7 @@ void CSMDoc::WriteCellCollectionStage::perform(int stage, Messages& messages)
                 CSMWorld::CellRef refRecord = ref.get();
 
                 CSMWorld::RefIdData::LocalIndex localIndex = refIdData.searchId(refRecord.mRefID);
-                unsigned int recordFlags = refIdData.getRecordFlags(refRecord.mRefID);
+                std::uint32_t recordFlags = refIdData.getRecordFlags(refRecord.mRefID);
                 bool isPersistent = ((recordFlags & ESM::FLAG_Persistent) != 0) || refRecord.mTeleport
                     || localIndex.second == CSMWorld::UniversalId::Type_Creature
                     || localIndex.second == CSMWorld::UniversalId::Type_Npc;
@@ -404,7 +403,7 @@ void CSMDoc::WriteCellCollectionStage::perform(int stage, Messages& messages)
         if (references != nullptr)
         {
             writeReferences(persistentRefs, interior);
-            cellRecord.saveTempMarker(writer, static_cast<int>(references->size() - persistentRefs.size()));
+            cellRecord.saveTempMarker(writer, static_cast<std::int32_t>(references->size() - persistentRefs.size()));
             writeReferences(tempRefs, interior);
         }
 
@@ -418,12 +417,12 @@ CSMDoc::WritePathgridCollectionStage::WritePathgridCollectionStage(Document& doc
 {
 }
 
-int CSMDoc::WritePathgridCollectionStage::setup()
+std::int32_t CSMDoc::WritePathgridCollectionStage::setup()
 {
     return mDocument.getData().getPathgrids().getSize();
 }
 
-void CSMDoc::WritePathgridCollectionStage::perform(int stage, Messages& messages)
+void CSMDoc::WritePathgridCollectionStage::perform(std::int32_t stage, Messages& messages)
 {
     ESM::ESMWriter& writer = mState.getWriter();
     const CSMWorld::Record<CSMWorld::Pathgrid>& pathgrid = mDocument.getData().getPathgrids().getRecord(stage);
@@ -452,12 +451,12 @@ CSMDoc::WriteLandCollectionStage::WriteLandCollectionStage(Document& document, S
 {
 }
 
-int CSMDoc::WriteLandCollectionStage::setup()
+std::int32_t CSMDoc::WriteLandCollectionStage::setup()
 {
     return mDocument.getData().getLand().getSize();
 }
 
-void CSMDoc::WriteLandCollectionStage::perform(int stage, Messages& messages)
+void CSMDoc::WriteLandCollectionStage::perform(std::int32_t stage, Messages& messages)
 {
     ESM::ESMWriter& writer = mState.getWriter();
     const CSMWorld::Record<CSMWorld::Land>& land = mDocument.getData().getLand().getRecord(stage);
@@ -477,12 +476,12 @@ CSMDoc::WriteLandTextureCollectionStage::WriteLandTextureCollectionStage(Documen
 {
 }
 
-int CSMDoc::WriteLandTextureCollectionStage::setup()
+std::int32_t CSMDoc::WriteLandTextureCollectionStage::setup()
 {
     return mDocument.getData().getLandTextures().getSize();
 }
 
-void CSMDoc::WriteLandTextureCollectionStage::perform(int stage, Messages& messages)
+void CSMDoc::WriteLandTextureCollectionStage::perform(std::int32_t stage, Messages& messages)
 {
     ESM::ESMWriter& writer = mState.getWriter();
     const CSMWorld::Record<ESM::LandTexture>& landTexture = mDocument.getData().getLandTextures().getRecord(stage);
@@ -501,12 +500,12 @@ CSMDoc::CloseSaveStage::CloseSaveStage(SavingState& state)
 {
 }
 
-int CSMDoc::CloseSaveStage::setup()
+std::int32_t CSMDoc::CloseSaveStage::setup()
 {
     return 1;
 }
 
-void CSMDoc::CloseSaveStage::perform(int stage, Messages& messages)
+void CSMDoc::CloseSaveStage::perform(std::int32_t stage, Messages& messages)
 {
     mState.getStream().close();
 
@@ -520,12 +519,12 @@ CSMDoc::FinalSavingStage::FinalSavingStage(Document& document, SavingState& stat
 {
 }
 
-int CSMDoc::FinalSavingStage::setup()
+std::int32_t CSMDoc::FinalSavingStage::setup()
 {
     return 1;
 }
 
-void CSMDoc::FinalSavingStage::perform(int stage, Messages& messages)
+void CSMDoc::FinalSavingStage::perform(std::int32_t stage, Messages& messages)
 {
     if (mState.hasError())
     {

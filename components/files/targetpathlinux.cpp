@@ -1,4 +1,4 @@
-#include "linuxpath.hpp"
+#include "targetpath.hpp"
 
 #include <array>
 #include <utility>
@@ -34,37 +34,42 @@ namespace
 namespace Files
 {
 
-    LinuxPath::LinuxPath(std::string applicationName)
+    std::string_view applicationName()
+    {
+        return "openmw";
+    }
+
+    TargetPath::TargetPath(std::string applicationName)
         : mName(std::move(applicationName))
     {
     }
 
-    std::filesystem::path LinuxPath::getUserConfigPath() const
+    std::filesystem::path TargetPath::getUserConfigPath() const
     {
         return getEnv("XDG_CONFIG_HOME", getUserHome() / ".config") / mName;
     }
 
-    std::filesystem::path LinuxPath::getUserDataPath() const
+    std::filesystem::path TargetPath::getUserDataPath() const
     {
         return getEnv("XDG_DATA_HOME", getUserHome() / ".local/share") / mName;
     }
 
-    std::filesystem::path LinuxPath::getUserLocalDataPath() const
+    std::filesystem::path TargetPath::getUserLocalDataPath() const
     {
         return getUserDataPath();
     }
 
-    std::filesystem::path LinuxPath::getCachePath() const
+    std::filesystem::path TargetPath::getCachePath() const
     {
         return getEnv("XDG_CACHE_HOME", getUserHome() / ".cache") / mName;
     }
 
-    std::filesystem::path LinuxPath::getGlobalConfigPath() const
+    std::filesystem::path TargetPath::getGlobalConfigPath() const
     {
         return GLOBAL_CONFIG_PATH;
     }
 
-    std::filesystem::path LinuxPath::getLocalPath() const
+    std::filesystem::path TargetPath::getLocalPath() const
     {
         auto localPath = std::filesystem::current_path() / "";
 
@@ -85,12 +90,12 @@ namespace Files
         return localPath;
     }
 
-    std::filesystem::path LinuxPath::getGlobalDataPath() const
+    std::filesystem::path TargetPath::getGlobalDataPath() const
     {
         return GLOBAL_DATA_PATH;
     }
 
-    std::vector<std::filesystem::path> LinuxPath::getInstallPaths() const
+    std::vector<std::filesystem::path> TargetPath::getInstallPaths() const
     {
         std::filesystem::path homePath = getUserHome();
         if (homePath.empty())

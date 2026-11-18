@@ -5,6 +5,9 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowspan.hpp>
+
 namespace Rtx
 {
     struct TextureData;
@@ -52,6 +55,6 @@ namespace RtxTool
     /// the table named every later thumbnail one slot too far on.
     ///
     /// @param rows the table the descriptions were made from, which the views point into.
-    void listSheetNames(
-        std::span<const Rtx::TextureData> drawn, std::span<const Rtx::TextureRow> rows, std::vector<std::string>& into);
+    void listSheetNames(std::span<const Rtx::TextureData> drawn,
+        Rtx::RowSpan<const Rtx::TextureRow, Rtx::TextureIndex> rows, std::vector<std::string>& into);
 }

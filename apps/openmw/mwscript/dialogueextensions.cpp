@@ -1,21 +1,21 @@
 #include "dialogueextensions.hpp"
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/compiler/opcodes.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "ref.hpp"
 
@@ -77,7 +77,7 @@ namespace MWScript
                     ESM::RefId quest = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
 
-                    int index = MWBase::Environment::get().getJournal()->getJournalIndex(quest);
+                    std::int32_t index = MWBase::Environment::get().getJournal()->getJournalIndex(quest);
 
                     runtime.push(index);
                 }
@@ -138,7 +138,7 @@ namespace MWScript
             class OpChoice : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWBase::DialogueManager* dialogue = MWBase::Environment::get().getDialogueManager();
                     while (arg0 > 0)
@@ -266,7 +266,7 @@ namespace MWScript
                     ESM::RefId faction2 = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
 
-                    int modReaction = runtime[0].mInteger;
+                    std::int32_t modReaction = runtime[0].mInteger;
                     runtime.pop();
 
                     MWBase::Environment::get().getDialogueManager()->modFactionReaction(
@@ -301,7 +301,7 @@ namespace MWScript
                     ESM::RefId faction2 = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
 
-                    int newValue = runtime[0].mInteger;
+                    std::int32_t newValue = runtime[0].mInteger;
                     runtime.pop();
 
                     MWBase::Environment::get().getDialogueManager()->setFactionReaction(faction1, faction2, newValue);

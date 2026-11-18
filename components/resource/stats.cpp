@@ -1,6 +1,8 @@
 #include "stats.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <span>
 #include <sstream>
@@ -9,12 +11,9 @@
 #include <vector>
 
 #include <osg/PolygonMode>
-
+#include <osgDB/Registry>
 #include <osgText/Font>
 #include <osgText/Text>
-
-#include <osgDB/Registry>
-
 #include <osgViewer/Renderer>
 #include <osgViewer/Viewer>
 
@@ -35,7 +34,7 @@ namespace Resource
         constexpr float maxStatsHeight = 420.0f;
         constexpr std::size_t pageSize
             = static_cast<std::size_t>((maxStatsHeight - 2 * backgroundMargin) / characterSize);
-        constexpr int statsHandlerKey = osgGA::GUIEventAdapter::KEY_F4;
+        constexpr std::int32_t statsHandlerKey = osgGA::GUIEventAdapter::KEY_F4;
         const VFS::Path::Normalized fontName("Fonts/DejaVuLGCSansMono.ttf");
 
         bool collectStatRendering = false;
@@ -326,9 +325,7 @@ namespace Resource
         osg::ref_ptr<osg::StateSet> stateset = mSwitch->getOrCreateStateSet();
         stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
         stateset->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
-#ifdef OSG_GL1_AVAILABLE
         stateset->setAttribute(new osg::PolygonMode(), osg::StateAttribute::PROTECTED);
-#endif
 
         mCamera->getOrCreateStateSet()->setGlobalDefaults();
         osg::ref_ptr<osgViewer::Renderer> renderer = new osgViewer::Renderer(mCamera);
@@ -380,7 +377,7 @@ namespace Resource
         return false;
     }
 
-    void StatsHandler::setWindowSize(int width, int height)
+    void StatsHandler::setWindowSize(std::int32_t width, std::int32_t height)
     {
         if (width <= 0 || height <= 0)
             return;
@@ -504,7 +501,7 @@ namespace Resource
                 viewStr.setf(std::ios::fixed);
                 viewStr.precision(0);
 
-                const unsigned int frameNumber = renderInfo.getState()->getFrameStamp()->getFrameNumber() - 1;
+                const std::uint32_t frameNumber = renderInfo.getState()->getFrameStamp()->getFrameNumber() - 1;
 
                 for (const std::string& statName : mStatNames)
                 {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -43,19 +45,19 @@ namespace LuaUi
     struct CursorKey
     {
         VFS::Path::Normalized mPath;
-        int mWidth;
-        int mHeight;
-        int mHotspotX;
-        int mHotspotY;
+        std::int32_t mWidth;
+        std::int32_t mHeight;
+        std::int32_t mHotspotX;
+        std::int32_t mHotspotY;
         double mRotation;
         bool mPersistent;
 
         explicit CursorKey(const CursorData& data)
             : mPath(data.mPath)
-            , mWidth(static_cast<int>(data.mSize.x()))
-            , mHeight(static_cast<int>(data.mSize.y()))
-            , mHotspotX(static_cast<int>(data.mHotspot.x()))
-            , mHotspotY(static_cast<int>(data.mHotspot.y()))
+            , mWidth(static_cast<std::int32_t>(data.mSize.x()))
+            , mHeight(static_cast<std::int32_t>(data.mSize.y()))
+            , mHotspotX(static_cast<std::int32_t>(data.mHotspot.x()))
+            , mHotspotY(static_cast<std::int32_t>(data.mHotspot.y()))
             , mRotation(data.mRotation)
             , mPersistent(data.mPersistent)
         {

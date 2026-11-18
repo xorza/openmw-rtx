@@ -256,7 +256,7 @@ namespace Rtx
         VkCommandBuffer mCommands;
 
         /// How many exceptions were unwinding when it began: more at its end is an unwinding.
-        int mUnwinding;
+        std::int32_t mUnwinding;
     };
 
     /// Through a batch, so a `record` that throws gives its recording back as an abandoned batch

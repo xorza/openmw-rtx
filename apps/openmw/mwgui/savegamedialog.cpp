@@ -1,5 +1,7 @@
 #include "savegamedialog.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <sstream>
 
@@ -9,6 +11,14 @@
 #include <MyGUI_LanguageManager.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwstate/character.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/files/conversion.hpp>
@@ -16,16 +26,6 @@
 #include <components/misc/timeconvert.hpp>
 #include <components/myguiplatform/myguitexture.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/timestamp.hpp"
-
-#include "../mwstate/character.hpp"
 
 #include "confirmationdialog.hpp"
 
@@ -65,13 +65,13 @@ namespace MWGui
         mControllerButtons.mB = "#{Interface:Cancel}";
     }
 
-    void SaveGameDialog::onSlotActivated(MyGUI::ListBox* sender, size_t pos)
+    void SaveGameDialog::onSlotActivated(MyGUI::ListBox* sender, std::size_t pos)
     {
         onSlotSelected(sender, pos);
         accept();
     }
 
-    void SaveGameDialog::onSlotMouseClick(MyGUI::ListBox* sender, size_t pos)
+    void SaveGameDialog::onSlotMouseClick(MyGUI::ListBox* sender, std::size_t pos)
     {
         onSlotSelected(sender, pos);
 
@@ -98,12 +98,12 @@ namespace MWGui
 
         if (mSaveList->getItemCount() == 0)
         {
-            size_t previousIndex = mCharacterSelection->getIndexSelected();
+            std::size_t previousIndex = mCharacterSelection->getIndexSelected();
             mCurrentCharacter = nullptr;
             mCharacterSelection->removeItemAt(previousIndex);
             if (mCharacterSelection->getItemCount())
             {
-                size_t nextCharacter = std::min(previousIndex, mCharacterSelection->getItemCount() - 1);
+                std::size_t nextCharacter = std::min(previousIndex, mCharacterSelection->getItemCount() - 1);
                 mCharacterSelection->setIndexSelected(nextCharacter);
                 onCharacterSelected(mCharacterSelection, nextCharacter);
             }
@@ -187,7 +187,7 @@ namespace MWGui
 
         const std::string& directory = Settings::saves().mCharacter;
 
-        size_t selectedIndex = MyGUI::ITEM_NONE;
+        std::size_t selectedIndex = MyGUI::ITEM_NONE;
 
         for (auto it = mgr->characterBegin(); it != mgr->characterEnd(); ++it)
         {
@@ -344,7 +344,7 @@ namespace MWGui
         accept();
     }
 
-    void SaveGameDialog::onCharacterSelected(MyGUI::ComboBox* sender, size_t pos)
+    void SaveGameDialog::onCharacterSelected(MyGUI::ComboBox* sender, std::size_t pos)
     {
         const MWState::Character* character = *mCharacterSelection->getItemDataAt<const MWState::Character*>(pos);
 
@@ -353,7 +353,7 @@ namespace MWGui
         fillSaveList();
     }
 
-    void SaveGameDialog::onCharacterAccept(MyGUI::ComboBox* sender, size_t pos)
+    void SaveGameDialog::onCharacterAccept(MyGUI::ComboBox* sender, std::size_t pos)
     {
         // Give key focus to save list so we can confirm the selection with Enter
         MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mSaveList);
@@ -383,14 +383,14 @@ namespace MWGui
         std::string formatTimeplayed(const double timeInSeconds)
         {
             auto l10n = MWBase::Environment::get().getL10nManager()->getContext("Interface");
-            int duration = static_cast<int>(timeInSeconds);
+            auto duration = static_cast<std::int32_t>(timeInSeconds);
             if (duration <= 0)
                 return l10n->formatMessage("DurationSecond", { "seconds" }, { 0 });
 
             std::string result;
-            int hours = duration / 3600;
-            int minutes = (duration / 60) % 60;
-            int seconds = duration % 60;
+            std::int32_t hours = duration / 3600;
+            std::int32_t minutes = (duration / 60) % 60;
+            std::int32_t seconds = duration % 60;
             if (hours)
                 result += l10n->formatMessage("DurationHour", { "hours" }, { hours });
             if (minutes)
@@ -402,7 +402,7 @@ namespace MWGui
         }
     }
 
-    void SaveGameDialog::onSlotSelected(MyGUI::ListBox* sender, size_t pos)
+    void SaveGameDialog::onSlotSelected(MyGUI::ListBox* sender, std::size_t pos)
     {
         mOkButton->setEnabled(pos != MyGUI::ITEM_NONE || mSaving);
         mDeleteButton->setEnabled(pos != MyGUI::ITEM_NONE);
@@ -420,7 +420,7 @@ namespace MWGui
             mSaveNameEdit->setCaption(sender->getItemNameAt(pos));
 
         mCurrentSlot = nullptr;
-        size_t i = 0;
+        std::size_t i = 0;
         for (auto it = mCurrentCharacter->begin(); it != mCurrentCharacter->end(); ++it, ++i)
         {
             if (i == pos)
@@ -431,7 +431,7 @@ namespace MWGui
 
         std::stringstream text;
 
-        const size_t profileIndex = mCharacterSelection->getIndexSelected();
+        const std::size_t profileIndex = mCharacterSelection->getIndexSelected();
         const std::string& slotPlayerName = mCurrentSlot->mProfile.mPlayerName;
         const ESM::SavedGame& profileSavedGame
             = (*mCharacterSelection->getItemDataAt<const MWState::Character*>(profileIndex))->getSignature();
@@ -444,8 +444,8 @@ namespace MWGui
             text << "#{Calendar:day} " << mCurrentSlot->mProfile.mCurrentDay << "\n";
 
         if (mCurrentSlot->mProfile.mMaximumHealth > 0)
-            text << "#{OMWEngine:Health} " << static_cast<int>(mCurrentSlot->mProfile.mCurrentHealth) << "/"
-                 << static_cast<int>(mCurrentSlot->mProfile.mMaximumHealth) << "\n";
+            text << "#{OMWEngine:Health} " << static_cast<std::int32_t>(mCurrentSlot->mProfile.mCurrentHealth) << "/"
+                 << static_cast<std::int32_t>(mCurrentSlot->mProfile.mMaximumHealth) << "\n";
 
         const MWWorld::DateTimeManager& timeManager = *MWBase::Environment::get().getWorld()->getTimeManager();
         text << mCurrentSlot->mProfile.mInGameTime.mDay << " "
@@ -509,7 +509,7 @@ namespace MWGui
         }
         else if (arg.button == SDL_GAMEPAD_BUTTON_NORTH)
         {
-            size_t index = mCharacterSelection->getIndexSelected();
+            std::size_t index = mCharacterSelection->getIndexSelected();
             index = wrap(index, mCharacterSelection->getItemCount(), 1);
             mCharacterSelection->setIndexSelected(index);
             onCharacterSelected(mCharacterSelection, index);

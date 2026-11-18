@@ -1,12 +1,8 @@
+#include <gtest/gtest.h>
+
 #include <components/esm3/readerscache.hpp>
 #include <components/files/collections.hpp>
 #include <components/files/multidircollection.hpp>
-
-#include <gtest/gtest.h>
-
-#ifndef OPENMW_DATA_DIR
-#error "OPENMW_DATA_DIR is not defined"
-#endif
 
 namespace
 {

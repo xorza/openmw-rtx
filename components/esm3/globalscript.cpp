@@ -1,9 +1,9 @@
 #include "globalscript.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <cstdint>
 
 namespace ESM
 {
@@ -14,7 +14,7 @@ namespace ESM
 
         mLocals.load(esm);
 
-        int32_t running = 0;
+        std::int32_t running = 0;
         esm.getHNOT(running, "RUN_");
         mRunning = running != 0;
 
@@ -36,7 +36,7 @@ namespace ESM
         mLocals.save(esm);
 
         if (mRunning)
-            esm.writeHNT("RUN_", int32_t{ 1 });
+            esm.writeHNT("RUN_", std::int32_t{ 1 });
 
         esm.writeHNORefId("TARG", mTargetId);
         if (mTargetRef.isSet())

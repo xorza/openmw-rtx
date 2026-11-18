@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -61,7 +62,7 @@ namespace MWGui
         void shutdown();
 
     public:
-        void setCoord(int x, int y, int w, int h);
+        void setCoord(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
 
         virtual void setVisible(bool b);
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <components/esm3/esmreader.hpp>
-
 #include <string>
 #include <vector>
+
+#include <components/esm3/esmreader.hpp>
 
 namespace ToUTF8
 {

@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
 #include <MyGUI_Widget.h>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 #include "widgets.hpp"
 
@@ -51,7 +53,7 @@ namespace MWGui
 
         MyGUI::delegates::MultiDelegate<MyGUI::Widget*, const MWWorld::Ptr&> eventItemClicked;
 
-        void onControllerButton(const unsigned char button);
+        void onControllerButton(const std::uint8_t button);
 
     private:
         struct Line
@@ -65,7 +67,7 @@ namespace MWGui
         void updateLine(const Line& line);
 
         void onIconClicked(MyGUI::Widget* sender);
-        void onMouseWheelMoved(MyGUI::Widget* sender, int rel);
+        void onMouseWheelMoved(MyGUI::Widget* sender, std::int32_t rel);
 
         typedef std::vector<Line> Lines;
         Lines mLines;
@@ -74,7 +76,7 @@ namespace MWGui
         MyGUI::ScrollView* mScrollView;
         DisplayMode mDisplayMode;
 
-        size_t mControllerFocus = 0;
-        void updateControllerFocus(size_t prevFocus, size_t newFocus);
+        std::size_t mControllerFocus = 0;
+        void updateControllerFocus(std::size_t prevFocus, std::size_t newFocus);
     };
 }

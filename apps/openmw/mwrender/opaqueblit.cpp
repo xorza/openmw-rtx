@@ -1,5 +1,7 @@
 #include "opaqueblit.hpp"
 
+#include <cstdint>
+
 #include <osgUtil/RenderStage>
 
 #include <components/stereo/multiview.hpp>
@@ -18,7 +20,7 @@ namespace MWRender
     {
         osg::State& state = *renderInfo.getState();
         osg::GLExtensions* ext = state.get<osg::GLExtensions>();
-        const unsigned int frameId = state.getFrameStamp()->getFrameNumber() % 2;
+        const std::uint32_t frameId = state.getFrameStamp()->getFrameNumber() % 2;
         const auto& fbo = mFbo[frameId];
         const auto& msaaFbo = mMsaaFbo[frameId];
         const auto& opaqueFbo = mOpaqueFbo[frameId];

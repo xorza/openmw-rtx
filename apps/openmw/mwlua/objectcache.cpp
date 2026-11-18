@@ -1,6 +1,7 @@
-#include "object.hpp"
-
+#include <cstdint>
 #include <limits>
+
+#include "object.hpp"
 
 namespace MWLua
 {
@@ -11,8 +12,8 @@ namespace MWLua
 
         constexpr double packId(const ObjectId& id)
         {
-            return static_cast<double>(
-                static_cast<int64_t>(id.mIndex) + static_cast<int64_t>(id.mContentFile) * (int64_t{ 1 } << 33));
+            return static_cast<double>(static_cast<std::int64_t>(id.mIndex)
+                + static_cast<std::int64_t>(id.mContentFile) * (std::int64_t{ 1 } << 33));
         }
 
         enum CacheSlot
@@ -58,7 +59,7 @@ namespace MWLua
         }
 
         template <class T, class Key>
-        int pushCached(lua_State* state, const T& value, CacheSlot slot, Key key)
+        std::int32_t pushCached(lua_State* state, const T& value, CacheSlot slot, Key key)
         {
             pushCacheTable(state, slot);
             pushKey(state, key);
@@ -78,22 +79,22 @@ namespace MWLua
         }
     }
 
-    int pushCachedObject(lua_State* state, const LObject& value)
+    std::int32_t pushCachedObject(lua_State* state, const LObject& value)
     {
         return pushCached(state, value, LocalObjects, packId(value.id()));
     }
 
-    int pushCachedObject(lua_State* state, const GObject& value)
+    std::int32_t pushCachedObject(lua_State* state, const GObject& value)
     {
         return pushCached(state, value, GlobalObjects, packId(value.id()));
     }
 
-    int pushCachedObject(lua_State* state, const LCell& value)
+    std::int32_t pushCachedObject(lua_State* state, const LCell& value)
     {
         return pushCached(state, value, LocalCells, value.mStore);
     }
 
-    int pushCachedObject(lua_State* state, const GCell& value)
+    std::int32_t pushCachedObject(lua_State* state, const GCell& value)
     {
         return pushCached(state, value, GlobalCells, value.mStore);
     }
@@ -102,7 +103,7 @@ namespace MWLua
     void clearObjectCaches(lua_State* state)
     {
         sol::table registry = sol::state_view(state).registry();
-        for (int slot = 0; slot < SlotCount; ++slot)
+        for (std::int32_t slot = 0; slot < SlotCount; ++slot)
             registry.raw_set(sol::lightuserdata_value(slotKey(static_cast<CacheSlot>(slot))), sol::nil);
     }
 }

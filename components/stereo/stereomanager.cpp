@@ -1,21 +1,21 @@
 #include "stereomanager.hpp"
-#include "frustum.hpp"
-#include "multiview.hpp"
 
-#include <osg/DisplaySettings>
-
-#include <osgUtil/CullVisitor>
-
-#include <osgViewer/Renderer>
-#include <osgViewer/Viewer>
-
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <string>
 
-#include <components/misc/constants.hpp>
+#include <osg/DisplaySettings>
+#include <osgUtil/CullVisitor>
+#include <osgViewer/Renderer>
+#include <osgViewer/Viewer>
 
+#include <components/misc/constants.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
+
+#include "frustum.hpp"
+#include "multiview.hpp"
 
 namespace Stereo
 {
@@ -180,8 +180,8 @@ namespace Stereo
     {
         if (mEyeResolutionOverriden)
             return mEyeResolutionOverride;
-        auto width = static_cast<int>(mMainCamera->getViewport()->width() / 2);
-        auto height = static_cast<int>(mMainCamera->getViewport()->height());
+        auto width = static_cast<std::int32_t>(mMainCamera->getViewport()->width() / 2);
+        auto height = static_cast<std::int32_t>(mMainCamera->getViewport()->height());
 
         return osg::Vec2i(width, height);
     }
@@ -335,7 +335,7 @@ namespace Stereo
     {
         std::array<osg::Matrix, 2> projectionMatrices;
 
-        for (int view : { 0, 1 })
+        for (std::int32_t view : { 0, 1 })
             projectionMatrices[static_cast<std::size_t>(view)]
                 = computeEyeViewOffset(view) * computeEyeProjection(view, SceneUtil::AutoDepth::isReversed());
 
@@ -352,13 +352,13 @@ namespace Stereo
         mMainCamera->setCullCallback(cb);
     }
 
-    osg::Matrixd Manager::computeEyeProjection(int view, bool reverseZ) const
+    osg::Matrixd Manager::computeEyeProjection(std::int32_t view, bool reverseZ) const
     {
         return reverseZ ? mProjectionMatrixReverseZ[static_cast<std::size_t>(view)]
                         : mProjectionMatrix[static_cast<std::size_t>(view)];
     }
 
-    osg::Matrixd Manager::computeEyeViewOffset(int view) const
+    osg::Matrixd Manager::computeEyeViewOffset(std::int32_t view) const
     {
         return mViewOffsetMatrix[static_cast<std::size_t>(view)];
     }

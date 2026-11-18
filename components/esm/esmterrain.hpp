@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <span>
@@ -17,8 +18,8 @@ namespace ESM
     {
     public:
         LandData();
-        explicit LandData(const ESM::Land& land, int loadFlags);
-        explicit LandData(const ESM4::Land& land, int loadFlags);
+        explicit LandData(const ESM::Land& land, std::int32_t loadFlags);
+        explicit LandData(const ESM4::Land& land, std::int32_t loadFlags);
 
         ~LandData();
 
@@ -28,9 +29,9 @@ namespace ESM
         float getSize() const { return mSize; }
         float getMinHeight() const { return mMinHeight; }
         float getMaxHeight() const { return mMaxHeight; }
-        int getLandSize() const { return mLandSize; }
-        int getLoadFlags() const { return mLoadFlags; }
-        int getPlugin() const { return mPlugin; }
+        std::int32_t getLandSize() const { return mLandSize; }
+        std::int32_t getLoadFlags() const { return mLoadFlags; }
+        std::int32_t getPlugin() const { return mPlugin; }
 
         bool isEsm4() const { return mIsEsm4; }
 
@@ -56,12 +57,12 @@ namespace ESM
         std::span<const std::uint8_t> mColors;
         std::span<const std::uint16_t> mTextures;
         std::array<ESM4::Land::Texture, 4> mEsm4Textures;
-        int mLoadFlags = 0;
+        std::int32_t mLoadFlags = 0;
         float mMinHeight = 0.f;
         float mMaxHeight = 0.f;
         float mSize = 0.f;
-        int mLandSize = 0;
-        int mPlugin = 0;
+        std::int32_t mLandSize = 0;
+        std::int32_t mPlugin = 0;
         bool mIsEsm4 = false;
     };
 

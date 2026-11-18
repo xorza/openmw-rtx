@@ -20,7 +20,6 @@
 #include <components/misc/result.hpp>
 #include <components/platform/heap.hpp>
 #include <components/platform/thread.hpp>
-#include <components/resource/imageheader.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -31,6 +30,8 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texelreads.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
@@ -305,9 +306,9 @@ namespace Rtx
                         Log(Debug::Info) << "The content's preparation makes the chain of \""
                                          << SceneUtil::EmbeddedImage::nameOf(*queuedChain.mImage)
                                          << "\" alone: it needs more than the whole budget of memory";
-                        makes = PreparedImages::admits(needOf(*queuedChain.mImage, queuedChain.mPartner.get(),
-                                                           queuedChain.mEncoding, queuedChain.mWrap)
-                                                           .mScratch,
+                        makes = admitsChain(needOf(*queuedChain.mImage, queuedChain.mPartner.get(),
+                                                queuedChain.mEncoding, queuedChain.mWrap)
+                                                .mScratch,
                             *queuedChain.mImage);
                     }
                     if (makes)
@@ -329,7 +330,7 @@ namespace Rtx
 
             ChainScratch kept = hand.mContent.mPreprocessor.chainScratch();
             kept[ChainBuffer::Made] = hand.mChain.mBytes.capacity();
-            mDispatcher.ended(hand.mIndex, kept, hand.mModel.heldBytes(), hand.mMetBytes);
+            mDispatcher.ended(hand.mIndex, kept, hand.mModel.getRoomBytes(), hand.mMetBytes);
             mDone = std::chrono::steady_clock::now();
             mToHands.notify_all();
             mToWaiter.notify_all();
@@ -396,20 +397,21 @@ namespace Rtx
     {
         hand.mKeys.clear();
         hand.mContent.mPreprocessor.collectKeys(&hand.mKeys);
-        // The texels through the header a model holds, for the make alone: let go of as it ends.
-        const osg::ref_ptr<const osg::Image> image = Resource::texelsOf(*queued.mImage);
+        // The header a model holds, whose texels a run reads for the make alone: a chain the store holds reads none.
         if (queued.mPartner != nullptr)
-        {
-            const osg::ref_ptr<const osg::Image> partner = Resource::texelsOf(*queued.mPartner);
-            hand.mContent.mPreprocessor.convert(
-                ConversionPass::Input{
-                    .mImage = *image, .mPartner = *partner, .mEncoding = queued.mEncoding, .mWrap = queued.mWrap },
+            hand.mContent.mPreprocessor.convert(ConversionPass::Input{ .mImage = *queued.mImage,
+                                                    .mPartner = *queued.mPartner,
+                                                    .mEncoding = queued.mEncoding,
+                                                    .mWrap = queued.mWrap,
+                                                    .mWhy = TexelRead::Preparation,
+                                                    .mPartnerWhy = TexelRead::Preparation },
                 hand.mChain, ContentAsk::Stored);
-        }
         else
-            hand.mContent.mPreprocessor.chain(
-                ChainPass::Input{ .mImage = *image, .mEncoding = queued.mEncoding, .mWrap = queued.mWrap }, hand.mChain,
-                ContentAsk::Stored);
+            hand.mContent.mPreprocessor.chain(ChainPass::Input{ .mImage = *queued.mImage,
+                                                  .mEncoding = queued.mEncoding,
+                                                  .mWrap = queued.mWrap,
+                                                  .mWhy = TexelRead::Preparation },
+                hand.mChain, ContentAsk::Stored);
         hand.mContent.mPreprocessor.collectKeys(nullptr);
     }
 

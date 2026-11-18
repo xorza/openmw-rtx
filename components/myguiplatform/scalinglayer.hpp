@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_OverlappedLayer.h>
 
 namespace MyGUIPlatform
@@ -16,8 +18,8 @@ namespace MyGUIPlatform
 
         void deserialization(MyGUI::xml::ElementPtr node, MyGUI::Version version) override;
 
-        MyGUI::ILayerItem* getLayerItemByPoint(int left, int top) const override;
-        MyGUI::IntPoint getPosition(int left, int top) const override;
+        MyGUI::ILayerItem* getLayerItemByPoint(std::int32_t left, std::int32_t top) const override;
+        MyGUI::IntPoint getPosition(std::int32_t left, std::int32_t top) const override;
         void renderToTarget(MyGUI::IRenderTarget* target, bool update) override;
 
         void resizeView(const MyGUI::IntSize& viewSize) override;
@@ -29,7 +31,7 @@ namespace MyGUIPlatform
         static float getScaleFactor(const MyGUI::IntSize& viewSize, const MyGUI::IntSize& layerViewSize);
 
     private:
-        void screenToLayerCoords(int& left, int& top) const;
+        void screenToLayerCoords(std::int32_t& left, std::int32_t& top) const;
     };
 
 }

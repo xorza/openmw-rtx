@@ -1,9 +1,13 @@
 #pragma once
 
-#include "widgets.hpp"
-#include "windowbase.hpp"
+#include <cstddef>
+#include <cstdint>
+
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadclas.hpp>
+
+#include "widgets.hpp"
+#include "windowbase.hpp"
 
 namespace ESM
 {
@@ -49,7 +53,7 @@ namespace MWGui
 
         // Events
         typedef MyGUI::delegates::MultiDelegate<> EventHandle_Void;
-        typedef MyGUI::delegates::MultiDelegate<int> EventHandle_Int;
+        typedef MyGUI::delegates::MultiDelegate<std::int32_t> EventHandle_Int;
 
         /** Event : Back button clicked.\n
         signature : void method()\n
@@ -72,7 +76,7 @@ namespace MWGui
         void onClassClicked(MyGUI::Widget* sender);
         void onBirthSignClicked(MyGUI::Widget* sender);
 
-        void onMouseWheel(MyGUI::Widget* sender, int rel);
+        void onMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
@@ -105,6 +109,6 @@ namespace MWGui
 
         // 0 = Name, 1 = Race, 2 = Class, 3 = BirthSign, 4 = Back, 5 = OK
         std::vector<MyGUI::Button*> mButtons;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 }

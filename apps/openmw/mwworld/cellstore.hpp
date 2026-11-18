@@ -10,14 +10,13 @@
 #include <typeinfo>
 #include <vector>
 
-#include "cell.hpp"
-#include "cellreflist.hpp"
-#include "livecellref.hpp"
-
 #include <components/esm/refid.hpp>
 #include <components/esm3/fogstate.hpp>
 #include <components/misc/tuplemeta.hpp>
 
+#include "cell.hpp"
+#include "cellreflist.hpp"
+#include "livecellref.hpp"
 #include "ptr.hpp"
 #include "timestamp.hpp"
 
@@ -390,6 +389,11 @@ namespace MWWorld
         // mMovedToAnotherCell
         mutable std::vector<LiveCellRefBase*> mMergedRefs;
         mutable bool mMergedRefsNeedsUpdate = false;
+
+        // The hash of each merged ref's id, sorted and rebuilt with the merged list: what a loaded store answers
+        // hasId by without visiting its refs. A hash that two ids share answers yes for both, and the search after it
+        // tells them apart.
+        mutable std::vector<std::size_t> mMergedIdHashes;
 
         // Get the Ptr for the given ref which originated from this cell (possibly moved to another cell at this point).
         Ptr getCurrentPtr(MWWorld::LiveCellRefBase* ref);

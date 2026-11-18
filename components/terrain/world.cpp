@@ -1,5 +1,7 @@
 #include "world.hpp"
 
+#include <cstdint>
+
 #include <osg/Camera>
 #include <osg/Group>
 
@@ -16,7 +18,7 @@ namespace Terrain
 {
 
     World::World(osg::Group* parent, osg::Group* compileRoot, Resource::ResourceSystem* resourceSystem,
-        Storage* storage, unsigned int nodeMask, unsigned int preCompileMask, unsigned int borderMask,
+        Storage* storage, std::uint32_t nodeMask, std::uint32_t preCompileMask, std::uint32_t borderMask,
         ESM::RefId worldspace, double expiryDelay)
         : mStorage(storage)
         , mParent(parent)
@@ -55,7 +57,7 @@ namespace Terrain
         mResourceSystem->addResourceManager(mTextureManager.get());
     }
 
-    World::World(osg::Group* parent, Storage* storage, unsigned int nodeMask, ESM::RefId worldspace)
+    World::World(osg::Group* parent, Storage* storage, std::uint32_t nodeMask, ESM::RefId worldspace)
         : mStorage(storage)
         , mParent(parent)
         , mCompositeMapCamera(nullptr)
@@ -102,20 +104,20 @@ namespace Terrain
             mCellBorder->destroyCellBorderGeometry();
     }
 
-    void World::loadCell(int x, int y)
+    void World::loadCell(std::int32_t x, std::int32_t y)
     {
         if (mBorderVisible)
             mCellBorder->createCellBorderGeometry(x, y);
 
-        mLoadedCells.insert(std::pair<int, int>(x, y));
+        mLoadedCells.insert(std::pair<std::int32_t, std::int32_t>(x, y));
     }
 
-    void World::unloadCell(int x, int y)
+    void World::unloadCell(std::int32_t x, std::int32_t y)
     {
         if (mBorderVisible)
             mCellBorder->destroyCellBorderGeometry(x, y);
 
-        mLoadedCells.erase(std::pair<int, int>(x, y));
+        mLoadedCells.erase(std::pair<std::int32_t, std::int32_t>(x, y));
     }
 
     void World::setTargetFrameRate(float rate)
@@ -150,7 +152,7 @@ namespace Terrain
             mHeightCullCallback = nullptr;
     }
 
-    osg::Callback* World::getHeightCullCallback(float highz, unsigned int mask)
+    osg::Callback* World::getHeightCullCallback(float highz, std::uint32_t mask)
     {
         if (!mHeightCullCallback || mTerrainRoot->getNumChildren() == 0)
             return nullptr;

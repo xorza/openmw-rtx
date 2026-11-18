@@ -8,7 +8,10 @@
 #include <utility>
 #include <vector>
 
+#include <components/misc/digestwords.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/shaders/visibility.h>
 
@@ -110,10 +113,10 @@ namespace RtxTool
     /// geometry buffers included, which answers "is this the same buffer", and beside them the content, which
     /// answers "is this the same scene" (`ScenePart::Content`). Fields, not records, wherever a record has padding.
     ///
-    /// Kept across frames so a frame pays for what moved: the four vertex tables are tens of megabytes and change
-    /// only where a mesh appears (a release leaves its bytes in the hole), so they, and each mesh's shape, are
-    /// digested again only where `MeshTable::getRevision` or their lengths say so. A column of rows is hashed once,
-    /// not once per field.
+    /// The geometry's parts are each mesh's digests, made as it arrived where the scene keeps them
+    /// (`Rtx::MeshTable::keepDigests`): a scene digested asks for them before its first mesh. Each mesh's shape is kept
+    /// across frames and made again only where `MeshTable::getRevision` says so. A column of rows is hashed once, not
+    /// once per field.
     class SceneDigester
     {
     public:
@@ -122,21 +125,7 @@ namespace RtxTool
         const ScenePartDigests& digest(
             const Rtx::SceneDesc& scene, const Rtx::Shaders::VisibilityConstants* frame = nullptr);
 
-        /// How many times the vertex tables were hashed, which is once per change to them. Read
-        /// by the tests and by nothing else.
-        std::uint32_t getVertexHashes() const { return mVertexHashes; }
-
     private:
-        /// What the four vertex columns were last hashed from: a mesh appears through the revision, and a table grown
-        /// past its blocks through the lengths; nothing else writes them.
-        struct Vertices
-        {
-            std::uint64_t mRevision = 0;
-            std::array<std::size_t, 6> mLengths{};
-
-            bool operator==(const Vertices&) const = default;
-        };
-
         void digestVertices(const Rtx::SceneDesc& scene);
 
         /// `ScenePart::Content`, each placement's mesh by its shape in `mShapes`.
@@ -144,19 +133,18 @@ namespace RtxTool
 
         void take(ScenePart part, const Misc::DigestWords& words) { mParts[static_cast<std::size_t>(part)] = words; }
 
-        /// Empty until the first digest.
-        std::optional<Vertices> mVertices;
-        std::uint32_t mVertexHashes = 0;
         ScenePartDigests mParts{};
 
         /// Each mesh slot's shape, its triangles as a multiset and what poses it, as `MeshTable::getRevision` stood
         /// at `mShapesRevision`: what every placement of the mesh is made of, made once a mesh and not once a
         /// placement a frame.
-        std::vector<Misc::DigestWords> mShapes;
+        Rtx::RowVector<Misc::DigestWords, Rtx::MeshIndex> mShapes;
         std::optional<std::uint64_t> mShapesRevision;
 
-        /// A column's rows laid end to end, hashed once. Cleared and refilled, never freed.
+        /// A column's rows laid end to end, hashed once, and the standing masks' offsets in order. Cleared and
+        /// refilled, never freed.
         std::vector<std::byte> mScratch;
+        std::vector<std::uint32_t> mMaskOffsets;
     };
 
     /// The one-off form `scene` and `shot` report with: a digester made and used once.

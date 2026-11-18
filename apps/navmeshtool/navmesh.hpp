@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 namespace DetourNavigator
@@ -34,7 +35,7 @@ namespace NavMeshTool
 
     struct GenerateTilesStats
     {
-        int mMaxPolyCountPerTile = 0;
+        std::int32_t mMaxPolyCountPerTile = 0;
     };
 
     struct GenerateTilesResult

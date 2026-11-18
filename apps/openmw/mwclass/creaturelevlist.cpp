@@ -1,21 +1,19 @@
 #include "creaturelevlist.hpp"
 
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/levelledlist.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/creaturelevliststate.hpp>
 #include <components/esm3/loadlevlist.hpp>
-
-#include "../mwmechanics/levelledlist.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 #include "preloadmodels.hpp"
 
@@ -162,7 +160,7 @@ namespace MWClass
         customData.mSpawn = levListState.mSpawn;
         if (state.mActorIdConverter)
             state.mActorIdConverter->convert(
-                customData.mSpawnedActor, static_cast<int>(customData.mSpawnedActor.mIndex));
+                customData.mSpawnedActor, static_cast<std::int32_t>(customData.mSpawnedActor.mIndex));
     }
 
     void CreatureLevList::writeAdditionalState(const MWWorld::ConstPtr& ptr, ESM::ObjectState& state) const

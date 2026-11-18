@@ -1,6 +1,6 @@
 #include "modebutton.hpp"
 
-#include <apps/opencs/view/widget/pushbutton.hpp>
+#include "pushbutton.hpp"
 
 class QWidget;
 

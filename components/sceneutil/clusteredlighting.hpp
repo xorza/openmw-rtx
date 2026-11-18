@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include <osg/Vec4f>
 
 namespace SceneUtil

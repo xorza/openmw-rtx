@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -42,45 +43,46 @@ namespace Compiler
         {
             char mReturn{};
             ScriptArgs mArguments;
-            int mCode{};
-            int mCodeExplicit{};
-            int mSegment{};
+            std::int32_t mCode{};
+            std::int32_t mCodeExplicit{};
+            std::int32_t mSegment{};
         };
 
         struct Instruction
         {
             ScriptArgs mArguments;
-            int mCode{};
-            int mCodeExplicit{};
-            int mSegment{};
+            std::int32_t mCode{};
+            std::int32_t mCodeExplicit{};
+            std::int32_t mSegment{};
         };
 
-        int mNextKeywordIndex;
-        std::map<std::string, int> mKeywords;
-        std::map<int, Function> mFunctions;
-        std::map<int, Instruction> mInstructions;
+        std::int32_t mNextKeywordIndex;
+        std::map<std::string, std::int32_t> mKeywords;
+        std::map<std::int32_t, Function> mFunctions;
+        std::map<std::int32_t, Instruction> mInstructions;
 
     public:
         Extensions();
 
-        int searchKeyword(const std::string& keyword) const;
+        std::int32_t searchKeyword(const std::string& keyword) const;
         ///< Return extension keyword code, that is assigned to the string \a keyword.
         /// - if no match is found 0 is returned.
         /// - keyword must be all lower case.
 
-        bool isFunction(int keyword, ScriptReturn& returnType, ScriptArgs& argumentType, bool& explicitReference) const;
+        bool isFunction(
+            std::int32_t keyword, ScriptReturn& returnType, ScriptArgs& argumentType, bool& explicitReference) const;
         ///< Is this keyword registered with a function? If yes, return return and argument
         /// types.
         /// \param explicitReference In: has explicit reference; Out: set to false, if
         /// explicit reference is not available for this instruction.
 
-        bool isInstruction(int keyword, ScriptArgs& argumentType, bool& explicitReference) const;
+        bool isInstruction(std::int32_t keyword, ScriptArgs& argumentType, bool& explicitReference) const;
         ///< Is this keyword registered with a function? If yes, return argument types.
         /// \param explicitReference In: has explicit reference; Out: set to false, if
         /// explicit reference is not available for this instruction.
 
         void registerFunction(std::string_view keyword, ScriptReturn returnType, std::string_view argumentType,
-            int code, int codeExplicit = -1);
+            std::int32_t code, std::int32_t codeExplicit = -1);
         ///< Register a custom function
         /// - keyword must be all lower case.
         /// - keyword must be unique
@@ -88,19 +90,19 @@ namespace Compiler
         /// \note Currently only segment 3 and segment 5 opcodes are supported.
 
         void registerInstruction(
-            std::string_view keyword, std::string_view argumentType, int code, int codeExplicit = -1);
+            std::string_view keyword, std::string_view argumentType, std::int32_t code, std::int32_t codeExplicit = -1);
         ///< Register a custom instruction
         /// - keyword must be all lower case.
         /// - keyword must be unique
         /// - if explicit references are not supported, segment5codeExplicit must be set to -1
         /// \note Currently only segment 3 and segment 5 opcodes are supported.
 
-        void generateFunctionCode(int keyword, std::vector<Interpreter::Type_Code>& code, Literals& literals,
-            const std::string& id, int optionalArguments) const;
+        void generateFunctionCode(std::int32_t keyword, std::vector<Interpreter::Type_Code>& code, Literals& literals,
+            const std::string& id, std::int32_t optionalArguments) const;
         ///< Append code for function to \a code.
 
-        void generateInstructionCode(int keyword, std::vector<Interpreter::Type_Code>& code, Literals& literals,
-            const std::string& id, int optionalArguments) const;
+        void generateInstructionCode(std::int32_t keyword, std::vector<Interpreter::Type_Code>& code,
+            Literals& literals, const std::string& id, std::int32_t optionalArguments) const;
         ///< Append code for function to \a code.
 
         void listKeywords(std::vector<std::string>& keywords) const;

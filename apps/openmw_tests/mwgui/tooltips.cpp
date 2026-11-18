@@ -1,8 +1,8 @@
+#include <limits>
+
 #include <gtest/gtest.h>
 
-#include "apps/openmw/mwgui/tooltips.hpp"
-
-#include <limits>
+#include <apps/openmw/mwgui/tooltips.hpp>
 
 namespace MWGui
 {

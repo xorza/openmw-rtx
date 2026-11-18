@@ -1,7 +1,10 @@
-#include <components/esmterrain/gridsampling.hpp>
+#include <cstddef>
+#include <cstdint>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <components/esmterrain/gridsampling.hpp>
 
 namespace ESMTerrain
 {
@@ -402,7 +405,7 @@ namespace ESMTerrain
         TEST(ESMTerrainSampleBlendmaps, doesNotSupportNotPositiveTextureSize)
         {
             const float size = 1;
-            const int textureSize = 0;
+            const std::int32_t textureSize = 0;
             EXPECT_THROW(sampleBlendmaps(size, 0, 0, textureSize, [](auto...) {}), std::invalid_argument);
         }
 
@@ -411,7 +414,7 @@ namespace ESMTerrain
             const float size = 0.125f;
             const float minX = 0.125f;
             const float minY = 0.125f;
-            const int textureSize = 8;
+            const std::int32_t textureSize = 8;
             std::vector<CellSample> samples;
             sampleBlendmaps(size, minX, minY, textureSize, CollectCellSamples{ samples });
             EXPECT_THAT(samples,
@@ -427,7 +430,7 @@ namespace ESMTerrain
             const float size = 0.125f;
             const float minX = 0;
             const float minY = 0;
-            const int textureSize = 8;
+            const std::int32_t textureSize = 8;
             std::vector<CellSample> samples;
             sampleBlendmaps(size, minX, minY, textureSize, CollectCellSamples{ samples });
             EXPECT_THAT(samples,
@@ -443,7 +446,7 @@ namespace ESMTerrain
             const float size = 0.125f;
             const float minX = -0.5f;
             const float minY = -0.5f;
-            const int textureSize = 8;
+            const std::int32_t textureSize = 8;
             std::vector<CellSample> samples;
             sampleBlendmaps(size, minX, minY, textureSize, CollectCellSamples{ samples });
             EXPECT_THAT(samples,
@@ -459,7 +462,7 @@ namespace ESMTerrain
             const float size = 2;
             const float minX = -1.5f;
             const float minY = -1.5f;
-            const int textureSize = 2;
+            const std::int32_t textureSize = 2;
             std::vector<CellSample> samples;
             sampleBlendmaps(size, minX, minY, textureSize, CollectCellSamples{ samples });
             EXPECT_THAT(samples,

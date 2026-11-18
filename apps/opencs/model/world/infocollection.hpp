@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -50,9 +51,10 @@ namespace CSMWorld
 
         InfosRecordPtrByTopic getInfosByTopic() const;
 
-        int getAppendIndex(const ESM::RefId& id, UniversalId::Type type = UniversalId::Type_None) const override;
+        std::int32_t getAppendIndex(
+            const ESM::RefId& id, UniversalId::Type type = UniversalId::Type_None) const override;
 
-        bool reorderRows(int baseIndex, const std::vector<int>& newOrder) override;
+        bool reorderRows(std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder) override;
     };
 
     ESM::RefId makeCompositeInfoRefId(const ESM::RefId& topicId, const ESM::RefId& infoId);

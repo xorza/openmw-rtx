@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/sdlutil/graphicslistener.hpp>
 
 namespace MWRender
@@ -19,8 +21,8 @@ namespace MWInput
         explicit RendererKeys(MWRender::Renderer& renderer);
 
         void beginEvents() override;
-        void functionKey(int index, SDLUtil::KeyChange change) override;
-        void windowResized(int x, int y, int width, int height) override;
+        void functionKey(std::int32_t index, SDLUtil::KeyChange change) override;
+        void windowResized(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) override;
 
     private:
         MWRender::Renderer& mRenderer;

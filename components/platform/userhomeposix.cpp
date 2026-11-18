@@ -15,6 +15,7 @@ namespace Platform
             return std::filesystem::path(home);
 
         // The reentrant form, because the crash monitor asks from a thread of its own.
+        // NOLINTNEXTLINE(google-runtime-int): sysconf's type
         const long suggested = sysconf(_SC_GETPW_R_SIZE_MAX);
         std::vector<char> buffer(suggested > 0 ? static_cast<std::size_t>(suggested) : 16384);
         passwd entry{};

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include <osg/Array>
@@ -63,8 +64,8 @@ namespace Terrain
         /// @param positions buffer to write vertices
         /// @param normals buffer to write vertex normals
         /// @param colours buffer to write vertex colours
-        virtual void fillVertexBuffers(int lodLevel, float size, const osg::Vec2f& center, ESM::RefId worldspace,
-            osg::Vec3Array& positions, osg::Vec3Array& normals, osg::Vec4ubArray& colours) = 0;
+        virtual void fillVertexBuffers(std::int32_t lodLevel, float size, const osg::Vec2f& center,
+            ESM::RefId worldspace, osg::Vec3Array& positions, osg::Vec3Array& normals, osg::Vec4ubArray& colours) = 0;
 
         typedef std::vector<osg::ref_ptr<osg::Image>> ImageVector;
         /// Create textures holding layer blend values for a terrain chunk.
@@ -84,10 +85,10 @@ namespace Terrain
         virtual float getCellWorldSize(ESM::RefId worldspace) = 0;
 
         /// Get the number of vertices on one side for each cell. Should be (power of two)+1
-        virtual int getCellVertices(ESM::RefId worldspace) = 0;
+        virtual std::int32_t getCellVertices(ESM::RefId worldspace) = 0;
 
         /// Get the number of texture tiles on one side per chunk (chunkSize 1.0 = 1 cell).
-        virtual int getTextureTileCount(float chunkSize, ESM::RefId worldspace) = 0;
+        virtual std::int32_t getTextureTileCount(float chunkSize, ESM::RefId worldspace) = 0;
     };
 
 }

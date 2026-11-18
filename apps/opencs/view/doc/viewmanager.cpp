@@ -1,42 +1,39 @@
 #include "viewmanager.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/doc/loader.hpp>
-
-#include <components/esm3/variant.hpp>
-#include <components/files/qtconversion.hpp>
-
 #include <QApplication>
 #include <QMessageBox>
 #include <QPushButton>
 
-#include "../../model/doc/document.hpp"
-#include "../../model/doc/documentmanager.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/documentmanager.hpp>
+#include <apps/opencs/model/prefs/category.hpp>
+#include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/world/colordelegate.hpp>
+#include <apps/opencs/view/world/enumdelegate.hpp>
+#include <apps/opencs/view/world/idcompletiondelegate.hpp>
+#include <apps/opencs/view/world/idtypedelegate.hpp>
+#include <apps/opencs/view/world/recordstatusdelegate.hpp>
+#include <apps/opencs/view/world/vartypedelegate.hpp>
+#include <components/esm3/variant.hpp>
+#include <components/files/qtconversion.hpp>
 
-#include "../../model/prefs/state.hpp"
-
-#include "../world/colordelegate.hpp"
-#include "../world/enumdelegate.hpp"
-#include "../world/idcompletiondelegate.hpp"
-#include "../world/idtypedelegate.hpp"
-#include "../world/recordstatusdelegate.hpp"
-#include "../world/vartypedelegate.hpp"
-
+#include "loader.hpp"
 #include "view.hpp"
 
 void CSVDoc::ViewManager::updateIndices()
 {
-    std::map<CSMDoc::Document*, std::pair<int, int>> documents;
+    std::map<CSMDoc::Document*, std::pair<std::int32_t, std::int32_t>> documents;
 
     for (auto view : mViews)
     {
@@ -151,8 +148,10 @@ CSVDoc::View* CSVDoc::ViewManager::addView(CSMDoc::Document* document)
         // new document
         connect(document, &CSMDoc::Document::stateChanged, this, &ViewManager::documentStateChanged);
 
-        connect(document, qOverload<int, int, int, int, CSMDoc::Document*>(&CSMDoc::Document::progress), this,
-            &ViewManager::progress);
+        connect(document,
+            qOverload<std::int32_t, std::int32_t, std::int32_t, std::int32_t, CSMDoc::Document*>(
+                &CSMDoc::Document::progress),
+            this, &ViewManager::progress);
     }
 
     View* view = new View(*this, document, countViews(document) + 1);
@@ -182,9 +181,9 @@ CSVDoc::View* CSVDoc::ViewManager::addView(
     return view;
 }
 
-int CSVDoc::ViewManager::countViews(const CSMDoc::Document* document) const
+std::int32_t CSVDoc::ViewManager::countViews(const CSMDoc::Document* document) const
 {
-    int count = 0;
+    std::int32_t count = 0;
 
     for (auto view : mViews)
         if (view->getDocument() == document)
@@ -274,7 +273,7 @@ bool CSVDoc::ViewManager::showModifiedDocumentMessageBox(CSVDoc::View* view)
     connect(document, &CSMDoc::Document::stateChanged, this, &ViewManager::onExitWarningHandler);
 
     mUserWarned = true;
-    int response = messageBox.exec();
+    std::int32_t response = messageBox.exec();
     mUserWarned = false;
 
     switch (response)
@@ -359,21 +358,22 @@ bool CSVDoc::ViewManager::showSaveInProgressMessageBox(CSVDoc::View* view)
     return retVal;
 }
 
-void CSVDoc::ViewManager::documentStateChanged(int state, CSMDoc::Document* document)
+void CSVDoc::ViewManager::documentStateChanged(std::int32_t state, CSMDoc::Document* document)
 {
     for (auto view : mViews)
         if (view->getDocument() == document)
             view->updateDocumentState();
 }
 
-void CSVDoc::ViewManager::progress(int current, int max, int type, int threads, CSMDoc::Document* document)
+void CSVDoc::ViewManager::progress(
+    std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads, CSMDoc::Document* document)
 {
     for (auto view : mViews)
         if (view->getDocument() == document)
             view->updateProgress(current, max, type, threads);
 }
 
-void CSVDoc::ViewManager::onExitWarningHandler(int state, CSMDoc::Document* document)
+void CSVDoc::ViewManager::onExitWarningHandler(std::int32_t state, CSMDoc::Document* document)
 {
     if (!(state & CSMDoc::State_Saving))
     {

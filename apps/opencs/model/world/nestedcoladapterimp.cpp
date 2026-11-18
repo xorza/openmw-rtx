@@ -1,13 +1,9 @@
 #include "nestedcoladapterimp.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
-#include <stdint.h>
 #include <utility>
-
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/disabletag.hpp>
-#include <apps/opencs/model/world/nestedtablewrapper.hpp>
-#include <apps/opencs/model/world/record.hpp>
 
 #include <components/esm/attr.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -16,13 +12,17 @@
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadregn.hpp>
 
+#include "cell.hpp"
+#include "disabletag.hpp"
 #include "info.hpp"
 #include "infoselectwrapper.hpp"
+#include "nestedtablewrapper.hpp"
 #include "pathgrid.hpp"
+#include "record.hpp"
 
 namespace CSMWorld
 {
-    void PathgridPointListAdapter::addRow(Record<Pathgrid>& record, int position) const
+    void PathgridPointListAdapter::addRow(Record<Pathgrid>& record, std::int32_t position) const
     {
         Pathgrid pathgrid = record.get();
 
@@ -37,12 +37,12 @@ namespace CSMWorld
         point.mConnectionNum = 0;
 
         points.insert(points.begin() + position, point);
-        pathgrid.mData.mPoints = static_cast<uint16_t>(pathgrid.mPoints.size());
+        pathgrid.mData.mPoints = static_cast<std::uint16_t>(pathgrid.mPoints.size());
 
         record.setModified(pathgrid);
     }
 
-    void PathgridPointListAdapter::removeRow(Record<Pathgrid>& record, int rowToRemove) const
+    void PathgridPointListAdapter::removeRow(Record<Pathgrid>& record, std::int32_t rowToRemove) const
     {
         Pathgrid pathgrid = record.get();
 
@@ -54,7 +54,7 @@ namespace CSMWorld
         // Do not remove dangling edges, does not work with current undo mechanism
         // Do not automatically adjust indices, what would be done with dangling edges?
         points.erase(points.begin() + rowToRemove);
-        pathgrid.mData.mPoints = static_cast<uint16_t>(pathgrid.mPoints.size());
+        pathgrid.mData.mPoints = static_cast<std::uint16_t>(pathgrid.mPoints.size());
 
         record.setModified(pathgrid);
     }
@@ -63,7 +63,7 @@ namespace CSMWorld
     {
         Pathgrid pathgrid = record.get();
         pathgrid.mPoints = static_cast<const NestedTableWrapper<ESM::Pathgrid::PointList>&>(nestedTable).mNestedTable;
-        pathgrid.mData.mPoints = static_cast<uint16_t>(pathgrid.mPoints.size());
+        pathgrid.mData.mPoints = static_cast<std::uint16_t>(pathgrid.mPoints.size());
 
         record.setModified(pathgrid);
     }
@@ -74,7 +74,8 @@ namespace CSMWorld
         return new NestedTableWrapper<ESM::Pathgrid::PointList>(record.get().mPoints);
     }
 
-    QVariant PathgridPointListAdapter::getData(const Record<Pathgrid>& record, int subRowIndex, int subColIndex) const
+    QVariant PathgridPointListAdapter::getData(
+        const Record<Pathgrid>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         ESM::Pathgrid::Point point = record.get().mPoints[static_cast<std::size_t>(subRowIndex)];
         switch (subColIndex)
@@ -93,7 +94,7 @@ namespace CSMWorld
     }
 
     void PathgridPointListAdapter::setData(
-        Record<Pathgrid>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<Pathgrid>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         Pathgrid pathgrid = record.get();
         ESM::Pathgrid::Point point = pathgrid.mPoints[static_cast<std::size_t>(subRowIndex)];
@@ -119,17 +120,17 @@ namespace CSMWorld
         record.setModified(pathgrid);
     }
 
-    int PathgridPointListAdapter::getColumnsCount(const Record<Pathgrid>& record) const
+    std::int32_t PathgridPointListAdapter::getColumnsCount(const Record<Pathgrid>& record) const
     {
         return 4;
     }
 
-    int PathgridPointListAdapter::getRowsCount(const Record<Pathgrid>& record) const
+    std::int32_t PathgridPointListAdapter::getRowsCount(const Record<Pathgrid>& record) const
     {
-        return static_cast<int>(record.get().mPoints.size());
+        return static_cast<std::int32_t>(record.get().mPoints.size());
     }
 
-    void PathgridEdgeListAdapter::addRow(Record<Pathgrid>& record, int position) const
+    void PathgridEdgeListAdapter::addRow(Record<Pathgrid>& record, std::int32_t position) const
     {
         Pathgrid pathgrid = record.get();
 
@@ -150,7 +151,7 @@ namespace CSMWorld
         record.setModified(pathgrid);
     }
 
-    void PathgridEdgeListAdapter::removeRow(Record<Pathgrid>& record, int rowToRemove) const
+    void PathgridEdgeListAdapter::removeRow(Record<Pathgrid>& record, std::int32_t rowToRemove) const
     {
         Pathgrid pathgrid = record.get();
 
@@ -179,7 +180,8 @@ namespace CSMWorld
         return new NestedTableWrapper<ESM::Pathgrid::EdgeList>(record.get().mEdges);
     }
 
-    QVariant PathgridEdgeListAdapter::getData(const Record<Pathgrid>& record, int subRowIndex, int subColIndex) const
+    QVariant PathgridEdgeListAdapter::getData(
+        const Record<Pathgrid>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         const Pathgrid& pathgrid = record.get();
 
@@ -201,7 +203,7 @@ namespace CSMWorld
     }
 
     void PathgridEdgeListAdapter::setData(
-        Record<Pathgrid>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<Pathgrid>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         Pathgrid pathgrid = record.get();
 
@@ -228,21 +230,21 @@ namespace CSMWorld
         record.setModified(pathgrid);
     }
 
-    int PathgridEdgeListAdapter::getColumnsCount(const Record<Pathgrid>& record) const
+    std::int32_t PathgridEdgeListAdapter::getColumnsCount(const Record<Pathgrid>& record) const
     {
         return 3;
     }
 
-    int PathgridEdgeListAdapter::getRowsCount(const Record<Pathgrid>& record) const
+    std::int32_t PathgridEdgeListAdapter::getRowsCount(const Record<Pathgrid>& record) const
     {
-        return static_cast<int>(record.get().mEdges.size());
+        return static_cast<std::int32_t>(record.get().mEdges.size());
     }
 
-    void FactionReactionsAdapter::addRow(Record<ESM::Faction>& record, int position) const
+    void FactionReactionsAdapter::addRow(Record<ESM::Faction>& record, std::int32_t position) const
     {
         ESM::Faction faction = record.get();
 
-        std::map<ESM::RefId, int>& reactions = faction.mReactions;
+        std::map<ESM::RefId, std::int32_t>& reactions = faction.mReactions;
 
         // blank row
         reactions.insert(std::make_pair(ESM::RefId(), 0));
@@ -250,11 +252,11 @@ namespace CSMWorld
         record.setModified(faction);
     }
 
-    void FactionReactionsAdapter::removeRow(Record<ESM::Faction>& record, int rowToRemove) const
+    void FactionReactionsAdapter::removeRow(Record<ESM::Faction>& record, std::int32_t rowToRemove) const
     {
         ESM::Faction faction = record.get();
 
-        std::map<ESM::RefId, int>& reactions = faction.mReactions;
+        std::map<ESM::RefId, std::int32_t>& reactions = faction.mReactions;
 
         if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, reactions.size()))
             throw std::runtime_error("index out of range");
@@ -262,7 +264,7 @@ namespace CSMWorld
         // FIXME: how to ensure that the map entries correspond to table indicies?
         // WARNING: Assumed that the table view has the same order as std::map
         auto iter = reactions.begin();
-        for (int i = 0; i < rowToRemove; ++i)
+        for (std::int32_t i = 0; i < rowToRemove; ++i)
             ++iter;
         reactions.erase(iter);
 
@@ -275,7 +277,7 @@ namespace CSMWorld
         ESM::Faction faction = record.get();
 
         faction.mReactions
-            = static_cast<const NestedTableWrapper<std::map<ESM::RefId, int>>&>(nestedTable).mNestedTable;
+            = static_cast<const NestedTableWrapper<std::map<ESM::RefId, std::int32_t>>&>(nestedTable).mNestedTable;
 
         record.setModified(faction);
     }
@@ -283,15 +285,15 @@ namespace CSMWorld
     NestedTableWrapperBase* FactionReactionsAdapter::table(const Record<ESM::Faction>& record) const
     {
         // deleted by dtor of NestedTableStoring
-        return new NestedTableWrapper<std::map<ESM::RefId, int>>(record.get().mReactions);
+        return new NestedTableWrapper<std::map<ESM::RefId, std::int32_t>>(record.get().mReactions);
     }
 
     QVariant FactionReactionsAdapter::getData(
-        const Record<ESM::Faction>& record, int subRowIndex, int subColIndex) const
+        const Record<ESM::Faction>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         ESM::Faction faction = record.get();
 
-        std::map<ESM::RefId, int>& reactions = faction.mReactions;
+        std::map<ESM::RefId, std::int32_t>& reactions = faction.mReactions;
 
         if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, reactions.size()))
             throw std::runtime_error("index out of range");
@@ -299,7 +301,7 @@ namespace CSMWorld
         // FIXME: how to ensure that the map entries correspond to table indicies?
         // WARNING: Assumed that the table view has the same order as std::map
         auto iter = reactions.begin();
-        for (int i = 0; i < subRowIndex; ++i)
+        for (std::int32_t i = 0; i < subRowIndex; ++i)
             ++iter;
         switch (subColIndex)
         {
@@ -313,11 +315,11 @@ namespace CSMWorld
     }
 
     void FactionReactionsAdapter::setData(
-        Record<ESM::Faction>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<ESM::Faction>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         ESM::Faction faction = record.get();
 
-        std::map<ESM::RefId, int>& reactions = faction.mReactions;
+        std::map<ESM::RefId, std::int32_t>& reactions = faction.mReactions;
 
         if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, reactions.size()))
             throw std::runtime_error("index out of range");
@@ -325,11 +327,11 @@ namespace CSMWorld
         // FIXME: how to ensure that the map entries correspond to table indicies?
         // WARNING: Assumed that the table view has the same order as std::map
         auto iter = reactions.begin();
-        for (int i = 0; i < subRowIndex; ++i)
+        for (std::int32_t i = 0; i < subRowIndex; ++i)
             ++iter;
 
         ESM::RefId factionId = (*iter).first;
-        int reaction = (*iter).second;
+        std::int32_t reaction = (*iter).second;
 
         switch (subColIndex)
         {
@@ -352,17 +354,17 @@ namespace CSMWorld
         record.setModified(faction);
     }
 
-    int FactionReactionsAdapter::getColumnsCount(const Record<ESM::Faction>& record) const
+    std::int32_t FactionReactionsAdapter::getColumnsCount(const Record<ESM::Faction>& record) const
     {
         return 2;
     }
 
-    int FactionReactionsAdapter::getRowsCount(const Record<ESM::Faction>& record) const
+    std::int32_t FactionReactionsAdapter::getRowsCount(const Record<ESM::Faction>& record) const
     {
-        return static_cast<int>(record.get().mReactions.size());
+        return static_cast<std::int32_t>(record.get().mReactions.size());
     }
 
-    void RegionSoundListAdapter::addRow(Record<ESM::Region>& record, int position) const
+    void RegionSoundListAdapter::addRow(Record<ESM::Region>& record, std::int32_t position) const
     {
         ESM::Region region = record.get();
 
@@ -378,7 +380,7 @@ namespace CSMWorld
         record.setModified(region);
     }
 
-    void RegionSoundListAdapter::removeRow(Record<ESM::Region>& record, int rowToRemove) const
+    void RegionSoundListAdapter::removeRow(Record<ESM::Region>& record, std::int32_t rowToRemove) const
     {
         ESM::Region region = record.get();
 
@@ -408,13 +410,14 @@ namespace CSMWorld
         return new NestedTableWrapper<std::vector<ESM::Region::SoundRef>>(record.get().mSoundList);
     }
 
-    QVariant RegionSoundListAdapter::getData(const Record<ESM::Region>& record, int subRowIndex, int subColIndex) const
+    QVariant RegionSoundListAdapter::getData(
+        const Record<ESM::Region>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         const ESM::Region& region = record.get();
 
         const std::vector<ESM::Region::SoundRef>& soundList = region.mSoundList;
 
-        const auto index = static_cast<size_t>(subRowIndex);
+        const auto index = static_cast<std::size_t>(subRowIndex);
         if (subRowIndex < 0 || index >= soundList.size())
             throw std::runtime_error("index out of range");
 
@@ -428,7 +431,7 @@ namespace CSMWorld
             case 2:
             {
                 float probability = 1.f;
-                for (size_t i = 0; i < index; ++i)
+                for (std::size_t i = 0; i < index; ++i)
                 {
                     const float p = std::min(static_cast<float>(soundList[i].mChance) / 100.f, 1.f);
                     probability *= 1.f - p;
@@ -442,7 +445,7 @@ namespace CSMWorld
     }
 
     void RegionSoundListAdapter::setData(
-        Record<ESM::Region>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<ESM::Region>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         ESM::Region region = record.get();
 
@@ -458,7 +461,7 @@ namespace CSMWorld
                 soundRef.mSound = ESM::RefId::stringRefId(value.toString().toUtf8().constData());
                 break;
             case 1:
-                soundRef.mChance = static_cast<uint8_t>(value.toInt());
+                soundRef.mChance = static_cast<std::uint8_t>(value.toInt());
                 break;
             default:
                 throw std::runtime_error("Region sounds subcolumn index out of range");
@@ -469,22 +472,22 @@ namespace CSMWorld
         record.setModified(region);
     }
 
-    int RegionSoundListAdapter::getColumnsCount(const Record<ESM::Region>& record) const
+    std::int32_t RegionSoundListAdapter::getColumnsCount(const Record<ESM::Region>& record) const
     {
         return 3;
     }
 
-    int RegionSoundListAdapter::getRowsCount(const Record<ESM::Region>& record) const
+    std::int32_t RegionSoundListAdapter::getRowsCount(const Record<ESM::Region>& record) const
     {
-        return static_cast<int>(record.get().mSoundList.size());
+        return static_cast<std::int32_t>(record.get().mSoundList.size());
     }
 
-    void InfoListAdapter::addRow(Record<Info>& record, int position) const
+    void InfoListAdapter::addRow(Record<Info>& record, std::int32_t position) const
     {
         throw std::logic_error("cannot add a row to a fixed table");
     }
 
-    void InfoListAdapter::removeRow(Record<Info>& record, int rowToRemove) const
+    void InfoListAdapter::removeRow(Record<Info>& record, std::int32_t rowToRemove) const
     {
         throw std::logic_error("cannot remove a row to a fixed table");
     }
@@ -499,7 +502,8 @@ namespace CSMWorld
         throw std::logic_error("table operation not supported");
     }
 
-    QVariant InfoListAdapter::getData(const Record<Info>& record, int subRowIndex, int subColIndex) const
+    QVariant InfoListAdapter::getData(
+        const Record<Info>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         const Info& info = record.get();
 
@@ -509,7 +513,8 @@ namespace CSMWorld
             throw std::runtime_error("Trying to access non-existing column in the nested table!");
     }
 
-    void InfoListAdapter::setData(Record<Info>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+    void InfoListAdapter::setData(
+        Record<Info>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         Info info = record.get();
 
@@ -521,17 +526,17 @@ namespace CSMWorld
         record.setModified(info);
     }
 
-    int InfoListAdapter::getColumnsCount(const Record<Info>& record) const
+    std::int32_t InfoListAdapter::getColumnsCount(const Record<Info>& record) const
     {
         return 1;
     }
 
-    int InfoListAdapter::getRowsCount(const Record<Info>& record) const
+    std::int32_t InfoListAdapter::getRowsCount(const Record<Info>& record) const
     {
         return 1; // fixed at size 1
     }
 
-    void InfoConditionAdapter::addRow(Record<Info>& record, int position) const
+    void InfoConditionAdapter::addRow(Record<Info>& record, std::int32_t position) const
     {
         Info info = record.get();
 
@@ -539,14 +544,14 @@ namespace CSMWorld
 
         // default row
         ESM::DialogueCondition condStruct;
-        condStruct.mIndex = static_cast<uint8_t>(conditions.size());
+        condStruct.mIndex = static_cast<std::uint8_t>(conditions.size());
 
         conditions.insert(conditions.begin() + position, condStruct);
 
         record.setModified(info);
     }
 
-    void InfoConditionAdapter::removeRow(Record<Info>& record, int rowToRemove) const
+    void InfoConditionAdapter::removeRow(Record<Info>& record, std::int32_t rowToRemove) const
     {
         Info info = record.get();
 
@@ -576,7 +581,8 @@ namespace CSMWorld
         return new NestedTableWrapper<std::vector<ESM::DialogueCondition>>(record.get().mSelects);
     }
 
-    QVariant InfoConditionAdapter::getData(const Record<Info>& record, int subRowIndex, int subColIndex) const
+    QVariant InfoConditionAdapter::getData(
+        const Record<Info>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         Info info = record.get();
 
@@ -614,7 +620,7 @@ namespace CSMWorld
     }
 
     void InfoConditionAdapter::setData(
-        Record<Info>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<Info>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         Info info = record.get();
 
@@ -682,22 +688,22 @@ namespace CSMWorld
         record.setModified(info);
     }
 
-    int InfoConditionAdapter::getColumnsCount(const Record<Info>& record) const
+    std::int32_t InfoConditionAdapter::getColumnsCount(const Record<Info>& record) const
     {
         return 4;
     }
 
-    int InfoConditionAdapter::getRowsCount(const Record<Info>& record) const
+    std::int32_t InfoConditionAdapter::getRowsCount(const Record<Info>& record) const
     {
-        return static_cast<int>(record.get().mSelects.size());
+        return static_cast<std::int32_t>(record.get().mSelects.size());
     }
 
-    void RaceAttributeAdapter::addRow(Record<ESM::Race>& record, int position) const
+    void RaceAttributeAdapter::addRow(Record<ESM::Race>& record, std::int32_t position) const
     {
         // Do nothing, this table cannot be changed by the user
     }
 
-    void RaceAttributeAdapter::removeRow(Record<ESM::Race>& record, int rowToRemove) const
+    void RaceAttributeAdapter::removeRow(Record<ESM::Race>& record, std::int32_t rowToRemove) const
     {
         // Do nothing, this table cannot be changed by the user
     }
@@ -720,7 +726,8 @@ namespace CSMWorld
         return new NestedTableWrapper<std::vector<ESM::Race::RADTstruct>>(wrap);
     }
 
-    QVariant RaceAttributeAdapter::getData(const Record<ESM::Race>& record, int subRowIndex, int subColIndex) const
+    QVariant RaceAttributeAdapter::getData(
+        const Record<ESM::Race>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         const ESM::Race& race = record.get();
         ESM::RefId attribute = ESM::Attribute::indexToRefId(subRowIndex);
@@ -741,7 +748,7 @@ namespace CSMWorld
     }
 
     void RaceAttributeAdapter::setData(
-        Record<ESM::Race>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<ESM::Race>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         ESM::Race race = record.get();
         ESM::RefId attribute = ESM::Attribute::indexToRefId(subRowIndex);
@@ -765,22 +772,22 @@ namespace CSMWorld
         record.setModified(race);
     }
 
-    int RaceAttributeAdapter::getColumnsCount(const Record<ESM::Race>& record) const
+    std::int32_t RaceAttributeAdapter::getColumnsCount(const Record<ESM::Race>& record) const
     {
         return 3; // attrib, male, female
     }
 
-    int RaceAttributeAdapter::getRowsCount(const Record<ESM::Race>& record) const
+    std::int32_t RaceAttributeAdapter::getRowsCount(const Record<ESM::Race>& record) const
     {
         return ESM::Attribute::Length; // there are 8 attributes
     }
 
-    void RaceSkillsBonusAdapter::addRow(Record<ESM::Race>& record, int position) const
+    void RaceSkillsBonusAdapter::addRow(Record<ESM::Race>& record, std::int32_t position) const
     {
         // Do nothing, this table cannot be changed by the user
     }
 
-    void RaceSkillsBonusAdapter::removeRow(Record<ESM::Race>& record, int rowToRemove) const
+    void RaceSkillsBonusAdapter::removeRow(Record<ESM::Race>& record, std::int32_t rowToRemove) const
     {
         // Do nothing, this table cannot be changed by the user
     }
@@ -803,11 +810,12 @@ namespace CSMWorld
         return new NestedTableWrapper<std::vector<ESM::Race::RADTstruct>>(wrap);
     }
 
-    QVariant RaceSkillsBonusAdapter::getData(const Record<ESM::Race>& record, int subRowIndex, int subColIndex) const
+    QVariant RaceSkillsBonusAdapter::getData(
+        const Record<ESM::Race>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         const ESM::Race& race = record.get();
 
-        if (subRowIndex < 0 || static_cast<size_t>(subRowIndex) >= race.mData.mBonus.size())
+        if (subRowIndex < 0 || static_cast<std::size_t>(subRowIndex) >= race.mData.mBonus.size())
             throw std::runtime_error("index out of range");
 
         switch (subColIndex)
@@ -823,11 +831,11 @@ namespace CSMWorld
     }
 
     void RaceSkillsBonusAdapter::setData(
-        Record<ESM::Race>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<ESM::Race>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         ESM::Race race = record.get();
 
-        if (subRowIndex < 0 || static_cast<size_t>(subRowIndex) >= race.mData.mBonus.size())
+        if (subRowIndex < 0 || static_cast<std::size_t>(subRowIndex) >= race.mData.mBonus.size())
             throw std::runtime_error("index out of range");
 
         switch (subColIndex)
@@ -846,22 +854,22 @@ namespace CSMWorld
         record.setModified(race);
     }
 
-    int RaceSkillsBonusAdapter::getColumnsCount(const Record<ESM::Race>& record) const
+    std::int32_t RaceSkillsBonusAdapter::getColumnsCount(const Record<ESM::Race>& record) const
     {
         return 2; // skill, bonus
     }
 
-    int RaceSkillsBonusAdapter::getRowsCount(const Record<ESM::Race>& record) const
+    std::int32_t RaceSkillsBonusAdapter::getRowsCount(const Record<ESM::Race>& record) const
     {
-        return static_cast<int>(record.get().mData.mBonus.size());
+        return static_cast<std::int32_t>(record.get().mData.mBonus.size());
     }
 
-    void CellListAdapter::addRow(Record<CSMWorld::Cell>& record, int position) const
+    void CellListAdapter::addRow(Record<CSMWorld::Cell>& record, std::int32_t position) const
     {
         throw std::logic_error("cannot add a row to a fixed table");
     }
 
-    void CellListAdapter::removeRow(Record<CSMWorld::Cell>& record, int rowToRemove) const
+    void CellListAdapter::removeRow(Record<CSMWorld::Cell>& record, std::int32_t rowToRemove) const
     {
         throw std::logic_error("cannot remove a row to a fixed table");
     }
@@ -876,7 +884,8 @@ namespace CSMWorld
         throw std::logic_error("table operation not supported");
     }
 
-    QVariant CellListAdapter::getData(const Record<CSMWorld::Cell>& record, int subRowIndex, int subColIndex) const
+    QVariant CellListAdapter::getData(
+        const Record<CSMWorld::Cell>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         const CSMWorld::Cell& cell = record.get();
 
@@ -915,7 +924,7 @@ namespace CSMWorld
     }
 
     void CellListAdapter::setData(
-        Record<CSMWorld::Cell>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<CSMWorld::Cell>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         CSMWorld::Cell cell = record.get();
 
@@ -1003,22 +1012,22 @@ namespace CSMWorld
         record.setModified(cell);
     }
 
-    int CellListAdapter::getColumnsCount(const Record<CSMWorld::Cell>& record) const
+    std::int32_t CellListAdapter::getColumnsCount(const Record<CSMWorld::Cell>& record) const
     {
         return 7;
     }
 
-    int CellListAdapter::getRowsCount(const Record<CSMWorld::Cell>& record) const
+    std::int32_t CellListAdapter::getRowsCount(const Record<CSMWorld::Cell>& record) const
     {
         return 1; // fixed at size 1
     }
 
-    void RegionWeatherAdapter::addRow(Record<ESM::Region>& record, int position) const
+    void RegionWeatherAdapter::addRow(Record<ESM::Region>& record, std::int32_t position) const
     {
         throw std::logic_error("cannot add a row to a fixed table");
     }
 
-    void RegionWeatherAdapter::removeRow(Record<ESM::Region>& record, int rowToRemove) const
+    void RegionWeatherAdapter::removeRow(Record<ESM::Region>& record, std::int32_t rowToRemove) const
     {
         throw std::logic_error("cannot remove a row from a fixed table");
     }
@@ -1033,7 +1042,8 @@ namespace CSMWorld
         throw std::logic_error("table operation not supported");
     }
 
-    QVariant RegionWeatherAdapter::getData(const Record<ESM::Region>& record, int subRowIndex, int subColIndex) const
+    QVariant RegionWeatherAdapter::getData(
+        const Record<ESM::Region>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         const char* weatherNames[]
             = { "Clear", "Cloudy", "Fog", "Overcast", "Rain", "Thunder", "Ash", "Blight", "Snow", "Blizzard" };
@@ -1060,10 +1070,10 @@ namespace CSMWorld
     }
 
     void RegionWeatherAdapter::setData(
-        Record<ESM::Region>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<ESM::Region>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         ESM::Region region = record.get();
-        auto chance = static_cast<uint8_t>(value.toInt());
+        auto chance = static_cast<std::uint8_t>(value.toInt());
 
         if (subColIndex == 1)
         {
@@ -1075,22 +1085,22 @@ namespace CSMWorld
         }
     }
 
-    int RegionWeatherAdapter::getColumnsCount(const Record<ESM::Region>& record) const
+    std::int32_t RegionWeatherAdapter::getColumnsCount(const Record<ESM::Region>& record) const
     {
         return 2;
     }
 
-    int RegionWeatherAdapter::getRowsCount(const Record<ESM::Region>& record) const
+    std::int32_t RegionWeatherAdapter::getRowsCount(const Record<ESM::Region>& record) const
     {
         return 10;
     }
 
-    void FactionRanksAdapter::addRow(Record<ESM::Faction>& record, int position) const
+    void FactionRanksAdapter::addRow(Record<ESM::Faction>& record, std::int32_t position) const
     {
         throw std::logic_error("cannot add a row to a fixed table");
     }
 
-    void FactionRanksAdapter::removeRow(Record<ESM::Faction>& record, int rowToRemove) const
+    void FactionRanksAdapter::removeRow(Record<ESM::Faction>& record, std::int32_t rowToRemove) const
     {
         throw std::logic_error("cannot remove a row from a fixed table");
     }
@@ -1105,7 +1115,8 @@ namespace CSMWorld
         throw std::logic_error("table operation not supported");
     }
 
-    QVariant FactionRanksAdapter::getData(const Record<ESM::Faction>& record, int subRowIndex, int subColIndex) const
+    QVariant FactionRanksAdapter::getData(
+        const Record<ESM::Faction>& record, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         const ESM::Faction& faction = record.get();
 
@@ -1131,7 +1142,7 @@ namespace CSMWorld
     }
 
     void FactionRanksAdapter::setData(
-        Record<ESM::Faction>& record, const QVariant& value, int subRowIndex, int subColIndex) const
+        Record<ESM::Faction>& record, const QVariant& value, std::int32_t subRowIndex, std::int32_t subColIndex) const
     {
         ESM::Faction faction = record.get();
 
@@ -1164,12 +1175,12 @@ namespace CSMWorld
         record.setModified(faction);
     }
 
-    int FactionRanksAdapter::getColumnsCount(const Record<ESM::Faction>& record) const
+    std::int32_t FactionRanksAdapter::getColumnsCount(const Record<ESM::Faction>& record) const
     {
         return 6;
     }
 
-    int FactionRanksAdapter::getRowsCount(const Record<ESM::Faction>& record) const
+    std::int32_t FactionRanksAdapter::getRowsCount(const Record<ESM::Faction>& record) const
     {
         return 10;
     }

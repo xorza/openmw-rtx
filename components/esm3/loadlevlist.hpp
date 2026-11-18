@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include "components/esm/refid.hpp"
 #include <components/esm/defs.hpp>
 #include <components/esm/esmcommon.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -23,15 +24,15 @@ namespace ESM
 
     struct LevelledListBase
     {
-        int32_t mFlags{};
-        unsigned char mChanceNone{}; // Chance that none are selected (0-100)
-        uint32_t mRecordFlags{};
+        std::int32_t mFlags{};
+        std::uint8_t mChanceNone{}; // Chance that none are selected (0-100)
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         struct LevelItem
         {
             RefId mId;
-            uint16_t mLevel{};
+            std::uint16_t mLevel{};
         };
 
         std::vector<LevelItem> mList;

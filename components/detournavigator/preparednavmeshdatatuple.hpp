@@ -1,21 +1,24 @@
 #pragma once
 
-#include "preparednavmeshdata.hpp"
-#include "recast.hpp"
-#include "ref.hpp"
+#include <cstdint>
+#include <tuple>
 
 #include <Recast.h>
 
-#include <tuple>
+#include "preparednavmeshdata.hpp"
+#include "recast.hpp"
+#include "ref.hpp"
 
 inline bool operator==(const rcPolyMesh& lhs, const rcPolyMesh& rhs) noexcept
 {
     const auto makeTuple = [](const rcPolyMesh& v) {
         using namespace DetourNavigator;
-        return std::tuple(Span(v.verts, static_cast<int>(getVertsLength(v))),
-            Span(v.polys, static_cast<int>(getPolysLength(v))), Span(v.regs, static_cast<int>(getRegsLength(v))),
-            Span(v.flags, static_cast<int>(getFlagsLength(v))), Span(v.areas, static_cast<int>(getAreasLength(v))),
-            ArrayRef(v.bmin), ArrayRef(v.bmax), v.cs, v.ch, v.borderSize, v.maxEdgeError);
+        return std::tuple(Span(v.verts, static_cast<std::int32_t>(getVertsLength(v))),
+            Span(v.polys, static_cast<std::int32_t>(getPolysLength(v))),
+            Span(v.regs, static_cast<std::int32_t>(getRegsLength(v))),
+            Span(v.flags, static_cast<std::int32_t>(getFlagsLength(v))),
+            Span(v.areas, static_cast<std::int32_t>(getAreasLength(v))), ArrayRef(v.bmin), ArrayRef(v.bmax), v.cs, v.ch,
+            v.borderSize, v.maxEdgeError);
     };
     return makeTuple(lhs) == makeTuple(rhs);
 }
@@ -24,8 +27,9 @@ inline bool operator==(const rcPolyMeshDetail& lhs, const rcPolyMeshDetail& rhs)
 {
     const auto makeTuple = [](const rcPolyMeshDetail& v) {
         using namespace DetourNavigator;
-        return std::tuple(Span(v.meshes, static_cast<int>(getMeshesLength(v))),
-            Span(v.verts, static_cast<int>(getVertsLength(v))), Span(v.tris, static_cast<int>(getTrisLength(v))));
+        return std::tuple(Span(v.meshes, static_cast<std::int32_t>(getMeshesLength(v))),
+            Span(v.verts, static_cast<std::int32_t>(getVertsLength(v))),
+            Span(v.tris, static_cast<std::int32_t>(getTrisLength(v))));
     };
     return makeTuple(lhs) == makeTuple(rhs);
 }

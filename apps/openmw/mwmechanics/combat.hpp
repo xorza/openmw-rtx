@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 
 namespace osg
@@ -36,7 +37,7 @@ namespace MWMechanics
         const MWWorld::Ptr& projectile, const osg::Vec3f& hitPosition, float attackStrength, float attackWindUp);
 
     /// Get the chance (in percent) for \a attacker to successfully hit \a victim with a given weapon skill value
-    float getHitChance(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, int skillValue);
+    float getHitChance(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, std::int32_t skillValue);
 
     /// Applies damage to attacker based on the victim's elemental shields.
     void applyElementalShields(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim);
@@ -56,7 +57,7 @@ namespace MWMechanics
     /// Apply the fatigue loss incurred by attacking with the given weapon (weapon may be empty = hand-to-hand)
     void applyFatigueLoss(const MWWorld::Ptr& attacker, const MWWorld::Ptr& weapon, float attackStrength);
 
-    int getFightTerm(const MWWorld::Ptr& actor, const MWWorld::Ptr& target);
+    std::int32_t getFightTerm(const MWWorld::Ptr& actor, const MWWorld::Ptr& target);
     float getFightDispositionBias(float disposition);
     float getFightDistanceBias(const MWWorld::Ptr& actor1, const MWWorld::Ptr& actor2);
     float getAggroDistance(const MWWorld::Ptr& actor, const osg::Vec3f& lhs, const osg::Vec3f& rhs);

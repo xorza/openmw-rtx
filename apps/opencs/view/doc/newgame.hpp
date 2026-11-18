@@ -1,14 +1,11 @@
 #pragma once
 
+#include <filesystem>
+
 #include <QDialog>
 #include <QMetaType>
 
-#include <filesystem>
-
-#ifndef CS_QT_STD_FILESYSTEM_PATH_DECLARED
-#define CS_QT_STD_FILESYSTEM_PATH_DECLARED
-Q_DECLARE_METATYPE(std::filesystem::path)
-#endif
+#include "pathmetatype.hpp"
 
 class QPushButton;
 

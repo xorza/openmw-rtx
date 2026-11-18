@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
-#include "itemmodel.hpp"
+#include <apps/openmw/mwworld/containerstore.hpp>
 
-#include "../mwworld/containerstore.hpp"
+#include "itemmodel.hpp"
 
 namespace MWGui
 {
@@ -24,21 +26,21 @@ namespace MWGui
 
         bool allowedToUseItems() const override;
 
-        bool onDropItem(const MWWorld::Ptr& item, int count) override;
-        bool onTakeItem(const MWWorld::Ptr& item, int count) override;
+        bool onDropItem(const MWWorld::Ptr& item, std::int32_t count) override;
+        bool onTakeItem(const MWWorld::Ptr& item, std::int32_t count) override;
 
         ItemStack getItem(ModelIndex index) override;
         ModelIndex getIndex(const ItemStack& item) override;
-        size_t getItemCount() override;
+        std::size_t getItemCount() override;
 
         void update() override;
 
         bool usesContainer(const MWWorld::Ptr& container) override;
 
     protected:
-        MWWorld::Ptr addItem(const ItemStack& item, size_t count, bool allowAutoEquip = true) override;
-        MWWorld::Ptr copyItem(const ItemStack& item, size_t count, bool allowAutoEquip = true) override;
-        void removeItem(const ItemStack& item, size_t count) override;
+        MWWorld::Ptr addItem(const ItemStack& item, std::size_t count, bool allowAutoEquip = true) override;
+        MWWorld::Ptr copyItem(const ItemStack& item, std::size_t count, bool allowAutoEquip = true) override;
+        void removeItem(const ItemStack& item, std::size_t count) override;
 
     private:
         std::vector<std::pair<MWWorld::Ptr, MWWorld::ResolutionHandle>> mItemSources;

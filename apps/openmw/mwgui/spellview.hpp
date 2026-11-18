@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <tuple>
 
@@ -59,7 +61,7 @@ namespace MWGui
         void resetScrollbars();
 
         void setActiveControllerWindow(bool active);
-        void onControllerButton(const unsigned char button);
+        void onControllerButton(const std::uint8_t button);
 
     private:
         std::unique_ptr<SpellModel> mModel;
@@ -88,11 +90,11 @@ namespace MWGui
         std::vector<LineInfo> mLines;
 
         /// Keep a list of buttons for controller navigation and their index in the full list.
-        std::vector<std::pair<Gui::SharedStateButton*, int>> mButtons;
+        std::vector<std::pair<Gui::SharedStateButton*, std::int32_t>> mButtons;
         /// Keep a list of group offsets for controller navigation
-        std::vector<size_t> mGroupIndices;
+        std::vector<std::size_t> mGroupIndices;
         MyGUI::ScrollView* mScrollView = nullptr;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
 
         bool mShowCostColumn = true;
         bool mHighlightSelected = true;
@@ -102,10 +104,10 @@ namespace MWGui
         void addGroup(const std::string& label1, const std::string& label2);
         void adjustSpellWidget(const Spell& spell, SpellModel::ModelIndex index, MyGUI::Widget* widget);
 
-        void updateControllerFocus(size_t prevFocus, size_t newFocus);
+        void updateControllerFocus(std::size_t prevFocus, std::size_t newFocus);
 
         void onSpellSelected(MyGUI::Widget* sender);
-        void onMouseWheelMoved(MyGUI::Widget* sender, int rel);
+        void onMouseWheelMoved(MyGUI::Widget* sender, std::int32_t rel);
 
         SpellModel::ModelIndex getSpellModelIndex(MyGUI::Widget* widget);
     };

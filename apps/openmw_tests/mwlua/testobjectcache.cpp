@@ -1,9 +1,8 @@
-#include "apps/openmw/mwlua/object.hpp"
-
 #include <cstddef>
 
 #include <gtest/gtest.h>
 
+#include <apps/openmw/mwlua/object.hpp>
 #include <components/lua/luastate.hpp>
 
 namespace MWLua

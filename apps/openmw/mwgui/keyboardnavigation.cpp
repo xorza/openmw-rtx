@@ -1,14 +1,16 @@
 #include "keyboardnavigation.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Gui.h>
 #include <MyGUI_InputManager.h>
 #include <MyGUI_WidgetManager.h>
 #include <MyGUI_Window.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/debug/debuglog.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 namespace MWGui
 {
@@ -63,7 +65,7 @@ namespace MWGui
         }
     }
 
-    void KeyboardNavigation::saveFocus(int mode)
+    void KeyboardNavigation::saveFocus(std::int32_t mode)
     {
         MyGUI::Widget* focus = MyGUI::InputManager::getInstance().getKeyFocusWidget();
         if (shouldAcceptKeyFocus(focus))
@@ -76,7 +78,7 @@ namespace MWGui
         }
     }
 
-    void KeyboardNavigation::restoreFocus(int mode)
+    void KeyboardNavigation::restoreFocus(std::int32_t mode)
     {
         auto found = mKeyFocus.find(mode);
         if (found != mKeyFocus.end())
@@ -89,7 +91,7 @@ namespace MWGui
 
     void KeyboardNavigation::_unlinkWidget(MyGUI::Widget* widget)
     {
-        for (std::pair<const int, MyGUI::Widget*>& w : mKeyFocus)
+        for (std::pair<const std::int32_t, MyGUI::Widget*>& w : mKeyFocus)
             if (w.second == widget)
                 w.second = nullptr;
         if (widget == mCurrentFocus)
@@ -160,7 +162,7 @@ namespace MWGui
         };
     }
 
-    bool KeyboardNavigation::injectKeyPress(MyGUI::KeyCode key, unsigned int text, bool repeat)
+    bool KeyboardNavigation::injectKeyPress(MyGUI::KeyCode key, std::uint32_t text, bool repeat)
     {
         if (!mEnabled)
             return false;
@@ -193,7 +195,7 @@ namespace MWGui
         }
     }
 
-    bool KeyboardNavigation::switchFocus(int direction, bool wrap)
+    bool KeyboardNavigation::switchFocus(std::int32_t direction, bool wrap)
     {
         if (!MWBase::Environment::get().getWindowManager()->isGuiMode())
             return false;
@@ -250,11 +252,11 @@ namespace MWGui
             index = static_cast<std::ptrdiff_t>(
                 (static_cast<std::size_t>(index) + keyFocusList.size()) % keyFocusList.size());
         else
-            index = std::clamp<std::ptrdiff_t>(index, 0, static_cast<long>(keyFocusList.size() - 1));
+            index = std::clamp<std::ptrdiff_t>(index, 0, static_cast<std::ptrdiff_t>(keyFocusList.size() - 1));
 
         MyGUI::Widget* next = keyFocusList[static_cast<std::size_t>(index)];
-        int vertdiff = next->getTop() - focus->getTop();
-        int horizdiff = next->getLeft() - focus->getLeft();
+        std::int32_t vertdiff = next->getTop() - focus->getTop();
+        std::int32_t horizdiff = next->getLeft() - focus->getLeft();
         bool isVertical = std::abs(vertdiff) > std::abs(horizdiff);
         // Each branch states its own case, kept apart to be read and changed as its own.
         // NOLINTBEGIN(bugprone-branch-clone)

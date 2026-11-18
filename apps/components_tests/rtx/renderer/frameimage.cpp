@@ -29,13 +29,13 @@ namespace Rtx
         /// A frame `width` by `height` whose every texel names its own column in red and its own row
         /// in green, each times `step`, so what a resample took and which way up it is are both
         /// readable.
-        std::vector<std::uint8_t> makeFrame(int width, int height, int step = 1)
+        std::vector<std::uint8_t> makeFrame(std::int32_t width, std::int32_t height, std::int32_t step = 1)
         {
             std::vector<std::uint8_t> pixels;
             pixels.reserve(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
 
-            for (int y = 0; y < height; ++y)
-                for (int x = 0; x < width; ++x)
+            for (std::int32_t y = 0; y < height; ++y)
+                for (std::int32_t x = 0; x < width; ++x)
                     for (const std::uint8_t channel :
                         texel(static_cast<std::uint8_t>(x * step), static_cast<std::uint8_t>(y * step)))
                         pixels.push_back(channel);
@@ -44,10 +44,10 @@ namespace Rtx
         }
 
         /// The red and green of one texel of a result, at whichever stride its format has.
-        std::pair<std::uint8_t, std::uint8_t> at(const osg::Image& image, int x, int y)
+        std::pair<std::uint8_t, std::uint8_t> at(const osg::Image& image, std::int32_t x, std::int32_t y)
         {
-            const std::uint8_t* row = image.data(0, static_cast<unsigned int>(y));
-            const int stride = image.getPixelFormat() == GL_RGB ? 3 : 4;
+            const std::uint8_t* row = image.data(0, static_cast<std::uint32_t>(y));
+            const std::int32_t stride = image.getPixelFormat() == GL_RGB ? 3 : 4;
             return { row[static_cast<std::ptrdiff_t>(x * stride)], row[x * stride + 1] };
         }
 
@@ -133,15 +133,15 @@ namespace Rtx
                 ASSERT_NE(whole, nullptr);
                 EXPECT_EQ(whole->getPixelFormat(), GL_RGB);
                 EXPECT_EQ(whole->getRowSizeInBytes(), 12u);
-                for (int y = 0; y < 4; ++y)
-                    for (int x = 0; x < 4; ++x)
+                for (std::int32_t y = 0; y < 4; ++y)
+                    for (std::int32_t x = 0; x < 4; ++x)
                     {
-                        const int row = order == RowOrder::BottomFirst ? 3 - y : y;
+                        const std::int32_t row = order == RowOrder::BottomFirst ? 3 - y : y;
                         EXPECT_EQ(at(*whole, x, y),
                             (std::pair<std::uint8_t, std::uint8_t>{
                                 static_cast<std::uint8_t>(10 * x), static_cast<std::uint8_t>(10 * row) }))
                             << "texel " << x << ", " << y;
-                        EXPECT_EQ(whole->data(0, static_cast<unsigned int>(y))[x * 3 + 2], 0)
+                        EXPECT_EQ(whole->data(0, static_cast<std::uint32_t>(y))[x * 3 + 2], 0)
                             << "blue of texel " << x << ", " << y;
                     }
             }
@@ -215,9 +215,9 @@ namespace Rtx
             EXPECT_LT(16769024u, 1u << 24);
 
             const float bound = std::sqrt(4.5f) / 2047.0f + 1e-6f;
-            for (int x = -3; x <= 3; ++x)
-                for (int y = -3; y <= 3; ++y)
-                    for (int z = -3; z <= 3; ++z)
+            for (std::int32_t x = -3; x <= 3; ++x)
+                for (std::int32_t y = -3; y <= 3; ++y)
+                    for (std::int32_t z = -3; z <= 3; ++z)
                     {
                         if (x == 0 && y == 0 && z == 0)
                             continue;

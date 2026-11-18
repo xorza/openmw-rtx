@@ -17,10 +17,10 @@ namespace Rtx
     /// is written from and where it lands, and nothing for a run of no bytes.
     void appendRun(std::vector<CopyRun>& into, const CopyRun& run);
 
-    /// Appends the runs `rows` make in a table of `stride` bytes a row, written from rows laid out as
-    /// the table is: one a row, and one for each stretch of adjacent rows. `rows` ascending and each
-    /// once, as a sort leaves a debt.
-    void appendRowRuns(std::span<const Index> rows, VkDeviceSize stride, std::vector<CopyRun>& into);
+    /// Appends the runs `rows`, each a row's position, make in a table of `stride` bytes a row, written from rows laid
+    /// out as the table is: one a row, and one for each stretch of adjacent rows. `rows` ascending and each once, as a
+    /// sort leaves a debt.
+    void appendRowRuns(std::span<const std::uint32_t> rows, VkDeviceSize stride, std::vector<CopyRun>& into);
 
     /// The one way the host writes a host-written buffer (`BufferKind::HostWritten`): staged into
     /// `batch`, with the copy recorded there (`docs/architecture.md`, "Host writes are staged").

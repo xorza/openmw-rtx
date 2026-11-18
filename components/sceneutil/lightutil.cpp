@@ -1,13 +1,14 @@
 #include "lightutil.hpp"
 
-#include <osg/Group>
+#include <cstdint>
 
+#include <osg/Group>
 #include <osgParticle/ParticleSystem>
 
 #include <components/fallback/fallback.hpp>
-#include <components/sceneutil/lightcommon.hpp>
 
 #include "lampbody.hpp"
+#include "lightcommon.hpp"
 #include "lightcontroller.hpp"
 #include "lightmanager.hpp"
 #include "visitor.hpp"
@@ -60,8 +61,8 @@ namespace SceneUtil
             = std::max(Fallback::Map::getFloat("LightAttenuation_LinearRadiusMult"), 0.f);
         static const float quadraticRadiusMult
             = std::max(Fallback::Map::getFloat("LightAttenuation_QuadraticRadiusMult"), 0.f);
-        static const int linearMethod = Fallback::Map::getInt("LightAttenuation_LinearMethod");
-        static const int quadraticMethod = Fallback::Map::getInt("LightAttenuation_QuadraticMethod");
+        static const std::int32_t linearMethod = Fallback::Map::getInt("LightAttenuation_LinearMethod");
+        static const std::int32_t quadraticMethod = Fallback::Map::getInt("LightAttenuation_QuadraticMethod");
         static const bool outQuadInLin = Fallback::Map::getBool("LightAttenuation_OutQuadInLin");
 
         if (useConstant)
@@ -93,7 +94,7 @@ namespace SceneUtil
     }
 
     osg::ref_ptr<LightSource> addLight(
-        osg::Group* node, const SceneUtil::LightCommon& esmLight, unsigned int lightMask, bool isExterior)
+        osg::Group* node, const SceneUtil::LightCommon& esmLight, std::uint32_t lightMask, bool isExterior)
     {
         SceneUtil::FindByNameVisitor visitor("AttachLight");
         node->accept(visitor);
@@ -116,7 +117,7 @@ namespace SceneUtil
     }
 
     osg::ref_ptr<LightSource> createLightSource(
-        const SceneUtil::LightCommon& esmLight, unsigned int lightMask, bool isExterior, const osg::Vec4f& ambient)
+        const SceneUtil::LightCommon& esmLight, std::uint32_t lightMask, bool isExterior, const osg::Vec4f& ambient)
     {
         osg::ref_ptr<SceneUtil::LightSource> lightSource(new SceneUtil::LightSource);
         SceneUtil::Light light;

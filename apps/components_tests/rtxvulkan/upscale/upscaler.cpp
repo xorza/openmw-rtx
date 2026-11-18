@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdint>
 
 #include <gtest/gtest.h>
 
@@ -29,7 +30,7 @@ namespace Rtx
             };
             for (const Row& row : rows)
             {
-                const int at = static_cast<int>(row.mAvailability);
+                const auto at = static_cast<std::int32_t>(row.mAvailability);
                 EXPECT_EQ(chooseUpscaler(UpscalerChoice::Auto, row.mAvailability), row.mAuto) << at;
                 EXPECT_EQ(chooseUpscaler(UpscalerChoice::Fsr, row.mAvailability), UpscalerKind::Fsr) << at;
                 EXPECT_EQ(chooseUpscaler(UpscalerChoice::Dlss, row.mAvailability), UpscalerKind::Dlss) << at;

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <utility>
-
+#include <cstdint>
 #include <map>
+#include <utility>
 #include <vector>
 
 #include <osg/ref_ptr>
@@ -39,7 +39,7 @@ namespace MWRender
 
         osg::ref_ptr<osg::Group> mPathGridRoot;
 
-        typedef std::map<std::pair<int, int>, osg::ref_ptr<osg::Group>> ExteriorPathgridNodes;
+        typedef std::map<std::pair<std::int32_t, std::int32_t>, osg::ref_ptr<osg::Group>> ExteriorPathgridNodes;
         ExteriorPathgridNodes mExteriorPathgridNodes;
         osg::ref_ptr<osg::Group> mInteriorPathgridNode;
 
@@ -51,7 +51,7 @@ namespace MWRender
         ~Pathgrid();
         Pathgrid(const Pathgrid&) = delete;
         Pathgrid& operator=(const Pathgrid&) = delete;
-        bool toggleRenderMode(int mode);
+        bool toggleRenderMode(std::int32_t mode);
 
         void addCell(const MWWorld::CellStore* store);
         void removeCell(const MWWorld::CellStore* store);

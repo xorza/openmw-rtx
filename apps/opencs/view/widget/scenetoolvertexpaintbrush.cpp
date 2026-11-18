@@ -1,5 +1,8 @@
 #include "scenetoolvertexpaintbrush.hpp"
 
+#include <cstdint>
+#include <utility>
+
 #include <QButtonGroup>
 #include <QColorDialog>
 #include <QComboBox>
@@ -12,12 +15,11 @@
 #include <QSlider>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <utility>
+
+#include <apps/opencs/model/prefs/state.hpp>
 
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
-
-#include "../../model/prefs/state.hpp"
 
 CSVWidget::ColorButtonWidget::ColorButtonWidget(QWidget* parent)
     : QPushButton(parent)
@@ -51,7 +53,7 @@ void CSVWidget::ColorButtonWidget::openColorDialog()
     colorDialog.setWindowModality(parentWindow ? Qt::WindowModal : Qt::ApplicationModal);
     colorDialog.setOption(QColorDialog::DontUseNativeDialog, true);
 
-    const int dialogResult = colorDialog.exec();
+    const std::int32_t dialogResult = colorDialog.exec();
     if (dialogResult == QDialog::Accepted)
     {
         const QColor color = colorDialog.selectedColor();
@@ -79,7 +81,7 @@ CSVWidget::VertexPaintBrushSizeControls::VertexPaintBrushSizeControls(const QStr
     layoutSliderSize->addWidget(mBrushSizeSpinBox);
 
     connect(mBrushSizeSlider, &QSlider::valueChanged, mBrushSizeSpinBox, &QSpinBox::setValue);
-    connect(mBrushSizeSpinBox, qOverload<int>(&QSpinBox::valueChanged), mBrushSizeSlider, &QSlider::setValue);
+    connect(mBrushSizeSpinBox, qOverload<std::int32_t>(&QSpinBox::valueChanged), mBrushSizeSlider, &QSlider::setValue);
 
     setLayout(layoutSliderSize);
 }
@@ -159,7 +161,7 @@ void CSVWidget::VertexPaintBrushWindow::configureButtonInitialSettings(QPushButt
     button->setCheckable(true);
 }
 
-void CSVWidget::VertexPaintBrushWindow::setBrushSize(int brushSize)
+void CSVWidget::VertexPaintBrushWindow::setBrushSize(std::int32_t brushSize)
 {
     mBrushSize = brushSize;
     emit passBrushSize(mBrushSize);

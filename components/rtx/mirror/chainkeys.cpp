@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <span>
 
@@ -86,7 +87,7 @@ namespace Rtx
                     inSink += std::ranges::equal_range(run, key).size();
                     from = to;
                 }
-                if (held.mKey->referenceCount() - static_cast<int>(inSink) != 1)
+                if (held.mKey->referenceCount() - static_cast<std::int32_t>(inSink) != 1)
                     return false;
 
                 released.keep(held.mAbove);

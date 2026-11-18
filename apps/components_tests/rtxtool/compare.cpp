@@ -241,7 +241,7 @@ namespace RtxTool
 
             for (const Case& expected : sCases)
             {
-                SCOPED_TRACE(static_cast<int>(expected.mRule));
+                SCOPED_TRACE(static_cast<std::int32_t>(expected.mRule));
                 EXPECT_EQ(judgePicture(none, expected.mRule), expected.mNone);
                 EXPECT_EQ(judgePicture(one, expected.mRule), expected.mOne);
                 EXPECT_EQ(judgePicture(two, expected.mRule), expected.mTwo);

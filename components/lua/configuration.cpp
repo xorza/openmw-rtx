@@ -2,13 +2,15 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <sstream>
+#include <utility>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/misc/strings/algorithm.hpp>
-#include <utility>
 
 namespace LuaUtil
 {
@@ -45,7 +47,7 @@ namespace LuaUtil
 
         bool isSpace(char c)
         {
-            return std::isspace(static_cast<unsigned char>(c));
+            return std::isspace(static_cast<std::uint8_t>(c));
         }
     }
 
@@ -63,7 +65,7 @@ namespace LuaUtil
         // Find duplicates; only the last occurrence will be used (unless `sMerge` flag is used).
         // Search for duplicates is case insensitive.
         std::vector<bool> skip(cfg.mScripts.size(), false);
-        for (int i = 0; std::cmp_less(i, cfg.mScripts.size()); ++i)
+        for (std::int32_t i = 0; std::cmp_less(i, cfg.mScripts.size()); ++i)
         {
             const ESM::LuaScriptCfg& script = cfg.mScripts[static_cast<std::size_t>(i)];
             bool global = script.mFlags & ESM::LuaScriptCfg::sGlobal;
@@ -94,7 +96,7 @@ namespace LuaUtil
         }
 
         // Filter duplicates
-        for (size_t i = 0; i < cfg.mScripts.size(); ++i)
+        for (std::size_t i = 0; i < cfg.mScripts.size(); ++i)
         {
             if (!skip[i])
                 mScripts.push_back(std::move(cfg.mScripts[i]));
@@ -105,11 +107,11 @@ namespace LuaUtil
         mScriptsPerType.clear();
         mScriptsPerRecordId.clear();
         mScriptsPerRefNum.clear();
-        for (int i = 0; std::cmp_less(i, mScripts.size()); ++i)
+        for (std::int32_t i = 0; std::cmp_less(i, mScripts.size()); ++i)
         {
             const ESM::LuaScriptCfg& s = mScripts[static_cast<std::size_t>(i)];
             mPathToIndex[s.mScriptPath] = i; // Stored paths are case sensitive.
-            for (uint32_t t : s.mTypes)
+            for (std::uint32_t t : s.mTypes)
                 mScriptsPerType[t].push_back(i);
             for (const ESM::LuaScriptCfg::PerRecordCfg& r : s.mRecords)
             {
@@ -127,15 +129,15 @@ namespace LuaUtil
         if (remap)
         {
             mScriptIdMapping.clear();
-            for (size_t i = 0; i < oldPaths.size(); ++i)
+            for (std::size_t i = 0; i < oldPaths.size(); ++i)
             {
-                if (std::optional<int> id = findId(oldPaths[i]))
-                    mScriptIdMapping[static_cast<int>(i)] = *id;
+                if (std::optional<std::int32_t> id = findId(oldPaths[i]))
+                    mScriptIdMapping[static_cast<std::int32_t>(i)] = *id;
             }
         }
     }
 
-    std::optional<int> ScriptsConfiguration::findId(VFS::Path::NormalizedView path) const
+    std::optional<std::int32_t> ScriptsConfiguration::findId(VFS::Path::NormalizedView path) const
     {
         auto it = mPathToIndex.find(path);
         if (it != mPathToIndex.end())
@@ -147,22 +149,22 @@ namespace LuaUtil
     ScriptIdsWithInitializationData ScriptsConfiguration::getConfByFlag(ESM::LuaScriptCfg::Flags flag) const
     {
         ScriptIdsWithInitializationData res;
-        for (size_t id = 0; id < mScripts.size(); ++id)
+        for (std::size_t id = 0; id < mScripts.size(); ++id)
         {
             const ESM::LuaScriptCfg& script = mScripts[id];
             if (script.mFlags & flag)
-                res[static_cast<int>(id)] = script.mInitializationData;
+                res[static_cast<std::int32_t>(id)] = script.mInitializationData;
         }
         return res;
     }
 
     ScriptIdsWithInitializationData ScriptsConfiguration::getLocalConf(
-        uint32_t type, const ESM::RefId& recordId, ESM::RefNum refnum) const
+        std::uint32_t type, const ESM::RefId& recordId, ESM::RefNum refnum) const
     {
         ScriptIdsWithInitializationData res;
         auto typeIt = mScriptsPerType.find(type);
         if (typeIt != mScriptsPerType.end())
-            for (int scriptId : typeIt->second)
+            for (std::int32_t scriptId : typeIt->second)
                 res[scriptId] = mScripts[static_cast<std::size_t>(scriptId)].mInitializationData;
         auto recordIt = mScriptsPerRecordId.find(recordId);
         if (recordIt != mScriptsPerRecordId.end())
@@ -194,11 +196,11 @@ namespace LuaUtil
     {
         reader.mScriptsConfiguration = this;
         mScriptIdMapping.clear();
-        int index = 0;
+        std::int32_t index = 0;
         while (reader.isNextSub("LUAP"))
         {
             VFS::Path::Normalized path(reader.getHString());
-            if (std::optional<int> id = findId(path))
+            if (std::optional<std::int32_t> id = findId(path))
                 mScriptIdMapping[index] = *id;
             ++index;
         }
@@ -210,7 +212,7 @@ namespace LuaUtil
             writer.writeHNString("LUAP", script.mScriptPath);
     }
 
-    std::optional<int> ScriptsConfiguration::mapId(int savedId) const
+    std::optional<std::int32_t> ScriptsConfiguration::mapId(std::int32_t savedId) const
     {
         if (mScriptIdMapping.empty())
         {
@@ -246,7 +248,7 @@ namespace LuaUtil
                     std::format("Lua script should have suffix '.lua', got: {}", line.substr(0, 300)));
 
             // Split tags and script path
-            size_t semicolonPos = line.find(':');
+            std::size_t semicolonPos = line.find(':');
             if (semicolonPos == std::string_view::npos)
                 throw std::runtime_error(std::format("No flags found in: {}", line));
             std::string_view tagsStr = line.substr(0, semicolonPos);
@@ -259,12 +261,12 @@ namespace LuaUtil
             script.mFlags = 0;
 
             // Parse tags
-            size_t tagsPos = 0;
+            std::size_t tagsPos = 0;
             while (true)
             {
                 while (tagsPos < tagsStr.size() && (isSpace(tagsStr[tagsPos]) || tagsStr[tagsPos] == ','))
                     tagsPos++;
-                size_t startPos = tagsPos;
+                std::size_t startPos = tagsPos;
                 while (tagsPos < tagsStr.size() && !isSpace(tagsStr[tagsPos]) && tagsStr[tagsPos] != ',')
                     tagsPos++;
                 if (startPos == tagsPos)
@@ -292,7 +294,7 @@ namespace LuaUtil
             if (script.mFlags & flag)
                 ss << flagName << " ";
         }
-        for (uint32_t type : script.mTypes)
+        for (std::uint32_t type : script.mTypes)
         {
             for (const auto& [tagName, t] : typeTagsByName)
             {

@@ -1,9 +1,10 @@
 #pragma once
 
-#include "scenetool.hpp"
-
+#include <cstdint>
 #include <map>
 #include <string>
+
+#include "scenetool.hpp"
 
 class QHBoxLayout;
 class QObject;
@@ -24,10 +25,10 @@ namespace CSVWidget
 
         struct ButtonDesc
         {
-            unsigned int mButtonId{};
-            unsigned int mMask{};
+            std::uint32_t mButtonId{};
+            std::uint32_t mMask{};
             QString mName;
-            int mIndex{};
+            std::int32_t mIndex{};
         };
 
         std::string mCompositeIcon;
@@ -35,8 +36,8 @@ namespace CSVWidget
         QWidget* mPanel;
         QHBoxLayout* mLayout;
         std::map<PushButton*, ButtonDesc> mButtons; // widget, id
-        int mButtonSize;
-        int mIconSize;
+        std::int32_t mButtonSize;
+        std::int32_t mIconSize;
         QString mToolTip;
         PushButton* mFirst;
 
@@ -58,13 +59,13 @@ namespace CSVWidget
         /// \param mask used for the reported getSelectionMask() / setSelectionMask()
         /// \attention After the last button has been added, setSelection must be called at
         /// least once to finalise the layout.
-        void addButton(unsigned int buttonId, unsigned int mask, const QString& name, const QString& tooltip = "",
+        void addButton(std::uint32_t buttonId, std::uint32_t mask, const QString& name, const QString& tooltip = "",
             bool disabled = false);
 
-        unsigned int getSelectionMask() const;
+        std::uint32_t getSelectionMask() const;
 
         /// \param or'ed button masks. buttons that do not exist will be ignored.
-        void setSelectionMask(unsigned int selection);
+        void setSelectionMask(std::uint32_t selection);
 
     signals:
 

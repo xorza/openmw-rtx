@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bit>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 
@@ -41,8 +42,8 @@ namespace MyGUIRtx
         class VertexBuffer final : public MyGUI::IVertexBuffer
         {
         public:
-            void setVertexCount(size_t count) override { mCount = count; }
-            size_t getVertexCount() const override { return mCount; }
+            void setVertexCount(std::size_t count) override { mCount = count; }
+            std::size_t getVertexCount() const override { return mCount; }
 
             MyGUI::Vertex* lock() override
             {
@@ -51,13 +52,13 @@ namespace MyGUIRtx
             }
             void unlock() override {}
 
-            std::span<const MyGUI::Vertex> get(size_t count) const
+            std::span<const MyGUI::Vertex> get(std::size_t count) const
             {
                 return std::span(mVertices).first(std::min(count, mVertices.size()));
             }
 
         private:
-            size_t mCount = 0;
+            std::size_t mCount = 0;
             std::vector<MyGUI::Vertex> mVertices;
         };
     }
@@ -79,7 +80,7 @@ namespace MyGUIRtx
         mUpdate = false;
 
         const Rtx::FrameExtents extents = mRenderer.getExtents();
-        setViewSize(static_cast<int>(extents.mOutputWidth), static_cast<int>(extents.mOutputHeight));
+        setViewSize(static_cast<std::int32_t>(extents.mOutputWidth), static_cast<std::int32_t>(extents.mOutputHeight));
 
         mIsInitialise = true;
     }
@@ -204,7 +205,7 @@ namespace MyGUIRtx
         return std::make_unique<PaintedMirror>(mRenderer, texture);
     }
 
-    void RenderManager::doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count)
+    void RenderManager::doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, std::size_t count)
     {
         assert((texture == nullptr || dynamic_cast<SlotTexture*>(texture) != nullptr)
             && "a GUI texture this backend did not make");
@@ -256,7 +257,7 @@ namespace MyGUIRtx
         mRenderer.drawGui(mVertices, mBatches);
     }
 
-    void RenderManager::setViewSize(int width, int height)
+    void RenderManager::setViewSize(std::int32_t width, std::int32_t height)
     {
         width = std::max(width, 1);
         height = std::max(height, 1);

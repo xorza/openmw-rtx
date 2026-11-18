@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <string_view>
 
 #include <osg/BlendEquation>
@@ -25,7 +26,7 @@ namespace Fx
             { "hidden", Technique::Flag_Hidden },
         } };
 
-        constexpr std::array<std::pair<std::string_view, int>, 6> SourceFormat = { {
+        constexpr std::array<std::pair<std::string_view, std::int32_t>, 6> SourceFormat = { {
             { "red", GL_RED },
             { "rg", GL_RG },
             { "rgb", GL_RGB },
@@ -34,7 +35,7 @@ namespace Fx
             { "bgra", GL_BGRA },
         } };
 
-        constexpr std::array<std::pair<std::string_view, int>, 10> SourceType = { {
+        constexpr std::array<std::pair<std::string_view, std::int32_t>, 10> SourceType = { {
             { "byte", GL_BYTE },
             { "unsigned_byte", GL_UNSIGNED_BYTE },
             { "short", GL_SHORT },
@@ -47,7 +48,7 @@ namespace Fx
             { "double", GL_DOUBLE },
         } };
 
-        constexpr std::array<std::pair<std::string_view, int>, 16> InternalFormat = { {
+        constexpr std::array<std::pair<std::string_view, std::int32_t>, 16> InternalFormat = { {
             { "red", GL_RED },
             { "r16f", GL_R16F },
             { "r32f", GL_R32F },

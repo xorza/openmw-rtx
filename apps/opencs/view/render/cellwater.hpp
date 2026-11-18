@@ -1,11 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
-
-#include <osg/ref_ptr>
 
 #include <QModelIndex>
 #include <QObject>
+#include <osg/ref_ptr>
 
 class QModelIndex;
 
@@ -51,7 +51,7 @@ namespace CSVRender
     private:
         void recreate();
 
-        static const int CellSize;
+        static const std::int32_t CellSize;
 
         CSMWorld::Data& mData;
         std::string mId;

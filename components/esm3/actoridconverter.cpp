@@ -1,5 +1,7 @@
 #include "actoridconverter.hpp"
 
+#include <cstdint>
+
 namespace ESM
 {
     void ActorIdConverter::apply()
@@ -14,7 +16,7 @@ namespace ESM
         }
     }
 
-    void ActorIdConverter::convert(ESM::RefNum& refNum, int actorId)
+    void ActorIdConverter::convert(ESM::RefNum& refNum, std::int32_t actorId)
     {
         if (actorId == -1)
         {

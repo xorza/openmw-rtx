@@ -26,6 +26,7 @@
 */
 #include "loadarmo.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
 #include "reader.hpp"
@@ -35,7 +36,7 @@ void ESM4::Armor::load(ESM4::Reader& reader)
 {
     mId = reader.getFormIdFromHeader();
     mFlags = reader.hdr().record.flags;
-    uint16_t currentIndex = 0xFFFF;
+    std::uint16_t currentIndex = 0xFFFF;
     while (reader.getSubRecordHeader())
     {
         const ESM4::SubRecordHeader& subHdr = reader.subRecordHeader();
@@ -136,7 +137,7 @@ void ESM4::Armor::load(ESM4::Reader& reader)
             case ESM::fourCC("BODT"):
             {
                 reader.get(mArmorFlags);
-                uint32_t flags = 0;
+                std::uint32_t flags = 0;
                 if (subHdr.dataSize == 12)
                     reader.get(flags);
                 reader.get(mGeneralFlags); // skill

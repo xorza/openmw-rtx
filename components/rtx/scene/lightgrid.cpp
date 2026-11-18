@@ -62,7 +62,7 @@ namespace
         for (std::uint32_t z = box.mLow.z(); z < box.mHigh.z(); ++z)
             for (std::uint32_t y = box.mLow.y(); y < box.mHigh.y(); ++y)
                 for (std::uint32_t x = box.mLow.x(); x < box.mHigh.x(); ++x)
-                    visit(static_cast<Rtx::Index>(Rtx::Shaders::lightGridCell(x, y, z, size.x(), size.y())),
+                    visit(Rtx::LightCellIndex(Rtx::Shaders::lightGridCell(x, y, z, size.x(), size.y())),
                         osg::Vec3ui(x, y, z));
     }
 
@@ -72,7 +72,7 @@ namespace
         const osg::Vec3f& centre, float reach, const osg::Vec3f& origin, float inverseCell, const osg::Vec3ui& size)
     {
         CellBox box;
-        for (int axis = 0; axis < 3; ++axis)
+        for (std::int32_t axis = 0; axis < 3; ++axis)
         {
             // Clamped rather than rejected: a lamp standing outside the grid still reaches into it,
             // and a cell inside it has to know.
@@ -80,10 +80,10 @@ namespace
             const double low = (from - double{ reach }) * double{ inverseCell };
             const double high = (from + double{ reach }) * double{ inverseCell };
 
-            const auto span = static_cast<double>(size[static_cast<unsigned int>(axis)]);
-            box.mLow[static_cast<unsigned int>(axis)]
+            const auto span = static_cast<double>(size[static_cast<std::uint32_t>(axis)]);
+            box.mLow[static_cast<std::uint32_t>(axis)]
                 = static_cast<std::uint32_t>(std::clamp(std::floor(low), 0.0, span));
-            box.mHigh[static_cast<unsigned int>(axis)]
+            box.mHigh[static_cast<std::uint32_t>(axis)]
                 = static_cast<std::uint32_t>(std::clamp(std::floor(high) + 1.0, 0.0, span));
         }
         return box;
@@ -131,7 +131,7 @@ namespace Rtx
             if (box != mBoxes[at] || took != takes)
             {
                 const auto index = static_cast<std::uint32_t>(at);
-                forEachCell(mBoxes[at], mSize, [&](Index cell, const osg::Vec3ui& cellAt) {
+                forEachCell(mBoxes[at], mSize, [&](LightCellIndex cell, const osg::Vec3ui& cellAt) {
                     if (took != takes || !box.contains(cellAt))
                         leave(cell, took, index);
                 });
@@ -147,7 +147,7 @@ namespace Rtx
             const std::uint32_t takes = keyOf(mBinnedOn[moved.mIndex]);
             const bool rekeyed = moved.mTook != (takes != 0u);
             bool room = true;
-            forEachCell(mBoxes[moved.mIndex], mSize, [&](Index cell, const osg::Vec3ui& cellAt) {
+            forEachCell(mBoxes[moved.mIndex], mSize, [&](LightCellIndex cell, const osg::Vec3ui& cellAt) {
                 if (room && (rekeyed || !moved.mFrom.contains(cellAt)))
                     room = enter(cell, takes, moved.mIndex);
             });
@@ -163,13 +163,13 @@ namespace Rtx
     {
         // In double, for the reason `boxAround` gives.
         const double cell = 1.0 / double{ mInverseCell };
-        for (int axis = 0; axis < 3; ++axis)
+        for (std::int32_t axis = 0; axis < 3; ++axis)
         {
             const double from = double{ light.mPosition[axis] } - double{ mOrigin[axis] };
             // Asked so a number that is not one answers no, and the grid is made again around it.
             if (!(from - double{ light.mReach } >= 0.0
                     && from + double{ light.mReach }
-                        <= static_cast<double>(mSize[static_cast<unsigned int>(axis)]) * cell))
+                        <= static_cast<double>(mSize[static_cast<std::uint32_t>(axis)]) * cell))
                 return false;
         }
         return true;
@@ -212,12 +212,12 @@ namespace Rtx
         {
             mInverseCell = static_cast<float>(1.0 / cell);
             std::size_t reachedCells = 1;
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
             {
                 const double reached
                     = std::clamp(std::ceil(extent[axis] / cell), 1.0, static_cast<double>(sMaxCells + 1));
                 reachedCells *= static_cast<std::size_t>(reached);
-                mSize[static_cast<unsigned int>(axis)] = static_cast<std::uint32_t>(reached + 2.0 * spare);
+                mSize[static_cast<std::uint32_t>(axis)] = static_cast<std::uint32_t>(reached + 2.0 * spare);
                 // Held inside the float range, because a lamp near its end reaches past it and a cast
                 // from past it is undefined. Such a lamp reaches out of the grid on that side, and is
                 // binned into the cells it reaches inside it.
@@ -254,8 +254,9 @@ namespace Rtx
         for (std::size_t index = 0; index < mBoxes.size(); ++index)
         {
             const std::uint32_t key = keyOf(mBinnedOn[index]);
-            forEachCell(mBoxes[index], mSize,
-                [&](Index cell, const osg::Vec3ui&) { ++mCells[cell].mCount[static_cast<int>(key)]; });
+            forEachCell(mBoxes[index], mSize, [&](LightCellIndex cell, const osg::Vec3ui&) {
+                ++mCells[cell].mCount[static_cast<std::int32_t>(key)];
+            });
         }
 
         // Every run's block, packed in cell order; then room past them for every run to move to a
@@ -263,15 +264,15 @@ namespace Rtx
         // none, before the list runs out and the grid is made again.
         mRooms.resize(2 * cells);
         mEnd = 0;
-        for (std::size_t cell = 0; cell < cells; ++cell)
+        for (const LightCellIndex cell : everyRow<LightCellIndex>(cells))
         {
             Shaders::GpuLightCell& held = mCells[cell];
             for (std::uint32_t key = 0; key < 2; ++key)
             {
-                held.mFirst[static_cast<int>(key)] = mEnd;
-                mRooms[2 * cell + key] = roomFor(held.mCount[static_cast<int>(key)]);
-                mEnd += mRooms[2 * cell + key];
-                held.mCount[static_cast<int>(key)] = 0;
+                held.mFirst[static_cast<std::int32_t>(key)] = mEnd;
+                mRooms[2 * cell.at() + key] = roomFor(held.mCount[static_cast<std::int32_t>(key)]);
+                mEnd += mRooms[2 * cell.at() + key];
+                held.mCount[static_cast<std::int32_t>(key)] = 0;
             }
         }
         mList.resize(2 * std::size_t{ mEnd } + 2 * cells);
@@ -280,52 +281,52 @@ namespace Rtx
         for (std::size_t index = 0; index < mBoxes.size(); ++index)
         {
             const std::uint32_t key = keyOf(mBinnedOn[index]);
-            forEachCell(mBoxes[index], mSize, [&](Index cell, const osg::Vec3ui&) {
+            forEachCell(mBoxes[index], mSize, [&](LightCellIndex cell, const osg::Vec3ui&) {
                 Shaders::GpuLightCell& held = mCells[cell];
-                mList[held.mFirst[static_cast<int>(key)] + held.mCount[static_cast<int>(key)]++]
+                mList[held.mFirst[static_cast<std::int32_t>(key)] + held.mCount[static_cast<std::int32_t>(key)]++]
                     = static_cast<std::uint32_t>(index);
             });
         }
     }
 
-    void LightGrid::leave(Index cell, std::uint32_t key, std::uint32_t index)
+    void LightGrid::leave(const LightCellIndex cell, std::uint32_t key, std::uint32_t index)
     {
         Shaders::GpuLightCell& held = mCells[cell];
-        const auto run = mList.begin() + held.mFirst[static_cast<int>(key)];
-        const auto end = run + held.mCount[static_cast<int>(key)];
+        const auto run = mList.begin() + held.mFirst[static_cast<std::int32_t>(key)];
+        const auto end = run + held.mCount[static_cast<std::int32_t>(key)];
 
         const auto at = std::lower_bound(run, end, index);
         assert(at != end && *at == index && "a lamp left a cell it was never binned into");
         std::copy(at + 1, end, at);
-        --held.mCount[static_cast<int>(key)];
+        --held.mCount[static_cast<std::int32_t>(key)];
         mRewritten.add(cell);
     }
 
-    bool LightGrid::enter(Index cell, std::uint32_t key, std::uint32_t index)
+    bool LightGrid::enter(const LightCellIndex cell, std::uint32_t key, std::uint32_t index)
     {
         Shaders::GpuLightCell& held = mCells[cell];
-        std::uint32_t& room = mRooms[2 * std::size_t{ cell } + key];
-        if (held.mCount[static_cast<int>(key)] == room)
+        std::uint32_t& room = mRooms[2 * std::size_t{ cell.at() } + key];
+        if (held.mCount[static_cast<std::int32_t>(key)] == room)
         {
             const std::uint32_t grown = std::max(2 * room, roomFor(1));
             if (mEnd + grown > mList.size())
                 return false;
 
-            std::copy_n(mList.begin() + held.mFirst[static_cast<int>(key)], held.mCount[static_cast<int>(key)],
-                mList.begin() + mEnd);
-            held.mFirst[static_cast<int>(key)] = mEnd;
+            std::copy_n(mList.begin() + held.mFirst[static_cast<std::int32_t>(key)],
+                held.mCount[static_cast<std::int32_t>(key)], mList.begin() + mEnd);
+            held.mFirst[static_cast<std::int32_t>(key)] = mEnd;
             room = grown;
             mEnd += grown;
         }
 
-        const auto run = mList.begin() + held.mFirst[static_cast<int>(key)];
-        const auto end = run + held.mCount[static_cast<int>(key)];
+        const auto run = mList.begin() + held.mFirst[static_cast<std::int32_t>(key)];
+        const auto end = run + held.mCount[static_cast<std::int32_t>(key)];
 
         const auto at = std::upper_bound(run, end, index);
         assert((at == run || at[-1] != index) && "a lamp entered a cell it was already binned into");
         std::copy_backward(at, end, end + 1);
         *at = index;
-        ++held.mCount[static_cast<int>(key)];
+        ++held.mCount[static_cast<std::int32_t>(key)];
         mRewritten.add(cell);
         return true;
     }

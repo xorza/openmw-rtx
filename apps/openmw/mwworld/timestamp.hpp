@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace ESM
 {
     struct TimeStamp;
@@ -13,10 +15,10 @@ namespace MWWorld
     class TimeStamp
     {
         float mHour;
-        int mDay;
+        std::int32_t mDay;
 
     public:
-        explicit TimeStamp(float hour = 0, int day = 0);
+        explicit TimeStamp(float hour = 0, std::int32_t day = 0);
         ///< \param hour [0, 23)
         /// \param day >=0
 
@@ -25,7 +27,7 @@ namespace MWWorld
 
         float getHour() const;
 
-        int getDay() const;
+        std::int32_t getDay() const;
 
         TimeStamp& operator+=(double hours);
         ///< \param hours >=0

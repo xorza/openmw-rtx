@@ -18,9 +18,9 @@ namespace ESSImport
     {
         void load(ESM::ESMReader& esm);
 
-        std::map<ESM::RefId, int32_t> mKillCounter;
+        std::map<ESM::RefId, std::int32_t> mKillCounter;
 
-        int32_t mWerewolfKills{};
+        std::int32_t mWerewolfKills{};
     };
 
 }

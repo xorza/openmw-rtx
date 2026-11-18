@@ -1,8 +1,9 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
 #include <cstdint>
 #include <string>
+
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -13,8 +14,8 @@ namespace ESM
     {
         struct CellIndex
         {
-            int32_t mX;
-            int32_t mY;
+            std::int32_t mX;
+            std::int32_t mY;
         };
 
         std::string mWorldspace;

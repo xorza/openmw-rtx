@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 
@@ -104,7 +105,7 @@ namespace MWRender
             }
 
             /// This world as frame `number` sees it.
-            SceneFrame frame(unsigned int number)
+            SceneFrame frame(std::uint32_t number)
             {
                 mWhen.setFrameNumber(number);
                 return SceneFrame{
@@ -128,14 +129,15 @@ namespace MWRender
         TEST(RtxWorldMirrorTest, whatTheWalkStoppedFindingIsGoneBeforeTheHandOver)
         {
             TwoBodyFrame world;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr);
+            Rtx::SceneIdentities identities;
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
             const osg::Matrixd view = osg::Matrixd::identity();
 
             const Rtx::ExtractionStats both = mirror.mirror(world.frame(1), view);
             ASSERT_EQ(both.mInstances, 2u);
             ASSERT_EQ(mirror.getScene().placements().getCounts().mPlaced, 2u);
-            ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), 0), osg::Vec3f(1.0f, 0.0f, 0.0f));
-            ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), 1), osg::Vec3f(5.0f, 0.0f, 0.0f));
+            ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), Rtx::PlacementIndex(0)), osg::Vec3f(1.0f, 0.0f, 0.0f));
+            ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), Rtx::PlacementIndex(1)), osg::Vec3f(5.0f, 0.0f, 0.0f));
 
             // The first goes and the second moves on: one placement, in the first's slot, standing
             // where the second is now — and not that beside the second's old slot at where it was.
@@ -145,8 +147,8 @@ namespace MWRender
             EXPECT_EQ(shifted.mInstances, 1u);
             EXPECT_EQ(shifted.mRestood, 0u);
             EXPECT_EQ(mirror.getScene().placements().getCounts().mPlaced, 1u) << "the second's old slot still stands";
-            EXPECT_EQ(Rtx::Testing::placedAt(mirror.getScene(), 0), osg::Vec3f(9.0f, 0.0f, 0.0f));
-            EXPECT_FALSE(mirror.getScene().placements().isPlaced(1)) << "the old slot was kept";
+            EXPECT_EQ(Rtx::Testing::placedAt(mirror.getScene(), Rtx::PlacementIndex(0)), osg::Vec3f(9.0f, 0.0f, 0.0f));
+            EXPECT_FALSE(mirror.getScene().placements().isPlaced(Rtx::PlacementIndex(1))) << "the old slot was kept";
 
             // And a body the graph let go of is placed nowhere on the frame it went.
             world.mRoot->removeChild(world.mSecond);
@@ -162,7 +164,8 @@ namespace MWRender
         TEST(RtxWorldMirrorTest, whatTheFramesThreadPreprocessedIsCountedOnceByTheNextFrame)
         {
             TwoBodyFrame world;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr);
+            Rtx::SceneIdentities identities;
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
             const osg::Matrixd view = osg::Matrixd::identity();
 
             osg::ref_ptr<osg::Image> sheet = Rtx::Testing::makeImage("textures/sheet.dds", 2, 2);
@@ -206,7 +209,8 @@ namespace MWRender
             };
             const auto session = [&](bool prepared) {
                 ContentStore::Store store(folder, Rtx::sContentStorePolicy);
-                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, nullptr);
+                Rtx::SceneIdentities identities;
+                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, nullptr, identities);
                 Session counted;
                 if (prepared)
                 {
@@ -246,14 +250,15 @@ namespace MWRender
         /// whose camera stands inside the body takes them out.
         TEST(RtxWorldMirrorTest, thePlayerAndTheActorsAreWalkedWhereTheViewMaskKeepsThem)
         {
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr);
+            Rtx::SceneIdentities identities;
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
 
             const osg::Node::NodeMask playing = mirror.getTraversalMask();
             EXPECT_NE(playing & Mask_Player, 0u) << "a game somebody is playing draws them";
             EXPECT_EQ(playing & Mask_Terrain, 0u) << "the intersector's ground is not the ring's";
             EXPECT_EQ(playing & Mask_UpdateVisitor, 0u) << "and what the content hides stays hidden";
 
-            mirror.setViewMask(~0u & ~static_cast<unsigned int>(Mask_Player));
+            mirror.setViewMask(~0u & ~static_cast<std::uint32_t>(Mask_Player));
             const osg::Node::NodeMask watching = mirror.getTraversalMask();
             EXPECT_EQ(watching & Mask_Player, 0u);
 
@@ -281,10 +286,12 @@ namespace MWRender
         /// The loader is left untold here, which is the state the mirror is really built in.
         TEST(RtxWorldMirrorTest, whatTheContentHidesIsLeftOutBeforeTheLoaderIsToldWhichBitHides)
         {
-            const unsigned int told = NifOsg::Loader::getHiddenNodeMask();
+            const std::uint32_t told = NifOsg::Loader::getHiddenNodeMask();
             NifOsg::Loader::setHiddenNodeMask(0);
 
-            const osg::Node::NodeMask mask = WorldMirror(MWRender::MirrorKnobs{}, nullptr, nullptr).getTraversalMask();
+            Rtx::SceneIdentities identities;
+            const osg::Node::NodeMask mask
+                = WorldMirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities).getTraversalMask();
 
             NifOsg::Loader::setHiddenNodeMask(told);
 

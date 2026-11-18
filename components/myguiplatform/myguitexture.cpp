@@ -1,10 +1,12 @@
 #include "myguitexture.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <MyGUI_IRenderTarget.h>
 #include <MyGUI_ITexture.h>
@@ -19,7 +21,6 @@
 #include <components/files/memorystream.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <utility>
 
 #include "guirendermanager.hpp"
 
@@ -51,10 +52,11 @@ namespace MyGUIPlatform
 
     OSGTexture::~OSGTexture() {}
 
-    void OSGTexture::createManual(int width, int height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format)
+    void OSGTexture::createManual(
+        std::int32_t width, std::int32_t height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format)
     {
         GLenum glfmt = GL_NONE;
-        size_t numelems = 0;
+        std::size_t numelems = 0;
         switch (format.getValue())
         {
             case MyGUI::PixelFormat::L8:

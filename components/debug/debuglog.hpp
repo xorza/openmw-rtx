@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 
 namespace Debug
 {
-    enum Level : unsigned
+    enum Level : std::uint32_t
     {
         Error = 1,
         Warning = 2,

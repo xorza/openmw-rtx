@@ -1,5 +1,7 @@
 #include "completerpopup.hpp"
 
+#include <cstdint>
+
 CSVWidget::CompleterPopup::CompleterPopup(QWidget* parent)
     : QListView(parent)
 {
@@ -9,7 +11,7 @@ CSVWidget::CompleterPopup::CompleterPopup(QWidget* parent)
     setSelectionMode(QAbstractItemView::SingleSelection);
 }
 
-int CSVWidget::CompleterPopup::sizeHintForRow(int row) const
+std::int32_t CSVWidget::CompleterPopup::sizeHintForRow(std::int32_t row) const
 {
     if (model() == nullptr)
     {

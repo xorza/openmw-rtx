@@ -1,17 +1,19 @@
 #include "navmesh.hpp"
 
-#include "detourdebugdraw.hpp"
-
-#include <components/detournavigator/settings.hpp>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <utility>
 
 #include <DebugDraw.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
-#include <cmath>
-#include <cstddef>
 #include <osg/Group>
 #include <osg/ref_ptr>
-#include <utility>
+
+#include <components/detournavigator/settings.hpp>
+
+#include "detourdebugdraw.hpp"
 
 namespace
 {
@@ -35,13 +37,13 @@ namespace
     // Copied from
     // https://github.com/recastnavigation/recastnavigation/blob/c5cbd53024c8a9d8d097a4371215e3342d2fdc87/DebugUtils/Source/DetourDebugDraw.cpp#L40-L118
     void drawPolyBoundaries(
-        duDebugDraw* dd, const dtMeshTile* tile, const unsigned int col, const float linew, bool inner)
+        duDebugDraw* dd, const dtMeshTile* tile, const std::uint32_t col, const float linew, bool inner)
     {
         static const float thr = 0.01f * 0.01f;
 
         dd->begin(DU_DRAW_LINES, linew);
 
-        for (int i = 0; i < tile->header->polyCount; ++i)
+        for (std::int32_t i = 0; i < tile->header->polyCount; ++i)
         {
             const dtPoly* p = &tile->polys[i];
 
@@ -50,9 +52,9 @@ namespace
 
             const dtPolyDetail* pd = &tile->detailMeshes[i];
 
-            for (int j = 0, nj = static_cast<int>(p->vertCount); j < nj; ++j)
+            for (std::int32_t j = 0, nj = static_cast<std::int32_t>(p->vertCount); j < nj; ++j)
             {
-                unsigned int c = col;
+                std::uint32_t c = col;
                 if (inner)
                 {
                     if (p->neis[j] == 0)
@@ -60,7 +62,7 @@ namespace
                     if (p->neis[j] & DT_EXT_LINK)
                     {
                         bool con = false;
-                        for (unsigned int k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
+                        for (std::uint32_t k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
                         {
                             if (std::cmp_equal(tile->links[k].edge, j))
                             {
@@ -87,12 +89,12 @@ namespace
 
                 // Draw detail mesh edges which align with the actual poly edge.
                 // This is really slow.
-                for (int k = 0; std::cmp_less(k, pd->triCount); ++k)
+                for (std::int32_t k = 0; std::cmp_less(k, pd->triCount); ++k)
                 {
-                    const unsigned char* t
-                        = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + static_cast<unsigned int>(k)) * 4)];
+                    const std::uint8_t* t = &tile->detailTris[(
+                        static_cast<std::size_t>(pd->triBase + static_cast<std::uint32_t>(k)) * 4)];
                     const float* tv[3];
-                    for (int m = 0; m < 3; ++m)
+                    for (std::int32_t m = 0; m < 3; ++m)
                     {
                         if (t[m] < p->vertCount)
                             tv[m] = &tile->verts[static_cast<std::ptrdiff_t>(p->verts[t[m]] * 3)];
@@ -100,7 +102,7 @@ namespace
                             tv[m] = &tile->detailVerts[(
                                 static_cast<std::size_t>(pd->vertBase + (t[m] - p->vertCount)) * 3)];
                     }
-                    for (int m = 0, n = 2; m < 3; n = m++)
+                    for (std::int32_t m = 0, n = 2; m < 3; n = m++)
                     {
                         if ((dtGetDetailTriEdgeFlags(t[3], n) & DT_DETAIL_EDGE_BOUNDARY) == 0)
                             continue;
@@ -117,7 +119,7 @@ namespace
         dd->end();
     }
 
-    float getHeat(unsigned salt, unsigned minSalt, unsigned maxSalt)
+    float getHeat(std::uint32_t salt, std::uint32_t minSalt, std::uint32_t maxSalt)
     {
         if (salt < minSalt)
             return 0;
@@ -128,15 +130,15 @@ namespace
         return static_cast<float>(salt - minSalt) / static_cast<float>(maxSalt - minSalt);
     }
 
-    int getRgbaComponent(float v, int base)
+    std::int32_t getRgbaComponent(float v, std::int32_t base)
     {
-        return static_cast<int>(std::round(v * static_cast<float>(base)));
+        return static_cast<std::int32_t>(std::round(v * static_cast<float>(base)));
     }
 
-    unsigned heatToColor(float heat, int alpha)
+    std::uint32_t heatToColor(float heat, std::int32_t alpha)
     {
-        constexpr int min = 100;
-        constexpr int max = 200;
+        constexpr std::int32_t min = 100;
+        constexpr std::int32_t max = 200;
         if (heat < 0.25f)
             return duRGBA(min, min + getRgbaComponent(4 * heat, max - min), max, alpha);
         if (heat < 0.5f)
@@ -149,20 +151,20 @@ namespace
     // Based on
     // https://github.com/recastnavigation/recastnavigation/blob/c5cbd53024c8a9d8d097a4371215e3342d2fdc87/DebugUtils/Source/DetourDebugDraw.cpp#L120-L235
     void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile,
-        unsigned char flags, float heat)
+        std::uint8_t flags, float heat)
     {
         using namespace SceneUtil;
 
         dtPolyRef base = mesh.getPolyRefBase(tile);
 
-        int tileNum = static_cast<int>(mesh.decodePolyIdTile(base));
-        const unsigned alpha = tile->header->userId == 0 ? 64 : 128;
-        const unsigned int tileNumColor = duIntToCol(tileNum, static_cast<int>(alpha));
+        auto tileNum = static_cast<std::int32_t>(mesh.decodePolyIdTile(base));
+        const std::uint32_t alpha = tile->header->userId == 0 ? 64 : 128;
+        const std::uint32_t tileNumColor = duIntToCol(tileNum, static_cast<std::int32_t>(alpha));
 
         dd->depthMask(false);
 
         dd->begin(DU_DRAW_TRIS);
-        for (int i = 0; i < tile->header->polyCount; ++i)
+        for (std::int32_t i = 0; i < tile->header->polyCount; ++i)
         {
             const dtPoly* p = &tile->polys[i];
             if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION) // Skip off-mesh links.
@@ -170,24 +172,24 @@ namespace
 
             const dtPolyDetail* pd = &tile->detailMeshes[i];
 
-            unsigned int col = 0;
+            std::uint32_t col = 0;
             if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
-                col = duRGBA(255, 196, 0, static_cast<int>(alpha));
+                col = duRGBA(255, 196, 0, static_cast<std::int32_t>(alpha));
             else
             {
                 if (flags & NavMeshTileDrawFlagsColorTiles)
                     col = duTransCol(tileNumColor, alpha);
                 else if (flags & NavMeshTileDrawFlagsHeat)
-                    col = heatToColor(heat, static_cast<int>(alpha));
+                    col = heatToColor(heat, static_cast<std::int32_t>(alpha));
                 else
                     col = duTransCol(dd->areaToCol(p->getArea()), alpha);
             }
 
-            for (int j = 0; std::cmp_less(j, pd->triCount); ++j)
+            for (std::int32_t j = 0; std::cmp_less(j, pd->triCount); ++j)
             {
-                const unsigned char* t
-                    = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + static_cast<unsigned int>(j)) * 4)];
-                for (int k = 0; k < 3; ++k)
+                const std::uint8_t* t
+                    = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + static_cast<std::uint32_t>(j)) * 4)];
+                for (std::int32_t k = 0; k < 3; ++k)
                 {
                     if (t[k] < p->vertCount)
                         dd->vertex(&tile->verts[static_cast<std::ptrdiff_t>(p->verts[t[k]] * 3)], col);
@@ -209,13 +211,13 @@ namespace
         if (flags & NavMeshTileDrawFlagsOffMeshConnections)
         {
             dd->begin(DU_DRAW_LINES, 2.0f);
-            for (int i = 0; i < tile->header->polyCount; ++i)
+            for (std::int32_t i = 0; i < tile->header->polyCount; ++i)
             {
                 const dtPoly* p = &tile->polys[i];
                 if (p->getType() != DT_POLYTYPE_OFFMESH_CONNECTION) // Skip regular polys.
                     continue;
 
-                unsigned int col = 0, col2 = 0;
+                std::uint32_t col = 0, col2 = 0;
                 if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
                     col = duRGBA(255, 196, 0, 220);
                 else
@@ -228,7 +230,7 @@ namespace
                 // Check to see if start and end end-points have links.
                 bool startSet = false;
                 bool endSet = false;
-                for (unsigned int k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
+                for (std::uint32_t k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
                 {
                     if (tile->links[k].edge == 0)
                         startSet = true;
@@ -261,9 +263,9 @@ namespace
             dd->end();
         }
 
-        const unsigned int vcol = duRGBA(0, 0, 0, 196);
+        const std::uint32_t vcol = duRGBA(0, 0, 0, 196);
         dd->begin(DU_DRAW_POINTS, 3.0f);
-        for (int i = 0; i < tile->header->vertCount; ++i)
+        for (std::int32_t i = 0; i < tile->header->vertCount; ++i)
         {
             const float* v = &tile->verts[static_cast<std::ptrdiff_t>(i * 3)];
             dd->vertex(v[0], v[1], v[2], vcol);
@@ -278,7 +280,7 @@ namespace SceneUtil
 {
     osg::ref_ptr<osg::Group> createNavMeshTileGroup(const dtNavMesh& navMesh, const dtMeshTile& meshTile,
         const DetourNavigator::Settings& settings, const osg::ref_ptr<osg::StateSet>& debugDrawStateSet,
-        unsigned char flags, unsigned minSalt, unsigned maxSalt)
+        std::uint8_t flags, std::uint32_t minSalt, std::uint32_t maxSalt)
     {
         if (meshTile.header == nullptr)
             return nullptr;

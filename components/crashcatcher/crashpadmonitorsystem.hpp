@@ -110,7 +110,7 @@ namespace Crash::Monitor
     /// Crashpad's server and handler, as `handler_main.cc` builds it, so a crash's dump takes
     /// `HandlerParts::mReading` and says whether it was written; on Windows `HandlerMain` itself,
     /// whose dumps suspend the game, which nests with a hang's.
-    int runHandler(std::vector<std::string>& arguments, const HandlerParts& parts);
+    std::int32_t runHandler(std::vector<std::string>& arguments, const HandlerParts& parts);
 
     /// The exception as the system names it, or nothing where the dump was asked for rather than
     /// raised by a fault. `process` is the game's id, by which a signal it sent itself is told from

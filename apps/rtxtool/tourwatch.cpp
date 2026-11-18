@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <span>
@@ -142,7 +144,7 @@ namespace RtxTool
         {
             if (standing != nullptr && standing->getCell()->isExterior())
             {
-                const int column = standing->getCell()->getGridX();
+                const std::int32_t column = standing->getCell()->getGridX();
                 if (std::ranges::find(mCovered, column) == mCovered.end())
                     mCovered.push_back(column);
             }
@@ -155,6 +157,12 @@ namespace RtxTool
         // As it stood on the screen: a window covered for a minute is no frame of a minute.
         const ClosedSpan seen{ .mSpend = measured->mSpend.seen(), .mArrived = measured->mArrived };
         const double frameMs = seen.mSpend.at(Rtx::Timing::Frame);
+        mLongest.offer(seen.mSpend,
+            LongestFrames::Seen{ .mLeg = mLeg,
+                .mFrame = mFrame,
+                .mEndNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch())
+                    .count() });
         if (frameMs > mBudgetMs)
         {
             ++mSlow;

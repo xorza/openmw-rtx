@@ -1,20 +1,22 @@
 #include "stateupdater.hpp"
 
+#include <cstdint>
+
 #include <osg/PolygonMode>
 
-#include "depth.hpp"
-#include "rtt.hpp"
-#include "statesetupdater.hpp"
-
 #include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/fog.hpp>
 #include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
+
+#include "depth.hpp"
+#include "fog.hpp"
+#include "rtt.hpp"
+#include "statesetupdater.hpp"
 
 namespace SceneUtil
 {
     PerViewUniformStateUpdater::PerViewUniformStateUpdater(
-        Resource::SceneManager* sceneManager, int opaqueTextureUnit, int opaqueColorTextureUnit)
+        Resource::SceneManager* sceneManager, std::int32_t opaqueTextureUnit, std::int32_t opaqueColorTextureUnit)
         : mSceneManager(sceneManager)
         , mOpaqueTextureUnit(opaqueTextureUnit)
         , mOpaqueColorTextureUnit(opaqueColorTextureUnit)
@@ -34,15 +36,15 @@ namespace SceneUtil
         if (mSkyRTT && nv->getVisitorType() == osg::NodeVisitor::CULL_VISITOR)
         {
             osg::Texture* skyTexture = mSkyRTT->getColorTexture(static_cast<osgUtil::CullVisitor*>(nv));
-            stateset->setTextureAttribute(static_cast<unsigned int>(mSkyTextureUnit), skyTexture,
+            stateset->setTextureAttribute(static_cast<std::uint32_t>(mSkyTextureUnit), skyTexture,
                 osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
         }
 
         if (mOpaqueTextureUnit > 0)
-            stateset->setTextureAttribute(static_cast<unsigned int>(mOpaqueTextureUnit),
+            stateset->setTextureAttribute(static_cast<std::uint32_t>(mOpaqueTextureUnit),
                 mSceneManager->getOpaqueDepthTex(nv->getTraversalNumber()), osg::StateAttribute::ON);
         if (mOpaqueColorTextureUnit > 0)
-            stateset->setTextureAttribute(static_cast<unsigned int>(mOpaqueColorTextureUnit),
+            stateset->setTextureAttribute(static_cast<std::uint32_t>(mOpaqueColorTextureUnit),
                 mSceneManager->getOpaqueColorTex(nv->getTraversalNumber()), osg::StateAttribute::ON);
     }
 
@@ -66,13 +68,13 @@ namespace SceneUtil
         return mProjectionMatrix;
     }
 
-    void PerViewUniformStateUpdater::enableSkyRTT(int skyTextureUnit, RTTNode* skyRTT)
+    void PerViewUniformStateUpdater::enableSkyRTT(std::int32_t skyTextureUnit, RTTNode* skyRTT)
     {
         mSkyTextureUnit = skyTextureUnit;
         mSkyRTT = skyRTT;
     }
 
-    osg::Matrixf PerViewUniformStateUpdater::getEyeProjectionMatrix(int view)
+    osg::Matrixf PerViewUniformStateUpdater::getEyeProjectionMatrix(std::int32_t view)
     {
         return Stereo::Manager::instance().computeEyeProjection(view, AutoDepth::isReversed());
     }

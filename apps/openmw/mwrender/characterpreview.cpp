@@ -2,22 +2,21 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include <osg/Group>
 #include <osg/Matrixf>
 #include <osg/PositionAttitudeTransform>
 
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/weapontype.hpp"
 
 #include "npcanimation.hpp"
 #include "offscreenview.hpp"
@@ -28,7 +27,8 @@ namespace MWRender
 {
 
     CharacterPreview::CharacterPreview(Renderer& renderer, Resource::ResourceSystem* resourceSystem,
-        const MWWorld::Ptr& character, int sizeX, int sizeY, const osg::Vec3f& position, const osg::Vec3f& lookAt)
+        const MWWorld::Ptr& character, std::int32_t sizeX, std::int32_t sizeY, const osg::Vec3f& position,
+        const osg::Vec3f& lookAt)
         : mResourceSystem(resourceSystem)
         , mScene(new osg::Group)
         , mPosition(position)
@@ -73,12 +73,12 @@ namespace MWRender
 
     CharacterPreview::~CharacterPreview() = default;
 
-    int CharacterPreview::getTextureWidth() const
+    std::int32_t CharacterPreview::getTextureWidth() const
     {
         return mSizeX;
     }
 
-    int CharacterPreview::getTextureHeight() const
+    std::int32_t CharacterPreview::getTextureHeight() const
     {
         return mSizeY;
     }
@@ -123,7 +123,7 @@ namespace MWRender
     {
     }
 
-    void InventoryPreview::setViewport(int sizeX, int sizeY)
+    void InventoryPreview::setViewport(std::int32_t sizeX, std::int32_t sizeY)
     {
         mExtentX = std::clamp(sizeX, 0, mSizeX);
         mExtentY = std::clamp(sizeY, 0, mSizeY);
@@ -188,7 +188,7 @@ namespace MWRender
         {
             if (!mAnimation->getInfo("torch"))
                 mAnimation->play("torch", 2, BlendMask::BlendMask_LeftArm, false, 1.0f, "start", "stop", 0.0f,
-                    std::numeric_limits<uint32_t>::max(), true);
+                    std::numeric_limits<std::uint32_t>::max(), true);
         }
         else if (mAnimation->getInfo("torch"))
             mAnimation->disable("torch");
@@ -200,7 +200,7 @@ namespace MWRender
         redraw();
     }
 
-    int InventoryPreview::getSlotSelected(int posX, int posY)
+    std::int32_t InventoryPreview::getSlotSelected(std::int32_t posX, std::int32_t posY)
     {
         if (mExtentX <= 0 || mExtentY <= 0)
             return -1;

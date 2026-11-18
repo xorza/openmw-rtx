@@ -1,6 +1,5 @@
-#include "apps/openmw/mwsound/headcache.hpp"
-
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <ios>
 #include <memory>
@@ -10,6 +9,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/openmw/mwsound/headcache.hpp>
 #include <components/files/istreamptr.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/file.hpp>
@@ -43,7 +43,7 @@ namespace MWSound
 
             std::string getStem() const override { return "TestFile"; }
 
-            int mOpens = 0;
+            std::int32_t mOpens = 0;
 
         private:
             const std::string mContent;
@@ -103,7 +103,7 @@ namespace MWSound
             const auto vfs = TestingOpenMW::createTestVFS({ { sFile, &file } });
             HeadCache cache(*vfs, 1024);
             warm(cache, sFile, 16, *vfs);
-            const int opens = file.mOpens;
+            const std::int32_t opens = file.mOpens;
 
             std::shared_ptr<const HeadBuffer> buffer = cache.lookup(sFile);
             ASSERT_NE(buffer, nullptr);
@@ -120,7 +120,7 @@ namespace MWSound
             const auto vfs = TestingOpenMW::createTestVFS({ { sFile, &file } });
             HeadCache cache(*vfs, 1024);
             warm(cache, sFile, 64, *vfs);
-            const int opens = file.mOpens;
+            const std::int32_t opens = file.mOpens;
 
             std::shared_ptr<const HeadBuffer> buffer = cache.lookup(sFile);
             ASSERT_NE(buffer, nullptr);
@@ -137,7 +137,7 @@ namespace MWSound
             const auto vfs = TestingOpenMW::createTestVFS({ { sFile, &file } });
             HeadCache cache(*vfs, 1024);
             warm(cache, sFile, 16, *vfs);
-            const int opens = file.mOpens;
+            const std::int32_t opens = file.mOpens;
 
             std::shared_ptr<const HeadBuffer> buffer = cache.lookup(sFile);
             ASSERT_NE(buffer, nullptr);
@@ -160,7 +160,7 @@ namespace MWSound
                 read(*init, 8);
                 cache.insert(sFile, *init);
             }
-            const int opens = file.mOpens;
+            const std::int32_t opens = file.mOpens;
 
             std::shared_ptr<const HeadBuffer> buffer = cache.lookup(sFile);
             ASSERT_NE(buffer, nullptr);
@@ -217,7 +217,7 @@ namespace MWSound
             ASSERT_NE(buffer, nullptr);
             const Files::IStreamPtr stream = makeHeadStream(std::move(buffer), *vfs);
             warm(cache, sOtherFile, 32, *vfs);
-            const int opens = file.mOpens;
+            const std::int32_t opens = file.mOpens;
 
             EXPECT_EQ(read(*stream, 32), content);
             EXPECT_EQ(file.mOpens, opens);
@@ -255,7 +255,7 @@ namespace MWSound
             EXPECT_TRUE(cache.warmWholeFile(sFile));
 
             EXPECT_TRUE(cache.contains(sFile));
-            const int opens = file.mOpens;
+            const std::int32_t opens = file.mOpens;
             std::shared_ptr<const HeadBuffer> buffer = cache.lookup(sFile);
             ASSERT_NE(buffer, nullptr);
             const Files::IStreamPtr stream = makeHeadStream(std::move(buffer), *vfs);
@@ -273,7 +273,7 @@ namespace MWSound
 
             EXPECT_TRUE(cache.warmWholeFile(sFile));
 
-            const int opens = file.mOpens;
+            const std::int32_t opens = file.mOpens;
             std::shared_ptr<const HeadBuffer> buffer = cache.lookup(sFile);
             ASSERT_NE(buffer, nullptr);
             const Files::IStreamPtr stream = makeHeadStream(std::move(buffer), *vfs);

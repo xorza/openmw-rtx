@@ -1,9 +1,9 @@
 #pragma once
 
+#include <osg/ref_ptr>
+
 #include <components/detournavigator/recastmeshtiles.hpp>
 #include <components/detournavigator/version.hpp>
-
-#include <osg/ref_ptr>
 
 namespace osg
 {

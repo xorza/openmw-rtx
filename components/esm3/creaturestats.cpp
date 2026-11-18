@@ -1,10 +1,11 @@
 #include "creaturestats.hpp"
+
+#include <cstdint>
+#include <limits>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <components/esm3/loadmgef.hpp>
-
-#include <limits>
+#include "loadmgef.hpp"
 
 namespace ESM
 {
@@ -14,7 +15,7 @@ namespace ESM
         if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
         {
             const bool intFallback = esm.getFormatVersion() <= MaxIntFallbackFormatVersion;
-            for (int i = 0; i < ESM::Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
             {
                 StatState<float> stat;
                 stat.load(esm, intFallback);
@@ -41,7 +42,7 @@ namespace ESM
         if (esm.peekNextSub("TIME"))
             mTradeTime.load(esm);
 
-        int32_t flags = 0;
+        std::int32_t flags = 0;
         mDead = false;
         mDeathAnimationFinished = false;
         mDied = false;
@@ -127,17 +128,17 @@ namespace ESM
         {
             while (esm.isNextSub("SUMM"))
             {
-                int32_t magicEffect = 0;
+                std::int32_t magicEffect = 0;
                 esm.getHT(magicEffect);
                 ESM::RefId source = esm.getHNORefId("SOUR");
-                int32_t effectIndex = -1;
+                std::int32_t effectIndex = -1;
                 esm.getHNOT(effectIndex, "EIND");
-                int32_t actorId = 0;
+                std::int32_t actorId = 0;
                 esm.getHNT(actorId, "ACID");
                 mSummonedCreatureMap[SummonKey(ESM::MagicEffect::indexToRefId(magicEffect), source, effectIndex)]
                     = actorId;
                 mSummonedCreatures.emplace(ESM::MagicEffect::indexToRefId(magicEffect),
-                    RefNum{ .mIndex = static_cast<uint32_t>(actorId), .mContentFile = -1 });
+                    RefNum{ .mIndex = static_cast<std::uint32_t>(actorId), .mContentFile = -1 });
             }
         }
         else
@@ -147,7 +148,7 @@ namespace ESM
                 RefId effectId;
                 if (esm.getFormatVersion() <= MaxSerializeEffectRefIdFormatVersion)
                 {
-                    int32_t magicEffect = 0;
+                    std::int32_t magicEffect = 0;
                     esm.getHT(magicEffect);
                     effectId = ESM::MagicEffect::indexToRefId(magicEffect);
                 }
@@ -164,7 +165,7 @@ namespace ESM
 
         while (esm.isNextSub("GRAV"))
         {
-            int32_t actorId = 0;
+            std::int32_t actorId = 0;
             esm.getHT(actorId);
             mSummonGraveyard.push_back(actorId);
         }
@@ -189,7 +190,7 @@ namespace ESM
             mCorprusSpells[id] = stats;
         }
         if (esm.getFormatVersion() <= MaxOldSkillsAndAttributesFormatVersion)
-            mMissingACDT = mGoldPool == std::numeric_limits<int>::min();
+            mMissingACDT = mGoldPool == std::numeric_limits<std::int32_t>::min();
         else
         {
             mMissingACDT = false;
@@ -202,7 +203,7 @@ namespace ESM
         if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
         {
             // This branch is only used in tests. It probably shouldn't exist.
-            for (int i = 0; i < ESM::Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
             {
                 const auto it = mAttributes.find(ESM::Attribute::indexToRefId(i));
                 if (it != mAttributes.end())
@@ -229,7 +230,7 @@ namespace ESM
         if (mTradeTime.mDay != 0 || mTradeTime.mHour != 0)
             esm.writeHNT("TIME", mTradeTime);
 
-        int32_t flags = 0;
+        std::int32_t flags = 0;
         if (mDead)
             flags |= Dead;
         if (mDeathAnimationFinished)

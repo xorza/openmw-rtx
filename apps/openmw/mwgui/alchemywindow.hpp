@@ -1,18 +1,19 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
 #include <MyGUI_ComboBox.h>
 #include <MyGUI_ControllerItem.h>
 
+#include <apps/openmw/mwmechanics/alchemy.hpp>
 #include <components/widgets/box.hpp>
 #include <components/widgets/numericeditbox.hpp>
 
 #include "itemselection.hpp"
 #include "windowbase.hpp"
-
-#include "../mwmechanics/alchemy.hpp"
 
 namespace MWGui
 {
@@ -28,7 +29,7 @@ namespace MWGui
 
         void onOpen() override;
 
-        void onResChange(int, int) override { center(); }
+        void onResChange(std::int32_t, std::int32_t) override { center(); }
 
         std::string_view getWindowIdForLua() const override { return "Alchemy"; }
 
@@ -67,15 +68,15 @@ namespace MWGui
         void onIngredientSelected(MyGUI::Widget* sender);
         void onApparatusSelected(MyGUI::Widget* sender);
         void onAccept(MyGUI::EditBox*);
-        void onIncreaseButtonPressed(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void onDecreaseButtonPressed(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void onCountButtonReleased(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void onCountValueChanged(int value);
+        void onIncreaseButtonPressed(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void onDecreaseButtonPressed(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void onCountButtonReleased(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void onCountValueChanged(std::int32_t value);
         void onRepeatClick(MyGUI::Widget* widget, MyGUI::ControllerItem* controller);
 
         void applyFilter(const std::string& filter);
         void initFilter();
-        void onFilterChanged(MyGUI::ComboBox* sender, size_t index);
+        void onFilterChanged(MyGUI::ComboBox* sender, std::size_t index);
         void onFilterEdited(MyGUI::EditBox* sender);
         void switchFilterType(MyGUI::Widget* sender);
         void updateFilters();
@@ -85,12 +86,12 @@ namespace MWGui
         void onIncreaseButtonTriggered();
         void onDecreaseButtonTriggered();
 
-        void onSelectedItem(int index);
+        void onSelectedItem(std::int32_t index);
 
         void onItemSelected(MWWorld::Ptr item);
         void onItemCancel();
 
-        void createPotions(int count);
+        void createPotions(std::int32_t count);
 
         void update();
 

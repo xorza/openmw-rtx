@@ -17,6 +17,7 @@
 
 #include "foldedshape.hpp"
 #include "restqueue.hpp"
+#include "uvdensity.hpp"
 
 namespace Rtx
 {
@@ -55,6 +56,10 @@ namespace Rtx
         std::span<const osg::Vec4f> mTangents{};
 
         std::span<const std::uint32_t> mIndices{};
+
+        /// Whether its indices are one list many meshes carry alike, a land cell's ground as every cell of one shape
+        /// triangulates it: the table keeps one run of them, which every such mesh names (`MeshTable`).
+        bool mSharedIndices = false;
     };
 
     /// What a camera's cull mask sorts a placement by: the rasterizer's `Mask_Actor | Mask_Player`,
@@ -106,8 +111,8 @@ namespace Rtx
         /// Object space to world space.
         osg::Matrixf mTransform{};
 
-        Index mMesh = sNoIndex;
-        Index mMaterial = sNoIndex;
+        MeshIndex mMesh = sNoRow;
+        MaterialIndex mMaterial = sNoRow;
 
         /// How much of this placement is there — the fade the game is applying to one actor, with
         /// Invisibility and Chameleon, which ride the same pair of uniforms. On the placement and
@@ -142,7 +147,7 @@ namespace Rtx
         {
             osg::BoundingBoxf placed;
             if (box.valid())
-                for (unsigned int corner = 0; corner < 8; ++corner)
+                for (std::uint32_t corner = 0; corner < 8; ++corner)
                     placed.expandBy(box.corner(corner) * mTransform);
 
             return placed;
@@ -167,11 +172,11 @@ namespace Rtx
         Morph,
     };
 
-    /// Where one mesh's vertices and indices sit in the scene's shared buffers — shared because a
+    /// Where one mesh's vertices and indices sit in the device's shared streams — shared because a
     /// cell holds thousands of meshes and the GPU wants one buffer anyway.
-    /// **What a static mesh is, as one 128-bit digest of everything it is made of** (`meshKeyOf`): its arrays and its
-    /// shape, so a mesh resting on the device is found again by whatever reads the same geometry — the same model
-    /// loaded again after its template left the resource cache, or another model shipping it — and the host keeps
+    /// **What a static mesh is, as one 128-bit digest of everything it is made of** (`PackedMesh::mKey`): its arrays
+    /// and its shape, so a mesh resting on the device is found again by whatever reads the same geometry — the same
+    /// model loaded again after its template left the resource cache, or another model shipping it — and the host keeps
     /// none of it (`docs/architecture.md`, "One residency policy for the content").
     struct MeshKey
     {
@@ -186,10 +191,6 @@ namespace Rtx
         std::size_t operator()(const MeshKey& key) const noexcept { return static_cast<std::size_t>(key.mWords[0]); }
     };
 
-    /// The key of the static mesh `arrays` and `shape` make: every array in order, each a step of its own, and the
-    /// shape and the units the second coordinates stream to.
-    MeshKey meshKeyOf(const MeshArrays& arrays, FoldedShape shape);
-
     struct MeshRange
     {
         /// Where this mesh's vertices sit, which the positions, the normals and the texture
@@ -199,6 +200,10 @@ namespace Rtx
         /// Where its indices sit. They are mesh-local, so a triangle's vertex is
         /// `mVertices.mOffset` plus what the index says.
         Run mIndices;
+
+        /// What its indices are filed under where it shares them (`MeshArrays::mSharedIndices`): the run goes back once
+        /// the last mesh naming it goes. Nothing for a mesh whose run is its own.
+        std::optional<MeshKey> mSharedIndexKey;
 
         /// Where its second set of texture coordinates sits, in a buffer of its own that only the
         /// meshes carrying one take from — a count of nought for every other mesh, which is nearly
@@ -217,19 +222,19 @@ namespace Rtx
         /// means; the scene keeps them and draws nothing from them.
         FoldedShape mShape;
 
-        /// The rig or the morph that poses it, into `DeformerTable::getRows`. `sNoIndex` for
+        /// The rig or the morph that poses it, into `DeformerTable::getRows`. `sNoRow` for
         /// a mesh that stands.
-        Index mDeformer = sNoIndex;
+        DeformerIndex mDeformer = sNoRow;
 
         /// Where this mesh's bind pose sits among the deforming meshes' vertices, which is what a
         /// backend's bind table is indexed by. A run as long as `mVertices` beside the mesh's
         /// own, allocated only for a mesh that deforms: the shared vertex buffers hold every mesh,
         /// and a bind table that mirrored them would hold megabytes of the cell for a few bodies.
-        Index mBindOffset = 0;
+        std::uint32_t mBindOffset = 0;
 
         /// Where this mesh's pose starts in `DeformerTable::getPoses`, in words. The count is the
         /// deformer's.
-        Index mPoseOffset = 0;
+        std::uint32_t mPoseOffset = 0;
 
         /// Whether a pose has been written since the mesh arrived. The first pose names the mesh
         /// whatever it is, so a body whose first pose happens to equal the zeroed rows still
@@ -242,8 +247,12 @@ namespace Rtx
         /// what lets a question about where a scene reaches be eight transforms per instance.
         osg::BoundingBoxf mBounds;
 
-        /// What a static mesh is filed under (`meshKeyOf`), which it rests under once nothing places it, and found
-        /// again by whatever reads the same geometry; nothing for a mesh that deforms, a copy per instance.
+        /// The least texture it lays on a unit of its surface, as its reader measured it (`UvDensity`): what a
+        /// placement of it asks of its material's textures by its distance.
+        UvDensity mUvDensity{};
+
+        /// What a static mesh is filed under (`PackedMesh::mKey`), which it rests under once nothing places it, and
+        /// found again by whatever reads the same geometry; nothing for a mesh that deforms, a copy per instance.
         std::optional<MeshKey> mKey;
 
         /// What its eviction would give the device back, its bottom-level structure (`MeshTable::stand`), and nought
@@ -253,14 +262,14 @@ namespace Rtx
         std::uint64_t mStoodBytes = 0;
 
         /// Its place among the meshes that rest (`MeshTable::drop`, `RestQueue`).
-        RestPlace mRest{};
+        RestPlace<MeshIndex> mRest{};
 
-        Index getTriangleCount() const { return mIndices.mCount / 3; }
+        std::uint32_t getTriangleCount() const { return mIndices.mCount / 3; }
 
         /// Whether this mesh is re-posed by `SceneDesc::pose` — a skinned body, a morphed face —
         /// which is what tells a backend to build its structure so it can be refitted rather than
         /// built again. Which kernel poses it is the deformer's to say, `DeformerTable::kindOf`.
-        bool deforms() const { return mDeformer != sNoIndex; }
+        bool deforms() const { return mDeformer != sNoRow; }
     };
 
     /// How many instances a scene places, and how many of those each kind of traversal has to stop

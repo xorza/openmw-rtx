@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <vector>
 
@@ -47,7 +48,7 @@ namespace CSMPrefs
 
         bool checkModifier(QKeyCombination keyCombination, Shortcut* shortcut, bool activate);
 
-        MatchResult match(unsigned int mod, unsigned int button, unsigned int value);
+        MatchResult match(std::uint32_t mod, std::uint32_t button, std::uint32_t value);
 
         // Prefers Matches_WithMod and a larger number of buttons
         static bool sort(const std::pair<MatchResult, Shortcut*>& left, const std::pair<MatchResult, Shortcut*>& right);

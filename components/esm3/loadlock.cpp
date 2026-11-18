@@ -1,9 +1,9 @@
 #include "loadlock.hpp"
 
+#include <components/misc/concepts.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <components/misc/concepts.hpp>
 
 namespace ESM
 {

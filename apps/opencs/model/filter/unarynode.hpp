@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -20,7 +21,7 @@ namespace CSMFilter
 
         Node& getChild();
 
-        std::vector<int> getReferencedColumns() const override;
+        std::vector<std::int32_t> getReferencedColumns() const override;
         ///< Return a list of the IDs of the columns referenced by this node. The column mapping
         /// passed into test as columns must contain all columns listed here.
 

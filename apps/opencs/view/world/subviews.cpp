@@ -1,9 +1,15 @@
 #include "subviews.hpp"
 
-#include "../doc/subviewfactoryimp.hpp"
+#include <cstdint>
+
+#include <apps/opencs/model/world/scope.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/doc/subviewfactory.hpp>
+#include <apps/opencs/view/doc/subviewfactoryimp.hpp>
 
 #include "bodypartcreator.hpp"
 #include "cellcreator.hpp"
+#include "creator.hpp"
 #include "dialoguecreator.hpp"
 #include "dialoguesubview.hpp"
 #include "genericcreator.hpp"
@@ -19,11 +25,6 @@
 #include "scriptsubview.hpp"
 #include "startscriptcreator.hpp"
 #include "tablesubview.hpp"
-
-#include <apps/opencs/model/world/scope.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/doc/subviewfactory.hpp>
-#include <apps/opencs/view/world/creator.hpp>
 
 void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
 {
@@ -52,7 +53,7 @@ void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
         CSMWorld::UniversalId::Type_None,
     };
 
-    for (int i = 0; sTableTypes[i] != CSMWorld::UniversalId::Type_None; ++i)
+    for (std::int32_t i = 0; sTableTypes[i] != CSMWorld::UniversalId::Type_None; ++i)
         manager.add(
             sTableTypes[i], new CSVDoc::SubViewFactoryWithCreator<TableSubView, CreatorFactory<GenericCreator>>);
 
@@ -146,7 +147,7 @@ void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
         CSMWorld::UniversalId::Type_None,
     };
 
-    for (int i = 0; sTableTypes2[i] != CSMWorld::UniversalId::Type_None; ++i)
+    for (std::int32_t i = 0; sTableTypes2[i] != CSMWorld::UniversalId::Type_None; ++i)
         manager.add(sTableTypes2[i],
             new CSVDoc::SubViewFactoryWithCreator<DialogueSubView, CreatorFactory<GenericCreator>>(false));
 

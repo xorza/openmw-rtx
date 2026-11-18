@@ -1,15 +1,15 @@
 
 #include "doublesetting.hpp"
 
+#include <cstdint>
 #include <limits>
 
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QMutexLocker>
 
-#include <apps/opencs/model/prefs/setting.hpp>
-
 #include "category.hpp"
+#include "setting.hpp"
 #include "state.hpp"
 
 CSMPrefs::DoubleSetting::DoubleSetting(
@@ -22,7 +22,7 @@ CSMPrefs::DoubleSetting::DoubleSetting(
 {
 }
 
-CSMPrefs::DoubleSetting& CSMPrefs::DoubleSetting::setPrecision(int precision)
+CSMPrefs::DoubleSetting& CSMPrefs::DoubleSetting::setPrecision(std::int32_t precision)
 {
     mPrecision = precision;
     return *this;

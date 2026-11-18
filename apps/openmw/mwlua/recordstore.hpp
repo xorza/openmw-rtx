@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
 #include <sol/forward.hpp>
@@ -10,12 +12,11 @@
 #include <sol/unsafe_function.hpp>
 #include <sol/usertype.hpp>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/lua/util.hpp>
-
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/store.hpp"
 
 #include "context.hpp"
 #include "object.hpp"
@@ -41,7 +42,7 @@ namespace MWLua
         };
         storeT[sol::meta_function::length] = [](const StoreT& self) { return self.getSize(); };
         storeT[sol::meta_function::index] = sol::overload(
-            [](const StoreT& self, size_t index) -> const T* {
+            [](const StoreT& self, std::size_t index) -> const T* {
                 if (index == 0 || index > self.getSize())
                     return nullptr;
                 return self.at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));

@@ -288,6 +288,15 @@ namespace Rtx
             reading.mNormalFacts = known;
         }
 
+        // And what the `_spec` map's channels mean, which every surface wearing one binds its maps by.
+        if (const osg::Image* const specular = described.getTexture(SurfaceMap::Specular);
+            specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty())
+        {
+            ImageFacts& known = thread.factsOf(*specular);
+            thread.specularLayoutOf(known, *specular);
+            reading.mSpecularFacts = known;
+        }
+
         return reading;
     }
 
@@ -304,10 +313,10 @@ namespace Rtx
             into.push_back(shading.back().mStateSet);
     }
 
-    Index MaterialResolver::adopt(const osg::StateSet* const key, const MaterialReading& reading)
+    MaterialIndex MaterialResolver::adopt(const osg::StateSet* const key, const MaterialReading& reading)
     {
         if (key == nullptr)
-            return sNoIndex;
+            return sNoRow;
 
         Entry known = reuse(key);
         if (known == mMaterials.end())
@@ -361,7 +370,7 @@ namespace Rtx
             if (rewritten)
             {
                 HeldMaterial& held = known->second;
-                if (held.mWorn == sNoIndex)
+                if (held.mWorn == sNoRow)
                     held.mWorn = takeWorn();
                 mScene.setMaterial(held.mRow.get(), readMaterial(shading, &mWorns[held.mWorn]));
             }
@@ -373,7 +382,7 @@ namespace Rtx
         if (!rewritten)
             return Resolved{ .mIndex = adopt(key, readMaterial(shading, nullptr))->second.mRow.get(), .mKey = key };
 
-        const Index worn = takeWorn();
+        const WornIndex worn = takeWorn();
         const Material material = readMaterial(shading, &mWorns[worn]);
         const Entry added = adopt(key, material);
         added->second.mWorn = worn;
@@ -381,14 +390,14 @@ namespace Rtx
         return Resolved{ .mIndex = added->second.mRow.get(), .mKey = key };
     }
 
-    Index MaterialResolver::takeTexture(
+    TextureIndex MaterialResolver::takeTexture(
         const TextureUse& use, Worn* const worn, const TextureEncoding encoding, const osg::Image* const partner)
     {
         ExtractionStats& stats = mPass.getStats();
 
         const osg::Image* const image = use.get();
         if (image == nullptr)
-            return sNoIndex;
+            return sNoRow;
 
         // **A texture is keyed by what names it**: a file, or a model's own image stamped with the
         // model and its record. An image with neither is one no table can find again, refused once
@@ -397,7 +406,7 @@ namespace Rtx
         {
             mScene.refusals().refuse(Refused::Texture, "an image with no name",
                 "it is neither a file nor a model's own stamped image (`SceneUtil::EmbeddedImage`)");
-            return sNoIndex;
+            return sNoRow;
         }
 
         auto known = mTextureOf.find(image);
@@ -540,10 +549,14 @@ namespace Rtx
         const osg::Image* const diffuse = described->getTexture(SurfaceMap::Diffuse);
 
         // **What the `_spec` map means, measured on it** (`specularLayoutOf`): a classic map makes, with
-        // its diffuse, a base colour and a metal-roughness map, each slot keyed by both files.
+        // its diffuse, a base colour and a metal-roughness map, each slot keyed by both files. The reader's answer
+        // where it made one, so the frame reads no texel of it.
         const osg::Image* const specular = described->getTexture(SurfaceMap::Specular);
+        std::optional<ImageFacts> readSpecular = reading.mSpecularFacts;
+        assert((!readSpecular.has_value() || readSpecular->mSpecularLayout.has_value())
+            && "a reading that read another fact than its material wants");
         const SpecularLayout layout = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
-            ? mThread.specularLayoutOf(mThread.factsOf(*specular), *specular)
+            ? mThread.specularLayoutOf(readSpecular.has_value() ? *readSpecular : mThread.factsOf(*specular), *specular)
             : SpecularLayout::MetalRoughness;
 
         // Every map bound by the surface's one rule (`encodingOf`, `partnerOf`), which the loading
@@ -568,7 +581,7 @@ namespace Rtx
 
         // **The bump and the gloss maps only beside an environment map**, the one thing they change: a texture
         // held for a surface that never reads it is room taken for nothing.
-        if (material.mEnvironment != sNoIndex)
+        if (material.mEnvironment != sNoRow)
         {
             material.mBump = bound(SurfaceMap::Bump);
             material.mBumpUnit = described->getUnit(SurfaceMap::Bump);
@@ -612,7 +625,7 @@ namespace Rtx
         // **The heights the relief spans**, the reader's answer where it made one, and the walk over the
         // normal map's texels here where it made none. A map this cannot answer for is bounded by the
         // whole byte range, which bounds whatever it holds.
-        if (described->mNormalHeight && material.mNormal != sNoIndex && !material.isCutout())
+        if (described->mNormalHeight && material.mNormal != sNoRow && !material.isCutout())
         {
             const osg::Image* const normal = described->getTexture(SurfaceMap::Normal);
             std::optional<ImageFacts> read = reading.mNormalFacts;
@@ -633,7 +646,7 @@ namespace Rtx
         // material that is opaque, tested, or has no diffuse map to read. Whether a blend is a pane or a cut, and a
         // pane a medium, is the texture's alpha, and a glow is asked of an additive sheet alone. The reading's answer
         // where one was made, the walk only where none was.
-        if (material.isBlended() && material.mDiffuse != sNoIndex)
+        if (material.isBlended() && material.mDiffuse != sNoRow)
         {
             std::optional<ImageFacts> read = reading.mDiffuseFacts;
             // The reader asked what this asks, of the same image: a reading that holds the other fact
@@ -646,7 +659,7 @@ namespace Rtx
         }
 
         // The same for the dark map, whose alpha a see-through hit's coverage is multiplied by.
-        if (material.isBlended() && material.mDark != sNoIndex)
+        if (material.isBlended() && material.mDark != sNoRow)
         {
             const osg::Image* const dark = described->getTexture(SurfaceMap::Dark);
             std::optional<ImageFacts> read = reading.mDarkFacts;
@@ -688,24 +701,24 @@ namespace Rtx
 
     void MaterialResolver::release(HeldMaterial& held)
     {
-        if (held.mWorn != sNoIndex)
+        if (held.mWorn != sNoRow)
         {
             releaseWorn(mWorns[held.mWorn]);
             mWorns[held.mWorn] = Worn{};
-            mFreeWorns.push_back(std::exchange(held.mWorn, sNoIndex));
+            mFreeWorns.push_back(std::exchange(held.mWorn, sNoRow));
         }
         mScene.drop(std::move(held.mRow));
     }
 
-    Index MaterialResolver::takeWorn()
+    MaterialResolver::WornIndex MaterialResolver::takeWorn()
     {
         if (mFreeWorns.empty())
         {
-            mWorns.emplace_back();
-            return static_cast<Index>(mWorns.size() - 1);
+            mWorns.push_back(Worn{});
+            return WornIndex(static_cast<std::uint32_t>(mWorns.size() - 1));
         }
 
-        const Index taken = mFreeWorns.back();
+        const WornIndex taken = mFreeWorns.back();
         mFreeWorns.pop_back();
         return taken;
     }

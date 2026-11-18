@@ -10,7 +10,7 @@ namespace Rtx::Testing
 {
     /// The bytes of a DDS file in DXT1 (BC1) of `width` by `height`, multiples of four, carrying `levels` levels, each
     /// level's blocks every byte `fill`: 8 bytes a block. What a test hands a loader where a block file would arrive.
-    inline std::string ddsDxt1(std::uint32_t width, std::uint32_t height, std::uint32_t levels, unsigned char fill)
+    inline std::string ddsDxt1(std::uint32_t width, std::uint32_t height, std::uint32_t levels, std::uint8_t fill)
     {
         std::string bytes(128, '\0');
         const auto put = [&](std::size_t at, std::uint32_t value) { std::memcpy(bytes.data() + at, &value, 4); };

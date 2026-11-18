@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QPushButton>
 
 class QColor;
@@ -22,18 +24,18 @@ namespace CSVWidget
 
     public:
         explicit ColorEditor(const QColor& color, QWidget* parent = nullptr, const bool popupOnStart = false);
-        explicit ColorEditor(const int colorInt, QWidget* parent = nullptr, const bool popupOnStart = false);
+        explicit ColorEditor(const std::int32_t colorInt, QWidget* parent = nullptr, const bool popupOnStart = false);
 
         QColor color() const;
 
         /// \return Color RGB value encoded in an int.
-        int colorInt() const;
+        std::int32_t colorInt() const;
 
         void setColor(const QColor& color);
 
         /// \brief Set color using given int value.
         /// \param colorInt RGB color value encoded as an integer.
-        void setColor(const int colorInt);
+        void setColor(const std::int32_t colorInt);
 
     protected:
         void paintEvent(QPaintEvent* event) override;

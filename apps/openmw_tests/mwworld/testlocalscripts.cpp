@@ -1,23 +1,21 @@
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwclass/misc.hpp"
-#include "apps/openmw/mwscript/interpretercontext.hpp"
-#include "apps/openmw/mwscript/scriptmanagerimp.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/livecellref.hpp"
-#include "apps/openmw/mwworld/localscripts.hpp"
+#include <memory>
+#include <sstream>
 
+#include <gtest/gtest.h>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwclass/misc.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwscript/scriptmanagerimp.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/localscripts.hpp>
+#include <apps/openmw_tests/mwscript/testutils.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadmisc.hpp>
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/objectstate.hpp>
-
-#include <gtest/gtest.h>
-
-#include <memory>
-#include <sstream>
-
-#include "../mwscript/testutils.hpp"
 
 namespace MWWorld
 {

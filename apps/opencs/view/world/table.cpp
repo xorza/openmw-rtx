@@ -1,5 +1,11 @@
 #include "table.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+#include <utility>
+
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QHeaderView>
@@ -7,38 +13,30 @@
 #include <QMetaObject>
 #include <QString>
 
-#include <algorithm>
-#include <stdexcept>
-#include <utility>
-
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/idtableproxymodel.hpp>
+#include <apps/opencs/model/world/infotableproxymodel.hpp>
+#include <apps/opencs/model/world/landtexturetableproxymodel.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/world/dragrecordtable.hpp>
-
 #include <components/debug/debuglog.hpp>
 #include <components/misc/helpviewer.hpp>
 #include <components/misc/scalableicon.hpp>
 #include <components/misc/strings/algorithm.hpp>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/idtablebase.hpp"
-#include "../../model/world/infotableproxymodel.hpp"
-#include "../../model/world/landtexturetableproxymodel.hpp"
-
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/prefs/state.hpp"
-
+#include "dragrecordtable.hpp"
 #include "tableeditidaction.hpp"
 #include "tableheadermouseeventhandler.hpp"
 #include "util.hpp"
@@ -63,8 +61,8 @@ void CSVWorld::Table::contextMenuEvent(QContextMenuEvent* event)
 
     ///  \todo add menu items for select all and clear selection
 
-    int currentRow = rowAt(event->y());
-    int currentColumn = columnAt(event->x());
+    std::int32_t currentRow = rowAt(event->y());
+    std::int32_t currentColumn = columnAt(event->x());
     if (mEditIdAction->setCell(currentRow, currentColumn))
     {
         menu.addAction(mEditIdAction);
@@ -108,14 +106,15 @@ void CSVWorld::Table::contextMenuEvent(QContextMenuEvent* event)
             /// \todo allow reordering of multiple rows
             if (selectedRows.size() == 1)
             {
-                int column = mModel->searchColumnIndex(CSMWorld::Columns::ColumnId_Topic);
+                std::int32_t column = mModel->searchColumnIndex(CSMWorld::Columns::ColumnId_Topic);
 
                 if (column == -1)
                     column = mModel->searchColumnIndex(CSMWorld::Columns::ColumnId_Journal);
 
                 if (column != -1)
                 {
-                    int row = mProxyModel->mapToSource(mProxyModel->index(selectedRows.begin()->row(), 0)).row();
+                    std::int32_t row
+                        = mProxyModel->mapToSource(mProxyModel->index(selectedRows.begin()->row(), 0)).row();
                     QString curData = mModel->data(mModel->index(row, column)).toString();
 
                     if (row > 0)
@@ -142,7 +141,7 @@ void CSVWorld::Table::contextMenuEvent(QContextMenuEvent* event)
 
     if (selectedRows.size() == 1)
     {
-        int row = selectedRows.begin()->row();
+        std::int32_t row = selectedRows.begin()->row();
 
         row = mProxyModel->mapToSource(mProxyModel->index(row, 0)).row();
 
@@ -150,7 +149,7 @@ void CSVWorld::Table::contextMenuEvent(QContextMenuEvent* event)
         {
             CSMWorld::UniversalId id = mModel->view(row).first;
 
-            const int index = mDocument.getData().getCells().searchId(ESM::RefId::stringRefId(id.getId()));
+            const std::int32_t index = mDocument.getData().getCells().searchId(ESM::RefId::stringRefId(id.getId()));
             // index==-1: the ID references a worldspace instead of a cell (ignore for now and go
             // ahead)
 
@@ -286,17 +285,17 @@ CSVWorld::Table::Table(const CSMWorld::UniversalId& id, bool createAndDelete, bo
     setModel(mProxyModel);
     horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     // The number is arbitrary but autoresize would be way too slow otherwise.
-    constexpr int autoResizePrecision = 500;
+    constexpr std::int32_t autoResizePrecision = 500;
     horizontalHeader()->setResizeContentsPrecision(autoResizePrecision);
     resizeColumnsToContents();
     verticalHeader()->hide();
     setSelectionBehavior(QAbstractItemView::SelectRows);
     setSelectionMode(QAbstractItemView::ExtendedSelection);
 
-    int columns = mModel->columnCount();
-    for (int i = 0; i < columns; ++i)
+    std::int32_t columns = mModel->columnCount();
+    for (std::int32_t i = 0; i < columns; ++i)
     {
-        int flags = mModel->headerData(i, Qt::Horizontal, CSMWorld::ColumnBase::Role_Flags).toInt();
+        std::int32_t flags = mModel->headerData(i, Qt::Horizontal, CSMWorld::ColumnBase::Role_Flags).toInt();
 
         if (flags & CSMWorld::ColumnBase::Flag_Table)
         {
@@ -453,12 +452,12 @@ void CSVWorld::Table::setEditLock(bool locked)
     mDispatcher->setEditLock(locked);
 }
 
-CSMWorld::UniversalId CSVWorld::Table::getUniversalId(int row) const
+CSMWorld::UniversalId CSVWorld::Table::getUniversalId(std::int32_t row) const
 {
     row = mProxyModel->mapToSource(mProxyModel->index(row, 0)).row();
 
-    int idColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-    int typeColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
+    std::int32_t idColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t typeColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
 
     return CSMWorld::UniversalId(
         static_cast<CSMWorld::UniversalId::Type>(mModel->data(mModel->index(row, typeColumn)).toInt()),
@@ -469,11 +468,11 @@ std::vector<std::string> CSVWorld::Table::getSelectedIds() const
 {
     std::vector<std::string> ids;
     QModelIndexList selectedRows = selectionModel()->selectedRows();
-    int columnIndex = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t columnIndex = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
 
     for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
     {
-        int row = mProxyModel->mapToSource(mProxyModel->index(iter->row(), 0)).row();
+        std::int32_t row = mProxyModel->mapToSource(mProxyModel->index(iter->row(), 0)).row();
         ids.emplace_back(mModel->data(mModel->index(row, columnIndex)).toString().toUtf8().constData());
     }
     return ids;
@@ -528,11 +527,11 @@ void CSVWorld::Table::moveUpRecord()
 
     if (selectedRows.size() == 1)
     {
-        int row2 = selectedRows.begin()->row();
+        std::int32_t row2 = selectedRows.begin()->row();
 
         if (row2 > 0)
         {
-            int row = row2 - 1;
+            std::int32_t row = row2 - 1;
 
             row = mProxyModel->mapToSource(mProxyModel->index(row, 0)).row();
             row2 = mProxyModel->mapToSource(mProxyModel->index(row2, 0)).row();
@@ -540,10 +539,10 @@ void CSVWorld::Table::moveUpRecord()
             if (row2 <= row)
                 throw std::runtime_error("Inconsistent row order");
 
-            std::vector<int> newOrder(static_cast<std::size_t>(row2 - row + 1));
+            std::vector<std::int32_t> newOrder(static_cast<std::size_t>(row2 - row + 1));
             newOrder[0] = row2 - row;
             newOrder[static_cast<std::size_t>(row2 - row)] = 0;
-            for (int i = 1; i < row2 - row; ++i)
+            for (std::int32_t i = 1; i < row2 - row; ++i)
                 newOrder[static_cast<std::size_t>(i)] = i;
 
             mDocument.getUndoStack().push(
@@ -561,11 +560,11 @@ void CSVWorld::Table::moveDownRecord()
 
     if (selectedRows.size() == 1)
     {
-        int row = selectedRows.begin()->row();
+        std::int32_t row = selectedRows.begin()->row();
 
         if (row < mProxyModel->rowCount() - 1)
         {
-            int row2 = row + 1;
+            std::int32_t row2 = row + 1;
 
             row = mProxyModel->mapToSource(mProxyModel->index(row, 0)).row();
             row2 = mProxyModel->mapToSource(mProxyModel->index(row2, 0)).row();
@@ -573,10 +572,10 @@ void CSVWorld::Table::moveDownRecord()
             if (row2 <= row)
                 throw std::runtime_error("Inconsistent row order");
 
-            std::vector<int> newOrder(static_cast<std::size_t>(row2 - row + 1));
+            std::vector<std::int32_t> newOrder(static_cast<std::size_t>(row2 - row + 1));
             newOrder[0] = row2 - row;
             newOrder[static_cast<std::size_t>(row2 - row)] = 0;
-            for (int i = 1; i < row2 - row; ++i)
+            for (std::int32_t i = 1; i < row2 - row; ++i)
                 newOrder[static_cast<std::size_t>(i)] = i;
 
             mDocument.getUndoStack().push(
@@ -593,22 +592,22 @@ void CSVWorld::Table::moveRecords(QDropEvent* event)
     QModelIndex targedIndex = indexAt(event->position().toPoint());
 
     QModelIndexList selectedRows = selectionModel()->selectedRows();
-    int targetRowRaw = targedIndex.row();
-    int targetRow = mProxyModel->mapToSource(mProxyModel->index(targetRowRaw, 0)).row();
-    int baseRowRaw = targedIndex.row() - 1;
-    int baseRow = mProxyModel->mapToSource(mProxyModel->index(baseRowRaw, 0)).row();
-    int highestDifference = 0;
+    std::int32_t targetRowRaw = targedIndex.row();
+    std::int32_t targetRow = mProxyModel->mapToSource(mProxyModel->index(targetRowRaw, 0)).row();
+    std::int32_t baseRowRaw = targedIndex.row() - 1;
+    std::int32_t baseRow = mProxyModel->mapToSource(mProxyModel->index(baseRowRaw, 0)).row();
+    std::int32_t highestDifference = 0;
 
     for (const auto& thisRowData : selectedRows)
     {
-        int thisRow = mProxyModel->mapToSource(mProxyModel->index(thisRowData.row(), 0)).row();
+        std::int32_t thisRow = mProxyModel->mapToSource(mProxyModel->index(thisRowData.row(), 0)).row();
         highestDifference = std::max(std::abs(targetRow - thisRow), highestDifference);
         baseRow = std::min(thisRow - 1, baseRow);
     }
 
-    std::vector<int> newOrder(static_cast<std::size_t>(highestDifference + 1));
+    std::vector<std::int32_t> newOrder(static_cast<std::size_t>(highestDifference + 1));
 
-    for (int i = 0; i <= highestDifference; ++i)
+    for (std::int32_t i = 0; i <= highestDifference; ++i)
     {
         newOrder[static_cast<std::size_t>(i)] = i;
     }
@@ -630,22 +629,22 @@ void CSVWorld::Table::moveRecords(QDropEvent* event)
             d_DEC)  decrease all members after the ORIGIN by one, stop after hitting address TARGET
         */
 
-        int originRowRaw = thisRowData.row();
-        int originRow = mProxyModel->mapToSource(mProxyModel->index(originRowRaw, 0)).row();
+        std::int32_t originRowRaw = thisRowData.row();
+        std::int32_t originRow = mProxyModel->mapToSource(mProxyModel->index(originRowRaw, 0)).row();
 
         newOrder.erase(newOrder.begin() + originRow - baseRow - 1);
         newOrder.emplace(newOrder.begin() + originRow - baseRow - 1, targetRow - baseRow - 1);
 
         if (originRow > targetRow)
         {
-            for (int i = targetRow - baseRow - 1; i < originRow - baseRow - 1; ++i)
+            for (std::int32_t i = targetRow - baseRow - 1; i < originRow - baseRow - 1; ++i)
             {
                 ++newOrder[static_cast<std::size_t>(i)];
             }
         }
         else
         {
-            for (int i = originRow - baseRow; i <= targetRow - baseRow - 1; ++i)
+            for (std::int32_t i = originRow - baseRow; i <= targetRow - baseRow - 1; ++i)
             {
                 --newOrder[static_cast<std::size_t>(i)];
             }
@@ -674,7 +673,7 @@ void CSVWorld::Table::viewRecord()
 
     if (selectedRows.size() == 1)
     {
-        int row = selectedRows.begin()->row();
+        std::int32_t row = selectedRows.begin()->row();
 
         row = mProxyModel->mapToSource(mProxyModel->index(row, 0)).row();
 
@@ -747,9 +746,9 @@ void CSVWorld::Table::settingChanged(const CSMPrefs::Setting* setting)
     }
     else if (*setting == "Records/type-format" || *setting == "Records/status-format")
     {
-        int columns = mModel->columnCount();
+        std::int32_t columns = mModel->columnCount();
 
-        for (int i = 0; i < columns; ++i)
+        for (std::int32_t i = 0; i < columns; ++i)
             if (QAbstractItemDelegate* delegate = itemDelegateForColumn(i))
             {
                 dynamic_cast<CommandDelegate&>(*delegate).settingChanged(setting);
@@ -794,23 +793,23 @@ void CSVWorld::Table::settingChanged(const CSMPrefs::Setting* setting)
 
 void CSVWorld::Table::tableSizeUpdate()
 {
-    int size = 0;
-    int deleted = 0;
-    int modified = 0;
+    std::int32_t size = 0;
+    std::int32_t deleted = 0;
+    std::int32_t modified = 0;
 
     if (mProxyModel->columnCount() > 0)
     {
-        int rows = mProxyModel->rowCount();
+        std::int32_t rows = mProxyModel->rowCount();
 
-        int columnIndex = mModel->searchColumnIndex(CSMWorld::Columns::ColumnId_Modification);
+        std::int32_t columnIndex = mModel->searchColumnIndex(CSMWorld::Columns::ColumnId_Modification);
 
         if (columnIndex != -1)
         {
-            for (int i = 0; i < rows; ++i)
+            for (std::int32_t i = 0; i < rows; ++i)
             {
                 QModelIndex index = mProxyModel->mapToSource(mProxyModel->index(i, 0));
 
-                int state = mModel->data(mModel->index(index.row(), columnIndex)).toInt();
+                std::int32_t state = mModel->data(mModel->index(index.row(), columnIndex)).toInt();
 
                 switch (state)
                 {
@@ -840,7 +839,7 @@ void CSVWorld::Table::tableSizeUpdate()
 
 void CSVWorld::Table::selectionSizeUpdate()
 {
-    emit selectionSizeChanged(static_cast<int>(selectionModel()->selectedRows().size()));
+    emit selectionSizeChanged(static_cast<std::int32_t>(selectionModel()->selectedRows().size()));
 }
 
 void CSVWorld::Table::requestFocus(const std::string& id)
@@ -873,10 +872,10 @@ void CSVWorld::Table::mouseMoveEvent(QMouseEvent* event)
 
 std::vector<std::string> CSVWorld::Table::getColumnsWithDisplay(CSMWorld::ColumnBase::Display display) const
 {
-    const int count = mModel->columnCount();
+    const std::int32_t count = mModel->columnCount();
 
     std::vector<std::string> titles;
-    for (int i = 0; i < count; ++i)
+    for (std::int32_t i = 0; i < count; ++i)
     {
         CSMWorld::ColumnBase::Display columndisplay = static_cast<CSMWorld::ColumnBase::Display>(
             mModel->headerData(i, Qt::Horizontal, CSMWorld::ColumnBase::Role_Display).toInt());
@@ -909,19 +908,19 @@ void CSVWorld::Table::rowAdded(const std::string& id)
     tableSizeUpdate();
     if (mJumpToAddedRecord)
     {
-        int idColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-        int end = mProxyModel->getModelIndex(id, idColumn).row();
+        std::int32_t idColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+        std::int32_t end = mProxyModel->getModelIndex(id, idColumn).row();
         selectRow(end);
 
         // without this delay the scroll works but goes to top for add/clone
-        QMetaObject::invokeMethod(this, "queuedScrollTo", Qt::QueuedConnection, Q_ARG(int, end));
+        QMetaObject::invokeMethod(this, [this, end] { queuedScrollTo(end); }, Qt::QueuedConnection);
 
         if (mUnselectAfterJump)
             clearSelection();
     }
 }
 
-void CSVWorld::Table::queuedScrollTo(int row)
+void CSVWorld::Table::queuedScrollTo(std::int32_t row)
 {
     scrollTo(mProxyModel->index(row, 0), QAbstractItemView::PositionAtCenter);
 }
@@ -937,7 +936,7 @@ void CSVWorld::Table::dataChangedEvent(const QModelIndex& topLeft, const QModelI
     }
 }
 
-void CSVWorld::Table::jumpAfterModChanged(int state)
+void CSVWorld::Table::jumpAfterModChanged(std::int32_t state)
 {
     if (state == Qt::Checked)
         mAutoJump = true;

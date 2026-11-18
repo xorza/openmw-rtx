@@ -1,5 +1,7 @@
 #include "bgsmfilemanager.hpp"
 
+#include <cstdint>
+
 #include <components/vfs/manager.hpp>
 
 #include "objectcache.hpp"
@@ -22,7 +24,7 @@ namespace Resource
         return file;
     }
 
-    void BgsmFileManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void BgsmFileManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("BSShader Material", frameNumber, mCache->getStats(), *stats);
     }

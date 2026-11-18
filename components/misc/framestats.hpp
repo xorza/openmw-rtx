@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <string>
 
 namespace Misc
@@ -22,7 +23,7 @@ namespace Misc
 
         virtual bool collectStats(const std::string& category) const = 0;
 
-        virtual void setAttribute(unsigned int frameNumber, const std::string& name, double value) = 0;
+        virtual void setAttribute(std::uint32_t frameNumber, const std::string& name, double value) = 0;
     };
 
     using FrameClock = std::chrono::steady_clock;

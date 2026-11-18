@@ -35,7 +35,12 @@ namespace Rtx
 
     void StagingRing::releaseThrough(const std::uint64_t finished)
     {
-        mRetiring.releaseThrough(finished, [&](const std::size_t block) { mSpare.push_back(block); });
+        mRetiring.releaseThrough(finished, [&](const std::size_t block) {
+            mSpare.push_back(block);
+            if (block >= mFreedAt.size())
+                mFreedAt.resize(mBlocks.size(), 0);
+            mFreedAt[block] = finished;
+        });
     }
 
     void StagingRing::trim(const VkDeviceSize keep)
@@ -58,15 +63,18 @@ namespace Rtx
         mSpare.resize(keeping);
     }
 
-    void StagingRing::shed(const VkDeviceSize keep)
+    void StagingRing::shed(const VkDeviceSize keep, const std::uint64_t finished)
     {
         if (mBytes <= keep || mSpare.empty())
             return;
 
-        const auto largest
-            = std::ranges::max_element(mSpare, {}, [&](const std::size_t block) { return mBlocks[block].getSize(); });
-        const std::size_t block = *largest;
-        *largest = mSpare.back();
+        const std::optional<std::size_t> cooled = sheddable(
+            mSpare, [&](const std::size_t block) { return mBlocks[block].getSize(); },
+            [&](const std::size_t block) { return block < mFreedAt.size() ? mFreedAt[block] : 0; }, finished);
+        if (!cooled.has_value())
+            return;
+        const std::size_t block = mSpare[*cooled];
+        mSpare[*cooled] = mSpare.back();
         mSpare.pop_back();
 
         mBytes -= mBlocks[block].getSize();

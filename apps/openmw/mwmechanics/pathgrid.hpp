@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 
 #include <components/esm3/loadpgrd.hpp>
@@ -20,17 +22,17 @@ namespace MWMechanics
 
         // returns true if end point is strongly connected (i.e. reachable
         // from start point) both start and end are pathgrid point indexes
-        bool isPointConnected(const size_t start, const size_t end) const;
+        bool isPointConnected(const std::size_t start, const std::size_t end) const;
 
         // get neighbouring nodes for index node and put them to "nodes" vector
-        void getNeighbouringPoints(const size_t index, ESM::Pathgrid::PointList& nodes) const;
+        void getNeighbouringPoints(const std::size_t index, ESM::Pathgrid::PointList& nodes) const;
 
         // the input parameters are pathgrid point indexes
         // the output list is in local (internal cells) or world (external
         // cells) coordinates
         //
         // NOTE: if start equals end an empty path is returned
-        std::deque<ESM::Pathgrid::Point> aStarSearch(const size_t start, const size_t goal) const;
+        std::deque<ESM::Pathgrid::Point> aStarSearch(const std::size_t start, const std::size_t goal) const;
 
         static const PathgridGraph sEmpty;
 
@@ -41,13 +43,13 @@ namespace MWMechanics
 
         struct ConnectedPoint // edge
         {
-            size_t index; // pathgrid point index of neighbour
+            std::size_t index; // pathgrid point index of neighbour
             float cost;
         };
 
         struct Node // point
         {
-            int componentId{};
+            std::int32_t componentId{};
             std::vector<ConnectedPoint> edges; // neighbours
         };
 

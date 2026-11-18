@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -23,7 +24,7 @@ namespace Rtx
             EXPECT_TRUE(released.take().empty());
 
             std::vector<osg::ref_ptr<osg::Node>> nodes;
-            for (int at = 0; at < 100; ++at)
+            for (std::int32_t at = 0; at < 100; ++at)
                 released.keep(nodes.emplace_back(new osg::Node));
             const std::vector<osg::ref_ptr<const osg::Referenced>> busy = released.take();
             EXPECT_EQ(busy.size(), 100u);

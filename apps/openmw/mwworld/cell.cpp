@@ -1,15 +1,14 @@
 #include "cell.hpp"
 
-#include "esmstore.hpp"
+#include <stdexcept>
+#include <string>
 
-#include "../mwbase/environment.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm4/loadcell.hpp>
 #include <components/esm4/loadwrld.hpp>
 
-#include <stdexcept>
-#include <string>
+#include "esmstore.hpp"
 
 namespace MWWorld
 {

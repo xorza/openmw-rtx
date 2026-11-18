@@ -1,14 +1,16 @@
 #include "contentselector.hpp"
 
-#include "ui_contentselector.h"
-
-#include <components/contentselector/model/esmfile.hpp>
+#include <cstdint>
 
 #include <QClipboard>
 #include <QMenu>
 #include <QModelIndex>
 #include <QProgressDialog>
 #include <QSortFilterProxyModel>
+
+#include <components/contentselector/model/esmfile.hpp>
+
+#include "ui_contentselector.h"
 
 ContentSelectorView::ContentSelector::ContentSelector(QWidget* parent, bool showOMWScripts)
     : QObject(parent)
@@ -42,7 +44,7 @@ void ContentSelectorView::ContentSelector::buildGameFileView()
     ui->gameFileView->addItem(tr("<No game file>"));
     ui->gameFileView->setVisible(true);
 
-    connect(ui->gameFileView, qOverload<int>(&ComboBox::currentIndexChanged), this,
+    connect(ui->gameFileView, qOverload<std::int32_t>(&ComboBox::currentIndexChanged), this,
         &ContentSelector::slotCurrentGameFileIndexChanged);
 
     ui->gameFileView->setCurrentIndex(0);
@@ -58,10 +60,10 @@ namespace
         {
         }
 
-        bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override
+        bool filterAcceptsRow(std::int32_t sourceRow, const QModelIndex& sourceParent) const override
         {
             static const QString contentTypeAddon
-                = QString::number(static_cast<int>(ContentSelectorModel::ContentType_Addon));
+                = QString::number(static_cast<std::int32_t>(ContentSelectorModel::ContentType_Addon));
 
             QModelIndex nameIndex = sourceModel()->index(sourceRow, 0, sourceParent);
             const QString userRole = sourceModel()->data(nameIndex, Qt::UserRole).toString();
@@ -168,7 +170,7 @@ void ContentSelectorView::ContentSelector::setProfileContent(const QStringList& 
 
 void ContentSelectorView::ContentSelector::setGameFile(const QString& filename)
 {
-    int index = 0;
+    std::int32_t index = 0;
 
     if (!filename.isEmpty())
     {
@@ -264,9 +266,9 @@ QString ContentSelectorView::ContentSelector::currentFile() const
     return mContentModel->data(idx, Qt::DisplayRole).toString();
 }
 
-void ContentSelectorView::ContentSelector::slotCurrentGameFileIndexChanged(int index)
+void ContentSelectorView::ContentSelector::slotCurrentGameFileIndexChanged(std::int32_t index)
 {
-    static int oldIndex = -1;
+    static std::int32_t oldIndex = -1;
 
     if (index != oldIndex)
     {
@@ -283,7 +285,7 @@ void ContentSelectorView::ContentSelector::slotCurrentGameFileIndexChanged(int i
     emit signalCurrentGamefileIndexChanged(index);
 }
 
-void ContentSelectorView::ContentSelector::setGameFileSelected(int index, bool selected)
+void ContentSelectorView::ContentSelector::setGameFileSelected(std::int32_t index, bool selected)
 {
     QString fileName = ui->gameFileView->itemText(index);
     const ContentSelectorModel::EsmFile* file = mContentModel->item(fileName);
@@ -321,7 +323,8 @@ void ContentSelectorView::ContentSelector::setCheckStateForMultiSelectedItems(Qt
 {
     const QModelIndexList selectedIndexes = ui->addonView->selectionModel()->selectedIndexes();
 
-    QProgressDialog progressDialog("Updating content selection", {}, 0, static_cast<int>(selectedIndexes.size()));
+    QProgressDialog progressDialog(
+        "Updating content selection", {}, 0, static_cast<std::int32_t>(selectedIndexes.size()));
     progressDialog.setWindowModality(Qt::WindowModal);
     progressDialog.setValue(0);
 
@@ -332,7 +335,7 @@ void ContentSelectorView::ContentSelector::setCheckStateForMultiSelectedItems(Qt
         if (mContentModel->data(sourceIndex, Qt::CheckStateRole).toInt() != checkState)
             mContentModel->setData(sourceIndex, checkState, Qt::CheckStateRole);
 
-        progressDialog.setValue(static_cast<int>(i + 1));
+        progressDialog.setValue(static_cast<std::int32_t>(i + 1));
     }
 }
 
@@ -352,7 +355,7 @@ void ContentSelectorView::ContentSelector::slotCopySelectedItemsPaths()
     QStringList filepaths;
     for (const QModelIndex& index : ui->addonView->selectionModel()->selectedIndexes())
     {
-        int row = mAddonProxyModel->mapToSource(index).row();
+        std::int32_t row = mAddonProxyModel->mapToSource(index).row();
         const ContentSelectorModel::EsmFile* file = mContentModel->item(row);
         filepaths.push_back(file->filePath());
     }

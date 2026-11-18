@@ -12,7 +12,7 @@ namespace ESSImport
 
     struct DIAL
     {
-        int32_t mIndex; // Journal index
+        std::int32_t mIndex; // Journal index
 
         void load(ESM::ESMReader& esm);
     };

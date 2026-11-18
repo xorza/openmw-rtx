@@ -1,11 +1,10 @@
 #include "birthsignbindings.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
-
-#include "../mwbase/environment.hpp"
 
 #include "idcollectionbindings.hpp"
 #include "recordstore.hpp"

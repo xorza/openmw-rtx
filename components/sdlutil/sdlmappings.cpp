@@ -1,15 +1,15 @@
 #include "sdlmappings.hpp"
 
+#include <cstdint>
 #include <map>
 
 #include <MyGUI_MouseButton.h>
-
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_mouse.h>
 
 namespace SDLUtil
 {
-    std::string sdlControllerButtonToString(int button)
+    std::string sdlControllerButtonToString(std::int32_t button)
     {
         switch (button)
         {
@@ -60,7 +60,7 @@ namespace SDLUtil
         }
     }
 
-    std::string sdlControllerAxisToString(int axis)
+    std::string sdlControllerAxisToString(std::int32_t axis)
     {
         switch (axis)
         {

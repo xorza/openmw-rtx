@@ -1,16 +1,16 @@
 #pragma once
 
+#include <iterator>
+#include <optional>
+#include <span>
+
+#include <components/misc/guarded.hpp>
+
 #include "findsmoothpath.hpp"
 #include "flags.hpp"
 #include "navigator.hpp"
 #include "navmeshcacheitem.hpp"
 #include "settings.hpp"
-
-#include <components/misc/guarded.hpp>
-
-#include <iterator>
-#include <optional>
-#include <span>
 
 namespace DetourNavigator
 {

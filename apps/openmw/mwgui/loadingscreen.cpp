@@ -3,16 +3,21 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <string>
-
-#include <osg/FrameStamp>
-#include <osg/Stats>
 
 #include <MyGUI_EditBox.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_TextBox.h>
 #include <MyGUI_Types.h>
+#include <osg/FrameStamp>
+#include <osg/Stats>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/rng.hpp>
@@ -21,13 +26,6 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwrender/renderer.hpp"
 
 #include "backgroundimage.hpp"
 #include "mode.hpp"
@@ -87,7 +85,7 @@ namespace MWGui
         mImportantLabel = important;
 
         mLoadingText->setCaptionWithReplacing(label);
-        int padding = mLoadingBox->getWidth() - mLoadingText->getWidth();
+        std::int32_t padding = mLoadingBox->getWidth() - mLoadingText->getWidth();
         MyGUI::IntSize size(mLoadingText->getTextSize().width + padding, mLoadingBox->getHeight());
         size.width = std::max(300, size.width);
         mLoadingBox->setSize(size);
@@ -116,15 +114,15 @@ namespace MWGui
 
         // The layout's own margins, read before the box is resized, which stretches the text with it.
         const MyGUI::IntSize padding = mNoteBox->getSize() - mNoteText->getSize();
-        constexpr int widthMost = 600;
-        constexpr int gap = 8;
-        const int width = std::min(widthMost, mMainWidget->getWidth() - 2 * gap);
+        constexpr std::int32_t widthMost = 600;
+        constexpr std::int32_t gap = 8;
+        const std::int32_t width = std::min(widthMost, mMainWidget->getWidth() - 2 * gap);
 
         // The text wraps at the width its box has when the caption is set, so the width comes first
         // and the height is read after.
         mNoteBox->setSize(width, mNoteBox->getHeight());
         mNoteText->setCaptionWithReplacing(mNote);
-        const int height = mNoteText->getTextSize().height + padding.height;
+        const std::int32_t height = mNoteText->getTextSize().height + padding.height;
         mNoteBox->setCoord(
             mMainWidget->getWidth() / 2 - width / 2, mLoadingBox->getTop() - gap - height, width, height);
     }
@@ -210,7 +208,7 @@ namespace MWGui
         mSceneImage->setVisible(false);
     }
 
-    void LoadingScreen::setProgressRange(size_t range)
+    void LoadingScreen::setProgressRange(std::size_t range)
     {
         mProgressBar->setScrollRange(range + 1);
         mProgressBar->setScrollPosition(0);
@@ -218,7 +216,7 @@ namespace MWGui
         mProgress = 0;
     }
 
-    void LoadingScreen::setProgress(size_t value)
+    void LoadingScreen::setProgress(std::size_t value)
     {
         // skip expensive update if there isn't enough visible progress
         if (mProgressBar->getWidth() <= 0
@@ -227,18 +225,18 @@ namespace MWGui
         value = std::min(value, mProgressBar->getScrollRange() - 1);
         mProgress = value;
         mProgressBar->setScrollPosition(0);
-        mProgressBar->setTrackSize(static_cast<int>(static_cast<float>(value)
+        mProgressBar->setTrackSize(static_cast<std::int32_t>(static_cast<float>(value)
             / static_cast<float>(mProgressBar->getScrollRange()) * static_cast<float>(mProgressBar->getLineSize())));
         draw();
     }
 
-    void LoadingScreen::increaseProgress(size_t increase)
+    void LoadingScreen::increaseProgress(std::size_t increase)
     {
         mProgressBar->setScrollPosition(0);
-        size_t value = mProgress + increase;
+        std::size_t value = mProgress + increase;
         value = std::min(value, mProgressBar->getScrollRange() - 1);
         mProgress = value;
-        mProgressBar->setTrackSize(static_cast<int>(static_cast<float>(value)
+        mProgressBar->setTrackSize(static_cast<std::int32_t>(static_cast<float>(value)
             / static_cast<float>(mProgressBar->getScrollRange()) * static_cast<float>(mProgressBar->getLineSize())));
         draw();
     }
@@ -301,7 +299,7 @@ namespace MWGui
         MWBase::Environment::get().getInputManager()->update(0, true, true);
 
         osg::Stats* const stats = &mRenderer.getStats();
-        const unsigned frameNumber = mRenderer.getFrameStamp().getFrameNumber();
+        const std::uint32_t frameNumber = mRenderer.getFrameStamp().getFrameNumber();
 
         stats->setAttribute(frameNumber, "Loading", 1);
 

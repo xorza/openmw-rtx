@@ -52,8 +52,8 @@ namespace Rtx
         ///        there are of the rows and of the positions a refit reads.
         /// @param placementRoom the rows the top level and every copy of them are made with room
         ///        for, `DeviceScene`'s.
-        SceneAcceleration(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-            std::uint32_t slots, std::uint32_t placementRoom);
+        SceneAcceleration(const Device& device, Batch& batch, const SceneDesc& scene,
+            std::span<const MeshIndex> everyMesh, std::uint32_t slots, std::uint32_t placementRoom);
 
         /// Pinned: the top-level build keeps a pointer to its geometry, a member beside it.
         SceneAcceleration(const SceneAcceleration&) = delete;
@@ -70,9 +70,9 @@ namespace Rtx
         /// `compaction` says when the bottom levels are copied tight (`BuildCompaction`), and the
         /// rows are written after, so they name where the structures stand, through `uploads`,
         /// which writes into `batch`.
-        void build(Batch& batch, Uploads& uploads, const SceneDesc& scene, std::span<const Index> everyMesh,
-            std::span<const InstanceRecord> records, const BlockedBuffer& positions, const TopLevelPackPass& pack,
-            BuildCompaction compaction, std::vector<Refusal>& refused);
+        void build(Batch& batch, Uploads& uploads, const SceneDesc& scene, std::span<const MeshIndex> everyMesh,
+            RowSpan<const InstanceRecord, PlacementIndex> records, const BlockedBuffer& positions,
+            const TopLevelPackPass& pack, BuildCompaction compaction, std::vector<Refusal>& refused);
 
         /// Rebuilds what a moved world changed: every deformed mesh's structure, then the top level,
         /// in one command buffer with a barrier between. A deforming mesh's structure is refitted
@@ -84,8 +84,8 @@ namespace Rtx
         /// @param changed the slots `updateInstanceRecords` wrote, which is the one list any of
         ///        this is driven by. `records` is handed in rather than made here because
         ///        `SceneBuffers` needs the same rows.
-        bool place(const SceneDesc& scene, std::span<const InstanceRecord> records, std::span<const Index> changed,
-            const TopLevelPackPass& pack, const Placing& placing);
+        bool place(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records,
+            std::span<const PlacementIndex> changed, const TopLevelPackPass& pack, const Placing& placing);
 
         /// Waits until no build on the queue reads `slot`'s copy of the rows, ahead of the
         /// placement that writes it.
@@ -108,7 +108,7 @@ namespace Rtx
             std::vector<Refusal>& refused);
 
         /// Destroys the structures of `meshes` and gives their storage back.
-        void release(std::span<const Index> meshes) { mBottomLevel.release(meshes); }
+        void release(std::span<const MeshIndex> meshes) { mBottomLevel.release(meshes); }
 
         /// Builds again, into `batch`, the structures that waited for room (`BottomLevelStore::buildWaiting`), each
         /// that deforms over `slot`'s pose, which the slot's last frame wrote and nothing in flight still writes. A
@@ -130,7 +130,7 @@ namespace Rtx
 
         /// The poses, for the pass that writes a deforming mesh's vertices into a slot's copy of
         /// them — and their account, which is what tells that pass which meshes each copy owes.
-        SlotBlocks& getPoses() { return mPoses; }
+        SlotBlocks<MeshIndex>& getPoses() { return mPoses; }
 
         /// Where `slot`'s copy keeps its poses, as a shader reads them at a hit: every deforming
         /// mesh as this frame traces it. And the copy `slot` does not trace, which by the account
@@ -157,11 +157,12 @@ namespace Rtx
         /// packed rows, the blocks' first places, the poses, and every build's and refit's scratch.
         VkDeviceSize getWorkBytes() const;
 
-        /// `BottomLevelStore::wasRefusedRoom`.
-        bool wasRefusedRoom() const { return mBottomLevel.wasRefusedRoom(); }
+        /// `BottomLevelStore::waitAgain`.
+        void waitAgain() { mBottomLevel.waitAgain(); }
 
         VkDeviceSize getCompactableBytes() const { return mBottomLevel.getCompactableBytes(); }
         VkDeviceSize getCompactableNowBytes() const { return mBottomLevel.getCompactableNowBytes(); }
+        VkDeviceSize getMovedOutBytes() const { return mBottomLevel.getMovedOutBytes(); }
 
         /// How many structures the rota has built whole again since the scene was made, for the
         /// scene's report.
@@ -185,7 +186,7 @@ namespace Rtx
         /// Reserves room for the scene's geometry and copies in the runs `meshes` names. Per mesh
         /// and not per scene, because that is what an arrival is: the blocks already hold
         /// everything else.
-        void writeGeometry(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes);
+        void writeGeometry(Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> meshes);
 
         /// Fills the refit build infos over the scratch `sizeRefitScratch` made. Leaves `mRefit`
         /// holding exactly this frame's rebuilds, which is what both the caller and `recordRefit`
@@ -201,7 +202,7 @@ namespace Rtx
 
         /// What `mesh`'s place in this placement's refit works in: a whole build's scratch for the
         /// one the rota picked, an update's for the rest.
-        VkDeviceSize refitScratchOf(Index mesh) const
+        VkDeviceSize refitScratchOf(MeshIndex mesh) const
         {
             return mBottomLevel.getScratchFor(mesh,
                 mesh == mRebuilt ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR
@@ -209,7 +210,7 @@ namespace Rtx
         }
 
         /// Brings the host rows up to what `changed` names, and to whatever the table grew by.
-        void writeRows(std::span<const InstanceRecord> records, std::span<const Index> changed);
+        void writeRows(RowSpan<const InstanceRecord, PlacementIndex> records, std::span<const PlacementIndex> changed);
 
         /// Everything the top-level build needs before a command buffer exists: `slot`'s copy of the
         /// rows paid and each block's first place written for its packing, both through `uploads`,
@@ -219,7 +220,7 @@ namespace Rtx
         void prepareTopLevel(const SceneDesc& scene, FrameSlot slot, Uploads& uploads);
 
         /// Writes one row from its record, and counts it in its block where it places an instance.
-        void placeRow(Index slot, const InstanceRecord& record);
+        void placeRow(PlacementIndex slot, const InstanceRecord& record);
 
         /// Makes the top level for `slots` rows, over storage grown to hold it.
         void sizeTopLevel(std::uint32_t slots);
@@ -231,7 +232,7 @@ namespace Rtx
 
         /// Writes again every row placing a mesh whose structure the compaction moved. True where
         /// anything moved, which is also when there is a copy to record.
-        bool placeCompacted(const SceneDesc& scene, std::span<const InstanceRecord> records);
+        bool placeCompacted(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records);
 
         const Device& mDevice;
         const std::uint32_t mPlacementRoom;
@@ -243,14 +244,14 @@ namespace Rtx
         /// poses it was given: a pose is on the device and nowhere else. A hit on a body reads its
         /// triangle's corners out of the copy this frame traces (`trianglePositions`), and where it
         /// stood on the previous frame out of the other (`GpuTables::mPreviousPoseBlocks`).
-        SlotBlocks mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+        SlotBlocks<MeshIndex> mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
 
         /// How many placements this has prepared that posed something, which is the clock the
         /// rebuild rota reads: a placement that poses nothing refits nothing and is not a tick of
         /// it. And which posed mesh the last one built whole.
         std::uint64_t mPlacements = 0;
         std::uint64_t mRebuildCount = 0;
-        Index mRebuilt = sNoIndex;
+        MeshIndex mRebuilt = sNoRow;
 
         BlockedBuffer mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
 
@@ -259,7 +260,7 @@ namespace Rtx
         /// The rows by slot, one copy per frame in flight, which the packing reads the top level's
         /// rows out of. A gap is an inactive row — a reference of nought — and not a row left out,
         /// because a row's index is the slot a hit reads back.
-        SlotTable<VkAccelerationStructureInstanceKHR> mRowTable;
+        SlotTable<VkAccelerationStructureInstanceKHR, PlacementIndex> mRowTable;
 
         /// `mRowTable.getWrites()` when the top level was last built: none before the first build,
         /// which an empty world asks for too, and none again once a structure arrives.
@@ -324,7 +325,7 @@ namespace Rtx
 
         /// The deformed meshes a refit rebuilds: every one the scene posed that has a structure,
         /// because one the device had no room for is left out. Refilled per placement.
-        std::vector<Index> mRefitting;
+        std::vector<MeshIndex> mRefitting;
 
         /// The top level's size, assigned at each build and never added to: the bottom levels are
         /// counted by their store and made once, and the top level again every frame that moves, so

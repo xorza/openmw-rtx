@@ -1,11 +1,13 @@
 #include "tradeitemmodel.hpp"
 
 #include <algorithm>
-#include <components/settings/values.hpp>
+#include <cstddef>
+#include <cstdint>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/inventorystore.hpp"
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <components/settings/values.hpp>
 
 namespace MWGui
 {
@@ -25,12 +27,12 @@ namespace MWGui
     {
         if (index < 0)
             throw std::runtime_error("Invalid index supplied");
-        if (mItems.size() <= static_cast<size_t>(index))
+        if (mItems.size() <= static_cast<std::size_t>(index))
             throw std::runtime_error("Item index out of range");
         return mItems[static_cast<std::size_t>(index)];
     }
 
-    size_t TradeItemModel::getItemCount()
+    std::size_t TradeItemModel::getItemCount()
     {
         return mItems.size();
     }
@@ -51,7 +53,7 @@ namespace MWGui
             out.push_back(item);
     }
 
-    void TradeItemModel::unborrowImpl(const ItemStack& item, size_t count, std::vector<ItemStack>& out)
+    void TradeItemModel::unborrowImpl(const ItemStack& item, std::size_t count, std::vector<ItemStack>& out)
     {
         auto it = out.begin();
         bool found = false;
@@ -72,27 +74,27 @@ namespace MWGui
             throw std::runtime_error("Can't find borrowed item to return");
     }
 
-    void TradeItemModel::borrowItemFromUs(ModelIndex itemIndex, size_t count)
+    void TradeItemModel::borrowItemFromUs(ModelIndex itemIndex, std::size_t count)
     {
         ItemStack item = getItem(itemIndex);
         item.mCount = count;
         borrowImpl(item, mBorrowedFromUs);
     }
 
-    void TradeItemModel::borrowItemToUs(ModelIndex itemIndex, ItemModel* source, size_t count)
+    void TradeItemModel::borrowItemToUs(ModelIndex itemIndex, ItemModel* source, std::size_t count)
     {
         ItemStack item = source->getItem(itemIndex);
         item.mCount = count;
         borrowImpl(item, mBorrowedToUs);
     }
 
-    void TradeItemModel::returnItemBorrowedToUs(ModelIndex itemIndex, size_t count)
+    void TradeItemModel::returnItemBorrowedToUs(ModelIndex itemIndex, std::size_t count)
     {
         ItemStack item = getItem(itemIndex);
         unborrowImpl(item, count, mBorrowedToUs);
     }
 
-    void TradeItemModel::returnItemBorrowedFromUs(ModelIndex itemIndex, ItemModel* source, size_t count)
+    void TradeItemModel::returnItemBorrowedFromUs(ModelIndex itemIndex, ItemModel* source, std::size_t count)
     {
         ItemStack item = source->getItem(itemIndex);
         unborrowImpl(item, count, mBorrowedFromUs);
@@ -148,7 +150,7 @@ namespace MWGui
         {
             // get index in the source model
             ItemModel* sourceModel = itemStack.mCreator;
-            size_t i = 0;
+            std::size_t i = 0;
             for (; i < sourceModel->getItemCount(); ++i)
             {
                 if (itemStack.mBase == sourceModel->getItem(static_cast<ModelIndex>(i)).mBase)
@@ -168,13 +170,13 @@ namespace MWGui
     {
         mSourceModel->update();
 
-        int services = 0;
+        std::int32_t services = 0;
         if (!mMerchant.isEmpty())
             services = mMerchant.getClass().getServices(mMerchant);
 
         mItems.clear();
         // add regular items
-        for (size_t i = 0; i < mSourceModel->getItemCount(); ++i)
+        for (std::size_t i = 0; i < mSourceModel->getItemCount(); ++i)
         {
             ItemStack item = mSourceModel->getItem(static_cast<ModelIndex>(i));
             if (!mMerchant.isEmpty())

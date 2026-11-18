@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 #include <osgUtil/CullVisitor>
@@ -9,11 +11,11 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/glextensions.hpp>
-#include <components/sceneutil/util.hpp>
 #include <components/shader/shadermanager.hpp>
 
+#include "glextensions.hpp"
 #include "memorybarrier.hpp"
+#include "util.hpp"
 
 namespace
 {
@@ -59,10 +61,10 @@ namespace SceneUtil
 {
     namespace
     {
-        int sLightId = 0;
+        std::int32_t sLightId = 0;
     }
 
-    void configureStateSetSunOverride(const Light* light, osg::StateSet* stateset, int mode)
+    void configureStateSetSunOverride(const Light* light, osg::StateSet* stateset, std::int32_t mode)
     {
         stateset->addUniform(new osg::Uniform("sun.position", light->getPosition()),
             static_cast<osg::StateAttribute::OverrideValue>(mode));
@@ -161,8 +163,8 @@ namespace SceneUtil
             return;
         }
 
-        const size_t frame = cv->getTraversalNumber();
-        const size_t frameId = frame % 2;
+        const std::size_t frame = cv->getTraversalNumber();
+        const std::size_t frameId = frame % 2;
 
         auto& cache = mCache[cv->getCurrentCamera()];
 
@@ -253,15 +255,15 @@ namespace SceneUtil
                     osg::Vec3f(static_cast<float>(mGridSizeX), static_cast<float>(mGridSizeY),
                         static_cast<float>(mGridSizeZ))));
 
-                const int maxLightIndices = mMaxLightsPerCluster * mNumClusters;
+                const std::int32_t maxLightIndices = mMaxLightsPerCluster * mNumClusters;
 
                 osg::ref_ptr<osg::UByteArray> clusterData = new osg::UByteArray(
-                    static_cast<unsigned int>(sizeof(Cluster) * static_cast<std::size_t>(mNumClusters)));
+                    static_cast<std::uint32_t>(sizeof(Cluster) * static_cast<std::size_t>(mNumClusters)));
                 clusterData->setBufferObject(new osg::ShaderStorageBufferObject);
                 cache.mClusterSSBB
                     = new osg::ShaderStorageBufferBinding(1, clusterData, 0, clusterData->getTotalDataSize());
 
-                for (size_t i = 0; i < cache.mPointLightSSBB.size(); ++i)
+                for (std::size_t i = 0; i < cache.mPointLightSSBB.size(); ++i)
                 {
                     cache.mGPULights[i] = new osg::BufferTemplate<std::vector<PointLight>>();
                     cache.mGPULights[i]->setBufferObject(new osg::ShaderStorageBufferObject);
@@ -270,13 +272,13 @@ namespace SceneUtil
                         2, cache.mGPULights[i], 0, cache.mGPULights[i]->getTotalDataSize());
 
                     osg::ref_ptr<osg::UIntArray> gridData
-                        = new osg::UIntArray(static_cast<unsigned int>(mNumClusters * 2));
+                        = new osg::UIntArray(static_cast<std::uint32_t>(mNumClusters * 2));
                     gridData->setBufferObject(new osg::ShaderStorageBufferObject);
                     cache.mLightGridSSBB[i]
                         = new osg::ShaderStorageBufferBinding(3, gridData, 0, gridData->getTotalDataSize());
 
                     osg::ref_ptr<osg::UIntArray> indexData
-                        = new osg::UIntArray(static_cast<unsigned int>(maxLightIndices));
+                        = new osg::UIntArray(static_cast<std::uint32_t>(maxLightIndices));
                     indexData->setBufferObject(new osg::ShaderStorageBufferObject);
                     cache.mLightIndexListSSBB[i]
                         = new osg::ShaderStorageBufferBinding(4, indexData, 0, indexData->getTotalDataSize());
@@ -379,7 +381,7 @@ namespace SceneUtil
         //  1. GL_ARB_shader_storage_buffer_object
         //  2. GL_ARB_shading_language_420pack
         // However, this is not the case in practice and is known to be broken on at least Mesa drivers.
-        bool supportsSSBO = exts && static_cast<int>(exts->glslLanguageVersion * 100) >= 430;
+        bool supportsSSBO = exts && static_cast<std::int32_t>(exts->glslLanguageVersion * 100) >= 430;
 
         mSupportsClustered = supportsSSBO;
 
@@ -427,12 +429,12 @@ namespace SceneUtil
         return mClusteredLighting;
     }
 
-    int LightManager::getMaxLights() const
+    std::int32_t LightManager::getMaxLights() const
     {
         return mMaxLights;
     }
 
-    void LightManager::setMaxLights(int value)
+    void LightManager::setMaxLights(std::int32_t value)
     {
         mMaxLights = value;
     }
@@ -455,7 +457,7 @@ namespace SceneUtil
         updateSettings(lightRadiusMultiplier, maximumLightDistance, lightFadeStart);
     }
 
-    void LightManager::updateMaxLights(int maxLights)
+    void LightManager::updateMaxLights(std::int32_t maxLights)
     {
         setMaxLights(maxLights);
 
@@ -484,7 +486,7 @@ namespace SceneUtil
         }
     }
 
-    void LightManager::initPerObjectUniform(int targetLights)
+    void LightManager::initPerObjectUniform(std::int32_t targetLights)
     {
         mClusteredLighting = false;
         setMaxLights(targetLights);
@@ -500,17 +502,17 @@ namespace SceneUtil
         mCullCallback->reset();
     }
 
-    void LightManager::setLightingMask(size_t mask)
+    void LightManager::setLightingMask(std::size_t mask)
     {
         mLightingMask = mask;
     }
 
-    size_t LightManager::getLightingMask() const
+    std::size_t LightManager::getLightingMask() const
     {
         return mLightingMask;
     }
 
-    void LightManager::update(size_t frameNum)
+    void LightManager::update(std::size_t frameNum)
     {
         if (mPPLightBuffer)
             mPPLightBuffer->clear(frameNum);
@@ -520,7 +522,7 @@ namespace SceneUtil
         mLightListStateSets.clear();
     }
 
-    void LightManager::addLight(LightSource* lightSource, const osg::Matrixf& worldMat, size_t frameNum)
+    void LightManager::addLight(LightSource* lightSource, const osg::Matrixf& worldMat, std::size_t frameNum)
     {
         LightSourceTransform l;
         l.mLightSource = lightSource;
@@ -542,9 +544,9 @@ namespace SceneUtil
     }
 
     osg::ref_ptr<osg::StateSet> LightManager::getLightListStateSet(
-        const LightList& lightList, size_t frameNum, const osg::RefMatrix* viewMatrix)
+        const LightList& lightList, std::size_t frameNum, const osg::RefMatrix* viewMatrix)
     {
-        std::vector<int> lightIds;
+        std::vector<std::int32_t> lightIds;
         lightIds.reserve(lightList.size());
         for (const LightSourceViewBound* light : lightList)
             lightIds.push_back(light->mLightSource->getId());
@@ -556,7 +558,7 @@ namespace SceneUtil
         osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;
         osg::ref_ptr<osg::Uniform> data = generateLightBufferUniform();
 
-        for (size_t i = 0; i < lightList.size(); ++i)
+        for (std::size_t i = 0; i < lightList.size(); ++i)
         {
             auto* light = lightList[i]->mLightSource->getLight(frameNum);
             osg::Matrixf lightMat;
@@ -568,18 +570,18 @@ namespace SceneUtil
                 light->getQuadraticAttenuation(),
                 lightList[i]->mLightSource->getRadius() * mPointLightRadiusMultiplier);
 
-            data->setElement(static_cast<unsigned int>(i), lightMat);
+            data->setElement(static_cast<std::uint32_t>(i), lightMat);
         }
 
         stateset->addUniform(data);
-        stateset->addUniform(new osg::Uniform("PointLightCount", static_cast<int>(lightList.size())));
+        stateset->addUniform(new osg::Uniform("PointLightCount", static_cast<std::int32_t>(lightList.size())));
 
         found->second = stateset;
         return stateset;
     }
 
     const std::vector<LightManager::LightSourceViewBound>& LightManager::getLightsInViewSpace(
-        osgUtil::CullVisitor* cv, const osg::RefMatrix* viewMatrix, size_t frameNum)
+        osgUtil::CullVisitor* cv, const osg::RefMatrix* viewMatrix, std::size_t frameNum)
     {
         osg::Camera* camera = cv->getCurrentCamera();
 
@@ -739,7 +741,7 @@ namespace SceneUtil
             const osg::Transform* transform = node->asTransform();
             if (transform)
             {
-                for (unsigned int i = 0; i < transform->getNumChildren(); ++i)
+                for (std::uint32_t i = 0; i < transform->getNumChildren(); ++i)
                     nodeBound.expandBy(transform->getChild(i)->getBound());
             }
             else

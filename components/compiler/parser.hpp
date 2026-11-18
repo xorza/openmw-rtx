@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace Compiler
@@ -45,7 +46,7 @@ namespace Compiler
         virtual ~Parser();
         ///< destructor
 
-        virtual bool parseInt(int value, const TokenLoc& loc, Scanner& scanner);
+        virtual bool parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner);
         ///< Handle an int token.
         /// \return fetch another token?
         ///
@@ -63,13 +64,13 @@ namespace Compiler
         ///
         /// - Default-implementation: Report an error.
 
-        virtual bool parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner);
+        virtual bool parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner);
         ///< Handle a keyword token.
         /// \return fetch another token?
         ///
         /// - Default-implementation: Report an error.
 
-        virtual bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner);
+        virtual bool parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner);
         ///< Handle a special character token.
         /// \return fetch another token?
         ///

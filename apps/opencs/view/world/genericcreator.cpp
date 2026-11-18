@@ -1,5 +1,6 @@
 #include "genericcreator.hpp"
 
+#include <cstdint>
 #include <memory>
 #include <utility>
 
@@ -10,13 +11,11 @@
 #include <QPushButton>
 #include <QUndoStack>
 
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/misc/strings/lower.hpp>
-
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
 
 #include "idvalidator.hpp"
 
@@ -127,7 +126,7 @@ void CSVWorld::GenericCreator::updateNamespace()
 
     mValidator->setNamespace(namespaceName);
 
-    int index = static_cast<int>(mId->text().indexOf("::"));
+    std::int32_t index = static_cast<std::int32_t>(mId->text().indexOf("::"));
 
     if (index == -1)
     {
@@ -145,7 +144,7 @@ void CSVWorld::GenericCreator::updateNamespace()
 
 void CSVWorld::GenericCreator::addScope(const QString& name, CSMWorld::Scope scope, const QString& tooltip)
 {
-    mScope->addItem(name, static_cast<int>(scope));
+    mScope->addItem(name, static_cast<std::int32_t>(scope));
     mScope->setItemData(mScope->count() - 1, tooltip, Qt::ToolTipRole);
 }
 
@@ -194,7 +193,7 @@ CSVWorld::GenericCreator::GenericCreator(
     connect(&mData, &CSMWorld::Data::idListChanged, this, &GenericCreator::dataIdListChanged);
 }
 
-void CSVWorld::GenericCreator::setEditorMaxLength(int length)
+void CSVWorld::GenericCreator::setEditorMaxLength(std::int32_t length)
 {
     mId->setMaxLength(length);
 }
@@ -295,10 +294,10 @@ void CSVWorld::GenericCreator::focus()
     mId->setFocus();
 }
 
-void CSVWorld::GenericCreator::setScope(unsigned int scope)
+void CSVWorld::GenericCreator::setScope(std::uint32_t scope)
 {
     mScopes = scope;
-    int count = static_cast<int>((mScopes & CSMWorld::Scope_Content) + (mScopes & CSMWorld::Scope_Project)
+    auto count = static_cast<std::int32_t>((mScopes & CSMWorld::Scope_Content) + (mScopes & CSMWorld::Scope_Project)
         + (mScopes & CSMWorld::Scope_Session));
 
     // scope selector widget
@@ -322,7 +321,7 @@ void CSVWorld::GenericCreator::setScope(unsigned int scope)
                 "Record will be created in the reserved namespace \"session\".<p>"
                 "Record is not available when running OpenMW via OpenCS.");
 
-        connect(mScope, qOverload<int>(&QComboBox::currentIndexChanged), this, &GenericCreator::scopeChanged);
+        connect(mScope, qOverload<std::int32_t>(&QComboBox::currentIndexChanged), this, &GenericCreator::scopeChanged);
 
         mScopeLabel = new QLabel("Scope", this);
         insertAtBeginning(mScopeLabel, false);
@@ -341,7 +340,7 @@ void CSVWorld::GenericCreator::setScope(unsigned int scope)
     updateNamespace();
 }
 
-void CSVWorld::GenericCreator::scopeChanged(int index)
+void CSVWorld::GenericCreator::scopeChanged(std::int32_t index)
 {
     update();
     updateNamespace();

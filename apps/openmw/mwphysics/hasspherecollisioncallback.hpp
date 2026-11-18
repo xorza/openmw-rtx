@@ -1,10 +1,11 @@
 #pragma once
 
+#include <algorithm>
+#include <cstdint>
+
 #include <BulletCollision/BroadphaseCollision/btBroadphaseInterface.h>
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <LinearMath/btVector3.h>
-
-#include <algorithm>
 
 namespace MWPhysics
 {
@@ -20,8 +21,8 @@ namespace MWPhysics
     class HasSphereCollisionCallback final : public btBroadphaseAabbCallback
     {
     public:
-        explicit HasSphereCollisionCallback(const btVector3& position, const btScalar radius, const int mask,
-            const int group, const btCollisionObject* ignore)
+        explicit HasSphereCollisionCallback(const btVector3& position, const btScalar radius, const std::int32_t mask,
+            const std::int32_t group, const btCollisionObject* ignore)
             : mPosition(position)
             , mRadius(radius)
             , mIgnore(ignore)
@@ -48,8 +49,8 @@ namespace MWPhysics
         btVector3 mPosition;
         btScalar mRadius;
         const btCollisionObject* mIgnore;
-        int mCollisionFilterMask;
-        int mCollisionFilterGroup;
+        std::int32_t mCollisionFilterMask;
+        std::int32_t mCollisionFilterGroup;
         bool mResult = false;
 
         bool needsCollision(const btBroadphaseProxy& proxy) const

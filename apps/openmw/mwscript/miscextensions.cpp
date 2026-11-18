@@ -1,27 +1,42 @@
 #include "miscextensions.hpp"
 
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
 #include <string_view>
+#include <utility>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/aicast.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/spellcasting.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/rendersupport.hpp>
+#include <apps/openmw/mwrender/texturereport.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/compiler/opcodes.hpp>
-
 #include <components/debug/debuglog.hpp>
-
-#include <components/interpreter/interpreter.hpp>
-#include <components/interpreter/opcodes.hpp>
-#include <components/interpreter/runtime.hpp>
-
-#include <components/misc/resourcehelpers.hpp>
-#include <components/misc/rng.hpp>
-
-#include <components/resource/resourcesystem.hpp>
-#include <components/resource/scenemanager.hpp>
-
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
@@ -43,39 +58,17 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
-
 #include <components/files/conversion.hpp>
+#include <components/interpreter/interpreter.hpp>
+#include <components/interpreter/opcodes.hpp>
+#include <components/interpreter/runtime.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/rng.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/platform/localtime.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/resource/scenemanager.hpp>
 #include <components/vfs/manager.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/aicast.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/spellcasting.hpp"
-
-#include "../mwrender/animation.hpp"
-#include "../mwrender/renderer.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/rendersupport.hpp"
-#include "../mwrender/texturereport.hpp"
 
 #include "interpretercontext.hpp"
 #include "ref.hpp"
@@ -95,7 +88,7 @@ namespace
         return true;
     }
 
-    void addToLevList(ESM::LevelledListBase* list, const ESM::RefId& itemId, uint16_t level)
+    void addToLevList(ESM::LevelledListBase* list, const ESM::RefId& itemId, std::uint16_t level)
     {
         for (auto& levelItem : list->mList)
         {
@@ -109,7 +102,7 @@ namespace
         list->mList.push_back(item);
     }
 
-    void removeFromLevList(ESM::LevelledListBase* list, const ESM::RefId& itemId, int level)
+    void removeFromLevList(ESM::LevelledListBase* list, const ESM::RefId& itemId, std::int32_t level)
     {
         // level of -1 removes all items with that itemId
         for (auto it = list->mList.begin(); it != list->mList.end();)
@@ -351,7 +344,7 @@ namespace MWScript
             class OpLock : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -496,7 +489,8 @@ namespace MWScript
                     Interpreter::Type_Float time = runtime[0].mFloat;
                     runtime.pop();
 
-                    MWBase::Environment::get().getWindowManager()->fadeScreenTo(static_cast<int>(alpha), time, false);
+                    MWBase::Environment::get().getWindowManager()->fadeScreenTo(
+                        static_cast<std::int32_t>(alpha), time, false);
                 }
             };
 
@@ -615,9 +609,9 @@ namespace MWScript
 
                     ESM::RefId key;
 
-                    if (const auto k = ::Misc::StringUtils::toNumeric<long>(effectName);
+                    if (const auto k = ::Misc::StringUtils::toNumeric<std::int64_t>(effectName);
                         k.has_value() && *k >= 0 && *k <= 32767)
-                        key = ESM::MagicEffect::indexToRefId(static_cast<int>(*k));
+                        key = ESM::MagicEffect::indexToRefId(static_cast<std::int32_t>(*k));
                     else
                         key = ESM::MagicEffect::effectGmstIdToRefId(effectName);
 
@@ -673,7 +667,7 @@ namespace MWScript
             class OpRemoveSoulGem : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -681,7 +675,7 @@ namespace MWScript
                     runtime.pop();
 
                     // throw away additional arguments
-                    for (unsigned int i = 0; i < arg0; ++i)
+                    for (std::uint32_t i = 0; i < arg0; ++i)
                         runtime.pop();
 
                     if (!ptr.getClass().isActor())
@@ -730,8 +724,8 @@ namespace MWScript
                         invStorePtr = &ptr.getClass().getInventoryStore(ptr);
                         // Prefer dropping unequipped items first; re-stack if possible by unequipping items before
                         // dropping them.
-                        int numNotEquipped = invStorePtr->count(item);
-                        for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+                        std::int32_t numNotEquipped = invStorePtr->count(item);
+                        for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
                         {
                             MWWorld::ConstContainerStoreIterator it = invStorePtr->getSlot(slot);
                             if (it != invStorePtr->end() && it->getCellRef().getRefId() == item)
@@ -740,12 +734,14 @@ namespace MWScript
                             }
                         }
 
-                        for (int slot = 0; slot < MWWorld::InventoryStore::Slots && amount > numNotEquipped; ++slot)
+                        for (std::int32_t slot = 0; slot < MWWorld::InventoryStore::Slots && amount > numNotEquipped;
+                            ++slot)
                         {
                             MWWorld::ContainerStoreIterator it = invStorePtr->getSlot(slot);
                             if (it != invStorePtr->end() && it->getCellRef().getRefId() == item)
                             {
-                                int numToRemove = std::min(amount - numNotEquipped, it->getCellRef().getCount());
+                                std::int32_t numToRemove
+                                    = std::min(amount - numNotEquipped, it->getCellRef().getCount());
                                 invStorePtr->unequipItemQuantity(*it, numToRemove);
                                 numNotEquipped += numToRemove;
                             }
@@ -757,7 +753,7 @@ namespace MWScript
                     {
                         if (iter->getCellRef().getRefId() == item && (!invStorePtr || !invStorePtr->isEquipped(*iter)))
                         {
-                            int removed = store.remove(*iter, amount);
+                            std::int32_t removed = store.remove(*iter, amount);
                             MWWorld::Ptr dropped
                                 = MWBase::Environment::get().getWorld()->dropObjectOnGround(ptr, *iter, removed);
                             dropped.getCellRef().setOwner(ESM::RefId());
@@ -780,7 +776,7 @@ namespace MWScript
                         else
                         {
                             // Dropping one item per time to prevent making stacks of scripted items
-                            for (int i = 0; i < amount; i++)
+                            for (std::int32_t i = 0; i < amount; i++)
                                 MWBase::Environment::get().getWorld()->dropObjectOnGround(ptr, itemPtr, 1);
                         }
                     }
@@ -905,7 +901,7 @@ namespace MWScript
                 void execute(Interpreter::Runtime& runtime) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
-                    int parameter = runtime[0].mInteger;
+                    std::int32_t parameter = runtime[0].mInteger;
                     runtime.pop();
 
                     if (parameter == 1)
@@ -1153,8 +1149,8 @@ namespace MWScript
                     const ESM::RefId& script = ptr.getClass().getScript(ptr);
 
                     auto printVariables = [&str](const auto& names, const auto& values, std::string_view type) {
-                        size_t size = std::min(names.size(), values.size());
-                        for (size_t i = 0; i < size; ++i)
+                        std::size_t size = std::min(names.size(), values.size());
+                        for (std::size_t i = 0; i < size; ++i)
                         {
                             str << "\n  " << names[i] << " = " << values[i] << " (" << type << ")";
                         }
@@ -1227,8 +1223,8 @@ namespace MWScript
 
                     auto printVariables = [&str](std::string_view scptName, const auto& names, const auto& values,
                                               std::string_view type) {
-                        size_t size = std::min(names.size(), values.size());
-                        for (size_t i = 0; i < size; ++i)
+                        std::size_t size = std::min(names.size(), values.size());
+                        for (std::size_t i = 0; i < size; ++i)
                         {
                             str << "\n " << scptName << "->" << names[i] << " = " << values[i] << " (" << type << ")";
                         }
@@ -1448,7 +1444,7 @@ namespace MWScript
             class OpBetaComment : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -1457,12 +1453,7 @@ namespace MWScript
                     msg << "Report time: ";
 
                     std::time_t currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-                    tm timeinfo{};
-#ifdef _WIN32
-                    static_cast<void>(gmtime_s(&timeinfo, &currentTime));
-#else
-                    static_cast<void>(gmtime_r(&currentTime, &timeinfo));
-#endif
+                    const std::tm timeinfo = Platform::universalTime(currentTime).value_or(std::tm{});
                     msg << std::put_time(&timeinfo, "%Y.%m.%d %T UTC") << std::endl;
 
                     msg << "Content file: " << ptr.getCellRef().getRefNum().mContentFile;
@@ -1538,12 +1529,12 @@ namespace MWScript
                     const ESM::RefId& creatureId
                         = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
-                    int level = runtime[0].mInteger;
+                    std::int32_t level = runtime[0].mInteger;
                     runtime.pop();
 
                     ESM::CreatureLevList listCopy
                         = *MWBase::Environment::get().getESMStore()->get<ESM::CreatureLevList>().find(levId);
-                    addToLevList(&listCopy, creatureId, static_cast<uint16_t>(level));
+                    addToLevList(&listCopy, creatureId, static_cast<std::uint16_t>(level));
                     MWBase::Environment::get().getESMStore()->overrideRecord(listCopy);
                 }
             };
@@ -1558,7 +1549,7 @@ namespace MWScript
                     const ESM::RefId& creatureId
                         = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
-                    int level = runtime[0].mInteger;
+                    std::int32_t level = runtime[0].mInteger;
                     runtime.pop();
 
                     ESM::CreatureLevList listCopy
@@ -1577,12 +1568,12 @@ namespace MWScript
                     runtime.pop();
                     const ESM::RefId& itemId = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
-                    int level = runtime[0].mInteger;
+                    std::int32_t level = runtime[0].mInteger;
                     runtime.pop();
 
                     ESM::ItemLevList listCopy
                         = *MWBase::Environment::get().getESMStore()->get<ESM::ItemLevList>().find(levId);
-                    addToLevList(&listCopy, itemId, static_cast<uint16_t>(level));
+                    addToLevList(&listCopy, itemId, static_cast<std::uint16_t>(level));
                     MWBase::Environment::get().getESMStore()->overrideRecord(listCopy);
                 }
             };
@@ -1596,7 +1587,7 @@ namespace MWScript
                     runtime.pop();
                     const ESM::RefId& itemId = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
-                    int level = runtime[0].mInteger;
+                    std::int32_t level = runtime[0].mInteger;
                     runtime.pop();
 
                     ESM::ItemLevList listCopy
@@ -1610,11 +1601,11 @@ namespace MWScript
             class OpShowSceneGraph : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime, false);
 
-                    int confirmed = 0;
+                    std::int32_t confirmed = 0;
                     if (arg0 == 1)
                     {
                         confirmed = runtime[0].mInteger;
@@ -1737,7 +1728,7 @@ namespace MWScript
             class OpTestModels : public Interpreter::Opcode0
             {
                 template <class T>
-                void test(int& count) const
+                void test(std::int32_t& count) const
                 {
                     Resource::SceneManager* sceneManager
                         = MWBase::Environment::get().getResourceSystem()->getSceneManager();
@@ -1761,7 +1752,7 @@ namespace MWScript
                         = MWBase::Environment::get().getResourceSystem()->getSceneManager();
                     double delay = sceneManager->getExpiryDelay();
                     sceneManager->setExpiryDelay(0.0);
-                    int count = 0;
+                    std::int32_t count = 0;
 
                     test<ESM::Activator>(count);
                     test<ESM::Apparatus>(count);

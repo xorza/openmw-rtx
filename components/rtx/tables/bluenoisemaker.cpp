@@ -28,9 +28,9 @@ namespace Rtx
         /// How far the Gaussian is carried before it is dropped, in pixels: three and a third
         /// sigma, where it is worth a part in 250 of its peak. It must stay inside the tile: a
         /// splat wide enough to wrap onto itself would stop measuring distance.
-        constexpr int sRadius = 5;
-        constexpr int sSide = 2 * sRadius + 1;
-        static_assert(sSide < static_cast<int>(sExtent));
+        constexpr std::int32_t sRadius = 5;
+        constexpr std::int32_t sSide = 2 * sRadius + 1;
+        static_assert(sSide < static_cast<std::int32_t>(sExtent));
 
         /// The share of the tile the first arrangement fills: a tenth, which is sparse enough to
         /// leave room for rearranging into something even and dense enough to say where the rest
@@ -50,8 +50,8 @@ namespace Rtx
                 , mOnes(sCount, 0)
                 , mEnergy(sCount, 0.0f)
             {
-                for (int dy = -sRadius; dy <= sRadius; ++dy)
-                    for (int dx = -sRadius; dx <= sRadius; ++dx)
+                for (std::int32_t dy = -sRadius; dy <= sRadius; ++dy)
+                    for (std::int32_t dx = -sRadius; dx <= sRadius; ++dx)
                     {
                         // In double and rounded once: two libraries' `exp` may differ in a double's last
                         // place, which a float `exp` cannot absorb at a tie, and a kernel an ulp apart
@@ -71,14 +71,14 @@ namespace Rtx
                 mOnes[at] = one ? std::uint8_t{ 1 } : std::uint8_t{ 0 };
 
                 const float sign = one ? 1.0f : -1.0f;
-                const int cx = static_cast<int>(at % sExtent);
-                const int cy = static_cast<int>(at / sExtent);
-                const int extent = static_cast<int>(sExtent);
+                const auto cx = static_cast<std::int32_t>(at % sExtent);
+                const auto cy = static_cast<std::int32_t>(at / sExtent);
+                const auto extent = static_cast<std::int32_t>(sExtent);
 
-                for (int dy = -sRadius; dy <= sRadius; ++dy)
+                for (std::int32_t dy = -sRadius; dy <= sRadius; ++dy)
                 {
                     const std::size_t row = static_cast<std::size_t>((cy + dy + extent) % extent) * sExtent;
-                    for (int dx = -sRadius; dx <= sRadius; ++dx)
+                    for (std::int32_t dx = -sRadius; dx <= sRadius; ++dx)
                         mEnergy[row + static_cast<std::size_t>((cx + dx + extent) % extent)]
                             // An index from signed steps, whole and in range before it is widened.
                             // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)

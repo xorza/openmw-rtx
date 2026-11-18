@@ -1,16 +1,17 @@
 #pragma once
 
-#include "recastmesh.hpp"
-#include "tilebounds.hpp"
-
-#include <osg/Vec3f>
-
-#include <LinearMath/btTransform.h>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <tuple>
 #include <vector>
+
+#include <LinearMath/btTransform.h>
+#include <osg/Vec3f>
+
+#include "recastmesh.hpp"
+#include "tilebounds.hpp"
 
 class btBoxShape;
 class btCollisionShape;
@@ -49,10 +50,10 @@ namespace DetourNavigator
 
         void addWater(const osg::Vec2i& cellPosition, const Water& water);
 
-        void addHeightfield(const osg::Vec2i& cellPosition, int cellSize, float height);
+        void addHeightfield(const osg::Vec2i& cellPosition, std::int32_t cellSize, float height);
 
-        void addHeightfield(const osg::Vec2i& cellPosition, int cellSize, const float* heights, std::size_t size,
-            float minHeight, float maxHeight);
+        void addHeightfield(const osg::Vec2i& cellPosition, std::int32_t cellSize, const float* heights,
+            std::size_t size, float minHeight, float maxHeight);
 
         std::shared_ptr<RecastMesh> create(const Version& version) &&;
 

@@ -1,5 +1,7 @@
 #include "editwidget.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <variant>
 
@@ -11,19 +13,17 @@
 #include <QString>
 #include <QVariant>
 
-#include "filterdata.hpp"
-
 #include <apps/opencs/model/filter/parser.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/debug/debuglog.hpp>
 #include <components/misc/helpviewer.hpp>
 #include <components/misc/scalableicon.hpp>
 
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/world/columns.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtablebase.hpp"
+#include "filterdata.hpp"
 
 CSVFilter::EditWidget::EditWidget(CSMWorld::Data& worldData, QWidget* parent)
     : QLineEdit(parent)
@@ -84,17 +84,17 @@ void CSVFilter::EditWidget::textChanged(const QString& text)
 
 void CSVFilter::EditWidget::filterDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
-    for (int i = topLeft.column(); i <= bottomRight.column(); ++i)
+    for (std::int32_t i = topLeft.column(); i <= bottomRight.column(); ++i)
         if (i != mStateColumnIndex && i != mDescColumnIndex)
             textChanged(text());
 }
 
-void CSVFilter::EditWidget::filterRowsRemoved(const QModelIndex& parent, int start, int end)
+void CSVFilter::EditWidget::filterRowsRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     textChanged(text());
 }
 
-void CSVFilter::EditWidget::filterRowsInserted(const QModelIndex& parent, int start, int end)
+void CSVFilter::EditWidget::filterRowsInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     textChanged(text());
 }
@@ -115,7 +115,7 @@ void CSVFilter::EditWidget::createFilterRequest(const std::vector<FilterData>& s
         newFilter.emplace_back(newFilterData);
     }
 
-    const size_t count = newFilter.size();
+    const std::size_t count = newFilter.size();
     bool multipleElements = false;
 
     switch (count) // setting multipleElements;
@@ -181,7 +181,7 @@ void CSVFilter::EditWidget::createFilterRequest(const std::vector<FilterData>& s
             ss << orAnd << oldContent.toUtf8().constData() << ',';
         }
 
-        for (size_t i = 0; i < count; ++i)
+        for (std::size_t i = 0; i < count; ++i)
         {
             ss << generateFilter(newFilter[i], filterType);
 
@@ -221,7 +221,7 @@ void CSVFilter::EditWidget::createFilterRequest(const std::vector<FilterData>& s
 
 std::string CSVFilter::EditWidget::generateFilter(const FilterData& filterData, FilterType filterType) const
 {
-    const size_t columns = filterData.columns.size();
+    const std::size_t columns = filterData.columns.size();
 
     bool multipleColumns = false;
     switch (columns)
@@ -254,7 +254,7 @@ std::string CSVFilter::EditWidget::generateFilter(const FilterData& filterData, 
     if (multipleColumns)
     {
         ss << "or(";
-        for (size_t i = 0; i < columns; ++i)
+        for (std::size_t i = 0; i < columns; ++i)
         {
             ss << filterTypeName(filterType) << "(" << '"' << filterData.columns[i] << '"' << ',' << quotesResolved
                << ')';

@@ -1,6 +1,7 @@
 #include "defines.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -13,7 +14,7 @@
 namespace
 {
 
-    bool check(std::string_view str, std::string_view escword, size_t& i, size_t& start)
+    bool check(std::string_view str, std::string_view escword, std::size_t& i, std::size_t& start)
     {
         bool found = Misc::StringUtils::ciStartsWith(str, escword);
         if (found)
@@ -67,7 +68,7 @@ namespace
         return a.length() > b.length();
     }
 
-    bool findReplacement(std::string_view temp, size_t& i, size_t& start, Interpreter::Context& context,
+    bool findReplacement(std::string_view temp, std::size_t& i, std::size_t& start, Interpreter::Context& context,
         std::ostringstream& retval, bool dialogue)
     {
         for (const auto& [name, binding] : sActionBindings)
@@ -98,9 +99,9 @@ namespace
 
     std::string fixDefinesReal(std::string_view text, bool dialogue, Interpreter::Context& context)
     {
-        size_t start = 0;
+        std::size_t start = 0;
         std::ostringstream retval;
-        for (size_t i = 0; i < text.length(); ++i)
+        for (std::size_t i = 0; i < text.length(); ++i)
         {
             char eschar = text[i];
             if (eschar == '%' || eschar == '^')

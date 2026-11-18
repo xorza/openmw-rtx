@@ -1,5 +1,6 @@
 #include "shadow.hpp"
 
+#include <cstdint>
 #include <limits>
 
 #include <osgShadow/ShadowSettings>
@@ -37,10 +38,10 @@ namespace SceneUtil
 
         mShadowSettings->setReceivesShadowTraversalMask(~0u);
 
-        const int numberOfShadowMapsPerLight = settings.mNumberOfShadowMaps;
+        const std::int32_t numberOfShadowMapsPerLight = settings.mNumberOfShadowMaps;
 
-        mShadowSettings->setNumShadowMapsPerLight(static_cast<unsigned int>(numberOfShadowMapsPerLight));
-        mShadowSettings->setBaseShadowTextureUnit(static_cast<unsigned int>(shaderManager.reserveGlobalTextureUnits(
+        mShadowSettings->setNumShadowMapsPerLight(static_cast<std::uint32_t>(numberOfShadowMapsPerLight));
+        mShadowSettings->setBaseShadowTextureUnit(static_cast<std::uint32_t>(shaderManager.reserveGlobalTextureUnits(
             Shader::ShaderManager::Slot::ShadowMaps, numberOfShadowMapsPerLight)));
 
         const float maximumShadowMapDistance = settings.mMaximumShadowMapDistance;
@@ -66,7 +67,7 @@ namespace SceneUtil
         else
             mShadowSettings->setComputeNearFarModeOverride(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
 
-        const auto mapres = static_cast<short>(settings.mShadowMapResolution);
+        const auto mapres = static_cast<std::int16_t>(settings.mShadowMapResolution);
         mShadowSettings->setTextureSize(osg::Vec2s(mapres, mapres));
 
         mShadowTechnique->setSplitPointUniformLogarithmicRatio(settings.mSplitPointUniformLogarithmicRatio);
@@ -87,12 +88,12 @@ namespace SceneUtil
             mShadowTechnique->disableDebugHUD();
     }
 
-    void ShadowManager::setOutdoorShadowCastingMask(unsigned int mask)
+    void ShadowManager::setOutdoorShadowCastingMask(std::uint32_t mask)
     {
         mOutdoorShadowCastingMask = mask;
     }
 
-    void ShadowManager::setIndoorShadowCastingMask(unsigned int mask)
+    void ShadowManager::setIndoorShadowCastingMask(std::uint32_t mask)
     {
         mIndoorShadowCastingMask = mask;
     }
@@ -112,21 +113,21 @@ namespace SceneUtil
         fakeShadowMapTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
         fakeShadowMapTexture->setShadowComparison(true);
         fakeShadowMapTexture->setShadowCompareFunc(osg::Texture::ShadowCompareFunc::ALWAYS);
-        for (unsigned int i = mShadowSettings->getBaseShadowTextureUnit();
+        for (std::uint32_t i = mShadowSettings->getBaseShadowTextureUnit();
             i < mShadowSettings->getBaseShadowTextureUnit() + mShadowSettings->getNumShadowMapsPerLight(); ++i)
         {
             stateset.setTextureAttribute(i, fakeShadowMapTexture,
                 osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED);
             stateset.addUniform(new osg::Uniform(
                 ("shadowTexture" + std::to_string(i - mShadowSettings->getBaseShadowTextureUnit())).c_str(),
-                static_cast<int>(i)));
+                static_cast<std::int32_t>(i)));
         }
         stateset.addUniform(new osg::Uniform("maximumShadowMapDistance", 0.00001f));
         stateset.addUniform(new osg::Uniform("shadowFadeStart", 0.0f));
     }
 
     ShadowManager::ShadowManager(const osg::ref_ptr<osg::Group>& sceneRoot, const osg::ref_ptr<osg::Group>& rootNode,
-        unsigned int outdoorShadowCastingMask, unsigned int indoorShadowCastingMask, unsigned int worldMask,
+        std::uint32_t outdoorShadowCastingMask, std::uint32_t indoorShadowCastingMask, std::uint32_t worldMask,
         const Settings::ShadowsCategory& settings, Shader::ShaderManager& shaderManager)
         : mShadowedScene(new osgShadow::ShadowedScene)
         , mShadowTechnique(new MWShadowTechnique)
@@ -170,7 +171,7 @@ namespace SceneUtil
 
         definesWithShadows["shadows_enabled"] = "1";
 
-        for (unsigned int i = 0; i < mShadowSettings->getNumShadowMapsPerLight(); ++i)
+        for (std::uint32_t i = 0; i < mShadowSettings->getNumShadowMapsPerLight(); ++i)
             definesWithShadows["shadow_texture_unit_list"] += std::to_string(i) + ",";
         // remove extra comma
         definesWithShadows["shadow_texture_unit_list"] = definesWithShadows["shadow_texture_unit_list"].substr(

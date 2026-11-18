@@ -1,6 +1,7 @@
 #pragma once
 
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 
 namespace Misc
@@ -10,7 +11,7 @@ namespace Misc
     {
     public:
         /// @param count number of threads to wait on
-        explicit Barrier(unsigned count)
+        explicit Barrier(std::uint32_t count)
             : mThreadCount(count)
             , mRendezvousCount(0)
             , mGeneration(0)
@@ -25,7 +26,7 @@ namespace Misc
             std::unique_lock lock(mMutex);
 
             ++mRendezvousCount;
-            const unsigned int currentGeneration = mGeneration;
+            const std::uint32_t currentGeneration = mGeneration;
             if (mRendezvousCount == mThreadCount || mThreadCount == 0)
             {
                 ++mGeneration;
@@ -40,9 +41,9 @@ namespace Misc
         }
 
     private:
-        unsigned int mThreadCount;
-        unsigned int mRendezvousCount;
-        unsigned int mGeneration;
+        std::uint32_t mThreadCount;
+        std::uint32_t mRendezvousCount;
+        std::uint32_t mGeneration;
         mutable std::mutex mMutex;
         std::condition_variable mRendezvous;
     };

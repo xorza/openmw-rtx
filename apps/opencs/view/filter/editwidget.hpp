@@ -1,18 +1,19 @@
 #pragma once
 
-#include <QLineEdit>
-#include <QPalette>
-#include <QVariant>
-
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "filterdata.hpp"
+#include <QLineEdit>
+#include <QPalette>
+#include <QVariant>
 
-#include "../../model/filter/parser.hpp"
+#include <apps/opencs/model/filter/parser.hpp>
+
+#include "filterdata.hpp"
 
 class QModelIndex;
 class QAction;
@@ -65,8 +66,8 @@ namespace CSVFilter
         CSMFilter::Parser mParser;
         QPalette mPalette;
         bool mIsEmpty;
-        int mStateColumnIndex;
-        int mDescColumnIndex;
+        std::int32_t mStateColumnIndex;
+        std::int32_t mDescColumnIndex;
         QAction* mHelpAction;
 
     public:
@@ -101,9 +102,9 @@ namespace CSVFilter
 
         void filterDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void filterRowsRemoved(const QModelIndex& parent, int start, int end);
+        void filterRowsRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
-        void filterRowsInserted(const QModelIndex& parent, int start, int end);
+        void filterRowsInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         static void openHelp();
     };

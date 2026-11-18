@@ -6,9 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include <vulkan/vulkan_core.h>
-
 #include <osg/Vec3f>
+#include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
@@ -58,7 +57,7 @@ namespace Rtx
         };
 
         /// A word of three nine-bit mantissas, red lowest, under a five-bit exponent biased by 15.
-        constexpr std::uint32_t wordOf(std::uint32_t r, std::uint32_t g, std::uint32_t b, int exponent)
+        constexpr std::uint32_t wordOf(std::uint32_t r, std::uint32_t g, std::uint32_t b, std::int32_t exponent)
         {
             return r | (g << 9u) | (b << 18u) | (static_cast<std::uint32_t>(exponent + 15) << 27u);
         }

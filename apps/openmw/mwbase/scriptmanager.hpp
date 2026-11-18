@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <span>
 #include <string_view>
 
@@ -51,7 +52,7 @@ namespace MWBase
         ///< Compile script with the given namen
         /// \return Success?
 
-        virtual std::pair<int, int> compileAll() = 0;
+        virtual std::pair<std::int32_t, std::int32_t> compileAll() = 0;
         ///< Compile all scripts
         /// \return count, success
 

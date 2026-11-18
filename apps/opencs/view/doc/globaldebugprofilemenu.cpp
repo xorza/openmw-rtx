@@ -1,6 +1,7 @@
 #include "globaldebugprofilemenu.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <vector>
 
 #include <QAction>
@@ -9,9 +10,8 @@
 #include <QModelIndex>
 
 #include <apps/opencs/model/world/columns.hpp>
-
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/record.hpp"
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/record.hpp>
 
 class QWidget;
 
@@ -22,17 +22,17 @@ void CSVDoc::GlobalDebugProfileMenu::rebuild()
     delete mActions;
     mActions = nullptr;
 
-    int idColumn = mDebugProfiles->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-    int stateColumn = mDebugProfiles->findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
-    int globalColumn = mDebugProfiles->findColumnIndex(CSMWorld::Columns::ColumnId_GlobalProfile);
+    std::int32_t idColumn = mDebugProfiles->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+    std::int32_t stateColumn = mDebugProfiles->findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
+    std::int32_t globalColumn = mDebugProfiles->findColumnIndex(CSMWorld::Columns::ColumnId_GlobalProfile);
 
-    int size = mDebugProfiles->rowCount();
+    std::int32_t size = mDebugProfiles->rowCount();
 
     std::vector<QString> ids;
 
-    for (int i = 0; i < size; ++i)
+    for (std::int32_t i = 0; i < size; ++i)
     {
-        int state = mDebugProfiles->data(mDebugProfiles->index(i, stateColumn)).toInt();
+        std::int32_t state = mDebugProfiles->data(mDebugProfiles->index(i, stateColumn)).toInt();
 
         bool global = mDebugProfiles->data(mDebugProfiles->index(i, globalColumn)).toInt();
 
@@ -72,12 +72,13 @@ void CSVDoc::GlobalDebugProfileMenu::updateActions(bool running)
         mActions->setEnabled(!running);
 }
 
-void CSVDoc::GlobalDebugProfileMenu::profileAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVDoc::GlobalDebugProfileMenu::profileAboutToBeRemoved(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     rebuild();
 }
 
-void CSVDoc::GlobalDebugProfileMenu::profileInserted(const QModelIndex& parent, int start, int end)
+void CSVDoc::GlobalDebugProfileMenu::profileInserted(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     rebuild();
 }

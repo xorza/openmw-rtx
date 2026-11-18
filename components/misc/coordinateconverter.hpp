@@ -1,10 +1,13 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm/esmbridge.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadpgrd.hpp>
 #include <components/esm4/loadcell.hpp>
-#include <components/misc/constants.hpp>
+
+#include "constants.hpp"
 
 namespace Misc
 {
@@ -12,7 +15,7 @@ namespace Misc
     class CoordinateConverter
     {
     public:
-        explicit CoordinateConverter(int cellX, int cellY)
+        explicit CoordinateConverter(std::int32_t cellX, std::int32_t cellY)
             : mCellX(cellX)
             , mCellY(cellY)
         {
@@ -73,8 +76,8 @@ namespace Misc
         }
 
     private:
-        int mCellX;
-        int mCellY;
+        std::int32_t mCellX;
+        std::int32_t mCellY;
     };
 
     template <class T>

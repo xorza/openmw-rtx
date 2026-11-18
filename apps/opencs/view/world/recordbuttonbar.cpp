@@ -1,23 +1,22 @@
 #include "recordbuttonbar.hpp"
 
+#include <cstdint>
+#include <utility>
+
 #include <QHBoxLayout>
 #include <QToolButton>
 
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/idtable.hpp"
-
-#include "../../model/prefs/state.hpp"
-
-#include "../world/tablebottombox.hpp"
-
-#include <components/misc/scalableicon.hpp>
-
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <utility>
+#include <components/misc/scalableicon.hpp>
+
+#include "tablebottombox.hpp"
 
 void CSVWorld::RecordButtonBar::updateModificationButtons()
 {
@@ -34,7 +33,7 @@ void CSVWorld::RecordButtonBar::updateModificationButtons()
 
 void CSVWorld::RecordButtonBar::updatePrevNextButtons()
 {
-    int rows = mTable.rowCount();
+    std::int32_t rows = mTable.rowCount();
 
     if (rows <= 1)
     {
@@ -48,7 +47,7 @@ void CSVWorld::RecordButtonBar::updatePrevNextButtons()
     }
     else
     {
-        int row = mTable.getModelIndex(mId.getId(), 0).row();
+        std::int32_t row = mTable.getModelIndex(mId.getId(), 0).row();
 
         mPrevButton->setDisabled(row <= 0);
         mNextButton->setDisabled(row >= rows - 1);
@@ -169,7 +168,7 @@ void CSVWorld::RecordButtonBar::cloneRequest()
 {
     if (mBottom)
     {
-        int typeColumn = mTable.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
+        std::int32_t typeColumn = mTable.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
 
         QModelIndex typeIndex = mTable.getModelIndex(mId.getId(), typeColumn);
         CSMWorld::UniversalId::Type type = static_cast<CSMWorld::UniversalId::Type>(mTable.data(typeIndex).toInt());
@@ -180,7 +179,7 @@ void CSVWorld::RecordButtonBar::cloneRequest()
 
 void CSVWorld::RecordButtonBar::nextId()
 {
-    int newRow = mTable.getModelIndex(mId.getId(), 0).row() + 1;
+    std::int32_t newRow = mTable.getModelIndex(mId.getId(), 0).row() + 1;
 
     if (newRow >= mTable.rowCount())
     {
@@ -195,7 +194,7 @@ void CSVWorld::RecordButtonBar::nextId()
 
 void CSVWorld::RecordButtonBar::prevId()
 {
-    int newRow = mTable.getModelIndex(mId.getId(), 0).row() - 1;
+    std::int32_t newRow = mTable.getModelIndex(mId.getId(), 0).row() - 1;
 
     if (newRow < 0)
     {
@@ -208,7 +207,7 @@ void CSVWorld::RecordButtonBar::prevId()
     emit switchToRow(newRow);
 }
 
-void CSVWorld::RecordButtonBar::rowNumberChanged(const QModelIndex& parent, int start, int end)
+void CSVWorld::RecordButtonBar::rowNumberChanged(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     updatePrevNextButtons();
 }

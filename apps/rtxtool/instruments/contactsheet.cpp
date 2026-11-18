@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -90,7 +91,7 @@ namespace RtxTool
                         {
                             const std::uint8_t shade = (x / sCheckerSide + y / sCheckerSide) % 2 == 0 ? 32 : 96;
                             const std::size_t at = (std::size_t{ top + y } * width + left + offset + x) * 4;
-                            for (int channel = 0; channel < 3; ++channel)
+                            for (std::int32_t channel = 0; channel < 3; ++channel)
                                 drawn.mPixels[at + static_cast<std::size_t>(channel)] = shade;
                         }
                 continue;
@@ -122,13 +123,13 @@ namespace RtxTool
                         // correction the renderer never applies, half again too strong in the darks.
                         const osg::Vec3f divided = Rtx::delit(
                             Rtx::toLinear(stored), Rtx::paintedLight(painted->getValues(), u, v, texture.mWrap));
-                        for (int channel = 0; channel < 3; ++channel)
+                        for (std::int32_t channel = 0; channel < 3; ++channel)
                             corrected[channel] = Rtx::toEncoded(divided[channel]);
                     }
 
                     const auto place = [&](std::uint32_t offset, const osg::Vec3f& colour) {
                         const std::size_t at = (std::size_t{ top + y } * width + left + offset + x) * 4;
-                        for (int channel = 0; channel < 3; ++channel)
+                        for (std::int32_t channel = 0; channel < 3; ++channel)
                             drawn.mPixels[at + static_cast<std::size_t>(channel)] = static_cast<std::uint8_t>(
                                 std::lround(std::clamp(colour[channel], 0.0f, 1.0f) * 255.0f));
                     };
@@ -141,8 +142,8 @@ namespace RtxTool
         return drawn;
     }
 
-    void listSheetNames(
-        std::span<const Rtx::TextureData> drawn, std::span<const Rtx::TextureRow> rows, std::vector<std::string>& into)
+    void listSheetNames(std::span<const Rtx::TextureData> drawn,
+        Rtx::RowSpan<const Rtx::TextureRow, Rtx::TextureIndex> rows, std::vector<std::string>& into)
     {
         for (const Rtx::TextureData& texture : drawn)
             into.push_back(rows[texture.mSlot].getName());

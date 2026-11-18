@@ -1,81 +1,17 @@
 #include "animation.hpp"
 
 #include <algorithm>
-#include <limits>
-#include <optional>
-
-#include <osg/BlendFunc>
-#include <osg/Matrix>
-#include <osg/MatrixTransform>
-#include <osg/Switch>
-
-#include <osg/Vec4f>
-#include <osgParticle/ParticleProcessor>
-#include <osgParticle/ParticleSystem>
-
-#include <osg/Callback>
-#include <osg/Drawable>
-#include <osg/Geometry>
-#include <osg/NodeVisitor>
-#include <osg/Object>
-#include <osg/StateAttribute>
-#include <osg/StateSet>
-#include <osg/Transform>
-#include <osg/Uniform>
-#include <osg/Vec3f>
-#include <osg/ref_ptr>
-#include <osgAnimation/Bone>
-#include <osgAnimation/UpdateBone>
-
-#include <components/debug/debuglog.hpp>
-
-#include <components/resource/animblendrulesmanager.hpp>
-#include <components/resource/keyframemanager.hpp>
-#include <components/resource/scenemanager.hpp>
-
-#include <components/esm3/loadcont.hpp>
-#include <components/esm3/loadcrea.hpp>
-#include <components/esm3/loadnpc.hpp>
-#include <components/esm3/loadrace.hpp>
-#include <components/esm4/loadligh.hpp>
-
-#include <components/misc/constants.hpp>
-#include <components/misc/pathhelpers.hpp>
-#include <components/misc/resourcehelpers.hpp>
-
-#include <components/vfs/manager.hpp>
-#include <components/vfs/pathutil.hpp>
-
-#include <components/sceneutil/keyframe.hpp>
-#include <components/sceneutil/lightcommon.hpp>
-#include <components/sceneutil/lightmanager.hpp>
-#include <components/sceneutil/lightutil.hpp>
-#include <components/sceneutil/skeleton.hpp>
-#include <components/sceneutil/statesetupdater.hpp>
-#include <components/sceneutil/util.hpp>
-#include <components/sceneutil/visitor.hpp>
-
-#include <apps/openmw/mwworld/livecellref.hpp>
-#include <apps/openmw/mwworld/movementdirection.hpp>
 #include <cassert>
 #include <cmath>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
-#include <components/nifosg/matrixtransform.hpp>
-#include <components/sceneutil/animblendrules.hpp>
-#include <components/sceneutil/controller.hpp>
-#include <components/sceneutil/nodecallback.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
-#include <components/sceneutil/textkeymap.hpp>
-#include <components/settings/values.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <span>
 #include <stdexcept>
@@ -84,16 +20,70 @@
 #include <utility>
 #include <vector>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <osg/BlendFunc>
+#include <osg/Callback>
+#include <osg/Drawable>
+#include <osg/Geometry>
+#include <osg/Matrix>
+#include <osg/MatrixTransform>
+#include <osg/NodeVisitor>
+#include <osg/Object>
+#include <osg/StateAttribute>
+#include <osg/StateSet>
+#include <osg/Switch>
+#include <osg/Transform>
+#include <osg/Uniform>
+#include <osg/Vec3f>
+#include <osg/Vec4f>
+#include <osg/ref_ptr>
+#include <osgAnimation/Bone>
+#include <osgAnimation/UpdateBone>
+#include <osgParticle/ParticleProcessor>
+#include <osgParticle/ParticleSystem>
 
-#include "../mwmechanics/character.hpp" // FIXME: for MWMechanics::Priority
-#include "../mwmechanics/weapontype.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/character.hpp> // FIXME: for MWMechanics::Priority
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/movementdirection.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/esm3/loadcont.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadnpc.hpp>
+#include <components/esm3/loadrace.hpp>
+#include <components/esm4/loadligh.hpp>
+#include <components/misc/constants.hpp>
+#include <components/misc/pathhelpers.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/lower.hpp>
+#include <components/nifosg/matrixtransform.hpp>
+#include <components/resource/animblendrulesmanager.hpp>
+#include <components/resource/keyframemanager.hpp>
+#include <components/resource/scenemanager.hpp>
+#include <components/sceneutil/animblendrules.hpp>
+#include <components/sceneutil/controller.hpp>
+#include <components/sceneutil/keyframe.hpp>
+#include <components/sceneutil/lightcommon.hpp>
+#include <components/sceneutil/lightmanager.hpp>
+#include <components/sceneutil/lightutil.hpp>
+#include <components/sceneutil/nodecallback.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
+#include <components/sceneutil/skeleton.hpp>
+#include <components/sceneutil/statesetupdater.hpp>
+#include <components/sceneutil/textkeymap.hpp>
+#include <components/sceneutil/util.hpp>
+#include <components/sceneutil/visitor.hpp>
+#include <components/settings/values.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 
 #include "actorutil.hpp"
 #include "animblendcontroller.hpp"
@@ -147,8 +137,8 @@ namespace
     public:
         void operator()(osg::Switch* node, osg::NodeVisitor* nv)
         {
-            unsigned int state = MWBase::Environment::get().getWorld()->getNightDayMode();
-            const unsigned int newState = node->getNumChildren() > state ? state : 0;
+            std::uint32_t state = MWBase::Environment::get().getWorld()->getNightDayMode();
+            const std::uint32_t newState = node->getNumChildren() > state ? state : 0;
 
             const osg::Switch::ValueList& values = node->getValueList();
             if (newState >= values.size() || !values[newState] || std::count(values.begin(), values.end(), true) != 1)
@@ -445,7 +435,7 @@ namespace
         // Traverse child bones if this is a group
         osg::Group* group = parent->asGroup();
         if (group)
-            for (unsigned int i = 0; i < group->getNumChildren(); ++i)
+            for (std::uint32_t i = 0; i < group->getNumChildren(); ++i)
                 assignBoneBlendCallbackRecursive(controller, group->getChild(i), false);
     }
 }
@@ -597,7 +587,7 @@ namespace MWRender
         removeFromSceneImpl();
     }
 
-    void Animation::setActive(int active)
+    void Animation::setActive(std::int32_t active)
     {
         if (mSkeleton)
             mSkeleton->setActive(static_cast<SceneUtil::Skeleton::ActiveType>(active));
@@ -617,7 +607,7 @@ namespace MWRender
     }
 
     // controllerName is used for Collada animated deforming models
-    size_t Animation::detectBlendMask(const osg::Node* node, const std::string& controllerName) const
+    std::size_t Animation::detectBlendMask(const osg::Node* node, const std::string& controllerName) const
     {
         static const std::string_view sBlendMaskRoots[sNumBlendMasks] = {
             "", /* Lower body / character root */
@@ -629,7 +619,7 @@ namespace MWRender
         while (node != mObjectRoot)
         {
             const std::string& name = node->getName();
-            for (size_t i = 1; i < sNumBlendMasks; i++)
+            for (std::size_t i = 1; i < sNumBlendMasks; i++)
             {
                 if (name == sBlendMaskRoots[i] || controllerName == sBlendMaskRoots[i])
                     return i;
@@ -717,7 +707,7 @@ namespace MWRender
 
             osg::Node* node = found->second;
 
-            size_t blendMask = detectBlendMask(node, entry.second->getName());
+            std::size_t blendMask = detectBlendMask(node, entry.second->getName());
 
             // clone the controller, because each Animation needs its own ControllerSource
             osg::ref_ptr<SceneUtil::KeyframeController> cloned
@@ -892,7 +882,7 @@ namespace MWRender
 
         if (evt.starts_with(groupname) && evt.substr(groupname.size()).starts_with(": "))
         {
-            size_t off = groupname.size() + 2;
+            std::size_t off = groupname.size() + 2;
             if (evt.substr(off) == "loop start")
                 state.mLoopStartTime = key->first;
             else if (evt.substr(off) == "loop stop")
@@ -910,9 +900,9 @@ namespace MWRender
         }
     }
 
-    void Animation::play(std::string_view groupname, const AnimPriority& priority, int blendMask, bool autodisable,
-        float speedmult, std::string_view start, std::string_view stop, float startpoint, uint32_t loops,
-        bool loopfallback)
+    void Animation::play(std::string_view groupname, const AnimPriority& priority, std::int32_t blendMask,
+        bool autodisable, float speedmult, std::string_view start, std::string_view stop, float startpoint,
+        std::uint32_t loops, bool loopfallback)
     {
         if (!mObjectRoot || mAnimSources.empty())
             return;
@@ -1155,7 +1145,7 @@ namespace MWRender
 
         mAccumCtrl = nullptr;
 
-        for (size_t blendMask = 0; blendMask < sNumBlendMasks; blendMask++)
+        for (std::size_t blendMask = 0; blendMask < sNumBlendMasks; blendMask++)
         {
             auto active = mStates.end();
 
@@ -1242,7 +1232,8 @@ namespace MWRender
         return false;
     }
 
-    bool Animation::getInfo(std::string_view groupname, float* complete, float* speedmult, uint32_t* loopcount) const
+    bool Animation::getInfo(
+        std::string_view groupname, float* complete, float* speedmult, std::uint32_t* loopcount) const
     {
         auto iter = mStates.find(groupname);
         if (iter == mStates.end())
@@ -1877,10 +1868,10 @@ namespace MWRender
     {
         for (const auto& state : mStates)
         {
-            if (state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Hit))
-                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Weapon))
-                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Knockdown))
-                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Death)))
+            if (state.second.mPriority.contains(static_cast<std::int32_t>(MWMechanics::Priority_Hit))
+                || state.second.mPriority.contains(static_cast<std::int32_t>(MWMechanics::Priority_Weapon))
+                || state.second.mPriority.contains(static_cast<std::int32_t>(MWMechanics::Priority_Knockdown))
+                || state.second.mPriority.contains(static_cast<std::int32_t>(MWMechanics::Priority_Death)))
                 return false;
         }
         return true;

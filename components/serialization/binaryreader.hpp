@@ -1,13 +1,13 @@
 #pragma once
 
-#include <components/misc/endianness.hpp>
-
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
 #include <type_traits>
+
+#include <components/misc/endianness.hpp>
 
 namespace Serialization
 {

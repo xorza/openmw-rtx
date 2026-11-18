@@ -1,20 +1,13 @@
 #pragma once
 
-#include <QDialog>
-
-#ifndef Q_MOC_RUN
-
-#include "adjusterwidget.hpp"
-
-#ifndef CS_QT_STD_FILESYSTEM_PATH_DECLARED
-#define CS_QT_STD_FILESYSTEM_PATH_DECLARED
-Q_DECLARE_METATYPE(std::filesystem::path)
-#endif
-
-#endif
-
+#include <cstdint>
 #include <filesystem>
 #include <vector>
+
+#include <QDialog>
+
+#include "adjusterwidget.hpp"
+#include "pathmetatype.hpp"
 
 class QModelIndex;
 
@@ -70,13 +63,13 @@ namespace CSVDoc
         void signalOpenFiles(const std::filesystem::path& path);
         void signalCreateNewFile(const std::filesystem::path& path);
 
-        void signalUpdateAcceptButton(bool, int);
+        void signalUpdateAcceptButton(bool, std::int32_t);
 
     private slots:
 
         void slotNewFile();
         void slotOpenFile();
-        void slotUpdateAcceptButton(int);
+        void slotUpdateAcceptButton(std::int32_t);
         void slotUpdateAcceptButton(const QString&, bool);
         void slotRejected();
         void slotAddonDataChanged(const QModelIndex& topleft, const QModelIndex& bottomright);

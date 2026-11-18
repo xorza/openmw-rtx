@@ -1,28 +1,25 @@
 #include "misc.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actionsoulgem.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/nullaction.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadmisc.hpp>
 #include <components/esm3/loadnpc.hpp>
-
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/actionsoulgem.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/nullaction.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"
@@ -72,11 +69,11 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    int Miscellaneous::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Miscellaneous::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Miscellaneous>* ref = ptr.get<ESM::Miscellaneous>();
 
-        int value = ref->mBase->mData.mValue;
+        std::int32_t value = ref->mBase->mData.mValue;
         if (isGold(ptr) && ptr.getCellRef().getCount() != 1)
             value = 1;
 
@@ -86,7 +83,7 @@ namespace MWClass
                 = MWBase::Environment::get().getESMStore()->get<ESM::Creature>().search(ref->mRef.getSoul());
             if (creature)
             {
-                int soul = creature->mData.mSoul;
+                std::int32_t soul = creature->mData.mSoul;
                 if (Settings::game().mRebalanceSoulGemValues)
                 {
                     // use the 'soul gem value rebalance' formula from the Morrowind Code Patch
@@ -94,9 +91,9 @@ namespace MWClass
 
                     // for Azura's star add the unfilled value
                     if (ptr.getCellRef().getRefId() == "Misc_SoulGem_Azura")
-                        value += static_cast<int>(soulValue);
+                        value += static_cast<std::int32_t>(soulValue);
                     else
-                        value = static_cast<int>(soulValue);
+                        value = static_cast<std::int32_t>(soulValue);
                 }
                 else
                     value *= soul;
@@ -132,7 +129,7 @@ namespace MWClass
         return ref->mBase->mIcon.getNormalized();
     }
 
-    MWGui::ToolTipInfo Miscellaneous::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Miscellaneous::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Miscellaneous>* ref = ptr.get<ESM::Miscellaneous>();
 
@@ -172,7 +169,7 @@ namespace MWClass
 
     namespace
     {
-        MWWorld::Ptr createGold(MWWorld::CellStore& cell, int goldAmount)
+        MWWorld::Ptr createGold(MWWorld::CellStore& cell, std::int32_t goldAmount)
         {
             std::string_view base = "gold_001";
             if (goldAmount >= 100)
@@ -194,7 +191,8 @@ namespace MWClass
         }
     }
 
-    MWWorld::Ptr Miscellaneous::copyToCell(const MWWorld::ConstPtr& ptr, MWWorld::CellStore& cell, int count) const
+    MWWorld::Ptr Miscellaneous::copyToCell(
+        const MWWorld::ConstPtr& ptr, MWWorld::CellStore& cell, std::int32_t count) const
     {
         MWWorld::Ptr newPtr;
         if (isGold(ptr))
@@ -241,7 +239,7 @@ namespace MWClass
         return std::make_unique<MWWorld::NullAction>();
     }
 
-    bool Miscellaneous::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Miscellaneous::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         const MWWorld::LiveCellRef<ESM::Miscellaneous>* ref = item.get<ESM::Miscellaneous>();
 

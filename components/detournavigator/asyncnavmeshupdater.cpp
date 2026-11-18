@@ -1,15 +1,8 @@
 #include "asyncnavmeshupdater.hpp"
-#include "debug.hpp"
-#include "makenavmesh.hpp"
-#include "navmeshtilestore.hpp"
-#include "settings.hpp"
-#include "version.hpp"
-
-#include <components/debug/debuglog.hpp>
-#include <components/loadinglistener/loadinglistener.hpp>
-#include <components/misc/thread.hpp>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <set>
@@ -19,16 +12,26 @@
 #include <boost/geometry.hpp> // IWYU pragma: keep: the strategies the R-tree's queries instantiate
 #include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
 
+#include <components/debug/debuglog.hpp>
+#include <components/loadinglistener/loadinglistener.hpp>
+#include <components/misc/thread.hpp>
+
+#include "debug.hpp"
+#include "makenavmesh.hpp"
+#include "navmeshtilestore.hpp"
+#include "settings.hpp"
+#include "version.hpp"
+
 namespace DetourNavigator
 {
     namespace
     {
-        int getManhattanDistance(const TilePosition& lhs, const TilePosition& rhs)
+        std::int32_t getManhattanDistance(const TilePosition& lhs, const TilePosition& rhs)
         {
             return std::abs(lhs.x() - rhs.x()) + std::abs(lhs.y() - rhs.y());
         }
 
-        bool isAbsentTileTooClose(const TilePosition& position, int distance,
+        bool isAbsentTileTooClose(const TilePosition& position, std::int32_t distance,
             const std::set<std::tuple<AgentBounds, TilePosition>>& pushedTiles,
             const std::set<std::tuple<AgentBounds, TilePosition>>& presentTiles,
             const Misc::ScopeGuarded<std::set<std::tuple<AgentBounds, TilePosition>>>& processingTiles)
@@ -166,7 +169,7 @@ namespace DetourNavigator
         return result;
     }
 
-    void SpatialJobQueue::update(TilePosition playerTile, int maxTiles, std::vector<JobIt>& removing)
+    void SpatialJobQueue::update(TilePosition playerTile, std::int32_t maxTiles, std::vector<JobIt>& removing)
     {
         for (auto it = mValues.begin(); it != mValues.end();)
         {
@@ -239,7 +242,7 @@ namespace DetourNavigator
         return mUpdating.pop(playerTile);
     }
 
-    void JobQueue::update(TilePosition playerTile, int maxTiles, std::chrono::steady_clock::time_point now)
+    void JobQueue::update(TilePosition playerTile, std::int32_t maxTiles, std::chrono::steady_clock::time_point now)
     {
         mUpdating.update(playerTile, maxTiles, mRemoving);
 
@@ -262,13 +265,13 @@ namespace DetourNavigator
 
     AsyncNavMeshUpdater::AsyncNavMeshUpdater(const Settings& settings, TileCachedRecastMeshManager& recastMeshManager,
         OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshTileStore>&& store,
-        const Clock& clock)
+        Resource::CacheBudget& budget, const Clock& clock)
         : mSettings(settings)
         , mRecastMeshManager(recastMeshManager)
         , mOffMeshConnectionsManager(offMeshConnectionsManager)
         , mClock(clock)
         , mShouldStop()
-        , mNavMeshTilesCache(settings.mMaxNavMeshTilesCacheSize)
+        , mNavMeshTilesCache(budget)
         , mStore(std::move(store))
         , mStoreReader(makeStoreReader(*this, mStore.get(), mSettings))
     {
@@ -370,7 +373,7 @@ namespace DetourNavigator
 
     void AsyncNavMeshUpdater::waitUntilJobsDoneForNotPresentTiles(Loading::Listener* listener)
     {
-        const int maxDistanceToPlayer = mSettings.get().mWaitUntilMinDistanceToPlayer;
+        const std::int32_t maxDistanceToPlayer = mSettings.get().mWaitUntilMinDistanceToPlayer;
         if (maxDistanceToPlayer <= 0)
             return;
         const std::size_t initialJobsLeft = getTotalJobs();

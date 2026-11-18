@@ -10,15 +10,15 @@
 
 namespace Rtx
 {
-    TextureHold takeSkySheet(
+    ReadingHold takeSkySheet(
         SceneDesc& scene, const VFS::Path::NormalizedView path, const osg::Image& image, const TextureWrap wrap)
     {
         if (const Result<void, std::string> uploadable = checkUploadable(image); !uploadable.isOk())
         {
             scene.refusals().refuse(Refused::SkyLayer, path.value(), uploadable.error());
-            return TextureHold{};
+            return ReadingHold{};
         }
 
-        return scene.takeTexture(path, image, wrap);
+        return scene.takeReading(path, image, wrap);
     }
 }

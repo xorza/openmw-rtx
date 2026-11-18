@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <span>
@@ -73,7 +74,9 @@ namespace MWRender
         ///        memory alone, and the cell reader its files too.
         /// @param prepared where the world's normal and data maps find their chains made again, or
         ///        null for none (`Rtx::PreparedImages`).
-        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::PreparedImages* prepared);
+        /// @param identities the renderer's, which the world's scene takes its identity from, and which outlives it.
+        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::PreparedImages* prepared,
+            Rtx::SceneIdentities& identities);
 
         /// Asserts the scene empty, so a row a detached world did not give back is named here. Not while an
         /// exception unwinds, where the frame's own message is the one to read.
@@ -121,6 +124,10 @@ namespace MWRender
         ///        frame does not carry: `EyeState` says why.
         Rtx::ExtractionStats mirror(const SceneFrame& frame, const osg::Matrixd& view);
 
+        /// What the eye resolves (`Rtx::Sight`), which the next `mirror` tells the ring: the frame's camera is made
+        /// after the walk, so the ring asks by the last one, and a frame with none yet asks the finest.
+        void setSight(const Rtx::Sight& sight) { mSight = sight; }
+
         /// What disturbed the water this frame, into the scene the walk just cleared, so the
         /// trace presses it and the digest sees it. After `mirror`, which clears the frame's lists.
         void addRipples(std::span<const Rtx::RippleImpulse> impulses);
@@ -156,7 +163,7 @@ namespace MWRender
 
         /// What the eye sees of the world, `Renderer::worldViewMask`: the world walk leaves the player's own
         /// model and the actors out where the mask does, as the rasterizer culls them.
-        void setViewMask(unsigned int view);
+        void setViewMask(std::uint32_t view);
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
         Rtx::SceneDesc& getScene() { return mScene; }
@@ -194,7 +201,7 @@ namespace MWRender
         /// Shared by every walk on the frame thread: the world's and every traced view's.
         Rtx::WalkContext mWalk;
 
-        Rtx::SceneDesc mScene{ Rtx::sWorldRoom };
+        Rtx::SceneDesc mScene;
 
         /// Where the ring's models and images come from: the game's own. Made where the world is attached,
         /// when there is a scene manager. Before the ring, whose reader thread reads it.
@@ -234,5 +241,6 @@ namespace MWRender
         Rtx::CompositeQueue mComposites;
         Rtx::CellGrid mGrid;
         osg::Vec3f mEye;
+        Rtx::Sight mSight{};
     };
 }

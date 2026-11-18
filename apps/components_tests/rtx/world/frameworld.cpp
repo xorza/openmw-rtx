@@ -32,15 +32,16 @@ namespace Rtx
         SkyContent skyWithSheets()
         {
             SkyContent textures;
-            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = 3, .mMean = 0.435f });
+            textures.mSheets.push_back(
+                CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = TextureIndex(3), .mMean = 0.435f });
             textures.mShell = Rtx::CloudShell{
                 .mTiles = osg::Vec2f(0.75f, -0.75f), .mCurvature = 0.06f, .mRings = osg::Vec3f(1.0f, 1.5f, 2.0f)
             };
-            textures.mNight.mField = 5;
+            textures.mNight.mField = TextureIndex(5);
             textures.mNight.mTile = 0.25f;
             textures.mNight.mGlow = osg::Vec3f(0.02f, 0.03f, 0.04f);
             textures.mNight.mPatches[0] = Rtx::NightSky::Patch{
-                .mTexture = 13, .mDirection = osg::Vec3f(0.0f, 1.0f, 0.0f), .mAngularRadius = 0.2f
+                .mTexture = TextureIndex(13), .mDirection = osg::Vec3f(0.0f, 1.0f, 0.0f), .mAngularRadius = 0.2f
             };
 
             return textures;
@@ -130,7 +131,7 @@ namespace Rtx
                 .mAngularRadius = 0.1676f,
                 .mPhaseAngle = 0.25f,
                 .mAlpha = 0.5f,
-                .mFace = 7,
+                .mFace = TextureIndex(7),
                 .mColour = osg::Vec3f(0.0332f, 0.0099f, 0.0123f),
             };
             read.mMoons[1] = MoonPlacement{
@@ -140,7 +141,7 @@ namespace Rtx
                 .mAngularRadius = 0.0719f,
                 .mPhaseAngle = 2.5f,
                 .mAlpha = 0.25f,
-                .mFace = 9,
+                .mFace = TextureIndex(9),
                 .mColour = osg::Vec3f(0.0440f, 0.0373f, 0.0295f),
             };
 
@@ -289,8 +290,7 @@ namespace Rtx
             EXPECT_EQ(constants.mStars.mGlow, stars.mGlow);
 
             EXPECT_EQ(constants.mClouds.mBlend, read.mClouds.mBlend);
-            EXPECT_EQ(
-                constants.mClouds.mTexture, static_cast<std::uint32_t>(sky().mSheets[read.mClouds.mSheet].mTexture));
+            EXPECT_EQ(constants.mClouds.mTexture, sky().mSheets[read.mClouds.mSheet].mTexture.at());
             EXPECT_EQ(constants.mClouds.mScroll, read.mClouds.mScroll);
             EXPECT_EQ(constants.mClouds.mCurvature, sky().mShell.mCurvature);
             EXPECT_EQ(constants.mClouds.mRings, sky().mShell.mRings);
@@ -312,7 +312,7 @@ namespace Rtx
                 EXPECT_EQ(disc.mSource.mIrradiance, osg::componentMultiply(placed.mIrradiance, placed.mPaint))
                     << "moon " << moon;
                 EXPECT_EQ(disc.mAlpha, placed.mAlpha) << "moon " << moon;
-                EXPECT_EQ(disc.mFace, static_cast<std::uint32_t>(placed.mFace)) << "moon " << moon;
+                EXPECT_EQ(disc.mFace, placed.mFace.at()) << "moon " << moon;
             }
 
             // **Each face is lit from the frame's own sun, which is overhead.** Masser's face lies
@@ -326,7 +326,7 @@ namespace Rtx
             const std::array<float, 2> lunar{ 0.773207f, 0.0f };
             for (std::size_t moon = 0; moon < litFrom.size(); ++moon)
             {
-                for (int axis = 0; axis < 3; ++axis)
+                for (std::int32_t axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(constants.mMoons[moon].mLitFrom[axis], litFrom[moon][axis], 1e-6f)
                         << "moon " << moon << ", axis " << axis;
                 EXPECT_NEAR(constants.mMoons[moon].mLunar, lunar[moon], 1e-5f) << "moon " << moon;
@@ -476,7 +476,7 @@ namespace Rtx
                 {
                     const long double turned = moved[axis] / tile;
                     const long double expected = turned - std::floor(turned);
-                    EXPECT_NEAR(far[scale][static_cast<int>(axis)], static_cast<float>(expected), 1e-6f)
+                    EXPECT_NEAR(far[scale][static_cast<std::int32_t>(axis)], static_cast<float>(expected), 1e-6f)
                         << "scale " << scale << ", axis " << axis;
                 }
             }
@@ -564,7 +564,7 @@ namespace Rtx
                 .mUp = osg::Vec3f(0.0f, 1.0f, 0.0f),
                 .mAngularRadius = 0.1f,
                 .mAlpha = 1.0f,
-                .mFace = 7,
+                .mFace = TextureIndex(7),
                 .mIrradiance = osg::Vec3f(0.05f, 0.05f, 0.06f) };
 
             Shaders::VisibilityConstants world{};

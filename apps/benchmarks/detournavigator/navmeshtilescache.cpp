@@ -1,13 +1,16 @@
 
-#include <components/detournavigator/navmeshtilescache.hpp>
-#include <components/detournavigator/stats.hpp>
-#include <components/esm3/loadland.hpp>
-
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <random>
 
 #include <benchmark/benchmark.h> // IWYU pragma: keep: the macros this source registers its benchmarks with
+
+#include <components/detournavigator/navmeshtilescache.hpp>
+#include <components/detournavigator/stats.hpp>
+#include <components/esm3/loadland.hpp>
+#include <components/resource/cachebudget.hpp>
 
 namespace
 {
@@ -26,9 +29,9 @@ namespace
         PreparedNavMeshData mValue;
     };
 
-    osg::Vec2i generateVec2i(int max, auto& random)
+    osg::Vec2i generateVec2i(std::int32_t max, auto& random)
     {
-        std::uniform_int_distribution<int> distribution(0, max);
+        std::uniform_int_distribution<std::int32_t> distribution(0, max);
         return osg::Vec2i(distribution(random), distribution(random));
     }
 
@@ -38,19 +41,20 @@ namespace
         return osg::Vec3f(distribution(random), distribution(random), distribution(random));
     }
 
-    void generateVertices(std::output_iterator<int> auto out, std::size_t number, auto& random)
+    void generateVertices(std::output_iterator<std::int32_t> auto out, std::size_t number, auto& random)
     {
         std::uniform_real_distribution<float> distribution(0.0, 1.0);
         std::generate_n(out, 3 * (number - number % 3), [&] { return distribution(random); });
     }
 
-    void generateIndices(std::output_iterator<int> auto out, int max, std::size_t number, auto& random)
+    void generateIndices(
+        std::output_iterator<std::int32_t> auto out, std::int32_t max, std::size_t number, auto& random)
     {
-        std::uniform_int_distribution<int> distribution(0, max);
+        std::uniform_int_distribution<std::int32_t> distribution(0, max);
         std::generate_n(out, number - number % 3, [&] { return distribution(random); });
     }
 
-    AreaType toAreaType(int index)
+    AreaType toAreaType(std::int32_t index)
     {
         switch (index)
         {
@@ -72,7 +76,7 @@ namespace
 
     AreaType generateAreaType(auto& random)
     {
-        std::uniform_int_distribution<int> distribution(0, 4);
+        std::uniform_int_distribution<std::int32_t> distribution(0, 4);
         return toAreaType(distribution(random));
     }
 
@@ -93,13 +97,13 @@ namespace
     {
         std::uniform_real_distribution<float> distribution(0.0, 1.0);
         std::vector<float> vertices;
-        std::vector<int> indices;
+        std::vector<std::int32_t> indices;
         std::vector<AreaType> areaTypes;
         if (static_cast<double>(distribution(random)) < 0.939)
         {
             generateVertices(
                 std::back_inserter(vertices), static_cast<std::size_t>(static_cast<double>(triangles) * 2.467), random);
-            generateIndices(std::back_inserter(indices), static_cast<int>(vertices.size() / 3) - 1,
+            generateIndices(std::back_inserter(indices), static_cast<std::int32_t>(vertices.size() / 3) - 1,
                 static_cast<std::size_t>(static_cast<double>(vertices.size()) * 1.279), random);
             generateAreaTypes(std::back_inserter(areaTypes), indices.size() / 3, random);
         }
@@ -173,10 +177,11 @@ namespace
         }
     }
 
-    template <std::size_t maxCacheSize, int hitPercentage>
+    template <std::size_t maxCacheSize, std::int32_t hitPercentage>
     void getFromFilledCache(benchmark::State& state)
     {
-        NavMeshTilesCache cache(maxCacheSize);
+        Resource::CacheBudget budget(maxCacheSize);
+        NavMeshTilesCache cache(budget);
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
@@ -236,7 +241,8 @@ namespace
     template <std::size_t maxCacheSize>
     void setToBoundedNonEmptyCache(benchmark::State& state)
     {
-        NavMeshTilesCache cache(maxCacheSize);
+        Resource::CacheBudget budget(maxCacheSize);
+        NavMeshTilesCache cache(budget);
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;

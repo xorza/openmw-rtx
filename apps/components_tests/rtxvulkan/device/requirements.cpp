@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <set>
 #include <span>
 #include <string_view>
@@ -170,10 +171,10 @@ namespace Rtx
             const auto reaches
                 = [&](DeviceOption option, const void* structure, const VkBool32* field, VkStructureType type) {
                       const OptionalFeature* feature = options[static_cast<std::size_t>(option)].mFeature;
-                      ASSERT_NE(feature, nullptr) << static_cast<int>(option);
-                      EXPECT_EQ(&feature->mStructure(features), structure) << static_cast<int>(option);
-                      EXPECT_EQ(&feature->mField(features), field) << static_cast<int>(option);
-                      EXPECT_EQ(feature->mStructure(features).sType, type) << static_cast<int>(option);
+                      ASSERT_NE(feature, nullptr) << static_cast<std::int32_t>(option);
+                      EXPECT_EQ(&feature->mStructure(features), structure) << static_cast<std::int32_t>(option);
+                      EXPECT_EQ(&feature->mField(features), field) << static_cast<std::int32_t>(option);
+                      EXPECT_EQ(feature->mStructure(features).sType, type) << static_cast<std::int32_t>(option);
                   };
             reaches(DeviceOption::FaultReport, &features.mFault, &features.mFault.deviceFault,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT);
@@ -195,7 +196,7 @@ namespace Rtx
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PERFORMANCE_QUERY_FEATURES_KHR);
             for (const DeviceOption bare :
                 { DeviceOption::MemoryBudget, DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
-                EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<int>(bare);
+                EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<std::int32_t>(bare);
         }
 
         /// **An option falls with what it needs**, whatever order the table lists them in, and stands where what it

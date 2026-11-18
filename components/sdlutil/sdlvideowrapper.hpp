@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <SDL3/SDL_video.h>
 
 namespace Settings
@@ -11,12 +13,12 @@ namespace SDLUtil
 {
     /// The size in the display's points that gives `pixels` pixels at `density` pixels a point, in
     /// the exact ratio: a density of one and a half is not a whole number.
-    int windowPoints(int pixels, float density);
+    std::int32_t windowPoints(std::int32_t pixels, float density);
 
     /// The other way: the pixels `points` points cover at `density`, to the nearest, as SDL rounds a
     /// window's own. A fractional density is the ratio of two whole sizes in a float, and a product
     /// truncated fell a pixel short wherever the float did.
-    int displayPixels(int points, float density);
+    std::int32_t displayPixels(std::int32_t points, float density);
 
     /// The window pixels a point of `window` covers, `SDL_GetWindowPixelDensity`'s, and one where SDL
     /// cannot say, which it answers with nought: a density of nought sent every mouse position to
@@ -40,5 +42,6 @@ namespace SDLUtil
     /// (`SDL_GetWindowSize`'s) centred on its display. Never another display mode: the frame's
     /// resolution is the renderer's, which scales it to whatever the window is. What a new window
     /// and a changed setting both go through.
-    void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder);
+    void setVideoMode(SDL_Window* window, std::int32_t width, std::int32_t height, Settings::WindowMode windowMode,
+        bool windowBorder);
 }

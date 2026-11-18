@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 #include <vector>
 
@@ -16,18 +17,18 @@ namespace Interpreter
     {
         Context* mContext = nullptr;
         const Program* mProgram = nullptr;
-        int mPC = 0;
+        std::int32_t mPC = 0;
         std::vector<Data> mStack;
 
     public:
-        int getPC() const { return mPC; }
+        std::int32_t getPC() const { return mPC; }
         ///< return program counter.
 
-        int getIntegerLiteral(int index) const;
+        std::int32_t getIntegerLiteral(std::int32_t index) const;
 
-        float getFloatLiteral(int index) const;
+        float getFloatLiteral(std::int32_t index) const;
 
-        std::string_view getStringLiteral(int index) const;
+        std::string_view getStringLiteral(std::int32_t index) const;
 
         void configure(const Program& program, Context& context);
         ///< \a context and \a code must exist as least until either configure, clear or
@@ -35,7 +36,7 @@ namespace Interpreter
 
         void clear();
 
-        void setPC(int value) { mPC = value; }
+        void setPC(std::int32_t value) { mPC = value; }
         ///< set program counter.
 
         void push(const Data& data);
@@ -50,7 +51,7 @@ namespace Interpreter
         void pop();
         ///< pop stack
 
-        Data& operator[](int index);
+        Data& operator[](std::int32_t index);
         ///< Access stack member, counted from the top.
 
         Context& getContext();

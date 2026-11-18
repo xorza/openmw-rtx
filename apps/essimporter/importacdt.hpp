@@ -29,33 +29,33 @@ namespace ESSImport
     {
         // Note, not stored at *all*:
         // - Level changes are lost on reload, except for the player (there it's in the NPC record).
-        unsigned char mUnknown[12];
-        uint32_t mFlags;
+        std::uint8_t mUnknown[12];
+        std::uint32_t mFlags;
         float mBreathMeter; // Seconds left before drowning
-        unsigned char mUnknown2[20];
+        std::uint8_t mUnknown2[20];
         float mDynamic[3][2];
-        unsigned char mUnknown3[16];
+        std::uint8_t mUnknown3[16];
         float mAttributes[8][2];
         float mMagicEffects[27]; // Effect attributes:
                                  // https://wiki.openmw.org/index.php?title=Research:Magic#Effect_attributes
-        unsigned char mUnknown4[4];
-        uint32_t mGoldPool;
-        unsigned char mCountDown; // seen the same value as in ACSC.mCorpseClearCountdown, maybe
-                                  // this one is for respawning?
-        unsigned char mUnknown5[3];
+        std::uint8_t mUnknown4[4];
+        std::uint32_t mGoldPool;
+        std::uint8_t mCountDown; // seen the same value as in ACSC.mCorpseClearCountdown, maybe
+                                 // this one is for respawning?
+        std::uint8_t mUnknown5[3];
     };
     struct ACSC
     {
-        unsigned char mUnknown1[17];
-        unsigned char mFlags; // ACSCFlags
-        unsigned char mUnknown2[22];
-        unsigned char mCorpseClearCountdown; // hours?
-        unsigned char mUnknown3[71];
+        std::uint8_t mUnknown1[17];
+        std::uint8_t mFlags; // ACSCFlags
+        std::uint8_t mUnknown2[22];
+        std::uint8_t mCorpseClearCountdown; // hours?
+        std::uint8_t mUnknown3[71];
     };
     struct ANIS
     {
-        unsigned char mGroupIndex;
-        unsigned char mUnknown[3];
+        std::uint8_t mGroupIndex;
+        std::uint8_t mUnknown[3];
         float mTime;
     };
 
@@ -67,12 +67,12 @@ namespace ESSImport
         bool mHasACSC{};
         ACSC mACSC{};
 
-        int mSkills[27][2]{}; // skills, base and modified
+        std::int32_t mSkills[27][2]{}; // skills, base and modified
 
         // creature combat stats, base and modified
         // I think these can be ignored in the conversion, because it is not possible
         // to change them ingame
-        int mCombatStats[3][2]{};
+        std::int32_t mCombatStats[3][2]{};
 
         ESM::RefId mSelectedSpell;
         ESM::RefId mSelectedEnchantItem;

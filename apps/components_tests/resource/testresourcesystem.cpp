@@ -1,3 +1,23 @@
+#include <array>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include <osg/Array>
+#include <osg/Drawable>
+#include <osg/Geometry>
+#include <osg/Group>
+#include <osg/Image>
+#include <osg/NodeVisitor>
+#include <osg/PrimitiveSet>
+#include <osg/Texture2D>
+
 #include <apps/components_tests/rtx/support/ddsfile.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/resource/cachebudget.hpp>
@@ -13,26 +33,6 @@
 #include <components/testing/util.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
-
-#include <gtest/gtest.h>
-
-#include <osg/Array>
-#include <osg/Drawable>
-#include <osg/Geometry>
-#include <osg/Group>
-#include <osg/Image>
-#include <osg/NodeVisitor>
-#include <osg/PrimitiveSet>
-#include <osg/Texture2D>
-
-#include <array>
-#include <cstdint>
-#include <map>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <thread>
-#include <vector>
 
 namespace
 {
@@ -66,7 +66,7 @@ namespace
         std::vector<std::thread> threads;
 
         threads.reserve(50);
-        for (int i = 0; i < 50; ++i)
+        for (std::int32_t i = 0; i < 50; ++i)
         {
             threads.emplace_back([=]() { sceneManager->getInstance(noSuchPath); });
         }
@@ -138,7 +138,7 @@ namespace
         EXPECT_FALSE(Resource::isHeader(*texels)) << "texels, where models keep them";
         EXPECT_EQ(texels->getTotalSizeInBytesIncludingMipmaps(), 48u);
 
-        images.setModelImages(Resource::ModelImages::Headers);
+        images.setModelImages(Resource::ModelImages::Headers, [](const osg::Image&, const Resource::ImageHeader&) {});
         const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
         ASSERT_TRUE(Resource::isHeader(*header));
         EXPECT_EQ(header->data(), nullptr);
@@ -183,7 +183,7 @@ namespace
         geometry->setNormalArray(new osg::Vec3Array(3), osg::Array::BIND_PER_VERTEX);
         geometry->setTexCoordArray(0, new osg::Vec2Array(3));
         osg::ref_ptr<osg::DrawElementsUShort> triangle = new osg::DrawElementsUShort(GL_TRIANGLES);
-        for (const unsigned short index : std::array<unsigned short, 3>{ 0, 1, 2 })
+        for (const std::uint16_t index : std::array<std::uint16_t, 3>{ 0, 1, 2 })
             triangle->push_back(index);
         geometry->addPrimitiveSet(triangle);
         geometry->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLES, 0, 3));
@@ -207,7 +207,7 @@ namespace
     {
         std::string bytes;
         const auto append = [&bytes](std::uint32_t value) {
-            for (int shift = 0; shift < 32; shift += 8)
+            for (std::int32_t shift = 0; shift < 32; shift += 8)
                 bytes.push_back(static_cast<char>((value >> shift) & 0xffu));
         };
         constexpr std::string_view version = "__IdvSpt_02_";

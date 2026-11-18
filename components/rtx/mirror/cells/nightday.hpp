@@ -22,13 +22,13 @@ namespace Rtx
     /// `NightDaySwitch` above it shows it in, and every mode where no switch is above it.
     struct NightDayModes
     {
-        static constexpr std::uint8_t sEvery = (1u << static_cast<unsigned>(NightDayMode::Count)) - 1;
+        static constexpr std::uint8_t sEvery = (1u << static_cast<std::uint32_t>(NightDayMode::Count)) - 1;
 
         std::uint8_t mBits = sEvery;
 
         static constexpr NightDayModes only(NightDayMode mode)
         {
-            return NightDayModes{ .mBits = static_cast<std::uint8_t>(1u << static_cast<unsigned>(mode)) };
+            return NightDayModes{ .mBits = static_cast<std::uint8_t>(1u << static_cast<std::uint32_t>(mode)) };
         }
 
         constexpr bool has(NightDayMode mode) const { return (mBits & only(mode).mBits) != 0; }

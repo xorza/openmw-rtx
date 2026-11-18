@@ -1,7 +1,8 @@
 #pragma once
 
+#include <components/esm/refid.hpp>
+
 #include "cellref.hpp"
-#include "components/esm/refid.hpp"
 #include "locals.hpp"
 
 namespace ESM

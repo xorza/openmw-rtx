@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <components/esm/refid.hpp>
@@ -29,10 +30,10 @@ namespace MWMechanics
         std::vector<Spells*> mListeners;
         std::vector<ESM::RefId> mSpells;
         ESM::RefId mId;
-        const int mType;
+        const std::int32_t mType;
 
     public:
-        SpellList(ESM::RefId id, int type, bool autoCalc);
+        SpellList(ESM::RefId id, std::int32_t type, bool autoCalc);
 
         void add(const ESM::Spell* spell);
         ///< Adding a spell that is already listed in *this is a no-op.

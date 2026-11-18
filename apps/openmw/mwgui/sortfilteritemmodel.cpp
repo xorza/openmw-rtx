@@ -1,5 +1,15 @@
 #include "sortfilteritemmodel.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/alchemy.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
@@ -17,19 +27,9 @@
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/utf8stream.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/action.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwmechanics/alchemy.hpp"
-#include "../mwmechanics/spellutil.hpp"
-
 namespace
 {
-    unsigned int getTypeOrder(unsigned int type)
+    std::uint32_t getTypeOrder(std::uint32_t type)
     {
         switch (type)
         {
@@ -61,10 +61,10 @@ namespace
                 break;
         }
         assert(false && "Invalid type value");
-        return std::numeric_limits<unsigned int>::max();
+        return std::numeric_limits<std::uint32_t>::max();
     }
 
-    bool compareType(unsigned int type1, unsigned int type2)
+    bool compareType(std::uint32_t type1, std::uint32_t type2)
     {
         return getTypeOrder(type1) < getTypeOrder(type2);
     }
@@ -93,7 +93,7 @@ namespace
             std::string rightName = Utf8Stream::lowerCaseUtf8(right.mBase.getClass().getName(right.mBase));
 
             {
-                int result = leftName.compare(rightName);
+                std::int32_t result = leftName.compare(rightName);
                 if (result != 0)
                     return result < 0;
             }
@@ -102,8 +102,8 @@ namespace
             // 1. enchanted items showed before non-enchanted
             // 2. item with lesser charge percent comes after items with more charge percent
             // 3. item with constant effect comes before items with non-constant effects
-            int leftChargePercent = -1;
-            int rightChargePercent = -1;
+            std::int32_t leftChargePercent = -1;
+            std::int32_t rightChargePercent = -1;
             const ESM::RefId& leftNameEnch = left.mBase.getClass().getEnchantment(left.mBase);
             const ESM::RefId& rightNameEnch = right.mBase.getClass().getEnchantment(right.mBase);
 
@@ -116,8 +116,8 @@ namespace
                     if (ench->mData.mType == ESM::Enchantment::ConstantEffect)
                         leftChargePercent = 101;
                     else
-                        leftChargePercent
-                            = static_cast<int>(left.mBase.getCellRef().getNormalizedEnchantmentCharge(*ench) * 100);
+                        leftChargePercent = static_cast<std::int32_t>(
+                            left.mBase.getCellRef().getNormalizedEnchantmentCharge(*ench) * 100);
                 }
             }
 
@@ -130,13 +130,13 @@ namespace
                     if (ench->mData.mType == ESM::Enchantment::ConstantEffect)
                         rightChargePercent = 101;
                     else
-                        rightChargePercent
-                            = static_cast<int>(right.mBase.getCellRef().getNormalizedEnchantmentCharge(*ench) * 100);
+                        rightChargePercent = static_cast<std::int32_t>(
+                            right.mBase.getCellRef().getNormalizedEnchantmentCharge(*ench) * 100);
                 }
             }
 
             {
-                int result = leftChargePercent - rightChargePercent;
+                std::int32_t result = leftChargePercent - rightChargePercent;
                 if (result != 0)
                     return result > 0;
             }
@@ -144,7 +144,7 @@ namespace
             // compare items by condition
             if (left.mBase.getClass().hasItemHealth(left.mBase) && right.mBase.getClass().hasItemHealth(right.mBase))
             {
-                int result = left.mBase.getClass().getItemHealth(left.mBase)
+                std::int32_t result = left.mBase.getClass().getItemHealth(left.mBase)
                     - right.mBase.getClass().getItemHealth(right.mBase);
                 if (result != 0)
                     return result > 0;
@@ -160,7 +160,8 @@ namespace
 
             // compare items by value
             {
-                int result = left.mBase.getClass().getValue(left.mBase) - right.mBase.getClass().getValue(right.mBase);
+                std::int32_t result
+                    = left.mBase.getClass().getValue(left.mBase) - right.mBase.getClass().getValue(right.mBase);
                 if (result != 0)
                     return result > 0;
             }
@@ -192,7 +193,7 @@ namespace MWGui
         return mSourceModel->allowedToUseItems();
     }
 
-    void SortFilterItemModel::addDragItem(const MWWorld::Ptr& dragItem, size_t count)
+    void SortFilterItemModel::addDragItem(const MWWorld::Ptr& dragItem, std::size_t count)
     {
         mDragItems.emplace_back(dragItem, count);
     }
@@ -206,7 +207,7 @@ namespace MWGui
     {
         MWWorld::Ptr base = item.mBase;
 
-        int category = 0;
+        std::int32_t category = 0;
         switch (base.getType())
         {
             case ESM::Armor::sRecordId:
@@ -328,7 +329,7 @@ namespace MWGui
             if (base.getType() != ESM::Apparatus::sRecordId)
                 return false;
 
-            int32_t apparatusType = base.get<ESM::Apparatus>()->mBase->mData.mType;
+            std::int32_t apparatusType = base.get<ESM::Apparatus>()->mBase->mData.mType;
             if (mApparatusTypeFilter >= 0 && apparatusType != mApparatusTypeFilter)
                 return false;
         }
@@ -344,22 +345,22 @@ namespace MWGui
     {
         if (index < 0)
             throw std::runtime_error("Invalid index supplied");
-        if (mItems.size() <= static_cast<size_t>(index))
+        if (mItems.size() <= static_cast<std::size_t>(index))
             throw std::runtime_error("Item index out of range");
         return mItems[static_cast<std::size_t>(index)];
     }
 
-    size_t SortFilterItemModel::getItemCount()
+    std::size_t SortFilterItemModel::getItemCount()
     {
         return mItems.size();
     }
 
-    void SortFilterItemModel::setCategory(int category)
+    void SortFilterItemModel::setCategory(std::int32_t category)
     {
         mCategory = category;
     }
 
-    void SortFilterItemModel::setFilter(int filter)
+    void SortFilterItemModel::setFilter(std::int32_t filter)
     {
         mFilter = filter;
     }
@@ -374,7 +375,7 @@ namespace MWGui
         mEffectFilter = Utf8Stream::lowerCaseUtf8(filter);
     }
 
-    void SortFilterItemModel::setApparatusTypeFilter(const int32_t type)
+    void SortFilterItemModel::setApparatusTypeFilter(const std::int32_t type)
     {
         mApparatusTypeFilter = type;
     }
@@ -383,14 +384,14 @@ namespace MWGui
     {
         mSourceModel->update();
 
-        size_t count = mSourceModel->getItemCount();
+        std::size_t count = mSourceModel->getItemCount();
 
         mItems.clear();
-        for (size_t i = 0; i < count; ++i)
+        for (std::size_t i = 0; i < count; ++i)
         {
             ItemStack item = mSourceModel->getItem(static_cast<ModelIndex>(i));
 
-            for (const std::pair<MWWorld::Ptr, size_t>& drag : mDragItems)
+            for (const std::pair<MWWorld::Ptr, std::size_t>& drag : mDragItems)
             {
                 if (item.mBase == drag.first)
                 {
@@ -414,12 +415,12 @@ namespace MWGui
         mSourceModel->onClose();
     }
 
-    bool SortFilterItemModel::onDropItem(const MWWorld::Ptr& item, int count)
+    bool SortFilterItemModel::onDropItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         return mSourceModel->onDropItem(item, count);
     }
 
-    bool SortFilterItemModel::onTakeItem(const MWWorld::Ptr& item, int count)
+    bool SortFilterItemModel::onTakeItem(const MWWorld::Ptr& item, std::int32_t count)
     {
         return mSourceModel->onTakeItem(item, count);
     }

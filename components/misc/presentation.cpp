@@ -12,16 +12,16 @@ namespace Misc
     {
         /// `numerator / denominator` to the nearest whole number, halves up, for the positive
         /// sizes `present` divides: exact, where a float would round a 16K side.
-        int divideRounded(std::int64_t numerator, std::int64_t denominator)
+        std::int32_t divideRounded(std::int64_t numerator, std::int64_t denominator)
         {
-            return static_cast<int>((2 * numerator + denominator) / (2 * denominator));
+            return static_cast<std::int32_t>((2 * numerator + denominator) / (2 * denominator));
         }
     }
 
     osg::Vec2f Presentation::toFrame(const osg::Vec2f drawable) const
     {
         osg::Vec2f frame;
-        for (int axis = 0; axis < 2; ++axis)
+        for (std::int32_t axis = 0; axis < 2; ++axis)
         {
             const float along = (drawable[axis] - static_cast<float>(mShownOrigin[axis]))
                 * static_cast<float>(mFrame[axis]) / static_cast<float>(mShownSize[axis]);
@@ -33,7 +33,7 @@ namespace Misc
     osg::Vec2f Presentation::toDrawable(const osg::Vec2f frame) const
     {
         osg::Vec2f drawable;
-        for (int axis = 0; axis < 2; ++axis)
+        for (std::int32_t axis = 0; axis < 2; ++axis)
             drawable[axis] = static_cast<float>(mShownOrigin[axis])
                 + frame[axis] * static_cast<float>(mShownSize[axis]) / static_cast<float>(mFrame[axis]);
         return drawable;
@@ -93,8 +93,8 @@ namespace Misc
         // `frame.x - frame.y * aspect` over the asked aspect `asked.x / asked.y`, truncated, and
         // the other way about: at most one of the two leaves anything over.
         const std::int64_t wide = std::int64_t{ frame.x() } * asked.y() - std::int64_t{ frame.y() } * asked.x();
-        const auto left = static_cast<int>(std::max<std::int64_t>(0, wide / asked.y()) / 2);
-        const auto top = static_cast<int>(std::max<std::int64_t>(0, -wide / asked.x()) / 2);
+        const auto left = static_cast<std::int32_t>(std::max<std::int64_t>(0, wide / asked.y()) / 2);
+        const auto top = static_cast<std::int32_t>(std::max<std::int64_t>(0, -wide / asked.x()) / 2);
         return Crop{ .mOrigin = osg::Vec2i(left, top), .mSize = osg::Vec2i(frame.x() - 2 * left, frame.y() - 2 * top) };
     }
 
@@ -112,8 +112,8 @@ namespace Misc
 
         // `getResolutionText`'s opening: a width, a multiplication sign between spaces, a height.
         constexpr std::string_view by = " × ";
-        int width = 0;
-        int height = 0;
+        std::int32_t width = 0;
+        std::int32_t height = 0;
         const char* const end = listed.data() + listed.size();
         // The view is handed on with its size beside it.
         // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)

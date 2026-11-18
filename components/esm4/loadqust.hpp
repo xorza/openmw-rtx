@@ -30,9 +30,10 @@
 #include <string>
 #include <vector>
 
-#include "script.hpp" // TargetCondition, ScriptDefinition
 #include <components/esm/defs.hpp>
 #include <components/esm/formid.hpp>
+
+#include "script.hpp" // TargetCondition, ScriptDefinition
 
 namespace ESM4
 {

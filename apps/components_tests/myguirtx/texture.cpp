@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -30,7 +31,7 @@ namespace MyGUIRtx
                 texture.createManual(4, 3, MyGUI::TextureUsage::Write, format);
                 EXPECT_TRUE(texture.getSlot().isNone());
 
-                for (int fill = 0; fill < 2; ++fill)
+                for (std::int32_t fill = 0; fill < 2; ++fill)
                 {
                     auto* const bytes = static_cast<std::uint8_t*>(texture.lock(MyGUI::TextureUsage::Write));
                     ASSERT_NE(bytes, nullptr);
@@ -61,7 +62,7 @@ namespace MyGUIRtx
                 Texture texture("narrow", renderer, nullptr);
                 texture.createManual(2, 1, MyGUI::TextureUsage::Write, format);
                 EXPECT_EQ(texture.getNumElemBytes(), texel.size());
-                for (int fill = 0; fill < 2; ++fill)
+                for (std::int32_t fill = 0; fill < 2; ++fill)
                 {
                     auto* const bytes = static_cast<std::uint8_t*>(texture.lock(MyGUI::TextureUsage::Write));
                     for (std::size_t at = 0; at < 2; ++at)

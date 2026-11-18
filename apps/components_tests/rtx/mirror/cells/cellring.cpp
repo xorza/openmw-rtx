@@ -66,6 +66,7 @@
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
+#include <components/rtx/mirror/cells/ringstanding.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
@@ -79,6 +80,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
@@ -202,7 +204,7 @@ namespace Rtx::Testing
             }
 
             /// How many times `getModel` was asked, which a reader asks once a record.
-            mutable int mModelsAsked = 0;
+            mutable std::int32_t mModelsAsked = 0;
 
             /// How many walks of a cell the reading thread began, which it begins once the cell
             /// before is handed over.
@@ -269,6 +271,8 @@ namespace Rtx::Testing
                     return mWindow;
                 if (path.value() == "meshes/ember.nif")
                     return mEmber;
+                if (path.value() == "meshes/panel.nif")
+                    return mPanel;
                 if (path.value() == "meshes/flame" || path.value() == "meshes/dark")
                     return mLantern;
                 if (path.value() == "meshes/broken.nif")
@@ -290,7 +294,7 @@ namespace Rtx::Testing
             /// for and a shading to estimate.
             osg::ref_ptr<osg::Image> mBark = [] {
                 osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/bark.dds", 4, 4);
-                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
                 return image;
             }();
 
@@ -301,6 +305,20 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Group> mMirrored = [this] {
                 osg::ref_ptr<osg::Group> root = makeSheet(300.0f, 5.0f);
                 root->getOrCreateStateSet()->setAttribute(new osg::FrontFace(osg::FrontFace::CLOCKWISE));
+                return root;
+            }();
+
+            /// A sheet 512 units square laid with its texture once, (0,0) to (1,1): each triangle spans twice an area
+            /// of 512² = 2^18 units and of 1 in its coordinates, so its UV density is 2^-18 and its footprint, half the
+            /// log of that, -9.
+            osg::ref_ptr<osg::Group> mPanel = [this] {
+                osg::ref_ptr<osg::Group> root = makeSheet(256.0f, 0.0f);
+                osg::Geometry& sheet = *root->getChild(0)->asGroup()->getChild(0)->asGeometry();
+                osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
+                for (const osg::Vec2f corner :
+                    { osg::Vec2f(0.0f, 0.0f), osg::Vec2f(1.0f, 0.0f), osg::Vec2f(1.0f, 1.0f), osg::Vec2f(0.0f, 1.0f) })
+                    coords->push_back(corner);
+                sheet.setTexCoordArray(0, coords, osg::Array::BIND_PER_VERTEX);
                 return root;
             }();
 
@@ -398,13 +416,14 @@ namespace Rtx::Testing
         /// nearest point `|dx| - 0.5` cells away, and one in the eye's own column has it at nought.
         constexpr std::uint32_t cellsWithin(const float reach)
         {
-            const auto nearest
-                = [](const int away) { return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f; };
+            const auto nearest = [](const std::int32_t away) {
+                return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f;
+            };
 
             std::uint32_t count = 0;
-            const int span = static_cast<int>(reach) + 1;
-            for (int dx = -span; dx <= span; ++dx)
-                for (int dy = -span; dy <= span; ++dy)
+            const std::int32_t span = static_cast<std::int32_t>(reach) + 1;
+            for (std::int32_t dx = -span; dx <= span; ++dx)
+                for (std::int32_t dy = -span; dy <= span; ++dy)
                 {
                     const float ax = nearest(dx);
                     const float ay = nearest(dy);
@@ -429,8 +448,8 @@ namespace Rtx::Testing
         protected:
             RtxCellRingTest()
             {
-                for (int x = -8; x <= 30; ++x)
-                    for (int y = -8; y <= 30; ++y)
+                for (std::int32_t x = -8; x <= 30; ++x)
+                    for (std::int32_t y = -8; y <= 30; ++y)
                         mLand.mWithData.emplace_back(x, y);
 
                 mRing.setMinSize(0.0f);
@@ -527,7 +546,7 @@ namespace Rtx::Testing
             std::vector<float> lifted() const
             {
                 std::vector<float> heights;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                     const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
                     if (height > 50.0f)
                         heights.push_back(height);
@@ -544,7 +563,7 @@ namespace Rtx::Testing
                     (static_cast<float>(cell.y()) + 0.5f) * sCellSize, 0.0f);
 
                 std::optional<MeshInstance> found;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                     if (!found.has_value() && row.mInstance.mTransform.getTrans() == centre)
                         found = row.mInstance;
                 });
@@ -578,7 +597,8 @@ namespace Rtx::Testing
             }
 
             WalkContext mContext{};
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom };
             CellRing mRing{ mExtractor };
         };
@@ -594,8 +614,9 @@ namespace Rtx::Testing
         /// adopts its rows into that extractor's scene inside this one's walk.
         TEST_F(RtxCellRingTest, aRingIsWalkedOnlyByTheExtractorItAdoptsThrough)
         {
+            SceneIdentities identities;
             WalkContext context{};
-            SceneDesc other;
+            SceneDesc other(identities);
             SceneExtractor stranger(other, context, sWorldExtractorRoom);
             expectAssertDies([&] { stranger.extractWorld(*mEmpty, 0, 1, mRing); },
                 "a ring made on another extractor adopts into its scene");
@@ -683,8 +704,8 @@ namespace Rtx::Testing
             // the eye's own cell asks for one only its bounces read, and the eye reads its stack.
             const std::optional<MeshInstance> far = groundOf(osg::Vec2i(3, 0));
             ASSERT_TRUE(far.has_value());
-            EXPECT_EQ(mScene.meshes().getMeshPositions(far->mMesh)[0], FakeLand::positionAt(0, 0));
-            EXPECT_EQ(mScene.meshes().getMeshPositions(far->mMesh).size(),
+            EXPECT_EQ(mScene.meshes().getArrival(far->mMesh).mPositions[0], FakeLand::positionAt(0, 0));
+            EXPECT_EQ(mScene.meshes().getArrival(far->mMesh).mPositions.size(),
                 static_cast<std::size_t>(FakeLand::sVerts) * FakeLand::sVerts);
             {
                 const Material& material = mScene.materials().getRows()[far->mMaterial];
@@ -695,10 +716,10 @@ namespace Rtx::Testing
                 // The rock's maps: its normal map in a slot of its own, tiled and read as data, and
                 // its `_diffusespec` authored, its alpha a roughness.
                 const std::span<const MaterialLayer> layers = material.mLayers.in(mScene.materials().getLayers());
-                EXPECT_EQ(layers[0].mNormal, sNoIndex);
+                EXPECT_EQ(layers[0].mNormal, Shaders::NO_TEXTURE);
                 EXPECT_EQ(layers[0].mFlags, 0u);
-                ASSERT_NE(layers[1].mNormal, sNoIndex);
-                const TextureRow& normal = mScene.textures().getRows()[layers[1].mNormal];
+                ASSERT_NE(layers[1].mNormal, Shaders::NO_TEXTURE);
+                const TextureRow& normal = mScene.textures().getRows()[TextureIndex(layers[1].mNormal)];
                 EXPECT_EQ(normal.mPath, "textures/rock_nh.dds");
                 EXPECT_EQ(normal.mWrap, TextureWrap::Repeat);
                 EXPECT_EQ(normal.mEncoding, TextureEncoding::Normal);
@@ -707,7 +728,7 @@ namespace Rtx::Testing
                 // upload reads: the frame it lands on opens no file.
                 EXPECT_EQ(
                     normal.mImage, mContent.mImages.get(VFS::Path::NormalizedView("textures/rock_nh.dds")).value());
-                EXPECT_EQ(mScene.textures().getRows()[layers[1].mDiffuse].mImage,
+                EXPECT_EQ(mScene.textures().getRows()[TextureIndex(layers[1].mDiffuse)].mImage,
                     mContent.mImages.get(VFS::Path::NormalizedView("textures/rock_diffusespec.dds")).value());
                 EXPECT_EQ(layers[1].mFlags, Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);
                 EXPECT_TRUE(material.mLayersMapped);
@@ -771,11 +792,11 @@ namespace Rtx::Testing
             while (composites.advance(mScene) > 0)
             {
             }
-            const Index farAlbedo = mScene.materials().getRows()[far->mMaterial].mDiffuse;
-            const Index farGloss = mScene.materials().getRows()[far->mMaterial].mSpecular;
-            EXPECT_NE(farAlbedo, sNoIndex);
-            EXPECT_NE(farGloss, sNoIndex);
-            EXPECT_NE(mScene.materials().getRows()[home->mMaterial].mDiffuse, sNoIndex)
+            const TextureIndex farAlbedo = mScene.materials().getRows()[far->mMaterial].mDiffuse;
+            const TextureIndex farGloss = mScene.materials().getRows()[far->mMaterial].mSpecular;
+            EXPECT_NE(farAlbedo, sNoRow);
+            EXPECT_NE(farGloss, sNoRow);
+            EXPECT_NE(mScene.materials().getRows()[home->mMaterial].mDiffuse, sNoRow)
                 << "the eye's own cell was given the composite its bounces read";
 
             // The active grid moves over cell (3, 0): its eye reads its stack from now on, on the
@@ -815,8 +836,8 @@ namespace Rtx::Testing
             const std::span<const MaterialLayer> awayLayers = awayMaterial.mLayers.in(mScene.materials().getLayers());
             ASSERT_EQ(awayLayers.size(), 2u);
             EXPECT_EQ(awayLayers[1].mFlags, Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);
-            ASSERT_NE(awayLayers[1].mNormal, sNoIndex);
-            EXPECT_EQ(mScene.textures().getRows()[awayLayers[1].mNormal].mPath, "textures/rock_nh.dds");
+            ASSERT_NE(awayLayers[1].mNormal, Shaders::NO_TEXTURE);
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(awayLayers[1].mNormal)].mPath, "textures/rock_nh.dds");
             EXPECT_TRUE(awayMaterial.mLayersMapped);
 
             // **And the heights it spans**, a grey of 128 throughout, on the material: the one layer with a height.
@@ -843,16 +864,16 @@ namespace Rtx::Testing
             fill();
 
             const auto treeWorn = [this](const Stander stander) {
-                Index worn = sNoIndex;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                MaterialIndex worn = sNoRow;
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                     if (row.mInstance.mStander == stander
                         && mScene.materials().getRows()[row.mInstance.mMaterial].mKind != MaterialKind::Terrain)
                         worn = row.mInstance.mMaterial;
                 });
                 return worn;
             };
-            const Index stood = treeWorn(Stander::Ring);
-            ASSERT_NE(stood, sNoIndex);
+            const MaterialIndex stood = treeWorn(Stander::Ring);
+            ASSERT_NE(stood, sNoRow);
             EXPECT_TRUE(mScene.materials().getRows()[stood].mTwoSided) << "the tree's root was not in force";
 
             // The game's clone, under the root as `MWRender::Objects` stands one, wearing the
@@ -1033,8 +1054,9 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 }) << "and the lamp beside the refused one burns";
             EXPECT_EQ(mScene.lights().front().mPosition, inCell);
 
-            const Index lost = mScene.textures().findFile(VFS::Path::Normalized("textures/rock_diffusespec.dds"));
-            ASSERT_NE(lost, sNoIndex) << "a layer whose image does not read was dropped rather than stood in for";
+            const TextureIndex lost
+                = mScene.textures().findFile(VFS::Path::Normalized("textures/rock_diffusespec.dds"));
+            ASSERT_NE(lost, sNoRow) << "a layer whose image does not read was dropped rather than stood in for";
             EXPECT_EQ(mScene.textures().getRows()[lost].mImage, nullptr)
                 << "the slot the upload stands in keeps no image";
         }
@@ -1089,8 +1111,51 @@ namespace Rtx::Testing
             // to carry its light, and the dark lamp's lantern stands with a lamp that takes light.
             std::uint32_t bodies = 0;
             mScene.placements().forEachPlaced(
-                [&](Index, const PlacementRow& row) { bodies += row.mInstance.mLampBody ? 1 : 0; });
+                [&](PlacementIndex, const PlacementRow& row) { bodies += row.mInstance.mLampBody ? 1 : 0; });
             EXPECT_EQ(bodies, 1u);
+        }
+
+        /// **A held cell asks each material it holds at the footprint its distance makes of it**, the band one nearer
+        /// than its own (`CellPlacer::askByDistance`). The panel's footprint is -9 (`FewContent::mPanel`), its radius
+        /// 256√2 = 362.04 how far it reaches past cell 3's square. The eye half a cell in stands 2.5 cells from that
+        /// square: 20480 - 362.04 = 20117.96 units, 2.46 cells, in the band from 2 to 4, so the ring asks at the near
+        /// edge of the band before it, one cell, 8192 units. A pixel opening by 2^-10 is 8 units wide there, a level
+        /// of 3: the material is asked at -9 + 3 = -6, step 26. Opened by 2^-9, step 27; by nought, the finest, step 0.
+        /// The eye a cell nearer stands 1.46 cells off, the band from 1 to 2, asked at half a cell: step 25.
+        TEST_F(RtxCellRingTest, aHeldCellAsksItsMaterialsAtTheFootprintItsDistanceMakes)
+        {
+            mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "panel.nif",
+                .mRefNum = ESM::RefNum{ 1, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 0.0f) } };
+            mAround.mSight = Rtx::Sight{ .mSpreadAngle = 1.0f / 1024.0f, .mLevelBias = 0.0f };
+            start();
+            fill();
+
+            // The panel's placement, a mesh of four vertices among the cells' grounds.
+            const auto askedAt = [&]() -> std::optional<std::uint8_t> {
+                std::optional<std::uint8_t> asked;
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
+                    if (row.mInstance.mStander == Stander::Ring
+                        && mScene.meshes().getRows()[row.mInstance.mMesh].mVertices.mCount == 4)
+                        asked = mScene.materials().getAsks(row.mInstance.mMaterial).finest();
+                });
+                return asked;
+            };
+            EXPECT_EQ(askedAt(), 26u);
+
+            mAround.mSight.mSpreadAngle = 1.0f / 512.0f;
+            walk(mWalked++);
+            EXPECT_EQ(askedAt(), 27u) << "a pixel twice as wide, a level coarser";
+
+            mAround.mSight.mSpreadAngle = 0.0f;
+            walk(mWalked++);
+            EXPECT_EQ(askedAt(), 0u) << "a cone of no width asks the finest";
+
+            mAround.mSight.mSpreadAngle = 1.0f / 1024.0f;
+            mAround.mEye = osg::Vec3f(1.5f * sCellSize, 0.5f * sCellSize, 0.0f);
+            walk(mWalked++);
+            EXPECT_EQ(askedAt(), 25u) << "a band nearer, a level finer";
         }
 
         /// **A static the ring stands shows the face its model's state stack fronts**, as the frame's walk stands it
@@ -1113,7 +1178,7 @@ namespace Rtx::Testing
 
             std::size_t clockwise = 0;
             mScene.placements().forEachPlaced(
-                [&](Index, const PlacementRow& row) { clockwise += row.mInstance.mClockwise ? 1 : 0; });
+                [&](PlacementIndex, const PlacementRow& row) { clockwise += row.mInstance.mClockwise ? 1 : 0; });
             EXPECT_EQ(clockwise, 1u) << "the mirrored sheet, and neither the tree nor a cell's ground";
         }
 
@@ -1147,8 +1212,8 @@ namespace Rtx::Testing
             // of five is scaled with the reference, so a tree at scale `s` stands at `105 s`.
             const auto standing = [this] {
                 std::vector<std::pair<std::size_t, float>> slots;
-                mScene.placements().forEachPlaced([&](Index slot, const PlacementRow& row) {
-                    slots.emplace_back(slot, static_cast<float>(row.mInstance.mTransform.getTrans().z()));
+                mScene.placements().forEachPlaced([&](PlacementIndex slot, const PlacementRow& row) {
+                    slots.emplace_back(slot.at(), static_cast<float>(row.mInstance.mTransform.getTrans().z()));
                 });
                 return slots;
             };
@@ -1160,9 +1225,9 @@ namespace Rtx::Testing
                 std::sort(lifted.begin(), lifted.end());
                 return lifted;
             };
-            const auto trees = [](std::initializer_list<int> scales) {
+            const auto trees = [](std::initializer_list<std::int32_t> scales) {
                 std::vector<float> lifted;
-                for (const int scale : scales)
+                for (const std::int32_t scale : scales)
                     lifted.push_back(105.0f * static_cast<float>(scale));
                 return lifted;
             };
@@ -1181,6 +1246,20 @@ namespace Rtx::Testing
                 << "the three largest, and the disabled one in the next cell arrived out";
             const auto three = standing();
             EXPECT_EQ(heights(three), trees({ 3, 4, 5 }));
+
+            // **What the ring holds against what stands, by distance**: both cells three from the eye's, their six
+            // trees one mesh, three of them standing; nothing held nearer or further.
+            const RingStanding held = mRing.countStanding();
+            const RingDistance& third = held.mByDistance[3];
+            EXPECT_EQ(third.mPlacements, 6u);
+            EXPECT_EQ(third.mPlacementsStanding, 3u);
+            EXPECT_EQ(third.mMeshes, 1u) << "one sheet scaled six ways";
+            EXPECT_EQ(third.mMeshesStanding, 1u);
+            EXPECT_GT(third.mVertices, 0u);
+            EXPECT_EQ(third.mVerticesStanding, third.mVertices);
+            for (std::size_t distance = 0; distance < sRingDistances; ++distance)
+                if (distance != 3)
+                    EXPECT_EQ(held.mByDistance[distance].mPlacements, 0u) << distance;
 
             mRing.setMinSize(600.0f / sDistance);
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 4u) << "the fourth clears 600";
@@ -1205,6 +1284,7 @@ namespace Rtx::Testing
             mRing.setMinSize(400.0f / sDistance);
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 4u) << "four of five, the disabled one skipped";
             EXPECT_EQ(heights(standing()), trees({ 2, 3, 4, 5 }));
+            EXPECT_EQ(mRing.countStanding().mByDistance[3].mPlacementsStanding, 4u) << "the disabled two held, unstood";
             mRing.setReferenceEnabled(ESM::RefNum{ 1, 0 }, true);
             EXPECT_EQ(heights(standing()), trees({ 1, 2, 3, 4, 5 })) << "enabled inside the prefix, at once";
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 5u) << "and the walk keeps it";
@@ -1362,9 +1442,10 @@ namespace Rtx::Testing
             {
                 mAround.mNightDay = mode;
                 mRing.follow(mAround);
-                EXPECT_EQ(lifted(), stands) << static_cast<int>(mode) << ": at once";
-                EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u) << static_cast<int>(mode) << ": one sheet and the tree";
-                EXPECT_EQ(lifted(), stands) << static_cast<int>(mode) << ": and the walk keeps it";
+                EXPECT_EQ(lifted(), stands) << static_cast<std::int32_t>(mode) << ": at once";
+                EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u)
+                    << static_cast<std::int32_t>(mode) << ": one sheet and the tree";
+                EXPECT_EQ(lifted(), stands) << static_cast<std::int32_t>(mode) << ": and the walk keeps it";
             }
         }
 
@@ -1454,8 +1535,8 @@ namespace Rtx::Testing
         TEST_F(RtxCellRingTest, aRecycledCellWhoseLandStandsNothingStandsNoGround)
         {
             mLand.mWithData.clear();
-            for (int x = -6; x <= 6; ++x)
-                for (int y = -6; y <= 6; ++y)
+            for (std::int32_t x = -6; x <= 6; ++x)
+                for (std::int32_t y = -6; y <= 6; ++y)
                     mLand.mWithData.emplace_back(x, y);
             start(ESM::RefId::stringRefId("tamriel"));
 
@@ -1533,15 +1614,15 @@ namespace Rtx::Testing
             };
             const auto waiting = [&] {
                 std::vector<osg::Vec2i> found;
-                for (int x = -8; x <= 14; ++x)
-                    for (int y = -8; y <= 8; ++y)
+                for (std::int32_t x = -8; x <= 14; ++x)
+                    for (std::int32_t y = -8; y <= 8; ++y)
                         if (waits(osg::Vec2i(x, y)))
                             found.emplace_back(x, y);
                 return found;
             };
 
             start();
-            for (int walked = 0; walked < 3; ++walked)
+            for (std::int32_t walked = 0; walked < 3; ++walked)
                 walk(mWalked++);
 
             around(osg::Vec3f(2.5f * sCellSize, 0.5f * sCellSize, 0.0f), osg::Vec4i(1, -1, 4, 2));
@@ -1556,7 +1637,7 @@ namespace Rtx::Testing
                         return leftAway != rightAway ? leftAway < rightAway : left < right;
                     });
             };
-            for (int walked = 0; walked < 20; ++walked)
+            for (std::int32_t walked = 0; walked < 20; ++walked)
             {
                 const std::vector<osg::Vec2i> before = waiting();
                 ASSERT_FALSE(before.empty());
@@ -1649,36 +1730,37 @@ namespace Rtx::Testing
         /// nought once the band is whole, however many cells the ring keeps beside it.
         TEST_F(RtxCellRingTest, aCellIsReadAtTheBandAndLetGoACellPastIt)
         {
-            using Cells = std::set<std::pair<int, int>>;
+            using Cells = std::set<std::pair<std::int32_t, std::int32_t>>;
 
             // `withinReach`'s disc, as `cellsWithin` draws it, about an eye at the centre of the cell
             // `eye` columns east of the origin.
-            const auto within = [](const int x, const int y, const int eye, const float reach) {
-                const auto nearest = [](const int away) {
-                    return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f;
-                };
-                const float ax = nearest(x - eye);
-                const float ay = nearest(y);
-                return ax * ax + ay * ay < reach * reach;
-            };
-            const auto band = [&](const int eye) {
+            const auto within
+                = [](const std::int32_t x, const std::int32_t y, const std::int32_t eye, const float reach) {
+                      const auto nearest = [](const std::int32_t away) {
+                          return away == 0 ? 0.0f : static_cast<float>(away < 0 ? -away : away) - 0.5f;
+                      };
+                      const float ax = nearest(x - eye);
+                      const float ay = nearest(y);
+                      return ax * ax + ay * ay < reach * reach;
+                  };
+            const auto band = [&](const std::int32_t eye) {
                 Cells cells;
-                for (int x = -12; x <= 12; ++x)
-                    for (int y = -12; y <= 12; ++y)
+                for (std::int32_t x = -12; x <= 12; ++x)
+                    for (std::int32_t y = -12; y <= 12; ++y)
                         if (within(x, y, eye, 5.0f))
                             cells.emplace(x, y);
                 return cells;
             };
             // What the ring holds once settled at `eye`, having held `held`: the band, and what it
             // held that is still within six.
-            const auto settled = [&](const Cells& held, const int eye) {
+            const auto settled = [&](const Cells& held, const std::int32_t eye) {
                 Cells cells = band(eye);
                 for (const auto& [x, y] : held)
                     if (within(x, y, eye, 6.0f))
                         cells.emplace(x, y);
                 return cells;
             };
-            const auto standAt = [&](const int eye) {
+            const auto standAt = [&](const std::int32_t eye) {
                 around(osg::Vec3f((static_cast<float>(eye) + 0.5f) * sCellSize, 0.5f * sCellSize, 0.0f),
                     osg::Vec4i(eye - 1, -1, eye + 2, 2));
             };
@@ -1690,8 +1772,8 @@ namespace Rtx::Testing
             ASSERT_EQ(mRing.getHeldCellCount(), sPreparedCells);
 
             standAt(1);
-            const std::uint32_t gained = static_cast<std::uint32_t>(
-                std::ranges::count_if(band(1), [&](const std::pair<int, int>& cell) { return !held.contains(cell); }));
+            const std::uint32_t gained = static_cast<std::uint32_t>(std::ranges::count_if(
+                band(1), [&](const std::pair<std::int32_t, std::int32_t>& cell) { return !held.contains(cell); }));
             EXPECT_EQ(fill().mMeshesAdded, gained) << "the column the band gained, one ground each";
             held = settled(held, 1);
 
@@ -1711,8 +1793,8 @@ namespace Rtx::Testing
             // Let go, by hand: column -5's five, 6.5 cells out now, and column -4's four past
             // `|dy| = 2`, `5.5² + 2.5² = 36.5`; column -3 keeps every row to `|dy| = 4`, `4.5² + 3.5²
             // = 32.5`.
-            EXPECT_EQ(
-                std::ranges::count_if(before, [&](const std::pair<int, int>& cell) { return !held.contains(cell); }),
+            EXPECT_EQ(std::ranges::count_if(before,
+                          [&](const std::pair<std::int32_t, std::int32_t>& cell) { return !held.contains(cell); }),
                 9);
             EXPECT_EQ(mRing.getHeldCellCount(), held.size());
             EXPECT_EQ(mRing.getCellsToStand(), 0u);
@@ -1765,17 +1847,17 @@ namespace Rtx::Testing
                 << "each sheet five units over where its file placed it";
 
             const auto materialAt = [&](const float height) {
-                Index worn = sNoIndex;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
-                    if (worn == sNoIndex && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
+                MaterialIndex worn = sNoRow;
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
+                    if (worn == sNoRow && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
                         worn = row.mInstance.mMaterial;
                 });
                 return worn;
             };
-            const Index grass = materialAt(105.0f);
-            const Index fern = materialAt(405.0f);
-            ASSERT_NE(grass, sNoIndex);
-            ASSERT_NE(fern, sNoIndex);
+            const MaterialIndex grass = materialAt(105.0f);
+            const MaterialIndex fern = materialAt(405.0f);
+            ASSERT_NE(grass, sNoRow);
+            ASSERT_NE(fern, sNoRow);
             EXPECT_NE(grass, fern) << "the grass wore the static's material";
             EXPECT_EQ(materialAt(205.0f), grass) << "one material for every plant of one model";
             const Material& cut = mScene.materials().getRows()[grass];
@@ -1823,7 +1905,7 @@ namespace Rtx::Testing
 
             std::optional<bool> grass;
             std::optional<bool> fern;
-            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+            mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                 const bool lit = mScene.materials().getRows()[row.mInstance.mMaterial].mLampLit;
                 const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
                 if (height == 105.0f)
@@ -1903,7 +1985,7 @@ namespace Rtx::Testing
                 .mGround = &land,
                 .mContent = &content,
                 .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
-            for (int pass = 0; pass < 3; ++pass)
+            for (std::int32_t pass = 0; pass < 3; ++pass)
                 reader.giveBack(reader.read(osg::Vec2i(0, 0)));
 
             EXPECT_EQ(storage.mModelsAsked, 1) << "the storage was asked for a record's model more than once";
@@ -2129,24 +2211,25 @@ namespace Rtx::Testing
         /// **A model's room is counted where it stands: lent to a cell, then spare, never both.**
         /// `reuse` keeps the buffers, so the room the tree grew to leaves the lent figure and
         /// reappears whole in the spare one when its one holder gives it back.
-        /// **A spare keeps the room its last model filled at least half of, and gives back the
-        /// rest.** Hand-counted on the positions: a hundred reserved and a hundred held is kept; fifty
-        /// in the same hundred is exactly half and kept; forty is less than half and given back,
-        /// which is what stops a spare keeping the largest model it ever held.
-        TEST(RtxPreparedModelTest, aSpareKeepsItsRoomOnlyWhereItsModelFilledHalfOfIt)
+        /// **A filled model keeps the room it fills at least half of, and shrinks the rest to what it holds; a spare
+        /// keeps what the model left.** Hand-counted on the chains: a hundred reserved and a hundred held is kept;
+        /// fifty in the same hundred is exactly half and kept; forty is less than half and shrinks to forty, which is
+        /// what stops a model lent from holding the room of the largest model its spare ever held.
+        TEST(RtxPreparedModelTest, aFilledModelKeepsItsRoomOnlyWhereItFillsHalfOfIt)
         {
-            PreparedModel model;
-            model.mPositions.reserve(100);
-
-            for (const auto& [held, kept] : { std::pair{ 100u, 100u }, std::pair{ 50u, 100u }, std::pair{ 40u, 0u } })
+            for (const auto& [held, kept] : { std::pair{ 100u, 100u }, std::pair{ 50u, 100u }, std::pair{ 40u, 40u } })
             {
-                model.mPositions.resize(held);
-                ASSERT_EQ(model.mPositions.capacity(), 100u) << "the room this starts from";
+                PreparedModel model;
+                model.mChains.reserve(100);
+                model.mChains.resize(held);
+                ASSERT_EQ(model.mChains.capacity(), 100u) << "the room this starts from";
+                model.trimSlack();
+                EXPECT_EQ(model.mChains.size(), held) << "what it holds, kept";
+                EXPECT_EQ(model.mChains.capacity(), kept) << held << " of a hundred";
+
                 model.reuse();
-                EXPECT_TRUE(model.mPositions.empty());
-                EXPECT_EQ(model.mPositions.capacity(), kept) << held << " of a hundred";
-                if (kept == 0)
-                    break;
+                EXPECT_TRUE(model.mChains.empty());
+                EXPECT_EQ(model.mChains.capacity(), kept) << "the spare keeps the room the trim left";
             }
         }
 
@@ -2187,7 +2270,9 @@ namespace Rtx::Testing
             PreparedCell& cell = reader.read(osg::Vec2i(0, 0));
             ASSERT_EQ(cell.mModels.size(), 1u);
             PreparedModel& tree = *cell.mModels.front();
-            ASSERT_FALSE(tree.mPositions.empty()) << "the sheet was read";
+            ASSERT_FALSE(tree.mParts.empty()) << "the sheet was read";
+            const std::size_t positions = tree.readingOf(tree.mParts.front()).mPositions.size();
+            ASSERT_GT(positions, 0u);
 
             const ReaderMemory lent = reader.measure();
             EXPECT_EQ(lent.mLentModels, 1u);
@@ -2195,6 +2280,11 @@ namespace Rtx::Testing
             EXPECT_EQ(lent.mFiledModels, 1u) << "the broken model, which no cell holds";
             EXPECT_EQ(lent.mLentBytes, tree.getRoomBytes());
             EXPECT_EQ(lent.mSpareBytes, 0u);
+            // What it fills of the room: its positions among it, and never past the room.
+            EXPECT_EQ(lent.mLentContentBytes, tree.getContentBytes());
+            EXPECT_GE(lent.mLentContentBytes, positions * sizeof(osg::Vec3f));
+            EXPECT_LE(lent.mLentContentBytes, lent.mLentBytes);
+            EXPECT_LE(lent.mFiledContentBytes, lent.mFiledBytes);
 
             reader.giveBack(tree);
             reader.giveBack(cell);
@@ -2206,6 +2296,8 @@ namespace Rtx::Testing
             EXPECT_EQ(spare.mFiledBytes, lent.mFiledBytes);
             EXPECT_EQ(spare.mLentBytes, 0u);
             EXPECT_EQ(spare.mSpareBytes, lent.mLentBytes) << "the spare keeps the room the lent model grew to";
+            EXPECT_EQ(spare.mLentContentBytes, 0u) << "a spare holds no model";
+            EXPECT_EQ(spare.mFiledContentBytes, lent.mFiledContentBytes);
         }
 
         /// **A model the walk refuses costs the reader nothing it keeps.** The reference is left
@@ -2225,8 +2317,8 @@ namespace Rtx::Testing
                 .mContent = &content,
                 .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
 
-            const int held = content.mFace->referenceCount();
-            for (int pass = 0; pass < 3; ++pass)
+            const std::int32_t held = content.mFace->referenceCount();
+            for (std::int32_t pass = 0; pass < 3; ++pass)
             {
                 PreparedCell& cell = reader.read(osg::Vec2i(0, 0));
                 EXPECT_TRUE(cell.mModels.empty()) << "a model the walk refused was named";

@@ -1,6 +1,8 @@
 #include "extendedcommandconfigurator.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <QCheckBox>
@@ -8,11 +10,9 @@
 #include <QLayout>
 #include <QPushButton>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/data.hpp"
-
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 
 CSVWorld::ExtendedCommandConfigurator::ExtendedCommandConfigurator(
@@ -89,11 +89,11 @@ void CSVWorld::ExtendedCommandConfigurator::setupGroupLayout()
         return;
     }
 
-    int groupWidth = mTypeGroup->geometry().width();
+    std::int32_t groupWidth = mTypeGroup->geometry().width();
     auto* layout = qobject_cast<QGridLayout*>(mTypeGroup->layout());
 
     // Find the optimal number of rows to place the checkboxes within the available space
-    int divider = 1;
+    std::int32_t divider = 1;
     do
     {
         while (layout->itemAt(0) != nullptr)
@@ -101,16 +101,16 @@ void CSVWorld::ExtendedCommandConfigurator::setupGroupLayout()
             layout->removeItem(layout->itemAt(0));
         }
 
-        int counter = 0;
-        int itemsPerRow = mNumUsedCheckBoxes / divider;
+        std::int32_t counter = 0;
+        std::int32_t itemsPerRow = mNumUsedCheckBoxes / divider;
         auto current = mTypeCheckBoxes.begin();
         auto end = mTypeCheckBoxes.end();
         for (; current != end; ++current)
         {
             if (counter < mNumUsedCheckBoxes)
             {
-                int row = counter / itemsPerRow;
-                int column = counter - (counter / itemsPerRow) * itemsPerRow;
+                std::int32_t row = counter / itemsPerRow;
+                std::int32_t column = counter - (counter / itemsPerRow) * itemsPerRow;
                 layout->addWidget(current->first, row, column);
             }
             ++counter;
@@ -122,24 +122,20 @@ void CSVWorld::ExtendedCommandConfigurator::setupGroupLayout()
 void CSVWorld::ExtendedCommandConfigurator::setupCheckBoxes(const std::vector<CSMWorld::UniversalId>& types)
 {
     // Make sure that we have enough checkboxes
-    int numTypes = static_cast<int>(types.size());
-    int numCheckBoxes = static_cast<int>(mTypeCheckBoxes.size());
+    auto numTypes = static_cast<std::int32_t>(types.size());
+    auto numCheckBoxes = static_cast<std::int32_t>(mTypeCheckBoxes.size());
     if (numTypes > numCheckBoxes)
     {
-        for (int i = numTypes - numCheckBoxes; i > 0; --i)
+        for (std::int32_t i = numTypes - numCheckBoxes; i > 0; --i)
         {
             auto* checkBox = new QCheckBox(mTypeGroup);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
             connect(checkBox, &QCheckBox::checkStateChanged, this, &ExtendedCommandConfigurator::checkBoxStateChanged);
-#else
-            connect(checkBox, &QCheckBox::stateChanged, this, &ExtendedCommandConfigurator::checkBoxStateChanged);
-#endif
             mTypeCheckBoxes.insert(std::make_pair(checkBox, CSMWorld::UniversalId::Type_None));
         }
     }
 
     // Set up the checkboxes
-    int counter = 0;
+    std::int32_t counter = 0;
     auto current = mTypeCheckBoxes.begin();
     auto end = mTypeCheckBoxes.end();
     for (; current != end; ++current)
@@ -166,7 +162,7 @@ void CSVWorld::ExtendedCommandConfigurator::lockWidgets(bool locked)
 
     auto current = mTypeCheckBoxes.begin();
     auto end = mTypeCheckBoxes.end();
-    for (int i = 0; current != end && i < mNumUsedCheckBoxes; ++current, ++i)
+    for (std::int32_t i = 0; current != end && i < mNumUsedCheckBoxes; ++current, ++i)
     {
         current->first->setEnabled(!mEditLock);
     }
@@ -198,7 +194,7 @@ void CSVWorld::ExtendedCommandConfigurator::performExtendedCommand()
     emit done();
 }
 
-void CSVWorld::ExtendedCommandConfigurator::checkBoxStateChanged(int state)
+void CSVWorld::ExtendedCommandConfigurator::checkBoxStateChanged(std::int32_t state)
 {
     switch (state)
     {
@@ -223,7 +219,7 @@ void CSVWorld::ExtendedCommandConfigurator::checkBoxStateChanged(int state)
 void CSVWorld::ExtendedCommandConfigurator::dataIdListChanged()
 {
     bool idsRemoved = false;
-    for (int i = 0; std::cmp_less(i, mSelectedIds.size()); ++i)
+    for (std::int32_t i = 0; std::cmp_less(i, mSelectedIds.size()); ++i)
     {
         if (!mData.hasId(mSelectedIds[static_cast<std::size_t>(i)]))
         {

@@ -42,16 +42,16 @@ namespace ESM
 
         struct CTDTstruct
         {
-            int32_t mType;
+            std::int32_t mType;
             float mWeight;
-            uint16_t mValue;
-            uint16_t mEnchant;
+            std::uint16_t mValue;
+            std::uint16_t mEnchant;
         };
         CTDTstruct mData{};
 
         PartReferenceList mParts;
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mEnchant, mScript;
         Path mModel;
         Path mIcon;

@@ -1,9 +1,9 @@
-#include <components/resource/multiobjectcache.hpp>
+#include <memory>
+#include <string>
 
 #include <gtest/gtest.h>
 
-#include <memory>
-#include <string>
+#include <components/resource/multiobjectcache.hpp>
 
 namespace Resource
 {

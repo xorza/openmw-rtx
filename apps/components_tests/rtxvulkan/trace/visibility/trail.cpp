@@ -9,11 +9,13 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
-#include <apps/components_tests/rtxvulkan/trace/visibility/fixture.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/visibility.h>
+
+#include "fixture.hpp"
 
 namespace Rtx::Testing
 {
@@ -57,6 +59,7 @@ namespace Rtx::Testing
         protected:
             Trail trailOf(Blocked blocked, bool antilag)
             {
+                SceneIdentities identities;
                 constexpr std::uint32_t still = 32;
                 constexpr std::uint32_t moving = 40;
                 constexpr std::uint32_t draws = 2;
@@ -73,9 +76,9 @@ namespace Rtx::Testing
                 }
 
                 const float height = blocked == Blocked::Sky ? 20.0f : 100.0f;
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
-                const Index bar = addQuad(scene, roofOver(-100.0f, -100.0f + width, height));
+                const PlacementIndex bar = addQuad(scene, roofOver(-100.0f, -100.0f + width, height));
 
                 mRenderer.resize(sSize, sSize);
                 mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
@@ -225,7 +228,8 @@ namespace Rtx::Testing
 
             void SetUp() override
             {
-                SceneDesc scene;
+                SceneIdentities identities;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
                 addQuad(scene, roofOver(-20.0f, 20.0f, 20.0f));
                 mRenderer.resize(sFloorSize, sFloorSize);

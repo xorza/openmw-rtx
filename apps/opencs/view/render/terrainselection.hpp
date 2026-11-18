@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -41,16 +42,16 @@ namespace CSVRender
         TerrainSelection(const TerrainSelection&) = delete;
         TerrainSelection& operator=(const TerrainSelection&) = delete;
 
-        void onlySelect(const std::vector<std::pair<int, int>>& localPositions);
-        void addSelect(const std::vector<std::pair<int, int>>& localPositions);
-        void removeSelect(const std::vector<std::pair<int, int>>& localPositions);
-        void toggleSelect(const std::vector<std::pair<int, int>>& localPositions);
+        void onlySelect(const std::vector<std::pair<std::int32_t, std::int32_t>>& localPositions);
+        void addSelect(const std::vector<std::pair<std::int32_t, std::int32_t>>& localPositions);
+        void removeSelect(const std::vector<std::pair<std::int32_t, std::int32_t>>& localPositions);
+        void toggleSelect(const std::vector<std::pair<std::int32_t, std::int32_t>>& localPositions);
         void clearTemporarySelection();
 
         void activate();
         void deactivate();
 
-        std::vector<std::pair<int, int>> getTerrainSelection() const;
+        std::vector<std::pair<std::int32_t, std::int32_t>> getTerrainSelection() const;
 
         void update();
 
@@ -58,10 +59,11 @@ namespace CSVRender
         void drawShapeSelection(const osg::ref_ptr<osg::Vec3Array>& vertices);
         void drawTextureSelection(const osg::ref_ptr<osg::Vec3Array>& vertices);
 
-        int calculateLandHeight(int x, int y);
+        std::int32_t calculateLandHeight(std::int32_t x, std::int32_t y);
 
     private:
-        void handleSelection(const std::vector<std::pair<int, int>>& localPositions, SelectionMethod selectionMethod);
+        void handleSelection(
+            const std::vector<std::pair<std::int32_t, std::int32_t>>& localPositions, SelectionMethod selectionMethod);
 
         bool noCell(const std::string& cellId);
 
@@ -76,9 +78,9 @@ namespace CSVRender
         osg::ref_ptr<osg::PositionAttitudeTransform> mBaseNode;
         osg::ref_ptr<osg::Geometry> mGeometry;
         osg::ref_ptr<osg::Group> mSelectionNode;
-        std::vector<std::pair<int, int>>
+        std::vector<std::pair<std::int32_t, std::int32_t>>
             mSelection; // Global terrain selection coordinate in either vertex or texture units
-        std::vector<std::pair<int, int>>
+        std::vector<std::pair<std::int32_t, std::int32_t>>
             mTemporarySelection; // Used during toggle to compare the most recent drag operation
         TerrainSelectionType mSelectionType;
     };

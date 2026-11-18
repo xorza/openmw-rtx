@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -79,7 +80,7 @@ namespace Resource
         /// @note May be called from any thread.
         const VFS::Manager* getVFS() const;
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const;
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const;
 
         /// Call releaseGLObjects for each resource manager.
         void releaseGLObjects(osg::State* state);

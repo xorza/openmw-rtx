@@ -1,25 +1,26 @@
 #include "race.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ListBox.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_UString.h>
-
 #include <osg/Math>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/characterpreview.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/settings/values.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwrender/characterpreview.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "tooltips.hpp"
 
@@ -170,13 +171,13 @@ namespace MWGui
         setGender(proto.isMale() ? GM_Male : GM_Female);
         recountParts();
 
-        for (size_t i = 0; i < mAvailableHeads.size(); ++i)
+        for (std::size_t i = 0; i < mAvailableHeads.size(); ++i)
         {
             if (mAvailableHeads[i] == proto.mHead)
                 mFaceIndex = i;
         }
 
-        for (size_t i = 0; i < mAvailableHairs.size(); ++i)
+        for (std::size_t i = 0; i < mAvailableHairs.size(); ++i)
         {
             if (mAvailableHairs[i] == proto.mHair)
                 mHairIndex = i;
@@ -184,7 +185,7 @@ namespace MWGui
 
         mPreviewDirty = true;
 
-        size_t initialPos = mHeadRotate->getScrollRange() / 2 + mHeadRotate->getScrollRange() / 10;
+        std::size_t initialPos = mHeadRotate->getScrollRange() / 2 + mHeadRotate->getScrollRange() / 10;
         mHeadRotate->setScrollPosition(initialPos);
         onHeadRotate(mHeadRotate, initialPos);
 
@@ -195,8 +196,8 @@ namespace MWGui
     {
         mCurrentRaceId = raceId;
         mRaceList->setIndexSelected(MyGUI::ITEM_NONE);
-        size_t count = mRaceList->getItemCount();
-        for (size_t i = 0; i < count; ++i)
+        std::size_t count = mRaceList->getItemCount();
+        for (std::size_t i = 0; i < count; ++i)
         {
             if (*mRaceList->getItemDataAt<ESM::RefId>(i) == raceId)
             {
@@ -232,11 +233,11 @@ namespace MWGui
         eventBack();
     }
 
-    void RaceDialog::onPreviewScroll(MyGUI::Widget*, int delta)
+    void RaceDialog::onPreviewScroll(MyGUI::Widget*, std::int32_t delta)
     {
-        size_t oldPos = mHeadRotate->getScrollPosition();
-        size_t maxPos = mHeadRotate->getScrollRange() - 1;
-        size_t scrollPage = mHeadRotate->getScrollWheelPage();
+        std::size_t oldPos = mHeadRotate->getScrollPosition();
+        std::size_t maxPos = mHeadRotate->getScrollRange() - 1;
+        std::size_t scrollPage = mHeadRotate->getScrollWheelPage();
         if (delta < 0)
             mHeadRotate->setScrollPosition(oldPos + std::min(maxPos - oldPos, scrollPage));
         else
@@ -245,7 +246,7 @@ namespace MWGui
         onHeadRotate(mHeadRotate, mHeadRotate->getScrollPosition());
     }
 
-    void RaceDialog::onHeadRotate(MyGUI::ScrollBar* scroll, size_t position)
+    void RaceDialog::onHeadRotate(MyGUI::ScrollBar* scroll, std::size_t position)
     {
         float angle
             = (static_cast<float>(position) / static_cast<float>((scroll->getScrollRange() - 1)) - 0.5f) * osg::PIf * 2;
@@ -294,7 +295,7 @@ namespace MWGui
         updatePreview();
     }
 
-    void RaceDialog::onSelectRace(MyGUI::ListBox* sender, size_t index)
+    void RaceDialog::onSelectRace(MyGUI::ListBox* sender, std::size_t index)
     {
         if (index == MyGUI::ITEM_NONE)
             return;
@@ -312,7 +313,7 @@ namespace MWGui
         updateSpellPowers();
     }
 
-    void RaceDialog::onAccept(MyGUI::ListBox* sender, size_t index)
+    void RaceDialog::onAccept(MyGUI::ListBox* sender, std::size_t index)
     {
         onSelectRace(sender, index);
         if (mRaceList->getIndexSelected() == MyGUI::ITEM_NONE)
@@ -320,7 +321,7 @@ namespace MWGui
         eventDone(this);
     }
 
-    void RaceDialog::getBodyParts(int part, std::vector<ESM::RefId>& out)
+    void RaceDialog::getBodyParts(std::int32_t part, std::vector<ESM::RefId>& out)
     {
         out.clear();
         const MWWorld::Store<ESM::BodyPart>& store = MWBase::Environment::get().getESMStore()->get<ESM::BodyPart>();
@@ -392,7 +393,7 @@ namespace MWGui
         }
         std::sort(items.begin(), items.end(), sortRaces);
 
-        int index = 0;
+        std::int32_t index = 0;
         for (auto& item : items)
         {
             mRaceList->addItem(item.second, item.first);
@@ -420,7 +421,7 @@ namespace MWGui
             return;
 
         Widgets::MWSkillPtr skillWidget = nullptr;
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         MyGUI::IntCoord coord1(0, 0, mSkillList->getWidth(), 18);
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
@@ -452,13 +453,13 @@ namespace MWGui
         if (mCurrentRaceId.empty())
             return;
 
-        const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
+        const std::int32_t lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         MyGUI::IntCoord coord(0, 0, mSpellPowerList->getWidth(), lineHeight);
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
         const ESM::Race* race = store.get<ESM::Race>().find(mCurrentRaceId);
 
-        int i = 0;
+        std::int32_t i = 0;
         for (const ESM::RefId& spellpower : race->mPowers.mList)
         {
             if (!store.get<ESM::Spell>().search(spellpower))

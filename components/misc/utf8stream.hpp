@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -9,8 +10,8 @@
 class Utf8Stream
 {
 public:
-    typedef uint32_t UnicodeChar;
-    typedef unsigned char const* Point;
+    typedef std::uint32_t UnicodeChar;
+    typedef std::uint8_t const* Point;
 
     // static const unicode_char sBadChar = 0xFFFFFFFF; gcc can't handle this
     static UnicodeChar sBadChar() { return static_cast<UnicodeChar>(0xFFFFFFFF); }
@@ -24,9 +25,9 @@ public:
     }
 
     explicit Utf8Stream(const char* str)
-        : mCur(reinterpret_cast<const unsigned char*>(str))
-        , mNxt(reinterpret_cast<const unsigned char*>(str))
-        , mEnd(reinterpret_cast<const unsigned char*>(str) + strlen(str))
+        : mCur(reinterpret_cast<const std::uint8_t*>(str))
+        , mNxt(reinterpret_cast<const std::uint8_t*>(str))
+        , mEnd(reinterpret_cast<const std::uint8_t*>(str) + strlen(str))
         , mVal(Utf8Stream::sBadChar())
     {
     }
@@ -63,7 +64,7 @@ public:
         return mVal;
     }
 
-    static bool isAscii(unsigned char value) { return (value & 0x80) == 0; }
+    static bool isAscii(std::uint8_t value) { return (value & 0x80) == 0; }
 
     static std::pair<UnicodeChar, Point> decode(Point cur, Point end)
     {
@@ -168,12 +169,12 @@ public:
         return out;
     }
 
-    static std::pair<std::size_t, UnicodeChar> getOctetCount(unsigned char octet)
+    static std::pair<std::size_t, UnicodeChar> getOctetCount(std::uint8_t octet)
     {
         std::size_t octets = 0;
 
-        unsigned char mark = 0xC0;
-        unsigned char mask = 0xE0;
+        std::uint8_t mark = 0xC0;
+        std::uint8_t mask = 0xE0;
 
         for (octets = 1; octets <= 5; ++octets)
         {

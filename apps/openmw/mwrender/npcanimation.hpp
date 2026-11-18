@@ -1,14 +1,14 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <components/vfs/pathutil.hpp>
+
 #include "actoranimation.hpp"
 #include "animation.hpp"
 #include "weaponanimation.hpp"
-
-#include <components/vfs/pathutil.hpp>
-
-#include "../mwworld/inventorystore.hpp"
-
-#include <array>
 
 namespace ESM
 {
@@ -64,8 +64,8 @@ namespace MWRender
         };
         NpcType mNpcType;
 
-        int mPartslots[ESM::PRT_Count]{}; // Each part slot is taken by clothing, armor, or is empty
-        int mPartPriorities[ESM::PRT_Count]{};
+        std::int32_t mPartslots[ESM::PRT_Count]{}; // Each part slot is taken by clothing, armor, or is empty
+        std::int32_t mPartPriorities[ESM::PRT_Count]{};
 
         osg::Vec3f mFirstPersonOffset;
         // Field of view to use when rendering first person meshes
@@ -87,13 +87,13 @@ namespace MWRender
             std::string_view bonefilter, bool enchantedGlow, osg::Vec4f* glowColor, bool isLight);
 
         void removeIndividualPart(ESM::PartReferenceType type);
-        void reserveIndividualPart(ESM::PartReferenceType type, int group, int priority);
+        void reserveIndividualPart(ESM::PartReferenceType type, std::int32_t group, std::int32_t priority);
 
-        bool addOrReplaceIndividualPart(ESM::PartReferenceType type, int group, int priority,
+        bool addOrReplaceIndividualPart(ESM::PartReferenceType type, std::int32_t group, std::int32_t priority,
             VFS::Path::NormalizedView mesh, bool enchantedGlow = false, osg::Vec4f* glowColor = nullptr,
             bool isLight = false);
-        void removePartGroup(int group);
-        void addPartGroup(int group, int priority, const std::vector<ESM::PartReference>& parts,
+        void removePartGroup(std::int32_t group);
+        void addPartGroup(std::int32_t group, std::int32_t priority, const std::vector<ESM::PartReference>& parts,
             bool enchantedGlow = false, osg::Vec4f* glowColor = nullptr);
 
         void setRenderBin();
@@ -163,7 +163,7 @@ namespace MWRender
         void rebuild();
 
         /// Get the inventory slot that the given node path leads into, or -1 if not found.
-        int getSlot(const osg::NodePath& path) const;
+        std::int32_t getSlot(const osg::NodePath& path) const;
 
         const PartHolder* getPart(ESM::PartReferenceType type) const { return mObjectParts[type].get(); }
 

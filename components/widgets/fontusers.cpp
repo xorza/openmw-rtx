@@ -1,6 +1,7 @@
 #include "fontusers.hpp"
 
 #include <cassert>
+#include <cstdint>
 
 #include <MyGUI_FactoryManager.h>
 
@@ -34,7 +35,7 @@ namespace Gui
         assert(mEntries.empty() && "a font user outlived its registry");
     }
 
-    FontUsers::FontUsers(const Users users, const int textHeight)
+    FontUsers::FontUsers(const Users users, const std::int32_t textHeight)
         : mTextHeight(textHeight)
     {
         MyGUI::FactoryManager& factories = MyGUI::FactoryManager::getInstance();
@@ -58,7 +59,7 @@ namespace Gui
         }
     }
 
-    void FontUsers::refit(const int textHeight)
+    void FontUsers::refit(const std::int32_t textHeight)
     {
         assert(textHeight > 0 && "a text laid out at no height");
         mTextHeight = textHeight;

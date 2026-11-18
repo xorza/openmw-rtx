@@ -1,17 +1,18 @@
 #include "terraingrid.hpp"
 
+#include <cstdint>
 #include <memory>
 
 #include <osg/ComputeBoundsVisitor>
 #include <osg/Group>
 
+#include <components/esm/util.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp>
+
 #include "chunkmanager.hpp"
 #include "heightcull.hpp"
 #include "storage.hpp"
 #include "view.hpp"
-
-#include <components/esm/util.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
 
 namespace Terrain
 {
@@ -28,15 +29,15 @@ namespace Terrain
     }
 
     TerrainGrid::TerrainGrid(osg::Group* parent, osg::Group* compileRoot, Resource::ResourceSystem* resourceSystem,
-        Storage* storage, unsigned int nodeMask, ESM::RefId worldspace, double expiryDelay, unsigned int preCompileMask,
-        unsigned int borderMask)
+        Storage* storage, std::uint32_t nodeMask, ESM::RefId worldspace, double expiryDelay,
+        std::uint32_t preCompileMask, std::uint32_t borderMask)
         : Terrain::World(parent, compileRoot, resourceSystem, storage, nodeMask, preCompileMask, borderMask, worldspace,
               expiryDelay)
         , mNumSplits(ESM::isEsm4Ext(worldspace) ? 2 : 4)
     {
     }
 
-    TerrainGrid::TerrainGrid(osg::Group* parent, Storage* storage, ESM::RefId worldspace, unsigned int nodeMask)
+    TerrainGrid::TerrainGrid(osg::Group* parent, Storage* storage, ESM::RefId worldspace, std::uint32_t nodeMask)
         : Terrain::World(parent, storage, nodeMask, worldspace)
         , mNumSplits(ESM::isEsm4Ext(worldspace) ? 2 : 4)
     {
@@ -50,7 +51,7 @@ namespace Terrain
         }
     }
 
-    void TerrainGrid::cacheCell(View* view, int x, int y)
+    void TerrainGrid::cacheCell(View* view, std::int32_t x, std::int32_t y)
     {
         osg::Vec2f center(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
         static_cast<MyView*>(view)->mLoaded = buildTerrain(nullptr, 1.f, center);
@@ -90,7 +91,7 @@ namespace Terrain
         }
     }
 
-    void TerrainGrid::loadCell(int x, int y)
+    void TerrainGrid::loadCell(std::int32_t x, std::int32_t y)
     {
         if (mGrid.contains(std::make_pair(x, y)))
             return; // already loaded
@@ -108,7 +109,7 @@ namespace Terrain
         updateWaterCulling();
     }
 
-    void TerrainGrid::unloadCell(int x, int y)
+    void TerrainGrid::unloadCell(std::int32_t x, std::int32_t y)
     {
         auto it = mGrid.find(std::make_pair(x, y));
         if (it == mGrid.end())

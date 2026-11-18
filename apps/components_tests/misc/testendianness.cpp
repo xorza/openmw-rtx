@@ -1,7 +1,9 @@
-#include "components/misc/endianness.hpp"
+#include <cmath>
+#include <cstdint>
+
 #include <gtest/gtest.h>
 
-#include <cmath>
+#include <components/misc/endianness.hpp>
 
 namespace
 {
@@ -12,10 +14,10 @@ namespace
 
 TEST_F(EndiannessTest, test_swap_endianness_inplace1)
 {
-    uint8_t zero = 0x00;
-    uint8_t ff = 0xFF;
-    uint8_t fortytwo = 0x42;
-    uint8_t half = 128;
+    std::uint8_t zero = 0x00;
+    std::uint8_t ff = 0xFF;
+    std::uint8_t fortytwo = 0x42;
+    std::uint8_t half = 128;
 
     Misc::swapEndiannessInplace(zero);
     EXPECT_EQ(zero, 0x00);
@@ -32,10 +34,10 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace1)
 
 TEST_F(EndiannessTest, test_swap_endianness_inplace2)
 {
-    uint16_t zero = 0x0000;
-    uint16_t ffff = 0xFFFF;
-    uint16_t n12 = 0x0102;
-    uint16_t fortytwo = 0x0042;
+    std::uint16_t zero = 0x0000;
+    std::uint16_t ffff = 0xFFFF;
+    std::uint16_t n12 = 0x0102;
+    std::uint16_t fortytwo = 0x0042;
 
     Misc::swapEndiannessInplace(zero);
     EXPECT_EQ(zero, 0x0000u);
@@ -60,9 +62,9 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace2)
 
 TEST_F(EndiannessTest, test_swap_endianness_inplace4)
 {
-    uint32_t zero = 0x00000000;
-    uint32_t n1234 = 0x01020304;
-    uint32_t ffff = 0xFFFFFFFF;
+    std::uint32_t zero = 0x00000000;
+    std::uint32_t n1234 = 0x01020304;
+    std::uint32_t ffff = 0xFFFFFFFF;
 
     Misc::swapEndiannessInplace(zero);
     EXPECT_EQ(zero, 0x00000000u);
@@ -82,9 +84,9 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace4)
 
 TEST_F(EndiannessTest, test_swap_endianness_inplace8)
 {
-    uint64_t zero = 0x0000'0000'0000'0000;
-    uint64_t n1234 = 0x0102'0304'0506'0708;
-    uint64_t ffff = 0xFFFF'FFFF'FFFF'FFFF;
+    std::uint64_t zero = 0x0000'0000'0000'0000;
+    std::uint64_t n1234 = 0x0102'0304'0506'0708;
+    std::uint64_t ffff = 0xFFFF'FFFF'FFFF'FFFF;
 
     Misc::swapEndiannessInplace(zero);
     EXPECT_EQ(zero, 0x0000'0000'0000'0000u);
@@ -104,8 +106,8 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace8)
 
 TEST_F(EndiannessTest, test_swap_endianness_inplace_float)
 {
-    const uint32_t original = 0x4023d70a;
-    const uint32_t expected = 0x0ad72340;
+    const std::uint32_t original = 0x4023d70a;
+    const std::uint32_t expected = 0x0ad72340;
 
     float number = NAN;
     memcpy(&number, &original, sizeof(original));
@@ -119,8 +121,8 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace_float)
 
 TEST_F(EndiannessTest, test_swap_endianness_inplace_double)
 {
-    const uint64_t original = 0x040047ae147ae147ul;
-    const uint64_t expected = 0x47e17a14ae470004ul;
+    const std::uint64_t original = 0x040047ae147ae147ull;
+    const std::uint64_t expected = 0x47e17a14ae470004ull;
 
     double number = NAN;
     memcpy(&number, &original, sizeof(original));

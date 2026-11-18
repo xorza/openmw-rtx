@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -14,11 +15,11 @@ namespace CSMWorld
         ESM::RefId mCell;
         ESM::RefId mOriginalCell;
         bool mNew; // new reference, not counted yet, ref num not assigned yet
-        unsigned int mIdNum;
+        std::uint32_t mIdNum;
 
         CellRef();
 
         /// Calculate cell index based on coordinates (x and y)
-        std::pair<int, int> getCellIndex() const;
+        std::pair<std::int32_t, std::int32_t> getCellIndex() const;
     };
 }

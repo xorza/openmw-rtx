@@ -1,6 +1,3 @@
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -21,6 +18,9 @@
 #include <utility>
 #include <vector>
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -39,6 +39,7 @@
 #include <components/testing/util.hpp>
 // Every record type whole, which the type lists below detect a member of: one left incomplete would drop out of the
 // lists unseen.
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm/records.hpp> // IWYU pragma: keep
 #include <components/esm/stringrefid.hpp>
@@ -56,8 +57,6 @@
 #include <components/files/collections.hpp>
 #include <components/files/multidircollection.hpp>
 
-#include "apps/openmw/mwworld/esmstore.hpp"
-
 namespace
 {
     Loading::Listener dummyListener;
@@ -71,7 +70,7 @@ namespace
             readContentFiles();
 
             // load the content files
-            int index = 0;
+            std::int32_t index = 0;
             ESM::Dialogue* dialogue = nullptr;
             for (const auto& mContentFile : mContentFiles)
             {
@@ -175,45 +174,12 @@ namespace
                   << std::endl;
     }
 
-// Note: here we don't test records that don't use string names (e.g. Land, Pathgrid, Cell)
-// `func` is a template's name, which parentheses would not let take its arguments.
-// NOLINTBEGIN(bugprone-macro-parentheses)
-#define RUN_TEST_FOR_TYPES(func, arg1, arg2)                                                                           \
-    func<ESM::Activator>(arg1, arg2);                                                                                  \
-    func<ESM::Apparatus>(arg1, arg2);                                                                                  \
-    func<ESM::Armor>(arg1, arg2);                                                                                      \
-    func<ESM::BirthSign>(arg1, arg2);                                                                                  \
-    func<ESM::BodyPart>(arg1, arg2);                                                                                   \
-    func<ESM::Book>(arg1, arg2);                                                                                       \
-    func<ESM::Class>(arg1, arg2);                                                                                      \
-    func<ESM::Clothing>(arg1, arg2);                                                                                   \
-    func<ESM::Container>(arg1, arg2);                                                                                  \
-    func<ESM::Creature>(arg1, arg2);                                                                                   \
-    func<ESM::CreatureLevList>(arg1, arg2);                                                                            \
-    func<ESM::Dialogue>(arg1, arg2);                                                                                   \
-    func<ESM::Door>(arg1, arg2);                                                                                       \
-    func<ESM::Enchantment>(arg1, arg2);                                                                                \
-    func<ESM::Faction>(arg1, arg2);                                                                                    \
-    func<ESM::GameSetting>(arg1, arg2);                                                                                \
-    func<ESM::Global>(arg1, arg2);                                                                                     \
-    func<ESM::Ingredient>(arg1, arg2);                                                                                 \
-    func<ESM::ItemLevList>(arg1, arg2);                                                                                \
-    func<ESM::Light>(arg1, arg2);                                                                                      \
-    func<ESM::Lockpick>(arg1, arg2);                                                                                   \
-    func<ESM::Miscellaneous>(arg1, arg2);                                                                              \
-    func<ESM::NPC>(arg1, arg2);                                                                                        \
-    func<ESM::Potion>(arg1, arg2);                                                                                     \
-    func<ESM::Probe>(arg1, arg2);                                                                                      \
-    func<ESM::Race>(arg1, arg2);                                                                                       \
-    func<ESM::Region>(arg1, arg2);                                                                                     \
-    func<ESM::Repair>(arg1, arg2);                                                                                     \
-    func<ESM::Script>(arg1, arg2);                                                                                     \
-    func<ESM::Sound>(arg1, arg2);                                                                                      \
-    func<ESM::SoundGenerator>(arg1, arg2);                                                                             \
-    func<ESM::Spell>(arg1, arg2);                                                                                      \
-    func<ESM::StartScript>(arg1, arg2);                                                                                \
-    func<ESM::Weapon>(arg1, arg2);
-    // NOLINTEND(bugprone-macro-parentheses)
+    /// Calls `call`, a generic lambda, once for each of `Types`.
+    template <class... Types, class Call>
+    void forEachType(Call&& call)
+    {
+        (call.template operator()<Types>(), ...);
+    }
 
     template <typename T>
     void printRecords(MWWorld::ESMStore& esmStore, std::ostream& outStream)
@@ -243,7 +209,13 @@ namespace
         const auto file = TestingOpenMW::outputFilePath("test_content_diagnostics.txt");
         std::ofstream stream(file);
 
-        RUN_TEST_FOR_TYPES(printRecords, mEsmStore, stream);
+        // The records that have a string name: not Land, Pathgrid or Cell.
+        forEachType<ESM::Activator, ESM::Apparatus, ESM::Armor, ESM::BirthSign, ESM::BodyPart, ESM::Book, ESM::Class,
+            ESM::Clothing, ESM::Container, ESM::Creature, ESM::CreatureLevList, ESM::Dialogue, ESM::Door,
+            ESM::Enchantment, ESM::Faction, ESM::GameSetting, ESM::Global, ESM::Ingredient, ESM::ItemLevList,
+            ESM::Light, ESM::Lockpick, ESM::Miscellaneous, ESM::NPC, ESM::Potion, ESM::Probe, ESM::Race, ESM::Region,
+            ESM::Repair, ESM::Script, ESM::Sound, ESM::SoundGenerator, ESM::Spell, ESM::StartScript, ESM::Weapon>(
+            [&]<class T>() { printRecords<T>(mEsmStore, stream); });
 
         std::cout << "diagnostics_test successful, results printed to " << Files::pathToUnicodeString(file)
                   << std::endl;
@@ -377,7 +349,7 @@ namespace
     }
 
     template <typename T>
-    unsigned int hasSameRecordId(const MWWorld::Store<T>& store, ESM::RecNameInts recName)
+    std::uint32_t hasSameRecordId(const MWWorld::Store<T>& store, ESM::RecNameInts recName)
     {
         if constexpr (MWWorld::HasRecordId<T>)
         {
@@ -394,9 +366,9 @@ namespace
     {
         if constexpr (MWWorld::HasRecordId<T>)
         {
-            const unsigned int recordIdCount
+            const std::uint32_t recordIdCount
                 = std::apply([](auto&&... x) { return (hasSameRecordId(x, T::sRecordId) + ...); }, stores);
-            ASSERT_EQ(recordIdCount, static_cast<unsigned int>(1))
+            ASSERT_EQ(recordIdCount, static_cast<std::uint32_t>(1))
                 << "The same RecNameInt is used twice ESM::REC_" << ESM::getRecNameString(T::sRecordId).toStringView();
         }
     }
@@ -469,7 +441,7 @@ namespace
     {
         using RecordType = TypeParam;
 
-        const int index = 3;
+        const std::int32_t index = 3;
         const std::string stringId = "foobar";
         decltype(RecordType::mId) refId;
         if constexpr (ESM::HasIndex<RecordType> && !std::is_same_v<RecordType, ESM::LandTexture>)
@@ -702,7 +674,7 @@ namespace
         return stream;
     }
 
-    void loadEsmStore(int index, std::unique_ptr<std::istream>&& stream, MWWorld::ESMStore& esmStore)
+    void loadEsmStore(std::int32_t index, std::unique_ptr<std::istream>&& stream, MWWorld::ESMStore& esmStore)
     {
         ESM::ESMReader reader;
         ESM::Dialogue* dialogue = nullptr;

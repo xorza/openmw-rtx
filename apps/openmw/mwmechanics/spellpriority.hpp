@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace ESM
 {
     struct Spell;
@@ -22,7 +24,7 @@ namespace MWMechanics
         Target = 0x100
     };
 
-    int getRangeTypes(const ESM::EffectList& effects);
+    std::int32_t getRangeTypes(const ESM::EffectList& effects);
 
     float rateSpell(
         const ESM::Spell* spell, const MWWorld::Ptr& actor, const MWWorld::Ptr& enemy, bool checkMagicka = true);

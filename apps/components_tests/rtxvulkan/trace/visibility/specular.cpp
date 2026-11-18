@@ -24,6 +24,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -46,17 +47,18 @@ namespace Rtx::Testing
         {
             std::array<std::uint8_t, 4> mMapTexel;
             std::array<TextureData, 2> mTextures;
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
 
             explicit GlossyFloor(std::uint8_t roughness, std::uint8_t metal = 255)
                 : mMapTexel{ metal, roughness, 0, 255 }
-                , mTextures{ describeTexel(sBaseTexel, 0), describeTexel(mMapTexel, 1) }
+                , mTextures{ describeTexel(sBaseTexel, TextureIndex(0)), describeTexel(mMapTexel, TextureIndex(1)) }
             {
                 const std::array positions = sheetAt(4000.0f, 0.0f);
-                const Index mesh = mScene.addMesh(
-                    MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-                const Index diffuse = mScene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                const Index map = mScene.textures().add(
+                const MeshIndex mesh = Testing::addMesh(
+                    mScene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const TextureIndex diffuse = mScene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const TextureIndex map = mScene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                 mScene.addInstance(MeshInstance{ .mMesh = mesh,
                     .mMaterial = mScene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
@@ -284,6 +286,7 @@ namespace Rtx::Testing
         /// at the last place. With the history kept whole the checker blurs into it.
         TEST_F(RtxVisibilityTest, aSpeckledReflectanceStaysSharpUnderTheGlossyHistory)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = 256;
             std::vector<std::uint8_t> checker(std::size_t{ extent } * extent * 4, 255);
             for (std::uint32_t y = 0; y < extent; ++y)
@@ -292,16 +295,16 @@ namespace Rtx::Testing
                         checker[(std::size_t{ y } * extent + x) * 4 + channel] = (x + y) % 2 == 0 ? 230 : 30;
             TestTexture base;
             paintFlat(base, extent, checker, "checker");
-            base.mData.mSlot = 0;
+            base.mData.mSlot = TextureIndex(0);
             constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 0, 255 };
-            const std::array<TextureData, 2> textures{ base.mData, describeTexel(sMetalTexel, 1) };
+            const std::array<TextureData, 2> textures{ base.mData, describeTexel(sMetalTexel, TextureIndex(1)) };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const std::array positions = sheetAt(4000.0f, 0.0f);
-            const Index mesh
-                = scene.addMesh(MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("checker.dds"));
-            const Index map = scene.textures().add(
+            const MeshIndex mesh = Testing::addMesh(
+                scene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("checker.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("checker_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
             scene.addInstance(MeshInstance{
                 .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });

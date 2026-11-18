@@ -14,6 +14,8 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/filekeys.hpp>
+#include <components/rtx/preprocess/texelreads.hpp>
 
 #include "chainpass.hpp"
 #include "chainscratch.hpp"
@@ -45,8 +47,8 @@ namespace Rtx
     /// converted finest: a base colour in the diffuse's own block format where it has one and no cut,
     /// as a painted colour is kept, and in BC7 otherwise; a metal-roughness map in BC7.
     ///
-    /// **The key is everything the run reads**: the encoding, the wrap the diffuse is delit under, and
-    /// each file's format, finest extent and finest level's bytes, the one level it reads of either.
+    /// **The key is everything the run reads**: the encoding, the wrap the diffuse is delit under, and both files'
+    /// keys (`FileKeys`), which read nothing of a header.
     class ConversionPass
     {
     public:
@@ -62,20 +64,29 @@ namespace Rtx
             TextureEncoding mEncoding{};
 
             TextureWrap mWrap = TextureWrap::Repeat;
+
+            /// Why a run reads each header's texels, where it must.
+            TexelRead mWhy = TexelRead::File;
+            TexelRead mPartnerWhy = TexelRead::Partner;
+
+            /// Where a run leaves the slot's own file's texels it read, for a caller that reads them next, or null.
+            osg::ref_ptr<const osg::Image>* mRead = nullptr;
         };
 
         using Output = MadeChain;
 
         /// @param build the chain build this pass and `ChainPass` share (`ChainPass`'s reason), which
         ///        delits the diffuse and then makes the converted chain.
-        explicit ConversionPass(ChainBuild& build)
+        /// @param keys the keys of the preprocessor's files, and `reads` where it counts a header's texels read.
+        ConversionPass(ChainBuild& build, FileKeys& keys, TexelReads& reads)
             : mChain(build)
+            , mKeys(keys)
+            , mReads(reads)
         {
         }
 
         static constexpr ContentPassId sPass = ContentPassId::Conversion;
-        static constexpr std::uint32_t sVersion = 4;
-        static constexpr bool sStored = true;
+        static constexpr std::uint32_t sVersion = 5;
 
         void digest(const Input& input, ContentStore::Digest& digest);
         void run(const Input& input, Output& output);
@@ -85,11 +96,11 @@ namespace Rtx
         /// for any other form (`ChainPass::madeLayout`).
         static std::optional<MadeLayout> madeLayout(const Input& input, ChainForm form);
 
+        /// Where `output`'s payload's segments end (`ChainPass::segmentEndsOf`).
+        static void segmentEndsOf(const Input& input, const Output& output, std::vector<std::uint64_t>& ends);
+
         /// Whether `output` can be a run of `input`'s (`ChainPass::fits`).
         static bool fits(const Input& input, const Output& output);
-
-        /// Lets go of both images `digest` described (`ChainPass::release`).
-        void release();
 
         /// What a run of `input` holds of each buffer at most, read off its two images' headers alone
         /// (`ChainPass::scratchOf`): both files laid, the `_spec`'s exponents, band and highlights, the
@@ -104,8 +115,11 @@ namespace Rtx
 
     private:
         /// Describes `input`'s two files into the scratch, the diffuse as a painted colour and the
-        /// `_spec` as a colour, unless they are the ones described.
+        /// `_spec` as a colour, their texels read and held where they are headers.
         void describe(const Input& input);
+
+        /// Lets go of both files' texels a run described (`ChainPass::release`).
+        void release();
 
         /// Whether the files described convert: a diffuse whose chain builds and a `_spec` read as a
         /// colour, each at a side a build lays (`ChainBuild::buildsAt`).
@@ -113,8 +127,6 @@ namespace Rtx
 
         osg::ref_ptr<const osg::Image> mImage;
         osg::ref_ptr<const osg::Image> mPartner;
-        TextureEncoding mEncoding = TextureEncoding::ConvertedColour;
-        TextureWrap mWrap = TextureWrap::Repeat;
 
         std::optional<TextureData> mDiffuse;
         std::optional<TextureData> mSpecular;
@@ -131,5 +143,7 @@ namespace Rtx
         std::vector<std::byte> mConverted;
         std::vector<MipLevel> mConvertedLevel;
         ChainBuild& mChain;
+        FileKeys& mKeys;
+        TexelReads& mReads;
     };
 }

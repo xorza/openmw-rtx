@@ -1,6 +1,7 @@
 #include "texturearrival.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -25,7 +26,7 @@ namespace Rtx
     TextureArrival::TextureArrival(const Device& device, const VkDeviceSize meansRoom)
         : mMeansRoom(meansRoom)
         , mMeans(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-              "normal spread means")
+              "normal spread means", GrowableBuffer::Growth::Exact)
     {
     }
 
@@ -57,6 +58,22 @@ namespace Rtx
         mSpreads.push_back(Spread{ .mMap = &map, .mSpread = &spread });
     }
 
+    void TextureArrival::copyLevels(const Image& from, const std::uint32_t dropped, const Image& to)
+    {
+        assert(&from != &to && "a copy of an image into itself");
+        assert(dropped + to.getMipLevels() == from.getMipLevels() && "a move to other levels than the source's");
+        assert(to.getFormat() == from.getFormat() && "a move into another format");
+        mMoves.push_back(Move{ .mFrom = &from, .mDropped = dropped, .mTo = &to });
+    }
+
+    bool TextureArrival::writes(const Image& image) const
+    {
+        return std::ranges::any_of(mUploads, [&](const Upload& upload) { return upload.mImage == &image; })
+            || std::ranges::any_of(mMoves, [&](const Move& move) { return move.mTo == &image; })
+            || std::ranges::any_of(mSpreads, [&](const Spread& spread) { return spread.mSpread == &image; })
+            || std::ranges::any_of(mBakes, [&](const Bake& bake) { return bake.mBake == &image; });
+    }
+
     void TextureArrival::bake(const Image& source, const Image& bake)
     {
         mBakes.push_back(Bake{ .mSource = &source, .mBake = &bake });
@@ -64,13 +81,13 @@ namespace Rtx
 
     void TextureArrival::record(Batch& batch, const TexturePasses& passes, GpuTimer* const timer)
     {
-        const bool any = !mUploads.empty() || !mSpreads.empty() || !mBakes.empty();
+        const bool any = !mUploads.empty() || !mMoves.empty() || !mSpreads.empty() || !mBakes.empty();
         mRecordedBarriers = 0;
         if (any)
         {
             // Room for the widest barrier of the run, the one after the copies, which holds every
             // image the run writes once.
-            const std::size_t widest = mUploads.size() + mSpreads.size() + mBakes.size();
+            const std::size_t widest = mUploads.size() + 2 * mMoves.size() + mSpreads.size() + mBakes.size();
             mImageBarriers.resize(std::max(widest, mImageBarriers.size()));
 
             const VkCommandBuffer commands = batch.getCommands();
@@ -84,10 +101,16 @@ namespace Rtx
             recordBakes(commands, barriers, passes, timer);
             barriers.flush();
             mRecordedBarriers = barriers.getEmitted();
+
+            // **Means grown past the room for one map are given back**, buried under the submit that reads them:
+            // kept, one PBR load's 85 MiB stood for the session where the room is 64.
+            if (mMeans.get().getSize() > mMeansRoom)
+                mMeans.letGo(batch);
         }
 
         mRegions.clear();
         mUploads.clear();
+        mMoves.clear();
         mSpreads.clear();
         mBakes.clear();
     }
@@ -97,16 +120,41 @@ namespace Rtx
         // Nothing before them: the head of every command buffer orders it after the last frame.
         for (const Upload& upload : mUploads)
             upload.mImage->addTransition(barriers, Use::sUndefined, Use::sCopyWrite);
+        for (const Move& move : mMoves)
+        {
+            move.mFrom->addTransition(barriers, Use::sTextureSample, Use::sCopyRead);
+            move.mTo->addTransition(barriers, Use::sUndefined, Use::sCopyWrite);
+        }
         barriers.flush();
 
         for (const Upload& upload : mUploads)
             vkCmdCopyBufferToImage(commands, upload.mStaged.mBuffer, upload.mImage->getHandle(),
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, upload.mCount, &mRegions[upload.mFirst]);
+        for (const Move& move : mMoves)
+        {
+            mMoveRegions.clear();
+            for (std::uint32_t level = 0; level < move.mTo->getMipLevels(); ++level)
+                mMoveRegions.push_back(
+                    VkImageCopy{ .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, move.mDropped + level, 0, 1 },
+                        .srcOffset = {},
+                        .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1 },
+                        .dstOffset = {},
+                        .extent = { std::max(move.mTo->getWidth() >> level, 1u),
+                            std::max(move.mTo->getHeight() >> level, 1u), 1 } });
+            vkCmdCopyImage(commands, move.mFrom->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                move.mTo->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                static_cast<std::uint32_t>(mMoveRegions.size()), mMoveRegions.data());
+        }
 
         // What was written, as the textures they are, and what a dispatch writes next, out of
-        // `UNDEFINED`.
+        // `UNDEFINED`; what a move read, back as the texture a frame in flight may still sample.
         for (const Upload& upload : mUploads)
             upload.mImage->addTransition(barriers, Use::sCopyWrite, Use::sTextureSample);
+        for (const Move& move : mMoves)
+        {
+            move.mFrom->addTransition(barriers, Use::sCopyRead, Use::sTextureSample);
+            move.mTo->addTransition(barriers, Use::sCopyWrite, Use::sTextureSample);
+        }
         for (const Spread& spread : mSpreads)
             spread.mSpread->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
         for (const Bake& bake : mBakes)
@@ -131,7 +179,7 @@ namespace Rtx
             mSpreads.size(), mMeansRoom,
             [&](const std::size_t at) { return std::optional<std::uint64_t>(bytesOf(mSpreads[at])); },
             [](std::size_t, std::uint64_t) {}, mGroupEnds);
-        mMeans.growTo(largestGroup);
+        mMeans.growTo(meansGrownTo(mMeans.get().getSize(), largestGroup, mMeansRoom));
         const Buffer& means = mMeans.get();
 
         // What one level of a group reads of the level before, and what a group's first level

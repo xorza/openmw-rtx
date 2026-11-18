@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "variant.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include "variant.hpp"
 
 namespace ESM
 {
@@ -25,7 +26,7 @@ namespace ESM
         /// Return a string descriptor for this record type. Currently used for debugging / error logs only.
         static std::string_view getRecordType() { return "GameSetting"; }
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId;
 
         Variant mValue;

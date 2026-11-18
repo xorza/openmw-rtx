@@ -1,9 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {
@@ -16,7 +17,7 @@ namespace ESM
 
         static constexpr std::string_view getRecordType() { return "SelectionGroup"; }
 
-        uint32_t mRecordFlags = 0;
+        std::uint32_t mRecordFlags = 0;
 
         RefId mId;
 

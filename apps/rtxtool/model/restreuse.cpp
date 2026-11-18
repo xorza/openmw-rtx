@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <format>
 #include <ranges>
-#include <span>
 #include <string>
+#include <variant>
 
 #include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -26,16 +26,16 @@ namespace RtxTool
     {
         // **Woken, and not freed**: a row that rested the read before, is live, rests no more and stands what it stood.
         // One freed and taken over between two reads stands nothing yet, since a take's bytes are its own stand's.
-        const std::span<const Rtx::TextureRow> textures = scene.textures().getRows();
-        const std::span<const Rtx::MeshRange> meshes = scene.meshes().getRows();
+        const auto textures = scene.textures().getRows();
+        const auto meshes = scene.meshes().getRows();
         for (const Rested& rested : mRested)
         {
-            const bool live
-                = rested.mMesh ? scene.meshes().isLive(rested.mSlot) : scene.textures().isLive(rested.mSlot);
-            const Rtx::RestPlace& place = rested.mMesh ? meshes[rested.mSlot].mRest : textures[rested.mSlot].mRest;
-            const std::uint64_t stood
-                = rested.mMesh ? meshes[rested.mSlot].mStoodBytes : textures[rested.mSlot].mStoodBytes;
-            if (!live || place.mResting || stood != rested.mBytes)
+            const auto* const mesh = std::get_if<Rtx::MeshIndex>(&rested.mSlot);
+            const auto* const texture = std::get_if<Rtx::TextureIndex>(&rested.mSlot);
+            const bool live = mesh != nullptr ? scene.meshes().isLive(*mesh) : scene.textures().isLive(*texture);
+            const bool resting = mesh != nullptr ? meshes[*mesh].mRest.mResting : textures[*texture].mRest.mResting;
+            const std::uint64_t stood = mesh != nullptr ? meshes[*mesh].mStoodBytes : textures[*texture].mStoodBytes;
+            if (!live || resting || stood != rested.mBytes)
                 continue;
             mWoken += rested.mBytes;
             // Its own bytes with what rested after it: the least cache that still holds it.
@@ -47,19 +47,15 @@ namespace RtxTool
         // Both orders, merged as the scene frees them: by when each was filed, a texture first on one tick, each
         // table's own order within it.
         mRested.clear();
-        for (Rtx::Index slot = scene.textures().getResting().first(); slot != Rtx::sNoIndex;
+        for (Rtx::TextureIndex slot = scene.textures().getResting().first(); slot != Rtx::sNoRow;
             slot = textures[slot].mRest.mAfter)
-            mRested.push_back(Rested{ .mMesh = false,
-                .mSlot = slot,
-                .mFiledAt = textures[slot].mRest.mFiledAt,
-                .mBytes = textures[slot].mStoodBytes });
+            mRested.push_back(Rested{
+                .mSlot = slot, .mFiledAt = textures[slot].mRest.mFiledAt, .mBytes = textures[slot].mStoodBytes });
         const auto textureEnd = static_cast<std::ptrdiff_t>(mRested.size());
-        for (Rtx::Index slot = scene.meshes().getResting().first(); slot != Rtx::sNoIndex;
+        for (Rtx::MeshIndex slot = scene.meshes().getResting().first(); slot != Rtx::sNoRow;
             slot = meshes[slot].mRest.mAfter)
-            mRested.push_back(Rested{ .mMesh = true,
-                .mSlot = slot,
-                .mFiledAt = meshes[slot].mRest.mFiledAt,
-                .mBytes = meshes[slot].mStoodBytes });
+            mRested.push_back(
+                Rested{ .mSlot = slot, .mFiledAt = meshes[slot].mRest.mFiledAt, .mBytes = meshes[slot].mStoodBytes });
         std::ranges::inplace_merge(mRested, mRested.begin() + textureEnd, {}, &Rested::mFiledAt);
 
         std::uint64_t after = 0;

@@ -39,7 +39,7 @@ namespace Rtx
     void packRig(
         const Shaders::GpuBone& transform, const std::span<const Shaders::GpuBone> bones, std::vector<PoseWord>& into)
     {
-        into.resize(poseWordsFor(Deform::Rig, static_cast<Index>(bones.size())));
+        into.resize(poseWordsFor(Deform::Rig, static_cast<std::uint32_t>(bones.size())));
         const std::span<PoseWord> words(into);
         layBone(transform, words.first(3));
         for (std::size_t at = 0; at < bones.size(); ++at)
@@ -50,12 +50,12 @@ namespace Rtx
     {
         // Zeroed whole and then written, so the padding past the last weight is a value two runs
         // agree on: the compare in `pose` reads the whole run, and the digest hashes it.
-        into.assign(poseWordsFor(Deform::Morph, static_cast<Index>(weights.size())), PoseWord{});
+        into.assign(poseWordsFor(Deform::Morph, static_cast<std::uint32_t>(weights.size())), PoseWord{});
         if (!weights.empty())
             std::memcpy(into.data(), weights.data(), weights.size_bytes());
     }
 
-    Shaders::GpuBone boneAt(const std::span<const PoseWord> pose, const Index at)
+    Shaders::GpuBone boneAt(const std::span<const PoseWord> pose, const std::uint32_t at)
     {
         assert((std::size_t{ at } + 1) * 3 + 3 <= pose.size() && "a bone past the pose");
         return readBone(pose.subspan((std::size_t{ at } + 1) * 3, 3));
@@ -67,20 +67,20 @@ namespace Rtx
         return readBone(pose.first(3));
     }
 
-    float weightAt(const std::span<const PoseWord> pose, const Index at)
+    float weightAt(const std::span<const PoseWord> pose, const std::uint32_t at)
     {
         assert(std::size_t{ at } / 4 < pose.size() && "a weight past the pose");
         return pose[at / 4].mValues[at % 4];
     }
 
-    Index DeformerTable::take(const Deformer& deformer)
+    DeformerIndex DeformerTable::take(const Deformer& deformer)
     {
-        const Index index = takeRow(deformer);
+        const DeformerIndex index = takeRow(deformer);
         mArrived.addMakingRoom(index);
         return index;
     }
 
-    Index DeformerTable::addRig(const RigSpec& rig)
+    DeformerIndex DeformerTable::addRig(const RigSpec& rig)
     {
         const std::span<const std::uint32_t> runs = rig.mRuns;
         const std::span<const Shaders::GpuInfluence> influences = rig.mInfluences;
@@ -108,7 +108,7 @@ namespace Rtx
         });
     }
 
-    Index DeformerTable::addMorph(const MorphSpec& morph)
+    DeformerIndex DeformerTable::addMorph(const MorphSpec& morph)
     {
         assert(morph.mTargets > 0 && morph.mOffsets.size() % morph.mTargets == 0 && !morph.mOffsets.empty());
         assert(std::ranges::all_of(morph.mOffsets, [](const osg::Vec3f& offset) { return isFinite(offset); })
@@ -173,7 +173,7 @@ namespace Rtx
             mArrived.remove(range.mDeformer);
         }
 
-        range.mDeformer = sNoIndex;
+        range.mDeformer = sNoRow;
         range.mPosed = false;
     }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <MyGUI_Colour.h>
 #include <MyGUI_Types.h>
 #include <osg/Vec2>
@@ -47,7 +49,7 @@ namespace LuaUi
 
         LuaT luaT = opt.as<LuaT>();
         if constexpr (isMyGuiIntVector<T>())
-            return T(static_cast<int>(luaT.x()), static_cast<int>(luaT.y()));
+            return T(static_cast<std::int32_t>(luaT.x()), static_cast<std::int32_t>(luaT.y()));
         else if constexpr (isMyGuiVector<T>())
             return T(luaT.x(), luaT.y());
         else if constexpr (isMyGuiColor<T>())

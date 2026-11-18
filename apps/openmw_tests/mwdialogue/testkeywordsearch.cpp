@@ -1,8 +1,7 @@
-#include "apps/openmw/mwdialogue/keywordsearch.hpp"
-
-#include <components/translation/translation.hpp>
-
 #include <gtest/gtest.h>
+
+#include <apps/openmw/mwdialogue/keywordsearch.hpp>
+#include <components/translation/translation.hpp>
 
 namespace
 {

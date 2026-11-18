@@ -1,9 +1,11 @@
 #include "collections.hpp"
-#include "conversion.hpp"
 
-#include <components/misc/strings/algorithm.hpp>
 #include <ranges>
 #include <utility>
+
+#include <components/misc/strings/algorithm.hpp>
+
+#include "conversion.hpp"
 
 namespace Files
 {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <osg/ref_ptr>
@@ -23,8 +24,8 @@ namespace MWRender
     /// What the world map's overlay is built from.
     struct MapOverlaySpec
     {
-        int mWidth = 0;
-        int mHeight = 0;
+        std::int32_t mWidth = 0;
+        std::int32_t mHeight = 0;
 
         /// Where land stands above the sea, one alpha byte a texel over the whole map: an explored
         /// tile paints nothing below the water line.

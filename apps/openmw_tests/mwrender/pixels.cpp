@@ -18,23 +18,24 @@ namespace MWRender
     namespace
     {
         /// The first byte of the texel at (x, y), of an image the test gave pixels.
-        std::uint8_t& texelAt(osg::Image& image, int x, int y)
+        std::uint8_t& texelAt(osg::Image& image, std::int32_t x, std::int32_t y)
         {
-            return *Crash::notNull(
-                image.data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)), "a test image with no pixels");
+            return *Crash::notNull(image.data(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)),
+                "a test image with no pixels");
         }
 
         /// A grey picture `width` by `height`, with `value(x, y)` in every channel of every pixel.
-        osg::ref_ptr<osg::Image> makeGrey(int width, int height, const std::function<int(int, int)>& value)
+        osg::ref_ptr<osg::Image> makeGrey(std::int32_t width, std::int32_t height,
+            const std::function<std::int32_t(std::int32_t, std::int32_t)>& value)
         {
             osg::ref_ptr<osg::Image> image = Rtx::Testing::makeImage("", width, height);
 
-            for (int y = 0; y < height; ++y)
+            for (std::int32_t y = 0; y < height; ++y)
             {
-                for (int x = 0; x < width; ++x)
+                for (std::int32_t x = 0; x < width; ++x)
                 {
-                    std::uint8_t* texel = image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y));
-                    for (int channel = 0; channel < 4; ++channel)
+                    std::uint8_t* texel = image->data(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y));
+                    for (std::int32_t channel = 0; channel < 4; ++channel)
                         texel[channel] = static_cast<std::uint8_t>(value(x, y));
                 }
             }
@@ -48,15 +49,15 @@ namespace MWRender
         /// answer is their mean: (0 + 100 + 200 + 255) / 4 = 138.75, which lands on 139.
         TEST(MWRenderPixelsTest, aTapBetweenFourTexelsWeighsThemByDistance)
         {
-            const osg::ref_ptr<osg::Image> image = makeGrey(2, 2, [](int x, int y) {
-                constexpr int corners[2][2] = { { 0, 200 }, { 100, 255 } };
+            const osg::ref_ptr<osg::Image> image = makeGrey(2, 2, [](std::int32_t x, std::int32_t y) {
+                constexpr std::int32_t corners[2][2] = { { 0, 200 }, { 100, 255 } };
                 return corners[x][y];
             });
 
             std::uint8_t sampled[4];
             sampleBilinear(*image, 0.5f, 0.5f, sampled);
 
-            for (int channel = 0; channel < 4; ++channel)
+            for (std::int32_t channel = 0; channel < 4; ++channel)
                 EXPECT_EQ(sampled[channel], 139) << "channel " << channel;
         }
 
@@ -66,7 +67,7 @@ namespace MWRender
         /// (2 + 0.5) / 4 = 0.625.
         TEST(MWRenderPixelsTest, aTapOnATexelCentreIsThatTexel)
         {
-            const osg::ref_ptr<osg::Image> image = makeGrey(4, 1, [](int x, int) { return x * 60; });
+            const osg::ref_ptr<osg::Image> image = makeGrey(4, 1, [](std::int32_t x, std::int32_t) { return x * 60; });
 
             std::uint8_t sampled[4];
             sampleBilinear(*image, 0.625f, 0.5f, sampled);
@@ -83,7 +84,7 @@ namespace MWRender
         /// Texel one is at 0.375 and texel two at 0.625, so 0.5 is the midpoint of 60 and 120.
         TEST(MWRenderPixelsTest, aTapBetweenTwoCentresIsTheirMean)
         {
-            const osg::ref_ptr<osg::Image> image = makeGrey(4, 1, [](int x, int) { return x * 60; });
+            const osg::ref_ptr<osg::Image> image = makeGrey(4, 1, [](std::int32_t x, std::int32_t) { return x * 60; });
 
             std::uint8_t sampled[4];
             sampleBilinear(*image, 0.5f, 0.5f, sampled);
@@ -100,7 +101,7 @@ namespace MWRender
         /// 0.5 / 18 = 0.0278, and the outermost texel centre of a 256-wide tile is at 0.00195.
         TEST(MWRenderPixelsTest, aTapOutsideTheOutermostCentresHoldsTheEdge)
         {
-            const osg::ref_ptr<osg::Image> image = makeGrey(4, 1, [](int x, int) { return x * 60; });
+            const osg::ref_ptr<osg::Image> image = makeGrey(4, 1, [](std::int32_t x, std::int32_t) { return x * 60; });
 
             std::uint8_t sampled[4];
 
@@ -119,7 +120,8 @@ namespace MWRender
         /// because a tap sits between two of them and picks up both when it is not on a centre.
         TEST(MWRenderPixelsTest, theReductionReadsFourTexelsAndNotTheWholeFootprint)
         {
-            const osg::ref_ptr<osg::Image> image = makeGrey(1, 256, [](int, int y) { return y % 2 == 0 ? 0 : 255; });
+            const osg::ref_ptr<osg::Image> image
+                = makeGrey(1, 256, [](std::int32_t, std::int32_t y) { return y % 2 == 0 ? 0 : 255; });
 
             // The centre of destination pixel nine of eighteen is 9.5 / 18 of the way up, which is
             // 135.111 texels in and so 134.611 from the first texel centre: between the centres of
@@ -143,15 +145,16 @@ namespace MWRender
         /// so `70 × 200 / 255 = 54.9` lands on 55, where truncation wrote 54.
         TEST(MWRenderPixelsTest, aTilePaintsThroughTheLandAlphaAndReportsAChange)
         {
-            const osg::ref_ptr<osg::Image> tile = makeGrey(2, 2, [](int x, int y) { return 50 + x * 100 + y * 20; });
+            const osg::ref_ptr<osg::Image> tile
+                = makeGrey(2, 2, [](std::int32_t x, std::int32_t y) { return 50 + x * 100 + y * 20; });
 
             osg::ref_ptr<osg::Image> land = Rtx::Testing::makeImage("", 4, 4, GL_ALPHA, GL_UNSIGNED_BYTE);
-            for (int y = 0; y < 4; ++y)
-                for (int x = 0; x < 4; ++x)
+            for (std::int32_t y = 0; y < 4; ++y)
+                for (std::int32_t x = 0; x < 4; ++x)
                     texelAt(*land, x, y) = x < 3 ? 255 : 0;
             texelAt(*land, 2, 2) = 200;
 
-            const osg::ref_ptr<osg::Image> overlay = makeGrey(4, 4, [](int, int) { return 0; });
+            const osg::ref_ptr<osg::Image> overlay = makeGrey(4, 4, [](std::int32_t, std::int32_t) { return 0; });
             std::vector<std::uint8_t> scratch;
 
             // The cell at (2, 1): its right column is x = 3, which is sea.

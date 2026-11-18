@@ -22,15 +22,16 @@
 */
 #include "reader.hpp"
 
-#undef DEBUG_GROUPSTACK
-
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <optional>
 #include <span>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 #include <zlib.h>
 
@@ -42,7 +43,6 @@
 #include <components/misc/strings/lower.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
-#include <utility>
 
 #include "grouptype.hpp"
 
@@ -53,7 +53,7 @@ namespace ESM4
         using FormId = ESM::FormId;
         using FormId32 = ESM::FormId32;
 
-        std::string getError(const std::string& header, const int errorCode, const char* msg)
+        std::string getError(const std::string& header, const std::int32_t errorCode, const char* msg)
         {
             return header + ": code " + std::to_string(errorCode) + ", " + std::string(msg != nullptr ? msg : "(null)");
         }
@@ -70,7 +70,8 @@ namespace ESM4
                     return ".DLSTRINGS";
             }
 
-            throw std::logic_error("Unsupported LocalizedStringType: " + std::to_string(static_cast<int>(type)));
+            throw std::logic_error(
+                "Unsupported LocalizedStringType: " + std::to_string(static_cast<std::int32_t>(type)));
         }
 
         struct InflateEnd
@@ -87,12 +88,12 @@ namespace ESM4
             stream.avail_in = static_cast<uInt>(compressed.size());
             stream.avail_out = static_cast<uInt>(decompressed.size());
 
-            if (const int ec = inflateInit(&stream); ec != Z_OK)
+            if (const std::int32_t ec = inflateInit(&stream); ec != Z_OK)
                 return getError("inflateInit error", ec, stream.msg);
 
             const std::unique_ptr<z_stream, InflateEnd> streamPtr(&stream);
 
-            if (const int ec = inflate(&stream, Z_NO_FLUSH); ec != Z_STREAM_END)
+            if (const std::int32_t ec = inflate(&stream, Z_NO_FLUSH); ec != Z_STREAM_END)
                 return getError("inflate error", ec, stream.msg);
 
             return std::nullopt;
@@ -103,7 +104,7 @@ namespace ESM4
         {
             z_stream stream{};
 
-            if (const int ec = inflateInit(&stream); ec != Z_OK)
+            if (const std::int32_t ec = inflateInit(&stream); ec != Z_OK)
                 return getError("inflateInit error", ec, stream.msg);
 
             const std::unique_ptr<z_stream, InflateEnd> streamPtr(&stream);
@@ -116,7 +117,7 @@ namespace ESM4
                 stream.avail_in = static_cast<uInt>(std::min(blockSize, compressed.size()));
                 stream.next_out = reinterpret_cast<Bytef*>(decompressed.data());
                 stream.avail_out = static_cast<uInt>(std::min(blockSize, decompressed.size()));
-                const int ec = inflate(&stream, Z_NO_FLUSH);
+                const std::int32_t ec = inflate(&stream, Z_NO_FLUSH);
                 if (ec == Z_STREAM_END)
                     break;
                 if (ec != Z_OK)
@@ -572,12 +573,12 @@ namespace ESM4
             {
                 std::ostringstream ss;
                 char* data = memoryStreamPtr->getRawData();
-                for (unsigned int i = 0; i < uncompressedSize; ++i)
+                for (std::uint32_t i = 0; i < uncompressedSize; ++i)
                 {
                     if (data[i] > 64 && data[i] < 91)
                         ss << data[i] << " ";
                     else
-                        ss << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(data[i]);
+                        ss << std::setfill('0') << std::setw(2) << std::hex << static_cast<std::int32_t>(data[i]);
                     if ((i & 0x000f) == 0xf)
                         ss << "\n";
                     else if (i < uncompressedSize - 1)
@@ -652,20 +653,9 @@ namespace ESM4
 
     void Reader::enterGroup()
     {
-#ifdef DEBUG_GROUPSTACK
-        std::string padding; // FIXME: debugging only
-        padding.insert(0, mCtx.groupStack.size() * 2, ' ');
-        std::cout << padding << "Starting record group "
-                  << printLabel(mCtx.recordHeader.group.label, mCtx.recordHeader.group.type) << std::endl;
-#endif
         // empty group if the group size is same as the header size
         if (mCtx.recordHeader.group.groupSize == static_cast<std::uint32_t>(mCtx.recHeaderSize))
         {
-#ifdef DEBUG_GROUPSTACK
-            std::cout << padding << "Ignoring record group " // FIXME: debugging only
-                      << printLabel(mCtx.recordHeader.group.label, mCtx.recordHeader.group.type) << " (empty)"
-                      << std::endl;
-#endif
             if (!mCtx.groupStack.empty()) // top group may be empty (e.g. HAIR in Skyrim)
             {
                 // don't put on the stack, exitGroupCheck() may not get called before recursing into this method
@@ -690,9 +680,6 @@ namespace ESM4
         std::uint32_t lastGroupSize = mCtx.groupStack.back().first.groupSize;
         while (mCtx.groupStack.back().second >= lastGroupSize)
         {
-#ifdef DEBUG_GROUPSTACK
-            GroupTypeHeader grp = mCtx.groupStack.back().first; // FIXME: grp is for debugging only
-#endif
             // try to correct any overshoot
             // TODO: not tested
             std::uint32_t overshoot = mCtx.groupStack.back().second - lastGroupSize;
@@ -703,11 +690,6 @@ namespace ESM4
             }
 
             mCtx.groupStack.pop_back();
-#ifdef DEBUG_GROUPSTACK
-            std::string padding; // FIXME: debugging only
-            padding.insert(0, mCtx.groupStack.size() * 2, ' ');
-            std::cout << padding << "Finished record group " << printLabel(grp.label, grp.type) << std::endl;
-#endif
             // if the previous group was the final one no need to do below
             if (mCtx.groupStack.empty())
                 return;
@@ -757,12 +739,6 @@ namespace ESM4
 
     void Reader::skipGroup()
     {
-#ifdef DEBUG_GROUPSTACK
-        std::string padding; // FIXME: debugging only
-        padding.insert(0, mCtx.groupStack.size() * 2, ' ');
-        std::cout << padding << "Skipping record group "
-                  << printLabel(mCtx.recordHeader.group.label, mCtx.recordHeader.group.type) << std::endl;
-#endif
         // subtract the size of header already read before skipping
         std::uint32_t skipSize = mCtx.recordHeader.group.groupSize - static_cast<std::uint32_t>(mCtx.recHeaderSize);
         mStream->ignore(skipSize);
@@ -783,10 +759,10 @@ namespace ESM4
         return mCtx.currCellGrid;
     }
 
-    void Reader::updateModIndices(const std::map<std::string, int>& fileToModIndex)
+    void Reader::updateModIndices(const std::map<std::string, std::int32_t>& fileToModIndex)
     {
         mCtx.parentFileIndices.resize(mHeader.mMaster.size());
-        for (unsigned int i = 0; i < mHeader.mMaster.size(); ++i)
+        for (std::uint32_t i = 0; i < mHeader.mMaster.size(); ++i)
         {
             // locate the position of the dependency in already loaded files
             auto it = fileToModIndex.find(Misc::StringUtils::lowerCase(mHeader.mMaster[i].name));
@@ -811,9 +787,10 @@ namespace ESM4
     void Reader::adjustFormId(FormId& id) const
     {
         if (id.hasContentFile() && std::cmp_less(id.mContentFile, mCtx.parentFileIndices.size()))
-            id.mContentFile = static_cast<int32_t>(mCtx.parentFileIndices[static_cast<std::size_t>(id.mContentFile)]);
+            id.mContentFile
+                = static_cast<std::int32_t>(mCtx.parentFileIndices[static_cast<std::size_t>(id.mContentFile)]);
         else
-            id.mContentFile = static_cast<int32_t>(mCtx.modIndex);
+            id.mContentFile = static_cast<std::int32_t>(mCtx.modIndex);
     }
 
     void Reader::adjustFormId(FormId32& id) const

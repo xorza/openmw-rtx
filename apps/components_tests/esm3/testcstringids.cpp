@@ -1,8 +1,8 @@
+#include <gtest/gtest.h>
+
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loaddial.hpp>
-
-#include <gtest/gtest.h>
 
 namespace ESM
 {

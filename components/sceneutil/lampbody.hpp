@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <typeinfo>
 
 #include <osg/CopyOp>
@@ -8,7 +9,7 @@
 #include <osg/UserDataContainer>
 #include <osg/observer_ptr>
 
-#include <components/sceneutil/lightmanager.hpp>
+#include "lightmanager.hpp"
 
 namespace SceneUtil
 {
@@ -44,7 +45,7 @@ namespace SceneUtil
         static void mark(osg::Node& group, LightSource& light)
         {
             osg::UserDataContainer& held = *group.getOrCreateUserDataContainer();
-            const unsigned int at = indexIn(held);
+            const std::uint32_t at = indexIn(held);
             if (at < held.getNumUserObjects())
                 held.setUserObject(at, new LampBody(light));
             else
@@ -58,7 +59,7 @@ namespace SceneUtil
             if (held == nullptr)
                 return nullptr;
 
-            const unsigned int at = indexIn(*held);
+            const std::uint32_t at = indexIn(*held);
             if (at == held->getNumUserObjects())
                 return nullptr;
             return static_cast<const LampBody*>(held->getUserObject(at));
@@ -71,10 +72,10 @@ namespace SceneUtil
     private:
         /// Where among `held`'s user objects the marker is, or their count where it is none of them.
         /// An exact type test, as `StableIdentity::find` makes for the same reason.
-        static unsigned int indexIn(const osg::UserDataContainer& held)
+        static std::uint32_t indexIn(const osg::UserDataContainer& held)
         {
-            const unsigned int count = held.getNumUserObjects();
-            for (unsigned int at = 0; at < count; ++at)
+            const std::uint32_t count = held.getNumUserObjects();
+            for (std::uint32_t at = 0; at < count; ++at)
             {
                 const osg::Object* object = held.getUserObject(at);
                 if (object != nullptr && typeid(*object) == typeid(LampBody))

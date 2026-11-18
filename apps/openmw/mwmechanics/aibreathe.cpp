@@ -1,13 +1,11 @@
 #include "aibreathe.hpp"
 
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "npcstats.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 
 #include "movement.hpp"
+#include "npcstats.hpp"
 #include "steering.hpp"
 
 bool MWMechanics::AiBreathe::execute(

@@ -1,6 +1,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <stdexcept>
@@ -26,12 +27,12 @@ namespace Misc
         struct Served
         {
             Monitor mMonitor;
-            std::deque<int> mPending;
-            std::vector<int> mDone;
+            std::deque<std::int32_t> mPending;
+            std::vector<std::int32_t> mDone;
 
             /// What a turn does with what it took, so a test can make one throw or hold on the
             /// stop. Handed the token `serve` hands the turn.
-            std::function<void(int, std::stop_token)> mTurn = [](int, const std::stop_token&) {};
+            std::function<void(std::int32_t, std::stop_token)> mTurn = [](std::int32_t, const std::stop_token&) {};
 
             /// **Last**, so it is joined before the members it reads go.
             std::jthread mWorker;
@@ -39,7 +40,7 @@ namespace Misc
             void start()
             {
                 mWorker = Platform::startThread("served", [this](const std::stop_token& stop) {
-                    int took = 0;
+                    std::int32_t took = 0;
 
                     mMonitor.serve(
                         stop, [this] { return !mPending.empty(); },
@@ -54,7 +55,7 @@ namespace Misc
                 });
             }
 
-            void give(int one)
+            void give(std::int32_t one)
             {
                 EXPECT_TRUE(mMonitor.give([&] {
                     mPending.push_back(one);
@@ -63,7 +64,7 @@ namespace Misc
             }
 
             /// Waits for `count` and answers them.
-            std::vector<int> awaitDone(std::size_t count)
+            std::vector<std::int32_t> awaitDone(std::size_t count)
             {
                 mMonitor.await([&] { return mDone.size() >= count; });
                 return mMonitor.under([&] { return mDone; });
@@ -85,7 +86,7 @@ namespace Misc
 
             served.start();
 
-            EXPECT_EQ(served.awaitDone(3), (std::vector<int>{ 1, 2, 3 }));
+            EXPECT_EQ(served.awaitDone(3), (std::vector<std::int32_t>{ 1, 2, 3 }));
         }
 
         /// A stop breaks the wait and the loop comes back, which is what every join rests on.
@@ -95,7 +96,7 @@ namespace Misc
             served.start();
 
             served.give(7);
-            EXPECT_EQ(served.awaitDone(1), (std::vector<int>{ 7 }));
+            EXPECT_EQ(served.awaitDone(1), (std::vector<std::int32_t>{ 7 }));
 
             // The join is the assertion: it returns only where the wait was broken.
             served.mWorker.request_stop();
@@ -111,7 +112,7 @@ namespace Misc
             Rtx::Testing::expectDies(
                 [] {
                     Served served;
-                    served.mTurn = [](int one, const std::stop_token&) {
+                    served.mTurn = [](std::int32_t one, const std::stop_token&) {
                         throw std::runtime_error("turn " + std::to_string(one));
                     };
                     served.start();
@@ -131,7 +132,7 @@ namespace Misc
             std::atomic<bool> running{ false };
 
             // Held until the stop is asked for, which is what puts the next two behind it.
-            served.mTurn = [&](int, const std::stop_token& stop) {
+            served.mTurn = [&](std::int32_t, const std::stop_token& stop) {
                 running = true;
                 while (!stop.stop_requested())
                     std::this_thread::yield();
@@ -149,7 +150,8 @@ namespace Misc
             served.mWorker.join();
 
             // Read without the lock, because the join is what makes this the only thread left.
-            EXPECT_EQ(served.mDone, (std::vector<int>{ 1 })) << "a stopped loop took work nobody was left to collect";
+            EXPECT_EQ(served.mDone, (std::vector<std::int32_t>{ 1 }))
+                << "a stopped loop took work nobody was left to collect";
             EXPECT_EQ(served.mPending.size(), 2u);
         }
 
@@ -181,7 +183,7 @@ namespace Misc
             Served served;
             std::atomic<bool> turning{ false };
             std::atomic<bool> release{ false };
-            served.mTurn = [&](int, const std::stop_token&) {
+            served.mTurn = [&](std::int32_t, const std::stop_token&) {
                 turning = true;
                 while (!release)
                     std::this_thread::yield();

@@ -1,8 +1,8 @@
-#include "file.hpp"
-
+#include <cstdint>
 #include <format>
 #include <stdexcept>
 
+#include "file.hpp"
 #include "stream.hpp"
 
 namespace Spt
@@ -11,7 +11,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 12001)
                 return;
             switch (section)
@@ -50,7 +50,7 @@ namespace Spt
         }
     }
 
-    bool SPTFlaresEntry::readField(SPTStream& stream, int32_t section)
+    bool SPTFlaresEntry::readField(SPTStream& stream, std::int32_t section)
     {
         switch (section)
         {
@@ -98,7 +98,7 @@ namespace Spt
 
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 16001)
                 return;
             if (!entry.readField(stream, section))
@@ -115,7 +115,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 18001)
                 return;
             switch (section)
@@ -142,7 +142,7 @@ namespace Spt
     {
         while (true)
         {
-            int32_t section = stream.readSection();
+            std::int32_t section = stream.readSection();
             if (section == 19001)
                 return;
             switch (section)

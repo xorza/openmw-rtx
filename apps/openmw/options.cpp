@@ -1,5 +1,7 @@
 #include "options.hpp"
 
+#include <cstdint>
+
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/rng.hpp>
@@ -58,7 +60,7 @@ namespace OpenMW
         addOption("script-run", bpo::value<std::string>()->default_value(""),
             "select a file containing a list of console commands that is executed on startup");
 
-        addOption("script-warn", bpo::value<int>()->implicit_value(1)->default_value(1),
+        addOption("script-warn", bpo::value<std::int32_t>()->implicit_value(1)->default_value(1),
             "handling of warnings when compiling scripts\n"
             "\t0 - ignore warnings\n"
             "\t1 - show warnings but consider script as correctly compiled anyway\n"
@@ -90,9 +92,9 @@ namespace OpenMW
         addOption("export-fonts", bpo::value<bool>()->implicit_value(true)->default_value(false),
             "Export Morrowind .fnt fonts to PNG image and XML file in current directory");
 
-        addOption("activate-dist", bpo::value<int>()->default_value(-1), "activation distance override");
+        addOption("activate-dist", bpo::value<std::int32_t>()->default_value(-1), "activation distance override");
 
-        addOption("random-seed", bpo::value<unsigned int>()->default_value(Misc::Rng::generateDefaultSeed()),
+        addOption("random-seed", bpo::value<std::uint32_t>()->default_value(Misc::Rng::generateDefaultSeed()),
             "seed value for random number generator");
 
         return desc;

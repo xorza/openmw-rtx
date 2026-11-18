@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <fstream>
 
 #include <QHash>
@@ -36,7 +37,7 @@ namespace Wizard
         bool parseInx(const QString& path);
 
     private:
-        int getLastNewline(const QString& buffer, int from);
+        std::int32_t getLastNewline(const QString& buffer, std::int32_t from);
 
         SettingsMap mSettings;
     };

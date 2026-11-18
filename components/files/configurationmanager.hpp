@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <stack>
 #include <string_view>
 
-#include <components/files/collections.hpp>
-#include <components/files/fixedpath.hpp>
+#include "collections.hpp"
+#include "fixedpath.hpp"
 
 // NOLINTBEGIN(readability-identifier-naming)
 namespace boost::program_options
@@ -83,7 +84,7 @@ namespace Files
     void mergeComposingVariables(boost::program_options::variables_map& first,
         boost::program_options::variables_map& second, const boost::program_options::options_description& description);
 
-    void parseArgs(int argc, const char* const argv[], boost::program_options::variables_map& variables,
+    void parseArgs(std::int32_t argc, const char* const argv[], boost::program_options::variables_map& variables,
         const boost::program_options::options_description& description);
 
     void parseConfig(std::istream& stream, boost::program_options::variables_map& variables,

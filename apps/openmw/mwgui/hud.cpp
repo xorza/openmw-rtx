@@ -1,6 +1,8 @@
 #include "hud.hpp"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_ImageBox.h>
@@ -8,23 +10,20 @@
 #include <MyGUI_ProgressBar.h>
 #include <MyGUI_RenderManager.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "draganddrop.hpp"
 #include "inventorywindow.hpp"
@@ -116,8 +115,8 @@ namespace MWGui
 
     void HUD::setValue(std::string_view id, const MWMechanics::DynamicStat<float>& value)
     {
-        int current = static_cast<int>(value.getCurrent());
-        int modified = static_cast<int>(value.getModified());
+        auto current = static_cast<std::int32_t>(value.getCurrent());
+        auto modified = static_cast<std::int32_t>(value.getModified());
         // Fatigue can be negative
         if (id != "FBar")
             current = std::max(0, current);
@@ -149,7 +148,7 @@ namespace MWGui
 
     void HUD::setDrowningTimeLeft(float time, float maxTime)
     {
-        auto progress = static_cast<size_t>(time / maxTime * 200);
+        auto progress = static_cast<std::size_t>(time / maxTime * 200);
         mDrowning->setProgressPosition(progress);
 
         bool isDrowning = (progress == 0);
@@ -215,7 +214,7 @@ namespace MWGui
         }
     }
 
-    void HUD::onWorldMouseOver(MyGUI::Widget* /*sender*/, int x, int y)
+    void HUD::onWorldMouseOver(MyGUI::Widget* /*sender*/, std::int32_t x, std::int32_t y)
     {
         if (mDragAndDrop->mIsOnDragAndDrop)
         {
@@ -334,7 +333,7 @@ namespace MWGui
         }
     }
 
-    void HUD::setSelectedSpell(const ESM::RefId& spellId, int successChancePercent)
+    void HUD::setSelectedSpell(const ESM::RefId& spellId, std::int32_t successChancePercent)
     {
         const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().find(spellId);
 
@@ -367,7 +366,7 @@ namespace MWGui
             mSpellImage->setSpellIcon({});
     }
 
-    void HUD::setSelectedEnchantItem(const MWWorld::Ptr& item, int chargePercent)
+    void HUD::setSelectedEnchantItem(const MWWorld::Ptr& item, std::int32_t chargePercent)
     {
         std::string_view itemName = item.getClass().getName(item);
         if (itemName != mSpellName && mSpellVisible)
@@ -387,7 +386,7 @@ namespace MWGui
         mSpellImage->setItem(item);
     }
 
-    void HUD::setSelectedWeapon(const MWWorld::Ptr& item, int durabilityPercent)
+    void HUD::setSelectedWeapon(const MWWorld::Ptr& item, std::int32_t durabilityPercent)
     {
         std::string_view itemName = item.getClass().getName(item);
         if (itemName != mWeaponName && mWeaponVisible)
@@ -483,7 +482,7 @@ namespace MWGui
         mMouseEmulationCursor->setVisible(visible);
     }
 
-    void HUD::setMouseEmulationCursorPosition(int left, int top)
+    void HUD::setMouseEmulationCursorPosition(std::int32_t left, std::int32_t top)
     {
         mMouseEmulationCursor->setPosition(
             left - mMouseEmulationCursor->getWidth() / 2, top - mMouseEmulationCursor->getHeight() / 2);
@@ -529,7 +528,7 @@ namespace MWGui
 
     void HUD::updatePositions()
     {
-        int weapDx = 0, spellDx = 0, sneakDx = 0;
+        std::int32_t weapDx = 0, spellDx = 0, sneakDx = 0;
         if (!mHealth->getVisible())
             sneakDx = spellDx = weapDx = mWeapBoxBaseLeft - mHealthManaStaminaBaseLeft;
 
@@ -554,7 +553,7 @@ namespace MWGui
         const MyGUI::IntSize& viewSize = MyGUI::RenderManager::getInstance().getViewSize();
 
         // effect box can have variable width -> variable left coordinate
-        int effectsDx = 0;
+        std::int32_t effectsDx = 0;
         if (!mMinimapBox->getVisible())
             effectsDx = mEffectBoxBaseRight - mMinimapBoxBaseRight;
 
@@ -575,7 +574,7 @@ namespace MWGui
         mEnemyHealth->setProgressRange(100);
         // Health is usually cast to int before displaying. Actors die whenever they are < 1 health.
         // Therefore any value < 1 should show as an empty health bar. We do the same in statswindow :)
-        mEnemyHealth->setProgressPosition(static_cast<size_t>(stats.getHealth().getRatio() * 100));
+        mEnemyHealth->setProgressPosition(static_cast<std::size_t>(stats.getHealth().getRatio() * 100));
 
         static const float fNPCHealthBarFade = MWBase::Environment::get()
                                                    .getESMStore()

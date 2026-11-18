@@ -12,6 +12,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/filekeys.hpp>
 
 namespace osg
 {
@@ -20,25 +21,14 @@ namespace osg
 
 namespace Rtx
 {
-    /// An image's finest level as a `TexturePass` reads it — `describeFinest` — described once for
-    /// both the key and the run that follows it, where a key is made.
-    ///
-    /// **The key is what the passes read and nothing else**: the format, the encoding, the finest
-    /// level's extent and its bytes. Not the file's name, so one picture under two names is one
-    /// entry; not the coarser levels, which no texture pass reads; and not the size OpenSceneGraph
-    /// counts the whole image at, which differs between its builds for a block format with no
-    /// chain. An image that does not describe is keyed as that.
+    /// An image's finest level as a `TexturePass` reads it — `describeFinest` — for one run.
     ///
     /// **The image is held as long as its description**, because the description spans the image's
-    /// own bytes wherever they need no laying out (`describeImage`), and a caller that let go of its
-    /// image between the key and the run left the key reading freed memory. Held, its address also
-    /// names it, so a run knows whether the description is of the image it was handed. A key the
-    /// cache answers leaves its image held until the pass is next asked.
+    /// own bytes wherever they need no laying out (`describeImage`).
     ///
-    /// **The scratch is the preprocessor's, one for both texture passes**: a finest level widened
+    /// **The scratch is the preprocessor's, one for every texture pass**: a finest level widened
     /// to four bytes a texel is 16 MiB for a 2048-square picture, and a pass at a time runs on a
-    /// preprocessor's thread, from its key to its run. Not copyable: the description spans the
-    /// scratch's buffers.
+    /// preprocessor's thread. Not copyable: the description spans the scratch's buffers.
     class FinestTexels
     {
     public:
@@ -50,12 +40,6 @@ namespace Rtx
 
         /// Describes `image` into the scratch, and holds it until the next `describe` or `clear`.
         void describe(const osg::Image& image);
-
-        /// Whether the last `describe` was of `image`.
-        bool describes(const osg::Image& image) const { return mImage.get() == &image; }
-
-        /// Adds what the last `describe` came to to `digest`.
-        void addTo(ContentStore::Digest& digest) const;
 
         /// What the last `describe` found, spanning the scratch or the held image: nothing for an
         /// image no reader here decodes.
@@ -72,10 +56,11 @@ namespace Rtx
         std::optional<TextureData> mFinest;
     };
 
-    /// A pass over a texture's finest level: `FinestTexels` keys it, and `Answer` is asked of what
-    /// the key described, so an image is read once for both. `Answer` is handed nothing for an image
-    /// no reader here decodes. `Stored` is `ContentPass::sStored`.
-    template <ContentPassId Id, std::uint32_t Version, bool Stored, class Result,
+    /// A pass over a texture's finest level, keyed by its file (`FileKeys`), and `Answer` asked of the finest level
+    /// described where the store holds no output. `Answer` is handed nothing for an image no reader here decodes.
+    /// Handed an image that holds its texels: a header's facts are derived where
+    /// its file is first read (`ContentPreprocessor::derive`).
+    template <ContentPassId Id, std::uint32_t Version, class Result,
         Result (*Answer)(const std::optional<TextureData>& finest, TexelScratch& scratch)>
     class TexturePass
     {
@@ -85,34 +70,29 @@ namespace Rtx
 
         static constexpr ContentPassId sPass = Id;
         static constexpr std::uint32_t sVersion = Version;
-        static constexpr bool sStored = Stored;
 
-        void digest(const osg::Image& image, ContentStore::Digest& digest)
-        {
-            mFinest.describe(image);
-            mFinest.addTo(digest);
-        }
+        void digest(const osg::Image& image, ContentStore::Digest& digest) { digest.add(mKeys.of(image)); }
 
-        /// Answers for `image`, described by the `digest` before it where that was of `image`, and
-        /// lets go of it.
+        /// Answers for `image`, and lets go of it.
         void run(const osg::Image& image, Result& result)
         {
-            if (!mFinest.describes(image))
-                mFinest.describe(image);
+            mFinest.describe(image);
             result = Answer(mFinest.get(), mFinest.getScratch());
             mFinest.clear();
         }
 
     private:
         /// Made by a `ContentPreprocessor` and by nothing else — `ShapeFold` says why — over the
-        /// scratch it holds for both texture passes.
+        /// scratch it holds for every texture pass and the keys it asks.
         friend class ContentPreprocessor;
-        explicit TexturePass(TexelScratch& scratch)
+        TexturePass(TexelScratch& scratch, FileKeys& keys)
             : mFinest(scratch)
+            , mKeys(keys)
         {
         }
 
         FinestTexels mFinest;
+        FileKeys& mKeys;
     };
 
     /// Whether a texture's alpha ever reaches solid — `reachesSolid`. True for an image no reader
@@ -143,20 +123,20 @@ namespace Rtx
 
     /// Asked of a translucent material's own diffuse map, whose texels it walks up to the first
     /// solid one.
-    using SolidReach = TexturePass<ContentPassId::SolidReach, 1, false, bool, solidReachOf>;
+    using SolidReach = TexturePass<ContentPassId::SolidReach, 1, bool, solidReachOf>;
 
     /// Asked of an additive material's own diffuse map, a sprite's and the sky's sheets, whose every
     /// texel it walks.
-    using TexelMean = TexturePass<ContentPassId::TexelMean, 1, true, MeanTexel, texelMeanOf>;
+    using TexelMean = TexturePass<ContentPassId::TexelMean, 1, MeanTexel, texelMeanOf>;
 
     /// Asked of a blended material's dark map, whose texels it walks up to the first one under
     /// solid.
-    using SolidFall = TexturePass<ContentPassId::SolidFall, 1, false, bool, solidFallOf>;
+    using SolidFall = TexturePass<ContentPassId::SolidFall, 1, bool, solidFallOf>;
 
     /// Asked of a normal map whose alpha is a height, whose every texel it walks: the heights its relief
     /// spans, which bound the march through it.
-    using AlphaSpan = TexturePass<ContentPassId::AlphaSpan, 1, true, AlphaRange, alphaSpanOf>;
+    using AlphaSpan = TexturePass<ContentPassId::AlphaSpan, 1, AlphaRange, alphaSpanOf>;
 
     /// Asked of every `_spec` map a material wears, whose every texel it reads.
-    using SpecularKind = TexturePass<ContentPassId::SpecularKind, 1, true, SpecularLayout, specularKindOf>;
+    using SpecularKind = TexturePass<ContentPassId::SpecularKind, 1, SpecularLayout, specularKindOf>;
 }

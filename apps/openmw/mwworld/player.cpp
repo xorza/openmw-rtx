@@ -1,9 +1,19 @@
 #include "player.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/movement.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwrender/camera.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm/defs.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -13,27 +23,13 @@
 #include <components/esm3/player.hpp>
 #include <components/fallback/fallback.hpp>
 
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/magiceffects.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/movement.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/spellutil.hpp"
-
-#include "../mwrender/camera.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
 #include "cellstore.hpp"
 #include "class.hpp"
+#include "esmstore.hpp"
+#include "inventorystore.hpp"
+#include "magiceffects.hpp"
 #include "ptr.hpp"
+#include "worldmodel.hpp"
 
 namespace MWWorld
 {
@@ -312,7 +308,7 @@ namespace MWWorld
         writer.endRecord(ESM::REC_PLAY);
     }
 
-    bool Player::readRecord(ESM::ESMReader& reader, uint32_t type)
+    bool Player::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_PLAY)
         {
@@ -411,7 +407,7 @@ namespace MWWorld
         return false;
     }
 
-    int Player::getNewCrimeId()
+    std::int32_t Player::getNewCrimeId()
     {
         return ++mCurrentCrimeId;
     }
@@ -421,7 +417,7 @@ namespace MWWorld
         mPaidCrimeId = mCurrentCrimeId;
     }
 
-    int Player::getCrimeId() const
+    std::int32_t Player::getCrimeId() const
     {
         return mPaidCrimeId;
     }
@@ -446,7 +442,7 @@ namespace MWWorld
         Ptr player = getPlayer();
         InventoryStore& store = player.getClass().getInventoryStore(player);
         store.setSelectedEnchantItem(store.end());
-        int castChance = static_cast<int>(MWMechanics::getSpellSuccessChance(spellId, player));
+        auto castChance = static_cast<std::int32_t>(MWMechanics::getSpellSuccessChance(spellId, player));
         MWBase::Environment::get().getWindowManager()->setSelectedSpell(spellId, castChance);
         MWBase::Environment::get().getWindowManager()->updateSpellWindow();
     }
@@ -493,13 +489,14 @@ namespace MWWorld
         else
             rendering->getCamera()->setSneakOffset(0.f);
 
-        int blind = 0;
+        std::int32_t blind = 0;
         const auto& magicEffects = playerClass.getCreatureStats(player).getMagicEffects();
         if (!world->getGodModeState())
-            blind = static_cast<int>(magicEffects.getOrDefault(ESM::MagicEffect::Blind).getModifier());
+            blind = static_cast<std::int32_t>(magicEffects.getOrDefault(ESM::MagicEffect::Blind).getModifier());
         windowMgr->setBlindness(std::clamp(blind, 0, 100));
 
-        int nightEye = static_cast<int>(magicEffects.getOrDefault(ESM::MagicEffect::NightEye).getMagnitude());
+        std::int32_t nightEye
+            = static_cast<std::int32_t>(magicEffects.getOrDefault(ESM::MagicEffect::NightEye).getMagnitude());
         rendering->setNightEyeFactor(std::min(1.f, (static_cast<float>(nightEye) / 100.f)));
     }
 

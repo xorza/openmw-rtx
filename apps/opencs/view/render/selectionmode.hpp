@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../widget/scenetoolmode.hpp"
+#include <cstdint>
+
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
 
 class QAction;
 
@@ -19,7 +21,7 @@ namespace CSVRender
 
     public:
         SelectionMode(
-            CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget, unsigned int interactionMask);
+            CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget, std::uint32_t interactionMask);
 
     protected:
         WorldspaceWidget& getWorldspaceWidget();
@@ -34,7 +36,7 @@ namespace CSVRender
 
     private:
         WorldspaceWidget& mWorldspaceWidget;
-        unsigned int mInteractionMask;
+        std::uint32_t mInteractionMask;
         QAction* mSelectAll;
         QAction* mDeselectAll;
         QAction* mInvertSelection;

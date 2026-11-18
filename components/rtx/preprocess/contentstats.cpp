@@ -27,6 +27,7 @@ namespace Rtx
     {
         for (std::size_t at = 0; at < mPasses.size(); ++at)
             mPasses[at] += other.mPasses[at];
+        mTexelReads += other.mTexelReads;
 
         return *this;
     }
@@ -37,7 +38,18 @@ namespace Rtx
         mOffFrame += other.mOffFrame;
         mPrepared += other.mPrepared;
         mLoading += other.mLoading;
+        mDerived += other.mDerived;
 
         return *this;
+    }
+
+    TexelReads Preprocessed::getTexelReads() const
+    {
+        TexelReads reads = mOnFrame.mTexelReads;
+        reads += mOffFrame.mTexelReads;
+        reads += mPrepared.mTexelReads;
+        reads += mLoading.mTexelReads;
+        reads += mDerived.mTexelReads;
+        return reads;
     }
 }

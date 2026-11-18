@@ -9,8 +9,10 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/memory/batch.hpp>
@@ -40,8 +42,8 @@ namespace Rtx
         /// @param slots how many frames may be tracing this scene at once.
         /// @param room the instance, mesh and material rows every copy is made with room for, the
         ///        instance rows as the top level's are (`SceneAcceleration`).
-        SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-            std::span<const InstanceRecord> records, std::uint32_t slots, const SceneRoom& room);
+        SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> everyMesh,
+            RowSpan<const InstanceRecord, PlacementIndex> records, std::uint32_t slots, const SceneRoom& room);
 
         /// Takes in the attributes of the meshes the scene says arrived, and the layer and mask
         /// runs that arrived with them. The blocks are appended to rather than replaced, and a
@@ -61,8 +63,8 @@ namespace Rtx
         ///
         /// @param changed the slots `updateInstanceRecords` wrote, which is the one list the rows
         ///        are driven by.
-        void place(const SceneDesc& scene, std::span<const InstanceRecord> records, std::span<const Index> changed,
-            FrameSlot slot, Uploads& uploads);
+        void place(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records,
+            std::span<const PlacementIndex> changed, FrameSlot slot, Uploads& uploads);
 
         /// Waits until nothing on the queue reads `slot`'s copy of any table `place` writes, ahead
         /// of the placement that writes it. Each copy carries its own stamp, so this waits for the
@@ -96,7 +98,9 @@ namespace Rtx
         /// their own.
         void describeTables(FrameSlot slot, Shaders::GpuTables& into) const;
 
+        /// What the tables take, the vertex attributes left out, and what those take (`SceneStats::mGeometryBytes`).
         VkDeviceSize getBytes() const;
+        VkDeviceSize getGeometryBytes() const;
 
     private:
         /// What a frame writes, once per frame in flight: whole, but for the light list. What is
@@ -113,7 +117,7 @@ namespace Rtx
             /// where the grid was made again or either buffer was.
             GrowableBuffer mLightCells;
             GrowableBuffer mLightList;
-            RowDebt mLightCellsOwed;
+            RowDebt<LightCellIndex> mLightCellsOwed;
 
             /// The sprites as the scene placed them, unshaded: what a trace's `SpriteBin` copies
             /// and shades for its own sun. Never read by a shader directly.
@@ -141,7 +145,7 @@ namespace Rtx
         /// Reserves room for the scene's attributes, copies in the runs `meshes` names — a deforming
         /// mesh's normals into the posed blocks — and stages their rows of the mesh table. Per mesh
         /// and not per scene, because that is what an arrival is. Nothing is ordered here.
-        void writeMeshes(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes);
+        void writeMeshes(Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> meshes);
 
         /// Which runs `writeMaterialRuns` stages: every one, for a table a scene is made with, or what
         /// arrived since the last clear.
@@ -183,7 +187,7 @@ namespace Rtx
         /// and a slot handed out again has its row staged behind the frame in flight that still
         /// traces the mesh that was there. `mMeshRows` is what it is staged from, whole where it grew.
         GrowableBuffer mMeshTable;
-        std::vector<Shaders::GpuMesh> mMeshRows;
+        RowVector<Shaders::GpuMesh, MeshIndex> mMeshRows;
 
         // Host-written and rewritten from `place`, not uploaded once.
         PerSlot<Tables> mTables;
@@ -192,7 +196,7 @@ namespace Rtx
 
         /// Cleared and refilled by `place`, never freed: the light cells a copy owes in order, and
         /// the runs of the cells' table and of the list they write.
-        std::vector<Index> mCellOrder;
+        std::vector<std::uint32_t> mCellOrder;
         std::vector<CopyRun> mCellRuns;
         std::vector<CopyRun> mListRuns;
 
@@ -205,15 +209,15 @@ namespace Rtx
         /// What a hit turns its slot into: the mesh, the material, the opacity and the motion. Its
         /// own table rather than a field of `Tables`, because the copies and what each of them
         /// still owes are one thing and belong to one object (`SlotTable`).
-        SlotTable<Shaders::GpuInstance> mInstanceTable;
+        SlotTable<Shaders::GpuInstance, PlacementIndex> mInstanceTable;
 
         /// The untextured material a placement with none wears, and every material the scene holds
         /// a row after it — `Shaders::MATERIAL_ROW_FIRST`.
-        SlotTable<Shaders::GpuMaterial> mMaterialTable;
+        SlotTable<Shaders::GpuMaterial, MaterialRecordIndex> mMaterialTable;
 
         /// Beside each material's row, at its index, the maps a mod's surfaces bind past the diffuse
         /// (`Shaders::GpuMaterialMaps`).
-        SlotTable<Shaders::GpuMaterialMaps> mMaterialMapTable;
+        SlotTable<Shaders::GpuMaterialMaps, MaterialRecordIndex> mMaterialMapTable;
 
         /// A standing mesh's normals in the shared blocks, by its vertex offset, and a deforming
         /// mesh's in the posed blocks, by its bind offset as its pose is (`MeshRange::mBindOffset`):

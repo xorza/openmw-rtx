@@ -86,6 +86,7 @@ namespace Rtx
         UpscalerInput getUpscalerInput() const override { return UpscalerInput::Filtered; }
         bool isValidating() const override { return false; }
         MemoryReport getMemoryReport() const override { return {}; }
+        std::uint64_t getSystemClaim() const override { return 0; }
         const SceneStats& getSceneStats() const override { return mStats; }
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readDeepPixels(std::vector<std::uint16_t>& samples) override;
@@ -126,9 +127,11 @@ namespace Rtx
         SceneHeld mWorld;
 
         /// Every view scene's, by its index.
-        SlotRows<SceneHeld> mViews;
+        using ViewRow = RowIndex<struct ViewSceneRows>;
+        SlotRows<SceneHeld, ViewRow> mViews;
 
-        SlotRows<GuiTexture> mGuiTextures;
+        using GuiTextureRow = RowIndex<struct GuiTextureRows>;
+        SlotRows<GuiTexture, GuiTextureRow> mGuiTextures;
 
         /// What `lendGuiTexture` hands out, grown to the largest rectangle lent and never shrunk.
         std::vector<std::uint8_t> mLending;

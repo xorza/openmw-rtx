@@ -1,5 +1,8 @@
 #include "flex.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 namespace LuaUi
 {
     void LuaFlex::updateProperties()
@@ -15,7 +18,7 @@ namespace LuaUi
 
     namespace
     {
-        int alignSize(int container, int content, Alignment alignment)
+        std::int32_t alignSize(std::int32_t container, std::int32_t content, Alignment alignment)
         {
             switch (alignment)
             {
@@ -42,8 +45,8 @@ namespace LuaUi
         MyGUI::IntSize childrenSize;
         if (mAutoSized)
         {
-            int measuredPrimary = 0;
-            int measuredSecondary = 0;
+            std::int32_t measuredPrimary = 0;
+            std::int32_t measuredSecondary = 0;
             bool isFirst = true;
             for (auto* w : flexChildren)
             {
@@ -60,15 +63,15 @@ namespace LuaUi
 
         MyGUI::IntSize flexSize = calculateSize();
 
-        int currentSecondaryAxisPosition = 0;
-        size_t widgetIndex = 0;
+        std::int32_t currentSecondaryAxisPosition = 0;
+        std::size_t widgetIndex = 0;
 
         while (widgetIndex < flexChildren.size())
         {
-            const size_t trackStart = widgetIndex;
-            int primaryAxisSize = 0;
-            int primaryAxisSizeRemaining = primary(flexSize);
-            int secondaryAxisSize = 0;
+            const std::size_t trackStart = widgetIndex;
+            std::int32_t primaryAxisSize = 0;
+            std::int32_t primaryAxisSizeRemaining = primary(flexSize);
+            std::int32_t secondaryAxisSize = 0;
             float totalPrimaryGrow = 0;
 
             while (widgetIndex < flexChildren.size())
@@ -77,10 +80,10 @@ namespace LuaUi
                 w->clearForced();
 
                 const MyGUI::IntSize size = w->calculateSize();
-                const int childPrimary = primary(size);
-                const int childSecondary = secondary(size);
+                const std::int32_t childPrimary = primary(size);
+                const std::int32_t childSecondary = secondary(size);
                 const bool notFirstOnTrack = (widgetIndex > trackStart);
-                const int primaryToAdd = childPrimary + (notFirstOnTrack ? mGap : 0);
+                const std::int32_t primaryToAdd = childPrimary + (notFirstOnTrack ? mGap : 0);
 
                 if (!mAutoSized && mWrap && notFirstOnTrack && primaryAxisSizeRemaining < primaryToAdd)
                     break;
@@ -95,13 +98,14 @@ namespace LuaUi
 
             // Keeping a constant total here ensures widgets that use grow don't use the
             // changing 'primaryAxisSizeRemaining' (which shrinks as we take off grown amounts).
-            const int totalPrimaryAxisSizeRemaining = primaryAxisSizeRemaining;
-            const int trackPrimarySizeAfterGrow
+            const std::int32_t totalPrimaryAxisSizeRemaining = primaryAxisSizeRemaining;
+            const std::int32_t trackPrimarySizeAfterGrow
                 = primaryAxisSize + (totalPrimaryGrow > 0 ? totalPrimaryAxisSizeRemaining : 0);
-            const int primaryAxisChildrenShift = alignSize(primary(flexSize), trackPrimarySizeAfterGrow, mAlign);
-            int currentPrimaryAxisPosition = primaryAxisChildrenShift;
+            const std::int32_t primaryAxisChildrenShift
+                = alignSize(primary(flexSize), trackPrimarySizeAfterGrow, mAlign);
+            std::int32_t currentPrimaryAxisPosition = primaryAxisChildrenShift;
 
-            for (size_t j = trackStart; j < widgetIndex; ++j)
+            for (std::size_t j = trackStart; j < widgetIndex; ++j)
             {
                 auto* w = flexChildren[j];
                 MyGUI::IntPoint widgetPosition;
@@ -112,22 +116,23 @@ namespace LuaUi
                 const float stretch = std::clamp(w->externalValue("stretch", 0.0f), 0.0f, 1.0f);
                 if (widgetGrowFactor > 0)
                 {
-                    const int pixelsToExpandBy
-                        = std::clamp(static_cast<int>(std::round((widgetGrowFactor / totalPrimaryGrow)
+                    const std::int32_t pixelsToExpandBy
+                        = std::clamp(static_cast<std::int32_t>(std::round((widgetGrowFactor / totalPrimaryGrow)
                                          * static_cast<float>(totalPrimaryAxisSizeRemaining))),
                             0, primaryAxisSizeRemaining);
                     primary(widgetSize) += pixelsToExpandBy;
                     primaryAxisSizeRemaining -= pixelsToExpandBy;
                 }
 
-                const int stretchTargetSecondary = mWrap ? secondaryAxisSize : secondary(flexSize);
+                const std::int32_t stretchTargetSecondary = mWrap ? secondaryAxisSize : secondary(flexSize);
                 secondary(widgetSize) = std::max(secondary(widgetSize),
-                    std::clamp(static_cast<int>(std::round(stretch * static_cast<float>(stretchTargetSecondary))), 0,
+                    std::clamp(
+                        static_cast<std::int32_t>(std::round(stretch * static_cast<float>(stretchTargetSecondary))), 0,
                         stretchTargetSecondary));
 
                 primary(widgetPosition) = currentPrimaryAxisPosition;
                 currentPrimaryAxisPosition += primary(widgetSize) + mGap;
-                const int arrangeTargetSecondary = mWrap ? secondaryAxisSize : secondary(flexSize);
+                const std::int32_t arrangeTargetSecondary = mWrap ? secondaryAxisSize : secondary(flexSize);
                 secondary(widgetPosition)
                     = currentSecondaryAxisPosition + alignSize(arrangeTargetSecondary, secondary(widgetSize), mArrange);
 

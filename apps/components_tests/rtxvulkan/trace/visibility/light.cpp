@@ -42,6 +42,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/gbuffer.h>
@@ -65,15 +66,15 @@ namespace Rtx::Testing
 
         /// A level quad at the origin whose vertex normals all lean `sLeaningNormal` off it — as the
         /// fold left it, or as a sheet the content doubled for its back.
-        SceneDesc leaningFloor(FoldedShape shape = {})
+        SceneDesc leaningFloor(SceneIdentities& identities, FoldedShape shape = {})
         {
-            SceneDesc scene;
+            SceneDesc scene(identities);
 
             const osg::Vec3f leaning(std::sin(sLeaningNormal), 0.0f, std::cos(sLeaningNormal));
             const std::array<osg::Vec3f, 4> normals{ leaning, leaning, leaning, leaning };
 
             scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(
+                .mMesh = Testing::addMesh(scene,
                     MeshArrays{ .mPositions = sheetAt(4000.0f, 0.0f), .mNormals = normals, .mIndices = sQuadIndices },
                     shape),
                 .mMaterial = addGrey(scene) });
@@ -87,6 +88,7 @@ namespace Rtx::Testing
         /// 1.055 * 0.318310^(1/2.4) - 0.055 = 0.599797, or 153 of 255.
         TEST_F(RtxVisibilityTest, theSunLightsWhatItFacesAndTheOccluderTakesItAway)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -116,10 +118,10 @@ namespace Rtx::Testing
             // every direction returns the same number, so one sample is the whole answer.
             const auto render = [&](const osg::Vec3f& direction, const osg::Vec3f& irradiance, Occluder blocked,
                                     const osg::Vec3f& sky = osg::Vec3f(), std::uint32_t noShadows = 0) {
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(identities);
                 if (blocked != Occluder::None)
-                    addQuad(scene, occluder, sNoIndex,
-                        blocked == Occluder::FacingTheSun ? osg::Matrixf::identity() : turned);
+                    addQuad(
+                        scene, occluder, sNoRow, blocked == Occluder::FacingTheSun ? osg::Matrixf::identity() : turned);
 
                 Shaders::VisibilityConstants camera = base;
                 camera.mNoSkyShadows = noShadows;
@@ -206,6 +208,7 @@ namespace Rtx::Testing
         /// (`aCutoutStopsARayOnItsMaskAndLetsItThroughTheHoles`).
         TEST_F(RtxVisibilityTest, aBlendIsAPaneWhereItsTextureNeverClosesAndACutWhereItIsAMask)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             const std::array pane = uprightQuadAt(20.0f, -50.0f, osg::Vec2f(50.0f, 0.0f));
 
@@ -215,10 +218,10 @@ namespace Rtx::Testing
             const std::span<const TextureData> textures(&texture.mData, 1);
 
             const auto render = [&](bool neverSolid, std::span<const TextureData> painted) {
-                SceneDesc scene = makeWall();
-                const Index mesh
-                    = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-                const Index material = scene.addMaterial(Material{
+                SceneDesc scene = makeWall(identities);
+                const MeshIndex mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const MaterialIndex material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("glass.dds")),
                     .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mAlphaMode = AlphaMode::Blend,
@@ -290,6 +293,7 @@ namespace Rtx::Testing
         /// and two is the wall at a quarter.
         TEST_F(RtxVisibilityTest, aShellIsPeeledFromTheFaceItShowsAndNotFromItsBack)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
 
             const osg::Vec3f bright(2.0f, 2.0f, 2.0f);
@@ -306,18 +310,18 @@ namespace Rtx::Testing
             };
 
             const auto throughShell = [&](bool bothFaces) {
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(identities);
                 addPane(scene, paneAt(-60.0f, true), half);
                 addPane(scene, paneAt(-50.0f, false), half, 1.0f, bothFaces);
 
                 const Frame frame = shoot(scene, {}, wallCamera(size, bright), size);
                 EXPECT_GT(frame.mHits, 0u);
 
-                return int{ frame.byte(centreValueOf(size)) };
+                return std::int32_t{ frame.byte(centreValueOf(size)) };
             };
 
             EXPECT_EQ(throughShell(false), 111) << "the far wall of a shell was drawn";
-            EXPECT_EQ(throughShell(true), int{ litThroughStack({}, bright * 0.25f) })
+            EXPECT_EQ(throughShell(true), std::int32_t{ litThroughStack({}, bright * 0.25f) })
                 << "and a surface the content draws from both faces is still two layers";
         }
 
@@ -331,6 +335,7 @@ namespace Rtx::Testing
         /// mask has nothing there for that test to read.
         TEST_F(RtxVisibilityTest, aFadedPlacementIsSeenThroughWhateverItsMaterialSays)
         {
+            SceneIdentities identities;
             const std::array pane = uprightQuadAt(20.0f, -50.0f, osg::Vec2f(50.0f, 0.0f));
 
             const osg::Vec3f bright(2.0f, 2.0f, 2.0f);
@@ -352,7 +357,7 @@ namespace Rtx::Testing
             const auto surfaceThrough = [&](std::optional<float> fade) {
                 constexpr std::uint32_t size = 33;
 
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(identities);
                 if (fade.has_value())
                     addPane(scene, pane, black, *fade);
                 shoot(scene, {}, wallCamera(size, bright), size);
@@ -382,6 +387,7 @@ namespace Rtx::Testing
         /// `0.5 / sqrt(n)`, held at four of it.
         TEST_F(RtxSettlingTest, aTranslucentOccluderDimsTheSunRatherThanStoppingIt)
         {
+            SceneIdentities identities;
             // Square in the sun's path to the middle of the wall, which is where the centre pixel
             // looks — so what this pane changes is the light arriving rather than the view of it.
             const std::array occluder = uprightQuadAt(10.0f, -25.0f);
@@ -401,7 +407,7 @@ namespace Rtx::Testing
             const std::size_t centre = centreOf(size);
             std::vector<float> shadowed;
             std::vector<float> penumbrae;
-            shoot(makeWall(), {}, wallCamera(size, bright), size);
+            shoot(makeWall(identities), {}, wallCamera(size, bright), size);
             mProbe.readChannel(Channel::Shadowed, shadowed);
             const float whole = shadowed[centre * 4];
             ASSERT_GT(whole, 0.0f) << "the sun on the wall, split off";
@@ -437,7 +443,7 @@ namespace Rtx::Testing
                 EXPECT_NEAR(open, 0.5, 4.0 * 0.5 / std::sqrt(static_cast<double>(drawn.mDraws))) << what;
             };
 
-            SceneDesc halfPane = makeWall();
+            SceneDesc halfPane = makeWall(identities);
             addPane(halfPane, occluder, white(0.5f));
             expectHalfOpen(drawnUnder(halfPane, {}), "half of it through half a pane");
 
@@ -450,8 +456,8 @@ namespace Rtx::Testing
                 const std::array<std::uint8_t, 4> texel{ 255, 255, 255, alpha };
                 const std::array<TextureData, 1> textures{ describeTexel(texel) };
 
-                SceneDesc scene = makeWall();
-                const Index material = scene.addMaterial(Material{
+                SceneDesc scene = makeWall(identities);
+                const MaterialIndex material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("cutout.dds")),
                     .mAlphaTest = { .mReference = 0.5f },
                     .mAlphaMode = AlphaMode::Cutout,
@@ -469,8 +475,8 @@ namespace Rtx::Testing
 
             const std::array<std::uint8_t, 4> solid{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> painted{ describeTexel(solid) };
-            SceneDesc fading = makeWall();
-            const Index cut = fading.addMaterial(Material{
+            SceneDesc fading = makeWall(identities);
+            const MaterialIndex cut = fading.addMaterial(Material{
                 .mDiffuse = fading.textures().add(VFS::Path::NormalizedView("cutout.dds")),
                 .mAlphaTest = { .mReference = 0.5f },
                 .mAlphaMode = AlphaMode::Cutout,
@@ -486,6 +492,7 @@ namespace Rtx::Testing
         /// backwards is visible: a mushroom cap flat white, or a map on a coloured surface black.
         TEST_F(RtxVisibilityTest, aGlowJoinsTheLightAndAGlowingMapIsAddedPastIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -507,15 +514,15 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            const auto render = [&](Index diffuse, Index emissiveMap, const osg::Vec3f& emissiveColour) {
-                SceneDesc scene;
-                const Index mesh = scene.addMesh(
-                    MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            const auto render = [&](TextureIndex diffuse, TextureIndex emissiveMap, const osg::Vec3f& emissiveColour) {
+                SceneDesc scene(identities);
+                const MeshIndex mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("green.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("red.dds"));
 
-                const Index material = scene.addMaterial(Material{
+                const MaterialIndex material = scene.addMaterial(Material{
                     .mDiffuse = diffuse,
                     .mEmissive = emissiveMap,
                     .mEmissiveColour = emissiveColour,
@@ -537,11 +544,11 @@ namespace Rtx::Testing
             EXPECT_EQ(glowing, 170) << "the glow was meant to sit inside the display's range";
 
             const osg::Vec3f chosen(glow, glow, glow);
-            EXPECT_EQ(render(0, sNoIndex, chosen)[0], glowing) << "a glow on white";
+            EXPECT_EQ(render(TextureIndex(0), sNoRow, chosen)[0], glowing) << "a glow on white";
 
             // The same glow on a texture with no red in it keeps the texture's colour, because the
             // glow goes through the albedo. Added past it, the surface would come back white.
-            const std::array<std::uint8_t, 3> onGreen = render(1, sNoIndex, chosen);
+            const std::array<std::uint8_t, 3> onGreen = render(TextureIndex(1), sNoRow, chosen);
             EXPECT_EQ(onGreen[1], glowing) << "the same glow, still through green";
             EXPECT_EQ(onGreen[0], 0) << "and with none of the red the white one had";
 
@@ -551,7 +558,7 @@ namespace Rtx::Testing
             const std::uint8_t mapGlow = encodeSrgb(6.0f / 255.0f * Shaders::EMISSIVE_INTENSITY);
             EXPECT_EQ(mapGlow, 120);
 
-            const std::array<std::uint8_t, 3> mapped = render(1, 2, osg::Vec3f());
+            const std::array<std::uint8_t, 3> mapped = render(TextureIndex(1), TextureIndex(2), osg::Vec3f());
             EXPECT_EQ(mapped[0], mapGlow) << "the map's own red, undimmed by the green under it";
             EXPECT_EQ(mapped[1], 0) << "and none of the green, which nothing is lighting";
         }
@@ -566,6 +573,7 @@ namespace Rtx::Testing
         /// wall behind and the right half is the mask, with nothing in between.
         TEST_F(RtxVisibilityTest, aCutoutStopsARayOnItsMaskAndLetsItThroughTheHoles)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t extent = 16;
             constexpr std::uint32_t seam = size / 2;
@@ -598,10 +606,10 @@ namespace Rtx::Testing
             const auto render = [&](AlphaMode mode, float alphaRef,
                                     std::uint32_t passes = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE,
                                     std::uint32_t frame = 0) {
-                SceneDesc scene = makeWall();
-                const Index mesh = scene.addMesh(
-                    MeshArrays{ .mPositions = masked, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-                const Index material = scene.addMaterial(Material{
+                SceneDesc scene = makeWall(identities);
+                const MeshIndex mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = masked, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const MaterialIndex material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("mask.dds")),
                     .mAlphaTest = { .mReference = alphaRef, .mPasses = passes },
                     .mAlphaMode = mode,
@@ -619,7 +627,7 @@ namespace Rtx::Testing
             // red, so its green is zero, and the grey wall's albedo of 0.5 encodes to
             // 1.055 * 0.5^(1/2.4) - 0.055 = 0.73536, or 187.5 of 255 — which is why the grey is the
             // one value here given a byte of room.
-            constexpr int wallGrey = 188;
+            constexpr std::int32_t wallGrey = 188;
 
             const std::vector<std::uint8_t> cutout = render(AlphaMode::Cutout, 0.5f);
             ASSERT_EQ(cutout.size(), std::size_t{ size } * size * 4);
@@ -740,16 +748,15 @@ namespace Rtx::Testing
                 .mBytes = std::as_bytes(std::span(bytes)),
                 .mLevels = std::span(&level, 1),
             };
-            // Its coarser levels in bytes of their own under the file's finest level, as a slot
-            // describes a chain the host made (`TextureData::mCoarser`).
-            // A loose file's built levels are its own bytes, four a texel.
+            // The whole chain in one run, as a slot describes a chain the host made: a loose file's built levels are
+            // its own bytes, four a texel, under its finest.
             ChainBuild chain;
             chain.build(file, levelsTo1x1(extent, extent));
-            Misc::ByteBuffer coarser;
+            Misc::ByteBuffer whole(file.mBytes.begin(), file.mBytes.end());
             for (std::uint32_t at = 1; at < chain.getLevelCount(); ++at)
-                coarser.insert(coarser.end(), chain.getTexels(at).begin(), chain.getTexels(at).end());
+                whole.insert(whole.end(), chain.getTexels(at).begin(), chain.getTexels(at).end());
             std::vector<MipLevel> levels{ level };
-            std::uint32_t laid = 0;
+            auto laid = static_cast<std::uint32_t>(file.mBytes.size());
             for (std::uint32_t side = extent / 2; side >= 1; side /= 2)
             {
                 levels.push_back(MipLevel{ laid, side, side });
@@ -757,7 +764,7 @@ namespace Rtx::Testing
             }
             TextureData data = file;
             data.mLevels = levels;
-            data.mCoarser = coarser;
+            data.mBytes = whole;
             ASSERT_TRUE(data.levelsFit());
             const std::span<const TextureData> textures(&data, 1);
 
@@ -770,10 +777,11 @@ namespace Rtx::Testing
                 for (osg::Vec2f& corner : uv)
                     corner *= tiles;
 
-                SceneDesc scene = makeWall();
-                const Index mesh
-                    = scene.addMesh(MeshArrays{ .mPositions = masked, .mTexCoords = uv, .mIndices = sQuadIndices });
-                const Index material = scene.addMaterial(Material{
+                SceneIdentities identities;
+                SceneDesc scene = makeWall(identities);
+                const MeshIndex mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = masked, .mTexCoords = uv, .mIndices = sQuadIndices });
+                const MaterialIndex material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("checker.dds")),
                     .mAlphaTest = { .mReference = 0.6f },
                     .mAlphaMode = AlphaMode::Cutout,
@@ -808,6 +816,7 @@ namespace Rtx::Testing
         /// symmetrical geometry otherwise hides.
         TEST_F(RtxVisibilityTest, aLampLightsAWallByItsFalloffAndAnObstacleTakesItAway)
         {
+            SceneIdentities identities;
             // Odd, so one pixel sits exactly on the axis and its ray lands exactly on the origin.
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
@@ -824,10 +833,10 @@ namespace Rtx::Testing
             const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked,
                                     std::uint32_t noLamps = 0, std::span<const Light> more = {},
                                     std::optional<std::uint32_t> rayMask = std::nullopt, bool lampLit = true) {
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(identities);
                 if (!lampLit)
                 {
-                    const Index wall = scene.placements().getRows()[0].mInstance.mMaterial;
+                    const MaterialIndex wall = scene.placements().getRows()[PlacementIndex(0)].mInstance.mMaterial;
                     Material unlit = scene.materials().getRows()[wall];
                     unlit.mLampLit = false;
                     scene.setMaterial(wall, unlit);
@@ -936,8 +945,8 @@ namespace Rtx::Testing
             // crossing y = -25 at x = 15.
             Light aside = lamp;
             aside.mPosition = osg::Vec3f(30.0f, -50.0f, 0.0f);
-            const int clear = render(aside, osg::Vec3f(), false);
-            const int darkened = render(aside, osg::Vec3f(), false, 0, std::span(&taking, 1));
+            const std::int32_t clear = render(aside, osg::Vec3f(), false);
+            const std::int32_t darkened = render(aside, osg::Vec3f(), false, 0, std::span(&taking, 1));
             EXPECT_LT(darkened, clear) << "the darkening did not reach the wall";
             EXPECT_EQ(render(aside, osg::Vec3f(), true, 0, std::span(&taking, 1)), darkened)
                 << "the quad shadowed a lamp that takes light away";
@@ -953,6 +962,7 @@ namespace Rtx::Testing
         /// fresh with the lamp there draws it, to the bit.
         TEST_F(RtxVisibilityTest, aLampCarriedAcrossTheLightGridLightsEveryCopyWhereItStands)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -1500.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
@@ -967,7 +977,7 @@ namespace Rtx::Testing
                 };
             };
 
-            SceneDesc scene = makeWall(5.0f);
+            SceneDesc scene = makeWall(identities, 5.0f);
             const auto carry = [&](float x, bool handOver) {
                 scene.clearPlacement();
                 for (const Light& lamp : lit(x))
@@ -976,12 +986,12 @@ namespace Rtx::Testing
             };
 
             const std::vector<float> first = carry(-600.0f, true);
-            for (int at = -3; at < 4; ++at)
+            for (std::int32_t at = -3; at < 4; ++at)
                 carry(150.0f * static_cast<float>(at), false);
             const std::vector<float> one = carry(600.0f, false);
             const std::vector<float> other = carry(600.0f, false);
 
-            SceneDesc fresh = makeWall(5.0f);
+            SceneDesc fresh = makeWall(identities, 5.0f);
             for (const Light& lamp : lit(600.0f))
                 fresh.addLight(lamp);
             const std::vector<float> placed = shoot(fresh, {}, camera, size).mRadiance;
@@ -1003,9 +1013,10 @@ namespace Rtx::Testing
         /// exact sum's darkened share, each comes to `r / 2`.
         TEST_F(RtxVisibilityTest, aLampThatTakesLightAwayTakesItOffTheExactSumWhereOneLampIsDrawn)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             const auto lit = [&](std::span<const Light> lamps) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addPane(scene, uprightQuadAt(400.0f, 0.0f), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
                 for (const Light& lamp : lamps)
                     scene.addLight(lamp);
@@ -1056,7 +1067,8 @@ namespace Rtx::Testing
             }
 
             const auto lit = [&](std::uint32_t candidates, std::uint32_t frames) {
-                SceneDesc scene;
+                SceneIdentities identities;
+                SceneDesc scene(identities);
                 addPane(scene, uprightQuadAt(400.0f, 0.0f), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
                 for (const Light& lamp : lamps)
                     scene.addLight(lamp);
@@ -1086,6 +1098,7 @@ namespace Rtx::Testing
         /// visibility of one, and the albedos keep their bits under it.
         TEST_F(RtxVisibilityTest, aSpecularMapsBlueOccludesTheIndirectLightAndNothingElse)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -1100,13 +1113,14 @@ namespace Rtx::Testing
             };
             const auto shot = [&](std::uint8_t blue) {
                 const std::array<std::uint8_t, 4> mapTexel{ 0, 128, blue, 255 };
-                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, TextureIndex(0)),
+                    describeTexel(mapTexel, TextureIndex(1)) };
 
-                SceneDesc scene;
-                const Index mesh = scene.addMesh(
-                    MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                const Index map = scene.textures().add(
+                SceneDesc scene(identities);
+                const MeshIndex mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const TextureIndex map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                 scene.addInstance(MeshInstance{
                     .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
@@ -1151,6 +1165,7 @@ namespace Rtx::Testing
         /// albedo, to the rounding of the two halves compared.
         TEST_F(RtxVisibilityTest, aBouncesLandingTakesItsFillUnderItsSpecularMapsBlue)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 16;
             constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
             const std::array<osg::Vec3f, 4> floorQuad{ osg::Vec3f(-400.0f, -400.0f, -100.0f),
@@ -1161,20 +1176,22 @@ namespace Rtx::Testing
 
             const auto fillUnder = [&](std::uint8_t blue, float fromSky) {
                 const std::array<std::uint8_t, 4> mapTexel{ 0, 128, blue, 255 };
-                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, TextureIndex(0)),
+                    describeTexel(mapTexel, TextureIndex(1)) };
 
-                SceneDesc scene;
-                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                const Index map = scene.textures().add(
+                SceneDesc scene(identities);
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const TextureIndex map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                scene.addInstance(
-                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse }) });
-                scene.addInstance(MeshInstance{ .mMesh = scene.addMesh(MeshArrays{ .mPositions = floorQuad,
-                                                    .mNormals = floorNormals,
-                                                    .mTexCoords = sQuadUv,
-                                                    .mIndices = sQuadIndices }),
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse }) });
+                scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                    MeshArrays{ .mPositions = floorQuad,
+                                                        .mNormals = floorNormals,
+                                                        .mTexCoords = sQuadUv,
+                                                        .mIndices = sQuadIndices }),
                     .mMaterial
                     = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map, .mTwoSided = true }) });
 
@@ -1235,6 +1252,7 @@ namespace Rtx::Testing
         /// reflectance.
         TEST_F(RtxVisibilityTest, aSpecularMapReflectsTheLampByTheHostsLobe)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1258,26 +1276,27 @@ namespace Rtx::Testing
                 = [&](const osg::Vec3f& vertexNormal, std::uint8_t metal, bool leaning, SurfaceView show, float tint) {
                       const std::array<osg::Vec3f, 4> normals{ vertexNormal, vertexNormal, vertexNormal, vertexNormal };
                       const std::array<std::uint8_t, 4> mapTexel{ metal, 128, 255, 255 };
-                      const std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, 0),
-                          describeTexel(mapTexel, 1), describeTexel(sLeaningTexel, 2) };
+                      const std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
+                          describeTexel(mapTexel, TextureIndex(1)), describeTexel(sLeaningTexel, TextureIndex(2)) };
                       const osg::Vec3f colour = osg::Vec3f(tint, tint, 1.0f) * 0.5f;
                       const std::array<osg::Vec3f, 4> colours{ colour, colour, colour, colour };
 
-                      SceneDesc scene;
-                      const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                          .mNormals = normals,
-                          .mTexCoords = sQuadUv,
-                          .mColours = colours,
-                          .mTangents = tangents,
-                          .mIndices = sQuadIndices });
-                      const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                      const Index map = scene.textures().add(
+                      SceneDesc scene(identities);
+                      const MeshIndex mesh = Testing::addMesh(scene,
+                          MeshArrays{ .mPositions = sWallQuad,
+                              .mNormals = normals,
+                              .mTexCoords = sQuadUv,
+                              .mColours = colours,
+                              .mTangents = tangents,
+                              .mIndices = sQuadIndices });
+                      const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                      const TextureIndex map = scene.textures().add(
                           VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                      const Index normalMap = scene.textures().add(
+                      const TextureIndex normalMap = scene.textures().add(
                           VFS::Path::NormalizedView("base_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
                       scene.addInstance(MeshInstance{ .mMesh = mesh,
                           .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse,
-                              .mNormal = leaning ? normalMap : sNoIndex,
+                              .mNormal = leaning ? normalMap : sNoRow,
                               .mSpecular = map,
                               .mVertexColour = VertexColour::Tint }) });
                       scene.addLight(Light{
@@ -1366,9 +1385,9 @@ namespace Rtx::Testing
             // frame before wrote one at the floor: neither is stored, and both hold what a trace stores
             // where there is no lobe — nought light at `SPECULAR_NO_LOBE`, and an albedo of one.
             {
-                SceneDesc plain;
+                SceneDesc plain(identities);
                 plain.addInstance(MeshInstance{
-                    .mMesh = plain.addMesh(MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }),
+                    .mMesh = Testing::addMesh(plain, MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }),
                     .mMaterial = plain.addMaterial(Material{}) });
                 shoot(plain, {}, camera, size);
 
@@ -1419,7 +1438,7 @@ namespace Rtx::Testing
             // roughness, and the reflectance of a metal, which is its base colour.
             const osg::Vec3f shownNormal = lit(0, true, SurfaceView::Normal);
             const osg::Vec3f wantedNormal = mapped * 0.5f + osg::Vec3f(0.5f, 0.5f, 0.5f);
-            for (int axis = 0; axis < 3; ++axis)
+            for (std::int32_t axis = 0; axis < 3; ++axis)
                 EXPECT_NEAR(shownNormal[axis], wantedNormal[axis], 1e-5f) << axis;
             EXPECT_EQ(lit(0, false, SurfaceView::Roughness), osg::Vec3f(roughness, roughness, roughness));
             EXPECT_EQ(lit(255, false, SurfaceView::Specular), osg::Vec3f(base, base, base));
@@ -1438,13 +1457,15 @@ namespace Rtx::Testing
         /// A wall that does not turn keeps the map's roughness to the bit.
         TEST_F(RtxVisibilityTest, aGlossySurfaceThatTurnsUnderAPixelIsAsRoughAsTheTurnsItAverages)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float distance = 100.0f;
             constexpr float painted = 128.0f / 255.0f;
             constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
             constexpr std::array<std::uint8_t, 4> mapTexel{ 0, 128, 255, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(baseTexel, TextureIndex(0)),
+                describeTexel(mapTexel, TextureIndex(1)) };
 
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
@@ -1455,11 +1476,12 @@ namespace Rtx::Testing
                 for (std::size_t at = 0; at < normals.size(); ++at)
                     normals[at] = osg::Vec3f(turn * wall[at].x(), -1.0f, turn * wall[at].z());
 
-                SceneDesc scene;
-                const Index mesh = scene.addMesh(MeshArrays{
-                    .mPositions = wall, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                const Index map = scene.textures().add(
+                SceneDesc scene(identities);
+                const MeshIndex mesh = Testing::addMesh(scene,
+                    MeshArrays{
+                        .mPositions = wall, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const TextureIndex map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                 scene.addInstance(MeshInstance{
                     .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
@@ -1486,6 +1508,7 @@ namespace Rtx::Testing
         /// read eight levels short of it none. The wall is flat, so its bend loses nothing to add to either.
         TEST_F(RtxVisibilityTest, aGlossySurfaceIsAsRoughAsItsNormalMapsLevelHasLost)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float painted = 128.0f / 255.0f;
@@ -1496,25 +1519,26 @@ namespace Rtx::Testing
 
             TestTexture relief;
             paintFlat(relief, 2, leaning, "leaning");
-            relief.mData.mSlot = 2;
-            const std::array<TextureData, 3> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1),
-                relief.mData };
+            relief.mData.mSlot = TextureIndex(2);
+            const std::array<TextureData, 3> textures{ describeTexel(baseTexel, TextureIndex(0)),
+                describeTexel(mapTexel, TextureIndex(1)), relief.mData };
 
             const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
             const std::array<osg::Vec3f, 4> normals{ normal, normal, normal, normal };
             const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
             const std::array<osg::Vec4f, 4> tangents{ tangent, tangent, tangent, tangent };
 
-            SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-            const Index map = scene.textures().add(
+            SceneDesc scene(identities);
+            const MeshIndex mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-            const Index normalMap = scene.textures().add(
+            const TextureIndex normalMap = scene.textures().add(
                 VFS::Path::NormalizedView("leaning_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
             scene.addInstance(MeshInstance{ .mMesh = mesh,
                 .mMaterial
@@ -1547,6 +1571,7 @@ namespace Rtx::Testing
         /// every read lands inside the first level.
         TEST_F(RtxVisibilityTest, aGrazingNormalMappedSurfaceLosesWhatItsAnisotropicReadAverages)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float painted = 128.0f / 255.0f;
@@ -1558,9 +1583,9 @@ namespace Rtx::Testing
 
             TestTexture relief;
             paintFlat(relief, 2, leaning, "leaning");
-            relief.mData.mSlot = 2;
-            const std::array<TextureData, 3> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1),
-                relief.mData };
+            relief.mData.mSlot = TextureIndex(2);
+            const std::array<TextureData, 3> textures{ describeTexel(baseTexel, TextureIndex(0)),
+                describeTexel(mapTexel, TextureIndex(1)), relief.mData };
 
             const auto wallTurnedBy = [&](float degrees) {
                 const osg::Matrixf turn = osg::Matrixf::rotate(osg::DegreesToRadians(degrees), osg::Vec3f(0, 0, 1));
@@ -1573,16 +1598,17 @@ namespace Rtx::Testing
                 const osg::Vec4f tangent(across, 1.0f);
                 const std::array<osg::Vec4f, 4> tangents{ tangent, tangent, tangent, tangent };
 
-                SceneDesc scene;
-                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = positions,
-                    .mNormals = normals,
-                    .mTexCoords = sQuadUv,
-                    .mTangents = tangents,
-                    .mIndices = sQuadIndices });
-                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                const Index map = scene.textures().add(
+                SceneDesc scene(identities);
+                const MeshIndex mesh = Testing::addMesh(scene,
+                    MeshArrays{ .mPositions = positions,
+                        .mNormals = normals,
+                        .mTexCoords = sQuadUv,
+                        .mTangents = tangents,
+                        .mIndices = sQuadIndices });
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const TextureIndex map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                const Index normalMap = scene.textures().add(
+                const TextureIndex normalMap = scene.textures().add(
                     VFS::Path::NormalizedView("leaning_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
                 scene.addInstance(MeshInstance{ .mMesh = mesh,
                     .mMaterial
@@ -1603,7 +1629,7 @@ namespace Rtx::Testing
             // Where square on reads with no epsilon, found where a step of the epsilon lands inside
             // the first level: below it the loss is nought, and past it all.
             float inside = std::numeric_limits<float>::quiet_NaN();
-            for (int half = -24; half <= 24 && std::isnan(inside); ++half)
+            for (std::int32_t half = -24; half <= 24 && std::isnan(inside); ++half)
             {
                 const float step = static_cast<float>(half) / 2.0f;
                 if (const float level = levelRead(0.0f, step, 16); level > 0.05f && level < 0.95f)
@@ -1630,6 +1656,7 @@ namespace Rtx::Testing
         /// are on that side too.
         TEST_F(RtxVisibilityTest, aMapThatStandsInIsReadAsNoMap)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1659,28 +1686,29 @@ namespace Rtx::Testing
             };
 
             const auto lit = [&](Role role, Held held) {
-                std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMapTexel, 1),
-                    describeTexel(sMapTexel, 2) };
+                std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
+                    describeTexel(sMapTexel, TextureIndex(1)), describeTexel(sMapTexel, TextureIndex(2)) };
                 if (held == Held::StandIn)
                     textures[1].mSource = TextureSource::StandIn;
 
-                SceneDesc scene;
-                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                    .mNormals = normals,
-                    .mTexCoords = sQuadUv,
-                    .mTangents = tangents,
-                    .mIndices = sQuadIndices });
+                SceneDesc scene(identities);
+                const MeshIndex mesh = Testing::addMesh(scene,
+                    MeshArrays{ .mPositions = sWallQuad,
+                        .mNormals = normals,
+                        .mTexCoords = sQuadUv,
+                        .mTangents = tangents,
+                        .mIndices = sQuadIndices });
                 const TextureEncoding encoding = role == Role::Normal ? TextureEncoding::Normal
                     : role == Role::Specular                          ? TextureEncoding::Data
                                                                       : TextureEncoding::Colour;
-                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                const Index map
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const TextureIndex map
                     = scene.textures().add(VFS::Path::NormalizedView("map.dds"), TextureWrap::Repeat, encoding);
-                const Index behind = scene.textures().add(
+                const TextureIndex behind = scene.textures().add(
                     VFS::Path::NormalizedView("behind_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
 
                 Material material{ .mDiffuse = diffuse };
-                const Index named = held == Held::Nothing ? sNoIndex : map;
+                const TextureIndex named = held == Held::Nothing ? TextureIndex(sNoRow) : map;
                 switch (role)
                 {
                     case Role::Normal:
@@ -1738,26 +1766,29 @@ namespace Rtx::Testing
         /// the second lamp's lobe is 0.8 of the first's, and at these directions it is more than the first's.
         TEST_F(RtxVisibilityTest, aMetalHoldsTheLampsItsLobeReturnsAndIsSampledWithNoNoise)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
             constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
             constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 255, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
+                describeTexel(sMetalTexel, TextureIndex(1)) };
 
             const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
             const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
             const std::array normals{ normal, normal, normal, normal };
             const std::array tangents{ tangent, tangent, tangent, tangent };
 
-            SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-            const Index map = scene.textures().add(
+            SceneDesc scene(identities);
+            const MeshIndex mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
             scene.addInstance(MeshInstance{
                 .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
@@ -1816,26 +1847,29 @@ namespace Rtx::Testing
         /// `α′ = α + sine / 3`.
         TEST_F(RtxVisibilityTest, aMetalHoldsTheSkySourceItsLobeReturnsAndIsSampledWithNoNoise)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
             constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
             constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 255, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
+                describeTexel(sMetalTexel, TextureIndex(1)) };
 
             const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
             const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
             const std::array normals{ normal, normal, normal, normal };
             const std::array tangents{ tangent, tangent, tangent, tangent };
 
-            SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-            const Index map = scene.textures().add(
+            SceneDesc scene(identities);
+            const MeshIndex mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
             scene.addInstance(MeshInstance{
                 .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
@@ -1902,26 +1936,29 @@ namespace Rtx::Testing
         /// black to the bit. The same wall under a sky with no fill is what it is measured against.
         TEST_F(RtxVisibilityTest, aMetalsReflectionFindsTheSkyAnEyeSeesAndNotTheFill)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
             constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
             constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 255, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
+                describeTexel(sMetalTexel, TextureIndex(1)) };
 
             const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
             const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
             const std::array normals{ normal, normal, normal, normal };
             const std::array tangents{ tangent, tangent, tangent, tangent };
 
-            SceneDesc scene;
-            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                .mNormals = normals,
-                .mTexCoords = sQuadUv,
-                .mTangents = tangents,
-                .mIndices = sQuadIndices });
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-            const Index map = scene.textures().add(
+            SceneDesc scene(identities);
+            const MeshIndex mesh = Testing::addMesh(scene,
+                MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
             scene.addInstance(MeshInstance{
                 .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
@@ -1962,6 +1999,7 @@ namespace Rtx::Testing
         /// the pixel would be black.
         TEST_F(RtxVisibilityTest, aVertexNormalMayTiltAShadingModelButNotChooseWhichSideIsLit)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1979,11 +2017,11 @@ namespace Rtx::Testing
             };
 
             const auto render = [&](std::span<const osg::Vec3f> normals) {
-                SceneDesc scene;
-                scene.addInstance(
-                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = sWallQuad, .mNormals = normals, .mIndices = sQuadIndices }),
-                        .mMaterial = addGrey(scene) });
+                SceneDesc scene(identities);
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = sWallQuad, .mNormals = normals, .mIndices = sQuadIndices }),
+                    .mMaterial = addGrey(scene) });
                 scene.addLight(lamp);
 
                 const Frame frame = shoot(scene, {}, camera, size);
@@ -2017,6 +2055,7 @@ namespace Rtx::Testing
         /// with no mask is cloth (a tabard is seen from the side it is lit from). Both are black from behind.
         TEST_F(RtxVisibilityTest, aLeafIsLitThroughItsBackAndClothAndSolidsAreNot)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -2028,7 +2067,7 @@ namespace Rtx::Testing
             const osg::Vec3f before(0.0f, -50.0f, 0.0f);
 
             const auto render = [&](bool sheet, bool masked, const osg::Vec3f& lit, bool lamp) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
 
                 Material material;
                 if (masked)
@@ -2039,7 +2078,7 @@ namespace Rtx::Testing
                 }
 
                 scene.addInstance(MeshInstance{
-                    .mMesh = scene.addMesh(
+                    .mMesh = Testing::addMesh(scene,
                         MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices },
                         FoldedShape{ .mSheet = sheet }),
                     .mMaterial = scene.addMaterial(material) });
@@ -2089,6 +2128,7 @@ namespace Rtx::Testing
         /// falls; read as the cosine it would stretch the back's penumbra twice.
         TEST_F(RtxVisibilityTest, aLeafsPenumbraIsTheSameLitThroughItsBackAsItsFront)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
 
             TestTexture white;
@@ -2096,13 +2136,13 @@ namespace Rtx::Testing
             const std::span<const TextureData> textures(&white.mData, 1);
 
             const auto penumbraLitFrom = [&](float side) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 Material leaf;
                 leaf.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("sheet.dds"));
                 leaf.mAlphaMode = AlphaMode::Cutout;
                 leaf.mAlphaTest.mReference = 0.5f;
                 scene.addInstance(MeshInstance{
-                    .mMesh = scene.addMesh(
+                    .mMesh = Testing::addMesh(scene,
                         MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices },
                         FoldedShape{ .mSheet = true }),
                     .mMaterial = scene.addMaterial(leaf) });
@@ -2152,6 +2192,9 @@ namespace Rtx::Testing
             static constexpr std::uint32_t sColumn = sSize / 2;
             static constexpr float sLampDepth = -200.0f;
 
+            /// Where every scene of the fixture takes its identity: the fixture outlives them.
+            SceneIdentities mIdentities;
+
             /// A quad behind the wall covering everything left of `edge`, wide enough that no shadow
             /// ray this frame sends leaves it by the far side.
             static std::array<osg::Vec3f, 4> halfPlane(float depth, float edge)
@@ -2166,7 +2209,7 @@ namespace Rtx::Testing
 
             SceneDesc sceneWith(const std::optional<Light>& lamp, float depth, std::optional<float> edge)
             {
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(mIdentities);
                 if (lamp.has_value())
                     scene.addLight(*lamp);
                 if (edge.has_value())
@@ -2300,11 +2343,12 @@ namespace Rtx::Testing
         /// a speckle over the whole pool.
         TEST_F(RtxVisibilityTest, aFloorInsideAFillIsLitFromEverySideAndShadowedByNothing)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
             const auto render = [&](bool fill, bool underneath) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
                 if (underneath)
                     addQuad(scene, sheetAt(4000.0f, -10.0f));
@@ -2342,7 +2386,8 @@ namespace Rtx::Testing
             constexpr std::size_t centre = centreValueOf(size);
 
             const auto render = [&](bool fill) {
-                SceneDesc scene = makeWall();
+                SceneIdentities identities;
+                SceneDesc scene = makeWall(identities);
                 scene.addLight(Light{
                     .mPosition = osg::Vec3f(0.0f, -1000.0f, 0.0f),
                     .mIntensity = osg::Vec3f(600000.0f, 600000.0f, 600000.0f),
@@ -2435,10 +2480,11 @@ namespace Rtx::Testing
         /// `d.z < 0.1474`, and `0.1474^2` is that.
         TEST_F(RtxVisibilityTest, aRoomsFillStandsWholeAtALandingAndAnExteriorsSkyIsTakenAwayByAnything)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
-            const auto lidAt = [](float lid) {
-                SceneDesc scene;
+            const auto lidAt = [&identities](float lid) {
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
                 addQuad(scene, sheetAt(4000.0f, lid));
 
@@ -2502,6 +2548,7 @@ namespace Rtx::Testing
         /// composing, and a run the composite sums over that level's answer.
         TEST_F(RtxVisibilityTest, theFillIsReflectedByTheAmbientAlbedoAndALampsBounceByTheDiffuseOne)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr float lid = 70.0f;
 
@@ -2516,8 +2563,8 @@ namespace Rtx::Testing
 
             const auto shade = [&](const Shaders::VisibilityConstants& camera, bool lidded, bool lamp, float ambient,
                                    bool filter = false) {
-                SceneDesc scene;
-                const Index floor = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
+                SceneDesc scene(identities);
+                const MaterialIndex floor = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
                     .mAmbientColour = osg::Vec3f(ambient, ambient, ambient) });
                 addQuad(scene, sheetAt(4000.0f, 0.0f), floor);
                 if (lidded)
@@ -2601,7 +2648,7 @@ namespace Rtx::Testing
             unbounced.mSkyZenith = osg::Vec3f();
             unbounced.mAmbientFromSky = 0.0f;
             unbounced.mSurfaceAmbient = osg::Vec3f(0.5f, 0.5f, 0.5f);
-            SceneDesc open;
+            SceneDesc open(identities);
             addQuad(open, sheetAt(4000.0f, 0.0f),
                 open.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
                     .mAmbientColour = osg::Vec3f(0.25f, 0.25f, 0.25f) }));
@@ -2656,12 +2703,13 @@ namespace Rtx::Testing
                 return frame.mean();
             };
 
-            const SceneDesc floor = leaningFloor();
+            SceneIdentities identities;
+            const SceneDesc floor = leaningFloor(identities);
             EXPECT_NEAR(litFrom(floor, 1.0f), 0.5f * sunlight / std::numbers::pi_v<float>, 0.002f)
                 << "the shading normal says how much";
             EXPECT_LT(litFrom(floor, -1.0f), 0.002f) << "and the floor's own face stops a sun behind its plane";
 
-            const SceneDesc sheet = leaningFloor(FoldedShape{ .mSheet = true, .mFolded = true });
+            const SceneDesc sheet = leaningFloor(identities, FoldedShape{ .mSheet = true, .mFolded = true });
             EXPECT_NEAR(litFrom(sheet, 1.0f), 0.5f * sunlight / std::numbers::pi_v<float>, 0.002f);
             EXPECT_LT(litFrom(sheet, -1.0f), 0.002f) << "as a sheet's does";
         }
@@ -2688,6 +2736,7 @@ namespace Rtx::Testing
         /// that faces the sun; a contact shadow of the same height lost is its cost.
         TEST_F(RtxVisibilityTest, aFacetIsLitWhereItsNormalsFaceTheSunAndNotShadowedWithinItsLift)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 17;
             constexpr float sunlight = 4.0f;
 
@@ -2725,10 +2774,11 @@ namespace Rtx::Testing
             const std::array<std::uint32_t, 24> indices{ 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12,
                 13, 14, 15, 16, 17 };
 
-            SceneDesc scene;
-            scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }),
-                .mMaterial = addGrey(scene) });
+            SceneDesc scene(identities);
+            scene.addInstance(
+                MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                  MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }),
+                    .mMaterial = addGrey(scene) });
 
             osg::Vec3f normal = up * 0.9f + nearSide * 0.1f;
             normal.normalize();
@@ -2776,7 +2826,8 @@ namespace Rtx::Testing
             constexpr std::uint32_t size = 32;
 
             const auto glowingAt = [](float z) {
-                SceneDesc scene = leaningFloor();
+                SceneIdentities identities;
+                SceneDesc scene = leaningFloor(identities);
 
                 Material glowing;
                 glowing.mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f);
@@ -2820,10 +2871,11 @@ namespace Rtx::Testing
         /// `0.5 * 0.75` = 0.375.
         TEST_F(RtxVisibilityTest, aBounceMeetsASeeThroughPaneAsOftenAsThePaneIsThere)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
             const auto floorUnder = [&](float opacity) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(40000.0f, 0.0f));
 
                 Material glowing;
@@ -2856,28 +2908,31 @@ namespace Rtx::Testing
         /// the sheet is one either way: its glow is the eye's, and the floor it would bounce off is dark.
         TEST_F(RtxSettlingTest, aLampsOwnModelGlowsToTheEyeAndLightsNothingByTheBounce)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
             // A grey floor, or a white metal one, whose every ray off it is its lobe's.
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             constexpr std::array<std::uint8_t, 4> metalTexel{ 255, 128, 255, 255 };
-            const std::array<TextureData, 2> metalTextures{ describeTexel(white, 0), describeTexel(metalTexel, 1) };
-            const auto under = [](bool lampBody, bool metal = false) {
-                SceneDesc scene;
+            const std::array<TextureData, 2> metalTextures{ describeTexel(white, TextureIndex(0)),
+                describeTexel(metalTexel, TextureIndex(1)) };
+            const auto under = [&identities](bool lampBody, bool metal = false) {
+                SceneDesc scene(identities);
                 if (metal)
                 {
-                    const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
-                    const Index map = scene.textures().add(
+                    const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    const TextureIndex map = scene.textures().add(
                         VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                    scene.addInstance(MeshInstance{
-                        .mMesh = scene.addMesh(MeshArrays{
-                            .mPositions = sheetAt(40000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                        MeshArrays{ .mPositions = sheetAt(40000.0f, 0.0f),
+                                                            .mTexCoords = sQuadUv,
+                                                            .mIndices = sQuadIndices }),
                         .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
                 }
                 else
                     addQuad(scene, sheetAt(40000.0f, 0.0f));
 
-                const Index glowing = scene.addMaterial(
+                const MaterialIndex glowing = scene.addMaterial(
                     Material{ .mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f), .mTwoSided = true });
                 scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, sheetAt(40000.0f, 100.0f)),
                     .mMaterial = glowing,
@@ -2932,10 +2987,11 @@ namespace Rtx::Testing
         /// an eighth of the sky's range away, seven times the tolerance below at the narrowest range here.
         TEST_F(RtxVisibilityTest, aBounceDrawsItsDirectionByTheCosineAndNotUniformly)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float samples = float{ size } * size;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
 
             // Three ranges rather than one, and one of them descending, so a test that passed by
@@ -2981,9 +3037,10 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto [mean, spread] = measure(first, channel);
-                const float range = zenith[static_cast<int>(channel)] - horizon[static_cast<int>(channel)];
-                const float byTheCosine = 0.5f * (horizon[static_cast<int>(channel)] + range * 0.5f);
-                const float ifDrawnEvenly = 0.5f * (horizon[static_cast<int>(channel)] + range * 0.376775f);
+                const float range
+                    = zenith[static_cast<std::int32_t>(channel)] - horizon[static_cast<std::int32_t>(channel)];
+                const float byTheCosine = 0.5f * (horizon[static_cast<std::int32_t>(channel)] + range * 0.5f);
+                const float ifDrawnEvenly = 0.5f * (horizon[static_cast<std::int32_t>(channel)] + range * 0.376775f);
 
                 // One sRGB step at a quarter brightness is 0.004 of linear — a 255th divided by the
                 // curve's slope there — and it swamps the sampling standard error, which over 4096
@@ -3040,9 +3097,10 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto [mean, spread] = measure(converged, channel);
-                const float range = zenith[static_cast<int>(channel)] - horizon[static_cast<int>(channel)];
+                const float range
+                    = zenith[static_cast<std::int32_t>(channel)] - horizon[static_cast<std::int32_t>(channel)];
 
-                EXPECT_NEAR(mean, 0.5f * (horizon[static_cast<int>(channel)] + range * 0.5f), 0.0002f)
+                EXPECT_NEAR(mean, 0.5f * (horizon[static_cast<std::int32_t>(channel)] + range * 0.5f), 0.0002f)
                     << "channel " << channel << " keeps its mean when averaged";
 
                 const float alone = 0.5f * std::abs(range) * 0.188144f;
@@ -3086,6 +3144,7 @@ namespace Rtx::Testing
         /// at the corners) move the lobe's whole by 8e-6 on average.
         TEST_F(RtxVisibilityTest, aGlossyFloorUnderAnEvenSkyGivesBackWhatItReflects)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 128;
             constexpr float sky = 0.5f;
             constexpr std::uint8_t sRoughness = 128;
@@ -3100,15 +3159,17 @@ namespace Rtx::Testing
             // The red channel's mean across the frame.
             const auto shade = [&](std::uint8_t metal) {
                 const std::array<std::uint8_t, 4> mapTexel{ metal, sRoughness, 255, 255 };
-                const std::array<TextureData, 2> textures{ describeTexel(sWhite, 0), describeTexel(mapTexel, 1) };
+                const std::array<TextureData, 2> textures{ describeTexel(sWhite, TextureIndex(0)),
+                    describeTexel(mapTexel, TextureIndex(1)) };
 
-                SceneDesc scene;
-                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
-                const Index map = scene.textures().add(
+                SceneDesc scene(identities);
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                const TextureIndex map = scene.textures().add(
                     VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                 scene.addInstance(MeshInstance{
-                    .mMesh = scene.addMesh(MeshArrays{
-                        .mPositions = sheetAt(4000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMesh = Testing::addMesh(scene,
+                        MeshArrays{
+                            .mPositions = sheetAt(4000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
                     .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
 
                 const Frame frame = shoot(scene, textures, camera, size, { .mFrames = 4 });

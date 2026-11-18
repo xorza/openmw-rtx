@@ -1,17 +1,17 @@
 #include "precipitationocclusion.hpp"
 
 #include <cassert>
+#include <cstdint>
 
 #include <osgUtil/CullVisitor>
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/settings/values.hpp>
 #include <components/shader/shadermanager.hpp>
-
-#include "../mwbase/environment.hpp"
 
 #include "vismask.hpp"
 
@@ -88,7 +88,7 @@ namespace MWRender
         , mRootNode(rootNode)
         , mSceneCamera(camera)
     {
-        constexpr int rttSize = 256;
+        constexpr std::int32_t rttSize = 256;
 
         mDepthTexture = new osg::Texture2D;
         mDepthTexture->setTextureSize(rttSize, rttSize);

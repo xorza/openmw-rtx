@@ -50,9 +50,9 @@ namespace RtxTool
             for (const std::string_view spelled : { "1.5x", "1e", "0x10", " 1", "1 ", "inf", "nan", "" })
                 EXPECT_EQ(wholeNumber<double>(spelled), std::nullopt) << spelled;
 
-            EXPECT_EQ(wholeNumber<int>("42"), 42);
-            EXPECT_EQ(wholeNumber<int>("42px"), std::nullopt);
-            EXPECT_EQ(wholeNumber<unsigned int>("-1"), std::nullopt);
+            EXPECT_EQ(wholeNumber<std::int32_t>("42"), 42);
+            EXPECT_EQ(wholeNumber<std::int32_t>("42px"), std::nullopt);
+            EXPECT_EQ(wholeNumber<std::uint32_t>("-1"), std::nullopt);
         }
 
         /// **One rule for a number the line gives**: the whole text, a finite number, inside the range the

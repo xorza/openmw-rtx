@@ -1,10 +1,10 @@
 #pragma once
 
-#include "components/esm/fourcc.hpp"
-
 #include <cstdint>
 #include <iosfwd>
 #include <string_view>
+
+#include "fourcc.hpp"
 
 namespace ESM
 {

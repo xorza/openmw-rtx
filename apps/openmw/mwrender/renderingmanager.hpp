@@ -1,5 +1,20 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <map>
+#include <memory>
+#include <span>
+#include <unordered_map>
+#include <vector>
+
+#include <osg/ref_ptr>
+#include <osgUtil/IncrementalCompileOperation>
+
+#include <components/settings/settings.hpp>
+#include <components/vfs/pathutil.hpp>
+
 #include "framedescriber.hpp"
 #include "ground.hpp"
 #include "objects.hpp"
@@ -7,20 +22,6 @@
 #include "renderer.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
-
-#include <components/settings/settings.hpp>
-#include <components/vfs/pathutil.hpp>
-
-#include <osg/ref_ptr>
-
-#include <osgUtil/IncrementalCompileOperation>
-
-#include <deque>
-#include <map>
-#include <memory>
-#include <span>
-#include <unordered_map>
-#include <vector>
 
 namespace osg
 {
@@ -177,7 +178,7 @@ namespace MWRender
         void setWaterHeight(float height);
 
         /// Take a screenshot of w*h, not including the GUI, encoded as JPEG. Empty on failure.
-        std::vector<char> screenshot(int w, int h);
+        std::vector<char> screenshot(std::int32_t w, std::int32_t h);
 
         struct RayResult
         {
@@ -202,7 +203,7 @@ namespace MWRender
 
         /// Get the bounding box of the object's scene graph, leaving out nodes in ignoreMask. Invalid if the object
         /// is not in the scene.
-        osg::BoundingBox getObjectBounds(const MWWorld::Ptr& ptr, unsigned int ignoreMask) const;
+        osg::BoundingBox getObjectBounds(const MWWorld::Ptr& ptr, std::uint32_t ignoreMask) const;
 
         void setSkyEnabled(bool enabled);
 
@@ -302,12 +303,12 @@ namespace MWRender
 
         void setActiveGrid(const osg::Vec4i& grid);
 
-        bool pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled);
-        void pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr);
+        bool pagingEnableObject(std::int32_t type, const MWWorld::ConstPtr& ptr, bool enabled);
+        void pagingBlacklistObject(std::int32_t type, const MWWorld::ConstPtr& ptr);
 
         /// The same for a reference a move took from `from` to `to`, which may be another cell:
         /// the distance found it at `from`, and the game holds it at `to`.
-        void pagingMovedObject(int type, const MWWorld::ConstPtr& from, const MWWorld::ConstPtr& to);
+        void pagingMovedObject(std::int32_t type, const MWWorld::ConstPtr& from, const MWWorld::ConstPtr& to);
         void setVisibilityGate(std::uint32_t gate, Terrain::GateState state);
         bool pagingUnlockCache();
         void getPagedRefnums(const osg::Vec4i& activeGrid, std::vector<ESM::RefNum>& out);

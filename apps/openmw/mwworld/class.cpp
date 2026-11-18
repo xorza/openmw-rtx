@@ -1,34 +1,32 @@
 #include "class.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadsoun.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/esmstore.hpp"
-
 #include "actiontake.hpp"
 #include "containerstore.hpp"
+#include "esmstore.hpp"
 #include "failedaction.hpp"
 #include "inventorystore.hpp"
 #include "nullaction.hpp"
 #include "ptr.hpp"
 #include "worldmodel.hpp"
 
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwmechanics/npcstats.hpp"
-
 namespace MWWorld
 {
-    std::map<unsigned, Class*>& Class::getClasses()
+    std::map<std::uint32_t, Class*>& Class::getClasses()
     {
-        static std::map<unsigned, Class*> values;
+        static std::map<std::uint32_t, Class*> values;
         return values;
     }
 
@@ -52,17 +50,18 @@ namespace MWWorld
         return false;
     }
 
-    void Class::skillUsageSucceeded(const MWWorld::Ptr& ptr, ESM::RefId skill, int usageType, float extraFactor) const
+    void Class::skillUsageSucceeded(
+        const MWWorld::Ptr& ptr, ESM::RefId skill, std::int32_t usageType, float extraFactor) const
     {
         throw std::runtime_error("class does not represent an actor");
     }
 
-    bool Class::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Class::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return false;
     }
 
-    int Class::getServices(const ConstPtr& actor) const
+    std::int32_t Class::getServices(const ConstPtr& actor) const
     {
         throw std::runtime_error("class does not have services");
     }
@@ -82,7 +81,7 @@ namespace MWWorld
         return false;
     }
 
-    int Class::getItemHealth(const ConstPtr& ptr) const
+    std::int32_t Class::getItemHealth(const ConstPtr& ptr) const
     {
         if (ptr.getCellRef().getCharge() == -1)
             return getItemMaxHealth(ptr);
@@ -102,7 +101,7 @@ namespace MWWorld
         }
     }
 
-    int Class::getItemMaxHealth(const ConstPtr& ptr) const
+    std::int32_t Class::getItemMaxHealth(const ConstPtr& ptr) const
     {
         throw std::runtime_error("class does not have item health");
     }
@@ -112,7 +111,7 @@ namespace MWWorld
         throw std::runtime_error("class cannot hit");
     }
 
-    void Class::hit(const Ptr& ptr, float attackStrength, float attackWindUp, int type, const Ptr& victim,
+    void Class::hit(const Ptr& ptr, float attackStrength, float attackWindUp, std::int32_t type, const Ptr& victim,
         const osg::Vec3f& hitPosition, bool success) const
     {
         throw std::runtime_error("class cannot hit");
@@ -184,7 +183,7 @@ namespace MWWorld
         return 0;
     }
 
-    int Class::getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Class::getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const
     {
         throw std::runtime_error("class does not support enchanting");
     }
@@ -199,9 +198,9 @@ namespace MWWorld
         return osg::Vec3f(0, 0, 0);
     }
 
-    std::pair<std::vector<int>, bool> Class::getEquipmentSlots(const ConstPtr& ptr) const
+    std::pair<std::vector<std::int32_t>, bool> Class::getEquipmentSlots(const ConstPtr& ptr) const
     {
-        return std::make_pair(std::vector<int>(), false);
+        return std::make_pair(std::vector<std::int32_t>(), false);
     }
 
     ESM::RefId Class::getEquipmentSkill(const ConstPtr& ptr, bool useLuaInterfaceIfAvailable) const
@@ -209,7 +208,7 @@ namespace MWWorld
         return {};
     }
 
-    int Class::getValue(const ConstPtr& ptr) const
+    std::int32_t Class::getValue(const ConstPtr& ptr) const
     {
         throw std::logic_error("value not supported by this class");
     }
@@ -239,7 +238,7 @@ namespace MWWorld
         throw std::runtime_error("Class does not support armor rating");
     }
 
-    const Class& Class::get(unsigned int key)
+    const Class& Class::get(std::uint32_t key)
     {
         const auto& classes = getClasses();
         auto iter = classes.find(key);
@@ -280,7 +279,7 @@ namespace MWWorld
         throw std::runtime_error("class does not have any inventory icon");
     }
 
-    MWGui::ToolTipInfo Class::getToolTipInfo(const ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Class::getToolTipInfo(const ConstPtr& ptr, std::int32_t count) const
     {
         throw std::runtime_error("class does not have a tool tip");
     }
@@ -330,13 +329,14 @@ namespace MWWorld
             models.push_back(model);
     }
 
-    const ESM::RefId& Class::applyEnchantment(
-        const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId, int enchCharge, const std::string& newName) const
+    const ESM::RefId& Class::applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId,
+        std::int32_t enchCharge, const std::string& newName) const
     {
         throw std::runtime_error("class can't be enchanted");
     }
 
-    std::pair<int, std::string_view> Class::canBeEquipped(const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const
+    std::pair<std::int32_t, std::string_view> Class::canBeEquipped(
+        const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& npc) const
     {
         return { 1, {} };
     }
@@ -383,7 +383,7 @@ namespace MWWorld
         throw std::runtime_error("unable to copy class to cell");
     }
 
-    MWWorld::Ptr Class::copyToCell(const ConstPtr& ptr, CellStore& cell, int count) const
+    MWWorld::Ptr Class::copyToCell(const ConstPtr& ptr, CellStore& cell, std::int32_t count) const
     {
         Ptr newPtr = copyToCellImpl(ptr, cell);
         newPtr.getCellRef().unsetRefNum(); // This RefNum is only valid within the original cell of the reference
@@ -409,7 +409,8 @@ namespace MWWorld
         return newPtr;
     }
 
-    MWWorld::Ptr Class::copyToCell(const ConstPtr& ptr, CellStore& cell, const ESM::Position& pos, int count) const
+    MWWorld::Ptr Class::copyToCell(
+        const ConstPtr& ptr, CellStore& cell, const ESM::Position& pos, std::int32_t count) const
     {
         Ptr newPtr = copyToCell(ptr, cell, count);
         newPtr.getRefData().setPosition(pos);
@@ -466,7 +467,7 @@ namespace MWWorld
 
     void Class::writeAdditionalState(const MWWorld::ConstPtr& ptr, ESM::ObjectState& state) const {}
 
-    int Class::getBaseGold(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Class::getBaseGold(const MWWorld::ConstPtr& ptr) const
     {
         throw std::runtime_error("class does not support base gold");
     }
@@ -510,7 +511,7 @@ namespace MWWorld
         return ESM::RefId();
     }
 
-    int Class::getBaseFightRating(const ConstPtr& ptr) const
+    std::int32_t Class::getBaseFightRating(const ConstPtr& ptr) const
     {
         throw std::runtime_error("class does not support fight rating");
     }
@@ -519,7 +520,7 @@ namespace MWWorld
     {
         return ESM::RefId();
     }
-    int Class::getPrimaryFactionRank(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Class::getPrimaryFactionRank(const MWWorld::ConstPtr& ptr) const
     {
         return -1;
     }
@@ -553,12 +554,12 @@ namespace MWWorld
         return result;
     }
 
-    void Class::setBaseAISetting(const ESM::RefId&, MWMechanics::AiSetting setting, int value) const
+    void Class::setBaseAISetting(const ESM::RefId&, MWMechanics::AiSetting setting, std::int32_t value) const
     {
         throw std::runtime_error("class does not have creature stats");
     }
 
-    void Class::modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, int amount) const
+    void Class::modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, std::int32_t amount) const
     {
         throw std::runtime_error("class does not have an inventory store");
     }

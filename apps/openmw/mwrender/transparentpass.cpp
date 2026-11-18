@@ -1,10 +1,9 @@
 #include "transparentpass.hpp"
 
-#include "water.hpp"
+#include <cstdint>
 
 #include <osg/BlendFunc>
 #include <osg/Texture2D>
-
 #include <osgUtil/RenderStage>
 
 #include <components/sceneutil/depth.hpp>
@@ -14,6 +13,7 @@
 #include <components/stereo/stereomanager.hpp>
 
 #include "vismask.hpp"
+#include "water.hpp"
 
 namespace MWRender
 {
@@ -48,7 +48,7 @@ namespace MWRender
         osg::State& state = *renderInfo.getState();
 
         bool validFbo = false;
-        unsigned int frameId = state.getFrameStamp()->getFrameNumber() % 2;
+        std::uint32_t frameId = state.getFrameStamp()->getFrameNumber() % 2;
 
         const auto& fbo = mFbo[frameId];
         const auto& msaaFbo = mMsaaFbo[frameId];
@@ -83,11 +83,11 @@ namespace MWRender
 
         // draw transparent post-pass to populate a postprocess friendly depth texture with alpha-clipped geometry
 
-        unsigned int numToPop
-            = previous ? static_cast<unsigned int>(osgUtil::StateGraph::numToPop(previous->_parent)) : 0;
+        std::uint32_t numToPop
+            = previous ? static_cast<std::uint32_t>(osgUtil::StateGraph::numToPop(previous->_parent)) : 0;
         if (numToPop > 1)
             numToPop--;
-        unsigned int insertStateSetPosition = state.getStateSetStackSize() - numToPop;
+        std::uint32_t insertStateSetPosition = state.getStateSetStackSize() - numToPop;
 
         state.insertStateSet(insertStateSetPosition, mStateSet);
         for (auto rl : bin->getRenderLeafList())

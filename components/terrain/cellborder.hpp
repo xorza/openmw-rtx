@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
+
 #include <osg/Group>
 
 #include <components/esm/refid.hpp>
@@ -21,12 +23,13 @@ namespace Terrain
     class CellBorder
     {
     public:
-        typedef std::map<std::pair<int, int>, osg::ref_ptr<osg::Node>> CellGrid;
+        typedef std::map<std::pair<std::int32_t, std::int32_t>, osg::ref_ptr<osg::Node>> CellGrid;
 
-        CellBorder(Terrain::World* world, osg::Group* root, int borderMask, Resource::SceneManager* sceneManager);
+        CellBorder(
+            Terrain::World* world, osg::Group* root, std::int32_t borderMask, Resource::SceneManager* sceneManager);
 
-        void createCellBorderGeometry(int x, int y);
-        void destroyCellBorderGeometry(int x, int y);
+        void createCellBorderGeometry(std::int32_t x, std::int32_t y);
+        void destroyCellBorderGeometry(std::int32_t x, std::int32_t y);
 
         /**
           Destroys the geometry for all borders.
@@ -34,7 +37,7 @@ namespace Terrain
         void destroyCellBorderGeometry();
 
         static osg::ref_ptr<osg::Group> createBorderGeometry(float x, float y, float size, Storage* terrain,
-            Resource::SceneManager* sceneManager, int mask, ESM::RefId worldspace, float offset = 10.0,
+            Resource::SceneManager* sceneManager, std::int32_t mask, ESM::RefId worldspace, float offset = 10.0,
             osg::Vec4f color = { 1, 1, 0, 0 });
 
     protected:
@@ -43,6 +46,6 @@ namespace Terrain
         osg::Group* mRoot;
 
         CellGrid mCellBorderNodes;
-        int mBorderMask;
+        std::int32_t mBorderMask;
     };
 }

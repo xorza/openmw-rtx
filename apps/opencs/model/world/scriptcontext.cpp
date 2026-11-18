@@ -1,12 +1,8 @@
 #include "scriptcontext.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <sstream>
-
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/refidcollection.hpp>
 
 #include <components/compiler/nullerrorhandler.hpp>
 #include <components/compiler/quickfileparser.hpp>
@@ -16,7 +12,11 @@
 #include <components/esm3/variant.hpp>
 #include <components/misc/strings/lower.hpp>
 
+#include "columns.hpp"
 #include "data.hpp"
+#include "idcollection.hpp"
+#include "record.hpp"
+#include "refidcollection.hpp"
 
 CSMWorld::ScriptContext::ScriptContext(const Data& data)
     : mData(data)
@@ -31,7 +31,7 @@ bool CSMWorld::ScriptContext::canDeclareLocals() const
 
 char CSMWorld::ScriptContext::getGlobalType(const std::string& name) const
 {
-    const int index = mData.getGlobals().searchId(ESM::RefId::stringRefId(name));
+    const std::int32_t index = mData.getGlobals().searchId(ESM::RefId::stringRefId(name));
 
     if (index != -1)
     {
@@ -56,7 +56,7 @@ std::pair<char, bool> CSMWorld::ScriptContext::getMemberType(const std::string& 
 {
     ESM::RefId id2 = id;
 
-    int index = mData.getScripts().searchId(id2);
+    std::int32_t index = mData.getScripts().searchId(id2);
     bool reference = false;
 
     if (index == -1)
@@ -67,7 +67,7 @@ std::pair<char, bool> CSMWorld::ScriptContext::getMemberType(const std::string& 
         if (index != -1)
         {
             // Referenceable found.
-            int columnIndex = mData.getReferenceables().findColumnIndex(Columns::ColumnId_Script);
+            std::int32_t columnIndex = mData.getReferenceables().findColumnIndex(Columns::ColumnId_Script);
 
             id2 = ESM::RefId::stringRefId(
                 mData.getReferenceables().getData(index, columnIndex).toString().toUtf8().constData());

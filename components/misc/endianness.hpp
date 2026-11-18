@@ -17,21 +17,21 @@ namespace Misc
 
         if constexpr (sizeof(T) == 2)
         {
-            uint16_t v16 = 0;
+            std::uint16_t v16 = 0;
             std::memcpy(&v16, &v, sizeof(T));
             v16 = std::rotl(v16, 8);
             std::memcpy(&v, &v16, sizeof(T));
         }
         if constexpr (sizeof(T) == 4)
         {
-            uint32_t v32 = 0;
+            std::uint32_t v32 = 0;
             std::memcpy(&v32, &v, sizeof(T));
             v32 = (v32 >> 24) | ((v32 >> 8) & 0xff00) | ((v32 & 0xff00) << 8) | (v32 << 24);
             std::memcpy(&v, &v32, sizeof(T));
         }
         if constexpr (sizeof(T) == 8)
         {
-            uint64_t v64 = 0;
+            std::uint64_t v64 = 0;
             std::memcpy(&v64, &v, sizeof(T));
             v64 = (v64 >> 56) | ((v64 & 0x00ff'0000'0000'0000) >> 40) | ((v64 & 0x0000'ff00'0000'0000) >> 24)
                 | ((v64 & 0x0000'00ff'0000'0000) >> 8) | ((v64 & 0x0000'0000'ff00'0000) << 8)
@@ -40,13 +40,8 @@ namespace Misc
         }
     }
 
-#ifdef _WIN32
-    constexpr bool IS_LITTLE_ENDIAN = true;
-    constexpr bool IS_BIG_ENDIAN = false;
-#else
-    constexpr bool IS_LITTLE_ENDIAN = __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__;
-    constexpr bool IS_BIG_ENDIAN = __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__;
-#endif
+    constexpr bool IS_LITTLE_ENDIAN = std::endian::native == std::endian::little;
+    constexpr bool IS_BIG_ENDIAN = std::endian::native == std::endian::big;
 
     // Usage: swapEndiannessInplaceIf<IS_BIG_ENDIAN>(v)  - native to little-endian or back
     //        swapEndiannessInplaceIf<IS_LITTLE_ENDIAN>(v)  - native to big-endian or back

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include <components/esm3/loadmgef.hpp>
@@ -75,10 +77,10 @@ namespace MWGui
         void onOkButtonClicked(MyGUI::Widget* sender);
         void onCancelButtonClicked(MyGUI::Widget* sender);
 
-        void onMagnitudeMinChanged(MyGUI::ScrollBar* sender, size_t pos);
-        void onMagnitudeMaxChanged(MyGUI::ScrollBar* sender, size_t pos);
-        void onDurationChanged(MyGUI::ScrollBar* sender, size_t pos);
-        void onAreaChanged(MyGUI::ScrollBar* sender, size_t pos);
+        void onMagnitudeMinChanged(MyGUI::ScrollBar* sender, std::size_t pos);
+        void onMagnitudeMaxChanged(MyGUI::ScrollBar* sender, std::size_t pos);
+        void onDurationChanged(MyGUI::ScrollBar* sender, std::size_t pos);
+        void onAreaChanged(MyGUI::ScrollBar* sender, std::size_t pos);
         void setMagicEffect(const ESM::MagicEffect* effect);
 
         void updateBoxes();
@@ -92,8 +94,8 @@ namespace MWGui
         bool mConstantEffect;
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        void updateControllerFocus(int prevFocus, int newFocus);
-        int mControllerFocus = 0;
+        void updateControllerFocus(std::int32_t prevFocus, std::int32_t newFocus);
+        std::int32_t mControllerFocus = 0;
         std::vector<MyGUI::TextBox*> mButtons;
     };
 
@@ -112,7 +114,7 @@ namespace MWGui
         void setConstantEffect(bool constant);
 
     protected:
-        std::map<int, ESM::RefId> mButtonMapping; // maps button ID to effect ID
+        std::map<std::int32_t, ESM::RefId> mButtonMapping; // maps button ID to effect ID
 
         Gui::MWList* mAvailableEffectsList;
         MyGUI::ScrollView* mUsedEffectsView;
@@ -121,7 +123,7 @@ namespace MWGui
         std::unique_ptr<SelectAttributeDialog> mSelectAttributeDialog;
         std::unique_ptr<SelectSkillDialog> mSelectSkillDialog;
 
-        int mSelectedEffect;
+        std::int32_t mSelectedEffect;
         ESM::RefId mSelectedKnownEffectId;
 
         bool mConstantEffect;
@@ -152,8 +154,8 @@ namespace MWGui
     private:
         Type mType;
 
-        size_t mAvailableFocus = 0;
-        size_t mEffectFocus = 0;
+        std::size_t mAvailableFocus = 0;
+        std::size_t mEffectFocus = 0;
         bool mRightColumn = false;
         std::vector<MyGUI::Button*> mAvailableButtons;
         std::vector<std::pair<Widgets::MWSpellEffectPtr, MyGUI::Button*>> mEffectButtons;

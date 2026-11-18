@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 
 namespace Misc
@@ -31,7 +32,7 @@ namespace Misc
             return *this;
         }
 
-        StrongTypedef operator++(int)
+        StrongTypedef operator++(std::int32_t)
         {
             StrongTypedef copy(*this);
             operator++();

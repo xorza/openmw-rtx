@@ -1,9 +1,11 @@
 #pragma once
 
-#include <components/vfs/pathutil.hpp>
-
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
+
+#include <components/vfs/pathutil.hpp>
 
 namespace VFS
 {
@@ -30,8 +32,8 @@ namespace MWSound
     };
     const char* getChannelConfigName(ChannelConfig config);
 
-    size_t framesToBytes(size_t frames, ChannelConfig config, SampleType type);
-    size_t bytesToFrames(size_t bytes, ChannelConfig config, SampleType type);
+    std::size_t framesToBytes(std::size_t frames, ChannelConfig config, SampleType type);
+    std::size_t bytesToFrames(std::size_t bytes, ChannelConfig config, SampleType type);
 
     struct SoundDecoder
     {
@@ -44,11 +46,11 @@ namespace MWSound
         virtual void close() = 0;
 
         virtual std::string getName() = 0;
-        virtual void getInfo(int* samplerate, ChannelConfig* chans, SampleType* type) = 0;
+        virtual void getInfo(std::int32_t* samplerate, ChannelConfig* chans, SampleType* type) = 0;
 
-        virtual size_t read(char* buffer, size_t bytes) = 0;
+        virtual std::size_t read(char* buffer, std::size_t bytes) = 0;
         virtual void readAll(std::vector<char>& output);
-        virtual size_t getSampleOffset() = 0;
+        virtual std::size_t getSampleOffset() = 0;
 
         explicit SoundDecoder(const VFS::Manager* resourceMgr)
             : mResourceMgr(resourceMgr)

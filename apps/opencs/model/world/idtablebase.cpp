@@ -1,11 +1,13 @@
 #include "idtablebase.hpp"
 
-CSMWorld::IdTableBase::IdTableBase(unsigned int features)
+#include <cstdint>
+
+CSMWorld::IdTableBase::IdTableBase(std::uint32_t features)
     : mFeatures(features)
 {
 }
 
-unsigned int CSMWorld::IdTableBase::getFeatures() const
+std::uint32_t CSMWorld::IdTableBase::getFeatures() const
 {
     return mFeatures;
 }

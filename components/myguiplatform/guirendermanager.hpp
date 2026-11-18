@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstdint>
 #include <memory>
 
 #include <MyGUI_ITexture.h>
@@ -41,7 +42,7 @@ namespace MyGUIPlatform
 
         /// The view laid out anew at `width` × `height` device pixels, `scalingFactor` of them to a
         /// GUI pixel: one call, so no view is ever sized at one scale and drawn at another.
-        void resizeView(int width, int height, float scalingFactor)
+        void resizeView(std::int32_t width, std::int32_t height, float scalingFactor)
         {
             assert(scalingFactor > 0.f);
             mScalingFactor = scalingFactor;
@@ -75,10 +76,10 @@ namespace MyGUIPlatform
 
     protected:
         /// `width` × `height` device pixels in GUI pixels, which `setViewSize` makes the view.
-        MyGUI::IntSize scaledView(int width, int height) const
+        MyGUI::IntSize scaledView(std::int32_t width, std::int32_t height) const
         {
-            return MyGUI::IntSize(static_cast<int>(static_cast<float>(width) / mScalingFactor),
-                static_cast<int>(static_cast<float>(height) / mScalingFactor));
+            return MyGUI::IntSize(static_cast<std::int32_t>(static_cast<float>(width) / mScalingFactor),
+                static_cast<std::int32_t>(static_cast<float>(height) / mScalingFactor));
         }
 
     private:

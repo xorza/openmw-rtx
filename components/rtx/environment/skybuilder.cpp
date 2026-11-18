@@ -29,7 +29,7 @@
 namespace Rtx
 {
     std::uint32_t addCloudSheet(SceneDesc& scene, Resource::SceneManager& scenes, ThreadContent& thread,
-        std::vector<TextureHold>& holds, std::string_view name, SkyContent& content)
+        std::vector<ReadingHold>& holds, std::string_view name, SkyContent& content)
     {
         const auto at = static_cast<std::uint32_t>(content.mSheets.size());
         CloudSheet& sheet = content.mSheets.emplace_back(CloudSheet{ .mName = std::string(name) });
@@ -54,8 +54,8 @@ namespace Rtx
             scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
             return at;
         }
-        TextureHold deck = takeSkySheet(scene, path, *image.value());
-        if (deck.get() == sNoIndex)
+        ReadingHold deck = takeSkySheet(scene, path, *image.value());
+        if (deck.get() == sNoRow)
             return at;
 
         sheet.mTexture = deck.get();
@@ -69,7 +69,7 @@ namespace Rtx
     }
 
     SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkySources& sources,
-        ThreadContent& thread, std::vector<TextureHold>& holds)
+        ThreadContent& thread, std::vector<ReadingHold>& holds)
     {
         SkyContent loaded;
 

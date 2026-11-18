@@ -1,16 +1,15 @@
 #include "startscriptcheck.hpp"
 
+#include <cstdint>
 #include <string>
-
-#include "../prefs/state.hpp"
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadsscr.hpp>
 
 namespace ESM
@@ -26,7 +25,7 @@ CSMTools::StartScriptCheckStage::StartScriptCheckStage(
     mIgnoreBaseRecords = false;
 }
 
-void CSMTools::StartScriptCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::StartScriptCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::StartScript>& record = mStartScripts.getRecord(stage);
 
@@ -43,7 +42,7 @@ void CSMTools::StartScriptCheckStage::perform(int stage, CSMDoc::Messages& messa
             id, "Start script " + scriptId.getRefIdString() + " does not exist", "", CSMDoc::Message::Severity_Error);
 }
 
-int CSMTools::StartScriptCheckStage::setup()
+std::int32_t CSMTools::StartScriptCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
 

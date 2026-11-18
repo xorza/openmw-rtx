@@ -1,25 +1,24 @@
 #include "potion.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwmechanics/alchemy.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actionapply.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadnpc.hpp>
-
-#include "../mwworld/actionapply.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-
-#include "../mwmechanics/alchemy.hpp"
-#include "../mwmechanics/spellutil.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"
@@ -62,7 +61,7 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    int Potion::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Potion::getValue(const MWWorld::ConstPtr& ptr) const
     {
         return MWMechanics::getPotionValue(*ptr.get<ESM::Potion>()->mBase);
     }
@@ -86,7 +85,7 @@ namespace MWClass
         return ref->mBase->mIcon.getNormalized();
     }
 
-    MWGui::ToolTipInfo Potion::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Potion::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Potion>* ref = ptr.get<ESM::Potion>();
 
@@ -104,7 +103,7 @@ namespace MWClass
 
         // hide effects the player doesn't know about
         MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
-        for (size_t i = 0; i < info.effects.size(); ++i)
+        for (std::size_t i = 0; i < info.effects.size(); ++i)
             info.effects[i].mKnown = MWMechanics::Alchemy::knownEffect(i, player);
 
         info.isPotion = true;
@@ -138,7 +137,7 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
-    bool Potion::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Potion::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::Potions) != 0;
     }

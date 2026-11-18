@@ -1,35 +1,31 @@
-#include <algorithm>
-#include <vector>
-
 #include "aiextensions.hpp"
 
-#include <components/debug/debuglog.hpp>
+#include <algorithm>
+#include <cstdint>
+#include <vector>
 
-#include <components/compiler/opcodes.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/aiactivate.hpp>
+#include <apps/openmw/mwmechanics/aiescort.hpp>
+#include <apps/openmw/mwmechanics/aiface.hpp>
+#include <apps/openmw/mwmechanics/aifollow.hpp>
 #include <apps/openmw/mwmechanics/aisetting.hpp>
+#include <apps/openmw/mwmechanics/aitravel.hpp>
+#include <apps/openmw/mwmechanics/aiwander.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/greetingstate.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <components/compiler/opcodes.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
 #include <components/interpreter/types.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/aiactivate.hpp"
-#include "../mwmechanics/aiescort.hpp"
-#include "../mwmechanics/aiface.hpp"
-#include "../mwmechanics/aifollow.hpp"
-#include "../mwmechanics/aitravel.hpp"
-#include "../mwmechanics/aiwander.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/greetingstate.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "ref.hpp"
 
@@ -43,7 +39,7 @@ namespace MWScript
             class OpAiActivate : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -52,7 +48,7 @@ namespace MWScript
 
                     // The value of the reset argument doesn't actually matter
                     bool repeat = arg0;
-                    for (unsigned int i = 0; i < arg0; ++i)
+                    for (std::uint32_t i = 0; i < arg0; ++i)
                         runtime.pop();
 
                     if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
@@ -68,7 +64,7 @@ namespace MWScript
             class OpAiTravel : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -83,7 +79,7 @@ namespace MWScript
 
                     // The value of the reset argument doesn't actually matter
                     bool repeat = arg0;
-                    for (unsigned int i = 0; i < arg0; ++i)
+                    for (std::uint32_t i = 0; i < arg0; ++i)
                         runtime.pop();
 
                     if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
@@ -100,7 +96,7 @@ namespace MWScript
             class OpAiEscort : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -121,13 +117,14 @@ namespace MWScript
 
                     // The value of the reset argument doesn't actually matter
                     bool repeat = arg0;
-                    for (unsigned int i = 0; i < arg0; ++i)
+                    for (std::uint32_t i = 0; i < arg0; ++i)
                         runtime.pop();
 
                     if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
                         return;
 
-                    MWMechanics::AiEscort escortPackage(actorID, {}, static_cast<int>(duration), x, y, z, repeat);
+                    MWMechanics::AiEscort escortPackage(
+                        actorID, {}, static_cast<std::int32_t>(duration), x, y, z, repeat);
                     ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(escortPackage, ptr);
 
                     Log(Debug::Info) << "AiEscort: " << x << ", " << y << ", " << z << ", " << duration;
@@ -138,7 +135,7 @@ namespace MWScript
             class OpAiEscortCell : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -162,7 +159,7 @@ namespace MWScript
 
                     // The value of the reset argument doesn't actually matter
                     bool repeat = arg0;
-                    for (unsigned int i = 0; i < arg0; ++i)
+                    for (std::uint32_t i = 0; i < arg0; ++i)
                         runtime.pop();
 
                     if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
@@ -174,7 +171,8 @@ namespace MWScript
                     if (!MWBase::Environment::get().getESMStore()->get<ESM::Cell>().search(cellID))
                         return;
 
-                    MWMechanics::AiEscort escortPackage(actorID, cellID, static_cast<int>(duration), x, y, z, repeat);
+                    MWMechanics::AiEscort escortPackage(
+                        actorID, cellID, static_cast<std::int32_t>(duration), x, y, z, repeat);
                     ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(escortPackage, ptr);
 
                     Log(Debug::Info) << "AiEscort: " << x << ", " << y << ", " << z << ", " << duration;
@@ -201,7 +199,7 @@ namespace MWScript
             class OpAiWander : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -221,15 +219,15 @@ namespace MWScript
                         runtime.pop();
                     }
 
-                    std::vector<unsigned char> idleList;
+                    std::vector<std::uint8_t> idleList;
                     bool repeat = false;
 
                     // Chances for Idle2-Idle9
-                    for (int i = 2; i <= 9 && arg0; ++i)
+                    for (std::int32_t i = 2; i <= 9 && arg0; ++i)
                     {
                         if (!repeat)
                             repeat = true;
-                        auto idleValue = static_cast<unsigned char>(std::clamp(runtime[0].mInteger, 0, 255));
+                        auto idleValue = static_cast<std::uint8_t>(std::clamp(runtime[0].mInteger, 0, 255));
                         idleList.push_back(idleValue);
                         runtime.pop();
                         --arg0;
@@ -243,7 +241,7 @@ namespace MWScript
                     }
 
                     // discard additional arguments, because we have no idea what they mean.
-                    for (unsigned int i = 0; i < arg0; ++i)
+                    for (std::uint32_t i = 0; i < arg0; ++i)
                         runtime.pop();
 
                     if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
@@ -295,7 +293,7 @@ namespace MWScript
                     if (!ptr.getClass().isActor())
                         return;
 
-                    int modified = ptr.getClass().getCreatureStats(ptr).getAiSetting(mIndex).getBase() + value;
+                    std::int32_t modified = ptr.getClass().getCreatureStats(ptr).getAiSetting(mIndex).getBase() + value;
 
                     ptr.getClass().getCreatureStats(ptr).setAiSetting(mIndex, modified);
                     ptr.getClass().setBaseAISetting(ptr.getCellRef().getRefId(), mIndex, modified);
@@ -329,7 +327,7 @@ namespace MWScript
             class OpAiFollow : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -350,7 +348,7 @@ namespace MWScript
 
                     // The value of the reset argument doesn't actually matter
                     bool repeat = arg0;
-                    for (unsigned int i = 0; i < arg0; ++i)
+                    for (std::uint32_t i = 0; i < arg0; ++i)
                         runtime.pop();
 
                     if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
@@ -368,7 +366,7 @@ namespace MWScript
             class OpAiFollowCell : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     MWWorld::Ptr ptr = R()(runtime);
 
@@ -392,7 +390,7 @@ namespace MWScript
 
                     // The value of the reset argument doesn't actually matter
                     bool repeat = arg0;
-                    for (unsigned int i = 0; i < arg0; ++i)
+                    for (std::uint32_t i = 0; i < arg0; ++i)
                         runtime.pop();
 
                     if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())

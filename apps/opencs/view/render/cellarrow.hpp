@@ -1,12 +1,11 @@
 #pragma once
 
-#include "tagbase.hpp"
-
 #include <QString>
-
 #include <osg/ref_ptr>
 
-#include "../../model/world/cellcoordinates.hpp"
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+
+#include "tagbase.hpp"
 
 namespace osg
 {

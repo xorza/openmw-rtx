@@ -1,0 +1,6 @@
+# The fork's own code holds what upstream's does not yet: no default argument on a virtual, where a call takes the
+# default of the static type it names. Upstream's hits are its style and stand, so a source here reports only the fork's
+# headers: an upstream header is checked by upstream's own sources, which include it too.
+InheritParentConfig: true
+Checks: 'google-default-arguments'
+HeaderFilterRegex: '(components[/\\](rtx[a-z]*|myguirtx)|apps[/\\](rtxtool|openmw[/\\]mwrender[/\\]rtx))[/\\]'

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -8,11 +9,12 @@
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
-#include "../../model/world/cellcoordinates.hpp"
-#include "instancedragmodes.hpp"
-#include "worldspacewidget.hpp"
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <components/esm/refid.hpp>
 #include <components/misc/algorithm.hpp>
+
+#include "instancedragmodes.hpp"
+#include "worldspacewidget.hpp"
 
 class QModelIndex;
 
@@ -60,8 +62,8 @@ namespace CSVRender
         std::unique_ptr<CellWater> mCellWater;
         std::unique_ptr<Pathgrid> mPathgrid;
         bool mDeleted;
-        int mSubMode;
-        unsigned int mSubModeElementMask;
+        std::int32_t mSubMode;
+        std::uint32_t mSubModeElementMask;
         bool mUpdateLand, mLandDeleted;
         TerrainStorage* mTerrainStorage;
 
@@ -76,7 +78,7 @@ namespace CSVRender
         /// Add objects from reference table that are within this cell.
         ///
         /// \return Have any objects been added?
-        bool addObjects(int start, int end);
+        bool addObjects(std::int32_t start, std::int32_t end);
 
         void updateLand();
         void unloadLand();
@@ -106,7 +108,7 @@ namespace CSVRender
 
         /// \return Did this call result in a modification of the visual representation of
         /// this cell?
-        bool referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        bool referenceableAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         /// \return Did this call result in a modification of the visual representation of
         /// this cell?
@@ -114,17 +116,18 @@ namespace CSVRender
 
         /// \return Did this call result in a modification of the visual representation of
         /// this cell?
-        bool referenceAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        bool referenceAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         /// \return Did this call result in a modification of the visual representation of
         /// this cell?
-        bool referenceAdded(const QModelIndex& parent, int start, int end);
+        bool referenceAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
-        void setAlteredHeight(int inCellX, int inCellY, float height);
+        void setAlteredHeight(std::int32_t inCellX, std::int32_t inCellY, float height);
 
-        float getSumOfAlteredAndTrueHeight(int cellX, int cellY, int inCellX, int inCellY);
+        float getSumOfAlteredAndTrueHeight(
+            std::int32_t cellX, std::int32_t cellY, std::int32_t inCellX, std::int32_t inCellY);
 
-        float* getAlteredHeight(int inCellX, int inCellY);
+        float* getAlteredHeight(std::int32_t inCellX, std::int32_t inCellY);
 
         void resetAlteredHeights();
 
@@ -134,23 +137,23 @@ namespace CSVRender
 
         void landDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void landAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void landAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
-        void landAdded(const QModelIndex& parent, int start, int end);
+        void landAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         void landTextureChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void landTextureAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void landTextureAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
-        void landTextureAdded(const QModelIndex& parent, int start, int end);
+        void landTextureAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
         void reloadAssets();
 
-        void setSelection(int elementMask, Selection mode);
+        void setSelection(std::int32_t elementMask, Selection mode);
 
         // Select everything that references the same ID as at least one of the elements
         // already selected
-        void selectAllWithSameParentId(int elementMask);
+        void selectAllWithSameParentId(std::int32_t elementMask);
 
         void selectFromGroup(const std::vector<std::string>& group);
 
@@ -162,7 +165,7 @@ namespace CSVRender
 
         void selectWithinDistance(const osg::Vec3d& pointA, float distance, DragMode dragMode);
 
-        void setCellArrows(int mask);
+        void setCellArrows(std::int32_t mask);
 
         /// \brief Set marker for this cell.
         void setCellMarker();
@@ -172,17 +175,17 @@ namespace CSVRender
 
         bool isDeleted() const;
 
-        osg::ref_ptr<TagBase> getSnapTarget(unsigned int elementMask) const;
+        osg::ref_ptr<TagBase> getSnapTarget(std::uint32_t elementMask) const;
 
-        std::vector<osg::ref_ptr<TagBase>> getSelection(unsigned int elementMask) const;
+        std::vector<osg::ref_ptr<TagBase>> getSelection(std::uint32_t elementMask) const;
 
-        std::vector<osg::ref_ptr<TagBase>> getEdited(unsigned int elementMask) const;
+        std::vector<osg::ref_ptr<TagBase>> getEdited(std::uint32_t elementMask) const;
 
-        void setSubMode(int subMode, unsigned int elementMask);
+        void setSubMode(std::int32_t subMode, std::uint32_t elementMask);
 
         /// Erase all overrides and restore the visual representation of the cell to its
         /// true state.
-        void reset(unsigned int elementMask);
+        void reset(std::uint32_t elementMask);
 
         CSVRender::Object* getObjectByReferenceId(const std::string& referenceId);
 

@@ -1,12 +1,15 @@
 #pragma once
 
-#include "windowbase.hpp"
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_ListBox.h>
 
 #include <components/files/configurationmanager.hpp>
 #include <components/settings/shadermanager.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "windowbase.hpp"
 
 namespace MyGUI
 {
@@ -38,7 +41,7 @@ namespace MWGui
 
         void onClose() override;
 
-        void onResChange(int width, int height) override;
+        void onResChange(std::int32_t width, std::int32_t height) override;
 
         void updateTechniques();
 
@@ -55,7 +58,7 @@ namespace MWGui
 
         void notifyResetButtonClicked(MyGUI::Widget* sender);
 
-        void notifyListChangePosition(MyGUI::ListBox* sender, size_t index);
+        void notifyListChangePosition(MyGUI::ListBox* sender, std::size_t index);
 
         void notifyKeyButtonPressed(MyGUI::Widget* sender, MyGUI::KeyCode key, MyGUI::Char ch);
 
@@ -67,7 +70,7 @@ namespace MWGui
 
         void notifyShaderDownPressed(MyGUI::Widget* sender);
 
-        void notifyMouseWheel(MyGUI::Widget* sender, int rel);
+        void notifyMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
 
         enum class Direction
         {
@@ -79,7 +82,7 @@ namespace MWGui
 
         void toggleTechnique(bool enabled);
 
-        void select(ListWrapper* list, size_t index);
+        void select(ListWrapper* list, std::size_t index);
 
         void layout();
 
@@ -100,7 +103,7 @@ namespace MWGui
 
         std::string mOverrideHint;
 
-        int mOffset = 0;
+        std::int32_t mOffset = 0;
 
         Files::ConfigurationManager& mCfgMgr;
     };

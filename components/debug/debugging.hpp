@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <string_view>
@@ -18,10 +19,6 @@ namespace Debug
         Red = 91,
         Yellow = 93
     };
-
-#ifdef _WIN32
-    bool attachParentConsole();
-#endif
 
     using LogListener = std::function<void(Debug::Level, std::string_view prefix, std::string_view msg)>;
     void setLogListener(LogListener);
@@ -45,6 +42,6 @@ namespace Debug
     /// configuration was read, and saves and logs go where the configuration says.
     void setCrashReports(const std::filesystem::path& userData);
 
-    int wrapApplication(
-        int (*innerApplication)(int argc, char* argv[]), int argc, char* argv[], std::string_view appName);
+    std::int32_t wrapApplication(std::int32_t (*innerApplication)(std::int32_t argc, char* argv[]), std::int32_t argc,
+        char* argv[], std::string_view appName);
 }

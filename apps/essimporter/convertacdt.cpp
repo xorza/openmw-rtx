@@ -1,15 +1,17 @@
+#include "convertacdt.hpp"
+
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <string>
 
 #include <components/misc/strings/lower.hpp>
 
-#include "convertacdt.hpp"
-
 namespace ESSImport
 {
 
-    int translateDynamicIndex(int mwIndex)
+    std::int32_t translateDynamicIndex(std::int32_t mwIndex)
     {
         if (mwIndex == 1)
             return 2;
@@ -20,21 +22,21 @@ namespace ESSImport
 
     void convertACDT(const ACDT& acdt, ESM::CreatureStats& cStats)
     {
-        for (int i = 0; i < 3; ++i)
+        for (std::int32_t i = 0; i < 3; ++i)
         {
-            int writeIndex = translateDynamicIndex(i);
+            std::int32_t writeIndex = translateDynamicIndex(i);
             cStats.mDynamic[static_cast<std::size_t>(writeIndex)].mBase = acdt.mDynamic[i][1];
             cStats.mDynamic[static_cast<std::size_t>(writeIndex)].mMod = 0.f;
             cStats.mDynamic[static_cast<std::size_t>(writeIndex)].mCurrent = acdt.mDynamic[i][0];
         }
-        for (int i = 0; i < ESM::Attribute::Length; ++i)
+        for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
         {
             auto& attribute = cStats.mAttributes[ESM::Attribute::indexToRefId(i)];
             attribute.mBase = acdt.mAttributes[i][1];
             attribute.mMod = 0.f;
             attribute.mCurrent = acdt.mAttributes[i][0];
         }
-        cStats.mGoldPool = static_cast<int32_t>(acdt.mGoldPool);
+        cStats.mGoldPool = static_cast<std::int32_t>(acdt.mGoldPool);
         cStats.mTalkedTo = (acdt.mFlags & TalkedToPlayer) != 0;
         cStats.mAttacked = (acdt.mFlags & Attacked) != 0;
     }
@@ -46,7 +48,7 @@ namespace ESSImport
 
     void convertNpcData(const ActorData& actorData, ESM::NpcStats& npcStats)
     {
-        for (int i = 0; i < ESM::Skill::Length; ++i)
+        for (std::int32_t i = 0; i < ESM::Skill::Length; ++i)
         {
             auto& skill = npcStats.mSkills[ESM::Skill::indexToRefId(i)];
             skill.mMod = 0.f;
@@ -91,12 +93,12 @@ namespace ESSImport
             scriptedAnim.mTime = anis.mTime;
             scriptedAnim.mAbsolute = true;
             // Neither loop count nor queueing seems to be supported by the ess format.
-            scriptedAnim.mLoopCount = std::numeric_limits<size_t>::max();
+            scriptedAnim.mLoopCount = std::numeric_limits<std::size_t>::max();
             state.mScriptedAnims.push_back(std::move(scriptedAnim));
         }
         else
             // TODO: Handle 0xFF index, which seems to be used for finished animations.
-            std::cerr << "unknown animation group index: " << static_cast<unsigned int>(anis.mGroupIndex) << std::endl;
+            std::cerr << "unknown animation group index: " << static_cast<std::uint32_t>(anis.mGroupIndex) << std::endl;
     }
 
 }

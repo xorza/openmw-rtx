@@ -31,6 +31,7 @@ namespace Rtx
     class PoseUpdate;
     class Released;
     class SceneDesc;
+    class SceneIdentities;
     class SceneExtractor;
 
     /// What a picture traced from somewhere other than the eye is asked for, once, when it is
@@ -88,7 +89,9 @@ namespace Rtx
         ///        (`WalkContext`): the traversal numbers (a subtree two walks reach would otherwise be
         ///        run by whichever got there first and frozen for the other), the content's caches, so
         ///        a doll counts into the world's figures, and the layout of the `_spec` maps.
-        OffscreenTrace(PictureRenderer& renderer, const ViewRequest& request, WalkContext& context);
+        /// @param identities where its subject's scene takes its identity from: the renderer's, which outlives it.
+        OffscreenTrace(
+            PictureRenderer& renderer, const ViewRequest& request, WalkContext& context, SceneIdentities& identities);
 
         /// Out of line because `SceneDesc`, `SceneExtractor` and the update visitor are only forward
         /// declared here.
@@ -200,7 +203,7 @@ namespace Rtx
 
             /// The traversal number the subject's update last ran at, which `rebuildSubject` hands
             /// the update traversal and the walk after it. A pick's own cull is dated after it.
-            unsigned int mPosedFrame = 0;
+            std::uint32_t mPosedFrame = 0;
 
             /// The world's clock at the last redraw, nothing before the first: what the subject's
             /// emitters are stepped by the gap from.

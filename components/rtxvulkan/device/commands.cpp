@@ -13,7 +13,6 @@
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>

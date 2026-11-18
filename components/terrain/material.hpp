@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/StateSet>
 
 namespace osg
@@ -25,5 +27,5 @@ namespace Terrain
 
     std::vector<osg::ref_ptr<osg::StateSet>> createPasses(Resource::SceneManager* sceneManager,
         const std::vector<TextureLayer>& layers, const std::vector<osg::ref_ptr<osg::Texture2D>>& blendmaps,
-        int blendmapScale, float layerTileSize, bool isComposite, bool esm4terrain = false);
+        std::int32_t blendmapScale, float layerTileSize, bool isComposite, bool esm4terrain = false);
 }

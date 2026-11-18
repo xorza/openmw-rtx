@@ -153,7 +153,7 @@ namespace Rtx
             show();
             EXPECT_FALSE(presenter.wantsResize(extent));
 
-            for (int loss = 0; loss < 2; ++loss)
+            for (std::int32_t loss = 0; loss < 2; ++loss)
             {
                 presenter.surfaceLost();
                 EXPECT_TRUE(presenter.wantsResize(extent)) << "a lost surface asks for its rebuild";
@@ -232,11 +232,11 @@ namespace Rtx
             Presenter presenter(
                 *mPresenting->mDevice, std::move(mPresenting->mSurface), mVideo.mWindow, VerticalSync::On);
 
-            constexpr int frames = 4;
+            constexpr std::int32_t frames = 4;
             const auto began = std::chrono::steady_clock::now();
             // Every other frame left where the blit reads it, as the interface leaves it, which the
             // blit then takes with no barrier of its own: validation holds both to their uses.
-            for (int frame = 0; frame < frames; ++frame)
+            for (std::int32_t frame = 0; frame < frames; ++frame)
             {
                 presenter.awaitLatency();
                 const Image& shown = target.getShown();

@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
@@ -118,12 +119,27 @@ namespace Rtx
         /// Whether the room the scene was built and extended in held any of it back: a texture stood
         /// smaller than its file, or a texture or a structure left out. A scene built again in more
         /// room would stand more of it.
-        bool wasHeldBack() const { return mTextures.wasHeldBack() || mAcceleration.wasRefusedRoom(); }
+        /// Sets what the device refused for room waiting again, its structures (`BottomLevelStore::waitAgain`) and its
+        /// textures, named short in the next answer (`TextureArray::waitAgain`): what a reserve that shrank may stand.
+        void waitAgain()
+        {
+            mAcceleration.waitAgain();
+            mTextures.waitAgain(mAnswer);
+        }
 
         /// Appends what the build, an `extend` or a placement made of the scene since the last take, and forgets it:
         /// what it left out, for want of room on the device or for a side the device does not take, and what each
         /// mesh's structure took at its build — `SceneHolder::takeAnswer`.
         void takeAnswer(DeviceAnswer& into);
+
+        /// Moves textures that stand down until they give back `bytes`, recorded into `batch` through `arrival`
+        /// (`TextureArray::makeRoom`); what moved is in the next answer, short of its file.
+        void makeTextureRoom(Batch& batch, TextureArrival& arrival, VkDeviceSize bytes);
+
+        /// Moves textures out of a block to give it back where the device asks for one, a placement's share
+        /// (`TextureArray::moveOut`), recorded into `batch` through `arrival`: ahead of the placement, whose `sync`
+        /// names them in its set.
+        void moveTexturesOut(Batch& batch, TextureArrival& arrival);
 
         /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
         /// total kept as it changes, so a placement on the frame path reads them all.
@@ -178,17 +194,17 @@ namespace Rtx
         /// either half, because the acceleration structure and the instance table need the same
         /// rows, and each building its own was fifty thousand matrix inverses on a nine-by-nine
         /// exterior.
-        std::vector<InstanceRecord> mRecords;
+        RowVector<InstanceRecord, PlacementIndex> mRecords;
 
         /// Which of those `updateInstanceRecords` wrote this placement, cleared and refilled. One
         /// list read by both halves, because two answers to which changed is one of them wrong and
         /// terrain a frame behind.
-        std::vector<Index> mChangedRecords;
+        std::vector<PlacementIndex> mChangedRecords;
 
         /// Every mesh slot the scene was built with, which the halves write and build the whole scene
         /// through, down the path a list of arrivals takes. Here, as the records are, because both
         /// read it. Before the halves.
-        std::vector<Index> mEveryMesh;
+        std::vector<MeshIndex> mEveryMesh;
 
         SceneAcceleration mAcceleration;
         SceneBuffers mBuffers;
@@ -212,7 +228,7 @@ namespace Rtx
 
         /// Which description that was — `SceneDesc::getIdentity` — as `SceneHeld::mIdentity`
         /// reports it, and what every placement and extension is asserted against.
-        std::uint64_t mBuiltFrom = 0;
+        SceneIdentity mBuiltFrom{};
 
         FrameSlot mSlot;
 

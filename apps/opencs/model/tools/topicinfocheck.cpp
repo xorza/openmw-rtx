@@ -1,20 +1,23 @@
 #include "topicinfocheck.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <string>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/info.hpp>
 #include <apps/opencs/model/world/infocollection.hpp>
+#include <apps/opencs/model/world/infoselectwrapper.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/resources.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loaddial.hpp>
 #include <components/esm3/loadfact.hpp>
@@ -24,10 +27,6 @@
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/variant.hpp>
-
-#include "../prefs/state.hpp"
-
-#include "../world/infoselectwrapper.hpp"
 
 CSMTools::TopicInfoCheckStage::TopicInfoCheckStage(const CSMWorld::InfoCollection& topicInfos,
     const CSMWorld::IdCollection<CSMWorld::Cell>& cells, const CSMWorld::IdCollection<ESM::Class>& classes,
@@ -52,12 +51,12 @@ CSMTools::TopicInfoCheckStage::TopicInfoCheckStage(const CSMWorld::InfoCollectio
     mIgnoreBaseRecords = false;
 }
 
-int CSMTools::TopicInfoCheckStage::setup()
+std::int32_t CSMTools::TopicInfoCheckStage::setup()
 {
     // Generate list of cell names for reference checking
 
     mCellNames.clear();
-    for (int i = 0; i < mCells.getSize(); ++i)
+    for (std::int32_t i = 0; i < mCells.getSize(); ++i)
     {
         const CSMWorld::Record<CSMWorld::Cell>& cellRecord = mCells.getRecord(i);
 
@@ -67,7 +66,7 @@ int CSMTools::TopicInfoCheckStage::setup()
         mCellNames.insert(cellRecord.get().mName);
     }
     // Cell names can also include region names
-    for (int i = 0; i < mRegions.getSize(); ++i)
+    for (std::int32_t i = 0; i < mRegions.getSize(); ++i)
     {
         const CSMWorld::Record<ESM::Region>& regionRecord = mRegions.getRecord(i);
 
@@ -77,7 +76,7 @@ int CSMTools::TopicInfoCheckStage::setup()
         mCellNames.insert(regionRecord.get().mName);
     }
     // Default cell name
-    const int index = mGameSettings.searchId(ESM::RefId::stringRefId("sDefaultCellname"));
+    const std::int32_t index = mGameSettings.searchId(ESM::RefId::stringRefId("sDefaultCellname"));
     if (index != -1)
     {
         const CSMWorld::Record<ESM::GameSetting>& gmstRecord = mGameSettings.getRecord(index);
@@ -93,7 +92,7 @@ int CSMTools::TopicInfoCheckStage::setup()
     return mTopicInfos.getSize();
 }
 
-void CSMTools::TopicInfoCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::TopicInfoCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<CSMWorld::Info>& infoRecord = mTopicInfos.getRecord(stage);
 
@@ -104,7 +103,7 @@ void CSMTools::TopicInfoCheckStage::perform(int stage, CSMDoc::Messages& message
     const CSMWorld::Info& topicInfo = infoRecord.get();
 
     // There should always be a topic that matches
-    int topicIndex = mTopics.searchId(topicInfo.mTopicId);
+    std::int32_t topicIndex = mTopics.searchId(topicInfo.mTopicId);
 
     const CSMWorld::Record<ESM::Dialogue>& topicRecord = mTopics.getRecord(topicIndex);
 
@@ -221,7 +220,7 @@ bool CSMTools::TopicInfoCheckStage::verifyCell(
 }
 
 bool CSMTools::TopicInfoCheckStage::verifyFactionRank(
-    const ESM::RefId& factionName, int rank, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages)
+    const ESM::RefId& factionName, std::int32_t rank, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages)
 {
     if (rank < -1)
     {
@@ -231,11 +230,11 @@ bool CSMTools::TopicInfoCheckStage::verifyFactionRank(
         return false;
     }
 
-    int index = mFactions.searchId(factionName);
+    std::int32_t index = mFactions.searchId(factionName);
 
     const ESM::Faction& faction = mFactions.getRecord(index).get();
 
-    int limit = 0;
+    std::int32_t limit = 0;
     for (; limit < 10; ++limit)
     {
         if (faction.mRanks[static_cast<std::size_t>(limit)].empty())
@@ -397,7 +396,7 @@ template <typename T>
 bool CSMTools::TopicInfoCheckStage::verifyId(const ESM::RefId& name, const CSMWorld::IdCollection<T>& collection,
     const CSMWorld::UniversalId& id, CSMDoc::Messages& messages)
 {
-    int index = collection.searchId(name);
+    std::int32_t index = collection.searchId(name);
 
     if (index == -1)
     {

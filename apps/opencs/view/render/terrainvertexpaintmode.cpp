@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -15,19 +16,16 @@
 #include <apps/opencs/model/world/cellselection.hpp>
 #include <apps/opencs/model/world/columnimp.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/widget/brushshapes.hpp>
 #include <apps/opencs/view/widget/scenetool.hpp>
-
+#include <apps/opencs/view/widget/scenetoolbar.hpp>
+#include <apps/opencs/view/widget/scenetoolvertexpaintbrush.hpp>
 #include <components/esm3/loadland.hpp>
-
-#include "../widget/scenetoolbar.hpp"
-#include "../widget/scenetoolvertexpaintbrush.hpp"
-
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtree.hpp"
 
 #include "brushdraw.hpp"
 #include "commands.hpp"
@@ -71,7 +69,8 @@ void CSVRender::TerrainVertexPaintMode::activate(CSVWidget::SceneToolbar* toolba
         connect(mVertexPaintBrushScenetool->mVertexPaintBrushWindow->mSizeSliders->mBrushSizeSlider,
             &QSlider::valueChanged, this, &TerrainVertexPaintMode::setBrushSize);
         connect(mVertexPaintBrushScenetool->mVertexPaintBrushWindow->mToolSelector,
-            qOverload<int>(&QComboBox::currentIndexChanged), this, &TerrainVertexPaintMode::setVertexPaintEditTool);
+            qOverload<std::int32_t>(&QComboBox::currentIndexChanged), this,
+            &TerrainVertexPaintMode::setVertexPaintEditTool);
         connect(mVertexPaintBrushScenetool->mVertexPaintBrushWindow->mColorButtonWidget,
             &CSVWidget::ColorButtonWidget::colorChanged, this, &TerrainVertexPaintMode::setVertexPaintColor);
     }
@@ -166,7 +165,8 @@ bool CSVRender::TerrainVertexPaintMode::primarySelectStartDrag(const QPoint& pos
     return false;
 }
 
-void CSVRender::TerrainVertexPaintMode::drag(const QPoint& pos, int diffX, int diffY, double speedFactor)
+void CSVRender::TerrainVertexPaintMode::drag(
+    const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor)
 {
     if (mDragMode == InteractionType_PrimarySelect || mDragMode == InteractionType_PrimaryEdit)
     {
@@ -204,7 +204,7 @@ void CSVRender::TerrainVertexPaintMode::dragAborted()
     mRestoreMode = false;
 }
 
-void CSVRender::TerrainVertexPaintMode::dragWheel(int diff, double speedFactor) {}
+void CSVRender::TerrainVertexPaintMode::dragWheel(std::int32_t diff, double speedFactor) {}
 
 void CSVRender::TerrainVertexPaintMode::endVertexPaintEditing()
 {
@@ -212,7 +212,7 @@ void CSVRender::TerrainVertexPaintMode::endVertexPaintEditing()
 }
 
 void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
-    const std::pair<int, int>& vertexCoords, bool dragOperation)
+    const std::pair<std::int32_t, std::int32_t>& vertexCoords, bool dragOperation)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
     CSMWorld::IdTable& landTable
@@ -225,11 +225,11 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
 
     std::pair<CSMWorld::CellCoordinates, bool> cellCoordinatesPair = CSMWorld::CellCoordinates::fromId(cellId);
 
-    int cellX = cellCoordinatesPair.first.getX();
-    int cellY = cellCoordinatesPair.first.getY();
+    std::int32_t cellX = cellCoordinatesPair.first.getX();
+    std::int32_t cellY = cellCoordinatesPair.first.getY();
 
-    int xHitInCell = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.first);
-    int yHitInCell = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.second);
+    std::int32_t xHitInCell = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.first);
+    std::int32_t yHitInCell = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.second);
     if (xHitInCell < 0)
     {
         xHitInCell = xHitInCell + ESM::Land::LAND_SIZE;
@@ -247,9 +247,9 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
 
     std::string iteratedCellId;
 
-    int colourColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandColoursIndex);
+    std::int32_t colourColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandColoursIndex);
 
-    int r = static_cast<int>(std::max(static_cast<float>(mBrushSize) / 2.0f, 1.0f));
+    std::int32_t r = static_cast<std::int32_t>(std::max(static_cast<float>(mBrushSize) / 2.0f, 1.0f));
 
     if (mBrushShape == CSVWidget::BrushShape_Point)
     {
@@ -267,32 +267,32 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
     const bool isCircleBrush = mBrushShape == CSVWidget::BrushShape_Circle;
     if (isSquareBrush || isCircleBrush)
     {
-        int upperLeftCellX = static_cast<int>(cellX - std::floor(r / ESM::Land::LAND_SIZE));
-        int upperLeftCellY = static_cast<int>(cellY - std::floor(r / ESM::Land::LAND_SIZE));
+        auto upperLeftCellX = static_cast<std::int32_t>(cellX - std::floor(r / ESM::Land::LAND_SIZE));
+        auto upperLeftCellY = static_cast<std::int32_t>(cellY - std::floor(r / ESM::Land::LAND_SIZE));
         if (xHitInCell - (r % ESM::Land::LAND_SIZE) < 0)
             upperLeftCellX--;
         if (yHitInCell - (r % ESM::Land::LAND_SIZE) < 0)
             upperLeftCellY--;
 
-        int lowerrightCellX = static_cast<int>(cellX + std::floor(r / ESM::Land::LAND_SIZE));
-        int lowerrightCellY = static_cast<int>(cellY + std::floor(r / ESM::Land::LAND_SIZE));
+        auto lowerrightCellX = static_cast<std::int32_t>(cellX + std::floor(r / ESM::Land::LAND_SIZE));
+        auto lowerrightCellY = static_cast<std::int32_t>(cellY + std::floor(r / ESM::Land::LAND_SIZE));
         if (xHitInCell + (r % ESM::Land::LAND_SIZE) > ESM::Land::LAND_SIZE - 1)
             lowerrightCellX++;
         if (yHitInCell + (r % ESM::Land::LAND_SIZE) > ESM::Land::LAND_SIZE - 1)
             lowerrightCellY++;
 
-        for (int iCell = upperLeftCellX; iCell <= lowerrightCellX; iCell++)
+        for (std::int32_t iCell = upperLeftCellX; iCell <= lowerrightCellX; iCell++)
         {
-            for (int jCell = upperLeftCellY; jCell <= lowerrightCellY; jCell++)
+            for (std::int32_t jCell = upperLeftCellY; jCell <= lowerrightCellY; jCell++)
             {
                 iteratedCellId = CSMWorld::CellCoordinates::generateId(iCell, jCell);
                 if (allowLandColourEditing(iteratedCellId))
                 {
                     auto newTerrain = landTable.data(landTable.getModelIndex(iteratedCellId, colourColumn))
                                           .value<CSMWorld::LandColoursColumn::DataType>();
-                    for (int i = 0; i < ESM::Land::LAND_SIZE; i++)
+                    for (std::int32_t i = 0; i < ESM::Land::LAND_SIZE; i++)
                     {
-                        for (int j = 0; j < ESM::Land::LAND_SIZE; j++)
+                        for (std::int32_t j = 0; j < ESM::Land::LAND_SIZE; j++)
                         {
                             osg::Vec2f relativeCoords(0.0, 0.0);
                             if (iCell < cellX)
@@ -328,16 +328,16 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
 }
 
 void CSVRender::TerrainVertexPaintMode::alterColour(
-    CSMWorld::LandColoursColumn::DataType& landColorsNew, int inCellX, int inCellY)
+    CSMWorld::LandColoursColumn::DataType& landColorsNew, std::int32_t inCellX, std::int32_t inCellY)
 {
-    const int red = mRestoreMode ? 255 : mVertexPaintEditToolColor.red();
-    const int green = mRestoreMode ? 255 : mVertexPaintEditToolColor.green();
-    const int blue = mRestoreMode ? 255 : mVertexPaintEditToolColor.blue();
+    const std::int32_t red = mRestoreMode ? 255 : mVertexPaintEditToolColor.red();
+    const std::int32_t green = mRestoreMode ? 255 : mVertexPaintEditToolColor.green();
+    const std::int32_t blue = mRestoreMode ? 255 : mVertexPaintEditToolColor.blue();
 
     // TODO: handle different smoothing/blend types with different tools, right now this expects Replace
-    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 0] = static_cast<unsigned char>(red);
-    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 1] = static_cast<unsigned char>(green);
-    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 2] = static_cast<unsigned char>(blue);
+    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 0] = static_cast<std::uint8_t>(red);
+    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 1] = static_cast<std::uint8_t>(green);
+    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 2] = static_cast<std::uint8_t>(blue);
 }
 
 void CSVRender::TerrainVertexPaintMode::pushEditToCommand(const CSMWorld::LandColoursColumn::DataType& newLandColours,
@@ -376,8 +376,8 @@ bool CSVRender::TerrainVertexPaintMode::allowLandColourEditing(const std::string
         if (useTool && mode == "Create cell and land, then edit")
         {
             auto createCommand = std::make_unique<CSMWorld::CreateCommand>(cellTable, cellId);
-            int parentIndex = cellTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
-            int index = cellTable.findNestedColumnIndex(parentIndex, CSMWorld::Columns::ColumnId_Interior);
+            std::int32_t parentIndex = cellTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+            std::int32_t index = cellTable.findNestedColumnIndex(parentIndex, CSMWorld::Columns::ColumnId_Interior);
             createCommand->addNestedValue(parentIndex, index, false);
             document.getUndoStack().push(createCommand.release());
 
@@ -436,7 +436,7 @@ void CSVRender::TerrainVertexPaintMode::mouseMoveEvent(QMouseEvent* event)
         mBrushDraw->hide();
 }
 
-void CSVRender::TerrainVertexPaintMode::setBrushSize(int brushSize)
+void CSVRender::TerrainVertexPaintMode::setBrushSize(std::int32_t brushSize)
 {
     mBrushSize = brushSize;
 }
@@ -446,7 +446,7 @@ void CSVRender::TerrainVertexPaintMode::setBrushShape(CSVWidget::BrushShape brus
     mBrushShape = brushShape;
 }
 
-void CSVRender::TerrainVertexPaintMode::setVertexPaintEditTool(int shapeEditTool)
+void CSVRender::TerrainVertexPaintMode::setVertexPaintEditTool(std::int32_t shapeEditTool)
 {
     mVertexPaintEditTool = shapeEditTool;
 }

@@ -1,11 +1,10 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
-
-#include "../mwworld/livecellref.hpp"
-#include "../mwworld/ptr.hpp"
-
 #include <string_view>
+
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <components/esm/refid.hpp>
 
 namespace MWClass
 {

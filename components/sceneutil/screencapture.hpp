@@ -1,14 +1,15 @@
 #pragma once
 
-#include <components/misc/guarded.hpp>
-
-#include <osg/ref_ptr>
-#include <osgViewer/ViewerEventHandlers>
-
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <osg/ref_ptr>
+#include <osgViewer/ViewerEventHandlers>
+
+#include <components/misc/guarded.hpp>
 
 namespace osg
 {
@@ -29,7 +30,7 @@ namespace SceneUtil
         WriteScreenshotToFileOperation(std::filesystem::path screenshotPath, std::string screenshotFormat,
             std::function<void(std::string)> callback);
 
-        void operator()(const osg::Image& image, unsigned int contextId) override;
+        void operator()(const osg::Image& image, std::uint32_t contextId) override;
 
     private:
         const std::filesystem::path mScreenshotPath;
@@ -49,7 +50,7 @@ namespace SceneUtil
 
         void stop();
 
-        void operator()(const osg::Image& image, unsigned int contextId) override;
+        void operator()(const osg::Image& image, std::uint32_t contextId) override;
 
     private:
         const std::shared_ptr<SceneUtil::WorkQueue> mQueue;

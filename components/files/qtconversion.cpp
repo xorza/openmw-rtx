@@ -1,8 +1,8 @@
 #include "qtconversion.hpp"
 
-#include <components/misc/strings/conversion.hpp>
-
 #include <string_view>
+
+#include <components/misc/strings/conversion.hpp>
 
 QString Files::pathToQString(const std::filesystem::path& path)
 {

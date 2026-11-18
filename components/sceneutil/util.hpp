@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Camera>
 #include <osg/Matrixf>
 #include <osg/Texture2D>
@@ -19,8 +21,9 @@ namespace SceneUtil
     class GlowUpdater : public SceneUtil::StateSetUpdater
     {
     public:
-        GlowUpdater(int texUnit, const osg::Vec4f& color, const std::vector<osg::ref_ptr<osg::Texture2D>>& textures,
-            osg::Node* node, float duration, Resource::ResourceSystem* resourcesystem);
+        GlowUpdater(std::int32_t texUnit, const osg::Vec4f& color,
+            const std::vector<osg::ref_ptr<osg::Texture2D>>& textures, osg::Node* node, float duration,
+            Resource::ResourceSystem* resourcesystem);
 
         void setDefaults(osg::StateSet* stateset) override;
 
@@ -36,7 +39,7 @@ namespace SceneUtil
         void setDuration(float duration);
 
     private:
-        int mTexUnit;
+        std::int32_t mTexUnit;
         osg::Vec4f mColor;
         osg::Vec4f
             mOriginalColor; // for restoring the color of a permanent glow after a temporary glow on the object finishes
@@ -88,11 +91,11 @@ namespace SceneUtil
         bsphere._radius = sqrtf(bsphere._radius);
     }
 
-    osg::Vec4f colourFromRGB(unsigned int clr);
+    osg::Vec4f colourFromRGB(std::uint32_t clr);
 
-    osg::Vec4f colourFromRGBA(unsigned int value);
+    osg::Vec4f colourFromRGBA(std::uint32_t value);
 
-    float makeOsgColorComponent(unsigned int value, unsigned int shift);
+    float makeOsgColorComponent(std::uint32_t value, std::uint32_t shift);
 
     bool hasUserDescription(const osg::Node* node, std::string_view pattern);
 
@@ -101,7 +104,7 @@ namespace SceneUtil
 
     // Alpha-to-coverage requires a multisampled framebuffer, so we need to set that up for RTTs
     void attachAlphaToCoverageFriendlyFramebufferToCamera(osg::Camera* camera, osg::Camera::BufferComponent buffer,
-        osg::Texture* texture, unsigned int level, unsigned int face, bool mipMapGeneration,
+        osg::Texture* texture, std::uint32_t level, std::uint32_t face, bool mipMapGeneration,
         bool addMSAAIntermediateTarget);
 
     class OperationSequence : public osg::Operation
@@ -123,7 +126,8 @@ namespace SceneUtil
 
     // Recover the presumed texture type for the given texture unit
     // It may be set as a state attribute or it may come from the used texture's name
-    const std::string& getTextureType(const osg::StateSet& stateset, const osg::Texture& texture, unsigned int texUnit);
+    const std::string& getTextureType(
+        const osg::StateSet& stateset, const osg::Texture& texture, std::uint32_t texUnit);
 
     void disableFFPStateForRenderer(osgViewer::Renderer* renderer);
 }

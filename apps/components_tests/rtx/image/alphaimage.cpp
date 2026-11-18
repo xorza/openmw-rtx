@@ -166,7 +166,7 @@ namespace Rtx
                 const AlphaImage alpha(texture);
                 for (std::uint32_t texel = 0; texel < 16; ++texel)
                     EXPECT_EQ(alpha.at(0, texel % 4, texel / 4), static_cast<std::uint8_t>(texel * 16))
-                        << "texel " << texel << " of format " << static_cast<int>(format);
+                        << "texel " << texel << " of format " << static_cast<std::int32_t>(format);
             }
         }
 
@@ -315,7 +315,7 @@ namespace Rtx
         std::size_t countedBytes(GLenum spelling, std::uint32_t width, std::uint32_t height)
         {
             return osg::Image::computeImageSizeInBytes(
-                static_cast<int>(width), static_cast<int>(height), 1, spelling, GL_UNSIGNED_BYTE, 1);
+                static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), 1, spelling, GL_UNSIGNED_BYTE, 1);
         }
 
         /// One block of `spelling`, `width` by `height` texels of it in the image — fewer than four
@@ -325,13 +325,13 @@ namespace Rtx
         osg::ref_ptr<osg::Image> makeBlockImage(
             GLenum spelling, std::uint32_t width, std::uint32_t height, std::initializer_list<std::uint8_t> bytes)
         {
-            auto* const data = new unsigned char[bytes.size()];
+            auto* const data = new std::uint8_t[bytes.size()];
             std::copy(bytes.begin(), bytes.end(), data);
 
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("block.dds");
-            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, static_cast<GLint>(spelling),
-                spelling, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setImage(static_cast<std::int32_t>(width), static_cast<std::int32_t>(height), 1,
+                static_cast<GLint>(spelling), spelling, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             return image;
         }
 
@@ -415,9 +415,9 @@ namespace Rtx
             ContentPreprocessor content;
             const auto range = [&](const osg::ref_ptr<osg::Image>& image) {
                 const AlphaRange read = content.alphaRange(*image);
-                return std::array<int, 2>{ read.mLow, read.mHigh };
+                return std::array<std::int32_t, 2>{ read.mLow, read.mHigh };
             };
-            using Range = std::array<int, 2>;
+            using Range = std::array<std::int32_t, 2>;
 
             EXPECT_EQ(range(makeAlphaImage({ 30, 90, 200, 120 })), (Range{ 30, 200 })) << "loose";
             EXPECT_EQ(range(makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,

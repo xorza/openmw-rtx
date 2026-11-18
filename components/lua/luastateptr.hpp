@@ -1,8 +1,8 @@
 #pragma once
 
-#include <sol/state.hpp>
-
 #include <memory>
+
+#include <sol/state.hpp>
 
 namespace LuaUtil
 {

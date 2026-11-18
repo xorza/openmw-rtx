@@ -1,7 +1,7 @@
 #pragma once
 
-#include <QObject>
-
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -9,8 +9,7 @@
 #include <variant>
 #include <vector>
 
-#include <apps/opencs/model/world/collection.hpp>
-#include <apps/opencs/model/world/record.hpp>
+#include <QObject>
 
 #include <components/esm3/debugprofile.hpp>
 #include <components/esm3/filter.hpp>
@@ -40,6 +39,7 @@
 #include <components/toutf8/toutf8.hpp>
 
 #include "cell.hpp"
+#include "collection.hpp"
 #include "idcollection.hpp"
 #include "infocollection.hpp"
 #include "land.hpp"
@@ -47,13 +47,12 @@
 #include "nestedidcollection.hpp"
 #include "nestedinfocollection.hpp"
 #include "pathgrid.hpp"
+#include "record.hpp"
 #include "refcollection.hpp"
 #include "refidcollection.hpp"
 #include "resourcesmanager.hpp"
-#include "universalid.hpp"
-#ifndef Q_MOC_RUN
 #include "subcellcollection.hpp"
-#endif
+#include "universalid.hpp"
 
 class QAbstractItemModel;
 class QModelIndex;
@@ -126,7 +125,7 @@ namespace CSMWorld
         const ESM::Dialogue* mDialogue; // last loaded dialogue
         bool mBase{};
         bool mProject{};
-        std::map<ESM::RefId, std::map<ESM::RefNum, unsigned int>> mRefLoadCache;
+        std::map<ESM::RefId, std::map<ESM::RefNum, std::uint32_t>> mRefLoadCache;
         std::size_t mReaderIndex;
 
         Files::PathContainer mDataPaths;
@@ -143,7 +142,7 @@ namespace CSMWorld
         static void appendIds(std::vector<ESM::RefId>& ids, const CollectionBase& collection, bool listDeleted);
         ///< Append all IDs from collection to \a ids.
 
-        static int count(RecordBase::State state, const CollectionBase& collection);
+        static std::int32_t count(RecordBase::State state, const CollectionBase& collection);
 
         void loadFallbackEntries();
 
@@ -297,9 +296,9 @@ namespace CSMWorld
         void merge();
         ///< Merge modified into base.
 
-        int getTotalRecords(const std::vector<std::filesystem::path>& files); // for better loading bar
+        std::int32_t getTotalRecords(const std::vector<std::filesystem::path>& files); // for better loading bar
 
-        int startLoading(const std::filesystem::path& path, bool base, bool project);
+        std::int32_t startLoading(const std::filesystem::path& path, bool base, bool project);
         ///< Begin merging content of a file into base or modified.
         ///
         /// \param project load project file instead of content file
@@ -318,7 +317,7 @@ namespace CSMWorld
         ///
         /// \param listDeleted include deleted record in the list
 
-        int count(RecordBase::State state) const;
+        std::int32_t count(RecordBase::State state) const;
         ///< Return number of top-level records with the given \a state.
 
     signals:
@@ -335,6 +334,6 @@ namespace CSMWorld
 
         void dataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
-        void rowsChanged(const QModelIndex& parent, int start, int end);
+        void rowsChanged(const QModelIndex& parent, std::int32_t start, std::int32_t end);
     };
 }

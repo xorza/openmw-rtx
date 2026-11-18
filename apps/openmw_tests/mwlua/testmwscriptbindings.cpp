@@ -1,17 +1,22 @@
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwclass/npc.hpp"
-#include "apps/openmw/mwdialogue/dialoguemanagerimp.hpp"
-#include "apps/openmw/mwlua/context.hpp"
-#include "apps/openmw/mwlua/dialoguebindings.hpp"
-#include "apps/openmw/mwlua/luamanagerimp.hpp"
-#include "apps/openmw/mwlua/mwscriptbindings.hpp"
-#include "apps/openmw/mwscript/globalscripts.hpp"
-#include "apps/openmw/mwscript/scriptmanagerimp.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/livecellref.hpp"
-#include "apps/openmw/mwworld/worldimp.hpp"
-#include "apps/openmw/mwworld/worldmodel.hpp"
+#include <memory>
+#include <sstream>
 
+#include <gtest/gtest.h>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwclass/npc.hpp>
+#include <apps/openmw/mwdialogue/dialoguemanagerimp.hpp>
+#include <apps/openmw/mwlua/context.hpp>
+#include <apps/openmw/mwlua/dialoguebindings.hpp>
+#include <apps/openmw/mwlua/luamanagerimp.hpp>
+#include <apps/openmw/mwlua/mwscriptbindings.hpp>
+#include <apps/openmw/mwscript/globalscripts.hpp>
+#include <apps/openmw/mwscript/scriptmanagerimp.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/worldimp.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
+#include <apps/openmw_tests/mwscript/testutils.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loaddial.hpp>
@@ -19,13 +24,6 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/translation/translation.hpp>
-
-#include <gtest/gtest.h>
-
-#include <memory>
-#include <sstream>
-
-#include "../mwscript/testutils.hpp"
 
 namespace MWLua
 {

@@ -1,5 +1,6 @@
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -22,7 +23,7 @@ namespace MWRender
             EXPECT_EQ(std::string_view(timer.writeTitle({})), "OpenMW RTX") << "no second has run out";
 
             // Ninety-nine frames of ten milliseconds are 990 ms, which is short of a second.
-            for (int at = 0; at < 99; ++at)
+            for (std::int32_t at = 0; at < 99; ++at)
                 EXPECT_FALSE(timer.addFrame(10.0)) << "frame " << at + 1 << " closed a second early";
             EXPECT_EQ(std::string_view(timer.writeTitle({})), "OpenMW RTX") << "an open second has no rate";
 
@@ -40,7 +41,7 @@ namespace MWRender
             // Forty frames alternating 5 and 45 ms sum to 20 x 5 + 20 x 45 = 1000 exactly, with a
             // mean of 25 — so the worst is the figure the mean hides. The first thirty-nine are
             // 20 x 5 + 19 x 45 = 955, which is still open.
-            for (int at = 0; at < 39; ++at)
+            for (std::int32_t at = 0; at < 39; ++at)
                 EXPECT_FALSE(timer.addFrame(at % 2 == 0 ? 5.0 : 45.0)) << "frame " << at + 1 << " of the second second";
             EXPECT_EQ(std::string_view(timer.writeTitle({})), "OpenMW RTX - 100 fps, 10.0 ms, worst 10.0 ms")
                 << "an open second leaves the rate alone";
@@ -51,7 +52,7 @@ namespace MWRender
 
             // A rate that does not divide a second: 117 x 8.5 = 994.5 is open and 118 x 8.5 = 1003
             // closes, at 1000 / 8.5 = 117.6 frames a second rounded to the nearest whole one.
-            for (int at = 0; at < 117; ++at)
+            for (std::int32_t at = 0; at < 117; ++at)
                 EXPECT_FALSE(timer.addFrame(8.5));
             EXPECT_TRUE(timer.addFrame(8.5));
             EXPECT_EQ(std::string_view(timer.writeTitle({})), "OpenMW RTX - 118 fps, 8.5 ms, worst 8.5 ms");
@@ -67,7 +68,7 @@ namespace MWRender
         TEST(RtxFrameTimerTest, theTitleIsTheRateThenTheNote)
         {
             FrameTimer timer;
-            for (int frame = 0; frame < 9; ++frame)
+            for (std::int32_t frame = 0; frame < 9; ++frame)
                 EXPECT_FALSE(timer.addFrame(100.0)) << "frame " << frame << " of a second not yet run out";
             ASSERT_TRUE(timer.addFrame(100.0));
 

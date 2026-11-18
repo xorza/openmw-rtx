@@ -1,22 +1,21 @@
 #include "keyframemanager.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
-
-#include <components/files/istreamptr.hpp>
-#include <components/files/utils.hpp>
-
-#include <components/vfs/manager.hpp>
 
 #include <osgAnimation/Animation>
 #include <osgAnimation/BasicAnimationManager>
 #include <osgAnimation/Channel>
 
 #include <components/debug/debuglog.hpp>
+#include <components/files/istreamptr.hpp>
+#include <components/files/utils.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/sceneutil/keyframe.hpp>
 #include <components/sceneutil/osgacontroller.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "animation.hpp"
@@ -244,7 +243,7 @@ namespace Resource
         return { .mValue = std::move(loaded), .mBytes = bytes };
     }
 
-    void KeyframeManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void KeyframeManager::reportStats(std::uint32_t frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Keyframe", frameNumber, mCache->getStats(), *stats);
     }

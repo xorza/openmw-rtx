@@ -12,12 +12,12 @@ namespace Rtx::Testing
 {
     /// Lets go of a row nothing else holds, as its last holder would: a row a test added arrives
     /// with no holds, and the drop after which nothing holds it is the one way it goes.
-    inline void letGoMesh(SceneDesc& scene, Index mesh)
+    inline void letGoMesh(SceneDesc& scene, MeshIndex mesh)
     {
         scene.drop(scene.holdMesh(mesh));
     }
 
-    inline void letGoMaterial(SceneDesc& scene, Index material)
+    inline void letGoMaterial(SceneDesc& scene, MaterialIndex material)
     {
         scene.drop(scene.holdMaterial(material));
     }
@@ -39,36 +39,37 @@ namespace Rtx::Testing
                 mScene.drop(std::move(hold));
             for (MaterialHold& hold : mMaterials)
                 mScene.drop(std::move(hold));
-            mScene.drop(mTextures);
+            for (TextureHold& hold : mTextures)
+                mScene.drop(std::move(hold));
         }
 
         SceneHolds(const SceneHolds&) = delete;
         SceneHolds& operator=(const SceneHolds&) = delete;
 
         /// One hold more on each, answering the row, as a walk's identity takes one.
-        Index mesh(Index mesh) { return take(mMeshes, mScene.holdMesh(mesh)); }
-        Index material(Index material) { return take(mMaterials, mScene.holdMaterial(material)); }
-        Index texture(Index texture) { return take(mTextures, mScene.holdTexture(texture)); }
+        MeshIndex mesh(MeshIndex mesh) { return take(mMeshes, mScene.holdMesh(mesh)); }
+        MaterialIndex material(MaterialIndex material) { return take(mMaterials, mScene.holdMaterial(material)); }
+        TextureIndex texture(TextureIndex texture) { return take(mTextures, mScene.holdTexture(texture)); }
 
         /// Gives back the hold this took on a row, as its holder letting go would.
-        void dropMesh(Index mesh) { give(mMeshes, mesh); }
-        void dropMaterial(Index material) { give(mMaterials, material); }
-        void dropTexture(Index texture) { give(mTextures, texture); }
+        void dropMesh(MeshIndex mesh) { give(mMeshes, mesh); }
+        void dropMaterial(MaterialIndex material) { give(mMaterials, material); }
+        void dropTexture(TextureIndex texture) { give(mTextures, texture); }
 
     private:
-        template <class Row>
-        static Index take(std::vector<Hold<Row>>& holds, Hold<Row>&& hold)
+        template <class Row, class I>
+        static I take(std::vector<Hold<Row, I>>& holds, Hold<Row, I>&& hold)
         {
-            const Index row = hold.get();
+            const I row = hold.get();
             holds.push_back(std::move(hold));
             return row;
         }
 
-        template <class Row>
-        void give(std::vector<Hold<Row>>& holds, Index row)
+        template <class Row, class I>
+        void give(std::vector<Hold<Row, I>>& holds, I row)
         {
-            const auto held
-                = std::find_if(holds.begin(), holds.end(), [row](const Hold<Row>& hold) { return hold.get() == row; });
+            const auto held = std::find_if(
+                holds.begin(), holds.end(), [row](const Hold<Row, I>& hold) { return hold.get() == row; });
             if (held != holds.end())
                 mScene.drop(std::move(*held));
         }

@@ -1,5 +1,3 @@
-#include <components/misc/presentation.hpp>
-
 #include <string>
 
 #include <gtest/gtest.h>
@@ -8,6 +6,7 @@
 #include <osg/Vec2i>
 
 #include <components/misc/display.hpp>
+#include <components/misc/presentation.hpp>
 
 namespace Misc
 {

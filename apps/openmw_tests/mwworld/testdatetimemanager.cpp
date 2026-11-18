@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "apps/openmw/mwworld/datetimemanager.hpp"
+#include <apps/openmw/mwworld/datetimemanager.hpp>
 
 namespace MWWorld
 {

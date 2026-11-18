@@ -1,18 +1,22 @@
 #include "navigatorimpl.hpp"
-#include "makenavmesh.hpp"
-#include "settingsutils.hpp"
-#include "stats.hpp"
+
+#include <cstdint>
+#include <utility>
 
 #include <components/esm3/loadpgrd.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/coordinateconverter.hpp>
-#include <utility>
+
+#include "makenavmesh.hpp"
+#include "settingsutils.hpp"
+#include "stats.hpp"
 
 namespace DetourNavigator
 {
-    NavigatorImpl::NavigatorImpl(Settings settings, std::unique_ptr<NavMeshTileStore>&& store)
+    NavigatorImpl::NavigatorImpl(
+        Settings settings, std::unique_ptr<NavMeshTileStore>&& store, Resource::CacheBudget& budget)
         : mSettings(std::move(settings))
-        , mNavMeshManager(mSettings, std::move(store))
+        , mNavMeshManager(mSettings, std::move(store), budget)
     {
     }
 
@@ -106,7 +110,8 @@ namespace DetourNavigator
         mNavMeshManager.removeOffMeshConnections(id);
     }
 
-    void NavigatorImpl::addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard)
+    void NavigatorImpl::addWater(
+        const osg::Vec2i& cellPosition, std::int32_t cellSize, float level, const UpdateGuard* guard)
     {
         mNavMeshManager.addWater(cellPosition, cellSize, level, guard);
     }
@@ -117,7 +122,7 @@ namespace DetourNavigator
     }
 
     void NavigatorImpl::addHeightfield(
-        const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
+        const osg::Vec2i& cellPosition, std::int32_t cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
     {
         mNavMeshManager.addHeightfield(cellPosition, cellSize, shape, guard);
     }

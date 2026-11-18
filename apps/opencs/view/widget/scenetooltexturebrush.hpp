@@ -1,14 +1,14 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QFrame>
 #include <QGroupBox>
 
-#ifndef Q_MOC_RUN
+#include <components/esm/refid.hpp>
+
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
-#endif
-
-#include <components/esm/refid.hpp>
 
 class QTableWidget;
 class QDragEnterEvent;
@@ -70,7 +70,7 @@ namespace CSVWidget
 
     private:
         CSVWidget::BrushShape mBrushShape = CSVWidget::BrushShape_Point;
-        int mBrushSize = 1;
+        std::int32_t mBrushSize = 1;
         ESM::RefId mBrushTexture;
         CSMDoc::Document& mDocument;
         QLabel* mSelectedBrush;
@@ -88,10 +88,10 @@ namespace CSVWidget
     public slots:
         void setBrushTexture(ESM::RefId brushTexture);
         void setBrushShape();
-        void setBrushSize(int brushSize);
+        void setBrushSize(std::int32_t brushSize);
 
     signals:
-        void passBrushSize(int brushSize);
+        void passBrushSize(std::int32_t brushSize);
         void passBrushShape(CSVWidget::BrushShape brushShape);
         void passTextureId(ESM::RefId brushTexture);
     };

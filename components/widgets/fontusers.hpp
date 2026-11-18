@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 namespace MyGUI
@@ -72,7 +73,7 @@ namespace Gui
         /// Stands its factories, for `Texts` and `Lists`, in place of MyGUI's own, each user
         /// entering this as it is made: once the factory manager exists, and before a skin or a
         /// layout is loaded.
-        FontUsers(Users users, int textHeight);
+        FontUsers(Users users, std::int32_t textHeight);
 
         ~FontUsers();
 
@@ -83,11 +84,11 @@ namespace Gui
         /// again or set at another size, and before the next frame draws. No user of this registry
         /// is made or destroyed meanwhile, which an assert holds to; a refit may make users of
         /// another.
-        void refit(int textHeight);
+        void refit(std::int32_t textHeight);
 
         /// The height a user with none of its own lays its text out at, in layout units: the size
         /// the fonts are set at (`FontFit::mFontSize`).
-        int getTextHeight() const { return mTextHeight; }
+        std::int32_t getTextHeight() const { return mTextHeight; }
 
         std::size_t size() const { return mEntries.size(); }
 
@@ -97,7 +98,7 @@ namespace Gui
         void makeList(MyGUI::IObject*& made);
 
         std::vector<Entry*> mEntries;
-        int mTextHeight;
+        std::int32_t mTextHeight;
         bool mRefitting = false;
     };
 }

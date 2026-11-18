@@ -1,6 +1,8 @@
 #include "widgets.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 
 #include <MyGUI_Button.h>
@@ -8,6 +10,10 @@
 #include <MyGUI_ProgressBar.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadspel.hpp>
@@ -15,13 +21,6 @@
 #include <components/resource/resourcesystem.hpp>
 
 #include "textcolours.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/magiceffects.hpp"
-
-#include "../mwworld/esmstore.hpp"
 
 namespace MWGui::Widgets
 {
@@ -149,7 +148,7 @@ namespace MWGui::Widgets
         {
             float modified = mValue.getModified();
             float base = mValue.getBase();
-            mAttributeValueWidget->setCaption(MyGUI::utility::toString(static_cast<int>(modified)));
+            mAttributeValueWidget->setCaption(MyGUI::utility::toString(static_cast<std::int32_t>(modified)));
             if (modified > base)
                 mAttributeValueWidget->_setWidgetState("increased");
             else if (modified < base)
@@ -203,7 +202,7 @@ namespace MWGui::Widgets
     }
 
     void MWSpell::createEffectWidgets(
-        std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator, MyGUI::IntCoord& coord, int flags)
+        std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator, MyGUI::IntCoord& coord, std::int32_t flags)
     {
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
@@ -273,13 +272,13 @@ namespace MWGui::Widgets
         updateWidgets();
     }
 
-    void MWEffectList::createEffectWidgets(
-        std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator, MyGUI::IntCoord& coord, bool center, int flags)
+    void MWEffectList::createEffectWidgets(std::vector<MyGUI::Widget*>& effects, MyGUI::Widget* creator,
+        MyGUI::IntCoord& coord, bool center, std::int32_t flags)
     {
         // We don't know the width of all the elements beforehand, so we do it in
         // 2 steps: first, create all widgets and check their width....
         MWSpellEffectPtr effect = nullptr;
-        int maxwidth = coord.width;
+        std::int32_t maxwidth = coord.width;
 
         for (auto& effectInfo : mEffectList)
         {
@@ -299,7 +298,7 @@ namespace MWGui::Widgets
         {
             effect = effectWidget->castType<MWSpellEffect>();
             bool needcenter = center && (maxwidth > effect->getRequestedWidth());
-            int diff = maxwidth - effect->getRequestedWidth();
+            std::int32_t diff = maxwidth - effect->getRequestedWidth();
             if (needcenter)
             {
                 effect->setCoord(
@@ -506,7 +505,7 @@ namespace MWGui::Widgets
     {
     }
 
-    void MWDynamicStat::setValue(int cur, int max)
+    void MWDynamicStat::setValue(std::int32_t cur, std::int32_t max)
     {
         mValue = cur;
         mMax = max;

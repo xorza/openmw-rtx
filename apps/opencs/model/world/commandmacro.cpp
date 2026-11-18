@@ -1,9 +1,10 @@
 
 #include "commandmacro.hpp"
 
+#include <utility>
+
 #include <QUndoCommand>
 #include <QUndoStack>
-#include <utility>
 
 CSMWorld::CommandMacro::CommandMacro(QUndoStack& undoStack, QString description)
     : mUndoStack(undoStack)

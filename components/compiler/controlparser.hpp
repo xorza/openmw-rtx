@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <components/interpreter/types.hpp>
@@ -45,9 +46,9 @@ namespace Compiler
         ExprParser mExprParser;
         State mState;
 
-        bool parseIfBody(int keyword, const TokenLoc& loc, Scanner& scanner);
+        bool parseIfBody(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner);
 
-        bool parseWhileBody(int keyword, const TokenLoc& loc, Scanner& scanner);
+        bool parseWhileBody(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner);
 
     public:
         ControlParser(ErrorHandler& errorHandler, const Context& context, Locals& locals, Literals& literals);
@@ -59,11 +60,11 @@ namespace Compiler
         ///< Handle a name token.
         /// \return fetch another token?
 
-        bool parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a keyword token.
         /// \return fetch another token?
 
-        bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner) override;
+        bool parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a special character token.
         /// \return fetch another token?
 

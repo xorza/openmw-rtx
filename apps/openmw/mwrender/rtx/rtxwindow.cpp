@@ -95,7 +95,8 @@ namespace MWRender
 
         // The renderer's own extent, which everything above reads through the viewport.
         const Rtx::FrameExtents extents = renderer.getExtents();
-        camera.setViewport(0, 0, static_cast<int>(extents.mOutputWidth), static_cast<int>(extents.mOutputHeight));
+        camera.setViewport(
+            0, 0, static_cast<std::int32_t>(extents.mOutputWidth), static_cast<std::int32_t>(extents.mOutputHeight));
     }
 
     void RtxWindow::setTitle(const Misc::CStringView title)

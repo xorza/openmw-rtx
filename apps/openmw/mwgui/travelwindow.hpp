@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
 
@@ -30,10 +33,10 @@ namespace MWGui
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onTravelButtonClick(MyGUI::Widget* sender);
-        void onMouseWheel(MyGUI::Widget* sender, int rel);
+        void onMouseWheel(MyGUI::Widget* sender, std::int32_t rel);
         void addDestination(const ESM::RefId& name, const ESM::Position& pos, bool interior);
         void clearDestinations();
-        int mCurrentY;
+        std::int32_t mCurrentY;
 
         void updateLabels();
 
@@ -41,6 +44,6 @@ namespace MWGui
 
     private:
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
-        size_t mControllerFocus = 0;
+        std::size_t mControllerFocus = 0;
     };
 }

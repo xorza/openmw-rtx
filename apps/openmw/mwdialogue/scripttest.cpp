@@ -1,14 +1,15 @@
 #include "scripttest.hpp"
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
+#include <cstdint>
+#include <memory>
+#include <sstream>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/scriptmanager.hpp"
-
-#include "../mwscript/compilercontext.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwscript/compilercontext.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
 #include <components/compiler/exception.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/compiler/scanner.hpp>
@@ -20,13 +21,10 @@
 
 #include "filter.hpp"
 
-#include <memory>
-#include <sstream>
-
 namespace
 {
 
-    bool test(const MWWorld::Ptr& actor, const ESM::DialInfo& info, int& compiled, int& total,
+    bool test(const MWWorld::Ptr& actor, const ESM::DialInfo& info, std::int32_t& compiled, std::int32_t& total,
         const Compiler::Extensions* extensions, const MWScript::CompilerContext& context,
         Compiler::StreamErrorHandler& errorHandler)
     {
@@ -86,9 +84,10 @@ namespace MWDialogue
     namespace ScriptTest
     {
 
-        std::pair<int, int> compileAll(const Compiler::Extensions* extensions, int warningsMode)
+        std::pair<std::int32_t, std::int32_t> compileAll(
+            const Compiler::Extensions* extensions, std::int32_t warningsMode)
         {
-            int compiled = 0, total = 0;
+            std::int32_t compiled = 0, total = 0;
             const auto& store = *MWBase::Environment::get().getESMStore();
 
             MWScript::CompilerContext compilerContext(MWScript::CompilerContext::Type_Dialogue);

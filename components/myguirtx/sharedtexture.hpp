@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/ref_ptr>
 
 #include <components/rtx/renderer/guirenderer.hpp>
@@ -42,6 +44,6 @@ namespace MyGUIRtx
         /// new from one with a new picture. Held, because an image the game let go of could be
         /// followed by another at its address with the same count, which would then never be sent.
         osg::ref_ptr<const osg::Image> mSeen;
-        unsigned int mSeenCount = 0;
+        std::uint32_t mSeenCount = 0;
     };
 }

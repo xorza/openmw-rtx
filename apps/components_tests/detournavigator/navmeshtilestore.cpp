@@ -1,5 +1,3 @@
-#include "settings.hpp"
-
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -37,6 +35,8 @@
 #include <components/resource/bulletshape.hpp>
 #include <components/testing/util.hpp>
 
+#include "settings.hpp"
+
 namespace DetourNavigator
 {
     namespace
@@ -69,7 +69,7 @@ namespace DetourNavigator
         void addLand(TileCachedRecastMeshManager& manager, const TileInput& input)
         {
             manager.setWorldspace(input.mWorldspace, nullptr);
-            const int cellSize = 8192;
+            const std::int32_t cellSize = 8192;
             manager.addHeightfield(osg::Vec2i(0, 0), cellSize,
                 HeightfieldSurface{ .mHeights = input.mHeights.data(), .mSize = 2, .mMinHeight = 0, .mMaxHeight = 30 },
                 nullptr);
@@ -263,7 +263,11 @@ namespace DetourNavigator
             const std::filesystem::path spoilt = TestingOpenMW::currentTestDirPath() / "spoilt";
             {
                 ContentStore::Store raw(spoilt, ContentStore::Policy{ .mKindCount = 1, .mHolding = std::nullopt });
-                raw.write(key, 0, NavMeshTileStore::sTileVersion, Misc::ByteBuffer(64, std::byte{ 7 }),
+                raw.write(ContentStore::Filed{ .mKey = key,
+                              .mKind = 0,
+                              .mVersion = NavMeshTileStore::sTileVersion,
+                              .mPayload = Misc::ByteBuffer(64, std::byte{ 7 }),
+                              .mSegmentEnds = {} },
                     ContentStore::Reach::Disk);
             }
             NavMeshTileStore refusing(spoilt);

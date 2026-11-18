@@ -1,9 +1,13 @@
+#include "openaloutput.hpp"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <source_location>
@@ -12,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-#include <cstdint>
+#include <AL/efx-presets.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
@@ -20,16 +24,10 @@
 #include <components/misc/thread.hpp>
 #include <components/settings/values.hpp>
 
-#include "efxpresets.h"
 #include "loudness.hpp"
-#include "openaloutput.hpp"
 #include "sound.hpp"
 #include "sounddecoder.hpp"
 #include "soundmanagerimp.hpp"
-
-#ifndef ALC_ALL_DEVICES_SPECIFIER
-#define ALC_ALL_DEVICES_SPECIFIER 0x1013
-#endif
 
 namespace
 {
@@ -644,7 +642,7 @@ namespace MWSound
             std::vector<char> data(mBufferSize);
             for (; !mIsFinished && static_cast<ALuint>(queued) < mBuffers.size(); ++queued)
             {
-                size_t got = mDecoder->read(data.data(), data.size());
+                std::size_t got = mDecoder->read(data.data(), data.size());
                 if (got < data.size())
                 {
                     mIsFinished = true;
@@ -688,7 +686,7 @@ namespace MWSound
     }
 
     void OpenALOutput::eventCallback(
-        ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message, void* userParam)
+        ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message, void* userParam) noexcept
     {
         if (eventType == AL_EVENT_TYPE_DISCONNECTED_SOFT)
             static_cast<OpenALOutput*>(userParam)->onDisconnect();
@@ -855,11 +853,11 @@ namespace MWSound
             maxtotal = 256;
         else
         {
-            maxtotal = std::min<ALCuint>(static_cast<unsigned int>(maxmono + maxstereo), 256);
+            maxtotal = std::min<ALCuint>(static_cast<std::uint32_t>(maxmono + maxstereo), 256);
             if (maxtotal == 0) // workaround for broken implementations
                 maxtotal = 256;
         }
-        for (size_t i = 0; i < maxtotal; i++)
+        for (std::size_t i = 0; i < maxtotal; i++)
         {
             ALuint src = 0;
             alGenSources(1, &src);
@@ -1044,13 +1042,13 @@ namespace MWSound
         return ret;
     }
 
-    std::pair<Sound_Handle, size_t> OpenALOutput::loadSound(VFS::Path::NormalizedView fname)
+    std::pair<Sound_Handle, std::size_t> OpenALOutput::loadSound(VFS::Path::NormalizedView fname)
     {
         getALError();
 
         std::vector<char> data;
         ALenum format = AL_NONE;
-        int srate = 0;
+        std::int32_t srate = 0;
 
         try
         {
@@ -1092,7 +1090,7 @@ namespace MWSound
         return std::make_pair(makePtrId(buf), size);
     }
 
-    size_t OpenALOutput::unloadSound(Sound_Handle data)
+    std::size_t OpenALOutput::unloadSound(Sound_Handle data)
     {
         ALuint buffer = getPtrId(data);
         if (!buffer)
@@ -1522,7 +1520,7 @@ namespace MWSound
         mListenerEnv = env;
     }
 
-    void OpenALOutput::pauseSounds(int types)
+    void OpenALOutput::pauseSounds(std::int32_t types)
     {
         std::vector<ALuint> sources;
         for (Sound* sound : mActiveSounds)
@@ -1577,7 +1575,7 @@ namespace MWSound
         alListenerf(AL_GAIN, 1.0f);
     }
 
-    void OpenALOutput::resumeSounds(int types)
+    void OpenALOutput::resumeSounds(std::int32_t types)
     {
         std::vector<ALuint> sources;
         for (Sound* sound : mActiveSounds)

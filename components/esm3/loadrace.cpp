@@ -1,15 +1,18 @@
 #include "loadrace.hpp"
 
-#include "esmreader.hpp"
-#include "esmwriter.hpp"
+#include <cstddef>
+#include <cstdint>
 
 #include <components/esm/attr.hpp>
-#include <components/esm3/loadskil.hpp>
 #include <components/misc/concepts.hpp>
+
+#include "esmreader.hpp"
+#include "esmwriter.hpp"
+#include "loadskil.hpp"
 
 namespace ESM
 {
-    int32_t Race::RADTstruct::getAttribute(ESM::RefId attribute, bool male) const
+    std::int32_t Race::RADTstruct::getAttribute(ESM::RefId attribute, bool male) const
     {
         const auto it = mAttributeValues.find(attribute);
         if (it == mAttributeValues.end())
@@ -19,7 +22,7 @@ namespace ESM
         return it->second.mFemale;
     }
 
-    void Race::RADTstruct::setAttribute(ESM::RefId attribute, bool male, int32_t value)
+    void Race::RADTstruct::setAttribute(ESM::RefId attribute, bool male, std::int32_t value)
     {
         auto& values = mAttributeValues[attribute];
         if (male)
@@ -50,12 +53,12 @@ namespace ESM
         {
             for (auto& bonus : mBonus)
             {
-                int32_t skill = 0;
+                std::int32_t skill = 0;
                 esm.getT(skill);
                 bonus.mSkill = ESM::Skill::indexToRefId(skill);
                 esm.getT(bonus.mBonus);
             }
-            for (int i = 0; i < ESM::Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
                 esm.getComposite(mAttributeValues[ESM::Attribute::indexToRefId(i)]);
             esm.getT(mMaleHeight);
             esm.getT(mFemaleHeight);
@@ -66,7 +69,7 @@ namespace ESM
         else
         {
             esm.getComposite(*this);
-            for (size_t i = 0; i < mBonus.size() && esm.isNextSub("SKIL"); ++i)
+            for (std::size_t i = 0; i < mBonus.size() && esm.isNextSub("SKIL"); ++i)
             {
                 esm.getSubHeader();
                 esm.getT(mBonus[i].mBonus);
@@ -90,11 +93,11 @@ namespace ESM
             esm.startSubRecord("RADT");
             for (const auto& bonus : mBonus)
             {
-                int32_t skill = ESM::Skill::refIdToIndex(bonus.mSkill);
+                std::int32_t skill = ESM::Skill::refIdToIndex(bonus.mSkill);
                 esm.writeT(skill);
                 esm.writeT(bonus.mBonus);
             }
-            for (int i = 0; i < ESM::Attribute::Length; ++i)
+            for (std::int32_t i = 0; i < ESM::Attribute::Length; ++i)
             {
                 const auto it = mAttributeValues.find(ESM::Attribute::indexToRefId(i));
                 if (it == mAttributeValues.end())

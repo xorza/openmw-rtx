@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -72,7 +73,7 @@ namespace RtxTool
 
         /// The active grid's radius in cells (`CellGridRadius`): the rows are `2r + 1` cells apart, so every land
         /// cell stands in the active grid once.
-        int mGridRadius = 1;
+        std::int32_t mGridRadius = 1;
 
         /// Seconds each crossing of the circuit of weathers takes, and how long each weather stands before the next.
         float mCrossingSeconds = sTurnSeconds;
@@ -85,7 +86,7 @@ namespace RtxTool
 
         /// The hour and the day the first leg begins at.
         float mHour = 9.0f;
-        int mDay = 0;
+        std::int32_t mDay = 0;
 
         /// How many rooms the interiors share out by the files that add them, the least a file is given, and the most
         /// a settlement keeps of a file's share, by the prefix before a room's comma.
@@ -147,7 +148,7 @@ namespace RtxTool
 
         /// The hour and the day it begins at.
         float mHour = 0.0f;
-        int mDay = 0;
+        std::int32_t mDay = 0;
 
         /// How far the eye flies over it, in world units.
         double mLength = 0.0;
@@ -183,9 +184,6 @@ namespace RtxTool
         std::uint32_t mRoomsNoDoorEnters = 0;
         osg::Vec2i mExtent{};
 
-        /// Every leg's frames.
-        std::uint64_t getFrames() const;
-
         /// The sky the tour runs over a leg beginning at the tour's `first` frame: `mCircuit`, at the pacing's pace.
         SkyRun skyRunFrom(std::uint32_t first) const;
     };
@@ -207,11 +205,13 @@ namespace RtxTool
     /// plans of one map agree frame for frame.
     TourPlan planTour(const WorldMap& map, const TourPacing& pacing);
 
-    /// The plan as a person reads it before a flight: every leg, its cells, its length, its frames, the hour and
-    /// the sky it begins under; the rooms each file gives; and the minutes the frames take at `frameMs`.
-    std::string describePlan(const TourPlan& plan, float frameMs);
+    /// The plan as a person reads it before a flight: every leg of `legs` (`LegSelection::pick`), its cells, its
+    /// length, its frames, the hour and the sky it begins under; the rooms each file gives; and the minutes the legs'
+    /// frames take at `frameMs`.
+    std::string describePlan(const TourPlan& plan, std::span<const std::size_t> legs, float frameMs);
 
-    /// One stop a leg, from the `from`th leg on: each a flight that begins where and under what the plan says, so a
-    /// tour begun at a later leg stands as the whole tour stood there.
-    std::vector<Stop> stopsFor(const TourPlan& plan, std::size_t from = 0);
+    /// One stop a leg of `legs`, the plan's legs by their numbers from nought, in order (`LegSelection::pick`): each a
+    /// flight that begins where and under what the plan says, so a leg flown apart stands as the whole tour stood
+    /// there. A leg goes on from the one before only where that one flew just before it.
+    std::vector<Stop> stopsFor(const TourPlan& plan, std::span<const std::size_t> legs);
 }

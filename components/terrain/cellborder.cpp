@@ -1,20 +1,22 @@
 #include "cellborder.hpp"
 
+#include <cstdint>
+
 #include <osg/Geometry>
 #include <osg/PolygonMode>
-
-#include "world.hpp"
 
 #include <components/esm/util.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/material.hpp>
-#include <components/terrain/storage.hpp>
+
+#include "storage.hpp"
+#include "world.hpp"
 
 namespace Terrain
 {
 
     CellBorder::CellBorder(
-        Terrain::World* world, osg::Group* root, int borderMask, Resource::SceneManager* sceneManager)
+        Terrain::World* world, osg::Group* root, std::int32_t borderMask, Resource::SceneManager* sceneManager)
         : mWorld(world)
         , mSceneManager(sceneManager)
         , mRoot(root)
@@ -23,10 +25,10 @@ namespace Terrain
     }
 
     osg::ref_ptr<osg::Group> CellBorder::createBorderGeometry(float x, float y, float size, Terrain::Storage* terrain,
-        Resource::SceneManager* sceneManager, int mask, ESM::RefId worldspace, float offset, osg::Vec4f color)
+        Resource::SceneManager* sceneManager, std::int32_t mask, ESM::RefId worldspace, float offset, osg::Vec4f color)
     {
-        const int cellSize = ESM::getCellSize(worldspace);
-        const int borderSegments = 40;
+        const std::int32_t cellSize = ESM::getCellSize(worldspace);
+        const std::int32_t borderSegments = 40;
 
         osg::Vec3 cellCorner = osg::Vec3(x * static_cast<float>(cellSize), y * static_cast<float>(cellSize), 0);
         size *= static_cast<float>(cellSize);
@@ -39,7 +41,7 @@ namespace Terrain
 
         float borderStep = size / (static_cast<float>(borderSegments));
 
-        for (int i = 0; i <= 2 * borderSegments; ++i)
+        for (std::int32_t i = 0; i <= 2 * borderSegments; ++i)
         {
             osg::Vec3f pos = i < borderSegments
                 ? osg::Vec3(static_cast<float>(i) * borderStep, 0.0f, 0.0f)
@@ -83,7 +85,7 @@ namespace Terrain
         return borderGroup;
     }
 
-    void CellBorder::createCellBorderGeometry(int x, int y)
+    void CellBorder::createCellBorderGeometry(std::int32_t x, std::int32_t y)
     {
         auto borderGroup = createBorderGeometry(static_cast<float>(x), static_cast<float>(y), 1.f, mWorld->getStorage(),
             mSceneManager, mBorderMask, mWorld->getWorldspace());
@@ -92,7 +94,7 @@ namespace Terrain
         mCellBorderNodes[std::make_pair(x, y)] = borderGroup;
     }
 
-    void CellBorder::destroyCellBorderGeometry(int x, int y)
+    void CellBorder::destroyCellBorderGeometry(std::int32_t x, std::int32_t y)
     {
         auto it = mCellBorderNodes.find(std::make_pair(x, y));
 

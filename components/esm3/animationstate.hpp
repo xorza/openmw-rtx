@@ -24,7 +24,7 @@ namespace ESM
             std::string mGroup;
             float mTime;
             bool mAbsolute;
-            uint64_t mLoopCount;
+            std::uint64_t mLoopCount;
         };
 
         typedef std::vector<ScriptedAnimation> ScriptedAnimations;

@@ -40,7 +40,7 @@ namespace Rtx::Testing
         /// The third row of the one bone of the quad's rig, as the scene holds it: the identity's
         /// last row with the bone's height in its last column. `RiggedQuad` binds with the identity
         /// and no skin transform, so a translated bone is exactly what the walk has to hand over.
-        osg::Vec4f boneRow(const Rtx::SceneDesc& scene, Rtx::Index mesh)
+        osg::Vec4f boneRow(const Rtx::SceneDesc& scene, Rtx::MeshIndex mesh)
         {
             return Rtx::boneAt(scene.getMeshPose(mesh), 0).mRows[2];
         }
@@ -83,12 +83,12 @@ namespace Rtx::Testing
 
             // The mesh holds the bind pose, and the rig beside it is the quad's four one-bone runs.
             ASSERT_EQ(mScene.meshes().getRows().size(), 1u);
-            EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[0]), Rtx::Deform::Rig);
-            EXPECT_EQ(mScene.meshes().getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
+            EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[MeshIndex(0)]), Rtx::Deform::Rig);
+            EXPECT_EQ(mScene.meshes().getArrival(MeshIndex(0)).mPositions[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "the bind pose, never a vertex posed";
             ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getRows()[0].mRows, 1u);
-            EXPECT_EQ(mScene.deformers().getRows()[0].getVertexCount(), 4u);
+            EXPECT_EQ(mScene.deformers().getRows()[DeformerIndex(0)].mRows, 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[DeformerIndex(0)].getVertexCount(), 4u);
             EXPECT_EQ(mScene.deformers().getRuns().size(), 4u);
             EXPECT_EQ(mScene.deformers().getRuns()[3], 1u) << "first nought, count one";
             ASSERT_EQ(mScene.deformers().getInfluences().size(), 1u);
@@ -98,14 +98,15 @@ namespace Rtx::Testing
             // And the pose: `invBind · bone · transform` with the identity for both ends is the
             // bone itself, whose translation lands in the last column of the last row.
             ASSERT_EQ(mScene.meshes().getDeformed().size(), 1u);
-            EXPECT_EQ(mScene.meshes().getDeformed()[0], 0u);
-            EXPECT_EQ(Rtx::boneAt(mScene.getMeshPose(0), 0).mRows[0], osg::Vec4f(1.0f, 0.0f, 0.0f, 0.0f));
-            EXPECT_EQ(Rtx::boneAt(mScene.getMeshPose(0), 0).mRows[1], osg::Vec4f(0.0f, 1.0f, 0.0f, 0.0f));
-            EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 5.0f)) << "the bind pose moved by the bone";
+            EXPECT_EQ(mScene.meshes().getDeformed()[0], Rtx::MeshIndex(0));
+            EXPECT_EQ(Rtx::boneAt(mScene.getMeshPose(MeshIndex(0)), 0).mRows[0], osg::Vec4f(1.0f, 0.0f, 0.0f, 0.0f));
+            EXPECT_EQ(Rtx::boneAt(mScene.getMeshPose(MeshIndex(0)), 0).mRows[1], osg::Vec4f(0.0f, 1.0f, 0.0f, 0.0f));
+            EXPECT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, 5.0f))
+                << "the bind pose moved by the bone";
 
             // The reach is the drawable's own bound, which `updateBounds` made from the bone's
             // sphere — a sphere, and so a box wider than the quad, but one that stands at five.
-            const osg::BoundingBoxf& reach = mScene.meshes().getRows()[0].mBounds;
+            const osg::BoundingBoxf& reach = mScene.meshes().getRows()[MeshIndex(0)].mBounds;
             EXPECT_TRUE(reach.valid());
             EXPECT_LE(reach.zMin(), 5.0f);
             EXPECT_GE(reach.zMax(), 5.0f);
@@ -121,7 +122,7 @@ namespace Rtx::Testing
             rigged.update(1);
 
             walk(*rigged.mSkeleton);
-            EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 0.0f));
+            EXPECT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, 0.0f));
 
             rigged.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 7.0));
             rigged.update(2);
@@ -134,9 +135,9 @@ namespace Rtx::Testing
             EXPECT_EQ(again.mDeformed, 1u);
             EXPECT_EQ(mScene.meshes().getRows().size(), 1u) << "a second pose is the same mesh";
             EXPECT_EQ(mScene.deformers().getRows().size(), 1u) << "and the same rig";
-            EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 7.0f));
+            EXPECT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, 7.0f));
             ASSERT_EQ(mScene.meshes().getDeformed().size(), 1u);
-            EXPECT_EQ(mScene.meshes().getDeformed()[0], 0u);
+            EXPECT_EQ(mScene.meshes().getDeformed()[0], Rtx::MeshIndex(0));
 
             // **A frame the bone stood still on costs nothing.** The walk poses every rig it meets and the scene
             // compares the rows against the ones it holds. Nothing off the heap either: a rig met again is found in the
@@ -151,9 +152,10 @@ namespace Rtx::Testing
             EXPECT_EQ(spent, 0u) << spent << " allocations to pose a body the walk already held";
             EXPECT_EQ(still.mDeformed, 1u) << "posed, which is what the count says";
             EXPECT_TRUE(mScene.meshes().getDeformed().empty()) << "and unchanged, which is what the list says";
-            EXPECT_EQ(mScene.meshes().getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
+            EXPECT_EQ(mScene.meshes().getArrival(MeshIndex(0)).mPositions[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "and it is the same bind pose";
-            EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 7.0f)) << "held where the bone left it";
+            EXPECT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, 7.0f))
+                << "held where the bone left it";
 
             // **And no traversal number gates it.** A walk on the same frame after the bone moved again reads the
             // matrices the update left, whatever number it runs at; a pose read off a cull traversal's copy would be
@@ -163,7 +165,7 @@ namespace Rtx::Testing
 
             mScene.clearPlacement();
             walk(*rigged.mSkeleton, 0, 2);
-            EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 99.0f));
+            EXPECT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, 99.0f));
 
             // **A bone that is not a finite number keeps the last pose**, refused once under the drawable's name:
             // carried, it would be a non-finite store in the skin and a refit that changes which triangles are active.
@@ -174,7 +176,8 @@ namespace Rtx::Testing
             {
                 mScene.clearPlacement();
                 walk(*rigged.mSkeleton, 0, frame);
-                EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 99.0f)) << "held at the last pose";
+                EXPECT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, 99.0f))
+                    << "held at the last pose";
                 EXPECT_TRUE(mScene.meshes().getDeformed().empty()) << "a held pose named a structure to refit";
                 EXPECT_EQ(mScene.refusals().count(Rtx::Refused::Mesh), refused + 1) << "once, however often";
             }
@@ -187,10 +190,10 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*unposed.mSkeleton, 0, 5);
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
-            for (const osg::Vec4f& row : Rtx::boneAt(mScene.getMeshPose(1), 0).mRows)
+            for (const osg::Vec4f& row : Rtx::boneAt(mScene.getMeshPose(MeshIndex(1)), 0).mRows)
                 EXPECT_EQ(row, osg::Vec4f());
-            EXPECT_TRUE(mScene.meshes().getRows()[1].mPosed);
-            EXPECT_EQ(mScene.meshes().getRows()[1].mBounds, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f()));
+            EXPECT_TRUE(mScene.meshes().getRows()[MeshIndex(1)].mPosed);
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(1)].mBounds, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f()));
             EXPECT_EQ(mScene.meshes().getDeformed().size(), 1u) << "a first pose reaches the device whatever it is";
         }
 
@@ -214,12 +217,12 @@ namespace Rtx::Testing
 
             walk(*root);
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
-            ASSERT_EQ(mScene.meshes().getMeshPositions(0).size(), 4u);
+            ASSERT_EQ(mScene.meshes().getArrival(MeshIndex(0)).mPositions.size(), 4u);
             ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
 
             // The quad standing next to the rig, whose vertices the overrun would land in.
-            const std::vector<osg::Vec3f> before(
-                mScene.meshes().getMeshPositions(1).begin(), mScene.meshes().getMeshPositions(1).end());
+            const std::vector<osg::Vec3f> before(mScene.meshes().getArrival(MeshIndex(1)).mPositions.begin(),
+                mScene.meshes().getArrival(MeshIndex(1)).mPositions.end());
 
             // Six vertices where the slot holds four, under the same drawable and the same skin.
             osg::ref_ptr<osg::Geometry> longer = new osg::Geometry;
@@ -245,11 +248,11 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.meshes().getRows().size(), 3u) << "and takes a slot of its own rather than the old one";
             EXPECT_EQ(mScene.deformers().getRows().size(), 2u)
                 << "on a rig of its own, because the skin is six vertices now";
-            EXPECT_EQ(mScene.deformers().getRows()[1].getVertexCount(), 6u);
-            EXPECT_EQ(mScene.meshes().getRows()[2].mDeformer, 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[DeformerIndex(1)].getVertexCount(), 6u);
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(2)].mDeformer, Rtx::DeformerIndex(1));
 
-            const std::vector<osg::Vec3f> after(
-                mScene.meshes().getMeshPositions(1).begin(), mScene.meshes().getMeshPositions(1).end());
+            const std::vector<osg::Vec3f> after(mScene.meshes().getArrival(MeshIndex(1)).mPositions.begin(),
+                mScene.meshes().getArrival(MeshIndex(1)).mPositions.end());
             EXPECT_EQ(after, before) << "the mesh after the rig's old slot is untouched";
         }
 
@@ -267,14 +270,14 @@ namespace Rtx::Testing
 
             // Four, because the gate needs three traversals to pass before it can trip: a run of
             // two would pass with the walk saying nothing at all.
-            for (unsigned int frame = 1; frame <= 4; ++frame)
+            for (std::uint32_t frame = 1; frame <= 4; ++frame)
             {
                 rigged.update(frame);
 
                 mScene.clearPlacement();
                 walk(*rigged.mSkeleton, 0, frame - 1);
 
-                EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, static_cast<float>(frame)))
+                EXPECT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, static_cast<float>(frame)))
                     << "the bone moved to " << frame << " and the mirrored pose did not follow";
             }
         }
@@ -302,13 +305,13 @@ namespace Rtx::Testing
             // One update while the actor is in range, so the skeleton has a pose to be frozen at.
             rigged.update(1);
             walk(*world);
-            ASSERT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
+            ASSERT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
 
             // Out of range. The update traversal is turned back from here on, so the bone stops however far the clock
             // runs, while the mirror goes on placing the actor and names no structure to refit.
             rigged.mSkeleton->setActive(SceneUtil::Skeleton::Inactive);
 
-            for (unsigned int traversal = 2; traversal <= 4; ++traversal)
+            for (std::uint32_t traversal = 2; traversal <= 4; ++traversal)
             {
                 rigged.update(traversal);
 
@@ -316,7 +319,7 @@ namespace Rtx::Testing
                 const ExtractionStats found = walk(*world, 0, traversal - 1);
 
                 ASSERT_EQ(found.mInstances, 1u) << "the mirror stopped reaching an Inactive actor on its own";
-                EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f))
+                EXPECT_EQ(boneRow(mScene, Rtx::MeshIndex(0)), osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f))
                     << "an Inactive skeleton animated at traversal " << traversal;
                 EXPECT_TRUE(mScene.meshes().getDeformed().empty())
                     << "a pose that stood still named a structure to refit";
@@ -355,9 +358,9 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mDeformed, 1u);
             EXPECT_EQ(stats.mUnskinned, 1u);
             ASSERT_EQ(mScene.meshes().getRows().size(), 1u);
-            EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[0]), Rtx::Deform::Rig);
+            EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[MeshIndex(0)]), Rtx::Deform::Rig);
             ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
-            EXPECT_EQ(mScene.meshes().getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
+            EXPECT_EQ(mScene.meshes().getArrival(MeshIndex(0)).mPositions[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "the bind pose, where it stands";
 
             rigged.update(1);
@@ -401,19 +404,19 @@ namespace Rtx::Testing
             root->addChild(makeQuad());
             root->addChild(morph);
 
-            constexpr Rtx::Index sStill = 0;
-            constexpr Rtx::Index sFace = 1;
+            constexpr Rtx::MeshIndex sStill(0);
+            constexpr Rtx::MeshIndex sFace(1);
 
             const ExtractionStats first = walk(*root);
             EXPECT_EQ(first.mMeshesAdded, 2u);
             EXPECT_EQ(first.mDeformed, 1u);
             EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[sFace]), Rtx::Deform::Morph);
-            EXPECT_EQ(mScene.meshes().getMeshPositions(sFace)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
+            EXPECT_EQ(mScene.meshes().getArrival(sFace).mPositions[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "the base, and never a pose";
 
             // The offsets, target by target: the base's four zeroes and then the unit lift.
             ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getRows()[0].mRows, 2u);
+            EXPECT_EQ(mScene.deformers().getRows()[DeformerIndex(0)].mRows, 2u);
             ASSERT_EQ(mScene.deformers().getMorphOffsets().size(), 8u);
             EXPECT_EQ(mScene.deformers().getMorphOffsets()[2], osg::Vec3f());
             EXPECT_EQ(mScene.deformers().getMorphOffsets()[6], osg::Vec3f(0.0f, 0.0f, 1.0f));
@@ -436,7 +439,7 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.meshes().getDeformed().size(), 1u);
             EXPECT_EQ(mScene.meshes().getDeformed()[0], sFace) << "the still quad's structure is not refitted";
             EXPECT_EQ(Rtx::weightAt(mScene.getMeshPose(sFace), 1), 3.0f);
-            EXPECT_EQ(mScene.meshes().getMeshPositions(sStill)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
+            EXPECT_EQ(mScene.meshes().getArrival(sStill).mPositions[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "and the neighbour is intact";
 
             // **A third walk, which is the one that must reach the heap not at all.** A morphed face
@@ -450,7 +453,8 @@ namespace Rtx::Testing
             EXPECT_EQ(spent, 0u) << spent << " allocations to pose a face the walk already held";
             EXPECT_EQ(third.mMeshesReused, 2u);
             EXPECT_EQ(Rtx::weightAt(mScene.getMeshPose(sFace), 1), 3.0f) << "at the same weight";
-            EXPECT_EQ(mScene.meshes().getMeshPositions(sFace)[2], osg::Vec3f(1.0f, 1.0f, 0.0f)) << "off the same base";
+            EXPECT_EQ(mScene.meshes().getArrival(sFace).mPositions[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
+                << "off the same base";
             EXPECT_TRUE(mScene.meshes().getDeformed().empty()) << "a pose that stood still named a structure to refit";
 
             // **A weight that is not a finite number keeps the last pose**, as a bone that is not one
@@ -501,17 +505,17 @@ namespace Rtx::Testing
             const ExtractionStats first = walk(*rigged.mSkeleton);
             EXPECT_EQ(first.mMeshesAdded, 2u);
             ASSERT_EQ(mScene.deformers().getRows().size(), 1u) << "one skin, one row";
-            EXPECT_EQ(mScene.deformers().getHolds(0), 2u);
+            EXPECT_EQ(mScene.deformers().getHolds(Rtx::DeformerIndex(0)), 2u);
             EXPECT_EQ(mScene.deformers().getRuns().size(), 4u) << "read once";
-            EXPECT_EQ(mScene.meshes().getRows()[0].mDeformer, 0u);
-            EXPECT_EQ(mScene.meshes().getRows()[1].mDeformer, 0u);
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(0)].mDeformer, Rtx::DeformerIndex(0));
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(1)].mDeformer, Rtx::DeformerIndex(0));
 
             rigged.update(2);
             mScene.clearPlacement();
             const ExtractionStats again = walk(*rigged.mSkeleton, 0, 1);
             EXPECT_EQ(again.mMeshesReused, 2u);
             EXPECT_EQ(mScene.deformers().getRows().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getHolds(0), 2u);
+            EXPECT_EQ(mScene.deformers().getHolds(Rtx::DeformerIndex(0)), 2u);
         }
 
         /// **A skin that names a bone it has not got, or weighs a vertex by no number, is refused**, and nothing of
@@ -552,7 +556,7 @@ namespace Rtx::Testing
             rigged.update(1);
             walk(*rigged.mSkeleton);
             ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getRows()[0].mRows, 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[DeformerIndex(0)].mRows, 1u);
 
             RiggedQuad wider;
             const SceneUtil::RigGeometry::BoneInfo bone{
@@ -567,7 +571,7 @@ namespace Rtx::Testing
             const ExtractionStats again = walk(*wider.mSkeleton, 0, 1);
             EXPECT_EQ(again.mMeshesAdded, 1u);
             ASSERT_EQ(mScene.deformers().getRows().size(), 2u) << "on a skin of its own";
-            EXPECT_EQ(mScene.deformers().getRows()[1].mRows, 2u);
+            EXPECT_EQ(mScene.deformers().getRows()[DeformerIndex(1)].mRows, 2u);
         }
 
         /// **A set of targets that grew under the same base is a new deformer**, because a pose is
@@ -588,8 +592,8 @@ namespace Rtx::Testing
 
             walk(*morph);
             ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getRows()[0].mRows, 2u);
-            EXPECT_EQ(mScene.meshes().getRows()[0].mDeformer, 0u);
+            EXPECT_EQ(mScene.deformers().getRows()[DeformerIndex(0)].mRows, 2u);
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(0)].mDeformer, Rtx::DeformerIndex(0));
 
             morph->addMorphTarget(makePositions({
                 osg::Vec3f(0.0f, 1.0f, 0.0f),
@@ -604,13 +608,13 @@ namespace Rtx::Testing
             const ExtractionStats again = walk(*morph, 0, 1);
             EXPECT_EQ(again.mMeshesAdded, 1u) << "the face is met as something the mirror has not seen";
             ASSERT_EQ(mScene.deformers().getRows().size(), 2u) << "on a set of its own";
-            EXPECT_EQ(mScene.deformers().getRows()[1].mRows, 3u);
+            EXPECT_EQ(mScene.deformers().getRows()[DeformerIndex(1)].mRows, 3u);
             EXPECT_EQ(mScene.deformers().getMorphOffsets().size(), 20u) << "the old set stands until its mesh goes";
 
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u) << "and takes a slot of its own rather than the old one";
-            EXPECT_EQ(mScene.meshes().getRows()[1].mDeformer, 1u);
-            EXPECT_EQ(mScene.getMeshPose(1).size(), 1u) << "three weights fit one word";
-            EXPECT_EQ(Rtx::weightAt(mScene.getMeshPose(1), 2), 0.25f);
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(1)].mDeformer, Rtx::DeformerIndex(1));
+            EXPECT_EQ(mScene.getMeshPose(MeshIndex(1)).size(), 1u) << "three weights fit one word";
+            EXPECT_EQ(Rtx::weightAt(mScene.getMeshPose(MeshIndex(1)), 2), 0.25f);
         }
 
         /// Shading that exists only inside a cull traversal is applied by the walk and read from it.
@@ -632,7 +636,7 @@ namespace Rtx::Testing
             const ExtractionStats first = walk(*node);
             ASSERT_EQ(first.mMaterialsAdded, 1u) << "the controller's state set is the only one on the path";
             ASSERT_EQ(mScene.materials().getRows().size(), 1u);
-            expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.0508761f);
+            expectRed(mScene.materials().getRows()[MaterialIndex(0)].mDiffuseColour, 0.0508761f);
 
             controller->mRed = 0.75f;
             mScene.clearPlacement();
@@ -641,7 +645,7 @@ namespace Rtx::Testing
             EXPECT_EQ(second.mMaterialsAdded, 0u) << "the surface did not change, only what it is wearing";
             EXPECT_EQ(second.mMaterialsReused, 1u);
             ASSERT_EQ(mScene.materials().getRows().size(), 1u);
-            expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.5225216f);
+            expectRed(mScene.materials().getRows()[MaterialIndex(0)].mDiffuseColour, 0.5225216f);
 
             // And a frame the controller said nothing new on writes nothing to the device: the row
             // goes over when the scene names it, and only then.

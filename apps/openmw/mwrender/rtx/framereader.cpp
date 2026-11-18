@@ -13,7 +13,7 @@
 namespace MWRender
 {
     osg::ref_ptr<osg::Image> FrameReader::read(
-        Rtx::Renderer& renderer, const int width, const int height, const Rtx::Channels channels)
+        Rtx::Renderer& renderer, const std::int32_t width, const std::int32_t height, const Rtx::Channels channels)
     {
         const Rtx::FrameExtents extents = renderer.getExtents();
         if (extents.mOutputWidth == 0 || extents.mOutputHeight == 0)
@@ -28,8 +28,8 @@ namespace MWRender
             .mPixels = pixels,
         };
 
-        return Rtx::frameImage(frame, width > 0 ? width : static_cast<int>(frame.mWidth),
-            height > 0 ? height : static_cast<int>(frame.mHeight), Rtx::RowOrder::BottomFirst, channels);
+        return Rtx::frameImage(frame, width > 0 ? width : static_cast<std::int32_t>(frame.mWidth),
+            height > 0 ? height : static_cast<std::int32_t>(frame.mHeight), Rtx::RowOrder::BottomFirst, channels);
     }
 
     MyGUI::ITexture& FrameReader::freeze(Rtx::Renderer& renderer, MyGUIRtx::RenderManager& gui)

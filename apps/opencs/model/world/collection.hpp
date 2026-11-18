@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -59,8 +61,8 @@ namespace CSMWorld
 
     inline void setRecordId(const ESM::RefId& id, Land& record)
     {
-        int x = 0;
-        int y = 0;
+        std::int32_t x = 0;
+        std::int32_t y = 0;
 
         Land::parseUniqueRecordId(id.getRefIdString(), x, y);
         record.mX = x;
@@ -81,24 +83,24 @@ namespace CSMWorld
 
     private:
         std::vector<std::unique_ptr<Record<ESXRecordT>>> mRecords;
-        std::map<ESM::RefId, int> mIndex;
+        std::map<ESM::RefId, std::int32_t> mIndex;
         std::vector<Column<ESXRecordT>*> mColumns;
 
     protected:
         const std::vector<std::unique_ptr<Record<ESXRecordT>>>& getRecords() const;
 
-        void reorderRowsImp(const std::vector<int>& indexOrder);
+        void reorderRowsImp(const std::vector<std::int32_t>& indexOrder);
 
-        bool reorderRowsImp(int baseIndex, const std::vector<int>& newOrder);
+        bool reorderRowsImp(std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder);
         ///< Reorder the rows [baseIndex, baseIndex+newOrder.size()) according to the indices
         /// given in \a newOrder (baseIndex+newOrder[0] specifies the new index of row baseIndex).
         ///
         /// \return Success?
 
-        int cloneRecordImp(const ESM::RefId& origin, const ESM::RefId& dest, UniversalId::Type type);
+        std::int32_t cloneRecordImp(const ESM::RefId& origin, const ESM::RefId& dest, UniversalId::Type type);
         ///< Returns the index of the clone.
 
-        int touchRecordImp(const ESM::RefId& id);
+        std::int32_t touchRecordImp(const ESM::RefId& id);
         ///< Returns the index of the record on success, -1 on failure.
 
     public:
@@ -111,19 +113,19 @@ namespace CSMWorld
         void add(const ESXRecordT& record);
         ///< Add a new record (modified)
 
-        int getSize() const override;
+        std::int32_t getSize() const override;
 
-        ESM::RefId getId(int index) const override;
+        ESM::RefId getId(std::int32_t index) const override;
 
-        int getIndex(const ESM::RefId& id) const override;
+        std::int32_t getIndex(const ESM::RefId& id) const override;
 
-        int getColumns() const override;
+        std::int32_t getColumns() const override;
 
-        QVariant getData(int index, int column) const override;
+        QVariant getData(std::int32_t index, std::int32_t column) const override;
 
-        void setData(int index, int column, const QVariant& data) override;
+        void setData(std::int32_t index, std::int32_t column, const QVariant& data) override;
 
-        const ColumnBase& getColumn(int column) const override;
+        const ColumnBase& getColumn(std::int32_t column) const override;
 
         void merge();
         ///< Merge modified into base.
@@ -131,7 +133,7 @@ namespace CSMWorld
         void purge();
         ///< Remove records that are flagged as erased.
 
-        void removeRows(int index, int count) override;
+        void removeRows(std::int32_t index, std::int32_t count) override;
 
         void appendBlankRecord(const ESM::RefId& id, UniversalId::Type type = UniversalId::Type_None) override;
         ///< \param type Will be ignored, unless the collection supports multiple record types
@@ -143,11 +145,11 @@ namespace CSMWorld
         ///< Change the state of a record from base to modified, if it is not already.
         ///  \return True if the record was changed.
 
-        int searchId(const ESM::RefId& id) const override;
+        std::int32_t searchId(const ESM::RefId& id) const override;
         ////< Search record with \a id.
         /// \return index of record (if found) or -1 (not found)
 
-        void replace(int index, std::unique_ptr<RecordBase> record) override;
+        void replace(std::int32_t index, std::unique_ptr<RecordBase> record) override;
         ///< If the record type does not match, an exception is thrown.
         ///
         /// \attention \a record must not change the ID.
@@ -158,9 +160,10 @@ namespace CSMWorld
 
         const Record<ESXRecordT>& getRecord(const ESM::RefId& id) const override;
 
-        const Record<ESXRecordT>& getRecord(int index) const override;
+        const Record<ESXRecordT>& getRecord(std::int32_t index) const override;
 
-        int getAppendIndex(const ESM::RefId& id, UniversalId::Type type = UniversalId::Type_None) const override;
+        std::int32_t getAppendIndex(
+            const ESM::RefId& id, UniversalId::Type type = UniversalId::Type_None) const override;
         ///< \param type Will be ignored, unless the collection supports multiple record types
 
         std::vector<ESM::RefId> getIds(bool listDeleted = true) const override;
@@ -169,7 +172,7 @@ namespace CSMWorld
         /// \param listDeleted include deleted record in the list
 
         virtual void insertRecord(
-            std::unique_ptr<RecordBase> record, int index, UniversalId::Type type = UniversalId::Type_None);
+            std::unique_ptr<RecordBase> record, std::int32_t index, UniversalId::Type type = UniversalId::Type_None);
         ///< Insert record before index.
         ///
         /// If the record type does not match, an exception is thrown.
@@ -177,7 +180,7 @@ namespace CSMWorld
         /// If the index is invalid either generally (by being out of range) or for the particular
         /// record, an exception is thrown.
 
-        bool reorderRows(int baseIndex, const std::vector<int>& newOrder) override;
+        bool reorderRows(std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder) override;
         ///< Reorder the rows [baseIndex, baseIndex+newOrder.size()) according to the indices
         /// given in \a newOrder (baseIndex+newOrder[0] specifies the new index of row baseIndex).
         ///
@@ -185,10 +188,10 @@ namespace CSMWorld
 
         void addColumn(Column<ESXRecordT>* column);
 
-        void setRecord(int index, std::unique_ptr<Record<ESXRecordT>> record);
+        void setRecord(std::int32_t index, std::unique_ptr<Record<ESXRecordT>> record);
         ///< \attention This function must not change the ID.
 
-        NestableColumn* getNestableColumn(int column) const;
+        NestableColumn* getNestableColumn(std::int32_t column) const;
     };
 
     template <typename ESXRecordT>
@@ -198,28 +201,29 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    void Collection<ESXRecordT>::reorderRowsImp(const std::vector<int>& indexOrder)
+    void Collection<ESXRecordT>::reorderRowsImp(const std::vector<std::int32_t>& indexOrder)
     {
         assert(indexOrder.size() == mRecords.size());
         assert(std::unordered_set(indexOrder.begin(), indexOrder.end()).size() == indexOrder.size());
         std::vector<std::unique_ptr<Record<ESXRecordT>>> orderedRecords;
-        for (const int index : indexOrder)
+        for (const std::int32_t index : indexOrder)
         {
-            mIndex.at(mRecords[static_cast<std::size_t>(index)]->get().mId) = static_cast<int>(orderedRecords.size());
+            mIndex.at(mRecords[static_cast<std::size_t>(index)]->get().mId)
+                = static_cast<std::int32_t>(orderedRecords.size());
             orderedRecords.push_back(std::move(mRecords[static_cast<std::size_t>(index)]));
         }
         mRecords = std::move(orderedRecords);
     }
 
     template <typename ESXRecordT>
-    bool Collection<ESXRecordT>::reorderRowsImp(int baseIndex, const std::vector<int>& newOrder)
+    bool Collection<ESXRecordT>::reorderRowsImp(std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder)
     {
         if (!newOrder.empty())
         {
-            int size = static_cast<int>(newOrder.size());
+            auto size = static_cast<std::int32_t>(newOrder.size());
 
             // check that all indices are present
-            std::vector<int> test(newOrder);
+            std::vector<std::int32_t> test(newOrder);
             std::sort(test.begin(), test.end());
             if (*test.begin() != 0 || *--test.end() != size - 1)
                 return false;
@@ -227,7 +231,7 @@ namespace CSMWorld
             // reorder records
             std::vector<std::unique_ptr<Record<ESXRecordT>>> buffer(static_cast<std::size_t>(size));
 
-            for (int i = 0; i < size; ++i)
+            for (std::int32_t i = 0; i < size; ++i)
             {
                 std::unique_ptr<Record<ESXRecordT>>& moved
                     = buffer[static_cast<std::size_t>(newOrder[static_cast<std::size_t>(i)])];
@@ -248,7 +252,7 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    int Collection<ESXRecordT>::cloneRecordImp(
+    std::int32_t Collection<ESXRecordT>::cloneRecordImp(
         const ESM::RefId& origin, const ESM::RefId& destination, UniversalId::Type type)
     {
         auto copy = std::make_unique<Record<ESXRecordT>>();
@@ -261,16 +265,16 @@ namespace CSMWorld
             copy->mModified.mStringId = copy->mModified.mId.getRefIdString();
         }
 
-        const int index = getAppendIndex(destination, type);
+        const std::int32_t index = getAppendIndex(destination, type);
         insertRecord(std::move(copy), getAppendIndex(destination, type));
 
         return index;
     }
 
     template <typename ESXRecordT>
-    int Collection<ESXRecordT>::touchRecordImp(const ESM::RefId& id)
+    std::int32_t Collection<ESXRecordT>::touchRecordImp(const ESM::RefId& id)
     {
-        const int index = getIndex(id);
+        const std::int32_t index = getIndex(id);
         Record<ESXRecordT>& record = *mRecords.at(static_cast<std::size_t>(index));
         if (record.isDeleted())
             throw std::runtime_error("attempt to touch deleted record from collection of "
@@ -296,7 +300,7 @@ namespace CSMWorld
     inline void Collection<Land>::cloneRecord(
         const ESM::RefId& origin, const ESM::RefId& destination, const UniversalId::Type type)
     {
-        const int index = cloneRecordImp(origin, destination, type);
+        const std::int32_t index = cloneRecordImp(origin, destination, type);
         mRecords.at(static_cast<std::size_t>(index))->get().setPlugin(-1);
     }
 
@@ -309,7 +313,7 @@ namespace CSMWorld
     template <>
     inline bool Collection<Land>::touchRecord(const ESM::RefId& id)
     {
-        const int index = touchRecordImp(id);
+        const std::int32_t index = touchRecordImp(id);
         if (index >= 0)
         {
             mRecords.at(static_cast<std::size_t>(index))->get().setPlugin(-1);
@@ -348,21 +352,21 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    int Collection<ESXRecordT>::getSize() const
+    std::int32_t Collection<ESXRecordT>::getSize() const
     {
-        return static_cast<int>(mRecords.size());
+        return static_cast<std::int32_t>(mRecords.size());
     }
 
     template <typename ESXRecordT>
-    ESM::RefId Collection<ESXRecordT>::getId(int index) const
+    ESM::RefId Collection<ESXRecordT>::getId(std::int32_t index) const
     {
         return getRecordId(mRecords.at(static_cast<std::size_t>(index))->get());
     }
 
     template <typename ESXRecordT>
-    int Collection<ESXRecordT>::getIndex(const ESM::RefId& id) const
+    std::int32_t Collection<ESXRecordT>::getIndex(const ESM::RefId& id) const
     {
-        int index = searchId(id);
+        std::int32_t index = searchId(id);
 
         if (index == -1)
             throw std::runtime_error("ID is not found in collection of " + std::string(ESXRecordT::getRecordType())
@@ -372,33 +376,33 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    int Collection<ESXRecordT>::getColumns() const
+    std::int32_t Collection<ESXRecordT>::getColumns() const
     {
-        return static_cast<int>(mColumns.size());
+        return static_cast<std::int32_t>(mColumns.size());
     }
 
     template <typename ESXRecordT>
-    QVariant Collection<ESXRecordT>::getData(int index, int column) const
+    QVariant Collection<ESXRecordT>::getData(std::int32_t index, std::int32_t column) const
     {
         return mColumns.at(static_cast<std::size_t>(column))->get(*mRecords.at(static_cast<std::size_t>(index)));
     }
 
     template <typename ESXRecordT>
-    void Collection<ESXRecordT>::setData(int index, int column, const QVariant& data)
+    void Collection<ESXRecordT>::setData(std::int32_t index, std::int32_t column, const QVariant& data)
     {
         return mColumns.at(static_cast<std::size_t>(column))->set(*mRecords.at(static_cast<std::size_t>(index)), data);
     }
 
     template <typename ESXRecordT>
-    const ColumnBase& Collection<ESXRecordT>::getColumn(int column) const
+    const ColumnBase& Collection<ESXRecordT>::getColumn(std::int32_t column) const
     {
         return *mColumns.at(static_cast<std::size_t>(column));
     }
 
     template <typename ESXRecordT>
-    NestableColumn* Collection<ESXRecordT>::getNestableColumn(int column) const
+    NestableColumn* Collection<ESXRecordT>::getNestableColumn(std::int32_t column) const
     {
-        if (column < 0 || column >= static_cast<int>(mColumns.size()))
+        if (column < 0 || column >= static_cast<std::int32_t>(mColumns.size()))
             throw std::runtime_error(
                 "column index out of range [0, " + std::to_string(mColumns.size()) + "): " + std::to_string(column));
 
@@ -423,9 +427,9 @@ namespace CSMWorld
     template <typename ESXRecordT>
     void Collection<ESXRecordT>::purge()
     {
-        int i = 0;
+        std::int32_t i = 0;
 
-        while (i < static_cast<int>(mRecords.size()))
+        while (i < static_cast<std::int32_t>(mRecords.size()))
         {
             if (mRecords[static_cast<std::size_t>(i)]->isErased())
                 removeRows(i, 1);
@@ -435,7 +439,7 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    void Collection<ESXRecordT>::removeRows(int index, int count)
+    void Collection<ESXRecordT>::removeRows(std::int32_t index, std::int32_t count)
     {
         mRecords.erase(mRecords.begin() + index, mRecords.begin() + index + count);
 
@@ -480,7 +484,7 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    int Collection<ESXRecordT>::searchId(const ESM::RefId& id) const
+    std::int32_t Collection<ESXRecordT>::searchId(const ESM::RefId& id) const
     {
         const auto iter = mIndex.find(id);
 
@@ -491,7 +495,7 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    void Collection<ESXRecordT>::replace(int index, std::unique_ptr<RecordBase> record)
+    void Collection<ESXRecordT>::replace(std::int32_t index, std::unique_ptr<RecordBase> record)
     {
         std::unique_ptr<Record<ESXRecordT>> tmp(static_cast<Record<ESXRecordT>*>(record.release()));
         mRecords.at(static_cast<std::size_t>(index)) = std::move(tmp);
@@ -500,14 +504,14 @@ namespace CSMWorld
     template <typename ESXRecordT>
     void Collection<ESXRecordT>::appendRecord(std::unique_ptr<RecordBase> record, UniversalId::Type type)
     {
-        int index = getAppendIndex(getRecordId(static_cast<Record<ESXRecordT>*>(record.get())->get()), type);
+        std::int32_t index = getAppendIndex(getRecordId(static_cast<Record<ESXRecordT>*>(record.get())->get()), type);
         insertRecord(std::move(record), index, type);
     }
 
     template <typename ESXRecordT>
-    int Collection<ESXRecordT>::getAppendIndex(const ESM::RefId& id, UniversalId::Type type) const
+    std::int32_t Collection<ESXRecordT>::getAppendIndex(const ESM::RefId& id, UniversalId::Type type) const
     {
-        return static_cast<int>(mRecords.size());
+        return static_cast<std::int32_t>(mRecords.size());
     }
 
     template <typename ESXRecordT>
@@ -527,20 +531,21 @@ namespace CSMWorld
     template <typename ESXRecordT>
     const Record<ESXRecordT>& Collection<ESXRecordT>::getRecord(const ESM::RefId& id) const
     {
-        int index = getIndex(id);
+        std::int32_t index = getIndex(id);
         return *mRecords.at(static_cast<std::size_t>(index));
     }
 
     template <typename ESXRecordT>
-    const Record<ESXRecordT>& Collection<ESXRecordT>::getRecord(int index) const
+    const Record<ESXRecordT>& Collection<ESXRecordT>::getRecord(std::int32_t index) const
     {
         return *mRecords.at(static_cast<std::size_t>(index));
     }
 
     template <typename ESXRecordT>
-    void Collection<ESXRecordT>::insertRecord(std::unique_ptr<RecordBase> record, int index, UniversalId::Type type)
+    void Collection<ESXRecordT>::insertRecord(
+        std::unique_ptr<RecordBase> record, std::int32_t index, UniversalId::Type type)
     {
-        int size = static_cast<int>(mRecords.size());
+        auto size = static_cast<std::int32_t>(mRecords.size());
         if (index < 0 || index > size)
             throw std::runtime_error("index out of range");
 
@@ -565,7 +570,7 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    void Collection<ESXRecordT>::setRecord(int index, std::unique_ptr<Record<ESXRecordT>> record)
+    void Collection<ESXRecordT>::setRecord(std::int32_t index, std::unique_ptr<Record<ESXRecordT>> record)
     {
         if (getRecordId(mRecords.at(static_cast<std::size_t>(index))->get()) != getRecordId(record->get()))
             throw std::runtime_error("attempt to change the ID of a record");
@@ -574,7 +579,7 @@ namespace CSMWorld
     }
 
     template <typename ESXRecordT>
-    bool Collection<ESXRecordT>::reorderRows(int baseIndex, const std::vector<int>& newOrder)
+    bool Collection<ESXRecordT>::reorderRows(std::int32_t baseIndex, const std::vector<std::int32_t>& newOrder)
     {
         return false;
     }

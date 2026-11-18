@@ -1,19 +1,17 @@
 #include "guiextensions.hpp"
 
-#include <components/compiler/opcodes.hpp>
+#include <cstdint>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <components/compiler/opcodes.hpp>
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
 
 #include "ref.hpp"
 
@@ -158,9 +156,9 @@ namespace MWScript
             class OpMenuTest : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
-                    int arg = 0;
+                    std::int32_t arg = 0;
                     if (arg0 > 0)
                     {
                         arg = runtime[0].mInteger;

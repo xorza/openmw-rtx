@@ -1,12 +1,13 @@
 #include "controller.hpp"
 
 #include <algorithm>
-
-#include "statesetupdater.hpp"
+#include <cstddef>
 
 #include <osg/Drawable>
 #include <osg/Geometry>
 #include <osg/MatrixTransform>
+
+#include "statesetupdater.hpp"
 
 namespace SceneUtil
 {
@@ -82,7 +83,7 @@ namespace SceneUtil
                 visit(node, *ctrl);
             if (auto* composite = dynamic_cast<CompositeStateSetUpdater*>(callback))
             {
-                for (size_t i = 0; i < composite->getNumControllers(); ++i)
+                for (std::size_t i = 0; i < composite->getNumControllers(); ++i)
                 {
                     StateSetUpdater* statesetcontroller = composite->getController(i);
                     if (auto* ctrl = dynamic_cast<Controller*>(statesetcontroller))

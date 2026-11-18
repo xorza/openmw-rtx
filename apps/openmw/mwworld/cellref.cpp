@@ -2,17 +2,18 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/objectstate.hpp>
 #include <components/esm4/loadrefr.hpp>
 
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwmechanics/spellutil.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
+#include "esmstore.hpp"
 
 namespace MWWorld
 {
@@ -58,7 +59,7 @@ namespace MWWorld
             lastAssignedRefNum.mIndex++;
             if (lastAssignedRefNum.mIndex == 0) // mIndex overflow, so mContentFile should be changed
             {
-                if (lastAssignedRefNum.mContentFile > std::numeric_limits<int32_t>::min())
+                if (lastAssignedRefNum.mContentFile > std::numeric_limits<std::int32_t>::min())
                     lastAssignedRefNum.mContentFile--;
                 else
                     Log(Debug::Error) << "RefNum counter overflow in CellRef::getOrAssignRefNum";
@@ -148,7 +149,7 @@ namespace MWWorld
 
     float CellRef::getNormalizedEnchantmentCharge(const ESM::Enchantment& enchantment) const
     {
-        const int maxCharge = MWMechanics::getEnchantmentCharge(enchantment);
+        const std::int32_t maxCharge = MWMechanics::getEnchantmentCharge(enchantment);
         if (maxCharge == 0)
         {
             return 0;
@@ -178,7 +179,7 @@ namespace MWWorld
         }
     }
 
-    void CellRef::setCharge(int charge)
+    void CellRef::setCharge(std::int32_t charge)
     {
         if (charge != getCharge())
         {
@@ -200,7 +201,7 @@ namespace MWWorld
             if (cellRef3.mChargeIntRemainder <= -1.0f)
             {
                 float newChargeRemainder = std::modf(cellRef3.mChargeIntRemainder, &cellRef3.mChargeIntRemainder);
-                cellRef3.mChargeInt += static_cast<int>(cellRef3.mChargeIntRemainder);
+                cellRef3.mChargeInt += static_cast<std::int32_t>(cellRef3.mChargeIntRemainder);
                 cellRef3.mChargeIntRemainder = newChargeRemainder;
                 cellRef3.mChargeInt = std::max(cellRef3.mChargeInt, 0);
                 mChanged = true;
@@ -263,7 +264,7 @@ namespace MWWorld
         }
     }
 
-    void CellRef::setFactionRank(int factionRank)
+    void CellRef::setFactionRank(std::int32_t factionRank)
     {
         if (factionRank != getFactionRank())
         {
@@ -316,13 +317,13 @@ namespace MWWorld
         }
     }
 
-    void CellRef::setLockLevel(int lockLevel)
+    void CellRef::setLockLevel(std::int32_t lockLevel)
     {
         if (lockLevel != getLockLevel())
         {
             mChanged = true;
             std::visit(ESM::VisitOverload{
-                           [&](ESM4::Reference& ref) { ref.mLockLevel = static_cast<int8_t>(lockLevel); },
+                           [&](ESM4::Reference& ref) { ref.mLockLevel = static_cast<std::int8_t>(lockLevel); },
                            [&](ESM4::ActorCharacter&) {},
                            [&](ESM::CellRef& ref) { ref.mLockLevel = lockLevel; },
                        },
@@ -330,7 +331,7 @@ namespace MWWorld
         }
     }
 
-    void CellRef::lock(int lockLevel)
+    void CellRef::lock(std::int32_t lockLevel)
     {
         setLockLevel(lockLevel);
         setLocked(true);
@@ -391,7 +392,7 @@ namespace MWWorld
         }
     }
 
-    void CellRef::setCount(int value)
+    void CellRef::setCount(std::int32_t value)
     {
         if (value != getCount(false))
         {

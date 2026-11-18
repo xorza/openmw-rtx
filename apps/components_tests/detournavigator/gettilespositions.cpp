@@ -1,9 +1,9 @@
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <components/detournavigator/debug.hpp>
 #include <components/detournavigator/gettilespositions.hpp>
 #include <components/detournavigator/settings.hpp>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
 
 namespace
 {

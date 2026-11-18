@@ -26,6 +26,8 @@
 */
 #include "loadstat.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 
 #include "reader.hpp"
@@ -61,7 +63,7 @@ void ESM4::Static::load(ESM4::Reader& reader)
 
                 // for TES4 these are just a sequence of bytes
                 mMODT.resize(subHdr.dataSize / sizeof(std::uint8_t));
-                for (unsigned char& it : mMODT)
+                for (std::uint8_t& it : mMODT)
                 {
                     reader.get(it);
                 }
@@ -73,7 +75,7 @@ void ESM4::Static::load(ESM4::Reader& reader)
                 {
                     level.resize(260);
                     reader.get(level.data(), 260);
-                    size_t end = level.find('\0');
+                    std::size_t end = level.find('\0');
                     if (end != std::string::npos)
                         level.erase(end);
                 }

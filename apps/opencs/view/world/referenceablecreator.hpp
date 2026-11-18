@@ -1,10 +1,11 @@
 #pragma once
 
-#include "genericcreator.hpp"
-
+#include <cstdint>
 #include <string>
 
 #include <apps/opencs/model/world/universalid.hpp>
+
+#include "genericcreator.hpp"
 
 class QComboBox;
 class QObject;
@@ -39,6 +40,6 @@ namespace CSVWorld
 
     private slots:
 
-        void setType(int index);
+        void setType(std::int32_t index);
     };
 }

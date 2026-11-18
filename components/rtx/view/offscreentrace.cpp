@@ -1,6 +1,7 @@
 #include "offscreentrace.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <numbers>
 #include <optional>
 #include <variant>
@@ -33,7 +34,8 @@ namespace Rtx
         }
     }
 
-    OffscreenTrace::OffscreenTrace(PictureRenderer& renderer, const ViewRequest& request, WalkContext& context)
+    OffscreenTrace::OffscreenTrace(
+        PictureRenderer& renderer, const ViewRequest& request, WalkContext& context, SceneIdentities& identities)
         : mRenderer(renderer)
         , mRequest(request)
         , mExtentWidth(request.mWidth)
@@ -48,7 +50,7 @@ namespace Rtx
 
         Subject& held = *mSubject;
         held.mNode = request.mSubject;
-        held.mScene = std::make_unique<SceneDesc>();
+        held.mScene = std::make_unique<SceneDesc>(identities);
         held.mUpdate = std::make_unique<PoseUpdate>();
         held.mPose = std::make_unique<PoseCull>();
         held.mPoseStamp = new osg::FrameStamp;
@@ -114,7 +116,7 @@ namespace Rtx
         Subject& subject = *mSubject;
         subject.mPosedFrame = posing.getFrameNumber();
 
-        subject.mUpdate->reset();
+        (*subject.mUpdate).reset();
 
         // `osg::NodeVisitor::setFrameStamp` takes a mutable pointer and stores it without writing
         // through it, which is the whole of why this is cast.
@@ -233,13 +235,13 @@ namespace Rtx
         // `SceneUtil::RigGeometry` and `MorphGeometry` skin inside a cull and answer an intersection with
         // the last cull's result, so without this the click would land on the bind pose. A number from
         // the shared sequence, because both refuse to move for one they have seen.
-        const unsigned int posed = subject.mExtractor->getContext().mTraversals.next();
+        const std::uint32_t posed = subject.mExtractor->getContext().mTraversals.next();
         subject.mPoseStamp->setFrameNumber(posed);
 
         // **Updated before it is posed, as a frame is**: a part `NpcAnimation::updateParts` attached since
         // the last redraw binds its skeleton in an update traversal, and culled before one it found none
         // and logged so. At the picture's own clock, so what was shown stands where it stood.
-        subject.mUpdate->reset();
+        (*subject.mUpdate).reset();
         subject.mUpdate->setFrameStamp(subject.mPoseStamp.get());
         subject.mUpdate->setTraversalNumber(posed);
         subject.mNode->accept(*subject.mUpdate);

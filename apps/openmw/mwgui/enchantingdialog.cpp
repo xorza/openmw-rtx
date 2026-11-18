@@ -1,27 +1,24 @@
 #include "enchantingdialog.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <components/esm3/loadgmst.hpp>
 #include <components/misc/strings/format.hpp>
 #include <components/settings/values.hpp>
 
-#include <components/esm3/loadgmst.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
 #include "itemselection.hpp"
 #include "itemwidget.hpp"
-
 #include "sortfilteritemmodel.hpp"
 
 namespace MWGui
@@ -107,8 +104,8 @@ namespace MWGui
 
     void EnchantingDialog::updateLabels()
     {
-        mEnchantmentPoints->setCaption(std::to_string(static_cast<int>(mEnchanting.getEnchantPoints(false))) + " / "
-            + std::to_string(mEnchanting.getMaxEnchantValue()));
+        mEnchantmentPoints->setCaption(std::to_string(static_cast<std::int32_t>(mEnchanting.getEnchantPoints(false)))
+            + " / " + std::to_string(mEnchanting.getMaxEnchantValue()));
         mCharge->setCaption(std::to_string(mEnchanting.getGemCharge()));
         mSuccessChance->setCaption(std::to_string(std::clamp(mEnchanting.getEnchantChance(), 0, 100)));
         mCastCost->setCaption(std::to_string(mEnchanting.getEffectiveCastCost()));
@@ -325,7 +322,7 @@ namespace MWGui
             return;
         }
 
-        if (static_cast<int>(mEnchanting.getEnchantPoints(false)) > mEnchanting.getMaxEnchantValue())
+        if (static_cast<std::int32_t>(mEnchanting.getEnchantPoints(false)) > mEnchanting.getMaxEnchantValue())
         {
             MWBase::Environment::get().getWindowManager()->messageBox("#{sNotifyMessage29}");
             return;
@@ -335,7 +332,7 @@ namespace MWGui
         mEnchanting.setEffect(mEffectList);
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
-        int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
+        std::int32_t playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
         if (mPtr != player && mEnchanting.getEnchantPrice() > playerGold)
         {
             MWBase::Environment::get().getWindowManager()->messageBox("#{sNotifyMessage18}");
@@ -345,7 +342,7 @@ namespace MWGui
         // check if the player is attempting to use a soulstone or item that was stolen from this actor
         if (mPtr != player)
         {
-            for (int i = 0; i < 2; ++i)
+            for (std::int32_t i = 0; i < 2; ++i)
             {
                 MWWorld::Ptr item = (i == 0) ? mEnchanting.getOldItem() : mEnchanting.getGem();
                 if (MWBase::Environment::get().getMechanicsManager()->isItemStolenFrom(

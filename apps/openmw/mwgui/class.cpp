@@ -1,19 +1,19 @@
 #include "class.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ListBox.h>
 #include <MyGUI_ScrollView.h>
 #include <MyGUI_UString.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwworld/esmstore.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -127,7 +127,7 @@ namespace MWGui
         getWidget(mFavoriteAttribute[0], "FavoriteAttribute0");
         getWidget(mFavoriteAttribute[1], "FavoriteAttribute1");
 
-        for (int i = 0; i < 5; i++)
+        for (std::int32_t i = 0; i < 5; i++)
         {
             char theIndex = static_cast<char>('0' + static_cast<char>(i));
             getWidget(mMajorSkill[i], std::string("MajorSkill").append(1, theIndex));
@@ -200,8 +200,8 @@ namespace MWGui
     {
         mCurrentClassId = classId;
         mClassList->setIndexSelected(MyGUI::ITEM_NONE);
-        size_t count = mClassList->getItemCount();
-        for (size_t i = 0; i < count; ++i)
+        std::size_t count = mClassList->getItemCount();
+        for (std::size_t i = 0; i < count; ++i)
         {
             if (*mClassList->getItemDataAt<ESM::RefId>(i) == classId)
             {
@@ -227,7 +227,7 @@ namespace MWGui
         eventBack();
     }
 
-    void PickClassDialog::onAccept(MyGUI::ListBox* sender, size_t index)
+    void PickClassDialog::onAccept(MyGUI::ListBox* sender, std::size_t index)
     {
         onSelectClass(sender, index);
         if (mClassList->getIndexSelected() == MyGUI::ITEM_NONE)
@@ -235,7 +235,7 @@ namespace MWGui
         eventDone(this);
     }
 
-    void PickClassDialog::onSelectClass(MyGUI::ListBox* sender, size_t index)
+    void PickClassDialog::onSelectClass(MyGUI::ListBox* sender, std::size_t index)
     {
         if (index == MyGUI::ITEM_NONE)
             return;
@@ -269,7 +269,7 @@ namespace MWGui
         }
         std::sort(items.begin(), items.end(), sortClasses);
 
-        int index = 0;
+        std::int32_t index = 0;
         for (auto& itemPair : items)
         {
             const ESM::RefId& id = itemPair.first;
@@ -308,13 +308,13 @@ namespace MWGui
         ToolTips::createAttributeToolTip(mFavoriteAttribute[0], mFavoriteAttribute[0]->getAttributeId());
         ToolTips::createAttributeToolTip(mFavoriteAttribute[1], mFavoriteAttribute[1]->getAttributeId());
 
-        for (size_t i = 0; i < currentClass->mData.mMinorSkills.size(); ++i)
+        for (std::size_t i = 0; i < currentClass->mData.mMinorSkills.size(); ++i)
         {
             const ESM::RefId& minor = currentClass->mData.mMinorSkills[i];
             mMinorSkill[i]->setSkillId(minor);
             ToolTips::createSkillToolTip(mMinorSkill[i], minor);
         }
-        for (size_t i = 0; i < currentClass->mData.mMajorSkills.size(); ++i)
+        for (std::size_t i = 0; i < currentClass->mData.mMajorSkills.size(); ++i)
         {
             const ESM::RefId& major = currentClass->mData.mMajorSkills[i];
             mMajorSkill[i]->setSkillId(major);
@@ -362,13 +362,13 @@ namespace MWGui
         widget->setSize(size);
     }
 
-    void InfoBoxDialog::layoutVertically(MyGUI::Widget* widget, int margin)
+    void InfoBoxDialog::layoutVertically(MyGUI::Widget* widget, std::int32_t margin)
     {
-        size_t count = widget->getChildCount();
-        int pos = 0;
+        std::size_t count = widget->getChildCount();
+        std::int32_t pos = 0;
         pos += margin;
-        int width = 0;
-        for (unsigned i = 0; i < count; ++i)
+        std::int32_t width = 0;
+        for (std::uint32_t i = 0; i < count; ++i)
         {
             MyGUI::Widget* child = widget->getChildAt(i);
             if (!child->getVisible())
@@ -452,7 +452,7 @@ namespace MWGui
 
     void InfoBoxDialog::onButtonClicked(MyGUI::Widget* sender)
     {
-        int i = 0;
+        std::int32_t i = 0;
         for (MyGUI::Button* button : mButtons)
         {
             if (button == sender)
@@ -615,7 +615,7 @@ namespace MWGui
 
     void CreateClassDialog::update()
     {
-        for (int i = 0; i < 5; ++i)
+        for (std::int32_t i = 0; i < 5; ++i)
         {
             ToolTips::createSkillToolTip(
                 mMajorSkill[static_cast<std::size_t>(i)], mMajorSkill[static_cast<std::size_t>(i)]->getSkillId());
@@ -754,7 +754,7 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->removeDialog(std::move(mSpecDialog));
     }
 
-    void CreateClassDialog::setSpecialization(int id)
+    void CreateClassDialog::setSpecialization(std::int32_t id)
     {
         mSpecializationId = ESM::Class::Specialization(id);
         std::string specName{ MWBase::Environment::get().getWindowManager()->getGameSettingString(
@@ -1125,11 +1125,11 @@ namespace MWGui
         return true;
     }
 
-    void SelectSkillDialog::selectNextColumn(int direction)
+    void SelectSkillDialog::selectNextColumn(std::int32_t direction)
     {
         // Find which column (specialization) the current index is in.
-        size_t specialization = 0;
-        size_t nextSpecializationIndex = 0;
+        std::size_t specialization = 0;
+        std::size_t nextSpecializationIndex = 0;
         for (; specialization < mNumSkillsPerSpecialization.size(); ++specialization)
         {
             nextSpecializationIndex += mNumSkillsPerSpecialization[specialization];
@@ -1142,7 +1142,7 @@ namespace MWGui
             if (mControllerFocus < mNumSkillsPerSpecialization[0])
             {
                 // Wrap around to the right column
-                for (size_t i = 0; i < mNumSkillsPerSpecialization.size() - 1; ++i)
+                for (std::size_t i = 0; i < mNumSkillsPerSpecialization.size() - 1; ++i)
                     mControllerFocus += mNumSkillsPerSpecialization[i];
             }
             else
@@ -1153,7 +1153,7 @@ namespace MWGui
             if (mControllerFocus + mNumSkillsPerSpecialization.back() >= mSkillButtons.size())
             {
                 // Wrap around to the left column
-                for (size_t i = 0; i < mNumSkillsPerSpecialization.size() - 1; ++i)
+                for (std::size_t i = 0; i < mNumSkillsPerSpecialization.size() - 1; ++i)
                     mControllerFocus -= mNumSkillsPerSpecialization[i];
             }
             else

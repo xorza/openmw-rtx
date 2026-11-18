@@ -1,42 +1,45 @@
 #include "classbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/lua/luastate.hpp>
 
 #include "idcollectionbindings.hpp"
 #include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
 
 namespace
 {
-    constexpr size_t sAttributeCount = std::tuple_size_v<decltype(ESM::Class::CLDTstruct::mAttribute)>;
-    constexpr size_t sMajorSkillCount = std::tuple_size_v<decltype(ESM::Class::CLDTstruct::mMajorSkills)>;
-    constexpr size_t sMinorSkillCount = std::tuple_size_v<decltype(ESM::Class::CLDTstruct::mMinorSkills)>;
+    constexpr std::size_t sAttributeCount = std::tuple_size_v<decltype(ESM::Class::CLDTstruct::mAttribute)>;
+    constexpr std::size_t sMajorSkillCount = std::tuple_size_v<decltype(ESM::Class::CLDTstruct::mMajorSkills)>;
+    constexpr std::size_t sMinorSkillCount = std::tuple_size_v<decltype(ESM::Class::CLDTstruct::mMinorSkills)>;
 
-    ESM::RefId& getAttribute(ESM::Class& c, size_t index)
+    ESM::RefId& getAttribute(ESM::Class& c, std::size_t index)
     {
         return c.mData.mAttribute.at(index);
     }
-    ESM::RefId& getMinorSkill(ESM::Class& c, size_t index)
+    ESM::RefId& getMinorSkill(ESM::Class& c, std::size_t index)
     {
         return c.mData.mMinorSkills.at(index);
     }
-    ESM::RefId& getMajorSkill(ESM::Class& c, size_t index)
+    ESM::RefId& getMajorSkill(ESM::Class& c, std::size_t index)
     {
         return c.mData.mMajorSkills.at(index);
     }
 
-    using ClassStatMapper = ESM::RefId& (*)(ESM::Class&, size_t);
+    using ClassStatMapper = ESM::RefId& (*)(ESM::Class&, std::size_t);
 
     struct ClassStatArray
     {
         MWLua::MutableRecord<ESM::Class> mClass;
         ClassStatMapper mMapper;
-        size_t mSize;
+        std::size_t mSize;
 
-        ESM::RefId& find(size_t index) { return mMapper(mClass.find(), index); }
+        ESM::RefId& find(std::size_t index) { return mMapper(mClass.find(), index); }
 
-        const ESM::RefId& find(size_t index) const
+        const ESM::RefId& find(std::size_t index) const
         {
             return mMapper(const_cast<MWLua::MutableRecord<ESM::Class>&>(mClass).find(), index);
         }
@@ -63,13 +66,13 @@ namespace MWLua
         {
             if (value == sol::nil)
             {
-                for (size_t i = 0; i < size; ++i)
+                for (std::size_t i = 0; i < size; ++i)
                     mapper(cls, i) = {};
             }
             else if (value.is<ClassStatArray>())
             {
                 const ClassStatArray& other = value.as<ClassStatArray>();
-                for (size_t i = 0; i < size; ++i)
+                for (std::size_t i = 0; i < size; ++i)
                 {
                     if (i < other.mSize)
                         mapper(cls, i) = other.find(i);
@@ -80,8 +83,8 @@ namespace MWLua
             else
             {
                 auto table = value.as<sol::lua_table>();
-                const size_t length = table.size();
-                for (size_t i = 0; i < size; ++i)
+                const std::size_t length = table.size();
+                for (std::size_t i = 0; i < size; ++i)
                 {
                     if (i < length)
                         mapper(cls, i) = ESM::RefId::deserializeText(
@@ -102,9 +105,9 @@ namespace MWLua
                 });
         }
 
-        int32_t getSpecialization(std::string_view id)
+        std::int32_t getSpecialization(std::string_view id)
         {
-            for (int32_t i = ESM::Class::Combat; i <= ESM::Class::Stealth; ++i)
+            for (std::int32_t i = ESM::Class::Combat; i <= ESM::Class::Stealth; ++i)
             {
                 if (ESM::Class::specializationIndexToLuaId[static_cast<std::size_t>(i)] == id)
                     return i;
@@ -117,16 +120,17 @@ namespace MWLua
             auto arrayT = lua.new_usertype<ClassStatArray>("ESM3_MutableClassStatIds");
             arrayT[sol::meta_function::length] = [](const ClassStatArray& array) { return array.mSize; };
             arrayT[sol::meta_function::index]
-                = [](const ClassStatArray& array, uint32_t index) -> std::optional<ESM::RefId> {
+                = [](const ClassStatArray& array, std::uint32_t index) -> std::optional<ESM::RefId> {
                 if (index == 0 || index > array.mSize)
                     return {};
                 return array.find(index - 1);
             };
-            arrayT[sol::meta_function::new_index] = [](ClassStatArray& array, uint32_t index, std::string_view value) {
-                if (index == 0 || index > array.mSize)
-                    throw std::runtime_error("index out of range");
-                array.find(index - 1) = ESM::RefId::deserializeText(value);
-            };
+            arrayT[sol::meta_function::new_index]
+                = [](ClassStatArray& array, std::uint32_t index, std::string_view value) {
+                      if (index == 0 || index > array.mSize)
+                          throw std::runtime_error("index out of range");
+                      array.find(index - 1) = ESM::RefId::deserializeText(value);
+                  };
             arrayT[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();
             arrayT[sol::meta_function::pairs] = lua["ipairsForArray"].template get<sol::function>();
         }

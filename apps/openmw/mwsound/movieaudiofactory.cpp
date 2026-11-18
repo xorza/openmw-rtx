@@ -1,11 +1,13 @@
 #include "movieaudiofactory.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <osg-ffmpeg-videoplayer/audiodecoder.hpp>
-#include <osg-ffmpeg-videoplayer/libavutildefines.hpp>
 #include <osg-ffmpeg-videoplayer/videostate.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
 
 #include "sounddecoder.hpp"
 
@@ -32,9 +34,9 @@ namespace MWSound
             void close() override {}
 
             std::string getName() override;
-            void getInfo(int* samplerate, ChannelConfig* chans, SampleType* type) override;
-            size_t read(char* buffer, size_t bytes) override;
-            size_t getSampleOffset() override;
+            void getInfo(std::int32_t* samplerate, ChannelConfig* chans, SampleType* type) override;
+            std::size_t read(char* buffer, std::size_t bytes) override;
+            std::size_t getSampleOffset() override;
         };
     }
 
@@ -48,16 +50,12 @@ namespace MWSound
         {
         }
 
-        size_t getSampleOffset()
+        std::size_t getSampleOffset()
         {
-#if OPENMW_FFMPEG_5_OR_GREATER
             const ssize_t clockDelay = (mFrameSize - mFramePos) / mOutputChannelLayout.nb_channels
-#else
-            const ssize_t clockDelay = (mFrameSize - mFramePos)
-                / av_get_channel_layout_nb_channels(mOutputChannelLayout)
-#endif
                 / av_get_bytes_per_sample(mOutputSampleFormat);
-            return static_cast<size_t>(static_cast<ssize_t>(mAudioClock * mAudioContext->sample_rate) - clockDelay);
+            return static_cast<std::size_t>(
+                static_cast<ssize_t>(mAudioClock * mAudioContext->sample_rate) - clockDelay);
         }
 
         std::string getStreamName() { return std::string(); }
@@ -71,7 +69,8 @@ namespace MWSound
                 - MWBase::Environment::get().getSoundManager()->getTrackTimeDelay(mAudioTrack);
         }
 
-        void adjustAudioSettings(AVSampleFormat& sampleFormat, uint64_t& channelLayout, int& sampleRate) override
+        void adjustAudioSettings(
+            AVSampleFormat& sampleFormat, std::uint64_t& channelLayout, std::int32_t& sampleRate) override
         {
             if (sampleFormat == AV_SAMPLE_FMT_U8P || sampleFormat == AV_SAMPLE_FMT_U8)
                 sampleFormat = AV_SAMPLE_FMT_U8;
@@ -111,11 +110,11 @@ namespace MWSound
         return mDecoder->getStreamName();
     }
 
-    void MWSoundDecoderBridge::getInfo(int* samplerate, ChannelConfig* chans, SampleType* type)
+    void MWSoundDecoderBridge::getInfo(std::int32_t* samplerate, ChannelConfig* chans, SampleType* type)
     {
         *samplerate = mDecoder->getOutputSampleRate();
 
-        uint64_t outputChannelLayout = mDecoder->getOutputChannelLayout();
+        std::uint64_t outputChannelLayout = mDecoder->getOutputChannelLayout();
         if (outputChannelLayout == AV_CH_LAYOUT_MONO)
             *chans = ChannelConfig_Mono;
         else if (outputChannelLayout == AV_CH_LAYOUT_5POINT1)
@@ -144,12 +143,12 @@ namespace MWSound
         }
     }
 
-    size_t MWSoundDecoderBridge::read(char* buffer, size_t bytes)
+    std::size_t MWSoundDecoderBridge::read(char* buffer, std::size_t bytes)
     {
         return mDecoder->read(buffer, bytes);
     }
 
-    size_t MWSoundDecoderBridge::getSampleOffset()
+    std::size_t MWSoundDecoderBridge::getSampleOffset()
     {
         return mDecoder->getSampleOffset();
     }

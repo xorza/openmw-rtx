@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -25,5 +26,5 @@ namespace Fallback
     };
 
     // Parses and validates a fallback map from boost program_options.
-    void validate(boost::any& v, std::vector<std::string> const& tokens, FallbackMap*, int);
+    void validate(boost::any& v, std::vector<std::string> const& tokens, FallbackMap*, std::int32_t);
 }

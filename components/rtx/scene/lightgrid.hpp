@@ -10,6 +10,7 @@
 #include <osg/Vec4f>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/shaders/scene.h>
 
@@ -82,7 +83,7 @@ namespace Rtx
         /// **The lamps that take light away are a run of their own**, so a walk of the lamps never
         /// meets one, and in the same row as the cell's own, so the two a shaded point reads are one
         /// fetch.
-        std::span<const Shaders::GpuLightCell> getCells() const { return mCells; }
+        std::span<const Shaders::GpuLightCell> getCells() const { return mCells.items(); }
 
         /// The lamps the runs name, and room past them: what stands outside a run is never read.
         std::span<const std::uint32_t> getList() const { return mList; }
@@ -90,7 +91,7 @@ namespace Rtx
         /// Whether the last `rebuild` made the grid again, so that every cell and the list may have
         /// changed; where it did not, the cells whose runs it wrote, each once.
         bool wasMadeAgain() const { return mMadeAgain; }
-        std::span<const Index> getRewritten() const { return mRewritten.getSlots(); }
+        std::span<const LightCellIndex> getRewritten() const { return mRewritten.getSlots(); }
 
         /// How many lights the grid bins, those that take light away among them.
         std::size_t getLightCount() const { return mBinnedOn.size(); }
@@ -108,17 +109,17 @@ namespace Rtx
 
         /// Takes lamp `index` out of `cell`'s run under `key` — nought for the lamps that light and
         /// one for those that take light away — closing the run behind it.
-        void leave(Index cell, std::uint32_t key, std::uint32_t index);
+        void leave(LightCellIndex cell, std::uint32_t key, std::uint32_t index);
 
         /// Puts lamp `index` into `cell`'s run under `key`, in order, moving the run to a block twice
         /// the size where it is full. False, writing nothing, where the list has no room for that.
-        bool enter(Index cell, std::uint32_t key, std::uint32_t index);
+        bool enter(LightCellIndex cell, std::uint32_t key, std::uint32_t index);
 
         osg::Vec3f mOrigin;
         osg::Vec3ui mSize{ 1u, 1u, 1u };
         float mInverseCell = 1.0f;
 
-        std::vector<Shaders::GpuLightCell> mCells;
+        RowVector<Shaders::GpuLightCell, LightCellIndex> mCells;
         std::vector<std::uint32_t> mList;
 
         /// How many lamps each run's block holds, two a cell as `mCells` keys them, and where the
@@ -134,7 +135,7 @@ namespace Rtx
         std::vector<CellBox> mBoxes;
 
         bool mMadeAgain = false;
-        SlotSet mRewritten;
+        SlotSet<LightCellIndex> mRewritten;
 
         /// A lamp whose box moved this rebuild, and where it stood before: every lamp leaves before
         /// any enters, so two that trade places never crowd a run they are only passing through.

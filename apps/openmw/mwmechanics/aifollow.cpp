@@ -1,15 +1,15 @@
 #include "aifollow.hpp"
 
 #include <algorithm>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <components/esm3/aisequence.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
 
 #include "character.hpp"
 #include "creaturestats.hpp"
@@ -27,7 +27,7 @@ namespace
 
 namespace MWMechanics
 {
-    int AiFollow::mFollowIndexCounter = 0;
+    std::int32_t AiFollow::mFollowIndexCounter = 0;
 
     AiFollow::AiFollow(
         ESM::RefNum actor, std::string_view cellId, float duration, float x, float y, float z, bool repeat)
@@ -135,7 +135,7 @@ namespace MWMechanics
         }
         floatingDistance += getHalfExtents(target) + 64;
         floatingDistance += getHalfExtents(actor) * 2;
-        auto followDistance = static_cast<short>(floatingDistance);
+        auto followDistance = static_cast<std::int16_t>(floatingDistance);
 
         // AiFollow requires the target to be in range and within sight for the initial activation
         if (!mActive)
@@ -189,12 +189,12 @@ namespace MWMechanics
             }
         }
 
-        short baseFollowDistance = followDistance;
-        short threshold = 30; // to avoid constant switching between moving/stopping
+        std::int16_t baseFollowDistance = followDistance;
+        std::int16_t threshold = 30; // to avoid constant switching between moving/stopping
         if (storage.mMoving)
-            followDistance = static_cast<short>(followDistance - threshold);
+            followDistance = static_cast<std::int16_t>(followDistance - threshold);
         else
-            followDistance = static_cast<short>(followDistance + threshold);
+            followDistance = static_cast<std::int16_t>(followDistance + threshold);
 
         if (targetDir.length2() <= static_cast<float>(followDistance * followDistance))
         {
@@ -245,7 +245,7 @@ namespace MWMechanics
         follow->mData.mX = mX;
         follow->mData.mY = mY;
         follow->mData.mZ = mZ;
-        follow->mData.mDuration = static_cast<int16_t>(mDuration);
+        follow->mData.mDuration = static_cast<std::int16_t>(mDuration);
         follow->mTargetId = mTargetActorRefId;
         follow->mTargetActor = mTargetActor;
         follow->mRemainingDuration = mRemainingDuration;
@@ -261,7 +261,7 @@ namespace MWMechanics
         sequence.mPackages.push_back(std::move(package));
     }
 
-    int AiFollow::getFollowIndex() const
+    std::int32_t AiFollow::getFollowIndex() const
     {
         return mFollowIndex;
     }

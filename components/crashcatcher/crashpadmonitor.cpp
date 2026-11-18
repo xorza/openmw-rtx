@@ -1,5 +1,3 @@
-#include "crashinstall.hpp"
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -42,6 +40,7 @@
 #include <components/platform/process.hpp>
 
 #include "crashhangwatch.hpp"
+#include "crashinstall.hpp"
 #include "crashmonitorarguments.hpp"
 #include "crashmonitorlog.hpp"
 #include "crashmonitorrequests.hpp"
@@ -164,8 +163,8 @@ namespace Crash
                                    : "No report of what it is doing could be saved; the log says why:\n")
                 + log + "\n\nWait for it, or end it?";
             // The buttons' ids, which SDL takes and hands back as an `int`.
-            constexpr int waitButton = 0;
-            constexpr int endButton = 1;
+            constexpr std::int32_t waitButton = 0;
+            constexpr std::int32_t endButton = 1;
             const std::array<SDL_MessageBoxButtonData, 2> buttons{ {
                 { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, waitButton,
                     "Wait" },
@@ -173,9 +172,9 @@ namespace Crash
             } };
             const std::string title = monitor.mApplication + " is not responding";
             const SDL_MessageBoxData box{ SDL_MESSAGEBOX_WARNING, nullptr, title.c_str(), message.c_str(),
-                static_cast<int>(buttons.size()), buttons.data(), nullptr };
+                static_cast<std::int32_t>(buttons.size()), buttons.data(), nullptr };
 
-            int chosen = waitButton;
+            std::int32_t chosen = waitButton;
             return SDL_ShowMessageBox(&box, &chosen) && chosen == endButton;
         }
 
@@ -377,17 +376,17 @@ namespace Crash
                                     : "Sending them helps to fix it. Send them only to someone you trust with that.";
 
             // The buttons' ids, which SDL takes and hands back as an `int`.
-            constexpr int closeButton = 0;
-            constexpr int reportButton = 1;
+            constexpr std::int32_t closeButton = 0;
+            constexpr std::int32_t reportButton = 1;
             const std::array<SDL_MessageBoxButtonData, 2> buttons{ {
                 { 0, reportButton, issues ? "Report the crash" : "Open the folder" },
                 { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, closeButton,
                     "Close" },
             } };
             const SDL_MessageBoxData box{ SDL_MESSAGEBOX_ERROR | SDL_MESSAGEBOX_BUTTONS_LEFT_TO_RIGHT, nullptr,
-                title.c_str(), message.c_str(), static_cast<int>(buttons.size()), buttons.data(), nullptr };
+                title.c_str(), message.c_str(), static_cast<std::int32_t>(buttons.size()), buttons.data(), nullptr };
 
-            int chosen = closeButton;
+            std::int32_t chosen = closeButton;
             if (!SDL_ShowMessageBox(&box, &chosen) || chosen != reportButton)
                 return;
             // A system that will not open an address as long as the one filled in gets the page with
@@ -440,7 +439,8 @@ namespace Crash
         /// a pointer of its own, as Crashpad's hook is a function and takes no context.
         MonitorLog* sCrashpadLog = nullptr;
 
-        bool logCrashpad(logging::LogSeverity severity, const char*, int, std::size_t start, const std::string& text)
+        bool logCrashpad(
+            logging::LogSeverity severity, const char*, std::int32_t, std::size_t start, const std::string& text)
         {
             if (severity < logging::LOG_WARNING || sCrashpadLog == nullptr || start > text.size())
                 return false;
@@ -476,7 +476,7 @@ namespace Crash
         {
             const std::string left
                 = ", and the session left " + std::to_string(reports) + (reports == 1 ? " report" : " reports");
-            if (const std::optional<int> code = monitor.mPage.getEnd())
+            if (const std::optional<std::int32_t> code = monitor.mPage.getEnd())
                 return "The game reached its end with exit code " + std::to_string(*code) + left;
             if (const std::optional<std::uint32_t> code = monitor.mGame.exitCode())
                 return "The game ended with " + Monitor::describeExitCode(*code) + " before reaching its end" + left;
@@ -494,7 +494,7 @@ namespace Crash
         /// The monitor's whole life, and what the process exits with. **A function that returns**, so
         /// its parts end before `std::exit`, which runs no local's destructor and took the log's thread
         /// with what it still held: the line that names the package, on Windows most of the time.
-        int runMonitor(int argc, char** argv)
+        std::int32_t runMonitor(std::int32_t argc, char** argv)
         {
             std::vector<std::string> handler;
             MonitorState monitor(MonitorArguments::read(Platform::Process::commandLine(argc, argv), handler));
@@ -518,7 +518,7 @@ namespace Crash
             // The watch ends the moment the game is gone, so a question still standing then ends
             // nothing (`endIfStillStalled`).
             std::thread handlerThread([&] {
-                const int returned = Monitor::runHandler(handler,
+                const std::int32_t returned = Monitor::runHandler(handler,
                     Monitor::HandlerParts{
                         .mSources = sources, .mReading = monitor.mReading, .mUnwritten = monitor.mUnwritten });
                 {
@@ -529,7 +529,7 @@ namespace Crash
                 monitor.mRequests.post(HandlerReturned{ returned });
             });
 
-            int result = EXIT_FAILURE;
+            std::int32_t result = EXIT_FAILURE;
             bool overdue = false;
             for (;;)
             {
@@ -625,7 +625,7 @@ namespace Crash
         }
     }
 
-    std::optional<int> runMonitorIfAsked(int argc, char** argv)
+    std::optional<std::int32_t> runMonitorIfAsked(std::int32_t argc, char** argv)
     {
         if (std::any_of(argv, argv + argc, [](const char* one) { return std::string_view(one) == sMonitorSwitch; }))
             return runMonitor(argc, argv);

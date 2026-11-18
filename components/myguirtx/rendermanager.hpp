@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -109,11 +110,11 @@ namespace MyGUIRtx
 
         void begin() override;
         void end() override;
-        void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count) override;
+        void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, std::size_t count) override;
 
         const MyGUI::RenderTargetInfo& getInfo() const override { return mInfo; }
 
-        void setViewSize(int width, int height) override;
+        void setViewSize(std::int32_t width, std::int32_t height) override;
 
         void registerShader(const std::string& shaderName, const std::string& vertexProgramFile,
             const std::string& fragmentProgramFile) override;

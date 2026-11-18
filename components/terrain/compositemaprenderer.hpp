@@ -1,10 +1,11 @@
 #pragma once
 
-#include <osg/Drawable>
-
+#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <set>
+
+#include <osg/Drawable>
 
 namespace osg
 {
@@ -21,7 +22,7 @@ namespace Terrain
     public:
         std::vector<osg::ref_ptr<osg::Drawable>> mDrawables;
         osg::ref_ptr<osg::Texture2D> mTexture;
-        size_t mCompiled = 0;
+        std::size_t mCompiled = 0;
     };
 
     /**
@@ -50,7 +51,7 @@ namespace Terrain
         /// Mark this composite map to be required for the current frame
         void setImmediate(const std::shared_ptr<CompositeMap>& map);
 
-        size_t getCompileSetSize() const;
+        std::size_t getCompileSetSize() const;
 
     private:
         float mTargetFrameRate;

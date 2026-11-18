@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -62,7 +63,7 @@ namespace Rtx
             };
             for (const auto& row : table)
                 EXPECT_EQ(presentModeFor(row.mOffered, row.mAsked), row.mChosen)
-                    << static_cast<int>(row.mAsked) << " of " << row.mOffered.size();
+                    << static_cast<std::int32_t>(row.mAsked) << " of " << row.mOffered.size();
         }
     }
 }

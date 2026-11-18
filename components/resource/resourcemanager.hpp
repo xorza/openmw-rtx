@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <osg/Node>
@@ -31,7 +32,7 @@ namespace Resource
         virtual void updateCache(double referenceTime) = 0;
         virtual void clearCache() = 0;
         virtual void setExpiryDelay(double expiryDelay) = 0;
-        virtual void reportStats(unsigned int frameNumber, osg::Stats* stats) const = 0;
+        virtual void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const = 0;
         virtual void releaseGLObjects(osg::State* state) = 0;
     };
 
@@ -77,7 +78,7 @@ namespace Resource
 
         const VFS::Manager* getVFS() const { return mVFS; }
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override {}
+        void reportStats(std::uint32_t frameNumber, osg::Stats* stats) const override {}
 
         void releaseGLObjects(osg::State* state) override
         {

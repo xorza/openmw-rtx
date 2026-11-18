@@ -1,5 +1,7 @@
 #include "window.hpp"
 
+#include <cstdint>
+
 #include <MyGUI_Delegate.h>
 #include <MyGUI_MouseButton.h>
 #include <MyGUI_Types.h>
@@ -57,7 +59,7 @@ namespace LuaUi
         return usedProps;
     }
 
-    void LuaWindow::notifyMousePress(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id)
+    void LuaWindow::notifyMousePress(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         if (id != MyGUI::MouseButton::Left)
             return;
@@ -71,7 +73,8 @@ namespace LuaUi
             ext->externalValue("move", MyGUI::IntPoint(1, 1)), ext->externalValue("resize", MyGUI::IntSize(0, 0)));
     }
 
-    void LuaWindow::notifyMouseDrag(MyGUI::Widget* /*sender*/, int left, int top, MyGUI::MouseButton id)
+    void LuaWindow::notifyMouseDrag(
+        MyGUI::Widget* /*sender*/, std::int32_t left, std::int32_t top, MyGUI::MouseButton id)
     {
         if (id != MyGUI::MouseButton::Left)
             return;

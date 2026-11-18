@@ -1,17 +1,16 @@
 #include "instancemode.hpp"
 
-#include <QDragEnterEvent>
-#include <QPoint>
-#include <QString>
-
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <utility>
 
-#include "../../model/prefs/state.hpp"
-
+#include <QDragEnterEvent>
+#include <QPoint>
+#include <QString>
 #include <osg/BoundingBox>
 #include <osg/Camera>
 #include <osg/ComputeBoundsVisitor>
@@ -27,38 +26,35 @@
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/cellselection.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/editmode.hpp>
-#include <apps/opencs/view/render/instancedragmodes.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
-
+#include <apps/opencs/view/widget/scenetoolbar.hpp>
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
 #include <components/misc/scalableicon.hpp>
 
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/idtree.hpp"
-#include "../../model/world/tablemimedata.hpp"
-
-#include "../widget/scenetoolbar.hpp"
-#include "../widget/scenetoolmode.hpp"
-
-#include "mask.hpp"
-
+#include "editmode.hpp"
+#include "instancedragmodes.hpp"
 #include "instancemovemode.hpp"
 #include "instanceselectionmode.hpp"
+#include "mask.hpp"
 #include "object.hpp"
 #include "pagedworldspacewidget.hpp"
+#include "tagbase.hpp"
 #include "worldspacewidget.hpp"
 
-int CSVRender::InstanceMode::getSubModeFromId(const std::string& id) const
+std::int32_t CSVRender::InstanceMode::getSubModeFromId(const std::string& id) const
 {
     return id == "move" ? 0 : (id == "rotate" ? 1 : 2);
 }
@@ -131,7 +127,7 @@ osg::Vec3 CSVRender::InstanceMode::calculateSnapPositionRelativeToTarget(osg::Ve
 osg::Vec3f CSVRender::InstanceMode::getSelectionCenter(const std::vector<osg::ref_ptr<TagBase>>& selection) const
 {
     osg::Vec3f center = osg::Vec3f(0, 0, 0);
-    int objectCount = 0;
+    std::int32_t objectCount = 0;
 
     for (const auto& entry : selection)
     {
@@ -189,7 +185,7 @@ osg::Vec3f CSVRender::InstanceMode::getMousePlaneCoords(const QPoint& point, con
     return mousePlanePoint;
 }
 
-void CSVRender::InstanceMode::saveSelectionGroup(const int group)
+void CSVRender::InstanceMode::saveSelectionGroup(const std::int32_t group)
 {
     QStringList strings;
     QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
@@ -198,7 +194,7 @@ void CSVRender::InstanceMode::saveSelectionGroup(const int group)
     std::string groupName = "project::" + std::to_string(group);
 
     const auto& selection = getWorldspaceWidget().getSelection(Mask_Reference);
-    const int selectionObjectsIndex
+    const std::int32_t selectionObjectsIndex
         = mSelectionGroups->findColumnIndex(CSMWorld::Columns::ColumnId_SelectionGroupObjects);
 
     if (dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
@@ -226,13 +222,13 @@ void CSVRender::InstanceMode::saveSelectionGroup(const int group)
     getWorldspaceWidget().clearSelection(Mask_Reference);
 }
 
-void CSVRender::InstanceMode::getSelectionGroup(const int group)
+void CSVRender::InstanceMode::getSelectionGroup(const std::int32_t group)
 {
     std::string groupName = "project::" + std::to_string(group);
     std::vector<std::string> targets;
 
     const auto& selection = getWorldspaceWidget().getSelection(Mask_Reference);
-    const int selectionObjectsIndex
+    const std::int32_t selectionObjectsIndex
         = mSelectionGroups->findColumnIndex(CSMWorld::Columns::ColumnId_SelectionGroupObjects);
 
     if (dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
@@ -256,7 +252,7 @@ void CSVRender::InstanceMode::getSelectionGroup(const int group)
 
 void CSVRender::InstanceMode::setDragAxis(const char axis)
 {
-    int newDragAxis = 0;
+    std::int32_t newDragAxis = 0;
 
     const std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
 
@@ -343,7 +339,7 @@ CSVRender::InstanceMode::InstanceMode(
     connect(new CSMPrefs::Shortcut("scene-instance-drop", worldspaceWidget),
         qOverload<>(&CSMPrefs::Shortcut::activated), this, &InstanceMode::dropToCollision);
 
-    for (short i = 0; i <= 9; i++)
+    for (std::int16_t i = 0; i <= 9; i++)
     {
         connect(new CSMPrefs::Shortcut("scene-group-" + std::to_string(i), worldspaceWidget),
             qOverload<>(&CSMPrefs::Shortcut::activated), this, [this, i] { this->getSelectionGroup(i); });
@@ -599,7 +595,7 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
                 std::vector<osg::ref_ptr<TagBase>> editedSelection = getWorldspaceWidget().getEdited(Mask_Reference);
                 osg::Vec3f center = getScreenCoords(getSelectionCenter(editedSelection));
 
-                int widgetHeight = getWorldspaceWidget().height();
+                std::int32_t widgetHeight = getWorldspaceWidget().height();
 
                 float dx = static_cast<float>(pos.x()) - center.x();
                 float dy = static_cast<float>((widgetHeight - pos.y())) - center.y();
@@ -680,7 +676,7 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
                 std::vector<osg::ref_ptr<TagBase>> editedSelection = worldspaceWidget.getEdited(Mask_Reference);
                 osg::Vec3f center = getScreenCoords(getSelectionCenter(editedSelection));
 
-                int widgetHeight = worldspaceWidget.height();
+                std::int32_t widgetHeight = worldspaceWidget.height();
 
                 float dx = static_cast<float>(pos.x()) - center.x();
                 float dy = static_cast<float>((widgetHeight - pos.y())) - center.y();
@@ -744,7 +740,7 @@ bool CSVRender::InstanceMode::secondarySelectStartDrag(const QPoint& pos)
     return true;
 }
 
-void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, double speedFactor)
+void CSVRender::InstanceMode::drag(const QPoint& pos, std::int32_t diffX, std::int32_t diffY, double speedFactor)
 {
     osg::Vec3f offset;
     osg::Quat rotation;
@@ -783,7 +779,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
             // Global axis rotation
             osg::Vec3f camBack = eye - centre;
 
-            for (int i = 0; i < 3; ++i)
+            for (std::int32_t i = 0; i < 3; ++i)
             {
                 if (i == mDragAxis)
                     axis[i] = 1;
@@ -798,7 +794,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
             // Convert coordinate system
             osg::Vec3f screenCenter = getScreenCoords(getSelectionCenter(selection));
 
-            int widgetHeight = getWorldspaceWidget().height();
+            std::int32_t widgetHeight = getWorldspaceWidget().height();
 
             float newX = static_cast<float>(pos.x()) - screenCenter.x();
             float newY = static_cast<float>((widgetHeight - pos.y())) - screenCenter.y();
@@ -829,7 +825,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
         osg::Vec3f center = getScreenCoords(getSelectionCenter(selection));
 
         // Calculate scaling distance/rate
-        int widgetHeight = getWorldspaceWidget().height();
+        std::int32_t widgetHeight = getWorldspaceWidget().height();
 
         float dx = static_cast<float>(pos.x()) - center.x();
         float dy = static_cast<float>((widgetHeight - pos.y())) - center.y();
@@ -883,7 +879,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
         center /= numCenters;
 
     // Apply
-    int i = 0;
+    std::int32_t i = 0;
     for (auto& item : selection)
     {
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(item.get()))
@@ -927,7 +923,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                 // XYZ-locking
                 if (mDragAxis != -1)
                 {
-                    for (int j = 0; j < 3; ++j)
+                    for (std::int32_t j = 0; j < 3; ++j)
                     {
                         if (j != mDragAxis)
                             position.pos[j] = mObjectsAtDragStart[static_cast<std::size_t>(i)][j];
@@ -1100,7 +1096,7 @@ void CSVRender::InstanceMode::dragAborted()
     mDragMode = DragMode_None;
 }
 
-void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
+void CSVRender::InstanceMode::dragWheel(std::int32_t diff, double speedFactor)
 {
     if (mDragMode == DragMode_Move || mDragMode == DragMode_Move_Snap)
     {
@@ -1118,7 +1114,7 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
         auto snapTarget
             = dynamic_cast<CSVRender::ObjectTag*>(getWorldspaceWidget().getSnapTarget(Mask_Reference).get());
 
-        int j = 0;
+        std::int32_t j = 0;
 
         for (auto iter(selection.begin()); iter != selection.end(); ++iter, j++)
         {
@@ -1126,7 +1122,7 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
             {
                 ESM::Position position = objectTag->mObject->getPosition();
                 auto preMovedObjectPosition = position.asVec3();
-                for (int i = 0; i < 3; ++i)
+                for (std::int32_t i = 0; i < 3; ++i)
                     position.pos[i] += offset[i];
 
                 if (mDragMode == DragMode_Move_Snap)
@@ -1208,8 +1204,8 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
                 std::unique_ptr<CSMWorld::CreateCommand> createCommand
                     = std::make_unique<CSMWorld::CreateCommand>(cellTable, cellId);
 
-                int parentIndex = cellTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
-                int index = cellTable.findNestedColumnIndex(parentIndex, CSMWorld::Columns::ColumnId_Interior);
+                std::int32_t parentIndex = cellTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+                std::int32_t index = cellTable.findNestedColumnIndex(parentIndex, CSMWorld::Columns::ColumnId_Interior);
                 createCommand->addNestedValue(parentIndex, index, false);
 
                 document.getUndoStack().push(createCommand.release());
@@ -1276,7 +1272,7 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
     }
 }
 
-int CSVRender::InstanceMode::getSubMode() const
+std::int32_t CSVRender::InstanceMode::getSubMode() const
 {
     return mSubMode ? getSubModeFromId(mSubMode->getCurrentId()) : 0;
 }
@@ -1384,7 +1380,7 @@ void CSVRender::InstanceMode::dropToCollision()
 
     DropObjectHeightHandler dropObjectDataHandler(&getWorldspaceWidget());
 
-    int counter = 0;
+    std::int32_t counter = 0;
     for (const osg::ref_ptr<TagBase>& tag : selection)
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
@@ -1425,7 +1421,7 @@ CSVRender::DropObjectHeightHandler::DropObjectHeightHandler(WorldspaceWidget* wo
 CSVRender::DropObjectHeightHandler::~DropObjectHeightHandler()
 {
     std::vector<osg::ref_ptr<TagBase>> selection = mWorldspaceWidget->getSelection(Mask_Reference);
-    int counter = 0;
+    std::int32_t counter = 0;
     for (const osg::ref_ptr<TagBase>& tag : selection)
     {
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))

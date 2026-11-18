@@ -1,10 +1,11 @@
 #include "subview.hpp"
 
+#include <utility>
+
 #include <QEvent>
 #include <QKeyEvent>
 
 #include <apps/opencs/model/world/universalid.hpp>
-#include <utility>
 
 bool CSVDoc::SubView::event(QEvent* event)
 {

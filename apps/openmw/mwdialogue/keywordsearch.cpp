@@ -1,6 +1,7 @@
 #include "keywordsearch.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <stdexcept>
 
 #include <components/misc/strings/algorithm.hpp>
@@ -101,7 +102,7 @@ namespace MWDialogue
         std::sort(out.begin(), out.end(), [](const Match& left, const Match& right) { return left.mBeg < right.mBeg; });
     }
 
-    void KeywordSearch::buildTrie(std::string_view keyword, std::string_view topicId, size_t depth, Entry& entry)
+    void KeywordSearch::buildTrie(std::string_view keyword, std::string_view topicId, std::size_t depth, Entry& entry)
     {
         const char ch = Misc::StringUtils::toLower(keyword[depth]);
         const auto found = entry.mChildren.find(ch);
@@ -143,12 +144,12 @@ namespace MWDialogue
         const std::string& text, const Translation::Storage& storage) const
     {
         std::vector<Match> matches;
-        size_t posEnd = std::string::npos;
-        size_t iterationPos = 0;
+        std::size_t posEnd = std::string::npos;
+        std::size_t iterationPos = 0;
 
         for (;;)
         {
-            const size_t posBegin = text.find('@', iterationPos);
+            const std::size_t posBegin = text.find('@', iterationPos);
             if (posBegin != std::string::npos)
                 posEnd = text.find('#', posBegin);
 

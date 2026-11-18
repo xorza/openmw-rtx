@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "ui_componentselectionpage.h"
 
 namespace Wizard
@@ -12,7 +14,7 @@ namespace Wizard
     public:
         explicit ComponentSelectionPage(QWidget* parent);
 
-        int nextId() const override;
+        std::int32_t nextId() const override;
         bool validatePage() override;
 
     private slots:

@@ -59,7 +59,7 @@ namespace Crash
             static constexpr char sHex[] = "0123456789ABCDEF";
             for (const char c : text)
             {
-                const auto byte = static_cast<unsigned char>(c);
+                const auto byte = static_cast<std::uint8_t>(c);
                 const bool unreserved = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
                     || c == '-' || c == '.' || c == '_' || c == '~';
                 if (unreserved || kept.find(c) != std::string_view::npos)
@@ -92,7 +92,7 @@ namespace Crash
         /// seconds halved, years from 1980, and nothing outside 1980 to 2107.
         std::uint32_t dosTime(const std::tm& local)
         {
-            const int year = local.tm_year + 1900;
+            const std::int32_t year = local.tm_year + 1900;
             if (year < 1980)
                 return (1u << 5 | 1u) << 16;
             if (year > 2107)
@@ -107,7 +107,7 @@ namespace Crash
 
         bool isAscii(std::string_view text)
         {
-            return std::all_of(text.begin(), text.end(), [](char c) { return static_cast<unsigned char>(c) < 0x80; });
+            return std::all_of(text.begin(), text.end(), [](char c) { return static_cast<std::uint8_t>(c) < 0x80; });
         }
 
         class Deflater
@@ -161,7 +161,7 @@ namespace Crash
             const std::size_t start = archive.size();
             stream.next_in = reinterpret_cast<Bytef*>(in.data());
             stream.avail_in = static_cast<uInt>(in.size());
-            int result = Z_OK;
+            std::int32_t result = Z_OK;
             do
             {
                 stream.next_out = reinterpret_cast<Bytef*>(out.data());
@@ -293,7 +293,7 @@ namespace Crash
         struct PackageName
         {
             std::string mTime;
-            int mNumber = 1;
+            std::int32_t mNumber = 1;
             std::filesystem::path mPath;
         };
 
@@ -405,7 +405,7 @@ namespace Crash
         std::filesystem::path path = folder / Files::pathFromUnicodeString(stem + ".zip");
         // A folder that cannot be looked in has the first name free, and the write then says why not.
         std::error_code error;
-        for (int i = 2; std::filesystem::exists(path, error); ++i)
+        for (std::int32_t i = 2; std::filesystem::exists(path, error); ++i)
             path = folder / Files::pathFromUnicodeString(stem + "-" + std::to_string(i) + ".zip");
         return path;
     }

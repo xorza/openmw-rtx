@@ -1,13 +1,14 @@
 #include "offmeshconnectionsmanager.hpp"
+
+#include <algorithm>
+#include <set>
+#include <vector>
+
 #include "objectid.hpp"
 #include "offmeshconnection.hpp"
 #include "settings.hpp"
 #include "settingsutils.hpp"
 #include "tileposition.hpp"
-
-#include <algorithm>
-#include <set>
-#include <vector>
 
 namespace DetourNavigator
 {

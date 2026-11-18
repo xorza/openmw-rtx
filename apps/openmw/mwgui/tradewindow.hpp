@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
 
@@ -79,22 +82,22 @@ namespace MWGui
         MyGUI::TextBox* mPlayerGold{};
         MyGUI::TextBox* mMerchantGold{};
 
-        int mItemToSell;
+        std::int32_t mItemToSell;
 
-        int mCurrentBalance;
-        int mCurrentMerchantOffer;
+        std::int32_t mCurrentBalance;
+        std::int32_t mCurrentMerchantOffer;
 
         bool mUpdateNextFrame;
 
         void updateOffer();
 
-        void onItemSelected(int index);
+        void onItemSelected(std::int32_t index);
         void sellItem(MyGUI::Widget* sender, std::size_t count);
 
-        void borrowItem(int index, size_t count);
-        void returnItem(int index, size_t count);
+        void borrowItem(std::int32_t index, std::size_t count);
+        void returnItem(std::int32_t index, std::size_t count);
 
-        int getMerchantServices();
+        std::int32_t getMerchantServices();
 
         void onFilterChanged(MyGUI::Widget* sender);
         void onNameFilterChanged(MyGUI::EditBox* sender);
@@ -102,24 +105,24 @@ namespace MWGui
         void onAccept(MyGUI::EditBox* sender);
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onMaxSaleButtonClicked(MyGUI::Widget* sender);
-        void onIncreaseButtonPressed(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void onDecreaseButtonPressed(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void onBalanceButtonReleased(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
-        void onBalanceValueChanged(int value);
+        void onIncreaseButtonPressed(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void onDecreaseButtonPressed(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void onBalanceButtonReleased(MyGUI::Widget* sender, std::int32_t left, std::int32_t top, MyGUI::MouseButton id);
+        void onBalanceValueChanged(std::int32_t value);
         void onRepeatClick(MyGUI::Widget* widget, MyGUI::ControllerItem* controller);
-        void onOfferSubmitted(MyGUI::Widget* sender, size_t offerAmount);
+        void onOfferSubmitted(MyGUI::Widget* sender, std::size_t offerAmount);
 
         void addRepeatController(MyGUI::Widget* widget);
 
         void onIncreaseButtonTriggered();
         void onDecreaseButtonTriggered();
 
-        void addOrRemoveGold(int amount, const MWWorld::Ptr& actor);
+        void addOrRemoveGold(std::int32_t amount, const MWWorld::Ptr& actor);
 
         void updateLabels();
 
         void onReferenceUnavailable() override;
 
-        int getMerchantGold();
+        std::int32_t getMerchantGold();
     };
 }

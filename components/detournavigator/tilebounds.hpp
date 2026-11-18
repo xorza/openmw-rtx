@@ -1,16 +1,16 @@
 #pragma once
 
-#include <components/misc/convert.hpp>
-
-#include <osg/Vec2f>
-#include <osg/Vec2i>
+#include <algorithm>
+#include <cstdint>
+#include <optional>
+#include <tuple>
 
 #include <BulletCollision/CollisionShapes/btCollisionShape.h>
 #include <LinearMath/btTransform.h>
+#include <osg/Vec2f>
+#include <osg/Vec2i>
 
-#include <algorithm>
-#include <optional>
-#include <tuple>
+#include <components/misc/convert.hpp>
 
 namespace DetourNavigator
 {
@@ -53,7 +53,7 @@ namespace DetourNavigator
         return TileBounds{ osg::Vec2f(minX, minY), osg::Vec2f(maxX, maxY) };
     }
 
-    inline TileBounds maxCellTileBounds(const osg::Vec2i& position, int size)
+    inline TileBounds maxCellTileBounds(const osg::Vec2i& position, std::int32_t size)
     {
         return TileBounds{ osg::Vec2f(static_cast<float>(position.x()), static_cast<float>(position.y()))
                 * static_cast<float>(size),

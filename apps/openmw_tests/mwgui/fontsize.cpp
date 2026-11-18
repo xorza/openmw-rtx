@@ -1,5 +1,6 @@
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -48,7 +49,7 @@ namespace MWGui
             {
                 std::string_view before = source.substr(0, at);
                 const auto trimSpace = [&] {
-                    while (!before.empty() && std::isspace(static_cast<unsigned char>(before.back())))
+                    while (!before.empty() && std::isspace(static_cast<std::uint8_t>(before.back())))
                         before.remove_suffix(1);
                 };
                 trimSpace();

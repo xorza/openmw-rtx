@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <span>
 #include <string>
@@ -34,7 +35,7 @@ namespace RtxTool
                 const bool plain = (letter >= 'a' && letter <= 'z') || (letter >= 'A' && letter <= 'Z')
                     || (letter >= '0' && letter <= '9');
                 if (plain)
-                    slug += static_cast<char>(std::tolower(static_cast<unsigned char>(letter)));
+                    slug += static_cast<char>(std::tolower(static_cast<std::uint8_t>(letter)));
                 else if (!slug.empty() && slug.back() != '-')
                     slug += '-';
             }
@@ -151,10 +152,10 @@ namespace RtxTool
     std::string_view writeSkyNote(const std::span<char> room, const SkyNote& note)
     {
         // `describeHour`'s minute, so the title and the block a window prints agree on it.
-        const int minutes = minuteOfDay(note.mHour);
+        const std::int32_t minutes = minuteOfDay(note.mHour);
 
         // Cut down and never rounded up: a hundred means arrived.
-        const int percent = static_cast<int>(note.mCrossed * 100.0f);
+        const auto percent = static_cast<std::int32_t>(note.mCrossed * 100.0f);
 
         const auto [end, length] = note.mArriving.empty()
             ? std::format_to_n(room.data(), static_cast<std::ptrdiff_t>(room.size()), "{}, {:02}:{:02}", note.mWeather,

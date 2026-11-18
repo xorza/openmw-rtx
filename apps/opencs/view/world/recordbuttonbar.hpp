@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 #include <QWidget>
 
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/universalid.hpp>
 
 class QToolButton;
 class QModelIndex;
@@ -73,7 +75,7 @@ namespace CSVWorld
 
         void prevId();
 
-        void rowNumberChanged(const QModelIndex& parent, int start, int end);
+        void rowNumberChanged(const QModelIndex& parent, std::int32_t start, std::int32_t end);
 
     signals:
 
@@ -81,6 +83,6 @@ namespace CSVWorld
 
         void viewRecord();
 
-        void switchToRow(int row);
+        void switchToRow(std::int32_t row);
     };
 }

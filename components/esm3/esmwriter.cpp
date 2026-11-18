@@ -1,12 +1,14 @@
 #include "esmwriter.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <stdexcept>
 
-#include <components/esm3/cellid.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "cellid.hpp"
 #include "formatversion.hpp"
 
 namespace ESM
@@ -79,17 +81,17 @@ namespace ESM
     {
     }
 
-    unsigned int ESMWriter::getVersion() const
+    std::uint32_t ESMWriter::getVersion() const
     {
         return mHeader.mData.version.ui;
     }
 
-    void ESMWriter::setVersion(unsigned int ver)
+    void ESMWriter::setVersion(std::uint32_t ver)
     {
         mHeader.mData.version.ui = ver;
     }
 
-    void ESMWriter::setType(int type)
+    void ESMWriter::setType(std::int32_t type)
     {
         mHeader.mData.type = type;
     }
@@ -104,7 +106,7 @@ namespace ESM
         mHeader.mData.desc = desc;
     }
 
-    void ESMWriter::setRecordCount(int count)
+    void ESMWriter::setRecordCount(std::int32_t count)
     {
         mHeader.mData.records = count;
     }
@@ -119,7 +121,7 @@ namespace ESM
         mHeader.mMaster.clear();
     }
 
-    void ESMWriter::addMaster(std::string_view name, uint64_t size)
+    void ESMWriter::addMaster(std::string_view name, std::uint64_t size)
     {
         Header::MasterData d;
         d.name = name;
@@ -147,20 +149,20 @@ namespace ESM
             throw std::runtime_error("Unclosed record remaining");
     }
 
-    void ESMWriter::startRecord(NAME name, uint32_t flags)
+    void ESMWriter::startRecord(NAME name, std::uint32_t flags)
     {
         mRecordCount++;
 
         // Opened before the header is written: without an open record write() goes straight to the stream.
         const std::size_t sizeOffset = mBuffer.size() + NAME::sCapacity;
-        mRecords.push_back({ name, sizeOffset, sizeOffset + 3 * sizeof(uint32_t) });
+        mRecords.push_back({ name, sizeOffset, sizeOffset + 3 * sizeof(std::uint32_t) });
         writeName(name);
-        writeT<uint32_t>(0); // Size goes here
-        writeT<uint32_t>(0); // Unused header?
+        writeT<std::uint32_t>(0); // Size goes here
+        writeT<std::uint32_t>(0); // Unused header?
         writeT(flags);
     }
 
-    void ESMWriter::startRecord(uint32_t name, uint32_t flags)
+    void ESMWriter::startRecord(std::uint32_t name, std::uint32_t flags)
     {
         startRecord(NAME(name), flags);
     }
@@ -172,9 +174,9 @@ namespace ESM
 
         // Opened before the header is written, as in startRecord.
         const std::size_t sizeOffset = mBuffer.size() + NAME::sCapacity;
-        mRecords.push_back({ name, sizeOffset, sizeOffset + sizeof(uint32_t) });
+        mRecords.push_back({ name, sizeOffset, sizeOffset + sizeof(std::uint32_t) });
         writeName(name);
-        writeT<uint32_t>(0); // Size goes here
+        writeT<std::uint32_t>(0); // Size goes here
     }
 
     void ESMWriter::endRecord(NAME name)
@@ -183,7 +185,7 @@ namespace ESM
         assert(rec.mName == name);
         mRecords.pop_back();
 
-        const auto size = static_cast<uint32_t>(mBuffer.size() - rec.mDataOffset);
+        const auto size = static_cast<std::uint32_t>(mBuffer.size() - rec.mDataOffset);
         std::memcpy(mBuffer.data() + rec.mSizeOffset, &size, sizeof(size));
 
         if (mRecords.empty())
@@ -193,7 +195,7 @@ namespace ESM
         }
     }
 
-    void ESMWriter::endRecord(uint32_t name)
+    void ESMWriter::endRecord(std::uint32_t name)
     {
         endRecord(NAME(name));
     }
@@ -205,7 +207,7 @@ namespace ESM
         endRecord(name);
     }
 
-    void ESMWriter::writeHNString(NAME name, std::string_view data, size_t size)
+    void ESMWriter::writeHNString(NAME name, std::string_view data, std::size_t size)
     {
         assert(data.size() <= size);
         startSubRecord(name);
@@ -213,7 +215,7 @@ namespace ESM
 
         if (data.size() < size)
         {
-            for (size_t i = data.size(); i < size; ++i)
+            for (std::size_t i = data.size(); i < size; ++i)
                 write("\0", 1);
         }
 
@@ -319,7 +321,7 @@ namespace ESM
         write(name.mData, NAME::sCapacity);
     }
 
-    void ESMWriter::write(const char* data, size_t size)
+    void ESMWriter::write(const char* data, std::size_t size)
     {
         if (mRecords.empty())
             mStream->write(data, static_cast<std::streamsize>(size));

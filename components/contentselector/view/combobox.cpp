@@ -1,9 +1,8 @@
+#include "combobox.hpp"
+
 #include <QKeyEvent>
 #include <QString>
-
 #include <QStylePainter>
-
-#include "combobox.hpp"
 
 ContentSelectorView::ComboBox::ComboBox(QWidget* parent)
     : QComboBox(parent)

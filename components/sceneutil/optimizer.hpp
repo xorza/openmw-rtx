@@ -24,6 +24,7 @@
 
 //#include <osgUtil/Export>
 
+#include <cstdint>
 #include <set>
 #include <mutex>
 
@@ -45,7 +46,7 @@ class BaseOptimizerVisitor : public osg::NodeVisitor
 {
     public:
 
-        BaseOptimizerVisitor(Optimizer* optimizer, unsigned int operation):
+        BaseOptimizerVisitor(Optimizer* optimizer, std::uint32_t operation):
             osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN),
             _optimizer(optimizer),
             _operationType(operation)
@@ -61,7 +62,7 @@ class BaseOptimizerVisitor : public osg::NodeVisitor
     protected:
 
         Optimizer*      _optimizer;
-        unsigned int _operationType;
+        std::uint32_t _operationType;
 };
 
 /** Traverses scene graph to improve efficiency. See OptimizationOptions.
@@ -136,28 +137,28 @@ class Optimizer
 
         /** Traverse the node and its subgraph with a series of optimization
           * visitors, specified by the OptimizationOptions.*/
-        virtual void optimize(osg::Node* node, unsigned int options);
+        virtual void optimize(osg::Node* node, std::uint32_t options);
 
 
         /** Callback for customizing what operations are permitted on objects in the scene graph.*/
         struct IsOperationPermissibleForObjectCallback : public osg::Referenced
         {
-            virtual bool isOperationPermissibleForObjectImplementation(const Optimizer* optimizer, const osg::StateSet* stateset,unsigned int option) const
+            virtual bool isOperationPermissibleForObjectImplementation(const Optimizer* optimizer, const osg::StateSet* stateset,std::uint32_t option) const
             {
                 return optimizer->isOperationPermissibleForObjectImplementation(stateset,option);
             }
 
-            virtual bool isOperationPermissibleForObjectImplementation(const Optimizer* optimizer, const osg::StateAttribute* attribute,unsigned int option) const
+            virtual bool isOperationPermissibleForObjectImplementation(const Optimizer* optimizer, const osg::StateAttribute* attribute,std::uint32_t option) const
             {
                 return optimizer->isOperationPermissibleForObjectImplementation(attribute,option);
             }
 
-            virtual bool isOperationPermissibleForObjectImplementation(const Optimizer* optimizer, const osg::Drawable* drawable,unsigned int option) const
+            virtual bool isOperationPermissibleForObjectImplementation(const Optimizer* optimizer, const osg::Drawable* drawable,std::uint32_t option) const
             {
                 return optimizer->isOperationPermissibleForObjectImplementation(drawable,option);
             }
 
-            virtual bool isOperationPermissibleForObjectImplementation(const Optimizer* optimizer, const osg::Node* node,unsigned int option) const
+            virtual bool isOperationPermissibleForObjectImplementation(const Optimizer* optimizer, const osg::Node* node,std::uint32_t option) const
             {
                 return optimizer->isOperationPermissibleForObjectImplementation(node,option);
             }
@@ -174,12 +175,12 @@ class Optimizer
         const IsOperationPermissibleForObjectCallback* getIsOperationPermissibleForObjectCallback() const { return _isOperationPermissibleForObjectCallback.get(); }
 
 
-        inline void setPermissibleOptimizationsForObject(const osg::Object* object, unsigned int options)
+        inline void setPermissibleOptimizationsForObject(const osg::Object* object, std::uint32_t options)
         {
             _permissibleOptimizationsMap[object] = options;
         }
 
-        inline unsigned int getPermissibleOptimizationsForObject(const osg::Object* object) const
+        inline std::uint32_t getPermissibleOptimizationsForObject(const osg::Object* object) const
         {
             auto itr = _permissibleOptimizationsMap.find(object);
             if (itr!=_permissibleOptimizationsMap.end()) return itr->second;
@@ -187,7 +188,7 @@ class Optimizer
         }
 
 
-        inline bool isOperationPermissibleForObject(const osg::StateSet* object, unsigned int option) const
+        inline bool isOperationPermissibleForObject(const osg::StateSet* object, std::uint32_t option) const
         {
             if (_isOperationPermissibleForObjectCallback.valid())
                 return _isOperationPermissibleForObjectCallback->isOperationPermissibleForObjectImplementation(this,object,option);
@@ -195,7 +196,7 @@ class Optimizer
                 return isOperationPermissibleForObjectImplementation(object,option);
         }
 
-        inline bool isOperationPermissibleForObject(const osg::StateAttribute* object, unsigned int option) const
+        inline bool isOperationPermissibleForObject(const osg::StateAttribute* object, std::uint32_t option) const
         {
             if (_isOperationPermissibleForObjectCallback.valid())
                 return _isOperationPermissibleForObjectCallback->isOperationPermissibleForObjectImplementation(this,object,option);
@@ -203,7 +204,7 @@ class Optimizer
                 return isOperationPermissibleForObjectImplementation(object,option);
         }
 
-        inline bool isOperationPermissibleForObject(const osg::Drawable* object, unsigned int option) const
+        inline bool isOperationPermissibleForObject(const osg::Drawable* object, std::uint32_t option) const
         {
             if (_isOperationPermissibleForObjectCallback.valid())
                 return _isOperationPermissibleForObjectCallback->isOperationPermissibleForObjectImplementation(this,object,option);
@@ -211,7 +212,7 @@ class Optimizer
                 return isOperationPermissibleForObjectImplementation(object,option);
         }
 
-        inline bool isOperationPermissibleForObject(const osg::Node* object, unsigned int option) const
+        inline bool isOperationPermissibleForObject(const osg::Node* object, std::uint32_t option) const
         {
             if (_isOperationPermissibleForObjectCallback.valid())
                 return _isOperationPermissibleForObjectCallback->isOperationPermissibleForObjectImplementation(this,object,option);
@@ -219,17 +220,17 @@ class Optimizer
                 return isOperationPermissibleForObjectImplementation(object,option);
         }
 
-        bool isOperationPermissibleForObjectImplementation(const osg::StateSet* stateset, unsigned int option) const
+        bool isOperationPermissibleForObjectImplementation(const osg::StateSet* stateset, std::uint32_t option) const
         {
             return (option & getPermissibleOptimizationsForObject(stateset))!=0;
         }
 
-        bool isOperationPermissibleForObjectImplementation(const osg::StateAttribute* attribute, unsigned int option) const
+        bool isOperationPermissibleForObjectImplementation(const osg::StateAttribute* attribute, std::uint32_t option) const
         {
             return (option & getPermissibleOptimizationsForObject(attribute))!=0;
         }
 
-        bool isOperationPermissibleForObjectImplementation(const osg::Drawable* drawable, unsigned int option) const
+        bool isOperationPermissibleForObjectImplementation(const osg::Drawable* drawable, std::uint32_t option) const
         {
             if (option & (REMOVE_REDUNDANT_NODES|MERGE_GEOMETRY))
             {
@@ -241,7 +242,7 @@ class Optimizer
             return (option & getPermissibleOptimizationsForObject(drawable))!=0;
         }
 
-        bool isOperationPermissibleForObjectImplementation(const osg::Node* node, unsigned int option) const
+        bool isOperationPermissibleForObjectImplementation(const osg::Node* node, std::uint32_t option) const
         {
             if (option & (REMOVE_REDUNDANT_NODES|COMBINE_ADJACENT_LODS|FLATTEN_STATIC_TRANSFORMS))
             {
@@ -262,7 +263,7 @@ class Optimizer
 
         osg::ref_ptr<IsOperationPermissibleForObjectCallback> _isOperationPermissibleForObjectCallback;
 
-        typedef std::map<const osg::Object*,unsigned int> PermissibleOptimizationsMap;
+        typedef std::map<const osg::Object*,std::uint32_t> PermissibleOptimizationsMap;
         PermissibleOptimizationsMap _permissibleOptimizationsMap;
 
         osg::Vec3f _viewPoint;
@@ -393,13 +394,13 @@ class Optimizer
 
         struct GeometryArraySizes
         {
-            unsigned mVertex = 0;
-            unsigned mNormal = 0;
-            unsigned mColor = 0;
-            unsigned mSecondaryColor = 0;
-            unsigned mFogCoord = 0;
-            std::vector<unsigned> mTexCoord;
-            std::vector<unsigned> mVertexAttrib;
+            std::uint32_t mVertex = 0;
+            std::uint32_t mNormal = 0;
+            std::uint32_t mColor = 0;
+            std::uint32_t mSecondaryColor = 0;
+            std::uint32_t mFogCoord = 0;
+            std::vector<std::uint32_t> mTexCoord;
+            std::vector<std::uint32_t> mVertexAttrib;
         };
 
         class MergeGeometryVisitor : public BaseOptimizerVisitor
@@ -420,12 +421,12 @@ class Optimizer
                     _viewPoint = viewPoint;
                 }
 
-                void setTargetMaximumNumberOfVertices(unsigned int num)
+                void setTargetMaximumNumberOfVertices(std::uint32_t num)
                 {
                     _targetMaximumNumberOfVertices = num;
                 }
 
-                unsigned int getTargetMaximumNumberOfVertices() const
+                std::uint32_t getTargetMaximumNumberOfVertices() const
                 {
                     return _targetMaximumNumberOfVertices;
                 }
@@ -449,7 +450,7 @@ class Optimizer
 
             protected:
 
-                unsigned int _targetMaximumNumberOfVertices;
+                std::uint32_t _targetMaximumNumberOfVertices;
                 std::vector<osg::StateSet*> _stateSetStack;
                 bool _alphaBlendingActive;
                 bool _mergeAlphaBlending;

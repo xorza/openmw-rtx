@@ -1,17 +1,17 @@
 
-#include <components/bsa/compressedbsafile.hpp>
-#include <components/testing/util.hpp>
-
-#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <cstdint>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <string>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <components/bsa/compressedbsafile.hpp>
+#include <components/testing/util.hpp>
+
+#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
 
 namespace Bsa
 {

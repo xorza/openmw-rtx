@@ -1,5 +1,7 @@
 #include "weatherstate.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 #include "loadregn.hpp"
@@ -33,13 +35,13 @@ namespace ESM
         esm.getHNT(mTransitionFactor, transitionFactorRecord);
         if (esm.getFormatVersion() <= ESM::MaxWeatherIndexFormatVersion)
         {
-            int currentWeather = 0;
+            std::int32_t currentWeather = 0;
             esm.getHNT(currentWeather, currentWeatherRecord);
             mCurrentWeather = ESM::Weather::indexToRefId(currentWeather);
-            int nextWeather = 0;
+            std::int32_t nextWeather = 0;
             esm.getHNT(nextWeather, nextWeatherRecord);
             mNextWeather = ESM::Weather::indexToRefId(nextWeather);
-            int queuedWeather = 0;
+            std::int32_t queuedWeather = 0;
             esm.getHNT(queuedWeather, queuedWeatherRecord);
             mQueuedWeather = ESM::Weather::indexToRefId(queuedWeather);
         }
@@ -56,13 +58,13 @@ namespace ESM
             RegionWeatherState region;
             if (esm.getFormatVersion() <= ESM::MaxWeatherIndexFormatVersion)
             {
-                int weatherId = 0;
+                std::int32_t weatherId = 0;
                 esm.getHNT(weatherId, regionWeatherRecord);
                 region.mWeather = Weather::indexToRefId(weatherId);
-                int index = 0;
+                std::int32_t index = 0;
                 while (esm.isNextSub(regionChanceRecord))
                 {
-                    uint8_t chance = 0;
+                    std::uint8_t chance = 0;
                     esm.getHT(chance);
                     ESM::RefId id = Weather::indexToRefId(index++);
                     region.mChances.emplace(id, chance);
@@ -74,7 +76,7 @@ namespace ESM
                 while (esm.isNextSub(regionChanceRecord))
                 {
                     esm.getSubHeader();
-                    uint8_t chance = 0;
+                    std::uint8_t chance = 0;
                     esm.getT(chance);
                     ESM::RefId id = esm.getRefId(esm.getSubSize() - sizeof(chance));
                     region.mChances.emplace(id, chance);

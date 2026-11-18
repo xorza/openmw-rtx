@@ -1,33 +1,30 @@
+#include "book.hpp"
+
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
 
-#include "book.hpp"
-
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
 #include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/actionread.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/registeredclass.hpp>
 #include <components/esm3/loadbook.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/actionread.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-
-#include "../mwgui/tooltips.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"
@@ -74,7 +71,7 @@ namespace MWClass
         return ref->mBase->mScript;
     }
 
-    int Book::getValue(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Book::getValue(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Book>* ref = ptr.get<ESM::Book>();
 
@@ -100,7 +97,7 @@ namespace MWClass
         return ref->mBase->mIcon.getNormalized();
     }
 
-    MWGui::ToolTipInfo Book::getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const
+    MWGui::ToolTipInfo Book::getToolTipInfo(const MWWorld::ConstPtr& ptr, std::int32_t count) const
     {
         const MWWorld::LiveCellRef<ESM::Book>* ref = ptr.get<ESM::Book>();
 
@@ -134,8 +131,8 @@ namespace MWClass
         return ref->mBase->mEnchant;
     }
 
-    const ESM::RefId& Book::applyEnchantment(
-        const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId, int enchCharge, const std::string& newName) const
+    const ESM::RefId& Book::applyEnchantment(const MWWorld::ConstPtr& ptr, const ESM::RefId& enchId,
+        std::int32_t enchCharge, const std::string& newName) const
     {
         const MWWorld::LiveCellRef<ESM::Book>* ref = ptr.get<ESM::Book>();
 
@@ -161,14 +158,14 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
-    int Book::getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const
+    std::int32_t Book::getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const
     {
         const MWWorld::LiveCellRef<ESM::Book>* ref = ptr.get<ESM::Book>();
 
         return ref->mBase->mData.mEnchant;
     }
 
-    bool Book::canSell(const MWWorld::ConstPtr& item, int npcServices) const
+    bool Book::canSell(const MWWorld::ConstPtr& item, std::int32_t npcServices) const
     {
         return (npcServices & ESM::NPC::Books)
             || ((npcServices & ESM::NPC::MagicItems) && !getEnchantment(item).empty());

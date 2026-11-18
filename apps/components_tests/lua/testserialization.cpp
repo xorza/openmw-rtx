@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <gtest/gtest.h>
 
 #include <osg/Matrixf>
@@ -9,10 +11,8 @@
 #include <components/lua/luastate.hpp>
 #include <components/lua/serialization.hpp>
 #include <components/lua/utilpackage.hpp>
-
 #include <components/misc/color.hpp>
 #include <components/misc/endianness.hpp>
-
 #include <components/testing/expecterror.hpp>
 
 namespace
@@ -26,7 +26,8 @@ namespace
         sol::object value = LuaUtil::deserialize(lua, "");
         EXPECT_EQ(value, sol::nil);
         EXPECT_EQ(value.lua_state(), lua.lua_state());
-        EXPECT_ERROR(LuaUtil::cast<sol::table>(value), "Value \"nil\" can not be casted to sol::table");
+        Testing::expectError(
+            [&] { return LuaUtil::cast<sol::table>(value); }, "Value \"nil\" can not be casted to sol::table");
     }
 
     TEST(LuaSerializationTest, Number)
@@ -179,9 +180,9 @@ namespace
 
         for (const auto& t : { resTable, resReadonlyTable })
         {
-            EXPECT_EQ(t.get<int>("aa"), 1);
+            EXPECT_EQ(t.get<std::int32_t>("aa"), 1);
             EXPECT_EQ(t.get<bool>("ab"), true);
-            EXPECT_EQ(t.get<sol::table>("nested").get<int>("aa"), 2);
+            EXPECT_EQ(t.get<sol::table>("nested").get<std::int32_t>("aa"), 2);
             EXPECT_EQ(t.get<sol::table>("nested").get<std::string>("bb"), "something");
             EXPECT_DOUBLE_EQ(t.get<sol::table>("nested").get<double>(5), -0.5);
             EXPECT_EQ(t.get<osg::Vec2f>(1), osg::Vec2f(1, 2));
@@ -192,8 +193,8 @@ namespace
         lua["ro_t"] = resReadonlyTable;
         EXPECT_NO_THROW(lua.safe_script("t.x = 5"));
         EXPECT_NO_THROW(lua.safe_script("t.nested.x = 5"));
-        EXPECT_ERROR(lua.safe_script("ro_t.x = 5"), "userdata value");
-        EXPECT_ERROR(lua.safe_script("ro_t.nested.x = 5"), "userdata value");
+        Testing::expectError([&] { return lua.safe_script("ro_t.x = 5"); }, "userdata value");
+        Testing::expectError([&] { return lua.safe_script("ro_t.nested.x = 5"); }, "userdata value");
     }
 
     struct TestStruct1
@@ -202,7 +203,7 @@ namespace
     };
     struct TestStruct2
     {
-        int a, b;
+        std::int32_t a, b;
     };
 
     class TestSerializer final : public LuaUtil::UserdataSerializer
@@ -266,9 +267,9 @@ namespace
         table["y"] = TestStruct2{ 4, 3 };
         TestSerializer serializer;
 
-        EXPECT_ERROR(LuaUtil::serialize(table), "Value is not serializable.");
+        Testing::expectError([&] { return LuaUtil::serialize(table); }, "Value is not serializable.");
         std::string serialized = LuaUtil::serialize(table, &serializer);
-        EXPECT_ERROR(LuaUtil::deserialize(lua, serialized), "Unknown type in serialized data:");
+        Testing::expectError([&] { return LuaUtil::deserialize(lua, serialized); }, "Unknown type in serialized data:");
         sol::table res = LuaUtil::deserialize(lua, serialized, &serializer);
 
         TestStruct1 rx = res.get<TestStruct1>("x");

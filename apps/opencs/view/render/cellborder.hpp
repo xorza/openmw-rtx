@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 #include <osg/ref_ptr>
 
@@ -35,8 +36,8 @@ namespace CSVRender
         void buildShape(const ESM::Land& esmLand);
 
     private:
-        size_t landIndex(int x, int y);
-        float scaleToWorld(int val);
+        std::size_t landIndex(std::int32_t x, std::int32_t y);
+        float scaleToWorld(std::int32_t val);
 
         // unimplemented
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -26,11 +27,12 @@ namespace CSMFilter
         Node& operator=(const Node&) = delete;
         virtual ~Node() = default;
 
-        virtual bool test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const = 0;
+        virtual bool test(const CSMWorld::IdTableBase& table, std::int32_t row,
+            const std::map<std::int32_t, std::int32_t>& columns) const = 0;
         ///< \return Can the specified table row pass through to filter?
         /// \param columns column ID to column index mapping
 
-        virtual std::vector<int> getReferencedColumns() const = 0;
+        virtual std::vector<std::int32_t> getReferencedColumns() const = 0;
         ///< Return a list of the IDs of the columns referenced by this node. The column mapping
         /// passed into test as columns must contain all columns listed here.
 

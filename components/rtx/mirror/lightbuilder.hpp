@@ -44,7 +44,7 @@ namespace Rtx
     /// reference number's low word for a light no node carries, where the graph's is the node's own, so a lamp's phase
     /// changes once, on the frame its cell loads.
     Result<std::optional<Light>, std::string_view> makeLight(
-        const SceneUtil::LightCommon& record, const osg::Vec3f& position, double simulationTime, int id);
+        const SceneUtil::LightCommon& record, const osg::Vec3f& position, double simulationTime, std::int32_t id);
 
     /// The same light from a colour and a radius: one conversion, so a record read off the content
     /// files and a `SceneUtil::LightSource` read off the graph cannot disagree about how bright a
@@ -92,7 +92,7 @@ namespace Rtx
     /// of the clock and of `id` and of nothing else, the same at a given instant however many times a frame asks. Its
     /// statistics are the game's: within the controller's band, averaging its middle, at its speeds; a pulse is the
     /// game's own triangle.
-    float lightBrightness(SceneUtil::LightController::LightType type, int id, double simulationTime);
+    float lightBrightness(SceneUtil::LightController::LightType type, std::int32_t id, double simulationTime);
 
     /// What a magic effect's glowing sheets and flames add up to: the one lamp they make together. Opened where the
     /// walk enters an effect, handed every additive sheet the walk meets under it and every additive emitter read once

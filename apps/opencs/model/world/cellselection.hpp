@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <set>
 
 #include <QMetaType>
 
-#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include "cellcoordinates.hpp"
 
 namespace CSMWorld
 {
@@ -36,7 +37,7 @@ namespace CSMWorld
         bool has(const CellCoordinates& coordinates) const;
         ///< \return Is the cell specified by \a coordinates part of the selection?
 
-        int getSize() const;
+        std::int32_t getSize() const;
         ///< Return number of cells.
 
         CellCoordinates getCentre() const;
@@ -44,7 +45,7 @@ namespace CSMWorld
         ///
         /// \attention This function must not be called on selections that are empty.
 
-        void move(int x, int y);
+        void move(std::int32_t x, std::int32_t y);
     };
 }
 

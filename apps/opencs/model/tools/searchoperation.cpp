@@ -1,18 +1,16 @@
 #include "searchoperation.hpp"
 
-#include "../doc/document.hpp"
-#include "../doc/state.hpp"
-
-#include "../world/data.hpp"
-#include "../world/idtablebase.hpp"
-
 #include <vector>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/doc/operation.hpp>
-#include <apps/opencs/model/tools/search.hpp>
+#include <apps/opencs/model/doc/state.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 
+#include "search.hpp"
 #include "searchstage.hpp"
 
 CSMTools::SearchOperation::SearchOperation(CSMDoc::Document& document)

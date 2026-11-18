@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/maproom.hpp>
 #include <components/rtx/mirror/mirroridentity.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
@@ -11,8 +12,12 @@ namespace Rtx
 {
     namespace
     {
+        /// The rows the entries name, a table of the test's own.
+        using Row = RowIndex<struct KeptRows>;
+        using Entry = Known<Row>;
+
         /// The map every identity in the mirror is, so what a reservation holds is the shipped one's.
-        using Map = boost::unordered_flat_map<int, Known>;
+        using Map = boost::unordered_flat_map<std::int32_t, Entry>;
 
         struct RtxKeptTest : testing::Test
         {
@@ -31,8 +36,8 @@ namespace Rtx
         /// frame would take them and the count would call for a sweep on every frame besides.
         TEST_F(RtxKeptTest, aHeldEntrySurvivesTheSweepAndIsWholeUnstamped)
         {
-            mKept.add(1, Known{ .mIndex = 10 });
-            mKept.add(2, Known{ .mIndex = 20 });
+            mKept.add(1, Entry{ .mIndex = Row(10) });
+            mKept.add(2, Entry{ .mIndex = Row(20) });
             EXPECT_TRUE(mKept.whole()) << "two entries, both stamped by the epoch that added them";
 
             mKept.hold(mKept.find(2));
@@ -60,7 +65,7 @@ namespace Rtx
         /// own walk does the frame it thaws: then nothing is stale and no sweep is owed.
         TEST_F(RtxKeptTest, droppingTheLastHoldOwesASweepThatTakesTheEntry)
         {
-            mKept.add(1, Known{ .mIndex = 10 });
+            mKept.add(1, Entry{ .mIndex = Row(10) });
             mKept.hold(mKept.find(1));
             mKept.hold(mKept.find(1));
 
@@ -74,8 +79,8 @@ namespace Rtx
             EXPECT_FALSE(mKept.whole()) << "the last hold went and the entry carries an old stamp";
 
             std::uint32_t dropped = 0;
-            mKept.retire(mReleased, [&](const Known& gone) {
-                EXPECT_EQ(gone.mIndex, 10u);
+            mKept.retire(mReleased, [&](const Entry& gone) {
+                EXPECT_EQ(gone.mIndex, Row(10));
                 ++dropped;
             });
             EXPECT_EQ(dropped, 1u);
@@ -83,7 +88,7 @@ namespace Rtx
 
             // A hold dropped on an entry from an old epoch, which the walk then stamps: reached, and
             // the map whole.
-            mKept.add(3, Known{ .mIndex = 30 });
+            mKept.add(3, Entry{ .mIndex = Row(30) });
             mKept.hold(mKept.find(3));
             nextEpoch();
             mKept.drop(mKept.find(3));
@@ -95,7 +100,7 @@ namespace Rtx
 
             // The other way round: a hold dropped on an entry the epoch stamped is a reached entry
             // again, and owes nothing.
-            mKept.add(2, Known{ .mIndex = 20 });
+            mKept.add(2, Entry{ .mIndex = Row(20) });
             mKept.hold(mKept.find(2));
             mKept.drop(mKept.find(2));
             EXPECT_TRUE(mKept.whole());
@@ -108,8 +113,8 @@ namespace Rtx
         /// walk's to abandon: its holders would release a key the map no longer knows.
         TEST_F(RtxKeptTest, abandoningAnEntryCountsItOffAndAHeldOneIsNotAbandoned)
         {
-            mKept.add(1, Known{ .mIndex = 10 });
-            mKept.add(2, Known{ .mIndex = 20 });
+            mKept.add(1, Entry{ .mIndex = Row(10) });
+            mKept.add(2, Entry{ .mIndex = Row(20) });
             mKept.hold(mKept.find(2));
 
             mKept.abandon(mKept.find(1));
@@ -132,7 +137,7 @@ namespace Rtx
         /// while its epoch says it is not, so the map reads whole with a stale entry in it.
         TEST_F(RtxKeptTest, aSkippedRetireAssertsThatNothingWasStale)
         {
-            mKept.add(1, Known{ .mIndex = 10 });
+            mKept.add(1, Entry{ .mIndex = Row(10) });
             const auto entry = mKept.find(1);
             ASSERT_NE(entry, mKept.end());
             const std::uint64_t added = entry->second.mReach.mEpoch;
@@ -158,11 +163,11 @@ namespace Rtx
             Map beside;
             beside.reserve(4);
 
-            int key = 0;
+            std::int32_t key = 0;
             while (!fillsRoom(beside))
             {
-                beside.emplace(key, Known{});
-                mKept.add(key++, Known{});
+                beside.emplace(key, Entry{});
+                mKept.add(key++, Entry{});
             }
             ASSERT_GE(key, 4) << "a room of four held fewer";
             EXPECT_EQ(mKept.getPastRoom(), 0u) << "an entry inside the room counted";
@@ -170,13 +175,13 @@ namespace Rtx
             mKept.reach(0);
             EXPECT_EQ(mKept.getPastRoom(), 0u) << "an entry reached again counted";
 
-            beside.emplace(key, Known{});
-            mKept.add(key++, Known{});
+            beside.emplace(key, Entry{});
+            mKept.add(key++, Entry{});
             EXPECT_EQ(mKept.getPastRoom(), 1u);
 
             while (!fillsRoom(beside))
             {
-                beside.emplace(key, Known{});
+                beside.emplace(key, Entry{});
                 mKept.reach(key++);
             }
             mKept.reach(key++);

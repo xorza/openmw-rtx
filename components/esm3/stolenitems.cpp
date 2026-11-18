@@ -1,7 +1,9 @@
 #include "stolenitems.hpp"
 
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
+#include <cstdint>
+
+#include "esmreader.hpp"
+#include "esmwriter.hpp"
 
 namespace ESM
 {
@@ -28,12 +30,12 @@ namespace ESM
         {
             ESM::RefId itemid = esm.getRefId();
 
-            std::map<std::pair<ESM::RefId, bool>, int> ownerMap;
+            std::map<std::pair<ESM::RefId, bool>, std::int32_t> ownerMap;
             while (esm.isNextSub("FNAM") || esm.isNextSub("ONAM"))
             {
                 const bool isFaction = (esm.retSubName() == "FNAM");
                 ESM::RefId owner = esm.getRefId();
-                int count = 0;
+                std::int32_t count = 0;
                 esm.getHNT(count, "COUN");
                 ownerMap.emplace(std::make_pair(owner, isFaction), count);
             }

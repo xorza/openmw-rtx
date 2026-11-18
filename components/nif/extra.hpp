@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "base.hpp"
 #include "node.hpp"
 
@@ -28,31 +30,31 @@ namespace Nif
         {
             Extra::read(nif);
 
-            nif->readVector(mData, nif->get<uint32_t>());
+            nif->readVector(mData, nif->get<std::uint32_t>());
         }
     };
 
     using NiBooleanExtraData = TypedExtra<bool>;
     using NiFloatExtraData = TypedExtra<float>;
-    using NiIntegerExtraData = TypedExtra<uint32_t>;
+    using NiIntegerExtraData = TypedExtra<std::uint32_t>;
     using NiStringExtraData = TypedExtra<std::string>;
     using NiVectorExtraData = TypedExtra<osg::Vec4f>;
 
-    using BSDistantObjectExtraData = TypedExtra<uint32_t>;
+    using BSDistantObjectExtraData = TypedExtra<std::uint32_t>;
     using BSDistantObjectLargeRefExtraData = TypedExtra<bool>;
 
-    using NiBinaryExtraData = TypedVectorExtra<uint8_t>;
+    using NiBinaryExtraData = TypedVectorExtra<std::uint8_t>;
     using NiFloatsExtraData = TypedVectorExtra<float>;
-    using NiIntegersExtraData = TypedVectorExtra<uint32_t>;
+    using NiIntegersExtraData = TypedVectorExtra<std::uint32_t>;
 
     using BSEyeCenterExtraData = TypedVectorExtra<float>;
     using BSPositionData = TypedVectorExtra<Misc::float16_t>;
-    using BSWArray = TypedVectorExtra<int32_t>;
+    using BSWArray = TypedVectorExtra<std::int32_t>;
 
     // Distinct from NiBinaryExtraData, uses mRecordSize as its size
     struct NiExtraData : public Extra
     {
-        std::vector<uint8_t> mData;
+        std::vector<std::uint8_t> mData;
 
         void read(NIFStream* nif) override;
     };
@@ -96,8 +98,8 @@ namespace Nif
         struct LegacyFurniturePosition
         {
             osg::Vec3f mOffset;
-            uint16_t mOrientation{};
-            uint8_t mPositionRef{};
+            std::uint16_t mOrientation{};
+            std::uint8_t mPositionRef{};
             void read(NIFStream* nif);
         };
 
@@ -105,8 +107,8 @@ namespace Nif
         {
             osg::Vec3f mOffset;
             float mHeading{};
-            uint16_t mType{};
-            uint16_t mEntryPoint{};
+            std::uint16_t mType{};
+            std::uint16_t mEntryPoint{};
             void read(NIFStream* nif);
         };
 
@@ -136,7 +138,7 @@ namespace Nif
     {
         struct BoneLOD
         {
-            uint32_t mDistance{};
+            std::uint32_t mDistance{};
             std::string mBone;
 
             void read(NIFStream* nif);
@@ -169,14 +171,14 @@ namespace Nif
 
     struct BSClothExtraData : BSExtraData
     {
-        std::vector<uint8_t> mData;
+        std::vector<std::uint8_t> mData;
 
         void read(NIFStream* nif) override;
     };
 
     struct BSCollisionQueryProxyExtraData : BSExtraData
     {
-        std::vector<uint8_t> mData;
+        std::vector<std::uint8_t> mData;
 
         void read(NIFStream* nif) override;
     };
@@ -219,22 +221,22 @@ namespace Nif
 
     struct BSPackedGeomObject
     {
-        uint32_t mFileHash;
-        uint32_t mDataOffset;
+        std::uint32_t mFileHash;
+        std::uint32_t mDataOffset;
 
         void read(NIFStream* nif);
     };
 
     struct BSPackedSharedGeomData
     {
-        uint32_t mNumVertices{};
-        uint32_t mLODLevels{};
-        uint32_t mLOD0TriCount{};
-        uint32_t mLOD0TriOffset{};
-        uint32_t mLOD1TriCount{};
-        uint32_t mLOD1TriOffset{};
-        uint32_t mLOD2TriCount{};
-        uint32_t mLOD2TriOffset{};
+        std::uint32_t mNumVertices{};
+        std::uint32_t mLODLevels{};
+        std::uint32_t mLOD0TriCount{};
+        std::uint32_t mLOD0TriOffset{};
+        std::uint32_t mLOD1TriCount{};
+        std::uint32_t mLOD1TriOffset{};
+        std::uint32_t mLOD2TriCount{};
+        std::uint32_t mLOD2TriOffset{};
         std::vector<BSPackedGeomDataCombined> mCombined;
         BSVertexDesc mVertexDesc{};
 
@@ -244,10 +246,10 @@ namespace Nif
     struct BSPackedCombinedSharedGeomDataExtra : NiExtraData
     {
         BSVertexDesc mVertexDesc{};
-        uint32_t mNumVertices{};
-        uint32_t mNumTriangles{};
-        uint32_t mFlags1{};
-        uint32_t mFlags2{};
+        std::uint32_t mNumVertices{};
+        std::uint32_t mNumTriangles{};
+        std::uint32_t mFlags1{};
+        std::uint32_t mFlags2{};
         std::vector<BSPackedGeomObject> mObjects;
         std::vector<BSPackedSharedGeomData> mObjectData;
 

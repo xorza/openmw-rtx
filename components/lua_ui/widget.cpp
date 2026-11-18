@@ -1,22 +1,26 @@
 #include "widget.hpp"
-#include "components/lua/utilpackage.hpp"
-#include "components/lua_ui/util.hpp"
-#include "element.hpp"
-#include "resources.hpp"
 
-#include <SDL3/SDL_events.h>
-#include <components/sdlutil/sdlmappings.hpp>
+#include <cstddef>
+#include <cstdint>
 
 #include <MyGUI_InputManager.h>
 #include <MyGUI_PointerManager.h>
+#include <SDL3/SDL_events.h>
+
+#include <components/lua/utilpackage.hpp>
+#include <components/sdlutil/sdlmappings.hpp>
+
+#include "element.hpp"
+#include "resources.hpp"
+#include "util.hpp"
 
 namespace
 {
     // Arbitrary large number caps to prevent performance issues
-    constexpr int sExtCalcSizeWidthCap = 10000000;
-    constexpr int sExtCalcSizeHeightCap = 10000000;
-    constexpr int sExtCalcPositionLeftCap = 10000000;
-    constexpr int sExtCalcPositionTopCap = 10000000;
+    constexpr std::int32_t sExtCalcSizeWidthCap = 10000000;
+    constexpr std::int32_t sExtCalcSizeHeightCap = 10000000;
+    constexpr std::int32_t sExtCalcPositionLeftCap = 10000000;
+    constexpr std::int32_t sExtCalcPositionTopCap = 10000000;
 }
 
 namespace LuaUi
@@ -204,15 +208,15 @@ namespace LuaUi
         return sol::make_object(view.sol(), event);
     }
 
-    sol::object WidgetExtension::mouseEvent(
-        LuaUtil::LuaView& view, int left, int top, MyGUI::MouseButton button = MyGUI::MouseButton::None) const
+    sol::object WidgetExtension::mouseEvent(LuaUtil::LuaView& view, std::int32_t left, std::int32_t top,
+        MyGUI::MouseButton button = MyGUI::MouseButton::None) const
     {
         osg::Vec2f position(static_cast<float>(left), static_cast<float>(top));
         MyGUI::IntPoint absolutePosition = mWidget->getAbsolutePosition();
         osg::Vec2f offset = position
             - osg::Vec2f(static_cast<float>(absolutePosition.left), static_cast<float>(absolutePosition.top));
         sol::table table = view.newTable();
-        int sdlButton = SDLUtil::myGuiMouseButtonToSdl(button);
+        std::int32_t sdlButton = SDLUtil::myGuiMouseButtonToSdl(button);
         table["position"] = position;
         table["offset"] = offset;
         if (sdlButton != 0) // nil if no button was pressed
@@ -223,7 +227,7 @@ namespace LuaUi
     void WidgetExtension::setChildren(const std::vector<WidgetExtension*>& children)
     {
         mChildren.resize(children.size());
-        for (size_t i = 0; i < children.size(); ++i)
+        for (std::size_t i = 0; i < children.size(); ++i)
         {
             mChildren[i] = children[i];
             attach(mChildren[i]);
@@ -234,7 +238,7 @@ namespace LuaUi
     void WidgetExtension::setTemplateChildren(const std::vector<WidgetExtension*>& children)
     {
         mTemplateChildren.resize(children.size());
-        for (size_t i = 0; i < children.size(); ++i)
+        for (std::size_t i = 0; i < children.size(); ++i)
         {
             mTemplateChildren[i] = children[i];
             attachTemplate(mTemplateChildren[i]);
@@ -345,8 +349,8 @@ namespace LuaUi
     {
         mPadding = Padding();
         const LuaUtil::Vec4 value = propertyValue("padding", LuaUtil::Vec4());
-        mPadding = Padding{ static_cast<int>(value.x()), static_cast<int>(value.y()), static_cast<int>(value.z()),
-            static_cast<int>(value.w()) };
+        mPadding = Padding{ static_cast<std::int32_t>(value.x()), static_cast<std::int32_t>(value.y()),
+            static_cast<std::int32_t>(value.z()), static_cast<std::int32_t>(value.w()) };
     }
 
     bool WidgetExtension::setCursor(const std::string& cursor)
@@ -414,8 +418,8 @@ namespace LuaUi
         {
             MyGUI::IntSize pSize = parentSize();
             newSize = mAbsoluteCoord.size();
-            newSize.width += static_cast<int>(mRelativeCoord.width * static_cast<float>(pSize.width));
-            newSize.height += static_cast<int>(mRelativeCoord.height * static_cast<float>(pSize.height));
+            newSize.width += static_cast<std::int32_t>(mRelativeCoord.width * static_cast<float>(pSize.width));
+            newSize.height += static_cast<std::int32_t>(mRelativeCoord.height * static_cast<float>(pSize.height));
         }
         newSize.width = std::clamp(newSize.width, -sExtCalcSizeWidthCap, sExtCalcSizeWidthCap);
         newSize.height = std::clamp(newSize.height, -sExtCalcSizeHeightCap, sExtCalcSizeHeightCap);
@@ -431,9 +435,9 @@ namespace LuaUi
         {
             MyGUI::IntSize pSize = parentSize();
             newPosition = mAbsoluteCoord.point();
-            newPosition.left += static_cast<int>(
+            newPosition.left += static_cast<std::int32_t>(
                 mRelativeCoord.left * static_cast<float>(pSize.width) - mAnchor.width * static_cast<float>(size.width));
-            newPosition.top += static_cast<int>(mRelativeCoord.top * static_cast<float>(pSize.height)
+            newPosition.top += static_cast<std::int32_t>(mRelativeCoord.top * static_cast<float>(pSize.height)
                 - mAnchor.height * static_cast<float>(size.height));
         }
         newPosition.left = std::clamp(newPosition.left, -sExtCalcPositionLeftCap, sExtCalcPositionLeftCap);
@@ -471,7 +475,7 @@ namespace LuaUi
             it->second.call(argument, mLayout);
     }
 
-    bool WidgetExtension::collectWarnings(Warnings& warnings, int depth, bool generateWarningStrings) const
+    bool WidgetExtension::collectWarnings(Warnings& warnings, std::int32_t depth, bool generateWarningStrings) const
     {
         auto beginningSize = warnings.size();
         if (collectUnusedWarnings(warnings, generateWarningStrings) && !generateWarningStrings)
@@ -484,7 +488,7 @@ namespace LuaUi
             });
         }
 
-        for (size_t i = 0; i < mChildren.size(); i++)
+        for (std::size_t i = 0; i < mChildren.size(); i++)
         {
             Warnings childWarnings;
             if (mChildren[i]->isRoot())
@@ -550,7 +554,7 @@ namespace LuaUi
 
     void WidgetExtension::keyPress(MyGUI::Widget*, MyGUI::KeyCode code, MyGUI::Char ch)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([code, ch, this](LuaUtil::LuaView& view) {
             if (code == MyGUI::KeyCode::None)
             {
                 propagateEvent("textInput", [&](auto w) {
@@ -566,21 +570,21 @@ namespace LuaUi
 
     void WidgetExtension::keyRelease(MyGUI::Widget*, MyGUI::KeyCode code)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([code, this](LuaUtil::LuaView& view) {
             propagateEvent("keyRelease", [&](auto w) { return w->keyEvent(view, code); });
         });
     }
 
-    void WidgetExtension::mouseMove(MyGUI::Widget*, int left, int top)
+    void WidgetExtension::mouseMove(MyGUI::Widget*, std::int32_t left, std::int32_t top)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, this](LuaUtil::LuaView& view) {
             propagateEvent("mouseMove", [&](auto w) { return w->mouseEvent(view, left, top); });
         });
     }
 
-    void WidgetExtension::mouseDrag(MyGUI::Widget*, int left, int top, MyGUI::MouseButton button)
+    void WidgetExtension::mouseDrag(MyGUI::Widget*, std::int32_t left, std::int32_t top, MyGUI::MouseButton button)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, button, this](LuaUtil::LuaView& view) {
             propagateEvent("mouseMove", [&](auto w) { return w->mouseEvent(view, left, top, button); });
         });
     }
@@ -595,23 +599,23 @@ namespace LuaUi
         propagateEvent("mouseDoubleClick", [](auto) { return sol::nil; });
     }
 
-    void WidgetExtension::mousePress(MyGUI::Widget*, int left, int top, MyGUI::MouseButton button)
+    void WidgetExtension::mousePress(MyGUI::Widget*, std::int32_t left, std::int32_t top, MyGUI::MouseButton button)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, button, this](LuaUtil::LuaView& view) {
             propagateEvent("mousePress", [&](auto w) { return w->mouseEvent(view, left, top, button); });
         });
     }
 
-    void WidgetExtension::mouseRelease(MyGUI::Widget*, int left, int top, MyGUI::MouseButton button)
+    void WidgetExtension::mouseRelease(MyGUI::Widget*, std::int32_t left, std::int32_t top, MyGUI::MouseButton button)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, button, this](LuaUtil::LuaView& view) {
             propagateEvent("mouseRelease", [&](auto w) { return w->mouseEvent(view, left, top, button); });
         });
     }
 
     void WidgetExtension::mouseWheel(MyGUI::Widget*, float left, float top, float x, float y)
     {
-        protectedCall([=, this](LuaUtil::LuaView& view) {
+        protectedCall([left, top, x, y, this](LuaUtil::LuaView& view) {
             propagateEvent("mouseWheel", [&](auto w) {
                 sol::table event = view.newTable();
                 event["position"] = osg::Vec2f(left, top);

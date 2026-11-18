@@ -1,8 +1,9 @@
 #include "sdlinit.hpp"
 
+#include <csignal>
+
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_init.h>
-#include <signal.h>
 
 bool initSDL()
 {

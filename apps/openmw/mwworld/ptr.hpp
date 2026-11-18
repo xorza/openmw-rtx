@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -34,7 +36,7 @@ namespace MWWorld
         // Note 1: ids are not sequential. E.g. for a creature `getType` returns 0x41455243.
         // Note 2: Life is not easy and full of surprises. For example
         //         prison marker reuses ESM::Door record. Player is ESM::NPC.
-        unsigned int getType() const
+        std::uint32_t getType() const
         {
             if (mRef != nullptr)
                 return mRef->getType();
@@ -192,7 +194,7 @@ namespace MWWorld
         Id mId;
 
         mutable Ptr mPtr;
-        mutable size_t mLastUpdate = 0;
+        mutable std::size_t mLastUpdate = 0;
 
         void update() const;
     };

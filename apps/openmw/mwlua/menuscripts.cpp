@@ -1,11 +1,13 @@
 #include "menuscripts.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwstate/character.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/strings/lower.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwstate/character.hpp"
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"
@@ -55,7 +57,7 @@ namespace MWLua
                     { "Ended", MWBase::StateManager::State_Ended },
                 }));
 
-        api["getState"] = []() -> int { return MWBase::Environment::get().getStateManager()->getState(); };
+        api["getState"] = []() -> std::int32_t { return MWBase::Environment::get().getStateManager()->getState(); };
 
         api["newGame"] = [](const sol::optional<sol::table>& options) {
             MWBase::Environment::get().getStateManager()->requestNewGame(shouldBypass(options));
@@ -107,7 +109,7 @@ namespace MWLua
                 slotInfo["playerLevel"] = slot.mProfile.mPlayerLevel;
                 slotInfo["timePlayed"] = slot.mProfile.mTimePlayed;
                 sol::table contentFiles(currentState, sol::create);
-                for (size_t i = 0; i < slot.mProfile.mContentFiles.size(); ++i)
+                for (std::size_t i = 0; i < slot.mProfile.mContentFiles.size(); ++i)
                     contentFiles[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]
                         = Misc::StringUtils::lowerCase(slot.mProfile.mContentFiles[i]);
 

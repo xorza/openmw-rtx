@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -78,7 +79,7 @@ namespace CSMPrefs
 
         const QString& getLabel() const { return mLabel; }
 
-        int toInt() const { return getValueImpl<int>(); }
+        std::int32_t toInt() const { return getValueImpl<std::int32_t>(); }
 
         double toDouble() const { return getValueImpl<double>(); }
 

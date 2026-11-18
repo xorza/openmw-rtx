@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <vector>
@@ -49,7 +50,7 @@ namespace LuaUi
         };
         State mState;
 
-        void create(uint64_t dept = 0);
+        void create(std::uint64_t dept = 0);
 
         void update();
 

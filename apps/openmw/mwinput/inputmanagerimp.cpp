@@ -1,17 +1,17 @@
 #include "inputmanagerimp.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/sdlutil/sdlinputwrapper.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwrender/renderer.hpp"
 
 #include "actionmanager.hpp"
 #include "bindingsmanager.hpp"
@@ -174,27 +174,27 @@ namespace MWInput
         return mActionManager->getIdleTime() > 0.5f;
     }
 
-    std::string_view InputManager::getActionDescription(int action) const
+    std::string_view InputManager::getActionDescription(std::int32_t action) const
     {
         return mBindingsManager->getActionDescription(action);
     }
 
-    std::string InputManager::getActionKeyBindingName(int action) const
+    std::string InputManager::getActionKeyBindingName(std::int32_t action) const
     {
         return mBindingsManager->getActionKeyBindingName(action);
     }
 
-    std::string InputManager::getActionControllerBindingName(int action) const
+    std::string InputManager::getActionControllerBindingName(std::int32_t action) const
     {
         return mBindingsManager->getActionControllerBindingName(action);
     }
 
-    bool InputManager::actionIsActive(int action) const
+    bool InputManager::actionIsActive(std::int32_t action) const
     {
         return mBindingsManager->actionIsActive(action);
     }
 
-    float InputManager::getActionValue(int action) const
+    float InputManager::getActionValue(std::int32_t action) const
     {
         return mBindingsManager->getActionValue(action);
     }
@@ -244,22 +244,22 @@ namespace MWInput
         MWBase::Environment::get().getWindowManager()->setCursorActive(true);
     }
 
-    const std::initializer_list<int>& InputManager::getActionKeySorting()
+    const std::initializer_list<std::int32_t>& InputManager::getActionKeySorting()
     {
         return mBindingsManager->getActionKeySorting();
     }
 
-    const std::initializer_list<int>& InputManager::getActionControllerSorting()
+    const std::initializer_list<std::int32_t>& InputManager::getActionControllerSorting()
     {
         return mBindingsManager->getActionControllerSorting();
     }
 
-    void InputManager::enableDetectingBindingMode(int action, bool keyboard)
+    void InputManager::enableDetectingBindingMode(std::int32_t action, bool keyboard)
     {
         mBindingsManager->enableDetectingBindingMode(action, keyboard);
     }
 
-    size_t InputManager::countSavedGameRecords() const
+    std::size_t InputManager::countSavedGameRecords() const
     {
         return mControlSwitch->countSavedGameRecords();
     }
@@ -269,7 +269,7 @@ namespace MWInput
         mControlSwitch->write(writer, progress);
     }
 
-    void InputManager::readRecord(ESM::ESMReader& reader, uint32_t type)
+    void InputManager::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         if (type == ESM::REC_INPU)
         {
@@ -297,17 +297,17 @@ namespace MWInput
         return mControllerManager->joystickLastUsed();
     }
 
-    std::string InputManager::getControllerButtonIcon(int button)
+    std::string InputManager::getControllerButtonIcon(std::int32_t button)
     {
         return mControllerManager->getControllerButtonIcon(button);
     }
 
-    std::string InputManager::getControllerAxisIcon(int axis)
+    std::string InputManager::getControllerAxisIcon(std::int32_t axis)
     {
         return mControllerManager->getControllerAxisIcon(axis);
     }
 
-    void InputManager::executeAction(int action)
+    void InputManager::executeAction(std::int32_t action)
     {
         mActionManager->executeAction(action);
     }

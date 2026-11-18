@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -14,50 +15,50 @@ namespace Compiler
     {
         typedef std::vector<Interpreter::Type_Code> CodeContainer;
 
-        inline Interpreter::Type_Code segment0(unsigned int c, unsigned int arg0)
+        inline Interpreter::Type_Code segment0(std::uint32_t c, std::uint32_t arg0)
         {
             assert(c < 64);
             return (c << 24) | (arg0 & 0xffffff);
         }
 
-        inline Interpreter::Type_Code segment1(unsigned int c, unsigned int arg0, unsigned int arg1)
+        inline Interpreter::Type_Code segment1(std::uint32_t c, std::uint32_t arg0, std::uint32_t arg1)
         {
             assert(c < 64);
             return 0x40000000 | (c << 24) | ((arg0 & 0xfff) << 12) | (arg1 & 0xfff);
         }
 
-        inline Interpreter::Type_Code segment2(unsigned int c, unsigned int arg0)
+        inline Interpreter::Type_Code segment2(std::uint32_t c, std::uint32_t arg0)
         {
             assert(c < 1024);
             return 0x80000000 | (c << 20) | (arg0 & 0xfffff);
         }
 
-        inline Interpreter::Type_Code segment3(unsigned int c, unsigned int arg0)
+        inline Interpreter::Type_Code segment3(std::uint32_t c, std::uint32_t arg0)
         {
             assert(c < 262144);
             return 0xc0000000 | (c << 8) | (arg0 & 0xff);
         }
 
-        inline Interpreter::Type_Code segment4(unsigned int c, unsigned int arg0, unsigned int arg1)
+        inline Interpreter::Type_Code segment4(std::uint32_t c, std::uint32_t arg0, std::uint32_t arg1)
         {
             assert(c < 1024);
             return 0xc4000000 | (c << 16) | ((arg0 & 0xff) << 8) | (arg1 & 0xff);
         }
 
-        inline Interpreter::Type_Code segment5(unsigned int c)
+        inline Interpreter::Type_Code segment5(std::uint32_t c)
         {
             assert(c < 67108864);
             return 0xc8000000 | c;
         }
 
-        void pushInt(CodeContainer& code, Literals& literals, int value);
+        void pushInt(CodeContainer& code, Literals& literals, std::int32_t value);
 
         void pushFloat(CodeContainer& code, Literals& literals, float value);
 
         void pushString(CodeContainer& code, Literals& literals, const std::string& value);
 
         void assignToLocal(
-            CodeContainer& code, char localType, int localIndex, const CodeContainer& value, char valueType);
+            CodeContainer& code, char localType, std::int32_t localIndex, const CodeContainer& value, char valueType);
 
         void negate(CodeContainer& code, char valueType);
 
@@ -73,15 +74,15 @@ namespace Compiler
 
         void exit(CodeContainer& code);
 
-        void message(CodeContainer& code, Literals& literals, const std::string& message, int buttons);
+        void message(CodeContainer& code, Literals& literals, const std::string& message, std::int32_t buttons);
 
         void report(CodeContainer& code, Literals& literals, const std::string& message);
 
-        void fetchLocal(CodeContainer& code, char localType, int localIndex);
+        void fetchLocal(CodeContainer& code, char localType, std::int32_t localIndex);
 
-        void jump(CodeContainer& code, int offset);
+        void jump(CodeContainer& code, std::int32_t offset);
 
-        void jumpOnZero(CodeContainer& code, int offset);
+        void jumpOnZero(CodeContainer& code, std::int32_t offset);
 
         void compare(CodeContainer& code, char op, char valueType1, char valueType2);
 

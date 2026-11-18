@@ -1,13 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 #include <utility>
 
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/scriptscontainer.hpp>
-
-#include "../mwbase/luamanager.hpp"
-#include "../mwmechanics/actorutil.hpp"
 
 #include "object.hpp"
 
@@ -22,7 +22,7 @@ namespace MWLua
         class CachedStat
         {
         public:
-            using Index = std::variant<int, ESM::RefId, std::monostate>;
+            using Index = std::variant<std::int32_t, ESM::RefId, std::monostate>;
             using Setter = void (*)(const Index&, std::string_view, const MWWorld::Ptr&, const sol::object&);
 
             CachedStat(Setter setter, Index index, std::string_view prop)
@@ -99,7 +99,7 @@ namespace MWLua
         {
             callEngineHandlers(mOnAnimationEndedHandlers, groupname, startKey, stopKey, time, completion);
         }
-        void onSkillUse(std::string_view skillId, int useType, float scale)
+        void onSkillUse(std::string_view skillId, std::int32_t useType, float scale)
         {
             callEngineHandlers(mOnSkillUse, skillId, useType, scale);
         }
@@ -107,7 +107,7 @@ namespace MWLua
         {
             callEngineHandlers(mOnSkillLevelUp, skillId, source);
         }
-        void onJailTimeServed(int days) { callEngineHandlers(mOnJailTimeServed, days); }
+        void onJailTimeServed(std::int32_t days) { callEngineHandlers(mOnJailTimeServed, days); }
 
         void applyStatsCache();
 

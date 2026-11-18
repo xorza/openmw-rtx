@@ -50,19 +50,19 @@ namespace ESM4
         };
 
         // number of vertices per side
-        static constexpr unsigned sVertsPerSide = 33;
+        static constexpr std::uint32_t sVertsPerSide = 33;
 
         // cell terrain size in world coords
-        static constexpr unsigned sRealSize = 4096;
+        static constexpr std::uint32_t sRealSize = 4096;
 
         // total number of vertices
-        static constexpr unsigned sLandNumVerts = sVertsPerSide * sVertsPerSide;
+        static constexpr std::uint32_t sLandNumVerts = sVertsPerSide * sVertsPerSide;
 
-        static constexpr unsigned sHeightScale = 8;
+        static constexpr std::uint32_t sHeightScale = 8;
 
         // number of textures per side of a land quadrant
         // (for TES4 - based on vanilla observations)
-        static constexpr unsigned sQuadTexturePerSide = 6;
+        static constexpr std::uint32_t sQuadTexturePerSide = 6;
 
 #pragma pack(push, 1)
         struct VHGT
@@ -117,7 +117,7 @@ namespace ESM4
         std::uint32_t mLandFlags{}; // from DATA subrecord
 
         // FIXME: lazy loading not yet implemented
-        int mDataTypes{}; // which data types are loaded
+        std::int32_t mDataTypes{}; // which data types are loaded
 
         float mHeights[sVertsPerSide * sVertsPerSide]{}; // Float value of compressed Heightmap
         std::int8_t mVertNorm[sVertsPerSide * sVertsPerSide * 3]{}; // from VNML subrecord

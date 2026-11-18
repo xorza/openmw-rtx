@@ -1,5 +1,7 @@
 #include "existinginstallationpage.hpp"
 
+#include <cstdint>
+
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -171,7 +173,7 @@ bool Wizard::ExistingInstallationPage::isComplete() const
     return installationsList->selectionModel()->hasSelection();
 }
 
-int Wizard::ExistingInstallationPage::nextId() const
+std::int32_t Wizard::ExistingInstallationPage::nextId() const
 {
     return MainWizard::Page_LanguageSelection;
 }

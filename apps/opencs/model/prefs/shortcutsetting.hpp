@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -34,18 +35,18 @@ namespace CSMPrefs
         bool eventFilter(QObject* target, QEvent* event) override;
 
     private:
-        bool handleEvent(QObject* target, int mod, int value, bool active);
+        bool handleEvent(QObject* target, std::int32_t mod, std::int32_t value, bool active);
 
         void storeValue(const QKeySequence& sequence);
         void resetState();
 
-        static constexpr int MaxKeys = 4;
+        static constexpr std::int32_t MaxKeys = 4;
 
         QPushButton* mButton;
 
         bool mEditorActive;
-        int mEditorPos;
-        int mEditorKeys[MaxKeys]{};
+        std::int32_t mEditorPos;
+        std::int32_t mEditorKeys[MaxKeys]{};
 
     private slots:
 

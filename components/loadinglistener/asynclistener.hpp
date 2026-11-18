@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -23,19 +24,19 @@ namespace Loading
             mImportantLabel = important;
         }
 
-        void setProgressRange(size_t range) override
+        void setProgressRange(std::size_t range) override
         {
             std::scoped_lock guard(mMutex);
             mRangeUpdate = range;
         }
 
-        void setProgress(size_t value) override
+        void setProgress(std::size_t value) override
         {
             std::scoped_lock guard(mMutex);
             mProgressUpdate = value;
         }
 
-        void increaseProgress(size_t increase) override { /* not implemented */ }
+        void increaseProgress(std::size_t increase) override { /* not implemented */ }
 
         void update()
         {
@@ -56,7 +57,7 @@ namespace Loading
         std::mutex mMutex;
         std::optional<std::string> mLabelUpdate;
         bool mImportantLabel = false;
-        std::optional<size_t> mRangeUpdate;
-        std::optional<size_t> mProgressUpdate;
+        std::optional<std::size_t> mRangeUpdate;
+        std::optional<std::size_t> mProgressUpdate;
     };
 }

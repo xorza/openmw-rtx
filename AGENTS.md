@@ -105,9 +105,13 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`, one task a
   the denoiser off, and must agree frame for frame. A pair that finds nothing has found nothing. Read a difference with
   `--exposure=1` and `--pictures`. The denoised frame is not bit-exact on every card (`docs/architecture.md`), so a
   difference in the composed frame alone is the card's.
-- `./omw release tour` before a release, once a content: it flies every land cell and the largest rooms and fails on a
-  fault met anywhere. `--plan` says what it will fly and for how long; `--from=<leg>` flies the rest after a crash. To
-  verify a fix, fly only the places it concerns.
+- `./omw release tour --every=1` before a release, once a content: it flies every land cell and the largest rooms and
+  fails on a fault met anywhere. A tour flies every fourth land leg and every fourth room unless `--every` says
+  otherwise, a sample whose legs' p99 median stands within a few milliseconds of the whole tour's in a quarter of the
+  time. What builds up over a flight shows only in the whole tour: the handheld's Repack rooms ran at 21 ms flown
+  alone and at 51 ms after the land legs. `--plan` says what it will fly and for how long. To verify a fix or A/B a
+  change, fly only the legs its question needs: `--legs=` takes `rooms`, `land`, legs by number, `a-b` and `a-` (the
+  rest after a crash, with `--every=1`), each leg held against the same leg of a whole tour by its name.
 
 **Measuring**
 
@@ -118,6 +122,8 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`, one task a
   own redraws, and every row moves. The report's `card` lines name another process's work.
 - An A/B reads medians and the p99, never a mean — the zones' from the record `--json` writes, since the `gpu` row is
   each zone's share of the mean.
+- A heap profile runs in a cgroup with a memory cap (`systemd-run --user --scope -p MemoryMax=<GiB>`): heaptrack's
+  interpreter outgrew the desk's memory over a Repack tour and took the desktop down.
 - Profiling: `./omw profile` for the CPU, into `out/release/perf/` (`--offcpu` says where it waits); read the full
   reports beside the summary. For the GPU, `./omw release exec nsys profile ./openmw-rtxtool bench ...`.
 
@@ -130,6 +136,10 @@ writes, with the additions below, which win where the two differ; upstream's cod
 - **Includes in five blocks** a blank line apart: the file's own header, the C++ standard library, `<gtest/...>`,
   other libraries, `<components/...>` and `<apps/...>`, then quoted local headers — of the file's own folder only, any
   other folder spelled from the root. A block out of order carries a comment saying why.
+- **Fixed-width integers, `std::`-qualified, and never a change of signedness**: `std::int32_t`, `std::uint8_t` and their
+  kin, `std::size_t` and `std::ptrdiff_t` for sizes, counts, indices and differences; `char` for text, `int main`, and
+  a library's own typedef where the value is its. `long` is chosen by its width, each by hand. `omw format` writes it,
+  and a keyword kept on purpose carries `NOLINT(google-runtime-int)` with its reason.
 - **The headers GLSL reads as well** are the one exception to `#pragma once` and the place the preprocessor still
   switches, and `shaders/portable.h` says why.
 - **A general system fact lives in `components/platform`.** A test of an `assert` calls `Testing::expectAssertDies`.

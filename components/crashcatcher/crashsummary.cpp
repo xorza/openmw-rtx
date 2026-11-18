@@ -36,7 +36,7 @@ namespace Crash
         /// follows is a longer name and not the folder: `C:/Users/x` in `C:/Users/xavier`.
         bool continuesName(const char c)
         {
-            const auto byte = static_cast<unsigned char>(c);
+            const auto byte = static_cast<std::uint8_t>(c);
             return byte >= 0x80 || std::isalnum(byte) != 0 || c == '_' || c == '-' || c == '.';
         }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -78,28 +79,28 @@ namespace ESM
 
         struct NPDTstruct52
         {
-            std::map<ESM::RefId, unsigned char> mAttributes;
+            std::map<ESM::RefId, std::uint8_t> mAttributes;
             // mSkill can grow up to 200, it must be unsigned
-            std::map<ESM::RefId, unsigned char> mSkills;
-            int16_t mLevel{};
+            std::map<ESM::RefId, std::uint8_t> mSkills;
+            std::int16_t mLevel{};
 
-            uint16_t mHealth{}, mMana{}, mFatigue{};
-            unsigned char mDisposition{}, mReputation{}, mRank{};
-            int32_t mGold{};
+            std::uint16_t mHealth{}, mMana{}, mFatigue{};
+            std::uint8_t mDisposition{}, mReputation{}, mRank{};
+            std::int32_t mGold{};
 
-            unsigned char getAttribute(ESM::RefId) const;
-            unsigned char getSkill(ESM::RefId) const;
+            std::uint8_t getAttribute(ESM::RefId) const;
+            std::uint8_t getSkill(ESM::RefId) const;
         }; // 52 bytes
 
-        unsigned char mNpdtType{};
+        std::uint8_t mNpdtType{};
         // Worth noting when saving the struct:
         //  Although we might read a NPDTstruct12 in, we use NPDTstruct52 internally
         NPDTstruct52 mNpdt;
 
-        int getFactionRank() const; /// wrapper for mNpdt*, -1 = no rank
+        std::int32_t getFactionRank() const; /// wrapper for mNpdt*, -1 = no rank
 
-        int32_t mBloodType{};
-        unsigned char mFlags{};
+        std::int32_t mBloodType{};
+        std::uint8_t mFlags{};
 
         InventoryList mInventory;
         SpellList mSpells;
@@ -112,7 +113,7 @@ namespace ESM
 
         AIPackageList mAiPackage;
 
-        uint32_t mRecordFlags{};
+        std::uint32_t mRecordFlags{};
         RefId mId, mRace, mClass, mFaction, mScript;
         std::string mName;
         Path mModel;

@@ -16,6 +16,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/rtxtool/instruments/digest.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <components/rtx/common/index.hpp>
@@ -25,6 +26,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/skinning.h>
@@ -38,13 +40,13 @@ namespace RtxTool
         /// the host hands over in heap order. `shuffled` stores the same vertices in reverse and
         /// spells the same triangles from another corner, which is what the host's geometry merge
         /// does to a shape. `tangents` is none or one per corner, and is not shuffled.
-        Rtx::Index addBox(Rtx::SceneDesc& scene, const bool mirrored, const float lift = 0.0f,
+        Rtx::MeshIndex addBox(Rtx::SceneDesc& scene, const bool mirrored, const float lift = 0.0f,
             const bool shuffled = false, std::span<const osg::Vec4f> tangents = {})
         {
             std::vector<osg::Vec3f> positions;
             std::vector<osg::Vec3f> normals;
             std::vector<osg::Vec2f> texCoords;
-            for (int corner = 0; corner < 8; ++corner)
+            for (std::int32_t corner = 0; corner < 8; ++corner)
             {
                 const float x = (corner & 1) != 0 ? 143.0f : 124.0f;
                 positions.emplace_back(
@@ -61,11 +63,12 @@ namespace RtxTool
                 indices = { 7, 6, 5, 5, 6, 4 };
             }
 
-            return scene.addMesh(Rtx::MeshArrays{ .mPositions = positions,
-                                     .mNormals = normals,
-                                     .mTexCoords = texCoords,
-                                     .mTangents = tangents,
-                                     .mIndices = indices },
+            return Rtx::Testing::addMesh(scene,
+                Rtx::MeshArrays{ .mPositions = positions,
+                    .mNormals = normals,
+                    .mTexCoords = texCoords,
+                    .mTangents = tangents,
+                    .mIndices = indices },
                 {});
         }
 
@@ -75,10 +78,10 @@ namespace RtxTool
         {
             Rtx::Material material;
             material.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("textures/box.dds"));
-            const Rtx::Index wearing = scene.addMaterial(material);
+            const Rtx::MaterialIndex wearing = scene.addMaterial(material);
 
             const osg::Matrixf stood = osg::Matrixf::translate(10.0f, 20.0f, 30.0f);
-            for (int which = 0; which < 2; ++which)
+            for (std::int32_t which = 0; which < 2; ++which)
             {
                 const bool mirrored = (which == 0) == mirroredFirst;
                 Rtx::MeshInstance instance;
@@ -97,7 +100,9 @@ namespace RtxTool
         std::string digestOfBoxes(
             const bool mirroredFirst, const float lift, const float aside, const bool shuffled = false)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
             return spellHash(digestScene(digestParts(scene)));
         }
@@ -105,7 +110,9 @@ namespace RtxTool
         std::string layoutOfBoxes(
             const bool mirroredFirst, const float lift, const float aside, const bool shuffled = false)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
             return spellHash(digestLayout(digestParts(scene)));
         }
@@ -159,7 +166,9 @@ namespace RtxTool
         /// One box under a material `change` has been applied to, digested both ways.
         std::pair<std::string, std::string> digestsOfMaterial(void (*change)(Rtx::Material&))
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
 
             Rtx::Material material;
             material.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("textures/box.dds"));
@@ -252,7 +261,9 @@ namespace RtxTool
         /// part.
         std::pair<std::string, ScenePartDigests> digestsOfTangents(std::span<const osg::Vec4f> tangents)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false, 0.0f, false, tangents);
             scene.addInstance(instance);
@@ -298,8 +309,10 @@ namespace RtxTool
         /// digested part by part.
         ScenePartDigests partsOfPlume(const bool additive, const bool falls)
         {
-            Rtx::SceneDesc scene;
-            const Rtx::Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/puff.dds"));
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
+            const Rtx::TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("textures/puff.dds"));
             const std::array sprites{ Rtx::Sprite{ .mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f),
                 .mRadius = 4.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -336,7 +349,9 @@ namespace RtxTool
         /// `up` units high, digested part by part.
         ScenePartDigests partsOfSkin(const float weight, const float up)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
 
             const std::array<std::uint32_t, 4> runs{ 1u, 1u, 1u, 1u };
             const std::array influences{ Rtx::Shaders::GpuInfluence{ .mBone = 0, .mWeight = weight } };
@@ -344,10 +359,10 @@ namespace RtxTool
             const std::array positions{ osg::Vec3f(), osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 0.0f),
                 osg::Vec3f(0.0f, 1.0f, 0.0f) };
             const std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
-            const Rtx::Index quad = scene
-                                        .addMesh(Rtx::MeshArrays{ .mPositions = positions, .mIndices = indices }, {},
-                                            Rtx::RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 })
-                                        .mMesh;
+            const Rtx::MeshIndex quad
+                = Rtx::Testing::addMesh(scene, Rtx::MeshArrays{ .mPositions = positions, .mIndices = indices }, {},
+                    Rtx::RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 })
+                      .mMesh;
 
             scene.addInstance(Rtx::MeshInstance{ .mMesh = quad });
 
@@ -386,10 +401,12 @@ namespace RtxTool
         /// One box placed at `there`, having moved there from the origin or jumped, with a ripple or none.
         std::string contentOfMotion(const bool jumped, const bool rippled)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
-            const Rtx::Index slot = scene.addInstance(instance);
+            const Rtx::PlacementIndex slot = scene.addInstance(instance);
             const osg::Matrixf there = osg::Matrixf::translate(5.0f, 0.0f, 0.0f);
             if (jumped)
                 scene.placements().jump(slot, there);
@@ -426,7 +443,9 @@ namespace RtxTool
         /// by part.
         ScenePartDigests partsWith(const Field field)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
             instance.mClockwise = field == Field::Clockwise;
@@ -443,7 +462,7 @@ namespace RtxTool
                 lamp.mTraits = 0;
             scene.addLight(lamp);
 
-            const Rtx::Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/rain.dds"));
+            const Rtx::TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("textures/rain.dds"));
             const std::array sprites{ Rtx::Sprite{ .mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f),
                 .mRadius = 4.0f,
                 .mAxis = osg::Vec3f(0.0f, 0.0f, field == Field::Axis ? -2.0f : -1.0f),
@@ -480,7 +499,7 @@ namespace RtxTool
                     const auto part = static_cast<ScenePart>(at);
                     EXPECT_EQ(plain[at] != changed[at],
                         part == ScenePart::Content || std::ranges::find(columns, part) != columns.end())
-                        << nameOf(part) << " under field " << static_cast<int>(field);
+                        << nameOf(part) << " under field " << static_cast<std::int32_t>(field);
                 }
             }
 
@@ -492,57 +511,49 @@ namespace RtxTool
             }
         }
 
-        /// **A digester hashes the vertex tables where they moved and nowhere else**, and answers
-        /// the same words as a digest made from nothing. A frame with nothing new pays no rehash
-        /// of forty megabytes; a mesh added costs one, a release none, and the next mesh into the
-        /// hole it left one more.
-        TEST(RtxSceneDigestTest, aDigesterHashesTheVertexTablesOnceForEveryChangeToThem)
+        /// **The geometry's parts are each mesh's digests from its arrival**, so the host letting the geometry go after
+        /// a hand-over moves none of them, and a digester answers what a digest made from nothing does. A placement
+        /// moved moves the instances alone; a mesh added, let go of or landing in the hole it left moves the positions.
+        TEST(RtxSceneDigestTest, theGeometrysPartsOutliveTheArrivalsTheyWereMadeFrom)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
+            scene.keepDigests();
             fillBoxes(scene, false, 0.0f, 0.0f);
 
             SceneDigester digester;
             const ScenePartDigests first = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 1u);
             EXPECT_EQ(first, digestParts(scene)) << "a digester and a digest from nothing disagree";
 
-            // The same scene again, and a pose of nothing: the cache answers.
-            EXPECT_EQ(digester.digest(scene), first);
-            EXPECT_EQ(digester.getVertexHashes(), 1u) << "an unchanged table was hashed again";
+            scene.clearArrivals();
+            EXPECT_EQ(digester.digest(scene), first) << "a part read the geometry the host let go of";
 
-            // A placement moved touches no vertex table; the instances column moves alone.
-            scene.placements().move(0, osg::Matrixf::translate(1.0f, 0.0f, 0.0f));
+            scene.placements().move(Rtx::PlacementIndex(0), osg::Matrixf::translate(1.0f, 0.0f, 0.0f));
             const ScenePartDigests moved = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 1u);
             EXPECT_EQ(moved[static_cast<std::size_t>(ScenePart::Positions)],
                 first[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_NE(moved[static_cast<std::size_t>(ScenePart::Instances)],
                 first[static_cast<std::size_t>(ScenePart::Instances)]);
 
-            // A mesh added is a revision, and the vertex columns move with it.
-            const Rtx::Index third = addBox(scene, true, 2.0f);
+            const Rtx::MeshIndex third = addBox(scene, true, 2.0f);
             const ScenePartDigests grown = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 2u);
             EXPECT_NE(grown[static_cast<std::size_t>(ScenePart::Positions)],
                 moved[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_EQ(grown, digestParts(scene));
 
-            // A mesh let go of leaves the bytes where they were — a freed run is a hole, and the
-            // table keeps its length — so the cache still answers, and answers what a digest from nothing
-            // says. The mesh row it emptied moves the meshes column and nothing else.
             scene.drop(scene.holdMesh(third));
             const ScenePartDigests released = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 2u) << "a release wrote no vertex and was hashed for it";
+            EXPECT_EQ(released[static_cast<std::size_t>(ScenePart::Positions)],
+                moved[static_cast<std::size_t>(ScenePart::Positions)])
+                << "a slot given back still counted in the positions";
             EXPECT_EQ(released, digestParts(scene));
-            EXPECT_NE(released[static_cast<std::size_t>(ScenePart::Meshes)],
-                grown[static_cast<std::size_t>(ScenePart::Meshes)]);
 
-            // And the next mesh to land in the hole rewrites its bytes under a new revision.
             EXPECT_EQ(addBox(scene, false, 3.0f), third) << "the freed slot is the one handed out";
             const ScenePartDigests refilled = digester.digest(scene);
-            EXPECT_EQ(digester.getVertexHashes(), 3u);
             EXPECT_NE(refilled[static_cast<std::size_t>(ScenePart::Positions)],
                 released[static_cast<std::size_t>(ScenePart::Positions)]);
+            EXPECT_NE(refilled[static_cast<std::size_t>(ScenePart::Positions)],
+                grown[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_EQ(refilled, digestParts(scene));
         }
     }

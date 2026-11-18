@@ -1,11 +1,9 @@
 #include "action.hpp"
 
-#include "../mwbase/environment.hpp"
-
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 
 const MWWorld::Ptr& MWWorld::Action::getTarget() const
 {

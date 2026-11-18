@@ -1,14 +1,15 @@
 #pragma once
 
-#include "columns.hpp"
-#include "idtable.hpp"
+#include <cstdint>
+#include <string>
+#include <utility>
 
 #include <QModelIndex>
 #include <QString>
 #include <QVariant>
 
-#include <string>
-#include <utility>
+#include "columns.hpp"
+#include "idtable.hpp"
 
 /*! \brief
  * Class for holding the model. Uses typical qt table abstraction/interface for granting access
@@ -34,49 +35,50 @@ namespace CSMWorld
     private:
         NestedCollection* mNestedCollection;
 
-        unsigned int foldIndexAddress(const QModelIndex& index) const;
-        std::pair<int, int> unfoldIndexAddress(unsigned int id) const;
+        std::uint32_t foldIndexAddress(const QModelIndex& index) const;
+        std::pair<std::int32_t, std::int32_t> unfoldIndexAddress(std::uint32_t id) const;
 
     public:
-        IdTree(NestedCollection* nestedCollection, CollectionBase* idCollection, unsigned int features = 0);
+        IdTree(NestedCollection* nestedCollection, CollectionBase* idCollection, std::uint32_t features = 0);
         ///< The ownerships of \a nestedCollecton and \a idCollection are not transferred.
         IdTree(const IdTree&) = delete;
         IdTree& operator=(const IdTree&) = delete;
         ~IdTree() override = default;
 
-        int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+        std::int32_t rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
-        int columnCount(const QModelIndex& parent = QModelIndex()) const override;
+        std::int32_t columnCount(const QModelIndex& parent = QModelIndex()) const override;
 
-        QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+        QVariant data(const QModelIndex& index, std::int32_t role = Qt::DisplayRole) const override;
 
-        bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
+        bool setData(const QModelIndex& index, const QVariant& value, std::int32_t role = Qt::EditRole) override;
 
         Qt::ItemFlags flags(const QModelIndex& index) const override;
 
-        bool removeRows(int row, int count, const QModelIndex& parent = QModelIndex()) override;
+        bool removeRows(std::int32_t row, std::int32_t count, const QModelIndex& parent = QModelIndex()) override;
 
-        QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
+        QModelIndex index(
+            std::int32_t row, std::int32_t column, const QModelIndex& parent = QModelIndex()) const override;
 
         QModelIndex parent(const QModelIndex& index) const override;
 
-        QModelIndex getNestedModelIndex(const std::string& id, int column) const;
+        QModelIndex getNestedModelIndex(const std::string& id, std::int32_t column) const;
 
-        QVariant nestedHeaderData(
-            int section, int subSection, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
+        QVariant nestedHeaderData(std::int32_t section, std::int32_t subSection, Qt::Orientation orientation,
+            std::int32_t role = Qt::DisplayRole) const;
 
         NestedTableWrapperBase* nestedTable(const QModelIndex& index) const;
 
         void setNestedTable(const QModelIndex& index, const NestedTableWrapperBase& nestedTable);
 
-        void addNestedRow(const QModelIndex& parent, int position);
+        void addNestedRow(const QModelIndex& parent, std::int32_t position);
 
         bool hasChildren(const QModelIndex& index) const override;
 
-        virtual int searchNestedColumnIndex(int parentColumn, Columns::ColumnId id);
+        virtual std::int32_t searchNestedColumnIndex(std::int32_t parentColumn, Columns::ColumnId id);
         ///< \return the column index or -1 if the requested column wasn't found.
 
-        virtual int findNestedColumnIndex(int parentColumn, Columns::ColumnId id);
+        virtual std::int32_t findNestedColumnIndex(std::int32_t parentColumn, Columns::ColumnId id);
         ///< \return the column index or throws an exception if the requested column wasn't found.
 
     signals:

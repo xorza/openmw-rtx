@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string_view>
@@ -11,7 +12,9 @@ namespace Crash
     /// install it.
     [[noreturn]] inline void abortUncaught(std::string_view reason)
     {
-        static_cast<void>(std::fprintf(stderr, "Fatal: %.*s\n", static_cast<int>(reason.size()), reason.data()));
+        static_cast<void>(
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): stdio in a terminate handler
+            std::fprintf(stderr, "Fatal: %.*s\n", static_cast<std::int32_t>(reason.size()), reason.data()));
         std::abort();
     }
 }

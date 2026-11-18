@@ -1,16 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
 #include <QWidget>
 
-#ifndef Q_MOC_RUN
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/scope.hpp"
-#include "../../model/world/universalid.hpp"
-#endif
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/scope.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
 namespace CSVWorld
 {
@@ -34,7 +32,7 @@ namespace CSVWorld
         virtual void toggleWidgets(bool active = true) = 0;
 
         /// Default implementation: Throw an exception if scope!=Scope_Content.
-        virtual void setScope(unsigned int scope);
+        virtual void setScope(std::uint32_t scope);
 
         /// Focus main input widget
         virtual void focus() = 0;
@@ -71,7 +69,7 @@ namespace CSVWorld
         /// \note The function always returns 0.
     };
 
-    template <class CreatorT, unsigned int scope = CSMWorld::Scope_Content>
+    template <class CreatorT, std::uint32_t scope = CSMWorld::Scope_Content>
     class CreatorFactory : public CreatorFactoryBase
     {
     public:
@@ -82,7 +80,7 @@ namespace CSVWorld
         /// records should be provided.
     };
 
-    template <class CreatorT, unsigned int scope>
+    template <class CreatorT, std::uint32_t scope>
     Creator* CreatorFactory<CreatorT, scope>::makeCreator(
         CSMDoc::Document& document, const CSMWorld::UniversalId& id) const
     {

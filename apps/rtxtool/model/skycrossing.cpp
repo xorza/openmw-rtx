@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 
 namespace RtxTool
 {
@@ -54,7 +55,7 @@ namespace RtxTool
             settle(mTo);
     }
 
-    std::size_t SkyCrossing::stepAmong(const std::span<const Rtx::Weather> rolled, const int steps) const
+    std::size_t SkyCrossing::stepAmong(const std::span<const Rtx::Weather> rolled, const std::int32_t steps) const
     {
         assert(!rolled.empty() && "a step among no weathers");
 

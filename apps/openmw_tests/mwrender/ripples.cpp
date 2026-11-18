@@ -11,10 +11,6 @@
 #include <apps/openmw/mwrender/ripples.hpp>
 #include <components/rtxvulkan/shaders/shared/ripple.h>
 
-#ifndef OPENMW_PROJECT_SOURCE_DIR
-#define OPENMW_PROJECT_SOURCE_DIR "."
-#endif
-
 namespace MWRender
 {
     namespace

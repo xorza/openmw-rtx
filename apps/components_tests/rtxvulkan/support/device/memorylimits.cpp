@@ -39,9 +39,15 @@ namespace Rtx::Testing
             owed += memory.getFrameReserve() - frame;
         for (auto before = static_cast<std::size_t>(MemoryUse::Essential); before < static_cast<std::size_t>(use);
             ++before)
-            owed += memory.getHeld(heap, static_cast<MemoryUse>(before));
+            owed += memory.getOwed(static_cast<MemoryUse>(before));
 
         return held.mHeld + owed + above;
+    }
+
+    VkDeviceSize budgetAtContent(const MemoryAllocator& memory)
+    {
+        const VkDeviceSize usage = memory.report().mHeaps[memory.getVideoHeap()].mHeld;
+        return budgetAbove(memory, MemoryUse::Texture, 0) - (usage - memory.getVideoBudget().mHeld);
     }
 
     NoRoomForContent::NoRoomForContent(const Device& device)

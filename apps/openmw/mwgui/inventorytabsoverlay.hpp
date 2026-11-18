@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include "windowbase.hpp"
 
 namespace MyGUI
@@ -14,8 +17,8 @@ namespace MWGui
     public:
         InventoryTabsOverlay();
 
-        int getHeight();
-        void setTab(size_t index);
+        std::int32_t getHeight();
+        void setTab(std::size_t index);
 
     private:
         std::vector<MyGUI::Button*> mTabs;

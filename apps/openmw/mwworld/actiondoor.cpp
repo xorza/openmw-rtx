@@ -1,7 +1,7 @@
 #include "actiondoor.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
 namespace MWWorld
 {

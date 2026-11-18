@@ -1,15 +1,18 @@
-#include "generate.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <random>
+
+#include <gtest/gtest.h>
+
+#include <osg/Vec3f>
 
 #include <components/detournavigator/navmeshtilescache.hpp>
 #include <components/detournavigator/preparednavmeshdata.hpp>
 #include <components/detournavigator/recast.hpp>
 #include <components/detournavigator/recastmesh.hpp>
+#include <components/resource/cachebudget.hpp>
 
-#include <osg/Vec3f>
-
-#include <gtest/gtest.h>
-
-#include <random>
+#include "generate.hpp"
 
 namespace
 {
@@ -18,14 +21,14 @@ namespace
     using namespace DetourNavigator::Tests;
 
     template <class T, class Random>
-    void generateRecastArray(T*& values, size_t size, Random& random)
+    void generateRecastArray(T*& values, std::size_t size, Random& random)
     {
         values = static_cast<T*>(permRecastAlloc(size * sizeof(T)));
         generateRange(values, values + static_cast<std::ptrdiff_t>(size), random);
     }
 
     template <class Random>
-    void generate(rcPolyMesh& value, int size, Random& random)
+    void generate(rcPolyMesh& value, std::int32_t size, Random& random)
     {
         value.nverts = size;
         value.maxpolys = size;
@@ -45,7 +48,7 @@ namespace
     }
 
     template <class Random>
-    void generate(rcPolyMeshDetail& value, int size, Random& random)
+    void generate(rcPolyMeshDetail& value, std::int32_t size, Random& random)
     {
         value.nmeshes = size;
         value.nverts = size;
@@ -56,7 +59,7 @@ namespace
     }
 
     template <class Random>
-    void generate(PreparedNavMeshData& value, int size, Random& random)
+    void generate(PreparedNavMeshData& value, std::int32_t size, Random& random)
     {
         generateValue(value.mUserId, random);
         generateValue(value.mCellHeight, random);
@@ -65,7 +68,7 @@ namespace
         generate(value.mPolyMeshDetail, size, random);
     }
 
-    std::unique_ptr<PreparedNavMeshData> makePeparedNavMeshData(int size)
+    std::unique_ptr<PreparedNavMeshData> makePeparedNavMeshData(std::int32_t size)
     {
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
@@ -82,7 +85,7 @@ namespace
 
     Mesh makeMesh()
     {
-        std::vector<int> indices{ { 0, 1, 2 } };
+        std::vector<std::int32_t> indices{ { 0, 1, 2 } };
         std::vector<float> vertices{ { 0, 0, 0, 1, 0, 0, 1, 1, 0 } };
         std::vector<AreaType> areaTypes{ 1, AreaType_ground };
         return Mesh(std::move(indices), std::move(vertices), std::move(areaTypes));
@@ -107,25 +110,34 @@ namespace
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, get_for_empty_cache_should_return_empty_value)
     {
-        const std::size_t maxSize = 0;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(0);
+        NavMeshTilesCache cache(budget);
 
         EXPECT_FALSE(cache.get(mAgentBounds, mTilePosition, mRecastMesh));
     }
 
-    TEST_F(DetourNavigatorNavMeshTilesCacheTest, set_for_not_enought_cache_size_should_return_empty_value)
+    /// Past the budget, a tile is handed over and kept while it is used: the budget stands past its bytes until it is
+    /// let go of, and the next insertion lets it go. What the cache held leaves the budget with it.
+    TEST_F(DetourNavigatorNavMeshTilesCacheTest, set_past_the_budget_hands_the_tile_over_and_keeps_it_while_used)
     {
-        const std::size_t maxSize = 0;
-        NavMeshTilesCache cache(maxSize);
-
-        EXPECT_FALSE(cache.set(mAgentBounds, mTilePosition, mRecastMesh, std::move(mPreparedNavMeshData)));
-        EXPECT_NE(mPreparedNavMeshData, nullptr);
+        Resource::CacheBudget budget(0);
+        {
+            NavMeshTilesCache cache(budget);
+            {
+                const auto result
+                    = cache.set(mAgentBounds, mTilePosition, mRecastMesh, std::move(mPreparedNavMeshData));
+                EXPECT_TRUE(result);
+                EXPECT_EQ(budget.getHeld(), mRecastMeshSize + mPreparedNavMeshDataSize);
+            }
+            EXPECT_TRUE(cache.get(mAgentBounds, mTilePosition, mRecastMesh)) << "let go of, and nothing asked room";
+        }
+        EXPECT_EQ(budget.getHeld(), 0u) << "the cache's tiles left the budget with it";
     }
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, set_should_return_cached_value)
     {
-        const std::size_t maxSize = mRecastMeshSize + mPreparedNavMeshDataSize;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(mRecastMeshSize + mPreparedNavMeshDataSize);
+        NavMeshTilesCache cache(budget);
         const auto copy = clone(*mPreparedNavMeshData);
         ASSERT_EQ(*mPreparedNavMeshData, *copy);
 
@@ -136,8 +148,8 @@ namespace
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, set_existing_element_should_return_cached_element)
     {
-        const std::size_t maxSize = 2 * (mRecastMeshSize + mPreparedNavMeshDataSize);
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(2 * (mRecastMeshSize + mPreparedNavMeshDataSize));
+        NavMeshTilesCache cache(budget);
         auto copy = clone(*mPreparedNavMeshData);
         const auto sameCopy = clone(*mPreparedNavMeshData);
 
@@ -150,8 +162,8 @@ namespace
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, get_should_return_cached_value)
     {
-        const std::size_t maxSize = mRecastMeshSize + mPreparedNavMeshDataSize;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(mRecastMeshSize + mPreparedNavMeshDataSize);
+        NavMeshTilesCache cache(budget);
         const auto copy = clone(*mPreparedNavMeshData);
 
         cache.set(mAgentBounds, mTilePosition, mRecastMesh, std::move(mPreparedNavMeshData));
@@ -162,8 +174,8 @@ namespace
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, get_for_cache_miss_by_agent_half_extents_should_return_empty_value)
     {
-        const std::size_t maxSize = 1;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(1);
+        NavMeshTilesCache cache(budget);
         const AgentBounds absentAgentBounds{ CollisionShapeType::Aabb, { 1, 1, 1 } };
 
         cache.set(mAgentBounds, mTilePosition, mRecastMesh, std::move(mPreparedNavMeshData));
@@ -172,8 +184,8 @@ namespace
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, get_for_cache_miss_by_tile_position_should_return_empty_value)
     {
-        const std::size_t maxSize = 1;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(1);
+        NavMeshTilesCache cache(budget);
         const TilePosition unexistentTilePosition{ 1, 1 };
 
         cache.set(mAgentBounds, mTilePosition, mRecastMesh, std::move(mPreparedNavMeshData));
@@ -182,8 +194,8 @@ namespace
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, get_for_cache_miss_by_recast_mesh_should_return_empty_value)
     {
-        const std::size_t maxSize = 1;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(1);
+        NavMeshTilesCache cache(budget);
         const std::vector<CellWater> water(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
         const RecastMesh unexistentRecastMesh(mVersion, mMesh, water, mHeightfields, mFlatHeightfields);
 
@@ -193,8 +205,8 @@ namespace
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, set_should_replace_unused_value)
     {
-        const std::size_t maxSize = mRecastMeshWithWaterSize + mPreparedNavMeshDataSize;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(mRecastMeshWithWaterSize + mPreparedNavMeshDataSize);
+        NavMeshTilesCache cache(budget);
 
         const std::vector<CellWater> water(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
         const RecastMesh anotherRecastMesh(mVersion, mMesh, water, mHeightfields, mFlatHeightfields);
@@ -209,23 +221,26 @@ namespace
         EXPECT_FALSE(cache.get(mAgentBounds, mTilePosition, mRecastMesh));
     }
 
+    /// A tile in use is never let go of: a second past the budget stands beside it, the budget past its bytes.
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, set_should_not_replace_used_value)
     {
-        const std::size_t maxSize = mRecastMeshWithWaterSize + mPreparedNavMeshDataSize;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(mRecastMeshWithWaterSize + mPreparedNavMeshDataSize);
+        NavMeshTilesCache cache(budget);
 
         const std::vector<CellWater> water(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
         const RecastMesh anotherRecastMesh(mVersion, mMesh, water, mHeightfields, mFlatHeightfields);
         auto anotherPreparedNavMeshData = makePeparedNavMeshData(3);
 
         const auto value = cache.set(mAgentBounds, mTilePosition, mRecastMesh, std::move(mPreparedNavMeshData));
-        EXPECT_FALSE(cache.set(mAgentBounds, mTilePosition, anotherRecastMesh, std::move(anotherPreparedNavMeshData)));
+        EXPECT_TRUE(cache.set(mAgentBounds, mTilePosition, anotherRecastMesh, std::move(anotherPreparedNavMeshData)));
+        EXPECT_TRUE(cache.get(mAgentBounds, mTilePosition, mRecastMesh));
+        EXPECT_GT(budget.getHeld(), budget.getBytes());
     }
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, set_should_replace_unused_least_recently_set_value)
     {
-        const std::size_t maxSize = 2 * (mRecastMeshWithWaterSize + mPreparedNavMeshDataSize);
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(2 * (mRecastMeshWithWaterSize + mPreparedNavMeshDataSize));
+        NavMeshTilesCache cache(budget);
         const auto copy = clone(*mPreparedNavMeshData);
 
         const std::vector<CellWater> leastRecentlySetWater(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
@@ -251,8 +266,8 @@ namespace
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, set_should_replace_unused_least_recently_used_value)
     {
-        const std::size_t maxSize = 2 * (mRecastMeshWithWaterSize + mPreparedNavMeshDataSize);
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(2 * (mRecastMeshWithWaterSize + mPreparedNavMeshDataSize));
+        NavMeshTilesCache cache(budget);
 
         const std::vector<CellWater> leastRecentlyUsedWater(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
         const RecastMesh leastRecentlyUsedRecastMesh(
@@ -289,26 +304,26 @@ namespace
         EXPECT_TRUE(cache.get(mAgentBounds, mTilePosition, mostRecentlyUsedRecastMesh));
     }
 
-    TEST_F(DetourNavigatorNavMeshTilesCacheTest,
-        set_should_not_replace_unused_least_recently_used_value_when_item_does_not_not_fit_cache_max_size)
+    /// A tile past the whole budget is handed over all the same, and the budget lets go of every unused tile for it.
+    TEST_F(DetourNavigatorNavMeshTilesCacheTest, a_tile_past_the_budget_is_handed_over_and_the_unused_tiles_go_for_it)
     {
-        const std::size_t maxSize = 2 * (mRecastMeshWithWaterSize + mPreparedNavMeshDataSize);
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(2 * (mRecastMeshWithWaterSize + mPreparedNavMeshDataSize));
+        NavMeshTilesCache cache(budget);
 
         const std::vector<CellWater> water(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
         const RecastMesh tooLargeRecastMesh(mVersion, mMesh, water, mHeightfields, mFlatHeightfields);
         auto tooLargeData = makePeparedNavMeshData(10);
 
         cache.set(mAgentBounds, mTilePosition, mRecastMesh, std::move(mPreparedNavMeshData));
-        EXPECT_FALSE(cache.set(mAgentBounds, mTilePosition, tooLargeRecastMesh, std::move(tooLargeData)));
-        EXPECT_TRUE(cache.get(mAgentBounds, mTilePosition, mRecastMesh));
+        EXPECT_TRUE(cache.set(mAgentBounds, mTilePosition, tooLargeRecastMesh, std::move(tooLargeData)));
+        EXPECT_FALSE(cache.get(mAgentBounds, mTilePosition, mRecastMesh)) << "an unused tile kept past the budget";
     }
 
-    TEST_F(DetourNavigatorNavMeshTilesCacheTest,
-        set_should_not_replace_unused_least_recently_used_value_when_item_does_not_not_fit_size_of_unused_items)
+    /// Of the tiles the budget lets go of for one past it, the used one stays and the unused goes.
+    TEST_F(DetourNavigatorNavMeshTilesCacheTest, a_tile_past_the_budget_lets_the_unused_go_and_keeps_the_used)
     {
-        const std::size_t maxSize = 2 * (mRecastMeshWithWaterSize + mPreparedNavMeshDataSize);
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(2 * (mRecastMeshWithWaterSize + mPreparedNavMeshDataSize));
+        NavMeshTilesCache cache(budget);
 
         const std::vector<CellWater> anotherWater(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
         const RecastMesh anotherRecastMesh(mVersion, mMesh, anotherWater, mHeightfields, mFlatHeightfields);
@@ -321,16 +336,16 @@ namespace
         const auto value = cache.set(mAgentBounds, mTilePosition, mRecastMesh, std::move(mPreparedNavMeshData));
         ASSERT_TRUE(value);
         ASSERT_TRUE(cache.set(mAgentBounds, mTilePosition, anotherRecastMesh, std::move(anotherData)));
-        EXPECT_FALSE(cache.set(mAgentBounds, mTilePosition, tooLargeRecastMesh, std::move(tooLargeData)));
+        EXPECT_TRUE(cache.set(mAgentBounds, mTilePosition, tooLargeRecastMesh, std::move(tooLargeData)));
         EXPECT_TRUE(cache.get(mAgentBounds, mTilePosition, mRecastMesh));
-        EXPECT_TRUE(cache.get(mAgentBounds, mTilePosition, anotherRecastMesh));
+        EXPECT_FALSE(cache.get(mAgentBounds, mTilePosition, anotherRecastMesh));
     }
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest,
         release_used_after_set_then_used_by_get_item_should_left_this_item_available)
     {
-        const std::size_t maxSize = mRecastMeshWithWaterSize + mPreparedNavMeshDataSize;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(mRecastMeshWithWaterSize + mPreparedNavMeshDataSize);
+        NavMeshTilesCache cache(budget);
 
         const std::vector<CellWater> water(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
         const RecastMesh anotherRecastMesh(mVersion, mMesh, water, mHeightfields, mFlatHeightfields);
@@ -342,14 +357,14 @@ namespace
             const auto secondCopy = cache.get(mAgentBounds, mTilePosition, mRecastMesh);
             ASSERT_TRUE(secondCopy);
         }
-        EXPECT_FALSE(cache.set(mAgentBounds, mTilePosition, anotherRecastMesh, std::move(anotherData)));
+        EXPECT_TRUE(cache.set(mAgentBounds, mTilePosition, anotherRecastMesh, std::move(anotherData)));
         EXPECT_TRUE(cache.get(mAgentBounds, mTilePosition, mRecastMesh));
     }
 
     TEST_F(DetourNavigatorNavMeshTilesCacheTest, release_twice_used_item_should_left_this_item_available)
     {
-        const std::size_t maxSize = mRecastMeshWithWaterSize + mPreparedNavMeshDataSize;
-        NavMeshTilesCache cache(maxSize);
+        Resource::CacheBudget budget(mRecastMeshWithWaterSize + mPreparedNavMeshDataSize);
+        NavMeshTilesCache cache(budget);
 
         const std::vector<CellWater> water(1, CellWater{ osg::Vec2i(), Water{ 1, 0.0f } });
         const RecastMesh anotherRecastMesh(mVersion, mMesh, water, mHeightfields, mFlatHeightfields);
@@ -362,7 +377,7 @@ namespace
             const auto secondCopy = cache.get(mAgentBounds, mTilePosition, mRecastMesh);
             ASSERT_TRUE(secondCopy);
         }
-        EXPECT_FALSE(cache.set(mAgentBounds, mTilePosition, anotherRecastMesh, std::move(anotherData)));
+        EXPECT_TRUE(cache.set(mAgentBounds, mTilePosition, anotherRecastMesh, std::move(anotherData)));
         EXPECT_TRUE(cache.get(mAgentBounds, mTilePosition, mRecastMesh));
     }
 }

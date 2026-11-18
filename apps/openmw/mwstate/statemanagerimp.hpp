@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <utility>
 
-#include "../mwbase/statemanager.hpp"
+#include <apps/openmw/mwbase/statemanager.hpp>
 
 #include "charactermanager.hpp"
 
@@ -35,7 +36,7 @@ namespace MWState
 
         void writeScreenshot(std::vector<char>& imageData) const;
 
-        std::map<int, int> buildContentFileIndexMap(const ESM::ESMReader& reader) const;
+        std::map<std::int32_t, std::int32_t> buildContentFileIndexMap(const ESM::ESMReader& reader) const;
 
     public:
         StateManager(const std::filesystem::path& saves, const std::vector<std::string>& contentFiles);

@@ -1,14 +1,15 @@
-#include <components/esm/refid.hpp>
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
-#include <components/testing/expecterror.hpp>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <string>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <functional>
-#include <map>
-#include <string>
+#include <components/esm/refid.hpp>
+#include <components/esm3/esmreader.hpp>
+#include <components/esm3/esmwriter.hpp>
+#include <components/testing/expecterror.hpp>
 
 namespace
 {
@@ -45,7 +46,8 @@ namespace ESM
         TEST(ESMRefIdTest, FormIdRefIdMustHaveContentFile)
         {
             EXPECT_TRUE(RefId(FormId()).empty());
-            EXPECT_ERROR(RefId(FormId{ .mIndex = 1, .mContentFile = -1 }), "RefId can't be a generated FormId");
+            Testing::expectError(
+                [&] { return RefId(FormId{ .mIndex = 1, .mContentFile = -1 }); }, "RefId can't be a generated FormId");
         }
 
         TEST(ESMRefIdTest, defaultConstructedIsEqualToItself)
@@ -202,13 +204,13 @@ namespace ESM
 
         TEST(ESMRefIdTest, canBeUsedAsMapKeyWithLookupByStringView)
         {
-            const std::map<RefId, int, std::less<>> map({ { RefId::stringRefId("a"), 42 } });
+            const std::map<RefId, std::int32_t, std::less<>> map({ { RefId::stringRefId("a"), 42 } });
             EXPECT_EQ(map.count("A"), 1);
         }
 
         TEST(ESMRefIdTest, canBeUsedAsLookupKeyForMapWithStringKey)
         {
-            const std::map<std::string, int, std::less<>> map({ { "a", 42 } });
+            const std::map<std::string, std::int32_t, std::less<>> map({ { "a", 42 } });
             EXPECT_EQ(map.count(RefId::stringRefId("A")), 1);
         }
 
@@ -266,9 +268,11 @@ namespace ESM
             { RefId::generated(std::numeric_limits<std::uint64_t>::max()), "0xffffffffffffffff" },
             { RefId::index(REC_ARMO, 42), "ARMO:0x2a" },
             { RefId::esm3ExteriorCell(-13, 42), "#-13 42" },
-            { RefId::esm3ExteriorCell(std::numeric_limits<int>::min(), std::numeric_limits<int>::min()),
+            { RefId::esm3ExteriorCell(
+                  std::numeric_limits<std::int32_t>::min(), std::numeric_limits<std::int32_t>::min()),
                 "#-2147483648 -2147483648" },
-            { RefId::esm3ExteriorCell(std::numeric_limits<int>::max(), std::numeric_limits<int>::max()),
+            { RefId::esm3ExteriorCell(
+                  std::numeric_limits<std::int32_t>::max(), std::numeric_limits<std::int32_t>::max()),
                 "#2147483647 2147483647" },
         };
 
@@ -311,9 +315,11 @@ namespace ESM
             { RefId::index(REC_ARMO, 42), "Index:ARMO:0x2a" },
             { RefId::index(REC_ARMO, std::numeric_limits<std::uint32_t>::max()), "Index:ARMO:0xffffffff" },
             { RefId::esm3ExteriorCell(-13, 42), "Esm3ExteriorCell:-13:42" },
-            { RefId::esm3ExteriorCell(std::numeric_limits<int>::min(), std::numeric_limits<int>::min()),
+            { RefId::esm3ExteriorCell(
+                  std::numeric_limits<std::int32_t>::min(), std::numeric_limits<std::int32_t>::min()),
                 "Esm3ExteriorCell:-2147483648:-2147483648" },
-            { RefId::esm3ExteriorCell(std::numeric_limits<int>::max(), std::numeric_limits<int>::max()),
+            { RefId::esm3ExteriorCell(
+                  std::numeric_limits<std::int32_t>::max(), std::numeric_limits<std::int32_t>::max()),
                 "Esm3ExteriorCell:2147483647:2147483647" },
         };
 

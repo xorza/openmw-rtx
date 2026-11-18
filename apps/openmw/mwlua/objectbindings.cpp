@@ -1,5 +1,21 @@
 #include "objectbindings.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/types/types.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/localscripts.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/lua/luastate.hpp>
@@ -8,26 +24,9 @@
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/mathutil.hpp>
-#include <utility>
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/localscripts.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwrender/renderingmanager.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 #include "luaevents.hpp"
 #include "luamanagerimp.hpp"
-#include "types/types.hpp"
 
 namespace sol
 {
@@ -171,7 +170,7 @@ namespace MWLua
             listT[sol::meta_function::to_string]
                 = [](const ListT& list) { return "{" + std::to_string(list.mIds->size()) + " objects}"; };
             listT[sol::meta_function::length] = [](const ListT& list) { return list.mIds->size(); };
-            listT[sol::meta_function::index] = [](const ListT& list, size_t index) -> sol::optional<ObjectT> {
+            listT[sol::meta_function::index] = [](const ListT& list, std::size_t index) -> sol::optional<ObjectT> {
                 if (index > 0 && index <= list.mIds->size())
                     return ObjectT((
                         *list.mIds)[static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)))]);
@@ -261,17 +260,17 @@ namespace MWLua
             };
             ownerT["factionId"] = sol::property(getOwnerFactionId, setOwnerFactionId);
 
-            auto getOwnerFactionRank = [](const OwnerT& o) -> sol::optional<int64_t> {
-                int rank = o.mObj.ptr().getCellRef().getFactionRank();
+            auto getOwnerFactionRank = [](const OwnerT& o) -> sol::optional<std::int64_t> {
+                std::int32_t rank = o.mObj.ptr().getCellRef().getFactionRank();
                 if (rank < 0)
                     return sol::nullopt;
                 return LuaUtil::toLuaIndex(rank);
             };
-            auto setOwnerFactionRank = [](const OwnerT& o, sol::optional<int64_t> factionRank) {
+            auto setOwnerFactionRank = [](const OwnerT& o, sol::optional<std::int64_t> factionRank) {
                 if (std::is_same_v<ObjectT, LObject> && !(o.mObj.isSelfObject()))
                     throw std::runtime_error("Local scripts can set an owner faction rank only on self");
-                int64_t rank = std::max<int64_t>(0, LuaUtil::fromLuaIndex(factionRank.value_or(0)));
-                o.mObj.ptr().getCellRef().setFactionRank(static_cast<int>(rank));
+                std::int64_t rank = std::max<std::int64_t>(0, LuaUtil::fromLuaIndex(factionRank.value_or(0)));
+                o.mObj.ptr().getCellRef().setFactionRank(static_cast<std::int32_t>(rank));
             };
             ownerT["factionRank"] = sol::property(getOwnerFactionRank, setOwnerFactionRank);
 
@@ -283,7 +282,7 @@ namespace MWLua
         {
             objectT["id"] = sol::readonly_property([](const ObjectT& o) -> std::string { return o.id().toString(); });
             objectT["contentFile"] = sol::readonly_property([](const ObjectT& o) -> sol::optional<std::string> {
-                int contentFileIndex = o.id().mContentFile;
+                std::int32_t contentFileIndex = o.id().mContentFile;
                 const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
                 if (contentFileIndex < 0 || std::cmp_greater_equal(contentFileIndex, contentList.size()))
                     return sol::nullopt;
@@ -355,7 +354,7 @@ namespace MWLua
             objectT["activateBy"] = [](const ObjectT& object, const ObjectT& actor) {
                 const MWWorld::Ptr& objPtr = object.ptr();
                 const MWWorld::Ptr& actorPtr = actor.ptr();
-                uint32_t esmRecordType = actorPtr.getType();
+                std::uint32_t esmRecordType = actorPtr.getType();
                 if (esmRecordType != ESM::REC_CREA && esmRecordType != ESM::REC_NPC_)
                     throw std::runtime_error(
                         "The argument of `activateBy` must be an actor who activates the object. Got: "
@@ -407,7 +406,7 @@ namespace MWLua
                 objectT["addScript"] = [context](
                                            const GObject& object, std::string_view path, const sol::object& initData) {
                     const LuaUtil::ScriptsConfiguration& cfg = context.mLua->getConfiguration();
-                    std::optional<int> scriptId = cfg.findId(VFS::Path::Normalized(path));
+                    std::optional<std::int32_t> scriptId = cfg.findId(VFS::Path::Normalized(path));
                     if (!scriptId)
                         throw std::runtime_error("Unknown script: " + std::string(path));
                     if (!(cfg[static_cast<std::size_t>(*scriptId)].mFlags & ESM::LuaScriptCfg::sCustom))
@@ -424,7 +423,7 @@ namespace MWLua
                 };
                 objectT["hasScript"] = [lua = context.mLua](const GObject& object, std::string_view path) {
                     const LuaUtil::ScriptsConfiguration& cfg = lua->getConfiguration();
-                    std::optional<int> scriptId = cfg.findId(VFS::Path::Normalized(path));
+                    std::optional<std::int32_t> scriptId = cfg.findId(VFS::Path::Normalized(path));
                     if (!scriptId)
                         return false;
                     MWWorld::Ptr ptr = object.ptr();
@@ -436,7 +435,7 @@ namespace MWLua
                 };
                 objectT["removeScript"] = [lua = context.mLua](const GObject& object, std::string_view path) {
                     const LuaUtil::ScriptsConfiguration& cfg = lua->getConfiguration();
-                    std::optional<int> scriptId = cfg.findId(VFS::Path::Normalized(path));
+                    std::optional<std::int32_t> scriptId = cfg.findId(VFS::Path::Normalized(path));
                     if (!scriptId)
                         throw std::runtime_error("Unknown script: " + std::string(path));
                     MWWorld::Ptr ptr = object.ptr();
@@ -449,10 +448,11 @@ namespace MWLua
                 };
 
                 using DelayedRemovalFn = std::function<void(MWWorld::Ptr)>;
-                auto removeFn = [](const MWWorld::Ptr ptr, int countToRemove) -> std::optional<DelayedRemovalFn> {
-                    int rawCount = ptr.getCellRef().getCount(false);
-                    int currentCount = std::abs(rawCount);
-                    int signedCountToRemove = (rawCount < 0 ? -1 : 1) * countToRemove;
+                auto removeFn
+                    = [](const MWWorld::Ptr ptr, std::int32_t countToRemove) -> std::optional<DelayedRemovalFn> {
+                    std::int32_t rawCount = ptr.getCellRef().getCount(false);
+                    std::int32_t currentCount = std::abs(rawCount);
+                    std::int32_t signedCountToRemove = (rawCount < 0 ? -1 : 1) * countToRemove;
 
                     if (countToRemove <= 0 || countToRemove > currentCount)
                         throw std::runtime_error("Can't remove " + std::to_string(countToRemove) + " of "
@@ -474,13 +474,13 @@ namespace MWLua
                         }
                     };
                 };
-                objectT["remove"] = [removeFn, context](const GObject& object, sol::optional<int> count) {
+                objectT["remove"] = [removeFn, context](const GObject& object, sol::optional<std::int32_t> count) {
                     std::optional<DelayedRemovalFn> delayed
                         = removeFn(object.ptr(), count.value_or(object.ptr().getCellRef().getCount()));
                     if (delayed.has_value())
                         context.mLuaManager->addAction([fn = *delayed, object] { fn(object.ptr()); });
                 };
-                objectT["split"] = [removeFn, context](const GObject& object, int count) -> GObject {
+                objectT["split"] = [removeFn, context](const GObject& object, std::int32_t count) -> GObject {
                     // Doesn't matter which cell to use because the new instance will be in disabled state.
                     MWWorld::CellStore* cell = MWBase::Environment::get().getWorldScene()->getCurrentCell();
 
@@ -496,7 +496,7 @@ namespace MWLua
                 };
                 objectT["moveInto"] = [removeFn, context](const GObject& object, const sol::object& dest) {
                     const MWWorld::Ptr& ptr = object.ptr();
-                    int count = ptr.getCellRef().getCount();
+                    std::int32_t count = ptr.getCellRef().getCount();
                     MWWorld::Ptr destPtr;
                     if (dest.is<GObject>())
                         destPtr = dest.as<GObject>().ptr();
@@ -520,7 +520,7 @@ namespace MWLua
                                           const osg::Vec3f& pos, const sol::object& options) {
                     MWWorld::CellStore* cell = findCell(cellOrName, pos);
                     MWWorld::Ptr ptr = object.ptr();
-                    int count = ptr.getCellRef().getCount();
+                    std::int32_t count = ptr.getCellRef().getCount();
                     if (count == 0)
                         throw std::runtime_error("Object is either removed or already in the process of teleporting");
                     osg::Vec3f rot = ptr.getRefData().getPosition().asRotationVec3();
@@ -578,8 +578,8 @@ namespace MWLua
 
             inventoryT["getAll"] = [ids = getPackageToTypeTable(context.mLua->unsafeState())](
                                        const InventoryT& inventory, sol::optional<sol::table> type) {
-                int mask = -1;
-                sol::optional<uint32_t> typeId = sol::nullopt;
+                std::int32_t mask = -1;
+                sol::optional<std::uint32_t> typeId = sol::nullopt;
                 if (type.has_value())
                     typeId = ids[*type];
                 else

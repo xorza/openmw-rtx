@@ -1,6 +1,6 @@
 #include "ptr.hpp"
 
-#include "apps/openmw/mwbase/environment.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
 
 #include "worldmodel.hpp"
 

@@ -1,7 +1,8 @@
-#include <components/shader/shadermanager.hpp>
+#include <vector>
 
 #include <gtest/gtest.h>
-#include <vector>
+
+#include <components/shader/shadermanager.hpp>
 
 namespace
 {
@@ -16,7 +17,7 @@ namespace
         const std::string mName = "shader";
     };
 
-    static bool parseFors(std::string& source, const std::string& templateName)
+    bool parseFors(std::string& source, const std::string& templateName)
     {
         std::vector<std::string> dummy;
         return parseDirectives(source, dummy, {}, {}, templateName);

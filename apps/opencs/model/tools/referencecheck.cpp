@@ -1,14 +1,13 @@
 #include "referencecheck.hpp"
 
+#include <cstdint>
 #include <string>
-
-#include "../prefs/state.hpp"
-
-#include "../../model/world/cell.hpp"
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/ref.hpp>
@@ -16,7 +15,6 @@
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadfact.hpp>
@@ -34,7 +32,7 @@ CSMTools::ReferenceCheckStage::ReferenceCheckStage(const CSMWorld::RefCollection
     mIgnoreBaseRecords = false;
 }
 
-void CSMTools::ReferenceCheckStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::ReferenceCheckStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<CSMWorld::CellRef>& record = mReferences.getRecord(stage);
 
@@ -116,7 +114,7 @@ void CSMTools::ReferenceCheckStage::perform(int stage, CSMDoc::Messages& message
         messages.add(id, "Reference without count", {}, CSMDoc::Message::Severity_Error);
 }
 
-int CSMTools::ReferenceCheckStage::setup()
+std::int32_t CSMTools::ReferenceCheckStage::setup()
 {
     mIgnoreBaseRecords = CSMPrefs::get()["Reports"]["ignore-base-records"].isTrue();
     mUsedReferenceIDs.clear();

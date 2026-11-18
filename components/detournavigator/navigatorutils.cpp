@@ -1,10 +1,11 @@
 #include "navigatorutils.hpp"
+
+#include <components/debug/debuglog.hpp>
+
 #include "debug.hpp"
 #include "findrandompointaroundcircle.hpp"
 #include "navigator.hpp"
 #include "raycast.hpp"
-
-#include <components/debug/debuglog.hpp>
 
 namespace DetourNavigator
 {

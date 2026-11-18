@@ -1,24 +1,23 @@
 #include "magiceffects.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/esm3/magiceffects.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/esmstore.hpp"
-
 namespace
 {
     // Round value to prevent precision issues
     void truncate(float& value)
     {
-        value = static_cast<float>(static_cast<int>(value * 1024.f)) / 1024.f;
+        value = static_cast<float>(static_cast<std::int32_t>(value * 1024.f)) / 1024.f;
     }
 }
 
@@ -66,17 +65,17 @@ namespace MWMechanics
         return static_cast<float>(mBase) + mModifier;
     }
 
-    void EffectParam::modifyBase(int diff)
+    void EffectParam::modifyBase(std::int32_t diff)
     {
         mBase += diff;
     }
 
-    int EffectParam::getBase() const
+    std::int32_t EffectParam::getBase() const
     {
         return mBase;
     }
 
-    void EffectParam::setBase(int base)
+    void EffectParam::setBase(std::int32_t base)
     {
         mBase = base;
     }
@@ -127,7 +126,7 @@ namespace MWMechanics
         }
     }
 
-    void MagicEffects::modifyBase(const EffectKey& key, int diff)
+    void MagicEffects::modifyBase(const EffectKey& key, std::int32_t diff)
     {
         mCollection[key].modifyBase(diff);
     }

@@ -1,13 +1,14 @@
 #include "controlswitch.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <components/esm3/controlsstate.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
 #include <components/loadinglistener/loadinglistener.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWInput
 {
@@ -64,7 +65,7 @@ namespace MWInput
         writer.endRecord(ESM::REC_INPU);
     }
 
-    void ControlSwitch::readRecord(ESM::ESMReader& reader, uint32_t type)
+    void ControlSwitch::readRecord(ESM::ESMReader& reader, std::uint32_t type)
     {
         ESM::ControlsState controls;
         controls.load(reader);
@@ -78,7 +79,7 @@ namespace MWInput
         set("playermagic", !controls.mSpellDrawingDisabled);
     }
 
-    size_t ControlSwitch::countSavedGameRecords() const
+    std::size_t ControlSwitch::countSavedGameRecords() const
     {
         return 1;
     }

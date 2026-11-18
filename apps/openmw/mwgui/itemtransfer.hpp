@@ -1,17 +1,18 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <unordered_set>
+
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <components/misc/notnullptr.hpp>
+
 #include "inventorywindow.hpp"
 #include "itemmodel.hpp"
 #include "itemview.hpp"
 #include "windowmanagerimp.hpp"
 #include "worlditemmodel.hpp"
-
-#include <apps/openmw/mwbase/windowmanager.hpp>
-#include <apps/openmw/mwworld/class.hpp>
-
-#include <components/misc/notnullptr.hpp>
-
-#include <unordered_set>
 
 namespace MWGui
 {
@@ -54,7 +55,7 @@ namespace MWGui
             WorldItemModel worldItemModel(0.5f, 0.5f);
             ItemModel* const targetModel = targetView == nullptr ? &worldItemModel : targetView->getModel();
 
-            if (!targetModel->onDropItem(item.mBase, static_cast<int>(count)))
+            if (!targetModel->onDropItem(item.mBase, static_cast<std::int32_t>(count)))
                 return;
 
             sourceView.getModel()->moveItem(item, count, targetModel);

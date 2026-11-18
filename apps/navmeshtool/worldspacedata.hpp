@@ -1,19 +1,19 @@
 #pragma once
 
+#include <memory>
+#include <regex>
+#include <span>
+#include <vector>
+
+#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
+#include <LinearMath/btVector3.h>
+
 #include <components/bullethelpers/collisionobject.hpp>
 #include <components/detournavigator/settings.hpp>
 #include <components/detournavigator/tilecachedrecastmeshmanager.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/convert.hpp>
 #include <components/resource/bulletshape.hpp>
-
-#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
-#include <LinearMath/btVector3.h>
-
-#include <memory>
-#include <regex>
-#include <span>
-#include <vector>
 
 namespace ESM
 {

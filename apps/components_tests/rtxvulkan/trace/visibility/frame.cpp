@@ -33,6 +33,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
@@ -52,6 +53,7 @@ namespace Rtx::Testing
         /// acceleration structure and compares against arithmetic done on the CPU.
         TEST_F(RtxVisibilityTest, aRotatedInstanceRendersAsIfItsVerticesHadBeenMoved)
         {
+            SceneIdentities identities;
             const osg::Matrixf transform = osg::Matrixf::scale(1.5f, 1.5f, 1.5f)
                 * osg::Matrixf::rotate(osg::DegreesToRadians(37.0f), osg::Vec3f(0.3f, -0.5f, 0.8f))
                 * osg::Matrixf::translate(11.0f, -23.0f, 5.0f);
@@ -63,14 +65,14 @@ namespace Rtx::Testing
                 osg::Vec3f(-140.0f, 0.0f, 60.0f),
             };
 
-            SceneDesc placedByInstance;
+            SceneDesc placedByInstance(identities);
             addQuad(placedByInstance, local, std::nullopt, transform);
 
             std::array<osg::Vec3f, 4> moved{};
             for (std::size_t i = 0; i < local.size(); ++i)
                 moved[i] = local[i] * transform;
 
-            SceneDesc placedByVertex;
+            SceneDesc placedByVertex(identities);
             addQuad(placedByVertex, moved);
 
             constexpr std::uint32_t size = 64;
@@ -100,9 +102,10 @@ namespace Rtx::Testing
         /// ray that quietly fanned out would still fill a plausible-looking image.
         TEST_F(RtxVisibilityTest, anOrthographicCameraSendsItsRaysParallelRatherThanThroughAnEye)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(25.0f, -100.0f));
 
             // Straight down from a hundred units up, so the sheet is two hundred below the eye.
@@ -130,6 +133,7 @@ namespace Rtx::Testing
         /// — the check that the pass reports geometry rather than reporting that it ran.
         TEST_F(RtxVisibilityTest, aCameraFacingAwayHitsNothingAndTheImageIsAllSky)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -200.0f, 0.0f), 60.0f, size, size, 10000.0f);
@@ -139,7 +143,7 @@ namespace Rtx::Testing
             camera.mSkyHorizon = osg::Vec3f(0.0f, 0.25f, 0.0f);
             camera.mSkyZenith = osg::Vec3f(0.0f, 0.25f, 0.0f);
 
-            const Frame frame = shoot(makeWall(), {}, camera, size);
+            const Frame frame = shoot(makeWall(identities), {}, camera, size);
             EXPECT_EQ(frame.mHits, 0u);
 
             // Flat, so every pixel is the same byte: 1.055 * 0.25^(1/2.4) - 0.055 = 0.537099, which
@@ -160,11 +164,12 @@ namespace Rtx::Testing
         /// material at all is 255.
         TEST_F(RtxVisibilityTest, aWallLargerThanTheFrameIsHitByEveryRay)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            const Frame frame = shoot(makeWall(), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+            const Frame frame = shoot(makeWall(identities), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
             EXPECT_EQ(frame.mHits, size * size);
 
             ASSERT_EQ(frame.mRadiance.size(), std::size_t{ size } * size * 4);
@@ -175,8 +180,8 @@ namespace Rtx::Testing
                 ASSERT_NEAR(frame.byte(i + 2), 187, 1) << "blue at pixel " << i / 4;
             }
 
-            SceneDesc bare;
-            addQuad(bare, sWallQuad, sNoIndex);
+            SceneDesc bare(identities);
+            addQuad(bare, sWallQuad, sNoRow);
             const Frame white = shoot(bare, {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_EQ(white.byte(centreValueOf(size) + channel), 255) << "channel " << channel;
@@ -205,7 +210,7 @@ namespace Rtx::Testing
             const std::uint8_t expected = displayedGrey(exposed);
 
             std::vector<std::uint8_t> measured;
-            renderPicture(makeWall(), {}, camera, size, measured, Shot{ .mShow = SurfaceView::Albedo });
+            renderPicture(makeWall(identities), {}, camera, size, measured, Shot{ .mShow = SurfaceView::Albedo });
 
             ASSERT_EQ(measured.size(), frame.mRadiance.size());
             for (std::size_t i = 0; i < measured.size(); i += 4)
@@ -229,12 +234,13 @@ namespace Rtx::Testing
             bool lifted = false;
             for (const float exposure : { 0.01f, 0.05f, 0.25f, 1.0f })
             {
+                SceneIdentities identities;
                 std::vector<std::uint8_t> plain;
-                shoot(makeWall(), {}, camera, size, Shot{ .mExposure = exposure });
+                shoot(makeWall(identities), {}, camera, size, Shot{ .mExposure = exposure });
                 mRenderer.readPixels(plain);
 
                 std::vector<std::uint8_t> raised;
-                shoot(makeWall(), {}, camera, size, Shot{ .mExposure = exposure, .mGamma = 2.0f });
+                shoot(makeWall(identities), {}, camera, size, Shot{ .mExposure = exposure, .mGamma = 2.0f });
                 mRenderer.readPixels(raised);
 
                 ASSERT_EQ(plain.size(), std::size_t{ size } * size * 4);
@@ -269,9 +275,10 @@ namespace Rtx::Testing
         /// the frame before differs at the rim.
         TEST_F(RtxVisibilityTest, theBloomWeighsAFrameByItsOwnExposure)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, uprightQuadAt(20.0f, 0.0f));
 
             Shaders::VisibilityConstants camera = wallCamera(size, osg::Vec3f(8.0f, 8.0f, 8.0f));
@@ -309,14 +316,15 @@ namespace Rtx::Testing
         /// three are one byte, 110.
         TEST_F(RtxVisibilityTest, theDitherKeepsAFlatGreysMeanInsideItsByte)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = Shaders::BLUE_NOISE_EXTENT;
             constexpr std::uint32_t frames = 4;
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-            SceneDesc bare;
-            addQuad(bare, sWallQuad, sNoIndex);
+            SceneDesc bare(identities);
+            addQuad(bare, sWallQuad, sNoRow);
 
-            constexpr int byte = 110;
+            constexpr std::int32_t byte = 110;
             double previousMean = 0.0;
             for (const float level : { 109.7f, 110.0f, 110.3f })
             {
@@ -348,7 +356,7 @@ namespace Rtx::Testing
                                 ASSERT_EQ(pixels[i + 1], pixels[i]) << "green apart from red at pixel " << i / 4;
                                 ASSERT_EQ(pixels[i + 2], pixels[i]) << "blue apart from red at pixel " << i / 4;
                                 ASSERT_EQ(pixels[i + 3], 255) << "the dither reached the alpha of pixel " << i / 4;
-                                const int step = int{ pixels[i] } - byte;
+                                const std::int32_t step = std::int32_t{ pixels[i] } - byte;
                                 ASSERT_LE(std::abs(step), 1) << "pixel " << i / 4 << " at " << level;
                                 // An index from signed steps, whole and in range before it is widened.
                                 // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
@@ -380,13 +388,14 @@ namespace Rtx::Testing
         /// the samples do not, the second store being undithered.
         TEST_F(RtxVisibilityTest, aSummedFramesPictureIsWrittenAtSixteenBitsBesideItsBytes)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 16;
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-            SceneDesc bare;
-            addQuad(bare, sWallQuad, sNoIndex);
+            SceneDesc bare(identities);
+            addQuad(bare, sWallQuad, sNoRow);
 
-            int previous = 0;
+            std::int32_t previous = 0;
             std::size_t scattered = 0;
             for (const float level : { 109.7f, 110.0f, 110.3f })
             {
@@ -401,7 +410,7 @@ namespace Rtx::Testing
                 ASSERT_EQ(samples.size(), std::size_t{ size } * size * 4);
                 ASSERT_EQ(bytes.size(), samples.size());
 
-                const int sample = samples[0];
+                const std::int32_t sample = samples[0];
                 for (std::size_t i = 0; i < samples.size(); ++i)
                 {
                     if (i % 4 == 3)
@@ -440,12 +449,13 @@ namespace Rtx::Testing
         /// direction: 0.5196 squared, 27.0% of 4096 pixels, 1106, give or take the pixels the edge falls inside.
         TEST_F(RtxVisibilityTest, aWallSmallerThanTheFrameCoversTheAreaItSubtends)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             const std::array positions = uprightQuadAt(30.0f, 0.0f);
 
-            SceneDesc scene;
-            const Index mesh = addQuadMesh(scene, positions);
+            SceneDesc scene(identities);
+            const MeshIndex mesh = addQuadMesh(scene, positions);
             scene.addInstance(MeshInstance{ .mMesh = mesh });
 
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -468,6 +478,7 @@ namespace Rtx::Testing
         /// hits. Half a pixel exactly, so the answer is a whole column and no pixel lands on the boundary.
         TEST_F(RtxVisibilityTest, theJitterMovesTheSampleTheWayTheImageIsIndexed)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             // The frame is 2 * 100 * tan(30) = 115.47 units across at the wall, which is 1.8042 to
@@ -482,7 +493,7 @@ namespace Rtx::Testing
                 osg::Vec3f(-4000.0f, 0.0f, 4000.0f),
             };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, half);
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -521,6 +532,7 @@ namespace Rtx::Testing
         /// quarters wall and one quarter sky and cannot come out as either.
         TEST_F(RtxVisibilityTest, jitteredFramesAverageIntoAnAntialiasedEdge)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float edge = 0.4510f;
 
@@ -531,7 +543,7 @@ namespace Rtx::Testing
                 osg::Vec3f(-4000.0f, 0.0f, 4000.0f),
             };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, half);
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -545,7 +557,7 @@ namespace Rtx::Testing
             // The last column the wall covers, and the first one past it.
             constexpr std::size_t row = std::size_t{ size / 2 } * size;
             const auto redAt = [](const Frame& drawn, std::size_t column) {
-                return static_cast<int>(drawn.byte((row + column) * 4));
+                return static_cast<std::int32_t>(drawn.byte((row + column) * 4));
             };
 
             const Frame hard = shoot(scene, {}, camera, size, { .mFrames = 16, .mShow = SurfaceView::Albedo });
@@ -584,6 +596,7 @@ namespace Rtx::Testing
         /// `(s / d) / tan(30) / (1 / tan(30)) = s / d`, 0.64 pixels where the world's plane would read 1.1085.
         TEST_F(RtxVisibilityTest, aMotionVectorSaysWhereItsSurfaceWasAndNotWhereTheWorldIs)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::size_t centre = centreOf(size);
 
@@ -591,7 +604,7 @@ namespace Rtx::Testing
             /// to `somewhere + eye` looking at `somewhere + at`.
             const auto motionFrom = [&](const osg::Vec3f& somewhere, float away, const osg::Vec3f& eye,
                                         const osg::Vec3f& at) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 std::array<osg::Vec3f, 4> wall = wallAt(away);
                 for (osg::Vec3f& corner : wall)
                     corner += somewhere;
@@ -632,7 +645,7 @@ namespace Rtx::Testing
             // `shoot` holds that no module stored a value that is not finite. Whether a ray commits a hit at
             // nought is the driver's: AMD's Windows driver commits every one here, NVIDIA's none.
             {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, wallAt(0.0f));
 
                 shoot(scene, {},
@@ -650,7 +663,7 @@ namespace Rtx::Testing
             // compared against does not. Two different terms of the sequence, since a wrong answer that was the
             // same both frames would hold an upscaler's history in one wrong place rather than shake it.
             {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, wallAt(200.0f));
 
                 const Shaders::VisibilityConstants camera
@@ -734,7 +747,7 @@ namespace Rtx::Testing
             }
 
             {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 scene.addInstance(
                     MeshInstance{ .mMesh = addQuadMesh(scene, wallAt(200.0f)), .mClass = InstanceClass::FirstPerson });
 
@@ -768,7 +781,7 @@ namespace Rtx::Testing
             // through the world's plane is `(1 / 64) / tan(30)` = 0.0271 of a half width, `0.0271 * 32` = 0.866 of
             // a pixel where the ray's own centre is 0.5: a motion of 0.366 of a pixel under a still camera.
             {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, wallAt(200.0f)),
                     .mOpacity = 0.5f,
                     .mClass = InstanceClass::FirstPerson });
@@ -813,6 +826,7 @@ namespace Rtx::Testing
         /// and not its distance, so the sky and a wall at any distance move by the same number of pixels.
         TEST_F(RtxVisibilityTest, theSkyReprojectsByTheTurnAloneAndAWallAtAnyDistanceAgrees)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::size_t centre = centreOf(size);
 
@@ -823,7 +837,7 @@ namespace Rtx::Testing
             const auto motion = [&](float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
                 const std::array wall = wallAt(away);
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, wall);
 
                 const Shaders::VisibilityConstants first
@@ -880,6 +894,7 @@ namespace Rtx::Testing
         /// centre's distance; the centre pixel is itself half a pixel off-axis, the 1.0000814 below.
         TEST_F(RtxVisibilityTest, theSurfaceChannelHoldsTheNormalsCodeAndTheDistanceAlongTheRay)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float far = 100000.0f;
 
@@ -891,7 +906,7 @@ namespace Rtx::Testing
             const float facing = Shaders::packSurfaceNormal(osg::Vec3f(0.0f, -1.0f, 0.0f));
 
             const auto surfaceOf = [&](float away) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, wallAt(away));
 
                 const Shaders::VisibilityConstants camera
@@ -922,7 +937,7 @@ namespace Rtx::Testing
 
             // A ray that hit nothing has no normal and is as far away as anything can be.
             {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, wallAt(200.0f));
 
                 const Shaders::VisibilityConstants away
@@ -951,6 +966,7 @@ namespace Rtx::Testing
         /// half-pixel offset from the view axis, worked out in the surface test above.
         TEST_F(RtxVisibilityTest, aDeformedMeshIsTracedAgainstItsNewVerticesWithoutRebuildingTheScene)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::size_t centre = centreOf(size) * 2 + 1;
             constexpr float far = 100000.0f;
@@ -959,11 +975,11 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera
                 = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, far);
 
-            SceneDesc scene;
-            const Index wall
+            SceneDesc scene(identities);
+            const MeshIndex wall
                 = addOneBoneBody(scene, MeshArrays{ .mPositions = wallAt(200.0f), .mIndices = sQuadIndices }).mMesh;
             scene.addInstance(MeshInstance{ .mMesh = wall });
-            poseByOneBone(scene, wall, osg::Matrixf::identity());
+            poseByOneBone(scene, wall, wallAt(200.0f), osg::Matrixf::identity());
 
             const Frame frame = shoot(scene, {}, camera, size);
             ASSERT_EQ(frame.mHits, size * size);
@@ -976,7 +992,7 @@ namespace Rtx::Testing
             /// placement, exactly as a frame of the game does: clear, re-walk, hand it back.
             const auto deformTo = [&](float away) {
                 scene.clearPlacement();
-                poseByOneBone(scene, wall, osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
+                poseByOneBone(scene, wall, wallAt(200.0f), osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
                 scene.addInstance(MeshInstance{ .mMesh = wall });
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             };
@@ -1001,11 +1017,12 @@ namespace Rtx::Testing
         /// quarter alpha is blended, so a pixel it covers is a quarter of the way from the wall to red.
         TEST_F(RtxVisibilityTest, aDebugLineIsDrawnInFrontOfTheTraceAndNotBehindIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t middle = centreValueOf(size);
             constexpr std::size_t low = (std::size_t{ 28 } * size + size / 2) * 4;
 
-            const SceneDesc scene = makeWall();
+            const SceneDesc scene = makeWall(identities);
             const Shaders::VisibilityConstants camera = wallCamera(
                 size, osg::Vec3f(2.0f, 2.0f, 2.0f), osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f));
 
@@ -1030,12 +1047,12 @@ namespace Rtx::Testing
                   };
 
             const std::vector<std::uint8_t> bare = shown(150.0f, {});
-            ASSERT_GT(int{ bare[middle] }, 20) << "the wall is not lit";
+            ASSERT_GT(std::int32_t{ bare[middle] }, 20) << "the wall is not lit";
             EXPECT_EQ(bare[middle], bare[middle + 1]) << "a line behind the wall was drawn";
 
             const std::vector<std::uint8_t> lined = shown(50.0f, {});
-            EXPECT_EQ(int{ lined[middle] }, 255) << "the line in front of the wall was not drawn";
-            EXPECT_EQ(int{ lined[middle + 1] }, 0);
+            EXPECT_EQ(std::int32_t{ lined[middle] }, 255) << "the line in front of the wall was not drawn";
+            EXPECT_EQ(std::int32_t{ lined[middle + 1] }, 0);
             EXPECT_EQ(lined[low], bare[low]) << "the line reached a row it does not cross";
 
             // A triangle over the lower half, fifty ahead, at a quarter alpha: over what the wall
@@ -1049,16 +1066,16 @@ namespace Rtx::Testing
                     .mPosition = osg::Vec3f(0.0f, -50.0f, -500.0f), .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 0.25f) },
             };
             const std::vector<std::uint8_t> filled = shown(150.0f, lower);
-            EXPECT_NEAR(int{ filled[low] }, static_cast<int>(0.75f * bare[low] + 0.25f * 255.0f), 1)
+            EXPECT_NEAR(std::int32_t{ filled[low] }, static_cast<std::int32_t>(0.75f * bare[low] + 0.25f * 255.0f), 1)
                 << "the triangle was not blended over the wall";
-            EXPECT_NEAR(int{ filled[low + 1] }, static_cast<int>(0.75f * bare[low + 1]), 1);
+            EXPECT_NEAR(std::int32_t{ filled[low + 1] }, static_cast<std::int32_t>(0.75f * bare[low + 1]), 1);
             EXPECT_EQ(filled[middle], bare[middle]) << "the triangle reached a row above it";
 
             // **And raised to the player's gamma with the picture under it**, as the rasterizer
             // raises its debug draws with the world. A line of red 0.25 is 63.75 of 255 at a gamma
             // of one, and at a gamma of two it is raised by a half, `0.25^(1/2)` = 0.5: 127.5.
-            EXPECT_NEAR(int{ shown(50.0f, {}, 0.25f)[middle] }, 64, 1) << "the line at a gamma of one";
-            EXPECT_NEAR(int{ shown(50.0f, {}, 0.25f, 2.0f)[middle] }, 128, 1) << "the line at a gamma of two";
+            EXPECT_NEAR(std::int32_t{ shown(50.0f, {}, 0.25f)[middle] }, 64, 1) << "the line at a gamma of one";
+            EXPECT_NEAR(std::int32_t{ shown(50.0f, {}, 0.25f, 2.0f)[middle] }, 128, 1) << "the line at a gamma of two";
         }
 
         /// The player's arms are seen through their own eye and stand in front of everything: two decisions the
@@ -1077,6 +1094,7 @@ namespace Rtx::Testing
         /// nothing, and every other pixel's depth is the depth the frame has with no arm in it.
         TEST_F(RtxVisibilityTest, theArmsAreSeenThroughTheirOwnEyeAndInFrontOfEverything)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t row = size / 2;
             constexpr std::size_t column = 26;
@@ -1085,7 +1103,8 @@ namespace Rtx::Testing
 
             constexpr std::array<std::uint8_t, 4> sGrey{ 128, 128, 128, 255 };
             constexpr std::array<std::uint8_t, 4> sRed{ 255, 0, 0, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(sGrey, 0), describeTexel(sRed, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(sGrey, TextureIndex(0)),
+                describeTexel(sRed, TextureIndex(1)) };
 
             const std::array<osg::Vec3f, 4> pane{
                 osg::Vec3f(60.0f, 100.0f, -20.0f),
@@ -1095,15 +1114,16 @@ namespace Rtx::Testing
             };
 
             const auto sceneWith = [&](float fade) {
-                SceneDesc scene;
-                const Index grey = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
-                const Index red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
-                scene.addInstance(
-                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = grey }) });
-                scene.addInstance(MeshInstance{ .mMesh
-                    = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                SceneDesc scene(identities);
+                const TextureIndex grey = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
+                const TextureIndex red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = grey }) });
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
                     .mMaterial = scene.addMaterial(Material{ .mDiffuse = red }),
                     .mOpacity = fade,
                     .mClass = InstanceClass::FirstPerson });
@@ -1152,9 +1172,9 @@ namespace Rtx::Testing
             EXPECT_NEAR(narrow.mMiddleDistance, 100.0f, 0.01f);
 
             const Seen wide = seenWith(cameraAtFieldOfView(camera.mEyes.mWorld, 60.0f).value());
-            EXPECT_GT(int{ wide.mArm[0] }, 200) << "the arms' eye did not see the pane";
+            EXPECT_GT(std::int32_t{ wide.mArm[0] }, 200) << "the arms' eye did not see the pane";
             EXPECT_TRUE(wide.mArmOnArms);
-            EXPECT_LT(int{ wide.mArm[1] }, 50) << "the arms' eye saw something other than the pane";
+            EXPECT_LT(std::int32_t{ wide.mArm[1] }, 50) << "the arms' eye saw something other than the pane";
             EXPECT_EQ(wide.mMiddle, narrow.mMiddle) << "the arms' eye moved the wall";
             EXPECT_NEAR(wide.mMiddleDistance, 100.0f, 0.01f);
 
@@ -1181,6 +1201,7 @@ namespace Rtx::Testing
         /// ladder a level and a half coarser).
         TEST_F(RtxVisibilityTest, aGlossyArmReflectsThroughTheArmsOwnCone)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreOf(size);
 
@@ -1188,22 +1209,25 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> mirror{ 255, 26, 255, 255 };
             Testing::TestTexture ladder;
             Testing::paintMipLadder(ladder);
-            std::array<TextureData, 3> textures{ describeTexel(white, 0), describeTexel(mirror, 1), ladder.mData };
-            textures[2].mSlot = 2;
+            std::array<TextureData, 3> textures{ describeTexel(white, TextureIndex(0)),
+                describeTexel(mirror, TextureIndex(1)), ladder.mData };
+            textures[2].mSlot = TextureIndex(2);
 
-            SceneDesc scene;
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
-            const Index map = scene.textures().add(
+            SceneDesc scene(identities);
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-            const Index painted = scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
+            const TextureIndex painted = scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
             scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(MeshArrays{
-                    .mPositions = uprightQuadAt(40.0f, 100.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                .mMesh = Testing::addMesh(scene,
+                    MeshArrays{
+                        .mPositions = uprightQuadAt(40.0f, 100.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
                 .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map, .mTwoSided = true }),
                 .mClass = InstanceClass::FirstPerson });
-            scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(MeshArrays{
-                    .mPositions = uprightQuadAt(400.0f, -500.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+            scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                MeshArrays{ .mPositions = uprightQuadAt(400.0f, -500.0f),
+                                                    .mTexCoords = sQuadUv,
+                                                    .mIndices = sQuadIndices }),
                 .mMaterial = scene.addMaterial(Material{ .mDiffuse = painted, .mTwoSided = true }) });
 
             const auto reflectedWith = [&](float world, float arms) {

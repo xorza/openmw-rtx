@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <osg/Matrixf>
@@ -42,7 +43,7 @@ namespace MWRender
         /// Walks `root` under the view mask `view` and answers what stands under its debug nodes.
         /// Empty on every frame no mode is on, at the cost of visiting the root's own children and
         /// entering few.
-        Rtx::DebugLines walk(osg::Node& root, unsigned int view);
+        Rtx::DebugLines walk(osg::Node& root, std::uint32_t view);
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& transform) override;

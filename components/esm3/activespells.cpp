@@ -1,13 +1,13 @@
 #include "activespells.hpp"
 
+#include <cstdint>
+
+#include <components/esm/attr.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 #include "loadmgef.hpp"
 #include "loadskil.hpp"
-
-#include <components/esm/attr.hpp>
-
-#include <cstdint>
 
 namespace ESM
 {
@@ -174,7 +174,7 @@ namespace ESM
                     ActiveEffect effect;
                     if (format <= MaxSerializeEffectRefIdFormatVersion)
                     {
-                        int32_t effectId = 0;
+                        std::int32_t effectId = 0;
                         esm.getHT(effectId);
                         effect.mEffectId = ESM::MagicEffect::indexToRefId(effectId);
                     }
@@ -182,12 +182,12 @@ namespace ESM
                         effect.mEffectId = esm.getRefId();
                     if (format <= MaxActorIdSaveGameFormatVersion)
                     {
-                        int32_t arg = -1;
+                        std::int32_t arg = -1;
                         esm.getHNOT(arg, "ARG_");
                         if (arg >= 0)
                         {
                             if (isSummon(effect.mEffectId))
-                                effect.mArg = RefNum{ .mIndex = static_cast<uint32_t>(arg), .mContentFile = -1 };
+                                effect.mArg = RefNum{ .mIndex = static_cast<std::uint32_t>(arg), .mContentFile = -1 };
                             else if (affectsAttribute(effect.mEffectId))
                                 effect.mArg = ESM::Attribute::indexToRefId(arg);
                             else if (affectsSkill(effect.mEffectId))

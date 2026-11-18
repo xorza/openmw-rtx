@@ -1,5 +1,7 @@
 #include "filter.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -14,7 +16,7 @@ namespace ESM
         while (esm.hasMoreSubs())
         {
             esm.getSubName();
-            uint32_t name = esm.retSubName().toInt();
+            std::uint32_t name = esm.retSubName().toInt();
             switch (name)
             {
                 case SREC_NAME:

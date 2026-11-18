@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstdint>
+
 #include <SDL3/SDL_events.h>
 
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/sdlutil/events.hpp>
-
-#include "../mwbase/luamanager.hpp"
 
 #include "inputprocessor.hpp"
 #include "localscripts.hpp"
@@ -29,7 +30,10 @@ namespace MWLua
         }
 
         void onFrame(float dt) { callEngineHandlers(mOnFrameHandlers, dt); }
-        void onQuestUpdate(std::string_view questId, int stage) { callEngineHandlers(mQuestUpdate, questId, stage); }
+        void onQuestUpdate(std::string_view questId, std::int32_t stage)
+        {
+            callEngineHandlers(mQuestUpdate, questId, stage);
+        }
 
         bool consoleCommand(
             const std::string& consoleMode, const std::string& command, const sol::object& selectedObject)
@@ -38,9 +42,12 @@ namespace MWLua
             return !mConsoleCommandHandlers.mList.empty();
         }
 
-        void onViewportResized(int width, int height) { callEngineHandlers(mViewportResizedHandlers, width, height); }
+        void onViewportResized(std::int32_t width, std::int32_t height)
+        {
+            callEngineHandlers(mViewportResizedHandlers, width, height);
+        }
 
-        void onFontSizeChanged(int size) { callEngineHandlers(mFontSizeChanged, size); }
+        void onFontSizeChanged(std::int32_t size) { callEngineHandlers(mFontSizeChanged, size); }
 
         // `arg` is either forwarded from MWGui::pushGuiMode or empty
         void uiModeChanged(ObjectId arg, bool byLuaAction)

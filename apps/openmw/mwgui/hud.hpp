@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "mapwindow.hpp"
@@ -38,10 +39,10 @@ namespace MWGui
         void setEffectVisible(bool visible);
         void setMinimapVisible(bool visible);
 
-        void setSelectedSpell(const ESM::RefId& spellId, int successChancePercent);
-        void setSelectedEnchantItem(const MWWorld::Ptr& item, int chargePercent);
+        void setSelectedSpell(const ESM::RefId& spellId, std::int32_t successChancePercent);
+        void setSelectedEnchantItem(const MWWorld::Ptr& item, std::int32_t chargePercent);
         const MWWorld::Ptr& getSelectedEnchantItem();
-        void setSelectedWeapon(const MWWorld::Ptr& item, int durabilityPercent);
+        void setSelectedWeapon(const MWWorld::Ptr& item, std::int32_t durabilityPercent);
         void unsetSelectedSpell();
         void unsetSelectedWeapon();
 
@@ -49,7 +50,7 @@ namespace MWGui
         void setCrosshairOwned(bool owned);
 
         void setMouseEmulationCursorVisible(bool visible);
-        void setMouseEmulationCursorPosition(int left, int top);
+        void setMouseEmulationCursorPosition(std::int32_t left, std::int32_t top);
 
         void onFrame(float dt) override;
 
@@ -89,9 +90,9 @@ namespace MWGui
         ESM::RefNum mEnemyActor;
 
         // bottom left elements
-        int mHealthManaStaminaBaseLeft, mWeapBoxBaseLeft, mSpellBoxBaseLeft, mSneakBoxBaseLeft;
+        std::int32_t mHealthManaStaminaBaseLeft, mWeapBoxBaseLeft, mSpellBoxBaseLeft, mSneakBoxBaseLeft;
         // bottom right elements
-        int mMinimapBoxBaseRight, mEffectBoxBaseRight;
+        std::int32_t mMinimapBoxBaseRight, mEffectBoxBaseRight;
 
         float mCellNameTimer = 0.f;
         float mWeaponSpellTimer = 0.f;
@@ -105,7 +106,7 @@ namespace MWGui
         bool mIsDrowning = false;
 
         void onWorldClicked(MyGUI::Widget* sender);
-        void onWorldMouseOver(MyGUI::Widget* sender, int x, int y);
+        void onWorldMouseOver(MyGUI::Widget* sender, std::int32_t x, std::int32_t y);
         void onWorldMouseLostFocus(MyGUI::Widget* sender, MyGUI::Widget* newWidget);
         void onHMSClicked(MyGUI::Widget* sender);
         void onWeaponClicked(MyGUI::Widget* sender);

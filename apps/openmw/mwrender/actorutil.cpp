@@ -1,5 +1,7 @@
 #include "actorutil.hpp"
 
+#include <cstddef>
+
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -39,7 +41,7 @@ namespace MWRender
 
     std::string addSuffixBeforeExtension(const std::string& filename, const std::string& suffix)
     {
-        size_t dotPos = filename.rfind('.');
+        std::size_t dotPos = filename.rfind('.');
 
         // No extension found; return the original filename with suffix appended
         if (dotPos == std::string::npos)

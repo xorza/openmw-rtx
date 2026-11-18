@@ -46,7 +46,7 @@ namespace Rtx
 
             std::vector<std::uint32_t> claimed;
             claimed.push_back(queue.claim(1));
-            for (int turn = 0; turn < 3; ++turn)
+            for (std::int32_t turn = 0; turn < 3; ++turn)
                 claimed.push_back(queue.claim(0));
             claimed.push_back(queue.claim(4));
             claimed.push_back(queue.claim(0));

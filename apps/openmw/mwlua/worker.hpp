@@ -1,11 +1,12 @@
 #pragma once
 
-#include <components/misc/framestats.hpp>
-
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 #include <optional>
 #include <thread>
+
+#include <components/misc/framestats.hpp>
 
 namespace MWLua
 {
@@ -18,9 +19,9 @@ namespace MWLua
 
         ~Worker();
 
-        void allowUpdate(Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats);
+        void allowUpdate(Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats);
 
-        void finishUpdate(Misc::FrameClock::time_point statsEpoch, unsigned int frameNumber, Misc::FrameStats& stats);
+        void finishUpdate(Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats);
 
         // Starts incremental garbage collection on the Lua thread. Runs in small
         // steps until finishGc() is called or a full collection cycle completes.
@@ -38,11 +39,11 @@ namespace MWLua
         struct UpdateRequest
         {
             Misc::FrameClock::time_point mStatsEpoch;
-            unsigned mFrameNumber;
+            std::uint32_t mFrameNumber;
             Misc::FrameStats* mStats;
         };
 
-        void update(Misc::FrameClock::time_point statsEpoch, unsigned frameNumber, Misc::FrameStats& stats);
+        void update(Misc::FrameClock::time_point statsEpoch, std::uint32_t frameNumber, Misc::FrameStats& stats);
 
         void run() noexcept;
 

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -62,6 +64,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
+#include <components/rtx/preprocess/imagederivation.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -153,12 +156,15 @@ namespace MWRender
         , mContentStore(setup.mContentStore.has_value()
                   ? std::make_unique<ContentStore::Store>(*setup.mContentStore, Rtx::sContentStorePolicy)
                   : nullptr)
+        , mDerivation(std::make_unique<Rtx::ImageDerivation>(
+              mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mPrepared(std::make_unique<Rtx::PreparedImages>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
-        , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
+        , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get(), mSceneIdentities)
     {
         mSettled = setup.mSettled;
         mCacheBudget = setup.mCacheBudget;
+        mSteppedExpiry = setup.mSteppedExpiry;
 
         // **Made here, because there is no viewer to make them.** Every renderer needs the four and
         // one built on `osgViewer` gets them already wired together.
@@ -185,8 +191,8 @@ namespace MWRender
         options.mDlss = DlssLibrary::foldersIn(spec.mUserLocalData, spec.mGameFiles);
         // None whose traced extent truncates to nought, and none past the side every device chosen
         // makes an image at.
-        constexpr auto smallest = static_cast<int>(Rtx::sSmallestFrameSide);
-        constexpr auto largest = static_cast<int>(Rtx::sLargestFrameSide);
+        constexpr auto smallest = static_cast<std::int32_t>(Rtx::sSmallestFrameSide);
+        constexpr auto largest = static_cast<std::int32_t>(Rtx::sLargestFrameSide);
         boundFrame(
             Misc::FrameBounds{ .mSmallest = osg::Vec2i(smallest, smallest), .mLargest = osg::Vec2i(largest, largest) });
         presentIn(mWindow.readSize());
@@ -257,6 +263,10 @@ namespace MWRender
     // Out of line because the members it destroys are only forward declared in the header.
     RtxRenderer::~RtxRenderer()
     {
+        // **The derivation taken back from the image manager, which outlives this**: the world, the engine's work
+        // queue and the loading screen, whatever loads a model, have ended by now, so no loader is inside it.
+        getResources().getImageManager()->setModelImages(Resource::ModelImages::Texels, {});
+
         // `Engine` has stopped the screenshot writer by now, so no write on the queue still holds
         // an image of a frame this owns the memory for. The members go in the order they are
         // declared for: the frozen texture, the backend, the window.
@@ -313,7 +323,7 @@ namespace MWRender
     {
         mPhase.expect(Phase::Between);
         const std::optional<float> stated = getLoopClock().getStatedStep();
-        setResourceExpiry(resources, stated);
+        setResourceExpiry(resources, stated, mSteppedExpiry);
 
         // A stated step makes the ground wait: a composite lands on whichever frame the baker finishes it
         // on, a thread's answer a run compared with another's cannot have. The step and not a hashed frame
@@ -326,8 +336,11 @@ namespace MWRender
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setModelPrograms(Resource::ModelPrograms::Omitted);
-        // The device keeps a texture's copy, and the host its texels only until the device has it.
-        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers);
+        // The device keeps a texture's copy, and the host its texels only until the device has it: what the renderer
+        // asks of a file is derived where a loader first reads it.
+        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers,
+            [derivation = mDerivation.get()](
+                const osg::Image& texels, const Resource::ImageHeader& header) { derivation->derive(texels, header); });
         setAutoMaps(scene);
     }
 
@@ -339,9 +352,10 @@ namespace MWRender
         scene.setAutoMaps(maps);
     }
 
-    void RtxRenderer::setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step)
+    void RtxRenderer::setResourceExpiry(
+        Resource::ResourceSystem& resources, const std::optional<float>& step, const SteppedExpiry expiry)
     {
-        if (step.has_value())
+        if (step.has_value() && expiry == SteppedExpiry::Never)
             resources.setExpiryDelay(std::numeric_limits<double>::infinity());
     }
 
@@ -417,7 +431,8 @@ namespace MWRender
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
     }
 
-    void RtxRenderer::windowResized(int, int, const int width, const int height) noexcept
+    void RtxRenderer::windowResized(
+        std::int32_t, std::int32_t, const std::int32_t width, const std::int32_t height) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
         presentIn(osg::Vec2i(width, height));
@@ -590,7 +605,7 @@ namespace MWRender
         getResources().clearCache();
     }
 
-    void RtxRenderer::capture(osg::Image& image, int width, int height) noexcept
+    void RtxRenderer::capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
         const osg::ref_ptr<osg::Image> taken = FrameReader::read(*mRenderer, width, height, Rtx::Channels::Rgb);
@@ -618,7 +633,8 @@ namespace MWRender
     std::unique_ptr<TracedView> RtxRenderer::traceView(const OffscreenViewSpec& spec, const ViewKind kind)
     {
         assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(spec, kind, *mRenderer, mViews, *mGui, mMirror.getWalkContext());
+        return std::make_unique<TracedView>(
+            spec, kind, *mRenderer, mViews, *mGui, mMirror.getWalkContext(), mSceneIdentities);
     }
 
     std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
@@ -862,6 +878,7 @@ namespace MWRender
             if (mWalked.mAgain.has_value())
                 mWalked.mSession += mWalked.mAgain->mPreprocessed;
             mWalked.mSession.mPrepared += mPrepared->takeStats();
+            mWalked.mSession.mDerived += mDerivation->takeStats();
             if (mContentStore != nullptr)
                 mWalked.mStore = mContentStore->getStats();
         }
@@ -947,6 +964,9 @@ namespace MWRender
         report.mCellsToStand = mMirror.getRing().getCellsToStand();
         report.mImagesPending = static_cast<std::uint32_t>(mMirror.getImagesPending());
 
+        // What the device gave back lately stays its own to take again, not the caches' next second.
+        getResources().getCacheBudget().yieldTo(mRenderer->getSystemClaim());
+
         if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mMirror.getScene().meshes().getRows().size() << " meshes into "
                              << mWalked.mFound.mInstances << " instances with " << mWalked.mFound.mLights << " lights, "
@@ -1028,6 +1048,18 @@ namespace MWRender
         request.mSky = &mSky.getContent();
 
         const TracedSeconds elapsed = mTraceClocks.trace(getLoopClock().getNow(), frame.mWhen.getSimulationTime());
+
+        // What the eye resolves, which the ring asks its cells' textures by from the next walk on: the traced pixel's
+        // angle and the bias the reconstruction narrows it by, `Reconstruction::resolve`'s: the traced extent against
+        // the shown one where an upscaler stretches it, nought where it does not, beside the run's own epsilon.
+        const Rtx::FrameExtents extents = mRenderer->getExtents();
+        const float stretch = extents.mOutputWidth > 0 && extents.mRenderWidth > 0
+            ? std::log2(static_cast<float>(extents.mRenderWidth) / static_cast<float>(extents.mOutputWidth))
+            : 0.0f;
+        const std::optional<Rtx::ReconstructionRequest>& reconstruction = mRun.getReconstruction();
+        mMirror.setSight(Rtx::Sight{ .mSpreadAngle = request.mView.mEyes.mWorld.mSpreadAngle,
+            .mLevelBias
+            = std::min(stretch, 0.0f) + (reconstruction.has_value() ? reconstruction->mLevelEpsilon : 0.0f) });
 
         // The schedule's and not the profile's: a warm-up is not averaged in, which a half-built cell would
         // spoil (`RtxRun::getAccumulated`). The backend reads its own profile.

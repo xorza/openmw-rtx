@@ -1,12 +1,11 @@
 #pragma once
 
-#ifndef Q_MOC_RUN
-#include <components/process/processinvoker.hpp>
+#include <cstdint>
 
 #include <components/config/gamesettings.hpp>
 #include <components/config/launchersettings.hpp>
+#include <components/process/processinvoker.hpp>
 
-#endif
 #include "ui_mainwindow.h"
 
 class QListWidgetItem;
@@ -23,7 +22,6 @@ namespace Launcher
 {
     class GraphicsPage;
     class DataFilesPage;
-    class UnshieldThread;
     class ImportPage;
     class SettingsPage;
 
@@ -33,10 +31,6 @@ namespace Launcher
         FirstRunDialogResultContinue,
         FirstRunDialogResultWizard
     };
-
-#ifndef WIN32
-    bool expansions(Launcher::UnshieldThread& cd);
-#endif
 
     class MainDialog : public QMainWindow, private Ui::MainWindow
     {
@@ -64,7 +58,7 @@ namespace Launcher
 
     private slots:
         void wizardStarted();
-        void wizardFinished(int exitCode, QProcess::ExitStatus exitStatus);
+        void wizardFinished(std::int32_t exitCode, QProcess::ExitStatus exitStatus);
 
     private:
         bool setup();

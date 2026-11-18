@@ -1,12 +1,12 @@
 #pragma once
 
-#include <QMetaType>
-
 #include <algorithm>
 #include <string>
 #include <vector>
 
-#include "../world/universalid.hpp"
+#include <QMetaType>
+
+#include <apps/opencs/model/world/universalid.hpp>
 
 namespace CSMDoc
 {

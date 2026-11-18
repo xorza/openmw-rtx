@@ -1,11 +1,12 @@
 #include "actiontake.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <cstdint>
 
-#include "../mwgui/inventorywindow.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/inventorywindow.hpp>
 
 #include "class.hpp"
 #include "containerstore.hpp"
@@ -30,7 +31,7 @@ namespace MWWorld
             }
         }
 
-        int count = getTarget().getCellRef().getCount();
+        std::int32_t count = getTarget().getCellRef().getCount();
         if (getTarget().getClass().isGold(getTarget()))
             count *= getTarget().getClass().getValue(getTarget());
 

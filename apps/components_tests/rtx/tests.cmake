@@ -11,6 +11,7 @@ target_sources(
         myguirtx/sharedtexture.cpp
         myguirtx/texture.cpp
         platform/linuxtext.cpp
+        rtx/common/bufferpool.cpp
         rtx/common/error.cpp
         rtx/common/halffloat.cpp
         rtx/common/job.cpp
@@ -18,6 +19,7 @@ target_sources(
         rtx/common/ownedby.cpp
         rtx/common/parallel.cpp
         rtx/common/radicalinverse.cpp
+        rtx/common/rows.cpp
         rtx/common/runs.cpp
         rtx/common/slots.cpp
         rtx/common/stepped.cpp
@@ -71,6 +73,7 @@ target_sources(
         rtx/preprocess/preparedimages.cpp
         rtx/preprocess/shape/creasesplit.cpp
         rtx/preprocess/shape/shapefold.cpp
+        rtx/renderer/arrivalwindow.cpp
         rtx/renderer/framedescriber.cpp
         rtx/renderer/frameimage.cpp
         rtx/renderer/frametimehistogram.cpp
@@ -83,8 +86,12 @@ target_sources(
         rtx/scene/compositequeue.cpp
         rtx/scene/instancerecord.cpp
         rtx/scene/lightgrid.cpp
+        rtx/scene/mesharrivals.cpp
+        rtx/scene/packedstreams.cpp
         rtx/scene/refusals.cpp
         rtx/scene/scenedesc.cpp
+        rtx/scene/textureasks.cpp
+        rtx/scene/uvdensity.cpp
         rtx/shaders/brdf.cpp
         rtx/shaders/lights.cpp
         rtx/shaders/pixelgrid.cpp
@@ -125,6 +132,8 @@ target_sources(
         rtxtool/model/finding.cpp
         rtxtool/model/heapdescription.cpp
         rtxtool/model/logtally.cpp
+        rtxtool/model/legselection.cpp
+        rtxtool/model/longestframes.cpp
         rtxtool/model/measurewindow.cpp
         rtxtool/model/restreuse.cpp
         rtxtool/model/runrecord.cpp
@@ -146,6 +155,7 @@ target_sources(
         rtxvulkan/device/memory/imagearena.cpp
         rtxvulkan/device/memory/memorypriority.cpp
         rtxvulkan/device/memory/memorytypes.cpp
+        rtxvulkan/device/memory/systemshare.cpp
         rtxvulkan/device/memory/uploads.cpp
         rtxvulkan/device/physicaldevice.cpp
         rtxvulkan/device/pipelinecode.cpp
@@ -175,6 +185,7 @@ target_sources(
         rtxvulkan/spirv/spirvfile.cpp
         rtxvulkan/spirv/spirvinterface.cpp
         rtxvulkan/spirv/spirvpin.cpp
+        rtxvulkan/texture/meansgrownto.cpp
         rtxvulkan/trace/tuplequeue.cpp
         rtxvulkan/upscale/fsrframe.cpp
         rtxvulkan/upscale/upscaler.cpp
@@ -202,6 +213,7 @@ set(RTX_TEST_SUPPORT_HEADERS
     rtx/support/cardmemory.hpp
     rtx/support/countingrenderer.hpp
     rtx/support/death.hpp
+    rtx/support/derivedheaders.hpp
     rtx/support/displaycurve.hpp
     rtx/support/fakeland.hpp
     rtx/support/firsttexel.hpp

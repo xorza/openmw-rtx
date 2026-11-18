@@ -26,7 +26,7 @@ namespace Misc
         DigestWords murmur(std::string_view bytes, const DigestWords& seed)
         {
             DigestWords out{};
-            MurmurHash3_x64_128(bytes.data(), static_cast<int>(bytes.size()), seed.data(), out.data());
+            MurmurHash3_x64_128(bytes.data(), static_cast<std::int32_t>(bytes.size()), seed.data(), out.data());
             return out;
         }
 

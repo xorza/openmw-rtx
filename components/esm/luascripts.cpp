@@ -1,12 +1,14 @@
 #include "luascripts.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
 #include <components/lua/configuration.hpp>
 #include <components/lua/luastateptr.hpp>
 #include <components/lua/serialization.hpp>
-#include <utility>
 
 // List of all records, that are related to Lua.
 //
@@ -70,7 +72,7 @@ void ESM::LuaScriptsCfg::load(ESMReader& esm)
             esm.fail("Incorrect LUAF size");
         esm.getT(script.mFlags);
         script.mTypes.resize((esm.getSubSize() - 4) / 4);
-        for (uint32_t& type : script.mTypes)
+        for (std::uint32_t& type : script.mTypes)
             esm.getT(type);
 
         script.mInitializationData = loadLuaBinaryData(esm);
@@ -90,8 +92,8 @@ void ESM::LuaScriptsCfg::load(ESMReader& esm)
             script.mRefs.emplace_back();
             ESM::LuaScriptCfg::PerRefCfg& refCfg = script.mRefs.back();
             refCfg.mAttach = readBool(esm);
-            esm.getT<uint32_t>(refCfg.mRefnumIndex);
-            esm.getT<int32_t>(refCfg.mRefnumContentFile);
+            esm.getT<std::uint32_t>(refCfg.mRefnumIndex);
+            esm.getT<std::int32_t>(refCfg.mRefnumContentFile);
             refCfg.mInitializationData = loadLuaBinaryData(esm);
         }
     }
@@ -99,7 +101,7 @@ void ESM::LuaScriptsCfg::load(ESMReader& esm)
 
 void ESM::LuaScriptsCfg::adjustRefNums(const ESMReader& esm)
 {
-    auto adjustRefNumFn = [&esm](int contentFile) -> int {
+    auto adjustRefNumFn = [&esm](std::int32_t contentFile) -> std::int32_t {
         if (contentFile == 0)
             return esm.getIndex();
         else if (contentFile > 0 && std::cmp_less_equal(contentFile, esm.getParentFileIndices().size()))
@@ -140,9 +142,9 @@ void ESM::LuaScriptsCfg::save(ESMWriter& esm) const
     {
         esm.writeHNString("LUAS", script.mScriptPath);
         esm.startSubRecord("LUAF");
-        esm.writeT<uint32_t>(script.mFlags);
-        for (uint32_t type : script.mTypes)
-            esm.writeT<uint32_t>(type);
+        esm.writeT<std::uint32_t>(script.mFlags);
+        for (std::uint32_t type : script.mTypes)
+            esm.writeT<std::uint32_t>(type);
         esm.endRecord("LUAF");
         saveLuaBinaryData(esm, script.mInitializationData);
         for (const LuaScriptCfg::PerRecordCfg& recordCfg : script.mRecords)
@@ -157,8 +159,8 @@ void ESM::LuaScriptsCfg::save(ESMWriter& esm) const
         {
             esm.startSubRecord("LUAI");
             esm.writeT<char>(refCfg.mAttach ? 1 : 0);
-            esm.writeT<uint32_t>(refCfg.mRefnumIndex);
-            esm.writeT<int32_t>(refCfg.mRefnumContentFile);
+            esm.writeT<std::uint32_t>(refCfg.mRefnumIndex);
+            esm.writeT<std::int32_t>(refCfg.mRefnumContentFile);
             esm.endRecord("LUAI");
             saveLuaBinaryData(esm, refCfg.mInitializationData);
         }
@@ -169,7 +171,7 @@ void ESM::LuaScripts::load(ESMReader& esm)
 {
     while (esm.isNextSub("LUAS"))
     {
-        int32_t id = -1;
+        std::int32_t id = -1;
         if (esm.getFormatVersion() <= ESM::MaxLuaScriptPathFormatVersion)
         {
             VFS::Path::Normalized name(esm.getHString());

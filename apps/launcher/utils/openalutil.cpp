@@ -1,13 +1,10 @@
+#include "openalutil.hpp"
+
 #include <cstring>
 #include <vector>
 
-#include "apps/openmw/mwsound/alext.h"
-
-#include "openalutil.hpp"
-
-#ifndef ALC_ALL_DEVICES_SPECIFIER
-#define ALC_ALL_DEVICES_SPECIFIER 0x1013
-#endif
+#include <AL/alc.h>
+#include <AL/alext.h>
 
 std::vector<std::string> Launcher::enumerateOpenALDevices()
 {

@@ -1,5 +1,7 @@
 #include "pingpongcull.hpp"
 
+#include <cstdint>
+
 #include <osg/Camera>
 #include <osgUtil/CullVisitor>
 
@@ -31,14 +33,14 @@ namespace MWRender
     void PingPongCull::operator()(osg::Node* node, osgUtil::CullVisitor* cv)
     {
         osgUtil::RenderStage* renderStage = cv->getCurrentRenderStage();
-        unsigned frame = cv->getTraversalNumber();
-        unsigned frameId = frame % 2;
+        std::uint32_t frame = cv->getTraversalNumber();
+        std::uint32_t frameId = frame % 2;
 
         if (Stereo::getStereo())
         {
             auto& sm = Stereo::Manager::instance();
             auto view = sm.getEye(cv);
-            int index = view == Stereo::Eye::Right ? 1 : 0;
+            std::int32_t index = view == Stereo::Eye::Right ? 1 : 0;
             auto projectionMatrix = sm.computeEyeProjection(index, true);
             mPostProcessor->getStateUpdater()->setProjectionMatrix(projectionMatrix);
         }

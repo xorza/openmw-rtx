@@ -1,24 +1,23 @@
 #include "pathgrid.hpp"
 
 #include <cassert>
+#include <cstdint>
 
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/PositionAttitudeTransform>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp> // these includes can be removed once the static-hack is gone
+#include <apps/openmw/mwmechanics/pathfinding.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadpgrd.hpp>
 #include <components/misc/coordinateconverter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/pathgridutil.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp" // these includes can be removed once the static-hack is gone
-
-#include "../mwmechanics/pathfinding.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "vismask.hpp"
 
@@ -48,7 +47,7 @@ namespace MWRender
         }
     }
 
-    bool Pathgrid::toggleRenderMode(int mode)
+    bool Pathgrid::toggleRenderMode(std::int32_t mode)
     {
         switch (mode)
         {

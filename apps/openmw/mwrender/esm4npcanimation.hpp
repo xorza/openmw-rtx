@@ -1,11 +1,12 @@
 #pragma once
 
-#include "animation.hpp"
-
+#include <cstdint>
 #include <functional>
 #include <unordered_set>
 
 #include <components/vfs/pathutil.hpp>
+
+#include "animation.hpp"
 
 namespace ESM4
 {
@@ -32,7 +33,7 @@ namespace MWRender
         void insertPart(std::string_view model);
 
         // Works for FO3/FNV/TES5
-        void insertHeadParts(const std::vector<ESM::FormId>& partIds, std::set<uint32_t>& usedHeadPartTypes);
+        void insertHeadParts(const std::vector<ESM::FormId>& partIds, std::set<std::uint32_t>& usedHeadPartTypes);
 
         void updateParts();
         void updatePartsTES4(const ESM4::Npc& traits);

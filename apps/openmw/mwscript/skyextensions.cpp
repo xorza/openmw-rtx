@@ -1,20 +1,18 @@
 #include "skyextensions.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/compiler/opcodes.hpp>
-
 #include <components/esm3/loadregn.hpp>
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/weather.hpp"
 
 namespace MWScript
 {
@@ -102,19 +100,19 @@ namespace MWScript
             class OpModRegion : public Interpreter::Opcode1
             {
             public:
-                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                void execute(Interpreter::Runtime& runtime, std::uint32_t arg0) override
                 {
                     std::string_view region{ runtime.getStringLiteral(runtime[0].mInteger) };
                     runtime.pop();
 
-                    std::map<ESM::RefId, uint8_t> chances;
-                    for (int i = 0; i < ESM::Weather::Length; ++i)
+                    std::map<ESM::RefId, std::uint8_t> chances;
+                    for (std::int32_t i = 0; i < ESM::Weather::Length; ++i)
                     {
                         ESM::RefId id = ESM::Weather::indexToRefId(i);
-                        uint8_t chance = 0;
+                        std::uint8_t chance = 0;
                         if (arg0 > 0)
                         {
-                            chance = static_cast<uint8_t>(std::clamp(runtime[0].mInteger, 0, 100));
+                            chance = static_cast<std::uint8_t>(std::clamp(runtime[0].mInteger, 0, 100));
                             runtime.pop();
                             arg0--;
                         }

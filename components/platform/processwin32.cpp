@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -15,6 +17,7 @@
 
 #include <components/misc/windows.hpp>
 
+// After the tree's Windows header, whose declarations the SDK's headers below assume.
 #include <psapi.h>
 #include <shellapi.h>
 
@@ -73,20 +76,87 @@ namespace Platform::Process
         }
     }
 
-    std::vector<std::string> commandLine(int, char**)
+    std::vector<std::string> commandLine(std::int32_t, char**)
     {
         std::vector<std::string> arguments;
-        int count = 0;
+        std::int32_t count = 0;
         wchar_t** const wide = CommandLineToArgvW(GetCommandLineW(), &count);
-        for (int i = 0; i < count; ++i)
+        for (std::int32_t i = 0; i < count; ++i)
         {
-            const int size = WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
+            const std::int32_t size = WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
             std::string one(static_cast<std::size_t>(std::max(size, 1)) - 1, '\0');
             WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, one.data(), size, nullptr, nullptr);
             arguments.push_back(std::move(one));
         }
         LocalFree(static_cast<HLOCAL>(wide));
         return arguments;
+    }
+
+    namespace
+    {
+        bool isRedirected(DWORD nStdHandle)
+        {
+            const DWORD fileType = GetFileType(GetStdHandle(nStdHandle));
+            return fileType == FILE_TYPE_DISK || fileType == FILE_TYPE_PIPE;
+        }
+    }
+
+    void attachParentConsole()
+    {
+        if (GetConsoleWindow() == nullptr)
+        {
+            const bool inRedirected = isRedirected(STD_INPUT_HANDLE);
+            const bool outRedirected = isRedirected(STD_OUTPUT_HANDLE);
+            const bool errRedirected = isRedirected(STD_ERROR_HANDLE);
+
+            // Note: Do not spend three days reinvestigating this PowerShell bug thinking its our bug.
+            // https://gitlab.com/OpenMW/openmw/-/merge_requests/408#note_447467393
+            // The handles look valid, but GetFinalPathNameByHandleA can't tell what files they go to and writing to
+            // them doesn't work.
+            if (AttachConsole(ATTACH_PARENT_PROCESS))
+            {
+                static_cast<void>(fflush(stdout));
+                static_cast<void>(fflush(stderr));
+                std::cout.flush();
+                std::cerr.flush();
+
+                // this looks dubious but is really the right way
+                if (!inRedirected)
+                {
+                    static_cast<void>(_wfreopen(L"CON", L"r", stdin));
+                    static_cast<void>(freopen("CON", "r", stdin));
+                    std::cin.clear();
+                }
+                if (!outRedirected)
+                {
+                    static_cast<void>(_wfreopen(L"CON", L"w", stdout));
+                    static_cast<void>(freopen("CON", "w", stdout));
+                    std::cout.clear();
+                }
+                if (!errRedirected)
+                {
+                    static_cast<void>(_wfreopen(L"CON", L"w", stderr));
+                    static_cast<void>(freopen("CON", "w", stderr));
+                    std::cerr.clear();
+                }
+            }
+        }
+        SetConsoleOutputCP(CP_UTF8);
+    }
+
+    bool standardErrorTakesColour()
+    {
+        DWORD mode = 0;
+        if (GetConsoleMode(GetStdHandle(STD_ERROR_HANDLE), &mode) && (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0)
+            return true;
+
+        // some console emulators may not use the Win32 API, so try the Unixy approach
+        return std::getenv("TERM") != nullptr && GetFileType(GetStdHandle(STD_ERROR_HANDLE)) == FILE_TYPE_CHAR;
+    }
+
+    std::string_view executableSuffix()
+    {
+        return ".exe";
     }
 
     std::uint32_t currentId()
@@ -151,13 +221,19 @@ namespace Platform::Process
         // **Wide**, because the line is UTF-8 and `std::system` reads the process's ANSI code page:
         // a path through `C:\Users\Jörg` reached `cmd` as another path.
         const std::string quoted = '"' + line + '"';
-        const int length = MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<int>(quoted.size()), nullptr, 0);
+        const std::int32_t length
+            = MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<std::int32_t>(quoted.size()), nullptr, 0);
         std::wstring wide(static_cast<std::size_t>(length), L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<int>(quoted.size()), wide.data(), length);
+        MultiByteToWideChar(CP_UTF8, 0, quoted.data(), static_cast<std::int32_t>(quoted.size()), wide.data(), length);
         return CommandEnd{ .mExitCode = static_cast<std::uint32_t>(_wsystem(wide.c_str())) };
     }
 
     void restartOnHugePages(char** /*argv*/) {}
+
+    bool refuseTransparentHugePages()
+    {
+        return true;
+    }
 
     std::optional<float> hugePageShare()
     {
@@ -179,7 +255,83 @@ namespace Platform::Process
             return std::nullopt;
         const std::uint64_t resident = counters.PrivateWorkingSetSize;
         const std::uint64_t committed = counters.PrivateUsage;
-        return AnonymousMemory{ .mResident = resident, .mSwapped = committed - std::min(resident, committed) };
+        return AnonymousMemory{ .mResident = resident, .mNotResident = committed - std::min(resident, committed) };
+    }
+
+    std::optional<DriverMemory> driverMemory()
+    {
+        return std::nullopt;
+    }
+
+    std::optional<PrivateMemoryHeld> privateMemoryHeld()
+    {
+        // The heaps' own allocations, by the base `VirtualQuery` names each under: a heap's regions, and each block
+        // a heap gave memory of its own, which `HeapWalk` lists busy and past a region. Every heap is locked while it
+        // is walked, as `HeapWalk` asks, so the walk asks the system nothing for an entry inside the region it
+        // stands in, nor inside the allocation it asked of last: a query an entry held a 7 GiB heap locked 47 s.
+        std::vector<HANDLE> heaps(GetProcessHeaps(0, nullptr));
+        heaps.resize(GetProcessHeaps(static_cast<DWORD>(heaps.size()), heaps.data()));
+        std::vector<const void*> heapBases;
+        for (const HANDLE heap : heaps)
+        {
+            if (!HeapLock(heap))
+                continue;
+            const char* regionFirst = nullptr;
+            const char* regionLast = nullptr;
+            const char* queriedFrom = nullptr;
+            const char* queriedTo = nullptr;
+            PROCESS_HEAP_ENTRY entry{};
+            while (HeapWalk(heap, &entry))
+            {
+                const char* const at = static_cast<const char*>(entry.lpData);
+                if ((entry.wFlags & PROCESS_HEAP_REGION) != 0)
+                {
+                    regionFirst = static_cast<const char*>(entry.Region.lpFirstBlock);
+                    regionLast = static_cast<const char*>(entry.Region.lpLastBlock);
+                }
+                else if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) == 0 || (at >= regionFirst && at < regionLast)
+                    || (at >= queriedFrom && at < queriedTo))
+                    continue;
+
+                MEMORY_BASIC_INFORMATION region{};
+                if (VirtualQuery(at, &region, sizeof(region)) != sizeof(region))
+                    continue;
+                heapBases.push_back(region.AllocationBase);
+                queriedFrom = static_cast<const char*>(region.AllocationBase);
+                queriedTo = static_cast<const char*>(region.BaseAddress) + region.RegionSize;
+            }
+            HeapUnlock(heap);
+        }
+        std::ranges::sort(heapBases);
+        heapBases.erase(std::ranges::unique(heapBases).begin(), heapBases.end());
+
+        // Every committed private region of the address space, a region at a time.
+        PrivateMemoryHeld held;
+        const char* address = nullptr;
+        MEMORY_BASIC_INFORMATION region{};
+        while (VirtualQuery(address, &region, sizeof(region)) == sizeof(region))
+        {
+            if (region.State == MEM_COMMIT && region.Type == MEM_PRIVATE)
+            {
+                const std::uint64_t bytes = region.RegionSize;
+                if (std::ranges::binary_search(heapBases, static_cast<const void*>(region.AllocationBase)))
+                    held.mHeaps += bytes;
+                else
+                {
+                    held.mOther += bytes;
+                    ++held.mOtherRegions;
+                    if (bytes > held.mLargestOther)
+                    {
+                        held.mLargestOther = bytes;
+                        held.mLargestOtherRegions = 0;
+                    }
+                    if (bytes == held.mLargestOther)
+                        ++held.mLargestOtherRegions;
+                }
+            }
+            address = static_cast<const char*>(region.BaseAddress) + region.RegionSize;
+        }
+        return held;
     }
 
     std::size_t keepToPerformanceCores()

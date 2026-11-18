@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
@@ -13,12 +15,10 @@
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/opcodes.hpp>
 #include <components/compiler/scanner.hpp>
-
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/installopcodes.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
-
 #include <components/misc/strings/algorithm.hpp>
 
 namespace MWScriptTesting
@@ -63,8 +63,8 @@ namespace MWScriptTesting
 
     class LocalVariables
     {
-        std::vector<int> mShorts;
-        std::vector<int> mLongs;
+        std::vector<std::int32_t> mShorts;
+        std::vector<std::int32_t> mLongs;
         std::vector<float> mFloats;
 
         template <class T>
@@ -91,23 +91,23 @@ namespace MWScriptTesting
             mFloats.clear();
         }
 
-        int getShort(std::size_t index) const { return getLocal(index, mShorts); }
+        std::int32_t getShort(std::size_t index) const { return getLocal(index, mShorts); }
 
-        int getLong(std::size_t index) const { return getLocal(index, mLongs); }
+        std::int32_t getLong(std::size_t index) const { return getLocal(index, mLongs); }
 
         float getFloat(std::size_t index) const { return getLocal(index, mFloats); }
 
-        void setShort(std::size_t index, int value) { setLocal(value, index, mShorts); }
+        void setShort(std::size_t index, std::int32_t value) { setLocal(value, index, mShorts); }
 
-        void setLong(std::size_t index, int value) { setLocal(value, index, mLongs); }
+        void setLong(std::size_t index, std::int32_t value) { setLocal(value, index, mLongs); }
 
         void setFloat(std::size_t index, float value) { setLocal(value, index, mFloats); }
     };
 
     class GlobalVariables
     {
-        std::map<std::string, int, std::less<>> mShorts;
-        std::map<std::string, int, std::less<>> mLongs;
+        std::map<std::string, std::int32_t, std::less<>> mShorts;
+        std::map<std::string, std::int32_t, std::less<>> mLongs;
         std::map<std::string, float, std::less<>> mFloats;
 
         template <class T>
@@ -127,15 +127,15 @@ namespace MWScriptTesting
             mFloats.clear();
         }
 
-        int getShort(std::string_view name) const { return getGlobal(name, mShorts); }
+        std::int32_t getShort(std::string_view name) const { return getGlobal(name, mShorts); }
 
-        int getLong(std::string_view name) const { return getGlobal(name, mLongs); }
+        std::int32_t getLong(std::string_view name) const { return getGlobal(name, mLongs); }
 
         float getFloat(std::string_view name) const { return getGlobal(name, mFloats); }
 
-        void setShort(std::string_view name, int value) { mShorts[std::string(name)] = value; }
+        void setShort(std::string_view name, std::int32_t value) { mShorts[std::string(name)] = value; }
 
-        void setLong(std::string_view name, int value) { mLongs[std::string(name)] = value; }
+        void setLong(std::string_view name, std::int32_t value) { mLongs[std::string(name)] = value; }
 
         void setFloat(std::string_view name, float value) { mFloats[std::string(name)] = value; }
     };
@@ -156,17 +156,32 @@ namespace MWScriptTesting
 
         ESM::RefId getTarget() const override { return ESM::RefId(); }
 
-        int getLocalShort(int index) const override { return mLocals.getShort(static_cast<std::size_t>(index)); }
+        std::int32_t getLocalShort(std::int32_t index) const override
+        {
+            return mLocals.getShort(static_cast<std::size_t>(index));
+        }
 
-        int getLocalLong(int index) const override { return mLocals.getLong(static_cast<std::size_t>(index)); }
+        std::int32_t getLocalLong(std::int32_t index) const override
+        {
+            return mLocals.getLong(static_cast<std::size_t>(index));
+        }
 
-        float getLocalFloat(int index) const override { return mLocals.getFloat(static_cast<std::size_t>(index)); }
+        float getLocalFloat(std::int32_t index) const override
+        {
+            return mLocals.getFloat(static_cast<std::size_t>(index));
+        }
 
-        void setLocalShort(int index, int value) override { mLocals.setShort(static_cast<std::size_t>(index), value); }
+        void setLocalShort(std::int32_t index, std::int32_t value) override
+        {
+            mLocals.setShort(static_cast<std::size_t>(index), value);
+        }
 
-        void setLocalLong(int index, int value) override { mLocals.setLong(static_cast<std::size_t>(index), value); }
+        void setLocalLong(std::int32_t index, std::int32_t value) override
+        {
+            mLocals.setLong(static_cast<std::size_t>(index), value);
+        }
 
-        void setLocalFloat(int index, float value) override
+        void setLocalFloat(std::int32_t index, float value) override
         {
             mLocals.setFloat(static_cast<std::size_t>(index), value);
         }
@@ -178,15 +193,15 @@ namespace MWScriptTesting
 
         void report(const std::string& message) override {}
 
-        int getGlobalShort(std::string_view name) const override { return {}; }
+        std::int32_t getGlobalShort(std::string_view name) const override { return {}; }
 
-        int getGlobalLong(std::string_view name) const override { return {}; }
+        std::int32_t getGlobalLong(std::string_view name) const override { return {}; }
 
         float getGlobalFloat(std::string_view name) const override { return {}; }
 
-        void setGlobalShort(std::string_view name, int value) override {}
+        void setGlobalShort(std::string_view name, std::int32_t value) override {}
 
-        void setGlobalLong(std::string_view name, int value) override {}
+        void setGlobalLong(std::string_view name, std::int32_t value) override {}
 
         void setGlobalFloat(std::string_view name, float value) override {}
 
@@ -216,11 +231,11 @@ namespace MWScriptTesting
 
         std::string_view getPCNextRank() const override { return {}; }
 
-        int getPCBounty() const override { return {}; }
+        std::int32_t getPCBounty() const override { return {}; }
 
         std::string_view getCurrentCellName() const override { return {}; }
 
-        int getMemberShort(ESM::RefId id, std::string_view name, bool global) const override
+        std::int32_t getMemberShort(ESM::RefId id, std::string_view name, bool global) const override
         {
             auto it = mMembers.find(id);
             if (it != mMembers.end())
@@ -228,7 +243,7 @@ namespace MWScriptTesting
             return {};
         }
 
-        int getMemberLong(ESM::RefId id, std::string_view name, bool global) const override
+        std::int32_t getMemberLong(ESM::RefId id, std::string_view name, bool global) const override
         {
             auto it = mMembers.find(id);
             if (it != mMembers.end())
@@ -244,12 +259,12 @@ namespace MWScriptTesting
             return {};
         }
 
-        void setMemberShort(ESM::RefId id, std::string_view name, int value, bool global) override
+        void setMemberShort(ESM::RefId id, std::string_view name, std::int32_t value, bool global) override
         {
             mMembers[id].setShort(name, value);
         }
 
-        void setMemberLong(ESM::RefId id, std::string_view name, int value, bool global) override
+        void setMemberLong(ESM::RefId id, std::string_view name, std::int32_t value, bool global) override
         {
             mMembers[id].setLong(name, value);
         }

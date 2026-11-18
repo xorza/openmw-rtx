@@ -1,5 +1,7 @@
 #include "installationtargetpage.hpp"
 
+#include <cstdint>
+
 #include <QDebug>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -98,7 +100,7 @@ void Wizard::InstallationTargetPage::browseButtonClicked()
         targetLineEdit->setText(info.absoluteFilePath());
 }
 
-int Wizard::InstallationTargetPage::nextId() const
+std::int32_t Wizard::InstallationTargetPage::nextId() const
 {
     return MainWizard::Page_LanguageSelection;
 }

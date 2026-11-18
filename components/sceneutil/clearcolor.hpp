@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/StateAttribute>
 #include <osg/Vec4f>
 
@@ -27,7 +29,7 @@ namespace SceneUtil
 
         META_StateAttribute(fx, ClearColor, static_cast<osg::StateAttribute::Type>(100))
 
-        int compare(const StateAttribute& sa) const override
+        std::int32_t compare(const StateAttribute& sa) const override
         {
             COMPARE_StateAttribute_Types(ClearColor, sa);
 

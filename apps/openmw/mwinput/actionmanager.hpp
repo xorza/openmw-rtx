@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace MWRender
 {
     class Renderer;
@@ -16,7 +18,7 @@ namespace MWInput
 
         void update(float dt);
 
-        void executeAction(int action);
+        void executeAction(std::int32_t action);
 
         bool checkAllowedToUseItems() const;
 
@@ -28,7 +30,7 @@ namespace MWInput
         void quickLoad();
         void quickSave();
 
-        void quickKey(int index);
+        void quickKey(std::int32_t index);
 
         void resetIdleTime();
         float getIdleTime() const { return mTimeIdle; }
@@ -36,7 +38,7 @@ namespace MWInput
         bool isSneaking() const;
 
     private:
-        void handleGuiArrowKey(int action);
+        void handleGuiArrowKey(std::int32_t action);
 
         BindingsManager* mBindingsManager;
         MWRender::Renderer& mRenderer;

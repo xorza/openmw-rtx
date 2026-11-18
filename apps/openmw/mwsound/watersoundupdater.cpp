@@ -1,10 +1,12 @@
 #include "watersoundupdater.hpp"
 
-#include "../mwbase/world.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/ptr.hpp"
+#include <cstdint>
 
 #include <osg/Vec3f>
+
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace MWSound
 {
@@ -44,11 +46,11 @@ namespace MWSound
             const float step = static_cast<float>(mSettings.mNearWaterRadius) * 2.0f
                 / static_cast<float>((mSettings.mNearWaterPoints - 1));
 
-            int underwaterPoints = 0;
+            std::int32_t underwaterPoints = 0;
 
-            for (int x = 0; x < mSettings.mNearWaterPoints; x++)
+            for (std::int32_t x = 0; x < mSettings.mNearWaterPoints; x++)
             {
-                for (int y = 0; y < mSettings.mNearWaterPoints; y++)
+                for (std::int32_t y = 0; y < mSettings.mNearWaterPoints; y++)
                 {
                     const float terrainX
                         = pos.x() - static_cast<float>(mSettings.mNearWaterRadius) + static_cast<float>(x) * step;

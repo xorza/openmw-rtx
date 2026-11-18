@@ -1,14 +1,16 @@
 #include "scanner.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+
+#include <components/misc/strings/conversion.hpp>
+#include <components/misc/strings/lower.hpp>
 
 #include "errorhandler.hpp"
 #include "exception.hpp"
 #include "extensions.hpp"
 #include "parser.hpp"
-
-#include <components/misc/strings/conversion.hpp>
-#include <components/misc/strings/lower.hpp>
 
 namespace
 {
@@ -229,7 +231,7 @@ namespace Compiler
         TokenLoc loc(mLoc);
         mLoc.mLiteral.clear();
 
-        cont = parser.parseInt(Misc::StringUtils::toNumeric<int>(value, 0), loc, *this);
+        cont = parser.parseInt(Misc::StringUtils::toNumeric<std::int32_t>(value, 0), loc, *this);
 
         return true;
     }
@@ -316,7 +318,7 @@ namespace Compiler
             }
         }
 
-        int i = 0;
+        std::int32_t i = 0;
 
         std::string lowerCase = Misc::StringUtils::lowerCase(name);
         bool isKeyword = false;
@@ -344,7 +346,7 @@ namespace Compiler
 
         if (mExtensions)
         {
-            if (int keyword = mExtensions->searchKeyword(lowerCase))
+            if (std::int32_t keyword = mExtensions->searchKeyword(lowerCase))
             {
                 cont = parser.parseKeyword(keyword, loc, *this);
                 return true;
@@ -387,7 +389,7 @@ namespace Compiler
                     else
                     {
                         bool allWhitespace = true;
-                        for (size_t i = 1; i < name.size(); i++)
+                        for (std::size_t i = 1; i < name.size(); i++)
                         {
                             // ignore comments
                             if (name[i] == ';')
@@ -431,7 +433,7 @@ namespace Compiler
     {
         bool expectName = mExpectName;
         mExpectName = false;
-        int special = -1;
+        std::int32_t special = -1;
 
         if (c == '\n')
             special = S_newline;
@@ -485,7 +487,7 @@ namespace Compiler
                     break;
                 }
             }
-            size_t end = op.size();
+            std::size_t end = op.size();
             while (end > 0 && (op[end - 1] == '\t' || op[end - 1] == ' '))
                 --end;
             switch (op[0])
@@ -612,14 +614,14 @@ namespace Compiler
         mExpectName = false;
     }
 
-    void Scanner::putbackSpecial(int code, const TokenLoc& loc)
+    void Scanner::putbackSpecial(std::int32_t code, const TokenLoc& loc)
     {
         mPutback = Putback_Special;
         mPutbackCode = code;
         mPutbackLoc = loc;
     }
 
-    void Scanner::putbackInt(int value, const TokenLoc& loc)
+    void Scanner::putbackInt(std::int32_t value, const TokenLoc& loc)
     {
         mPutback = Putback_Integer;
         mPutbackInteger = value;
@@ -640,7 +642,7 @@ namespace Compiler
         mPutbackLoc = loc;
     }
 
-    void Scanner::putbackKeyword(int keyword, const TokenLoc& loc)
+    void Scanner::putbackKeyword(std::int32_t keyword, const TokenLoc& loc)
     {
         mPutback = Putback_Keyword;
         mPutbackCode = keyword;
@@ -649,7 +651,7 @@ namespace Compiler
 
     void Scanner::listKeywords(std::vector<std::string>& keywords)
     {
-        for (int i = 0; Compiler::sKeywords[i]; ++i)
+        for (std::int32_t i = 0; Compiler::sKeywords[i]; ++i)
             keywords.emplace_back(Compiler::sKeywords[i]);
 
         if (mExtensions)

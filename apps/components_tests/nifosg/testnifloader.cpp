@@ -1,4 +1,18 @@
 
+#include <array>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
+#include <gtest/gtest.h>
+
+#include <osgDB/Registry>
+#include <osgParticle/ParticleSystem>
+
 #include <apps/components_tests/nif/node.hpp>
 #include <components/nif/controller.hpp>
 #include <components/nif/data.hpp>
@@ -11,19 +25,6 @@
 #include <components/sceneutil/serialize.hpp>
 #include <components/sceneutil/visitor.hpp>
 #include <components/vfs/manager.hpp>
-
-#include <gtest/gtest.h>
-
-#include <osgDB/Registry>
-#include <osgParticle/ParticleSystem>
-
-#include <array>
-#include <limits>
-#include <memory>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <string_view>
 
 namespace
 {
@@ -234,17 +235,17 @@ osg::Group {
 
     struct ShaderPrefixParams
     {
-        unsigned int mShaderType;
+        std::uint32_t mShaderType;
         std::string_view mExpectedShaderPrefix;
     };
 
     struct NifOsgLoaderBSShaderPrefixTest : TestWithParam<ShaderPrefixParams>, BaseNifOsgLoaderTest
     {
         static constexpr std::array sParams = {
-            ShaderPrefixParams{ static_cast<unsigned int>(Nif::BSShaderType::ShaderType_Default), "bs/default" },
-            ShaderPrefixParams{ static_cast<unsigned int>(Nif::BSShaderType::ShaderType_NoLighting), "bs/nolighting" },
-            ShaderPrefixParams{ static_cast<unsigned int>(Nif::BSShaderType::ShaderType_Tile), "bs/default" },
-            ShaderPrefixParams{ std::numeric_limits<unsigned int>::max(), "bs/default" },
+            ShaderPrefixParams{ static_cast<std::uint32_t>(Nif::BSShaderType::ShaderType_Default), "bs/default" },
+            ShaderPrefixParams{ static_cast<std::uint32_t>(Nif::BSShaderType::ShaderType_NoLighting), "bs/nolighting" },
+            ShaderPrefixParams{ static_cast<std::uint32_t>(Nif::BSShaderType::ShaderType_Tile), "bs/default" },
+            ShaderPrefixParams{ std::numeric_limits<std::uint32_t>::max(), "bs/default" },
         };
     };
 
@@ -270,9 +271,9 @@ osg::Group {
     {
         static constexpr std::array sParams = {
             ShaderPrefixParams{
-                static_cast<unsigned int>(Nif::BSLightingShaderType::ShaderType_Default), "bs/default" },
-            ShaderPrefixParams{ static_cast<unsigned int>(Nif::BSLightingShaderType::ShaderType_Cloud), "bs/default" },
-            ShaderPrefixParams{ std::numeric_limits<unsigned int>::max(), "bs/default" },
+                static_cast<std::uint32_t>(Nif::BSLightingShaderType::ShaderType_Default), "bs/default" },
+            ShaderPrefixParams{ static_cast<std::uint32_t>(Nif::BSLightingShaderType::ShaderType_Cloud), "bs/default" },
+            ShaderPrefixParams{ std::numeric_limits<std::uint32_t>::max(), "bs/default" },
         };
     };
 
@@ -347,7 +348,7 @@ osg::Group {
                 Nif::NiParticleInfo& info = controller.mParticles.emplace_back();
                 info.mAge = age;
                 info.mLifespan = 2.f;
-                info.mCode = static_cast<uint16_t>(controller.mParticles.size() - 1);
+                info.mCode = static_cast<std::uint16_t>(controller.mParticles.size() - 1);
             }
 
             Nif::NiParticles particles;

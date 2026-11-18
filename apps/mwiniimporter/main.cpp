@@ -1,5 +1,4 @@
-#include "importer.hpp"
-
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -18,9 +17,11 @@
 #include <components/platform/process.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "importer.hpp"
+
 namespace bpo = boost::program_options;
 
-int main(int argc, char* argv[])
+int main(std::int32_t argc, char* argv[])
 {
     try
     {

@@ -25,6 +25,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/vfs/pathutil.hpp>
@@ -46,7 +47,7 @@ namespace Rtx::Testing
             SceneDesc mScene;
 
             /// The pane's slot, which a test moves it by.
-            Index mPane;
+            PlacementIndex mPane;
         };
 
         /// The four lamps of four colours a hundred units in front of a pane `away` units ahead.
@@ -66,12 +67,13 @@ namespace Rtx::Testing
                 });
         }
 
-        PaneUnderLamps paneUnderLamps()
+        PaneUnderLamps paneUnderLamps(SceneIdentities& identities)
         {
             constexpr float away = 200.0f;
 
-            SceneDesc scene;
-            const Index pane = addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
+            SceneDesc scene(identities);
+            const PlacementIndex pane
+                = addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
             addLampsBefore(scene, away);
 
             return PaneUnderLamps{ .mScene = std::move(scene), .mPane = pane };
@@ -104,7 +106,8 @@ namespace Rtx::Testing
         /// behind the pane has light, so the whole difference from the last raw frame is the pane filter's.
         TEST_F(RtxVisibilityTest, overAStillEyeThePaneFilterIsTheMeanOfItsFrames)
         {
-            const SceneDesc scene = paneUnderLamps().mScene;
+            SceneIdentities identities;
+            const SceneDesc scene = paneUnderLamps(identities).mScene;
             Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
 
             const Frame averaged = shoot(scene, {}, camera, sSize, { .mFrames = 16, .mFirstFrame = 2000 });
@@ -134,7 +137,8 @@ namespace Rtx::Testing
         /// 0.12890625 at the least) under the four lamps against the black sky, so the pane is every pixel.
         TEST_F(RtxVisibilityTest, aPanesFirstFilteredFrameIsTheComposedFrame)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             addPane(scene, uprightQuadAt(4000.0f, 200.0f), osg::Vec4f(0.3f, 0.37f, 0.41f, 0.43f));
             addLampsBefore(scene, 200.0f);
             Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
@@ -156,7 +160,8 @@ namespace Rtx::Testing
         {
             for (const bool antilag : { true, false })
             {
-                SceneDesc scene;
+                SceneIdentities identities;
+                SceneDesc scene(identities);
                 addPane(scene, uprightQuadAt(4000.0f, 200.0f), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
                 Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
                 camera.mAmbient = osg::Vec3f(0.6f, 0.6f, 0.6f);
@@ -196,10 +201,11 @@ namespace Rtx::Testing
         /// frames and shadows on others.
         TEST_F(RtxVisibilityTest, aJitteredStillsPaneHistoryIsRegisteredAtThePixelsCentre)
         {
+            SceneIdentities identities;
             constexpr float away = 200.0f;
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
-            const Index blocker
+            const MaterialIndex blocker
                 = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
             addQuad(scene, uprightQuadAt(1000.0f, -50.0f, osg::Vec2f(-1000.0f + 0.3f, 0.0f)), blocker);
             scene.addLight(Light{
@@ -243,7 +249,8 @@ namespace Rtx::Testing
             camera.mFrame = 2016;
 
             const auto goneAfterSixteen = [&](bool another, bool filtered) {
-                PaneUnderLamps lit = paneUnderLamps();
+                SceneIdentities identities;
+                PaneUnderLamps lit = paneUnderLamps(identities);
                 if (another)
                     addPane(lit.mScene, uprightQuadAt(4000.0f, 300.0f), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
                 shoot(lit.mScene, {}, camera, sSize, filteredRun(16, 2000));
@@ -272,7 +279,8 @@ namespace Rtx::Testing
         /// units out (2.2 units), and the history is another surface's.
         TEST_F(RtxVisibilityTest, aPaneTheEyeWalksTowardKeepsItsHistory)
         {
-            const SceneDesc scene = paneUnderLamps().mScene;
+            SceneIdentities identities;
+            const SceneDesc scene = paneUnderLamps(identities).mScene;
             const Shaders::VisibilityConstants before = darkEyeAt(osg::Vec3f());
             Shaders::VisibilityConstants after = darkEyeAt(osg::Vec3f(0.0f, 10.0f, 0.0f));
 
@@ -302,6 +310,7 @@ namespace Rtx::Testing
         /// only the lamps are in it, and a closed map and an open one draw them to the bit.
         TEST_F(RtxVisibilityTest, aSpecularMapsBlueLeavesAPanesLampsAndAlbedoAlone)
         {
+            SceneIdentities identities;
             struct Read
             {
                 std::vector<float> mPane;
@@ -310,12 +319,13 @@ namespace Rtx::Testing
             const auto under = [&](std::uint8_t blue) {
                 constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
                 const std::array<std::uint8_t, 4> mapTexel{ 0, 128, blue, 255 };
-                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, TextureIndex(0)),
+                    describeTexel(mapTexel, TextureIndex(1)) };
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addLampsBefore(scene, 200.0f);
-                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
-                const Index map = scene.textures().add(
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
+                const TextureIndex map = scene.textures().add(
                     VFS::Path::NormalizedView("pane_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                 scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, uprightQuadAt(4000.0f, 200.0f)),
                     .mMaterial = scene.addMaterial(Material{
@@ -343,16 +353,18 @@ namespace Rtx::Testing
         /// end on the frame the trace composed itself, to the rounding of the shown width.
         TEST_F(RtxVisibilityTest, aPanesLobeIsComposedAndNotFiltered)
         {
+            SceneIdentities identities;
             constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
             constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 0, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
+                describeTexel(sMetalTexel, TextureIndex(1)) };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addLampsBefore(scene, 200.0f);
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
-            const Index map = scene.textures().add(
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("pane_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-            const Index metal = scene.addMaterial(
+            const MaterialIndex metal = scene.addMaterial(
                 Material{ .mDiffuse = diffuse, .mSpecular = map, .mOpacity = 0.5f, .mAlphaMode = AlphaMode::Blend });
             scene.addInstance(
                 MeshInstance{ .mMesh = addQuadMesh(scene, uprightQuadAt(4000.0f, 200.0f)), .mMaterial = metal });
@@ -400,7 +412,8 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
             for (const InstanceClass kind : { InstanceClass::Static, InstanceClass::FirstPerson })
             {
-                SceneDesc scene;
+                SceneIdentities identities;
+                SceneDesc scene(identities);
                 addPane(scene, uprightQuadAt(4000.0f, 100.0f), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f), 1.0f, false, kind);
                 shoot(scene, {}, camera, sSize);
 
@@ -422,7 +435,8 @@ namespace Rtx::Testing
         /// new eye, over the whole floor and its far half alone.
         TEST_F(RtxVisibilityTest, aGrazingPaneKeepsItsHistoryWhileTheEyeWalksOverIt)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             addPane(scene, sheetAt(4000.0f, -20.0f), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
             const std::array<std::pair<float, osg::Vec3f>, 4> lamps{ {
                 { 100.0f, osg::Vec3f(4000.0f, 0.0f, 0.0f) },
@@ -486,7 +500,8 @@ namespace Rtx::Testing
         /// `UPSCALE_MASK_CEILING`, 0.9, which eight bits store as 229/255; and nought for the eye standing still.
         TEST_F(RtxVisibilityTest, aPaneIsReprojectedByItsOwnMotionAndNotTheSurfacesBehindIt)
         {
-            const SceneDesc scene = paneUnderLamps().mScene;
+            SceneIdentities identities;
+            const SceneDesc scene = paneUnderLamps(identities).mScene;
             const Shaders::VisibilityConstants before = darkEyeAt(osg::Vec3f());
             Shaders::VisibilityConstants after = darkEyeAt(osg::Vec3f(4.0f, 0.0f, 0.0f));
 

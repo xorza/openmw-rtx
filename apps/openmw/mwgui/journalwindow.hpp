@@ -1,10 +1,11 @@
 #pragma once
 
-#include "windowbase.hpp"
+#include <cstddef>
+#include <memory>
 
 #include <components/toutf8/toutf8.hpp>
 
-#include <memory>
+#include "windowbase.hpp"
 
 namespace MWBase
 {
@@ -32,8 +33,8 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "Journal"; }
 
         std::vector<MyGUI::Button*> mButtons;
-        size_t mIndexRowCount = 1;
-        size_t mSelectedQuest = 0;
-        size_t mSelectedIndex = 0;
+        std::size_t mIndexRowCount = 1;
+        std::size_t mSelectedQuest = 0;
+        std::size_t mSelectedIndex = 0;
     };
 }

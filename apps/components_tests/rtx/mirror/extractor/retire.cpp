@@ -1,7 +1,6 @@
 #include <array>
 #include <cstdint>
 #include <utility>
-#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -32,6 +31,7 @@
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/stableidentity.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -90,7 +90,7 @@ namespace Rtx::Testing
 
             // Two slots, and the new one carries its own vertices rather than the retired one's.
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
-            EXPECT_EQ(mScene.meshes().getMeshPositions(1)[0].z(), 5.0f);
+            EXPECT_EQ(mScene.meshes().getArrival(MeshIndex(1)).mPositions[0].z(), 5.0f);
 
             // **And the sweep is what lets go**, into the extractor's sink and not on the frame thread: the drawable
             // outlives its entry by the sink's one reference, until the owner hands the sink to whatever releases the
@@ -142,8 +142,9 @@ namespace Rtx::Testing
             EXPECT_EQ(again.mRestood, 0u);
             ASSERT_EQ(mScene.placements().getRows().size(), 1u);
             ASSERT_EQ(mScene.placements().getMoved().size(), 1u);
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(2.0f, 0.0f, 0.0f));
-            EXPECT_EQ(mScene.placements().getRows()[0].mPrevious.getTrans(), osg::Vec3f(1.0f, 0.0f, 0.0f));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(2.0f, 0.0f, 0.0f));
+            EXPECT_EQ(
+                mScene.placements().getRows()[PlacementIndex(0)].mPrevious.getTrans(), osg::Vec3f(1.0f, 0.0f, 0.0f));
 
             EXPECT_TRUE(mExtractor.retire().empty()) << "nothing went: the placement was carried";
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
@@ -168,7 +169,7 @@ namespace Rtx::Testing
 
             walk(*root);
             ASSERT_EQ(mScene.placements().getRows().size(), 2u);
-            ASSERT_EQ(placedAt(mScene, 1), osg::Vec3f(5.0f, 0.0f, 0.0f));
+            ASSERT_EQ(placedAt(mScene, PlacementIndex(1)), osg::Vec3f(5.0f, 0.0f, 0.0f));
             ASSERT_TRUE(mExtractor.retire().empty());
             mScene.placements().advance();
 
@@ -181,10 +182,10 @@ namespace Rtx::Testing
             EXPECT_EQ(again.mInstances, 1u);
             EXPECT_EQ(again.mRestood, 0u);
             EXPECT_TRUE(mScene.placements().getMoved().empty()) << "a still crate reported a move";
-            EXPECT_TRUE(mScene.placements().isPlaced(1));
+            EXPECT_TRUE(mScene.placements().isPlaced(PlacementIndex(1)));
 
             mExtractor.retire();
-            EXPECT_FALSE(mScene.placements().isPlaced(0)) << "the first's slot was kept";
+            EXPECT_FALSE(mScene.placements().isPlaced(PlacementIndex(0))) << "the first's slot was kept";
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
         }
 
@@ -213,8 +214,8 @@ namespace Rtx::Testing
             walk(*root, 0, 1);
 
             ASSERT_EQ(mScene.placements().getMoved().size(), 1u);
-            EXPECT_EQ(mScene.placements().getMoved()[0], 0u);
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(5.0f, 0.0f, 0.0f));
+            EXPECT_EQ(mScene.placements().getMoved()[0], PlacementIndex(0));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(5.0f, 0.0f, 0.0f));
         }
 
         /// **And an unstamped node is known by its place, so a sibling that shifts into another's place takes over
@@ -244,12 +245,13 @@ namespace Rtx::Testing
             EXPECT_EQ(again.mInstances, 1u);
             EXPECT_EQ(again.mRestood, 0u);
             ASSERT_EQ(mScene.placements().getMoved().size(), 1u);
-            EXPECT_EQ(mScene.placements().getMoved()[0], 0u);
-            EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(5.0f, 0.0f, 0.0f));
-            EXPECT_EQ(mScene.placements().getRows()[0].mPrevious.getTrans(), osg::Vec3f(1.0f, 0.0f, 0.0f));
+            EXPECT_EQ(mScene.placements().getMoved()[0], PlacementIndex(0));
+            EXPECT_EQ(placedAt(mScene, PlacementIndex(0)), osg::Vec3f(5.0f, 0.0f, 0.0f));
+            EXPECT_EQ(
+                mScene.placements().getRows()[PlacementIndex(0)].mPrevious.getTrans(), osg::Vec3f(1.0f, 0.0f, 0.0f));
 
             mExtractor.retire();
-            EXPECT_FALSE(mScene.placements().isPlaced(1)) << "the second's old slot was kept";
+            EXPECT_FALSE(mScene.placements().isPlaced(PlacementIndex(1))) << "the second's old slot was kept";
         }
 
         /// A mesh and a material of the scene's own, which no drawable names: what the cell ring does for a cell's
@@ -271,7 +273,7 @@ namespace Rtx::Testing
                 const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
                 mMaterial = mScene.addMaterial(Material{ .mKind = MaterialKind::Terrain });
-                mMesh = mScene.addMesh(MeshArrays{ .mPositions = corners, .mIndices = triangle });
+                mMesh = Testing::addMesh(mScene, MeshArrays{ .mPositions = corners, .mIndices = triangle });
                 mHolds.mesh(mMesh);
                 mHolds.material(mMaterial);
                 mSlot = mScene.addInstance(MeshInstance{ .mMesh = mMesh, .mMaterial = mMaterial });
@@ -280,19 +282,19 @@ namespace Rtx::Testing
             void letGo()
             {
                 mScene.dropInstance(mSlot, Stander::Walk);
-                mSlot = sNoIndex;
+                mSlot = sNoRow;
                 mHolds.dropMesh(mMesh);
                 mHolds.dropMaterial(mMaterial);
             }
 
-            Index getMesh() const { return mMesh; }
+            MeshIndex getMesh() const { return mMesh; }
 
         private:
             SceneDesc& mScene;
             Testing::SceneHolds mHolds;
-            Index mMesh = sNoIndex;
-            Index mMaterial = sNoIndex;
-            Index mSlot = sNoIndex;
+            MeshIndex mMesh = sNoRow;
+            MaterialIndex mMaterial = sNoRow;
+            PlacementIndex mSlot = sNoRow;
         };
 
         /// **A row something holds survives every retire, and goes with the last hold given back, which the next
@@ -333,14 +335,14 @@ namespace Rtx::Testing
             // asks of the scene at its end: a slot taken and not held on the next line would carry
             // its image for the life of the scene, and only this would say so.
             EXPECT_TRUE(mScene.isConsistent());
-            const Index orphan = mScene.textures().add(VFS::Path::NormalizedView("textures/forgotten.dds"));
+            const TextureIndex orphan = mScene.textures().add(VFS::Path::NormalizedView("textures/forgotten.dds"));
             EXPECT_FALSE(mScene.isConsistent()) << "a live texture with no hold was not reported";
             TextureHold held = mScene.holdTexture(orphan);
             EXPECT_TRUE(mScene.isConsistent());
 
             // **A texture that rests is neither**: stood whole and let go of, it stands unheld until its room
             // is wanted, and the scene is still consistent and empty.
-            mScene.textures().stand(orphan, 64, false);
+            mScene.textures().stand(orphan, 64, false, 0);
             mScene.drop(std::move(held));
             EXPECT_TRUE(mScene.textures().isLive(orphan));
             EXPECT_TRUE(mScene.isConsistent()) << "a texture that rests was taken for a row nothing can free";
@@ -351,10 +353,10 @@ namespace Rtx::Testing
 
             // A mesh and a material the same, which a walk's identity holds from the moment it
             // files them.
-            const Index mesh = Testing::addQuadMesh(mScene);
+            const MeshIndex mesh = Testing::addQuadMesh(mScene);
             EXPECT_FALSE(mScene.isConsistent()) << "a live mesh with no hold was not reported";
             Testing::letGoMesh(mScene, mesh);
-            const Index material = mScene.addMaterial(Material{});
+            const MaterialIndex material = mScene.addMaterial(Material{});
             EXPECT_FALSE(mScene.isConsistent()) << "a live material with no hold was not reported";
             Testing::letGoMaterial(mScene, material);
             EXPECT_TRUE(mScene.isEmpty());
@@ -397,8 +399,8 @@ namespace Rtx::Testing
             // **The table is the same size and the survivors are where they were.** Freeing a slot in place lets a cell
             // leave without renumbering every mesh in the world.
             ASSERT_EQ(mScene.meshes().getRows().size(), 3u);
-            EXPECT_EQ(mScene.meshes().getRows()[1].mVertices.mCount, 0u) << "the middle slot should be free";
-            EXPECT_EQ(mScene.meshes().getMeshPositions(2)[0].z(), 7.0f) << "a survivor moved";
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(1)].mVertices.mCount, 0u) << "the middle slot should be free";
+            EXPECT_EQ(mScene.meshes().getArrival(MeshIndex(2)).mPositions[0].z(), 7.0f) << "a survivor moved";
 
             mScene.clearPlacement();
             const ExtractionStats after = walk(*less);
@@ -412,14 +414,14 @@ namespace Rtx::Testing
             // dropped placement leaves its slot behind rather than closing the gap.
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 2u);
             ASSERT_EQ(mScene.placements().getRows().size(), 3u);
-            EXPECT_FALSE(mScene.placements().isPlaced(2)) << "slot 2 should be a gap";
+            EXPECT_FALSE(mScene.placements().isPlaced(PlacementIndex(2))) << "slot 2 should be a gap";
 
             // And what those placements name is what the walk resolved: the third quad is still
             // mesh two, where it was put.
-            ASSERT_TRUE(mScene.placements().isPlaced(0));
-            ASSERT_TRUE(mScene.placements().isPlaced(1));
-            EXPECT_EQ(mScene.placements().getRows()[0].mInstance.mMesh, 0u);
-            EXPECT_EQ(mScene.placements().getRows()[1].mInstance.mMesh, 2u);
+            ASSERT_TRUE(mScene.placements().isPlaced(PlacementIndex(0)));
+            ASSERT_TRUE(mScene.placements().isPlaced(PlacementIndex(1)));
+            EXPECT_EQ(mScene.placements().getRows()[PlacementIndex(0)].mInstance.mMesh, MeshIndex(0));
+            EXPECT_EQ(mScene.placements().getRows()[PlacementIndex(1)].mInstance.mMesh, MeshIndex(2));
 
             // The freed slot goes to the next quad that turns up, which is the same size as the one
             // that left it.
@@ -433,7 +435,7 @@ namespace Rtx::Testing
             walk(*more);
 
             EXPECT_EQ(mScene.meshes().getRows().size(), 3u) << "the free slot was passed over and the table grew";
-            EXPECT_EQ(mScene.meshes().getRows()[1].mVertices.mCount, 4u);
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(1)].mVertices.mCount, 4u);
         }
 
         /// A cell that unloads takes its creatures with it, and the cell beside it keeps its own.
@@ -504,9 +506,10 @@ namespace Rtx::Testing
 
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 1u);
 
-            Index standing = sNoIndex;
-            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) { standing = row.mInstance.mMesh; });
-            ASSERT_NE(standing, sNoIndex);
+            MeshIndex standing = sNoRow;
+            mScene.placements().forEachPlaced(
+                [&](PlacementIndex, const PlacementRow& row) { standing = row.mInstance.mMesh; });
+            ASSERT_NE(standing, sNoRow);
             EXPECT_EQ(boneAt(mScene.getMeshPose(standing), 0).mRows[2], osg::Vec4f(0.0f, 0.0f, 1.0f, 11.0f))
                 << "the sweep kept the actor from the cell that unloaded";
             EXPECT_EQ(mScene.deformers().getRows().size(), 2u) << "a rig is a slot and keeps its index";
@@ -539,7 +542,7 @@ namespace Rtx::Testing
 
             ASSERT_EQ(arrived.mMeshesAdded, 2u);
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
-            ASSERT_EQ(mScene.meshes().getRows()[0].mVertices.mCount, 4u)
+            ASSERT_EQ(mScene.meshes().getRows()[MeshIndex(0)].mVertices.mCount, 4u)
                 << "the actor is the first drawable under the root";
 
             // **The rig re-pointed at a longer mesh, which is the same rig.** Posing six vertices into a run of four is
@@ -573,16 +576,18 @@ namespace Rtx::Testing
             EXPECT_EQ(went.mMaterials, 0u);
 
             ASSERT_EQ(mScene.meshes().getRows().size(), 3u);
-            EXPECT_EQ(mScene.meshes().getRows()[0].mVertices.mCount, 0u) << "the abandoned slot was left standing";
-            EXPECT_EQ(mScene.meshes().getRows()[1].mVertices.mCount, 4u) << "the crate lost its slot";
-            EXPECT_EQ(mScene.meshes().getRows()[2].mVertices.mCount, 6u);
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(0)].mVertices.mCount, 0u)
+                << "the abandoned slot was left standing";
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(1)].mVertices.mCount, 4u) << "the crate lost its slot";
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(2)].mVertices.mCount, 6u);
 
             // Two placements stand, and the actor's is on the longer mesh: a walk that met every
             // drawable dropped none, and what it stood again stands where the resolver answered.
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 2u);
             bool actorStands = false;
-            mScene.placements().forEachPlaced(
-                [&](Index, const PlacementRow& row) { actorStands = actorStands || row.mInstance.mMesh == 2; });
+            mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
+                actorStands = actorStands || row.mInstance.mMesh == MeshIndex(2);
+            });
             EXPECT_TRUE(actorStands) << "the actor's placement kept standing on the abandoned slot";
         }
 
@@ -595,6 +600,7 @@ namespace Rtx::Testing
         /// all with the all-ones mask every drawable is born with stays static, read by the water's rule.
         TEST_F(RtxSceneExtractorTest, whatStandsUnderANamedRootIsPlacedAsItsClass)
         {
+            Rtx::SceneIdentities identities;
             constexpr osg::Node::NodeMask sFirstPerson = 1u << 9;
             constexpr osg::Node::NodeMask sActor = 1u << 3;
             constexpr osg::Node::NodeMask sPlayer = 1u << 4;
@@ -628,19 +634,21 @@ namespace Rtx::Testing
             mExtractor.setClassMask(Rtx::InstanceClass::Effect, sEffect);
             walk(*root);
 
-            std::vector<Rtx::InstanceRecord> records;
+            Rtx::RowVector<Rtx::InstanceRecord, Rtx::PlacementIndex> records;
             Rtx::makeInstanceRecords(mScene, records);
 
             ASSERT_EQ(records.size(), 5u);
-            EXPECT_EQ(records[0].mMask, Rtx::Shaders::MASK_FIRST_PERSON) << "under the arms' root";
-            EXPECT_EQ(records[1].mMask, Rtx::Shaders::MASK_FIRST_PERSON) << "a cast on the hands is the arms'";
-            EXPECT_EQ(records[2].mMask, Rtx::Shaders::MASK_ACTOR) << "under the player's root";
-            EXPECT_EQ(records[3].mMask, Rtx::Shaders::MASK_EFFECT) << "the effect on the player, innermost";
-            EXPECT_EQ(records[4].mMask, Rtx::Shaders::MASK_STATIC) << "beside them";
+            EXPECT_EQ(records[PlacementIndex(0)].mMask, Rtx::Shaders::MASK_FIRST_PERSON) << "under the arms' root";
+            EXPECT_EQ(records[PlacementIndex(1)].mMask, Rtx::Shaders::MASK_FIRST_PERSON)
+                << "a cast on the hands is the arms'";
+            EXPECT_EQ(records[PlacementIndex(2)].mMask, Rtx::Shaders::MASK_ACTOR) << "under the player's root";
+            EXPECT_EQ(records[PlacementIndex(3)].mMask, Rtx::Shaders::MASK_EFFECT)
+                << "the effect on the player, innermost";
+            EXPECT_EQ(records[PlacementIndex(4)].mMask, Rtx::Shaders::MASK_STATIC) << "beside them";
 
             // And a caller that names no class — the harness — places the same graph as static
             // five times.
-            Rtx::SceneDesc unnamed;
+            Rtx::SceneDesc unnamed(identities);
             SceneExtractor silent(unnamed, mContext, sSubjectExtractorRoom);
             silent.extract(*root, osg::Matrixf::identity(), 0);
             Rtx::makeInstanceRecords(unnamed, records);
@@ -673,15 +681,16 @@ namespace Rtx::Testing
             // **Freed, not removed.** The slots stay where they are so nothing above them is renumbered (the rule a
             // cell boundary depends on), and what they held is gone.
             ASSERT_EQ(mScene.meshes().getRows().size(), 1u);
-            EXPECT_EQ(mScene.meshes().getRows()[0].mVertices.mCount, 0u);
+            EXPECT_EQ(mScene.meshes().getRows()[MeshIndex(0)].mVertices.mCount, 0u);
             EXPECT_EQ(mScene.materials().getRows().size(), 1u);
-            EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, Rtx::sNoIndex);
+            EXPECT_EQ(mScene.materials().getRows()[MaterialIndex(0)].mDiffuse, Rtx::sNoRow);
 
             // **The slot stays, and that is deliberate.** It lives in a bindless array a material indexes by position,
             // so reclaiming one renumbers the rest and rebuilds the array, a fifth of a second to save a texture's
             // bytes. What goes is what was in it.
             EXPECT_EQ(mScene.textures().getRows().size(), 1u);
-            EXPECT_TRUE(mScene.textures().getRows()[0].mPath.value().empty()) << "a texture nothing names was kept";
+            EXPECT_TRUE(mScene.textures().getRows()[TextureIndex(0)].mPath.value().empty())
+                << "a texture nothing names was kept";
         }
 
         /// A placement found under its path wears what the walk resolved this frame, or it is dropped and stood
@@ -719,10 +728,12 @@ namespace Rtx::Testing
             EXPECT_EQ(went.mMaterials, 1u) << "the stone, which nothing wears";
 
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 1u);
-            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
-                EXPECT_EQ(row.mInstance.mMaterial, 1u) << "the placement stands on a material the sweep freed";
+            mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
+                EXPECT_EQ(row.mInstance.mMaterial, MaterialIndex(1))
+                    << "the placement stands on a material the sweep freed";
             });
-            EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, Rtx::sNoIndex) << "the stone's row was kept";
+            EXPECT_EQ(mScene.materials().getRows()[MaterialIndex(0)].mDiffuse, Rtx::sNoRow)
+                << "the stone's row was kept";
         }
 
         /// **A walked scene is handed over after its sweep and never before it.** Between the two the scene still

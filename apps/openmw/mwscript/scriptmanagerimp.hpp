@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <span>
@@ -7,15 +8,12 @@
 #include <utility>
 #include <vector>
 
+#include <apps/openmw/mwbase/scriptmanager.hpp>
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/streamerrorhandler.hpp>
-
+#include <components/esm/refid.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/types.hpp>
-
-#include <components/esm/refid.hpp>
-
-#include "../mwbase/scriptmanager.hpp"
 
 #include "globalscripts.hpp"
 #include "visibilitygates.hpp"
@@ -69,7 +67,7 @@ namespace MWScript
         std::vector<GateChange> mGateChanges;
 
     public:
-        ScriptManager(const MWWorld::ESMStore& store, Compiler::Context& compilerContext, int warningsMode);
+        ScriptManager(const MWWorld::ESMStore& store, Compiler::Context& compilerContext, std::int32_t warningsMode);
 
         void clear() override;
 
@@ -80,7 +78,7 @@ namespace MWScript
         ///< Compile script with the given namen
         /// \return Success?
 
-        std::pair<int, int> compileAll() override;
+        std::pair<std::int32_t, std::int32_t> compileAll() override;
         ///< Compile all scripts
         /// \return count, success
 

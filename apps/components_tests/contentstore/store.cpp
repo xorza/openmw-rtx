@@ -52,14 +52,20 @@ namespace ContentStore
         constexpr Key sOther{ { 0x1111111111111111ull, 0x2222222222222222ull } };
         constexpr Key sThird{ { 0x3333333333333333ull, 0x4444444444444444ull } };
 
-        /// The bytes an entry's file ends with, its trailer's: four words, two keys' worth and a
-        /// length, 4 × 4 + 16 + 16 + 8.
-        constexpr std::size_t sTrailerBytes = 56;
+        /// The bytes an entry of one segment holds past its payload: the segment's record, its end and its digest,
+        /// 8 + 16, and the trailer, four words, two keys' worth, a length and two words more, 4 × 4 + 16 + 16 + 8 + 2
+        /// × 4.
+        constexpr std::size_t sRecordBytes = 24;
+        constexpr std::size_t sTrailerBytes = 64;
+        constexpr std::size_t sTailBytes = sRecordBytes + sTrailerBytes;
+
+        /// Where a large entry's trailer starts, past its payload and its one record.
+        constexpr std::size_t sTrailerAt = 5000 + sRecordBytes;
 
         /// Past `Store::sResidentMost`, so the store reads it from its file and not from memory.
         constexpr std::size_t sLarge = 5000;
 
-        Misc::ByteBuffer payloadOf(std::size_t bytes, unsigned seed)
+        Misc::ByteBuffer payloadOf(std::size_t bytes, std::uint32_t seed)
         {
             Misc::ByteBuffer payload(bytes);
             for (std::size_t at = 0; at < bytes; ++at)
@@ -89,9 +95,10 @@ namespace ContentStore
             return count;
         }
 
-        /// One entry written and read back: the file stands where the key names it, as long as its header and
-        /// payload, 56 + 5000 = 5056 bytes, in the folder of the key's first byte, `01`, in the folder of the
-        /// format, `v2`, and another store on the same folder reads it whole. Memory alone does not find an
+        /// One entry written and read back: the file stands where the key names it, as long as its payload, its one
+        /// segment's record and its trailer, 5000 + 24 + 64 = 5088 bytes, in the folder of the key's first byte, `01`,
+        /// in the folder of its kind, `0`, in the folder of the format, `v3`, and another store on the same folder
+        /// reads it whole. Memory alone does not find an
         /// entry too large to hold there.
         TEST(ContentStoreTest, anEntryWrittenIsReadBackWholeByAnotherStoreOnTheSameFolder)
         {
@@ -99,14 +106,16 @@ namespace ContentStore
             const Misc::ByteBuffer payload = payloadOf(sLarge, 7);
             {
                 Store store(folder, sPolicy);
-                store.write(sKey, sFact, 3, payload, Reach::Disk);
+                store.write(
+                    Filed{ .mKey = sKey, .mKind = sFact, .mVersion = 3, .mPayload = payload, .mSegmentEnds = {} },
+                    Reach::Disk);
                 store.flush();
                 EXPECT_EQ(store.getStats().mWritten, 1u);
-                EXPECT_EQ(store.pathOf(sKey), folder / "v2" / "01" / "0123456789abcdeffedcba9876543210");
-                EXPECT_EQ(Store::sFormat, 2u);
+                EXPECT_EQ(store.pathOf(sKey, sFact), folder / "v3" / "0" / "01" / "0123456789abcdeffedcba9876543210");
+                EXPECT_EQ(Store::sFormat, 3u);
             }
-            EXPECT_EQ(std::filesystem::file_size(folder / "v2" / "01" / "0123456789abcdeffedcba9876543210"),
-                sTrailerBytes + sLarge);
+            EXPECT_EQ(std::filesystem::file_size(folder / "v3" / "0" / "01" / "0123456789abcdeffedcba9876543210"),
+                sTailBytes + sLarge);
             EXPECT_EQ(countFiles(folder, ".partial"), 0u) << "the temporary was renamed into place";
 
             Store again(folder, sPolicy);
@@ -135,13 +144,17 @@ namespace ContentStore
             const Misc::ByteBuffer shape = payloadOf(16, 4);
             {
                 Store store(folder, sPolicy);
-                store.write(sKey, sMean, 1, payload, Reach::Disk);
-                store.write(sOther, sShape, 1, shape, Reach::Disk);
+                store.write(
+                    Filed{ .mKey = sKey, .mKind = sMean, .mVersion = 1, .mPayload = payload, .mSegmentEnds = {} },
+                    Reach::Disk);
+                store.write(
+                    Filed{ .mKey = sOther, .mKind = sShape, .mVersion = 1, .mPayload = shape, .mSegmentEnds = {} },
+                    Reach::Disk);
             }
 
             Store again(folder, sPolicy);
             again.flush();
-            std::filesystem::remove(again.pathOf(sKey));
+            std::filesystem::remove(again.pathOf(sKey, sMean));
 
             Misc::ByteBuffer read;
             ASSERT_TRUE(again.read(sKey, sMean, 1, Reach::Memory, read));
@@ -150,7 +163,7 @@ namespace ContentStore
 
             EXPECT_FALSE(again.read(sOther, sShape, 1, Reach::Memory, read)) << "a shape the start did not load";
             ASSERT_TRUE(again.read(sOther, sShape, 1, Reach::Disk, read));
-            std::filesystem::remove(again.pathOf(sOther));
+            std::filesystem::remove(again.pathOf(sOther, sShape));
             ASSERT_TRUE(again.read(sOther, sShape, 1, Reach::Memory, read)) << "held once its owner read it";
             EXPECT_EQ(read, shape);
         }
@@ -164,8 +177,11 @@ namespace ContentStore
             const Misc::ByteBuffer large = payloadOf(Store::sResidentMost + 1, 5);
             const Key shapeKey{ .mHash = { 11, 12 } };
             const Key meanKey{ .mHash = { 13, 14 } };
-            store.write(shapeKey, sShape, 1, large, Reach::Disk);
-            store.write(meanKey, sMean, 1, large, Reach::Disk);
+            store.write(
+                Filed{ .mKey = shapeKey, .mKind = sShape, .mVersion = 1, .mPayload = large, .mSegmentEnds = {} },
+                Reach::Disk);
+            store.write(Filed{ .mKey = meanKey, .mKind = sMean, .mVersion = 1, .mPayload = large, .mSegmentEnds = {} },
+                Reach::Disk);
 
             Misc::ByteBuffer read;
             ASSERT_TRUE(store.read(shapeKey, sShape, 1, Reach::Memory, read));
@@ -191,7 +207,12 @@ namespace ContentStore
                         .mStampedMost = 64 } };
                 Store store(TestingOpenMW::currentTestDirPath() / ("held " + std::to_string(entries)), policy);
                 for (const Key& key : keys)
-                    store.write(key, sFact, 1, payloadOf(16, 1), Reach::Disk);
+                    store.write(Filed{ .mKey = key,
+                                    .mKind = sFact,
+                                    .mVersion = 1,
+                                    .mPayload = payloadOf(16, 1),
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
 
                 Misc::ByteBuffer read;
                 EXPECT_TRUE(store.read(sKey, sFact, 1, Reach::Memory, read)) << entries;
@@ -209,7 +230,12 @@ namespace ContentStore
                         .mStampedMost = 64 } };
                 Store store(TestingOpenMW::currentTestDirPath() / "counted", policy);
                 for (const Key& key : keys)
-                    store.write(key, sFact, 1, payloadOf(16, 1), Reach::Disk);
+                    store.write(Filed{ .mKey = key,
+                                    .mKind = sFact,
+                                    .mVersion = 1,
+                                    .mPayload = payloadOf(16, 1),
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
 
                 Misc::ByteBuffer read;
                 EXPECT_TRUE(store.read(sKey, sFact, 1, Reach::Memory, read));
@@ -224,8 +250,18 @@ namespace ContentStore
                     = TestingOpenMW::currentTestDirPath() / ("stamped " + std::to_string(stamped));
                 {
                     Store store(folder, sPolicy);
-                    store.write(sKey, sFact, 3, payloadOf(16, 1), Reach::Disk);
-                    store.write(sOther, sFact, 3, payloadOf(16, 2), Reach::Disk);
+                    store.write(Filed{ .mKey = sKey,
+                                    .mKind = sFact,
+                                    .mVersion = 3,
+                                    .mPayload = payloadOf(16, 1),
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
+                    store.write(Filed{ .mKey = sOther,
+                                    .mKind = sFact,
+                                    .mVersion = 3,
+                                    .mPayload = payloadOf(16, 2),
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
                 }
 
                 const Policy policy{ .mKindCount = 3,
@@ -235,16 +271,17 @@ namespace ContentStore
                 Store again(folder, policy);
                 again.flush();
                 const auto old = std::filesystem::file_time_type::clock::now() - std::chrono::hours(48);
-                std::filesystem::last_write_time(again.pathOf(sKey), old);
-                std::filesystem::last_write_time(again.pathOf(sOther), old);
+                std::filesystem::last_write_time(again.pathOf(sKey, sFact), old);
+                std::filesystem::last_write_time(again.pathOf(sOther, sFact), old);
 
                 Misc::ByteBuffer read;
                 ASSERT_TRUE(again.read(sKey, sFact, 3, Reach::Disk, read));
                 ASSERT_TRUE(again.read(sOther, sFact, 3, Reach::Disk, read));
                 again.flush();
                 EXPECT_EQ(again.getStats().mStamped, stamped);
-                EXPECT_GT(std::filesystem::last_write_time(again.pathOf(sKey)), old) << stamped;
-                EXPECT_EQ(std::filesystem::last_write_time(again.pathOf(sOther)) == old, stamped == 1) << stamped;
+                EXPECT_GT(std::filesystem::last_write_time(again.pathOf(sKey, sFact)), old) << stamped;
+                EXPECT_EQ(std::filesystem::last_write_time(again.pathOf(sOther, sFact)) == old, stamped == 1)
+                    << stamped;
             }
         }
 
@@ -264,13 +301,16 @@ namespace ContentStore
             };
             const std::vector<Fault> faults{
                 { "shorter than its trailer", [](std::vector<char>& bytes) { bytes.resize(30); } },
-                { "its magic", [](std::vector<char>& bytes) { bytes[sLarge + 0] ^= 1; } },
-                { "its format", [](std::vector<char>& bytes) { bytes[sLarge + 4] ^= 1; } },
-                { "a kind past the last", [](std::vector<char>& bytes) { bytes[sLarge + 8] = 99; } },
-                { "another key", [](std::vector<char>& bytes) { bytes[sLarge + 16] ^= 1; } },
-                { "another digest", [](std::vector<char>& bytes) { bytes[sLarge + 32] ^= 1; }, true },
+                { "its magic", [](std::vector<char>& bytes) { bytes[sTrailerAt + 0] ^= 1; } },
+                { "its format", [](std::vector<char>& bytes) { bytes[sTrailerAt + 4] ^= 1; } },
+                { "a kind past the last", [](std::vector<char>& bytes) { bytes[sTrailerAt + 8] = 99; } },
+                { "another key", [](std::vector<char>& bytes) { bytes[sTrailerAt + 16] ^= 1; } },
+                { "another table's digest", [](std::vector<char>& bytes) { bytes[sTrailerAt + 32] ^= 1; }, true },
+                { "another segment's digest", [](std::vector<char>& bytes) { bytes[sLarge + 8] ^= 1; }, true },
+                { "no segment", [](std::vector<char>& bytes) { bytes[sTrailerAt + 56] = 0; } },
+                { "more segments than a file holds", [](std::vector<char>& bytes) { bytes[sTrailerAt + 56] = 65; } },
                 { "its payload", [](std::vector<char>& bytes) { bytes[100] ^= 1; }, true },
-                { "a length past the file", [](std::vector<char>& bytes) { bytes[sLarge + 48] += 1; } },
+                { "a length past the file", [](std::vector<char>& bytes) { bytes[sTrailerAt + 48] += 1; } },
                 { "a length short of the file", [](std::vector<char>& bytes) { bytes.push_back(0); } },
                 { "asked at another version", [](std::vector<char>&) {}, true, 4 },
             };
@@ -280,17 +320,22 @@ namespace ContentStore
                 const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / fault.mName;
                 {
                     Store store(folder, sPolicy);
-                    store.write(sKey, sFact, 3, payloadOf(sLarge, 1), Reach::Disk);
+                    store.write(Filed{ .mKey = sKey,
+                                    .mKind = sFact,
+                                    .mVersion = 3,
+                                    .mPayload = payloadOf(sLarge, 1),
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
                 }
 
                 Store again(folder, sPolicy);
                 again.flush();
-                const std::filesystem::path path = again.pathOf(sKey);
+                const std::filesystem::path path = again.pathOf(sKey, sFact);
                 std::vector<char> bytes = readAll(path);
                 fault.mSpoil(bytes);
                 writeAll(path, bytes);
 
-                EXPECT_EQ(again.holds(sKey, Reach::Disk), fault.mHeld) << fault.mName;
+                EXPECT_EQ(again.holds(sKey, sFact, Reach::Disk), fault.mHeld) << fault.mName;
                 EXPECT_EQ(std::filesystem::exists(path), fault.mHeld) << fault.mName;
                 EXPECT_EQ(again.getStats().mHeld, fault.mHeld ? 1u : 0u) << fault.mName;
                 EXPECT_EQ(again.getStats().mUnheld, fault.mHeld ? 0u : 1u) << fault.mName;
@@ -319,22 +364,37 @@ namespace ContentStore
                 std::filesystem::path newest;
                 {
                     Store store(folder, sPolicy);
-                    store.write(sKey, sFact, 3, payloadOf(sLarge, 1), Reach::Disk);
-                    store.write(sOther, sFact, 3, payloadOf(sLarge, 2), Reach::Disk);
-                    store.write(sThird, sFact, 3, payloadOf(sLarge, 3), Reach::Disk);
+                    store.write(Filed{ .mKey = sKey,
+                                    .mKind = sFact,
+                                    .mVersion = 3,
+                                    .mPayload = payloadOf(sLarge, 1),
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
+                    store.write(Filed{ .mKey = sOther,
+                                    .mKind = sFact,
+                                    .mVersion = 3,
+                                    .mPayload = payloadOf(sLarge, 2),
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
+                    store.write(Filed{ .mKey = sThird,
+                                    .mKind = sFact,
+                                    .mVersion = 3,
+                                    .mPayload = payloadOf(sLarge, 3),
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
                     store.flush();
-                    oldest = store.pathOf(sKey);
-                    middle = store.pathOf(sOther);
-                    newest = store.pathOf(sThird);
+                    oldest = store.pathOf(sKey, sFact);
+                    middle = store.pathOf(sOther, sFact);
+                    newest = store.pathOf(sThird, sFact);
                 }
                 std::filesystem::last_write_time(oldest, now - std::chrono::hours(3));
                 std::filesystem::last_write_time(middle, now - std::chrono::hours(2));
                 std::filesystem::last_write_time(newest, now - std::chrono::hours(1));
 
                 const std::filesystem::path stale
-                    = folder / "v2" / "01" / "0123456789abcdeffedcba9876543210.9-1.partial";
+                    = folder / "v3" / "0" / "01" / "0123456789abcdeffedcba9876543210.9-1.partial";
                 const std::filesystem::path live
-                    = folder / "v2" / "01" / "0123456789abcdeffedcba9876543210.9-2.partial";
+                    = folder / "v3" / "0" / "01" / "0123456789abcdeffedcba9876543210.9-2.partial";
                 writeAll(stale, { 'x' });
                 writeAll(live, { 'x' });
                 std::filesystem::last_write_time(stale, now - std::chrono::hours(48));
@@ -360,14 +420,22 @@ namespace ContentStore
             const auto now = std::filesystem::file_time_type::clock::now();
             {
                 Store store(folder, sPolicy);
-                store.write(sKey, sFact, 3, payloadOf(16, 1), Reach::Disk);
-                store.write(sOther, sFact, 3, payloadOf(sLarge, 2), Reach::Disk);
+                store.write(
+                    Filed{
+                        .mKey = sKey, .mKind = sFact, .mVersion = 3, .mPayload = payloadOf(16, 1), .mSegmentEnds = {} },
+                    Reach::Disk);
+                store.write(Filed{ .mKey = sOther,
+                                .mKind = sFact,
+                                .mVersion = 3,
+                                .mPayload = payloadOf(sLarge, 2),
+                                .mSegmentEnds = {} },
+                    Reach::Disk);
             }
 
             Store again(folder, sPolicy);
             again.flush();
-            const std::filesystem::path path = again.pathOf(sKey);
-            const std::filesystem::path large = again.pathOf(sOther);
+            const std::filesystem::path path = again.pathOf(sKey, sFact);
+            const std::filesystem::path large = again.pathOf(sOther, sFact);
             const auto old = now - std::chrono::hours(48);
             std::filesystem::last_write_time(path, old);
             std::filesystem::last_write_time(large, old);
@@ -396,21 +464,24 @@ namespace ContentStore
             const Misc::ByteBuffer first = payloadOf(16, 1);
             {
                 Store store(folder, sPolicy);
-                store.write(sKey, sFact, 3, first, Reach::Disk);
+                store.write(Filed{ .mKey = sKey, .mKind = sFact, .mVersion = 3, .mPayload = first, .mSegmentEnds = {} },
+                    Reach::Disk);
             }
 
             Store again(folder, sPolicy);
             again.flush();
-            const std::filesystem::path path = again.pathOf(sKey);
+            const std::filesystem::path path = again.pathOf(sKey, sFact);
             std::filesystem::last_write_time(path, now - std::chrono::hours(48));
-            again.write(sKey, sFact, 3, payloadOf(16, 2), Reach::Disk);
+            again.write(
+                Filed{ .mKey = sKey, .mKind = sFact, .mVersion = 3, .mPayload = payloadOf(16, 2), .mSegmentEnds = {} },
+                Reach::Disk);
             again.flush();
 
             EXPECT_EQ(again.getStats().mWritten, 0u);
             EXPECT_EQ(again.getStats().mStamped, 1u);
             EXPECT_GT(std::filesystem::last_write_time(path), now - std::chrono::minutes(1));
             const std::vector<char> file = readAll(path);
-            ASSERT_EQ(file.size(), first.size() + sTrailerBytes);
+            ASSERT_EQ(file.size(), first.size() + sTailBytes);
             EXPECT_EQ(std::memcmp(file.data(), first.data(), first.size()), 0) << "the file was written again";
         }
 
@@ -420,15 +491,17 @@ namespace ContentStore
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             Store store(folder, sPolicy);
-            store.write(sKey, sFact, 3, payloadOf(16, 1), Reach::Disk);
+            store.write(
+                Filed{ .mKey = sKey, .mKind = sFact, .mVersion = 3, .mPayload = payloadOf(16, 1), .mSegmentEnds = {} },
+                Reach::Disk);
             store.flush();
-            ASSERT_TRUE(std::filesystem::exists(store.pathOf(sKey)));
+            ASSERT_TRUE(std::filesystem::exists(store.pathOf(sKey, sFact)));
 
-            store.discard(sKey);
+            store.discard(sKey, sFact);
             Misc::ByteBuffer read;
             EXPECT_FALSE(store.read(sKey, sFact, 3, Reach::Memory, read)) << "held still";
             store.flush();
-            EXPECT_FALSE(std::filesystem::exists(store.pathOf(sKey)));
+            EXPECT_FALSE(std::filesystem::exists(store.pathOf(sKey, sFact)));
             EXPECT_FALSE(store.read(sKey, sFact, 3, Reach::Disk, read));
             EXPECT_EQ(store.getStats().mRefused, 1u);
         }
@@ -441,21 +514,32 @@ namespace ContentStore
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             Store store(folder, sSmallQueue);
-            store.write(sKey, sFact, 3, payloadOf(sSmallQueue.mQueuedBytesMost + 1, 0), Reach::Memory);
+            store.write(Filed{ .mKey = sKey,
+                            .mKind = sFact,
+                            .mVersion = 3,
+                            .mPayload = payloadOf(sSmallQueue.mQueuedBytesMost + 1, 0),
+                            .mSegmentEnds = {} },
+                Reach::Memory);
             store.flush();
             EXPECT_EQ(store.getStats().mWritten, 1u);
             EXPECT_EQ(store.getStats().mDropped, 0u);
-            EXPECT_TRUE(std::filesystem::exists(store.pathOf(sKey)));
+            EXPECT_TRUE(std::filesystem::exists(store.pathOf(sKey, sFact)));
 
             const std::size_t half = sSmallQueue.mQueuedBytesMost / 2 + 1;
-            store.write(sOther, sFact, 3, payloadOf(half, 1), Reach::Disk);
+            store.write(
+                Filed{
+                    .mKey = sOther, .mKind = sFact, .mVersion = 3, .mPayload = payloadOf(half, 1), .mSegmentEnds = {} },
+                Reach::Disk);
             const Key third{ .mHash = { 3, 4 } };
-            store.write(third, sFact, 3, payloadOf(half, 2), Reach::Disk);
+            store.write(
+                Filed{
+                    .mKey = third, .mKind = sFact, .mVersion = 3, .mPayload = payloadOf(half, 2), .mSegmentEnds = {} },
+                Reach::Disk);
             store.flush();
             const Stats stats = store.getStats();
             EXPECT_EQ(stats.mWritten, 3u);
             EXPECT_EQ(stats.mDropped, 0u);
-            EXPECT_TRUE(std::filesystem::exists(store.pathOf(third)));
+            EXPECT_TRUE(std::filesystem::exists(store.pathOf(third, sFact)));
         }
 
         /// **Two writers on one store drop nothing that reaches the disk.** Each round starts with the queue empty
@@ -474,7 +558,12 @@ namespace ContentStore
                 for (std::uint64_t round = 0; round < sRounds; ++round)
                 {
                     rounds.arrive_and_wait();
-                    store.write(Key{ .mHash = { writer, round } }, sFact, 3, payload, Reach::Disk);
+                    store.write(Filed{ .mKey = Key{ .mHash = { writer, round } },
+                                    .mKind = sFact,
+                                    .mVersion = 3,
+                                    .mPayload = payload,
+                                    .mSegmentEnds = {} },
+                        Reach::Disk);
                     rounds.arrive_and_wait();
                     if (writer == 0)
                         store.flush();
@@ -499,8 +588,12 @@ namespace ContentStore
             {
                 Store first(folder, sPolicy);
                 Store second(folder, sPolicy);
-                first.write(sKey, sFact, 3, payload, Reach::Disk);
-                second.write(sKey, sFact, 3, payload, Reach::Disk);
+                first.write(
+                    Filed{ .mKey = sKey, .mKind = sFact, .mVersion = 3, .mPayload = payload, .mSegmentEnds = {} },
+                    Reach::Disk);
+                second.write(
+                    Filed{ .mKey = sKey, .mKind = sFact, .mVersion = 3, .mPayload = payload, .mSegmentEnds = {} },
+                    Reach::Disk);
             }
             EXPECT_EQ(countFiles(folder, ".partial"), 0u);
 
@@ -510,25 +603,42 @@ namespace ContentStore
             EXPECT_EQ(read, payload);
         }
 
-        /// **A file of a kind its owner does not have is refused**, as a fault: a kind is the owner's, and
-        /// a store opened with three kinds wrote what a store of two reads at the same key.
+        /// **A file of a kind its owner does not have is refused**, as a fault: a kind is the owner's, and a store
+        /// opened with three kinds wrote what a store of two finds where it looks, its file moved into the first
+        /// kind's folder. Left in its own kind's folder, the store of two never opens it.
         TEST(ContentStoreTest, aKindItsOwnerDoesNotHaveIsRefused)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             {
                 Store store(folder, sPolicy);
-                store.write(sKey, sShape, 1, payloadOf(16, 1), Reach::Disk);
+                store.write(Filed{ .mKey = sKey,
+                                .mKind = sShape,
+                                .mVersion = 1,
+                                .mPayload = payloadOf(16, 1),
+                                .mSegmentEnds = {} },
+                    Reach::Disk);
             }
 
             constexpr Policy twoKinds{ .mKindCount = 2,
                 .mHolding = Holding{ .mResidentBytesMost = sHolding.mResidentBytesMost,
                     .mResidentCountMost = sHolding.mResidentCountMost,
                     .mStampedMost = sHolding.mStampedMost } };
+            {
+                Store untouched(folder, twoKinds);
+                untouched.flush();
+                Misc::ByteBuffer read;
+                EXPECT_FALSE(untouched.read(sKey, sFact, 1, Reach::Disk, read));
+                EXPECT_TRUE(std::filesystem::exists(untouched.pathOf(sKey, sShape))) << "a folder it never opens";
+                EXPECT_EQ(untouched.getStats().mRefused, 0u);
+                std::filesystem::create_directories(untouched.pathOf(sKey, sFact).parent_path());
+                std::filesystem::rename(untouched.pathOf(sKey, sShape), untouched.pathOf(sKey, sFact));
+            }
+
             Store fewer(folder, twoKinds);
             fewer.flush();
             Misc::ByteBuffer read;
             EXPECT_FALSE(fewer.read(sKey, sFact, 1, Reach::Disk, read));
-            EXPECT_FALSE(std::filesystem::exists(fewer.pathOf(sKey))) << "the file stands";
+            EXPECT_FALSE(std::filesystem::exists(fewer.pathOf(sKey, sFact))) << "the file stands";
             EXPECT_EQ(fewer.getStats().mRefused, 1u) << "refused at its start's load, or at the read";
         }
 
@@ -542,7 +652,9 @@ namespace ContentStore
             const Misc::ByteBuffer payload = payloadOf(16, 1);
             {
                 Store store(folder, none);
-                store.write(sKey, sFact, 1, payload, Reach::Disk);
+                store.write(
+                    Filed{ .mKey = sKey, .mKind = sFact, .mVersion = 1, .mPayload = payload, .mSegmentEnds = {} },
+                    Reach::Disk);
                 Misc::ByteBuffer read;
                 EXPECT_FALSE(store.read(sKey, sFact, 1, Reach::Memory, read)) << "held once written";
             }
@@ -558,17 +670,90 @@ namespace ContentStore
             EXPECT_EQ(again.getStats().mStamped, 0u);
         }
 
-        /// **The file format, byte for byte**: a payload of 8 bytes and the trailer after it, the magic
-        /// "RTXC" read as a little-endian word, format 2, the kind, the version, the key, the payload's
-        /// digest and its length, 8 + 56 = 64 bytes. A file a store wrote before is read by every store
-        /// after, whichever owner it moved to.
+        /// **An entry's segments read alone, each checked against its digest** (`Store::open`): a 6000-byte payload
+        /// filed in three segments ending at 1000, 5000 and 6000 opens with its table and no payload read; its middle
+        /// segment reads alone as the payload's bytes 1000 to 5000, and its last two together. One byte of the middle
+        /// segment changed on disk fails that read, refuses and deletes the file. An entry the store holds in memory
+        /// opens as one segment, its whole payload; asked at another version, its file is a fault, as a read finds it.
+        TEST(ContentStoreTest, anEntrysSegmentsReadAloneEachCheckedAgainstItsDigest)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            const Misc::ByteBuffer payload = payloadOf(6000, 3);
+            Store store(folder, sPolicy);
+            store.write(Filed{ .mKey = sKey,
+                            .mKind = sFact,
+                            .mVersion = 3,
+                            .mPayload = payload,
+                            .mSegmentEnds = { 1000, 5000, 6000 } },
+                Reach::Disk);
+            store.flush();
+
+            std::optional<Opened> opened = store.open(sKey, sFact, 3, Reach::Disk);
+            ASSERT_TRUE(opened.has_value());
+            ASSERT_EQ(opened->getSegmentCount(), 3u);
+            EXPECT_EQ(opened->startOf(1), 1000u);
+            EXPECT_EQ(opened->endOf(1), 5000u);
+
+            Misc::ByteBuffer middle(4000);
+            ASSERT_TRUE(store.readSegments(*opened, 1, 1, middle));
+            EXPECT_EQ(middle, Misc::ByteBuffer(payload.begin() + 1000, payload.begin() + 5000));
+            Misc::ByteBuffer tail(5000);
+            ASSERT_TRUE(store.readSegments(*opened, 1, 2, tail));
+            EXPECT_EQ(tail, Misc::ByteBuffer(payload.begin() + 1000, payload.end()));
+
+            const std::filesystem::path path = store.pathOf(sKey, sFact);
+            std::vector<char> bytes = readAll(path);
+            bytes[2000] ^= 1;
+            writeAll(path, bytes);
+            std::optional<Opened> spoiled = store.open(sKey, sFact, 3, Reach::Disk);
+            ASSERT_TRUE(spoiled.has_value()) << "its table holds";
+            Misc::ByteBuffer first(1000);
+            EXPECT_TRUE(store.readSegments(*spoiled, 0, 1, first)) << "the first segment is whole";
+            EXPECT_FALSE(store.readSegments(*spoiled, 1, 1, middle));
+            EXPECT_FALSE(std::filesystem::exists(path));
+            EXPECT_EQ(store.getStats().mRefused, 1u);
+
+            const Misc::ByteBuffer small = payloadOf(16, 4);
+            store.write(Filed{ .mKey = sOther, .mKind = sFact, .mVersion = 3, .mPayload = small, .mSegmentEnds = {} },
+                Reach::Disk);
+            std::optional<Opened> held = store.open(sOther, sFact, 3, Reach::Memory);
+            ASSERT_TRUE(held.has_value()) << "held in memory as it was written";
+            ASSERT_EQ(held->getSegmentCount(), 1u);
+            Misc::ByteBuffer read(16);
+            ASSERT_TRUE(store.readSegments(*held, 0, 1, read));
+            EXPECT_EQ(read, small);
+
+            store.write(Filed{ .mKey = sThird, .mKind = sFact, .mVersion = 3, .mPayload = payload, .mSegmentEnds = {} },
+                Reach::Disk);
+            store.flush();
+            EXPECT_FALSE(store.open(sThird, sFact, 4, Reach::Disk).has_value()) << "another version";
+            EXPECT_FALSE(std::filesystem::exists(store.pathOf(sThird, sFact)));
+        }
+
+        /// **The file format, byte for byte**: a payload of 8 bytes in two segments of 3 and 5, each segment's
+        /// record, its end and its digest, then the trailer: the magic "RTXC" read as a little-endian word, format 3,
+        /// the kind, the version, the key, the table's digest, the payload's length, the count of segments and a word
+        /// of nought, 8 + 2 × 24 + 64 = 120 bytes, in the folder of its kind. A file a store wrote before is read by
+        /// every store after, whichever owner it moved to; one segment's byte changed is refused.
         TEST(ContentStoreTest, anEntryInTheFormatIsReadAsItWasWritten)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const std::array<std::byte, 8> payload{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 }, std::byte{ 4 },
                 std::byte{ 5 }, std::byte{ 6 }, std::byte{ 7 }, std::byte{ 8 } };
-            Misc::HashState digest;
-            digest.add(std::span<const std::byte>(payload));
+            const auto digestOf = [](std::span<const std::byte> bytes) {
+                Misc::HashState digest;
+                digest.add(bytes);
+                return digest.getWords();
+            };
+
+            struct Record
+            {
+                std::uint64_t mEnd;
+                Misc::DigestWords mDigest;
+            };
+            static_assert(sizeof(Record) == sRecordBytes);
+            const std::array<Record, 2> table{ Record{ .mEnd = 3, .mDigest = digestOf(std::span(payload).first(3)) },
+                Record{ .mEnd = 8, .mDigest = digestOf(std::span(payload).subspan(3)) } };
 
             struct Trailer
             {
@@ -577,29 +762,60 @@ namespace ContentStore
                 std::uint32_t mKind;
                 std::uint32_t mVersion;
                 Misc::DigestWords mKey;
-                Misc::DigestWords mDigest;
+                Misc::DigestWords mTableDigest;
                 std::uint64_t mPayloadBytes;
+                std::uint32_t mSegments;
+                std::uint32_t mReserved;
             };
             static_assert(sizeof(Trailer) == sTrailerBytes);
             const Trailer trailer{ .mMagic = 0x43585452u,
-                .mFormat = 2,
+                .mFormat = 3,
                 .mKind = sMean,
                 .mVersion = 7,
                 .mKey = sKey.mHash,
-                .mDigest = digest.getWords(),
-                .mPayloadBytes = payload.size() };
+                .mTableDigest = digestOf(std::as_bytes(std::span(table))),
+                .mPayloadBytes = payload.size(),
+                .mSegments = 2,
+                .mReserved = 0 };
 
-            Store store(folder, sPolicy);
-            store.flush();
-            std::vector<char> bytes(payload.size() + sizeof(trailer));
+            std::vector<char> bytes(payload.size() + sizeof(table) + sizeof(trailer));
             std::memcpy(bytes.data(), payload.data(), payload.size());
-            std::memcpy(bytes.data() + payload.size(), &trailer, sizeof(trailer));
-            std::filesystem::create_directories(store.pathOf(sKey).parent_path());
-            writeAll(store.pathOf(sKey), bytes);
+            std::memcpy(bytes.data() + payload.size(), table.data(), sizeof(table));
+            std::memcpy(bytes.data() + payload.size() + sizeof(table), &trailer, sizeof(trailer));
+            ASSERT_EQ(bytes.size(), 120u);
 
+            {
+                Store store(folder, sPolicy);
+                store.flush();
+                EXPECT_EQ(store.pathOf(sKey, sMean), folder / "v3" / "1" / "01" / "0123456789abcdeffedcba9876543210");
+                std::filesystem::create_directories(store.pathOf(sKey, sMean).parent_path());
+                writeAll(store.pathOf(sKey, sMean), bytes);
+
+                Misc::ByteBuffer read;
+                ASSERT_TRUE(store.read(sKey, sMean, 7, Reach::Disk, read));
+                EXPECT_EQ(read, Misc::ByteBuffer(payload.begin(), payload.end()));
+
+                // And what a store writes for the same entry in two segments is this file, byte for byte.
+                store.discard(sKey, sMean);
+                store.flush();
+                store.write(Filed{ .mKey = sKey,
+                                .mKind = sMean,
+                                .mVersion = 7,
+                                .mPayload = Misc::ByteBuffer(payload.begin(), payload.end()),
+                                .mSegmentEnds = { 3, 8 } },
+                    Reach::Disk);
+                store.flush();
+                EXPECT_EQ(readAll(store.pathOf(sKey, sMean)), bytes);
+            }
+
+            // Spoiled before the next store starts, which would hold the small entry in memory from its start.
+            bytes[5] ^= 1;
+            writeAll(folder / "v3" / "1" / "01" / "0123456789abcdeffedcba9876543210", bytes);
+            Store again(folder, sPolicy);
+            again.flush();
             Misc::ByteBuffer read;
-            ASSERT_TRUE(store.read(sKey, sMean, 7, Reach::Disk, read));
-            EXPECT_EQ(read, Misc::ByteBuffer(payload.begin(), payload.end()));
+            EXPECT_FALSE(again.read(sKey, sMean, 7, Reach::Disk, read)) << "the second segment's byte";
+            EXPECT_EQ(again.getStats().mRefused, 1u);
         }
     }
 }

@@ -1,5 +1,7 @@
 #include "quickfileparser.hpp"
 
+#include <cstdint>
+
 #include "scanner.hpp"
 #include "skipparser.hpp"
 
@@ -16,7 +18,7 @@ bool Compiler::QuickFileParser::parseName(const std::string& name, const TokenLo
     return true;
 }
 
-bool Compiler::QuickFileParser::parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner)
+bool Compiler::QuickFileParser::parseKeyword(std::int32_t keyword, const TokenLoc& loc, Scanner& scanner)
 {
     if (keyword == Scanner::K_end)
         return false;
@@ -34,7 +36,7 @@ bool Compiler::QuickFileParser::parseKeyword(int keyword, const TokenLoc& loc, S
     return true;
 }
 
-bool Compiler::QuickFileParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+bool Compiler::QuickFileParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
 {
     if (code != Scanner::S_newline)
     {

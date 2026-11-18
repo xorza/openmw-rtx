@@ -1,16 +1,17 @@
 #include "graphicspage.hpp"
 
-#include "sdlinit.hpp"
-
-#include <components/dlss/dlss.hpp>
-#include <components/files/qtconversion.hpp>
-#include <components/misc/display.hpp>
-#include <components/misc/presentation.hpp>
-#include <components/platform/gpu.hpp>
-#include <components/rtx/common/menu.hpp>
-#include <components/rtx/frame/upscale.hpp>
-#include <components/sdlutil/sdldisplay.hpp>
-#include <components/settings/values.hpp>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <iterator>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <system_error>
+#include <utility>
 
 #include <QCheckBox>
 #include <QCoreApplication>
@@ -26,27 +27,25 @@
 #include <QScreen>
 #include <QStandardItemModel>
 #include <QtGlobal>
-
 #include <SDL3/SDL_video.h>
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
-#include <filesystem>
-#include <iterator>
-#include <optional>
-#include <span>
-#include <string_view>
-#include <system_error>
-#include <utility>
+#include <components/dlss/dlss.hpp>
+#include <components/files/qtconversion.hpp>
+#include <components/misc/display.hpp>
+#include <components/misc/presentation.hpp>
+#include <components/platform/gpu.hpp>
+#include <components/rtx/common/menu.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/sdlutil/sdldisplay.hpp>
+#include <components/settings/values.hpp>
+
+#include "sdlinit.hpp"
 
 namespace
 {
     QString textOf(const std::string_view value)
     {
-        return QString::fromUtf8(value.data(), static_cast<int>(value.size()));
+        return QString::fromUtf8(value.data(), static_cast<std::int32_t>(value.size()));
     }
 
     // In the context the .ui's own strings are translated in, which is where these came from
@@ -91,13 +90,14 @@ Launcher::GraphicsPage::GraphicsPage(DlssLibrary::Folders dlss, QWidget* parent)
 
     addMenuItems<Rtx::Upscale>(rayTracingUpscaleComboBox, sUpscaleLabels);
     buildUpscalerItems();
-    rayTracingDistantLandSpinBox->setRange(static_cast<int>(Settings::RTXCategory::sMinDistantLandCellsInMenu),
-        static_cast<int>(Settings::RTXCategory::sMaxDistantLandCells));
+    rayTracingDistantLandSpinBox->setRange(static_cast<std::int32_t>(Settings::RTXCategory::sMinDistantLandCellsInMenu),
+        static_cast<std::int32_t>(Settings::RTXCategory::sMaxDistantLandCells));
 
-    connect(windowModeComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this,
+    connect(windowModeComboBox, qOverload<std::int32_t>(&QComboBox::currentIndexChanged), this,
         &GraphicsPage::slotFullScreenChanged);
     connect(standardRadioButton, &QRadioButton::toggled, this, &GraphicsPage::slotStandardToggled);
-    connect(screenComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &GraphicsPage::screenChanged);
+    connect(
+        screenComboBox, qOverload<std::int32_t>(&QComboBox::currentIndexChanged), this, &GraphicsPage::screenChanged);
     connect(framerateLimitCheckBox, &QCheckBox::toggled, this, &GraphicsPage::slotFramerateLimitToggled);
     connect(downloadDlssButton, &QPushButton::clicked, this, &GraphicsPage::downloadDlss);
     // A note on the setting above it, in the muted ink a secondary line takes, one line with its action beside it.
@@ -191,7 +191,7 @@ void Launcher::GraphicsPage::setDlssItemEnabled(const bool enabled)
         return;
 
     if (auto* model = qobject_cast<QStandardItemModel*>(rayTracingUpscalerComboBox->model()))
-        if (QStandardItem* item = model->item(static_cast<int>(std::distance(mUpscalers.begin(), found)));
+        if (QStandardItem* item = model->item(static_cast<std::int32_t>(std::distance(mUpscalers.begin(), found)));
             item != nullptr)
             item->setEnabled(enabled);
 }
@@ -238,8 +238,8 @@ void Launcher::GraphicsPage::downloadDlss()
     QProgressDialog* const progress = download->mProgress;
     const std::uint64_t pinned = feature.mBytes;
     connect(download->mReply, &QNetworkReply::downloadProgress, progress, [progress, pinned](const qint64 received) {
-        progress->setValue(
-            static_cast<int>(std::min<std::uint64_t>(static_cast<unsigned long>(received), pinned) * 100 / pinned));
+        progress->setValue(static_cast<std::int32_t>(
+            std::min<std::uint64_t>(static_cast<std::uint64_t>(received), pinned) * 100 / pinned));
     });
     connect(progress, &QProgressDialog::canceled, download->mReply, &QNetworkReply::abort);
     connect(download->mReply, &QNetworkReply::readyRead, this, &GraphicsPage::readDlssDownload);
@@ -316,7 +316,8 @@ void Launcher::GraphicsPage::finishDlssDownload()
 
     const auto found = std::ranges::find(mUpscalers, Rtx::UpscalerChoice::Dlss);
     if (found != mUpscalers.end())
-        rayTracingUpscalerComboBox->setCurrentIndex(static_cast<int>(std::distance(mUpscalers.begin(), found)));
+        rayTracingUpscalerComboBox->setCurrentIndex(
+            static_cast<std::int32_t>(std::distance(mUpscalers.begin(), found)));
 }
 
 bool Launcher::GraphicsPage::setupSDL()
@@ -327,7 +328,7 @@ bool Launcher::GraphicsPage::setupSDL()
         return false;
     }
 
-    int displays = 0;
+    std::int32_t displays = 0;
     SDL_free(SDL_GetDisplays(&displays));
 
     if (displays == 0)
@@ -343,7 +344,7 @@ bool Launcher::GraphicsPage::setupSDL()
 
     screenComboBox->clear();
     mResolutionsPerScreen.clear();
-    for (int i = 0; i < displays; i++)
+    for (std::int32_t i = 0; i < displays; i++)
     {
         mResolutionsPerScreen.append(getAvailableResolutions(i));
         screenComboBox->addItem(QString(tr("Screen ")) + QString::number(i + 1));
@@ -363,13 +364,13 @@ bool Launcher::GraphicsPage::loadSettings()
 
     // Visuals
 
-    const int vsync = Settings::video().mVsyncMode;
+    const std::int32_t vsync = Settings::video().mVsyncMode;
 
     vSyncComboBox->setCurrentIndex(vsync);
 
     const Settings::WindowMode windowMode = Settings::video().mWindowMode;
 
-    windowModeComboBox->setCurrentIndex(static_cast<int>(windowMode));
+    windowModeComboBox->setCurrentIndex(static_cast<std::int32_t>(windowMode));
     handleWindowModeChange(windowMode);
 
     if (Settings::video().mWindowBorder)
@@ -377,26 +378,26 @@ bool Launcher::GraphicsPage::loadSettings()
 
     // The list offers every mode the setting can hold
     rayTracingUpscaleComboBox->setCurrentIndex(
-        static_cast<int>(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value()));
+        static_cast<std::int32_t>(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value()));
 
     // A kind the box does not list shows nothing chosen, and saving leaves the setting alone.
     const auto upscaler
         = std::ranges::find(mUpscalers, Rtx::launcherUpscaler(Settings::rtx().mUpscaler.get(), mDlssInstalled));
     rayTracingUpscalerComboBox->setCurrentIndex(
-        upscaler != mUpscalers.end() ? static_cast<int>(std::distance(mUpscalers.begin(), upscaler)) : -1);
+        upscaler != mUpscalers.end() ? static_cast<std::int32_t>(std::distance(mUpscalers.begin(), upscaler)) : -1);
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
-    rayTracingDistantLandSpinBox->setValue(static_cast<int>(std::lround(Settings::rtx().mDistantLandCells)));
+    rayTracingDistantLandSpinBox->setValue(static_cast<std::int32_t>(std::lround(Settings::rtx().mDistantLandCells)));
     mLoadedDistantLandCells = rayTracingDistantLandSpinBox->value();
 
-    const int width = Settings::video().mResolutionX;
-    const int height = Settings::video().mResolutionY;
+    const std::int32_t width = Settings::video().mResolutionX;
+    const std::int32_t height = Settings::video().mResolutionY;
     QString resolution = QString::number(width) + QString(" × ") + QString::number(height);
     screenComboBox->setCurrentIndex(Settings::video().mScreen);
 
     // Native is the list's first item, and a side of nought in the settings
-    const int listed = resolutionComboBox->findText(resolution, Qt::MatchStartsWith);
+    const std::int32_t listed = resolutionComboBox->findText(resolution, Qt::MatchStartsWith);
     switch (Misc::resolutionPickOf(osg::Vec2i(width, height), listed != -1))
     {
         case Misc::ResolutionPick::Native:
@@ -433,12 +434,12 @@ void Launcher::GraphicsPage::saveSettings()
     Settings::video().mWindowBorder.set(windowBorderCheckBox->checkState() == Qt::Checked);
 
     // Nothing chosen leaves the setting alone
-    const int chosenIndex = rayTracingUpscaleComboBox->currentIndex();
+    const std::int32_t chosenIndex = rayTracingUpscaleComboBox->currentIndex();
     if (chosenIndex >= 0)
         if (const std::optional<Rtx::Upscale> chosen
             = Rtx::menuValue(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
             Settings::rtx().mUpscale.set(*chosen);
-    if (const int chosenUpscaler = rayTracingUpscalerComboBox->currentIndex();
+    if (const std::int32_t chosenUpscaler = rayTracingUpscalerComboBox->currentIndex();
         chosenUpscaler >= 0 && std::cmp_less(chosenUpscaler, mUpscalers.size()))
     {
         // A disabled entry can still be the model's current row after the library was removed;
@@ -470,7 +471,7 @@ void Launcher::GraphicsPage::saveSettings()
     }
 }
 
-QStringList Launcher::GraphicsPage::getAvailableResolutions(int screen)
+QStringList Launcher::GraphicsPage::getAvailableResolutions(std::int32_t screen)
 {
     QStringList result;
     for (const SDLUtil::DisplayResolution& mode : SDLUtil::displayResolutions(SDLUtil::displayAt(screen)))
@@ -486,14 +487,14 @@ QRect Launcher::GraphicsPage::getMaximumResolution()
     {
         QRect res = screen->geometry();
         if (res.width() > max.width())
-            max.setWidth(static_cast<int>(res.width() * screen->devicePixelRatio()));
+            max.setWidth(static_cast<std::int32_t>(res.width() * screen->devicePixelRatio()));
         if (res.height() > max.height())
-            max.setHeight(static_cast<int>(res.height() * screen->devicePixelRatio()));
+            max.setHeight(static_cast<std::int32_t>(res.height() * screen->devicePixelRatio()));
     }
     return max;
 }
 
-void Launcher::GraphicsPage::screenChanged(int screen)
+void Launcher::GraphicsPage::screenChanged(std::int32_t screen)
 {
     if (screen >= 0)
     {
@@ -503,7 +504,7 @@ void Launcher::GraphicsPage::screenChanged(int screen)
     }
 }
 
-void Launcher::GraphicsPage::slotFullScreenChanged(int mode)
+void Launcher::GraphicsPage::slotFullScreenChanged(std::int32_t mode)
 {
     handleWindowModeChange(static_cast<Settings::WindowMode>(mode));
 }

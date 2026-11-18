@@ -1,6 +1,8 @@
 #include "groundreader.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <osg/Array>
@@ -14,6 +16,9 @@
 #include <components/esm/exteriorcelllocation.hpp>
 #include <components/esm/util.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/scene/packedstreams.hpp>
+#include <components/rtx/scene/uvdensity.hpp>
+#include <components/rtx/shaders/tangent.h>
 
 #include "cellworld.hpp"
 
@@ -35,19 +40,19 @@ namespace Rtx
                 // divide here would move the picture by a bit and the scene digests with it.
                 constexpr float perByte = 1.0f / 255.0f;
 
-                for (int row = 0; row < image.t(); ++row)
+                for (std::int32_t row = 0; row < image.t(); ++row)
                 {
-                    const unsigned char* along = image.data(0, static_cast<unsigned int>(row));
-                    for (int column = 0; column < image.s(); ++column)
+                    const std::uint8_t* along = image.data(0, static_cast<std::uint32_t>(row));
+                    for (std::int32_t column = 0; column < image.s(); ++column)
                         weights.push_back(static_cast<float>(along[column]) * perByte);
                 }
                 return;
             }
 
-            for (int row = 0; row < image.t(); ++row)
-                for (int column = 0; column < image.s(); ++column)
+            for (std::int32_t row = 0; row < image.t(); ++row)
+                for (std::int32_t column = 0; column < image.s(); ++column)
                     weights.push_back(
-                        image.getColor(static_cast<unsigned int>(column), static_cast<unsigned int>(row)).a());
+                        image.getColor(static_cast<std::uint32_t>(column), static_cast<std::uint32_t>(row)).a());
         }
     }
 
@@ -60,17 +65,17 @@ namespace Rtx
         , mEsm4(ESM::isEsm4Ext(worldspace))
     {
         Terrain::BufferCache buffers;
-        copyGrid(buffers, static_cast<unsigned int>(mVerts), mGridIndices, mGridCorners);
+        copyGrid(buffers, static_cast<std::uint32_t>(mVerts), mGridIndices, mGridCorners);
         copyGrid(buffers, 2, mQuadIndices, mQuadCorners);
     }
 
-    osg::Vec4f GroundReader::diffuseTransform(const int tileCount)
+    osg::Vec4f GroundReader::diffuseTransform(const std::int32_t tileCount)
     {
         const auto tiles = static_cast<float>(tileCount);
         return osg::Vec4f(tiles, tiles, 0.0f, 0.0f);
     }
 
-    osg::Vec4f GroundReader::maskTransform(const int tileCount)
+    osg::Vec4f GroundReader::maskTransform(const std::int32_t tileCount)
     {
         const auto tiles = static_cast<float>(tileCount);
         const float scale = tiles / (tiles + 1.0f);
@@ -81,7 +86,7 @@ namespace Rtx
         return osg::Vec4f(scale, scale, (nudge - 0.5f) * scale + 0.5f, (-nudge - 0.5f) * scale + 0.5f);
     }
 
-    void GroundReader::copyGrid(Terrain::BufferCache& buffers, const unsigned int verts,
+    void GroundReader::copyGrid(Terrain::BufferCache& buffers, const std::uint32_t verts,
         std::vector<std::uint32_t>& indices, std::vector<osg::Vec2f>& corners)
     {
         // The rasterizer's own triangles and corners, with no stitching flags: a vertex is
@@ -91,7 +96,7 @@ namespace Rtx
         const osg::ref_ptr<osg::DrawElements> triangles = buffers.getIndexBuffer(verts, 0);
         indices.clear();
         indices.reserve(triangles->getNumIndices());
-        for (unsigned int at = 0; at < triangles->getNumIndices(); ++at)
+        for (std::uint32_t at = 0; at < triangles->getNumIndices(); ++at)
             indices.push_back(triangles->index(at));
 
         const osg::ref_ptr<osg::Vec2Array> uvs = buffers.getUVBuffer(verts);
@@ -116,7 +121,9 @@ namespace Rtx
             assert(mPositions->size() == mVerts * mVerts);
 
             into.mPositions.assign(mPositions->begin(), mPositions->end());
-            into.mNormals.assign(mNormals->begin(), mNormals->end());
+            into.mNormals.reserve(mNormals->size());
+            for (const osg::Vec3f& normal : *mNormals)
+                into.mNormals.push_back(Shaders::packNormal(normal));
             into.mTexCoords = mGridCorners;
             into.mIndices = mGridIndices;
 
@@ -126,7 +133,7 @@ namespace Rtx
             // the storage writes is 255 at every vertex, because `VCLR` holds three channels.
             into.mColours.reserve(mColours->size());
             for (const osg::Vec4ub& colour : *mColours)
-                into.mColours.push_back(decodeColour(colour));
+                into.mColours.push_back(packColour(decodeColour(colour)));
         }
         else
         {
@@ -140,15 +147,21 @@ namespace Rtx
             for (const osg::Vec2f& corner : mQuadCorners)
             {
                 into.mPositions.emplace_back((corner.x() - 0.5f) * mCellSize, (corner.y() - 0.5f) * mCellSize, height);
-                into.mNormals.emplace_back(0.0f, 0.0f, 1.0f);
+                into.mNormals.push_back(Shaders::packNormal(osg::Vec3f(0.0f, 0.0f, 1.0f)));
 
                 // A cell with no record carries no `VCLR`, and white is what tints nothing.
-                into.mColours.emplace_back(1.0f, 1.0f, 1.0f);
+                into.mColours.push_back(packColour(osg::Vec3f(1.0f, 1.0f, 1.0f)));
             }
 
             into.mTexCoords = mQuadCorners;
             into.mIndices = mQuadIndices;
         }
+
+        // Bounded and keyed here, on the reader's thread, and not where the frame adopts it.
+        for (const osg::Vec3f& position : into.mPositions)
+            into.mBounds.expandBy(position);
+        into.mUvDensity = uvDensityOf(into.mPositions, into.mTexCoords, {}, into.mIndices);
+        into.mKey = keyOf(into.mesh());
 
         into.mStands = true;
 

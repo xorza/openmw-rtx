@@ -1,9 +1,8 @@
-#include "types.hpp"
-
-#include "usertypeutil.hpp"
-
 #include <components/esm3/loadrepa.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace sol
 {

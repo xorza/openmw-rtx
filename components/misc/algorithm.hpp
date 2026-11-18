@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <iterator>
 #include <type_traits>
 
@@ -39,7 +40,7 @@ namespace Misc
         {
             const Iterator middle = begin + (std::distance(begin, end) / 2);
 
-            int comp = Misc::StringUtils::ciCompareLen((*middle), key, (*middle).size());
+            std::int32_t comp = Misc::StringUtils::ciCompareLen((*middle), key, (*middle).size());
 
             if (comp == 0)
                 return middle;

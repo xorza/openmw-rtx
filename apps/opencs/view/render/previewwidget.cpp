@@ -1,13 +1,15 @@
 #include "previewwidget.hpp"
 
+#include <cstdint>
+
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/object.hpp>
-#include <apps/opencs/view/render/scenewidget.hpp>
 
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
+#include "object.hpp"
+#include "scenewidget.hpp"
 
 class QWidget;
 
@@ -56,7 +58,8 @@ void CSVRender::PreviewWidget::referenceableDataChanged(const QModelIndex& topLe
     }
 }
 
-void CSVRender::PreviewWidget::referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::PreviewWidget::referenceableAboutToBeRemoved(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (mObject.referenceableAboutToBeRemoved(parent, start, end))
         flagAsModified();
@@ -102,7 +105,7 @@ void CSVRender::PreviewWidget::referenceDataChanged(const QModelIndex& topLeft, 
         }
     }
 
-    int columnIndex = references.findColumnIndex(CSMWorld::Columns::ColumnId_ReferenceableId);
+    std::int32_t columnIndex = references.findColumnIndex(CSMWorld::Columns::ColumnId_ReferenceableId);
 
     QModelIndex index = references.getModelIndex(mObject.getReferenceId(), columnIndex);
 
@@ -111,7 +114,8 @@ void CSVRender::PreviewWidget::referenceDataChanged(const QModelIndex& topLeft, 
             emit referenceableIdChanged(mObject.getReferenceableId());
 }
 
-void CSVRender::PreviewWidget::referenceAboutToBeRemoved(const QModelIndex& parent, int start, int end)
+void CSVRender::PreviewWidget::referenceAboutToBeRemoved(
+    const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
     if (mObject.getReferenceId().empty())
         return;

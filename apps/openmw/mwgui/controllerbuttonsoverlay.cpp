@@ -1,10 +1,13 @@
 #include "controllerbuttonsoverlay.hpp"
 
+#include <cstddef>
+#include <cstdint>
+
 #include <MyGUI_Window.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 
 namespace MWGui
 {
@@ -46,7 +49,7 @@ namespace MWGui
     {
         MWBase::InputManager* inputMgr = MWBase::Environment::get().getInputManager();
 
-        for (size_t i = 0; i < mButtons.size(); i++)
+        for (std::size_t i = 0; i < mButtons.size(); i++)
         {
             getWidget(mButtons[i].mImage, "Btn" + std::string(sButtonDefs[i].mName) + "Image");
             getWidget(mButtons[i].mText, "Btn" + std::string(sButtonDefs[i].mName) + "Text");
@@ -61,7 +64,7 @@ namespace MWGui
         getWidget(mHBox, "ButtonBox");
     }
 
-    int ControllerButtonsOverlay::getHeight()
+    std::int32_t ControllerButtonsOverlay::getHeight()
     {
         auto* window = mMainWidget->castType<MyGUI::Window>();
         return window->getHeight();
@@ -69,7 +72,7 @@ namespace MWGui
 
     void ControllerButtonsOverlay::setButtons(ControllerButtons* buttons)
     {
-        int buttonCount = 0;
+        std::int32_t buttonCount = 0;
         if (buttons != nullptr)
         {
             for (const auto& row : sButtonDefs)
@@ -87,7 +90,8 @@ namespace MWGui
             image->setImageTexture(imagePath);
     }
 
-    int ControllerButtonsOverlay::updateButton(ControllerButtonsOverlay::Button button, const std::string& buttonStr)
+    std::int32_t ControllerButtonsOverlay::updateButton(
+        ControllerButtonsOverlay::Button button, const std::string& buttonStr)
     {
         if (buttonStr.empty())
         {

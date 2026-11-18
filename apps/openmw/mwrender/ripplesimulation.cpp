@@ -1,5 +1,6 @@
 #include "ripplesimulation.hpp"
 
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 
@@ -10,6 +11,9 @@
 #include <osgParticle/ParticleSystem>
 #include <osgParticle/ParticleSystemUpdater>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/rng.hpp>
 #include <components/nifosg/controller.hpp>
@@ -22,23 +26,18 @@
 #include "ripplerules.hpp"
 #include "vismask.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
 namespace
 {
     void createWaterRippleStateSet(Resource::ResourceSystem* resourceSystem, osg::Node* node)
     {
-        int rippleFrameCount = Fallback::Map::getInt("Water_RippleFrameCount");
+        std::int32_t rippleFrameCount = Fallback::Map::getInt("Water_RippleFrameCount");
         if (rippleFrameCount <= 0)
             return;
 
         std::string_view tex = Fallback::Map::getString("Water_RippleTexture");
 
         std::vector<osg::ref_ptr<osg::Texture2D>> textures;
-        for (int i = 0; i < rippleFrameCount; ++i)
+        for (std::int32_t i = 0; i < rippleFrameCount; ++i)
         {
             std::ostringstream texname;
             texname << "textures/water/" << tex << std::setw(2) << std::setfill('0') << i << ".dds";
@@ -81,11 +80,11 @@ namespace
         node->setStateSet(stateset);
     }
 
-    int findOldestParticleAlive(const osgParticle::ParticleSystem* partsys)
+    std::int32_t findOldestParticleAlive(const osgParticle::ParticleSystem* partsys)
     {
-        int oldest = -1;
+        std::int32_t oldest = -1;
         double oldestAge = 0.f;
-        for (int i = 0; i < partsys->numParticles(); ++i)
+        for (std::int32_t i = 0; i < partsys->numParticles(); ++i)
         {
             const osgParticle::Particle* particle = partsys->getParticle(i);
             if (!particle->isAlive())
@@ -250,7 +249,7 @@ namespace MWRender
                     // osgParticle::ParticleSystem design requires this to be O(N)
                     // However, the number of particles we'll have to go through is not large
                     // If the user makes the limit absurd and manages to actually hit it this could be a problem
-                    const int oldest = findOldestParticleAlive(mParticleSystem);
+                    const std::int32_t oldest = findOldestParticleAlive(mParticleSystem);
                     if (oldest != -1)
                         mParticleSystem->reuseParticle(oldest);
                 }
@@ -268,7 +267,7 @@ namespace MWRender
 
     void RippleSimulation::clear()
     {
-        for (int i = 0; i < mParticleSystem->numParticles(); ++i)
+        for (std::int32_t i = 0; i < mParticleSystem->numParticles(); ++i)
             mParticleSystem->destroyParticle(i);
     }
 

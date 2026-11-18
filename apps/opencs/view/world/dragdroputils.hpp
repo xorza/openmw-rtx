@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../model/world/columnbase.hpp"
+#include <apps/opencs/model/world/columnbase.hpp>
 
 class QDropEvent;
 

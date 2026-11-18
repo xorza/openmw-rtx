@@ -1,11 +1,13 @@
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+#include <gtest/gtest.h>
+
 #include <components/esm/fourcc.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/variant.hpp>
-
-#include <gtest/gtest.h>
-
-#include <array>
 
 namespace
 {
@@ -21,7 +23,7 @@ namespace
         return v;
     }
 
-    Variant makeVariant(VarType type, int value)
+    Variant makeVariant(VarType type, std::int32_t value)
     {
         Variant v;
         v.setType(type);
@@ -80,7 +82,7 @@ namespace
 
     TEST(ESMVariantTest, different_types_are_not_equal)
     {
-        ASSERT_NE(Variant(int{ 42 }), Variant(float{ 2.7f }));
+        ASSERT_NE(Variant(std::int32_t{ 42 }), Variant(float{ 2.7f }));
     }
 
     struct ESMVariantWriteToOStreamTest : TestWithParam<std::tuple<Variant, std::string>>
@@ -96,7 +98,8 @@ namespace
     }
 
     INSTANTIATE_TEST_SUITE_P(VariantAsString, ESMVariantWriteToOStreamTest,
-        Values(std::make_tuple(Variant(), "variant none"), std::make_tuple(Variant(int{ 42 }), "variant long: 42"),
+        Values(std::make_tuple(Variant(), "variant none"),
+            std::make_tuple(Variant(std::int32_t{ 42 }), "variant long: 42"),
             std::make_tuple(Variant(float{ 2.7f }), "variant float: 2.7"),
             std::make_tuple(Variant(std::string("foo")), "variant string: \"foo\""),
             std::make_tuple(makeVariant(VT_Unknown), "variant unknown"),
@@ -114,7 +117,7 @@ namespace
 
     TEST(ESMVariantGetTypeTest, for_constructed_from_int_should_return_long)
     {
-        ASSERT_EQ(Variant(int{}).getType(), VT_Long);
+        ASSERT_EQ(Variant(std::int32_t{}).getType(), VT_Long);
     }
 
     TEST(ESMVariantGetTypeTest, for_constructed_from_float_should_return_float)
@@ -502,9 +505,9 @@ namespace
         Values(WriteToESMTestCase{ Variant(), Variant::Format_Global },
             WriteToESMTestCase{ Variant(), Variant::Format_Info },
             WriteToESMTestCase{ Variant(), Variant::Format_Local },
-            WriteToESMTestCase{ Variant(int{ 42 }), Variant::Format_Gmst },
-            WriteToESMTestCase{ Variant(int{ 42 }), Variant::Format_Info },
-            WriteToESMTestCase{ Variant(int{ 42 }), Variant::Format_Local },
+            WriteToESMTestCase{ Variant(std::int32_t{ 42 }), Variant::Format_Gmst },
+            WriteToESMTestCase{ Variant(std::int32_t{ 42 }), Variant::Format_Info },
+            WriteToESMTestCase{ Variant(std::int32_t{ 42 }), Variant::Format_Local },
             WriteToESMTestCase{ Variant(std::string("foo")), Variant::Format_Global },
             WriteToESMTestCase{ Variant(std::string("foo")), Variant::Format_Info },
             WriteToESMTestCase{ Variant(std::string("foo")), Variant::Format_Local },

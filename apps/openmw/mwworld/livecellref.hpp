@@ -1,10 +1,10 @@
 #pragma once
 
-#include "cellref.hpp"
-
-#include "refdata.hpp"
-
+#include <cstdint>
 #include <stdexcept>
+
+#include "cellref.hpp"
+#include "refdata.hpp"
 
 namespace ESM
 {
@@ -36,9 +36,9 @@ namespace MWWorld
 
         WorldModel* mWorldModel = nullptr;
 
-        LiveCellRefBase(unsigned int type, const ESM::CellRef& cref);
-        LiveCellRefBase(unsigned int type, const ESM4::Reference& cref);
-        LiveCellRefBase(unsigned int type, const ESM4::ActorCharacter& cref);
+        LiveCellRefBase(std::uint32_t type, const ESM::CellRef& cref);
+        LiveCellRefBase(std::uint32_t type, const ESM4::Reference& cref);
+        LiveCellRefBase(std::uint32_t type, const ESM4::ActorCharacter& cref);
 
         LiveCellRefBase(const LiveCellRefBase& other) = default;
 
@@ -61,7 +61,7 @@ namespace MWWorld
 
         virtual std::string_view getTypeDescription() const = 0;
 
-        unsigned int getType() const;
+        std::uint32_t getType() const;
         ///< @see MWWorld::Class::getType
 
         template <class T>

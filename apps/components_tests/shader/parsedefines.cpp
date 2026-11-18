@@ -1,6 +1,6 @@
-#include <components/shader/shadermanager.hpp>
-
 #include <gtest/gtest.h>
+
+#include <components/shader/shadermanager.hpp>
 
 namespace
 {

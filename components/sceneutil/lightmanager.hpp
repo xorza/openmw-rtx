@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <set>
@@ -16,9 +18,10 @@
 
 #include <components/misc/constants.hpp>
 #include <components/resource/resourcesystem.hpp>
-#include <components/sceneutil/clusteredlighting.hpp>
-#include <components/sceneutil/lightcontroller.hpp>
-#include <components/sceneutil/nodecallback.hpp>
+
+#include "clusteredlighting.hpp"
+#include "lightcontroller.hpp"
+#include "nodecallback.hpp"
 
 namespace SceneUtil
 {
@@ -62,7 +65,7 @@ namespace SceneUtil
 
         PPLightBuffer()
         {
-            for (size_t i = 0; i < 2; ++i)
+            for (std::size_t i = 0; i < 2; ++i)
             {
                 mIndex[i] = 0;
                 mUniformBuffers[i]
@@ -71,9 +74,9 @@ namespace SceneUtil
             }
         }
 
-        void applyUniforms(size_t frame, osg::StateSet* stateset)
+        void applyUniforms(std::size_t frame, osg::StateSet* stateset)
         {
-            size_t frameId = frame % 2;
+            std::size_t frameId = frame % 2;
 
             if (!stateset->getUniform("omw_PointLights"))
                 stateset->addUniform(mUniformBuffers[frameId]);
@@ -84,35 +87,35 @@ namespace SceneUtil
             mUniformCount[frameId]->dirty();
         }
 
-        void clear(size_t frame) { mIndex[frame % 2] = 0; }
+        void clear(std::size_t frame) { mIndex[frame % 2] = 0; }
 
-        void setLight(size_t frame, const Light* light, float radius)
+        void setLight(std::size_t frame, const Light* light, float radius)
         {
-            size_t frameId = frame % 2;
-            int i = mIndex[frameId];
+            std::size_t frameId = frame % 2;
+            std::int32_t i = mIndex[frameId];
 
             if (i >= (sMaxPPLights - 1))
                 return;
 
             i *= 3;
 
-            mUniformBuffers[frameId]->setElement(static_cast<unsigned int>(i + 0), light->getPosition());
-            mUniformBuffers[frameId]->setElement(static_cast<unsigned int>(i + 1), light->getDiffuse());
-            mUniformBuffers[frameId]->setElement(static_cast<unsigned int>(i + 2),
+            mUniformBuffers[frameId]->setElement(static_cast<std::uint32_t>(i + 0), light->getPosition());
+            mUniformBuffers[frameId]->setElement(static_cast<std::uint32_t>(i + 1), light->getDiffuse());
+            mUniformBuffers[frameId]->setElement(static_cast<std::uint32_t>(i + 2),
                 osg::Vec4f(light->getConstantAttenuation(), light->getLinearAttenuation(),
                     light->getQuadraticAttenuation(), radius));
 
             mIndex[frameId]++;
         }
 
-        void updateCount(size_t frame)
+        void updateCount(std::size_t frame)
         {
-            size_t frameId = frame % 2;
+            std::size_t frameId = frame % 2;
             mUniformCount[frameId]->set(mIndex[frameId]);
         }
 
     private:
-        DoubleBuffer<int> mIndex{};
+        DoubleBuffer<std::int32_t> mIndex{};
         DoubleBuffer<osg::ref_ptr<osg::Uniform>> mUniformBuffers;
         DoubleBuffer<osg::ref_ptr<osg::Uniform>> mUniformCount;
     };
@@ -139,13 +142,13 @@ namespace SceneUtil
         // The radius the content states, where one was set apart from mRadius.
         std::optional<float> mSourceRadius;
 
-        int mId;
+        std::int32_t mId;
 
         float mActorFade;
 
         osg::ref_ptr<LightController> mController;
 
-        size_t mLastAppliedFrame;
+        std::size_t mLastAppliedFrame;
 
         bool mEmpty = false;
 
@@ -188,31 +191,31 @@ namespace SceneUtil
         /// Get the Light safe for modification in the given frame.
         /// @par May be used externally to animate the light's color/attenuation properties,
         /// and is used internally to synchronize the light's position with the position of the LightSource.
-        Light* getLight(size_t frame) { return &mLight[frame % 2]; }
+        Light* getLight(std::size_t frame) { return &mLight[frame % 2]; }
 
-        const Light* getLight(size_t frame) const { return &mLight[frame % 2]; }
+        const Light* getLight(std::size_t frame) const { return &mLight[frame % 2]; }
 
         /// @warning It is recommended not to replace an existing Light, because the light StateSet cache may still
         /// hold state built from the old one under this LightSource's ID.
         void setLight(const Light& light) { mLight.fill(light); }
 
         /// Get the unique ID for this light source.
-        int getId() const { return mId; }
+        std::int32_t getId() const { return mId; }
 
-        void setLastAppliedFrame(size_t lastAppliedFrame) { mLastAppliedFrame = lastAppliedFrame; }
+        void setLastAppliedFrame(std::size_t lastAppliedFrame) { mLastAppliedFrame = lastAppliedFrame; }
 
-        size_t getLastAppliedFrame() const { return mLastAppliedFrame; }
+        std::size_t getLastAppliedFrame() const { return mLastAppliedFrame; }
     };
 
     struct LightSettings
     {
         bool mClusteredLighting = false;
-        int mMaxLights = 8;
+        std::int32_t mMaxLights = 8;
         float mMaximumLightDistance = Constants::CellSizeInUnits;
         float mLightFadeStart = 0;
         float mLightRadiusMultiplier = 1;
         osg::Vec3i mClusteredGridSize = { 16, 8, 24 };
-        int mClusteredWorkGroupSize = 512;
+        std::int32_t mClusteredWorkGroupSize = 512;
     };
 
     class LightManagerCullCallback;
@@ -249,27 +252,27 @@ namespace SceneUtil
         /// By default, it's ~0u i.e. always on.
         /// If you have some views that do not require lighting, then set the Camera's cull mask to not include
         /// the lightingMask for a much faster cull and rendering.
-        void setLightingMask(size_t mask);
-        size_t getLightingMask() const;
+        void setLightingMask(std::size_t mask);
+        std::size_t getLightingMask() const;
 
         /// Internal use only, called automatically by the LightManager's UpdateCallback
-        void update(size_t frameNum);
+        void update(std::size_t frameNum);
 
         /// Internal use only, called automatically by the LightSource's UpdateCallback
-        void addLight(LightSource* lightSource, const osg::Matrixf& worldMat, size_t frameNum);
+        void addLight(LightSource* lightSource, const osg::Matrixf& worldMat, std::size_t frameNum);
 
         const std::vector<LightSourceViewBound>& getLightsInViewSpace(
-            osgUtil::CullVisitor* cv, const osg::RefMatrix* viewMatrix, size_t frameNum);
+            osgUtil::CullVisitor* cv, const osg::RefMatrix* viewMatrix, std::size_t frameNum);
 
         osg::ref_ptr<osg::StateSet> getLightListStateSet(
-            const LightList& lightList, size_t frameNum, const osg::RefMatrix* viewMatrix);
+            const LightList& lightList, std::size_t frameNum, const osg::RefMatrix* viewMatrix);
 
         void setSunlight(std::shared_ptr<Light> sun);
         const std::shared_ptr<Light>& getSunlight() const;
 
         bool getClusteredLighting() const;
 
-        int getMaxLights() const;
+        std::int32_t getMaxLights() const;
 
         bool isClusteredSupported() { return mSupportsClustered; }
 
@@ -278,7 +281,7 @@ namespace SceneUtil
         void processChangedSettings(float lightRadiusMultiplier, float maximumLightDistance, float lightFadeStart);
 
         /// Not thread safe, it is the responsibility of the caller to stop/start threading on the viewer
-        void updateMaxLights(int maxLights);
+        void updateMaxLights(std::int32_t maxLights);
 
         osg::ref_ptr<osg::Uniform> generateLightBufferUniform();
 
@@ -296,12 +299,12 @@ namespace SceneUtil
         Resource::ResourceSystem* getResourceSystem() { return mResourceSystem; }
 
     private:
-        void initPerObjectUniform(int targetLights);
+        void initPerObjectUniform(std::int32_t targetLights);
         void initClustered();
 
         void updateSettings(float lightRadiusMultiplier, float maximumLightDistance, float lightFadeStart);
 
-        void setMaxLights(int value);
+        void setMaxLights(std::int32_t value);
 
         Resource::ResourceSystem* mResourceSystem;
 
@@ -310,9 +313,10 @@ namespace SceneUtil
         using LightSourceViewBoundCollection = std::vector<LightSourceViewBound>;
         std::map<osg::observer_ptr<osg::Camera>, LightSourceViewBoundCollection> mLightsInViewSpace;
 
-        std::map<std::pair<const osg::RefMatrix*, std::vector<int>>, osg::ref_ptr<osg::StateSet>> mLightListStateSets;
+        std::map<std::pair<const osg::RefMatrix*, std::vector<std::int32_t>>, osg::ref_ptr<osg::StateSet>>
+            mLightListStateSets;
 
-        size_t mLightingMask;
+        std::size_t mLightingMask;
 
         std::shared_ptr<Light> mSun;
 
@@ -322,7 +326,7 @@ namespace SceneUtil
         float mPointLightFadeEnd;
         float mPointLightFadeStart;
 
-        int mMaxLights{};
+        std::int32_t mMaxLights{};
 
         bool mSupportsClustered;
 
@@ -355,18 +359,18 @@ namespace SceneUtil
             osg::ref_ptr<osg::ShaderStorageBufferBinding> mClusterSSBB;
 
             float mClusterFar = 1.f;
-            size_t mLastFrameNumber = 0;
+            std::size_t mLastFrameNumber = 0;
         };
 
         std::unordered_map<osg::Camera*, ViewData> mCache;
 
-        const int mGridSizeX;
-        const int mGridSizeY;
-        const int mGridSizeZ;
-        const int mNumClusters;
-        const int mWorkGroupSize;
+        const std::int32_t mGridSizeX;
+        const std::int32_t mGridSizeY;
+        const std::int32_t mGridSizeZ;
+        const std::int32_t mNumClusters;
+        const std::int32_t mWorkGroupSize;
 
-        const int mMaxLightsPerCluster = 512;
+        const std::int32_t mMaxLightsPerCluster = 512;
     };
 
     /// To receive lighting, objects must be decorated by a LightListCallback. Light list callbacks must be added via
@@ -405,13 +409,13 @@ namespace SceneUtil
 
     private:
         LightManager* mLightManager;
-        size_t mLastFrameNumber;
+        std::size_t mLastFrameNumber;
         LightManager::LightList mLightList;
         std::set<SceneUtil::LightSource*> mIgnoredLightSources;
     };
 
     void configureStateSetSunOverride(const Light* light, osg::StateSet* stateset,
-        int mode = osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+        std::int32_t mode = osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
     void configureSunAmbientOverride(const osg::Vec4f& ambient, osg::StateSet* stateset);
 }

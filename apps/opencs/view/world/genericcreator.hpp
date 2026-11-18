@@ -1,14 +1,14 @@
 #pragma once
 
-#include <QString>
-
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <apps/opencs/model/world/scope.hpp>
+#include <QString>
 
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/scope.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
 #include "creator.hpp"
 
@@ -44,7 +44,7 @@ namespace CSVWorld
         bool mLocked;
         std::string mClonedId;
         CSMWorld::UniversalId::Type mClonedType;
-        unsigned int mScopes;
+        std::uint32_t mScopes;
         QComboBox* mScope;
         QLabel* mScopeLabel;
         IdValidator* mValidator;
@@ -88,7 +88,7 @@ namespace CSVWorld
 
         std::string getNamespace() const;
 
-        void setEditorMaxLength(int length);
+        void setEditorMaxLength(std::int32_t length);
 
     private:
         void updateNamespace();
@@ -113,7 +113,7 @@ namespace CSVWorld
         ///< Return formatted error descriptions for the current state of the creator. if an empty
         /// string is returned, there is no error.
 
-        void setScope(unsigned int scope) override;
+        void setScope(std::uint32_t scope) override;
 
         /// Focus main input widget
         void focus() override;
@@ -129,7 +129,7 @@ namespace CSVWorld
 
         void create();
 
-        void scopeChanged(int index);
+        void scopeChanged(std::int32_t index);
 
         void dataIdListChanged();
     };

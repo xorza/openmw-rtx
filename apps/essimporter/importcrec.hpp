@@ -1,8 +1,10 @@
 #pragma once
 
-#include "importinventory.hpp"
-#include <components/esm3/aipackage.hpp>
 #include <cstdint>
+
+#include <components/esm3/aipackage.hpp>
+
+#include "importinventory.hpp"
 
 namespace ESM
 {
@@ -15,7 +17,7 @@ namespace ESSImport
     /// Creature changes
     struct CREC
     {
-        int32_t mIndex{};
+        std::int32_t mIndex{};
 
         Inventory mInventory;
         ESM::AIPackageList mAiPackages;

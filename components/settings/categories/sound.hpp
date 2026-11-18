@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
 #include <components/settings/hrtfmode.hpp>
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
-
-#include <string>
 
 namespace Settings
 {
@@ -18,8 +20,8 @@ namespace Settings
         SettingValue<float> mMusicVolume{ mIndex, "Sound", "music volume", makeClampSanitizerFloat(0, 1) };
         SettingValue<float> mSfxVolume{ mIndex, "Sound", "sfx volume", makeClampSanitizerFloat(0, 1) };
         SettingValue<float> mVoiceVolume{ mIndex, "Sound", "voice volume", makeClampSanitizerFloat(0, 1) };
-        SettingValue<int> mBufferCacheMin{ mIndex, "Sound", "buffer cache min", makeMaxSanitizerInt(1) };
-        SettingValue<int> mBufferCacheMax{ mIndex, "Sound", "buffer cache max", makeMaxSanitizerInt(1) };
+        SettingValue<std::int32_t> mBufferCacheMin{ mIndex, "Sound", "buffer cache min", makeMaxSanitizerInt(1) };
+        SettingValue<std::int32_t> mBufferCacheMax{ mIndex, "Sound", "buffer cache max", makeMaxSanitizerInt(1) };
         SettingValue<std::size_t> mHeadCacheSize{ mIndex, "Sound", "head cache size", makeClampSanitizerSize(0, 4095) };
         SettingValue<bool> mWarmSounds{ mIndex, "Sound", "warm sounds" };
         SettingValue<HrtfMode> mHrtfEnable{ mIndex, "Sound", "hrtf enable" };

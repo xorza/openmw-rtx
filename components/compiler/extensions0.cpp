@@ -1,5 +1,6 @@
 #include "extensions0.hpp"
 
+#include <cstdint>
 #include <format>
 
 #include "extensions.hpp"
@@ -125,7 +126,7 @@ namespace Compiler
             std::string enable("enable");
             std::string disable("disable");
 
-            for (int i = 0; i < numberOfControls; ++i)
+            for (std::int32_t i = 0; i < numberOfControls; ++i)
             {
                 extensions.registerInstruction(enable + controls[i], "", opcodeEnable + i);
                 extensions.registerInstruction(disable + controls[i], "", opcodeDisable + i);
@@ -396,7 +397,7 @@ namespace Compiler
             std::string modCurrent("modcurrent");
             std::string getRatio("getratio");
 
-            for (int i = 0; i < numberOfAttributes; ++i)
+            for (std::int32_t i = 0; i < numberOfAttributes; ++i)
             {
                 extensions.registerFunction(
                     get + attributes[i], 'f', "", opcodeGetAttribute + i, opcodeGetAttributeExplicit + i);
@@ -408,7 +409,7 @@ namespace Compiler
                     mod + attributes[i], "f", opcodeModAttribute + i, opcodeModAttributeExplicit + i);
             }
 
-            for (int i = 0; i < numberOfDynamics; ++i)
+            for (std::int32_t i = 0; i < numberOfDynamics; ++i)
             {
                 extensions.registerFunction(
                     get + dynamics[i], 'f', "x", opcodeGetDynamic + i, opcodeGetDynamicExplicit + i);
@@ -426,7 +427,7 @@ namespace Compiler
                     opcodeGetDynamicGetRatio + i, opcodeGetDynamicGetRatioExplicit + i);
             }
 
-            for (int i = 0; i < numberOfSkills; ++i)
+            for (std::int32_t i = 0; i < numberOfSkills; ++i)
             {
                 extensions.registerFunction(get + skills[i], 'f', "", opcodeGetSkill + i, opcodeGetSkillExplicit + i);
 
@@ -435,7 +436,7 @@ namespace Compiler
                 extensions.registerInstruction(mod + skills[i], "f", opcodeModSkill + i, opcodeModSkillExplicit + i);
             }
 
-            for (int i = 0; i < numberOfMagicEffects; ++i)
+            for (std::int32_t i = 0; i < numberOfMagicEffects; ++i)
             {
                 extensions.registerFunction(
                     get + magicEffects[i], 'l', "", opcodeGetMagicEffect + i, opcodeGetMagicEffectExplicit + i);

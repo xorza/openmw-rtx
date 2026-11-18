@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <set>
@@ -11,13 +12,10 @@
 #include <QScrollArea>
 #include <QStyleOptionViewItem>
 
-#ifndef Q_MOC_RUN
-#include "../doc/subview.hpp"
-
-#include "../../model/world/columnbase.hpp"
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/universalid.hpp"
-#endif
+#include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/doc/subview.hpp>
 
 class QAbstractItemModel;
 class QAction;
@@ -97,7 +95,7 @@ namespace CSVWorld
     class DialogueDelegateDispatcher : public QAbstractItemDelegate
     {
         Q_OBJECT
-        std::map<int, CommandDelegate*> mDelegates;
+        std::map<std::int32_t, CommandDelegate*> mDelegates;
 
         QObject* mParent;
 
@@ -184,15 +182,16 @@ namespace CSVWorld
         CSMDoc::Document& mDocument;
         std::vector<CSMWorld::NestedTableProxyModel*> mNestedModels; // Plain, raw C pointers, deleted in the dtor
 
-        void createEditorContextMenu(QWidget* editor, CSMWorld::ColumnBase::Display display, int currentRow) const;
+        void createEditorContextMenu(
+            QWidget* editor, CSMWorld::ColumnBase::Display display, std::int32_t currentRow) const;
 
     public:
-        EditWidget(QWidget* parent, int row, CSMWorld::IdTable* table, CSMWorld::CommandDispatcher& commandDispatcher,
-            CSMDoc::Document& document, bool createAndDelete = false);
+        EditWidget(QWidget* parent, std::int32_t row, CSMWorld::IdTable* table,
+            CSMWorld::CommandDispatcher& commandDispatcher, CSMDoc::Document& document, bool createAndDelete = false);
 
         ~EditWidget() override;
 
-        void remake(int row);
+        void remake(std::int32_t row);
 
     signals:
         void editIdRequest(const CSMWorld::UniversalId& id, const std::string& hint);
@@ -232,7 +231,7 @@ namespace CSVWorld
         void dataChanged(const QModelIndex& index);
         ///\brief we need to care for deleting currently edited record
 
-        void rowsAboutToBeRemoved(const QModelIndex& parent, int start, int end);
+        void rowsAboutToBeRemoved(const QModelIndex& parent, std::int32_t start, std::int32_t end);
     };
 
     class RecordButtonBar;
@@ -261,7 +260,7 @@ namespace CSVWorld
 
         void viewRecord();
 
-        void switchToRow(int row);
+        void switchToRow(std::int32_t row);
 
         void requestFocus(const std::string& id);
     };

@@ -1,5 +1,7 @@
 #include "discardparser.hpp"
 
+#include <cstdint>
+
 #include "scanner.hpp"
 
 namespace Compiler
@@ -10,7 +12,7 @@ namespace Compiler
     {
     }
 
-    bool DiscardParser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
+    bool DiscardParser::parseInt(std::int32_t value, const TokenLoc& loc, Scanner& scanner)
     {
         if (mState == StartState || mState == MinusState)
         {
@@ -52,7 +54,7 @@ namespace Compiler
         return Parser::parseName(name, loc, scanner);
     }
 
-    bool DiscardParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
+    bool DiscardParser::parseSpecial(std::int32_t code, const TokenLoc& loc, Scanner& scanner)
     {
         if (code == Scanner::S_minus && mState == StartState)
         {

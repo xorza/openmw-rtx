@@ -1,24 +1,23 @@
 #include "mergestages.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <vector>
 
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/land.hpp>
 #include <apps/opencs/model/world/metadata.hpp>
 #include <apps/opencs/model/world/ref.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/esmreader.hpp>
 
 #include "mergestate.hpp"
-
-#include "../doc/document.hpp"
-#include "../world/commands.hpp"
-#include "../world/data.hpp"
-#include "../world/idtable.hpp"
 
 namespace CSMDoc
 {
@@ -30,12 +29,12 @@ CSMTools::StartMergeStage::StartMergeStage(MergeState& state)
 {
 }
 
-int CSMTools::StartMergeStage::setup()
+std::int32_t CSMTools::StartMergeStage::setup()
 {
     return 1;
 }
 
-void CSMTools::StartMergeStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::StartMergeStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     mState.mCompleted = false;
     mState.mTextureIndices.clear();
@@ -47,12 +46,12 @@ CSMTools::FinishMergedDocumentStage::FinishMergedDocumentStage(MergeState& state
 {
 }
 
-int CSMTools::FinishMergedDocumentStage::setup()
+std::int32_t CSMTools::FinishMergedDocumentStage::setup()
 {
     return 1;
 }
 
-void CSMTools::FinishMergedDocumentStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::FinishMergedDocumentStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     // We know that the content file list contains at least two entries and that the first one
     // does exist on disc (otherwise it would have been impossible to initiate a merge on that
@@ -82,12 +81,12 @@ CSMTools::MergeRefIdsStage::MergeRefIdsStage(MergeState& state)
 {
 }
 
-int CSMTools::MergeRefIdsStage::setup()
+std::int32_t CSMTools::MergeRefIdsStage::setup()
 {
     return mState.mSource.getData().getReferenceables().getSize();
 }
 
-void CSMTools::MergeRefIdsStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::MergeRefIdsStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     mState.mSource.getData().getReferenceables().copyTo(stage, mState.mTarget->getData().getReferenceables());
 }
@@ -97,13 +96,13 @@ CSMTools::MergeReferencesStage::MergeReferencesStage(MergeState& state)
 {
 }
 
-int CSMTools::MergeReferencesStage::setup()
+std::int32_t CSMTools::MergeReferencesStage::setup()
 {
     mIndex.clear();
     return mState.mSource.getData().getReferences().getSize();
 }
 
-void CSMTools::MergeReferencesStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::MergeReferencesStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<CSMWorld::CellRef>& record = mState.mSource.getData().getReferences().getRecord(stage);
 
@@ -127,12 +126,12 @@ CSMTools::PopulateLandTexturesMergeStage::PopulateLandTexturesMergeStage(MergeSt
 {
 }
 
-int CSMTools::PopulateLandTexturesMergeStage::setup()
+std::int32_t CSMTools::PopulateLandTexturesMergeStage::setup()
 {
     return mState.mSource.getData().getLandTextures().getSize();
 }
 
-void CSMTools::PopulateLandTexturesMergeStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::PopulateLandTexturesMergeStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<ESM::LandTexture>& record = mState.mSource.getData().getLandTextures().getRecord(stage);
 
@@ -148,12 +147,12 @@ CSMTools::MergeLandStage::MergeLandStage(MergeState& state)
 {
 }
 
-int CSMTools::MergeLandStage::setup()
+std::int32_t CSMTools::MergeLandStage::setup()
 {
     return mState.mSource.getData().getLand().getSize();
 }
 
-void CSMTools::MergeLandStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::MergeLandStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     const CSMWorld::Record<CSMWorld::Land>& record = mState.mSource.getData().getLand().getRecord(stage);
 
@@ -169,13 +168,13 @@ CSMTools::FixLandsAndLandTexturesMergeStage::FixLandsAndLandTexturesMergeStage(M
 {
 }
 
-int CSMTools::FixLandsAndLandTexturesMergeStage::setup()
+std::int32_t CSMTools::FixLandsAndLandTexturesMergeStage::setup()
 {
     // We will have no more than the source
     return mState.mSource.getData().getLand().getSize();
 }
 
-void CSMTools::FixLandsAndLandTexturesMergeStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::FixLandsAndLandTexturesMergeStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     if (stage < mState.mTarget->getData().getLand().getSize())
     {
@@ -204,15 +203,15 @@ CSMTools::CleanupLandTexturesMergeStage::CleanupLandTexturesMergeStage(MergeStat
 {
 }
 
-int CSMTools::CleanupLandTexturesMergeStage::setup()
+std::int32_t CSMTools::CleanupLandTexturesMergeStage::setup()
 {
     return 1;
 }
 
-void CSMTools::CleanupLandTexturesMergeStage::perform(int stage, CSMDoc::Messages& messages)
+void CSMTools::CleanupLandTexturesMergeStage::perform(std::int32_t stage, CSMDoc::Messages& messages)
 {
     auto& landTextures = mState.mTarget->getData().getLandTextures();
-    for (int i = 0; i < landTextures.getSize();)
+    for (std::int32_t i = 0; i < landTextures.getSize();)
     {
         if (!landTextures.getRecord(i).isModified())
             landTextures.removeRows(i, 1);

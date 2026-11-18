@@ -139,13 +139,13 @@ namespace RtxTool
         if (comma == std::string_view::npos)
             return;
 
-        const std::optional<int> x = wholeNumber<int>(trimmed(spelling.substr(0, comma)));
-        const std::optional<int> y = wholeNumber<int>(trimmed(spelling.substr(comma + 1)));
+        const std::optional<std::int32_t> x = wholeNumber<std::int32_t>(trimmed(spelling.substr(0, comma)));
+        const std::optional<std::int32_t> y = wholeNumber<std::int32_t>(trimmed(spelling.substr(comma + 1)));
         if (x.has_value() && y.has_value())
             *this = exterior(*x, *y);
     }
 
-    CellAddress CellAddress::exterior(const int gridX, const int gridY)
+    CellAddress CellAddress::exterior(const std::int32_t gridX, const std::int32_t gridY)
     {
         CellAddress cell;
         cell.mSpelling = std::format("{},{}", gridX, gridY);

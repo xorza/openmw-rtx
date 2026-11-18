@@ -1,21 +1,21 @@
 #include "nestedtable.hpp"
 
+#include <cstdint>
+
 #include <QContextMenuEvent>
 #include <QHeaderView>
 #include <QMenu>
 
-#include "../../model/prefs/shortcut.hpp"
-
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/nestedtableproxymodel.hpp"
-#include "../../model/world/universalid.hpp"
-
 #include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/view/world/dragrecordtable.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/nestedtableproxymodel.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
+#include "dragrecordtable.hpp"
 #include "tableeditidaction.hpp"
 #include "util.hpp"
 
@@ -35,9 +35,9 @@ CSVWorld::NestedTable::NestedTable(CSMDoc::Document& document, const CSMWorld::U
     horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     verticalHeader()->hide();
 
-    int columns = model->columnCount(QModelIndex());
+    std::int32_t columns = model->columnCount(QModelIndex());
 
-    for (int i = 0; i < columns; ++i)
+    for (std::int32_t i = 0; i < columns; ++i)
     {
         CSMWorld::ColumnBase::Display display = static_cast<CSMWorld::ColumnBase::Display>(
             model->headerData(i, Qt::Horizontal, CSMWorld::ColumnBase::Role_Display).toInt());
@@ -85,8 +85,8 @@ void CSVWorld::NestedTable::contextMenuEvent(QContextMenuEvent* event)
 
     QMenu menu(this);
 
-    int currentRow = rowAt(event->y());
-    int currentColumn = columnAt(event->x());
+    std::int32_t currentRow = rowAt(event->y());
+    std::int32_t currentColumn = columnAt(event->x());
     if (mEditIdAction->setCell(currentRow, currentColumn))
     {
         menu.addAction(mEditIdAction);
@@ -108,7 +108,7 @@ void CSVWorld::NestedTable::removeRowActionTriggered()
         mDocument.getUndoStack(), selectionModel()->selectedRows().size() > 1 ? tr("Remove rows") : "");
 
     // Remove rows in reverse order
-    for (int i = static_cast<int>(selectionModel()->selectedRows().size() - 1); i >= 0; --i)
+    for (std::int32_t i = static_cast<std::int32_t>(selectionModel()->selectedRows().size() - 1); i >= 0; --i)
     {
         macro.push(new CSMWorld::DeleteNestedCommand(*(mModel->model()), mModel->getParentId(),
             selectionModel()->selectedRows()[i].row(), mModel->getParentColumn()));
@@ -117,7 +117,7 @@ void CSVWorld::NestedTable::removeRowActionTriggered()
 
 void CSVWorld::NestedTable::addNewRowActionTriggered()
 {
-    int row = 0;
+    std::int32_t row = 0;
 
     if (!selectionModel()->selectedRows().empty())
         row = selectionModel()->selectedRows().back().row() + 1;

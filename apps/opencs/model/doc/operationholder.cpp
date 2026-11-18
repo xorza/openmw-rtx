@@ -1,5 +1,7 @@
 #include "operationholder.hpp"
 
+#include <cstdint>
+
 #include "operation.hpp"
 
 CSMDoc::OperationHolder::OperationHolder(QObject* parent, Operation* operation)
@@ -63,7 +65,7 @@ void CSMDoc::OperationHolder::quit()
     }
 }
 
-void CSMDoc::OperationHolder::doneSlot(int type, bool failed)
+void CSMDoc::OperationHolder::doneSlot(std::int32_t type, bool failed)
 {
     mThread.quit();
     mThread.wait();

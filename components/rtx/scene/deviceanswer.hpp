@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <variant>
 #include <vector>
 
 #include <components/rtx/common/index.hpp>
@@ -21,7 +22,7 @@ namespace Rtx
     /// made tight lands whenever the device answers.
     struct StoodMesh
     {
-        Index mMesh = sNoIndex;
+        MeshIndex mMesh = sNoRow;
         std::uint64_t mStructureBytes = 0;
     };
 
@@ -30,39 +31,58 @@ namespace Rtx
     /// (`SceneUploader`): the device keeps no texels to stand it whole later.
     struct ShortTexture
     {
-        Index mSlot = sNoIndex;
+        TextureIndex mSlot = sNoRow;
         std::uint64_t mStoodBytes = 0;
+
+        /// What it stood before it moved down to make room (`TextureArray::makeRoom`), which the hand-over that moved
+        /// it did not describe; nought for a texture the hand-over stood short as it arrived.
+        std::uint64_t mWholeBytes = 0;
 
         bool operator==(const ShortTexture& other) const = default;
     };
 
-    /// Whose rest gives back the memory content the device waits on can take (`RoomWant`): textures', in the pools
-    /// textures stand in, or meshes', in the storage their structures stand in once copied tight.
-    enum class RestKind : std::uint8_t
+    /// **A named texture the device moved down to make room while it stood finer than its readers want**
+    /// (`TextureArray::makeRoom`): what it stands now, and the level of its file it stands from. Not short, since its
+    /// readers want no finer, so its owner tells the slot what stands and hands nothing over again.
+    struct MovedTexture
     {
-        Texture,
-        Mesh,
+        TextureIndex mSlot = sNoRow;
+        std::uint64_t mStoodBytes = 0;
+        std::uint8_t mFrom = 0;
     };
 
-    /// **Content the device had no room for and waits on**, met since the last take (`DeviceAnswer::mWants`): whose
-    /// rest serves it, the slot that waits, which names the want from one take to the next, and the bytes a resting row
-    /// of that kind must give back where the want can take them (`RestPlace::mFit`) for its eviction to surely leave
-    /// it room: its size, and what its alignment may leave unused at a hole's start.
+    /// **What waits on room, and so whose rest serves it** (`RoomWant`): a texture, served by the textures' rest in the
+    /// pools textures stand in, or a mesh, by the meshes' rest in the storage their structures stand in once copied
+    /// tight. The slot names the want from one take to the next.
+    using RoomWaiter = std::variant<TextureIndex, MeshIndex>;
+
+    /// **Content the device had no room for and waits on**, met since the last take (`DeviceAnswer::mWants`): what
+    /// waits
+    /// (`RoomWaiter`), and the range a resting row of its kind must give back (`RestPlace::mFit`) for its eviction to
+    /// surely leave it room: its size, and the alignment its start needs. A range freed by a resource of its own kind
+    /// holds it where it is as large and starts at an alignment at least as coarse: its neighbours held the resource
+    /// before.
     struct RoomWant
     {
-        RestKind mKind = RestKind::Texture;
-        Index mSlot = sNoIndex;
+        RoomWaiter mWaiter;
         std::uint64_t mHole = 0;
+        std::uint64_t mAlignment = 1;
 
         bool operator==(const RoomWant& other) const = default;
     };
 
     /// What a slot the device stands gives back where a want can take it once it rests (`RestPlace::mFit`): a texture
     /// its image's range of the pools textures stand in, a static mesh its tight copy's room in the structure storage.
+    ///
+    /// @tparam I the slot's table's row (`RowIndex`).
+    template <class I>
     struct FitBytes
     {
-        Index mSlot = sNoIndex;
+        I mSlot = sNoRow;
         std::uint64_t mBytes = 0;
+
+        /// The coarsest power of two the range's start is aligned to: what a want's alignment is matched against.
+        std::uint64_t mAlignment = 1;
 
         bool operator==(const FitBytes& other) const = default;
     };
@@ -77,15 +97,17 @@ namespace Rtx
         std::vector<Refusal> mRefused;
         std::vector<StoodMesh> mMeshes;
         std::vector<ShortTexture> mShort;
+        std::vector<MovedTexture> mMoved;
         std::vector<RoomWant> mWants;
-        std::vector<FitBytes> mTextureFits;
-        std::vector<FitBytes> mMeshFits;
+        std::vector<FitBytes<TextureIndex>> mTextureFits;
+        std::vector<FitBytes<MeshIndex>> mMeshFits;
 
         void clear()
         {
             mRefused.clear();
             mMeshes.clear();
             mShort.clear();
+            mMoved.clear();
             mWants.clear();
             mTextureFits.clear();
             mMeshFits.clear();
