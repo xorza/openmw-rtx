@@ -180,12 +180,17 @@ namespace MWWorld
 
     void CellRef::setCharge(int charge)
     {
-        std::visit(ESM::VisitOverload{
-                       [&](ESM4::Reference& /*ref*/) {},
-                       [&](ESM4::ActorCharacter&) {},
-                       [&](ESM::CellRef& ref) { ref.mChargeInt = charge; },
-                   },
-            mCellRef.mVariant);
+        if (charge != getCharge())
+        {
+            mChanged = true;
+
+            std::visit(ESM::VisitOverload{
+                           [&](ESM4::Reference& /*ref*/) {},
+                           [&](ESM4::ActorCharacter&) {},
+                           [&](ESM::CellRef& ref) { ref.mChargeInt = charge; },
+                       },
+                mCellRef.mVariant);
+        }
     }
 
     void CellRef::applyChargeRemainderToBeSubtracted(float chargeRemainder)
@@ -198,6 +203,7 @@ namespace MWWorld
                 cellRef3.mChargeInt += static_cast<int>(cellRef3.mChargeIntRemainder);
                 cellRef3.mChargeIntRemainder = newChargeRemainder;
                 cellRef3.mChargeInt = std::max(cellRef3.mChargeInt, 0);
+                mChanged = true;
             }
         };
         std::visit(ESM::VisitOverload{
@@ -220,12 +226,17 @@ namespace MWWorld
 
     void CellRef::setChargeFloat(float charge)
     {
-        std::visit(ESM::VisitOverload{
-                       [&](ESM4::Reference& /*ref*/) {},
-                       [&](ESM4::ActorCharacter&) {},
-                       [&](ESM::CellRef& ref) { ref.mChargeFloat = charge; },
-                   },
-            mCellRef.mVariant);
+        if (charge != getChargeFloat())
+        {
+            mChanged = true;
+
+            std::visit(ESM::VisitOverload{
+                           [&](ESM4::Reference& /*ref*/) {},
+                           [&](ESM4::ActorCharacter&) {},
+                           [&](ESM::CellRef& ref) { ref.mChargeFloat = charge; },
+                       },
+                mCellRef.mVariant);
+        }
     }
 
     const std::string& CellRef::getGlobalVariable() const
@@ -267,6 +278,7 @@ namespace MWWorld
     {
         if (owner != getOwner())
         {
+            mChanged = true;
             std::visit(ESM::VisitOverload{
                            [&](ESM4::Reference& /*ref*/) {},
                            [&](ESM4::ActorCharacter&) {},
