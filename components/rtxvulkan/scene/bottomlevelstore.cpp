@@ -380,10 +380,15 @@ namespace Rtx
                     {
                         row.mWaiting = true;
                         mWaiting.push_back(Waiting{ .mMesh = slot, .mWhy = room.error() });
-                        if (kept)
-                            mWants.push_back(RoomWant{ .mKind = RestKind::Mesh,
-                                .mSlot = slot,
-                                .mHole = alignUp(mBuilding[at].mSize, StructureStorage::sAlignment) });
+                        // **A kept structure wants a resting mesh's room in the storage it stands in; a loose one
+                        // wants a block**: the loose storage's room comes back as builds are copied tight, and past
+                        // its blocks only memory a block emptied gives back, which no one resting mesh's fit holds.
+                        // So the rest is freed, the oldest first, until a block's bytes went: the handheld's Repack
+                        // tour refused three such blocks beside 2.6 GiB of resting meshes, which nothing freed.
+                        const VkDeviceSize structure = alignUp(mBuilding[at].mSize, StructureStorage::sAlignment);
+                        mWants.push_back(RoomWant{ .mKind = RestKind::Mesh,
+                            .mSlot = slot,
+                            .mHole = kept ? structure : std::max(structure, mLooseStorage.getBlockBytes()) });
                     }
                     else
                         refused.push_back(

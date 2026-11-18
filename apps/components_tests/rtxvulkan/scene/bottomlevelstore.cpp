@@ -312,9 +312,10 @@ namespace Rtx
         /// so the first grid's block is its size and the second has nowhere to go but a block of its own.
         ///
         /// **Room that is coming is waited for**: a texture of 64 bytes rests, which the scene's owner gives back for
-        /// what waits, so the mesh refused then waits and is not refused; a loose build waits for the copies, and wants
-        /// no resting mesh's room. Once the room is there, `buildWaiting` stands it and it waits no more; and where it
-        /// is not there for `sMostRoomWaits` placements, the mesh is refused.
+        /// what waits, so the mesh refused then waits and is not refused; a loose build wants a block's bytes of the
+        /// rest, as only a block emptied gives its storage room past its blocks. Once the room is there, `buildWaiting`
+        /// stands it and it waits no more; and where it is not there for `sMostRoomWaits` placements, the mesh is
+        /// refused.
         TEST_F(RtxBottomLevelStoreTest, aMeshTheDeviceHasNoRoomForIsLeftOutAndPlacesNothing)
         {
             const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
@@ -382,7 +383,12 @@ namespace Rtx
             EXPECT_TRUE(store.isWaiting(grids[1]));
             DeviceAnswer answer;
             store.takeAnswer(answer);
-            EXPECT_TRUE(answer.mWants.empty()) << "a loose build wanted a resting mesh's room";
+            ASSERT_EQ(answer.mWants.size(), 1u) << "a loose build wanted no room";
+            EXPECT_EQ(answer.mWants[0].mKind, RestKind::Mesh);
+            EXPECT_EQ(answer.mWants[0].mSlot, grids[1]);
+            // The store's blocks are a unit here, so the block's bytes are the structure's own, aligned.
+            EXPECT_GE(answer.mWants[0].mHole, StructureStorage::sAlignment) << "a loose build wants a block's bytes";
+            EXPECT_EQ(answer.mWants[0].mHole % StructureStorage::sAlignment, 0u);
             const auto firstBuilt = std::ranges::find(answer.mMeshes, grids[0], &StoodMesh::mMesh);
             ASSERT_NE(firstBuilt, answer.mMeshes.end());
             const std::uint64_t gridBytes = firstBuilt->mStructureBytes;

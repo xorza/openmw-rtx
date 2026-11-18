@@ -727,15 +727,6 @@ follows it and runs only where refusals remain.
 - **Tests**: a pool cut into pieces takes, after its passes, the image it refused; a frame whose takes fit runs no
   pass; a pass never copies past its bound.
 
-### 14. The device's mesh memory
-
-6. **After item 21, and only where the tours still refuse a mesh for room** (the Repack at `f45fb184d7` refused three 64 MiB structure
-   blocks): `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the rest
-   counting geometry; and a want for a mesh refused in the loose storage, which a block emptied answers and no resting
-   mesh's fit does (item 9).
-8. Tests: a block no run touches goes back, and a mesh refused in the loose storage stands once one empties. Tours:
-   no mesh refused for room on the Repack.
-
 ### 15. The ring reads what can stand
 
 **Step 0, measured at `b461faf024`** (the handheld's Repack tour): `Nif` loaded 27,004, 8,828 of them again (33%), and
@@ -770,6 +761,13 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **14.6. The device's mesh memory**: narrowed to what the handheld's Repack tour at `b461faf024` showed. It refused
+  three 64 MiB loose structure blocks beside 2.6 GiB of resting meshes, which nothing freed, as a loose build filed no
+  want. It now wants a block's bytes of the rest (`BottomLevelStore::build`), which `SceneDesc::evictFor` frees oldest
+  first, a block emptied going back to the device (`StructureStorage::reclaim`). Taking runs lowest first and giving
+  back a block no run touches were already so. `MemoryUse::Mesh` and the rest counting geometry are left: no tour
+  refused for them.
 
 - **23, its half kept: a refusal is counted once.** `textures-readable` counts the texture refusals since the stop
   before it (`StopFacts::mTexturesRefusedBefore`), where one refusal had failed every stop after it.
