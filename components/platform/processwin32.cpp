@@ -255,7 +255,7 @@ namespace Platform::Process
             return std::nullopt;
         const std::uint64_t resident = counters.PrivateWorkingSetSize;
         const std::uint64_t committed = counters.PrivateUsage;
-        return AnonymousMemory{ .mResident = resident, .mSwapped = committed - std::min(resident, committed) };
+        return AnonymousMemory{ .mResident = resident, .mNotResident = committed - std::min(resident, committed) };
     }
 
     std::optional<DriverMemory> driverMemory()

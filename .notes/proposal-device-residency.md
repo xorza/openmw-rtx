@@ -116,22 +116,21 @@ Decided by the user, 2026-11-18:
 - **M1, that the device over its budget is what makes the host wait.** Read the handheld's amdgpu counters across a
   tour (its per-process memory in `fdinfo`, and the driver's count of evictions), at each stop with held and budget,
   and hold the slow rooms' frames against them. Decides whether the target is the budget itself or under it.
-- **M2, what the Windows meter calls swapped.** Its swapped figure is private memory committed and not in the working
-  set, which the integrated GPU's pages are whether or not they reached the page file. Held against the whole Repack
-  flown under 4 GiB (flying at the time of writing). Decides whether the Windows machine pages at all.
 - **M3, what is left of the rooms under the cap**, 27.9 ms against 21: what the capped flight refused and waited for,
   and what moved, by stop.
 
+## Changed
+
+- **Item 1, the measures**: the driver's own memory by region is recorded at each stop and in `tour.json`
+  (`Platform::Process::driverMemory`); held, budget and the free runs by use were recorded already, and what is given
+  back comes with the moves that give it (items 5 and 6). M1 is read from the handheld's whole Repack at `d5ea79cc75`.
+- **Item 2, M2**: the Windows meter's swapped figure is the private memory committed and not in the working set, the
+  GPU's pages and the trimmed alike, so it is named for what it is on both systems (`AnonymousMemory::mNotResident`);
+  held under 4 GiB, the Windows Repack held 13.3 GiB not resident against 7.2 and ran as fast, so the Windows machine's
+  issue is closed (`docs/research/2026-11-18-handheld-rooms-and-device-memory.md`).
+
 ## Items
 
-1. **Measure M1 and M3** in the harness: the device's held, budget, free runs by use and what was given back, a line a
-   stop and a column in `tour.json`; on Linux the amdgpu `fdinfo` figures beside them. Flown on the handheld's whole
-   Repack (`--every=1`). Test: the record's fields, from a fake renderer's figures.
-2. **Settle M2**: the Windows capped tour read against the uncapped one; the meter's swapped figure split from the
-   device's pages where Windows says so, or named for what it is.
-3. **The unified split**: one owner of what the system leaves the process, from which the device's target and the
-   caches' budget are both derived (approved 1). Test: the split's arithmetic, exact values, and that a block the device
-   gives back raises no cache's budget.
 4. **`DeviceResidency`**: the target, held by blocks, the band, and the ladder's first three steps (rests, above want,
    empty blocks), replacing the rest limit, `evictForRoom` and the reserve's `makeRoom`. Test: the ladder as a function
    of the figures it reads, each step's bytes exact; the hand-over's allocation count held at nought.

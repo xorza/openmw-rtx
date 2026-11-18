@@ -47,5 +47,16 @@ by 2.5 KiB, on `c8664cd001`). Read at a stop's end:
 
 At each of the Windows machine's Repack stops at `87b6f3a4d8` (`2026-11-18-closing-tours.md`), the private regions past
 the process's heaps held what the device's two heaps held plus 147 to 211 MiB: its integrated GPU's memory is the
-process's own. The machine has 27.8 GiB; the process held at most 20.0 GiB, of which its meter called 7.2 GiB swapped
-out, the private memory committed and not in its working set (`Platform::Process::anonymousMemory`).
+process's own. The machine has 27.8 GiB.
+
+**What its meter called swapped is not paging alone.** Windows' figure is the private memory committed and not in the
+working set, which counts the GPU's pages, what the system trimmed onto its standby list and what the page file holds
+alike. The whole Repack flown at `2c8d2ede85` with the device held under 4 GiB:
+
+| flight | device held, peak MiB | process peak MiB | of it not resident | heaps' regions at the end | legs' p99 median, all / land / rooms, ms |
+|---|---|---|---|---|---|
+| `87b6f3a4d8` | 8542 | 20048 | 7190 | 10.8 GiB | 38.9 / 101.0 / 34.3 |
+| `2c8d2ede85`, under 4 GiB | 3876 | 15881 | 13251 | 11.3 GiB | 37.8 / 87.4 / 33.7 |
+
+With less than half the device's memory the process held 13 GiB not resident against 7, and ran as fast: the frames do
+not follow the figure.

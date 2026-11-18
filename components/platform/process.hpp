@@ -150,12 +150,16 @@ namespace Platform::Process
     /// Nothing on a system that is not Linux, or where the counters cannot be read.
     std::optional<std::uint64_t> compactionStalls();
 
-    /// What a process holds of anonymous memory, as the system counts it: resident, and swapped out — on Windows the
-    /// private memory committed and not in its working set, which the pagefile holds or nothing has touched yet.
+    /// What a process holds of anonymous memory, as the system counts it: resident, and not resident. **Not resident is
+    /// not the same on every system, and is named for what both are**: on Linux what is swapped out (`VmSwap`); on
+    /// Windows the private memory committed and not in the working set, which counts what the page file holds, what the
+    /// system trimmed onto its standby list and an integrated GPU's pages alike. The Windows machine's Repack tour
+    /// called 13.3 GiB of 15.9 not resident with its device held under 4 GiB, its frames as fast as with 7.2 GiB
+    /// (`docs/research/2026-11-18-handheld-rooms-and-device-memory.md`).
     struct AnonymousMemory
     {
         std::uint64_t mResident = 0;
-        std::uint64_t mSwapped = 0;
+        std::uint64_t mNotResident = 0;
     };
 
     /// `AnonymousMemory` of this process, now: what a run on a machine short of memory reads at every stop, since

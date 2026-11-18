@@ -226,13 +226,13 @@ namespace RtxTool
             // second's 900 + 100 = 1000, with the heap there 300 MiB taken and 250 in use, 50 free, of which the
             // five arenas keep 2, 30, 0, 10 and 8: the four keeping the most, 30, 10, 8 and 2.
             constexpr std::uint64_t sMiB = std::uint64_t{ 1 } << 20;
-            record.noteHostMemory("first", { .mResident = 1000 * sMiB, .mSwapped = 200 * sMiB },
+            record.noteHostMemory("first", { .mResident = 1000 * sMiB, .mNotResident = 200 * sMiB },
                 Platform::HeapHeld{ .mTaken = 300 * sMiB,
                     .mInUse = 250 * sMiB,
                     .mArenas = { { .mTaken = 40 * sMiB, .mFree = 2 * sMiB },
                         { .mTaken = 100 * sMiB, .mFree = 30 * sMiB }, { .mTaken = 20 * sMiB, .mFree = 0 },
                         { .mTaken = 60 * sMiB, .mFree = 10 * sMiB }, { .mTaken = 80 * sMiB, .mFree = 8 * sMiB } } });
-            record.noteHostMemory("second", { .mResident = 900 * sMiB, .mSwapped = 100 * sMiB }, std::nullopt);
+            record.noteHostMemory("second", { .mResident = 900 * sMiB, .mNotResident = 100 * sMiB }, std::nullopt);
 
             // **The device's peak by use**: balmora's 100 + 50 + 300 + 600 = 1050 MiB over seyda-neen's nought and
             // vivec's 100 + 50 + 200 + 650 = 1000; what is kept for the frame and the rooms are no use.
@@ -335,11 +335,11 @@ namespace RtxTool
             EXPECT_NE(unplayed.getReport().find("\n2 places"), std::string::npos) << unplayed.getReport();
             EXPECT_EQ(unplayed.getReport().find("the device held"), std::string::npos)
                 << "a renderer that said nothing";
-            EXPECT_NE(
-                record.getReport().find("\nthe process held at most 1200.0 MiB of anonymous memory, 200.0 MiB of it "
-                                        "swapped out, at first; there the heap took 300.0 MiB, 50.0 MiB of it free, in "
-                                        "5 arenas, the most free 30.0 of 100.0 MiB, 10.0 of 60.0 MiB, 8.0 of 80.0 MiB, "
-                                        "2.0 of 40.0 MiB\n"),
+            EXPECT_NE(record.getReport().find(
+                          "\nthe process held at most 1200.0 MiB of anonymous memory, 200.0 MiB of it "
+                          "not resident, at first; there the heap took 300.0 MiB, 50.0 MiB of it free, in "
+                          "5 arenas, the most free 30.0 of 100.0 MiB, 10.0 of 60.0 MiB, 8.0 of 80.0 MiB, "
+                          "2.0 of 40.0 MiB\n"),
                 std::string::npos)
                 << record.getReport();
             std::ostringstream read;

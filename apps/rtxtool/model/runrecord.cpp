@@ -241,7 +241,7 @@ namespace RtxTool
         std::optional<Platform::HeapHeld> heap)
     {
         const auto held
-            = [](const Platform::Process::AnonymousMemory& memory) { return memory.mResident + memory.mSwapped; };
+            = [](const Platform::Process::AnonymousMemory& memory) { return memory.mResident + memory.mNotResident; };
         if (mHostPeak.has_value() && held(anonymous) <= held(mHostPeak->mAnonymous))
             return;
         mHostPeak = HostPeak{ .mStop = std::string(stop), .mAnonymous = anonymous, .mHeap = std::move(heap) };
@@ -307,10 +307,10 @@ namespace RtxTool
         {
             const HostPeak& peak = *mHostPeak;
             mReport += std::format(
-                "\nthe process held at most {:.1f} MiB of anonymous memory, {:.1f} MiB of it swapped out, "
+                "\nthe process held at most {:.1f} MiB of anonymous memory, {:.1f} MiB of it not resident, "
                 "at {}",
-                Rtx::mebibytes(peak.mAnonymous.mResident + peak.mAnonymous.mSwapped),
-                Rtx::mebibytes(peak.mAnonymous.mSwapped), peak.mStop);
+                Rtx::mebibytes(peak.mAnonymous.mResident + peak.mAnonymous.mNotResident),
+                Rtx::mebibytes(peak.mAnonymous.mNotResident), peak.mStop);
             if (peak.mHeap.has_value())
                 mReport += "; there " + describeHeap(*peak.mHeap);
             mReport += '\n';

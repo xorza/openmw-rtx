@@ -562,8 +562,8 @@ namespace RtxTool
         {
             const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
             Log(Debug::Info) << std::format(
-                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB swapped out{}", (mAt + 1),
-                Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mSwapped),
+                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB not resident{}", (mAt + 1),
+                Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mNotResident),
                 heap.has_value() ? "; " + describeHeap(*heap) : std::string());
             mRecord.noteHostMemory(currentStop().mName, *anonymous, heap);
         }

@@ -124,7 +124,7 @@ namespace
             "kB\n");
         ASSERT_TRUE(memory.has_value());
         EXPECT_EQ(memory->mResident, 2048u);
-        EXPECT_EQ(memory->mSwapped, 3072u);
+        EXPECT_EQ(memory->mNotResident, 3072u);
         EXPECT_EQ(Platform::LinuxText::anonymousMemory("RssAnon:\t2 kB\n"), std::nullopt) << "no swap line";
         EXPECT_EQ(Platform::LinuxText::anonymousMemory("RssAnon:\t2 MB\nVmSwap:\t3 kB\n"), std::nullopt);
     }

@@ -186,7 +186,7 @@ namespace Platform::LinuxText
         const std::optional<std::uint64_t> swapped = kilobytesField(status, "VmSwap:");
         if (!resident.has_value() || !swapped.has_value())
             return std::nullopt;
-        return Process::AnonymousMemory{ .mResident = *resident, .mSwapped = *swapped };
+        return Process::AnonymousMemory{ .mResident = *resident, .mNotResident = *swapped };
     }
 
     std::optional<std::string_view> unifiedCgroup(std::string_view cgroup)
