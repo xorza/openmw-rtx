@@ -704,6 +704,11 @@ promise is checked by the pictures, not measured by a second path.
 
 ### 21. Fix: the texture pool defragments, incrementally
 
+**Measured at `b461faf024`** (the handheld's Repack tour, all 155 stops): 3 structure blocks of 64 MiB refused. The
+texture pool held 937–1,031 MiB free in its blocks, 2,368 MiB in blocks against 1,431 MiB allocated, its largest
+range 31.7 MiB, beside 12,008 resting meshes on 2.6 GiB. So items 21 and 14.6 are both due. That tour had no outrun
+and 4 faults in all, against 137 at `5db3a1fbf7`.
+
 **Closes**: "the pool refuses small resources while it has room free in pieces". Takes over item 16's conditional
 defragmentation. At the handheld Repack tour's mesh refusal (`5db3a1fbf7`), the texture pool held 793 MiB free in its
 blocks, its largest range 12.4 MiB. A whole block emptied is room a 64 MiB structure block can take too, so item 14.6
@@ -732,6 +737,10 @@ follows it and runs only where refusals remain.
    no mesh refused for room on the Repack.
 
 ### 15. The ring reads what can stand
+
+**Step 0, measured at `b461faf024`** (the handheld's Repack tour): `Nif` loaded 27,004, 8,828 of them again (33%), and
+`Node` 25,661, 7,494 again (29%). Past a tenth, so the item goes ahead. The tour's outruns are already gone (none),
+so step 2 holds them at none.
 
 0. **Measured first**: item 8's count of models parsed and parsed again on the handheld's Repack tour at the head, and
    what the parse costs the loading threads in its profile. Declined if the parses again are under a tenth of all.
