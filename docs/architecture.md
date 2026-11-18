@@ -146,8 +146,10 @@ What the game reads from files (`components/resource`), changed for the handheld
   the header the file's key, a hash of its levels as described, and every fact a material asks, each pass keyed from
   the file's key. A chain the store holds whole then comes back with no read of its file, and no fact reads one. As
   OpenSceneGraph hooks a read through its registry's `ReadFileCallback`, and as Unreal's derived data keys a texture
-  by its source's hash taken at import. Refused: a key a pass hashes from the texels each ask, which reads the file
-  to key what the store holds; facts made at a material's first ask, which read the file again once the texels went.
+  by its source's hash taken at import. Derived on the loader's own thread through a pool of preprocessors, half the
+  processors, a loader past them waiting (`Rtx::ImageDerivation`). Refused: a key a pass hashes from the texels each ask,
+  which reads the file to key what the store holds; facts made at a material's first ask, which read the file again
+  once the texels went; a preprocessor a thread (`thread_local`), global state no owner bounds.
 - **A texture that stands moves down to make room** (`TextureArray::makeRoom`), copied a level down on the device,
   nothing read from the host, the file standing the most bytes first, as Unreal's streamer takes a level off the
   textures it needs least: for an arrival the room does not hold whole, a frame's share of copies at a time, and for a
