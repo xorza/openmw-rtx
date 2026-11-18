@@ -504,10 +504,15 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   tight copies leave (`BottomLevelStore::moveOut`); a refit, or a structure whose tight copy is owed, stays, as a refit
   records against the handle it was prepared with. The texture block the world's textures fill least has its textures
   copied at their level by the array's own copy into the blocks it already holds, a placement's share, and named again
-  in every set (`TextureArray::moveOut`). Either block goes back once its last range does; a block begun is emptied
-  whole. Refused: a new block to move into, which gives nothing back; every block at once, a frame's worth of copies;
-  VMA's defragmentation for the textures, which chooses what moves and where on its own and hands the copy back to
-  the caller anyway, where the array's copy and its descriptors are the array's.
+  in every set (`TextureArray::moveOut`); a texture's new range is taken with no new memory, and never in the block it
+  leaves, which the library tries last as the emptiest. A structure copied tight in a placement moves in a later one:
+  its move would clone what that copy writes, in one run of copies, which hung the handheld's GPU. Either block goes
+  back once its last range does; a block begun is emptied whole. With it the handheld's Repack stood over its budget at
+  2 stops of 155, against 120, and its rooms ran at 32 ms against 62
+  (`research/2026-11-18-handheld-rooms-and-device-memory.md`). Refused: a new block to move into, which gives nothing
+  back; every block at once, a frame's worth of copies; VMA's defragmentation for the textures, which chooses what moves
+  and where on its own and hands the copy back to the caller anyway, where the array's copy and its descriptors are the
+  array's.
 - **A bottom level is built loose and copied out tight**, as RTXMU does, and the world's build compacts before its
   textures are made, as NVIDIA's `buildBlas` does. **Both storages take blocks of content's block size, apart from the
   pools textures stand in, and keep their last** (`StructureStorage`), by the user's decision, as NVIDIA pools

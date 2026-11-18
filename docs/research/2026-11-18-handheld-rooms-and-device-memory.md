@@ -84,3 +84,26 @@ once. MiB:
   one build part by 10 ms.
 - **The host was under pressure throughout**: the kernel stalled 974 allocations to compact memory, and the process
   held 1.9 GiB in swap at its peak, at the rooms' end.
+
+## With the device giving blocks back
+
+The whole Repack flown again with the unified split smoothed and the caches yielding to it, held counted by blocks,
+and the emptiest structure and texture blocks emptied while the device is over its budget or a take was refused: on
+the handheld at `4ca1857b03`, and on the Windows machine at `4ebe9c3153`, the same code but for the hang
+`4ca1857b03` fixed, in moves its device never made.
+
+| flight | legs' p99 median, all / land / rooms, ms | stops over the budget | device held, peak / at the end, MiB | moved, structures / textures, MiB |
+|---|---|---|---|---|
+| handheld, `d5ea79cc75` (M1) | 70.9 / 80.6 / 61.9 | 120 | 5928 / 5928 | — |
+| handheld, `4ca1857b03` | 49.7 / 82.7 / 32.2 | 2 | 5838 / 4136 | 1171 / 2307 |
+| Windows, `87b6f3a4d8` | 38.9 / 101.0 / 34.3 | 0 | 8542 / — | — |
+| Windows, `4ebe9c3153` | 36.9 / 91.8 / 33.9 | 0 | 8542 / — | 0 / 0 |
+
+- **The handheld's device follows its budget down**: over it at two stops, stops 68 and 69, by 12 MiB at most, and the
+  held memory falls from 5838 MiB at the land legs' peak to 4136 at the end, under a budget that fell to 4511 as the
+  host's side grew.
+- **Its rooms run at 32.2 ms** against 51.0–61.9 for the whole flights before, and 21.0 at the baseline.
+- **Refusals remain under the budget**: 3039 takes refused for room over the flight, nearly all of 0.4 MiB textures at
+  the textures' ceiling, which keeps back what the uses before them owe their growth; one texture drew the stand-in for
+  good and one 64 MiB structure block was refused, both at the land legs' peak, legs 24 and 25.
+- **The Windows machine never held past its budget**, so it moved nothing, and ran as before.

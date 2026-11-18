@@ -117,8 +117,8 @@ Decided by the user, 2026-11-18:
   budget — the land stops over it ran no slower than those under it — and the driver never moved the device's objects
   at a stop's end. So the target stays the budget as the unified split sets it, and nothing lower: a lower target has
   no frame behind it.
-- **M3, what is left of the rooms under the cap**, 27.9 ms against 21: what the capped flight refused and waited for,
-  and what moved, by stop.
+- **M3, not read apart**: what was left of the rooms under the cap is now what is left of them with blocks given back,
+  32.2 ms against 21, and goes to the issue log with the rooms' issue rewritten.
 
 ## Changed
 
@@ -154,10 +154,15 @@ Decided by the user, 2026-11-18:
 - **One trigger for both kinds** (`MemoryAllocator::asksForBlock`): over the budget by blocks, or a take refused since
   the owner last asked, counted from when the owner was made, so a refusal of an earlier scene moves nothing.
 
+## Declined
+
+- **Item 7, the bias below every want**: with blocks given back the handheld's device stays under its budget at all
+  but two stops, by 12 MiB at most, and what is refused is refused under it, at a use's ceiling; the textures that
+  stand already move down for an arrival with no room to the same 64 texels a side (`TextureArray::makeRoom`), so a
+  bias gives no room those moves do not, lowers every texture for one arrival, and reads files again as it comes off.
+
 ## Items
 
-7. **The bias below every want** (approved 3), the last step before a refusal, coming off a level a step once under the
-   band. Test: the bias's steps against a scripted budget, and that it never takes a texture under 64 texels.
 8. **Close**: the handheld's Repack and PBR and the Windows machine's Repack flown whole (`--every=1`), held against
    the baseline and against `docs/research/2026-11-18-handheld-rooms-and-device-memory.md`. They pass where the rooms'
    legs' p99 median is within the baseline's spread, no flight refuses a structure block, the stand-in at Seyda Neen is
