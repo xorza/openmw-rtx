@@ -41,8 +41,13 @@ namespace Platform
         std::vector<HeapArena> mArenas;
     };
 
-    /// `HeapHeld` of this process, now: glibc's report (`malloc_info`), every glibc there is, a sanitizer's allocator
-    /// where one stands in its place, with no arenas, and Windows' process heap, with none. Walks every arena's free
-    /// lists under their locks, so it is asked once a stop, never a frame. Nothing where the allocator does not say.
+    /// `HeapHeld` of this process, now: glibc's report (`malloc_info`), every glibc there is, and a sanitizer's
+    /// allocator where one stands in its place, with no arenas. Walks every arena's free lists under their locks, so
+    /// it is asked off the frame, once a second at most. Nothing where the allocator does not say, or says only by a
+    /// walk of the whole heap under its lock, as Windows' process heap does (`HeapSummary`).
     std::optional<HeapHeld> heapHeld();
+
+    /// Whether this system's allocator says what it holds (`heapHeld`): glibc's and a sanitizer's do, Windows' process
+    /// heap does not.
+    bool heapReports();
 }

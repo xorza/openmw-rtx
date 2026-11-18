@@ -15,7 +15,7 @@ namespace Platform
         /// bytes and up to a page more — the allocator's header and the page it rounds a block of its own to, as
         /// both glibc and Windows give a block this large memory of its own — and given back, to where it stood, each
         /// within what the binary's other threads allocate meanwhile. Each arena keeps no more free than it took, and
-        /// all of them took no more than the heap.
+        /// all of them took no more than the heap. An allocator that does not report says nothing, as it states.
         TEST(PlatformHeapTest, aBlockHeldIsInUseAndGivenBackIsNot)
         {
             constexpr std::uint64_t sBytes = std::uint64_t{ 64 } << 20;
@@ -24,7 +24,9 @@ namespace Platform
             // process: a few kilobytes were seen, once in eight runs beside the run record's tests.
             constexpr std::uint64_t sOthers = 64 * 1024;
             const std::optional<HeapHeld> before = heapHeld();
-            ASSERT_TRUE(before.has_value()) << "an allocator the tree runs on that does not say";
+            ASSERT_EQ(before.has_value(), heapReports()) << "an allocator that says other than it states";
+            if (!heapReports())
+                return;
             {
                 std::vector<std::byte> block(sBytes);
                 // Written through a volatile view: an allocation nothing observes may be elided, as the standard lets

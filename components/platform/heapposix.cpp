@@ -38,6 +38,11 @@ namespace Platform
 #endif
     }
 
+    bool heapReports()
+    {
+        return true;
+    }
+
     std::optional<HeapHeld> heapHeld()
     {
         // **A sanitizer's allocator first, where one is linked in**: it serves `malloc` in glibc's place, so glibc's

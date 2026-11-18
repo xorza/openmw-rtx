@@ -121,7 +121,8 @@ What the game reads from files (`components/resource`), changed for the handheld
 - **The heap's free memory is the caches' room, and an evicted value dies off the lock and off the frame**
   (`CacheBudget::derive`, `Platform::heapHeld`): what the heap took and holds free is the process's own to take again,
   read with the system's once a second through glibc's `malloc_info`, the one report every glibc writes, since
-  `mallinfo` wraps past 2 GiB and the release builds' glibc has no `mallinfo2`. The worker that derives the budget
+  `mallinfo` wraps past 2 GiB and the release builds' glibc has no `mallinfo2`; on Windows nothing, whose one
+  figure, `HeapSummary`, walks the heap under its lock, 1.2 s a second on a 2.5 GiB heap. The worker that derives the budget
   destroys what was evicted, where upstream had put its own expiry. Refused: a trim on a timer, which walks every
   arena to give back what should never have entered one.
 - **A large buffer never reaches an arena, and the arenas are four** (`Platform::tuneHeap`): the mapping threshold is
