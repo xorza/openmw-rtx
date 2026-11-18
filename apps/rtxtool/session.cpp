@@ -25,6 +25,7 @@
 #include <apps/rtxtool/model/heapdescription.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
@@ -256,9 +257,10 @@ namespace RtxTool
         mStarted = true;
 
         const float step = worldStep(mRequest.mStep);
+        const std::uint32_t warmup = mMeasurer.getWarmup();
         Log(Debug::Info) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size() << ", "
-                         << (stop.mName.empty() ? "unnamed" : stop.mName) << " — the world standing whole, "
-                         << stop.mSchedule.mSpec.getWarmup(step) << " frames warming up, then "
+                         << (stop.mName.empty() ? "unnamed" : stop.mName) << " — the world standing whole, " << warmup
+                         << (warmup == 1 ? " frame" : " frames") << " warming up, then "
                          << (stop.mSchedule.mSpec.mRun.isUntilClosed()
                                     ? std::string("a window until it is closed")
                                     : std::to_string(stop.mSchedule.mSpec.getMeasured(step)) + " measured");
@@ -559,20 +561,10 @@ namespace RtxTool
             anonymous.has_value())
         {
             const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
-            // What holds the private memory past the heap, where the system walks it (Windows): a driver's or a
-            // library's own allocations show as the other regions.
-            const std::optional<Platform::Process::PrivateMemoryHeld> held = Platform::Process::privateMemoryHeld();
             Log(Debug::Info) << std::format(
-                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB "
-                "swapped out{}{}",
-                (mAt + 1), Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mSwapped),
-                heap.has_value() ? "; " + describeHeap(*heap) : std::string(),
-                held.has_value()
-                    ? std::format("; private memory {:.1f} MiB in the heaps' regions, {:.1f} MiB in {} other "
-                                  "regions, the largest {:.1f} MiB",
-                          Rtx::mebibytes(held->mHeaps), Rtx::mebibytes(held->mOther), held->mOtherRegions,
-                          Rtx::mebibytes(held->mLargestOther))
-                    : std::string());
+                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB swapped out{}", (mAt + 1),
+                Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mSwapped),
+                heap.has_value() ? "; " + describeHeap(*heap) : std::string());
             mRecord.noteHostMemory(currentStop().mName, *anonymous, heap);
         }
 
@@ -588,6 +580,22 @@ namespace RtxTool
     void Session::finish()
     {
         mDone = true;
+
+        // **What holds the private memory past the heap, once, at the session's end**, where the system walks it
+        // (Windows): a driver's or a library's own allocations show as the other regions. Never at a stop's end: the
+        // walk reads every block of the heap under its lock, 25 s of a Repack tour's last stop on the Windows
+        // machine, and a stop that goes on from the one before measures from its first frame, which paid it. No
+        // hang, as long as it takes: nothing is measured after it.
+        {
+            const Crash::HangPause walking;
+            if (const std::optional<Platform::Process::PrivateMemoryHeld> held = Platform::Process::privateMemoryHeld();
+                held.has_value())
+                Log(Debug::Info) << std::format(
+                    "Host memory at the session's end: private memory {:.1f} MiB in the heaps' regions, {:.1f} MiB in "
+                    "{} other regions, the largest {:.1f} MiB",
+                    Rtx::mebibytes(held->mHeaps), Rtx::mebibytes(held->mOther), held->mOtherRegions,
+                    Rtx::mebibytes(held->mLargestOther));
+        }
         noteFindings();
         mRecord.finish(mRequest);
 

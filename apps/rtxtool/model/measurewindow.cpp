@@ -6,7 +6,7 @@ namespace RtxTool
 {
     MeasureWindow::MeasureWindow(
         const std::uint32_t warmup, const std::uint32_t pauseLimit, const bool played, const WorldStands stands)
-        : mWarmup(warmup)
+        : mWarmup(stands == WorldStands::Already ? 1 : warmup)
         , mPauseLimit(pauseLimit)
         , mPlayed(played)
         , mWhole(stands == WorldStands::Already)

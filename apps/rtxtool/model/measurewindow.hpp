@@ -49,7 +49,9 @@ namespace RtxTool
 
     /// Whether a stop waits for its world to stand whole before its warm-up, or takes it as standing: a flight that
     /// goes on from the stop before (`Schedule::mContinues`), whose world is the one that stop flew through, is
-    /// measured from its first frame, as a player's flight is not held up at a line nobody drew.
+    /// measured from its second frame, as a player's flight is not held up at a line nobody drew. **Not its first**:
+    /// that one's wall time runs from the stop before's last frame, and holds what the session does between two stops
+    /// (`Session::advance`), its report of the host's memory among it.
     enum class WorldStands : std::uint8_t
     {
         Awaited,
@@ -113,7 +115,8 @@ namespace RtxTool
         /// @param warmup the frames to run after the world stood whole.
         /// @param pauseLimit the paused frames ahead of the measurement that fail the stop.
         /// @param played a session somebody plays: its pauses count as running, and it never stalls.
-        /// @param stands whether the world is waited for or stands already, which then needs no warm-up.
+        /// @param stands whether the world is waited for or stands already, which then needs no warm-up and runs the
+        /// one frame the stops change on.
         MeasureWindow(
             std::uint32_t warmup, std::uint32_t pauseLimit, bool played, WorldStands stands = WorldStands::Awaited);
 

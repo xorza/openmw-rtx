@@ -173,8 +173,9 @@ namespace Platform::Process
         std::uint64_t mLargestOther = 0;
     };
 
-    /// `PrivateMemoryHeld` of this process, now, walked region by region, so asked once a stop and never a frame: what
-    /// names the memory a Windows process holds past its heap. Nothing on Linux, where `anonymousMemory` and the heap's
-    /// own report (`Platform::heapHeld`) already part the two, and where the system does not say.
+    /// `PrivateMemoryHeld` of this process, now, walked region by region and every heap block by block under the heap's
+    /// lock, so asked once a run, at its end: what names the memory a Windows process holds past its heap. Nothing on
+    /// Linux, where `anonymousMemory` and the heap's own report (`Platform::heapHeld`) already part the two, and where
+    /// the system does not say.
     std::optional<PrivateMemoryHeld> privateMemoryHeld();
 }
