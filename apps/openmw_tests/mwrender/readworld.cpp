@@ -365,10 +365,10 @@ namespace MWRender
             EXPECT_EQ(plain.mMoons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint, white);
         }
 
-        /// The cloud blend is cleaned where it enters: `Weather::transitionDelta` divides by
-        /// `Clouds_Maximum_Percent`, which the fallbacks leave at nought for ash and blight, so a crossing into
-        /// either hands over an infinity or a NaN, and nothing recorded is a deck crossed at once. A share is
-        /// clamped to one, and a real one passes through.
+        /// The cloud blend is cleaned where it enters: `Weather::cloudBlendFactor` divides by
+        /// `Clouds_Maximum_Percent`, whose nought for ash and blight `esmfallbacks.lua` no longer passes on, but
+        /// an infinity or a NaN handed over is still a deck crossed at once. A share is clamped to one, and a
+        /// real one passes through.
         TEST(RtxReadWorldTest, aCloudBlendNothingRecordedIsACrossingDone)
         {
             const auto blendOf = [](float factor) {

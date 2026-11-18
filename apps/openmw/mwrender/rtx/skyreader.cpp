@@ -175,10 +175,10 @@ namespace MWRender
         if (world.mMoonRed)
             moons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint = mMoonPaint;
 
-        // Nothing recorded is not a rate: `MWWorld::Weather::transitionDelta` divides by
-        // `Clouds_Maximum_Percent`, which the fallbacks leave at nought for ash and blight, so a transition
-        // into either hands over an infinity or a NaN, which a tracer would mix its whole sky by. Nothing
-        // recorded means the deck has crossed at once.
+        // Nothing recorded is not a rate: `MWWorld::Weather::cloudBlendFactor` divides by
+        // `Clouds_Maximum_Percent`. The fallbacks' nought for ash and blight no longer reaches it
+        // (`esmfallbacks.lua` leaves the record's default standing), but a share past one, an infinity or a
+        // NaN would still mix the tracer's whole sky. Nothing recorded means the deck has crossed at once.
         const float cloudBlend
             = std::isfinite(weather.mCloudBlendFactor) ? std::clamp(weather.mCloudBlendFactor, 0.f, 1.f) : 1.f;
 

@@ -202,11 +202,9 @@ namespace MWWorld
             };
             return std::visit(Visitor(), mCellRef.mVariant);
         }
-        void setLockLevel(std::int32_t lockLevel);
         void lock(std::int32_t lockLevel);
         void unlock();
         bool isLocked() const;
-        void setLocked(bool locked);
         // Key and trap ID names, if any
         ESM::RefId getKey() const
         {
@@ -265,6 +263,9 @@ namespace MWWorld
         bool hasChanged() const { return mChanged; }
 
     private:
+        void setLockLevel(std::int32_t lockLevel);
+        void setLocked(bool locked);
+
         bool mChanged = false;
         ESM::ReferenceVariant mCellRef;
     };
