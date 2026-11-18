@@ -26,6 +26,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -85,10 +86,11 @@ namespace Rtx::Testing
         /// that same light. The pattern is the difference between them and the total is not.
         TEST_F(RtxVisibilityTest, theSunsBeamUnderWaterCarriesTheSurfacesPattern)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 48;
             constexpr std::size_t count = std::size_t{ size } * size;
 
-            const SceneDesc scene = makeFlooded(4000.0f, 2000.0f);
+            const SceneDesc scene = makeFlooded(identities, 4000.0f, 2000.0f);
 
             // Seven metres under a sun all but overhead, looking all but straight up at it — well
             // inside the share `WATER_SHAFT_FLOOR` asks for, and at a depth a shaft happens at. Twenty
@@ -139,6 +141,7 @@ namespace Rtx::Testing
         /// else is in the frame (no bed, a black sky, no ambient, no disc), so the shaft is alone.
         TEST_F(RtxVisibilityTest, aShaftIsBlockedByWhatStandsOverTheWaterWhereTheSunEnters)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 48;
             constexpr std::size_t count = std::size_t{ size } * size;
             constexpr float eye = 500.0f;
@@ -146,7 +149,7 @@ namespace Rtx::Testing
             // Straight up from under the surface, which is where the phase function puts the beam.
             // A hair off the vertical, which `makeCamera` insists on.
             const auto shaft = [&](const std::optional<std::array<osg::Vec3f, 4>>& lid) {
-                SceneDesc scene = makeOpenWater(4000.0f);
+                SceneDesc scene = makeOpenWater(identities, 4000.0f);
                 if (lid.has_value())
                     addQuad(scene, *lid);
 
@@ -227,12 +230,13 @@ namespace Rtx::Testing
         /// keep that share of the open frame.
         TEST_F(RtxVisibilityTest, aLayerUnderTheWaterTakesItsColumnsShaftsFromTheMediaStage)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 48;
             constexpr std::size_t count = std::size_t{ size } * size;
             constexpr float eye = 500.0f;
 
             const auto shaft = [&](bool layered, bool lidded) {
-                SceneDesc scene = makeOpenWater(4000.0f);
+                SceneDesc scene = makeOpenWater(identities, 4000.0f);
                 if (lidded)
                     addQuad(scene, sheetAt(4000.0f, 500.0f));
                 if (layered)
@@ -280,6 +284,7 @@ namespace Rtx::Testing
         /// bed: from above, what the waves do to the view would be mixed into what they do to the light.
         TEST_F(RtxVisibilityTest, theWavesGatherSunlightOntoTheBedWithoutMakingAnyOfIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 256;
             constexpr std::size_t count = std::size_t{ size } * size;
             constexpr float span = 1080.0f;
@@ -292,7 +297,7 @@ namespace Rtx::Testing
             // allow. The span and pixel count move together so the footprint stays 4.2 units and the level the
             // caustic reads does not move.
             const auto render = [&](float depth, const SeaState& sea, float seconds) {
-                const SceneDesc scene = makeFlooded(4000.0f, depth);
+                const SceneDesc scene = makeFlooded(identities, 4000.0f, depth);
 
                 const osg::Matrixf view = osg::Matrixf::lookAt(
                     osg::Vec3f(0.0f, 0.0f, -1.0f), osg::Vec3f(0.0f, 0.0f, -depth), osg::Vec3f(0.0f, 1.0f, 0.0f));
@@ -440,6 +445,7 @@ namespace Rtx::Testing
         /// the real thing saturates on sight.
         TEST_F(RtxVisibilityTest, theSunsDiscCarriesItsIrradianceHoweverWideThePixelThatFindsIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float irradiance = 4.0e-5f;
 
@@ -461,7 +467,7 @@ namespace Rtx::Testing
                 // it is painted with is still its own colour, and white is the plain noon of it.
                 camera.mSunDiscColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
 
-                const SceneDesc scene = makeWall();
+                const SceneDesc scene = makeWall(identities);
                 const Frame frame = shoot(scene, {}, camera, size);
 
                 // A pixel's solid angle is its side squared at these angles: the frame is two
@@ -516,6 +522,7 @@ namespace Rtx::Testing
         /// byte is the sun off the surface, the refraction ray leaving through the bottom and coming back black.
         TEST_F(RtxVisibilityTest, aRoughSeaSpreadsTheSunIntoARoadAndAFlatOneShowsOneDot)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float irradiance = 1.0e-3f;
 
@@ -542,7 +549,7 @@ namespace Rtx::Testing
                 camera.mSunDiscColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
                 camera.mWaterLevel = 0.0f;
 
-                const SceneDesc scene = makeOpenWater(20000.0f);
+                const SceneDesc scene = makeOpenWater(identities, 20000.0f);
                 const Frame frame = shoot(scene, {}, camera, size, { .mSea = sea });
 
                 Road found{ .mPeak = 0, .mLit = 0 };
@@ -581,6 +588,7 @@ namespace Rtx::Testing
         /// is jittered, so eight frames are averaged and the two compared within a few bytes.
         TEST_F(RtxVisibilityTest, theSeaRunsTheWayTheWindBlows)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float across = 2000.0f;
 
@@ -598,7 +606,7 @@ namespace Rtx::Testing
                 camera.mWaterTime = splitSeconds(3.0);
                 camera.mSeaHeading = heading;
 
-                const SceneDesc scene = makeOpenWater(20000.0f);
+                const SceneDesc scene = makeOpenWater(identities, 20000.0f);
                 pixels = shoot(scene, {}, camera, size, { .mFrames = 8 }).bytes();
             };
 
@@ -643,12 +651,13 @@ namespace Rtx::Testing
         /// on the lines where it sat at its rounding point (1.4 per cent on RADV).
         TEST_F(RtxVisibilityTest, aWakesCausticTurnsWithTheSeaItRidesOn)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float across = 240.0f;
             constexpr float depth = 140.0f;
 
             const auto looking = [&](const osg::Vec2f& heading) {
-                SceneDesc scene = makeFlooded(256.0f, depth);
+                SceneDesc scene = makeFlooded(identities, 256.0f, depth);
                 const osg::Matrixf view = osg::Matrixf::lookAt(
                     osg::Vec3f(0.0f, 0.0f, -1.0f), osg::Vec3f(0.0f, 0.0f, -depth), osg::Vec3f(0.0f, 1.0f, 0.0f));
                 Shaders::VisibilityConstants camera = constantsFor(
@@ -706,6 +715,7 @@ namespace Rtx::Testing
         /// shader's: `mRainOnWater` is nought for snow before the frame is built (`Precipitation::getRainOnWater`).
         TEST_F(RtxVisibilityTest, rainRingsTheWaterUnderTheEyeAndRoughensItFarOff)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::size_t pixelCount = std::size_t{ size } * size;
             constexpr float irradiance = 1.0e-3f;
@@ -737,7 +747,7 @@ namespace Rtx::Testing
                 camera.mRainOnWater = rain;
                 camera.mWaterTime = splitSeconds(time);
 
-                const SceneDesc scene = makeOpenWater(20000.0f);
+                const SceneDesc scene = makeOpenWater(identities, 20000.0f);
                 pixels = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } }).bytes();
             };
 
@@ -795,6 +805,7 @@ namespace Rtx::Testing
         /// from a still sea, and a ladder of mips on the bed to read it off.
         TEST_F(RtxVisibilityTest, waterTooFineToResolveWidensTheConeItRefractsThrough)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float height = 12000.0f;
             constexpr float depth = 1500.0f;
@@ -825,7 +836,7 @@ namespace Rtx::Testing
             // below. The mean of the cones rather than of their levels, because a level is a logarithm and what
             // the prediction below names is a width.
             const auto coneOver = [&](const SeaState& sea) {
-                SceneDesc scene = makeOpenWater(4000.0f);
+                SceneDesc scene = makeOpenWater(identities, 4000.0f);
 
                 const Index bed = Testing::addMesh(scene,
                     MeshArrays{

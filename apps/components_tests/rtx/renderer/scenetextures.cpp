@@ -35,6 +35,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/embeddedimage.hpp>
@@ -346,6 +347,7 @@ namespace Rtx
         /// same volume in R5G6B5 is 42 bytes of first slices at nought, 64 and 72, widened to 84.
         TEST(RtxSceneTexturesTest, aVolumeIsDescribedAsItsFirstSliceAtEveryLevel)
         {
+            Rtx::SceneIdentities identities;
             const auto makeVolume = [](GLenum pixelFormat, GLenum type, std::size_t texel) {
                 const std::size_t total = (64 + 64 + 16 + 4) / 4 * texel;
                 auto* bytes = new std::uint8_t[total];
@@ -430,7 +432,7 @@ namespace Rtx
             odd->setFileName(std::string(oddPath.value()));
             EXPECT_EQ(Rtx::laidBytes(*odd, Rtx::readFormat(*odd)), 0u) << "a format with no layout was counted";
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             Testing::addModel(scene, rgbaPath, rgba);
             Testing::addModel(scene, oddPath, odd);
 
@@ -707,6 +709,7 @@ namespace Rtx
         /// spent and not measured, the shape the frame-path guards use.
         TEST(RtxSceneTexturesTest, describingAnArrivalASecondTimeReachesTheHeapNotAtAll)
         {
+            Rtx::SceneIdentities identities;
             // **Kept under the name the image carries**, so the slot and the name the description
             // comes back with are one path rather than two.
             constexpr VFS::Path::NormalizedView path("textures/tx_test.dds");
@@ -717,7 +720,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView sixteen("textures/tx_sixteen.dds");
             const osg::ref_ptr<osg::Image> widened = makeSixteenBit(GL_UNSIGNED_SHORT_5_6_5, GL_RGB, { 0, 0, 0, 0, 0 });
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             Testing::addModel(scene, path, image);
             Testing::addModel(scene, sixteen, widened);
 
@@ -750,11 +753,12 @@ namespace Rtx
         /// table, so a backend taking position for slot would put every texture above the gap one place too low.
         TEST(RtxSceneTexturesTest, aFreedSlotIsNotDescribedAndTheOthersKeepTheirSlots)
         {
+            Rtx::SceneIdentities identities;
 
             // Two models, because a texture is only given back when the last material naming it is.
             // The placement's drop gives back the last holds on its mesh and its material, and the
             // material's texture goes with it.
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             const Testing::Model going = Testing::addModel(scene, VFS::Path::NormalizedView("textures/freed.dds"));
             const Testing::Model staying = Testing::addModel(scene, VFS::Path::NormalizedView("textures/named.dds"));
 
@@ -793,9 +797,10 @@ namespace Rtx
         /// sprite that could not be read gets, counted once.
         TEST(RtxSceneTexturesTest, aSpriteLightBakeNamesItsSourcesSlotAndOneWithNoneGetsTheStandIn)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             const Rtx::Index bake = scene.textures().addSpriteLight(smoke);
 
             SceneTextures described;
@@ -827,7 +832,8 @@ namespace Rtx
         /// on a later frame, which no queue sees, describes both of its slots as the arrival did.
         TEST(RtxSceneTexturesTest, aCompositeNamesItsChunkOnTheFrameItArrivesAndOnEveryRebuild)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             const std::array<Rtx::MaterialLayer, 2> layers{ Rtx::MaterialLayer{ .mDiffuse = 0 },
                 Rtx::MaterialLayer{ .mDiffuse = 1, .mFlags = Shaders::LAYER_AUTHORED } };
             scene.textures().add(VFS::Path::NormalizedView("textures/under.dds"));
@@ -885,12 +891,13 @@ namespace Rtx
         /// described as that level and nothing more, and a describe reads no texel for it.
         TEST(RtxSceneTexturesTest, aFileWithoutAChainIsDescribedAsItsOneLevel)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
 
             osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
             std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             Testing::addModel(scene, path, image);
 
             SceneTextures described;
@@ -910,6 +917,7 @@ namespace Rtx
         /// = 16 bytes and none of the file's.
         TEST(RtxSceneTexturesTest, aChainMadeInItsFilesFormatIsDescribedWhole)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_block_data.dds");
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -921,7 +929,7 @@ namespace Rtx
             image->setMipmapLevels(osg::Image::MipmapDataType{ 8 });
             image->setFileName(std::string(path.value()));
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Data);
             PreparedImages prepared(nullptr, 1);
             SceneTextures described;
@@ -950,13 +958,14 @@ namespace Rtx
         /// chain is made, is the stand-in; made, it is two BC7 levels.
         TEST(RtxSceneTexturesTest, aNormalMapOfTwoChannelsStandsInUntilItsChainIsMade)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_two_n.dds");
             osg::ref_ptr<osg::Image> image
                 = Testing::makeImage("", 4, 4, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
             std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(0));
             image->setFileName(std::string(path.value()));
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Normal);
             SceneTextures described;
             described.describeAll(scene, nullptr, false);
@@ -980,6 +989,7 @@ namespace Rtx
         /// is the stand-in, and is refused nowhere.
         TEST(RtxSceneTexturesTest, aClassicSpecularMapStandsInUntilItIsConverted)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_ore_spec.dds|textures/tx_ore.dds");
             osg::ref_ptr<osg::Image> specular = Testing::makeImage("", 2, 2);
             std::fill_n(specular->data(), 16, static_cast<std::uint8_t>(128));
@@ -988,7 +998,7 @@ namespace Rtx
             std::fill_n(diffuse->data(), 16, static_cast<std::uint8_t>(128));
             diffuse->setFileName("textures/tx_ore.dds");
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             TextureHold held = scene.takeTexture(
                 path, *specular, TextureWrap::Repeat, TextureEncoding::ConvertedSpecular, diffuse.get());
             SceneTextures described;
@@ -1011,6 +1021,7 @@ namespace Rtx
         /// made**, so the device is handed the file once, as the chain it keeps.
         TEST(RtxSceneTexturesTest, aWholeChainMadeInBc7IsDescribedAsItWasMade)
         {
+            Rtx::SceneIdentities identities;
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
             osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
             std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
@@ -1024,7 +1035,7 @@ namespace Rtx
                 widened->data()[texel * 3 + 2] = 255;
             }
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             const Testing::Model read = Testing::addModel(scene, path, image);
             Testing::addModel(scene, widenedPath, widened);
 

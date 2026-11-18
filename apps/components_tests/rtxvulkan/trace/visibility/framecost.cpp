@@ -25,6 +25,7 @@
 #include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -73,6 +74,7 @@ namespace Rtx::Testing
         /// first of anything legitimately allocates (descriptor pools, driver caches, command buffer size).
         TEST_F(RtxFrameCostTest, aWarmRendererDrawsAStillFrameWithoutTheHeap)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::int32_t warmUpFrames = 16;
             constexpr std::int32_t measuredFrames = 32;
@@ -86,7 +88,7 @@ namespace Rtx::Testing
 
             // A wall to trace, and a second one behind it skinned to one bone so that there is a body
             // to pose.
-            SceneDesc scene = makeWall();
+            SceneDesc scene = makeWall(identities);
             const Index body
                 = addOneBoneBody(scene, MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }).mMesh;
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::translate(0.0f, 100.0f, 0.0f), .mMesh = body });

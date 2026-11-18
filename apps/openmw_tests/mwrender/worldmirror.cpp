@@ -129,7 +129,8 @@ namespace MWRender
         TEST(RtxWorldMirrorTest, whatTheWalkStoppedFindingIsGoneBeforeTheHandOver)
         {
             TwoBodyFrame world;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr);
+            Rtx::SceneIdentities identities;
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
             const osg::Matrixd view = osg::Matrixd::identity();
 
             const Rtx::ExtractionStats both = mirror.mirror(world.frame(1), view);
@@ -163,7 +164,8 @@ namespace MWRender
         TEST(RtxWorldMirrorTest, whatTheFramesThreadPreprocessedIsCountedOnceByTheNextFrame)
         {
             TwoBodyFrame world;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr);
+            Rtx::SceneIdentities identities;
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
             const osg::Matrixd view = osg::Matrixd::identity();
 
             osg::ref_ptr<osg::Image> sheet = Rtx::Testing::makeImage("textures/sheet.dds", 2, 2);
@@ -207,7 +209,8 @@ namespace MWRender
             };
             const auto session = [&](bool prepared) {
                 ContentStore::Store store(folder, Rtx::sContentStorePolicy);
-                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, nullptr);
+                Rtx::SceneIdentities identities;
+                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, nullptr, identities);
                 Session counted;
                 if (prepared)
                 {
@@ -247,7 +250,8 @@ namespace MWRender
         /// whose camera stands inside the body takes them out.
         TEST(RtxWorldMirrorTest, thePlayerAndTheActorsAreWalkedWhereTheViewMaskKeepsThem)
         {
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr);
+            Rtx::SceneIdentities identities;
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
 
             const osg::Node::NodeMask playing = mirror.getTraversalMask();
             EXPECT_NE(playing & Mask_Player, 0u) << "a game somebody is playing draws them";
@@ -285,7 +289,9 @@ namespace MWRender
             const std::uint32_t told = NifOsg::Loader::getHiddenNodeMask();
             NifOsg::Loader::setHiddenNodeMask(0);
 
-            const osg::Node::NodeMask mask = WorldMirror(MWRender::MirrorKnobs{}, nullptr, nullptr).getTraversalMask();
+            Rtx::SceneIdentities identities;
+            const osg::Node::NodeMask mask
+                = WorldMirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities).getTraversalMask();
 
             NifOsg::Loader::setHiddenNodeMask(told);
 

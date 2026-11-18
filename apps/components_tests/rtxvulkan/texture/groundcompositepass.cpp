@@ -23,6 +23,7 @@
 #include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -64,6 +65,7 @@ namespace Rtx
             /// stand-in.
             Baked bakeOf(float tiling, std::uint32_t outputs, bool authored, bool standsIn = false)
             {
+                SceneIdentities identities;
                 Device& device = getDevice();
                 const TexturePasses passes(device);
                 TextureArrival rooms(device);
@@ -81,7 +83,7 @@ namespace Rtx
                 constexpr std::array<float, 2> firstMask{ 1.0f, 0.0f };
                 constexpr std::array<float, 2> secondMask{ 0.0f, 1.0f };
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 scene.textures().add(VFS::Path::NormalizedView("red.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
                 std::array layers{ Testing::layerOf(0, scene.materials().addMask(firstMask), 2, 1),

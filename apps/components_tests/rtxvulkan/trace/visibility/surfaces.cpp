@@ -42,6 +42,7 @@
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
@@ -102,7 +103,9 @@ namespace Rtx::Testing
             Device& device = getDevice();
             CommandPool& pool = getPool();
 
-            const SceneDesc empty;
+            SceneIdentities identities;
+
+            const SceneDesc empty(identities);
 
             // No sprites, so no tiles, and the table is still a buffer rather than `VK_NULL_HANDLE`.
             Batch setup(pool);
@@ -161,10 +164,11 @@ namespace Rtx::Testing
         /// bytes more.
         TEST_F(RtxSceneTableTest, theMeshAndMaterialTablesHoldTheirRoomAndGrowPastIt)
         {
+            SceneIdentities identities;
             constexpr SceneRoom room{ .mMeshes = 4, .mMaterials = 4 };
 
             // Each quad at a height of its own, so each is a mesh (`SceneDesc::addMesh`).
-            SceneDesc scene;
+            SceneDesc scene(identities);
             SceneHolds holds(scene);
             float height = 0.0f;
             const auto addRaised = [&] {
@@ -215,6 +219,7 @@ namespace Rtx::Testing
         /// its texture stood, and the far wall's red were its structure left out; it draws the grey.
         TEST_F(RtxVisibilityTest, anArrivalTheDeviceHasNoRoomForIsLeftOutAndSaysSo)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -223,7 +228,7 @@ namespace Rtx::Testing
 
             constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
             constexpr std::array<std::uint8_t, 4> blueTexel{ 0, 0, 255, 255 };
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index far = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             const Index red
@@ -292,6 +297,7 @@ namespace Rtx::Testing
         /// nine tenths of a cell change.
         TEST_F(RtxVisibilityTest, aTextureAppendedLandsInItsOwnSlotAndLeavesTheRestAlone)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -300,7 +306,7 @@ namespace Rtx::Testing
 
             constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
             constexpr std::array<std::uint8_t, 4> blueTexel{ 0, 0, 255, 255 };
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             const Index red
@@ -418,13 +424,14 @@ namespace Rtx::Testing
         /// × 4` bytes, 4 MiB.
         TEST_F(RtxVisibilityTest, theReportCountsTheIndexBlocksWithTheGeometry)
         {
+            SceneIdentities identities;
             std::vector<std::uint32_t> blockFull(Shaders::INDEX_BLOCK - 1);
             static_assert((Shaders::INDEX_BLOCK - 1) % 3 == 0, "the most whole triangles a block holds");
             for (std::size_t at = 0; at < blockFull.size(); ++at)
                 blockFull[at] = static_cast<std::uint32_t>(at % 3);
 
             const auto geometryBytesOf = [&](std::span<const std::uint32_t> indices) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene) });
                 scene.addInstance(MeshInstance{
                     .mMesh = Testing::addMesh(scene, MeshArrays{ .mPositions = sUnitQuad, .mIndices = indices }) });
@@ -444,13 +451,14 @@ namespace Rtx::Testing
         /// stands first, `Shaders::MATERIAL_ROW_UNTEXTURED`, so a material appended lands past it.
         TEST_F(RtxVisibilityTest, anUntexturedPlacementWearsNothingAfterAMaterialArrives)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             Testing::SceneHolds holds(scene);
@@ -499,11 +507,12 @@ namespace Rtx::Testing
         /// the room the scene states (`SceneDesc::getRoom`).
         TEST_F(RtxVisibilityTest, aWorldsMaterialTableHoldsItsRoomAndGrowsPastIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 8;
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            SceneDesc scene(sWorldRoom);
+            SceneDesc scene(identities, sWorldRoom);
             Testing::SceneHolds holds(scene);
             const Index mesh = addQuadMesh(scene);
             holds.mesh(mesh);
@@ -536,7 +545,7 @@ namespace Rtx::Testing
             // **The room is the scene's and not the slot's**: the same wall in a world opened at
             // nought makes its tables at what it holds, under the room's by at least the two copies
             // of the material room.
-            SceneDesc bare;
+            SceneDesc bare(identities);
             Testing::SceneHolds bareHolds(bare);
             const Index bareMesh = addQuadMesh(bare);
             bareHolds.mesh(bareMesh);
@@ -565,6 +574,7 @@ namespace Rtx::Testing
         /// is a defect that shows up there before it shows up in a pixel.
         TEST_F(RtxVisibilityTest, aSceneChangingItsTextureCountStillBindsAgainstTheKeptPass)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -573,7 +583,7 @@ namespace Rtx::Testing
 
             // No textures at all, so the array is allocated with nothing in it. The tests'
             // grey of 0.5 encoded: `1.055 * 0.5^(1/2.4) - 0.055` is 0.735, or 187 of 255.
-            const Frame plain = shoot(makeWall(), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+            const Frame plain = shoot(makeWall(identities), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
             EXPECT_EQ(plain.mHits, size * size);
             EXPECT_NEAR(plain.byte(centre), 187, 1);
 
@@ -588,7 +598,7 @@ namespace Rtx::Testing
             const std::array<TextureData, 2> textures{ describeTexel(redTexel), describeTexel(greenTexel) };
 
             // The same wall, and it needs texture coordinates that `makeWall` has no use for.
-            SceneDesc textured;
+            SceneDesc textured(identities);
             const Index mesh = Testing::addMesh(
                 textured, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             const Index material = textured.addMaterial(
@@ -604,7 +614,7 @@ namespace Rtx::Testing
 
             // And back down to none, which is the direction a cell change actually takes when a
             // player walks out of a rich interior.
-            const Frame again = shoot(makeWall(), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+            const Frame again = shoot(makeWall(identities), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
             EXPECT_EQ(again.mHits, size * size);
             EXPECT_EQ(again.bytes(), plain.bytes());
         }
@@ -624,6 +634,7 @@ namespace Rtx::Testing
         /// one.
         TEST_F(RtxVisibilityTest, aMeshInTheSecondBlockIsShadedOutOfTheSecondBlock)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
@@ -686,13 +697,13 @@ namespace Rtx::Testing
                 return mesh;
             };
 
-            SceneDesc single;
+            SceneDesc single(identities);
             const Index alone = addWall(single);
             ASSERT_EQ(single.meshes().getRows()[alone].mVertices.mOffset, 0u);
 
             // **One filler that fills both blocks**, because the vertex and index tables are blocked
             // at different sizes and a mesh pushed past one is not thereby past the other.
-            SceneDesc crossed;
+            SceneDesc crossed(identities);
             const std::vector<osg::Vec3f> fillerVertices(MeshTable::sVertexBlock, osg::Vec3f(0.0f, 0.0f, 0.0f));
 
             // The largest whole number of triangles a block holds, so what is left of it is one
@@ -742,6 +753,7 @@ namespace Rtx::Testing
         /// 255, which is a byte a half carries exactly.
         TEST_F(RtxVisibilityTest, theSurfaceChannelCarriesTheNormalAndTheAlbedoAsTheSurfaceHasThem)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             TestTexture ladder;
@@ -759,7 +771,7 @@ namespace Rtx::Testing
                 corner = osg::Matrixf::transform3x3(corner, turned);
             const std::array<osg::Vec3f, 4> normals{ expected, expected, expected, expected };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addMesh(scene,
                 MeshArrays{
                     .mPositions = positions, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -808,6 +820,7 @@ namespace Rtx::Testing
         /// black, which has no hue, tints nothing.
         TEST_F(RtxVisibilityTest, aVertexColourTintsTheAlbedoWhereTheContentAsksAndNowhereElse)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
             const TextureData grey = describeTexel(sGreyTexel);
@@ -819,7 +832,7 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             const auto albedoUnder = [&](VertexColour mode, std::span<const osg::Vec3f> colours) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{ .mPositions = sWallQuad,
                         .mTexCoords = sQuadUv,
@@ -870,6 +883,7 @@ namespace Rtx::Testing
         /// renders are the same frame.
         TEST_F(RtxVisibilityTest, aVertexGlowIsTheMaterialsOwnEmissiveColourSaidPerVertex)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             const osg::Vec3f glow(0.75f, 0.5f, 0.25f);
             const TextureData grey = describeTexel(sGreyTexel);
@@ -880,7 +894,7 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             const auto render = [&](VertexColour mode, const osg::Vec3f& emissive, std::vector<std::uint8_t>& pixels) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{ .mPositions = sWallQuad,
                         .mTexCoords = sQuadUv,
@@ -932,6 +946,7 @@ namespace Rtx::Testing
         /// channel keeps its sign.
         TEST_F(RtxVisibilityTest, anEnvironmentSheetIsAddedPastTheAlbedoWhereTheEyesReflectionLands)
         {
+            SceneIdentities identities;
             // Odd, so the centre pixel's own centre is on the axis and the reflection lands on the
             // middle of the sheet exactly; at an even size it is half a pixel off and reads a
             // sixtieth more of one quadrant than the others.
@@ -950,7 +965,7 @@ namespace Rtx::Testing
 
             const auto render = [&](bool sheeted, std::vector<float>& radiance, bool lit = false,
                                     SurfaceView show = SurfaceView::Shaded) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(
                     scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
@@ -1042,6 +1057,7 @@ namespace Rtx::Testing
         /// The surface is black, so what the middle pixel holds is the sheet and nothing else.
         TEST_F(RtxVisibilityTest, anEnvironmentSheetIsReadAtTheLevelItsOwnCurvatureAsksFor)
         {
+            SceneIdentities identities;
             // Odd, so the middle pixel's own centre is on the axis. Small, because one pixel is
             // read and a trace is the cost of this test.
             constexpr std::uint32_t size = 17;
@@ -1070,7 +1086,7 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -away, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             const auto levelOf = [&](std::span<const osg::Vec3f> normals) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{
                         .mPositions = quad, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -1123,6 +1139,7 @@ namespace Rtx::Testing
         /// isotropic cone stated before the footprint had axes — would be half a level coarser.
         TEST_F(RtxVisibilityTest, aFootprintAtAnAnisotropyOfOneIsReadAtItsLongAxis)
         {
+            SceneIdentities identities;
             // Odd, so the middle pixel's own centre is on the axis.
             constexpr std::uint32_t size = 17;
             constexpr std::size_t centre = centreValueOf(size);
@@ -1144,7 +1161,7 @@ namespace Rtx::Testing
                 for (osg::Vec2f& at : uv)
                     at.x() *= uScale;
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(
                     scene, MeshArrays{ .mPositions = quad, .mTexCoords = uv, .mIndices = sQuadIndices });
                 // Black, so the glow is the whole of what the pixel holds.
@@ -1178,6 +1195,7 @@ namespace Rtx::Testing
         /// and the centre pixel reads the bilinear middle of all four quadrants.
         TEST_F(RtxVisibilityTest, theDarkMapMultipliesTheAlbedoOnTheSetItsUnitReads)
         {
+            SceneIdentities identities;
             // Odd for the reason the sheet test gives: the centre pixel reads the sheet's exact
             // middle.
             constexpr std::uint32_t size = 33;
@@ -1198,7 +1216,7 @@ namespace Rtx::Testing
                 osg::Vec2f(0.25f, 0.25f), osg::Vec2f(0.25f, 0.25f) };
 
             const auto albedoUnder = [&](std::uint32_t darkSlot, std::uint8_t unit, std::uint32_t unitStreams) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{
                         .mPositions = sWallQuad,
@@ -1247,7 +1265,7 @@ namespace Rtx::Testing
             unlit.mAmbient = osg::Vec3f();
             unlit.mSun.mIrradiance = osg::Vec3f();
             const auto glowUnder = [&](std::uint8_t unit, std::uint32_t unitStreams) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{
                         .mPositions = sWallQuad,
@@ -1289,6 +1307,7 @@ namespace Rtx::Testing
         /// second set, the decal is the quadrant sheet's red whole, alpha one, which is all there is to see.
         TEST_F(RtxVisibilityTest, theDetailAndTheDecalMapsAreLaidIntoTheAlbedoOnTheSetsTheirUnitsRead)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1314,7 +1333,7 @@ namespace Rtx::Testing
                 osg::Vec3f mTint{ 1.0f, 1.0f, 1.0f };
             };
             const auto albedoUnder = [&](const Laid& laid) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{
                         .mPositions = sWallQuad,
@@ -1379,6 +1398,7 @@ namespace Rtx::Testing
         /// which is `DETAIL_GREY` decoded. A gloss texel of `(255, 128, 0)` multiplies what is read by itself.
         TEST_F(RtxVisibilityTest, aBumpMapMovesAndDimsTheSheetAndAGlossMapScalesIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1403,7 +1423,7 @@ namespace Rtx::Testing
                 Index mGloss = sNoIndex;
             };
             const auto radianceUnder = [&](const Sheeted& sheeted) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(
                     scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
@@ -1463,6 +1483,7 @@ namespace Rtx::Testing
         /// the eye sees glows, black under it, so the pixel holds the texel times `EMISSIVE_INTENSITY`.
         TEST_F(RtxVisibilityTest, aTextureIsReadPastItsEdgeAsItsFileWrapsIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 9;
             constexpr std::size_t centre = centreValueOf(size);
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -1475,7 +1496,7 @@ namespace Rtx::Testing
 
                 const std::array<osg::Vec2f, 4> pastTheEdge{ osg::Vec2f(1.25f, 1.25f), osg::Vec2f(1.25f, 1.25f),
                     osg::Vec2f(1.25f, 1.25f), osg::Vec2f(1.25f, 1.25f) };
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(
                     scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = pastTheEdge, .mIndices = sQuadIndices });
                 const Index material = scene.addMaterial(
@@ -1511,6 +1532,7 @@ namespace Rtx::Testing
         /// controller has faded it.
         TEST_F(RtxVisibilityTest, anAdditiveSurfaceAddsByItsOwnAlphaAndIsMetByNothingThatShades)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1527,7 +1549,7 @@ namespace Rtx::Testing
 
             const auto build = [&](std::optional<float> alpha, InstanceClass sheetClass = InstanceClass::Static,
                                    bool decaled = false) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index wall = Testing::addMesh(
                     scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
@@ -1720,6 +1742,7 @@ namespace Rtx::Testing
         /// player looked out through a purple haze the rasterizer never drew.
         TEST_F(RtxVisibilityTest, anAdditiveSurfaceIsDrawnFromTheFaceTheContentDraws)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1733,7 +1756,7 @@ namespace Rtx::Testing
             const std::array<osg::Vec3f, 4> held = uprightQuadAt(20.0f, -50.0f);
 
             const auto build = [&](std::optional<std::array<osg::Vec3f, 4>> sheet, bool twoSided) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index wall = Testing::addMesh(
                     scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
@@ -1792,6 +1815,7 @@ namespace Rtx::Testing
         ///   a skinned left part stands once its skin mirrored it: met.
         TEST_F(RtxVisibilityTest, aPlacementShowsTheFaceTheRasterizerShowsMirroredOrClockwise)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
             const Shaders::VisibilityConstants camera = wallCamera(
@@ -1803,7 +1827,7 @@ namespace Rtx::Testing
             const osg::Matrixf mirror = osg::Matrixf::scale(-1.0f, 1.0f, 1.0f);
 
             const auto metAt = [&](std::span<const osg::Vec3f, 4> quad, const osg::Matrixf& place, bool clockwise) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sWallQuad);
                 scene.addInstance(MeshInstance{ .mTransform = place,
                     .mMesh = addQuadMesh(scene, quad),
@@ -1846,6 +1870,7 @@ namespace Rtx::Testing
         /// different grey, so the level chosen is legible in a single pixel.
         TEST_F(RtxVisibilityTest, theConeReadsTheMipTheDistanceCallsFor)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             TestTexture ladder;
@@ -1854,7 +1879,7 @@ namespace Rtx::Testing
 
             const std::array positions = cardAt(0.0f);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             const Index material
@@ -1903,6 +1928,7 @@ namespace Rtx::Testing
         /// arithmetic pins: 0.5 of a linear one encodes to 1.055 * 0.5^(1/2.4) - 0.055, or 188.
         TEST_F(RtxVisibilityTest, groundSumsItsLayersByTheWeightsItsMasksName)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             // Two solid textures and one two-texel strip, all one level so nothing but the layer
@@ -1943,7 +1969,7 @@ namespace Rtx::Testing
             /// @param colours the ground's vertex colours, which tint it where any are given.
             const auto render
                 = [&](Index second, const osg::Vec4f& secondTransform, std::span<const osg::Vec3f> colours = {}) {
-                      SceneDesc scene;
+                      SceneDesc scene(identities);
                       const Index mesh = Testing::addMesh(scene,
                           MeshArrays{ .mPositions = positions,
                               .mTexCoords = sQuadUv,
@@ -2030,6 +2056,7 @@ namespace Rtx::Testing
         /// green chunk's card, a quarter the size at half the distance, covers the middle half.
         TEST_F(RtxVisibilityTest, aGroundArrivingPastTheRunsRoomKeepsTheGroundBeforeIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr std::size_t corner = 0;
@@ -2044,7 +2071,7 @@ namespace Rtx::Testing
             constexpr std::array<float, 1> whole{ 1.0f };
             const std::array positions = cardAt(0.0f);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             const Index blue = scene.textures().add(VFS::Path::NormalizedView("blue.dds"));
@@ -2122,6 +2149,7 @@ namespace Rtx::Testing
         /// channel of RADV's integrated GPU came back off `G` — where a ray left out is a third of `G` off.
         TEST_F(RtxVisibilityTest, everyLandingOfAListLongerThanARowIsVisited)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 384;
             constexpr float half = 100.0f;
 
@@ -2130,7 +2158,7 @@ namespace Rtx::Testing
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.3f, 0.2f, 1.0f), osg::Vec3f(3.0f, 3.0f, 3.0f));
 
             const auto box = [&](const osg::Vec3f& glow) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index walls = scene.addMaterial(Material{
                     .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mEmissiveColour = glow, .mTwoSided = true });
                 addBox(scene, half, walls, walls);
@@ -2206,13 +2234,14 @@ namespace Rtx::Testing
         /// from its own glowing wall never.
         TEST_F(RtxVisibilityTest, eachBounceRayTakesADirectionOfItsOwn)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float half = 100.0f;
 
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 30.0f, size, size, 10000.0f);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index dark
                 = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
             const Index glowing = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
@@ -2297,6 +2326,7 @@ namespace Rtx::Testing
         /// because a player moves it in the menu with the world loaded.
         TEST_F(RtxVisibilityTest, aFootprintIsReadAlongItsLongAxisOnlyAsFarAsTheSettingLetsIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 16;
             constexpr std::uint32_t extent = 8;
             constexpr float texel = 3.5f;
@@ -2325,7 +2355,7 @@ namespace Rtx::Testing
             for (std::size_t corner = 0; corner < ground.size(); ++corner)
                 uv[corner] = osg::Vec2f(ground[corner].x(), ground[corner].y()) / perUv;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = ground, .mTexCoords = uv, .mIndices = sQuadIndices });
             const Index material = scene.addMaterial(
@@ -2372,6 +2402,7 @@ namespace Rtx::Testing
         /// one, whatever else the row holds.
         TEST_F(RtxVisibilityTest, groundInsideTheActiveGridShowsTheEyeItsStackAndABounceItsComposite)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 16;
             constexpr std::array<std::uint8_t, 4> sRed{ 255, 0, 0, 255 };
             constexpr std::array<std::uint8_t, 4> sGreen{ 0, 255, 0, 255 };
@@ -2384,7 +2415,7 @@ namespace Rtx::Testing
                 osg::Vec3f(4000.0f, 0.0f, -100.0f), osg::Vec3f(-4000.0f, 0.0f, -100.0f) };
 
             const auto sceneFor = [&](const GroundFlattening flattening, const bool composite) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 scene.textures().add(VFS::Path::NormalizedView("red.dds"));
                 const Index green = scene.textures().add(VFS::Path::NormalizedView("green.dds"));
 
@@ -2473,6 +2504,7 @@ namespace Rtx::Testing
         /// gloss standing in under a flattened chunk.
         TEST_F(RtxVisibilityTest, groundSumsItsLayersMapsByTheWeightsItsAlbedoIsSummedBy)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::array<std::uint8_t, 4> sRed{ 255, 0, 0, 255 };
             constexpr std::array<std::uint8_t, 4> sLeaning{ 191, 128, 221, 255 };
@@ -2497,7 +2529,7 @@ namespace Rtx::Testing
                 if (standsIn.has_value())
                     described[*standsIn].mSource = TextureSource::StandIn;
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{ .mPositions = positions,
                         .mNormals = normals,
@@ -2612,6 +2644,7 @@ namespace Rtx::Testing
         /// `cross(N, x) = (0, 0, 0.8)` the lean would come out four fifths as far.
         TEST_F(RtxVisibilityTest, onASlopeTheLayersFrameStaysUnit)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::array<std::uint8_t, 4> sRed{ 255, 0, 0, 255 };
             constexpr std::array<std::uint8_t, 4> sAcross{ 128, 191, 221, 255 };
@@ -2621,7 +2654,7 @@ namespace Rtx::Testing
             const std::array normals{ leaning, leaning, leaning, leaning };
             constexpr std::array<float, 2> everywhere{ 1.0f, 1.0f };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addMesh(scene,
                 MeshArrays{
                     .mPositions = cardAt(0.0f), .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -2719,7 +2752,8 @@ namespace Rtx::Testing
                 textures[0].mSlot = 0;
                 textures[1].mSlot = 1;
 
-                SceneDesc scene;
+                SceneIdentities identities;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{ .mPositions = sWallQuad,
                         .mNormals = normals,
@@ -2748,6 +2782,7 @@ namespace Rtx::Testing
             /// beside it otherwise. The centre pixel's albedo from `eye`.
             float groundShown(const osg::Vec3f& eye, float share)
             {
+                SceneIdentities identities;
                 constexpr std::uint32_t size = 65;
                 const Testing::TestTexture albedo = paintRamp();
                 const Testing::TestTexture heights = paintPlateau();
@@ -2758,7 +2793,7 @@ namespace Rtx::Testing
                 textures[0].mSlot = 0;
                 textures[1].mSlot = 1;
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{ .mPositions = sWallQuad,
                         .mNormals = normals,
@@ -2816,6 +2851,7 @@ namespace Rtx::Testing
         /// A normal map that stands in shifts nothing, and neither does a surface not flagged.
         TEST_F(RtxVisibilityTest, parallaxShiftsTheSheetTowardTheEyeByTheNormalMapsHeight)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             const Testing::TestTexture albedo = paintRamp();
@@ -2835,7 +2871,7 @@ namespace Rtx::Testing
                 if (standsIn)
                     textures[1].mSource = TextureSource::StandIn;
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addMesh(scene,
                     MeshArrays{ .mPositions = sWallQuad,
                         .mNormals = normals,
@@ -3026,6 +3062,7 @@ namespace Rtx::Testing
         /// be the whole chunk.
         TEST_F(RtxVisibilityTest, aFlattenedChunkDrawsItsCompositeHoweverItArrived)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             const std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
@@ -3037,7 +3074,7 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             scene.textures().add(VFS::Path::NormalizedView("red.dds"));

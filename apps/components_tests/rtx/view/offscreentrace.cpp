@@ -32,6 +32,7 @@
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/view/offscreentrace.hpp>
 #include <components/rtx/view/viewscene.hpp>
@@ -64,13 +65,14 @@ namespace Rtx
         /// kind reserves room for its picture as it is made (`PictureRenderer::reservePicture`).
         TEST(RtxOffscreenTraceTest, aPictureOfTheWorldOwnsNoSceneAndOneOfASubjectDoes)
         {
+            SceneIdentities identities;
             WalkContext context{};
             Testing::CountingRenderer renderer;
             osg::ref_ptr<osg::Group> subject = new osg::Group;
             subject->addChild(Testing::makeQuad());
 
-            const OffscreenTrace world(
-                renderer, ViewRequest{ .mWidth = 64, .mHeight = 64, .mRayMask = Shaders::MASK_EVERY_CLASS }, context);
+            const OffscreenTrace world(renderer,
+                ViewRequest{ .mWidth = 64, .mHeight = 64, .mRayMask = Shaders::MASK_EVERY_CLASS }, context, identities);
             EXPECT_TRUE(world.isOfWorld());
             EXPECT_EQ(world.getScene(), nullptr);
             EXPECT_EQ(renderer.mViewScenes, 0u);
@@ -84,7 +86,7 @@ namespace Rtx
                         .mRayMask = Shaders::MASK_EVERY_CLASS,
                         .mSubject = subject.get(),
                         .mSubjectMask = sEveryNode },
-                    context);
+                    context, identities);
                 EXPECT_FALSE(doll.isOfWorld());
                 ASSERT_NE(doll.getScene(), nullptr);
                 EXPECT_EQ(renderer.mPictureWidth, 64u) << "a narrower view shrank the room";
@@ -103,6 +105,7 @@ namespace Rtx
         /// white diffuse is pi, and a black ambient nought.
         TEST(RtxOffscreenTraceTest, aPictureHandsItsLightWhatItDrawsAndItsBackdrop)
         {
+            SceneIdentities identities;
             WalkContext context{};
             Testing::CountingRenderer renderer;
             OffscreenTrace world(renderer,
@@ -115,7 +118,7 @@ namespace Rtx
                         .mDiffuse = osg::Vec4f(1.f, 1.f, 1.f, 1.f),
                         .mAmbient = osg::Vec4f(0.f, 0.f, 0.f, 1.f) },
                     .mClear = osg::Vec4f(0.f, 0.f, 0.f, 0.5f) },
-                context);
+                context, identities);
             EXPECT_TRUE(world.traceInto(GuiSlot::at(0), false)) << "a picture traced said it recorded nothing";
 
             ASSERT_TRUE(renderer.mTraced.has_value());
@@ -137,7 +140,7 @@ namespace Rtx
                     .mHeight = 64,
                     .mRayMask = Shaders::MASK_STATIC,
                     .mFraming = { .mProjection = SceneUtil::Perspective{ .mFieldOfView = 0.f } } },
-                context);
+                context, identities);
             EXPECT_FALSE(blind.traceInto(GuiSlot::at(0), true)) << "a camera refused said it recorded";
             EXPECT_FALSE(renderer.mTraced.has_value());
         }
@@ -184,6 +187,7 @@ namespace Rtx
         /// acceleration structure in the doll on every frame of a slider drag.
         TEST(RtxOffscreenTraceTest, aRebuiltSubjectPlacesWhatArrivedAndHandsTheRoomToWhatComesNext)
         {
+            SceneIdentities identities;
             WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
@@ -201,7 +205,7 @@ namespace Rtx
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
-                context);
+                context, identities);
             const SceneDesc& scene = *trace.getScene();
 
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, true));
@@ -294,6 +298,7 @@ namespace Rtx
         /// carries.
         TEST(RtxOffscreenTraceTest, aSubjectsWalkSharesTheThreadsContentAndRunsAtTheWorldsClock)
         {
+            SceneIdentities identities;
             WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
@@ -309,7 +314,7 @@ namespace Rtx
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
-                context);
+                context, identities);
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(7), releasing, true));
 
             EXPECT_EQ(context.mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 1u)
@@ -325,6 +330,7 @@ namespace Rtx
         /// describes the chain at its first rebuild.
         TEST(RtxOffscreenTraceTest, aPictureAwaitsTheImagesBeingMadeUnlessSettled)
         {
+            SceneIdentities identities;
             PreparedImages prepared(nullptr, 1);
             WalkContext context{ .mPrepared = &prepared };
             Released releasing;
@@ -350,7 +356,7 @@ namespace Rtx
             };
 
             Testing::CountingRenderer renderer;
-            OffscreenTrace trace(renderer, request, context);
+            OffscreenTrace trace(renderer, request, context, identities);
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, false));
             EXPECT_FALSE(holdsChain(renderer)) << "the hand-over waited";
             EXPECT_TRUE(trace.awaitsImages());
@@ -363,7 +369,7 @@ namespace Rtx
             PreparedImages fresh(nullptr, 1);
             WalkContext freshContext{ .mPrepared = &fresh };
             Testing::CountingRenderer settledRenderer;
-            OffscreenTrace settled(settledRenderer, request, freshContext);
+            OffscreenTrace settled(settledRenderer, request, freshContext, identities);
             ASSERT_TRUE(settled.rebuildSubject(*stampAt(3), releasing, true));
             EXPECT_TRUE(holdsChain(settledRenderer));
             EXPECT_FALSE(settled.awaitsImages());
@@ -376,6 +382,7 @@ namespace Rtx
         /// acceleration structure in it.
         TEST(RtxOffscreenTraceTest, anEmptySubjectSaysThereIsNothingToTrace)
         {
+            SceneIdentities identities;
             WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
@@ -388,7 +395,7 @@ namespace Rtx
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
-                context);
+                context, identities);
             EXPECT_FALSE(trace.rebuildSubject(*stampAt(1), releasing, true));
             EXPECT_EQ(trace.getScene()->placements().getCounts().mPlaced, 0u);
         }
@@ -397,6 +404,7 @@ namespace Rtx
         /// dropped wherever it appears below.
         TEST(RtxOffscreenTraceTest, theSubjectMaskKeepsTheWalkOutOfWhatItDoesNotName)
         {
+            SceneIdentities identities;
             WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
@@ -422,7 +430,7 @@ namespace Rtx
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
                     .mSubjectMask = wanted },
-                context);
+                context, identities);
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, true));
 
             // One of the two, and the same fixture with `wanted | other` would take both — which is
@@ -435,7 +443,7 @@ namespace Rtx
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
                     .mSubjectMask = wanted | other },
-                context);
+                context, identities);
             ASSERT_TRUE(both.rebuildSubject(*stampAt(1), releasing, true));
             EXPECT_EQ(both.getScene()->placements().getCounts().mPlaced, 2u);
         }
@@ -459,6 +467,7 @@ namespace Rtx
         /// picture's clock, the part is posed as every other. Before the first redraw there is no picture.
         TEST(RtxOffscreenTraceTest, aPickMeetsAPartPutOnSinceTheLastRedrawAndLogsNothing)
         {
+            SceneIdentities identities;
             WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
@@ -483,7 +492,7 @@ namespace Rtx
                         .mFar = 100.0f },
                     .mSubject = skeleton.get(),
                     .mSubjectMask = sEveryNode },
-                context);
+                context, identities);
             trace.setView(
                 osg::Matrixd::lookAt(osg::Vec3d(0.5, 0.5, 10.0), osg::Vec3d(0.5, 0.5, 0.0), osg::Vec3d(0.0, 1.0, 0.0)));
 

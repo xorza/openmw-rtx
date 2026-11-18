@@ -190,10 +190,11 @@ namespace MWRender
         }
     }
 
-    WorldMirror::WorldMirror(
-        const MirrorKnobs& knobs, ContentStore::Store* const store, Rtx::PreparedImages* const prepared)
+    WorldMirror::WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* const store,
+        Rtx::PreparedImages* const prepared, Rtx::SceneIdentities& identities)
         : mStore(store)
         , mWalk{ .mContent{ store, ContentStore::Reach::Memory }, .mPrepared = prepared }
+        , mScene(identities, Rtx::sWorldRoom)
         , mKnobs(knobs)
         , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom)
         , mTraversal(worldTraversal(~0u))

@@ -25,6 +25,7 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
@@ -190,9 +191,10 @@ namespace Rtx
         /// of 36 is 20.9), with nothing the layers raise in all of it.
         TEST_F(RtxDlssRendererTest, aFrameLeavesTheCompositeAsTheTraceHandedItThroughACutAndAModeChange)
         {
+            SceneIdentities identities;
             mRenderer.resize(64, 36);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             Testing::addQuad(scene, Testing::sheetAt(4000.0f, 0.0f));
             mRenderer.setScene(SceneSlot::world(), scene, {});
 

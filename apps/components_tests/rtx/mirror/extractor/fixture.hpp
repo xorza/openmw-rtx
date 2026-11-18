@@ -33,6 +33,7 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/sceneutil/lightutil.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/riggeometry.hpp>
@@ -145,7 +146,8 @@ namespace Rtx::Testing
 
         /// The frame thread's, which production owns once and every extractor on it shares.
         WalkContext mContext{};
-        Rtx::SceneDesc mScene;
+        Rtx::SceneIdentities mIdentities;
+        Rtx::SceneDesc mScene{ mIdentities };
         SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom };
         double mWorldSeconds = 0.0;
     };

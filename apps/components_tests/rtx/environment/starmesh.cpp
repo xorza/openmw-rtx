@@ -28,6 +28,7 @@
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/world/nightsky.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -103,6 +104,7 @@ namespace Rtx
         /// over its own, as the rasterizer's state stack resolves the two.
         TEST(RtxNightSkyTest, aPatchStandsWhereTheGraphPlacesItAndWearsTheSheetItsPathBinds)
         {
+            SceneIdentities identities;
             const osg::Matrix turn = osg::Matrix::rotate(osg::PI_2, osg::X_AXIS);
             osg::ref_ptr<osg::MatrixTransform> dome = new osg::MatrixTransform(turn);
 
@@ -121,7 +123,7 @@ namespace Rtx
             locked->addChild(own);
             dome->addChild(locked);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
             std::vector<ReadingHold> holds;
 
@@ -158,6 +160,7 @@ namespace Rtx
         /// up, both over the span that makes it a field.
         TEST(RtxNightSkyTest, aFieldsTileIsAWholeNumberOfThemAroundTheSky)
         {
+            SceneIdentities identities;
             constexpr float rate = 1.3f;
             constexpr std::int32_t columns = 16;
             osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
@@ -185,7 +188,7 @@ namespace Rtx
             osg::ref_ptr<osg::Group> dome = new osg::Group;
             dome->addChild(band);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
             std::vector<ReadingHold> holds;
             const Given given{ scene, holds };

@@ -34,7 +34,8 @@ namespace Rtx
         }
     }
 
-    OffscreenTrace::OffscreenTrace(PictureRenderer& renderer, const ViewRequest& request, WalkContext& context)
+    OffscreenTrace::OffscreenTrace(
+        PictureRenderer& renderer, const ViewRequest& request, WalkContext& context, SceneIdentities& identities)
         : mRenderer(renderer)
         , mRequest(request)
         , mExtentWidth(request.mWidth)
@@ -49,7 +50,7 @@ namespace Rtx
 
         Subject& held = *mSubject;
         held.mNode = request.mSubject;
-        held.mScene = std::make_unique<SceneDesc>();
+        held.mScene = std::make_unique<SceneDesc>(identities);
         held.mUpdate = std::make_unique<PoseUpdate>();
         held.mPose = std::make_unique<PoseCull>();
         held.mPoseStamp = new osg::FrameStamp;

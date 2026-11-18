@@ -26,6 +26,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
@@ -386,6 +387,7 @@ namespace Rtx
         /// short. Asked again, nothing stands above its want, and the larger moves, short of its file.
         TEST_F(RtxTextureArrayTest, whatStandsFinerThanItsReadersWantMovesFirstAndIsNotShort)
         {
+            SceneIdentities identities;
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
             const TexturePasses passes(device);
@@ -402,7 +404,7 @@ namespace Rtx
             small.mData.mSlot = 1;
 
             // The scene's table, its slots the array's: the small file's material asked from level 1.
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const osg::ref_ptr<osg::Image> largeImage = Testing::makeImage("textures/large.dds", 256, 256);
             const osg::ref_ptr<osg::Image> smallImage = Testing::makeImage("textures/small.dds", 128, 128);
             ASSERT_EQ(scene.textures().add(VFS::Path::NormalizedView("textures/large.dds"), largeImage.get()), 0u);

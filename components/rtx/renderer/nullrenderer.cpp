@@ -162,7 +162,7 @@ namespace Rtx
 
     FrameTraced NullRenderer::renderFrame(const FrameRequest& request)
     {
-        assert(mWorld.mIdentity != 0 && "a frame traced before the world's scene was set");
+        assert(mWorld.mIdentity != SceneIdentity{} && "a frame traced before the world's scene was set");
         // The host collects a frame before it places the next where the ring is full
         // (`collectFrame`), so a frame never finds the ring full here.
         assert(mUnreportedCount < sFramesInFlight && "a frame traced into a full ring");

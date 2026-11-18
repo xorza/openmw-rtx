@@ -47,6 +47,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -235,14 +236,15 @@ namespace Rtx::Testing
         /// sprites carry an alpha of one whatever their ramps say.
         TEST_F(RtxSceneExtractorTest, theBlendTellsAFlameFromSmoke)
         {
+            Rtx::SceneIdentities identities;
             const auto extractOne
-                = [](osg::BlendFunc::BlendFuncMode source, osg::BlendFunc::BlendFuncMode destination) {
+                = [&identities](osg::BlendFunc::BlendFuncMode source, osg::BlendFunc::BlendFuncMode destination) {
                       const Plume plume = makePlume(osg::Matrix::identity(), false);
                       plume.mRoot->getOrCreateStateSet()->setAttributeAndModes(
                           new osg::BlendFunc(source, destination), osg::StateAttribute::ON);
                       emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 0.25f));
 
-                      Rtx::SceneDesc scene;
+                      Rtx::SceneDesc scene(identities);
                       WalkContext context{};
                       SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                       extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
@@ -291,10 +293,11 @@ namespace Rtx::Testing
         /// motion between two frames, a reprojection of the wrong thing.
         TEST(RtxSceneExtractorPrecipitationTest, dropsAreStoodAtTheEye)
         {
+            SceneIdentities identities;
             const osg::ref_ptr<osg::Group> falling = makeFalling();
             const osg::Vec3f eye(1000.0f, -2000.0f, 300.0f);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             WalkContext context{};
             SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
             extractor.extractPrecipitation(falling, eye, 0);
@@ -304,7 +307,7 @@ namespace Rtx::Testing
 
             // And a world with no weather over it, or a fall the game hides, is the other case the
             // one call answers.
-            SceneDesc dry;
+            SceneDesc dry(identities);
             SceneExtractor none(dry, context, sSubjectExtractorRoom);
             none.extractPrecipitation(nullptr, eye, 0);
 
@@ -316,10 +319,11 @@ namespace Rtx::Testing
         /// `extract`, and a walk after a falling one is not left falling.
         TEST_F(RtxSceneExtractorTest, theWalkSaysWhetherAnEmittersSpritesFall)
         {
+            Rtx::SceneIdentities identities;
             const Plume plume = makePlume(osg::Matrix::identity(), false);
             emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
 
             extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), 0);
@@ -339,6 +343,7 @@ namespace Rtx::Testing
         /// particle in its own colour, lit as a flat card.
         TEST_F(RtxSceneExtractorTest, deadParticlesPlaceNothingAndAnUntexturedSystemDrawsWhite)
         {
+            Rtx::SceneIdentities identities;
             const Plume spent = makePlume(osg::Matrix::identity(), true);
             osgParticle::Particle* particle
                 = emit(*spent.mParticles, osg::Vec3f(0.0f, 0.0f, 5.0f), 3.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
@@ -362,7 +367,7 @@ namespace Rtx::Testing
             bare->addChild(particles);
             emit(*particles, osg::Vec3f(), 1.0f, osg::Vec4f(0.25f, 0.5f, 1.0f, 1.0f));
 
-            Rtx::SceneDesc bareScene;
+            Rtx::SceneDesc bareScene(identities);
             SceneExtractor bareExtractor(bareScene, mContext, sSubjectExtractorRoom);
             EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity(), 0).mEmitters, 1u);
             EXPECT_TRUE(bareScene.textures().getRows().empty()) << "a slot taken for no image";
@@ -384,6 +389,7 @@ namespace Rtx::Testing
         /// the model and the record.
         TEST_F(RtxSceneExtractorTest, aModelsOwnSpriteIsDrawnUnderItsStampAndANamelessOneRefused)
         {
+            Rtx::SceneIdentities identities;
             const osg::ref_ptr<osg::Image> own = new osg::Image;
             SceneUtil::EmbeddedImage::stamp(*own, "meshes/e/magic_cast.nif", 3);
             const Plume stamped = makePlume(osg::Matrix::identity(), true, own);
@@ -401,7 +407,7 @@ namespace Rtx::Testing
             const Plume unnamed = makePlume(osg::Matrix::identity(), true, nameless);
             unnamed.mParticles->setName("nameless");
             emit(*unnamed.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
-            Rtx::SceneDesc namelessScene;
+            Rtx::SceneDesc namelessScene(identities);
             SceneExtractor namelessExtractor(namelessScene, mContext, sSubjectExtractorRoom);
             namelessExtractor.extract(*unnamed.mRoot, osg::Matrixf::identity(), 0);
 
@@ -707,13 +713,14 @@ namespace Rtx::Testing
         /// something hand-built does not; reading after the walk has settled removes the question.
         TEST_F(RtxSceneExtractorTest, spritesAreReadAfterTheWalkRatherThanAsItPassesThem)
         {
-            const auto run = [](bool updaterAbove) {
+            Rtx::SceneIdentities identities;
+            const auto run = [&identities](bool updaterAbove) {
                 resetRandom();
 
                 Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
                 drive(plume, 100.0, updaterAbove);
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
 
@@ -745,11 +752,12 @@ namespace Rtx::Testing
         /// hundred units a second and moves each a hundred, where a fifth of a second emitted and moved twenty.
         TEST_F(RtxSceneExtractorTest, aLongStepOfTheWorldIsTheEmittersWholeStep)
         {
+            Rtx::SceneIdentities identities;
             resetRandom();
             Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
             drive(plume, 100.0, true);
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
             for (const double seconds : { 0.1, 1.1 })
             {

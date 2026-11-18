@@ -11,6 +11,7 @@
 #include <components/rtx/scene/materialtable.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/textureasks.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 
@@ -75,7 +76,8 @@ namespace Rtx
         /// now; a holder that reads a texture itself asks level 0; and a texture nothing asks is wanted whole.
         TEST(RtxTextureAsksTest, aTextureIsWantedFromTheFinestLevelItsReadersAsk)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             TextureTable& textures = scene.textures();
 
             // 1024 square: an offset of 0.5 log2(1024 × 1024) = 10.
@@ -146,7 +148,8 @@ namespace Rtx
         /// neither. One that rests counts against the level its last readers asked.
         TEST(RtxTextureAsksTest, theMeterSplitsWhatATextureStoodByItsChainsLevels)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             TextureTable& textures = scene.textures();
             const osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/large.dds", 1024, 1024);
             const Index far = textures.add(VFS::Path::NormalizedView("textures/far.dds"), image.get());
@@ -193,7 +196,8 @@ namespace Rtx
         /// `compact`, once.
         TEST(RtxTextureAsksTest, aWantFinerThanWhatStoodArrivesAgain)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             TextureTable& textures = scene.textures();
             const osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/large.dds", 1024, 1024);
             const Index slot = textures.add(VFS::Path::NormalizedView("textures/stood.dds"), image.get());

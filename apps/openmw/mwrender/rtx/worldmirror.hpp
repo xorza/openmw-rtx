@@ -74,7 +74,9 @@ namespace MWRender
         ///        memory alone, and the cell reader its files too.
         /// @param prepared where the world's normal and data maps find their chains made again, or
         ///        null for none (`Rtx::PreparedImages`).
-        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::PreparedImages* prepared);
+        /// @param identities the renderer's, which the world's scene takes its identity from, and which outlives it.
+        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::PreparedImages* prepared,
+            Rtx::SceneIdentities& identities);
 
         /// Asserts the scene empty, so a row a detached world did not give back is named here. Not while an
         /// exception unwinds, where the frame's own message is the one to read.
@@ -199,7 +201,7 @@ namespace MWRender
         /// Shared by every walk on the frame thread: the world's and every traced view's.
         Rtx::WalkContext mWalk;
 
-        Rtx::SceneDesc mScene{ Rtx::sWorldRoom };
+        Rtx::SceneDesc mScene;
 
         /// Where the ring's models and images come from: the game's own. Made where the world is attached,
         /// when there is a scene manager. Before the ring, whose reader thread reads it.

@@ -19,6 +19,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
@@ -106,7 +107,8 @@ namespace Rtx
         /// nothing and where a row written only on the frame of the move would keep it for ever.
         TEST(RtxInstanceRecordTest, rowsKeptAcrossFramesAreTheRowsBuiltFromNothing)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addQuadMesh(scene);
 
             const Index cutout = scene.addMaterial(Material{
@@ -268,7 +270,8 @@ namespace Rtx
         /// translation `-t R⁻¹` at an ulp of 90000, 0.0078 a component, and the step lost a hundredth.
         TEST(RtxInstanceRecordTest, aTurnedPlacementFarOutMovesByItsStepAlone)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addQuadMesh(scene);
             osg::Matrixf turn;
             turn.set(0.6f, 0.8f, 0.0f, 0.0f, -0.8f, 0.6f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f);
@@ -302,7 +305,8 @@ namespace Rtx
         /// a determinant of one, which mirrors nothing.
         TEST(RtxInstanceRecordTest, aRowSaysWhichFacesItIsDrawnFrom)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index plain = Testing::addQuadMesh(scene);
             const Index doubled = Testing::addMesh(scene,
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },

@@ -26,6 +26,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/skinning.h>
@@ -99,7 +100,8 @@ namespace RtxTool
         std::string digestOfBoxes(
             const bool mirroredFirst, const float lift, const float aside, const bool shuffled = false)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
             return spellHash(digestScene(digestParts(scene)));
@@ -108,7 +110,8 @@ namespace RtxTool
         std::string layoutOfBoxes(
             const bool mirroredFirst, const float lift, const float aside, const bool shuffled = false)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
             return spellHash(digestLayout(digestParts(scene)));
@@ -163,7 +166,8 @@ namespace RtxTool
         /// One box under a material `change` has been applied to, digested both ways.
         std::pair<std::string, std::string> digestsOfMaterial(void (*change)(Rtx::Material&))
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
 
             Rtx::Material material;
@@ -257,7 +261,8 @@ namespace RtxTool
         /// part.
         std::pair<std::string, ScenePartDigests> digestsOfTangents(std::span<const osg::Vec4f> tangents)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false, 0.0f, false, tangents);
@@ -304,7 +309,8 @@ namespace RtxTool
         /// digested part by part.
         ScenePartDigests partsOfPlume(const bool additive, const bool falls)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
             const Rtx::Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/puff.dds"));
             const std::array sprites{ Rtx::Sprite{ .mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f),
@@ -343,7 +349,8 @@ namespace RtxTool
         /// `up` units high, digested part by part.
         ScenePartDigests partsOfSkin(const float weight, const float up)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
 
             const std::array<std::uint32_t, 4> runs{ 1u, 1u, 1u, 1u };
@@ -394,7 +401,8 @@ namespace RtxTool
         /// One box placed at `there`, having moved there from the origin or jumped, with a ripple or none.
         std::string contentOfMotion(const bool jumped, const bool rippled)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
@@ -435,7 +443,8 @@ namespace RtxTool
         /// by part.
         ScenePartDigests partsWith(const Field field)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
@@ -507,7 +516,8 @@ namespace RtxTool
         /// moved moves the instances alone; a mesh added, let go of or landing in the hole it left moves the positions.
         TEST(RtxSceneDigestTest, theGeometrysPartsOutliveTheArrivalsTheyWereMadeFrom)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
             fillBoxes(scene, false, 0.0f, 0.0f);
 

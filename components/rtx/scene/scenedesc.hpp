@@ -29,6 +29,7 @@
 #include "restqueue.hpp"
 #include "ripple.hpp"
 #include "rowhold.hpp"
+#include "sceneidentities.hpp"
 #include "sceneroom.hpp"
 #include "sprite.hpp"
 #include "structurerevision.hpp"
@@ -72,12 +73,13 @@ namespace Rtx
     class SceneDesc
     {
     public:
-        /// A scene opened at nought, which grows as it is filled: a picture's, or a test's.
-        SceneDesc();
+        /// A scene opened at nought, which grows as it is filled: a picture's, or a test's. Its identity, and the one
+        /// a move leaves it, are `identities`', which outlives it.
+        explicit SceneDesc(SceneIdentities& identities);
 
         /// A scene whose rows are reserved at `room`, as its backend's tables are, so no arrival up to
         /// the room moves a host table either.
-        explicit SceneDesc(const SceneRoom& room);
+        SceneDesc(SceneIdentities& identities, const SceneRoom& room);
 
         /// Moved whole: no table holds a reference to a sibling, so what a moved description's
         /// tables reach is its own. Every fact that crosses two tables is asked of this class,
@@ -92,10 +94,10 @@ namespace Rtx
         ~SceneDesc() = default;
 
         /// Which description this is, for a backend that holds a slot built from one: never
-        /// nought, never handed out twice in a process, and carried by a move, which leaves the
+        /// nought, never handed out twice by its source (`SceneIdentities`), and carried by a move, which leaves the
         /// source a fresh one — so a slot can say what it was built from without naming an address
         /// a later description may take over, and no two descriptions share one.
-        std::uint64_t getIdentity() const { return mIdentity.mValue; }
+        SceneIdentity getIdentity() const { return mIdentity.mValue; }
 
         /// The room the scene was opened at, which a backend makes its tables at: one answer, the
         /// host's, to how far either side grows before a table is made again.
@@ -361,28 +363,31 @@ namespace Rtx
         /// leave the source a fresh one.
         struct Identity
         {
-            Identity()
-                : mValue(next())
+            explicit Identity(SceneIdentities& source)
+                : mSource(&source)
+                , mValue(source.next())
             {
             }
 
             Identity(Identity&& other) noexcept
-                : mValue(std::exchange(other.mValue, next()))
+                : mSource(other.mSource)
+                , mValue(std::exchange(other.mValue, other.mSource->next()))
             {
             }
 
             Identity& operator=(Identity&& other) noexcept
             {
                 if (this != &other)
-                    mValue = std::exchange(other.mValue, next());
+                {
+                    mSource = other.mSource;
+                    mValue = std::exchange(other.mValue, other.mSource->next());
+                }
                 return *this;
             }
             ~Identity() = default;
 
-            /// The next value no description has held.
-            static std::uint64_t next() noexcept;
-
-            std::uint64_t mValue;
+            SceneIdentities* mSource;
+            SceneIdentity mValue;
         };
 
         Identity mIdentity;

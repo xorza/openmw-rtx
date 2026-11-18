@@ -163,7 +163,7 @@ namespace Rtx::Testing
         /// What a slot was built from, which is what says whether an uploader may append.
         struct Built
         {
-            std::uint64_t mIdentity = 0;
+            Rtx::SceneIdentity mIdentity{};
             Rtx::StructureRevision mRevision;
         };
 

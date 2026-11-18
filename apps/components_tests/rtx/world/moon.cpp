@@ -24,6 +24,7 @@
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/look.h>
@@ -73,6 +74,7 @@ namespace Rtx
         /// 0.078102.
         TEST(RtxMoonBuilderTest, aMoonIsAsWideAsTheGameDrawsIt)
         {
+            SceneIdentities identities;
             EXPECT_NEAR(moonAngularRadius(94.0f), 0.181881f, 1e-6f);
             EXPECT_NEAR(moonAngularRadius(40.0f), 0.078102f, 1e-6f);
 
@@ -96,7 +98,7 @@ namespace Rtx
             portrait->setFileName(std::string(moonFaceOf(Moon::Masser).value()));
             images.hold(moonFaceOf(Moon::Masser), portrait);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent content;
             std::vector<ReadingHold> holds;
             const MoonFaces faces = addMoonFaces(scene, images, MoonSizes{ masser, secunda }, content, holds);
@@ -119,7 +121,7 @@ namespace Rtx
 
             // A size of nought is the quad of no extent the game draws, and no refusal; one below
             // nought, or not a number, is a size the game draws and this does not.
-            SceneDesc broken;
+            SceneDesc broken(identities);
             std::vector<ReadingHold> brokenHolds;
             const MoonFaces unsized = addMoonFaces(broken, images, MoonSizes{ -3.0f, 0.0f }, content, brokenHolds);
             EXPECT_EQ(unsized.of(Moon::Masser).mRadius, 0.0f);

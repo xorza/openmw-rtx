@@ -31,6 +31,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -48,10 +49,11 @@ namespace Rtx::Testing
         /// would pass a test that only looked at the noise.
         TEST_F(RtxVisibilityTest, theFilterTakesTheNoiseOffAFlatSurfaceAndLeavesTheLightWhereItWas)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float samples = float{ size } * size;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -123,13 +125,14 @@ namespace Rtx::Testing
         /// pixel under the lamp is the unlit floor's exactly.
         TEST_F(RtxVisibilityTest, aLampThatGoesOutLeavesThePictureOnTheFrameItGoes)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
-            SceneDesc unlit;
+            SceneDesc unlit(identities);
             addQuad(unlit, sheetAt(4000.0f, 0.0f));
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             scene.addLight(Light{
                 .mPosition = osg::Vec3f(0.0f, 0.0f, 60.0f),
@@ -165,10 +168,11 @@ namespace Rtx::Testing
         /// off the centre ten units off the centre's plane, and the coarse levels turned their neighbours away.
         TEST_F(RtxVisibilityTest, theFilterRebuildsAnArmThroughTheArmsOwnEye)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float samples = float{ size } * size;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const std::array<osg::Vec3f, 4> arm = uprightQuadAt(400.0f, 100.0f);
             scene.addInstance(
                 MeshInstance{ .mMesh = Testing::addMesh(scene,
@@ -221,9 +225,10 @@ namespace Rtx::Testing
         /// are deterministic, so a tenth is a bound this passes with room and a depth test cannot reach.
         TEST_F(RtxVisibilityTest, theFilterAndItsHistoryConvergeOnAGrazingSurface)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(40000.0f, 0.0f));
 
             // A degree and a half above the floor: the horizon sits near the top of the frame and
@@ -339,11 +344,12 @@ namespace Rtx::Testing
         /// centred on the zenith, a wall's lies along the horizon, and this sky runs a long way between them.
         TEST_F(RtxVisibilityTest, theFilterWillNotMixAFloorIntoTheWallStandingOnIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             const std::array wall = uprightQuadAt(2000.0f, 0.0f, osg::Vec2f(0.0f, 2000.0f));
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene, wall);
 
@@ -457,7 +463,8 @@ namespace Rtx::Testing
 
             // Nothing to hit, so every pixel is the sky and the mean of the frame is the sky. The
             // scene is set once: setting it again would clear the previous camera and reset the eye.
-            const SceneDesc sky;
+            SceneIdentities identities;
+            const SceneDesc sky(identities);
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), sky, {});
 
@@ -509,14 +516,15 @@ namespace Rtx::Testing
                 mRenderer.setUpscale(Upscale::Quality);
                 mRenderer.setUpscale(Upscale::Off);
             }
-            ASSERT_NE(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, 0u)
+            ASSERT_NE(mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity, SceneIdentity{})
                 << "a reserve that grew past what content left built the world again";
             EXPECT_LT(shot(dim), 0.5 * adapted) << "a new extent snapped the eye";
 
             // **And a new world loses it, whatever frame comes first**: a held frame after the world
             // is handed over spends nothing of the eye's loss, and the measured frame after it starts
             // at a day, as a cut's frame does, rather than easing from the old world's eye.
-            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
+            SceneIdentities emptied;
+            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc(emptied), {});
             held(bright);
             EXPECT_EQ(shot(dim), dayDim) << "the measured frame eased from the old world's eye";
         }
@@ -536,13 +544,14 @@ namespace Rtx::Testing
         /// it is not a fresh reset's picture: the same claim the other way round.
         TEST_F(RtxVisibilityTest, aResetSurvivesAFrameThatHasNoHistoryToReset)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             // The index every measured frame is drawn at, so the three of them differ only in what
             // the accumulator was handed. The frames around them take other indices.
             constexpr std::uint32_t measured = 3;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(40000.0f, 0.0f));
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -813,7 +822,8 @@ namespace Rtx::Testing
             std::span<const TextureData> getTextures() const { return mTextures; }
 
         private:
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             TestTexture mStripes;
             std::vector<TextureData> mTextures;
             std::vector<float> mRead;
@@ -924,6 +934,7 @@ namespace Rtx::Testing
         /// that stood still.
         TEST_F(RtxSettlingTest, theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t still = 32;
             constexpr std::uint32_t moving = 4;
@@ -934,7 +945,7 @@ namespace Rtx::Testing
             constexpr float height = 200.0f;
             constexpr float eye = 300.0f;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             const Index bar = addQuad(scene, roofOver(start, start + width, height));
             mRenderer.resize(size, size);
@@ -1029,9 +1040,9 @@ namespace Rtx::Testing
         /// EMISSIVE_INTENSITY`, 400: a bounce off the floor beneath finds it at a chance of about
         /// `40² / 300² / π`, 0.0057, and brings back near two hundred times the floor's mean — the
         /// lanterns' paper over the M[FR] guild's tree, on a surface that holds still.
-        SceneDesc lanternOverAFloor()
+        SceneDesc lanternOverAFloor(SceneIdentities& identities)
         {
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene, sheetAt(20.0f, 300.0f),
                 scene.addMaterial(Material{ .mEmissiveColour = osg::Vec3f(50.0f, 50.0f, 50.0f), .mTwoSided = true }));
@@ -1089,11 +1100,12 @@ namespace Rtx::Testing
         /// 173 with it; 9537 and 40 on a low-end AMD integrated GPU.
         TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyToTheLightAroundIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t fresh = 3;
             constexpr std::uint32_t draws = 4;
 
-            const SceneDesc scene = lanternOverAFloor();
+            const SceneDesc scene = lanternOverAFloor(identities);
             const Shaders::VisibilityConstants camera = overTheLantern(size);
             const std::vector<float> reference = shoot(scene, {}, camera, size, { .mFrames = 64 }).mRadiance;
 
@@ -1130,11 +1142,12 @@ namespace Rtx::Testing
         /// and 0.7928.
         TEST_F(RtxSettlingTest, theRingLeavesASettledMeanItsLight)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t settled = 160;
 
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), lanternOverAFloor(), {});
+            mRenderer.setScene(Rtx::SceneSlot::world(), lanternOverAFloor(identities), {});
             const Shaders::VisibilityConstants camera = overTheLantern(size);
 
             std::vector<float> read;
@@ -1168,10 +1181,11 @@ namespace Rtx::Testing
         /// either way.
         TEST_F(RtxVisibilityTest, aFreshPixelIsFilteredTheSameUnderAnyLight)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr float brighter = 1024.0f;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
@@ -1249,6 +1263,7 @@ namespace Rtx::Testing
         /// part of this sky.
         TEST_F(RtxSettlingTest, theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::int32_t cells = 16;
             constexpr float extent = 4000.0f;
@@ -1281,7 +1296,7 @@ namespace Rtx::Testing
                         indices.push_back(base + offset);
                 }
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.addInstance(
                 MeshInstance{ .mMesh = Testing::addMesh(scene,
                                   MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }) });
@@ -1383,11 +1398,12 @@ namespace Rtx::Testing
         /// together, correlated at 0.645 eight pixels apart; moved by ReLAX's offset, 0.424.
         TEST_F(RtxVisibilityTest, theWidestLevelsTapsStandOffTheirLattice)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 128;
             constexpr std::uint32_t draws = 16;
             constexpr std::uint32_t lag = 8;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, -100.0f));
             addQuad(scene, uprightQuadAt(4000.0f, 300.0f));
             scene.addLight(Light{
@@ -1437,14 +1453,15 @@ namespace Rtx::Testing
         /// lobe's) misses by the whole of it.
         TEST_F(RtxVisibilityTest, theCompositePutsBackWhatTheTraceDividedOut)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             constexpr std::array<std::uint8_t, 4> metalTexel{ 255, 128, 255, 255 };
             const std::array<TextureData, 2> metalTextures{ describeTexel(white, 0), describeTexel(metalTexel, 1) };
 
-            const auto under = [](bool metal) {
-                SceneDesc scene;
+            const auto under = [&identities](bool metal) {
+                SceneDesc scene(identities);
                 if (metal)
                 {
                     const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));

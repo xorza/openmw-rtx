@@ -32,6 +32,7 @@
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/stableidentity.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -595,6 +596,7 @@ namespace Rtx::Testing
         /// all with the all-ones mask every drawable is born with stays static, read by the water's rule.
         TEST_F(RtxSceneExtractorTest, whatStandsUnderANamedRootIsPlacedAsItsClass)
         {
+            Rtx::SceneIdentities identities;
             constexpr osg::Node::NodeMask sFirstPerson = 1u << 9;
             constexpr osg::Node::NodeMask sActor = 1u << 3;
             constexpr osg::Node::NodeMask sPlayer = 1u << 4;
@@ -640,7 +642,7 @@ namespace Rtx::Testing
 
             // And a caller that names no class — the harness — places the same graph as static
             // five times.
-            Rtx::SceneDesc unnamed;
+            Rtx::SceneDesc unnamed(identities);
             SceneExtractor silent(unnamed, mContext, sSubjectExtractorRoom);
             silent.extract(*root, osg::Matrixf::identity(), 0);
             Rtx::makeInstanceRecords(unnamed, records);

@@ -24,6 +24,7 @@
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/skinning.h>
@@ -66,10 +67,11 @@ namespace Rtx
         /// device's to the bit.
         TEST_F(RtxSkinPassTest, theKernelsPoseEachMeshIntoItsOwnRunAndLeaveTheRestAlone)
         {
+            SceneIdentities identities;
             Device& device = getDevice();
             CommandPool& pool = getPool();
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
 
             // One bone over the whole quad, every weight one.
             const std::array oneRuns{ Shaders::runWord(0, 1), Shaders::runWord(0, 1), Shaders::runWord(0, 1),
@@ -381,10 +383,11 @@ namespace Rtx
         /// - corner 2, in no group: its bind pose `(1, 1, 0)`, untouched by the transform.
         TEST_F(RtxSkinPassTest, theSkinTransformIsAppliedOnceToTheBlendAsCullAppliesIt)
         {
+            SceneIdentities identities;
             Device& device = getDevice();
             CommandPool& pool = getPool();
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const std::array runs{ Shaders::runWord(0, 1), Shaders::runWord(1, 2), Shaders::runWord(0, 0),
                 Shaders::runWord(0, 1) };
             const std::array influences{
@@ -475,10 +478,11 @@ namespace Rtx
         /// reads.
         TEST_F(RtxSkinPassTest, aPlacementWaitsForTheArrivalThatPosedTheFirstCopy)
         {
+            SceneIdentities identities;
             Device& device = getDevice();
             CommandPool& pool = getPool();
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
 
             const std::array oneRuns{ Shaders::runWord(0, 1), Shaders::runWord(0, 1), Shaders::runWord(0, 1),
                 Shaders::runWord(0, 1) };

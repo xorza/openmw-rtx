@@ -35,6 +35,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lampbody.hpp>
 #include <components/sceneutil/lightcommon.hpp>
@@ -554,6 +555,7 @@ namespace Rtx::Testing
         /// world's clock alone, which the walk holds, so the walk is where the two can agree.
         TEST_F(RtxSceneExtractorTest, aWalkMirrorsALampAtTheInstantItWasToldRatherThanAtRest)
         {
+            Rtx::SceneIdentities identities;
             ESM::Light record;
             record.mData.mRadius = 100;
             record.mData.mColor = 0x00FFFFFF;
@@ -562,8 +564,8 @@ namespace Rtx::Testing
             osg::ref_ptr<SceneUtil::LightSource> lamp
                 = SceneUtil::createLightSource(SceneUtil::LightCommon(record), sLightMask, /*isExterior=*/false);
 
-            const auto litAt = [&lamp](double seconds) {
-                Rtx::SceneDesc scene;
+            const auto litAt = [&lamp, &identities](double seconds) {
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.setSimulationTime(seconds, 0.0);

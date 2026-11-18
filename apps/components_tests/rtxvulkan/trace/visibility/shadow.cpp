@@ -21,6 +21,7 @@
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/scene.h>
@@ -39,15 +40,15 @@ namespace Rtx::Testing
     {
         /// The floor the sun lights: level at nought, or a hundred units under water whose surface is
         /// at nought, which `camera` is told — so the sun's bit is what the water's refraction found.
-        SceneDesc floorOf(bool flooded, Shaders::VisibilityConstants& camera)
+        SceneDesc floorOf(SceneIdentities& identities, bool flooded, Shaders::VisibilityConstants& camera)
         {
             if (flooded)
             {
                 camera.mWaterLevel = 0.0f;
-                return makeFlooded(4000.0f, 100.0f);
+                return makeFlooded(identities, 4000.0f, 100.0f);
             }
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             return scene;
         }
@@ -61,6 +62,7 @@ namespace Rtx::Testing
         /// and holds no sun.
         TEST_F(RtxVisibilityTest, theShadowDenoiserLeavesAFloorWhollyLitOrWhollyShadowedExact)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
 
             for (const bool flooded : { false, true })
@@ -69,7 +71,7 @@ namespace Rtx::Testing
                     SCOPED_TRACE(flooded ? "flooded" : "dry");
                     SCOPED_TRACE(roofed ? "roofed" : "open");
                     Shaders::VisibilityConstants camera = overheadSun(size);
-                    SceneDesc scene = floorOf(flooded, camera);
+                    SceneDesc scene = floorOf(identities, flooded, camera);
                     if (roofed)
                         addQuad(scene, roofOver(-4000.0f, 4000.0f, 2000.0f));
 
@@ -110,7 +112,7 @@ namespace Rtx::Testing
                 const float zenith = osg::DegreesToRadians(45.0f);
                 camera.mSun = Shaders::sunSource(
                     osg::Vec3f(-std::sin(zenith), 0.0f, std::cos(zenith)), osg::Vec3f(2.0f, 2.0f, 2.0f));
-                SceneDesc scene = floorOf(true, camera);
+                SceneDesc scene = floorOf(identities, true, camera);
                 addQuad(scene, roofOver(-4000.0f, 0.0f, -50.0f));
                 for (const std::uint32_t noShadows : { 0u, 1u })
                 {
@@ -143,7 +145,7 @@ namespace Rtx::Testing
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene,
                 std::array<osg::Vec3f, 4>{ osg::Vec3f(-8000.0f, -8000.0f, 2000.0f),
@@ -197,7 +199,8 @@ namespace Rtx::Testing
             // As built, the wall faces -Y: toward the floor and the eye, away from the sun.
             for (const bool twoSided : { true, false })
             {
-                SceneDesc scene;
+                SceneIdentities identities;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
                 const Index wall = scene.addMaterial(
                     Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = twoSided });
@@ -238,6 +241,7 @@ namespace Rtx::Testing
         /// it and the sun holds all but it (`SHADOW_PENUMBRA_CLEAR`), and the dusk moon is over it and drawn.
         TEST_F(RtxVisibilityTest, theSkysShadowedLightIsEverySourcesAndAMinorOneDrawsNoBit)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             const osg::Vec3f sunlight(2.0f, 1.0f, 0.5f);
             const float tilt = osg::DegreesToRadians(60.0f);
@@ -256,7 +260,7 @@ namespace Rtx::Testing
                 camera.mMoons[0] = masser;
                 camera.mMoons[1] = Shaders::MoonDisc{};
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
                 shoot(scene, {}, camera, size, { .mShadowFloor = floor });
 
@@ -305,12 +309,13 @@ namespace Rtx::Testing
         /// and no filter level is narrower than nothing.
         TEST_F(RtxVisibilityTest, aThinHardShadowKeepsItsDepth)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 96;
             constexpr std::uint32_t frames = 96;
             const float limb = twoDegreeLimb();
             Shaders::VisibilityConstants camera = overheadSun(size);
             camera.mSun.mLimb = limb;
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene, roofOver(-100.0f, -60.0f, 100.0f));
 
@@ -378,6 +383,7 @@ namespace Rtx::Testing
         /// 0.0032, held at four of it.
         TEST_F(RtxVisibilityTest, aPenumbraIsItsNearestOccludersOnTheReceiverAndAStoppedRayLetsAllThrough)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 96;
             const float limb = twoDegreeLimb();
             const auto sine = static_cast<double>(limb);
@@ -392,7 +398,7 @@ namespace Rtx::Testing
             tilted.mSun.mLimb = limb;
 
             const auto widthsUnder = [&](float barHeight, bool roofed) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
                 if (roofed)
                     addQuad(scene, roofOver(-4000.0f, 4000.0f, 500.0f));
@@ -443,7 +449,7 @@ namespace Rtx::Testing
             between.mSkyHorizon = osg::Vec3f();
             between.mSkyZenith = osg::Vec3f();
             between.mSun = overhead.mSun;
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addPane(scene, sheetAt(4000.0f, 40.0f), osg::Vec4f(0.0f, 0.0f, 0.0f, 0.5f), 1.0f, true);
             addQuad(scene, roofOver(-4000.0f, 0.0f, 100.0f));
@@ -486,6 +492,7 @@ namespace Rtx::Testing
         /// draws: the mean's deviation is `sqrt(0.25 * 0.75 / n)` <= 0.0025, held at four of it.
         TEST_F(RtxVisibilityTest, aPanesDarkMapHazesItsShadowAsItHazesThePane)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 96;
             Testing::TestTexture dark;
             const std::array<std::uint8_t, 16> texels{ 255, 255, 255, 128, 255, 255, 255, 128, 255, 255, 255, 128, 255,
@@ -498,7 +505,7 @@ namespace Rtx::Testing
             between.mSkyZenith = osg::Vec3f();
             between.mSun = overheadSun(size).mSun;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             const Index darkMap = scene.textures().add(VFS::Path::NormalizedView("dark.dds"));
             const Index stained = scene.addMaterial(Material{
@@ -546,9 +553,10 @@ namespace Rtx::Testing
         /// blue frame's error under three quarters of the white one's.
         TEST_F(RtxSettlingTest, aPenumbrasBitsAreDrawnBlueSoABlurTakesTheirNoise)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             Shaders::VisibilityConstants camera = overheadSun(size);
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             addQuad(scene, roofOver(-4000.0f, 0.0f, 2000.0f));
 
@@ -605,9 +613,10 @@ namespace Rtx::Testing
             /// @param kept the share of the raw frame's error the denoised one may keep.
             void penumbraOn(bool flooded, float kept)
             {
+                SceneIdentities identities;
                 constexpr std::uint32_t size = 64;
                 Shaders::VisibilityConstants camera = overheadSun(size);
-                SceneDesc scene = floorOf(flooded, camera);
+                SceneDesc scene = floorOf(identities, flooded, camera);
                 addQuad(scene, roofOver(-4000.0f, 0.0f, 2000.0f));
 
                 const Frame reference = shoot(
@@ -668,6 +677,7 @@ namespace Rtx::Testing
         /// filter's own difference across the seam; -7.5% with every tap taken).
         TEST_F(RtxVisibilityTest, aShadowsHistoryTakesNothingFromAPixelThatReceivesNothing)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t frames = 32;
 
@@ -675,7 +685,7 @@ namespace Rtx::Testing
             constexpr float step = 2.7f;
 
             const auto run = [&](bool farLit, std::vector<float>* unshadowed) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene,
                     std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, -4000.0f, 0.0f),
                         osg::Vec3f(4000.0f, -4000.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
@@ -769,8 +779,9 @@ namespace Rtx::Testing
 
             for (const bool blocked : { false, true })
             {
+                SceneIdentities identities;
                 SCOPED_TRACE(blocked ? "blocked" : "open");
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
                 if (blocked)
                     addQuad(scene,
@@ -852,11 +863,12 @@ namespace Rtx::Testing
         /// no lamp in the other seven: the stopped lamp's rays reach nothing, so no tile counts it.
         TEST_F(RtxVisibilityTest, theLampsShareIsOneFractionOnceItsOpenLampIsListed)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::size_t pixels = std::size_t{ size } * size;
 
-            const auto sceneWith = [](bool stopped) {
-                SceneDesc scene;
+            const auto sceneWith = [&identities](bool stopped) {
+                SceneDesc scene(identities);
                 addQuad(scene,
                     std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, -4000.0f, 0.0f),
                         osg::Vec3f(4000.0f, -4000.0f, 0.0f), osg::Vec3f(4000.0f, 4000.0f, 0.0f),
@@ -947,12 +959,13 @@ namespace Rtx::Testing
         /// line a replacer's strong sun lobe showed), where this measures no difference at all.
         TEST_F(RtxVisibilityTest, theSunsBitAndALampsAreKeptApartAndNeitherIsFilteredIntoTheOthersLight)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t frames = 16;
             constexpr std::size_t pixels = std::size_t{ size } * size;
 
-            const auto sceneWith = [](bool lamp) {
-                SceneDesc scene;
+            const auto sceneWith = [&identities](bool lamp) {
+                SceneDesc scene(identities);
                 const osg::Vec3f grey(0.5f, 0.5f, 0.5f);
                 addQuad(scene,
                     std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, -4000.0f, 0.0f),

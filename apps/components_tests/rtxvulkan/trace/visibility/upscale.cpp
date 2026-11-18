@@ -24,6 +24,7 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/frame/gbuffer.hpp>
@@ -59,9 +60,9 @@ namespace Rtx::Testing
 
         /// A floor under an overhead sun and a black sky: every pixel the same radiance, whatever
         /// the jitter samples.
-        SceneDesc evenFloor()
+        SceneDesc evenFloor(SceneIdentities& identities)
         {
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             return scene;
         }
@@ -91,9 +92,10 @@ namespace Rtx::Testing
         /// of the sixth.
         TEST_F(RtxSettlingTest, aStillPictureHoldsStillThroughEveryUpscale)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 96;
             constexpr std::uint32_t frames = 32;
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(100.0f, 0.0f));
 
             for (const Upscale mode : { Upscale::Native, Upscale::Quality, Upscale::Balanced, Upscale::Performance,
@@ -147,8 +149,9 @@ namespace Rtx::Testing
         /// trace and the upscaler may come to an extent of nought there.
         TEST_F(RtxVisibilityTest, theSmallestFrameDrawsInEveryUpscale)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t side = sSmallestFrameSide;
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(100.0f, 0.0f));
 
             for (const Upscale mode : sUpscaleMenu)
@@ -192,6 +195,7 @@ namespace Rtx::Testing
         /// of the edge.
         TEST_F(RtxVisibilityTest, anUpscaledPuffBehindAPostIsHiddenWhereTheTracedCentreMeetsIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 48;
             constexpr std::uint32_t frames = 64;
             constexpr std::uint32_t row = size / 2;
@@ -200,7 +204,7 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> textures{ describeTexel(white) };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
             const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 400.0f, 0.0f),
                 .mRadius = 60.0f,
@@ -252,8 +256,9 @@ namespace Rtx::Testing
         /// the picture is the unupscaled one to within a byte of the display's rounding.
         TEST_F(RtxVisibilityTest, anEvenFrameReconstructsToItself)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
-            const SceneDesc scene = evenFloor();
+            const SceneDesc scene = evenFloor(identities);
             const Shaders::VisibilityConstants camera = overTheFloor(size);
 
             std::vector<std::uint8_t> plain;
@@ -287,6 +292,7 @@ namespace Rtx::Testing
         /// out as it does with no post at all.
         TEST_F(RtxVisibilityTest, whatEntersAtTheLeftEdgeLeavesTheRightEdgesHistoryAlone)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 60;
             constexpr std::uint32_t frames = 24;
             constexpr std::uint32_t band = 10;
@@ -294,7 +300,7 @@ namespace Rtx::Testing
             static_assert(size % Shaders::FSR_WORKGROUP != 0, "a frame of whole workgroups has no thread past it");
 
             const auto sceneOf = [&](bool withPost) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 for (std::int32_t at = -20; at < 20; ++at)
                 {
                     const float left = 100.0f * static_cast<float>(at);
@@ -381,8 +387,9 @@ namespace Rtx::Testing
         /// to the order its lanes ran in, which is what `repeat` holds the rest of the frame to.
         TEST_F(RtxVisibilityTest, theSameFramesUpscaleToTheSamePicture)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 64;
-            SceneDesc scene = evenFloor();
+            SceneDesc scene = evenFloor(identities);
             addQuad(scene, sheetAt(40.0f, 120.0f));
             const Shaders::VisibilityConstants camera = overTheFloor(size);
 

@@ -1,7 +1,6 @@
 #include "scenedesc.hpp"
 
 #include <algorithm>
-#include <atomic>
 #include <cassert>
 #include <cmath>
 #include <string>
@@ -20,28 +19,20 @@
 
 namespace Rtx
 {
-    namespace
+    SceneDesc::SceneDesc(SceneIdentities& identities)
+        : mIdentity(identities)
     {
-        /// Atomic, because a picture's description is built wherever a view is made and the
-        /// tests build theirs on any thread.
-        std::atomic<std::uint64_t> sIdentities{ 0 };
     }
 
-    SceneDesc::SceneDesc() = default;
-
-    SceneDesc::SceneDesc(const SceneRoom& room)
-        : mRoom(room)
+    SceneDesc::SceneDesc(SceneIdentities& identities, const SceneRoom& room)
+        : mIdentity(identities)
+        , mRoom(room)
     {
         mMeshes.reserve(room.mMeshes);
         mMaterials.reserve(room);
         mTextures.reserve(room);
         mDeformers.reserve(room);
         mPlacements.reserve(room);
-    }
-
-    std::uint64_t SceneDesc::Identity::next() noexcept
-    {
-        return ++sIdentities;
     }
 
     Index SceneDesc::addMesh(const PackedMesh& mesh)

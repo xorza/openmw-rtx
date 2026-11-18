@@ -222,7 +222,7 @@ namespace Rtx
 
         /// Which description that was — `SceneDesc::getIdentity` — as `SceneHeld::mIdentity`
         /// reports it, and what every placement and extension is asserted against.
-        std::uint64_t mBuiltFrom = 0;
+        SceneIdentity mBuiltFrom{};
 
         FrameSlot mSlot;
 

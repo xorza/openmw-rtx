@@ -16,6 +16,7 @@
 #include <apps/components_tests/rtxvulkan/support/device/readback.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/world/fognoise.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -330,8 +331,9 @@ namespace Rtx
         /// that, every trace of a frame the game paused on handed the pass the last footfalls again.
         TEST_F(RtxRipplePassTest, aPlacementsFootfallIsPressedOnceHoweverOftenItIsTraced)
         {
+            SceneIdentities identities;
             const double sixtieth = 1.0 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
 
             // The window stood first, at a clock that steps nothing; the traces of the placement then

@@ -46,6 +46,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/sceneutil/extradata.hpp>
 #include <components/sceneutil/stableidentity.hpp>
 
@@ -141,6 +142,7 @@ namespace Rtx::Testing
         /// frame. Honouring it without stepping shows frame zero for ever; stepping without honouring shows both.
         TEST_F(RtxSceneExtractorTest, aFlipbookShowsOneFrameAndThisWalkIsWhatAdvancesIt)
         {
+            Rtx::SceneIdentities identities;
             osg::ref_ptr<osg::MatrixTransform> first = new osg::MatrixTransform(osg::Matrix::translate(10.0, 0.0, 0.0));
             first->addChild(makeQuad());
             osg::ref_ptr<osg::MatrixTransform> second
@@ -158,8 +160,8 @@ namespace Rtx::Testing
 
             // A scene of its own each time, because the claim is what one walk put there. The clock
             // is the node's, so it carries across the two.
-            const auto shownAt = [&frames](double seconds) {
-                Rtx::SceneDesc scene;
+            const auto shownAt = [&frames, &identities](double seconds) {
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.setSimulationTime(seconds, 0.0);
@@ -189,9 +191,10 @@ namespace Rtx::Testing
         /// The marked node carries a real bit rather than none, so only a walk honouring its mask tells the runs apart.
         TEST_F(RtxSceneExtractorTest, aWalkLeavesOutWhatTheMaskItWasGivenExcludes)
         {
+            Rtx::SceneIdentities identities;
             constexpr osg::Node::NodeMask marked = 1u << 3;
 
-            const auto instancesUnder = [](std::optional<osg::Node::NodeMask> mask) {
+            const auto instancesUnder = [&identities](std::optional<osg::Node::NodeMask> mask) {
                 osg::ref_ptr<osg::Group> quiet = new osg::Group;
                 quiet->setNodeMask(marked);
                 quiet->addChild(makeQuad());
@@ -200,7 +203,7 @@ namespace Rtx::Testing
                 root->addChild(quiet);
                 root->addChild(makeQuad());
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 if (mask.has_value())

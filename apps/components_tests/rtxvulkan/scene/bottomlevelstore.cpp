@@ -19,6 +19,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -65,7 +66,8 @@ namespace Rtx
 
         struct RtxBottomLevelStoreTest : Testing::DeviceTest
         {
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             SlotBlocks mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer mPositions{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };

@@ -24,6 +24,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -46,7 +47,8 @@ namespace Rtx::Testing
         {
             std::array<std::uint8_t, 4> mMapTexel;
             std::array<TextureData, 2> mTextures;
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
 
             explicit GlossyFloor(std::uint8_t roughness, std::uint8_t metal = 255)
                 : mMapTexel{ metal, roughness, 0, 255 }
@@ -284,6 +286,7 @@ namespace Rtx::Testing
         /// at the last place. With the history kept whole the checker blurs into it.
         TEST_F(RtxVisibilityTest, aSpeckledReflectanceStaysSharpUnderTheGlossyHistory)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t extent = 256;
             std::vector<std::uint8_t> checker(std::size_t{ extent } * extent * 4, 255);
             for (std::uint32_t y = 0; y < extent; ++y)
@@ -296,7 +299,7 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 0, 255 };
             const std::array<TextureData, 2> textures{ base.mData, describeTexel(sMetalTexel, 1) };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const std::array positions = sheetAt(4000.0f, 0.0f);
             const Index mesh = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });

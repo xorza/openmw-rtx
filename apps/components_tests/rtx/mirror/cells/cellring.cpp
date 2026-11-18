@@ -80,6 +80,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
@@ -596,7 +597,8 @@ namespace Rtx::Testing
             }
 
             WalkContext mContext{};
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom };
             CellRing mRing{ mExtractor };
         };
@@ -612,8 +614,9 @@ namespace Rtx::Testing
         /// adopts its rows into that extractor's scene inside this one's walk.
         TEST_F(RtxCellRingTest, aRingIsWalkedOnlyByTheExtractorItAdoptsThrough)
         {
+            SceneIdentities identities;
             WalkContext context{};
-            SceneDesc other;
+            SceneDesc other(identities);
             SceneExtractor stranger(other, context, sWorldExtractorRoom);
             expectAssertDies([&] { stranger.extractWorld(*mEmpty, 0, 1, mRing); },
                 "a ring made on another extractor adopts into its scene");

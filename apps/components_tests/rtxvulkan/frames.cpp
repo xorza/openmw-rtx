@@ -32,6 +32,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
@@ -104,7 +105,8 @@ namespace Rtx
                 return result.has_value() ? result->mHits : ~0u;
             }
 
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             Index mWall = 0;
             Index mInstance = 0;
         };
@@ -564,10 +566,11 @@ namespace Rtx
         /// `packSurfaceNormal` holds a diagonal to its own precision and not exactly.
         TEST_F(RtxFramesTest, aPoseTurnsABodysShadingNormalOnEveryCopy)
         {
+            SceneIdentities identities;
             const osg::Vec3f leaning(1.0f, -1.0f, 0.0f);
             const std::array normals{ leaning, leaning, leaning, leaning };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index body = Testing::addOneBoneBody(scene,
                 MeshArrays{
                     .mPositions = Testing::wallAt(200.0f), .mNormals = normals, .mIndices = Testing::sQuadIndices })
@@ -630,7 +633,8 @@ namespace Rtx
         {
             MemoryAllocator& memory = mProbe.getDevice().getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
-            const auto worldHeld = [&] { return mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity != 0; };
+            const auto worldHeld
+                = [&] { return mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity != SceneIdentity{}; };
             const auto runAt = [&](Upscale mode) {
                 mRenderer.setUpscale(mode);
                 EXPECT_LE(memory.getHeld(heap, MemoryUse::Frame), memory.getFrameReserve())
@@ -659,7 +663,8 @@ namespace Rtx
 
             // Let go of first, since content fills the ranges the world gives back however full the
             // device is, and built again with no room for content.
-            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
+            SceneIdentities emptied;
+            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc(emptied), {});
             {
                 const Testing::NoRoomForContent full(mProbe.getDevice());
                 mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
@@ -715,7 +720,8 @@ namespace Rtx
         /// rides the next submit, so the same wall stands loose until a placement copies it.
         TEST_F(RtxFramesTest, aWorldIsHandedOverWithItsStructuresTightAndAPicturesWithItsLoose)
         {
-            SceneDesc wall;
+            SceneIdentities identities;
+            SceneDesc wall(identities);
             wall.addInstance(MeshInstance{ .mMesh = Testing::addQuadMesh(wall, Testing::wallAt(300.0f)) });
 
             mRenderer.setScene(Rtx::SceneSlot::world(), wall, {});
@@ -734,6 +740,7 @@ namespace Rtx
         /// stood before the scene was made, after a first scene grew what holds the scenes.
         TEST_F(RtxFramesTest, aPicturesSceneLetGoGivesBackEveryAllocation)
         {
+            SceneIdentities identities;
             const Device& device = mProbe.getDevice();
             MemoryAllocator& memory = device.getMemory();
             const std::uint32_t heap = memory.getVideoHeap();
@@ -748,7 +755,7 @@ namespace Rtx
             mRenderer.reservePicture(sSize, sSize);
             const auto cycle = [&] {
                 const SceneSlot doll = mRenderer.addViewScene();
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 scene.addInstance(MeshInstance{ .mMesh = Testing::addQuadMesh(scene, Testing::wallAt(300.0f)) });
                 const Testing::Model model = Testing::addModel(scene, VFS::Path::NormalizedView("textures/grey.dds"));
                 const std::array<std::uint8_t, 4> grey{ 128, 128, 128, 255 };
@@ -855,10 +862,11 @@ namespace Rtx
         /// does not.
         TEST_F(RtxFramesTest, aPlacementIntoTheCopyADeferredPictureReadsCarriesThePictureFirst)
         {
+            SceneIdentities identities;
             // A scene of its own, because a picture's placements are deferred like its trace: the
             // world's placement would carry the picture on its own submit.
             const SceneSlot doll = mRenderer.addViewScene();
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
             const Index standing = scene.addInstance(MeshInstance{ .mMesh = wall });
             mRenderer.setScene(doll, scene, {});
@@ -895,8 +903,9 @@ namespace Rtx
         /// whole. A drain here idled the device every time the inventory or the race menu opened.
         TEST_F(RtxFramesTest, aPictureSceneOpensWithoutASubmitAndKeepsAPictureOfTheOneItReplaced)
         {
+            SceneIdentities identities;
             const SceneSlot doll = mRenderer.addViewScene();
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
             scene.addInstance(MeshInstance{ .mMesh = wall });
 
@@ -917,7 +926,8 @@ namespace Rtx
 
             // An empty scene in its place, with the picture of the wall still deferred.
             const std::uint64_t replaced = timeline.getNext();
-            mRenderer.setScene(doll, SceneDesc{}, {});
+            SceneIdentities emptied;
+            mRenderer.setScene(doll, SceneDesc(emptied), {});
             EXPECT_EQ(timeline.getNext(), replaced) << "replacing a picture's scene submitted";
             EXPECT_FALSE(mRenderer.takeGuiCopy(texture, copy)) << "replacing the scene carried the picture";
 
@@ -941,8 +951,9 @@ namespace Rtx
         /// after it went. A drain here idled the device every time the inventory closed.
         TEST_F(RtxFramesTest, aViewSceneGivenBackWithAPictureStillDeferredIsCarriedAndThenLetGo)
         {
+            SceneIdentities identities;
             const SceneSlot doll = mRenderer.addViewScene();
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
             scene.addInstance(MeshInstance{ .mMesh = wall });
             mRenderer.setScene(doll, scene, {});

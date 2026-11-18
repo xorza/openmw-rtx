@@ -41,6 +41,7 @@
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/world/cloudshell.hpp>
@@ -421,7 +422,8 @@ namespace Rtx
         /// holds is what makes every one of them given back: `SkyReader` keeps it.
         TEST(RtxSkyBuilderTest, whatTheSkyHoldsIsGivenBackWhole)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             VFS::Manager vfs;
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Testing::HeldImages images(&vfs, budget);
@@ -482,6 +484,7 @@ namespace Rtx
         /// in. The same archive with Clear's as `A8` gives the deck a slot, and one refusal fewer.
         TEST(RtxSkyBuilderTest, aDeckSheetThisCannotUploadIsLeftOutRatherThanDrawnGrey)
         {
+            SceneIdentities identities;
             const std::unique_ptr<VFS::Manager> vfs
                 = TestingOpenMW::createTestVFS({ { VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), nullptr } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
@@ -495,7 +498,7 @@ namespace Rtx
                 = Testing::makeImage("textures/tx_sky_clear.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), rgb);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
             std::vector<ReadingHold> holds;
             const SkyContent content = addSkyContent(scene, scenes, sources(), thread, holds);
@@ -515,7 +518,7 @@ namespace Rtx
                 = Testing::makeImage("textures/tx_sky_clear.dds", 4, 4, GL_ALPHA, GL_UNSIGNED_BYTE);
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), alpha);
 
-            SceneDesc taken;
+            SceneDesc taken(identities);
             std::vector<ReadingHold> takenHolds;
             const SkyContent takenContent = addSkyContent(taken, scenes, sources(), thread, takenHolds);
             EXPECT_NE(taken.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
@@ -530,6 +533,7 @@ namespace Rtx
         /// mean luminance of one over the alpha. Opened as the game opens it, a header holding no texels.
         TEST(RtxSkyBuilderTest, aSheetAScriptNamesIsOpenedOnceAndDrawn)
         {
+            SceneIdentities identities;
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS(
                 { { VFS::Path::NormalizedView("textures/tx_script_sky.dds"), nullptr } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
@@ -548,7 +552,7 @@ namespace Rtx
             }
             images.hold(VFS::Path::NormalizedView("textures/tx_script_sky.dds"), sheet);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
             std::vector<ReadingHold> holds;
             SkyContent content;
@@ -604,6 +608,7 @@ namespace Rtx
         /// first, which no upload takes, and four channels after it, which takes the first patch.
         TEST(RtxSkyBuilderTest, aStarSheetThisCannotUploadIsRefusedByNameAndLeftOut)
         {
+            SceneIdentities identities;
             constexpr VFS::Path::NormalizedView dome("meshes/sky_night_02.nif");
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { dome, nullptr } });
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
@@ -622,7 +627,7 @@ namespace Rtx
             night->addChild(patchOf(rgba));
             scenes.hold(dome, night);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
             std::vector<ReadingHold> holds;
             const Result<NightSky, std::string> sky = readNightSky(
@@ -651,6 +656,7 @@ namespace Rtx
         /// nothing for them.
         TEST(RtxSkyBuilderTest, aSkyMeshTheArchivesDoNotHoldIsNamedAndTheSkyGoesOnWithoutIt)
         {
+            SceneIdentities identities;
             VFS::Manager vfs;
             Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
             Resource::ImageManager images(&vfs, budget);
@@ -658,7 +664,7 @@ namespace Rtx
             Resource::BgsmFileManager materials(&vfs, 0);
             Resource::SptFileManager trees(&vfs, 0);
             Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, budget);
-            SceneDesc scene;
+            SceneDesc scene(identities);
             ThreadContent thread;
             std::vector<ReadingHold> holds;
 

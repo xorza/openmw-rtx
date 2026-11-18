@@ -41,6 +41,7 @@
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -84,9 +85,10 @@ namespace Rtx
         /// source's identity, and the source another that no description held.
         TEST(RtxSceneDescTest, aMoveCarriesTheIdentityAndLeavesTheSourceAFreshOne)
         {
-            SceneDesc first;
-            const std::uint64_t carried = first.getIdentity();
-            EXPECT_NE(carried, 0u);
+            SceneIdentities identities;
+            SceneDesc first(identities);
+            const SceneIdentity carried = first.getIdentity();
+            EXPECT_NE(carried, SceneIdentity{});
 
             SceneDesc moved(std::move(first));
             EXPECT_EQ(moved.getIdentity(), carried);
@@ -95,9 +97,9 @@ namespace Rtx
             EXPECT_NE(first.getIdentity(), carried) << "the source kept the identity it handed over";
             EXPECT_GT(first.getIdentity(), carried) << "the source took an identity held before";
 
-            SceneDesc target;
-            const std::uint64_t replaced = target.getIdentity();
-            const std::uint64_t source = first.getIdentity();
+            SceneDesc target(identities);
+            const SceneIdentity replaced = target.getIdentity();
+            const SceneIdentity source = first.getIdentity();
             target = std::move(first);
             EXPECT_EQ(target.getIdentity(), source);
             // The test reads the moved-from object, whose state is what it checks.
@@ -114,6 +116,7 @@ namespace Rtx
         /// order. The four rows at the front are the same statement about `osg::Vec3f`'s lexicographic order.
         TEST(RtxSceneDescTest, everyFieldOfALightTakesItsTurnInTheOrder)
         {
+            SceneIdentities identities;
             const osg::Vec3f one{ 1.0f, 1.0f, 1.0f };
 
             // Ascending, and each row names only what it raises: everything else a `Light` carries
@@ -131,7 +134,7 @@ namespace Rtx
             };
 
             // Handed over backwards, so a walk that did nothing at all would fail this.
-            SceneDesc scene;
+            SceneDesc scene(identities);
             for (const auto& light : std::views::reverse(ordered))
                 scene.addLight(light);
 
@@ -155,7 +158,8 @@ namespace Rtx
         /// so a sharer added after one went names it still, and goes with the last, its room a later mesh's.
         TEST(RtxSceneDescTest, meshesThatShareTheirIndicesNameOneRunOfThem)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             scene.keepDigests();
             const std::array<osg::Vec3f, 4> raised{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 0.0f, 1.0f),
                 osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 1.0f) };
@@ -208,7 +212,8 @@ namespace Rtx
 
         TEST(RtxSceneDescTest, aMeshRemembersWhereItsVerticesWent)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             // A quad, and one a unit above it: one geometry is one mesh (`SceneDesc::addMesh`).
             const std::array<osg::Vec3f, 4> raised{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 0.0f, 1.0f),
@@ -257,7 +262,8 @@ namespace Rtx
         /// long as the position buffer, or every vertex after it reads someone else's normal.
         TEST(RtxSceneDescTest, theAttributeBuffersStayParallelWhenAMeshBringsNoAttributes)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             const std::array sNormals{
                 osg::Vec3f(0.0f, 0.0f, 1.0f),
@@ -295,7 +301,8 @@ namespace Rtx
         /// Nothing is clamped: a float colour may stand past one, up to what a half holds.
         TEST(RtxSceneDescTest, aColourIsKeptAsThreeHalves)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const std::array<osg::Vec3f, 4> colours{ osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f),
                 osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f), osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f),
                 osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f) };
@@ -320,7 +327,8 @@ namespace Rtx
 
         TEST(RtxSceneDescTest, aTextureIsAddedOnceHoweverOftenItIsAskedFor)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             constexpr VFS::Path::NormalizedView stone("textures/tx_stone_01.dds");
             constexpr VFS::Path::NormalizedView wood("textures/tx_wood_01.dds");
@@ -375,7 +383,8 @@ namespace Rtx
         /// freed for the next, the oldest to rest first**, before anything is refused.
         TEST(RtxSceneDescTest, aFullTextureTableRefusesTheNextTextureAndCountsIt)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             TextureTable& textures = scene.textures();
 
             std::vector<VFS::Path::Normalized> names;
@@ -442,7 +451,8 @@ namespace Rtx
         /// batch is filed leaves it.
         TEST(RtxSceneDescTest, theSlotsThatRestAreFiledBySlotWithinABatch)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             TextureTable& textures = scene.textures();
             std::vector<TextureHold> holds;
             for (const VFS::Path::NormalizedView name : { VFS::Path::NormalizedView("textures/tx_0.dds"),
@@ -479,6 +489,7 @@ namespace Rtx
 
         TEST(RtxSceneDescTest, theCountsAreWhatTheBuffersHold)
         {
+            SceneIdentities identities;
             // Three quads at three heights, each a mesh of its own: one geometry is one mesh (`SceneDesc::addMesh`).
             const auto quadAtHeight = [](const float z) {
                 return std::array<osg::Vec3f, 4>{ osg::Vec3f(0.0f, 0.0f, z), osg::Vec3f(1.0f, 0.0f, z),
@@ -487,7 +498,7 @@ namespace Rtx
             const std::array<osg::Vec3f, 4> second = quadAtHeight(1.0f);
             const std::array<osg::Vec3f, 4> third = quadAtHeight(2.0f);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             Testing::addQuadMesh(scene);
             Testing::addQuadMesh(scene, second);
 
@@ -673,7 +684,8 @@ namespace Rtx
             DeformedMesh addFirstSkin() { return Testing::addOneBoneBody(mScene, quad()); }
             Index addSkin() { return addQuad(mRig); }
 
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             Index mStill = Testing::addMesh(mScene, quad());
             DeformedMesh mFirst = addFirstSkin();
             Index mRig = mFirst.mDeformer;
@@ -814,7 +826,8 @@ namespace Rtx
         /// with the lowest, so the next rig lands in slot 0; a stack would answer with slot 1.
         TEST(RtxSceneDescTest, aFreedRigSlotIsHandedOutLowestFirstHoweverItsMeshesWent)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const MeshArrays quad{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices };
 
             const DeformedMesh first = Testing::addOneBoneBody(scene, quad);
@@ -851,7 +864,8 @@ namespace Rtx
         /// frees the oldest first whatever its kind. A mesh that deforms is filed under no key.
         TEST(RtxSceneDescTest, aStaticMeshIsItsContentAndRestsInOneOrderWithTheTextures)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const std::array<osg::Vec3f, 4> raised = Testing::unitQuadAt(1.0f);
             const Index quad = Testing::addQuadMesh(scene);
             EXPECT_EQ(Testing::addQuadMesh(scene), quad) << "one geometry made two meshes";
@@ -923,7 +937,8 @@ namespace Rtx
         /// past which nothing rests.
         TEST(RtxSceneDescTest, aWantFreesTheOldestRowOfItsKindThatSurelyHoldsItAndElseTheOldest)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             std::vector<Index> slots;
             for (const std::uint64_t fit : { 32u, 1000u, 100u, 64u, 0u })
             {
@@ -988,7 +1003,8 @@ namespace Rtx
         /// later, which the older does not suit though it rested first; then one at 256 frees the older.
         TEST(RtxSceneDescTest, aWantFreesOnlyARestWhoseRangeStartsAtItsAlignment)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             std::vector<Index> slots;
             for (const std::uint64_t alignment : { 256u, 4096u })
             {
@@ -1018,6 +1034,7 @@ namespace Rtx
         /// Three orders on each table, because "lowest" and "last freed" agree wherever the frees run upwards.
         TEST(RtxSceneDescTest, everyTableHandsOutItsLowestFreeSlotHoweverTheSlotsWereFreed)
         {
+            SceneIdentities identities;
             constexpr Index sFilled = 5;
             using Taken = std::array<Index, 4>;
             using Order = std::array<Index, 3>;
@@ -1026,7 +1043,7 @@ namespace Rtx
                 "textures/b.dds", "textures/c.dds", "textures/d.dds", "textures/e.dds", "textures/f.dds",
                 "textures/g.dds", "textures/h.dds", "textures/i.dds" };
             const auto textures = [&](const Order& order) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 Testing::SceneHolds holds(scene);
                 std::size_t named = 0;
                 const auto add = [&] {
@@ -1043,8 +1060,8 @@ namespace Rtx
             };
 
             // Each at a height of its own, so none is the same mesh as another (`SceneDesc::addMesh`).
-            const auto meshes = [](const Order& order) {
-                SceneDesc scene;
+            const auto meshes = [&identities](const Order& order) {
+                SceneDesc scene(identities);
                 float height = 0.0f;
                 const auto add = [&] {
                     height += 1.0f;
@@ -1064,8 +1081,8 @@ namespace Rtx
             };
 
             // Each of its own threshold, so none is the same material as another.
-            const auto materials = [](const Order& order) {
-                SceneDesc scene;
+            const auto materials = [&identities](const Order& order) {
+                SceneDesc scene(identities);
                 float reference = 0.0f;
                 const auto add = [&] {
                     reference += 1.0f / 16.0f;
@@ -1081,8 +1098,8 @@ namespace Rtx
                 return taken;
             };
 
-            const auto placements = [](const Order& order) {
-                SceneDesc scene;
+            const auto placements = [&identities](const Order& order) {
+                SceneDesc scene(identities);
                 const Index mesh = Testing::addQuadMesh(scene);
                 for (Index at = 0; at < sFilled; ++at)
                     EXPECT_EQ(scene.addInstance(MeshInstance{ .mMesh = mesh }), at) << "a fresh table appends";
@@ -1113,8 +1130,9 @@ namespace Rtx
         /// them, and a scene opened at nought moves its rows on the second placement already.
         TEST(RtxSceneDescTest, aSceneOpenedAtARoomFillsItWithoutMovingARow)
         {
+            SceneIdentities identities;
             constexpr SceneRoom room{ .mPlacements = 4, .mMeshes = 4, .mMaterials = 4, .mTextures = 4 };
-            SceneDesc scene(room);
+            SceneDesc scene(identities, room);
 
             const void* const placementRows = scene.placements().getRows().data();
             const void* const meshRows = scene.meshes().getRows().data();
@@ -1147,7 +1165,7 @@ namespace Rtx
 
             EXPECT_EQ(sWorldRoom.mTextures, TextureTable::sCapacity);
 
-            SceneDesc unreserved;
+            SceneDesc unreserved(identities);
             const Index mesh = Testing::addQuadMesh(unreserved);
             unreserved.addInstance(MeshInstance{ .mMesh = mesh });
             const void* const first = unreserved.placements().getRows().data();
@@ -1160,7 +1178,8 @@ namespace Rtx
         /// offsets, the base's four zeroes first; a pose is two weights, the base's carried and never read.
         TEST(RtxSceneDescTest, aMorphedMeshHoldsItsTargetsAndNamesItselfOncePerPose)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             std::array<osg::Vec3f, 8> offsets{};
             for (std::size_t vertex = 4; vertex < 8; ++vertex)
@@ -1209,7 +1228,8 @@ namespace Rtx
         /// digest hashes, so they are written and not left as the run's last tenant left them.
         TEST(RtxSceneDescTest, aMorphOfFiveTargetsTakesTwoWordsZeroPastTheLastWeight)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             const std::vector<osg::Vec3f> offsets(20, osg::Vec3f(0.0f, 0.0f, 1.0f));
             const DeformedMesh added = Testing::addMesh(scene,
@@ -1260,7 +1280,8 @@ namespace Rtx
         /// stood there.
         TEST(RtxSceneDescTest, aMeshCarriesWhetherItDeforms)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index still = Testing::addQuadMesh(scene);
             EXPECT_EQ(scene.deformers().kindOf(scene.meshes().getRows()[still]), Deform::None);
 
@@ -1280,7 +1301,8 @@ namespace Rtx
         /// row keeps take back exactly what they added — the maps' among them.
         TEST(RtxSceneDescTest, theCountsFollowEachPlacementAsItIsStoodFadedReclassedAndDropped)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addQuadMesh(scene);
             const Index leaf = scene.textures().add(VFS::Path::NormalizedView("textures/leaf.dds"));
             const Index ripples = scene.textures().add(
@@ -1374,7 +1396,8 @@ namespace Rtx
         /// slot or one taken over under another material and mesh is left out of the old lists.
         TEST(RtxSceneDescTest, aReclassOrAMeshReachesOnlyItsOwnPlacements)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addQuadMesh(scene);
             // Three meshes of their own, at three heights: one geometry is one mesh (`SceneDesc::addMesh`).
             const std::array<osg::Vec3f, 4> raised{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 0.0f, 1.0f),
@@ -1450,7 +1473,8 @@ namespace Rtx
         /// leave last frame's motion in a row for ever; a row written with no motion settles nothing.
         TEST(RtxSceneDescTest, aRowIsReportedWhenAPlacementIsPlacedMovedFadedDroppedOrReclassed)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addQuadMesh(scene);
             const Index glass = scene.addMaterial(Material{
                 .mOpacity = 0.5f,
@@ -1537,7 +1561,8 @@ namespace Rtx
 
         TEST(RtxSceneDescTest, anEmitterCarriesItsSpritesAndTheSphereThatHoldsThem)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
 
             // The bake of the texture's alpha sits in the same table, which is why the count of
@@ -1613,7 +1638,8 @@ namespace Rtx
         /// cannot guess: a streak ten times as tall as wide, measured on the width, is cut off at a tenth.
         TEST(RtxSceneDescTest, aFixedSpriteReachesByItsOwnAxesAndAnEyeFacingOneByItsRadius)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/tx_raindrop_01.dds"));
 
             // Facing the eye: a disc, and the reach is the radius.
@@ -1688,7 +1714,8 @@ namespace Rtx
         /// compacting is the point**: a mesh index names every bottom-level structure in the world.
         TEST(RtxSceneDescTest, aFreedMeshKeepsItsSlotAndTheNextThatFitsTakesIt)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const std::array quads{ quadAt(0.0f), quadAt(2.0f) };
             const Index first = Testing::addQuadMesh(scene, quads[0]);
             const Index middle = Testing::addMesh(
@@ -1759,7 +1786,8 @@ namespace Rtx
         /// never made for it, a build into a null handle.
         TEST(RtxSceneDescTest, aMeshArrivingIsToldFromATextureArrivingAndAReusedSlotIsAnArrival)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index slot = Testing::addQuadMesh(scene);
 
             const std::uint64_t meshes = scene.meshes().getRevision();
@@ -1808,7 +1836,8 @@ namespace Rtx
         /// Hand-counted: 8, 4 and 4 vertices at 0, 8 and 12, and 12, 6 and 6 indices at 0, 12 and 18.
         TEST(RtxSceneDescTest, roomGivenBackIsMergedAndReused)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             // Eight vertices and twelve indices, which is two quads' worth in one mesh; each somewhere of its own, as
             // every mesh here is, since a static mesh is the one its content is (`SceneDesc::addMesh`).
@@ -1877,7 +1906,8 @@ namespace Rtx
         /// tint" (a hit multiplies by it), a zero tangent word no tangent.
         TEST(RtxSceneDescTest, aReusedSlotDoesNotInheritTheAttributesOfWhatStoodInIt)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const MeshTable& meshes = scene.meshes();
 
             const std::array<osg::Vec3f, 4> normals{ osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f),
@@ -1934,7 +1964,8 @@ namespace Rtx
             static constexpr std::array sGroundWeights{ 0.25f, 0.25f, 0.25f, 0.25f };
             static constexpr std::array sSandWeights{ 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
 
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
 
             Index mGround = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_ground.dds"));
             Index mStone = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_stone.dds"));
@@ -2066,7 +2097,8 @@ namespace Rtx
         /// arriving cost every frame the game had.
         TEST(RtxSceneDescTest, aMaterialChangingIsNotAStructureChanging)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addQuadMesh(scene);
             const Index first = scene.addMaterial(Material{});
 
@@ -2113,7 +2145,8 @@ namespace Rtx
         /// backend copies the runs, where a flag over the table would have it copy megabytes.
         TEST(RtxSceneDescTest, layersAndMasksArriveAsTheRunsTheyWerePlacedIn)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             const std::array<float, 4> weights{ 1.0f, 0.0f, 0.0f, 1.0f };
             const Rtx::Run mask = scene.materials().addMask(weights);
@@ -2186,7 +2219,8 @@ namespace Rtx
         /// at: a material of one let go of gives back no other's mask, its room or its digest.
         TEST(RtxSceneDescTest, aLayerWithNoMaskGivesBackNoOthersMask)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             scene.keepDigests();
             const std::array<float, 4> weights{ 1.0f, 0.0f, 0.0f, 1.0f };
             const Rtx::Run mask = scene.materials().addMask(weights);
@@ -2216,7 +2250,8 @@ namespace Rtx
         /// traced against whatever the slot is given next. Hand-counted holds: one, two, then one, then none.
         TEST(RtxSceneDescTest, aPlacementHoldsItsMeshAndMaterialUntilItGoes)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addQuadMesh(scene);
             const Index material = scene.addMaterial(Material{});
             MeshHold meshHold = scene.holdMesh(mesh);
@@ -2249,12 +2284,13 @@ namespace Rtx
         /// and a colour as white, so one here is a producer that skipped it.
         TEST(RtxSceneDescTest, aMeshOrAPoseWithANumberThatIsNotFiniteDies)
         {
+            SceneIdentities identities;
             const float nan = std::numeric_limits<float>::quiet_NaN();
             const std::array<osg::Vec3f, 4> placed{ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, nan, 0.0f),
                 osg::Vec3f(1.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) };
             Testing::expectAssertDies(
                 [&] {
-                    SceneDesc scene;
+                    SceneDesc scene(identities);
                     Testing::addMesh(scene, MeshArrays{ .mPositions = placed, .mIndices = Testing::sQuadIndices });
                 },
                 "a vertex that is not finite");
@@ -2263,7 +2299,7 @@ namespace Rtx
                 osg::Vec3f(1.0f, 1.0f, std::numeric_limits<float>::infinity()), osg::Vec3f(1.0f, 1.0f, 1.0f) };
             Testing::expectAssertDies(
                 [&] {
-                    SceneDesc scene;
+                    SceneDesc scene(identities);
                     Testing::addMesh(scene,
                         MeshArrays{
                             .mPositions = Testing::sUnitQuad, .mColours = tints, .mIndices = Testing::sQuadIndices });
@@ -2274,7 +2310,7 @@ namespace Rtx
             offsets[5] = osg::Vec3f(0.0f, nan, 0.0f);
             Testing::expectAssertDies(
                 [&] {
-                    SceneDesc scene;
+                    SceneDesc scene(identities);
                     Testing::addMesh(scene,
                         MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {},
                         MorphSpec{ .mOffsets = offsets, .mTargets = 2 });
@@ -2283,7 +2319,7 @@ namespace Rtx
 
             Testing::expectAssertDies(
                 [&] {
-                    SceneDesc scene;
+                    SceneDesc scene(identities);
                     const std::array<osg::Vec3f, 8> still{};
                     const Index face = Testing::addMesh(scene,
                         MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {},
@@ -2299,7 +2335,7 @@ namespace Rtx
                 osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 0.0f, 1.0f) };
             Testing::expectAssertDies(
                 [&] {
-                    SceneDesc scene;
+                    SceneDesc scene(identities);
                     Testing::addMesh(scene,
                         MeshArrays{
                             .mPositions = Testing::sUnitQuad, .mNormals = normals, .mIndices = Testing::sQuadIndices });
@@ -2311,7 +2347,7 @@ namespace Rtx
                 osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f) };
             Testing::expectAssertDies(
                 [&] {
-                    SceneDesc scene;
+                    SceneDesc scene(identities);
                     Testing::addMesh(scene,
                         MeshArrays{ .mPositions = Testing::sUnitQuad,
                             .mTangents = tangents,
@@ -2323,7 +2359,7 @@ namespace Rtx
                 osg::Vec2f(1.0f, std::numeric_limits<float>::infinity()), osg::Vec2f(0.0f, 1.0f) };
             Testing::expectAssertDies(
                 [&] {
-                    SceneDesc scene;
+                    SceneDesc scene(identities);
                     Testing::addMesh(scene,
                         MeshArrays{ .mPositions = Testing::sUnitQuad,
                             .mTexCoords = coords,
@@ -2332,7 +2368,7 @@ namespace Rtx
                 "a texture coordinate that is not finite");
             Testing::expectAssertDies(
                 [&] {
-                    SceneDesc scene;
+                    SceneDesc scene(identities);
                     Testing::addMesh(scene,
                         MeshArrays{ .mPositions = Testing::sUnitQuad,
                             .mSecondTexCoords = coords,
@@ -2346,16 +2382,17 @@ namespace Rtx
         /// is lost.
         TEST(RtxSceneDescTest, aHoldForgottenOrWrittenOverDies)
         {
+            SceneIdentities identities;
             Testing::expectAssertDies(
-                [] {
-                    SceneDesc scene;
+                [&identities] {
+                    SceneDesc scene(identities);
                     const MeshHold forgotten = scene.holdMesh(Testing::addQuadMesh(scene));
                 },
                 "a hold on a scene row nothing gave back");
 
             Testing::expectAssertDies(
-                [] {
-                    SceneDesc scene;
+                [&identities] {
+                    SceneDesc scene(identities);
                     const Index mesh = Testing::addQuadMesh(scene);
                     MeshHold kept = scene.holdMesh(mesh);
                     kept = scene.holdMesh(mesh);
@@ -2367,7 +2404,8 @@ namespace Rtx
         /// frees the row it held and no other, and a sprite's texture is the caller's to speak for.
         TEST(RtxSceneDescTest, theLastHoldFreesItsRowAndNothingElse)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index mesh = Testing::addQuadMesh(scene);
             const Index material = scene.addMaterial(Material{});
             scene.textures().add(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
@@ -2398,7 +2436,8 @@ namespace Rtx
         /// is about to be drawn from them: emptying them there left every lamp dark for a frame.
         TEST(RtxSceneDescTest, aFreedRowLeavesTheListsTheWalkFilled)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             Testing::addQuadMesh(scene);
             const Index going = Testing::addQuadMesh(scene);
 
@@ -2429,7 +2468,8 @@ namespace Rtx
         /// whatever else the frame did is no part of the answer.
         TEST(RtxSceneDescTest, aTextureGoesWithTheLastMaterialThatNamesIt)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index shared = scene.textures().add(VFS::Path::NormalizedView("textures/tx_stone.dds"));
             const Index lone = scene.textures().add(VFS::Path::NormalizedView("textures/tx_sand.dds"));
 
@@ -2474,7 +2514,8 @@ namespace Rtx
         /// on a frame that hands over again without clearing, one it hands twice.
         TEST(RtxSceneDescTest, aLightAddedAfterTheHandOverDies)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const std::optional<Light> light = makeLight(osg::Vec3f(1.0f, 1.0f, 1.0f), 10.0f, osg::Vec3f()).value();
             ASSERT_TRUE(light.has_value());
 
@@ -2495,7 +2536,8 @@ namespace Rtx
         /// frees the same slots of the moved scene.
         TEST(RtxSceneDescTest, aMovedDescriptionsTablesReachItsOwnTables)
         {
-            SceneDesc source;
+            SceneIdentities identities;
+            SceneDesc source(identities);
             Testing::addQuadMesh(source);
 
             SceneDesc moved = std::move(source);
@@ -2530,7 +2572,8 @@ namespace Rtx
         /// list, under the one reference count: a second table would be a second lifetime.
         TEST(RtxSceneDescTest, anImageThatIsNotAFileTakesASlotAndGivesItBack)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             const Index baked = scene.textures().addGround(2, TextureKind::GroundAlbedo);
             ASSERT_EQ(baked, 0u);
@@ -2587,7 +2630,8 @@ namespace Rtx
         /// state set; the material keeps its slot and the image it walked away from does not.
         TEST(RtxSceneDescTest, aMaterialRewrittenGivesBackOnlyWhatItStoppedNaming)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index first = scene.textures().add(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
             const Index second = scene.textures().add(VFS::Path::NormalizedView("textures/tx_fire_01.dds"));
             const Index material = scene.addMaterial(Material{ .mDiffuse = first });
@@ -2612,7 +2656,8 @@ namespace Rtx
         /// A hold speaks for a texture no material can, and the slot goes when the hold does.
         TEST(RtxSceneDescTest, aHeldTextureGoesWhenTheHoldDoesAndNotBefore)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index sprite = scene.textures().add(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
             TextureHold held = scene.holdTexture(sprite);
 
@@ -2639,6 +2684,7 @@ namespace Rtx
         /// second block; 60,000 then fits the tail and takes it at 200,000.
         TEST(RtxSceneDescTest, aMeshNeverStraddlesABlockAndTheTailItSkippedIsReused)
         {
+            SceneIdentities identities;
             ASSERT_EQ(MeshTable::sVertexBlock, 262144u) << "the arithmetic below is written against this";
 
             // One buffer, sliced. A block is a quarter of a million vertices and three separate
@@ -2648,7 +2694,7 @@ namespace Rtx
 
             const auto vertices = [&](std::size_t count) { return std::span(room).first(count); };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             const Index first
                 = Testing::addMesh(scene, MeshArrays{ .mPositions = vertices(200000), .mIndices = triangle });
             EXPECT_EQ(scene.meshes().getRows()[first].mVertices.mOffset, 0u);
@@ -2685,6 +2731,7 @@ namespace Rtx
         /// takes (`MeshTable::checkFits`, `SceneDesc::checkPoses`) and a reader asks before `addMesh`.
         TEST(RtxSceneDescTest, aMeshLongerThanABlockIsRefusedByName)
         {
+            SceneIdentities identities;
             const std::vector<osg::Vec3f> tooMany(MeshTable::sVertexBlock + 1);
             const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
@@ -2699,7 +2746,7 @@ namespace Rtx
             const MeshArrays aBlock{ .mPositions = std::span(tooMany).first(MeshTable::sVertexBlock),
                 .mIndices = triangle };
             EXPECT_TRUE(MeshTable::checkFits(aBlock.mPositions.size(), aBlock.mIndices.size()).isOk());
-            SceneDesc scene;
+            SceneDesc scene(identities);
             Testing::addMesh(scene, aBlock);
 
             // A deforming mesh is asked the same of the deformer that poses it: a rig or a set of
@@ -2717,7 +2764,8 @@ namespace Rtx
         /// and the ground reaches four cells past the one looked at. A view names a place; this is its extent.
         TEST(RtxSceneDescTest, aRegionsExtentLeavesOutTheSeaAndStopsAtItsOwnEdge)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             const Index quad = Testing::addQuadMesh(scene);
             const Index ground = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain });
@@ -2761,7 +2809,8 @@ namespace Rtx
         /// device, and a slot given back reaches nowhere.
         TEST(RtxSceneDescTest, aMeshesExtentFollowsWhateverWasWrittenIntoIt)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
 
             const Index quad = Testing::addOneBoneBody(
                 scene, MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices })

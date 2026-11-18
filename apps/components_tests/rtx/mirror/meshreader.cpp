@@ -36,6 +36,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/packedstreams.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/shader/automaps.hpp>
 
 namespace Rtx::Testing
@@ -46,7 +47,8 @@ namespace Rtx::Testing
         /// insists on.
         struct Resolving
         {
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             ExtractionStats mStats;
             MirrorPass mPass;
             ContentPreprocessor mContent;

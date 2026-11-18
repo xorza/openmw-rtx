@@ -9,6 +9,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/structurerevision.hpp>
 
 #include "slot.hpp"
@@ -25,7 +26,7 @@ namespace Rtx
         /// handing another description to a slot has to build, because the structures and the
         /// texture array are the first description's. Nought where nothing was built, which no
         /// description's identity is.
-        std::uint64_t mIdentity = 0;
+        SceneIdentity mIdentity{};
 
         /// `SceneDesc::getStructureRevision` as it stood at the last `setScene` or `extendScene`.
         StructureRevision mStructureRevision;

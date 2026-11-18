@@ -29,6 +29,7 @@
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/look.h>
@@ -116,6 +117,7 @@ namespace Rtx::Testing
         /// `colour * (1 - T)`. So this asserts the analytic answer and not the march's approximation of it.
         TEST_F(RtxVisibilityTest, fogTakesWhatBeerLambertSaysOverThePathAndGivesItsOwnColourBack)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float distance = 2000.0f;
@@ -126,7 +128,7 @@ namespace Rtx::Testing
                     osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
                 litThroughFog(camera, thickness);
 
-                const SceneDesc scene = makeWall();
+                const SceneDesc scene = makeWall(identities);
                 const Frame frame = shoot(scene, {}, camera, size);
                 return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
                     frame.byte(centre + 2) };
@@ -188,8 +190,9 @@ namespace Rtx::Testing
 
             for (const Row row : { Row{ "the reflection", 1.0f, 201.0f }, Row{ "the refraction", -1.0f, 200.0f } })
             {
+                SceneIdentities identities;
                 const auto shown = [&](float extinction, float glow) {
-                    SceneDesc scene = makeOpenWater(4000.0f);
+                    SceneDesc scene = makeOpenWater(identities, 4000.0f);
                     addQuad(scene, sheetAt(4000.0f, 200.0f),
                         scene.addMaterial(
                             Material{ .mEmissiveColour = osg::Vec3f(glow, glow, glow), .mTwoSided = true }));
@@ -219,6 +222,7 @@ namespace Rtx::Testing
         /// there would put grey between the eye and the seabed twice over.
         TEST_F(RtxVisibilityTest, theFogLayerSitsOnTheWaterThinsAboveItAndStopsAtIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = framedInColumns(4);
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float distance = 2000.0f;
@@ -231,7 +235,7 @@ namespace Rtx::Testing
                     osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
                 litThroughFog(camera, thickness, level);
 
-                const SceneDesc scene = makeWall();
+                const SceneDesc scene = makeWall(identities);
                 const Frame frame = shoot(scene, {}, camera, size);
                 return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
                     frame.byte(centre + 2) };
@@ -254,7 +258,7 @@ namespace Rtx::Testing
 
                 // Stretched, because the ray runs six hundred units over the middle of the wall the
                 // rest of this test is measured against.
-                const SceneDesc scene = makeWall(20.0f);
+                const SceneDesc scene = makeWall(identities, 20.0f);
                 const Frame frame = shoot(scene, {}, camera, size);
                 return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
                     frame.byte(centre + 2) };
@@ -298,7 +302,7 @@ namespace Rtx::Testing
 
                 // Stretched, because a ray leaving at forty-five degrees meets the wall two thousand
                 // units off its middle and the wall is four hundred across.
-                const SceneDesc scene = makeWall(20.0f);
+                const SceneDesc scene = makeWall(identities, 20.0f);
                 const Frame frame = shoot(scene, {}, camera, size);
                 return std::array<std::int32_t, 3>{ frame.byte(centre), frame.byte(centre + 1),
                     frame.byte(centre + 2) };
@@ -344,11 +348,12 @@ namespace Rtx::Testing
         /// the claim has: a submerged eye owes the fog nothing and every byte must match.
         TEST_F(RtxVisibilityTest, theVolumesAirIsNotOverAnEyeUnderTheSurface)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 65;
 
             // Level at fifty units down, so the frame holds the surface overhead, the bed below and
             // the waterline between them — which is where the band was.
-            const SceneDesc scene = makeFlooded(8000.0f, 400.0f);
+            const SceneDesc scene = makeFlooded(identities, 8000.0f, 400.0f);
 
             const auto look = [&](float extinction) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -382,6 +387,7 @@ namespace Rtx::Testing
         /// two-hundred-unit ray varies the irradiance by 0.02%.
         TEST_F(RtxVisibilityTest, aLampLightsTheAirItStandsInByTheFogsPhaseOfWhatItDelivers)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float distance = 200.0f;
@@ -398,7 +404,7 @@ namespace Rtx::Testing
             const float delivered = lampDelivered((lamp - middle).length(), reach);
 
             const auto look = [&](bool lit, bool shaded = false, std::uint32_t lampClass = Shaders::MASK_EVERY_CLASS) {
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(identities);
 
                 // A lid between the ray and the lamp, high enough to be nowhere near what the eye
                 // sees and squarely across every ray the march sends up at the light.
@@ -506,13 +512,14 @@ namespace Rtx::Testing
         /// stands in both frames, since it also covers part of the sky the wall gathers.
         TEST_F(RtxVisibilityTest, aLampBehindALidLightsNoneOfTheVolumesAirEither)
         {
+            SceneIdentities identities;
             using Fixture = LampInTheAir;
 
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
             const auto look = [&](bool lit, bool lidded) {
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(identities);
 
                 if (lidded)
                     addQuad(scene, makeLid(Fixture::sLidHeight, -4000.0f, 4000.0f, 4000.0f));
@@ -566,6 +573,7 @@ namespace Rtx::Testing
         /// same estimator with the history off measures 5.9%, which is what the temporal half is worth here.
         TEST_F(RtxSettlingTest, theVolumeSettlesTheAirUnderALampRatherThanFlickeringBlockByBlock)
         {
+            SceneIdentities identities;
             using Fixture = LampInTheAir;
 
             constexpr std::uint32_t size = 33;
@@ -576,7 +584,7 @@ namespace Rtx::Testing
             constexpr std::size_t frames = 192;
             constexpr std::size_t settled = 64;
 
-            SceneDesc scene = makeWall();
+            SceneDesc scene = makeWall(identities);
 
             // Over the near half of the stretch the lamp reaches and no further. A shadow ray
             // crosses this height half way to the lamp, so what it covers is every point of the ray
@@ -645,6 +653,7 @@ namespace Rtx::Testing
         /// air's to 1.5 per cent and steps by 2.9%, the draws of the shadow rays the posts' edges stop.
         TEST_F(RtxSettlingTest, theLampLightBesideAnEdgeHoldsStillAndAsBrightAsOpenAir)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = framedInColumns(4);
             constexpr std::size_t centre = centreOf(size);
             constexpr std::size_t frames = 96;
@@ -675,7 +684,7 @@ namespace Rtx::Testing
             };
 
             const auto run = [&](bool withPosts) {
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(identities);
                 if (withPosts)
                     for (const float side : { -1.0f, 1.0f })
                         addQuad(scene,
@@ -722,10 +731,11 @@ namespace Rtx::Testing
         /// frame end elsewhere.
         TEST_F(RtxVisibilityTest, aFrameClosedUntracedLeavesTheAirsHistoryWhereTheLastTraceLeftIt)
         {
+            SceneIdentities identities;
             using Fixture = LampInTheAir;
 
             constexpr std::uint32_t size = 17;
-            SceneDesc scene = makeWall();
+            SceneDesc scene = makeWall(identities);
             scene.addLight(Light{
                 .mPosition = Fixture::sLamp,
                 .mIntensity = Fixture::sIntensity,
@@ -788,6 +798,7 @@ namespace Rtx::Testing
         /// one at every depth), and the wall alone keeps no history so it draws only the frames it averages.
         TEST_F(RtxSettlingTest, theVolumeLightsTheAirUpToASurfaceWhereverInASliceItStands)
         {
+            SceneIdentities identities;
             using Fixture = LampInTheAir;
 
             constexpr std::uint32_t size = 33;
@@ -801,7 +812,7 @@ namespace Rtx::Testing
             const float ahead = Fixture::sDistance + Fixture::sLamp.y();
 
             const auto settle = [&](float distance, bool banked, bool fogged) {
-                SceneDesc scene = makeWall();
+                SceneDesc scene = makeWall(identities);
                 scene.addLight(Light{
                     .mPosition = osg::Vec3f(0.0f, ahead - distance, Fixture::sLamp.z()),
                     .mIntensity = Fixture::sIntensity,
@@ -878,6 +889,7 @@ namespace Rtx::Testing
         /// half-float step of `2.4e-4`; kept, they carry it up to `0.341 * 0.3 * 0.9 = 0.092`.
         TEST_F(RtxVisibilityTest, theAirAStepUncoversBehindASurfaceIsThisFramesAir)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreOf(size);
             constexpr float distance = 2000.0f;
@@ -890,7 +902,7 @@ namespace Rtx::Testing
 
             const osg::Vec3f before(sHaze.z(), sHaze.y(), sHaze.x());
 
-            SceneDesc scene = makeWall();
+            SceneDesc scene = makeWall(identities);
             addQuad(scene, uprightQuadAt(pillarHalf, pillarAway - distance));
 
             const auto eye = [&](float across, float up, const osg::Vec3f& colour) {
@@ -984,12 +996,13 @@ namespace Rtx::Testing
 
             camera.mFogColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
             camera.mFogExtinction = 3.0e-6f;
-            const Frame clear = shoot(makeWall(), {}, camera, size);
+            SceneIdentities identities;
+            const Frame clear = shoot(makeWall(identities), {}, camera, size);
             EXPECT_EQ(clear.mNotFinite.total(), 0u);
 
             camera.mFogColour = osg::Vec3f(std::numeric_limits<float>::quiet_NaN(), 1.0f, 1.0f);
             camera.mFogExtinction = 3.0e-6f;
-            const Frame frame = shoot(makeWall(), {}, camera, size);
+            const Frame frame = shoot(makeWall(identities), {}, camera, size);
 
             constexpr std::uint32_t columns = size / Shaders::FOG_VOLUME_SCALE;
             constexpr std::uint32_t froxels = columns * columns * Shaders::FOG_VOLUME_SLICES;
@@ -1046,7 +1059,7 @@ namespace Rtx::Testing
             mProbe.traceFrame(camera, FrameOptions{});
             mProbe.traceFrame(camera, FrameOptions{});
             camera.mFogColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
-            const Frame newWorld = shoot(makeWall(), {}, camera, size);
+            const Frame newWorld = shoot(makeWall(identities), {}, camera, size);
             EXPECT_EQ(newWorld.mNotFinite.of("fogscatter.rgen"), 2 * froxels)
                 << "the two frames of the world before, and none of the clear frame's own";
             EXPECT_EQ(newWorld.mNotFinite.total(), 2 * froxels);
@@ -1057,7 +1070,7 @@ namespace Rtx::Testing
             // took the step and stored an infinite distance at every pixel of the wall.
             const osg::Vec3f away(100.0f, -80000.0f, 0.0f);
             const osg::Vec3f lit(1.0f, 1.0f, 1.0f);
-            const SceneDesc wall = makeWall();
+            const SceneDesc wall = makeWall(identities);
             shoot(wall, {}, wallCamera(size, lit, away, away - osg::Vec3f(0.0f, 1.0f, 0.0f)), size);
             const Frame afterDoor
                 = shoot(wall, {}, wallCamera(size, lit), size, Shot{ .mLoss = HistoryLoss::Cut, .mSetScene = false });
@@ -1127,6 +1140,7 @@ namespace Rtx::Testing
         /// cancel, leaving `p(26.6 degrees) / p(153.4)`. An isotropic fog would give exactly one.
         TEST_F(RtxVisibilityTest, theFogScattersTheSunForwardFarHarderThanBack)
         {
+            SceneIdentities identities;
             // Wider than the four columns most tests here use, because the volume answers per column: at four
             // the column the centre pixel reads points six degrees off that pixel's, climbs out of the layer and
             // carries air a fifth thinner than the level ray the closed form is written for. The bias falls with
@@ -1158,7 +1172,7 @@ namespace Rtx::Testing
                 // rays and not merely out of the frame: a wall at y = 0 is in the path of the *backward* case's
                 // shadow rays and would shadow the near steps at a dither-dependent offset. A sheet below the
                 // world is past `mFar` in every direction any ray here travels.
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, -200000.0f));
 
                 const Frame frame = shoot(scene, {}, camera, size);
@@ -1204,6 +1218,7 @@ namespace Rtx::Testing
         /// level ray never reaches it (five hundred units overhead), so only the shadow ray differs.
         TEST_F(RtxVisibilityTest, aLidOverTheMarchTakesTheSunOutOfTheAirBeneathIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float irradiance = 4.0f;
@@ -1212,7 +1227,7 @@ namespace Rtx::Testing
                 // The same sheet either way, over the march or under it, so the frames differ in what the shadow
                 // ray finds and nothing else, not in what is in the scene nor its size. Two-sided, since a roof
                 // in the game has an underside the content modelled and the eye meets the sheet from either side.
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(40000.0f, lidded ? 500.0f : -500.0f),
                     scene.addMaterial(Material{ .mTwoSided = true }));
 
@@ -1260,6 +1275,7 @@ namespace Rtx::Testing
         /// (measured 2.7322), the air along the eye's ray being the same in both.
         TEST_F(RtxVisibilityTest, aPointUnderABanksTopIsLitThroughTheClearAirItsSlantCrosses)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float top = 600.0f;
@@ -1319,7 +1335,7 @@ namespace Rtx::Testing
                     tile /= Shaders::FOG_LACUNARITY;
                 }
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, uprightQuadAt(2000.0f, 1000.0f, osg::Vec2f(0.0f, eye)),
                     scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f() }));
                 const Frame frame = shoot(scene, {}, camera, size, { .mFrames = 64, .mAverage = false });
@@ -1355,6 +1371,7 @@ namespace Rtx::Testing
         /// 0.738438 and a transmittance of 0.47784: a third more than the air leaves.
         TEST_F(RtxVisibilityTest, aSpriteFadesThroughTheWholeLayerAndNotOneSampleOfIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             const float height = 3.0f * Shaders::FOG_HEIGHT;
@@ -1363,7 +1380,7 @@ namespace Rtx::Testing
             const std::array<TextureData, 1> flame{ describeTexel(half) };
 
             const auto glow = [&](float extinction) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
 
                 // Wide enough to fill the middle of the frame from three scale heights away, which
@@ -1412,13 +1429,14 @@ namespace Rtx::Testing
         /// and the wall's radiance divide out; the wall glows, for the reason the test below gives.
         TEST_F(RtxVisibilityTest, theAirBehindAPaneIsTheAirThatIsThere)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float wallAway = 4000.0f;
             constexpr float extinction = 3.5e-4f;
 
             const auto look = [&](bool paned, float thickness) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
 
                 addQuad(scene, wallAt(0.0f),
                     scene.addMaterial(Material{
@@ -1477,6 +1495,7 @@ namespace Rtx::Testing
         /// next round figure above.
         TEST_F(RtxVisibilityTest, aPaneIsHazedOverItsOwnDistanceAndNotOverThePathBehindIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = framedInColumns(4);
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float wallAway = 4000.0f;
@@ -1485,7 +1504,7 @@ namespace Rtx::Testing
             const std::array<osg::Vec3f, 4> wall = wallAt(0.0f);
 
             const auto glow = [&](float paneAway, float thickness, bool behindAnother = false) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
 
                 addQuad(scene, wall,
                     scene.addMaterial(Material{
@@ -1547,6 +1566,7 @@ namespace Rtx::Testing
         /// turns about the vertical, so its slant through the air is one at all three.
         TEST_F(RtxVisibilityTest, aMoonsLightInTheAirIsOneLevelAcrossItsDisc)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1572,7 +1592,7 @@ namespace Rtx::Testing
                 moon.mFace = Shaders::NO_TEXTURE;
                 camera.mMoons[0] = moon;
 
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, -200000.0f));
                 return shoot(scene, {}, camera, size, { .mFrames = 32 }).mRadiance[centre + 2];
             };
@@ -1605,6 +1625,7 @@ namespace Rtx::Testing
         /// about reads nought.
         TEST_F(RtxVisibilityTest, aMoonTooFaintForItsOwnShadowStillLightsTheAir)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1639,7 +1660,7 @@ namespace Rtx::Testing
                 // The sheet is past `mFar` in every direction a ray here travels, for the reason
                 // `theFogScattersTheSunForwardFarHarderThanBack` gives: a wall in the path of a
                 // shadow ray would shadow what this measures.
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, -200000.0f));
 
                 std::vector<float> radiance;

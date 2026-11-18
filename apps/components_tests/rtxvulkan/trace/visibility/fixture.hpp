@@ -39,6 +39,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -55,9 +56,9 @@
 namespace Rtx::Testing
 {
     /// A level sheet of water `extent` across at z = 0, with nothing under it.
-    inline SceneDesc makeOpenWater(float extent)
+    inline SceneDesc makeOpenWater(SceneIdentities& identities, float extent)
     {
-        SceneDesc scene;
+        SceneDesc scene(identities);
         Material water;
         water.mKind = MaterialKind::Water;
 
@@ -73,9 +74,9 @@ namespace Rtx::Testing
     ///
     /// The shape most of the water tests want: something to see through the water at, and the
     /// water to see it through.
-    inline SceneDesc makeFlooded(float extent, float depth)
+    inline SceneDesc makeFlooded(SceneIdentities& identities, float extent, float depth)
     {
-        SceneDesc scene = makeOpenWater(extent);
+        SceneDesc scene = makeOpenWater(identities, extent);
         addQuad(scene, sheetAt(extent, -depth));
 
         return scene;
@@ -139,9 +140,9 @@ namespace Rtx::Testing
     ///
     /// @param scale what to stretch it by, for a frame taken far enough away that four hundred
     ///        units is a fraction of one pixel.
-    inline SceneDesc makeWall(float scale = 1.0f)
+    inline SceneDesc makeWall(SceneIdentities& identities, float scale = 1.0f)
     {
-        SceneDesc scene;
+        SceneDesc scene(identities);
         addQuad(scene, sWallQuad, std::nullopt, osg::Matrixf::scale(scale, 1.0f, scale));
         return scene;
     }
@@ -622,10 +623,11 @@ namespace Rtx::Testing
         /// @param camera has its fog colour and thickness set here; whatever else a test set on it stays.
         std::vector<float> airThrough(Shaders::VisibilityConstants camera, std::uint32_t size)
         {
+            SceneIdentities identities;
             camera.mFogColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
             camera.mFogExtinction = 3.0e-6f;
 
-            const Frame frame = shoot(makeWall(), {}, camera, size);
+            const Frame frame = shoot(makeWall(identities), {}, camera, size);
 
             std::vector<float> luminance(std::size_t{ size } * size);
             for (std::size_t i = 0; i < luminance.size(); ++i)
@@ -683,8 +685,9 @@ namespace Rtx::Testing
                 where.file_name(), static_cast<std::int32_t>(where.line()), "litThroughPane");
 
             constexpr std::uint32_t size = 33;
+            SceneIdentities identities;
 
-            SceneDesc scene = makeWall();
+            SceneDesc scene = makeWall(identities);
             if (colour.has_value())
                 addPane(scene, pane, *colour, fade);
 
@@ -713,8 +716,9 @@ namespace Rtx::Testing
                 where.file_name(), static_cast<std::int32_t>(where.line()), "litThroughStack");
 
             constexpr std::uint32_t size = 33;
+            SceneIdentities identities;
 
-            SceneDesc scene = makeWall();
+            SceneDesc scene = makeWall(identities);
             for (std::size_t at = 0; at < layers.size(); ++at)
             {
                 const float away = -60.0f + 10.0f * static_cast<float>(at);
@@ -755,7 +759,8 @@ namespace Rtx::Testing
 
             const std::array pane = uprightQuadAt(20.0f, -50.0f);
 
-            SceneDesc scene = makeWall();
+            SceneIdentities identities;
+            SceneDesc scene = makeWall(identities);
             place(scene, pane);
 
             const osg::Vec3f bright(2.0f, 2.0f, 2.0f);

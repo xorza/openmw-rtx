@@ -58,6 +58,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -301,6 +302,7 @@ namespace Rtx::Testing
         /// its reference whatever the texture holds; a file nothing here reads is a cut.
         TEST_F(RtxSceneExtractorTest, aBlendIsACutWhereItsTextureIsAMaskAndAPaneWhereItNeverCloses)
         {
+            Rtx::SceneIdentities identities;
             const auto imageOf = [](std::array<std::uint8_t, 4> alphas) {
                 osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/tx_window_pane.dds", 2, 2);
                 for (std::size_t texel = 0; texel < alphas.size(); ++texel)
@@ -308,7 +310,7 @@ namespace Rtx::Testing
                 return image;
             };
 
-            const auto extractOne = [](bool blend, osg::Image* image, float test = 0.0f) {
+            const auto extractOne = [&identities](bool blend, osg::Image* image, float test = 0.0f) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
                 if (image != nullptr)
@@ -320,7 +322,7 @@ namespace Rtx::Testing
                 if (test > 0.0f)
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, test));
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
@@ -376,6 +378,7 @@ namespace Rtx::Testing
         /// dark map is never walked. The ring's reader hands the same fact over.
         TEST_F(RtxSceneExtractorTest, aPanesDarkMapCountsWhereItsAlphaFallsBelowSolid)
         {
+            Rtx::SceneIdentities identities;
             const auto imageOf = [](std::string_view file, std::array<std::uint8_t, 4> alphas) {
                 osg::ref_ptr<osg::Image> image = Testing::makeImage(file, 2, 2);
                 for (std::size_t texel = 0; texel < alphas.size(); ++texel)
@@ -394,7 +397,7 @@ namespace Rtx::Testing
                 return quad;
             };
             const auto extractOne = [&](osg::Image& dark, bool blend) {
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quadWearing(dark, blend), osg::Matrixf::identity(), 0);
@@ -435,7 +438,8 @@ namespace Rtx::Testing
         /// the same, because the frame's alpha is one; `ONE, ONE` adds whole.
         TEST_F(RtxSceneExtractorTest, anAdditiveSurfaceIsPlacedOnItsOwnMaskAndMetByNothingThatShades)
         {
-            const auto extractOne = [](GLenum source, GLenum destination, float opacity) {
+            Rtx::SceneIdentities identities;
+            const auto extractOne = [&identities](GLenum source, GLenum destination, float opacity) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
                 paint(state, "textures/vfx_alt_glow02.dds");
@@ -445,7 +449,7 @@ namespace Rtx::Testing
                 colours->setDiffuse(osg::Vec4f(1.0f, 1.0f, 1.0f, opacity));
                 state.setAttribute(colours);
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
@@ -495,7 +499,8 @@ namespace Rtx::Testing
         /// (`Material::mAmbientColour`).
         TEST_F(RtxSceneExtractorTest, theAmbientTheGameOverridesJoinsTheGlowByTheMaterialsAmbient)
         {
-            const auto extractOne = [](bool overridden) {
+            Rtx::SceneIdentities identities;
+            const auto extractOne = [&identities](bool overridden) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
 
@@ -507,7 +512,7 @@ namespace Rtx::Testing
                 if (overridden)
                     state.addUniform(new osg::Uniform("sun.ambient", osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
@@ -678,8 +683,9 @@ namespace Rtx::Testing
         /// no eye to shift by; its relief spans the lowest and highest alpha its texels hold, here 30 and 200.
         TEST_F(RtxSceneExtractorTest, theCompanionMapsReachTheMaterialAsDataAndTheSpecularMapOnlyInItsLayout)
         {
-            const auto extractOne = [](std::optional<std::array<std::uint8_t, 4>> specularTexel, TextureRole normalRole,
-                                        bool cutout = false) {
+            Rtx::SceneIdentities identities;
+            const auto extractOne = [&identities](std::optional<std::array<std::uint8_t, 4>> specularTexel,
+                                        TextureRole normalRole, bool cutout = false) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
                 paint(state, "textures/tx_a_steel.dds");
@@ -707,7 +713,7 @@ namespace Rtx::Testing
                 if (cutout)
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GEQUAL, 0.5f));
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
@@ -792,6 +798,7 @@ namespace Rtx::Testing
         /// first pair's colour.
         TEST_F(RtxSceneExtractorTest, aDiffusePairedWithTwoClassicSpecularMapsIsTwoBaseColours)
         {
+            Rtx::SceneIdentities identities;
             osg::ref_ptr<osg::Image> diffuse = new osg::Image;
             diffuse->setFileName("textures/tx_ore.dds");
             const auto grey = [](const char* name) {
@@ -812,7 +819,7 @@ namespace Rtx::Testing
                 both->addChild(quad);
             }
 
-            Rtx::SceneDesc scene;
+            Rtx::SceneDesc scene(identities);
             WalkContext context{};
             SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
             extractor.extract(*both, osg::Matrixf::identity(), 0);
@@ -1093,7 +1100,8 @@ namespace Rtx::Testing
         {
             for (const bool onDrawable : { false, true })
             {
-                Rtx::SceneDesc scene;
+                Rtx::SceneIdentities identities;
+                Rtx::SceneDesc scene(identities);
                 SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
 
                 osg::ref_ptr<osg::StateSet> shared = shapeState();
@@ -1199,7 +1207,8 @@ namespace Rtx::Testing
         {
             for (const bool onDrawable : { false, true })
             {
-                Rtx::SceneDesc scene;
+                Rtx::SceneIdentities identities;
+                Rtx::SceneDesc scene(identities);
                 SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
 
                 const osg::ref_ptr<osg::Group> shape = makeShape(shapeState(), onDrawable);
@@ -1255,7 +1264,8 @@ namespace Rtx::Testing
         /// actor built from one body part reads one material, and a fade there would fade all of them.
         TEST_F(RtxSceneExtractorTest, anActorsFadeRidesItsPlacementAndAModelsOwnAlphaDoesNot)
         {
-            const auto extractOne = [](float alpha, std::optional<float> actorFade, float opacity) {
+            Rtx::SceneIdentities identities;
+            const auto extractOne = [&identities](float alpha, std::optional<float> actorFade, float opacity) {
                 osg::ref_ptr<osg::Group> parent = new osg::Group;
                 osg::StateSet& above = *parent->getOrCreateStateSet();
                 above.addUniform(new osg::Uniform("alpha", alpha));
@@ -1268,7 +1278,7 @@ namespace Rtx::Testing
                 own.setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
                 parent->addChild(quad);
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*parent, osg::Matrixf::identity(), 0);
@@ -1350,7 +1360,8 @@ namespace Rtx::Testing
         /// within a millionth because the curve is a `pow`.
         TEST_F(RtxSceneExtractorTest, anEmissiveMultiplierIsFoldedIntoTheColourItScales)
         {
-            const auto extractOne = [](float multiplier) {
+            Rtx::SceneIdentities identities;
+            const auto extractOne = [&identities](float multiplier) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
 
@@ -1358,7 +1369,7 @@ namespace Rtx::Testing
                 surface.setEmission(osg::Vec4f(0.5f, 0.25f, 0.0f, 1.0f));
                 surface.setEmissiveMultiplier(multiplier);
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
@@ -1387,7 +1398,8 @@ namespace Rtx::Testing
         /// sixteenth of it, the fitting around that flame a quarter.
         TEST_F(RtxSceneExtractorTest, aGlowingSurfaceEarnsNoLampAndARecordDoesTheLighting)
         {
-            const auto lampsOf = [](bool torch) {
+            Rtx::SceneIdentities identities;
+            const auto lampsOf = [&identities](bool torch) {
                 osg::ref_ptr<osg::MatrixTransform> root = new osg::MatrixTransform(
                     osg::Matrixf::scale(2.0f, 2.0f, 2.0f) * osg::Matrixf::translate(0.0f, 0.0f, 5.0f));
 
@@ -1397,7 +1409,7 @@ namespace Rtx::Testing
                 if (torch)
                     root->addChild(makeLightSource(100.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*root, osg::Matrixf::identity(), 0);
@@ -1419,13 +1431,14 @@ namespace Rtx::Testing
         /// `NiStencilProperty` drawing both faces, or a material file's flag, turns it off.
         TEST_F(RtxSceneExtractorTest, aSurfaceIsTwoSidedWhenTheContentSaidSo)
         {
-            const auto extractOne = [](bool twoSided) {
+            Rtx::SceneIdentities identities;
+            const auto extractOne = [&identities](bool twoSided) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 colours(*quad->getOrCreateStateSet());
                 if (twoSided)
                     quad->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
 
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
@@ -1443,6 +1456,7 @@ namespace Rtx::Testing
         /// found by position, not index. `ShapeFold` says why the copy goes; this says the extractor asks it.
         TEST_F(RtxSceneExtractorTest, aCardDoubledForItsBackIsFoldedToOneCopyAndMarkedASheet)
         {
+            Rtx::SceneIdentities identities;
             osg::ref_ptr<osg::Geometry> card = new osg::Geometry;
             card->setVertexArray(makePositions({
                 osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -1468,7 +1482,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
             colours(*quad->getOrCreateStateSet());
 
-            Rtx::SceneDesc plain;
+            Rtx::SceneDesc plain(identities);
             SceneExtractor other(plain, mContext, sSubjectExtractorRoom);
             other.extract(*quad, osg::Matrixf::identity(), 0);
             EXPECT_FALSE(plain.meshes().getRows()[0].mShape.mSheet);
@@ -1477,6 +1491,7 @@ namespace Rtx::Testing
 
         TEST_F(RtxSceneExtractorTest, aDrawableTheCallerCallsWaterIsShadedAsWaterAndTheRestAreNot)
         {
+            Rtx::SceneIdentities identities;
             constexpr osg::Node::NodeMask sWater = 1u << 6;
             constexpr osg::Node::NodeMask sOther = 1u << 3;
 
@@ -1503,7 +1518,7 @@ namespace Rtx::Testing
             // Nothing said, so nothing is water — which is the harness, and every caller that places
             // an analytic sea of its own instead.
             {
-                Rtx::SceneDesc scene;
+                Rtx::SceneDesc scene(identities);
                 SceneExtractor silent(scene, mContext, sSubjectExtractorRoom);
                 silent.extract(*root, osg::Matrixf::identity(), 0);
 

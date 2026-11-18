@@ -14,6 +14,7 @@
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
@@ -81,7 +82,8 @@ namespace Rtx
         {
             for (const bool reflecting : { false, true })
             {
-                SceneDesc scene;
+                SceneIdentities identities;
+                SceneDesc scene(identities);
                 const Index chunk = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
                     VFS::Path::NormalizedView("textures/over.dds"), reflecting);
 
@@ -123,7 +125,8 @@ namespace Rtx
         /// that stands still.
         TEST(RtxCompositeQueueTest, aFrameWithNothingAskedAllocatesNothing)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             addChunk(
                 scene, VFS::Path::NormalizedView("textures/under.dds"), VFS::Path::NormalizedView("textures/over.dds"));
             CompositeQueue queue;
@@ -147,7 +150,8 @@ namespace Rtx
         /// finds the ring full and grows it with the oldest ask anywhere but slot nought.
         TEST(RtxCompositeQueueTest, aFrameTakesNoMoreThanItsBoundInTheOrderAsked)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             constexpr std::size_t first = sCompositesPerFrame * 3;
             constexpr std::size_t second = sCompositesPerFrame * 2 + 1;
 
@@ -191,7 +195,8 @@ namespace Rtx
         /// what it asked for: the ask is dropped, and what stands there now asks for itself.
         TEST(RtxCompositeQueueTest, aSlotTakenOverWhileItWaitedIsNotGivenTheFirstAskersGround)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             constexpr std::size_t chunks = sCompositesPerFrame + 1;
 
             std::vector<VFS::Path::Normalized> paths;
@@ -246,7 +251,8 @@ namespace Rtx
         /// which the second takes.
         TEST(RtxCompositeQueueTest, aRefusedChunkKeepsItsPlaceUntilTheTableFreesASlot)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const std::array<Index, 2> chunks{
                 addChunk(scene, VFS::Path::NormalizedView("textures/one-a.dds"),
                     VFS::Path::NormalizedView("textures/one-b.dds")),
@@ -287,7 +293,8 @@ namespace Rtx
         /// left after the chunk's own layers stood.
         TEST(RtxCompositeQueueTest, aReflectingChunkWithRoomForItsAlbedoAloneIsFlattenedWithNoLobe)
         {
-            SceneDesc scene;
+            SceneIdentities identities;
+            SceneDesc scene(identities);
             const Index chunk = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
                 VFS::Path::NormalizedView("textures/over.dds"), true);
 

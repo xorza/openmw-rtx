@@ -7,6 +7,7 @@
 #include <components/contentstore/store.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 
 namespace RtxTool
 {
@@ -16,7 +17,8 @@ namespace RtxTool
         /// was one: a walk that did not happen has no count, and a nought would read as one that resolved nothing.
         TEST(RtxSceneReportTest, aSecondWalkAndTheStoreAreSaidOnlyWhereThereWasOne)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             scene.keepDigests();
             MWRender::WalkReport walked;
             walked.mFound.mDistantStatics = 7;

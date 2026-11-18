@@ -28,6 +28,7 @@
 #include <components/rtx/renderer/frametimehistogram.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -423,6 +424,10 @@ namespace MWRender
         /// The world's normal and data maps with their chains made again, on half the processors
         /// (`Rtx::Hands::Half`). After the store its threads write to, before the mirror whose hand-over reads it.
         std::unique_ptr<Rtx::PreparedImages> mPrepared;
+
+        /// Where every scene this renderer's slots meet takes its identity: the world's and every traced view's.
+        /// Before the mirror, whose scene takes one, and every view.
+        Rtx::SceneIdentities mSceneIdentities;
 
         /// The engine's scene graph mirrored into what a ray can meet, and the hand-over that
         /// puts it on the device.

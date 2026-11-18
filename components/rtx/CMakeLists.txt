@@ -165,6 +165,7 @@ openmw_rtx_layer(
         scene/ripple.hpp
         scene/rowhold.hpp
         scene/scenedesc.hpp
+        scene/sceneidentities.hpp
         scene/sceneroom.hpp
         scene/sprite.hpp
         scene/surface.hpp

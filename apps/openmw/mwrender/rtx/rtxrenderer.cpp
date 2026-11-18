@@ -160,7 +160,7 @@ namespace MWRender
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mPrepared(std::make_unique<Rtx::PreparedImages>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
-        , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
+        , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get(), mSceneIdentities)
     {
         mSettled = setup.mSettled;
         mCacheBudget = setup.mCacheBudget;
@@ -633,7 +633,8 @@ namespace MWRender
     std::unique_ptr<TracedView> RtxRenderer::traceView(const OffscreenViewSpec& spec, const ViewKind kind)
     {
         assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(spec, kind, *mRenderer, mViews, *mGui, mMirror.getWalkContext());
+        return std::make_unique<TracedView>(
+            spec, kind, *mRenderer, mViews, *mGui, mMirror.getWalkContext(), mSceneIdentities);
     }
 
     std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept

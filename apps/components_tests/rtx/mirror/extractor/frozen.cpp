@@ -434,7 +434,8 @@ namespace Rtx::Testing
             }
 
             WalkContext mContext{};
-            SceneDesc mScene;
+            SceneIdentities mIdentities;
+            SceneDesc mScene{ mIdentities };
             SceneExtractor mExtractor{ mScene, mContext, room() };
             CellRing mRing{ mExtractor };
             osg::ref_ptr<osg::Group> mRoot = new osg::Group;

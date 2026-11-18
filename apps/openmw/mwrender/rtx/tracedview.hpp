@@ -11,6 +11,7 @@
 #include <apps/openmw/mwrender/offscreenview.hpp>
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/view/offscreentrace.hpp>
 
 namespace osg
@@ -54,8 +55,9 @@ namespace MWRender
         /// @param backend what the trace is recorded into.
         /// @param views the list this joins and asks to be drawn on, which outlives it.
         /// @param gui whose texture the trace writes into, and which draws it.
+        /// @param identities the renderer's, which a subject's scene takes its identity from.
         TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::PictureRenderer& backend, ViewQueue& views,
-            MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context);
+            MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context, Rtx::SceneIdentities& identities);
         ~TracedView() override;
 
         void setView(const osg::Matrixd& view) override { mTrace.setView(view); }

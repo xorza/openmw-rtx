@@ -7,6 +7,7 @@
 #include <apps/rtxtool/model/restreuse.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -22,7 +23,8 @@ namespace RtxTool
         /// 20 alone, one of 96 both, 60 MiB; one of 32 keeps the third, whose 20 falls in the first step.
         TEST(RtxRestReuseTest, aTextureWokenIsCountedByTheLeastCacheThatHeldIt)
         {
-            Rtx::SceneDesc scene;
+            Rtx::SceneIdentities identities;
+            Rtx::SceneDesc scene(identities);
             Rtx::TextureTable& textures = scene.textures();
             const auto rest = [&](const char* path, const std::uint64_t mebibytes) {
                 const Rtx::Index slot = textures.add(VFS::Path::NormalizedView(path));

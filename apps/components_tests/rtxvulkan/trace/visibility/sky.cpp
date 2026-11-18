@@ -27,6 +27,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
@@ -63,6 +64,7 @@ namespace Rtx::Testing
         /// describes no surface: an albedo, a normal and a roughness of nought.
         TEST_F(RtxVisibilityTest, theSkyIsTheWeathersOwnColourAndRunsFromHorizonToZenith)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
 
             // Facing straight up, so the centre pixel looks at the zenith and the frame's edge looks
@@ -75,7 +77,7 @@ namespace Rtx::Testing
             camera.mSkyZenith = osg::Vec3f(0.0f, 0.0f, 1.0f);
             camera.mAmbientFromSky = 1.0f;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sWallQuad, std::nullopt, osg::Matrixf::translate(0.0f, 0.0f, -5000.0f));
             const Frame frame = shoot(scene, {}, camera, size);
 
@@ -118,9 +120,10 @@ namespace Rtx::Testing
         /// nothing stands on the floor, so the shadow ray always clears and the estimate has no variance.
         TEST_F(RtxVisibilityTest, bothMoonsLightAndTheTwoSlotsAreOneCodePath)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -178,13 +181,14 @@ namespace Rtx::Testing
         /// in is no face: the disc is its colour, as one with none is.
         TEST_F(RtxVisibilityTest, aMoonHidesWhatStandsBehindIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
             constexpr std::array<std::uint8_t, 4> quarter{ 64, 64, 64, 255 };
             std::array<TextureData, 1> face{ describeTexel(quarter) };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.textures().add(VFS::Path::NormalizedView("face.dds"));
             addQuad(scene, sheetAt(4000.0f, -2000.0f));
 
@@ -244,13 +248,14 @@ namespace Rtx::Testing
         /// patch whose sheet stands in adds nothing.
         TEST_F(RtxVisibilityTest, aSkyPatchAddsItsSheetAndNothingWhereTheSheetStandsIn)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             std::array<TextureData, 1> sheet{ describeTexel(white) };
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.textures().add(VFS::Path::NormalizedView("nebula.dds"));
             addQuad(scene, sheetAt(4000.0f, -2000.0f));
 
@@ -286,10 +291,11 @@ namespace Rtx::Testing
         /// whole sky, at full opacity, leaves it all of that.
         TEST_F(RtxVisibilityTest, theDeckCastsNoShadow)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.textures().add(VFS::Path::NormalizedView("cloud.dds"));
             addQuad(scene, sheetAt(4000.0f, 0.0f));
 
@@ -332,10 +338,11 @@ namespace Rtx::Testing
         /// nothing and the deck covers everything, so the middle pixel carries the deck alone.
         TEST_F(RtxVisibilityTest, theDeckTakesItsShapeFromWhatTheSheetPaints)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.textures().add(VFS::Path::NormalizedView("cloud.dds"));
             scene.textures().add(VFS::Path::NormalizedView("cloud_ahead.dds"));
             addQuad(scene, sheetAt(4000.0f, -2000.0f));
@@ -396,10 +403,11 @@ namespace Rtx::Testing
         /// be `(-0.25, 100.25)`, the middle of the green one.
         TEST_F(RtxVisibilityTest, theDeckTurnsAboutTheEyeAndOverheadStaysPut)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.textures().add(VFS::Path::NormalizedView("cloud.dds"));
             addQuad(scene, sheetAt(100.0f, -2000.0f));
 
@@ -460,10 +468,11 @@ namespace Rtx::Testing
         /// (`theDeckTakesItsShapeFromWhatTheSheetPaints`), and black is the shadowed colour of nothing.
         TEST_F(RtxVisibilityTest, theDeckIsReadAtTheLevelItsConeCovers)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.textures().add(VFS::Path::NormalizedView("cloud.dds"));
             addQuad(scene, sheetAt(100.0f, -2000.0f));
 
@@ -523,9 +532,10 @@ namespace Rtx::Testing
         /// the floor must be as dark with the field as without it: a star drawn over geometry is the failure.
         TEST_F(RtxVisibilityTest, theDisplayPassDrawsTheFieldOnlyOverSky)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
-            SceneDesc scene;
+            SceneDesc scene(identities);
             scene.textures().add(VFS::Path::NormalizedView("white.dds"));
             addQuad(scene, sheetAt(4000.0f, -400.0f));
 
@@ -619,6 +629,7 @@ namespace Rtx::Testing
         /// six pixels on the arms' side would count as two and the share read `6 / 8`.
         TEST_F(RtxVisibilityTest, theSunGlareFaderWashesByWhatTheEyeSeesOfTheSun)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 32;
 
             // The top right, which the arms below leave open.
@@ -636,7 +647,7 @@ namespace Rtx::Testing
             /// @param armsDegrees where not nought, the arms' field of view, and the arms a card over
             ///        the left half of the picture five hundred units out.
             const auto washed = [&](float strength, float offAxisDegrees, bool walled, float armsDegrees = 0.0f) {
-                SceneDesc scene;
+                SceneDesc scene(identities);
                 scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                 addQuad(scene, sheetAt(4000.0f, -400.0f));
                 if (walled)
@@ -715,6 +726,7 @@ namespace Rtx::Testing
         ///   without the wall is lit by no ambient.
         TEST_F(RtxVisibilityTest, nightEyesLiftIsLaidOverThePictureByTheAmbientAlbedoAndTheMeterNeverSeesIt)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 16;
             constexpr std::size_t centre = centreValueOf(size);
             const osg::Vec3f lift(0.2f, 0.2f, 0.2f);
@@ -726,8 +738,8 @@ namespace Rtx::Testing
             dark.mSun.mIrradiance = osg::Vec3f();
             dark.mAmbient = osg::Vec3f();
 
-            const auto floor = [](bool paned) {
-                SceneDesc scene;
+            const auto floor = [&identities](bool paned) {
+                SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f),
                     scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
                         .mAmbientColour = osg::Vec3f(0.25f, 0.25f, 0.25f) }));
@@ -788,7 +800,7 @@ namespace Rtx::Testing
             // The water's two paths, by their shares.
             const float fresnel = Shaders::WATER_F0
                 + (1.0f - Shaders::WATER_F0) * std::pow(1.0f - std::sin(osg::DegreesToRadians(10.0f)), 5.0f);
-            SceneDesc mirrored = makeOpenWater(4000.0f);
+            SceneDesc mirrored = makeOpenWater(identities, 4000.0f);
             addQuad(mirrored, sGrazedWall);
             const Shaders::VisibilityConstants grazing = grazingTheWater(size);
             const Shot flat{ .mSea = SeaState{ .mSignificantHeight = 0.0f } };
@@ -798,7 +810,7 @@ namespace Rtx::Testing
             mProbe.readChannel(Channel::Lift, water);
             EXPECT_NEAR(water[centre], fresnel * Shaders::encodeSrgb(0.5f), 1.0f / 255.0f) << "the wall it reflects";
 
-            shoot(makeOpenWater(4000.0f), {}, grazing, size, flat);
+            shoot(makeOpenWater(identities, 4000.0f), {}, grazing, size, flat);
             mProbe.readChannel(Channel::Lift, water);
             EXPECT_EQ(water[centre], 0.0f) << "and the sky lit by no ambient";
         }
@@ -822,6 +834,7 @@ namespace Rtx::Testing
         /// have taken half of the near wall with it.
         TEST_F(RtxVisibilityTest, theWorldsEdgeClosesOverTheLastCellAndLeavesTheGroundNearby)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float reach = 32768.0f;
@@ -830,7 +843,7 @@ namespace Rtx::Testing
                 const Shaders::VisibilityConstants camera
                     = underTheEdge(osg::Vec3f(0.0f, -distance, 0.0f), size, edged ? reach : 0.0f);
 
-                const Frame frame = shoot(makeWall(400.0f), {}, camera, size);
+                const Frame frame = shoot(makeWall(identities, 400.0f), {}, camera, size);
                 return std::int32_t{ frame.byte(centre) };
             };
 
@@ -860,6 +873,7 @@ namespace Rtx::Testing
         /// ends at, so the smoothstep is saturated either way and the answers are the two ends.
         TEST_F(RtxVisibilityTest, aClimbLeavesTheWorldsEdgeBehindAndADescentNeverDoes)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
             constexpr float reach = 32768.0f;
@@ -872,7 +886,7 @@ namespace Rtx::Testing
             const auto look = [&](const osg::Vec3f& eye) {
                 const Shaders::VisibilityConstants camera = underTheEdge(eye, size, reach);
 
-                const Frame frame = shoot(makeWall(400.0f), {}, camera, size);
+                const Frame frame = shoot(makeWall(identities, 400.0f), {}, camera, size);
                 return std::int32_t{ frame.byte(centre) };
             };
 
@@ -893,6 +907,7 @@ namespace Rtx::Testing
         /// would paint the lower half red. Its extinction stays at nothing, so the weather's march adds none.
         TEST_F(RtxVisibilityTest, theWorldsEdgeLeavesTheSkyExactlyWhereItWas)
         {
+            SceneIdentities identities;
             constexpr std::uint32_t size = 48;
 
             const auto sky = [&](float edge, std::vector<float>& values) {
@@ -907,7 +922,7 @@ namespace Rtx::Testing
 
                 // A wall behind the camera, because a scene has to hold something. Every ray in the
                 // frame misses it and comes back with the sky alone.
-                values = shoot(makeWall(), {}, camera, size).mRadiance;
+                values = shoot(makeWall(identities), {}, camera, size).mRadiance;
             };
 
             std::vector<float> open;

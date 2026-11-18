@@ -61,9 +61,9 @@ namespace MWRender
     }
 
     TracedView::TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::PictureRenderer& backend,
-        ViewQueue& views, MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context)
+        ViewQueue& views, MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context, Rtx::SceneIdentities& identities)
         : mViews(views)
-        , mTrace(backend, requestFor(spec, kind), context)
+        , mTrace(backend, requestFor(spec, kind), context, identities)
         , mTexture(gui.takeTexture(views.nameView()))
     {
         const auto width = static_cast<std::int32_t>(mTrace.getWidth());

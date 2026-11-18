@@ -17,6 +17,7 @@
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -47,7 +48,8 @@ namespace Rtx
         {
             static_assert(sFramesInFlight == 2, "the frames below fill a ring of two");
             NullRenderer renderer(optionsOf(8, 4));
-            const SceneDesc scene;
+            SceneIdentities identities;
+            const SceneDesc scene(identities);
             renderer.setScene(SceneSlot::world(), scene, {});
 
             EXPECT_FALSE(renderer.finishFrame().has_value()) << "a report of a frame never drawn";
@@ -101,7 +103,8 @@ namespace Rtx
             }
 
             NullRenderer renderer(optionsOf(8, 4));
-            const SceneDesc scene;
+            SceneIdentities identities;
+            const SceneDesc scene(identities);
             renderer.setScene(SceneSlot::world(), scene, {});
 
             FrameRequest raw;
@@ -124,8 +127,9 @@ namespace Rtx
         /// is placed, not built again, and grown, not built again, as on a device.
         TEST(RtxNullRendererTest, anUploaderBuildsOncePlacesAndExtendsWhatTheRendererHolds)
         {
+            SceneIdentities identities;
             NullRenderer renderer(optionsOf(8, 4));
-            SceneDesc scene;
+            SceneDesc scene(identities);
             SceneUploader uploader;
             Testing::addModel(scene, VFS::Path::NormalizedView("textures/one.dds"));
 
@@ -143,7 +147,7 @@ namespace Rtx
             // again empty.
             const SceneSlot view = renderer.addViewScene();
             EXPECT_EQ(view, SceneSlot::view(0));
-            EXPECT_EQ(renderer.describeHeld(view).mIdentity, 0u);
+            EXPECT_EQ(renderer.describeHeld(view).mIdentity, SceneIdentity{});
             SceneUploader viewUploader;
             static_cast<void>(
                 viewUploader.hand(renderer, SceneUploader::Handing{ .mSlot = view, .mScene = scene }).mKind);
@@ -151,7 +155,8 @@ namespace Rtx
 
             renderer.dropViewScene(view);
             EXPECT_EQ(renderer.addViewScene(), SceneSlot::view(0));
-            EXPECT_EQ(renderer.describeHeld(SceneSlot::view(0)).mIdentity, 0u) << "a dropped scene held again";
+            EXPECT_EQ(renderer.describeHeld(SceneSlot::view(0)).mIdentity, SceneIdentity{})
+                << "a dropped scene held again";
             EXPECT_EQ(renderer.addViewScene(), SceneSlot::view(1));
 
             // The lowest free slot first, not the last one dropped, as a device hands them
