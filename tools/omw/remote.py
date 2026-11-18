@@ -199,6 +199,7 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
     line = remote_line(rest, verb, Path.cwd())
     if absent := [str(path) for path in line.inputs if not path.exists()]:
         raise Refusal(f"remote: nothing here to copy there: {', '.join(absent)}")
+    make_parents(line.outputs)
     ssh = require("ssh", "it is what reaches the other machine: ssh")
     probe = subprocess.run([ssh, *SSH, host, "echo %OS%"], capture_output=True, text=True, check=False)
     if probe.returncode == 255:
@@ -255,6 +256,18 @@ def build_refusal(host: str, parent: Path, status: int) -> str | None:
         return f"remote: ssh reached no shell on {host}, as it says above"
     return (f"{host} cannot write {parent}, where the build goes: make it once there with "
             f"`sudo mkdir -p {parent} && sudo chown $USER: {parent}`")
+
+
+def make_parents(outputs: list[Path]) -> None:
+    """Makes the folder each of `outputs` is brought back into, here, **before the run**: rsync and scp make no folder
+    above the one they copy, and a parent missing was a whole flight's files left on the other machine. One that cannot
+    be made is refused at once."""
+    for path in outputs:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            raise Refusal(f"remote: {path.parent}, where {path.name} comes back to, cannot be made here: "
+                          f"{error.strerror}") from error
 
 
 def fetch_note(status: int) -> str:

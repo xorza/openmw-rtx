@@ -185,7 +185,6 @@ def remote_windows(ssh: str, scp: str, host_name: str, flavour: str, verb: str, 
     code = int(host.cmd(f"type {cmd_quote(str(run_.done))}").strip() or "1")
     print(host.cmd(f"type {cmd_quote(str(run_.log))}"), end="", flush=True)
     for path in outputs:
-        path.parent.mkdir(parents=True, exist_ok=True)
         fetched = host.fetch(run_.mapped(path), path.parent)
         print(f"remote: {path}{'' if fetched == 0 else ' was not written there'}", flush=True)
     return status(code)

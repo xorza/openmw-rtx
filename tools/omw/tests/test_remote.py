@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 from pathlib import Path, PureWindowsPath
 from unittest import mock
@@ -8,6 +9,7 @@ from omw.remote import (
     fetch_note,
     lacking,
     linked,
+    make_parents,
     remote_line,
     remote_script,
     sonames,
@@ -58,6 +60,17 @@ class BuildFolderTest(unittest.TestCase):
                          "user@host cannot write /home/user/Projects/openmw, where the build goes: make it once there "
                          "with `sudo mkdir -p /home/user/Projects/openmw && "
                          "sudo chown $USER: /home/user/Projects/openmw`")
+
+    def test_the_folders_the_outputs_come_back_into_are_made_before_the_run_and_one_that_cannot_be_is_refused(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            make_parents([root / "a" / "b" / "tour", root / "c" / "shot.png", root / "flat"])
+            self.assertTrue((root / "a" / "b").is_dir())
+            self.assertTrue((root / "c").is_dir())
+            self.assertFalse((root / "a" / "b" / "tour").exists(), "the output itself is the run's to write")
+            (root / "file").write_text("")
+            with self.assertRaisesRegex(Refusal, "where tour comes back to, cannot be made here"):
+                make_parents([root / "file" / "deeper" / "tour"])
 
     def test_a_file_the_run_did_not_write_is_told_from_a_copy_that_failed(self):
         self.assertEqual(fetch_note(0), "")
