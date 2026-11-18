@@ -694,9 +694,15 @@ namespace Rtx
                 && (row.mCompaction.mTightness == Tightness::Tight || row.mCompaction.mTightness == Tightness::None);
         };
 
+        // A take refused since the last placement, of any use: a texture refused for a block while the structures'
+        // blocks stand part empty, as the handheld's PBR drew the stand-in at Seyda Neen with 250 MiB free in them.
+        const std::uint64_t refused = mDevice.getMemory().getRefusedCount();
+        const bool refusedSince = refused != mRefusedSeen;
+        mRefusedSeen = refused;
+
         if (!mEmptying.has_value())
         {
-            if (mDevice.getMemory().getBlocksOver() == 0)
+            if (!refusedSince && mDevice.getMemory().getBlocksOver() == 0)
                 return;
             mEmptying = mStorage.blockToEmpty();
             if (!mEmptying.has_value())
