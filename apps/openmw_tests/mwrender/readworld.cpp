@@ -364,7 +364,7 @@ namespace MWRender
             EXPECT_EQ(plain.mMoons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint, white);
         }
 
-        /// The cloud blend is cleaned where it enters: `Weather::transitionDelta` divides by
+        /// The cloud blend is cleaned where it enters: `Weather::cloudBlendFactor` divides by
         /// `Clouds_Maximum_Percent`, whose nought for ash and blight `esmfallbacks.lua` no longer passes on, but
         /// an infinity or a NaN handed over is still a deck crossed at once. A share is clamped to one, and a
         /// real one passes through.
