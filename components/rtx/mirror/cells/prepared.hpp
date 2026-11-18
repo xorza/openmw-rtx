@@ -298,18 +298,23 @@ namespace Rtx
                 + mStreams.getContentBytes();
         }
 
-        /// Makes room for the next model, keeping what the buffers grew where this model filled at
-        /// least half of it. Measured over the exterior suite, a pool that kept every buffer whole
-        /// held 730 models from the fourth place on and grew from 42.8 to 59.5 MiB over the next
-        /// three, each spare keeping the largest model it had held.
+        /// Makes room for the next model, keeping what the buffers grew.
         void reuse()
         {
             std::apply(
-                [this](const auto... buffer) {
-                    (dropSlack(this->*buffer), ...);
-                    reuseKeeping(*this, buffer..., &PreparedModel::mStreams);
-                },
-                buffers());
+                [this](const auto... buffer) { reuseKeeping(*this, buffer..., &PreparedModel::mStreams); }, buffers());
+        }
+
+        /// Shrinks each buffer this model fills less than half of to what it holds (`Rtx::trimSlack`), once it is
+        /// filled: what a model holds lent is then within twice its content, and not the room a larger model before
+        /// it in the same spare grew. Measured over the exterior suite, a pool that kept every buffer whole held 730
+        /// models from the fourth place on and grew from 42.8 to 59.5 MiB over the next three, each spare keeping the
+        /// largest model it had held; one that trimmed at the reuse alone held the handheld's Repack's lent models at
+        /// 170 MiB for 64 MiB of them.
+        void trimSlack()
+        {
+            std::apply([this](const auto... buffer) { (Rtx::trimSlack(this->*buffer), ...); }, buffers());
+            mStreams.trimSlack();
         }
     };
 

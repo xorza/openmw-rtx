@@ -50,7 +50,6 @@ namespace Rtx
         {
             const Run run{ .mOffset = static_cast<std::uint32_t>(into.size()),
                 .mCount = static_cast<std::uint32_t>(values.size()) };
-            into.reserve(into.size() + values.size());
             for (const From& value : values)
                 into.push_back(pack(value));
             return run;
@@ -198,16 +197,15 @@ namespace Rtx
         mIndices.clear();
     }
 
-    void PackedStreams::reuse()
+    void PackedStreams::trimSlack()
     {
-        dropSlack(mPositions);
-        dropSlack(mNormals);
-        dropSlack(mTexCoords);
-        dropSlack(mSecondTexCoords);
-        dropSlack(mColours);
-        dropSlack(mTangents);
-        dropSlack(mIndices);
-        clear();
+        Rtx::trimSlack(mPositions);
+        Rtx::trimSlack(mNormals);
+        Rtx::trimSlack(mTexCoords);
+        Rtx::trimSlack(mSecondTexCoords);
+        Rtx::trimSlack(mColours);
+        Rtx::trimSlack(mTangents);
+        Rtx::trimSlack(mIndices);
     }
 
     void PackedStreams::letGo()

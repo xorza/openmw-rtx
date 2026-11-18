@@ -97,22 +97,35 @@ namespace Rtx
             EXPECT_EQ(streams.of(lit).mTangents[2], 0xBFFF3FFFu) << "along y, `RtxSceneDescTest`'s word";
         }
 
-        /// **A reuse keeps the room its content filled at least half of**, as a spare model keeps its buffers
-        /// (`dropSlack`): the two quads above hold 8 positions of 12 bytes, and a clear keeps them.
-        TEST(RtxPackedStreamsTest, aReuseKeepsTheRoomItsContentFilled)
+        /// **A trim keeps the room the content fills at least half of, and shrinks the rest to the content**, as a
+        /// model filled in a spare a larger one grew does (`trimSlack`): a quad holds 4 positions of 12 bytes and 6
+        /// indices of 4, and ten quads after a clear leave ten times that room behind it.
+        TEST(RtxPackedStreamsTest, aTrimShrinksWhatTheContentFillsLessThanHalfOf)
         {
+            const MeshArrays quad{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices };
+            constexpr std::size_t quadBytes = 4 * sizeof(osg::Vec3f) + 6 * sizeof(std::uint32_t);
             PackedStreams streams;
-            streams.append(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {});
+            for (std::int32_t copy = 0; copy < 10; ++copy)
+                streams.append(quad, {});
             const std::size_t room = streams.getRoomBytes();
-            EXPECT_EQ(streams.getContentBytes(), 4 * sizeof(osg::Vec3f) + 6 * sizeof(std::uint32_t));
+            EXPECT_EQ(streams.getContentBytes(), 10 * quadBytes);
             ASSERT_GE(room, streams.getContentBytes());
 
             streams.clear();
             EXPECT_EQ(streams.getContentBytes(), 0u);
             EXPECT_EQ(streams.getRoomBytes(), room) << "a clear gave the room back";
 
-            streams.reuse();
-            EXPECT_EQ(streams.getRoomBytes(), 0u) << "a reuse of nothing kept the room";
+            const PackedRuns small = streams.append(quad, {});
+            streams.trimSlack();
+            EXPECT_EQ(streams.getContentBytes(), quadBytes);
+            EXPECT_EQ(streams.getRoomBytes(), quadBytes) << "the room the ten grew, kept for one";
+            EXPECT_EQ(streams.of(small).mPositions[2], Testing::sUnitQuad[2]) << "what it held, kept";
+
+            for (std::int32_t copy = 0; copy < 9; ++copy)
+                streams.append(quad, {});
+            const std::size_t grown = streams.getRoomBytes();
+            streams.trimSlack();
+            EXPECT_EQ(streams.getRoomBytes(), grown) << "ten quads fill at least half the room they grew";
 
             streams.append(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices }, {});
             streams.letGo();

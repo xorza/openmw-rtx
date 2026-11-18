@@ -118,27 +118,29 @@ namespace Rtx
             EXPECT_EQ(rows.find(5)->mValue, 55);
         }
 
-        /// **A buffer keeps its room within twice what it holds, and gives back the rest whole**:
-        /// eight slots kept under four held, and given back under three, which is the boundary
-        /// `dropSlack` draws; an empty buffer with no room is left as it is.
-        TEST(RtxScratchTest, aBufferKeepsItsRoomUpToTwiceWhatItHoldsAndNoMore)
+        /// **A buffer keeps its room within twice what it holds, and shrinks to what it holds past that, keeping
+        /// it**: eight slots kept under four held, and three left under three, which is the boundary `trimSlack`
+        /// draws; an empty buffer gives its room back, and one with no room is left as it is.
+        TEST(RtxScratchTest, aBufferKeepsItsRoomUpToTwiceWhatItHoldsAndShrinksToItPastThat)
         {
-            const auto roomAfter = [](const std::size_t held) {
+            const auto trimmed = [](const std::size_t held) {
                 std::vector<std::int32_t> buffer;
                 buffer.reserve(8);
                 EXPECT_EQ(buffer.capacity(), 8u);
-                buffer.resize(held);
-                dropSlack(buffer);
-                return buffer.capacity();
+                for (std::size_t at = 0; at < held; ++at)
+                    buffer.push_back(static_cast<std::int32_t>(10 * at));
+                trimSlack(buffer);
+                return buffer;
             };
 
-            EXPECT_EQ(roomAfter(4), 8u) << "eight is twice four";
-            EXPECT_EQ(roomAfter(5), 8u);
-            EXPECT_EQ(roomAfter(3), 0u) << "eight is more than twice three";
-            EXPECT_EQ(roomAfter(0), 0u);
+            EXPECT_EQ(trimmed(4).capacity(), 8u) << "eight is twice four";
+            EXPECT_EQ(trimmed(5).capacity(), 8u);
+            EXPECT_EQ(trimmed(3).capacity(), 3u) << "eight is more than twice three";
+            EXPECT_EQ(trimmed(3), (std::vector<std::int32_t>{ 0, 10, 20 })) << "what it held, kept";
+            EXPECT_EQ(trimmed(0).capacity(), 0u);
 
             std::vector<std::int32_t> none;
-            dropSlack(none);
+            trimSlack(none);
             EXPECT_EQ(none.capacity(), 0u);
         }
 

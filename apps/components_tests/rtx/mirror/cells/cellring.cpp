@@ -2211,24 +2211,25 @@ namespace Rtx::Testing
         /// **A model's room is counted where it stands: lent to a cell, then spare, never both.**
         /// `reuse` keeps the buffers, so the room the tree grew to leaves the lent figure and
         /// reappears whole in the spare one when its one holder gives it back.
-        /// **A spare keeps the room its last model filled at least half of, and gives back the
-        /// rest.** Hand-counted on the chains: a hundred reserved and a hundred held is kept; fifty
-        /// in the same hundred is exactly half and kept; forty is less than half and given back,
-        /// which is what stops a spare keeping the largest model it ever held.
-        TEST(RtxPreparedModelTest, aSpareKeepsItsRoomOnlyWhereItsModelFilledHalfOfIt)
+        /// **A filled model keeps the room it fills at least half of, and shrinks the rest to what it holds; a spare
+        /// keeps what the model left.** Hand-counted on the chains: a hundred reserved and a hundred held is kept;
+        /// fifty in the same hundred is exactly half and kept; forty is less than half and shrinks to forty, which is
+        /// what stops a model lent from holding the room of the largest model its spare ever held.
+        TEST(RtxPreparedModelTest, aFilledModelKeepsItsRoomOnlyWhereItFillsHalfOfIt)
         {
-            PreparedModel model;
-            model.mChains.reserve(100);
-
-            for (const auto& [held, kept] : { std::pair{ 100u, 100u }, std::pair{ 50u, 100u }, std::pair{ 40u, 0u } })
+            for (const auto& [held, kept] : { std::pair{ 100u, 100u }, std::pair{ 50u, 100u }, std::pair{ 40u, 40u } })
             {
+                PreparedModel model;
+                model.mChains.reserve(100);
                 model.mChains.resize(held);
                 ASSERT_EQ(model.mChains.capacity(), 100u) << "the room this starts from";
+                model.trimSlack();
+                EXPECT_EQ(model.mChains.size(), held) << "what it holds, kept";
+                EXPECT_EQ(model.mChains.capacity(), kept) << held << " of a hundred";
+
                 model.reuse();
                 EXPECT_TRUE(model.mChains.empty());
-                EXPECT_EQ(model.mChains.capacity(), kept) << held << " of a hundred";
-                if (kept == 0)
-                    break;
+                EXPECT_EQ(model.mChains.capacity(), kept) << "the spare keeps the room the trim left";
             }
         }
 

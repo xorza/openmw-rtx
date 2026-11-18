@@ -94,8 +94,8 @@ namespace Rtx
         /// Empties the streams, keeping their room.
         void clear();
 
-        /// Empties the streams, giving back the room of each its content filled less than half of (`dropSlack`).
-        void reuse();
+        /// Shrinks each stream its content fills less than half of to that content (`trimSlack`).
+        void trimSlack();
 
         /// Empties the streams and gives their room back.
         void letGo();

@@ -5,6 +5,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -154,15 +155,14 @@ namespace Rtx
     template <class Buffer>
     concept Reusable = requires(Buffer& buffer) { buffer.reuse(); };
 
-    /// Gives `buffer`'s room back where what it holds fills less than half of it, ahead of a
-    /// `reuseKeeping` that keeps the room for the next tenant. What a pooled object keeps is then
-    /// within twice what its last tenant used, and not the most any tenant ever grew it to, which
-    /// a pool lending one object to model after model converges on in every object it holds.
+    /// Shrinks `buffer` to what it holds where that fills less than half its room, keeping what it holds: once a pooled
+    /// object is filled, so what it holds lent is within twice its own content, and not the room an earlier, larger
+    /// tenant grew it to, which a pool lending one object to model after model converges on in every object it holds.
     template <class Buffer>
-    void dropSlack(Buffer& buffer)
+    void trimSlack(Buffer& buffer)
     {
         if (buffer.capacity() > 2 * buffer.size())
-            Buffer().swap(buffer);
+            Buffer(std::make_move_iterator(buffer.begin()), std::make_move_iterator(buffer.end())).swap(buffer);
     }
 
     /// Puts `object` back to its default while keeping the room its buffers grew. Every field not

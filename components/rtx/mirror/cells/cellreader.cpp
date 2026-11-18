@@ -148,6 +148,7 @@ namespace Rtx
                 into.mTemplate = nullptr;
 
             into.mGroundcover = groundcover;
+            into.trimSlack();
             if (!groundcover)
                 return;
 
