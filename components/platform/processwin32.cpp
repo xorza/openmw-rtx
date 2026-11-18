@@ -315,7 +315,13 @@ namespace Platform::Process
                 {
                     held.mOther += bytes;
                     ++held.mOtherRegions;
-                    held.mLargestOther = std::max(held.mLargestOther, bytes);
+                    if (bytes > held.mLargestOther)
+                    {
+                        held.mLargestOther = bytes;
+                        held.mLargestOtherRegions = 0;
+                    }
+                    if (bytes == held.mLargestOther)
+                        ++held.mLargestOtherRegions;
                 }
             }
             address = static_cast<const char*>(region.BaseAddress) + region.RegionSize;

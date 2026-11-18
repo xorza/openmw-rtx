@@ -592,9 +592,9 @@ namespace RtxTool
                 held.has_value())
                 Log(Debug::Info) << std::format(
                     "Host memory at the session's end: private memory {:.1f} MiB in the heaps' regions, {:.1f} MiB in "
-                    "{} other regions, the largest {:.1f} MiB",
+                    "{} other regions, the largest {:.1f} MiB, {} of them that large",
                     Rtx::mebibytes(held->mHeaps), Rtx::mebibytes(held->mOther), held->mOtherRegions,
-                    Rtx::mebibytes(held->mLargestOther));
+                    Rtx::mebibytes(held->mLargestOther), held->mLargestOtherRegions);
         }
         noteFindings();
         mRecord.finish(mRequest);

@@ -9,8 +9,9 @@ profile names Morrowind alone, so its tour adds both expansions.
 - **The desk**: a high-end laptop CPU beside a high-end NVIDIA laptop GPU.
 - **The handheld**: a low-end AMD integrated GPU (RDNA 2), 16 GB of unified memory, its video heap's budget 6144 MiB,
   its kernel giving every mapping huge pages.
-- **The Windows machine**: a desktop with a mid-range AMD discrete card of 12 GiB, MSVC's build of the same commit
-  (`db026575b2`, whose change past `ef34131d39` is the driver's alone).
+- **The Windows machine**: an AMD integrated GPU (RDNA 2), 12 GiB of the system's memory set aside as its
+  device-local heap and 6 GiB more it may take as system memory, the one Vulkan device the system offers; MSVC's build
+  of the same commit (`db026575b2`, whose change past `ef34131d39` is the driver's alone).
 
 Every flight landed. Each tour writes its record (`tour.json`), its findings, and its log. A tour exits non-zero
 where it found a fault: every repack tour off the desk, and the handheld's PBR tours.

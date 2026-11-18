@@ -163,14 +163,15 @@ namespace Platform::Process
     std::optional<AnonymousMemory> anonymousMemory();
 
     /// **What holds a process's committed private memory**, split by who keeps it: the regions of the heaps the
-    /// process's allocators keep, and every other private region, with how many there are and the largest of them,
-    /// which is what a driver or a library's own allocation keeps.
+    /// process's allocators keep, and every other private region, with how many there are, the largest of them and how
+    /// many are that large, which is what names a driver's or a library's own allocation by the size it takes.
     struct PrivateMemoryHeld
     {
         std::uint64_t mHeaps = 0;
         std::uint64_t mOther = 0;
         std::uint32_t mOtherRegions = 0;
         std::uint64_t mLargestOther = 0;
+        std::uint32_t mLargestOtherRegions = 0;
     };
 
     /// `PrivateMemoryHeld` of this process, now, walked region by region and every heap block by block under the heap's
