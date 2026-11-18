@@ -122,7 +122,7 @@ namespace RtxTool
 
     /// What `tour` runs: no stop until the world stands, where `readMap` reads what the content holds and the route
     /// is planned from it (`planTour`) under the line's pacing, the world's own timescale and `[interiors]`'s rooms,
-    /// printed, and flown from `--from` on; or nothing flown under `--plan`. A leg that fails is recorded and the
+    /// printed, and its `--legs` flown; or nothing flown under `--plan`. A leg that fails is recorded and the
     /// next begins.
     HostedRun planTourRun(const Command& command, Framed framed, std::function<WorldMap()> readMap);
 

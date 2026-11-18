@@ -197,7 +197,7 @@ namespace RtxTool
 
         /// **A tour plans its legs where the world stands, from the map the world gives, and goes on past a leg
         /// that fails**: two islands a sea apart, a room of the content's own and one `[interiors]` names, flown from
-        /// `--from` on under the tour's row, each leg a track the session follows. `--plan` flies nothing.
+        /// its `--legs` under the tour's row, each leg a track the session follows. `--plan` flies nothing.
         TEST_F(RtxPlanTest, aTourPlansWhereTheWorldStandsAndGoesOnPastAFailedLeg)
         {
             const auto map = [] {
@@ -273,15 +273,22 @@ namespace RtxTool
             }),
                 "--fail-on names no kind of finding called \"stall\"");
 
-            const HostedRun later = planOf(Verb::Tour, { "--from=4" },
+            const HostedRun later = planOf(Verb::Tour, { "--legs=4-" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
             EXPECT_EQ(
                 later.mRequest.mPlanWhereTheWorldStands(30.0f).front().mName, "leg-4-room-Balmora, Guild of Mages");
 
-            const HostedRun past = planOf(Verb::Tour, { "--from=6" },
+            // The rooms alone, every second of them: the first room, under the whole tour's name.
+            const HostedRun rooms = planOf(Verb::Tour, { "--legs=rooms", "--every=2" },
+                [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
+            const std::vector<Stop> roomStops = rooms.mRequest.mPlanWhereTheWorldStands(30.0f);
+            ASSERT_EQ(roomStops.size(), 1u);
+            EXPECT_EQ(roomStops.front().mName, "leg-3-room-Arrille's Tradehouse");
+
+            const HostedRun past = planOf(Verb::Tour, { "--legs=6" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { past.mRequest.mPlanWhereTheWorldStands(30.0f); }),
-                "--from=6 is past the tour's last leg, 5");
+                "--legs names leg 6, past the tour's last, 5");
 
             // Held to the step, a tour's frames are limited to its rate; a pace or a leg the line cannot mean is
             // refused.
@@ -297,10 +304,10 @@ namespace RtxTool
             }),
                 "--pace=walk is neither card nor real");
             EXPECT_EQ(Rtx::Testing::refusalOf([&] {
-                planOf(Verb::Tour, { "--from=0" },
+                planOf(Verb::Tour, { "--legs=0" },
                     [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
             }),
-                "--from=0 names no leg: a tour's legs are counted from one");
+                "--legs names leg 0 in \"0\": a tour's legs are counted from one");
 
             const HostedRun planned = planOf(Verb::Tour, { "--plan" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });

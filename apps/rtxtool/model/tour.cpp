@@ -10,6 +10,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -251,14 +252,6 @@ namespace RtxTool
             .mFirstFrame = first };
     }
 
-    std::uint64_t TourPlan::getFrames() const
-    {
-        std::uint64_t frames = 0;
-        for (const TourLeg& leg : mLegs)
-            frames += leg.getFrames();
-        return frames;
-    }
-
     std::vector<Rtx::Weather> weatherCircuit()
     {
         constexpr auto count = static_cast<std::size_t>(Rtx::Weather::Count);
@@ -450,7 +443,7 @@ namespace RtxTool
         return plan;
     }
 
-    std::string describePlan(const TourPlan& plan, const float frameMs)
+    std::string describePlan(const TourPlan& plan, const std::span<const std::size_t> legs, const float frameMs)
     {
         const TourPacing& pacing = plan.mPacing;
         std::string text;
@@ -474,11 +467,15 @@ namespace RtxTool
             plan.mLegs.size(), cellsFlown, rooms);
         text += std::format("  the sky through {} crossings of {:g} s, round again; the clock at {:g} times its own\n",
             plan.mCircuit.size(), pacing.mCrossingSeconds, pacing.mClock);
+        if (legs.size() < plan.mLegs.size())
+            text += std::format("  {} of them flown, as --legs and --every pick\n", legs.size());
 
         const SkyRun sky = plan.skyRunFrom(0);
-        for (std::size_t number = 0; number < plan.mLegs.size(); ++number)
+        std::uint64_t frames = 0;
+        for (const std::size_t number : legs)
         {
             const TourLeg& leg = plan.mLegs[number];
+            frames += leg.getFrames();
             TrackPose start;
             sky.turnAt(leg.mFirstFrame, start);
             const std::string skyText = start.mWeather == start.mNextWeather
@@ -514,19 +511,22 @@ namespace RtxTool
         if (plan.mRoomsNoDoorEnters > 0)
             text += std::format("  {} rooms no door leads into left out\n", plan.mRoomsNoDoorEnters);
 
-        const std::uint64_t frames = plan.getFrames();
         text += std::format("  {} frames, {:.1f} min at {:g} ms a frame before the loads\n", frames,
             static_cast<double>(frames) * double{ frameMs } / 60000.0, frameMs);
         return text;
     }
 
-    std::vector<Stop> stopsFor(const TourPlan& plan, const std::size_t from)
+    std::vector<Stop> stopsFor(const TourPlan& plan, const std::span<const std::size_t> legs)
     {
         std::vector<Stop> stops;
+        stops.reserve(legs.size());
         // The soak's first pass is the first land leg, where the plan has one: a tour of rooms alone has none.
         const auto firstLand = std::ranges::find(plan.mLegs, LegKind::Land, &TourLeg::mKind);
-        for (std::size_t number = from; number < plan.mLegs.size(); ++number)
+        std::optional<std::size_t> flownBefore;
+        for (const std::size_t number : legs)
         {
+            assert(number < plan.mLegs.size() && "a leg past the plan's last");
+            assert((!flownBefore.has_value() || number > *flownBefore) && "legs out of the plan's order");
             const TourLeg& leg = plan.mLegs[number];
             Stop& stop = stops.emplace_back();
             stop.mName = legName(leg, number);
@@ -538,8 +538,9 @@ namespace RtxTool
             stop.mSky.mClockTimes = plan.mPacing.mClock;
 
             // A cut warms up the histories at the leg's first frame; a flight that goes on has them already. The
-            // first leg flown is always a cut, wherever the tour began.
-            const bool continues = leg.mContinues && number > from;
+            // first leg flown is always a cut, and so is one whose leg before was not flown just before it.
+            const bool continues = leg.mContinues && flownBefore.has_value() && *flownBefore + 1 == number;
+            flownBefore = number;
             stop.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = continues ? 0u : sHistoryFrames };
             stop.mSchedule.mSpec.mRun = BenchSpan{ .mFrames = leg.getFrames() };
             stop.mSchedule.mTrack.emplace(leg.mTrack, leg.mPath,

@@ -812,9 +812,14 @@ namespace RtxTool
             std::format("how long each weather of a film's --turn-weather, {:g} s unless named, or of a tour's "
                         "circuit, {:g} unless named, stands before it crosses into the next",
                 pacing.mWeatherHold, touring.mWeatherHold));
-        option({ Verb::Tour }, "from", number(anyNumber<std::uint32_t>())->default_value(1),
-            "the leg a tour begins at, counted from one as --plan numbers them: the rest flown after a crash, each "
-            "leg under the hour and the sky the whole tour would have stood it under");
+        option({ Verb::Tour }, "legs", bpo::value<std::string>()->default_value(""),
+            "the legs a tour flies, every one unless named: land, rooms, closing, a leg's number counted from one as "
+            "--plan numbers them, a-b the legs from a to b, a- the legs from a on (the rest after a crash), comma "
+            "separated and taken together; each leg under the hour and the sky the whole tour would have stood it "
+            "under, so it holds against the same leg of a whole tour");
+        option({ Verb::Tour }, "every", number(anyNumber<std::uint32_t>())->default_value(1),
+            "of the legs --legs names, every Nth flies, the first among them: a sample whose legs' p99 median stood "
+            "within 1 to 3 ms of the whole tour's at 2, and 2 to 5 at 4, on the handheld's and Windows' tours");
         option({ Verb::Tour }, "rooms", number(anyNumber<std::uint32_t>())->default_value(touring.mRooms),
             std::format("how many rooms a tour shares out among the content files by the rooms each adds, never "
                         "under {} a file nor over what it has, each file's with the most references",
@@ -1107,9 +1112,10 @@ namespace RtxTool
             touring.mWeatherHold = real("weather-hold");
         touring.mRooms = count("rooms");
         tour.mFrameMs = real("frame-ms");
-        if (count("from") == 0)
-            throw std::runtime_error("--from=0 names no leg: a tour's legs are counted from one");
-        tour.mFrom = count("from");
+        const Result<LegSelection, std::string> legs = LegSelection::parse(text("legs"), count("every"));
+        if (!legs.isOk())
+            throw std::runtime_error(legs.error());
+        tour.mLegs = legs.value();
         if (const std::string& pace = text("pace"); pace == "real")
             tour.mPaced = true;
         else if (pace != "card")

@@ -15,6 +15,7 @@
 #include <apps/rtxtool/model/expectations.hpp>
 #include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/findingkind.hpp>
+#include <apps/rtxtool/model/legselection.hpp>
 #include <apps/rtxtool/model/tour.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/multidircollection.hpp>
@@ -219,13 +220,13 @@ namespace RtxTool
         };
 
         /// What a tour is asked, as the line names it: its pacing, where the timescale and the grid's radius are the
-        /// world's and set where the world stands; the leg it begins at, counted from one; and the frame time its
-        /// plan's cost is worked out at.
+        /// world's and set where the world stands; the legs it flies; and the frame time its plan's cost is worked
+        /// out at.
         struct Tour
         {
             bool mPlan = false;
             TourPacing mPacing;
-            std::size_t mFrom = 1;
+            LegSelection mLegs;
             float mFrameMs = 7.0f;
 
             /// The costs that fail the run beside the faults (`--fail-on`).

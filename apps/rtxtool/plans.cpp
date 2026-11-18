@@ -470,16 +470,16 @@ namespace RtxTool
             const WorldMap map = readMap();
             const std::chrono::duration<double> read = std::chrono::steady_clock::now() - reading;
             const TourPlan plan = planTour(map, pacing);
-            Debug::getRawStdout() << describePlan(plan, line.mFrameMs)
+            const Result<std::vector<std::size_t>, std::string> legs = line.mLegs.pick(plan);
+            if (!legs.isOk())
+                throw std::runtime_error(legs.error());
+            Debug::getRawStdout() << describePlan(plan, legs.value(), line.mFrameMs)
                                   << std::format("  the content's map read in {:.2f} s\n", read.count()) << std::flush;
             if (line.mPlan)
                 return std::vector<Stop>{};
-            if (line.mFrom > plan.mLegs.size())
-                throw std::runtime_error(
-                    std::format("--from={} is past the tour's last leg, {}", line.mFrom, plan.mLegs.size()));
 
             // Every claim a leg can answer, asked at its end.
-            std::vector<Stop> stops = stopsFor(plan, line.mFrom - 1);
+            std::vector<Stop> stops = stopsFor(plan, legs.value());
             for (Stop& stop : stops)
             {
                 applyPolicy(policy, stop);

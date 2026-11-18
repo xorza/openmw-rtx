@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -183,9 +184,6 @@ namespace RtxTool
         std::uint32_t mRoomsNoDoorEnters = 0;
         osg::Vec2i mExtent{};
 
-        /// Every leg's frames.
-        std::uint64_t getFrames() const;
-
         /// The sky the tour runs over a leg beginning at the tour's `first` frame: `mCircuit`, at the pacing's pace.
         SkyRun skyRunFrom(std::uint32_t first) const;
     };
@@ -207,11 +205,13 @@ namespace RtxTool
     /// plans of one map agree frame for frame.
     TourPlan planTour(const WorldMap& map, const TourPacing& pacing);
 
-    /// The plan as a person reads it before a flight: every leg, its cells, its length, its frames, the hour and
-    /// the sky it begins under; the rooms each file gives; and the minutes the frames take at `frameMs`.
-    std::string describePlan(const TourPlan& plan, float frameMs);
+    /// The plan as a person reads it before a flight: every leg of `legs` (`LegSelection::pick`), its cells, its
+    /// length, its frames, the hour and the sky it begins under; the rooms each file gives; and the minutes the legs'
+    /// frames take at `frameMs`.
+    std::string describePlan(const TourPlan& plan, std::span<const std::size_t> legs, float frameMs);
 
-    /// One stop a leg, from the `from`th leg on: each a flight that begins where and under what the plan says, so a
-    /// tour begun at a later leg stands as the whole tour stood there.
-    std::vector<Stop> stopsFor(const TourPlan& plan, std::size_t from = 0);
+    /// One stop a leg of `legs`, the plan's legs by their numbers from nought, in order (`LegSelection::pick`): each a
+    /// flight that begins where and under what the plan says, so a leg flown apart stands as the whole tour stood
+    /// there. A leg goes on from the one before only where that one flew just before it.
+    std::vector<Stop> stopsFor(const TourPlan& plan, std::span<const std::size_t> legs);
 }
