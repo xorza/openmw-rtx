@@ -724,15 +724,6 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 
 ## Changed
 
-- **21. The texture pool defragments, incrementally**: the closing Repack tour at `9f41093017` refused its 64 MiB
-  structure blocks with 887 MiB free in the texture pool's blocks, past the gate. Built on VMA's incremental
-  defragmentation (`Defragmentation`), driven by the world's texture array once a frame ahead of its placement
-  (`TextureArray::defragment`): begun where a take was refused since the last with two blocks free in a pool, 16 MiB a
-  pass. A move of a range no slot holds (a picture's texture, the ground's canvas) is ignored; a range a pass names
-  that its owner frees meanwhile is given back once the pass ends (`MemoryAllocator::give`), and a scene taken apart
-  with a pass open waits out its copies. Every written texture is now made copyable (`sWrittenTextureUsage`). VMA
-  keeps one emptied block per pool against the next take, which the defragmentation does not free.
-
 - **23, its half kept: a refusal is counted once.** `textures-readable` counts the texture refusals since the stop
   before it (`StopFacts::mTexturesRefusedBefore`), where one refusal had failed every stop after it.
 
@@ -866,6 +857,13 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **21. The texture pool defragments, incrementally** (`fa246624ec`, reverted): built on VMA's incremental
+  defragmentation and flown twice on the handheld's Repack tour. At `3bbb19ffad` every block it gave back went to the
+  caches, both budgets counting what the system leaves less one reserve: the device's budget fell to 680 MiB and the
+  tour read 38.8 GiB of texels again. With the device's reserve below the caches' (`37e2d756d7`), the 24
+  defragmentations of the tour gave blocks back, but structures were refused 133 times against the 3 of the tour without
+  them, and the legs' p99 median stood at 73 ms against 51.
 
 - **14.6. A loose structure refused for room wants a block's bytes of the rest** (`6fb6003794`, reverted): the
   handheld's closing Repack tour at `9f41093017` still refused the three 64 MiB structure blocks, each beside 2.5–2.6

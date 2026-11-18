@@ -481,18 +481,10 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   hole lands: the handheld refused a thousand small takes with a hundred megabytes free in pieces
   (`research/2026-11-16-handheld-content-pool-fragmentation.md`). Refused: room counted by
   the pools' ranges, a walk of every allocation VMA keeps for rare use; pools by size class, which reduce fragmentation
-  and starve a class at the ceiling beside another's room.
-- **What the texture pool strands in pieces is moved, not classed**, by the user's decision: where the device refused
-  content and a pool's blocks hold two blocks free, VMA's incremental defragmentation names a frame's share of ranges
-  a pass, and the texture array makes each texture again at its place, copies it there on the device and owes its
-  descriptors, ending the pass once the copies have run (`TextureArray::defragment`), as VMA leaves the recreating to
-  the application
-  ([defragmentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/defragmentation.html)). A
-  range a pass names that its owner lets go of meanwhile is given back once the pass ends (`MemoryAllocator::give`).
-  A structure is never moved, its storages being blocks of their own. The handheld's Repack tour refused 64 MiB
-  structure blocks with 887 MiB free in the texture pool's blocks, the largest range 26 MiB, which only blocks given
-  back answer: freeing the oldest resting meshes freed ranges and emptied no block. Refused: moving everything at
-  once, a frame's worth of copies many times over; the structures' address rewritten at each move.
+  and starve a class at the ceiling beside another's room; VMA's incremental defragmentation of the texture pool, built
+  and flown on the handheld's Repack tour: the blocks it gave back went to the caches, and once the device's reserve
+  stood below theirs its 24 runs left the structures refused 133 times where the tour without them refused 3, and the
+  legs' p99 at 73 ms against 51 (`research/2026-11-18-closing-tours.md`).
 - **A bottom level is built loose and copied out tight**, as RTXMU does, and the world's build compacts before its
   textures are made, as NVIDIA's `buildBlas` does. **Both storages take blocks of content's block size, apart from the
   pools textures stand in, and keep their last** (`StructureStorage`), by the user's decision, as NVIDIA pools

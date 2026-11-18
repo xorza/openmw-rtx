@@ -8,17 +8,13 @@
 #include <cstdint>
 #include <mutex>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/misc/result.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
-
-#include "defragmentation.hpp"
 
 struct VmaAllocation_T;
 struct VmaAllocator_T;
@@ -175,12 +171,6 @@ namespace Rtx
         /// This range, mapped, or null where the memory is not host-visible. Mapped for as long as
         /// the range stands, and memory need not be unmapped before it is freed.
         void* map() const { return mMapped; }
-
-        /// Whether `move` moves this range.
-        bool isMovedBy(const MemoryMove& move) const { return mAllocation != nullptr && mAllocation == move.mRange; }
-
-        /// The range as a defragmentation's moves name it (`MemoryMove::mRange`), null where it holds none.
-        const VmaAllocation_T* getRange() const { return mAllocation; }
 
     private:
         friend class Graveyard;
@@ -431,28 +421,8 @@ namespace Rtx
         std::optional<RefusedTake> getLastRefused() const;
         std::uint64_t getRefusedCount() const { return mRefusedCount.load(std::memory_order_relaxed); }
 
-        /// **The content pool holding the most bytes free in its blocks, defragmented**, where that is at least
-        /// `least`: a pass moving at most `bytesPerPass` and `rangesPerPass` ranges. Nothing where no pool holds as
-        /// much. One at a time.
-        std::optional<Defragmentation> defragment(
-            VkDeviceSize least, VkDeviceSize bytesPerPass, std::uint32_t rangesPerPass);
-
-        /// The range `from` holds, as it stands once the open pass ends: the same range, at the place `move` names,
-        /// for the resource made again there. `from` is left holding nothing, and gives nothing back as it goes.
-        DeviceMemory moved(DeviceMemory&& from, const MemoryMove& move);
-
     private:
         friend class DeviceMemory;
-        friend class Defragmentation;
-
-        /// Says the ranges `moves` names are in an open pass, whose owners' frees wait for its end (`give`).
-        void openPass(std::span<const MemoryMove> moves);
-
-        /// Ends what `openPass` said, giving back what was let go of meanwhile.
-        void closePass();
-
-        /// Throws `DeviceError` where the library answered a defragmentation's call with anything but success.
-        void checkDefragmentation(VkResult result, const char* call) const;
 
         /// The video heap's memory by use, as `report` and `noteRefused` state it.
         MemoryUses uses() const;
@@ -575,12 +545,5 @@ namespace Rtx
         mutable std::mutex mRefusedMutex;
         std::optional<RefusedTake> mLastRefused;
         std::atomic<std::uint64_t> mRefusedCount = 0;
-
-        /// The ranges an open defragmentation pass names, sorted, and those of them let go of since, which the pass's
-        /// end gives back: the library allows no range of a pass to be freed before it ends. Under their lock, as a
-        /// burial may be collected beside a take on another thread.
-        std::mutex mPassMutex;
-        std::vector<const VmaAllocation_T*> mInPass;
-        std::vector<VmaAllocation_T*> mFreeAfterPass;
     };
 }

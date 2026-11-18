@@ -404,7 +404,6 @@ target_sources(
         device/memory/batch.cpp
         device/memory/blockedbuffer.cpp
         device/memory/buffer.cpp
-        device/memory/defragmentation.cpp
         device/memory/descriptorsets.cpp
         device/memory/formats.cpp
         device/memory/growablebuffer.cpp
@@ -521,7 +520,6 @@ target_sources(
                 device/memory/blocklist.hpp
                 device/memory/buffer.hpp
                 device/memory/bufferusage.hpp
-                device/memory/defragmentation.hpp
                 device/memory/descriptorsets.hpp
                 device/memory/formats.hpp
                 device/memory/frameslots.hpp

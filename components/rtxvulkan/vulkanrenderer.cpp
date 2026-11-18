@@ -559,10 +559,6 @@ namespace Rtx
         // so that the refit and the top level are counted.
         FrameRecord& frame = mRing.begin();
 
-        // What the texture pools strand in pieces, moved into the batch ahead of the placement whose set names the
-        // textures at their new places: the world's, whose arrivals the pools' room is for.
-        held.defragment(written, mArrival, &frame.mTimer);
-
         // Submitted without a wait; the frame's trace, later on the queue, covers it. Nothing recorded is
         // nothing submitted, as for every frame of a standing camera in an empty place.
         Recording placement = mDevice.getPool().begin(mRing.takePlaceCommands(frame));

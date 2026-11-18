@@ -44,15 +44,6 @@ namespace Rtx
     class TextureTable;
     struct TexturePasses;
 
-    /// The moves of a defragmentation pass that move a texture's two images, null for one that stays.
-    struct TextureMoves
-    {
-        const MemoryMove* mImage = nullptr;
-        const MemoryMove* mCompanion = nullptr;
-
-        bool any() const { return mImage != nullptr || mCompanion != nullptr; }
-    };
-
     /// A sampled image on the GPU, the levels a content file brought for it, and what was measured
     /// on it — two `Image`s: the first uploaded, the second its companion, made off the first on the
     /// device as it arrives (`TextureCompanion`): for a normal map, the spread its levels lost, and
@@ -83,15 +74,6 @@ namespace Rtx
         /// as `use`. `from` stays where it is until `arrival` records, since the work names its image.
         Result<void, MemoryRefusal> standMovedDown(const Device& device, TextureArrival& arrival, const Texture& from,
             std::uint32_t dropped, std::string_view name, MemoryUse use);
-
-        /// Stands `from` in this one, which is empty, each of its two images where `moves` places it, and taken over
-        /// as it stands where it names no move: what a defragmentation pass moves (`TextureArray::defragment`). A moved
-        /// image is copied level for level on the device (`TextureArrival::move`); `from` keeps it, with no memory,
-        /// until `arrival` records, since the work names it.
-        void standMoved(TextureArrival& arrival, Texture& from, const TextureMoves& moves, std::string_view name);
-
-        /// The moves of `moves`, sorted by range, that move the texture's images.
-        TextureMoves movesOf(std::span<const MemoryMove> moves) const;
 
         /// The image `standFile` makes of `data` from level `first` on: what a texture stood short asks of the room
         /// to stand whole.
@@ -341,37 +323,6 @@ namespace Rtx
         VkDeviceSize makeRoom(
             TextureArrival& arrival, const RoomAsk& ask, const TextureTable& table, DeviceAnswer& answer);
 
-        /// When `defragment` moves a pool's textures together, and how much a pass moves.
-        struct DefragmentAsk
-        {
-            /// The bytes free in a pool's blocks from which it begins: two blocks, as much as one block emptied
-            /// leaves room for beside one still in pieces.
-            VkDeviceSize mFrom = 2 * sContentBlockBytes;
-
-            /// The most bytes a pass copies, a quarter of `sMoveCopyMost`: a pass a frame until the pool stands
-            /// tight, beside what an arrival copies.
-            VkDeviceSize mCopyMost = sMoveCopyMost / 4;
-
-            /// The most ranges a pass moves, which bounds the walk of the slots it makes.
-            std::uint32_t mRangesMost = 256;
-        };
-
-        /// **What the texture pools strand in pieces, moved together** (`docs/architecture.md`, "What the texture pool
-        /// strands in pieces is moved, not classed"): where the device refused content since the last defragmentation
-        /// began and a pool's blocks hold `ask.mFrom` free, the pool is defragmented a pass at a time, a pass a call at
-        /// most. A pass's textures are made again where it places them and copied there through `arrival`, recorded
-        /// into `batch` ahead of the placement that binds them, their descriptors owed to every set; the pass ends at
-        /// the first call after those copies have run, which gives back the blocks it emptied. A move of a range this
-        /// array holds no texture in is ignored. Timed on `timer`, null where nothing is timed.
-        void defragment(Batch& batch, TextureArrival& arrival, const TexturePasses& passes, GpuTimer* timer,
-            const DefragmentAsk& ask);
-
-        /// Whether a defragmentation is under way. Read by the tests.
-        bool isDefragmenting() const { return mDefragmentation.has_value(); }
-
-        /// What the defragmentations that ended moved and gave back. Read by the tests.
-        const DefragmentationMoved& getDefragmented() const { return mDefragmented; }
-
         /// Names every file's slot that draws the stand-in for want of room short in `answer`, with the bytes its file
         /// asks: what the device refused where no room was coming, waiting again for room it did not see coming, a
         /// reserve that shrank (`SceneUploader`).
@@ -503,19 +454,6 @@ namespace Rtx
         /// handed to the queue: an image buries itself as it goes, under the next submit. A deque, so a texture stays
         /// where the arrival's work named it as more are moved.
         std::deque<Texture> mMovedFrom;
-
-        /// The defragmentation `defragment` runs, the open pass's moves and which of them a slot made; and what the
-        /// defragmentations moved, over the session.
-        std::optional<Defragmentation> mDefragmentation;
-        std::vector<MemoryMove> mPassMoves;
-        std::vector<bool> mPassMade;
-        DefragmentationMoved mDefragmented;
-
-        /// The refusals the allocator had counted when the last defragmentation began: one begins only past them.
-        std::uint64_t mRefusedAtDefragment = 0;
-
-        /// What a pass's moves took the place of, until the arrival recording the copies out of them returns.
-        std::deque<Texture> mDefragmentedFrom;
 
         /// Indexed by slot. A slot the scene has freed holds nothing until something takes it over —
         /// `drop` buries the image it had, and the descriptor is left naming what has gone for the

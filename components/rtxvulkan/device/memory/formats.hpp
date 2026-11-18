@@ -143,13 +143,11 @@ namespace Rtx
     }
 
     /// What a texture is created with: one made from a file, uploaded, sampled, and copied from as it moves to a
-    /// smaller side (`Texture::standMovedDown`); and one the device writes, a chain, a bake, a composite or a normal
-    /// map's spread, stored by a dispatch and sampled. Both copied from and into as a defragmentation moves them
-    /// (`Texture::standMoved`).
+    /// smaller side (`Texture::standMovedDown`); and one the device writes, a chain, a bake or a composite, stored by
+    /// a dispatch and sampled.
     inline constexpr VkImageUsageFlags sUploadedTextureUsage
         = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    inline constexpr VkImageUsageFlags sWrittenTextureUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    inline constexpr VkImageUsageFlags sWrittenTextureUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
     /// How many bytes a texel of `format` takes, which is what an image made from it is priced at.
     constexpr std::uint32_t texelBytes(const Shaders::StorageFormat format)

@@ -93,7 +93,7 @@ namespace Rtx
             ImageDescription{ .mWidth = extent,
                 .mHeight = extent,
                 .mFormat = gloss ? stored : withCurve(stored),
-                .mUsage = sWrittenTextureUsage,
+                .mUsage = sWrittenTextureUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                 .mMipLevels = levelsTo1x1(extent, extent),
                 .mStorageFormat = stored },
             name);
