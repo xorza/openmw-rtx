@@ -262,23 +262,39 @@ namespace Platform::Process
     {
         // The heaps' own allocations, by the base `VirtualQuery` names each under: a heap's regions, and each block
         // a heap gave memory of its own, which `HeapWalk` lists busy and past a region. Every heap is locked while it
-        // is walked, as `HeapWalk` asks.
+        // is walked, as `HeapWalk` asks, so the walk asks the system nothing for an entry inside the region it
+        // stands in, nor inside the allocation it asked of last: a query an entry held a 7 GiB heap locked 47 s.
         std::vector<HANDLE> heaps(GetProcessHeaps(0, nullptr));
         heaps.resize(GetProcessHeaps(static_cast<DWORD>(heaps.size()), heaps.data()));
         std::vector<const void*> heapBases;
-        const auto baseOf = [](const void* address) -> const void* {
-            MEMORY_BASIC_INFORMATION region{};
-            return VirtualQuery(address, &region, sizeof(region)) == sizeof(region) ? region.AllocationBase : nullptr;
-        };
         for (const HANDLE heap : heaps)
         {
             if (!HeapLock(heap))
                 continue;
+            const char* regionFirst = nullptr;
+            const char* regionLast = nullptr;
+            const char* queriedFrom = nullptr;
+            const char* queriedTo = nullptr;
             PROCESS_HEAP_ENTRY entry{};
             while (HeapWalk(heap, &entry))
-                if ((entry.wFlags & PROCESS_HEAP_REGION) != 0 || (entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) != 0)
-                    if (const void* const base = baseOf(entry.lpData); base != nullptr)
-                        heapBases.push_back(base);
+            {
+                const char* const at = static_cast<const char*>(entry.lpData);
+                if ((entry.wFlags & PROCESS_HEAP_REGION) != 0)
+                {
+                    regionFirst = static_cast<const char*>(entry.Region.lpFirstBlock);
+                    regionLast = static_cast<const char*>(entry.Region.lpLastBlock);
+                }
+                else if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) == 0 || (at >= regionFirst && at < regionLast)
+                    || (at >= queriedFrom && at < queriedTo))
+                    continue;
+
+                MEMORY_BASIC_INFORMATION region{};
+                if (VirtualQuery(at, &region, sizeof(region)) != sizeof(region))
+                    continue;
+                heapBases.push_back(region.AllocationBase);
+                queriedFrom = static_cast<const char*>(region.AllocationBase);
+                queriedTo = static_cast<const char*>(region.BaseAddress) + region.RegionSize;
+            }
             HeapUnlock(heap);
         }
         std::ranges::sort(heapBases);
