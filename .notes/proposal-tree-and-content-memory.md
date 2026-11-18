@@ -704,6 +704,10 @@ promise is checked by the pictures, not measured by a second path.
 
 ### 21. Fix: the texture pool defragments, incrementally
 
+**Gated again after item 14.6 (2026-11-18)**: the refusals the measure above names were loose structure blocks, which
+14.6 now frees resting meshes for. Item 21 is built where item 18's tours still refuse a texture or a structure while
+the texture pool holds the room in pieces, and is otherwise declined there with their figures.
+
 **Measured at `b461faf024`** (the handheld's Repack tour, all 155 stops): 3 structure blocks of 64 MiB refused. The
 texture pool held 937–1,031 MiB free in its blocks, 2,368 MiB in blocks against 1,431 MiB allocated, its largest
 range 31.7 MiB, beside 12,008 resting meshes on 2.6 GiB. So items 21 and 14.6 are both due. That tour had no outrun
