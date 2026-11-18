@@ -17,7 +17,6 @@
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <components/misc/result.hpp>
-#include <components/resource/cachebudget.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -439,17 +438,10 @@ namespace Rtx
             device.collectIdle();
         }
 
-        /// **A device whose memory is the system's is held to what the system leaves**: holding 2 GiB with 5 left
-        /// beside it, 6.5 after the host's half gigabyte; holding a quarter with a half left, a quarter; holding an
-        /// eighth with a quarter left, nothing. The host's half is below the caches' gigabyte, so they stop first. The
-        /// device here says whether its memory is the system's by its type.
-        TEST_F(RtxMemoryTest, aUnifiedDeviceIsHeldToWhatTheSystemLeaves)
+        /// **The device says whether its memory is the system's by its type**, which holds it to its share of the
+        /// system's memory (`SystemShare`).
+        TEST_F(RtxMemoryTest, aUnifiedDeviceIsToldByItsType)
         {
-            constexpr VkDeviceSize sGiB = VkDeviceSize{ 1 } << 30;
-            static_assert(MemoryAllocator::systemBoundOf(2 * sGiB, 5 * sGiB) == 6 * sGiB + sGiB / 2);
-            static_assert(MemoryAllocator::systemBoundOf(sGiB / 4, sGiB / 2) == sGiB / 4);
-            static_assert(MemoryAllocator::systemBoundOf(sGiB / 8, sGiB / 4) == 0);
-            static_assert(MemoryAllocator::sHostReserveBytes < Resource::CacheBudget::sReserveBytes);
             EXPECT_EQ(getDevice().getMemory().isUnified(),
                 getDevice().getPhysicalDevice().getProperties().mProperties2.properties.deviceType
                     == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU);

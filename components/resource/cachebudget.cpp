@@ -17,6 +17,7 @@ namespace Resource
 
     CacheBudget::CacheBudget(std::uint64_t bytes)
         : mBytes(bytes)
+        , mDerived(bytes)
     {
     }
 
@@ -65,14 +66,31 @@ namespace Resource
 
     void CacheBudget::setBytes(std::uint64_t bytes)
     {
-        mBytes.store(std::min(bytes, mLimit.load(std::memory_order_relaxed)), std::memory_order_relaxed);
+        mDerived.store(bytes, std::memory_order_relaxed);
+        refresh();
         makeRoom();
     }
 
     void CacheBudget::limit(std::optional<std::uint64_t> bytes)
     {
         mLimit.store(bytes.value_or(sUnbounded), std::memory_order_relaxed);
-        setBytes(getBytes());
+        refresh();
+        makeRoom();
+    }
+
+    void CacheBudget::yieldTo(std::uint64_t claim)
+    {
+        mClaim.store(claim, std::memory_order_relaxed);
+        refresh();
+    }
+
+    void CacheBudget::refresh()
+    {
+        // Three figures set from two threads, each a relaxed store: a reading between two of them is a second's or a
+        // frame's old, and the next of either sets it again.
+        const std::uint64_t derived = mDerived.load(std::memory_order_relaxed);
+        const std::uint64_t left = derived - std::min(derived, mClaim.load(std::memory_order_relaxed));
+        mBytes.store(std::min(left, mLimit.load(std::memory_order_relaxed)), std::memory_order_relaxed);
     }
 
     void CacheBudget::evictToBudget()

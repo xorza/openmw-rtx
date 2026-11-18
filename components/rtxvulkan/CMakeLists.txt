@@ -534,6 +534,7 @@ target_sources(
                 device/memory/slottable.hpp
                 device/memory/stagingring.hpp
                 device/memory/structurestorage.hpp
+                device/memory/systemshare.hpp
                 device/memory/uploads.hpp
                 device/owned.hpp
                 device/physicaldevice.hpp

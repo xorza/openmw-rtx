@@ -698,6 +698,11 @@ namespace Rtx
         /// allocation, so asked once at a place and never once a frame.
         virtual MemoryReport getMemoryReport() const = 0;
 
+        /// What the device claims of the host's caches, where its memory is the system's: memory it gave back lately
+        /// and is likely to take again, which the caches leave it (`Resource::CacheBudget::yieldTo`); nought where the
+        /// device has memory of its own. Asked once a frame.
+        virtual std::uint64_t getSystemClaim() const = 0;
+
         /// What the world scene is made of, as the backend last placed it. Only meaningful once
         /// `Renderer::setScene` has been called for the world.
         virtual const SceneStats& getSceneStats() const = 0;

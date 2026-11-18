@@ -584,6 +584,11 @@ namespace Rtx
         mMedia.keepRipples(scene);
     }
 
+    std::uint64_t VulkanRenderer::getSystemClaim() const
+    {
+        return mDevice.getMemory().getSystemClaim();
+    }
+
     MemoryReport VulkanRenderer::getMemoryReport() const
     {
         return mDevice.getMemory().report();

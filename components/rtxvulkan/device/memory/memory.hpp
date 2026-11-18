@@ -16,6 +16,8 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
+#include "systemshare.hpp"
+
 struct VmaAllocation_T;
 struct VmaAllocator_T;
 struct VmaPool_T;
@@ -363,27 +365,12 @@ namespace Rtx
         /// Has the library ask the driver its budget again, which it otherwise does only every
         /// few dozen allocations. Before a decision about what content fits, so the decision is
         /// made against what the device says now. On a device whose memory is the system's, reads
-        /// what the system leaves the process as well, once a second at most (`systemBoundOf`).
+        /// what the system leaves the process as well, once a second at most (`SystemShare`).
         void refreshBudget(std::uint64_t frame);
 
-        /// **What a device whose memory is the system's may hold**: what it holds, `usage`, and what the system
-        /// leaves the process beside it, `available`, less `sHostReserveBytes` for what the host takes before the
-        /// next reading. A driver's budget for such a heap is the heap less the device's own use, and sees nothing the
-        /// process's heap and the other programs hold (RADV, `radv_get_memory_budget_properties`).
-        static constexpr VkDeviceSize systemBoundOf(const VkDeviceSize usage, const VkDeviceSize available)
-        {
-            const VkDeviceSize room = usage + available;
-            return room - std::min(room, sHostReserveBytes);
-        }
-
-        /// What the host's own side keeps of the system's memory: half a gigabyte, **half the caches' own reserve**
-        /// (`Resource::CacheBudget::sReserveBytes`), so as the device and the caches of what is read meet, the caches
-        /// stop first and give back what the device takes (`docs/architecture.md`, "On a unified device the budget is
-        /// the lesser of the driver's and what the system can still back"). Both counted what the system leaves as
-        /// theirs less one reserve, and every block the device gave back the caches took for good: the handheld's
-        /// Repack tour with the texture pool defragmenting held the device to 680 MiB by its end, the caches at 3.2
-        /// GiB, and read 38.8 GiB of texels again.
-        static constexpr VkDeviceSize sHostReserveBytes = VkDeviceSize{ 1 } << 29;
+        /// What the device claims of the host's caches, on a device whose memory is the system's: what it gave back
+        /// lately (`SystemShare::getClaim`); nought on a device with memory of its own.
+        VkDeviceSize getSystemClaim() const { return mShare.getClaim(); }
 
         /// Whether the device's memory is the system's: an integrated device, as its type states.
         bool isUnified() const { return mUnified; }
@@ -530,8 +517,8 @@ namespace Rtx
         /// Whether the device's memory is the system's, and what that leaves the device as `refreshBudget` last read
         /// it, and when: nothing on a device with memory of its own.
         bool mUnified = false;
-        std::optional<VkDeviceSize> mSystemBound;
-        std::chrono::steady_clock::time_point mSystemRead{};
+        SystemShare mShare;
+        std::optional<std::chrono::steady_clock::time_point> mSystemRead;
 
         /// `budget` held to `limitBudget`'s and the system's bound, whichever are less.
         VkDeviceSize heldTo(VkDeviceSize budget) const;

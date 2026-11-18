@@ -775,8 +775,26 @@ namespace Resource
                 budget.setBytes(30);
                 EXPECT_EQ(budget.getBytes(), 30) << "a figure under the limit stands";
                 budget.limit(std::nullopt);
+                EXPECT_EQ(budget.getBytes(), 30) << "lifted, the system's last figure stands at once";
                 budget.setBytes(1000);
                 EXPECT_EQ(budget.getBytes(), 1000);
+
+                // What the device claims is taken off the system's figure, at once and from every figure after it,
+                // and makes no room until the next look.
+                cache.getOrLoad(5, loadOf(70));
+                budget.yieldTo(960);
+                EXPECT_EQ(budget.getBytes(), 40) << "1000 less the device's 960";
+                EXPECT_EQ(budget.getHeld(), 70) << "the claim made room on the frame";
+                budget.setBytes(1100);
+                EXPECT_EQ(budget.getBytes(), 140) << "a new figure less the same claim";
+                EXPECT_EQ(budget.getHeld(), 70) << "under 140, nothing went";
+                budget.yieldTo(2000);
+                EXPECT_EQ(budget.getBytes(), 0) << "a claim past the figure leaves nothing";
+                budget.limit(30);
+                EXPECT_EQ(budget.getBytes(), 0) << "the limit takes nothing back from the claim";
+                budget.limit(std::nullopt);
+                budget.yieldTo(0);
+                EXPECT_EQ(budget.getBytes(), 1100);
             }
             EXPECT_EQ(budget.getHeld(), 0) << "the cache's own went with it";
         }

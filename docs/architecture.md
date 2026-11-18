@@ -417,14 +417,19 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   the budget less the frame's gap and their sum. A scratch or a storage held to a room owes nothing. Refused: a second
   copy of memory that is appended and never made again; no reserve, under which a table's growth could end the
   renderer.
-- **On a unified device the budget is the lesser of the driver's and what the system can still back**, less half a
-  gigabyte, half the caches' reserve, so as the two meet the caches stop first; read once a second at most. With one
-  reserve for both, every block the device gave back the caches took for good, and the handheld's Repack tour ended
-  with the device held to 680 MiB. Such a device is told by its type (`VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU`), which
-  every driver states; Windows says of it that it has one pool
-  ([residency](https://learn.microsoft.com/en-us/windows/win32/direct3d12/residency)). Refused: a heap both
-  device-local and host-visible, which a discrete card with resizable BAR states too; the kernel's pressure stall
-  figures, which report a stall once it has happened.
+- **On a unified device the device and the caches split the system's memory** (`SystemShare`), by the user's
+  decision: the device is held to what it holds and what the system leaves beside it, less half a gigabyte, half the
+  caches' reserve, so as the two meet the caches stop first; that bound is an exponential average over a minute, both
+  ways, so a host's spike costs the device nothing and a lasting growth takes its room back within the minute. What
+  the device gave back lately, the average of what it held above what it holds, the caches leave it
+  (`Resource::CacheBudget::yieldTo`), so a block it gives back is its own to take again for about as long. With one
+  reserve for both and no claim, every block the device gave back the caches took for good: the handheld's Repack
+  tour with the texture pool defragmenting held the device to 680 MiB by its end. Such a device is told by its type
+  (`VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU`), which every driver states; Windows says of it that it has one pool
+  ([residency](https://learn.microsoft.com/en-us/windows/win32/direct3d12/residency)). Refused: the bound read each
+  second against the caches', which let a block given back go to the caches the next second; a fixed split, which a
+  host that grows in a long session outruns; a heap both device-local and host-visible as the sign, which a discrete
+  card with resizable BAR states too; the kernel's pressure stall figures, which report a stall once it has happened.
 - **The room kept for the next arrival is the most of the last 64 extensions** (`ArrivalWindow`), some three crossings
   at a tour's speed, a sliding maximum: the session's, which one heavy arrival held for good, is refused.
 - **Device memory is made off the frame where it can be kept**: a buffer that grows with its batch doubles within its

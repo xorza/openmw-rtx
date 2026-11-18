@@ -104,12 +104,22 @@ namespace Resource
         /// content wanted more than the budget, which on a machine short of memory is the expected state and not a
         /// fault to log.
         std::size_t getStarvedLooks() const { return mStarvedLooks.load(std::memory_order_relaxed); }
+
+        /// The budget the system's memory derives (`derive`), from which the device's claim and the limit are taken.
+        /// Makes room at once.
         void setBytes(std::uint64_t bytes);
 
-        /// Holds the budget to `bytes` where the system would leave more, every `setBytes` after it included, or
-        /// lets it follow the system again from the next `setBytes`: what a run that asks how a machine short of
-        /// memory loads does (`MWRender::RunSetup::mCacheBudget`). Makes room at once.
+        /// Holds the budget to `bytes` where the system would leave more, or lets it follow the system again: what a
+        /// run that asks how a machine short of memory loads does (`MWRender::RunSetup::mCacheBudget`). Makes room at
+        /// once.
         void limit(std::optional<std::uint64_t> bytes);
+
+        /// **What a device whose memory is the system's claims of the budget**: memory it gave back lately and is
+        /// likely to take again, which the caches leave it (`docs/architecture.md`, "On a unified device the device
+        /// and the caches split the system's memory"). Without it every block the device gave back was the caches'
+        /// the next second, and the device's room fell after it. Told once a frame by the renderer; the room it makes
+        /// is made by the next look (`makeRoom`, `makeRoomForInsertion`), never on the frame.
+        void yieldTo(std::uint64_t claim);
 
     private:
         void evictToBudget();
@@ -117,7 +127,12 @@ namespace Resource
         std::atomic<std::uint64_t> mHeld = 0;
         std::atomic<std::uint64_t> mStamp = 0;
         std::atomic<std::uint64_t> mBytes;
+        std::atomic<std::uint64_t> mDerived;
         std::atomic<std::uint64_t> mLimit = sUnbounded;
+        std::atomic<std::uint64_t> mClaim = 0;
+
+        /// Sets the budget from what the system derives, less the device's claim, held to the limit.
+        void refresh();
 
         /// Over the members and the evictions, so that two threads past the budget do not both evict for one
         /// insertion. Taken before a member's own lock, never after.

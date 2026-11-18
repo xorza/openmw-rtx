@@ -85,6 +85,7 @@ namespace Rtx
         void placeScene(SceneSlot slot, const SceneDesc& scene) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         MemoryReport getMemoryReport() const override;
+        std::uint64_t getSystemClaim() const override;
         void resize(std::uint32_t width, std::uint32_t height) override;
         void showIn(std::uint32_t width, std::uint32_t height) override;
         void setUpscale(Upscale upscale) override;

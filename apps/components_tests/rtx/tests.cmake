@@ -155,6 +155,7 @@ target_sources(
         rtxvulkan/device/memory/imagearena.cpp
         rtxvulkan/device/memory/memorypriority.cpp
         rtxvulkan/device/memory/memorytypes.cpp
+        rtxvulkan/device/memory/systemshare.cpp
         rtxvulkan/device/memory/uploads.cpp
         rtxvulkan/device/physicaldevice.cpp
         rtxvulkan/device/pipelinecode.cpp

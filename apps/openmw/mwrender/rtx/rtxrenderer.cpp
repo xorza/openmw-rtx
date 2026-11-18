@@ -964,6 +964,9 @@ namespace MWRender
         report.mCellsToStand = mMirror.getRing().getCellsToStand();
         report.mImagesPending = static_cast<std::uint32_t>(mMirror.getImagesPending());
 
+        // What the device gave back lately stays its own to take again, not the caches' next second.
+        getResources().getCacheBudget().yieldTo(mRenderer->getSystemClaim());
+
         if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mMirror.getScene().meshes().getRows().size() << " meshes into "
                              << mWalked.mFound.mInstances << " instances with " << mWalked.mFound.mLights << " lights, "

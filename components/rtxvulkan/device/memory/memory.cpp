@@ -618,18 +618,15 @@ namespace Rtx
 
         // **Once a second at most**, a read of the system's figure, so no hand-over pays more than one in that time.
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        if (mSystemBound.has_value() && now - mSystemRead < std::chrono::seconds(1))
+        if (mSystemRead.has_value() && now - *mSystemRead < std::chrono::seconds(1))
             return;
-        mSystemRead = now;
         const std::optional<std::uint64_t> available = Platform::availableMemory();
         if (!available.has_value())
-        {
-            mSystemBound.reset();
             return;
-        }
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
-        mSystemBound = systemBoundOf(budgets[mContent.mHeap].usage, *available);
+        mShare.read(budgets[mContent.mHeap].usage, *available, now - mSystemRead.value_or(now));
+        mSystemRead = now;
     }
 
     void MemoryAllocator::noteStructureFree(const VkDeviceSize was, const VkDeviceSize bytes) noexcept
@@ -654,7 +651,7 @@ namespace Rtx
 
     VkDeviceSize MemoryAllocator::heldTo(const VkDeviceSize budget) const
     {
-        return std::min({ budget, mBudgetLimit.value_or(budget), mSystemBound.value_or(budget) });
+        return std::min({ budget, mBudgetLimit.value_or(budget), mShare.getBound().value_or(budget) });
     }
 
     std::size_t MemoryAllocator::getLiveCount() const
