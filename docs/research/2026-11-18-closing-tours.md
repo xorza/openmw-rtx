@@ -21,10 +21,12 @@ of the two plus their spread, and the median over the legs of each leg's p99.
 | handheld | PBR | `9f41093017` | 1: the stand-in at Seyda Neen | 21.6 (22.2, 22.5) | 3317 (344) |
 | handheld | Repack | `c8664cd001` | 2 refused, `textures-readable` at 1 stop | 57.4 (26.2, 26.0) | 7259 (1607) |
 | Windows | vanilla | `87b6f3a4d8` | 0 | 27.1 (27.0, 26.0) | 4651 (2556) |
+| Windows | Repack | `87b6f3a4d8` | 0 | 38.9 (37.3, 38.0) | 20048 (7190) |
 | Windows | PBR | `87b6f3a4d8` | 3 outruns | 28.6 (29.0, 29.0) | 14397 (4769) |
 
 The handheld PBR's baseline outran 9 and 12 cells; this flight outran none. The handheld Repack's baseline failed
-`textures-readable` at 147 stops; this one at 1.
+`textures-readable` at 147 stops; this one at 1. Flown again at `8cdf5be569`, where a file the device refuses waits
+for what stands to move down for it, the handheld's PBR drew the stand-in at Seyda Neen at the same frame.
 
 ## The handheld's Repack, flown five times
 
@@ -58,4 +60,6 @@ largest range 26 MiB, and 2.5 GiB of resting meshes beside them.
 - **What holds the private memory** (`Platform::Process::privateMemoryHeld`), at the PBR stack's stop 90 at
   `942563a569`: 2.8 GiB in the heaps' regions, 11.1 GiB in 955 other regions, the largest 68.6 MiB.
 - **The meter's own walk** held each stop's end some 47 s on the Repack's 7 GiB heap, querying the system once an
-  entry; at `3e42700a85` it queries once a region.
+  entry; at `3e42700a85` it queries once a region. At `87b6f3a4d8` it still grows with the heap: 1 s at the Repack's
+  first stop, 14 s at stop 41, 25 s at its last, past the monitor's hang watch from stop 100 on, which took 43 dumps of
+  a game that had faulted nothing.
