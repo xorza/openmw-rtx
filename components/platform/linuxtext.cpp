@@ -1,6 +1,7 @@
 #include "linuxtext.hpp"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
@@ -129,13 +130,15 @@ namespace Platform::LinuxText
         bool client = false;
         std::optional<std::uint64_t> id;
         Process::DriverMemory held;
-        const std::pair<std::string_view, std::uint64_t Process::DriverMemory::*> fields[] = {
+        // Named, as MSVC reads a pointer to a member spelled inside a template's arguments as a qualified name.
+        using Field = std::uint64_t Process::DriverMemory::*;
+        const std::array<std::pair<std::string_view, Field>, 5> fields{ {
             { "drm-total-vram:", &Process::DriverMemory::mTotalVram },
             { "drm-resident-vram:", &Process::DriverMemory::mResidentVram },
             { "drm-total-gtt:", &Process::DriverMemory::mTotalGtt },
             { "drm-resident-gtt:", &Process::DriverMemory::mResidentGtt },
             { "drm-resident-cpu:", &Process::DriverMemory::mResidentCpu },
-        };
+        } };
         const auto valueOf = [](std::string_view line, const std::string_view name) {
             line.remove_prefix(name.size());
             line.remove_prefix(std::min(line.find_first_not_of(" \t"), line.size()));

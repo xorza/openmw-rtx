@@ -145,7 +145,7 @@ Decided by the user, 2026-11-18:
 - **A texture moved out of a block takes a range in the blocks the pool holds already, and never the block it leaves**:
   the library asked with no new memory allowed (`VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT`), and a range that landed
   in the block being emptied given back at once as no room. The library tries a pool's blocks the fullest first
-  ([`VmaBlockVector::AllocatePage`](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/v3.1.0/include/vk_mem_alloc.h)),
+  ([`VmaBlockVector::AllocatePage`](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/v3.5.0/include/vk_mem_alloc.h)),
   so a range lands there only where no other block has room. Refused: the textures' own list of blocks, as the
   structures keep (`StructureStorage`), a rewrite of the pools for an exclusion the library's order already gives;
   VMA's defragmentation (approved 2).
