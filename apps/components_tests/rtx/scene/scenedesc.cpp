@@ -931,7 +931,7 @@ namespace Rtx
                 const Index slot = scene.textures().add(name);
                 scene.textures().stand(slot, 8, false, 0);
                 if (fit > 0)
-                    scene.textures().fit(slot, fit);
+                    scene.textures().fit(slot, fit, 1);
                 scene.drop(scene.holdTexture(slot));
                 scene.compact();
                 slots.push_back(slot);
@@ -946,8 +946,8 @@ namespace Rtx
             scene.compact();
             Testing::letGoMesh(scene, raised);
             scene.compact();
-            scene.fitMesh(raised, 300);
-            scene.fitMesh(quad, 300);
+            scene.fitMesh(raised, 300, 1);
+            scene.fitMesh(quad, 300, 1);
             ASSERT_EQ(scene.getRestingBytes(), 5 * 8u + 200u);
 
             const auto live = [&] {
@@ -980,6 +980,35 @@ namespace Rtx
             EXPECT_EQ(scene.evictFor(std::span(&texture65, 1)), 16u);
             EXPECT_TRUE(live().empty());
             EXPECT_EQ(scene.getRestingBytes(), 0u);
+        }
+
+        /// **A want frees only a rest whose range starts at its alignment or a coarser one**: a freed range holds a
+        /// resource of its kind as large where it starts as aligned (`RoomWant::mAlignment`). Two textures rest a tick
+        /// apart, each giving back 100, the older starting at 256 and the later at 4096: a hole of 64 at 1024 frees the
+        /// later, which the older does not suit though it rested first; then one at 256 frees the older.
+        TEST(RtxSceneDescTest, aWantFreesOnlyARestWhoseRangeStartsAtItsAlignment)
+        {
+            SceneDesc scene;
+            std::vector<Index> slots;
+            for (const std::uint64_t alignment : { 256u, 4096u })
+            {
+                const VFS::Path::Normalized name(std::format("textures/tx_{}.dds", slots.size()));
+                const Index slot = scene.textures().add(name);
+                scene.textures().stand(slot, 8, false, 0);
+                scene.textures().fit(slot, 100, alignment);
+                scene.drop(scene.holdTexture(slot));
+                scene.compact();
+                slots.push_back(slot);
+            }
+
+            const RoomWant coarse{ .mKind = RestKind::Texture, .mSlot = 0, .mHole = 64, .mAlignment = 1024 };
+            EXPECT_EQ(scene.evictFor(std::span(&coarse, 1)), 8u);
+            EXPECT_TRUE(scene.textures().isLive(slots[0])) << "the older rest starts finer than the want";
+            EXPECT_FALSE(scene.textures().isLive(slots[1]));
+
+            const RoomWant fine{ .mKind = RestKind::Texture, .mSlot = 0, .mHole = 64, .mAlignment = 256 };
+            EXPECT_EQ(scene.evictFor(std::span(&fine, 1)), 8u);
+            EXPECT_FALSE(scene.textures().isLive(slots[0]));
         }
 
         /// **Every table hands out its lowest free slot, however its slots were given back**

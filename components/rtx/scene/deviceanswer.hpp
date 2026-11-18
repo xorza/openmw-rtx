@@ -59,14 +59,16 @@ namespace Rtx
     };
 
     /// **Content the device had no room for and waits on**, met since the last take (`DeviceAnswer::mWants`): whose
-    /// rest serves it, the slot that waits, which names the want from one take to the next, and the bytes a resting row
-    /// of that kind must give back where the want can take them (`RestPlace::mFit`) for its eviction to surely leave
-    /// it room: its size, and what its alignment may leave unused at a hole's start.
+    /// rest serves it, the slot that waits, which names the want from one take to the next, and the range a resting
+    /// row of that kind must give back (`RestPlace::mFit`) for its eviction to surely leave it room: its size, and the
+    /// alignment its start needs. A range freed by a resource of its own kind holds it where it is as large and starts
+    /// at an alignment at least as coarse: its neighbours held the resource before.
     struct RoomWant
     {
         RestKind mKind = RestKind::Texture;
         Index mSlot = sNoIndex;
         std::uint64_t mHole = 0;
+        std::uint64_t mAlignment = 1;
 
         bool operator==(const RoomWant& other) const = default;
     };
@@ -77,6 +79,9 @@ namespace Rtx
     {
         Index mSlot = sNoIndex;
         std::uint64_t mBytes = 0;
+
+        /// The coarsest power of two the range's start is aligned to: what a want's alignment is matched against.
+        std::uint64_t mAlignment = 1;
 
         bool operator==(const FitBytes& other) const = default;
     };

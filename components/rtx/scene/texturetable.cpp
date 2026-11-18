@@ -321,16 +321,16 @@ namespace Rtx
         mFiner.clear();
     }
 
-    void TextureTable::fit(const Index slot, const std::uint64_t bytes)
+    void TextureTable::fit(const Index slot, const std::uint64_t bytes, const std::uint64_t alignment)
     {
         assert((isLive(slot) || rowAt(slot).mRest.mResting) && "a slot the table does not hold fitted");
-        mResting.fit(slot, bytes, placeOf());
+        mResting.fit(slot, bytes, alignment, placeOf());
     }
 
-    bool TextureTable::releaseFitting(const std::uint64_t hole)
+    bool TextureTable::releaseFitting(const std::uint64_t hole, const std::uint64_t alignment)
     {
         settleResting();
-        const Index fitting = mResting.firstFitting(hole, placeOf());
+        const Index fitting = mResting.firstFitting(hole, alignment, placeOf());
         if (fitting == sNoIndex)
             return false;
         release(fitting);

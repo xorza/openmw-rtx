@@ -314,7 +314,7 @@ namespace Rtx
         void standMesh(Index mesh, std::uint64_t structureBytes);
 
         /// What the device's tight copy of `mesh`'s structure gives back once it rests (`MeshTable::fit`).
-        void fitMesh(Index mesh, std::uint64_t bytes);
+        void fitMesh(Index mesh, std::uint64_t bytes, std::uint64_t alignment);
 
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();

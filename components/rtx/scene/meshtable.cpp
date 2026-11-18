@@ -211,16 +211,16 @@ namespace Rtx
         range.mRest.mFit = 0;
     }
 
-    void MeshTable::fit(const Index mesh, const std::uint64_t bytes)
+    void MeshTable::fit(const Index mesh, const std::uint64_t bytes, const std::uint64_t alignment)
     {
         assert((isLive(mesh) || rowAt(mesh).mRest.mResting) && "a mesh the table does not hold fitted");
-        mResting.fit(mesh, bytes, placeOf());
+        mResting.fit(mesh, bytes, alignment, placeOf());
     }
 
-    bool MeshTable::releaseFitting(DeformerTable& deformers, const std::uint64_t hole)
+    bool MeshTable::releaseFitting(DeformerTable& deformers, const std::uint64_t hole, const std::uint64_t alignment)
     {
         settleResting();
-        const Index fitting = mResting.firstFitting(hole, placeOf());
+        const Index fitting = mResting.firstFitting(hole, alignment, placeOf());
         if (fitting == sNoIndex)
             return false;
         release(deformers, fitting);

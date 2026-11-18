@@ -34,6 +34,10 @@ namespace Rtx
         /// much within a power of two, in the order they came to rest: what finds the oldest row whose eviction surely
         /// makes a want its room.
         std::uint64_t mFit = 0;
+
+        /// The coarsest power of two that range starts at (`FitBytes::mAlignment`).
+        std::uint64_t mFitAlignment = 1;
+
         Index mClassBefore = sNoIndex;
         Index mClassAfter = sNoIndex;
     };
@@ -106,7 +110,7 @@ namespace Rtx
                 unclass(slot, placeOf);
             }
             // What it gives back stays: the device stands what it stood.
-            place = RestPlace{ .mFit = place.mFit };
+            place = RestPlace{ .mFit = place.mFit, .mFitAlignment = place.mFitAlignment };
             assert(mCount > 0 && "a wake where nothing rests");
             assert(mBytes >= bytes && "a wake past the bytes that rest");
             --mCount;
@@ -156,9 +160,11 @@ namespace Rtx
         /// Says `slot` gives back `fit` where a want can take it now, a filed row keeping its place in the order the
         /// rows came to rest: a mesh's copy made tight lands whenever the device answers, a rest or none before.
         template <class PlaceOf>
-        void fit(const Index slot, const std::uint64_t fit, PlaceOf&& placeOf)
+        void fit(const Index slot, const std::uint64_t fit, const std::uint64_t alignment, PlaceOf&& placeOf)
         {
+            assert(alignment > 0 && (alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
             RestPlace& place = placeOf(slot);
+            place.mFitAlignment = alignment;
             if (!place.mResting || place.mWaitingAt != sNoIndex)
             {
                 place.mFit = fit;
@@ -190,26 +196,33 @@ namespace Rtx
         /// The filed row that has rested longest, or `sNoIndex`; the batch is filed first by `settle`.
         Index first() const { return mFirst; }
 
-        /// The filed row that has rested longest of those that give back at least `hole`, or `sNoIndex`: the oldest
-        /// head of the classes past the hole's, which all give back more, or a row of the hole's own class that gives
-        /// back as much and was filed before it.
+        /// The filed row that has rested longest of those that give back at least `hole` at an alignment at least
+        /// `alignment`, or `sNoIndex`: the oldest aligned row of the classes past the hole's, which all give back more,
+        /// or a row of the hole's own class that gives back as much and was filed before it. Each class is walked from
+        /// its oldest to its first aligned row, or to a row filed after what was found.
         template <class PlaceOf>
-        Index firstFitting(const std::uint64_t hole, PlaceOf&& placeOf) const
+        Index firstFitting(const std::uint64_t hole, const std::uint64_t alignment, PlaceOf&& placeOf) const
         {
             assert(hole > 0 && "a hole of nought, which any row fits");
+            const auto aligned = [&](const Index row) { return placeOf(row).mFitAlignment >= alignment; };
             const std::size_t own = classOf(hole);
             Index found = sNoIndex;
             for (std::size_t past = own + 1; past < mClasses.size(); ++past)
-            {
-                const Index head = mClasses[past].mFirst;
-                if (head != sNoIndex && (found == sNoIndex || placeOf(head).mOrder < placeOf(found).mOrder))
-                    found = head;
-            }
+                for (Index row = mClasses[past].mFirst; row != sNoIndex; row = placeOf(row).mClassAfter)
+                {
+                    if (found != sNoIndex && placeOf(row).mOrder > placeOf(found).mOrder)
+                        break;
+                    if (aligned(row))
+                    {
+                        found = row;
+                        break;
+                    }
+                }
             for (Index row = mClasses[own].mFirst; row != sNoIndex; row = placeOf(row).mClassAfter)
             {
                 if (found != sNoIndex && placeOf(row).mOrder > placeOf(found).mOrder)
                     break;
-                if (placeOf(row).mFit >= hole)
+                if (placeOf(row).mFit >= hole && aligned(row))
                     return row;
             }
             return found;

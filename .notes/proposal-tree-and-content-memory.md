@@ -740,19 +740,6 @@ follows it and runs only where refusals remain.
 2. Item 8's count again; `repeat` and `shot`, since a model must stand before the frame that first shows it; and no
    outrun on the legs the baseline outran.
 
-### 22. Fix: a texture's want matches a rest of its own size
-
-**Closes**: "a texture's want never matches a resting texture of its own size".
-
-- **The fit states the range it leaves**: its size and the alignment it begins at (`FitBytes`), and the want states
-  its size and alignment. `RestQueue::firstFitting` takes the first rest whose range holds the want's size at the
-  want's alignment. That is exact, so no margin is needed.
-- **The granularity margin goes where it cannot apply**: a texture pool holds optimally tiled images alone, which
-  `bufferImageGranularity` never separates (Vulkan spec, "Buffer-Image Granularity"). The pool asserts that it holds
-  images alone.
-- **Tests**: a want matches a rest of its own size and alignment and no smaller one; a coarser alignment fits a finer
-  want, and not the other way.
-
 ### 26. Measure, then fix: Windows says what holds the process's memory
 
 **Addresses**: "on the Windows machine the tour's process holds far more anonymous memory than its heap takes". The
@@ -795,6 +782,12 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **22. A texture's want matches a rest of its own size**: the want states its size and its alignment, and the fit
+  states the coarsest power of two its range starts at (its offset's lowest bit, `Image::getMemoryAlignment`).
+  `RestQueue::firstFitting` takes the oldest rest that holds the size at that alignment. The texture pool also holds
+  the ground bake's buffers, so the plan's "images alone" did not hold. A range a resource of its own kind freed needs
+  no granularity margin anyway, as its neighbours held it before. `holeFor` is gone.
 
 - **23. A bake waits for room as a file does**: as planned. A refused bake or composite is named short with what it
   stands whole (`TextureArray::bakeBytesOf`), and the uploader has its slot arrive again once the room holds it,

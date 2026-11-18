@@ -710,9 +710,9 @@ namespace Rtx
         const std::optional<std::uint32_t> top = texture.topLevel(mSideLimit);
         assert(top.has_value() && "a file past the device's side waits on no room");
         const VkMemoryRequirements whole = Image::requirementsFor(mDevice, Texture::describeFile(texture, *top));
-        const VkDeviceSize granularity
-            = mDevice.getPhysicalDevice().getProperties().mProperties2.properties.limits.bufferImageGranularity;
-        return RoomWant{ .mKind = RestKind::Texture, .mSlot = texture.mSlot, .mHole = holeFor(whole, granularity) };
+        return RoomWant{
+            .mKind = RestKind::Texture, .mSlot = texture.mSlot, .mHole = whole.size, .mAlignment = whole.alignment
+        };
     }
 
     void TextureArray::stand(Batch& batch, TextureArrival& arrival, const TextureData& texture,
@@ -790,8 +790,9 @@ namespace Rtx
             }
 
             // What its image gives back once it rests, the range the library placed it in.
-            answer.mTextureFits.push_back(
-                FitBytes{ .mSlot = texture.mSlot, .mBytes = made.getImage().getMemoryBytes() });
+            answer.mTextureFits.push_back(FitBytes{ .mSlot = texture.mSlot,
+                .mBytes = made.getImage().getMemoryBytes(),
+                .mAlignment = made.getImage().getMemoryAlignment() });
         }
 
         if (!why.empty())
@@ -921,7 +922,9 @@ namespace Rtx
                 answer.mMoved.push_back(MovedTexture{ .mSlot = at,
                     .mStoodBytes = slot.mTexture.getBytes(),
                     .mFrom = static_cast<std::uint8_t>(slot.mFirst) });
-            answer.mTextureFits.push_back(FitBytes{ .mSlot = at, .mBytes = slot.mTexture.getImage().getMemoryBytes() });
+            answer.mTextureFits.push_back(FitBytes{ .mSlot = at,
+                .mBytes = slot.mTexture.getImage().getMemoryBytes(),
+                .mAlignment = slot.mTexture.getImage().getMemoryAlignment() });
 
             mMovable.push_back(
                 Movable{ .mAboveWant = slot.mFirst < want, .mStanding = slot.mTexture.getBytes(), .mSlot = at });

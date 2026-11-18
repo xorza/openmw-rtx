@@ -113,15 +113,6 @@ namespace Rtx
     /// one, a resource is given memory of its own.
     inline constexpr VkDeviceSize sContentBlockBytes = 64 * 1024 * 1024;
 
-    /// **The least a range let go of must hold to surely take a resource of `requirements` in a content pool**,
-    /// wherever the range starts (`RoomWant::mHole`): its size; what its alignment may leave unused at the start; and
-    /// what the library keeps between a buffer and an image on one page of `granularity` (`bufferImageGranularity`),
-    /// which a neighbour of the other kind may make it leave at the start, folded into the alignment, and at the end.
-    constexpr VkDeviceSize holeFor(const VkMemoryRequirements& requirements, const VkDeviceSize granularity)
-    {
-        return requirements.size + std::max(requirements.alignment, granularity) - 1 + (granularity - 1);
-    }
-
     /// What `use` is called in a message: "frame", "essential", "structure", "texture".
     std::string_view nameOf(MemoryUse use);
 

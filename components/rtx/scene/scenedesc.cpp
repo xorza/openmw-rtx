@@ -408,8 +408,9 @@ namespace Rtx
         const std::uint64_t before = getRestingBytes();
         for (const RoomWant& want : wants)
         {
-            const bool fitted = want.mKind == RestKind::Texture ? mTextures.releaseFitting(want.mHole)
-                                                                : mMeshes.releaseFitting(mDeformers, want.mHole);
+            const bool fitted = want.mKind == RestKind::Texture
+                ? mTextures.releaseFitting(want.mHole, want.mAlignment)
+                : mMeshes.releaseFitting(mDeformers, want.mHole, want.mAlignment);
             // **A structure's want frees meshes alone**: a texture's range gives back room in the pools, which no
             // structure takes, its storages being blocks of their own. A texture's frees what rested longest across
             // the tables, a mesh whose block empties giving the heap room a pool's block takes.
@@ -440,9 +441,9 @@ namespace Rtx
         return mTextures.getResting().getBytes() + mMeshes.getResting().getBytes();
     }
 
-    void SceneDesc::fitMesh(const Index mesh, const std::uint64_t bytes)
+    void SceneDesc::fitMesh(const Index mesh, const std::uint64_t bytes, const std::uint64_t alignment)
     {
-        mMeshes.fit(mesh, bytes);
+        mMeshes.fit(mesh, bytes, alignment);
     }
 
     void SceneDesc::standMesh(const Index mesh, const std::uint64_t structureBytes)

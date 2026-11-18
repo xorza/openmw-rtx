@@ -245,9 +245,9 @@ namespace Rtx
         // A slot the scene let go of before the device moved it down fits nothing.
         for (const FitBytes& fit : mAnswer.mTextureFits)
             if (scene.textures().isLive(fit.mSlot))
-                scene.textures().fit(fit.mSlot, fit.mBytes);
+                scene.textures().fit(fit.mSlot, fit.mBytes, fit.mAlignment);
         for (const FitBytes& fit : mAnswer.mMeshFits)
-            scene.fitMesh(fit.mSlot, fit.mBytes);
+            scene.fitMesh(fit.mSlot, fit.mBytes, fit.mAlignment);
 
         // **What moved down and stands no coarser than its readers want stands as it is now**: nothing is handed over
         // again, and the slot says what the device holds of it. **One that rests is kept smaller**, moved down to its

@@ -238,7 +238,7 @@ namespace Rtx
 
         /// What the device made of `slot`'s image gives back of the pools textures stand in, `bytes`, the device's
         /// answer (`DeviceAnswer::mTextureFits`): the hole its eviction leaves for a texture the device waits on.
-        void fit(Index slot, std::uint64_t bytes);
+        void fit(Index slot, std::uint64_t bytes, std::uint64_t alignment);
 
         /// The slots that rest, oldest first (`RestQueue`): how many, the bytes they stand on the device, and the
         /// order, each row's `mRest.mAfter` carrying it on. What the scene frees across its tables
@@ -340,7 +340,7 @@ namespace Rtx
 
         /// Frees the slot that has rested longest of those whose eviction gives back at least `hole` where a texture
         /// the device waits on can take it, and answers whether one did (`RestQueue::firstFitting`).
-        bool releaseFitting(std::uint64_t hole);
+        bool releaseFitting(std::uint64_t hole, std::uint64_t alignment);
 
         /// A row's place in the rest, for `RestQueue`.
         auto placeOf()

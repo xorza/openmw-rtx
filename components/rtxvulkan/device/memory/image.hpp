@@ -202,6 +202,15 @@ namespace Rtx
         /// What the image's memory holds of the range it was placed in, nought for an image bound into an arena's.
         VkDeviceSize getMemoryBytes() const { return mMemory.getSize(); }
 
+        /// The coarsest power of two its range starts at, its offset's lowest bit: what a texture waiting on room
+        /// matches its alignment against once this image's range is freed (`FitBytes::mAlignment`). The largest power
+        /// of two a size holds for a range at its block's start.
+        VkDeviceSize getMemoryAlignment() const
+        {
+            const VkDeviceSize offset = mMemory.getOffset();
+            return offset == 0 ? VkDeviceSize{ 1 } << 63 : offset & (~offset + 1);
+        }
+
     private:
         /// The handle alone, with no memory bound and no view: what the constructor and `tryMake`
         /// both begin with, before either knows whether there is room.

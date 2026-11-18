@@ -698,8 +698,8 @@ namespace Rtx
         /// the arrival counted the block as room for it. Its second level, 1536 square, is 9 MiB and fits the block:
         /// 9437184 bytes. The single level of the same 36 MiB has nothing further down. The slot's texel word says the
         /// stand-in while it stands in, and is the file's own count once it stands. **A file stood short waits on a
-        /// hole its whole image surely fits** (`holeFor`), and every file that stands gives back its image's range once
-        /// it rests.
+        /// range of its whole image's size and alignment** (`TextureArray::wantOf`), and every file that stands gives
+        /// back its image's range once it rests.
         TEST_F(RtxTextureArrayTest, aTextureTheDeviceHasNoRoomForComesDownALevelOrDrawsTheStandIn)
         {
             Device& device = getDevice();
@@ -747,17 +747,18 @@ namespace Rtx
                 (std::vector<ShortTexture>{
                     { .mSlot = ladder.mData.mSlot, .mStoodBytes = VkDeviceSize{ 1536 } * 1536 * 4 } }))
                 << "a texture the room held smaller was not named short, with the bytes it stands";
-            const VkDeviceSize granularity
-                = device.getPhysicalDevice().getProperties().mProperties2.properties.limits.bufferImageGranularity;
-            const auto holeOf = [&](const TextureData& data) {
-                return holeFor(Image::requirementsFor(device, Texture::describeFile(data, 0)), granularity);
+            const auto requirementsOf = [&](const TextureData& data) {
+                return Image::requirementsFor(device, Texture::describeFile(data, 0));
             };
             EXPECT_EQ(answer.mWants,
-                (std::vector<RoomWant>{
-                    { .mKind = RestKind::Texture, .mSlot = ladder.mData.mSlot, .mHole = holeOf(ladder.mData) } }));
+                (std::vector<RoomWant>{ { .mKind = RestKind::Texture,
+                    .mSlot = ladder.mData.mSlot,
+                    .mHole = requirementsOf(ladder.mData).size,
+                    .mAlignment = requirementsOf(ladder.mData).alignment } }));
             EXPECT_EQ(answer.mTextureFits,
                 (std::vector<FitBytes>{ { .mSlot = ladder.mData.mSlot,
-                    .mBytes = Image::bytesFor(device, Texture::describeFile(ladder.mData, 1)) } }))
+                    .mBytes = Image::bytesFor(device, Texture::describeFile(ladder.mData, 1)),
+                    .mAlignment = textures.getImage(ladder.mData.mSlot).getMemoryAlignment() } }))
                 << "what the ladder's second level gives back once it rests";
             answer.mShort.clear();
             answer.mWants.clear();
@@ -791,8 +792,10 @@ namespace Rtx
             EXPECT_TRUE(refused.empty()) << "a file room is coming for was refused";
             EXPECT_EQ(answer.mShort, (std::vector<ShortTexture>{ { .mSlot = lone.mData.mSlot, .mStoodBytes = 0 } }));
             EXPECT_EQ(answer.mWants,
-                (std::vector<RoomWant>{
-                    { .mKind = RestKind::Texture, .mSlot = lone.mData.mSlot, .mHole = holeOf(lone.mData) } }));
+                (std::vector<RoomWant>{ { .mKind = RestKind::Texture,
+                    .mSlot = lone.mData.mSlot,
+                    .mHole = requirementsOf(lone.mData).size,
+                    .mAlignment = requirementsOf(lone.mData).alignment } }));
             EXPECT_TRUE(answer.mTextureFits.empty()) << "the stand-in gave back a range";
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "a file that waits drew its own";
             EXPECT_EQ(textures.getHeld().mShortOfRoom, 1u) << "waiting, and counted once";
@@ -811,7 +814,8 @@ namespace Rtx
             EXPECT_TRUE(answer.mWants.empty()) << "a file stood whole waits";
             EXPECT_EQ(answer.mTextureFits,
                 (std::vector<FitBytes>{ { .mSlot = lone.mData.mSlot,
-                    .mBytes = Image::bytesFor(device, Texture::describeFile(lone.mData, 0)) } }));
+                    .mBytes = Image::bytesFor(device, Texture::describeFile(lone.mData, 0)),
+                    .mAlignment = textures.getImage(lone.mData.mSlot).getMemoryAlignment() } }));
             EXPECT_EQ(textures.getHeld().mCount, 2u);
             EXPECT_EQ(textures.getHeld().mReduced, 1u) << "a texture standing as its file was counted as smaller";
             EXPECT_EQ(textures.getTexels(1), 3072u * 3072u) << "a slot that stands at last still says the stand-in";
