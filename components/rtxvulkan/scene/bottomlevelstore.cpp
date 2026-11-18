@@ -690,9 +690,15 @@ namespace Rtx
 
     void BottomLevelStore::moveOut(const VkDeviceSize budget)
     {
-        const auto movable = [&](const Row& row) {
+        // **Not one copied this placement**: its copy is in `mCompactionCopies` already, and a move would read the
+        // structure that copy writes, in the same run of copies with no barrier between them. A tight copy lands in
+        // the first block with room, which is the emptiest wherever every block before it is full, and the clone of a
+        // copy not yet written hung the handheld's GPU at a world's first placements.
+        const auto movable = [&](const MeshIndex slot) {
+            const Row& row = mRows[slot];
             return !row.mStructure.isEmpty() && row.mStructure.getStorage() == &mStorage && !row.mUpdatable
-                && (row.mCompaction.mTightness == Tightness::Tight || row.mCompaction.mTightness == Tightness::None);
+                && (row.mCompaction.mTightness == Tightness::Tight || row.mCompaction.mTightness == Tightness::None)
+                && !mMovedMeshes.has(slot);
         };
 
         const bool asked = mDevice.getMemory().asksForBlock(mRefusedSeen);
@@ -706,7 +712,7 @@ namespace Rtx
             // Listed once, as the block is chosen: a walk of every row a block, not a placement.
             mLeaving.clear();
             for (const MeshIndex slot : everyRow<MeshIndex>(mRows.size()))
-                if (movable(mRows[slot]) && mRows[slot].mStructure.getRoom().mBlock == *mEmptying)
+                if (movable(slot) && mRows[slot].mStructure.getRoom().mBlock == *mEmptying)
                     mLeaving.push_back(slot);
         }
 
@@ -716,7 +722,7 @@ namespace Rtx
             const MeshIndex slot = mLeaving.back();
             Row& row = mRows[slot];
             // Gone, built again or copied tight since it was listed: whatever stands there now is not in the block.
-            if (!movable(row) || row.mStructure.getRoom().mBlock != *mEmptying)
+            if (!movable(slot) || row.mStructure.getRoom().mBlock != *mEmptying)
             {
                 mLeaving.pop_back();
                 continue;
@@ -755,6 +761,11 @@ namespace Rtx
     void BottomLevelStore::recordCompaction(const VkCommandBuffer commands, GpuTimer* const timer)
     {
         const GpuZone timed(timer, commands, FrameZone::Compact);
+        // One run of copies with no barrier between them, so none reads what another writes.
+        assert(std::ranges::none_of(mCompactionCopies, [&](const VkCopyAccelerationStructureInfoKHR& copy) {
+            return std::ranges::any_of(mCompactionCopies,
+                [&](const VkCopyAccelerationStructureInfoKHR& other) { return other.dst == copy.src; });
+        }) && "a copy reads a structure another copy of the same run writes");
         for (const VkCopyAccelerationStructureInfoKHR& copy : mCompactionCopies)
             vkCmdCopyAccelerationStructureKHR(commands, &copy);
 

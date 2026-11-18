@@ -770,6 +770,59 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
+        /// **A structure copied tight in a placement does not move in the same one**: its move would clone what the
+        /// copy writes, in one run of copies with no barrier between them. Twelve grids copied tight into blocks of
+        /// three, the fifth, sixth, ninth and twelfth let go: the first block full, the second holding the fourth
+        /// alone, the third and fourth two each. A thirteenth's tight copy lands in the second block, the first with
+        /// room, which is then the emptiest of three holding two, with a hole in each of the others. Held to a byte,
+        /// that placement moves the fourth grid and not the thirteenth; the next moves the thirteenth, and the block
+        /// goes back.
+        TEST_F(RtxBottomLevelStoreTest, aStructureCopiedTightInAPlacementDoesNotMoveInTheSameOne)
+        {
+            std::array<MeshIndex, 13> grids{};
+            for (std::size_t at = 0; at < grids.size(); ++at)
+                grids[at] = addGrid(mScene, 64, static_cast<float>(at));
+            stage();
+            const VkDeviceSize tight = tightOf(grids[0]);
+            ASSERT_GT(tight, 0u);
+
+            BottomLevelStore store(getDevice(), sStructureBuildRoom, 3 * tight);
+            build(store, std::span(grids).first(12));
+            ASSERT_EQ(place(store).getSlots().size(), 12u) << "every grid copied tight";
+            ASSERT_EQ(store.getBytes() - store.getLooseBytes(), 12 * tight) << "four blocks of three";
+            const std::array<MeshIndex, 4> going{ grids[4], grids[5], grids[8], grids[11] };
+            store.release(going);
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+
+            build(store, std::span(grids).subspan(12, 1));
+            {
+                const Testing::BudgetLimit held(getDevice().getMemory(), 1);
+                const SlotSet<MeshIndex>& moved = place(store);
+                std::vector<MeshIndex> slots(moved.getSlots().begin(), moved.getSlots().end());
+                std::ranges::sort(slots);
+                EXPECT_EQ(slots, (std::vector<MeshIndex>{ grids[3], grids[12] }))
+                    << "the thirteenth copied tight, and the fourth moved";
+                EXPECT_EQ(store.getMovedOutBytes(), tight) << "the fourth alone moved";
+
+                const SlotSet<MeshIndex>& next = place(store);
+                EXPECT_EQ(std::vector<MeshIndex>(next.getSlots().begin(), next.getSlots().end()),
+                    std::vector<MeshIndex>{ grids[12] })
+                    << "the thirteenth, a placement on";
+            }
+            EXPECT_EQ(store.getMovedOutBytes(), 2 * tight);
+
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            place(store);
+            EXPECT_EQ(store.getBytes() - store.getLooseBytes(), 3 * 3 * tight) << "the emptied block went back";
+
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+        }
+
         /// **Every block is content's block size**, apart from the pools textures stand in: two grids of sixty-four
         /// stand loose in one, one goes, and an arrival of a small grid and another of sixty-four takes the hole it
         /// left and the block's rest, and no second block.
