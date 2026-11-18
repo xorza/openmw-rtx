@@ -497,11 +497,17 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   ranges never see: the handheld's Repack held its structures' blocks at 2184 MiB with 711 of it free while the device
   stood over its budget at 119 stops (`research/2026-11-18-handheld-rooms-and-device-memory.md`). Refused: ranges as
   held, which read that storage as room the system held.
-- **Over its budget, the kept structure storage's emptiest block is emptied** (`BottomLevelStore::moveOut`): its
-  structures are copied as they are into the other blocks' free runs, within the placement's copy budget the tight
-  copies leave, and the block goes back once their old rooms cool. A block begun is emptied whole; one that refits,
-  or whose tight copy is owed, stays, as a refit records against the handle it was prepared with. Refused: a new block
-  to move into, which gives nothing back; every block at once, a frame's worth of copies.
+- **Over its budget, or a take refused since the last placement, the emptiest block of each kind is emptied**
+  (`MemoryAllocator::asksForBlock`): a refusal under the budget is a ceiling met while blocks stand part empty, as the
+  handheld's PBR drew the stand-in at Seyda Neen with 250 MiB free in the structures' blocks. The kept structure
+  storage's structures are copied as they are into the other blocks' free runs, within the placement's copy budget the
+  tight copies leave (`BottomLevelStore::moveOut`); a refit, or a structure whose tight copy is owed, stays, as a refit
+  records against the handle it was prepared with. The texture block the world's textures fill least has its textures
+  copied at their level by the array's own copy into the blocks it already holds, a placement's share, and named again
+  in every set (`TextureArray::moveOut`). Either block goes back once its last range does; a block begun is emptied
+  whole. Refused: a new block to move into, which gives nothing back; every block at once, a frame's worth of copies;
+  VMA's defragmentation for the textures, which chooses what moves and where on its own and hands the copy back to
+  the caller anyway, where the array's copy and its descriptors are the array's.
 - **A bottom level is built loose and copied out tight**, as RTXMU does, and the world's build compacts before its
   textures are made, as NVIDIA's `buildBlas` does. **Both storages take blocks of content's block size, apart from the
   pools textures stand in, and keep their last** (`StructureStorage`), by the user's decision, as NVIDIA pools

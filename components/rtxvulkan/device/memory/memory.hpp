@@ -142,6 +142,16 @@ namespace Rtx
         return isNeverRefused(use) ? 0.5f : 0.25f;
     }
 
+    /// Where a range stands, which says whether moving what it holds gives a block back.
+    enum class RangeIn : std::uint8_t
+    {
+        /// Memory of its own, or the library's blocks outside content's pools, where what is never refused stands.
+        Elsewhere,
+
+        /// A block of content's pools, which goes back to the device once its last range does.
+        ContentBlock,
+    };
+
     /// A range of one device allocation, and the allocator that hands it back. Not an allocation
     /// of its own: one `vkAllocateMemory` per image was 1554 for the cell the game starts in, most
     /// for a companion of two kilobytes; sub-allocated, that cell takes a couple of dozen.
@@ -174,12 +184,15 @@ namespace Rtx
         /// the range stands, and memory need not be unmapped before it is freed.
         void* map() const { return mMapped; }
 
+        /// Whether the range stands in a block of content's pools, which its handle names, beside other ranges.
+        bool standsInContentBlock() const { return mIn == RangeIn::ContentBlock; }
+
     private:
         friend class Graveyard;
         friend class MemoryAllocator;
 
         DeviceMemory(MemoryAllocator* owner, VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset,
-            void* mapped, VkDeviceSize size, std::uint32_t heap, MemoryUse use);
+            void* mapped, VkDeviceSize size, std::uint32_t heap, MemoryUse use, RangeIn in);
 
         /// Hands the range to the graveyard, where it holds one.
         void bury();
@@ -197,6 +210,7 @@ namespace Rtx
         VkDeviceSize mSize = 0;
         std::uint32_t mHeap = 0;
         MemoryUse mUse = MemoryUse::Essential;
+        RangeIn mIn = RangeIn::Elsewhere;
     };
 
     /// The video heap's budget for this process, which the driver states as what is free and what the process holds
@@ -309,6 +323,12 @@ namespace Rtx
         Result<DeviceMemory, MemoryRefusal> tryTake(
             VkImage image, VkMemoryPropertyFlags properties, MemoryUse use, std::string_view name);
 
+        /// **Room for `image` as a texture in a block content's pools hold already, other than `block`**: where a
+        /// texture moved to give `block` back stands (`TextureArray::moveOut`). No new memory, so no ceiling is asked;
+        /// the library tries the fullest blocks first. No room is no refusal for room, and counts as none
+        /// (`getRefusedCount`): a move that finds none ends, and nothing waits on it.
+        Result<DeviceMemory, MemoryRefusal> tryTakeOutside(VkImage image, VkDeviceMemory block, std::string_view name);
+
         /// About how many bytes of video memory `use` may still take: what content's blocks have
         /// free, and the whole blocks its ceiling leaves room for. For a caller sizing what it asks
         /// for, and not a promise: a free range may be too small for the resource that asks, so
@@ -345,6 +365,13 @@ namespace Rtx
         /// and the system's share hold it (`docs/architecture.md`, "Held is counted as the system backs it"). What a
         /// block emptied and given back answers, and what content's ranges never see. Nought where it fits.
         VkDeviceSize getBlocksOver() const;
+
+        /// **Whether a block is to be given back now**: the device holds past its budget by blocks (`getBlocksOver`),
+        /// or a take was refused since `refusedSeen`, which this brings up to now. A refusal under the budget is a
+        /// ceiling met while blocks stand part empty, as the handheld's PBR drew the stand-in at Seyda Neen with 250
+        /// MiB free in the structures' blocks. What each owner that moves its content out of a block asks, once a
+        /// placement, with a count of its own.
+        bool asksForBlock(std::uint64_t& refusedSeen) const;
 
         /// What `reserveFrame` was last told.
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }
@@ -446,7 +473,7 @@ namespace Rtx
 
         /// What the library placed, as a range counted for `use`.
         DeviceMemory hold(VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset, void* mapped,
-            VkDeviceSize size, std::uint32_t type, MemoryUse use);
+            VkDeviceSize size, std::uint32_t type, MemoryUse use, RangeIn in);
 
         /// Buries `memory` in the device's graveyard.
         void retire(DeviceMemory&& memory);

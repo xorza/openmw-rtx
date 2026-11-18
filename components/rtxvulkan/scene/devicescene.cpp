@@ -139,6 +139,12 @@ namespace Rtx
         arrival.record(batch, mPasses.mTextures, nullptr);
     }
 
+    void DeviceScene::moveTexturesOut(Batch& batch, TextureArrival& arrival)
+    {
+        if (mTextures.moveOut(arrival, TextureArray::sMoveOutPerPlacement) > 0)
+            arrival.record(batch, mPasses.mTextures, nullptr);
+    }
+
     void DeviceScene::extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene,
         std::span<const TextureData> arrived, const WhenRoomless whenRoomless, GpuTimer* const timer)
     {
@@ -261,6 +267,7 @@ namespace Rtx
         stats.mCompactableBytes = mAcceleration.getCompactableBytes();
         stats.mCompactableNowBytes = mAcceleration.getCompactableNowBytes();
         stats.mStructureMovedBytes = mAcceleration.getMovedOutBytes();
+        stats.mTextureMovedBytes = mTextures.getMovedOutBytes();
         stats.mRebuilt = mAcceleration.getRebuildCount();
 
         stats.mStructureBytes = mAcceleration.getStructureBytes();

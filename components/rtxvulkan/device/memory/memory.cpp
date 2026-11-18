@@ -57,7 +57,7 @@ namespace Rtx
 
     DeviceMemory::DeviceMemory(MemoryAllocator* const owner, VmaAllocation_T* const allocation,
         const VkDeviceMemory handle, const VkDeviceSize offset, void* const mapped, const VkDeviceSize size,
-        const std::uint32_t heap, const MemoryUse use)
+        const std::uint32_t heap, const MemoryUse use, const RangeIn in)
         : mOwner(owner)
         , mAllocation(allocation)
         , mHandle(handle)
@@ -66,6 +66,7 @@ namespace Rtx
         , mSize(size)
         , mHeap(heap)
         , mUse(use)
+        , mIn(in)
     {
     }
 
@@ -83,6 +84,7 @@ namespace Rtx
         , mSize(std::exchange(other.mSize, 0))
         , mHeap(other.mHeap)
         , mUse(other.mUse)
+        , mIn(other.mIn)
     {
     }
 
@@ -100,6 +102,7 @@ namespace Rtx
             mSize = std::exchange(other.mSize, 0);
             mHeap = other.mHeap;
             mUse = other.mUse;
+            mIn = other.mIn;
         }
 
         return *this;
@@ -286,8 +289,8 @@ namespace Rtx
                     .mMemory.size,
                 use, name);
 
-        return hold(
-            allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
+        return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
+            use, RangeIn::Elsewhere);
     }
 
     DeviceMemory MemoryAllocator::take(
@@ -307,8 +310,8 @@ namespace Rtx
                     .mMemory.size,
                 use, name);
 
-        return hold(
-            allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
+        return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
+            use, RangeIn::Elsewhere);
     }
 
     DeviceMemory MemoryAllocator::take(
@@ -322,8 +325,8 @@ namespace Rtx
         checkTaken(vmaAllocateMemory(mLibrary.get(), &requirements, &create, &allocation, &placed),
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, requirements.size, use, name);
 
-        return hold(
-            allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
+        return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
+            use, RangeIn::Elsewhere);
     }
 
     Result<DeviceMemory, MemoryRefusal> MemoryAllocator::tryTake(const VkBuffer buffer,
@@ -359,6 +362,39 @@ namespace Rtx
             [&](const VmaAllocationCreateInfo& create, VmaAllocation* allocation, VmaAllocationInfo* placed) {
                 return vmaAllocateMemoryForImage(mLibrary.get(), image, &create, allocation, placed);
             });
+    }
+
+    Result<DeviceMemory, MemoryRefusal> MemoryAllocator::tryTakeOutside(
+        const VkImage image, const VkDeviceMemory block, const std::string_view name)
+    {
+        const Requirements requirements = requirementsOf<vkGetImageMemoryRequirements2>(VkImageMemoryRequirementsInfo2{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2, .pNext = nullptr, .image = image });
+        if (requirements.mOwn || requirements.mMemory.size > sContentBlockBytes / 2)
+            return Err{ MemoryRefusal::NoRoom };
+
+        VmaAllocationCreateInfo create = askingFor(mMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Texture);
+        std::uint32_t type = 0;
+        checkTaken(vmaFindMemoryTypeIndex(mLibrary.get(), requirements.mMemory.memoryTypeBits, &create, &type),
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, requirements.mMemory.size, MemoryUse::Texture, name);
+        assert(mLibrary.poolOf(type) != nullptr && "content asked for memory that is not video memory");
+        create.pool = mLibrary.poolOf(type);
+        create.flags |= VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT;
+
+        VmaAllocation allocation = nullptr;
+        VmaAllocationInfo placed{};
+        const VkResult result = vmaAllocateMemoryForImage(mLibrary.get(), image, &create, &allocation, &placed);
+        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
+            return Err{ MemoryRefusal::NoRoom };
+        checkTaken(result, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, requirements.mMemory.size, MemoryUse::Texture, name);
+
+        // The library tries the fullest blocks first, so one that lands in `block` found room nowhere else.
+        if (placed.deviceMemory == block)
+        {
+            vmaFreeMemory(mLibrary.get(), allocation);
+            return Err{ MemoryRefusal::NoRoom };
+        }
+        return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
+            MemoryUse::Texture, RangeIn::ContentBlock);
     }
 
     template <auto& Query, class Info>
@@ -406,7 +442,7 @@ namespace Rtx
             const VkResult inBlock = allocate(create, &allocation, &placed);
             if (inBlock == VK_SUCCESS)
                 return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size,
-                    placed.memoryType, use);
+                    placed.memoryType, use, RangeIn::ContentBlock);
 
             if (inBlock != VK_ERROR_OUT_OF_DEVICE_MEMORY)
                 checkTaken(inBlock, properties, requirements.mMemory.size, use, name);
@@ -435,18 +471,18 @@ namespace Rtx
         }
 
         checkTaken(result, properties, requirements.mMemory.size, use, name);
-        return hold(
-            allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
+        return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
+            use, own ? RangeIn::Elsewhere : RangeIn::ContentBlock);
     }
 
     DeviceMemory MemoryAllocator::hold(VmaAllocation_T* const allocation, const VkDeviceMemory handle,
         const VkDeviceSize offset, void* const mapped, const VkDeviceSize size, const std::uint32_t type,
-        const MemoryUse use)
+        const MemoryUse use, const RangeIn in)
     {
         const std::uint32_t heap = mMemory.memoryTypes[type].heapIndex;
         mHeld[heap][static_cast<std::size_t>(use)] += size;
 
-        return DeviceMemory(this, allocation, handle, offset, mapped, size, heap, use);
+        return DeviceMemory(this, allocation, handle, offset, mapped, size, heap, use, in);
     }
 
     void MemoryAllocator::retire(DeviceMemory&& memory)
@@ -611,6 +647,14 @@ namespace Rtx
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VkDeviceSize usage = budgets[mContent.mHeap].usage;
         return usage - std::min(usage, heldTo(budgets[mContent.mHeap].budget));
+    }
+
+    bool MemoryAllocator::asksForBlock(std::uint64_t& refusedSeen) const
+    {
+        const std::uint64_t refused = getRefusedCount();
+        const bool refusedSince = refused != refusedSeen;
+        refusedSeen = refused;
+        return refusedSince || getBlocksOver() > 0;
     }
 
     void MemoryAllocator::limitBudget(const std::optional<VkDeviceSize> bytes)

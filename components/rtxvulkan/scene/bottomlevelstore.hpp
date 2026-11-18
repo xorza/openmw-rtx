@@ -297,13 +297,12 @@ namespace Rtx
         /// What it took of `budget`.
         VkDeviceSize copyAnswered(VkDeviceSize budget);
 
-        /// **Moves structures out of a block to give it back, while the device holds more than it is held to**
-        /// (`MemoryAllocator::getBlocksOver`) **or a take was refused since the last placement**: the kept storage's
-        /// block the fewest structures stand in, its standing structures copied as they are into the other blocks' free
-        /// runs, as many as `budget` takes, joining `mMovedMeshes`; the block goes back once the last room cools
-        /// (`StructureStorage::give`). A block begun is emptied whole, the device over or not, and a structure that
-        /// finds no room ends it. One that refits, or whose tight copy is still owed, stays: a refit records against
-        /// the handle it was prepared with.
+        /// **Moves structures out of a block to give it back, while the device asks for one**
+        /// (`MemoryAllocator::asksForBlock`): the kept storage's block the fewest structures stand in, its standing
+        /// structures copied as they are into the other blocks' free runs, as many as `budget` takes, joining
+        /// `mMovedMeshes`; the block goes back once the last room cools (`StructureStorage::give`). A block begun is
+        /// emptied whole, the device asking or not, and a structure that finds no room ends it. One that refits, or
+        /// whose tight copy is still owed, stays: a refit records against the handle it was prepared with.
         void moveOut(VkDeviceSize budget);
 
         /// What every answered structure's copy would take: a settled run's budget, which then
@@ -468,7 +467,8 @@ namespace Rtx
         std::vector<MeshIndex> mLeaving;
         VkDeviceSize mMovedOut = 0;
 
-        /// How many takes the allocator had refused at the last placement (`MemoryAllocator::getRefusedCount`).
+        /// How many takes the allocator had refused at the last placement, or when the store was made
+        /// (`MemoryAllocator::asksForBlock`).
         std::uint64_t mRefusedSeen = 0;
     };
 }

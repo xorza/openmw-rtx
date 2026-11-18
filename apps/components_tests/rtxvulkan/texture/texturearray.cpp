@@ -384,6 +384,126 @@ namespace Rtx
             EXPECT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2(64u, 64u));
         }
 
+        /// **While the device asks for a block, the block of content's pools the array's textures fill least is emptied
+        /// into the others, each texture copied as it stands, and the block goes** (`moveOut`): twenty textures of 4
+        /// MiB, 1024 square in eight bits a channel, each painted its own byte, stand in two blocks of 64 MiB. A
+        /// texture more than the second holds is dropped from the first, so the second is the emptiest and the first
+        /// has room for all of it. Not asked, nothing moves. Asked, a budget of a byte moves one texture, the least a
+        /// call moves; a budget past the block moves the rest, each now in the first block, its texels the ones it was
+        /// painted, its bytes counted as before. Once what they moved out of is buried and the library's one empty
+        /// block given back at its next free, there is one block fewer.
+        TEST_F(RtxTextureArrayTest, whileTheDeviceAsksTheEmptiestBlocksTexturesMoveAndTheBlockGoes)
+        {
+            Device& device = getDevice();
+            MemoryAllocator& memory = device.getMemory();
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            TextureArrival rooms(device);
+            constexpr std::uint32_t count = 20;
+            constexpr std::uint32_t side = 1024;
+            Batch setup(getPool());
+            TextureArray textures(device, setup, layout, passes, rooms, count);
+            setup.flush();
+
+            std::vector<Testing::TestTexture> painted(count);
+            std::vector<TextureData> described;
+            for (std::uint32_t at = 0; at < count; ++at)
+            {
+                Testing::TestTexture& texture = painted[at];
+                texture.mBytes.assign(std::size_t{ side } * side * 4, static_cast<std::uint8_t>(at + 1));
+                texture.mLevels = { MipLevel{ 0, side, side } };
+                texture.describe(side, side, "painted");
+                texture.mData.mSlot = TextureIndex(at);
+                described.push_back(texture.mData);
+            }
+            {
+                Batch batch(getPool());
+                DeviceAnswer answer;
+                textures.write(
+                    batch, passes, rooms, described, TextureArray::noWants(), answer, WhenRoomless::Waits, nullptr);
+                batch.flush();
+            }
+            ASSERT_EQ(textures.getHeld().mCount, count);
+
+            const auto blockOf
+                = [&](const std::uint32_t at) { return textures.getImage(TextureIndex(at)).getMemory().getHandle(); };
+            std::vector<VkDeviceMemory> blocks;
+            for (std::uint32_t at = 0; at < count; ++at)
+                if (std::ranges::find(blocks, blockOf(at)) == blocks.end())
+                    blocks.push_back(blockOf(at));
+            ASSERT_EQ(blocks.size(), 2u) << "twenty textures of 4 MiB in blocks of 64";
+            const auto inBlock = [&](const VkDeviceMemory block) {
+                std::vector<std::uint32_t> slots;
+                for (std::uint32_t at = 0; at < count; ++at)
+                    if (blockOf(at) == block)
+                        slots.push_back(at);
+                return slots;
+            };
+            if (inBlock(blocks[0]).size() < inBlock(blocks[1]).size())
+                std::swap(blocks[0], blocks[1]);
+            const VkDeviceMemory full = blocks[0];
+            const VkDeviceMemory emptiest = blocks[1];
+            const std::vector<std::uint32_t> leaving = inBlock(emptiest);
+            ASSERT_LT(leaving.size() + 1, inBlock(full).size());
+
+            std::vector<TextureIndex> dropped;
+            for (const std::uint32_t at : inBlock(full))
+                if (dropped.size() < leaving.size() + 1)
+                    dropped.push_back(TextureIndex(at));
+            textures.drop(dropped);
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            device.waitIdle();
+            device.collectIdle();
+            const VkDeviceSize held = textures.getHeld().mBytes;
+
+            EXPECT_EQ(textures.moveOut(rooms, std::uint64_t{ 1 } << 30), 0u) << "not asked";
+            const VkDeviceSize one = textures.getImage(TextureIndex(leaving.back())).getMemoryBytes();
+            {
+                const Testing::BudgetLimit asking(memory, 1);
+                Batch batch(getPool());
+                EXPECT_EQ(textures.moveOut(rooms, 1), one) << "one texture, the least a call moves";
+                rooms.record(batch, passes, nullptr);
+                batch.flush();
+                EXPECT_EQ(inBlock(emptiest).size(), leaving.size() - 1);
+            }
+            {
+                Batch batch(getPool());
+                EXPECT_EQ(textures.moveOut(rooms, std::uint64_t{ 1 } << 30), (leaving.size() - 1) * one)
+                    << "a block begun is emptied, the device asking or not";
+                rooms.record(batch, passes, nullptr);
+                batch.flush();
+            }
+            EXPECT_TRUE(inBlock(emptiest).empty());
+            EXPECT_EQ(textures.getMovedOutBytes(), leaving.size() * one);
+            EXPECT_EQ(textures.getHeld().mBytes, held);
+
+            std::vector<std::uint8_t> read;
+            for (const std::uint32_t at : leaving)
+            {
+                SCOPED_TRACE(at);
+                EXPECT_EQ(blockOf(at), full);
+                textures.getImage(TextureIndex(at)).read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read, 0);
+                ASSERT_EQ(read.size(), std::size_t{ side } * side * 4);
+                EXPECT_EQ(std::ranges::count(read, static_cast<std::uint8_t>(at + 1)), std::ssize(read))
+                    << "the texels it was painted, copied on the device";
+            }
+
+            // What they moved out of is buried by the next call, and the library keeps one empty block until its next
+            // free, which a drop from the full block makes: the one block fewer is the emptied one, as the full one
+            // still stands what it did less a texture.
+            EXPECT_EQ(textures.moveOut(rooms, std::uint64_t{ 1 } << 30), 0u);
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            device.waitIdle();
+            device.collectIdle();
+            const std::size_t blocksBefore = memory.getBlockCount();
+            const std::array last{ TextureIndex(inBlock(full).front()) };
+            textures.drop(last);
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            device.waitIdle();
+            device.collectIdle();
+            EXPECT_EQ(memory.getBlockCount(), blocksBefore - 1) << "the emptied block went back";
+        }
+
         /// **What stands finer than its readers want moves down first, and is not short for it** (`makeRoom`): a
         /// 256-square ladder of three levels, 262144 + 65536 + 16384 = 344064 bytes, wanted whole, beside a 128-square
         /// one, 65536 + 16384 + 4096 = 86016, whose material is asked at step 26, footprint -6, plus its offset of

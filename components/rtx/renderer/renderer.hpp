@@ -271,6 +271,9 @@ namespace Rtx
         /// device's memory past its budget has cost in copies.
         std::uint64_t mStructureMovedBytes = 0;
 
+        /// The same of the textures moved out of a block to give it back.
+        std::uint64_t mTextureMovedBytes = 0;
+
         /// How many refitted structures the rota has built whole again since the scene was made. A
         /// refit keeps a structure's shape as its placements move and so loses its quality, which a
         /// rebuild on a rota wins back; how often is the backend's.

@@ -559,6 +559,9 @@ namespace Rtx
         // so that the refit and the top level are counted.
         FrameRecord& frame = mRing.begin();
 
+        // The world's textures out of a block the device gives back, copied in the batch ahead of the placement.
+        held.moveTexturesOut(written, mArrival);
+
         // Submitted without a wait; the frame's trace, later on the queue, covers it. Nothing recorded is
         // nothing submitted, as for every frame of a standing camera in an empty place.
         Recording placement = mDevice.getPool().begin(mRing.takePlaceCommands(frame));

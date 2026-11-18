@@ -109,6 +109,7 @@ namespace Rtx
         , mStorage(sStructureStorageUsage, "bottom level structures", blockBytes)
         , mLooseStorage(sStructureStorageUsage, "loose bottom level structures", blockBytes)
         , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch", GrowableBuffer::Growth::Exact)
+        , mRefusedSeen(device.getMemory().getRefusedCount())
     {
     }
 
@@ -694,15 +695,10 @@ namespace Rtx
                 && (row.mCompaction.mTightness == Tightness::Tight || row.mCompaction.mTightness == Tightness::None);
         };
 
-        // A take refused since the last placement, of any use: a texture refused for a block while the structures'
-        // blocks stand part empty, as the handheld's PBR drew the stand-in at Seyda Neen with 250 MiB free in them.
-        const std::uint64_t refused = mDevice.getMemory().getRefusedCount();
-        const bool refusedSince = refused != mRefusedSeen;
-        mRefusedSeen = refused;
-
+        const bool asked = mDevice.getMemory().asksForBlock(mRefusedSeen);
         if (!mEmptying.has_value())
         {
-            if (!refusedSince && mDevice.getMemory().getBlocksOver() == 0)
+            if (!asked)
                 return;
             mEmptying = mStorage.blockToEmpty();
             if (!mEmptying.has_value())

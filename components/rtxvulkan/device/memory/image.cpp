@@ -133,6 +133,19 @@ namespace Rtx
         return made;
     }
 
+    Result<Image, MemoryRefusal> Image::tryMakeOutside(const Device& device, const ImageDescription& description,
+        const VkDeviceMemory block, const std::string_view name)
+    {
+        Image made(Unbound{}, device, description, name);
+        Result<DeviceMemory, MemoryRefusal> memory = device.getMemory().tryTakeOutside(made.mHandle.get(), block, name);
+        if (!memory.isOk())
+            return Err{ memory.error() };
+
+        made.mMemory = std::move(memory.value());
+        made.bind(made.mMemory.getHandle(), made.mMemory.getOffset(), name);
+        return made;
+    }
+
     Image::Image(Unbound, const Device& device, const ImageDescription& description, std::string_view name)
         : mDevice(&device)
         , mWidth(description.mWidth)

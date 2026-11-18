@@ -84,6 +84,24 @@ namespace Rtx
         static Result<Image, MemoryRefusal> tryMake(
             MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
 
+        /// An image `description` describes, as a texture, in a block content's pools hold already other than
+        /// `block`, or no room where none has it (`MemoryAllocator::tryTakeOutside`): what a texture moved to give
+        /// `block` back stands in.
+        static Result<Image, MemoryRefusal> tryMakeOutside(
+            const Device& device, const ImageDescription& description, VkDeviceMemory block, std::string_view name);
+
+        /// What the image was made as, which an image made again to stand in its place is made of.
+        ImageDescription getDescription() const
+        {
+            return ImageDescription{ .mWidth = mWidth,
+                .mHeight = mHeight,
+                .mFormat = mFormat,
+                .mUsage = mUsage,
+                .mMipLevels = mMipLevels,
+                .mDepth = mDepth,
+                .mStorageFormat = mStorageFormat };
+        }
+
         /// Movable, because the channels of a g-buffer are built by a loop over a table rather than a
         /// member list. The husk is a default-made image, as a buffer's is: its size, format and stamp go
         /// with the move. The assignment buries what this held in the order the destruction does.
@@ -201,6 +219,9 @@ namespace Rtx
 
         /// What the image's memory holds of the range it was placed in, nought for an image bound into an arena's.
         VkDeviceSize getMemoryBytes() const { return mMemory.getSize(); }
+
+        /// The range the image was placed in, empty for an image bound into an arena's.
+        const DeviceMemory& getMemory() const { return mMemory; }
 
         /// The coarsest power of two its range starts at, its offset's lowest bit: what a texture waiting on room
         /// matches its alignment against once this image's range is freed (`FitBytes::mAlignment`). The largest power

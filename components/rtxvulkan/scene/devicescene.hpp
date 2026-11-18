@@ -136,6 +136,11 @@ namespace Rtx
         /// (`TextureArray::makeRoom`); what moved is in the next answer, short of its file.
         void makeTextureRoom(Batch& batch, TextureArrival& arrival, VkDeviceSize bytes);
 
+        /// Moves textures out of a block to give it back where the device asks for one, a placement's share
+        /// (`TextureArray::moveOut`), recorded into `batch` through `arrival`: ahead of the placement, whose `sync`
+        /// names them in its set.
+        void moveTexturesOut(Batch& batch, TextureArrival& arrival);
+
         /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
         /// total kept as it changes, so a placement on the frame path reads them all.
         void readStats(SceneStats& stats) const;

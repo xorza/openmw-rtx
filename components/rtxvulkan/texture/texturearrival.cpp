@@ -58,9 +58,9 @@ namespace Rtx
         mSpreads.push_back(Spread{ .mMap = &map, .mSpread = &spread });
     }
 
-    void TextureArrival::moveDown(const Image& from, const std::uint32_t dropped, const Image& to)
+    void TextureArrival::copyLevels(const Image& from, const std::uint32_t dropped, const Image& to)
     {
-        assert(dropped > 0 && "a move that drops no level");
+        assert(&from != &to && "a copy of an image into itself");
         assert(dropped + to.getMipLevels() == from.getMipLevels() && "a move to other levels than the source's");
         assert(to.getFormat() == from.getFormat() && "a move into another format");
         mMoves.push_back(Move{ .mFrom = &from, .mDropped = dropped, .mTo = &to });

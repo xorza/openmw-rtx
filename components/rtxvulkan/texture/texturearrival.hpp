@@ -57,11 +57,11 @@ namespace Rtx
         /// `image` by `regions`, whose offsets are into `staged`. `image` is met undefined.
         void upload(const StagingRun& staged, const Image& image, std::span<const VkBufferImageCopy> regions);
 
-        /// Copies `from`'s levels past its first `dropped` into `to`, every level `to` holds: a texture moved to a
-        /// smaller side on the device, nothing read from the host (`Texture::standMovedDown`). `from` is met as a
-        /// texture the trace samples and left as one, since a frame in flight may still sample it; `to` is met
-        /// undefined.
-        void moveDown(const Image& from, std::uint32_t dropped, const Image& to);
+        /// Copies `from`'s levels past its first `dropped` into `to`, every level `to` holds, on the device, nothing
+        /// read from the host: a texture moved to a smaller side (`Texture::standMovedDown`), or at its own, `dropped`
+        /// nought, out of a block given back (`Texture::standMovedOut`). `from` is met as a texture the trace samples
+        /// and left as one, since a frame in flight may still sample it; `to` is met undefined.
+        void copyLevels(const Image& from, std::uint32_t dropped, const Image& to);
 
         /// Whether the run writes `image`, an upload's, a move's, a spread's or a bake's target: an image a later copy
         /// of the same run may not read, its writes not yet ordered before it.

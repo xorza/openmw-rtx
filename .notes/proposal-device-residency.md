@@ -113,9 +113,10 @@ Decided by the user, 2026-11-18:
 
 ## Open measurements, before the items they decide
 
-- **M1, that the device over its budget is what makes the host wait.** Read the handheld's amdgpu counters across a
-  tour (its per-process memory in `fdinfo`, and the driver's count of evictions), at each stop with held and budget,
-  and hold the slow rooms' frames against them. Decides whether the target is the budget itself or under it.
+- **M1, read** (`docs/research/2026-11-18-handheld-rooms-and-device-memory.md`, M1): the frames do not follow the
+  budget — the land stops over it ran no slower than those under it — and the driver never moved the device's objects
+  at a stop's end. So the target stays the budget as the unified split sets it, and nothing lower: a lower target has
+  no frame behind it.
 - **M3, what is left of the rooms under the cap**, 27.9 ms against 21: what the capped flight refused and waited for,
   and what moved, by stop.
 
@@ -129,6 +130,9 @@ Decided by the user, 2026-11-18:
   held under 4 GiB, the Windows Repack held 13.3 GiB not resident against 7.2 and ran as fast, so the Windows machine's
   issue is closed (`docs/research/2026-11-18-handheld-rooms-and-device-memory.md`).
 
+- **Item 6, textures out of the least-filled block**: moved by their own copy as approved, the trigger shared with the
+  structures; the block the world's textures fill least, as the array alone knows the pools' ranges, so a block
+  another scene's textures share does not go and costs a block's copies once, until a slot changes.
 - **Items 4 and 5, the owner and the structures' moves**: what the device holds past its budget is counted by blocks
   (`MemoryAllocator::getBlocksOver`), and over it the kept structure storage's emptiest block is emptied into the
   others' free runs within the placement's copy budget (`BottomLevelStore::moveOut`). The rest limit, `evictForRoom`
@@ -136,10 +140,22 @@ Decided by the user, 2026-11-18:
   blocks' slack, 711 MiB of the structures' in the rooms, which the moves give back. Replacing them was a refactor of
   mechanisms that work, with no frame in it.
 
+## Decisions
+
+- **A texture moved out of a block takes a range in the blocks the pool holds already, and never the block it leaves**:
+  the library asked with no new memory allowed (`VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT`), and a range that landed
+  in the block being emptied given back at once as no room. The library tries a pool's blocks the fullest first
+  ([`VmaBlockVector::AllocatePage`](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/blob/v3.1.0/include/vk_mem_alloc.h)),
+  so a range lands there only where no other block has room. Refused: the textures' own list of blocks, as the
+  structures keep (`StructureStorage`), a rewrite of the pools for an exclusion the library's order already gives;
+  VMA's defragmentation (approved 2).
+- **The textures' share of a placement is the structures'**, 8 MiB (`TextureArray::sMoveOutPerPlacement`), at least
+  one texture: about 0.2 ms of copies on the handheld's bandwidth, where `makeRoom`'s 64 MiB is an arrival's frame.
+- **One trigger for both kinds** (`MemoryAllocator::asksForBlock`): over the budget by blocks, or a take refused since
+  the owner last asked, counted from when the owner was made, so a refusal of an earlier scene moves nothing.
+
 ## Items
 
-6. **Textures out of the least-filled block** (approved 2), the same way. Test on the device: the moved image samples
-   the same texels, its slot's descriptor names it, and the block goes.
 7. **The bias below every want** (approved 3), the last step before a refusal, coming off a level a step once under the
    band. Test: the bias's steps against a scripted budget, and that it never takes a texture under 64 texels.
 8. **Close**: the handheld's Repack and PBR and the Windows machine's Repack flown whole (`--every=1`), held against
