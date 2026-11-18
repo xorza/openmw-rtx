@@ -52,11 +52,22 @@ namespace Platform::LinuxText
     /// break: nothing where it says `max`, no limit, or is not a number.
     std::optional<std::uint64_t> cgroupBytes(std::string_view text);
 
-    /// What one DRM client holds, from its open file's information as `/proc/<pid>/fdinfo/<fd>` writes it
-    /// (`drm-usage-stats`): its `drm-total-` and `drm-resident-` sizes for `vram` and `gtt`, and `drm-resident-cpu`, a
-    /// number with no unit, `KiB` or `MiB`. Nothing where the file names no `drm-driver`, a file that is no DRM client;
-    /// a region it does not name is nought, and one whose size is not a number is nothing.
-    std::optional<Process::DriverMemory> driverMemory(std::string_view fdinfo);
+    /// One DRM client as one of its open files states it: the kernel's number for the client, `drm-client-id`, which
+    /// every file that shares or duplicates it states too, and what it holds.
+    struct DriverClient
+    {
+        std::uint64_t mId = 0;
+        Process::DriverMemory mMemory;
+
+        bool operator==(const DriverClient& other) const = default;
+    };
+
+    /// The DRM client an open file is, from its information as `/proc/<pid>/fdinfo/<fd>` writes it
+    /// (`drm-usage-stats`): its `drm-client-id`, and its `drm-total-` and `drm-resident-` sizes for `vram` and `gtt`
+    /// and `drm-resident-cpu`, each a number with no unit, `KiB` or `MiB`. Nothing where the file names no
+    /// `drm-driver`, a file that is no DRM client, or no `drm-client-id`, which tells a client from its duplicates; a
+    /// region it does not name is nought, and a size or an id that is not a number is nothing.
+    std::optional<DriverClient> driverClient(std::string_view fdinfo);
 
     /// The PCI id a device's sysfs file states, `vendor` or `device`: four hexadecimal digits after
     /// `0x` and a line break, as the kernel writes them, or nothing where the text is not one.

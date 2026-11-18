@@ -60,3 +60,27 @@ alike. The whole Repack flown at `2c8d2ede85` with the device held under 4 GiB:
 
 With less than half the device's memory the process held 13 GiB not resident against 7, and ran as fast: the frames do
 not follow the figure.
+
+## What the driver holds for the process (M1)
+
+The whole Repack flown at `d5ea79cc75`, the kernel's DRM accounting read at each stop's end (`drm-total-` and
+`drm-resident-` of every DRM client in the process's `fdinfo`). That commit summed each client once per open file, and
+the handheld's Vulkan device is two files of one client, so its figures are halved here; the client's id now counts it
+once. MiB:
+
+| stop | held / budget | VRAM objects | of them resident in VRAM | GTT objects | resident in GTT |
+|---|---|---|---|---|---|
+| 1 | 2280 / 6144 | 2282 | 810 | 151 | 1623 |
+| 25 | 5838 / 6144 | 5847 | 817 | 153 | 5183 |
+| 55, the last land leg | 5838 / 5626 | 5847 | 817 | 155 | 5185 |
+| 100 | 5928 / 5416 | 5937 | 817 | 159 | 5279 |
+| 154 | 5928 / 5416 | 5937 | 817 | 159 | 5279 |
+
+- **Every block the device holds is a VRAM object**, and all but the 817 MiB the carve-out takes stand in GTT, from
+  the first stop on. Read at a stop's end the placement never moves: no stop shows the driver moving objects between
+  the two.
+- **The frames do not follow the budget.** The land stops over the budget ran at a p99 median of 76.3 ms (20 stops),
+  those under it at 81.7 (35); the rooms, every one over it, at 61.9 — 51.0 on `c8664cd001`, so two whole flights of
+  one build part by 10 ms.
+- **The host was under pressure throughout**: the kernel stalled 974 allocations to compact memory, and the process
+  held 1.9 GiB in swap at its peak, at the rooms' end.

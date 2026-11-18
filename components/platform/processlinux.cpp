@@ -160,7 +160,10 @@ namespace Platform::Process
     std::optional<DriverMemory> driverMemory()
     {
         // Every open file's information, the DRM clients among them: one for the device, and any a library opened.
+        // **Each client once**: a file duplicated or shared states its client again, and the handheld's Vulkan
+        // device is two files of one client, which read the process's memory twice.
         std::optional<DriverMemory> summed;
+        std::vector<std::uint64_t> counted;
         std::error_code error;
         std::array<char, 8192> buffer{};
         for (const std::filesystem::directory_entry& entry :
@@ -169,17 +172,19 @@ namespace Platform::Process
             const std::optional<std::string_view> text = KernelFile::read(entry.path().c_str(), buffer);
             if (!text.has_value())
                 continue;
-            const std::optional<DriverMemory> client = LinuxText::driverMemory(*text);
-            if (!client.has_value())
+            const std::optional<LinuxText::DriverClient> client = LinuxText::driverClient(*text);
+            if (!client.has_value() || std::ranges::find(counted, client->mId) != counted.end())
                 continue;
+            counted.push_back(client->mId);
             if (!summed.has_value())
                 summed.emplace();
             DriverMemory& into = *summed;
-            into.mTotalVram += client->mTotalVram;
-            into.mResidentVram += client->mResidentVram;
-            into.mTotalGtt += client->mTotalGtt;
-            into.mResidentGtt += client->mResidentGtt;
-            into.mResidentCpu += client->mResidentCpu;
+            const DriverMemory& held = client->mMemory;
+            into.mTotalVram += held.mTotalVram;
+            into.mResidentVram += held.mResidentVram;
+            into.mTotalGtt += held.mTotalGtt;
+            into.mResidentGtt += held.mResidentGtt;
+            into.mResidentCpu += held.mResidentCpu;
         }
         return summed;
     }

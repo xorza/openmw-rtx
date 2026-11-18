@@ -124,9 +124,10 @@ namespace Platform::LinuxText
         return std::nullopt;
     }
 
-    std::optional<Process::DriverMemory> driverMemory(std::string_view fdinfo)
+    std::optional<DriverClient> driverClient(std::string_view fdinfo)
     {
         bool client = false;
+        std::optional<std::uint64_t> id;
         Process::DriverMemory held;
         const std::pair<std::string_view, std::uint64_t Process::DriverMemory::*> fields[] = {
             { "drm-total-vram:", &Process::DriverMemory::mTotalVram },
@@ -135,21 +136,34 @@ namespace Platform::LinuxText
             { "drm-resident-gtt:", &Process::DriverMemory::mResidentGtt },
             { "drm-resident-cpu:", &Process::DriverMemory::mResidentCpu },
         };
+        const auto valueOf = [](std::string_view line, const std::string_view name) {
+            line.remove_prefix(name.size());
+            line.remove_prefix(std::min(line.find_first_not_of(" \t"), line.size()));
+            return line;
+        };
         for (std::string_view rest = fdinfo; !rest.empty();)
         {
             const std::size_t end = rest.find('\n');
-            std::string_view line = rest.substr(0, end);
+            const std::string_view line = rest.substr(0, end);
             rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
             client = client || line.starts_with("drm-driver:");
+            if (constexpr std::string_view name = "drm-client-id:"; line.starts_with(name))
+            {
+                const std::string_view value = valueOf(line, name);
+                std::uint64_t number = 0;
+                const std::from_chars_result read = std::from_chars(value.data(), value.data() + value.size(), number);
+                if (read.ec != std::errc{} || read.ptr != value.data() + value.size())
+                    return std::nullopt;
+                id = number;
+            }
             for (const auto& [name, field] : fields)
             {
                 if (!line.starts_with(name))
                     continue;
-                line.remove_prefix(name.size());
-                line.remove_prefix(std::min(line.find_first_not_of(" \t"), line.size()));
+                const std::string_view value = valueOf(line, name);
                 std::uint64_t size = 0;
-                const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), size);
-                const std::string_view unit(read.ptr, line.data() + line.size());
+                const std::from_chars_result read = std::from_chars(value.data(), value.data() + value.size(), size);
+                const std::string_view unit(read.ptr, value.data() + value.size());
                 if (read.ec != std::errc{})
                     return std::nullopt;
                 if (unit == " KiB")
@@ -161,9 +175,9 @@ namespace Platform::LinuxText
                 held.*field = size;
             }
         }
-        if (!client)
+        if (!client || !id.has_value())
             return std::nullopt;
-        return held;
+        return DriverClient{ .mId = *id, .mMemory = held };
     }
 
     std::optional<std::uint64_t> availableMemory(std::string_view meminfo)
