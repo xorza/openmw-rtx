@@ -142,22 +142,42 @@ namespace Rtx
             return width / 8;
         }
 
-        std::uint32_t endOf(const IdFacts& ids, std::uint32_t structure, std::uint32_t owner);
-
-        /// How far into a value of `type` its last byte reads, which `owner` holds: a member's extent,
-        /// which is what a block's end is made of. `member` is the structure's statement of the value
-        /// where it is a member, which a matrix's stride is stated in.
-        std::uint32_t extentOf(
-            const IdFacts& ids, const std::uint32_t type, const MemberFacts* member, const std::uint32_t owner)
+        /// **A walk down a block's types, a level a step**, for the variable or structure `mOwner` that holds them,
+        /// which every refusal names, refused past `sTypeDepthMost`.
+        struct TypeWalk
         {
-            const Facts& facts = factsOf(ids, type, owner);
+            const IdFacts& mIds;
+            std::uint32_t mOwner = 0;
+            std::uint32_t mDepth = 0;
+
+            /// The walk a level further down, refused past `sTypeDepthMost`.
+            TypeWalk down() const
+            {
+                if (mDepth >= sTypeDepthMost)
+                    throw InputError(
+                        std::format("%{} nests its types more than {} levels deep", mOwner, sTypeDepthMost));
+                return TypeWalk{ .mIds = mIds, .mOwner = mOwner, .mDepth = mDepth + 1 };
+            }
+
+            const Facts& factsOf(const std::uint32_t type) const { return Rtx::factsOf(mIds, type, mOwner); }
+        };
+
+        std::uint32_t endOf(const TypeWalk& walk, std::uint32_t structure);
+
+        /// How far into a value of `type` its last byte reads: a member's extent, which is what a block's end is made
+        /// of. `member` is the structure's statement of the value where it is a member, which a matrix's stride is
+        /// stated in.
+        std::uint32_t extentOf(const TypeWalk& walk, const std::uint32_t type, const MemberFacts* member)
+        {
+            const std::uint32_t owner = walk.mOwner;
+            const Facts& facts = walk.factsOf(type);
             switch (facts.mOp)
             {
                 case spv::OpTypeInt:
                 case spv::OpTypeFloat:
                     return scalarBytes(facts, owner);
                 case spv::OpTypeVector:
-                    return operandOf(facts, 1, owner) * extentOf(ids, operandOf(facts, 0, owner), nullptr, owner);
+                    return operandOf(facts, 1, owner) * extentOf(walk.down(), operandOf(facts, 0, owner), nullptr);
                 case spv::OpTypeMatrix:
                 {
                     if (member == nullptr || member->mMatrixStride == 0)
@@ -166,10 +186,9 @@ namespace Rtx
                     // Strided between columns, or between rows where it is row-major, and the last
                     // of them read whole.
                     const std::uint32_t columns = operandOf(facts, 1, owner);
-                    const Facts& column = factsOf(ids, operandOf(facts, 0, owner), owner);
+                    const Facts& column = walk.factsOf(operandOf(facts, 0, owner));
                     const std::uint32_t rows = operandOf(column, 1, owner);
-                    const std::uint32_t component
-                        = scalarBytes(factsOf(ids, operandOf(column, 0, owner), owner), owner);
+                    const std::uint32_t component = scalarBytes(walk.factsOf(operandOf(column, 0, owner)), owner);
                     const std::uint32_t strided = member->mRowMajor ? rows : columns;
                     const std::uint32_t across = member->mRowMajor ? columns : rows;
                     return (strided - 1) * member->mMatrixStride + across * component;
@@ -178,14 +197,16 @@ namespace Rtx
                 {
                     if (!facts.mArrayStride.has_value())
                         throw InputError(std::format("%{} holds an array with no stride", owner));
-                    const Facts& length = factsOf(ids, operandOf(facts, 1, owner), owner);
+                    const Facts& length = walk.factsOf(operandOf(facts, 1, owner));
                     const std::uint32_t count = operandOf(length, 0, owner);
                     if (count == 0)
                         throw InputError(std::format("%{} holds an array of no elements", owner));
-                    return (count - 1) * *facts.mArrayStride + extentOf(ids, operandOf(facts, 0, owner), member, owner);
+                    return (count - 1) * *facts.mArrayStride
+                        + extentOf(walk.down(), operandOf(facts, 0, owner), member);
                 }
                 case spv::OpTypeStruct:
-                    return endOf(ids, type, owner);
+                    // Its members are a level down, which `endOf` walks to.
+                    return endOf(walk, type);
                 case spv::OpTypePointer:
                     // A device address, which `buffer_reference` makes a pointer of: eight bytes.
                     if (static_cast<spv::StorageClass>(operandOf(facts, 0, owner))
@@ -200,71 +221,71 @@ namespace Rtx
         }
 
         /// Where the last member of `structure` ends, in bytes from its start.
-        std::uint32_t endOf(const IdFacts& ids, const std::uint32_t structure, const std::uint32_t owner)
+        std::uint32_t endOf(const TypeWalk& walk, const std::uint32_t structure)
         {
-            const Facts& facts = factsOf(ids, structure, owner);
+            const Facts& facts = walk.factsOf(structure);
             std::uint32_t end = 0;
             for (std::size_t at = 0; at < facts.mOperands.size(); ++at)
             {
                 const MemberFacts* const member = at < facts.mMembers.size() ? &facts.mMembers[at] : nullptr;
                 if (member == nullptr || !member->mOffset.has_value())
-                    throw InputError(std::format("%{} holds member {} of %{} at no offset", owner, at, structure));
-                end = std::max(end, *member->mOffset + extentOf(ids, facts.mOperands[at], member, owner));
+                    throw InputError(
+                        std::format("%{} holds member {} of %{} at no offset", walk.mOwner, at, structure));
+                end = std::max(end, *member->mOffset + extentOf(walk.down(), facts.mOperands[at], member));
             }
             return end;
         }
 
         /// The alignment C++ gives a value of `type`: its widest scalar's bytes, eight for a device
         /// address — what a structure's size is rounded up to.
-        std::uint32_t alignmentOf(const IdFacts& ids, const std::uint32_t type, const std::uint32_t owner)
+        std::uint32_t alignmentOf(const TypeWalk& walk, const std::uint32_t type)
         {
-            const Facts& facts = factsOf(ids, type, owner);
+            const Facts& facts = walk.factsOf(type);
             switch (facts.mOp)
             {
                 case spv::OpTypeInt:
                 case spv::OpTypeFloat:
-                    return scalarBytes(facts, owner);
+                    return scalarBytes(facts, walk.mOwner);
                 case spv::OpTypeVector:
                 case spv::OpTypeMatrix:
                 case spv::OpTypeArray:
                 case spv::OpTypeRuntimeArray:
-                    return alignmentOf(ids, operandOf(facts, 0, owner), owner);
+                    return alignmentOf(walk.down(), operandOf(facts, 0, walk.mOwner));
                 case spv::OpTypeStruct:
                 {
                     std::uint32_t widest = 1;
                     for (const std::uint32_t member : facts.mOperands)
-                        widest = std::max(widest, alignmentOf(ids, member, owner));
+                        widest = std::max(widest, alignmentOf(walk.down(), member));
                     return widest;
                 }
                 case spv::OpTypePointer:
                     return 8;
                 default:
                     throw InputError(std::format("%{} holds a member of opcode {}, whose alignment this does not read",
-                        owner, static_cast<std::uint32_t>(facts.mOp)));
+                        walk.mOwner, static_cast<std::uint32_t>(facts.mOp)));
             }
         }
 
         /// How far into a value of `type` C++ takes it to reach: `extentOf`, with a structure rounded
         /// up to its alignment, as `sizeof` rounds it, and the last element of an array such a
-        /// structure. A member of a structure in `structure`, which `member` states.
-        std::uint32_t mirroredExtentOf(
-            const IdFacts& ids, const std::uint32_t type, const MemberFacts* member, const std::uint32_t structure)
+        /// structure. A member of the structure the walk is for, which `member` states.
+        std::uint32_t mirroredExtentOf(const TypeWalk& walk, const std::uint32_t type, const MemberFacts* member)
         {
-            const Facts& facts = factsOf(ids, type, structure);
+            const std::uint32_t structure = walk.mOwner;
+            const Facts& facts = walk.factsOf(type);
             if (facts.mOp == spv::OpTypeStruct)
             {
-                const std::uint32_t alignment = alignmentOf(ids, type, structure);
-                return (endOf(ids, type, structure) + alignment - 1) / alignment * alignment;
+                const std::uint32_t alignment = alignmentOf(walk, type);
+                return (endOf(walk, type) + alignment - 1) / alignment * alignment;
             }
             if (facts.mOp == spv::OpTypeArray && facts.mArrayStride.has_value())
             {
-                const std::uint32_t count
-                    = operandOf(factsOf(ids, operandOf(facts, 1, structure), structure), 0, structure);
+                const std::uint32_t count = operandOf(walk.factsOf(operandOf(facts, 1, structure)), 0, structure);
                 if (count > 0)
                     return (count - 1) * *facts.mArrayStride
-                        + mirroredExtentOf(ids, operandOf(facts, 0, structure), member, structure);
+                        + mirroredExtentOf(walk.down(), operandOf(facts, 0, structure), member);
             }
-            return extentOf(ids, type, member, structure);
+            return extentOf(walk, type, member);
         }
 
         /// Refuses the one layout scalar GLSL and C++ part on: a structure whose size is no multiple of its alignment,
@@ -283,7 +304,8 @@ namespace Rtx
                 for (std::size_t at = 0; at + 1 < facts.mOperands.size(); ++at)
                 {
                     const std::uint32_t reach = *facts.mMembers[at].mOffset
-                        + mirroredExtentOf(ids, facts.mOperands[at], &facts.mMembers[at], type);
+                        + mirroredExtentOf(
+                            TypeWalk{ .mIds = ids, .mOwner = type }, facts.mOperands[at], &facts.mMembers[at]);
                     if (*facts.mMembers[at + 1].mOffset < reach)
                         throw InputError(std::format(
                             "member {} of %{} starts at {}, inside the {} bytes C++ gives member {} before it: "
@@ -298,7 +320,8 @@ namespace Rtx
                 const std::uint32_t element = operandOf(facts, 0, type);
                 if (factsOf(ids, element, type).mOp != spv::OpTypeStruct)
                     return;
-                const std::uint32_t mirrored = mirroredExtentOf(ids, element, nullptr, type);
+                const std::uint32_t mirrored
+                    = mirroredExtentOf(TypeWalk{ .mIds = ids, .mOwner = type }, element, nullptr);
                 if (*facts.mArrayStride < mirrored)
                     throw InputError(std::format(
                         "array %{} is strided by {}, short of the {} C++ strides its structure %{} by: a structure "
@@ -490,7 +513,7 @@ namespace Rtx
 
             if (storage == spv::StorageClassPushConstant)
             {
-                const std::uint32_t end = endOf(ids, pointee, variable);
+                const std::uint32_t end = endOf(TypeWalk{ .mIds = ids, .mOwner = variable }, pointee);
                 interface.mPushEnd = std::max(interface.mPushEnd.value_or(0), end);
             }
             else if (storage == spv::StorageClassInput && facts.mLocation.has_value())
