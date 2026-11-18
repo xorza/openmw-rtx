@@ -75,9 +75,6 @@ namespace Rtx
         /// and given back, as the next is kept as rooms are, so neither is a walk of the blocks.
         VkDeviceSize getBytes() const { return mBytes; }
 
-        /// How large a block is made, past which a structure takes a block of its own size.
-        VkDeviceSize getBlockBytes() const { return mBlockBytes; }
-
         /// What the structures standing in it occupy, beside the room asked for, because the two
         /// part company once anything is compacted.
         VkDeviceSize getLiveBytes() const { return VkDeviceSize{ mLiveUnits } * sAlignment; }

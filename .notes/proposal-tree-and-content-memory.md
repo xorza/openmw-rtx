@@ -753,13 +753,6 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 
 ## Changed
 
-- **14.6. The device's mesh memory**: narrowed to what the handheld's Repack tour at `b461faf024` showed. It refused
-  three 64 MiB loose structure blocks beside 2.6 GiB of resting meshes, which nothing freed, as a loose build filed no
-  want. It now wants a block's bytes of the rest (`BottomLevelStore::build`), which `SceneDesc::evictFor` frees oldest
-  first, a block emptied going back to the device (`StructureStorage::reclaim`). Taking runs lowest first and giving
-  back a block no run touches were already so. `MemoryUse::Mesh` and the rest counting geometry are left: no tour
-  refused for them.
-
 - **23, its half kept: a refusal is counted once.** `textures-readable` counts the texture refusals since the stop
   before it (`StopFacts::mTexturesRefusedBefore`), where one refusal had failed every stop after it.
 
@@ -893,6 +886,14 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
   include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined
+
+- **14.6. A loose structure refused for room wants a block's bytes of the rest** (`6fb6003794`, reverted): the
+  handheld's closing Repack tour at `9f41093017` still refused the three 64 MiB structure blocks, each beside 2.5–2.6
+  GiB of resting meshes. A resting mesh's structure stands in a tight block among others, so freeing the oldest rests
+  frees ranges and empties no block, and the structures held stayed at 2,120 MiB. Each waiting loose mesh files a want
+  of its own, so a batch refused at once asks a block's bytes each. The same tour's place zone rose from a 3.9 ms p99
+  median over its legs to 12.4 ms, rooms with nothing arriving among them. What holds the room is the texture pool's
+  free bytes in pieces (887 MiB of 2,368 MiB in blocks, its largest range 26 MiB), item 21's.
 
 - **15. The ring reads what can stand**: moved to `.notes/todo.md` as its own piece of work (the user, 2026-11-18). Its
   measure passed (the handheld's Repack tour parsed 33% of its models again), but reading a cell's references as a
