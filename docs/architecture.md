@@ -118,6 +118,21 @@ What the game reads from files (`components/resource`), changed for the handheld
   alone grew by what it pushed out, and pushed out more; the handheld's repack held a cache budget of 4.5 GiB beside
   6 GiB swapped. Windows states no figure of what it paged out apart from what nothing touched, so its room stands as
   the system states it.
+- **The heap's free memory is the caches' room, and an evicted value dies off the lock and off the frame**
+  (`CacheBudget::derive`, `Platform::heapHeld`): what the heap took and holds free is the process's own to take again,
+  read with the system's once a second through glibc's `malloc_info`, the one report every glibc writes, since
+  `mallinfo` wraps past 2 GiB and the release builds' glibc has no `mallinfo2`. The worker that derives the budget
+  destroys what was evicted, where upstream had put its own expiry. Refused: a trim on a timer, which walks every
+  arena to give back what should never have entered one.
+- **A large buffer never reaches an arena, and the arenas are four** (`Platform::tuneHeap`): the mapping threshold is
+  pinned at 1 MiB, which turns glibc's own adjustment of it off (`mallopt(3)`), so a large block is given back whole
+  whichever thread frees it. The setting that left the heap least free on both machines' Repack tours, and took
+  0.86 GiB off the handheld's most (`research/2026-11-17-handheld-allocator-tunables.md`); `GLIBC_TUNABLES` naming the
+  allocator overrides it. Refused: the 256 KiB and 4 MiB thresholds, which left more free; huge pages off, which
+  swapped a GiB more; a second allocator, proposed only while the heap holds more than a fifth of what it took free.
+- **A stream reads a request past its buffer straight into the caller's memory**
+  (`ConstrainedFileStreamBuf::xsgetn`), as libstdc++'s `basic_filebuf` does. Refused: a larger buffer, still two
+  copies of every byte; positioned reads for the renderer beside the game's streams, two routes to one file.
 - **An entry states its own bytes**, shared bytes in the one cache that owns them, as Unreal's `Exclusive` resource size
   counts. **The order of use is a stamp**, the clock algorithm's second chance for a held entry.
 - **What the game builds from memory keeps the timer**: the land, the chunks, the physics instances, the materials.
@@ -151,9 +166,12 @@ What the game reads from files (`components/resource`), changed for the handheld
   distance. So a level finer than the primary ray's at that distance is never read, a shadow ray's cutout aside.
   Asks follow the hold chain, placement → material → texture (`MaterialTable::ask`): the walk's placements ask the
   finest, the ring's cells ask by distance in bands that double from a cell's size, one band nearer than their own
-  (`CellPlacer::askByDistance`), and a holder that reads a texture itself asks level 0 (`ReadingHold`). Refused: a
-  scan of the placements each frame, which the frame rule forbids, and a feedback pass, which measures what a
-  derived bound already states.
+  (`CellPlacer::askByDistance`), and a holder that reads a texture itself asks level 0 (`ReadingHold`). What stands
+  above its want is moved down first when room is wanted, and what rests shrinks to its last want before anything
+  resting goes, so the same memory keeps more of the rest (`TextureArray::makeRoom`, `SceneUploader::evictForRoom`):
+  the handheld's PBR tour held 28% of its resting bytes above it
+  (`research/2026-11-17-longest-frames.md`). Refused: a scan of the placements each frame, which the frame rule
+  forbids, and a feedback pass, which measures what a derived bound already states.
 - **A made chain is handed over in a buffer of a bounded pool, read a segment at a time** (`Rtx::BufferPool`,
   `ContentPreprocessor::chain` into a pool): the store's entry is opened, its form's byte read, and its levels read
   by position into a pooled buffer, each segment's digest checked; the buffer goes back to the pool as the made image
@@ -161,8 +179,10 @@ What the game reads from files (`components/resource`), changed for the handheld
   nothing once warm, as DirectStorage reads into a bounded staging buffer. A job whose slot left before it started is
   cancelled. Refused: a buffer allocated a read, freed on the frame's thread; reading into the staging memory, which
   is write-combined and which a digest would read back.
-- **A preload is a guess, skipped past the budget** (`CellPreloader`), and asked again later. Refused: waiting for room,
-  which stalls the queue.
+- **A preload is a guess, skipped past the budget** (`CellPreloader`), and asked again later, a door's destination
+  asked before it is found, which loads its references for good. Refused: waiting for room, which stalls the queue.
+- **The navigator's tiles stand under the one budget** (`NavMeshTilesCache`), with no cap of their own: a tile is a read
+  away in the tile store. Refused: a cap derived once at a start, the fixed share this design refuses.
 
 ## The interface
 
@@ -381,8 +401,7 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   driver sees it, written whole or not at all.
 - **What a frame cannot go without is essential and never refused**; content is taken against the driver's budget, and a
   refusal leaves the mesh out or draws the stand-in. Refused: an arrival scheduler, a destroyer thread, blocks made
-  ahead, since a crossing's worst frames are the engine's (`research/2026-10-22-crossing-worst-frames.md`); a
-  defragmentation (`research/2026-10-22-content-pool-after-a-long-walk.md`).
+  ahead, since a crossing's worst frames are the engine's (`research/2026-10-22-crossing-worst-frames.md`).
 - **Host writes are staged on every card**: written into staging and copied ahead of the submit that reads, as VMA's
   advanced uploading and D3D12's upload heaps split it. Refused: writes mapped into video memory, bounded by a window
   NVIDIA's Windows driver budgets at nought (`research/2026-11-10-host-writes-on-three-machines.md`); a shared device
@@ -390,6 +409,26 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **A texture's image and sampler stand apart, paired at each read**: AMD's Windows driver hung on a combined array
   (`research/2026-11-09-separate-samplers.md`).
 - **The frame's targets are counted from what makes them**, and the reserve is the running mode's.
+- **Content's ceiling keeps what essential memory will grow by, not what it holds**: a doubling table owes its next
+  size and a blocked stream its next block, each stating its own (`MemoryAllocator`'s growth owed), and the ceiling is
+  the budget less the frame's gap and their sum. A scratch or a storage held to a room owes nothing. Refused: a second
+  copy of memory that is appended and never made again; no reserve, under which a table's growth could end the
+  renderer.
+- **On a unified device the budget is the lesser of the driver's and what the system can still back**, less a gigabyte,
+  read once a second at most. Such a device is told by its type (`VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU`), which
+  every driver states; Windows says of it that it has one pool
+  ([residency](https://learn.microsoft.com/en-us/windows/win32/direct3d12/residency)). Refused: a heap both
+  device-local and host-visible, which a discrete card with resizable BAR states too; the kernel's pressure stall
+  figures, which report a stall once it has happened.
+- **The room kept for the next arrival is the most of the last 64 extensions** (`ArrivalWindow`), some three crossings
+  at a tour's speed, a sliding maximum: the session's, which one heavy arrival held for good, is refused.
+- **Device memory is made off the frame where it can be kept**: a buffer that grows with its batch doubles within its
+  room (the normal spread's means), and a staging block past the kept size goes back only once idle 600 submits, about
+  ten seconds, as jemalloc's dirty pages decay (`StagingRing::shed`). The handheld's PBR tour spent 1.9 s of its
+  frames in `vkAllocateMemory` before (`research/2026-11-17-longest-frames.md`). Refused: each made to its batch's
+  size and let go past its room, made again at the next crossing.
+- **A load's staging is flushed between two whole files once it reaches the kept size**, its texture work recorded
+  first, so a flush never hands a staged block back before its copy ran.
 - **Images used inside one stretch of the frame share memory** (`ImageArena`), each over its span of the fixed order.
   Refused: a frame graph, whose other gains, scheduling across queues and reordering, a fixed order does not use.
 - **`DeviceScene` is everything one scene is traced against**, the world's or a picture's. A table the host rewrites has
@@ -432,14 +471,25 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **Content the device has no room for waits while room is coming**, a bounded number of hand-overs, then is refused.
   Refused: headroom alone, which an arrival larger than any before outruns; a stand-in for good.
 - **What waits is given the resting row that surely leaves it room**, by the user's decision: each want the device
-  answers frees the oldest resting row of its kind that gives back at least the hole it needs where it can take it,
-  else the oldest until its bytes are given back, once until its room is the device's again (`SceneDesc::evictFor`,
-  `SceneUploader::serveWants`), as Microsoft's residency guidance and Dawn's residency manager free and try again. Room
-  counted in bytes says nothing of where a hole lands: the handheld refused a thousand small takes with a hundred
-  megabytes free in pieces (`research/2026-11-16-handheld-content-pool-fragmentation.md`). Refused: room counted by
-  the pools' ranges, a walk of every allocation VMA keeps for rare use; defragmentation, a texture's descriptor and a
-  structure's address rewritten at each move; pools by size class, which reduce fragmentation and starve a class at the
-  ceiling beside another's room.
+  answers frees the oldest resting row of its kind whose own range holds it, its size at its alignment, else the
+  oldest until its bytes are given back, once until its room is the device's again (`SceneDesc::evictFor`,
+  `RestQueue::firstFitting`), as Microsoft's residency guidance and Dawn's residency manager free and try again. Room
+  is counted where it can be taken, a storage's own free runs among it. Room counted in bytes says nothing of where a
+  hole lands: the handheld refused a thousand small takes with a hundred megabytes free in pieces
+  (`research/2026-11-16-handheld-content-pool-fragmentation.md`). Refused: room counted by
+  the pools' ranges, a walk of every allocation VMA keeps for rare use; pools by size class, which reduce fragmentation
+  and starve a class at the ceiling beside another's room.
+- **What the texture pool strands in pieces is moved, not classed**, by the user's decision: where the device refused
+  content and a pool's blocks hold two blocks free, VMA's incremental defragmentation names a frame's share of ranges
+  a pass, and the texture array makes each texture again at its place, copies it there on the device and owes its
+  descriptors, ending the pass once the copies have run (`TextureArray::defragment`), as VMA leaves the recreating to
+  the application
+  ([defragmentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/defragmentation.html)). A
+  range a pass names that its owner lets go of meanwhile is given back once the pass ends (`MemoryAllocator::give`).
+  A structure is never moved, its storages being blocks of their own. The handheld's Repack tour refused 64 MiB
+  structure blocks with 887 MiB free in the texture pool's blocks, the largest range 26 MiB, which only blocks given
+  back answer: freeing the oldest resting meshes freed ranges and emptied no block. Refused: moving everything at
+  once, a frame's worth of copies many times over; the structures' address rewritten at each move.
 - **A bottom level is built loose and copied out tight**, as RTXMU does, and the world's build compacts before its
   textures are made, as NVIDIA's `buildBlas` does. **Both storages take blocks of content's block size, apart from the
   pools textures stand in, and keep their last** (`StructureStorage`), by the user's decision, as NVIDIA pools

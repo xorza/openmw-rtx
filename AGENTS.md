@@ -118,6 +118,8 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`, one task a
   own redraws, and every row moves. The report's `card` lines name another process's work.
 - An A/B reads medians and the p99, never a mean — the zones' from the record `--json` writes, since the `gpu` row is
   each zone's share of the mean.
+- A heap profile runs in a cgroup with a memory cap (`systemd-run --user --scope -p MemoryMax=<GiB>`): heaptrack's
+  interpreter outgrew the desk's memory over a Repack tour and took the desktop down.
 - Profiling: `./omw profile` for the CPU, into `out/release/perf/` (`--offcpu` says where it waits); read the full
   reports beside the summary. For the GPU, `./omw release exec nsys profile ./openmw-rtxtool bench ...`.
 
