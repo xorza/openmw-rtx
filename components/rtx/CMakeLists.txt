@@ -64,7 +64,6 @@ openmw_rtx_layer(
     SOURCES
         common/bufferpool.cpp
         common/runs.cpp
-        common/slots.cpp
     HEADERS
         common/asserts.hpp
         common/bufferpool.hpp
@@ -83,6 +82,8 @@ openmw_rtx_layer(
         common/parallel.hpp
         common/pointhash.hpp
         common/radicalinverse.hpp
+        common/rowspan.hpp
+        common/rowvector.hpp
         common/runs.hpp
         common/scratch.hpp
         common/slots.hpp

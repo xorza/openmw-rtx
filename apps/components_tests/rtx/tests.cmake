@@ -19,6 +19,7 @@ target_sources(
         rtx/common/ownedby.cpp
         rtx/common/parallel.cpp
         rtx/common/radicalinverse.cpp
+        rtx/common/rows.cpp
         rtx/common/runs.cpp
         rtx/common/slots.cpp
         rtx/common/stepped.cpp

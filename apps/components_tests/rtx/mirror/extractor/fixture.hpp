@@ -154,7 +154,7 @@ namespace Rtx::Testing
 
     /// Where the walk put instance `index`: the origin of its own space, carried through the
     /// transform the walk gave it.
-    inline osg::Vec3f placedAt(const Rtx::SceneDesc& scene, std::size_t index)
+    inline osg::Vec3f placedAt(const Rtx::SceneDesc& scene, Rtx::PlacementIndex index)
     {
         return osg::Vec3f() * scene.placements().getRows()[index].mInstance.mTransform;
     }

@@ -70,7 +70,7 @@ namespace Rtx
             }
             ReadingHold held = takeSkySheet(scene, path, *image.value(), TextureWrap::Clamp);
             face.mSlot = held.get();
-            if (face.mSlot == sNoIndex)
+            if (face.mSlot == sNoRow)
                 continue;
 
             holds.push_back(std::move(held));

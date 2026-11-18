@@ -60,6 +60,7 @@ namespace Rtx
 
         std::unique_ptr<DeviceScene> mWorld;
         /// A freed slot's scene is let go at its drop, so a null row is a slot nothing holds whether or not it is out.
-        SlotRows<std::unique_ptr<DeviceScene>> mViews;
+        using ViewRow = RowIndex<struct ViewSceneRows>;
+        SlotRows<std::unique_ptr<DeviceScene>, ViewRow> mViews;
     };
 }

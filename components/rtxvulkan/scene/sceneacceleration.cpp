@@ -9,6 +9,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowspan.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -71,7 +72,7 @@ namespace Rtx
     }
 
     SceneAcceleration::SceneAcceleration(const Device& device, Batch& batch, const SceneDesc& scene,
-        std::span<const Index> everyMesh, const std::uint32_t slots, const std::uint32_t placementRoom)
+        std::span<const MeshIndex> everyMesh, const std::uint32_t slots, const std::uint32_t placementRoom)
         : mDevice(device)
         , mPlacementRoom(placementRoom)
         , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage",
@@ -105,8 +106,9 @@ namespace Rtx
     }
 
     void SceneAcceleration::build(Batch& batch, Uploads& uploads, const SceneDesc& scene,
-        std::span<const Index> everyMesh, std::span<const InstanceRecord> records, const BlockedBuffer& positions,
-        const TopLevelPackPass& pack, const BuildCompaction compaction, std::vector<Refusal>& refused)
+        std::span<const MeshIndex> everyMesh, RowSpan<const InstanceRecord, PlacementIndex> records,
+        const BlockedBuffer& positions, const TopLevelPackPass& pack, const BuildCompaction compaction,
+        std::vector<Refusal>& refused)
     {
         assert(mBottomLevel.size() == 0 && mTopLevel.isEmpty() && "a scene built twice");
 
@@ -120,7 +122,7 @@ namespace Rtx
         recordTopLevel(batch.getCommands(), pack, nullptr);
     }
 
-    void SceneAcceleration::writeGeometry(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes)
+    void SceneAcceleration::writeGeometry(Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> meshes)
     {
         // Each table's own reach, so a block exists for every run it has handed out. Blocks already
         // made are left exactly where they are, and one call reaches every copy — `SlotBlocks` is
@@ -131,7 +133,7 @@ namespace Rtx
         // **No pose here**: a body's run in every copy is the skin pass's, which poses whatever
         // arrives into each copy before the build reads the first (`SkinPass::recordArrived`). A
         // static mesh has no run here at all: its structure is built over `SceneBuffers`' positions.
-        for (const Index mesh : meshes)
+        for (const MeshIndex mesh : meshes)
         {
             // A run of shared indices once, by the arrival that brought it (`MeshGeometry::mIndices`).
             const MeshRange& range = scene.meshes().getRows()[mesh];
@@ -200,13 +202,13 @@ namespace Rtx
         // Posed and left out is a body the device had no room for: nothing traces it, so nothing
         // refits it either.
         mRefitting.clear();
-        for (const Index mesh : scene.meshes().getDeformed())
+        for (const MeshIndex mesh : scene.meshes().getDeformed())
         {
-            assert(mesh < mBottomLevel.size() && "a mesh this holds no structure for");
+            assert(mBottomLevel.holds(mesh) && "a mesh this holds no structure for");
             if (mBottomLevel.stands(mesh))
                 mRefitting.push_back(mesh);
         }
-        const std::span<const Index> deformed = mRefitting;
+        const std::span<const MeshIndex> deformed = mRefitting;
 
         // This frame's copy, which the pass has already posed into. `SkinPass::record` runs
         // ahead of this in the same command buffer and pays the poses' account — every pose this
@@ -231,11 +233,11 @@ namespace Rtx
         // with the flags the first build used, so later refits stay allowed.
         ++mPlacements;
         mRebuilt = mBottomLevel.pickRebuild(deformed, mPlacements);
-        if (mRebuilt != sNoIndex)
+        if (mRebuilt != sNoRow)
             ++mRebuildCount;
 
         [[maybe_unused]] VkDeviceSize scratchTotal = 0;
-        for (const Index mesh : deformed)
+        for (const MeshIndex mesh : deformed)
             scratchTotal = alignUp(scratchTotal + refitScratchOf(mesh), scratchAlignment);
         assert(scratchTotal <= mRefitScratch.get().getSize() && "a refit past what the arrivals sized its scratch to");
 
@@ -245,7 +247,7 @@ namespace Rtx
 
         for (std::uint32_t i = 0; i < count; ++i)
         {
-            const Index index = deformed[i];
+            const MeshIndex index = deformed[i];
             const MeshRange& mesh = scene.meshes().getRows()[index];
 
             // The same description the first build was given, which is what makes the structure
@@ -264,7 +266,7 @@ namespace Rtx
         VkDeviceSize scratchAt = 0;
         for (std::uint32_t i = 0; i < count; ++i)
         {
-            const Index index = deformed[i];
+            const MeshIndex index = deformed[i];
 
             // Into the structure that is already there, since its handle is what every top-level row
             // points at. An update, with the flags of the build that allowed one, or for the rota's
@@ -301,8 +303,8 @@ namespace Rtx
         barrierAfterBuild(commands);
     }
 
-    bool SceneAcceleration::place(const SceneDesc& scene, std::span<const InstanceRecord> records,
-        std::span<const Index> changed, const TopLevelPackPass& pack, const Placing& placing)
+    bool SceneAcceleration::place(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records,
+        std::span<const PlacementIndex> changed, const TopLevelPackPass& pack, const Placing& placing)
     {
         prepareRefit(scene, placing.mSlot);
 
@@ -336,15 +338,16 @@ namespace Rtx
         return true;
     }
 
-    bool SceneAcceleration::placeCompacted(const SceneDesc& scene, std::span<const InstanceRecord> records)
+    bool SceneAcceleration::placeCompacted(
+        const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records)
     {
-        const SlotSet& moved = mBottomLevel.prepareCompaction();
+        const SlotSet<MeshIndex>& moved = mBottomLevel.prepareCompaction();
         if (moved.empty())
             return false;
 
         // Every row that placed one of these names an address that has moved.
-        for (const Index mesh : moved.getSlots())
-            scene.placements().forEachPlacing(mesh, [&](const Index slot) {
+        for (const MeshIndex mesh : moved.getSlots())
+            scene.placements().forEachPlacing(mesh, [&](const PlacementIndex slot) {
                 assert(records[slot].mPlaced && records[slot].mMesh == mesh
                     && "a record behind the scene it was made from");
                 placeRow(slot, records[slot]);
@@ -353,7 +356,8 @@ namespace Rtx
         return true;
     }
 
-    void SceneAcceleration::writeRows(std::span<const InstanceRecord> records, std::span<const Index> changed)
+    void SceneAcceleration::writeRows(
+        RowSpan<const InstanceRecord, PlacementIndex> records, std::span<const PlacementIndex> changed)
     {
         const std::size_t had = mRowTable.size();
         mRowTable.grow(records.size());
@@ -363,10 +367,10 @@ namespace Rtx
         // owes every appended row to every copy, so a row nothing writes reaches the device as a
         // gap rather than as whatever was last in that memory. This is what makes them the
         // instances they actually are, and on the first placement it is the whole table.
-        for (std::size_t at = had; at < records.size(); ++at)
-            placeRow(static_cast<Index>(at), records[at]);
+        for (const PlacementIndex at : rowsBetween<PlacementIndex>(had, records.size()))
+            placeRow(at, records[at]);
 
-        for (const Index at : changed)
+        for (const PlacementIndex at : changed)
             placeRow(at, records[at]);
     }
 
@@ -409,12 +413,13 @@ namespace Rtx
         mTopLevelGeometry.geometry.instances.data.deviceAddress = mPacked.get().addressFor();
     }
 
-    void SceneAcceleration::placeRow(const Index slot, const InstanceRecord& record)
+    void SceneAcceleration::placeRow(const PlacementIndex slot, const InstanceRecord& record)
     {
-        assert(slot < (Index{ 1 } << 24) && "a placement past what an instance's 24-bit custom index names");
+        assert(
+            slot.at() < (std::uint32_t{ 1 } << 24) && "a placement past what an instance's 24-bit custom index names");
 
         // Counted in its block as the row it replaces is taken out, whatever the record says now.
-        std::uint32_t& placed = mBlockPlaced[slot / Shaders::TOP_LEVEL_PACK_WORKGROUP];
+        std::uint32_t& placed = mBlockPlaced[slot.at() / Shaders::TOP_LEVEL_PACK_WORKGROUP];
         if (mRowTable.getRows()[slot].accelerationStructureReference != 0)
             --placed;
 
@@ -440,7 +445,7 @@ namespace Rtx
         if (record.mFlipFacing)
             flags |= VK_GEOMETRY_INSTANCE_TRIANGLE_FLIP_FACING_BIT_KHR;
 
-        assert(record.mMesh < mBottomLevel.size() && "a row placing a mesh nothing built");
+        assert(mBottomLevel.holds(record.mMesh) && "a row placing a mesh nothing built");
 
         // The geometry is built opaque, so forcing is the whole of how a cutout (asked whether
         // anything is at the hit) or a translucent surface (asked how much) reaches the shader. An
@@ -453,7 +458,7 @@ namespace Rtx
         const VkAccelerationStructureInstanceKHR row{
             .transform = toVulkanTransform(record.mTransform),
             // A row's position is the custom index the shader reads back at a hit.
-            .instanceCustomIndex = slot & 0xFFFFFFu,
+            .instanceCustomIndex = slot.at() & 0xFFFFFFu,
             .mask = record.mMask,
 
             // The kind, which a query hands back off a committed hit (`KIND_WATER`): no shader

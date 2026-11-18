@@ -49,13 +49,12 @@ namespace Rtx
             && stretchOf(one.mTextureTransform) == stretchOf(other.mTextureTransform);
     }
 
-    Index MaterialTable::add(TextureTable& textures, const Material& material)
+    MaterialIndex MaterialTable::add(TextureTable& textures, const Material& material)
     {
         holdTextures(textures, material);
 
-        const Index index = takeRow(material);
-        if (index >= mAsks.size())
-            mAsks.resize(index + 1);
+        const MaterialIndex index = takeRow(material);
+        mAsks.growTo(index);
         assert(mAsks[index].empty() && "a material slot taken over with its asks still standing");
         note(index);
         return index;
@@ -65,27 +64,29 @@ namespace Rtx
     void MaterialTable::forEachRead(const TextureTable& textures, const Material& material, Visit visit) const
     {
         constexpr float none = -std::numeric_limits<float>::infinity();
-        const std::span<const TextureRow> rows = textures.getRows();
-        const auto imageOf = [&](const Index slot) -> const osg::Image* {
-            return slot < rows.size() ? rows[slot].mImage.get() : nullptr;
+        const RowSpan<const TextureRow, TextureIndex> rows = textures.getRows();
+        const auto imageOf = [&](const TextureIndex slot) -> const osg::Image* {
+            return rows.holds(slot) ? rows[slot].mImage.get() : nullptr;
         };
 
         const float stretch = stretchOf(material.mTextureTransform);
-        for (const Index map : { material.mDiffuse, material.mEmissive, material.mDark, material.mNormal,
+        for (const TextureIndex map : { material.mDiffuse, material.mEmissive, material.mDark, material.mNormal,
                  material.mSpecular, material.mDetail, material.mDecal, material.mBump, material.mGloss })
-            if (map != sNoIndex)
+            if (map != sNoRow)
                 visit(map, offsetOf(imageOf(map), stretch), sTextureLevels - 1);
 
-        if (material.mEnvironment != sNoIndex)
+        if (material.mEnvironment != sNoRow)
             visit(material.mEnvironment, none, sTextureLevels - 1);
 
         for (const MaterialLayer& layer : material.mLayers.in(getLayers()))
         {
             const float scale = std::abs(layer.mDiffuseTransform.x() * layer.mDiffuseTransform.y());
-            for (const Index map : { static_cast<Index>(layer.mDiffuse), static_cast<Index>(layer.mNormal) })
+            for (const std::uint32_t at :
+                { static_cast<std::uint32_t>(layer.mDiffuse), static_cast<std::uint32_t>(layer.mNormal) })
             {
-                if (map >= TextureTable::sCapacity)
+                if (at >= TextureTable::sCapacity)
                     continue;
+                const TextureIndex map(at);
 
                 // The bake's level, `groundLod`: the layer's texels across the chunk along its wider axis against
                 // the composite's, rounded down.
@@ -112,7 +113,7 @@ namespace Rtx
         if (before == after)
             return;
 
-        forEachRead(textures, material, [&](const Index slot, const float offset, const std::size_t ceiling) {
+        forEachRead(textures, material, [&](const TextureIndex slot, const float offset, const std::size_t ceiling) {
             const std::optional<std::size_t> was
                 = before.has_value() ? std::optional(levelAsked(*before, offset, ceiling)) : std::nullopt;
             const std::optional<std::size_t> now
@@ -126,25 +127,25 @@ namespace Rtx
         });
     }
 
-    void MaterialTable::ask(TextureTable& textures, const Index material, const std::size_t step)
+    void MaterialTable::ask(TextureTable& textures, const MaterialIndex material, const std::size_t step)
     {
         assert(isLive(material) && "an ask of a material nothing holds");
-        FootprintAsks& asks = mAsks.at(material);
+        FootprintAsks& asks = mAsks[material];
         const std::optional<std::uint8_t> before = asks.finest();
         asks.ask(step);
         askTextures(textures, rowAt(material), before, asks.finest());
     }
 
-    void MaterialTable::unask(TextureTable& textures, const Index material, const std::size_t step)
+    void MaterialTable::unask(TextureTable& textures, const MaterialIndex material, const std::size_t step)
     {
         assert(isLive(material) && "an ask taken back of a material nothing holds");
-        FootprintAsks& asks = mAsks.at(material);
+        FootprintAsks& asks = mAsks[material];
         const std::optional<std::uint8_t> before = asks.finest();
         asks.unask(step);
         askTextures(textures, rowAt(material), before, asks.finest());
     }
 
-    bool MaterialTable::set(TextureTable& textures, Index material, const Material& what)
+    bool MaterialTable::set(TextureTable& textures, MaterialIndex material, const Material& what)
     {
         Material& row = rowAt(material);
         if (row == what)
@@ -168,7 +169,7 @@ namespace Rtx
         // freed by the drop must stand no ask.
         // A rewrite that reads the same slots at the same stretch moves no ask: a scrolling transform, lava and
         // waterfalls, rewrites hundreds of materials a frame and changes only where they are read.
-        const std::optional<std::uint8_t> finest = mAsks.at(material).finest();
+        const std::optional<std::uint8_t> finest = mAsks[material].finest();
         if (!readsAlike(row, what))
         {
             askTextures(textures, what, std::nullopt, finest);
@@ -183,7 +184,7 @@ namespace Rtx
         return reclassed;
     }
 
-    void MaterialTable::note(Index slot)
+    void MaterialTable::note(MaterialIndex slot)
     {
         mWritten.grow(size());
         mWritten.add(slot);
@@ -195,15 +196,15 @@ namespace Rtx
         // a slot taken as a normal map has: bound as any other data, it has no spread there, and the
         // companion a slot of no spread binds read as a loss is a gloss gone matt.
         Crash::contract(
-            material.mNormal == sNoIndex || textures.getRows()[material.mNormal].mEncoding == TextureEncoding::Normal,
+            material.mNormal == sNoRow || textures.getRows()[material.mNormal].mEncoding == TextureEncoding::Normal,
             "a material's normal map in a slot not taken as one");
 
-        forEachTexture(material, [&](const Index texture) { textures.hold(texture); });
+        forEachTexture(material, [&](const TextureIndex texture) { textures.hold(texture); });
     }
 
     void MaterialTable::dropTextures(TextureTable& textures, const Material& material)
     {
-        forEachTexture(material, [&](const Index texture) { textures.drop(texture); });
+        forEachTexture(material, [&](const TextureIndex texture) { textures.drop(texture); });
     }
 
     Run MaterialTable::addMask(std::span<const float> weights)
@@ -245,13 +246,13 @@ namespace Rtx
         return run;
     }
 
-    void MaterialTable::drop(TextureTable& textures, const Index material)
+    void MaterialTable::drop(TextureTable& textures, const MaterialIndex material)
     {
         if (!dropRow(material))
             return;
 
         Material& going = rowAt(material);
-        assert(mAsks.at(material).empty() && "a material freed while something still asks it");
+        assert(mAsks[material].empty() && "a material freed while something still asks it");
 
         // What it named goes with it, and before its layer run does: the run is what says which
         // textures those were, and it is about to be handed to an allocator that will let the next

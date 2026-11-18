@@ -710,11 +710,11 @@ namespace Rtx::Testing
                 if (bumped)
                 {
                     mStripes = paintStripes();
-                    mStripes.mData.mSlot = 0;
+                    mStripes.mData.mSlot = TextureIndex(0);
                     mTextures.push_back(mStripes.mData);
-                    const Index normalMap = mScene.textures().add(
+                    const TextureIndex normalMap = mScene.textures().add(
                         VFS::Path::NormalizedView("stripes_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
-                    const Index material = mScene.addMaterial(Material{ .mNormal = normalMap });
+                    const MaterialIndex material = mScene.addMaterial(Material{ .mNormal = normalMap });
                     const auto bumpy = [&](const std::array<osg::Vec3f, 4>& quad, const osg::Vec3f& normal) {
                         const std::array normals{ normal, normal, normal, normal };
                         const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
@@ -947,7 +947,7 @@ namespace Rtx::Testing
 
             SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
-            const Index bar = addQuad(scene, roofOver(start, start + width, height));
+            const PlacementIndex bar = addQuad(scene, roofOver(start, start + width, height));
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
@@ -1458,14 +1458,15 @@ namespace Rtx::Testing
 
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             constexpr std::array<std::uint8_t, 4> metalTexel{ 255, 128, 255, 255 };
-            const std::array<TextureData, 2> metalTextures{ describeTexel(white, 0), describeTexel(metalTexel, 1) };
+            const std::array<TextureData, 2> metalTextures{ describeTexel(white, TextureIndex(0)),
+                describeTexel(metalTexel, TextureIndex(1)) };
 
             const auto under = [&identities](bool metal) {
                 SceneDesc scene(identities);
                 if (metal)
                 {
-                    const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
-                    const Index map = scene.textures().add(
+                    const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    const TextureIndex map = scene.textures().add(
                         VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                     scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
                                                         MeshArrays{ .mPositions = sheetAt(40000.0f, 0.0f),

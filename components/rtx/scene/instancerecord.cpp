@@ -79,7 +79,7 @@ namespace Rtx
 
         /// The row for `slot` as it stands, still: the motion is the frame's question and is asked
         /// afterwards.
-        InstanceRecord recordOf(const SceneDesc& scene, const Index slot)
+        InstanceRecord recordOf(const SceneDesc& scene, const PlacementIndex slot)
         {
             if (!scene.placements().isPlaced(slot))
                 return InstanceRecord{};
@@ -135,7 +135,7 @@ namespace Rtx
         /// device, which would do it a million times a frame. Built from the placements the scene
         /// gave rather than the dropped ones: `inverse(current) * previous` cancels a translation
         /// applied to both, while the placement carries no rotation, which the sea's does not.
-        void moveRecord(const SceneDesc& scene, const Index slot, InstanceRecord& record)
+        void moveRecord(const SceneDesc& scene, const PlacementIndex slot, InstanceRecord& record)
         {
             if (!scene.placements().isPlaced(slot))
                 return;
@@ -172,7 +172,7 @@ namespace Rtx
         }
     }
 
-    void makeInstanceRecords(const SceneDesc& scene, std::vector<InstanceRecord>& records)
+    void makeInstanceRecords(const SceneDesc& scene, RowVector<InstanceRecord, PlacementIndex>& records)
     {
         // Resized and not cleared: `clear` plus `resize` writes the whole array twice, which at a
         // hundred bytes a slot over fifty thousand slots is five megabytes of pointless stores. The
@@ -180,15 +180,15 @@ namespace Rtx
         const std::size_t slots = scene.placements().getRows().size();
         records.resize(slots);
 
-        for (std::size_t slot = 0; slot < slots; ++slot)
-            records[slot] = recordOf(scene, static_cast<Index>(slot));
+        for (const PlacementIndex slot : everyRow<PlacementIndex>(slots))
+            records[slot] = recordOf(scene, slot);
 
-        for (const Index slot : scene.placements().getMoved())
+        for (const PlacementIndex slot : scene.placements().getMoved())
             moveRecord(scene, slot, records[slot]);
     }
 
-    void updateInstanceRecords(
-        const SceneDesc& scene, std::vector<InstanceRecord>& records, std::vector<Index>& changed)
+    void updateInstanceRecords(const SceneDesc& scene, RowVector<InstanceRecord, PlacementIndex>& records,
+        std::vector<PlacementIndex>& changed)
     {
         records.resize(scene.placements().getRows().size());
         changed.clear();
@@ -196,7 +196,7 @@ namespace Rtx
 
         // A slot that moved again since it settled is in both lists, and is the moved list's: the
         // pass that gives it its motion is the one that writes it, once.
-        for (const Index slot : scene.placements().getSettled())
+        for (const PlacementIndex slot : scene.placements().getSettled())
         {
             if (scene.placements().isMoved(slot))
                 continue;
@@ -205,7 +205,7 @@ namespace Rtx
             changed.push_back(slot);
         }
 
-        for (const Index slot : scene.placements().getMoved())
+        for (const PlacementIndex slot : scene.placements().getMoved())
         {
             records[slot] = recordOf(scene, slot);
             moveRecord(scene, slot, records[slot]);

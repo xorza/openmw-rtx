@@ -8,6 +8,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/shaders/scene.h>
 
@@ -65,15 +66,15 @@ namespace Rtx
         };
 
         /// Room for `mesh`'s geometry at `lengths`, standing for any arrival of the slot before it.
-        Filling add(Index mesh, const Lengths& lengths);
+        Filling add(MeshIndex mesh, const Lengths& lengths);
 
         /// Lets go of `mesh`'s arrival, a mesh freed before its hand-over: nothing reads it again.
-        void forget(Index mesh);
+        void forget(MeshIndex mesh);
 
-        bool holds(Index mesh) const { return mesh < mRecordOf.size() && mRecordOf[mesh] != sNoIndex; }
+        bool holds(MeshIndex mesh) const { return mRecordOf.holds(mesh) && mRecordOf[mesh] != sNoRecord; }
 
         /// `mesh`'s geometry, which must have arrived since the last `clear`.
-        MeshGeometry of(Index mesh) const;
+        MeshGeometry of(MeshIndex mesh) const;
 
         /// Empties the buffers once the device has what they hold, keeping their capacity up to `sKeptBytes`.
         void clear();
@@ -92,11 +93,12 @@ namespace Rtx
 
         std::vector<Record> mRecords;
 
-        /// Each mesh slot's record, `sNoIndex` where it has none: as long as the highest slot that ever arrived.
-        std::vector<Index> mRecordOf;
+        /// Each mesh slot's record, `sNoRecord` where it has none: as long as the highest slot that ever arrived.
+        RowVector<std::uint32_t, MeshIndex> mRecordOf;
+        static constexpr std::uint32_t sNoRecord = ~std::uint32_t{ 0 };
 
         /// The slots that hold a record, which `clear` sets back.
-        std::vector<Index> mHolding;
+        std::vector<MeshIndex> mHolding;
 
         std::vector<osg::Vec3f> mPositions;
         std::vector<std::uint32_t> mNormals;

@@ -86,8 +86,8 @@ namespace Rtx
         VFS::Path::Normalized mPath{};
 
         /// The material a ground composite flattens, so a slot says whose ground it is however
-        /// long ago it was made; `sNoIndex` for every other kind.
-        Index mGroundOf = sNoIndex;
+        /// long ago it was made; `sNoRow` for every other kind.
+        MaterialIndex mGroundOf = sNoRow;
 
         TextureWrap mWrap = TextureWrap::Repeat;
 
@@ -118,7 +118,7 @@ namespace Rtx
         std::uint8_t mStoodFrom = 0;
 
         /// Its place among the slots that rest (`TextureTable::drop`, `RestQueue`).
-        RestPlace mRest{};
+        RestPlace<TextureIndex> mRest{};
 
         /// The levels it is asked at (`TextureTable::getWant`): one ask for each material that reads it, at the level
         /// the finest footprint asked of the material makes of it, and one at level 0 for each holder that reads it
@@ -151,7 +151,7 @@ namespace Rtx
     /// repeating is two slots, because the wrap is the sampler's and a sampler is per slot; the
     /// same file bound as a colour and as data is two, because the encoding is the image's format.
     /// A file names up to twelve, one per `TextureWrap` and `TextureEncoding`.
-    class TextureTable : public HeldRows<TextureRow>
+    class TextureTable : public HeldRows<TextureRow, TextureIndex>
     {
     public:
         /// How many slots stand at once: the bindless array's, less the one its neutral texel
@@ -172,19 +172,20 @@ namespace Rtx
 
         /// The slot for `path` under `wrap` and `encoding`, taking one where this has not met the
         /// three. Live from here, before anything names it, and until the last thing that named it
-        /// lets go. `sNoIndex` where they are new and `sCapacity` slots already stand.
+        /// lets go. `sNoRow` where they are new and `sCapacity` slots already stand.
         ///
         /// @param image what the upload reads for the slot: kept by the add that takes it, and
         ///        counted in `getFormats` while the slot stands. Null where nothing reads at `path`,
         ///        which the upload stands in for and refuses.
         /// @param partner a converted slot's other file, `TextureRow::mPartner`, whose path `path`
         ///        names beside `image`'s.
-        Index add(VFS::Path::NormalizedView path, const osg::Image* image, TextureWrap wrap = TextureWrap::Repeat,
-            TextureEncoding encoding = TextureEncoding::Colour, const osg::Image* partner = nullptr);
+        TextureIndex add(VFS::Path::NormalizedView path, const osg::Image* image,
+            TextureWrap wrap = TextureWrap::Repeat, TextureEncoding encoding = TextureEncoding::Colour,
+            const osg::Image* partner = nullptr);
 
         /// The same with no image, for a caller that describes its textures to the backend itself,
         /// as a test does.
-        Index add(VFS::Path::NormalizedView path, TextureWrap wrap = TextureWrap::Repeat,
+        TextureIndex add(VFS::Path::NormalizedView path, TextureWrap wrap = TextureWrap::Repeat,
             TextureEncoding encoding = TextureEncoding::Colour)
         {
             return add(path, nullptr, wrap, encoding);
@@ -192,8 +193,8 @@ namespace Rtx
 
         /// The slot for the light bake of the sprite texture `source`, taking one where `source` has
         /// none. The same slots and the same reference counting as a file's. Clamped, because a
-        /// bake is one image whose coordinates run edge to edge. `sNoIndex` as `add` answers it.
-        Index addSpriteLight(VFS::Path::NormalizedView source);
+        /// bake is one image whose coordinates run edge to edge. `sNoRow` as `add` answers it.
+        TextureIndex addSpriteLight(VFS::Path::NormalizedView source);
 
         /// The slot for the ground `kind` of the chunk `material` flattens, taking one where
         /// the material has none: the albedo as a colour, the gloss as data. One material is one
@@ -201,25 +202,25 @@ namespace Rtx
         /// overwritten. Clamped and refused as `addSpriteLight` is.
         ///
         /// @param kind `GroundAlbedo` or `GroundGloss`.
-        Index addGround(Index material, TextureKind kind);
+        TextureIndex addGround(MaterialIndex material, TextureKind kind);
 
-        /// The slot `path` stands in as a colour, painted or not, under any wrap, or `sNoIndex` where it
+        /// The slot `path` stands in as a colour, painted or not, under any wrap, or `sNoRow` where it
         /// stands in none. What a bake made from a file's alpha finds its source by: the alpha is the same
         /// under every wrap and in both encodings, and the bake names the file and not the slot. **A live slot,
         /// never one that rests**: what rests is freed whenever room is wanted, the hand-over that describes the bake
         /// among them, and a bake made from a slot freed in its own hand-over named nothing.
-        Index findFile(VFS::Path::NormalizedView path) const;
+        TextureIndex findFile(VFS::Path::NormalizedView path) const;
 
         /// Says what the device was last handed of `slot`: the whole of its image from level `from`, its want then,
         /// `bytes` of it, its chain made again or not, or nought where it stood in or drew the stand-in. What lets a
         /// file rest once nothing names it, what its rest holds of the device's room, and what a want finer than
         /// `from` hands over again (`compact`).
-        void stand(Index slot, std::uint64_t bytes, bool made, std::uint8_t from);
+        void stand(TextureIndex slot, std::uint64_t bytes, bool made, std::uint8_t from);
 
         /// **The first level `slot` is wanted from**, the finest its readers ask (`TextureRow::mAsks`): level 0 where
         /// nothing asks, so a texture no distance is known for stands whole (`docs/architecture.md`, "A texture stands
         /// from the level its nearest user asks").
-        std::uint8_t getWant(const Index slot) const { return rowAt(slot).mAsks.finest().value_or(0); }
+        std::uint8_t getWant(const TextureIndex slot) const { return rowAt(slot).mAsks.finest().value_or(0); }
 
         /// The meter of `TexturesAboveWant`, from one walk of the slots: every file stood whole, its bytes split by its
         /// chain's own levels, its file's layout or, where its chain was made again, the block layout every made chain
@@ -229,7 +230,7 @@ namespace Rtx
         /// Says what the device moved `slot`, which rests, down to in its rest: `bytes` from level `from`, the level
         /// its last readers asked or finer (`DeviceAnswer::mMoved`). A rest shrunk to its last want, kept rather than
         /// evicted.
-        void restandResting(Index slot, std::uint64_t bytes, std::uint8_t from);
+        void restandResting(TextureIndex slot, std::uint64_t bytes, std::uint8_t from);
 
         /// What the textures that rest stand above the level their last readers asked, together: what moving them down
         /// gives back before any is evicted (`SceneUploader::evictForRoom`). A sum over what rests, kept as rows rest,
@@ -238,15 +239,15 @@ namespace Rtx
 
         /// What the device made of `slot`'s image gives back of the pools textures stand in, `bytes`, the device's
         /// answer (`DeviceAnswer::mTextureFits`): the hole its eviction leaves for a texture the device waits on.
-        void fit(Index slot, std::uint64_t bytes, std::uint64_t alignment);
+        void fit(TextureIndex slot, std::uint64_t bytes, std::uint64_t alignment);
 
         /// The slots that rest, oldest first (`RestQueue`): how many, the bytes they stand on the device, and the
         /// order, each row's `mRest.mAfter` carrying it on. What the scene frees across its tables
         /// (`SceneDesc::evictResting`).
-        const RestQueue& getResting() const { return mResting; }
+        const RestQueue<TextureIndex>& getResting() const { return mResting; }
 
-        std::span<const Index> getArrived() const { return mChanges.getArrived(); }
-        std::span<const Index> getFreed() const { return mChanges.getFreed(); }
+        std::span<const TextureIndex> getArrived() const { return mChanges.getArrived(); }
+        std::span<const TextureIndex> getFreed() const { return mChanges.getFreed(); }
 
         /// How many slots this has ever taken, which is the share of the scene's structure revision
         /// that textures decide. A revision and not a count, because a slot freed and taken again
@@ -255,7 +256,7 @@ namespace Rtx
 
         /// Has `slot`, a live file's slot that stood in while its texels were read and its chain made, arrive
         /// again, so the next hand-over hands it over.
-        void arriveAgain(Index slot)
+        void arriveAgain(TextureIndex slot)
         {
             assert(isLive(slot) && "a slot that stands no texture arrived again");
             mChanges.note(slot, SlotNews::Arrived);
@@ -297,22 +298,23 @@ namespace Rtx
 
         /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
         /// caller until it drops it: what a surface, a sprite, a sky layer and a moon turn their
-        /// image into. `sNoIndex`, holding nothing, where `add` refuses it.
-        Index take(VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat,
-            TextureEncoding encoding = TextureEncoding::Colour, const osg::Image* partner = nullptr);
+        /// image into. `sNoRow`, holding nothing, where `add` refuses it.
+        TextureIndex take(VFS::Path::NormalizedView path, const osg::Image& image,
+            TextureWrap wrap = TextureWrap::Repeat, TextureEncoding encoding = TextureEncoding::Colour,
+            const osg::Image* partner = nullptr);
 
-        /// Takes and gives back one name on a slot. A slot this never hands out — `sNoIndex`, and
+        /// Takes and gives back one name on a slot. A slot this never hands out — `sNoRow`, and
         /// the neutral texel a layer names where the table had no room — is "none" and costs a
         /// compare. The slot is freed by the `drop` after which nothing names it. A particle
         /// emitter's sprite names a texture this way: an emitter is rebuilt every frame, so whatever
         /// recognises it between frames is what has to hold the texture.
-        void hold(Index texture);
-        void drop(Index texture);
+        void hold(TextureIndex texture);
+        void drop(TextureIndex texture);
 
         /// One ask more, and one fewer, of `texture` at `level`: what a material that reads it says of it, and a
         /// holder that reads it itself (`SceneDesc::takeReading`). Nothing for "none", as `hold` takes none.
-        void ask(Index texture, std::size_t level);
-        void unask(Index texture, std::size_t level);
+        void ask(TextureIndex texture, std::size_t level);
+        void unask(TextureIndex texture, std::size_t level);
 
         /// Whether a new slot may be taken, freeing the oldest to rest where the array is full, and
         /// counting and reporting the refusal where none rests.
@@ -323,13 +325,13 @@ namespace Rtx
         void arriveFiner();
 
         /// Lays `slot`, a file nothing names, to rest, letting go of its host images.
-        void rest(Index slot);
+        void rest(TextureIndex slot);
 
         /// Takes `slot` back from its rest for a take of it, with the images the taker holds.
-        void wake(Index slot, const osg::Image* image, const osg::Image* partner);
+        void wake(TextureIndex slot, const osg::Image* image, const osg::Image* partner);
 
         /// Takes `slot` out of the lookups and the census, empties it and reports it freed.
-        void release(Index texture);
+        void release(TextureIndex texture);
 
         /// Files the slots that came to rest since the last, by their slots, after every slot already filed, at the
         /// clock `compact` was last given.
@@ -345,37 +347,37 @@ namespace Rtx
         /// A row's place in the rest, for `RestQueue`.
         auto placeOf()
         {
-            return [this](const Index at) -> RestPlace& { return rowAt(at).mRest; };
+            return [this](const TextureIndex at) -> RestPlace<TextureIndex>& { return rowAt(at).mRest; };
         }
 
         /// Puts `row` in a free slot where there is one, in a new one otherwise, and counts the
         /// arrival.
-        Index takeSlot(TextureRow row);
+        TextureIndex takeSlot(TextureRow row);
 
-        /// The slot a file holds under each encoding and wrap, `sNoIndex` where it holds none.
-        using FileSlots = std::array<std::array<Index, sTextureWrapCount>, sTextureEncodingCount>;
+        /// The slot a file holds under each encoding and wrap, `sNoRow` where it holds none.
+        using FileSlots = std::array<std::array<TextureIndex, sTextureWrapCount>, sTextureEncodingCount>;
 
-        SlotChanges mChanges;
+        SlotChanges<TextureIndex> mChanges;
 
         /// The slots an ask found wanted finer than they stood whole from (`arriveFiner`), each once.
-        SlotSet mFiner;
+        SlotSet<TextureIndex> mFiner;
 
-        /// A material's ground slots, the albedo's and the gloss's, `sNoIndex` where it holds none.
-        using GroundSlots = std::array<Index, 2>;
+        /// A material's ground slots, the albedo's and the gloss's, `sNoRow` where it holds none.
+        using GroundSlots = std::array<TextureIndex, 2>;
 
-        /// Takes a slot for a bake, clamped, or `sNoIndex` where the table has no room.
-        Index takeBaked(TextureRow row);
+        /// Takes a slot for a bake, clamped, or `sNoRow` where the table has no room.
+        TextureIndex takeBaked(TextureRow row);
 
         /// The lookups, so that naming a texture again is the slot it already has, where a scan was
         /// O(materials x textures): a cell is a hundred of each and paid it on every material it
         /// resolved. An entry leaves its map when its last slot is freed.
         std::unordered_map<VFS::Path::Normalized, FileSlots, VFS::Path::Hash, std::equal_to<>> mPathIndex;
-        std::unordered_map<VFS::Path::Normalized, Index, VFS::Path::Hash, std::equal_to<>> mSpriteLightIndex;
-        std::unordered_map<Index, GroundSlots> mGroundIndex;
+        std::unordered_map<VFS::Path::Normalized, TextureIndex, VFS::Path::Hash, std::equal_to<>> mSpriteLightIndex;
+        std::unordered_map<MaterialIndex, GroundSlots> mGroundIndex;
 
         /// The slots that rest (`RestQueue`), and the scene's clock at the last `compact`, which a slot filed
         /// between two is filed at.
-        RestQueue mResting;
+        RestQueue<TextureIndex> mResting;
         std::uint64_t mClock = 0;
 
         /// What the rows that rest stand above their last want, their `mRestAbove` summed (`getRestingAboveWant`).

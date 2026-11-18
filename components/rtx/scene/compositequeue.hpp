@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <vector>
 
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/runs.hpp>
 
 #include "scenedesc.hpp"
@@ -42,7 +43,7 @@ namespace Rtx
         /// another chunk took over in the meantime is not handed the first one's ground.
         struct Asked
         {
-            Index mMaterial = sNoIndex;
+            MaterialIndex mMaterial = sNoRow;
             Run mLayers;
 
             bool operator==(const Asked& other) const = default;
@@ -75,11 +76,12 @@ namespace Rtx
         std::size_t mFront = 0;
         std::size_t mCount = 0;
 
-        /// Where in `mWaiting` each material's ask stands, `sNoIndex` where it has none: what
+        /// Where in `mWaiting` each material's ask stands, `sNoPosition` where it has none: what
         /// `gather` finds a chunk asking again by, without a pass over every waiting chunk for each
         /// written one. An ask stays in the ring after a newer one replaced it, naming no material,
         /// so a material has at most one position.
-        std::vector<Index> mPositions;
+        RowVector<std::uint32_t, MaterialIndex> mPositions;
+        static constexpr std::uint32_t sNoPosition = ~std::uint32_t{ 0 };
 
         /// The texture table's refusal of a composite, which holds the schedule until the table
         /// frees a slot: every chunk wants one, so the next would be refused the same way.

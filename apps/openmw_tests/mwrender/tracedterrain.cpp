@@ -353,7 +353,7 @@ namespace MWRender
             Rtx::Placement placed;
             placed.mStood.mTransform
                 = osg::Matrixf::translate(static_cast<float>(4.5 * cell), static_cast<float>(0.5 * cell), 300.0f);
-            placed.mStood.mSlot = 0;
+            placed.mStood.mSlot = Rtx::PlacementIndex(0);
             placed.mDrawable = quad.get();
             placed.mState.mRefNum = ESM::RefNum{ 42, 0 };
             making.mStood.mPlacedCell = osg::Vec2i(4, 0);
@@ -376,11 +376,11 @@ namespace MWRender
             ground.enable(true);
             EXPECT_EQ(metAlong(*making.mSceneRoot, from, to, Mask_Static).size(), 1u);
 
-            making.mStood.mPlacements[0].mStood.mSlot = Rtx::sNoIndex;
+            making.mStood.mPlacements[0].mStood.mSlot = Rtx::sNoRow;
             EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())
                 << "a static the ring does not stand";
 
-            making.mStood.mPlacements[0].mStood.mSlot = 0;
+            making.mStood.mPlacements[0].mStood.mSlot = Rtx::PlacementIndex(0);
             ground.loadCell(4, 0);
             EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())
                 << "the ring answered a loaded cell";
@@ -435,7 +435,7 @@ namespace MWRender
                 Rtx::Placement placed;
                 placed.mStood.mTransform
                     = osg::Matrixf::translate(static_cast<float>(4.5 * cell), static_cast<float>(0.5 * cell), 300.0f);
-                placed.mStood.mSlot = 0;
+                placed.mStood.mSlot = Rtx::PlacementIndex(0);
                 placed.mDrawable = deforming;
                 making.mStood.mPlacedCell = osg::Vec2i(4, 0);
                 making.mStood.mPlacements = { placed };

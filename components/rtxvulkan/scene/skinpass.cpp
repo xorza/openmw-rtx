@@ -54,7 +54,7 @@ namespace Rtx
     {
     }
 
-    void SkinPass::pose(VkCommandBuffer commands, const Skinning& what, const Index index, BlockedBuffer& into,
+    void SkinPass::pose(VkCommandBuffer commands, const Skinning& what, const MeshIndex index, BlockedBuffer& into,
         BlockedBuffer& normalsInto, BlockedBuffer& tangentsInto, const Pipeline*& bound) const
     {
         const SceneDesc& scene = what.mScene;
@@ -129,9 +129,9 @@ namespace Rtx
         // Every pose is written before one order, and the dispatches after it: staged into the batch
         // the dispatches record into, as a scene built from nothing poses, since a write and a
         // dispatch apiece would be a barrier a body.
-        std::vector<Index>& posing = what.mTables.getPosing();
+        std::vector<MeshIndex>& posing = what.mTables.getPosing();
         posing.clear();
-        what.mPoses.sync(what.mSlot, [&](const Index index, BlockedBuffer&) {
+        what.mPoses.sync(what.mSlot, [&](const MeshIndex index, BlockedBuffer&) {
             if (posable(what.mScene.meshes().getRows()[index]))
                 posing.push_back(index);
         });
@@ -147,7 +147,7 @@ namespace Rtx
         // kind for most of its length.
         const Pipeline* bound = nullptr;
         BlockedBuffer& into = what.mPoses.at(what.mSlot);
-        for (const Index index : posing)
+        for (const MeshIndex index : posing)
             pose(commands, what, index, into, what.mNormals, what.mTangents, bound);
 
         posed(commands);
@@ -155,7 +155,7 @@ namespace Rtx
     }
 
     bool SkinPass::recordArrived(
-        VkCommandBuffer commands, const Skinning& what, const std::span<const Index> arrived) const
+        VkCommandBuffer commands, const Skinning& what, const std::span<const MeshIndex> arrived) const
     {
         const Pipeline* bound = nullptr;
         bool recorded = false;
@@ -168,7 +168,7 @@ namespace Rtx
                 handOver(commands, Use::sBufferComputeWrite, Use::sBufferComputeWrite);
 
             BlockedBuffer& into = what.mPoses.at(FrameSlot{ copy });
-            for (const Index index : arrived)
+            for (const MeshIndex index : arrived)
             {
                 if (!posable(what.mScene.meshes().getRows()[index]))
                     continue;

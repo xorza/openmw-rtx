@@ -62,7 +62,7 @@ namespace
         for (std::uint32_t z = box.mLow.z(); z < box.mHigh.z(); ++z)
             for (std::uint32_t y = box.mLow.y(); y < box.mHigh.y(); ++y)
                 for (std::uint32_t x = box.mLow.x(); x < box.mHigh.x(); ++x)
-                    visit(static_cast<Rtx::Index>(Rtx::Shaders::lightGridCell(x, y, z, size.x(), size.y())),
+                    visit(Rtx::LightCellIndex(Rtx::Shaders::lightGridCell(x, y, z, size.x(), size.y())),
                         osg::Vec3ui(x, y, z));
     }
 
@@ -131,7 +131,7 @@ namespace Rtx
             if (box != mBoxes[at] || took != takes)
             {
                 const auto index = static_cast<std::uint32_t>(at);
-                forEachCell(mBoxes[at], mSize, [&](Index cell, const osg::Vec3ui& cellAt) {
+                forEachCell(mBoxes[at], mSize, [&](LightCellIndex cell, const osg::Vec3ui& cellAt) {
                     if (took != takes || !box.contains(cellAt))
                         leave(cell, took, index);
                 });
@@ -147,7 +147,7 @@ namespace Rtx
             const std::uint32_t takes = keyOf(mBinnedOn[moved.mIndex]);
             const bool rekeyed = moved.mTook != (takes != 0u);
             bool room = true;
-            forEachCell(mBoxes[moved.mIndex], mSize, [&](Index cell, const osg::Vec3ui& cellAt) {
+            forEachCell(mBoxes[moved.mIndex], mSize, [&](LightCellIndex cell, const osg::Vec3ui& cellAt) {
                 if (room && (rekeyed || !moved.mFrom.contains(cellAt)))
                     room = enter(cell, takes, moved.mIndex);
             });
@@ -254,8 +254,9 @@ namespace Rtx
         for (std::size_t index = 0; index < mBoxes.size(); ++index)
         {
             const std::uint32_t key = keyOf(mBinnedOn[index]);
-            forEachCell(mBoxes[index], mSize,
-                [&](Index cell, const osg::Vec3ui&) { ++mCells[cell].mCount[static_cast<std::int32_t>(key)]; });
+            forEachCell(mBoxes[index], mSize, [&](LightCellIndex cell, const osg::Vec3ui&) {
+                ++mCells[cell].mCount[static_cast<std::int32_t>(key)];
+            });
         }
 
         // Every run's block, packed in cell order; then room past them for every run to move to a
@@ -263,14 +264,14 @@ namespace Rtx
         // none, before the list runs out and the grid is made again.
         mRooms.resize(2 * cells);
         mEnd = 0;
-        for (std::size_t cell = 0; cell < cells; ++cell)
+        for (const LightCellIndex cell : everyRow<LightCellIndex>(cells))
         {
             Shaders::GpuLightCell& held = mCells[cell];
             for (std::uint32_t key = 0; key < 2; ++key)
             {
                 held.mFirst[static_cast<std::int32_t>(key)] = mEnd;
-                mRooms[2 * cell + key] = roomFor(held.mCount[static_cast<std::int32_t>(key)]);
-                mEnd += mRooms[2 * cell + key];
+                mRooms[2 * cell.at() + key] = roomFor(held.mCount[static_cast<std::int32_t>(key)]);
+                mEnd += mRooms[2 * cell.at() + key];
                 held.mCount[static_cast<std::int32_t>(key)] = 0;
             }
         }
@@ -280,7 +281,7 @@ namespace Rtx
         for (std::size_t index = 0; index < mBoxes.size(); ++index)
         {
             const std::uint32_t key = keyOf(mBinnedOn[index]);
-            forEachCell(mBoxes[index], mSize, [&](Index cell, const osg::Vec3ui&) {
+            forEachCell(mBoxes[index], mSize, [&](LightCellIndex cell, const osg::Vec3ui&) {
                 Shaders::GpuLightCell& held = mCells[cell];
                 mList[held.mFirst[static_cast<std::int32_t>(key)] + held.mCount[static_cast<std::int32_t>(key)]++]
                     = static_cast<std::uint32_t>(index);
@@ -288,7 +289,7 @@ namespace Rtx
         }
     }
 
-    void LightGrid::leave(Index cell, std::uint32_t key, std::uint32_t index)
+    void LightGrid::leave(const LightCellIndex cell, std::uint32_t key, std::uint32_t index)
     {
         Shaders::GpuLightCell& held = mCells[cell];
         const auto run = mList.begin() + held.mFirst[static_cast<std::int32_t>(key)];
@@ -301,10 +302,10 @@ namespace Rtx
         mRewritten.add(cell);
     }
 
-    bool LightGrid::enter(Index cell, std::uint32_t key, std::uint32_t index)
+    bool LightGrid::enter(const LightCellIndex cell, std::uint32_t key, std::uint32_t index)
     {
         Shaders::GpuLightCell& held = mCells[cell];
-        std::uint32_t& room = mRooms[2 * std::size_t{ cell } + key];
+        std::uint32_t& room = mRooms[2 * std::size_t{ cell.at() } + key];
         if (held.mCount[static_cast<std::int32_t>(key)] == room)
         {
             const std::uint32_t grown = std::max(2 * room, roomFor(1));

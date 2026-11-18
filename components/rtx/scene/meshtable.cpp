@@ -34,7 +34,7 @@ namespace Rtx
         return {};
     }
 
-    Index MeshTable::add(DeformerTable& deformers, const PackedMesh& mesh, Index deformer)
+    MeshIndex MeshTable::add(DeformerTable& deformers, const PackedMesh& mesh, DeformerIndex deformer)
     {
         assert(checkFits(mesh.mPositions.size(), mesh.mIndices.size()).isOk()
             && "a mesh past a block, which its reader was to refuse");
@@ -50,8 +50,8 @@ namespace Rtx
         assert(mesh.mColours.empty() || mesh.mColours.size() == positions.size());
         assert(mesh.mTangents.empty() || mesh.mTangents.size() == positions.size());
         assert(indices.size() % 3 == 0);
-        assert(deformer == sNoIndex
-            || (deformer < deformers.getRows().size() && deformers.getRows()[deformer].mKind != Deform::None
+        assert(deformer == sNoRow
+            || (deformers.getRows().holds(deformer) && deformers.getRows()[deformer].mKind != Deform::None
                 && deformers.getRows()[deformer].getVertexCount() == positions.size()
                 && "a deformer moves exactly the vertices of the mesh on it"));
 
@@ -97,13 +97,13 @@ namespace Rtx
         deformers.stand(range);
         mTriangles += range.getTriangleCount();
 
-        const Index index = takeRow(range);
+        const MeshIndex index = takeRow(range);
         writeArrival(index, mesh, bringsIndices);
         note(index, SlotNews::Arrived);
         return index;
     }
 
-    void MeshTable::note(Index slot, SlotNews what)
+    void MeshTable::note(MeshIndex slot, SlotNews what)
     {
         // Grown here rather than beside every push, so everything keyed on a mesh slot reaches the
         // table's size in one place. A resize to the size it already is does not allocate, which is
@@ -113,7 +113,7 @@ namespace Rtx
         mChanges.note(slot, what);
     }
 
-    void MeshTable::writeArrival(const Index mesh, const PackedMesh& packed, const bool bringsIndices)
+    void MeshTable::writeArrival(const MeshIndex mesh, const PackedMesh& packed, const bool bringsIndices)
     {
         const MeshRange& range = rowAt(mesh);
         const MeshArrivals::Filling into = mArrivals.add(mesh,
@@ -157,14 +157,14 @@ namespace Rtx
         mKeepsDigests = true;
     }
 
-    const MeshDigest& MeshTable::getDigest(const Index mesh) const
+    const MeshDigest& MeshTable::getDigest(const MeshIndex mesh) const
     {
         assert(mKeepsDigests && "a digest asked of a table that keeps none");
         assert((isLive(mesh) || rowAt(mesh).mRest.mResting) && "the digest of a mesh the table does not hold");
         return mDigests[mesh];
     }
 
-    void MeshTable::notePosed(Index mesh, const osg::BoundingBoxf& bounds)
+    void MeshTable::notePosed(MeshIndex mesh, const osg::BoundingBoxf& bounds)
     {
         MeshRange& range = rowAt(mesh);
         range.mPosed = true;
@@ -179,27 +179,27 @@ namespace Rtx
         mDeformed.add(mesh);
     }
 
-    Index MeshTable::add(DeformerTable& deformers, const PackedMesh& mesh)
+    MeshIndex MeshTable::add(DeformerTable& deformers, const PackedMesh& mesh)
     {
         assert(!mKeyIndex.contains(mesh.mKey) && "a key filed twice, which `find` answers first");
-        const Index added = add(deformers, mesh, sNoIndex);
+        const MeshIndex added = add(deformers, mesh, sNoRow);
         rowAt(added).mKey = mesh.mKey;
         mKeyIndex.emplace(mesh.mKey, added);
         return added;
     }
 
-    Index MeshTable::find(const MeshKey& key)
+    MeshIndex MeshTable::find(const MeshKey& key)
     {
         const auto known = mKeyIndex.find(key);
         if (known == mKeyIndex.end())
-            return sNoIndex;
+            return sNoRow;
 
         if (rowAt(known->second).mRest.mResting)
             wake(known->second);
         return known->second;
     }
 
-    void MeshTable::stand(const Index mesh, const std::uint64_t structureBytes)
+    void MeshTable::stand(const MeshIndex mesh, const std::uint64_t structureBytes)
     {
         assert(isLive(mesh) && "a mesh stood that the table does not hold");
         MeshRange& range = rowAt(mesh);
@@ -211,7 +211,7 @@ namespace Rtx
         range.mRest.mFit = 0;
     }
 
-    void MeshTable::fit(const Index mesh, const std::uint64_t bytes, const std::uint64_t alignment)
+    void MeshTable::fit(const MeshIndex mesh, const std::uint64_t bytes, const std::uint64_t alignment)
     {
         assert((isLive(mesh) || rowAt(mesh).mRest.mResting) && "a mesh the table does not hold fitted");
         mResting.fit(mesh, bytes, alignment, placeOf());
@@ -220,14 +220,14 @@ namespace Rtx
     bool MeshTable::releaseFitting(DeformerTable& deformers, const std::uint64_t hole, const std::uint64_t alignment)
     {
         settleResting();
-        const Index fitting = mResting.firstFitting(hole, alignment, placeOf());
-        if (fitting == sNoIndex)
+        const MeshIndex fitting = mResting.firstFitting(hole, alignment, placeOf());
+        if (fitting == sNoRow)
             return false;
         release(deformers, fitting);
         return true;
     }
 
-    void MeshTable::drop(DeformerTable& deformers, const Index mesh)
+    void MeshTable::drop(DeformerTable& deformers, const MeshIndex mesh)
     {
         if (!dropRow(mesh))
             return;
@@ -241,7 +241,7 @@ namespace Rtx
             release(deformers, mesh);
     }
 
-    void MeshTable::rest(const Index mesh)
+    void MeshTable::rest(const MeshIndex mesh)
     {
         const MeshRange& range = rowAt(mesh);
         mResting.rest(mesh, range.mStoodBytes, placeOf());
@@ -249,7 +249,7 @@ namespace Rtx
         mRestingGeometry.mIndices += range.mIndices.mCount;
     }
 
-    void MeshTable::wake(const Index mesh)
+    void MeshTable::wake(const MeshIndex mesh)
     {
         const MeshRange& range = rowAt(mesh);
         mResting.wake(mesh, range.mStoodBytes, placeOf());
@@ -262,11 +262,11 @@ namespace Rtx
     void MeshTable::releaseOldest(DeformerTable& deformers)
     {
         settleResting();
-        assert(mResting.first() != sNoIndex && "the oldest freed where nothing rests");
+        assert(mResting.first() != sNoRow && "the oldest freed where nothing rests");
         release(deformers, mResting.first());
     }
 
-    void MeshTable::release(DeformerTable& deformers, const Index mesh)
+    void MeshTable::release(DeformerTable& deformers, const MeshIndex mesh)
     {
         MeshRange& range = rowAt(mesh);
         if (range.mRest.mResting)

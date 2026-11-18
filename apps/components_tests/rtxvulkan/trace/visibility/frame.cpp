@@ -181,7 +181,7 @@ namespace Rtx::Testing
             }
 
             SceneDesc bare(identities);
-            addQuad(bare, sWallQuad, sNoIndex);
+            addQuad(bare, sWallQuad, sNoRow);
             const Frame white = shoot(bare, {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_EQ(white.byte(centreValueOf(size) + channel), 255) << "channel " << channel;
@@ -322,7 +322,7 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
             SceneDesc bare(identities);
-            addQuad(bare, sWallQuad, sNoIndex);
+            addQuad(bare, sWallQuad, sNoRow);
 
             constexpr std::int32_t byte = 110;
             double previousMean = 0.0;
@@ -393,7 +393,7 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
             SceneDesc bare(identities);
-            addQuad(bare, sWallQuad, sNoIndex);
+            addQuad(bare, sWallQuad, sNoRow);
 
             std::int32_t previous = 0;
             std::size_t scattered = 0;
@@ -455,7 +455,7 @@ namespace Rtx::Testing
             const std::array positions = uprightQuadAt(30.0f, 0.0f);
 
             SceneDesc scene(identities);
-            const Index mesh = addQuadMesh(scene, positions);
+            const MeshIndex mesh = addQuadMesh(scene, positions);
             scene.addInstance(MeshInstance{ .mMesh = mesh });
 
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -976,7 +976,7 @@ namespace Rtx::Testing
                 = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, far);
 
             SceneDesc scene(identities);
-            const Index wall
+            const MeshIndex wall
                 = addOneBoneBody(scene, MeshArrays{ .mPositions = wallAt(200.0f), .mIndices = sQuadIndices }).mMesh;
             scene.addInstance(MeshInstance{ .mMesh = wall });
             poseByOneBone(scene, wall, wallAt(200.0f), osg::Matrixf::identity());
@@ -1103,7 +1103,8 @@ namespace Rtx::Testing
 
             constexpr std::array<std::uint8_t, 4> sGrey{ 128, 128, 128, 255 };
             constexpr std::array<std::uint8_t, 4> sRed{ 255, 0, 0, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(sGrey, 0), describeTexel(sRed, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(sGrey, TextureIndex(0)),
+                describeTexel(sRed, TextureIndex(1)) };
 
             const std::array<osg::Vec3f, 4> pane{
                 osg::Vec3f(60.0f, 100.0f, -20.0f),
@@ -1114,8 +1115,8 @@ namespace Rtx::Testing
 
             const auto sceneWith = [&](float fade) {
                 SceneDesc scene(identities);
-                const Index grey = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
-                const Index red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+                const TextureIndex grey = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
+                const TextureIndex red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
                 scene.addInstance(MeshInstance{
                     .mMesh = Testing::addMesh(
                         scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
@@ -1208,14 +1209,15 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> mirror{ 255, 26, 255, 255 };
             Testing::TestTexture ladder;
             Testing::paintMipLadder(ladder);
-            std::array<TextureData, 3> textures{ describeTexel(white, 0), describeTexel(mirror, 1), ladder.mData };
-            textures[2].mSlot = 2;
+            std::array<TextureData, 3> textures{ describeTexel(white, TextureIndex(0)),
+                describeTexel(mirror, TextureIndex(1)), ladder.mData };
+            textures[2].mSlot = TextureIndex(2);
 
             SceneDesc scene(identities);
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
-            const Index map = scene.textures().add(
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-            const Index painted = scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
+            const TextureIndex painted = scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
             scene.addInstance(MeshInstance{
                 .mMesh = Testing::addMesh(scene,
                     MeshArrays{

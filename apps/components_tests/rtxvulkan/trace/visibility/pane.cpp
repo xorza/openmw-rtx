@@ -47,7 +47,7 @@ namespace Rtx::Testing
             SceneDesc mScene;
 
             /// The pane's slot, which a test moves it by.
-            Index mPane;
+            PlacementIndex mPane;
         };
 
         /// The four lamps of four colours a hundred units in front of a pane `away` units ahead.
@@ -72,7 +72,8 @@ namespace Rtx::Testing
             constexpr float away = 200.0f;
 
             SceneDesc scene(identities);
-            const Index pane = addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
+            const PlacementIndex pane
+                = addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
             addLampsBefore(scene, away);
 
             return PaneUnderLamps{ .mScene = std::move(scene), .mPane = pane };
@@ -204,7 +205,7 @@ namespace Rtx::Testing
             constexpr float away = 200.0f;
             SceneDesc scene(identities);
             addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
-            const Index blocker
+            const MaterialIndex blocker
                 = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
             addQuad(scene, uprightQuadAt(1000.0f, -50.0f, osg::Vec2f(-1000.0f + 0.3f, 0.0f)), blocker);
             scene.addLight(Light{
@@ -318,12 +319,13 @@ namespace Rtx::Testing
             const auto under = [&](std::uint8_t blue) {
                 constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
                 const std::array<std::uint8_t, 4> mapTexel{ 0, 128, blue, 255 };
-                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, TextureIndex(0)),
+                    describeTexel(mapTexel, TextureIndex(1)) };
 
                 SceneDesc scene(identities);
                 addLampsBefore(scene, 200.0f);
-                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
-                const Index map = scene.textures().add(
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
+                const TextureIndex map = scene.textures().add(
                     VFS::Path::NormalizedView("pane_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                 scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, uprightQuadAt(4000.0f, 200.0f)),
                     .mMaterial = scene.addMaterial(Material{
@@ -354,14 +356,15 @@ namespace Rtx::Testing
             SceneIdentities identities;
             constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
             constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 0, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
+                describeTexel(sMetalTexel, TextureIndex(1)) };
 
             SceneDesc scene(identities);
             addLampsBefore(scene, 200.0f);
-            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
-            const Index map = scene.textures().add(
+            const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
+            const TextureIndex map = scene.textures().add(
                 VFS::Path::NormalizedView("pane_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-            const Index metal = scene.addMaterial(
+            const MaterialIndex metal = scene.addMaterial(
                 Material{ .mDiffuse = diffuse, .mSpecular = map, .mOpacity = 0.5f, .mAlphaMode = AlphaMode::Blend });
             scene.addInstance(
                 MeshInstance{ .mMesh = addQuadMesh(scene, uprightQuadAt(4000.0f, 200.0f)), .mMaterial = metal });

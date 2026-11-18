@@ -89,11 +89,11 @@ namespace Rtx::Testing
             // A wall to trace, and a second one behind it skinned to one bone so that there is a body
             // to pose.
             SceneDesc scene = makeWall(identities);
-            const Index body
+            const MeshIndex body
                 = addOneBoneBody(scene, MeshArrays{ .mPositions = sWallQuad, .mIndices = sQuadIndices }).mMesh;
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::translate(0.0f, 100.0f, 0.0f), .mMesh = body });
             poseByOneBone(scene, body, sWallQuad, osg::Matrixf::identity());
-            const Index puff = scene.textures().add(VFS::Path::NormalizedView("puff.dds"));
+            const TextureIndex puff = scene.textures().add(VFS::Path::NormalizedView("puff.dds"));
 
             renderer.resize(size, size);
             renderer.setScene(Rtx::SceneSlot::world(), scene, {});
@@ -228,7 +228,7 @@ namespace Rtx::Testing
             const std::vector<std::uint8_t> texels(std::size_t{ extent } * extent * 4, 0xFF);
             const std::array<MipLevel, 1> levels{ MipLevel{ 0, extent, extent } };
 
-            const auto describe = [&](std::uint32_t slot) {
+            const auto describe = [&](TextureIndex slot) {
                 return TextureData{
                     .mSlot = slot,
                     .mFormat = TextureFormat::Rgba8Unorm,
@@ -250,7 +250,7 @@ namespace Rtx::Testing
             // Held across the arrivals as a scene holds its own, and never written to: a device
             // with room refuses nothing.
             DeviceAnswer answer;
-            const auto arrive = [&](Batch& batch, std::uint32_t slot) {
+            const auto arrive = [&](Batch& batch, TextureIndex slot) {
                 const TextureData described = describe(slot);
                 array.write(batch, passes, rooms, std::span(&described, 1), TextureArray::noWants(), answer,
                     WhenRoomless::Refuses, nullptr);
@@ -258,7 +258,7 @@ namespace Rtx::Testing
 
             {
                 Batch warm(pool);
-                arrive(warm, 0);
+                arrive(warm, TextureIndex(0));
                 warm.flush();
             }
 
@@ -269,7 +269,7 @@ namespace Rtx::Testing
 
             const std::size_t spent = Testing::allocationsIn([&] {
                 for (std::uint32_t slot = 1; slot <= measured; ++slot)
-                    arrive(batch, slot);
+                    arrive(batch, TextureIndex(slot));
             });
 
             batch.flush();

@@ -107,8 +107,8 @@ namespace Rtx
 
             SceneIdentities mIdentities;
             SceneDesc mScene{ mIdentities };
-            Index mWall = 0;
-            Index mInstance = 0;
+            MeshIndex mWall = MeshIndex(0);
+            PlacementIndex mInstance = PlacementIndex(0);
         };
 
         /// Nothing in flight is nothing to finish, and a frame finished once is finished.
@@ -146,9 +146,9 @@ namespace Rtx
             // away rather than by a hundred quads landing over it.
             for (std::int32_t at = 0; at < 100; ++at)
             {
-                const Index arrived = Testing::addOneBoneBody(
+                const MeshIndex arrived = Testing::addOneBoneBody(
                     mScene, MeshArrays{ .mPositions = Testing::wallAt(-1000.0f), .mIndices = Testing::sQuadIndices })
-                                          .mMesh;
+                                              .mMesh;
                 mScene.addInstance(MeshInstance{ .mMesh = arrived });
                 Testing::poseByOneBone(mScene, arrived, Testing::wallAt(-1000.0f), osg::Matrixf::identity());
             }
@@ -173,7 +173,7 @@ namespace Rtx
             const std::uint64_t meshesBefore = mScene.meshes().getRevision();
 
             constexpr std::array<float, 1> sMask{ 1.0f };
-            const std::array layers{ Testing::layerOf(sNoIndex, mScene.materials().addMask(sMask), 1, 1) };
+            const std::array layers{ Testing::layerOf(sNoRow, mScene.materials().addMask(sMask), 1, 1) };
             Material ground;
             ground.mKind = MaterialKind::Terrain;
             ground.mLayers = mScene.materials().addLayers(layers);
@@ -394,7 +394,7 @@ namespace Rtx
         /// something.
         TEST_F(RtxFramesTest, aRowAppendedWhileTheOtherCopyWasInFlightReachesIt)
         {
-            const Index arrived = mScene.addInstance(
+            const PlacementIndex arrived = mScene.addInstance(
                 MeshInstance{ .mTransform = osg::Matrixf::translate(0.0f, -1200.0f, 0.0f), .mMesh = mWall });
             mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
             mProbe.traceFrame(ahead(), FrameOptions{});
@@ -534,9 +534,9 @@ namespace Rtx
             {
                 mScene.clearPlacement();
                 mScene.clearArrivals();
-                const Index arrived = Testing::addOneBoneBody(
+                const MeshIndex arrived = Testing::addOneBoneBody(
                     mScene, MeshArrays{ .mPositions = Testing::wallAt(200.0f), .mIndices = Testing::sQuadIndices })
-                                          .mMesh;
+                                              .mMesh;
                 mScene.addInstance(MeshInstance{ .mMesh = arrived });
                 Testing::poseByOneBone(mScene, arrived, Testing::wallAt(200.0f),
                     osg::Matrixf::translate(0.0f, -10.0f * static_cast<float>(copy + 1), 0.0f));
@@ -571,10 +571,10 @@ namespace Rtx
             const std::array normals{ leaning, leaning, leaning, leaning };
 
             SceneDesc scene(identities);
-            const Index body = Testing::addOneBoneBody(scene,
+            const MeshIndex body = Testing::addOneBoneBody(scene,
                 MeshArrays{
                     .mPositions = Testing::wallAt(200.0f), .mNormals = normals, .mIndices = Testing::sQuadIndices })
-                                   .mMesh;
+                                       .mMesh;
             scene.addInstance(MeshInstance{ .mMesh = body });
 
             const osg::Vec3f back(-1.0f, -1.0f, 0.0f);
@@ -812,9 +812,9 @@ namespace Rtx
 
             // A second body, arriving now and posed alone on the placement that brings it: its
             // arrival built it whole for that placement, so the placement builds nothing whole.
-            const Index second = Testing::addOneBoneBody(
+            const MeshIndex second = Testing::addOneBoneBody(
                 mScene, MeshArrays{ .mPositions = Testing::wallAt(300.0f), .mIndices = Testing::sQuadIndices })
-                                     .mMesh;
+                                         .mMesh;
             mScene.addInstance(MeshInstance{ .mMesh = second });
             mScene.clearPlacement();
             Testing::poseByOneBone(mScene, second, Testing::wallAt(300.0f), osg::Matrixf::identity());
@@ -867,8 +867,8 @@ namespace Rtx
             // world's placement would carry the picture on its own submit.
             const SceneSlot doll = mRenderer.addViewScene();
             SceneDesc scene(identities);
-            const Index wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
-            const Index standing = scene.addInstance(MeshInstance{ .mMesh = wall });
+            const MeshIndex wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
+            const PlacementIndex standing = scene.addInstance(MeshInstance{ .mMesh = wall });
             mRenderer.setScene(doll, scene, {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
@@ -906,7 +906,7 @@ namespace Rtx
             SceneIdentities identities;
             const SceneSlot doll = mRenderer.addViewScene();
             SceneDesc scene(identities);
-            const Index wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
+            const MeshIndex wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
             scene.addInstance(MeshInstance{ .mMesh = wall });
 
             const Timeline& timeline = mProbe.getDevice().getTimeline();
@@ -954,7 +954,7 @@ namespace Rtx
             SceneIdentities identities;
             const SceneSlot doll = mRenderer.addViewScene();
             SceneDesc scene(identities);
-            const Index wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
+            const MeshIndex wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
             scene.addInstance(MeshInstance{ .mMesh = wall });
             mRenderer.setScene(doll, scene, {});
 

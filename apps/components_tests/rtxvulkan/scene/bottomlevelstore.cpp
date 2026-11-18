@@ -42,7 +42,7 @@ namespace Rtx
     {
         /// A level grid of `side` quads a side at height `z`: a cell's ground at sixty-four, which
         /// is large enough that a tight copy of its structure is smaller than the loose one.
-        Index addGrid(SceneDesc& scene, const std::uint32_t side, const float z)
+        MeshIndex addGrid(SceneDesc& scene, const std::uint32_t side, const float z)
         {
             std::vector<osg::Vec3f> positions;
             std::vector<osg::Vec3f> normals;
@@ -68,7 +68,7 @@ namespace Rtx
         {
             SceneIdentities mIdentities;
             SceneDesc mScene{ mIdentities };
-            SlotBlocks mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            SlotBlocks<MeshIndex> mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer mPositions{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
             bool mOpened = false;
@@ -93,13 +93,13 @@ namespace Rtx
                 mPoses.reserve(setup, tables.deformers().getBindVertexCount());
                 mPositions.reserve(setup, tables.meshes().getVertexRuns().getEnd());
                 mIndices.reserve(setup, tables.meshes().getIndexRuns().getEnd());
-                const std::span<const MeshRange> rows = tables.meshes().getRows();
-                for (std::size_t at = 0; at < rows.size(); ++at)
+                const auto rows = tables.meshes().getRows();
+                for (const MeshIndex at : everyRow<MeshIndex>(rows.size()))
                 {
                     const MeshRange& range = rows[at];
                     if (range.mVertices.empty())
                         continue;
-                    const MeshGeometry geometry = tables.meshes().getArrival(static_cast<Index>(at));
+                    const MeshGeometry geometry = tables.meshes().getArrival(at);
                     if (!range.deforms())
                         mPositions.writeAt(setup, range.mVertices.mOffset, geometry.mPositions);
                     mIndices.writeAt(setup, range.mIndices.mOffset, geometry.mIndices);
@@ -111,7 +111,7 @@ namespace Rtx
             }
 
             /// Builds and waits, so the answers are on the device when this returns.
-            void build(BottomLevelStore& store, std::span<const Index> meshes,
+            void build(BottomLevelStore& store, std::span<const MeshIndex> meshes,
                 BuildCompaction compaction = BuildCompaction::Streamed)
             {
                 Batch batch(getPool());
@@ -123,7 +123,7 @@ namespace Rtx
             }
 
             /// Builds into a batch that rides the pool's next submit, which nothing has made yet.
-            void buildDeferred(BottomLevelStore& store, std::span<const Index> meshes)
+            void buildDeferred(BottomLevelStore& store, std::span<const MeshIndex> meshes)
             {
                 Batch batch(getPool());
                 std::vector<Refusal> refused;
@@ -134,9 +134,9 @@ namespace Rtx
             }
 
             /// One placement: what it copies is recorded and run, so the next can build on it.
-            const SlotSet& place(BottomLevelStore& store)
+            const SlotSet<MeshIndex>& place(BottomLevelStore& store)
             {
-                const SlotSet& moved = store.prepareCompaction();
+                const SlotSet<MeshIndex>& moved = store.prepareCompaction();
                 if (!moved.empty())
                 {
                     Batch batch(getPool());
@@ -170,7 +170,7 @@ namespace Rtx
 
         TEST_F(RtxBottomLevelStoreTest, anAnswerIsReadOnceItsOwnSubmitHasRunAndNotBefore)
         {
-            const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+            const std::array<MeshIndex, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 64, 2.0f) };
             stage();
 
@@ -179,7 +179,7 @@ namespace Rtx
             // Waited for, so the first placement reads it — and the build after it changes nothing.
             build(store, std::span(grids).subspan(0, 1));
             build(store, std::span(grids).subspan(1, 1));
-            const SlotSet& atOne = place(store);
+            const SlotSet<MeshIndex>& atOne = place(store);
             EXPECT_TRUE(atOne.has(grids[0])) << "a question whose submit has run was not read";
             EXPECT_TRUE(atOne.has(grids[1])) << "a question whose submit has run was not read";
 
@@ -206,7 +206,7 @@ namespace Rtx
         /// report says is left to save does not count it.
         TEST_F(RtxBottomLevelStoreTest, aStructureReleasedBeforeItsAnswerIsReadIsForgotten)
         {
-            const std::array<Index, 2> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f) };
+            const std::array<MeshIndex, 2> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f) };
             stage();
 
             BottomLevelStore store(getDevice());
@@ -219,12 +219,13 @@ namespace Rtx
             // — what the hand-over relies on: a slot the scene took and gave back inside one frame
             // reaches the backend as gone, and the last word of a slot given back and taken over
             // is arrived, so the same slot can be told gone again a frame later.
-            const std::array<Index, 2> unbuilt{ grids[0], static_cast<Index>(mScene.meshes().size() + 7) };
+            const std::array<MeshIndex, 2> unbuilt{ grids[0],
+                MeshIndex(static_cast<std::uint32_t>(mScene.meshes().size() + 7)) };
             store.release(unbuilt);
             EXPECT_EQ(store.getStructure(grids[0]), VK_NULL_HANDLE);
             EXPECT_NE(store.getStructure(grids[1]), VK_NULL_HANDLE);
 
-            const SlotSet& moved = place(store);
+            const SlotSet<MeshIndex>& moved = place(store);
             EXPECT_FALSE(moved.has(grids[0])) << "a released structure was copied";
             EXPECT_TRUE(moved.has(grids[1])) << "the structure still standing was not copied";
 
@@ -244,14 +245,14 @@ namespace Rtx
         /// pool.
         TEST_F(RtxBottomLevelStoreTest, aQuestionThePoolIsReplacedUnderIsAskedAgain)
         {
-            const Index first = addGrid(mScene, 64, 0.0f);
-            const Index unbuilt = addGrid(mScene, 64, 1.0f);
+            const MeshIndex first = addGrid(mScene, 64, 0.0f);
+            const MeshIndex unbuilt = addGrid(mScene, 64, 1.0f);
             stage();
 
             BottomLevelStore store(getDevice());
             buildDeferred(store, std::span(&first, 1));
 
-            const std::array<Index, 3> late{ addGrid(mScene, 64, 4.0f), addGrid(mScene, 64, 2.0f),
+            const std::array<MeshIndex, 3> late{ addGrid(mScene, 64, 4.0f), addGrid(mScene, 64, 2.0f),
                 addGrid(mScene, 64, 3.0f) };
             stage();
             build(store, late);
@@ -266,12 +267,12 @@ namespace Rtx
             EXPECT_TRUE(answer.mMeshFits.empty()) << "a structure standing loose gave back room a copy takes";
             answer.clear();
 
-            const SlotSet& moved = place(store);
+            const SlotSet<MeshIndex>& moved = place(store);
             store.takeAnswer(answer);
             EXPECT_TRUE(answer.mMeshes.empty()) << "a copy made tight said its size";
             EXPECT_TRUE(moved.has(first)) << "a question lost with the pool it was asked through";
-            for (const Index grid : late)
-                EXPECT_TRUE(moved.has(grid)) << "grid " << grid << " built beside the pool's growth";
+            for (const MeshIndex grid : late)
+                EXPECT_TRUE(moved.has(grid)) << "grid " << grid.at() << " built beside the pool's growth";
             EXPECT_FALSE(moved.has(unbuilt)) << "a slot never built was asked about";
             EXPECT_EQ(moved.getSlots().size(), 4u);
 
@@ -280,16 +281,16 @@ namespace Rtx
 
             // **What each copy gives back once it rests is its room**: the four copied, and nothing else, whose rooms
             // are every unit the kept storage holds once the loose rooms are given back.
-            std::vector<Index> fitted;
+            std::vector<MeshIndex> fitted;
             VkDeviceSize fits = 0;
-            for (const FitBytes& fit : answer.mMeshFits)
+            for (const FitBytes<MeshIndex>& fit : answer.mMeshFits)
             {
                 fitted.push_back(fit.mSlot);
                 fits += fit.mBytes;
                 EXPECT_EQ(fit.mBytes % StructureStorage::sAlignment, 0u) << "a room not in the storage's units";
             }
             std::ranges::sort(fitted);
-            std::vector<Index> copied{ first, late[0], late[1], late[2] };
+            std::vector<MeshIndex> copied{ first, late[0], late[1], late[2] };
             std::ranges::sort(copied);
             EXPECT_EQ(fitted, copied);
             getDevice().waitIdle();
@@ -319,7 +320,7 @@ namespace Rtx
         /// is not there for `sMostRoomWaits` placements, the mesh is refused.
         TEST_F(RtxBottomLevelStoreTest, aMeshTheDeviceHasNoRoomForIsLeftOutAndPlacesNothing)
         {
-            const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+            const std::array<MeshIndex, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 64, 2.0f) };
             stage();
 
@@ -367,7 +368,7 @@ namespace Rtx
 
             // Let go of, with a texture resting so room is coming, and refused again.
             store.release(std::span(grids).subspan(1, 1));
-            const Index resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
+            const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
             mScene.textures().stand(resting, 64, false, 0);
             mScene.drop(mScene.holdTexture(resting));
             mScene.compact();
@@ -448,7 +449,7 @@ namespace Rtx
         /// storage too, and refused while a texture rests, wants a hole of its build.
         TEST_F(RtxBottomLevelStoreTest, aCopyTheStorageHasNoRoomForWantsARoomAsLargeAsItsOwn)
         {
-            const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+            const std::array<MeshIndex, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 64, 2.0f) };
             stage();
 
@@ -469,8 +470,7 @@ namespace Rtx
             }
             answer.clear();
             store.takeAnswer(answer);
-            EXPECT_EQ(answer.mWants,
-                (std::vector<RoomWant>{ RoomWant{ .mKind = RestKind::Mesh, .mSlot = grids[2], .mHole = room } }));
+            EXPECT_EQ(answer.mWants, (std::vector<RoomWant>{ RoomWant{ .mWaiter = grids[2], .mHole = room } }));
             answer.clear();
             store.takeAnswer(answer);
             EXPECT_TRUE(answer.mWants.empty()) << "a want said twice";
@@ -480,10 +480,10 @@ namespace Rtx
             const std::vector<osg::Vec3f> corners{ { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
             const std::vector<osg::Vec3f> up(3, osg::Vec3f(0, 0, 1));
             const std::vector<std::uint32_t> triangle{ 0, 1, 2 };
-            const Index body = Testing::addOneBoneBody(
+            const MeshIndex body = Testing::addOneBoneBody(
                 mScene, MeshArrays{ .mPositions = corners, .mNormals = up, .mIndices = triangle })
-                                   .mMesh;
-            const Index resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
+                                       .mMesh;
+            const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
             mScene.textures().stand(resting, 64, false, 0);
             mScene.drop(mScene.holdTexture(resting));
             mScene.compact();
@@ -512,9 +512,7 @@ namespace Rtx
             const auto built = std::ranges::find(answer.mMeshes, body, &StoodMesh::mMesh);
             ASSERT_NE(built, answer.mMeshes.end());
             EXPECT_EQ(bodyWant,
-                (RoomWant{ .mKind = RestKind::Mesh,
-                    .mSlot = body,
-                    .mHole = alignUp(built->mStructureBytes, StructureStorage::sAlignment) }));
+                (RoomWant{ .mWaiter = body, .mHole = alignUp(built->mStructureBytes, StructureStorage::sAlignment) }));
             EXPECT_TRUE(answer.mWants.empty()) << "a body that stands wanted room";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
@@ -529,15 +527,15 @@ namespace Rtx
         /// would be a reported hazard.
         TEST_F(RtxBottomLevelStoreTest, aBuildRunsInRunsThatFitItsRoom)
         {
-            const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+            const std::array<MeshIndex, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 64, 2.0f), addGrid(mScene, 64, 3.0f) };
             stage();
 
             const auto scratchOf = [&](const VkDeviceSize room) {
                 BottomLevelStore store(getDevice(), room);
                 build(store, grids);
-                for (const Index grid : grids)
-                    EXPECT_TRUE(store.stands(grid)) << "room " << room << ", grid " << grid;
+                for (const MeshIndex grid : grids)
+                    EXPECT_TRUE(store.stands(grid)) << "room " << room << ", grid " << grid.at();
                 const VkDeviceSize scratch = store.getScratchBytes();
                 getDevice().waitIdle();
                 getDevice().collectIdle();
@@ -559,10 +557,10 @@ namespace Rtx
             const std::vector<osg::Vec3f> corners{ { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
             const std::vector<osg::Vec3f> up(3, osg::Vec3f(0, 0, 1));
             const std::vector<std::uint32_t> triangle{ 0, 1, 2 };
-            const Index body = Testing::addOneBoneBody(
+            const MeshIndex body = Testing::addOneBoneBody(
                 mScene, MeshArrays{ .mPositions = corners, .mNormals = up, .mIndices = triangle })
-                                   .mMesh;
-            const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+                                       .mMesh;
+            const std::array<MeshIndex, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 1, 2.0f) };
             stage();
 
@@ -575,9 +573,9 @@ namespace Rtx
             build(store, grids);
             EXPECT_GT(store.getLooseBytes(), 0u);
 
-            const SlotSet& moved = place(store);
-            for (const Index grid : grids)
-                EXPECT_TRUE(moved.has(grid)) << "grid " << grid << " stayed in the loose storage";
+            const SlotSet<MeshIndex>& moved = place(store);
+            for (const MeshIndex grid : grids)
+                EXPECT_TRUE(moved.has(grid)) << "grid " << grid.at() << " stayed in the loose storage";
             EXPECT_FALSE(moved.has(body)) << "a structure built to be refitted was copied";
 
             // The loose rooms cool under the copies' submit, and the next placement hands them back.
@@ -602,7 +600,7 @@ namespace Rtx
             const std::vector<osg::Vec3f> up(3, osg::Vec3f(0, 0, 1));
             const std::vector<std::uint32_t> triangle{ 0, 1, 2 };
             const MeshArrays arrays{ .mPositions = corners, .mNormals = up, .mIndices = triangle };
-            const std::array<Index, 2> bodies{ Testing::addOneBoneBody(mScene, arrays).mMesh,
+            const std::array<MeshIndex, 2> bodies{ Testing::addOneBoneBody(mScene, arrays).mMesh,
                 Testing::addOneBoneBody(mScene, arrays).mMesh };
             stage();
 
@@ -613,13 +611,13 @@ namespace Rtx
             EXPECT_EQ(store.pickRebuild(bodies, 1), bodies[0]);
             EXPECT_EQ(store.pickRebuild(bodies, 2), bodies[1]);
             EXPECT_EQ(store.pickRebuild(bodies, 3), bodies[0]);
-            EXPECT_EQ(store.pickRebuild(std::span(bodies.data(), 1), 3), sNoIndex) << "a body rebuilt twice at once";
-            EXPECT_EQ(store.pickRebuild({}, 4), sNoIndex);
+            EXPECT_EQ(store.pickRebuild(std::span(bodies.data(), 1), 3), sNoRow) << "a body rebuilt twice at once";
+            EXPECT_EQ(store.pickRebuild({}, 4), sNoRow);
 
             const VkDeviceSize alignment = getDevice().getPhysicalDevice().getStructureScratchAlignment();
             VkDeviceSize updates = 0;
             VkDeviceSize rebuild = 0;
-            for (const Index body : bodies)
+            for (const MeshIndex body : bodies)
             {
                 const VkDeviceSize update
                     = alignUp(store.getScratchFor(body, VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR), alignment);
@@ -642,7 +640,7 @@ namespace Rtx
         /// placement copies them.
         TEST_F(RtxBottomLevelStoreTest, aSettledBuildReturnsWithEveryStructureCopiedOut)
         {
-            const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+            const std::array<MeshIndex, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 64, 2.0f), addGrid(mScene, 64, 3.0f) };
             stage();
 
@@ -652,10 +650,10 @@ namespace Rtx
                 EXPECT_EQ(store.getLooseLiveBytes(), 0u) << "a loose structure outlived a settled build";
                 EXPECT_EQ(store.getLiveBytes(), store.getBytes() - store.getLooseBytes())
                     << "copies left room between them";
-                for (const Index grid : grids)
+                for (const MeshIndex grid : grids)
                 {
-                    EXPECT_TRUE(store.stands(grid)) << "grid " << grid;
-                    EXPECT_NE(store.getAddress(grid), 0u) << "grid " << grid;
+                    EXPECT_TRUE(store.stands(grid)) << "grid " << grid.at();
+                    EXPECT_NE(store.getAddress(grid), 0u) << "grid " << grid.at();
                 }
                 EXPECT_TRUE(place(store).empty()) << "a settled build left a copy for a placement";
                 getDevice().waitIdle();
@@ -675,7 +673,7 @@ namespace Rtx
         /// left and the block's rest, and no second block.
         TEST_F(RtxBottomLevelStoreTest, everyBlockIsContentsBlockAndAnArrivalTakesItsHolesFirst)
         {
-            const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+            const std::array<MeshIndex, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 8, 2.0f), addGrid(mScene, 64, 3.0f) };
             stage();
 

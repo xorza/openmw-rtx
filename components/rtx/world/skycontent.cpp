@@ -67,7 +67,7 @@ namespace Rtx
 
     const CloudSheet* SkyContent::drawable(std::uint32_t sheet) const
     {
-        if (sheet >= mSheets.size() || mSheets[sheet].mTexture == sNoIndex)
+        if (sheet >= mSheets.size() || mSheets[sheet].mTexture == sNoRow)
             return nullptr;
 
         return &mSheets[sheet];
@@ -142,8 +142,8 @@ namespace Rtx
             .mCurvature = textures.mShell.mCurvature,
             .mRings = textures.mShell.mRings,
 
-            .mTexture = first != nullptr ? static_cast<std::uint32_t>(first->mTexture) : Shaders::NO_TEXTURE,
-            .mNext = second != nullptr ? static_cast<std::uint32_t>(second->mTexture) : Shaders::NO_TEXTURE,
+            .mTexture = first != nullptr ? first->mTexture.at() : Shaders::NO_TEXTURE,
+            .mNext = second != nullptr ? second->mTexture.at() : Shaders::NO_TEXTURE,
         };
     }
 
@@ -151,7 +151,7 @@ namespace Rtx
     {
         const float seen = fade * glare;
 
-        const bool drawn = seen > 0.0f && textures.mNight.mField != sNoIndex && textures.mNight.mTile > 0.0f;
+        const bool drawn = seen > 0.0f && textures.mNight.mField != sNoRow && textures.mNight.mTile > 0.0f;
 
         return Shaders::StarField{
             .mFade = seen,
@@ -161,7 +161,7 @@ namespace Rtx
             .mHorizon = textures.mNight.mHorizon,
 
             // Saying here that nobody can see the sheet keeps the test out of the shader's hot path.
-            .mTexture = drawn ? static_cast<std::uint32_t>(textures.mNight.mField) : Shaders::NO_TEXTURE,
+            .mTexture = drawn ? textures.mNight.mField.at() : Shaders::NO_TEXTURE,
         };
     }
 
@@ -175,7 +175,7 @@ namespace Rtx
         for (std::size_t patch = 0; patch < patches.size(); ++patch)
         {
             const NightSky::Patch& placed = textures.mNight.mPatches[patch];
-            if (placed.mTexture == sNoIndex || !(placed.mAngularRadius > 0.0f))
+            if (placed.mTexture == sNoRow || !(placed.mAngularRadius > 0.0f))
             {
                 patches[patch] = none;
                 continue;
@@ -201,7 +201,7 @@ namespace Rtx
                 .mRight = right,
                 .mUp = up,
                 .mLimb = std::sin(placed.mAngularRadius),
-                .mTexture = static_cast<std::uint32_t>(placed.mTexture) };
+                .mTexture = placed.mTexture.at() };
         }
     }
 }

@@ -136,8 +136,8 @@ namespace MWRender
             const Rtx::ExtractionStats both = mirror.mirror(world.frame(1), view);
             ASSERT_EQ(both.mInstances, 2u);
             ASSERT_EQ(mirror.getScene().placements().getCounts().mPlaced, 2u);
-            ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), 0), osg::Vec3f(1.0f, 0.0f, 0.0f));
-            ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), 1), osg::Vec3f(5.0f, 0.0f, 0.0f));
+            ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), Rtx::PlacementIndex(0)), osg::Vec3f(1.0f, 0.0f, 0.0f));
+            ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), Rtx::PlacementIndex(1)), osg::Vec3f(5.0f, 0.0f, 0.0f));
 
             // The first goes and the second moves on: one placement, in the first's slot, standing
             // where the second is now — and not that beside the second's old slot at where it was.
@@ -147,8 +147,8 @@ namespace MWRender
             EXPECT_EQ(shifted.mInstances, 1u);
             EXPECT_EQ(shifted.mRestood, 0u);
             EXPECT_EQ(mirror.getScene().placements().getCounts().mPlaced, 1u) << "the second's old slot still stands";
-            EXPECT_EQ(Rtx::Testing::placedAt(mirror.getScene(), 0), osg::Vec3f(9.0f, 0.0f, 0.0f));
-            EXPECT_FALSE(mirror.getScene().placements().isPlaced(1)) << "the old slot was kept";
+            EXPECT_EQ(Rtx::Testing::placedAt(mirror.getScene(), Rtx::PlacementIndex(0)), osg::Vec3f(9.0f, 0.0f, 0.0f));
+            EXPECT_FALSE(mirror.getScene().placements().isPlaced(Rtx::PlacementIndex(1))) << "the old slot was kept";
 
             // And a body the graph let go of is placed nowhere on the frame it went.
             world.mRoot->removeChild(world.mSecond);

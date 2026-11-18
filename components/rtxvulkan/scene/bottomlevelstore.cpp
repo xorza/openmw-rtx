@@ -51,7 +51,7 @@ namespace Rtx
 
         VkDeviceSize updates = 0;
         VkDeviceSize rebuild = 0;
-        for (const Index mesh : mRefittable.getSlots())
+        for (const MeshIndex mesh : mRefittable.getSlots())
         {
             const VkDeviceSize update = alignUp(mRows[mesh].mUpdateScratch, alignment);
             const VkDeviceSize build = alignUp(mRows[mesh].mBuildScratch, alignment);
@@ -61,18 +61,18 @@ namespace Rtx
         return updates > 0 ? updates + rebuild : 0;
     }
 
-    Index BottomLevelStore::pickRebuild(const std::span<const Index> posed, const std::uint64_t placement)
+    MeshIndex BottomLevelStore::pickRebuild(const std::span<const MeshIndex> posed, const std::uint64_t placement)
     {
-        Index picked = sNoIndex;
-        for (const Index mesh : posed)
+        MeshIndex picked = sNoRow;
+        for (const MeshIndex mesh : posed)
         {
             assert(isUpdatable(mesh) && "a mesh posed that was not built to be refitted");
 
             const std::uint64_t builtAt = mRows[mesh].mRebuiltAt;
-            if (builtAt < placement && (picked == sNoIndex || builtAt < mRows[picked].mRebuiltAt))
+            if (builtAt < placement && (picked == sNoRow || builtAt < mRows[picked].mRebuiltAt))
                 picked = mesh;
         }
-        if (picked != sNoIndex)
+        if (picked != sNoRow)
             mRows[picked].mRebuiltAt = placement;
         return picked;
     }
@@ -112,7 +112,7 @@ namespace Rtx
     {
     }
 
-    void BottomLevelStore::retire(const Index slot)
+    void BottomLevelStore::retire(const MeshIndex slot)
     {
         Row& row = mRows[slot];
 
@@ -136,13 +136,13 @@ namespace Rtx
     {
         if (mShortOfRoom == 0)
             return;
-        for (std::size_t slot = 0; slot < mRows.size(); ++slot)
+        for (const MeshIndex slot : everyRow<MeshIndex>(mRows.size()))
         {
             Row& row = mRows[slot];
             if (!row.mShortOfRoom || row.mWaiting)
                 continue;
             row.mWaiting = true;
-            mWaiting.push_back(Waiting{ .mMesh = static_cast<Index>(slot) });
+            mWaiting.push_back(Waiting{ .mMesh = slot });
         }
     }
 
@@ -155,13 +155,13 @@ namespace Rtx
         mShortOfRoom = shortOfRoom ? mShortOfRoom + 1 : mShortOfRoom - 1;
     }
 
-    void BottomLevelStore::release(std::span<const Index> meshes)
+    void BottomLevelStore::release(std::span<const MeshIndex> meshes)
     {
-        for (const Index mesh : meshes)
+        for (const MeshIndex mesh : meshes)
         {
             // A slot this never held: a scene can add a mesh and sweep it in the same window,
             // before anything was handed over to build it.
-            if (mesh >= mRows.size())
+            if (!mRows.holds(mesh))
                 continue;
 
             retire(mesh);
@@ -200,7 +200,7 @@ namespace Rtx
         std::erase_if(mWaiting, [&](const Waiting& waiting) { return !mRows[waiting.mMesh].mWaiting; });
 
         return static_cast<std::size_t>(
-            std::ranges::count_if(mRetryingMeshes, [&](const Index mesh) { return stands(mesh); }));
+            std::ranges::count_if(mRetryingMeshes, [&](const MeshIndex mesh) { return stands(mesh); }));
     }
 
     void BottomLevelStore::takeAnswer(DeviceAnswer& into)
@@ -210,18 +210,21 @@ namespace Rtx
         for (const StoodMesh& built : mResized)
             if (stands(built.mMesh))
                 into.mMeshes.push_back(built);
-        for (const FitBytes& fit : mFits)
+        for (const FitBytes<MeshIndex>& fit : mFits)
             if (stands(fit.mSlot) && mRows[fit.mSlot].mCompaction.mTightness == Tightness::Tight)
                 into.mMeshFits.push_back(fit);
         for (const RoomWant& want : mWants)
-            if (mRows[want.mSlot].mWaiting || mRows[want.mSlot].mCompaction.mTightness == Tightness::Answered)
+        {
+            const MeshIndex mesh = std::get<MeshIndex>(want.mWaiter);
+            if (mRows[mesh].mWaiting || mRows[mesh].mCompaction.mTightness == Tightness::Answered)
                 into.mWants.push_back(want);
+        }
         mResized.clear();
         mFits.clear();
         mWants.clear();
     }
 
-    void BottomLevelStore::build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes,
+    void BottomLevelStore::build(Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> meshes,
         const BlockedBuffer& poses, const BlockedBuffer& positions, const BlockedBuffer& indices,
         const std::uint64_t placement, const BuildCompaction compaction, std::vector<Refusal>& refused)
     {
@@ -247,7 +250,7 @@ namespace Rtx
 
         for (std::size_t at = 0; at < meshes.size(); ++at)
         {
-            const Index slot = meshes[at];
+            const MeshIndex slot = meshes[at];
             const MeshRange& mesh = scene.meshes().getRows()[slot];
             Row& row = mRows[slot];
 
@@ -362,7 +365,7 @@ namespace Rtx
                 if (mBuilding[at].mSize == 0)
                     continue;
 
-                const Index slot = meshes[at];
+                const MeshIndex slot = meshes[at];
                 Row& row = mRows[slot];
                 const bool kept = row.mUpdatable;
                 StructureStorage& storage = kept ? mStorage : mLooseStorage;
@@ -381,9 +384,8 @@ namespace Rtx
                         row.mWaiting = true;
                         mWaiting.push_back(Waiting{ .mMesh = slot, .mWhy = room.error() });
                         if (kept)
-                            mWants.push_back(RoomWant{ .mKind = RestKind::Mesh,
-                                .mSlot = slot,
-                                .mHole = alignUp(mBuilding[at].mSize, StructureStorage::sAlignment) });
+                            mWants.push_back(RoomWant{
+                                .mWaiter = slot, .mHole = alignUp(mBuilding[at].mSize, StructureStorage::sAlignment) });
                     }
                     else
                         refused.push_back(
@@ -473,7 +475,7 @@ namespace Rtx
             for (std::size_t at = 0; at < mAsked.size(); ++at)
                 if (isOutstanding(mAsked.at(at)))
                 {
-                    const Index slot = mAsked.at(at).mSlot;
+                    const MeshIndex slot = mAsked.at(at).mSlot;
                     mRows[slot].mCompaction.mTightness = Tightness::Loose;
                     mLoose.push_back(slot);
                 }
@@ -489,17 +491,17 @@ namespace Rtx
         std::sort(mLoose.begin(), mLoose.end());
         std::uint32_t first = 0;
         mAskScratch.clear();
-        for (const Index slot : mLoose)
+        for (const MeshIndex slot : mLoose)
         {
             // A slot named twice is asked once: the first naming leaves it asked.
             Compaction& state = mRows[slot].mCompaction;
             if (state.mTightness != Tightness::Loose)
                 continue;
 
-            if (!mAskScratch.empty() && slot != first + mAskScratch.size())
+            if (!mAskScratch.empty() && slot.at() != first + mAskScratch.size())
                 askRun(commands, first);
             if (mAskScratch.empty())
-                first = slot;
+                first = slot.at();
             mAskScratch.push_back(mRows[slot].mStructure.getHandle());
 
             state.mTightness = Tightness::Asked;
@@ -544,11 +546,12 @@ namespace Rtx
             // asked again since, whose query a later batch may still be writing.
             std::size_t count = 1;
             while (count < mAsked.size() && mAsked.at(count).mAt == oldest.mAt
-                && mAsked.at(count).mSlot == mAsked.at(count - 1).mSlot + 1 && isOutstanding(mAsked.at(count)))
+                && mAsked.at(count).mSlot.at() == mAsked.at(count - 1).mSlot.at() + 1
+                && isOutstanding(mAsked.at(count)))
                 ++count;
 
             mReadScratch.resize(count);
-            const VkResult read = vkGetQueryPoolResults(mDevice.getHandle(), mCompactable.get(), oldest.mSlot,
+            const VkResult read = vkGetQueryPoolResults(mDevice.getHandle(), mCompactable.get(), oldest.mSlot.at(),
                 static_cast<std::uint32_t>(count), count * sizeof(VkDeviceSize), mReadScratch.data(),
                 sizeof(VkDeviceSize), VK_QUERY_RESULT_64_BIT);
 
@@ -561,7 +564,7 @@ namespace Rtx
 
             for (std::size_t at = 0; at < count; ++at)
             {
-                const Index slot = mAsked.at(at).mSlot;
+                const MeshIndex slot = mAsked.at(at).mSlot;
                 Compaction& state = mRows[slot].mCompaction;
 
                 // Every answer owes a copy, a tight one where it is smaller (`shrinks`): a structure
@@ -582,7 +585,7 @@ namespace Rtx
         mAsked.settle();
     }
 
-    const SlotSet& BottomLevelStore::prepareCompaction()
+    const SlotSet<MeshIndex>& BottomLevelStore::prepareCompaction()
     {
         mCompactionCopies.clear();
         mMovedMeshes.clear();
@@ -619,7 +622,7 @@ namespace Rtx
         VkDeviceSize taken = 0;
         while (!mAnswered.empty() && taken < budget)
         {
-            const Index slot = mAnswered.at(0);
+            const MeshIndex slot = mAnswered.at(0);
 
             // The slot may have been handed out again since it answered. A cell that left took
             // its meshes with it, and whatever stands here now is not what this answer is about —
@@ -641,8 +644,7 @@ namespace Rtx
             const Result<StructureRoom, MemoryRefusal> room = mStorage.take(mDevice, size);
             if (!room.isOk())
             {
-                mWants.push_back(RoomWant{
-                    .mKind = RestKind::Mesh, .mSlot = slot, .mHole = alignUp(size, StructureStorage::sAlignment) });
+                mWants.push_back(RoomWant{ .mWaiter = slot, .mHole = alignUp(size, StructureStorage::sAlignment) });
                 break;
             }
 

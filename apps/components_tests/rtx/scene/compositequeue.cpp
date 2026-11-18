@@ -25,8 +25,8 @@ namespace Rtx
     {
         /// A distant chunk of two ground types, which is a chunk that wants flattening. `reflecting`
         /// makes the top one an authored layer, which is a chunk that wants a gloss too.
-        Index addChunk(SceneDesc& scene, const VFS::Path::NormalizedView under, const VFS::Path::NormalizedView over,
-            const bool reflecting = false)
+        MaterialIndex addChunk(SceneDesc& scene, const VFS::Path::NormalizedView under,
+            const VFS::Path::NormalizedView over, const bool reflecting = false)
         {
             constexpr std::array<float, 4> weights{ 1.0f, 0.0f, 0.0f, 1.0f };
 
@@ -54,7 +54,7 @@ namespace Rtx
             while (textures.getLiveCount() + left < TextureTable::sCapacity)
             {
                 fillers.emplace_back("textures/fill" + std::to_string(fillers.size()) + ".dds");
-                if (textures.add(fillers.back()) == sNoIndex)
+                if (textures.add(fillers.back()) == sNoRow)
                 {
                     ADD_FAILURE() << "the table refused a texture with room left";
                     break;
@@ -84,15 +84,15 @@ namespace Rtx
             {
                 SceneIdentities identities;
                 SceneDesc scene(identities);
-                const Index chunk = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
+                const MaterialIndex chunk = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
                     VFS::Path::NormalizedView("textures/over.dds"), reflecting);
 
                 CompositeQueue queue;
                 EXPECT_EQ(queue.advance(scene), 1u) << "the chunk that asked was not given its slot";
 
                 const Material& given = scene.materials().getRows()[chunk];
-                const Index baked = given.mDiffuse;
-                ASSERT_NE(baked, sNoIndex) << "the chunk still shades from its stack";
+                const TextureIndex baked = given.mDiffuse;
+                ASSERT_NE(baked, sNoRow) << "the chunk still shades from its stack";
                 EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, chunk)
                     << "the slot the chunk was given is not named as its ground";
                 EXPECT_EQ(scene.textures().getRows()[baked].mKind, TextureKind::GroundAlbedo);
@@ -104,7 +104,7 @@ namespace Rtx
 
                 if (reflecting)
                 {
-                    ASSERT_NE(given.mSpecular, sNoIndex) << "a chunk that reflects was given no gloss";
+                    ASSERT_NE(given.mSpecular, sNoRow) << "a chunk that reflects was given no gloss";
                     EXPECT_NE(given.mSpecular, baked);
                     EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mGroundOf, chunk);
                     EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mKind, TextureKind::GroundGloss)
@@ -112,7 +112,7 @@ namespace Rtx
                     EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mEncoding, TextureEncoding::Data);
                 }
                 else
-                    EXPECT_EQ(given.mSpecular, sNoIndex) << "a chunk that reflects nowhere was given a gloss";
+                    EXPECT_EQ(given.mSpecular, sNoRow) << "a chunk that reflects nowhere was given a gloss";
 
                 // A chunk with its ground asks for no more: the rewrite that gave it the slot is a
                 // row written, and the gather has to read it as answered rather than as asking again.
@@ -158,7 +158,7 @@ namespace Rtx
             // Held rather than made per call: a view does not own its path, and each chunk wants two
             // of its own so that no two share a texture slot.
             std::vector<VFS::Path::Normalized> paths;
-            std::vector<Index> materials;
+            std::vector<MaterialIndex> materials;
             paths.reserve((first + second) * 2);
             const auto ask = [&](const std::size_t count) {
                 for (std::size_t at = 0; at < count; ++at)
@@ -177,7 +177,7 @@ namespace Rtx
                 taken += now;
 
                 for (std::size_t at = 0; at < materials.size(); ++at)
-                    EXPECT_EQ(scene.materials().getRows()[materials[at]].mDiffuse != sNoIndex, at < taken)
+                    EXPECT_EQ(scene.materials().getRows()[materials[at]].mDiffuse != sNoRow, at < taken)
                         << "chunk " << at << " after " << taken << " were taken";
             };
 
@@ -200,7 +200,7 @@ namespace Rtx
             constexpr std::size_t chunks = sCompositesPerFrame + 1;
 
             std::vector<VFS::Path::Normalized> paths;
-            std::vector<Index> materials;
+            std::vector<MaterialIndex> materials;
             paths.reserve(chunks * 2 + 3);
             for (std::size_t at = 0; at < chunks; ++at)
             {
@@ -213,7 +213,7 @@ namespace Rtx
             EXPECT_EQ(frame(queue, scene), sCompositesPerFrame);
 
             // The one still waiting goes away, and a wall takes its slot.
-            const Index waiting = materials.back();
+            const MaterialIndex waiting = materials.back();
             materials.pop_back();
             Testing::letGoMaterial(scene, waiting);
             ASSERT_FALSE(scene.materials().isLive(waiting)) << "the material was not freed";
@@ -221,7 +221,7 @@ namespace Rtx
             paths.emplace_back("textures/wall.dds");
             Material wall;
             wall.mDiffuse = scene.textures().add(paths.back());
-            const Index newcomer = scene.addMaterial(wall);
+            const MaterialIndex newcomer = scene.addMaterial(wall);
             ASSERT_EQ(newcomer, waiting) << "the newcomer did not take the freed slot";
 
             EXPECT_EQ(frame(queue, scene), 0u) << "the chunk that went away was flattened onto the wall";
@@ -232,12 +232,12 @@ namespace Rtx
             ASSERT_FALSE(scene.materials().isLive(newcomer)) << "the wall was not freed";
             paths.emplace_back("textures/newcomer-a.dds");
             paths.emplace_back("textures/newcomer-b.dds");
-            const Index chunk = addChunk(scene, paths[chunks * 2 + 1], paths[chunks * 2 + 2]);
+            const MaterialIndex chunk = addChunk(scene, paths[chunks * 2 + 1], paths[chunks * 2 + 2]);
             ASSERT_EQ(chunk, waiting);
 
             EXPECT_EQ(queue.advance(scene), 1u);
-            const Index baked = scene.materials().getRows()[chunk].mDiffuse;
-            ASSERT_NE(baked, sNoIndex);
+            const TextureIndex baked = scene.materials().getRows()[chunk].mDiffuse;
+            ASSERT_NE(baked, sNoRow);
             EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, chunk);
         }
 
@@ -253,7 +253,7 @@ namespace Rtx
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
-            const std::array<Index, 2> chunks{
+            const std::array<MaterialIndex, 2> chunks{
                 addChunk(scene, VFS::Path::NormalizedView("textures/one-a.dds"),
                     VFS::Path::NormalizedView("textures/one-b.dds")),
                 addChunk(scene, VFS::Path::NormalizedView("textures/two-a.dds"),
@@ -272,16 +272,16 @@ namespace Rtx
             EXPECT_EQ(frame(queue, scene), 0u);
             EXPECT_EQ(textures.getRefused(), 1u) << "a refused take was asked again before anything was freed";
 
-            const Index first = textures.add(fillers[0]);
+            const TextureIndex first = textures.add(fillers[0]);
             scene.drop(scene.holdTexture(first));
             EXPECT_EQ(frame(queue, scene), 1u);
             EXPECT_EQ(diffuse(0), first) << "the chunk refused first was not first in line";
-            EXPECT_EQ(diffuse(1), sNoIndex);
+            EXPECT_EQ(diffuse(1), sNoRow);
             EXPECT_EQ(textures.getRefused(), 2u);
             EXPECT_EQ(frame(queue, scene), 0u);
             EXPECT_EQ(textures.getRefused(), 2u);
 
-            const Index second = textures.add(fillers[1]);
+            const TextureIndex second = textures.add(fillers[1]);
             scene.drop(scene.holdTexture(second));
             EXPECT_EQ(frame(queue, scene), 1u);
             EXPECT_EQ(diffuse(1), second) << "the second chunk was dropped at its refusal";
@@ -295,7 +295,7 @@ namespace Rtx
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
-            const Index chunk = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
+            const MaterialIndex chunk = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
                 VFS::Path::NormalizedView("textures/over.dds"), true);
 
             TextureTable& textures = scene.textures();
@@ -306,9 +306,9 @@ namespace Rtx
             EXPECT_EQ(frame(queue, scene), 1u) << "the chunk was not taken on its albedo's room";
 
             const Material& given = scene.materials().getRows()[chunk];
-            ASSERT_NE(given.mDiffuse, sNoIndex);
+            ASSERT_NE(given.mDiffuse, sNoRow);
             EXPECT_EQ(textures.getRows()[given.mDiffuse].mKind, TextureKind::GroundAlbedo);
-            EXPECT_EQ(given.mSpecular, sNoIndex) << "a gloss with no room was named";
+            EXPECT_EQ(given.mSpecular, sNoRow) << "a gloss with no room was named";
             EXPECT_EQ(frame(queue, scene), 0u) << "a chunk flattened with no lobe asked again";
         }
     }

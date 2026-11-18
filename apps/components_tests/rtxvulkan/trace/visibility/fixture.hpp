@@ -153,13 +153,13 @@ namespace Rtx::Testing
     /// **The two numbers an opacity is made of, added the one way.** The shader multiplies a material's alpha
     /// by a placement's fade, and a helper that built either its own way would hold up a surface this renderer
     /// does not have.
-    inline Index addPane(SceneDesc& scene, std::span<const osg::Vec3f, 4> quad, const osg::Vec4f& colour,
+    inline PlacementIndex addPane(SceneDesc& scene, std::span<const osg::Vec3f, 4> quad, const osg::Vec4f& colour,
         float fade = 1.0f, bool twoSided = false, InstanceClass kind = InstanceClass::Static)
     {
         // A test states a pane as a colour and how much of it there is, which is the pair the
         // record states too. Linear already, so there is nothing to decode: `Rtx::decodeColour` is
         // for what a content file wrote.
-        const Index glass = scene.addMaterial(Material{
+        const MaterialIndex glass = scene.addMaterial(Material{
             .mDiffuseColour = osg::Vec3f(colour.r(), colour.g(), colour.b()),
             .mOpacity = colour.a(),
             .mAlphaMode = AlphaMode::Blend,
@@ -810,13 +810,14 @@ namespace Rtx::Testing
         /// taken as, as `SceneTextures` makes of the table.
         std::span<const TextureData> inSceneOrder(const SceneDesc& scene, std::span<const TextureData> textures)
         {
-            const std::span<const TextureRow> rows = scene.textures().getRows();
+            const auto rows = scene.textures().getRows();
             mNumbered.assign(textures.begin(), textures.end());
-            for (std::size_t at = 0; at < mNumbered.size(); ++at)
+            for (const TextureIndex slot : everyRow<TextureIndex>(mNumbered.size()))
             {
-                mNumbered[at].mSlot = static_cast<std::uint32_t>(at);
-                if (at < rows.size() && scene.textures().isLive(static_cast<Index>(at)))
-                    mNumbered[at].mEncoding = rows[at].mEncoding;
+                TextureData& numbered = mNumbered[slot.at()];
+                numbered.mSlot = slot;
+                if (rows.holds(slot) && scene.textures().isLive(slot))
+                    numbered.mEncoding = rows[slot].mEncoding;
             }
 
             return mNumbered;

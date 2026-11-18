@@ -205,7 +205,7 @@ namespace Rtx::Testing
             const std::array<TextureData, 1> textures{ describeTexel(white) };
 
             SceneDesc scene(identities);
-            const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+            const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
             const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 400.0f, 0.0f),
                 .mRadius = 60.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),

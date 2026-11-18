@@ -80,7 +80,7 @@ namespace Rtx::Testing
             {
                 osg::Vec3f found(-1.0f, -1.0f, -1.0f);
                 mScene.placements().forEachPlaced(
-                    [&](Index, const PlacementRow& row) { found = osg::Vec3f() * row.mInstance.mTransform; });
+                    [&](PlacementIndex, const PlacementRow& row) { found = osg::Vec3f() * row.mInstance.mTransform; });
                 return found;
             }
 
@@ -336,7 +336,7 @@ namespace Rtx::Testing
             mCell->removeChild(before);
             frame();
             std::vector<float> standingAt;
-            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+            mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                 standingAt.push_back((osg::Vec3f() * row.mInstance.mTransform).x());
             });
             std::sort(standingAt.begin(), standingAt.end());

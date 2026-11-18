@@ -39,7 +39,7 @@ namespace Rtx
         /// @param slots how many frames may be posing this scene at once.
         /// @param room the bind vertices, runs, influences, offsets and pose words every table is
         ///        made with room for.
-        SkinTables(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
+        SkinTables(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> everyMesh,
             std::uint32_t slots, const SceneRoom& room);
 
         /// Takes in what the scene says arrived: the bind poses of the deforming meshes, the
@@ -62,11 +62,11 @@ namespace Rtx
         /// the caller waited for, which a mapped write asserts. One write, since a pose stands in
         /// the copy where it stands among the scene's: poses adjacent there are one run, and a
         /// crowd is a handful of copy regions and not one copy a body.
-        void writePoses(const SceneDesc& scene, FrameSlot slot, std::span<const Index> meshes, Uploads& uploads);
+        void writePoses(const SceneDesc& scene, FrameSlot slot, std::span<const MeshIndex> meshes, Uploads& uploads);
 
         /// The meshes a placement poses, cleared and refilled by `SkinPass::record` and never freed:
         /// what it writes the poses of before one `order`, and then dispatches over.
-        std::vector<Index>& getPosing() { return mPosing; }
+        std::vector<MeshIndex>& getPosing() { return mPosing; }
 
         /// Where `mesh`'s pose sits in `slot`'s copy, for a dispatch over a pose `extend` staged.
         VkDeviceAddress getPose(const MeshRange& mesh, FrameSlot slot) const;
@@ -92,8 +92,8 @@ namespace Rtx
 
         /// Stages the bind poses of `meshes`, the runs of `deformers`, and the poses of `posed` into
         /// the first copy. Nothing is ordered here.
-        void write(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes,
-            std::span<const Index> deformers, std::span<const Index> posed);
+        void write(Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> meshes,
+            std::span<const DeformerIndex> deformers, std::span<const MeshIndex> posed);
 
         GrowableBuffer mBindPositions;
         GrowableBuffer mBindNormals;
@@ -104,7 +104,7 @@ namespace Rtx
 
         PerSlot<GrowableBuffer> mPoses;
 
-        std::vector<Index> mPosing;
+        std::vector<MeshIndex> mPosing;
 
         /// Cleared and refilled by `writePoses`, never freed: a run a pose, then the runs they join into.
         std::vector<CopyRun> mPoseRuns;

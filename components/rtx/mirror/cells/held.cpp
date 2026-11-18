@@ -51,7 +51,7 @@ namespace Rtx
         for (const PreparedPart& part : model.mParts)
         {
             const MaterialResolver::Resolved material = into.adoptMaterial(part.mMaterial, model.chainOf(part));
-            const Index mesh = into.adoptMesh(*part.mDrawable, model.readingOf(part));
+            const MeshIndex mesh = into.adoptMesh(*part.mDrawable, model.readingOf(part));
 
             held.mParts.push_back(AdoptedPart{
                 .mMesh = mesh,

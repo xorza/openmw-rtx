@@ -21,6 +21,7 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/renderer/framezone.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -371,9 +372,9 @@ namespace Rtx
         // the `sync` before the first placement that binds them.
         mTexels.open(device, sFrameSlots, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "texture texels");
         mTexels.grow(Shaders::TEXTURE_SLOTS);
-        mTexels.write(Shaders::TEXTURE_NEUTRAL) = 1;
-        for (SlotSet& owed : mOwed.live())
-            owed.addMakingRoom(Shaders::TEXTURE_NEUTRAL);
+        mTexels.write(TextureIndex(Shaders::TEXTURE_NEUTRAL)) = 1;
+        for (SlotSet<TextureIndex>& owed : mOwed.live())
+            owed.addMakingRoom(TextureIndex(Shaders::TEXTURE_NEUTRAL));
 
         writeSamplers();
 
@@ -384,14 +385,13 @@ namespace Rtx
         mSlots.resize(slots);
     }
 
-    void TextureArray::reserveSlot(std::uint32_t slot)
+    void TextureArray::reserveSlot(const TextureIndex slot)
     {
-        Crash::contract(slot < Shaders::TEXTURE_NEUTRAL, "a texture slot past what its table may hand out");
+        Crash::contract(slot.at() < Shaders::TEXTURE_NEUTRAL, "a texture slot past what its table may hand out");
 
         // Grown to reach it rather than one at a time: arrivals come in whatever order the scene's
         // free list handed the slots out, so the highest is not always the last.
-        if (slot >= mSlots.size())
-            mSlots.resize(slot + 1);
+        mSlots.growTo(slot);
     }
 
     void TextureArray::write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
@@ -491,10 +491,9 @@ namespace Rtx
         mArrivingAt.clear();
         for (std::size_t at = 0; at < arrived.size(); ++at)
         {
-            const Index slot = arrived[at].mSlot;
-            if (slot >= mArrivingAt.size())
-                mArrivingAt.resize(slot + 1, sNoIndex);
-            mArrivingAt[slot] = static_cast<Index>(at);
+            const TextureIndex slot = arrived[at].mSlot;
+            mArrivingAt.growTo(slot, sNotArriving);
+            mArrivingAt[slot] = static_cast<std::uint32_t>(at);
         }
 
         // Every file from its first level within the device's side, which a file past the side at
@@ -572,9 +571,9 @@ namespace Rtx
         // A bake is shaped like its source as the source is held in `firsts`: from its first level
         // where it arrives beside the bake, as the stand-in where it arrives as one, and as its
         // image where it stands already.
-        const auto bakeOf = [&](const Index slot) -> VkDeviceSize {
-            const Index arrivingAt = slot < mArrivingAt.size() ? mArrivingAt[slot] : sNoIndex;
-            const TextureData* const arriving = arrivingAt != sNoIndex ? &arrived[arrivingAt] : nullptr;
+        const auto bakeOf = [&](const TextureIndex slot) -> VkDeviceSize {
+            const std::uint32_t arrivingAt = mArrivingAt.holds(slot) ? mArrivingAt[slot] : sNotArriving;
+            const TextureData* const arriving = arrivingAt != sNotArriving ? &arrived[arrivingAt] : nullptr;
 
             const Image* standing = nullptr;
             if (arriving != nullptr)
@@ -584,7 +583,7 @@ namespace Rtx
 
                 standing = &mStandIn.getImage();
             }
-            else if (slot < mSlots.size())
+            else if (mSlots.holds(slot))
                 standing = &standingIn(mSlots[slot]).getImage();
 
             if (standing == nullptr || standing->isEmpty())
@@ -616,7 +615,7 @@ namespace Rtx
                     break;
 
                 case TextureSource::SpriteBake:
-                    cost += bakeOf(texture.mFrom);
+                    cost += bakeOf(std::get<TextureIndex>(texture.mFrom));
                     break;
 
                 case TextureSource::GroundComposite:
@@ -666,9 +665,10 @@ namespace Rtx
                 // live, and `write` stands every source ahead of every bake. A bake of a slot that holds nothing is a
                 // contract broken and not content. A source drawing the stand-in is baked as the stand-in, as it is
                 // drawn.
-                Crash::contract(texture.mFrom < mSlots.size() && !mSlots[texture.mFrom].isEmpty(),
+                const TextureIndex source = std::get<TextureIndex>(texture.mFrom);
+                Crash::contract(mSlots.holds(source) && !mSlots[source].isEmpty(),
                     "a sprite light bake names a source that does not stand");
-                return into.standBake(mDevice, arrival, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);
+                return into.standBake(mDevice, arrival, standingIn(mSlots[source]), texture.mFormat, name);
             }
 
             case TextureSource::File:
@@ -698,9 +698,7 @@ namespace Rtx
         const std::optional<std::uint32_t> top = texture.topLevel(mSideLimit);
         assert(top.has_value() && "a file past the device's side waits on no room");
         const VkMemoryRequirements whole = Image::requirementsFor(mDevice, Texture::describeFile(texture, *top));
-        return RoomWant{
-            .mKind = RestKind::Texture, .mSlot = texture.mSlot, .mHole = whole.size, .mAlignment = whole.alignment
-        };
+        return RoomWant{ .mWaiter = texture.mSlot, .mHole = whole.size, .mAlignment = whole.alignment };
     }
 
     void TextureArray::stand(const Standing& standing, const TextureData& texture, const std::uint32_t first)
@@ -708,7 +706,7 @@ namespace Rtx
         Batch& batch = standing.mBatch;
         TextureArrival& arrival = standing.mArrival;
         DeviceAnswer& answer = standing.mAnswer;
-        assert(texture.mSlot < mSlots.size() && "a texture stood in a slot `write` did not reserve");
+        assert(mSlots.holds(texture.mSlot) && "a texture stood in a slot `write` did not reserve");
         Slot& slot = mSlots[texture.mSlot];
 
         // Named only where a capture or a validation message could read it back. A local,
@@ -716,7 +714,7 @@ namespace Rtx
         // does is the map's, inside `Texture`.
         std::string name;
         if constexpr (sDebugNames)
-            name = "texture " + std::to_string(texture.mSlot);
+            name = "texture " + std::to_string(texture.mSlot.at());
 
         // Why the slot draws the stand-in, or nothing where the texture stands. A file the device takes at no level is
         // known before anything is made; room is known by asking for it. What the slot held is the descriptor a frame
@@ -794,14 +792,14 @@ namespace Rtx
         if ((texture.mSource == TextureSource::GroundComposite || texture.mSource == TextureSource::GroundGloss)
             && !slot.mStandIn)
             mPendingComposites.push_back(PendingComposite{ .mSlot = texture.mSlot,
-                .mMaterial = texture.mFrom,
+                .mMaterial = std::get<MaterialIndex>(texture.mFrom),
                 .mOutput = texture.mSource == TextureSource::GroundGloss ? Shaders::GROUND_COMPOSITE_GLOSS
                                                                          : Shaders::GROUND_COMPOSITE_ALBEDO });
 
         owe(texture.mSlot);
     }
 
-    void TextureArray::owe(const std::uint32_t at)
+    void TextureArray::owe(const TextureIndex at)
     {
         // How many texels the slot now holds, for `coneLod`, the wrap that picks its sampler, and
         // whether they are the stand-in's, which every reader of an optional map asks —
@@ -813,13 +811,13 @@ namespace Rtx
         mTexels.write(at) = texels | (static_cast<std::uint32_t>(standing.getWrap()) << Shaders::TEXTURE_WRAP_SHIFT)
             | (slot.mStandIn ? Shaders::TEXTURE_STANDS_IN : 0u);
 
-        for (SlotSet& owed : mOwed.live())
+        for (SlotSet<TextureIndex>& owed : mOwed.live())
             owed.addMakingRoom(at);
     }
 
     void TextureArray::waitAgain(DeviceAnswer& answer) const
     {
-        for (std::uint32_t at = 0; at < mSlots.size(); ++at)
+        for (const TextureIndex at : everyRow<TextureIndex>(mSlots.size()))
         {
             const Slot& slot = mSlots[at];
             if (slot.mShortOfRoom && slot.mStandIn && slot.mSource == TextureSource::File && slot.mWholeBytes > 0)
@@ -834,9 +832,9 @@ namespace Rtx
         return table;
     }
 
-    std::uint32_t TextureArray::readersWant(const TextureTable& table, const std::uint32_t slot)
+    std::uint32_t TextureArray::readersWant(const TextureTable& table, const TextureIndex slot)
     {
-        if (slot >= table.getRows().size() || !table.isLive(slot))
+        if (!table.getRows().holds(slot) || !table.isLive(slot))
             return 0;
         // One that rests, by what its last readers asked: moved down to it, it rests smaller rather than going.
         const TextureRow& row = table.getRows()[slot];
@@ -849,7 +847,7 @@ namespace Rtx
         const VkDeviceSize bytes = ask.mBytes;
         const std::span<const TextureData> keep = ask.mKeep;
         mMovable.clear();
-        for (std::uint32_t at = 0; at < mSlots.size(); ++at)
+        for (const TextureIndex at : everyRow<TextureIndex>(mSlots.size()))
         {
             const Slot& slot = mSlots[at];
             if (slot.mStandIn || slot.mTexture.isEmpty() || slot.mSource != TextureSource::File)
@@ -873,7 +871,7 @@ namespace Rtx
         while (freed < bytes && copied < ask.mCopyMost && !mMovable.empty())
         {
             std::ranges::pop_heap(mMovable, lessStanding);
-            const std::uint32_t at = mMovable.back().mSlot;
+            const TextureIndex at = mMovable.back().mSlot;
             mMovable.pop_back();
             Slot& slot = mSlots[at];
             const Image& image = slot.mTexture.getImage();
@@ -885,7 +883,7 @@ namespace Rtx
                 continue;
 
             if constexpr (sDebugNames)
-                name = "texture " + std::to_string(at);
+                name = "texture " + std::to_string(at.at());
 
             // **The old one where it stays, and the new one made in the slot**, since the arrival's work names both
             // images by where they stand: a texture moved after it was named was a barrier on what moved out.
@@ -949,7 +947,7 @@ namespace Rtx
     {
         mTexels.sync(slot, uploads);
 
-        SlotSet& owed = mOwed.at(slot);
+        SlotSet<TextureIndex>& owed = mOwed.at(slot);
         if (owed.empty())
             return;
 
@@ -958,7 +956,7 @@ namespace Rtx
         // One write per slot and per array rather than one over a range: the arrivals are wherever
         // the scene's free list put them, and a run is no longer what they are. Reserved before
         // any write points into it, since a write names its image by address.
-        const std::span<const Index> slots = owed.getSlots();
+        const std::span<const TextureIndex> slots = owed.getSlots();
         const std::size_t writes = 2 * slots.size();
         mImageScratch.clear();
         mWriteScratch.clear();
@@ -967,20 +965,20 @@ namespace Rtx
 
         const VkDescriptorSet set = mSets.get(slot.get());
 
-        for (const Index at : slots)
+        for (const TextureIndex at : slots)
         {
             // Owed and since dropped: the slot holds nothing, and a descriptor left naming what has
             // gone is what `drop` says is legal. The neutral texel and the stand-in stand beside
             // the array.
-            const Texture& held = at == Shaders::TEXTURE_NEUTRAL ? mNeutral : standingIn(mSlots[at]);
+            const Texture& held = at.at() == Shaders::TEXTURE_NEUTRAL ? mNeutral : standingIn(mSlots[at]);
             if (held.isEmpty())
                 continue;
 
-            queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, held.describe(),
+            queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at.at(), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, held.describe(),
                 mImageScratch, mWriteScratch);
             // A companion only where a read reaches one, a normal map's: the binding is partially bound.
             if (held.hasCompanion())
-                queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at.at(), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                     held.describeCompanion(), mImageScratch, mWriteScratch);
         }
 
@@ -1031,7 +1029,7 @@ namespace Rtx
         const VkDescriptorSet set = getSet(slot);
         for (std::size_t at = 0; at < mPendingComposites.size();)
         {
-            const Index material = mPendingComposites[at].mMaterial;
+            const MaterialIndex material = mPendingComposites[at].mMaterial;
             const Image* albedo = nullptr;
             const Image* gloss = nullptr;
             std::uint32_t outputs = 0;
@@ -1064,7 +1062,7 @@ namespace Rtx
                     .mMaterials = tables.mMaterials,
                     .mLayers = tables.mLayers,
                     .mMasks = tables.mMasks,
-                    .mMaterial = material + Shaders::MATERIAL_ROW_FIRST,
+                    .mMaterial = materialRecordOf(material).at(),
                     .mOutputs = outputs,
                     .mTexels = tables.mTextureTexels,
                 });
@@ -1079,13 +1077,13 @@ namespace Rtx
         return baked;
     }
 
-    void TextureArray::drop(std::span<const std::uint32_t> slots)
+    void TextureArray::drop(std::span<const TextureIndex> slots)
     {
-        for (const std::uint32_t slot : slots)
+        for (const TextureIndex slot : slots)
         {
             // A slot this array never held: a scene can add a texture and sweep it in the same
             // window, before anything was handed over to upload it.
-            if (slot >= mSlots.size())
+            if (!mSlots.holds(slot))
                 continue;
 
             // Emptied rather than erased, so the slot stays where it is and the images go under the
@@ -1153,16 +1151,16 @@ namespace Rtx
         });
     }
 
-    Shaders::uvec2 TextureArray::getExtent(const std::uint32_t slot) const
+    Shaders::uvec2 TextureArray::getExtent(const TextureIndex slot) const
     {
-        assert(slot < mSlots.size() && "the extent of a slot the array does not have");
+        assert(mSlots.holds(slot) && "the extent of a slot the array does not have");
         const Image& image = standingIn(mSlots[slot]).getImage();
         return Shaders::uvec2(image.getWidth(), image.getHeight());
     }
 
-    const Image& TextureArray::getImage(const std::uint32_t slot) const
+    const Image& TextureArray::getImage(const TextureIndex slot) const
     {
-        assert(slot < mSlots.size() && "the image of a slot the array does not have");
+        assert(mSlots.holds(slot) && "the image of a slot the array does not have");
         return standingIn(mSlots[slot]).getImage();
     }
 

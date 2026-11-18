@@ -41,17 +41,16 @@ namespace Rtx
         }
     }
 
-    MeshArrivals::Filling MeshArrivals::add(const Index mesh, const Lengths& lengths)
+    MeshArrivals::Filling MeshArrivals::add(const MeshIndex mesh, const Lengths& lengths)
     {
         assert(lengths.mVertices > 0 && "an arrival with no vertices");
         assert((lengths.mSecondTexCoords == 0 || lengths.mSecondTexCoords == lengths.mVertices)
             && "a second set of coordinates not one a vertex");
 
-        if (mesh >= mRecordOf.size())
-            mRecordOf.resize(std::size_t{ mesh } + 1, sNoIndex);
-        if (mRecordOf[mesh] == sNoIndex)
+        mRecordOf.growTo(mesh, sNoRecord);
+        if (mRecordOf[mesh] == sNoRecord)
             mHolding.push_back(mesh);
-        mRecordOf[mesh] = static_cast<Index>(mRecords.size());
+        mRecordOf[mesh] = static_cast<std::uint32_t>(mRecords.size());
 
         mRecords.push_back(Record{
             .mVertexStart = static_cast<std::uint32_t>(mPositions.size()),
@@ -71,14 +70,14 @@ namespace Rtx
         };
     }
 
-    void MeshArrivals::forget(const Index mesh)
+    void MeshArrivals::forget(const MeshIndex mesh)
     {
         // Left in the buffers until `clear`, which no reader reaches without its record.
         if (holds(mesh))
-            mRecordOf[mesh] = sNoIndex;
+            mRecordOf[mesh] = sNoRecord;
     }
 
-    MeshGeometry MeshArrivals::of(const Index mesh) const
+    MeshGeometry MeshArrivals::of(const MeshIndex mesh) const
     {
         assert(holds(mesh) && "the geometry of a mesh that did not arrive since the last hand-over");
         const Record& record = mRecords[mRecordOf[mesh]];
@@ -96,8 +95,8 @@ namespace Rtx
 
     void MeshArrivals::clear()
     {
-        for (const Index mesh : mHolding)
-            mRecordOf[mesh] = sNoIndex;
+        for (const MeshIndex mesh : mHolding)
+            mRecordOf[mesh] = sNoRecord;
         mHolding.clear();
         mRecords.clear();
 

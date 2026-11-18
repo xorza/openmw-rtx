@@ -8,6 +8,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include <components/rtx/common/index.hpp>
@@ -139,7 +140,7 @@ namespace Rtx
         /// Which row of the backend's texture array this is, which is the slot a material holds.
         /// Carried rather than implied by position, because a slot a departing cell freed is taken
         /// over wherever it sits.
-        Index mSlot = 0;
+        TextureIndex mSlot = TextureIndex(0);
 
         /// How the slot is addressed past its edges, which is the sampler a backend binds it
         /// through. The scene's table says, per slot.
@@ -149,9 +150,9 @@ namespace Rtx
         TextureSource mSource = TextureSource::File;
 
         /// What the source names, by the source: the sprite texture a bake is made from, or the
-        /// material row whose ground a composite or its gloss is. `sNoIndex` under `File` and
+        /// material row whose ground a composite or its gloss is. Nothing under `File` and
         /// `StandIn`, which are made from nothing but their own bytes.
-        Index mFrom = sNoIndex;
+        std::variant<std::monostate, TextureIndex, MaterialIndex> mFrom{};
 
         TextureFormat mFormat = TextureFormat::Bc1RgbaSrgb;
 

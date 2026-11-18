@@ -32,7 +32,7 @@ namespace Rtx
 
     /// How many words `rows` of `kind` take: for a rig, three a bone and three for the skin's own
     /// transform ahead of them (`packRig`); for a morph, a quarter a weight rounded up.
-    constexpr Index poseWordsFor(const Deform kind, const Index rows)
+    constexpr std::uint32_t poseWordsFor(const Deform kind, const std::uint32_t rows)
     {
         return kind == Deform::Rig ? (rows + 1) * 3 : (rows + 3) / 4;
     }
@@ -51,13 +51,13 @@ namespace Rtx
 
     // `boneAt` and `weightAt` are read by the tests and by nothing else.
     /// Bone `at` of a pose laid by `packRig`.
-    Shaders::GpuBone boneAt(std::span<const PoseWord> pose, Index at);
+    Shaders::GpuBone boneAt(std::span<const PoseWord> pose, std::uint32_t at);
 
     /// The skin's transform of a pose laid by `packRig`.
     Shaders::GpuBone skinTransformOf(std::span<const PoseWord> pose);
 
     /// Weight `at` of a pose laid by `packWeights`.
-    float weightAt(std::span<const PoseWord> pose, Index at);
+    float weightAt(std::span<const PoseWord> pose, std::uint32_t at);
 
     /// What poses one kind of mesh: a skin, which names a run of words and a run of influences,
     /// or a set of morph targets, which names a run of offsets. Whichever it is not is empty, and
@@ -79,10 +79,10 @@ namespace Rtx
         Run mOffsets{};
 
         /// Rows one pose takes: the rig's bones, or the morph's targets, the base's included.
-        Index mRows = 0;
+        std::uint32_t mRows = 0;
 
         /// Vertices this deformer moves, which every mesh on it must have exactly.
-        Index getVertexCount() const
+        std::uint32_t getVertexCount() const
         {
             if (mKind == Deform::Rig)
                 return mRuns.mCount;
@@ -91,7 +91,7 @@ namespace Rtx
         }
 
         /// Words one pose of this deformer takes, which is what every mesh on it is given.
-        Index getPoseWords() const { return poseWordsFor(mKind, mRows); }
+        std::uint32_t getPoseWords() const { return poseWordsFor(mKind, mRows); }
     };
 
     /// A skin as a mesh arrives with it: the run word per vertex, the influences those words
@@ -101,9 +101,9 @@ namespace Rtx
     {
         std::span<const std::uint32_t> mRuns;
         std::span<const Shaders::GpuInfluence> mInfluences;
-        Index mBones = 0;
+        std::uint32_t mBones = 0;
 
-        Index getVertexCount() const { return static_cast<Index>(mRuns.size()); }
+        std::uint32_t getVertexCount() const { return static_cast<std::uint32_t>(mRuns.size()); }
     };
 
     /// A set of morph targets as a mesh arrives with them: every target's offsets end to end, the
@@ -111,9 +111,12 @@ namespace Rtx
     struct MorphSpec
     {
         std::span<const osg::Vec3f> mOffsets;
-        Index mTargets = 0;
+        std::uint32_t mTargets = 0;
 
-        Index getVertexCount() const { return mTargets > 0 ? static_cast<Index>(mOffsets.size() / mTargets) : 0; }
+        std::uint32_t getVertexCount() const
+        {
+            return mTargets > 0 ? static_cast<std::uint32_t>(mOffsets.size() / mTargets) : 0;
+        }
     };
 
     /// What poses the meshes that deform: the deformers, and the pose each mesh on one holds.
@@ -122,7 +125,7 @@ namespace Rtx
     /// one hold on its row. Every call takes the `MeshRange`, because which deformer poses a mesh
     /// is the mesh's own fact. A row's holds are nought only between `addRig` or `addMorph` and
     /// the stand `SceneDesc::addMesh` makes in the same call.
-    class DeformerTable : public HeldRows<Deformer>
+    class DeformerTable : public HeldRows<Deformer, DeformerIndex>
     {
     public:
         /// What poses `mesh`: its deformer's kind, or `Deform::None` for a mesh that stands.
@@ -146,10 +149,10 @@ namespace Rtx
         std::span<const PoseWord> getPoses() const { return mPoses.getAll(); }
 
         /// Which deformer slots have been written since the last `clearArrivals`, each named once.
-        std::span<const Index> getArrived() const { return mArrived.getSlots(); }
+        std::span<const DeformerIndex> getArrived() const { return mArrived.getSlots(); }
 
         /// How many vertices the deforming meshes' bind poses take between them.
-        Index getBindVertexCount() const { return mBindRuns.getEnd(); }
+        std::uint32_t getBindVertexCount() const { return mBindRuns.getEnd(); }
 
         /// The pose a mesh holds, in words.
         std::span<const PoseWord> getMeshPose(const MeshRange& range) const;
@@ -170,10 +173,10 @@ namespace Rtx
         /// The row arrives with nothing on it; `SceneDesc::addMesh` is what calls this, and stands
         /// the first mesh on the row in the same call, because a row no mesh stands on is one
         /// nothing frees.
-        Index addRig(const RigSpec& rig);
+        DeformerIndex addRig(const RigSpec& rig);
 
         /// The same for a morph's targets.
-        Index addMorph(const MorphSpec& morph);
+        DeformerIndex addMorph(const MorphSpec& morph);
 
         /// Gives `range` the runs its kind needs, and counts one more mesh on the deformer it names.
         /// Nothing for a mesh that stands. The words it hands out are zeroed, which a first pose
@@ -189,7 +192,7 @@ namespace Rtx
         void release(MeshRange& range);
 
         /// Files `deformer` in a slot and among the arrivals.
-        Index take(const Deformer& deformer);
+        DeformerIndex take(const Deformer& deformer);
 
         /// Unblocked, unlike the bind runs below: a backend reaches each of these by an address
         /// it is handed per dispatch, so nothing here has to keep an address across a growth.
@@ -204,7 +207,7 @@ namespace Rtx
         /// a deformer that arrives and is released inside one sweep must leave; `SlotSet` and not
         /// `SlotChanges`, because a deformer's storage is a run in a shared buffer and nothing has
         /// to be told one went.
-        SlotSet mArrived;
+        SlotSet<DeformerIndex> mArrived;
 
         /// Where each deforming mesh's vertices sit among the deforming meshes alone, which is what
         /// both a bind table and a pose table are indexed by. Blocked like the scene's own vertices,

@@ -80,7 +80,8 @@ namespace Rtx::Testing
             const auto coverReaches = [&](const TextureData& texture) {
                 SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("blob.dds"), TextureWrap::Clamp);
+                const TextureIndex cut
+                    = scene.textures().add(VFS::Path::NormalizedView("blob.dds"), TextureWrap::Clamp);
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(150.0f, 259.81f, 200.0f),
                     .mRadius = 50.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -148,7 +149,7 @@ namespace Rtx::Testing
 
             const auto sprited = [&](bool lidded, Source source) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -217,7 +218,7 @@ namespace Rtx::Testing
 
             const auto lit = [&](bool slatted) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -296,7 +297,7 @@ namespace Rtx::Testing
 
             const auto seen = [&](const BlendKind blend, const bool firstPerson, const float depth) {
                 SceneDesc scene(identities);
-                const Index texture = scene.textures().add(VFS::Path::NormalizedView("hand_spell.dds"));
+                const TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("hand_spell.dds"));
                 const std::array<TextureData, 1> textures{ describeTexel(white) };
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0, depth, 0),
                     .mRadius = 20.0f,
@@ -372,7 +373,7 @@ namespace Rtx::Testing
                 std::array<TextureData, 1> textures{ describeTexel(white) };
                 if (behind == Behind::Puff)
                 {
-                    const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                    const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                     const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 400.0f, 0.0f),
                         .mRadius = 60.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -381,8 +382,8 @@ namespace Rtx::Testing
                 }
                 else
                 {
-                    const Index texture = scene.textures().add(VFS::Path::NormalizedView("shell.dds"));
-                    const Index shell = scene.addMaterial(Material{ .mDiffuse = texture,
+                    const TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("shell.dds"));
+                    const MaterialIndex shell = scene.addMaterial(Material{ .mDiffuse = texture,
                         .mOpacity = 0.5f,
                         .mAlphaMode = AlphaMode::Blend,
                         .mDiffuseNeverSolid = true });
@@ -447,7 +448,7 @@ namespace Rtx::Testing
                 std::array<TextureData, 1> textures{ describeTexel(white) };
                 if (sprites)
                 {
-                    const Index cut = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                     std::array<Sprite, 4> four{};
                     for (Sprite& one : four)
                         one = Sprite{ .mPosition = osg::Vec3f(0.0f, 300.0f, 0.0f),
@@ -458,7 +459,7 @@ namespace Rtx::Testing
                 }
                 if (shell)
                 {
-                    const Index texture = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    const TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                     addQuad(scene, uprightQuadAt(80.0f, 400.0f),
                         scene.addMaterial(Material{ .mDiffuse = texture,
                             .mDiffuseColour = osg::Vec3f(0.0f, 1.0f, 0.0f),
@@ -517,7 +518,7 @@ namespace Rtx::Testing
             const auto shot = [&](bool aside) {
                 SceneDesc scene(identities);
                 std::array<TextureData, 1> textures{ describeTexel(white) };
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                 const auto addAside = [&] {
                     std::array<Sprite, 3> three{};
                     for (std::size_t at = 0; at < three.size(); ++at)
@@ -669,7 +670,7 @@ namespace Rtx::Testing
 
                 SceneDesc scene(identities);
                 const std::array<TextureData, 1> textures{ describeTexel(white) };
-                const Index texture = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                const TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                 addQuad(scene, uprightQuadAt(80.0f, 400.0f),
                     scene.addMaterial(Material{ .mDiffuse = texture,
                         .mOpacity = 0.5f,
@@ -707,15 +708,16 @@ namespace Rtx::Testing
 
             constexpr std::array<std::uint8_t, 4> red{ 255, 0, 0, 255 };
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
-            const std::array<TextureData, 2> textures{ describeTexel(red, 0), describeTexel(white, 1) };
+            const std::array<TextureData, 2> textures{ describeTexel(red, TextureIndex(0)),
+                describeTexel(white, TextureIndex(1)) };
 
             const float slope
                 = ((static_cast<float>(column) + 0.5f) / size * 2.0f - 1.0f) * std::tan(osg::DegreesToRadians(15.0f));
 
             const auto seenAt = [&](bool sprited) {
                 SceneDesc scene(identities);
-                const Index pane = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
-                const Index puff = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                const TextureIndex pane = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+                const TextureIndex puff = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
 
                 const float across = 200.0f * slope;
                 const std::array corners = uprightQuadAt(10.0f, 100.0f, osg::Vec2f(across, 0.0f));
@@ -773,11 +775,11 @@ namespace Rtx::Testing
             constexpr std::size_t centre = centreValueOf(size);
 
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
-            const std::array<TextureData, 1> textures{ describeTexel(white, 0) };
+            const std::array<TextureData, 1> textures{ describeTexel(white, TextureIndex(0)) };
 
             const auto seenWith = [&](bool sprited, bool armed) {
                 SceneDesc scene(identities);
-                const Index puff = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                const TextureIndex puff = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
 
                 // Behind the eye, so the scene holds something and the picture is the sky.
                 addQuad(scene, uprightQuadAt(50.0f, -1000.0f));
@@ -850,7 +852,7 @@ namespace Rtx::Testing
 
             const auto boxedAt = [&](float half, bool shell, std::uint32_t frames) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 if (shell)
                 {
                     addQuad(scene, uprightQuadAt(40.0f, 0.0f),
@@ -931,7 +933,7 @@ namespace Rtx::Testing
 
             const auto render = [&](bool lamp, float fill) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 40.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -991,7 +993,7 @@ namespace Rtx::Testing
 
                 if (sprited)
                 {
-                    const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                    const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                     const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, height),
                         .mRadius = 60.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -1046,7 +1048,7 @@ namespace Rtx::Testing
 
             const auto glowing = [&](std::size_t count, BlendKind blend = BlendKind::Add) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::vector<Sprite> flames(count,
                     Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                         .mRadius = 60.0f,
@@ -1097,7 +1099,7 @@ namespace Rtx::Testing
 
             const auto drawn = [&](const osg::Vec3f& axis) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = radius,
                     .mAxis = axis,
@@ -1174,7 +1176,7 @@ namespace Rtx::Testing
 
             const auto lit = [&](const osg::Vec3f& axis) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
                     .mAxis = axis,
@@ -1245,7 +1247,7 @@ namespace Rtx::Testing
 
             const auto green = [&](float width, const osg::Vec3f& axis) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
                     .mAxis = axis,
@@ -1307,8 +1309,8 @@ namespace Rtx::Testing
                     textures[1].mSource = TextureSource::StandIn;
 
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
-                const Index bake = scene.textures().addSpriteLight(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex bake = scene.textures().addSpriteLight(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -1391,7 +1393,7 @@ namespace Rtx::Testing
             const auto lit = [&](bool shaded, std::span<const TextureData> puff) {
                 SceneIdentities identities;
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 std::vector<Sprite> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -1460,7 +1462,7 @@ namespace Rtx::Testing
 
             const auto shown = [&](bool falls, float shelter) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 2> drops{
                     Sprite{ .mPosition = osg::Vec3f(-100.0f, 0.0f, 0.0f),
                         .mRadius = 40.0f,

@@ -27,7 +27,7 @@ namespace RtxTool
             Rtx::SceneDesc scene(identities);
             Rtx::TextureTable& textures = scene.textures();
             const auto rest = [&](const char* path, const std::uint64_t mebibytes) {
-                const Rtx::Index slot = textures.add(VFS::Path::NormalizedView(path));
+                const Rtx::TextureIndex slot = textures.add(VFS::Path::NormalizedView(path));
                 textures.stand(slot, mebibytes * sMiB, false, 0);
                 scene.drop(scene.holdTexture(slot));
                 scene.compact();
@@ -66,7 +66,7 @@ namespace RtxTool
 
             // **A mesh in the same order**: a quad whose structure takes 10 MiB rests, nothing resting after it, and
             // wakes needing only its own bytes.
-            const Rtx::Index quad = Rtx::Testing::addQuadMesh(scene);
+            const Rtx::MeshIndex quad = Rtx::Testing::addQuadMesh(scene);
             scene.standMesh(quad, 10 * sMiB);
             Rtx::Testing::letGoMesh(scene, quad);
             scene.compact();

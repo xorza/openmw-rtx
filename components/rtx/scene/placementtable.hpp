@@ -6,6 +6,7 @@
 #include <osg/Matrixf>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/shaders/scene.h>
 
@@ -19,8 +20,8 @@ namespace Rtx
     /// leaves it in constant time.
     struct PlacementLinks
     {
-        Index mNext = sNoIndex;
-        Index mPrevious = sNoIndex;
+        PlacementIndex mNext = sNoRow;
+        PlacementIndex mPrevious = sNoRow;
     };
 
     /// One slot of the table: the placement, and everything the table knows about the slot beside
@@ -79,35 +80,35 @@ namespace Rtx
         /// has not moved; a fade that changed the number joins `getMoved` all the same, as a row to
         /// rewrite that carries no motion. The walk's alone: the ring stands and drops, and never
         /// fades.
-        void fade(Index slot, float opacity);
+        void fade(PlacementIndex slot, float opacity);
 
         /// Moves the placement in `slot`, and says whether that changed anything. A transform equal
         /// to the one already there writes nothing, which is the ordinary case. The walk's alone,
         /// as `fade` is.
-        bool move(Index slot, const osg::Matrixf& transform);
+        bool move(PlacementIndex slot, const osg::Matrixf& transform);
 
         /// Puts the placement in `slot` at `transform` as though it had always stood there: no
         /// motion, so a history at its new pixels is the old place's and is refused. What the game
         /// put somewhere else in one step — a door, a teleport — and not what walked there. The
         /// walk's alone, as `move` is.
-        bool jump(Index slot, const osg::Matrixf& transform);
+        bool jump(PlacementIndex slot, const osg::Matrixf& transform);
 
         /// Says every row wearing `material` now wears `worn` and has to be written again — the
         /// material changed what traversal is told about the surfaces standing on it. A list per
         /// material is threaded through the slots, so a fade crossing opaque costs its own
         /// placements rather than a walk of the world's.
-        void rewriteWearing(Index material, const Material::Traversed& worn);
+        void rewriteWearing(MaterialIndex material, const Material::Traversed& worn);
 
         /// Calls `visit` with every slot placing `mesh`, newest first. The placements of that mesh
         /// and no other, which is what a backend whose structure for it moved rewrites: a walk of
         /// every row was a cache miss a row, on every placement that compacted anything.
         template <class Visit>
-        void forEachPlacing(const Index mesh, Visit&& visit) const
+        void forEachPlacing(const MeshIndex mesh, Visit&& visit) const
         {
-            if (mesh >= mFirstPlacing.size())
+            if (!mFirstPlacing.holds(mesh))
                 return;
 
-            for (Index slot = mFirstPlacing[mesh]; slot != sNoIndex; slot = mRows.at(slot).mPlacing.mNext)
+            for (PlacementIndex slot = mFirstPlacing[mesh]; slot != sNoRow; slot = mRows.at(slot).mPlacing.mNext)
                 visit(slot);
         }
 
@@ -118,19 +119,19 @@ namespace Rtx
         void advance();
 
         /// Every slot, standing or empty, in slot order. `isPlaced` tells them apart.
-        std::span<const PlacementRow> getRows() const { return mRows.getRows(); }
+        RowSpan<const PlacementRow, PlacementIndex> getRows() const { return mRows.getRows(); }
 
         /// Whether `slot` holds a placement. A dropped placement leaves its slot behind rather than
         /// closing the gap, because the slot index is what a hit reads back; the free list says
         /// which, and nothing in the row does.
-        bool isPlaced(Index slot) const { return mRows.isLive(slot); }
+        bool isPlaced(PlacementIndex slot) const { return mRows.isLive(slot); }
 
         /// Calls `visit` with every slot that holds a placement and its row, in slot order.
         template <class Visit>
         void forEachPlaced(Visit&& visit) const
         {
-            const std::span<const PlacementRow> rows = mRows.getRows();
-            for (Index slot = 0; slot < rows.size(); ++slot)
+            const RowSpan<const PlacementRow, PlacementIndex> rows = mRows.getRows();
+            for (const PlacementIndex slot : everyRow<PlacementIndex>(rows.size()))
                 if (mRows.isLive(slot))
                     visit(slot, rows[slot]);
         }
@@ -141,26 +142,27 @@ namespace Rtx
 
         /// The slots whose row changed since the last `advance`: placed, moved, faded, dropped, or
         /// wearing a material that changed what traversal is told. Each slot once.
-        std::span<const Index> getMoved() const { return mMoved.getSlots(); }
+        std::span<const PlacementIndex> getMoved() const { return mMoved.getSlots(); }
 
         /// Whether `slot` is in `getMoved`.
-        bool isMoved(Index slot) const { return mMoved.has(slot); }
+        bool isMoved(PlacementIndex slot) const { return mMoved.has(slot); }
 
         /// The slots the last `advance` caught up, whose motion is now still — the other half of
         /// what a backend rewrites, or last frame's motion would stay in the row for ever.
-        std::span<const Index> getSettled() const { return mSettled.getSlots(); }
+        std::span<const PlacementIndex> getSettled() const { return mSettled.getSlots(); }
 
         /// The standing slots a walk along the eye's ray looks for — a medium or an additive
         /// surface, `InstanceCounts::mMedium` and `mAdditive` — kept as the counts are, by the row
         /// that changed.
-        std::span<const Index> getPresent() const { return mPresent.getSlots(); }
+        std::span<const PlacementIndex> getPresent() const { return mPresent.getSlots(); }
 
         /// Where each of `getPresent`'s placements can be met, as a sphere about the box of its
         /// mesh carried through its transform, into `into`: cleared, then one row a slot whose mesh
         /// has a box. A mesh with none has no vertices yet; the spheres are described again at every
         /// placement, so the box is read once it arrives.
         /// @param meshes the scene's, whose boxes a placement names.
-        void describePresences(std::span<const MeshRange> meshes, std::vector<Shaders::GpuPresence>& into) const;
+        void describePresences(
+            RowSpan<const MeshRange, MeshIndex> meshes, std::vector<Shaders::GpuPresence>& into) const;
 
         /// Settles what a drop took out of `getPresent`, so it can be read.
         void compact() { mPresent.compact(); }
@@ -171,14 +173,14 @@ namespace Rtx
         friend class SceneDesc;
 
         /// Puts `instance` in a free slot, or in a new one, and returns it.
-        Index add(const MeshInstance& instance, const Material::Traversed& worn);
+        PlacementIndex add(const MeshInstance& instance, const Material::Traversed& worn);
 
         /// Empties `slot`. Its index is not reused until the next `add` asks for one. The slot
         /// joins `getMoved`: a backend has to write its row inactive, or the structure goes on
         /// tracing what stood there.
         ///
         /// @param by who is dropping it, which must be who stood it — `Stander`.
-        void drop(Index slot, Stander by);
+        void drop(PlacementIndex slot, Stander by);
 
         /// What a standing row counts as — one placed, and one of each figure its material and its
         /// class put it in. The traversal figures are `PlacedTraversal`'s, which `InstanceRecord`'s
@@ -187,30 +189,34 @@ namespace Rtx
 
         /// Adds the row's share to the counts, and takes it back again. The row is read both
         /// times: every change to what it counts as takes it out first and puts it back after.
-        void count(Index slot);
-        void discount(Index slot);
+        void count(PlacementIndex slot);
+        void discount(PlacementIndex slot);
 
         /// Puts `slot` at the head of the list `heads` keeps for `key` and threads through `links`,
-        /// and takes it out again. Nothing for a key of `sNoIndex`, which is a placement wearing no
+        /// and takes it out again. Nothing for a key of `sNoRow`, which is a placement wearing no
         /// material.
-        void link(Index slot, Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::* links);
-        void unlink(Index slot, Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::* links);
+        template <class Key>
+        void link(
+            PlacementIndex slot, Key key, RowVector<PlacementIndex, Key>& heads, PlacementLinks PlacementRow::* links);
+        template <class Key>
+        void unlink(
+            PlacementIndex slot, Key key, RowVector<PlacementIndex, Key>& heads, PlacementLinks PlacementRow::* links);
 
-        SlotRows<PlacementRow> mRows;
+        SlotRows<PlacementRow, PlacementIndex> mRows;
 
         /// The newest placement wearing each material, and the newest placing each mesh,
-        /// `sNoIndex` where none does. Parallel to the materials and the meshes, and grown with
+        /// `sNoRow` where none does. Parallel to the materials and the meshes, and grown with
         /// them.
-        std::vector<Index> mFirstWearing;
-        std::vector<Index> mFirstPlacing;
+        RowVector<PlacementIndex, MaterialIndex> mFirstWearing;
+        RowVector<PlacementIndex, MeshIndex> mFirstPlacing;
 
         /// Each slot once, however many of the facts about it changed: a slot named twice is its
         /// record made, a four-by-four inverse and a row in both device tables, twice.
-        SlotSet mMoved;
-        SlotSet mSettled;
+        SlotSet<PlacementIndex> mMoved;
+        SlotSet<PlacementIndex> mSettled;
 
         InstanceCounts mCounts;
 
-        SlotSet mPresent;
+        SlotSet<PlacementIndex> mPresent;
     };
 }

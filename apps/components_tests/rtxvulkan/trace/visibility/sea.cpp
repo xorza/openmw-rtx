@@ -838,10 +838,10 @@ namespace Rtx::Testing
             const auto coneOver = [&](const SeaState& sea) {
                 SceneDesc scene = makeOpenWater(identities, 4000.0f);
 
-                const Index bed = Testing::addMesh(scene,
+                const MeshIndex bed = Testing::addMesh(scene,
                     MeshArrays{
                         .mPositions = sheetAt(500.0f, -depth), .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-                const Index glow = scene.addMaterial(
+                const MaterialIndex glow = scene.addMaterial(
                     Material{ .mEmissive = scene.textures().add(VFS::Path::NormalizedView("ladder.dds")) });
                 scene.addInstance(MeshInstance{ .mMesh = bed, .mMaterial = glow });
 

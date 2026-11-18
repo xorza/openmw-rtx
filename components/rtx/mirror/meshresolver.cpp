@@ -68,7 +68,7 @@ namespace Rtx
 
     }
 
-    Index MeshResolver::resolve(
+    MeshIndex MeshResolver::resolve(
         const osg::Drawable& drawable, const DrawableRead& read, const std::span<osg::Node* const> path)
     {
         ExtractionStats& stats = mPass.getStats();
@@ -77,13 +77,13 @@ namespace Rtx
 
         if (const auto known = mMeshes.find(&drawable); known != mMeshes.end())
         {
-            const Index mesh = known->second.mRow.get();
+            const MeshIndex mesh = known->second.mRow.get();
 
             // Refused once, and never read again: the file has not changed since.
-            if (mesh == sNoIndex)
+            if (mesh == sNoRow)
             {
                 mMeshes.stamp(known);
-                return sNoIndex;
+                return sNoRow;
             }
 
             const MeshRange& range = mScene.meshes().getRows()[mesh];
@@ -110,7 +110,7 @@ namespace Rtx
             // deformer and not "no deformer" on both sides, because a rig read standing before its
             // skeleton resolved holds none, and a rig read after it that has none yet would equal
             // it.
-            if (vertices == range.mVertices.mCount && held.mIndex != sNoIndex && held.mIndex == range.mDeformer)
+            if (vertices == range.mVertices.mCount && held.mIndex != sNoRow && held.mIndex == range.mDeformer)
             {
                 ++stats.mMeshesReused;
                 mMeshes.stamp(known);
@@ -146,7 +146,7 @@ namespace Rtx
         {
             ++stats.mSkippedEmpty;
             mMeshes.add(&drawable, KnownMesh{});
-            return sNoIndex;
+            return sNoRow;
         }
 
         if (const Result<void, std::string> fits
@@ -155,12 +155,12 @@ namespace Rtx
             return refuse(drawable, model, fits.error());
 
         mPacked.clear();
-        const Result<Index, std::string> added
+        const Result<MeshIndex, std::string> added
             = addMesh(read, mPacked.of(mPacked.append(reading.mArrays, reading.mShape)));
         if (!added.isOk())
             return refuse(drawable, model, added.error());
 
-        const Index mesh = added.value();
+        const MeshIndex mesh = added.value();
 
         file(drawable, mesh);
         ++stats.mMeshesAdded;
@@ -187,7 +187,7 @@ namespace Rtx
         return nullptr;
     }
 
-    bool MeshResolver::fits(const Index slot, const DrawableRead& read) const
+    bool MeshResolver::fits(const DeformerIndex slot, const DrawableRead& read) const
     {
         const Deformer& held = mScene.deformers().getRows()[slot];
         if (held.mKind != read.mDeform)
@@ -208,7 +208,7 @@ namespace Rtx
         return true;
     }
 
-    Index MeshResolver::adopt(const osg::Drawable& drawable, const PackedMesh& reading)
+    MeshIndex MeshResolver::adopt(const osg::Drawable& drawable, const PackedMesh& reading)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -247,7 +247,7 @@ namespace Rtx
         mMeshes.hold(known);
     }
 
-    Index MeshResolver::refuse(const osg::Drawable& drawable, const osg::Node* model, std::string_view why)
+    MeshIndex MeshResolver::refuse(const osg::Drawable& drawable, const osg::Node* model, std::string_view why)
     {
         // Once a drawable, which the refusal is kept under, so the name is made once too.
         const std::string named = model != nullptr
@@ -255,10 +255,10 @@ namespace Rtx
             : drawable.getName();
         mScene.refusals().refuse(Refused::Mesh, named, why);
         mMeshes.add(&drawable, KnownMesh{});
-        return sNoIndex;
+        return sNoRow;
     }
 
-    Result<Index, std::string> MeshResolver::addMesh(const DrawableRead& read, const PackedMesh& reading)
+    Result<MeshIndex, std::string> MeshResolver::addMesh(const DrawableRead& read, const PackedMesh& reading)
     {
         const Crash::NoteScope noted("adding the mesh \"{}\"", read.mGeometry->getName());
 
@@ -271,7 +271,7 @@ namespace Rtx
         // as a mesh stands on it.
         const std::size_t vertices = reading.mPositions.size();
         const Held held = holdDeformer(read);
-        if (held.mIndex != sNoIndex && mScene.deformers().getRows()[held.mIndex].getVertexCount() == vertices)
+        if (held.mIndex != sNoRow && mScene.deformers().getRows()[held.mIndex].getVertexCount() == vertices)
         {
             stampDeformer(held);
             return mScene.addMesh(reading, held.mIndex);
@@ -315,7 +315,7 @@ namespace Rtx
             mDeformers.stamp(held.mEntry);
         }
         else
-            mDeformers.add(deformerKeyOf(read), Known{ .mIndex = added.mDeformer });
+            mDeformers.add(deformerKeyOf(read), Known<DeformerIndex>{ .mIndex = added.mDeformer });
 
         return added.mMesh;
     }
@@ -345,7 +345,7 @@ namespace Rtx
 
     /// A pose is rows and not vertices, which is why the mirror pays a few dozen matrices for what
     /// is actually moving.
-    void MeshResolver::pose(const Index mesh, const DrawableRead& read, ExtractionStats& stats)
+    void MeshResolver::pose(const MeshIndex mesh, const DrawableRead& read, ExtractionStats& stats)
     {
         if (read.mDeform == Deform::None)
             return;
@@ -428,7 +428,7 @@ namespace Rtx
         ++stats.mDeformed;
     }
 
-    void MeshResolver::holdPose(const Index mesh, const osg::Drawable& drawable, const osg::BoundingBoxf& first)
+    void MeshResolver::holdPose(const MeshIndex mesh, const osg::Drawable& drawable, const osg::BoundingBoxf& first)
     {
         // **A pose that is not a finite number keeps the last one**, because the engine animated it from content.
         // Carried, it is a store that is not finite in the deforming kernel and a refit that changes which triangles
@@ -493,7 +493,7 @@ namespace Rtx
         return RigSpec{
             .mRuns = mRunScratch,
             .mInfluences = mInfluenceScratch,
-            .mBones = static_cast<Index>(skin->mBones.size()),
+            .mBones = static_cast<std::uint32_t>(skin->mBones.size()),
         };
     }
 
@@ -523,7 +523,7 @@ namespace Rtx
             std::copy_n(read, count, mOffsetScratch.begin() + static_cast<std::ptrdiff_t>(target * vertices));
         }
 
-        return MorphSpec{ .mOffsets = mOffsetScratch, .mTargets = static_cast<Index>(targets.size()) };
+        return MorphSpec{ .mOffsets = mOffsetScratch, .mTargets = static_cast<std::uint32_t>(targets.size()) };
     }
 
     void MeshResolver::retire(Released& released)
@@ -542,7 +542,7 @@ namespace Rtx
         mMeshes.clear([this](KnownMesh& gone) { mScene.drop(std::move(gone.mRow)); });
     }
 
-    MeshResolver::MeshEntry MeshResolver::file(const osg::Drawable& drawable, const Index mesh)
+    MeshResolver::MeshEntry MeshResolver::file(const osg::Drawable& drawable, const MeshIndex mesh)
     {
         return mMeshes.add(&drawable, KnownMesh{ .mRow = mScene.holdMesh(mesh) });
     }

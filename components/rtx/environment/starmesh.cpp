@@ -280,14 +280,14 @@ namespace Rtx
         {
             ReadingHold held = takeSkySheet(
                 scene, VFS::Path::Normalized(SceneUtil::EmbeddedImage::nameOf(*layer.mImage)), *layer.mImage);
-            const Index slot = held.get();
-            if (slot == sNoIndex)
+            const TextureIndex slot = held.get();
+            if (slot == sNoRow)
                 continue;
 
             if (std::min(layer.mUvSpan.x(), layer.mUvSpan.y()) > sTiledSpan)
             {
                 // The first that looks like one and no more: a second is given back at once.
-                if (sky.mField != sNoIndex)
+                if (sky.mField != sNoRow)
                 {
                     scene.drop(std::move(held));
                     continue;

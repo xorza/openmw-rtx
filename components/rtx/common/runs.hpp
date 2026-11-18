@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <memory>
 #include <new>
-#include <numeric>
 #include <optional>
 #include <span>
 #include <type_traits>
@@ -16,12 +15,15 @@
 
 namespace Rtx
 {
-    /// `into`, refilled with every index below `count`: a whole table walked through the path a list
+    /// `into`, refilled with every row below `count`: a whole table walked through the path a list
     /// of arrivals takes.
-    inline std::span<const Index> everyIndexBelow(std::size_t count, std::vector<Index>& into)
+    template <class I>
+    std::span<const I> everyIndexBelow(const std::size_t count, std::vector<I>& into)
     {
-        into.resize(count);
-        std::iota(into.begin(), into.end(), Index{ 0 });
+        into.clear();
+        into.reserve(count);
+        for (std::uint32_t at = 0; at < count; ++at)
+            into.push_back(I(at));
         return into;
     }
 

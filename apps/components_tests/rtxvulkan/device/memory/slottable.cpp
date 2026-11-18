@@ -37,10 +37,16 @@ namespace Rtx
         /// **Most of these tests ask the bookkeeping and not the picture**: the debt, which rows a copy is about to be
         /// given, is where every failure this type replaced lived. What a copy holds is read back on the queue where a
         /// test asks it (`readCopy`).
-        /// A debt as a vector, in the order it was named, which is what a gtest comparison takes.
-        std::vector<Index> listed(std::span<const Index> owed)
+        /// The rows of the table these tests stand up, a table of their own.
+        using Row = RowIndex<struct TestRows>;
+
+        /// A debt as the rows' positions, in the order it was named, which is what a gtest comparison takes.
+        std::vector<std::uint32_t> listed(std::span<const Row> owed)
         {
-            return std::vector<Index>(owed.begin(), owed.end());
+            std::vector<std::uint32_t> at;
+            for (const Row row : owed)
+                at.push_back(row.at());
+            return at;
         }
 
         class RtxSlotTableTest : public Testing::DeviceTest
@@ -54,9 +60,9 @@ namespace Rtx
 
             /// Which rows `slot` is owed, sorted so that a debt compares equal whatever order it arrived in. **Not
             /// deduplicated**, because whether a row is named twice is one of the things these tests ask about.
-            std::vector<Index> owedBy(std::uint32_t slot)
+            std::vector<std::uint32_t> owedBy(std::uint32_t slot)
             {
-                std::vector<Index> sorted = listed(mTable.getOwed(FrameSlot{ slot }));
+                std::vector<std::uint32_t> sorted = listed(mTable.getOwed(FrameSlot{ slot }));
                 std::sort(sorted.begin(), sorted.end());
                 return sorted;
             }
@@ -64,13 +70,14 @@ namespace Rtx
             void sync(std::uint32_t slot) { syncTable(mTable, slot); }
 
             /// Pays `slot`'s debt of `table` through a batch flushed here.
-            void syncTable(SlotTable<TestRow>& table, std::uint32_t slot)
+            void syncTable(SlotTable<TestRow, Row>& table, std::uint32_t slot)
             {
                 Testing::flushWriting(getPool(), [&](Uploads& uploads) { table.sync(FrameSlot{ slot }, uploads); });
             }
 
             /// What `slot`'s copy of `table` holds of its first `rows` rows, copied out on the queue.
-            std::vector<std::uint32_t> readCopy(const SlotTable<TestRow>& table, std::uint32_t slot, std::size_t rows)
+            std::vector<std::uint32_t> readCopy(
+                const SlotTable<TestRow, Row>& table, std::uint32_t slot, std::size_t rows)
             {
                 const VkDeviceSize bytes = rows * sizeof(TestRow);
                 const Buffer read = Buffer::readBack(getDevice(), bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
@@ -84,7 +91,7 @@ namespace Rtx
                 return held;
             }
 
-            SlotTable<TestRow> mTable;
+            SlotTable<TestRow, Row> mTable;
         };
 
         /// A row written is owed by every copy, and paying one copy leaves the other owing it.
@@ -99,14 +106,14 @@ namespace Rtx
             ASSERT_FALSE(mTable.owes(FrameSlot{ 0 }));
             ASSERT_FALSE(mTable.owes(FrameSlot{ 1 }));
 
-            mTable.write(2).mValue = 7;
+            mTable.write(Row(2)).mValue = 7;
 
-            EXPECT_EQ(owedBy(0), (std::vector<Index>{ 2 }));
-            EXPECT_EQ(owedBy(1), (std::vector<Index>{ 2 }));
+            EXPECT_EQ(owedBy(0), (std::vector<std::uint32_t>{ 2 }));
+            EXPECT_EQ(owedBy(1), (std::vector<std::uint32_t>{ 2 }));
 
             sync(0);
             EXPECT_FALSE(mTable.owes(FrameSlot{ 0 })) << "the copy that was paid still owes";
-            EXPECT_EQ(owedBy(1), (std::vector<Index>{ 2 })) << "the copy that was not paid forgot";
+            EXPECT_EQ(owedBy(1), (std::vector<std::uint32_t>{ 2 })) << "the copy that was not paid forgot";
 
             sync(1);
             EXPECT_FALSE(mTable.owes(FrameSlot{ 1 }));
@@ -114,14 +121,14 @@ namespace Rtx
             // A row rewritten as it stands owes nothing and counts no write, and one rewritten
             // otherwise is a write like any other.
             const std::uint64_t writes = mTable.getWrites();
-            mTable.writeChanged(2, TestRow{ .mValue = 7 });
+            mTable.writeChanged(Row(2), TestRow{ .mValue = 7 });
             EXPECT_FALSE(mTable.owes(FrameSlot{ 0 })) << "a row rewritten as it stood was owed";
             EXPECT_EQ(mTable.getWrites(), writes) << "a row rewritten as it stood counted a write";
 
-            mTable.writeChanged(2, TestRow{ .mValue = 8 });
-            EXPECT_EQ(mTable.getRows()[2].mValue, 8u);
-            EXPECT_EQ(owedBy(0), (std::vector<Index>{ 2 }));
-            EXPECT_EQ(owedBy(1), (std::vector<Index>{ 2 }));
+            mTable.writeChanged(Row(2), TestRow{ .mValue = 8 });
+            EXPECT_EQ(mTable.getRows()[Row(2)].mValue, 8u);
+            EXPECT_EQ(owedBy(0), (std::vector<std::uint32_t>{ 2 }));
+            EXPECT_EQ(owedBy(1), (std::vector<std::uint32_t>{ 2 }));
             EXPECT_EQ(mTable.getWrites(), writes + 1);
         }
 
@@ -135,14 +142,14 @@ namespace Rtx
             sync(0);
             sync(1);
 
-            mTable.write(1);
+            mTable.write(Row(1));
             sync(0);
-            mTable.write(3);
+            mTable.write(Row(3));
             sync(0);
-            mTable.write(5);
+            mTable.write(Row(5));
 
-            EXPECT_EQ(owedBy(0), (std::vector<Index>{ 5 })) << "the copy paid twice owes only the last";
-            EXPECT_EQ(owedBy(1), (std::vector<Index>{ 1, 3, 5 })) << "three frames of changes, one copy";
+            EXPECT_EQ(owedBy(0), (std::vector<std::uint32_t>{ 5 })) << "the copy paid twice owes only the last";
+            EXPECT_EQ(owedBy(1), (std::vector<std::uint32_t>{ 1, 3, 5 })) << "three frames of changes, one copy";
 
             sync(1);
             EXPECT_FALSE(mTable.owes(FrameSlot{ 1 }));
@@ -154,17 +161,17 @@ namespace Rtx
         /// until the end, owes the whole table and is written whole.
         TEST_F(RtxSlotTableTest, aSyncedCopyHoldsTheRowsTheHostWrote)
         {
-            SlotTable<TestRow> table;
+            SlotTable<TestRow, Row> table;
             table.open(getDevice(), 2, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test");
             table.grow(8);
-            for (Index at = 0; at < 8; ++at)
-                table.write(at).mValue = 100 + at;
+            for (const Row at : everyRow<Row>(8))
+                table.write(at).mValue = 100 + at.at();
             syncTable(table, 0);
             EXPECT_EQ(readCopy(table, 0, 8), (std::vector<std::uint32_t>{ 100, 101, 102, 103, 104, 105, 106, 107 }));
 
-            table.write(2).mValue = 2;
-            table.write(6).mValue = 6;
-            table.write(3).mValue = 3;
+            table.write(Row(2)).mValue = 2;
+            table.write(Row(6)).mValue = 6;
+            table.write(Row(3)).mValue = 3;
             syncTable(table, 0);
             const std::vector<std::uint32_t> expected{ 100, 101, 2, 3, 104, 105, 6, 107 };
             EXPECT_EQ(readCopy(table, 0, 8), expected) << "rows 2 and 3 one run, row 6 another, the rest kept";
@@ -183,8 +190,8 @@ namespace Rtx
             const std::uint64_t writes = mTable.getWrites();
             mTable.grow(6);
 
-            EXPECT_EQ(owedBy(0), (std::vector<Index>{ 3, 4, 5 }));
-            EXPECT_EQ(owedBy(1), (std::vector<Index>{ 3, 4, 5 }));
+            EXPECT_EQ(owedBy(0), (std::vector<std::uint32_t>{ 3, 4, 5 }));
+            EXPECT_EQ(owedBy(1), (std::vector<std::uint32_t>{ 3, 4, 5 }));
             EXPECT_FALSE(mTable.owesEverything(FrameSlot{ 0 })) << "a growth rewrote rows that had not moved";
             EXPECT_EQ(mTable.getWrites(), writes + 1) << "a growth went uncounted";
 
@@ -199,7 +206,7 @@ namespace Rtx
             EXPECT_TRUE(mTable.owesEverything(FrameSlot{ 1 }));
 
             mTable.grow(5);
-            mTable.write(0).mValue = 1;
+            mTable.write(Row(0)).mValue = 1;
 
             EXPECT_TRUE(mTable.owesEverything(FrameSlot{ 0 })) << "a row named where the whole table is owed";
 
@@ -216,15 +223,15 @@ namespace Rtx
             sync(0);
             sync(1);
 
-            mTable.write(1).mValue = 10;
+            mTable.write(Row(1)).mValue = 10;
             sync(0);
-            mTable.write(1).mValue = 20;
+            mTable.write(Row(1)).mValue = 20;
 
-            EXPECT_EQ(mTable.getRows()[1].mValue, 20u);
-            EXPECT_EQ(owedBy(1), (std::vector<Index>{ 1 })) << "one row named twice is one row to write";
+            EXPECT_EQ(mTable.getRows()[Row(1)].mValue, 20u);
+            EXPECT_EQ(owedBy(1), (std::vector<std::uint32_t>{ 1 })) << "one row named twice is one row to write";
 
             sync(1);
-            EXPECT_EQ(mTable.getRows()[1].mValue, 20u) << "syncing changed the answer";
+            EXPECT_EQ(mTable.getRows()[Row(1)].mValue, 20u) << "syncing changed the answer";
         }
 
         /// A copy's buffer grows with the table and never with the frame count.
@@ -241,7 +248,7 @@ namespace Rtx
 
             for (std::int32_t frame = 0; frame < 8; ++frame)
             {
-                mTable.write(1).mValue = static_cast<std::uint32_t>(frame);
+                mTable.write(Row(1)).mValue = static_cast<std::uint32_t>(frame);
                 sync(0);
             }
 
@@ -275,7 +282,7 @@ namespace Rtx
 
             // **And a table reserved is made once at its room**, every copy of it, and grows past
             // it by doubling from there: 1024 rows of four bytes, then 2048.
-            SlotTable<TestRow> reserved;
+            SlotTable<TestRow, Row> reserved;
             reserved.open(getDevice(), 2, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "reserved");
             reserved.reserve(1024);
             for (std::uint32_t slot = 0; slot < 2; ++slot)
@@ -297,25 +304,26 @@ namespace Rtx
         /// Blocks keep the same account as rows: named by `write`, cleared only by `sync`.
         TEST_F(RtxSlotTableTest, blocksOweEveryRunNamedSinceThatCopyWasLastFilled)
         {
-            SlotBlocks blocks(64, sizeof(std::uint32_t));
+            SlotBlocks<Row> blocks(64, sizeof(std::uint32_t));
             blocks.open(getDevice(), 2, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "test blocks");
             Batch setup(getPool());
             blocks.reserve(setup, 128);
             setup.flush();
 
-            blocks.write(2);
-            blocks.write(5);
+            blocks.write(Row(2));
+            blocks.write(Row(5));
 
-            std::vector<Index> filled;
-            blocks.sync(FrameSlot{ 0 }, [&](const Index at, BlockedBuffer&) { filled.push_back(at); });
-            EXPECT_EQ(filled, (std::vector<Index>{ 2, 5 }));
+            std::vector<std::uint32_t> filled;
+            blocks.sync(FrameSlot{ 0 }, [&](const Row at, BlockedBuffer&) { filled.push_back(at.at()); });
+            EXPECT_EQ(filled, (std::vector<std::uint32_t>{ 2, 5 }));
             EXPECT_TRUE(blocks.getOwed(FrameSlot{ 0 }).empty()) << "the copy that was filled still owes";
 
-            blocks.write(9);
+            blocks.write(Row(9));
 
             filled.clear();
-            blocks.sync(FrameSlot{ 1 }, [&](const Index at, BlockedBuffer&) { filled.push_back(at); });
-            EXPECT_EQ(filled, (std::vector<Index>{ 2, 5, 9 })) << "the copy that was not filled forgot two runs";
+            blocks.sync(FrameSlot{ 1 }, [&](const Row at, BlockedBuffer&) { filled.push_back(at.at()); });
+            EXPECT_EQ(filled, (std::vector<std::uint32_t>{ 2, 5, 9 }))
+                << "the copy that was not filled forgot two runs";
         }
 
         /// A run named twice before its copy is filled is one run to copy, not two.
@@ -324,49 +332,51 @@ namespace Rtx
         /// vertices — so the second copy is the whole mesh again for a picture that cannot differ.
         TEST_F(RtxSlotTableTest, blocksCopyARunNamedTwiceOnce)
         {
-            SlotBlocks blocks(64, sizeof(std::uint32_t));
+            SlotBlocks<Row> blocks(64, sizeof(std::uint32_t));
             blocks.open(getDevice(), 2, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "test blocks");
             Batch setup(getPool());
             blocks.reserve(setup, 128);
             setup.flush();
 
-            blocks.write(4);
-            blocks.write(4);
+            blocks.write(Row(4));
+            blocks.write(Row(4));
 
-            const std::array<Index, 2> again{ 4, 7 };
+            const std::array<Row, 2> again{ Row(4), Row(7) };
             blocks.write(again);
 
-            EXPECT_EQ(listed(blocks.getOwed(FrameSlot{ 0 })), (std::vector<Index>{ 4, 7 })) << "a run was owed twice";
+            EXPECT_EQ(listed(blocks.getOwed(FrameSlot{ 0 })), (std::vector<std::uint32_t>{ 4, 7 }))
+                << "a run was owed twice";
 
-            std::vector<Index> filled;
-            blocks.sync(FrameSlot{ 0 }, [&](const Index at, BlockedBuffer&) { filled.push_back(at); });
-            EXPECT_EQ(filled, (std::vector<Index>{ 4, 7 })) << "a run named three times was copied more than once";
+            std::vector<std::uint32_t> filled;
+            blocks.sync(FrameSlot{ 0 }, [&](const Row at, BlockedBuffer&) { filled.push_back(at.at()); });
+            EXPECT_EQ(filled, (std::vector<std::uint32_t>{ 4, 7 }))
+                << "a run named three times was copied more than once";
 
             // The order is the order the runs were first named, so a debt reads as the work arrived
             // rather than as whatever a set happened to hold.
-            blocks.write(9);
-            blocks.write(1);
-            EXPECT_EQ(listed(blocks.getOwed(FrameSlot{ 0 })), (std::vector<Index>{ 9, 1 }));
+            blocks.write(Row(9));
+            blocks.write(Row(1));
+            EXPECT_EQ(listed(blocks.getOwed(FrameSlot{ 0 })), (std::vector<std::uint32_t>{ 9, 1 }));
         }
 
         /// `settle` says a copy holds everything there is, which is how a load ends.
         TEST_F(RtxSlotTableTest, settlingSaysACopyHoldsEverythingThereIs)
         {
-            SlotBlocks blocks(64, sizeof(std::uint32_t));
+            SlotBlocks<Row> blocks(64, sizeof(std::uint32_t));
             blocks.open(getDevice(), 2, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "test blocks");
             Batch setup(getPool());
             blocks.reserve(setup, 128);
             setup.flush();
 
-            blocks.write(3);
+            blocks.write(Row(3));
             blocks.settle(FrameSlot{ 0 });
 
-            std::vector<Index> filled;
-            blocks.sync(FrameSlot{ 0 }, [&](const Index at, BlockedBuffer&) { filled.push_back(at); });
+            std::vector<std::uint32_t> filled;
+            blocks.sync(FrameSlot{ 0 }, [&](const Row at, BlockedBuffer&) { filled.push_back(at.at()); });
             EXPECT_TRUE(filled.empty()) << "a settled copy was filled again";
 
-            blocks.sync(FrameSlot{ 1 }, [&](const Index at, BlockedBuffer&) { filled.push_back(at); });
-            EXPECT_EQ(filled, (std::vector<Index>{ 3 })) << "settling one copy answered for the other";
+            blocks.sync(FrameSlot{ 1 }, [&](const Row at, BlockedBuffer&) { filled.push_back(at.at()); });
+            EXPECT_EQ(filled, (std::vector<std::uint32_t>{ 3 })) << "settling one copy answered for the other";
         }
 
         /// A table with nothing in it still has a buffer, because the frame carries an address for it.
@@ -386,7 +396,7 @@ namespace Rtx
         TEST_F(RtxSlotTableTest, syncingWaitsForTheSubmitThatTookTheCopysAddress)
         {
             mTable.grow(1);
-            mTable.write(0).mValue = 1;
+            mTable.write(Row(0)).mValue = 1;
             sync(0);
 
             const Timeline& timeline = getDevice().getTimeline();
@@ -406,7 +416,7 @@ namespace Rtx
 
             // A wait that returned early writes this over a submit the hold still keeps on the
             // queue, which is the write the assert fires on.
-            mTable.write(0).mValue = 2;
+            mTable.write(Row(0)).mValue = 2;
             sync(0);
         }
     }

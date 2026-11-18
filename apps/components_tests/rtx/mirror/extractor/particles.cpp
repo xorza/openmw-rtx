@@ -114,9 +114,11 @@ namespace Rtx::Testing
 
             // The texture, and beside it the bake of its alpha the sprites are lit by.
             ASSERT_EQ(mScene.textures().getRows().size(), 2u);
-            EXPECT_EQ(mScene.textures().getRows()[0].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-            EXPECT_EQ(mScene.textures().getRows()[1].mKind, TextureKind::SpriteLight);
-            EXPECT_EQ(mScene.textures().getRows()[1].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(0)].mPath,
+                VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(1)].mKind, TextureKind::SpriteLight);
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(1)].mPath,
+                VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
             EXPECT_EQ(mScene.emitters().front().mTexture, 0u);
             EXPECT_EQ(mScene.emitters().front().mLighting, 1u);
 
@@ -303,7 +305,7 @@ namespace Rtx::Testing
             extractor.extractPrecipitation(falling, eye, 0);
 
             ASSERT_EQ(scene.placements().getCounts().mPlaced, 1u) << "the drop was not walked at all";
-            EXPECT_EQ(placedAt(scene, 0), eye) << "the drops were stood somewhere other than the eye";
+            EXPECT_EQ(placedAt(scene, PlacementIndex(0)), eye) << "the drops were stood somewhere other than the eye";
 
             // And a world with no weather over it, or a fall the game hides, is the other case the
             // one call answers.
@@ -398,8 +400,9 @@ namespace Rtx::Testing
 
             EXPECT_EQ(mScene.refusals().count(Refused::Emitter), 0u);
             ASSERT_EQ(mScene.textures().getRows().size(), 2u);
-            EXPECT_EQ(mScene.textures().getRows()[0].mPath, VFS::Path::NormalizedView("meshes/e/magic_cast.nif#3"));
-            EXPECT_EQ(mScene.textures().getRows()[1].mKind, TextureKind::SpriteLight);
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(0)].mPath,
+                VFS::Path::NormalizedView("meshes/e/magic_cast.nif#3"));
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(1)].mKind, TextureKind::SpriteLight);
             ASSERT_EQ(mScene.emitters().size(), 1u);
             EXPECT_EQ(mScene.emitters().front().mTexture, 0u);
 
@@ -446,10 +449,11 @@ namespace Rtx::Testing
             // No slot is reclaimed, so what this asserts is that the sprite's texture is still *named*, which is what
             // the emitter map exists for: a sprite hangs off no material. The stone's went with its material.
             ASSERT_EQ(mScene.textures().getRows().size(), 3u);
-            EXPECT_TRUE(mScene.textures().getRows()[0].mPath.value().empty())
+            EXPECT_TRUE(mScene.textures().getRows()[TextureIndex(0)].mPath.value().empty())
                 << "the stone's texture outlived the stone";
-            EXPECT_EQ(mScene.textures().getRows()[1].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-            EXPECT_EQ(mScene.textures().getRows()[2].mKind, TextureKind::SpriteLight)
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(1)].mPath,
+                VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(2)].mKind, TextureKind::SpriteLight)
                 << "the sprite's bake went with the stone";
 
             // And the emitter still draws with it.
@@ -467,14 +471,17 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*both);
             ASSERT_TRUE(mExtractor.retire().empty());
-            ASSERT_EQ(mScene.textures().getRows()[0].mPath, VFS::Path::NormalizedView("textures/tx_stone_01.dds"));
+            ASSERT_EQ(mScene.textures().getRows()[TextureIndex(0)].mPath,
+                VFS::Path::NormalizedView("textures/tx_stone_01.dds"));
 
             mScene.clearPlacement();
             walk(*stone);
 
             EXPECT_TRUE(mExtractor.retire().empty()) << "an emitter is neither a mesh nor a material";
-            EXPECT_TRUE(mScene.textures().getRows()[1].mPath.value().empty()) << "the sprite outlived the emitter";
-            EXPECT_TRUE(mScene.textures().getRows()[2].mPath.value().empty()) << "the bake outlived the emitter";
+            EXPECT_TRUE(mScene.textures().getRows()[TextureIndex(1)].mPath.value().empty())
+                << "the sprite outlived the emitter";
+            EXPECT_TRUE(mScene.textures().getRows()[TextureIndex(2)].mPath.value().empty())
+                << "the bake outlived the emitter";
         }
 
         /// **A sprite a full table refused draws once the table frees room, and is not asked again before.** The
@@ -501,19 +508,19 @@ namespace Rtx::Testing
 
             // **One slot, which the sprite takes, and the bake is refused on its own terms**: the
             // sprite draws lit flat, and the bake is not asked again until the table frees more.
-            holds.dropTexture(9);
+            holds.dropTexture(TextureIndex(9));
             for (std::uint32_t frame = 3; frame <= 4; ++frame)
             {
                 mScene.clearPlacement();
                 walk(*plume.mRoot, 0, frame);
                 ASSERT_EQ(mScene.emitters().size(), 1u) << "the freed room was not asked for on frame " << frame;
                 EXPECT_EQ(mScene.emitters().front().mTexture, 9u);
-                EXPECT_EQ(mScene.emitters().front().mLighting, sNoIndex) << "on frame " << frame;
+                EXPECT_EQ(mScene.emitters().front().mLighting, Shaders::NO_TEXTURE) << "on frame " << frame;
                 EXPECT_EQ(textures.getRefused(), 2u) << "the bake asked again on frame " << frame;
             }
 
             // A second slot, which the bake takes on the walk after.
-            holds.dropTexture(10);
+            holds.dropTexture(TextureIndex(10));
             mScene.clearPlacement();
             walk(*plume.mRoot, 0, 5);
 
@@ -533,8 +540,9 @@ namespace Rtx::Testing
 
             walk(*plume.mRoot);
             ASSERT_EQ(mScene.emitters().size(), 1u);
-            const Index first = mScene.emitters().front().mTexture;
-            EXPECT_EQ(mScene.textures().getRows()[first].mPath, VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+            const std::uint32_t first = mScene.emitters().front().mTexture;
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(first)].mPath,
+                VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
 
             // Unit nought rebound by hand, which no controller did.
             osg::ref_ptr<osg::Image> second = new osg::Image;
@@ -553,8 +561,9 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*plume.mRoot);
             ASSERT_EQ(mScene.emitters().size(), 1u);
-            const Index reread = mScene.emitters().front().mTexture;
-            EXPECT_EQ(mScene.textures().getRows()[reread].mPath, VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
+            const std::uint32_t reread = mScene.emitters().front().mTexture;
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(reread)].mPath,
+                VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
                 << "a chain whose state set was swapped kept the sprite of the one it replaced";
 
             /// A controller on the root, which is what makes the chain one the walk reads again.
@@ -581,8 +590,9 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*plume.mRoot);
             ASSERT_EQ(mScene.emitters().size(), 1u);
-            const Index swapped = mScene.emitters().front().mTexture;
-            EXPECT_EQ(mScene.textures().getRows()[swapped].mPath, VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
+            const std::uint32_t swapped = mScene.emitters().front().mTexture;
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(swapped)].mPath,
+                VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
                 << "an animated chain kept the sprite it no longer wears";
 
             // The old sheet and its bake went back with the first swap and the new pair took their
@@ -599,9 +609,9 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*plume.mRoot);
             EXPECT_TRUE(mScene.emitters().empty()) << "a system with no sprite drew";
-            for (Index slot = 0; slot < mScene.textures().getRows().size(); ++slot)
+            for (const TextureIndex slot : everyRow<TextureIndex>(mScene.textures().getRows().size()))
                 EXPECT_FALSE(mScene.textures().isLive(slot))
-                    << "slot " << slot << " the emitter stopped wearing was kept";
+                    << "slot " << slot.at() << " the emitter stopped wearing was kept";
 
             mScene.clearPlacement();
             walk(*plume.mRoot);
@@ -875,7 +885,7 @@ namespace Rtx::Testing
             EXPECT_THROW(walk(*effect), std::runtime_error);
 
             ASSERT_EQ(walk(*makeQuad()).mInstances, 1u);
-            EXPECT_EQ(mScene.placements().getRows()[0].mInstance.mClass, Rtx::InstanceClass::Static);
+            EXPECT_EQ(mScene.placements().getRows()[PlacementIndex(0)].mInstance.mClass, Rtx::InstanceClass::Static);
         }
 
         /// **An emitter's sprites are read from its entry as the map holds it after the walk**, not where the entry

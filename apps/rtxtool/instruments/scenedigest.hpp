@@ -8,7 +8,10 @@
 #include <utility>
 #include <vector>
 
+#include <components/misc/digestwords.hpp>
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/shaders/visibility.h>
 
@@ -135,7 +138,7 @@ namespace RtxTool
         /// Each mesh slot's shape, its triangles as a multiset and what poses it, as `MeshTable::getRevision` stood
         /// at `mShapesRevision`: what every placement of the mesh is made of, made once a mesh and not once a
         /// placement a frame.
-        std::vector<Misc::DigestWords> mShapes;
+        Rtx::RowVector<Misc::DigestWords, Rtx::MeshIndex> mShapes;
         std::optional<std::uint64_t> mShapesRevision;
 
         /// A column's rows laid end to end, hashed once, and the standing masks' offsets in order. Cleared and

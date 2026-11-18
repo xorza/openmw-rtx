@@ -47,7 +47,7 @@ namespace Rtx
     }
 
     void SceneTextures::describe(
-        const SceneDesc& scene, std::span<const Index> slots, PreparedImages* const prepared, const bool settled)
+        const SceneDesc& scene, std::span<const TextureIndex> slots, PreparedImages* const prepared, const bool settled)
     {
         mPending.clear();
         mStood.clear();
@@ -56,7 +56,7 @@ namespace Rtx
         // asked one at a time and each waited for, they would be read and made one after another.
         if (settled && prepared != nullptr)
         {
-            for (const Index slot : slots)
+            for (const TextureIndex slot : slots)
                 if (scene.textures().isLive(slot) && isFile(scene.textures().getRows()[slot]))
                     mFound.push_back(findUpload(scene.textures().getRows()[slot], prepared));
             prepared->flush();
@@ -69,7 +69,7 @@ namespace Rtx
 
         mKept.reserve(slots.size());
 
-        for (const Index slot : slots)
+        for (const TextureIndex slot : slots)
         {
             // A free slot is not a texture. `SceneDesc` empties one the last thing naming it
             // gave back and leaves it in the table until something takes it over; describing it
@@ -236,7 +236,7 @@ namespace Rtx
         if (kept.mBakedFrom.has_value())
         {
             // A source the table no longer holds is a bake of nothing.
-            if (*kept.mBakedFrom == sNoIndex)
+            if (*kept.mBakedFrom == sNoRow)
                 return Err{ "the texture it bakes is no longer held" };
 
             return TextureData{

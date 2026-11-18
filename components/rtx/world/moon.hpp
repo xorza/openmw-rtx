@@ -61,8 +61,8 @@ namespace Rtx
         /// zero to one. Zero is a moon that is not there to be drawn.
         float mAlpha = 0.0f;
 
-        /// The painted face in the scene's texture table, or `sNoIndex` for none.
-        Index mFace = sNoIndex;
+        /// The painted face in the scene's texture table, or `sNoRow` for none.
+        TextureIndex mFace = sNoRow;
 
         /// What this moon delivers to a surface facing it, linear, before `mPaint`: what lights anything
         /// is `getPaintedIrradiance`. Zero exactly where the fade is, the one test a shader makes before
@@ -101,7 +101,7 @@ namespace Rtx
     /// holds is freed), with how wide it is drawn and what it averages, fixed for the run.
     struct MoonFace
     {
-        Index mSlot = sNoIndex;
+        TextureIndex mSlot = sNoRow;
 
         /// `moonAngularRadius` of the moon's `Moons_<name>_Size`, in radians.
         float mRadius = 0.0f;

@@ -20,7 +20,7 @@ namespace Rtx::Testing
     inline constexpr MipLevel sOneTexel{ 0, 1, 1 };
 
     /// A one-texel description over `texel`, whose four bytes the caller keeps.
-    inline TextureData describeTexel(std::span<const std::uint8_t> texel, std::uint32_t slot = 0)
+    inline TextureData describeTexel(std::span<const std::uint8_t> texel, TextureIndex slot = TextureIndex(0))
     {
         return TextureData{
             .mSlot = slot,

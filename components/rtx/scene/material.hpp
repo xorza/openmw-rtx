@@ -7,6 +7,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/shaders/look.h>
@@ -16,6 +17,16 @@
 
 namespace Rtx
 {
+    /// A row of the device's material tables: the scene's materials from `Shaders::MATERIAL_ROW_FIRST` on, past the
+    /// sentinel rows before them (`materialRecordOf`).
+    using MaterialRecordIndex = RowIndex<struct MaterialRecordRows>;
+
+    /// The device's row of `material`.
+    constexpr MaterialRecordIndex materialRecordOf(const MaterialIndex material)
+    {
+        return MaterialRecordIndex(material.at() + Shaders::MATERIAL_ROW_FIRST);
+    }
+
     /// What shading a hit takes, which is not a variation on one path but three different ones.
     enum class MaterialKind
     {
@@ -77,49 +88,49 @@ namespace Rtx
     {
         MaterialKind mKind = MaterialKind::Surface;
 
-        Index mDiffuse = sNoIndex;
+        TextureIndex mDiffuse = sNoRow;
 
         /// A map of what glows, read at the texture unit the content bound it at, as the dark map
         /// below is: the draugrs' eyes read the geometry's second set.
-        Index mEmissive = sNoIndex;
+        TextureIndex mEmissive = sNoRow;
         std::uint8_t mEmissiveUnit = 0;
 
         /// A sphere-mapped sheet the surface adds past its albedo, indexed by where the eye is —
         /// a `NiTextureEffect`, or the caustic sheet an enchanted item shimmers with — and what it
-        /// is tinted by, in linear light. `sNoIndex` for the surfaces that carry none, which is
+        /// is tinted by, in linear light. `sNoRow` for the surfaces that carry none, which is
         /// nearly all of them.
-        Index mEnvironment = sNoIndex;
+        TextureIndex mEnvironment = sNoRow;
         osg::Vec3f mEnvironmentColour{ 1.0f, 1.0f, 1.0f };
 
         /// A map the albedo is multiplied by, read at the texture unit the content bound it at,
         /// because half the vanilla dark maps read the geometry's second set of coordinates and
         /// which set a unit reads is the mesh's to say — `GpuMesh::mUnitStreams`.
-        Index mDark = sNoIndex;
+        TextureIndex mDark = sNoRow;
         std::uint8_t mDarkUnit = 0;
 
         /// The companion maps: a tangent-space normal in the normal encoding, and a metal-roughness
-        /// map, a classic one converted to it (`SurfaceDescription::encodingOf`). `sNoIndex` where the
+        /// map, a classic one converted to it (`SurfaceDescription::encodingOf`). `sNoRow` where the
         /// content has none.
-        Index mNormal = sNoIndex;
-        Index mSpecular = sNoIndex;
+        TextureIndex mNormal = sNoRow;
+        TextureIndex mSpecular = sNoRow;
 
         /// The two maps `objects.frag` lays into the colour past the dark map, each at the unit the content
         /// bound it at: a detail map the albedo is multiplied by twice over, so its grey leaves it as it was,
         /// and a decal laid over the albedo by its own alpha. No shipped file binds either; a mod's surfaces do.
-        Index mDetail = sNoIndex;
+        TextureIndex mDetail = sNoRow;
         std::uint8_t mDetailUnit = 0;
-        Index mDecal = sNoIndex;
+        TextureIndex mDecal = sNoRow;
         std::uint8_t mDecalUnit = 0;
 
         /// The two maps that change the environment map, kept only where there is one, since the rasterizer
         /// reads them nowhere else: a bump map that moves where the sheet is read by its red and green through
         /// `mBumpMatrix` (its four entries row by row) and dims it by its blue through `mBumpLuma`
         /// (`clamp(b * x + y)`), and a gloss map the sheet is multiplied by.
-        Index mBump = sNoIndex;
+        TextureIndex mBump = sNoRow;
         std::uint8_t mBumpUnit = 0;
         osg::Vec4f mBumpMatrix{ 0.0f, 0.0f, 0.0f, 0.0f };
         osg::Vec2f mBumpLuma{ 0.0f, 0.0f };
-        Index mGloss = sNoIndex;
+        TextureIndex mGloss = sNoRow;
         std::uint8_t mGlossUnit = 0;
 
         /// Where the normal map's alpha is a height the texture coordinates are shifted by toward the
@@ -290,7 +301,7 @@ namespace Rtx
         /// predicate the build marks an instance non-opaque by and the shader tests against. A
         /// cutoff with no texture to sample is not one, and neither is an additive surface, whose
         /// alpha weights what it adds rather than deciding whether it is there.
-        bool isCutout() const { return getAlphaTest().cuts() && mDiffuse != sNoIndex && !isAdditive(); }
+        bool isCutout() const { return getAlphaTest().cuts() && mDiffuse != sNoRow && !isAdditive(); }
 
         /// Whether this surface adds to what is behind it and covers nothing — `BlendKind::Add`
         /// or `AddWhole` under a blend. Such a surface is no pane and no mask: it is gathered by
@@ -300,7 +311,7 @@ namespace Rtx
         /// Whether this is a terrain chunk that asked to be flattened and has no composite yet.
         bool wantsFlattening() const
         {
-            return mKind == MaterialKind::Terrain && mFlatten != GroundFlattening::None && mDiffuse == sNoIndex;
+            return mKind == MaterialKind::Terrain && mFlatten != GroundFlattening::None && mDiffuse == sNoRow;
         }
 
         /// Whether `mOpacity` is a number the trace reads at all: what the content asked a blend to
@@ -341,7 +352,7 @@ namespace Rtx
         bool isSoftEdged() const
         {
             return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over && !mAlphaTest.cuts() && mOpacity >= 1.0f
-                && !mDiffuseNeverSolid && mDiffuse != sNoIndex;
+                && !mDiffuseNeverSolid && mDiffuse != sNoRow;
         }
 
         /// Whether the eye passes through this rather than meeting it: a medium, not a surface.
@@ -417,8 +428,8 @@ namespace Rtx
                 .mMedium = isMedium(),
                 .mAdditive = isAdditive(),
                 .mTwoSided = mTwoSided,
-                .mMapped = mNormal != sNoIndex || mSpecular != sNoIndex || mLayersMapped,
-                .mModMapped = mDetail != sNoIndex || mDecal != sNoIndex || mBump != sNoIndex || mGloss != sNoIndex,
+                .mMapped = mNormal != sNoRow || mSpecular != sNoRow || mLayersMapped,
+                .mModMapped = mDetail != sNoRow || mDecal != sNoRow || mBump != sNoRow || mGloss != sNoRow,
                 .mDarkAlpha = mDarkBelowSolid,
                 .mRelief = mRelief.has_value() && mRelief->spans(),
             };
@@ -446,13 +457,13 @@ namespace Rtx
     inline MaterialLayer wholeLayer()
     {
         return MaterialLayer{
-            .mDiffuse = sNoIndex,
+            .mDiffuse = Shaders::NO_TEXTURE,
             .mMaskOffset = 0,
             .mMaskWidth = 0,
             .mMaskHeight = 0,
             .mDiffuseTransform = osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f),
             .mMaskTransform = osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f),
-            .mNormal = sNoIndex,
+            .mNormal = Shaders::NO_TEXTURE,
             .mFlags = 0,
         };
     }

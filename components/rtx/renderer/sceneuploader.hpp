@@ -146,7 +146,7 @@ namespace Rtx
         void serveWants(SceneDesc& scene);
 
         /// Whether a want of `kind` for `slot` was evicted for and its room is not yet the device's.
-        bool isCooling(RestKind kind, Index slot) const;
+        bool isCooling(const RoomWaiter& waiter) const;
 
         /// Files the textures the last answer named stood short, and forgets those `described` and the device stood
         /// whole: a wait handed over again, or every one under a rebuild, which describes the whole table; nothing is
@@ -163,7 +163,7 @@ namespace Rtx
         void settleMovedResting(SceneDesc& scene);
 
         /// Whether `slot` waits for room.
-        bool isWaiting(Index slot) const;
+        bool isWaiting(TextureIndex slot) const;
 
         /// What an arrival is described into, and the storage the descriptions point at. Held, so
         /// an arrival frame does not pay for the buffers; nothing reads them between calls.
@@ -192,7 +192,7 @@ namespace Rtx
         /// A wait the hand-over stood whole goes, and with it what was read.
         struct TextureWait
         {
-            Index mSlot = sNoIndex;
+            TextureIndex mSlot = sNoRow;
             osg::ref_ptr<const osg::Image> mSource;
             std::uint64_t mFileBytes = 0;
             std::uint64_t mStoodBytes = 0;
@@ -223,8 +223,7 @@ namespace Rtx
         /// the device's.
         struct WantCooling
         {
-            RestKind mKind = RestKind::Texture;
-            Index mSlot = sNoIndex;
+            RoomWaiter mWaiter;
             std::uint64_t mUntil = 0;
         };
 

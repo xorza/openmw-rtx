@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
@@ -188,17 +189,17 @@ namespace Rtx
         /// either half, because the acceleration structure and the instance table need the same
         /// rows, and each building its own was fifty thousand matrix inverses on a nine-by-nine
         /// exterior.
-        std::vector<InstanceRecord> mRecords;
+        RowVector<InstanceRecord, PlacementIndex> mRecords;
 
         /// Which of those `updateInstanceRecords` wrote this placement, cleared and refilled. One
         /// list read by both halves, because two answers to which changed is one of them wrong and
         /// terrain a frame behind.
-        std::vector<Index> mChangedRecords;
+        std::vector<PlacementIndex> mChangedRecords;
 
         /// Every mesh slot the scene was built with, which the halves write and build the whole scene
         /// through, down the path a list of arrivals takes. Here, as the records are, because both
         /// read it. Before the halves.
-        std::vector<Index> mEveryMesh;
+        std::vector<MeshIndex> mEveryMesh;
 
         SceneAcceleration mAcceleration;
         SceneBuffers mBuffers;

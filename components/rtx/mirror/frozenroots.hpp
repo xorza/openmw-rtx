@@ -102,7 +102,7 @@ namespace Rtx
         /// gives a hold, which this holds no reference to.
         struct Holders
         {
-            Kept<boost::unordered_flat_map<std::size_t, Known>>& mPlacements;
+            Kept<boost::unordered_flat_map<std::size_t, Known<PlacementIndex>>>& mPlacements;
             MeshResolver& mMeshes;
             MaterialResolver& mMaterials;
 

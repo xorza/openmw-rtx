@@ -29,13 +29,14 @@ namespace Rtx::Testing
 {
     /// `arrays` packed as a reader packs them (`PackedStreams::append`), shaped as `shape`, and added: the test's way
     /// to `SceneDesc::addMesh`, each overload one of the scene's.
-    inline Index addMesh(SceneDesc& scene, const MeshArrays& arrays, const FoldedShape shape = {})
+    inline MeshIndex addMesh(SceneDesc& scene, const MeshArrays& arrays, const FoldedShape shape = {})
     {
         PackedStreams packed;
         return scene.addMesh(packed.of(packed.append(arrays, shape)));
     }
 
-    inline Index addMesh(SceneDesc& scene, const MeshArrays& arrays, const FoldedShape shape, const Index deformer)
+    inline MeshIndex addMesh(
+        SceneDesc& scene, const MeshArrays& arrays, const FoldedShape shape, const DeformerIndex deformer)
     {
         PackedStreams packed;
         return scene.addMesh(packed.of(packed.append(arrays, shape)), deformer);
@@ -157,7 +158,7 @@ namespace Rtx::Testing
             osg::Vec3f(0.0f, 1.0f, z) };
     }
 
-    inline Index addQuadMesh(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners = sUnitQuad)
+    inline MeshIndex addQuadMesh(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners = sUnitQuad)
     {
         return Testing::addMesh(scene, MeshArrays{ .mPositions = corners, .mIndices = sQuadIndices });
     }
@@ -165,19 +166,19 @@ namespace Rtx::Testing
     /// The colour of a test's plain surface: a grey of one half, which the values the tests work
     /// out by hand are written for. Stated as a material, because a surface with no material is
     /// white, as the game draws one, and a white floor bounces every ray at full strength.
-    inline Index addGrey(SceneDesc& scene)
+    inline MaterialIndex addGrey(SceneDesc& scene)
     {
         return scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f) });
     }
 
     /// A quad of `corners` placed in `scene` by `transform`, in `material`, or in a grey of its own
-    /// (`addGrey`) where it names none. `sNoIndex` places it with no material at all. Returns the
+    /// (`addGrey`) where it names none. `sNoRow` places it with no material at all. Returns the
     /// placement.
-    inline Index addQuad(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners,
-        std::optional<Index> material = std::nullopt, const osg::Matrixf& transform = osg::Matrixf::identity())
+    inline PlacementIndex addQuad(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners,
+        std::optional<MaterialIndex> material = std::nullopt, const osg::Matrixf& transform = osg::Matrixf::identity())
     {
-        const Index worn = material.has_value() ? *material : addGrey(scene);
-        const Index mesh = addQuadMesh(scene, corners);
+        const MaterialIndex worn = material.has_value() ? *material : addGrey(scene);
+        const MeshIndex mesh = addQuadMesh(scene, corners);
         return scene.addInstance(MeshInstance{ .mTransform = transform, .mMesh = mesh, .mMaterial = worn });
     }
 
@@ -185,10 +186,10 @@ namespace Rtx::Testing
     /// was placed.
     struct Model
     {
-        Index mMesh = 0;
-        Index mMaterial = 0;
-        Index mTexture = 0;
-        Index mPlacement = 0;
+        MeshIndex mMesh = MeshIndex(0);
+        MaterialIndex mMaterial = MaterialIndex(0);
+        TextureIndex mTexture = TextureIndex(0);
+        PlacementIndex mPlacement = PlacementIndex(0);
     };
 
     /// One triangle and one material naming `texture`, placed, so a mesh, a material and a texture
@@ -237,7 +238,7 @@ namespace Rtx::Testing
 
     /// Poses a mesh on a rig by `bones` under `transform` for the skin's own, laid as the scene
     /// takes them.
-    inline void poseRig(SceneDesc& scene, Index mesh, std::span<const Shaders::GpuBone> bones,
+    inline void poseRig(SceneDesc& scene, MeshIndex mesh, std::span<const Shaders::GpuBone> bones,
         const osg::BoundingBoxf& reach, const Shaders::GpuBone& transform = toGpuBone(osg::Matrixf::identity()))
     {
         std::vector<PoseWord> words;
@@ -246,7 +247,8 @@ namespace Rtx::Testing
     }
 
     /// Poses a mesh on a morph by `weights`, laid as the scene takes them.
-    inline void poseMorph(SceneDesc& scene, Index mesh, std::span<const float> weights, const osg::BoundingBoxf& reach)
+    inline void poseMorph(
+        SceneDesc& scene, MeshIndex mesh, std::span<const float> weights, const osg::BoundingBoxf& reach)
     {
         std::vector<PoseWord> words;
         packWeights(weights, words);
@@ -265,7 +267,8 @@ namespace Rtx::Testing
 
     /// Poses `mesh`, a mesh on a one-bone rig whose bind pose is `bind`, by `bone`, with the box `bind` reaches
     /// carried through the same transform.
-    inline void poseByOneBone(SceneDesc& scene, Index mesh, std::span<const osg::Vec3f> bind, const osg::Matrixf& bone)
+    inline void poseByOneBone(
+        SceneDesc& scene, MeshIndex mesh, std::span<const osg::Vec3f> bind, const osg::Matrixf& bone)
     {
         const std::array rows{ toGpuBone(bone) };
         poseRig(scene, mesh, rows, reachUnder(bind, bone));

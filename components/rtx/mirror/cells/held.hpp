@@ -37,8 +37,8 @@ namespace Rtx
     /// either and one call drops it.
     struct Stood
     {
-        Index mMesh = sNoIndex;
-        Index mMaterial = sNoIndex;
+        MeshIndex mMesh = sNoRow;
+        MaterialIndex mMaterial = sNoRow;
         osg::Matrixf mTransform;
 
         /// Whether it is the model of a lamp that gives light, which the bounce takes no glow from
@@ -49,9 +49,9 @@ namespace Rtx
         bool mClockwise = false;
 
         /// The slot it stands in, or none while the size rule, a script or the ring keeps it out.
-        Index mSlot = sNoIndex;
+        PlacementIndex mSlot = sNoRow;
 
-        bool isStanding() const { return mSlot != sNoIndex; }
+        bool isStanding() const { return mSlot != sNoRow; }
     };
 
     /// What the game says of one reference the ring holds, which the content files cannot. One for
@@ -134,7 +134,7 @@ namespace Rtx
     /// (`CellPlacer::askByDistance`).
     struct RingAsk
     {
-        Index mMaterial = sNoIndex;
+        MaterialIndex mMaterial = sNoRow;
         float mFootprint = 0.0f;
         std::optional<std::uint8_t> mStep{};
     };
@@ -230,7 +230,7 @@ namespace Rtx
 
         /// The materials its placements wear, each once, which it asks at the finest footprint for as long as it is
         /// held: a plant stands within the groundcover's reach, which is near.
-        std::vector<Index> mAsked;
+        std::vector<MaterialIndex> mAsked;
 
         std::vector<PreparedModel*> mModels;
 
@@ -261,8 +261,8 @@ namespace Rtx
         /// own both for as long as the holds stand.
         struct AdoptedPart
         {
-            Index mMesh = sNoIndex;
-            Index mMaterial = sNoIndex;
+            MeshIndex mMesh = sNoRow;
+            MaterialIndex mMaterial = sNoRow;
 
             const osg::Drawable* mDrawable = nullptr;
             const osg::StateSet* mKey = nullptr;

@@ -8,6 +8,7 @@
 #include <span>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -763,7 +764,7 @@ namespace Rtx
             const Testing::Model staying = Testing::addModel(scene, VFS::Path::NormalizedView("textures/named.dds"));
 
             scene.dropInstance(going.mPlacement, Rtx::Stander::Walk);
-            ASSERT_EQ(going.mTexture, 0u) << "the gap has to be below something to be a gap";
+            ASSERT_EQ(going.mTexture, Rtx::TextureIndex(0)) << "the gap has to be below something to be a gap";
             ASSERT_FALSE(scene.textures().isLive(going.mTexture));
             ASSERT_TRUE(scene.textures().isLive(staying.mTexture));
 
@@ -779,7 +780,7 @@ namespace Rtx
                 EXPECT_EQ(described.getRefusals()[0].mWhy, "no image reads from the file") << which;
             };
 
-            const std::array<Rtx::Index, 2> both{ going.mTexture, staying.mTexture };
+            const std::array<Rtx::TextureIndex, 2> both{ going.mTexture, staying.mTexture };
 
             // One loader for both, which is how the uploader holds it: the second call clears what
             // the first left and answers on its own.
@@ -801,7 +802,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
             Rtx::SceneDesc scene(identities);
-            const Rtx::Index bake = scene.textures().addSpriteLight(smoke);
+            const Rtx::TextureIndex bake = scene.textures().addSpriteLight(smoke);
 
             SceneTextures described;
             described.describeAll(scene, nullptr, false);
@@ -809,18 +810,18 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mSlot, bake);
             EXPECT_EQ(described.getDescriptions()[0].mName, "stand-in");
             EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::StandIn);
-            EXPECT_EQ(described.getDescriptions()[0].mFrom, Rtx::sNoIndex);
+            EXPECT_TRUE(std::holds_alternative<std::monostate>(described.getDescriptions()[0].mFrom));
             ASSERT_EQ(described.getRefusals().size(), 1u);
             EXPECT_EQ(described.getRefusals()[0].mWhy, "the texture it bakes is no longer held");
 
             // The emitter holds the source under a wrap of its own beside the bake; the bake finds
             // it whichever wrap that was, and is then a bake and not a texture.
-            const Rtx::Index source = scene.textures().add(smoke, Rtx::TextureWrap::ClampS);
+            const Rtx::TextureIndex source = scene.textures().add(smoke, Rtx::TextureWrap::ClampS);
             described.describe(scene, std::span(&bake, 1), nullptr, false);
             ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 });
             EXPECT_EQ(described.getDescriptions()[0].mSlot, bake);
             EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::SpriteBake);
-            EXPECT_EQ(described.getDescriptions()[0].mFrom, source);
+            EXPECT_EQ(std::get<Rtx::TextureIndex>(described.getDescriptions()[0].mFrom), source);
             EXPECT_TRUE(described.getDescriptions()[0].mBytes.empty()) << "a bake carries no bytes";
             EXPECT_TRUE(described.getDescriptions()[0].mLevels.empty()) << "a bake is shaped like its source";
             EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Neutral);
@@ -842,23 +843,23 @@ namespace Rtx
             chunk.mKind = Rtx::MaterialKind::Terrain;
             chunk.mFlatten = GroundFlattening::Every;
             chunk.mLayers = scene.materials().addLayers(layers);
-            const Rtx::Index material = scene.addMaterial(chunk);
+            const Rtx::MaterialIndex material = scene.addMaterial(chunk);
 
             Rtx::CompositeQueue queue;
             ASSERT_EQ(queue.advance(scene), 1u);
-            const Rtx::Index albedo = scene.materials().getRows()[material].mDiffuse;
-            const Rtx::Index gloss = scene.materials().getRows()[material].mSpecular;
-            ASSERT_NE(albedo, Rtx::sNoIndex);
-            ASSERT_NE(gloss, Rtx::sNoIndex) << "a layer that reflects gives the chunk a gloss";
+            const Rtx::TextureIndex albedo = scene.materials().getRows()[material].mDiffuse;
+            const Rtx::TextureIndex gloss = scene.materials().getRows()[material].mSpecular;
+            ASSERT_NE(albedo, Rtx::sNoRow);
+            ASSERT_NE(gloss, Rtx::sNoRow) << "a layer that reflects gives the chunk a gloss";
 
             const auto check = [&](const SceneTextures& described, const char* when) {
-                const auto find = [&](const Rtx::Index slot) {
+                const auto find = [&](const Rtx::TextureIndex slot) {
                     return std::ranges::find(described.getDescriptions(), slot, &Rtx::TextureData::mSlot);
                 };
                 const auto ground = find(albedo);
                 ASSERT_NE(ground, described.getDescriptions().end()) << when;
                 EXPECT_EQ(ground->mSource, Rtx::TextureSource::GroundComposite) << when;
-                EXPECT_EQ(ground->mFrom, material) << when;
+                EXPECT_EQ(std::get<Rtx::MaterialIndex>(ground->mFrom), material) << when;
                 EXPECT_EQ(ground->mFormat, Rtx::TextureFormat::Bc7Srgb) << when;
                 EXPECT_TRUE(ground->mBytes.empty()) << when << ": a composite carries no bytes";
                 EXPECT_TRUE(ground->mLevels.empty()) << when << ": a composite is shaped by the pass";
@@ -867,7 +868,7 @@ namespace Rtx
                 const auto glossy = find(gloss);
                 ASSERT_NE(glossy, described.getDescriptions().end()) << when;
                 EXPECT_EQ(glossy->mSource, Rtx::TextureSource::GroundGloss) << when;
-                EXPECT_EQ(glossy->mFrom, material) << when;
+                EXPECT_EQ(std::get<Rtx::MaterialIndex>(glossy->mFrom), material) << when;
                 EXPECT_EQ(glossy->mFormat, Rtx::TextureFormat::Bc7Unorm) << when;
                 // The rebuild describes the layers' files too, which this test never read.
                 for (const Rtx::Refusal& refused : described.getRefusals())

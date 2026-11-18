@@ -126,9 +126,11 @@ namespace Rtx
         SceneHeld mWorld;
 
         /// Every view scene's, by its index.
-        SlotRows<SceneHeld> mViews;
+        using ViewRow = RowIndex<struct ViewSceneRows>;
+        SlotRows<SceneHeld, ViewRow> mViews;
 
-        SlotRows<GuiTexture> mGuiTextures;
+        using GuiTextureRow = RowIndex<struct GuiTextureRows>;
+        SlotRows<GuiTexture, GuiTextureRow> mGuiTextures;
 
         /// What `lendGuiTexture` hands out, grown to the largest rectangle lent and never shrunk.
         std::vector<std::uint8_t> mLending;

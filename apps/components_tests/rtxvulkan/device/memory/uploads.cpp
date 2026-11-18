@@ -3,7 +3,6 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtx/common/index.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
 
@@ -17,7 +16,7 @@ namespace Rtx
         /// table to where they lie in its copy.
         TEST(RtxUploadsTest, adjacentRowsAreOneRun)
         {
-            constexpr std::array<Index, 6> rows{ 1, 2, 3, 7, 9, 10 };
+            constexpr std::array<std::uint32_t, 6> rows{ 1, 2, 3, 7, 9, 10 };
             std::vector<CopyRun> runs;
             appendRowRuns(rows, 16, runs);
             EXPECT_EQ(runs,
@@ -26,7 +25,7 @@ namespace Rtx
                     CopyRun{ .mFrom = 144, .mTo = 144, .mSize = 32 } }));
 
             // Appended to what is there, joining the last run where the next row carries it on.
-            appendRowRuns(std::array<Index, 2>{ 11, 13 }, 16, runs);
+            appendRowRuns(std::array<std::uint32_t, 2>{ 11, 13 }, 16, runs);
             ASSERT_EQ(runs.size(), 4u);
             EXPECT_EQ(runs[2], (CopyRun{ .mFrom = 144, .mTo = 144, .mSize = 48 })) << "row 11 carries rows 9 and 10 on";
             EXPECT_EQ(runs[3], (CopyRun{ .mFrom = 208, .mTo = 208, .mSize = 16 }));

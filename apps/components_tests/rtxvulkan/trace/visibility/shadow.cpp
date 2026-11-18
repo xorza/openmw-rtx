@@ -202,7 +202,7 @@ namespace Rtx::Testing
                 SceneIdentities identities;
                 SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
-                const Index wall = scene.addMaterial(
+                const MaterialIndex wall = scene.addMaterial(
                     Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = twoSided });
                 addQuad(scene,
                     std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
@@ -507,8 +507,8 @@ namespace Rtx::Testing
 
             SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
-            const Index darkMap = scene.textures().add(VFS::Path::NormalizedView("dark.dds"));
-            const Index stained = scene.addMaterial(Material{
+            const TextureIndex darkMap = scene.textures().add(VFS::Path::NormalizedView("dark.dds"));
+            const MaterialIndex stained = scene.addMaterial(Material{
                 .mDark = darkMap,
                 .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
                 .mOpacity = 0.5f,

@@ -15,6 +15,7 @@
 
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -243,7 +244,7 @@ namespace Rtx
         /// descriptors are left naming what has gone, which `VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT`
         /// makes legal: no live material names a freed slot. The array does not shrink, because the
         /// scene's table has not either.
-        void drop(std::span<const std::uint32_t> slots);
+        void drop(std::span<const TextureIndex> slots);
 
         /// Filters the footprint binding by `anisotropy`, written into every set before this returns: on a
         /// queue that binds none of them (`VulkanRenderer::setAnisotropy` drains it first), as a scene not
@@ -265,14 +266,14 @@ namespace Rtx
 
         /// `slot`'s word in those counts, as every copy is brought up to: how many texels stand in
         /// it, with `TEXTURE_STANDS_IN` over the count where they are the stand-in's.
-        std::uint32_t getTexels(std::uint32_t slot) const { return mTexels.getRows()[slot]; }
+        std::uint32_t getTexels(const TextureIndex slot) const { return mTexels.getRows()[slot]; }
 
         /// How many texels across and down stand in `slot` — the stand-in's where it draws the
         /// stand-in, and nought where it holds nothing.
-        Shaders::uvec2 getExtent(std::uint32_t slot) const;
+        Shaders::uvec2 getExtent(TextureIndex slot) const;
 
         /// The image `slot` samples, the stand-in's where it draws the stand-in: read back by the tests.
-        const Image& getImage(std::uint32_t slot) const;
+        const Image& getImage(TextureIndex slot) const;
 
         /// What the array actually stands. A slot the scene gave back holds nothing and costs
         /// nothing, and neither is counted here.
@@ -306,7 +307,7 @@ namespace Rtx
 
         /// The level `slot`'s readers want it from (`TextureTable::getWant`), and for one that rests the level its last
         /// readers asked (`TextureRow::mLastWant`); nought for a slot the table no longer holds.
-        static std::uint32_t readersWant(const TextureTable& table, std::uint32_t slot);
+        static std::uint32_t readersWant(const TextureTable& table, TextureIndex slot);
 
         /// A table that wants nothing of any slot, for what moves textures down with no scene at hand: a change of
         /// mode, which moves the largest first and leaves every move short, as a want of level 0 does.
@@ -368,7 +369,7 @@ namespace Rtx
 
         /// Writes slot `at`'s texel word into every copy's owed row and owes its descriptors to every set: what a slot
         /// that changed what it stands owes the frames.
-        void owe(std::uint32_t at);
+        void owe(TextureIndex at);
 
         /// Takes what `slot` stands off `mHeld`, before it changes, and counts what it stands after.
         void forget(const Slot& slot);
@@ -421,7 +422,7 @@ namespace Rtx
             std::vector<VkWriteDescriptorSet>& writes);
 
         /// Grows the array to reach `slot`, and refuses one past what the binding holds.
-        void reserveSlot(std::uint32_t slot);
+        void reserveSlot(TextureIndex slot);
 
         const Device& mDevice;
 
@@ -431,10 +432,11 @@ namespace Rtx
         std::vector<VkWriteDescriptorSet> mWriteScratch;
         std::vector<VkBufferImageCopy> mRegionScratch;
 
-        /// Where each slot stands in the arrival `chooseLevels` is weighing, `sNoIndex` for a slot that
+        /// Where each slot stands in the arrival `chooseLevels` is weighing, `sNotArriving` for a slot that
         /// did not arrive: what a bake's cost asks of its source, where a search of the arrival asked
         /// it up to twice a halving for every bake. Refilled per arrival, and kept.
-        std::vector<Index> mArrivingAt;
+        RowVector<std::uint32_t, TextureIndex> mArrivingAt;
+        static constexpr std::uint32_t sNotArriving = ~std::uint32_t{ 0 };
 
         /// One level a file of the arrival `chooseLevels` is weighing can come down by: what the
         /// file stands from the level it comes down from, its slot, and where it stands in the
@@ -442,9 +444,9 @@ namespace Rtx
         /// count of drops tries.
         struct Drop
         {
-            VkDeviceSize mStanding;
-            std::uint32_t mSlot;
-            std::size_t mAt;
+            VkDeviceSize mStanding = 0;
+            TextureIndex mSlot;
+            std::size_t mAt = 0;
         };
         std::vector<Drop> mDrops;
         std::vector<std::uint32_t> mTrialFirsts;
@@ -457,9 +459,9 @@ namespace Rtx
         /// kept.
         struct Movable
         {
-            bool mAboveWant;
-            VkDeviceSize mStanding;
-            std::uint32_t mSlot;
+            bool mAboveWant = false;
+            VkDeviceSize mStanding = 0;
+            TextureIndex mSlot;
         };
         std::vector<Movable> mMovable;
 
@@ -471,7 +473,7 @@ namespace Rtx
         /// Indexed by slot. A slot the scene has freed holds nothing until something takes it over —
         /// `drop` buries the image it had, and the descriptor is left naming what has gone for the
         /// reason `drop` gives.
-        std::vector<Slot> mSlots;
+        RowVector<Slot, TextureIndex> mSlots;
 
         /// What the slots stand, kept by `forget` and `count` around every change to one.
         TexturesHeld mHeld;
@@ -521,7 +523,7 @@ namespace Rtx
         /// `coneLod` reads where it asked the driver for a size, and `TEXTURE_STANDS_IN` over it where they are the
         /// stand-in's. A copy per frame in flight, owed and paid the way the descriptors are: one buffer written as
         /// textures stood was a count rewritten under a trace, for a slot the frame behind still reads.
-        SlotTable<std::uint32_t> mTexels;
+        SlotTable<std::uint32_t, TextureIndex> mTexels;
 
         /// One set per frame in flight, each image array at the maximum the layout declares.
         DescriptorSets mSets;
@@ -532,18 +534,18 @@ namespace Rtx
         PerSlot<ReadStamp> mBound;
 
         /// The slots each set has yet to be told, each once however often it was written.
-        PerSlot<SlotSet> mOwed;
+        PerSlot<SlotSet<TextureIndex>> mOwed;
 
         /// Which composites arrived and stand empty, whose ground each is and which of its two
         /// images: what the next placement bakes, one sum a chunk for whichever of its two it
         /// finds here. Cleared by `bakeComposites` and never freed.
         struct PendingComposite
         {
-            Index mSlot;
-            Index mMaterial;
+            TextureIndex mSlot;
+            MaterialIndex mMaterial;
 
             /// `GROUND_COMPOSITE_ALBEDO` or `GROUND_COMPOSITE_GLOSS`.
-            std::uint32_t mOutput;
+            std::uint32_t mOutput = 0;
         };
         std::vector<PendingComposite> mPendingComposites;
     };

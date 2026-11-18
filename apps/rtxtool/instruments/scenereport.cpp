@@ -92,7 +92,7 @@ namespace RtxTool
         std::uint32_t normalMapped = 0;
         std::uint32_t specularMapped = 0;
         const auto glows = [](const Rtx::Material& material) {
-            return material.mEmissiveColour.length2() > 0.0f || material.mEmissive != Rtx::sNoIndex;
+            return material.mEmissiveColour.length2() > 0.0f || material.mEmissive != Rtx::sNoRow;
         };
         for (const Rtx::Material& material : scene.materials().getRows())
         {
@@ -102,8 +102,8 @@ namespace RtxTool
             media += material.isMedium() ? 1 : 0;
             glowing += glows(material) ? 1 : 0;
             flattened += material.mFlatten == Rtx::GroundFlattening::Every ? 1 : 0;
-            normalMapped += material.mNormal != Rtx::sNoIndex ? 1 : 0;
-            specularMapped += material.mSpecular != Rtx::sNoIndex ? 1 : 0;
+            normalMapped += material.mNormal != Rtx::sNoRow ? 1 : 0;
+            specularMapped += material.mSpecular != Rtx::sNoRow ? 1 : 0;
         }
 
         // The models of lights that give light, and which of them glow: what the bounce takes no glow
@@ -112,15 +112,15 @@ namespace RtxTool
         std::uint32_t glowingBodies = 0;
         std::uint32_t ambientApart = 0;
         std::uint32_t seeThrough = 0;
-        scene.placements().forEachPlaced([&](Rtx::Index, const Rtx::PlacementRow& row) {
-            const Rtx::Index worn = row.mInstance.mMaterial;
-            ambientApart += worn != Rtx::sNoIndex && scene.materials().getRows()[worn].hasAmbientApart() ? 1 : 0;
+        scene.placements().forEachPlaced([&](Rtx::PlacementIndex, const Rtx::PlacementRow& row) {
+            const Rtx::MaterialIndex worn = row.mInstance.mMaterial;
+            ambientApart += worn != Rtx::sNoRow && scene.materials().getRows()[worn].hasAmbientApart() ? 1 : 0;
             seeThrough += row.mWorn.placedAt(row.mInstance.mOpacity).mTranslucent ? 1 : 0;
             if (!row.mInstance.mLampBody)
                 return;
             ++lampBodies;
-            const Rtx::Index material = row.mInstance.mMaterial;
-            glowingBodies += material != Rtx::sNoIndex && glows(scene.materials().getRows()[material]) ? 1 : 0;
+            const Rtx::MaterialIndex material = row.mInstance.mMaterial;
+            glowingBodies += material != Rtx::sNoRow && glows(scene.materials().getRows()[material]) ? 1 : 0;
         });
 
         std::uint32_t sheets = 0;

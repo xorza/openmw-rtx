@@ -55,7 +55,7 @@ namespace Rtx
             return at;
         }
         ReadingHold deck = takeSkySheet(scene, path, *image.value());
-        if (deck.get() == sNoIndex)
+        if (deck.get() == sNoRow)
             return at;
 
         sheet.mTexture = deck.get();

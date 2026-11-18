@@ -546,7 +546,7 @@ namespace Rtx::Testing
             std::vector<float> lifted() const
             {
                 std::vector<float> heights;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                     const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
                     if (height > 50.0f)
                         heights.push_back(height);
@@ -563,7 +563,7 @@ namespace Rtx::Testing
                     (static_cast<float>(cell.y()) + 0.5f) * sCellSize, 0.0f);
 
                 std::optional<MeshInstance> found;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                     if (!found.has_value() && row.mInstance.mTransform.getTrans() == centre)
                         found = row.mInstance;
                 });
@@ -716,10 +716,10 @@ namespace Rtx::Testing
                 // The rock's maps: its normal map in a slot of its own, tiled and read as data, and
                 // its `_diffusespec` authored, its alpha a roughness.
                 const std::span<const MaterialLayer> layers = material.mLayers.in(mScene.materials().getLayers());
-                EXPECT_EQ(layers[0].mNormal, sNoIndex);
+                EXPECT_EQ(layers[0].mNormal, Shaders::NO_TEXTURE);
                 EXPECT_EQ(layers[0].mFlags, 0u);
-                ASSERT_NE(layers[1].mNormal, sNoIndex);
-                const TextureRow& normal = mScene.textures().getRows()[layers[1].mNormal];
+                ASSERT_NE(layers[1].mNormal, Shaders::NO_TEXTURE);
+                const TextureRow& normal = mScene.textures().getRows()[TextureIndex(layers[1].mNormal)];
                 EXPECT_EQ(normal.mPath, "textures/rock_nh.dds");
                 EXPECT_EQ(normal.mWrap, TextureWrap::Repeat);
                 EXPECT_EQ(normal.mEncoding, TextureEncoding::Normal);
@@ -728,7 +728,7 @@ namespace Rtx::Testing
                 // upload reads: the frame it lands on opens no file.
                 EXPECT_EQ(
                     normal.mImage, mContent.mImages.get(VFS::Path::NormalizedView("textures/rock_nh.dds")).value());
-                EXPECT_EQ(mScene.textures().getRows()[layers[1].mDiffuse].mImage,
+                EXPECT_EQ(mScene.textures().getRows()[TextureIndex(layers[1].mDiffuse)].mImage,
                     mContent.mImages.get(VFS::Path::NormalizedView("textures/rock_diffusespec.dds")).value());
                 EXPECT_EQ(layers[1].mFlags, Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);
                 EXPECT_TRUE(material.mLayersMapped);
@@ -792,11 +792,11 @@ namespace Rtx::Testing
             while (composites.advance(mScene) > 0)
             {
             }
-            const Index farAlbedo = mScene.materials().getRows()[far->mMaterial].mDiffuse;
-            const Index farGloss = mScene.materials().getRows()[far->mMaterial].mSpecular;
-            EXPECT_NE(farAlbedo, sNoIndex);
-            EXPECT_NE(farGloss, sNoIndex);
-            EXPECT_NE(mScene.materials().getRows()[home->mMaterial].mDiffuse, sNoIndex)
+            const TextureIndex farAlbedo = mScene.materials().getRows()[far->mMaterial].mDiffuse;
+            const TextureIndex farGloss = mScene.materials().getRows()[far->mMaterial].mSpecular;
+            EXPECT_NE(farAlbedo, sNoRow);
+            EXPECT_NE(farGloss, sNoRow);
+            EXPECT_NE(mScene.materials().getRows()[home->mMaterial].mDiffuse, sNoRow)
                 << "the eye's own cell was given the composite its bounces read";
 
             // The active grid moves over cell (3, 0): its eye reads its stack from now on, on the
@@ -836,8 +836,8 @@ namespace Rtx::Testing
             const std::span<const MaterialLayer> awayLayers = awayMaterial.mLayers.in(mScene.materials().getLayers());
             ASSERT_EQ(awayLayers.size(), 2u);
             EXPECT_EQ(awayLayers[1].mFlags, Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);
-            ASSERT_NE(awayLayers[1].mNormal, sNoIndex);
-            EXPECT_EQ(mScene.textures().getRows()[awayLayers[1].mNormal].mPath, "textures/rock_nh.dds");
+            ASSERT_NE(awayLayers[1].mNormal, Shaders::NO_TEXTURE);
+            EXPECT_EQ(mScene.textures().getRows()[TextureIndex(awayLayers[1].mNormal)].mPath, "textures/rock_nh.dds");
             EXPECT_TRUE(awayMaterial.mLayersMapped);
 
             // **And the heights it spans**, a grey of 128 throughout, on the material: the one layer with a height.
@@ -864,16 +864,16 @@ namespace Rtx::Testing
             fill();
 
             const auto treeWorn = [this](const Stander stander) {
-                Index worn = sNoIndex;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                MaterialIndex worn = sNoRow;
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                     if (row.mInstance.mStander == stander
                         && mScene.materials().getRows()[row.mInstance.mMaterial].mKind != MaterialKind::Terrain)
                         worn = row.mInstance.mMaterial;
                 });
                 return worn;
             };
-            const Index stood = treeWorn(Stander::Ring);
-            ASSERT_NE(stood, sNoIndex);
+            const MaterialIndex stood = treeWorn(Stander::Ring);
+            ASSERT_NE(stood, sNoRow);
             EXPECT_TRUE(mScene.materials().getRows()[stood].mTwoSided) << "the tree's root was not in force";
 
             // The game's clone, under the root as `MWRender::Objects` stands one, wearing the
@@ -1054,8 +1054,9 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 }) << "and the lamp beside the refused one burns";
             EXPECT_EQ(mScene.lights().front().mPosition, inCell);
 
-            const Index lost = mScene.textures().findFile(VFS::Path::Normalized("textures/rock_diffusespec.dds"));
-            ASSERT_NE(lost, sNoIndex) << "a layer whose image does not read was dropped rather than stood in for";
+            const TextureIndex lost
+                = mScene.textures().findFile(VFS::Path::Normalized("textures/rock_diffusespec.dds"));
+            ASSERT_NE(lost, sNoRow) << "a layer whose image does not read was dropped rather than stood in for";
             EXPECT_EQ(mScene.textures().getRows()[lost].mImage, nullptr)
                 << "the slot the upload stands in keeps no image";
         }
@@ -1110,7 +1111,7 @@ namespace Rtx::Testing
             // to carry its light, and the dark lamp's lantern stands with a lamp that takes light.
             std::uint32_t bodies = 0;
             mScene.placements().forEachPlaced(
-                [&](Index, const PlacementRow& row) { bodies += row.mInstance.mLampBody ? 1 : 0; });
+                [&](PlacementIndex, const PlacementRow& row) { bodies += row.mInstance.mLampBody ? 1 : 0; });
             EXPECT_EQ(bodies, 1u);
         }
 
@@ -1134,7 +1135,7 @@ namespace Rtx::Testing
             // The panel's placement, a mesh of four vertices among the cells' grounds.
             const auto askedAt = [&]() -> std::optional<std::uint8_t> {
                 std::optional<std::uint8_t> asked;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                     if (row.mInstance.mStander == Stander::Ring
                         && mScene.meshes().getRows()[row.mInstance.mMesh].mVertices.mCount == 4)
                         asked = mScene.materials().getAsks(row.mInstance.mMaterial).finest();
@@ -1177,7 +1178,7 @@ namespace Rtx::Testing
 
             std::size_t clockwise = 0;
             mScene.placements().forEachPlaced(
-                [&](Index, const PlacementRow& row) { clockwise += row.mInstance.mClockwise ? 1 : 0; });
+                [&](PlacementIndex, const PlacementRow& row) { clockwise += row.mInstance.mClockwise ? 1 : 0; });
             EXPECT_EQ(clockwise, 1u) << "the mirrored sheet, and neither the tree nor a cell's ground";
         }
 
@@ -1211,8 +1212,8 @@ namespace Rtx::Testing
             // of five is scaled with the reference, so a tree at scale `s` stands at `105 s`.
             const auto standing = [this] {
                 std::vector<std::pair<std::size_t, float>> slots;
-                mScene.placements().forEachPlaced([&](Index slot, const PlacementRow& row) {
-                    slots.emplace_back(slot, static_cast<float>(row.mInstance.mTransform.getTrans().z()));
+                mScene.placements().forEachPlaced([&](PlacementIndex slot, const PlacementRow& row) {
+                    slots.emplace_back(slot.at(), static_cast<float>(row.mInstance.mTransform.getTrans().z()));
                 });
                 return slots;
             };
@@ -1846,17 +1847,17 @@ namespace Rtx::Testing
                 << "each sheet five units over where its file placed it";
 
             const auto materialAt = [&](const float height) {
-                Index worn = sNoIndex;
-                mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
-                    if (worn == sNoIndex && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
+                MaterialIndex worn = sNoRow;
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
+                    if (worn == sNoRow && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
                         worn = row.mInstance.mMaterial;
                 });
                 return worn;
             };
-            const Index grass = materialAt(105.0f);
-            const Index fern = materialAt(405.0f);
-            ASSERT_NE(grass, sNoIndex);
-            ASSERT_NE(fern, sNoIndex);
+            const MaterialIndex grass = materialAt(105.0f);
+            const MaterialIndex fern = materialAt(405.0f);
+            ASSERT_NE(grass, sNoRow);
+            ASSERT_NE(fern, sNoRow);
             EXPECT_NE(grass, fern) << "the grass wore the static's material";
             EXPECT_EQ(materialAt(205.0f), grass) << "one material for every plant of one model";
             const Material& cut = mScene.materials().getRows()[grass];
@@ -1904,7 +1905,7 @@ namespace Rtx::Testing
 
             std::optional<bool> grass;
             std::optional<bool> fern;
-            mScene.placements().forEachPlaced([&](Index, const PlacementRow& row) {
+            mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
                 const bool lit = mScene.materials().getRows()[row.mInstance.mMaterial].mLampLit;
                 const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
                 if (height == 105.0f)

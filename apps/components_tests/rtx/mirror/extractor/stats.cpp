@@ -42,7 +42,7 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mUndescribedSurfaces, 1u);
             EXPECT_EQ(stats.mInstances, 1u) << "the geometry is still placed; only its shading is unknown";
             ASSERT_EQ(mScene.materials().getRows().size(), 1u);
-            EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, Rtx::sNoIndex);
+            EXPECT_EQ(mScene.materials().getRows()[MaterialIndex(0)].mDiffuse, Rtx::sNoRow);
         }
 
         /// A walk computes from the content through the extractor's own preprocessor: a quad met

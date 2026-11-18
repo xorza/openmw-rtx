@@ -6,6 +6,7 @@
 #include <osg/Matrixf>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/shaders/skinning.h>
 
 #include "material.hpp"
@@ -52,11 +53,11 @@ namespace Rtx
         Transform3x4 mMotion{};
 
         /// The mesh whose bottom-level structure this places.
-        Index mMesh = sNoIndex;
+        MeshIndex mMesh = sNoRow;
 
-        /// The material it wears, `sNoIndex` for none, and how much of it the game shows — the
+        /// The material it wears, `sNoRow` for none, and how much of it the game shows — the
         /// placement's own, carried here so a row a backend writes has one source for all of it.
-        Index mMaterial = sNoIndex;
+        MaterialIndex mMaterial = sNoRow;
         float mOpacity = 1.0f;
 
         /// What shading a hit on this instance takes — the material's own kind, carried on the
@@ -124,7 +125,7 @@ namespace Rtx
     /// Fills `records` with one row per slot the scene holds, in slot order — a record with
     /// `mPlaced` false is a gap to be skipped and never renumbered away. An out-parameter refilled
     /// in place.
-    void makeInstanceRecords(const SceneDesc& scene, std::vector<InstanceRecord>& records);
+    void makeInstanceRecords(const SceneDesc& scene, RowVector<InstanceRecord, PlacementIndex>& records);
 
     /// Rewrites the rows of the slots the scene says changed — `getMoved` and `getSettled` — leaves
     /// every other row as the last call left it, and names in `changed` every slot it wrote. A
@@ -132,6 +133,6 @@ namespace Rtx
     /// one place the scene's change lists are read, so every table a frame writes derives from one
     /// answer. `records` must be what `makeInstanceRecords` filled, grown here where the scene
     /// grew; `changed` is cleared and refilled.
-    void updateInstanceRecords(
-        const SceneDesc& scene, std::vector<InstanceRecord>& records, std::vector<Index>& changed);
+    void updateInstanceRecords(const SceneDesc& scene, RowVector<InstanceRecord, PlacementIndex>& records,
+        std::vector<PlacementIndex>& changed);
 }

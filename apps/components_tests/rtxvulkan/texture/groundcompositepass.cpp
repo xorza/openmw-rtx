@@ -75,8 +75,8 @@ namespace Rtx
                 constexpr std::array<std::uint8_t, 4> red{ 255, 0, 0, 255 };
                 Testing::TestTexture ladder;
                 Testing::paintMipLadder(ladder);
-                std::array<TextureData, 2> textures{ Testing::describeTexel(red, 0), ladder.mData };
-                textures[1].mSlot = 1;
+                std::array<TextureData, 2> textures{ Testing::describeTexel(red, TextureIndex(0)), ladder.mData };
+                textures[1].mSlot = TextureIndex(1);
                 if (standsIn)
                     textures[1].mSource = TextureSource::StandIn;
 
@@ -86,16 +86,16 @@ namespace Rtx
                 SceneDesc scene(identities);
                 scene.textures().add(VFS::Path::NormalizedView("red.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
-                std::array layers{ Testing::layerOf(0, scene.materials().addMask(firstMask), 2, 1),
-                    Testing::layerOf(
-                        1, scene.materials().addMask(secondMask), 2, 1, osg::Vec4f(tiling, tiling, 0.0f, 0.0f)) };
+                std::array layers{ Testing::layerOf(TextureIndex(0), scene.materials().addMask(firstMask), 2, 1),
+                    Testing::layerOf(TextureIndex(1), scene.materials().addMask(secondMask), 2, 1,
+                        osg::Vec4f(tiling, tiling, 0.0f, 0.0f)) };
                 if (authored)
                     layers[1].mFlags = Shaders::LAYER_AUTHORED;
                 Material chunk;
                 chunk.mKind = MaterialKind::Terrain;
                 chunk.mFlatten = GroundFlattening::Every;
                 chunk.mLayers = scene.materials().addLayers(layers);
-                const Index material = scene.addMaterial(chunk);
+                const MaterialIndex material = scene.addMaterial(chunk);
 
                 Batch setup(getPool());
                 const auto canvasFor = [&](std::uint32_t output, bool isGloss) -> std::optional<Image> {
@@ -115,7 +115,7 @@ namespace Rtx
                 Uploads uploads(setup);
                 array.sync(FrameSlot{}, uploads);
                 uploads.order();
-                std::vector<Index> everyMesh;
+                std::vector<MeshIndex> everyMesh;
                 const SceneBuffers buffers(device, setup, scene,
                     everyIndexBelow(scene.meshes().getRows().size(), everyMesh), {}, 1, SceneRoom{ .mPlacements = 1 });
 
@@ -127,7 +127,7 @@ namespace Rtx
                         .mMaterials = tables.mMaterials,
                         .mLayers = tables.mLayers,
                         .mMasks = tables.mMasks,
-                        .mMaterial = material + Shaders::MATERIAL_ROW_FIRST,
+                        .mMaterial = materialRecordOf(material).at(),
                         .mOutputs = outputs,
                         .mTexels = array.getTexelsAddress(FrameSlot{}),
                     });

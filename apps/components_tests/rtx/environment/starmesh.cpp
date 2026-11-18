@@ -132,7 +132,7 @@ namespace Rtx
             const NightSky sky = readNightSky(scene, *dome, thread, holds);
 
             const NightSky::Patch& overhead = sky.mPatches[0];
-            ASSERT_NE(overhead.mTexture, sNoIndex) << "the sheet two nodes up was not found";
+            ASSERT_NE(overhead.mTexture, sNoRow) << "the sheet two nodes up was not found";
             EXPECT_EQ(
                 scene.textures().getRows()[overhead.mTexture].mPath, VFS::Path::NormalizedView("textures/nebula.dds"));
 
@@ -147,7 +147,7 @@ namespace Rtx
             EXPECT_NEAR(overhead.mAngularRadius, std::atan(0.05f * std::sqrt(2.0f)), 1e-5f);
 
             const NightSky::Patch& overridden = sky.mPatches[1];
-            ASSERT_NE(overridden.mTexture, sNoIndex);
+            ASSERT_NE(overridden.mTexture, sNoRow);
             EXPECT_EQ(scene.textures().getRows()[overridden.mTexture].mPath,
                 VFS::Path::NormalizedView("textures/warrior.dds"))
                 << "the parent's OVERRIDE gave way to the drawable's own";
@@ -194,7 +194,7 @@ namespace Rtx
             const Given given{ scene, holds };
 
             const NightSky sky = readNightSky(scene, *dome, thread, holds);
-            ASSERT_NE(sky.mField, sNoIndex) << "the band was not read as a field";
+            ASSERT_NE(sky.mField, sNoRow) << "the band was not read as a field";
             EXPECT_FLOAT_EQ(sky.mTile, osg::PIf / 4.0f);
         }
     }

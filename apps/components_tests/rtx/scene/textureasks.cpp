@@ -83,12 +83,12 @@ namespace Rtx
             // 1024 square: an offset of 0.5 log2(1024 × 1024) = 10.
             const osg::ref_ptr<osg::Image> large = Testing::makeImage("textures/large.dds", 1024, 1024);
             const osg::ref_ptr<osg::Image> other = Testing::makeImage("textures/other.dds", 1024, 1024);
-            const Index first = textures.add(VFS::Path::NormalizedView("textures/large.dds"), large.get());
-            const Index second = textures.add(VFS::Path::NormalizedView("textures/other.dds"), other.get());
-            const Index sheet = textures.add(VFS::Path::NormalizedView("textures/sheet.dds"), large.get());
+            const TextureIndex first = textures.add(VFS::Path::NormalizedView("textures/large.dds"), large.get());
+            const TextureIndex second = textures.add(VFS::Path::NormalizedView("textures/other.dds"), other.get());
+            const TextureIndex sheet = textures.add(VFS::Path::NormalizedView("textures/sheet.dds"), large.get());
 
             // Held, as the identity a walk or the ring met it under holds it while it asks.
-            const Index material = scene.addMaterial(Material{ .mDiffuse = first });
+            const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = first });
             MaterialHold held = scene.holdMaterial(material);
             EXPECT_EQ(textures.getWant(first), 0u) << "nothing asks it, so it is wanted whole";
 
@@ -101,8 +101,8 @@ namespace Rtx
             EXPECT_EQ(textures.getWant(first), 12u);
 
             // A placement the walk stands wearing it asks the finest, and taking it out gives the ring's back.
-            const Index mesh = Testing::addQuadMesh(scene);
-            const Index placed = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+            const MeshIndex mesh = Testing::addQuadMesh(scene);
+            const PlacementIndex placed = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
             EXPECT_EQ(textures.getWant(first), 0u);
             scene.dropInstance(placed, Stander::Walk);
             EXPECT_EQ(textures.getWant(first), 12u);
@@ -152,15 +152,15 @@ namespace Rtx
             SceneDesc scene(identities);
             TextureTable& textures = scene.textures();
             const osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/large.dds", 1024, 1024);
-            const Index far = textures.add(VFS::Path::NormalizedView("textures/far.dds"), image.get());
-            const Index whole = textures.add(VFS::Path::NormalizedView("textures/whole.dds"), image.get());
-            const Index unstood = textures.add(VFS::Path::NormalizedView("textures/unstood.dds"), image.get());
+            const TextureIndex far = textures.add(VFS::Path::NormalizedView("textures/far.dds"), image.get());
+            const TextureIndex whole = textures.add(VFS::Path::NormalizedView("textures/whole.dds"), image.get());
+            const TextureIndex unstood = textures.add(VFS::Path::NormalizedView("textures/unstood.dds"), image.get());
             textures.stand(far, 5592404, false, 0);
             textures.stand(whole, 5592404, false, 0);
 
-            const Index material = scene.addMaterial(Material{ .mDiffuse = far });
+            const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = far });
             MaterialHold held = scene.holdMaterial(material);
-            const Index other = scene.addMaterial(Material{ .mDiffuse = unstood });
+            const MaterialIndex other = scene.addMaterial(Material{ .mDiffuse = unstood });
             MaterialHold otherHeld = scene.holdMaterial(other);
             scene.askMaterial(material, 23);
             scene.askMaterial(other, 23);
@@ -200,12 +200,12 @@ namespace Rtx
             SceneDesc scene(identities);
             TextureTable& textures = scene.textures();
             const osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/large.dds", 1024, 1024);
-            const Index slot = textures.add(VFS::Path::NormalizedView("textures/stood.dds"), image.get());
+            const TextureIndex slot = textures.add(VFS::Path::NormalizedView("textures/stood.dds"), image.get());
             textures.compact(0);
             textures.clearArrivals();
             textures.stand(slot, 64, false, 3);
 
-            const Index material = scene.addMaterial(Material{ .mDiffuse = slot });
+            const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = slot });
             MaterialHold held = scene.holdMaterial(material);
 
             // Step 37, footprint 5, plus the offset of 10: level 15, coarser than 3. Nothing arrives.

@@ -113,7 +113,7 @@ namespace Rtx
             EXPECT_EQ(faces.of(Moon::Secunda).mRadius, moonAngularRadius(secunda));
             EXPECT_EQ(scene.textures().getRows()[faces.of(Moon::Masser).mSlot].mImage, portrait)
                 << "the portrait was not kept";
-            EXPECT_EQ(faces.of(Moon::Secunda).mSlot, sNoIndex);
+            EXPECT_EQ(faces.of(Moon::Secunda).mSlot, sNoRow);
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 1u) << "the face that did not open";
             scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());

@@ -59,16 +59,17 @@ namespace RtxTool
             rows[3].mKind = Rtx::TextureKind::SpriteLight;
             rows[3].mPath = VFS::Path::Normalized("textures/first.dds");
             rows[4].mKind = Rtx::TextureKind::GroundGloss;
-            rows[4].mGroundOf = 7;
+            rows[4].mGroundOf = Rtx::MaterialIndex(7);
 
             std::array<Rtx::TextureData, 4> drawn{};
-            drawn[0].mSlot = 0;
-            drawn[1].mSlot = 2;
-            drawn[2].mSlot = 3;
-            drawn[3].mSlot = 4;
+            drawn[0].mSlot = Rtx::TextureIndex(0);
+            drawn[1].mSlot = Rtx::TextureIndex(2);
+            drawn[2].mSlot = Rtx::TextureIndex(3);
+            drawn[3].mSlot = Rtx::TextureIndex(4);
 
             std::vector<std::string> names;
-            listSheetNames(drawn, rows, names);
+            listSheetNames(drawn,
+                Rtx::RowSpan<const Rtx::TextureRow, Rtx::TextureIndex>(std::span<const Rtx::TextureRow>(rows)), names);
             EXPECT_EQ(names,
                 (std::vector<std::string>{ "textures/first.dds", "textures/third.dds",
                     "the light of textures/first.dds", "the ground gloss of material 7" }));

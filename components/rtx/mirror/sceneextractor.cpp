@@ -626,7 +626,8 @@ namespace Rtx
         // The placements before the resolvers go, each giving back what its own maps hold, so a
         // scene that outlives its extractor — a picture's, whose subject is replaced — holds
         // nothing of it.
-        mPlacements.clear([this](const Known& stood) { mScene.dropInstance(stood.mIndex, Stander::Walk); });
+        mPlacements.clear(
+            [this](const Known<PlacementIndex>& stood) { mScene.dropInstance(stood.mIndex, Stander::Walk); });
     }
 
     void SceneExtractor::setSimulationTime(double seconds, double step)
@@ -764,7 +765,8 @@ namespace Rtx
         // renumber every bottom-level acceleration structure in the world on every crossing. The order does not matter,
         // because a placement holds what it stands on. Each map skips its walk where every entry was reached
         // (`Kept::whole`).
-        mPlacements.retire(mReleased, [this](const Known& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
+        mPlacements.retire(
+            mReleased, [this](const Known<PlacementIndex>& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
         mMeshes.retire(mReleased);
         mMaterials.retire(mReleased);
 
@@ -913,8 +915,8 @@ namespace Rtx
 
         // The mesh first: a surface nothing places has no material, and one resolved ahead of a
         // refused mesh held its textures and uploaded them for nothing.
-        const Index mesh = mMeshes.resolve(drawable, read, path);
-        if (mesh == sNoIndex)
+        const MeshIndex mesh = mMeshes.resolve(drawable, read, path);
+        if (mesh == sNoRow)
         {
             mFrozen.note(FrozenRoots::Key{ .mDrawable = &drawable });
             return changes;
@@ -950,7 +952,7 @@ namespace Rtx
         // What the sheet adds to the effect's lamp, read off the rows the placement stands on
         // this frame: a controller may have rewritten the material on the way here, and
         // `resolve` rewrote the row before this read.
-        if (glows.mEffect.has_value() && material.mIndex != sNoIndex)
+        if (glows.mEffect.has_value() && material.mIndex != sNoRow)
             mGlows[*glows.mEffect].addSheet(
                 mScene.materials().getRows()[material.mIndex], mScene.meshes().getRows()[mesh].mBounds, place, fade);
 
@@ -966,7 +968,7 @@ namespace Rtx
         // geometry was replaced, a state set a controller rewrote into another material, or a sibling that shifted into
         // this place is mirrored afresh under the identity it kept. Moved, the slot would carry the old surface at the
         // new place, and hold the old row, for as long as it stood.
-        Index& slot = held->second.mIndex;
+        PlacementIndex& slot = held->second.mIndex;
         const MeshInstance& standing = mScene.placements().getRows()[slot].mInstance;
         if (standing.mMesh != resolved.mMesh || standing.mMaterial != resolved.mMaterial
             || standing.mClass != resolved.mClass || standing.mClockwise != resolved.mClockwise

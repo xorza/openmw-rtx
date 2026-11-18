@@ -67,13 +67,13 @@ namespace Rtx
         ///
         /// @param path the walk's path to the drawable, which a drawable met for the first time is
         ///        read in the model of (`modelOf`).
-        Index resolve(const osg::Drawable& drawable, const DrawableRead& read, std::span<osg::Node* const> path);
+        MeshIndex resolve(const osg::Drawable& drawable, const DrawableRead& read, std::span<osg::Node* const> path);
 
         /// The mesh index for a drawable somebody else has already read, adding it where the mirror
         /// does not hold it and stamping it where it does — the insertion half of `resolve`, for a
         /// reading made off the frame, under the drawable so a clone met by the walk resolves to
         /// this mesh. Standing only. One hold is taken on the entry until `release` gives it back.
-        Index adopt(const osg::Drawable& drawable, const PackedMesh& reading);
+        MeshIndex adopt(const osg::Drawable& drawable, const PackedMesh& reading);
 
         /// Gives one `adopt` back. The mirror must hold `drawable`, which it does for as long as
         /// anything holds it.
@@ -111,13 +111,13 @@ namespace Rtx
 
         using MeshEntry = Identity<const osg::Drawable, KnownMesh>::Entry;
 
-        using DeformerEntry = Identity<const osg::Referenced>::Entry;
+        using DeformerEntry = Identity<const osg::Referenced, Known<DeformerIndex>>::Entry;
 
         /// What poses one drawable, as the mirror already holds it — the entry and not only the
         /// index, so the stamp does not `find` again for every posed part of a crowded cell.
         struct Held
         {
-            Index mIndex = sNoIndex;
+            DeformerIndex mIndex = sNoRow;
             DeformerEntry mEntry;
         };
 
@@ -133,9 +133,9 @@ namespace Rtx
         /// Whether the deformer in `slot` is what `read` asks for: the same kind, and for a morph
         /// the same count of targets, because a set of targets grown or shrunk under the same
         /// base is a new set.
-        bool fits(Index slot, const DrawableRead& read) const;
+        bool fits(DeformerIndex slot, const DrawableRead& read) const;
 
-        /// The deformer this drawable stands on, where the mirror holds one, and `sNoIndex` where
+        /// The deformer this drawable stands on, where the mirror holds one, and `sNoRow` where
         /// it does not. Stamps nothing, because whether the slot still fits is decided after this.
         Held holdDeformer(const DrawableRead& read);
 
@@ -143,15 +143,15 @@ namespace Rtx
         /// that fits it, or with a deformer of its own, both rows in one call of the scene's, and the identity entry
         /// added or moved only once they exist. An error, adding nothing, where the mesh is past a block or its skin or
         /// targets do not pose exactly its vertices, because a vertex count comes out of a content file.
-        Result<Index, std::string> addMesh(const DrawableRead& read, const PackedMesh& reading);
+        Result<MeshIndex, std::string> addMesh(const DrawableRead& read, const PackedMesh& reading);
 
         /// Refuses `drawable` of `model`, or of none, to the scene for `why`, named with its model, and keeps the
         /// refusal under it so it is read no more. Answers the index a refused drawable resolves to, which is none.
-        Index refuse(const osg::Drawable& drawable, const osg::Node* model, std::string_view why);
+        MeshIndex refuse(const osg::Drawable& drawable, const osg::Node* model, std::string_view why);
 
         /// Files `mesh` under `drawable`, and the entry's hold on it, which `retire`, an abandon or
         /// the destructor gives back.
-        MeshEntry file(const osg::Drawable& drawable, Index mesh);
+        MeshEntry file(const osg::Drawable& drawable, MeshIndex mesh);
 
         /// Says the walk met what `holdDeformer` found, for a slot the fit test has kept, so a
         /// deformer is kept for as long as a mesh stands on it.
@@ -170,12 +170,12 @@ namespace Rtx
         /// rows are `RigGeometry::cull`'s own composition of each bone's inverse bind, its
         /// skeleton-space matrix and the skin transform, from the matrices the update traversal
         /// left; a morph's weights are what its controller wrote under the update traversal.
-        void pose(Index mesh, const DrawableRead& read, ExtractionStats& stats);
+        void pose(MeshIndex mesh, const DrawableRead& read, ExtractionStats& stats);
 
         /// What `pose` writes where the drawable's pose is not a finite number: the pose `mesh`
         /// holds, or for one never posed the zeroed words it stood on, reaching `first`. Refused
         /// under the drawable's name, once.
-        void holdPose(Index mesh, const osg::Drawable& drawable, const osg::BoundingBoxf& first);
+        void holdPose(MeshIndex mesh, const osg::Drawable& drawable, const osg::BoundingBoxf& first);
 
         SceneDesc& mScene;
         const MirrorPass& mPass;
@@ -188,7 +188,7 @@ namespace Rtx
 
         /// What the scene knows each skin and each set of morph targets as. Swept with the meshes:
         /// a deformer no mesh named this epoch is one the scene has let go of.
-        Identity<const osg::Referenced> mDeformers{ mPass };
+        Identity<const osg::Referenced, Known<DeformerIndex>> mDeformers{ mPass };
 
         MeshReader mReader;
 

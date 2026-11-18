@@ -78,7 +78,7 @@ namespace Rtx::Testing
                 const float height = blocked == Blocked::Sky ? 20.0f : 100.0f;
                 SceneDesc scene(identities);
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
-                const Index bar = addQuad(scene, roofOver(-100.0f, -100.0f + width, height));
+                const PlacementIndex bar = addQuad(scene, roofOver(-100.0f, -100.0f + width, height));
 
                 mRenderer.resize(sSize, sSize);
                 mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});

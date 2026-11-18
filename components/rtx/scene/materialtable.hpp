@@ -9,6 +9,7 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 
 #include <components/misc/digestwords.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
 
@@ -60,7 +61,7 @@ namespace Rtx
     /// which they were is handed to the next chunk. The textures are the scene's, handed in per
     /// call rather than held: a table that held a reference to the texture table would be left
     /// pointing at the scene a defaulted move came from.
-    class MaterialTable : public HeldRows<Material>
+    class MaterialTable : public HeldRows<Material, MaterialIndex>
     {
     public:
         /// Room for `room`'s materials, in the rows and the set of those written, and for its layers
@@ -100,11 +101,11 @@ namespace Rtx
             return mMaskDigests;
         }
 
-        std::span<const Index> getWritten() const { return mWritten.getSlots(); }
+        std::span<const MaterialIndex> getWritten() const { return mWritten.getSlots(); }
 
         /// The footprints `material` is asked at (`FootprintAsks`): what its textures are asked at, each by its own
         /// size and transform (`docs/architecture.md`, "A texture stands from the level its nearest user asks").
-        const FootprintAsks& getAsks(const Index material) const { return mAsks.at(material); }
+        const FootprintAsks& getAsks(const MaterialIndex material) const { return mAsks[material]; }
         const ArrivedRuns& getArrivedRuns() const { return mArrived; }
 
         /// How many runs have been placed, ever. What a backend checks it staged the arrivals
@@ -121,27 +122,27 @@ namespace Rtx
         friend class SceneDesc;
 
         /// Puts `material` in a slot, holding every texture it names on `textures`.
-        Index add(TextureTable& textures, const Material& material);
+        MaterialIndex add(TextureTable& textures, const Material& material);
 
         /// Rewrites a material in place, keeping its slot and everything standing on it, and says
         /// whether what traversal is told about the surfaces wearing it changed — a fade crossing
         /// opaque does, a flipbook turning does not. What it names anew is held on `textures` and
         /// what it stops naming given back.
-        bool set(TextureTable& textures, Index material, const Material& what);
+        bool set(TextureTable& textures, MaterialIndex material, const Material& what);
 
-        void hold(Index material) { holdRow(material); }
+        void hold(MaterialIndex material) { holdRow(material); }
 
         /// One ask more, and one fewer, of `material` at footprint `step`, asking its textures again where its finest
         /// step moved: a placement the walk stands wearing it asks the finest, a cell of the ring its own distance's.
-        void ask(TextureTable& textures, Index material, std::size_t step);
-        void unask(TextureTable& textures, Index material, std::size_t step);
+        void ask(TextureTable& textures, MaterialIndex material, std::size_t step);
+        void unask(TextureTable& textures, MaterialIndex material, std::size_t step);
 
         /// Gives one hold on `material` back, and frees it where that was the last: what it named
         /// goes back to `textures`, and its layer and mask runs to their allocators.
-        void drop(TextureTable& textures, Index material);
+        void drop(TextureTable& textures, MaterialIndex material);
 
         /// Records that `slot`'s row was written, once however many times it is.
-        void note(Index slot);
+        void note(MaterialIndex slot);
 
         /// Every texture slot `material` names — its own maps, and every layer of its run. One
         /// walk, or a slot added to the hold and forgotten in the drop is freed under something
@@ -154,8 +155,8 @@ namespace Rtx
 
             for (const MaterialLayer& layer : material.mLayers.in(getLayers()))
             {
-                visit(layer.mDiffuse);
-                visit(layer.mNormal);
+                visit(TextureIndex(layer.mDiffuse));
+                visit(TextureIndex(layer.mNormal));
             }
         }
 
@@ -182,11 +183,11 @@ namespace Rtx
             std::optional<std::uint8_t> after) const;
 
         /// Each material's footprints, parallel to the rows.
-        std::vector<FootprintAsks> mAsks;
+        RowVector<FootprintAsks, MaterialIndex> mAsks;
 
         /// Rows written since the last `clearArrivals` — a flipbook that is added and then
         /// rewritten on one frame is one row, not two.
-        SlotSet mWritten;
+        SlotSet<MaterialIndex> mWritten;
 
         ArrivedRuns mArrived;
         std::uint64_t mRunRevision = 0;

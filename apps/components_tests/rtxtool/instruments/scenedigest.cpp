@@ -40,7 +40,7 @@ namespace RtxTool
         /// the host hands over in heap order. `shuffled` stores the same vertices in reverse and
         /// spells the same triangles from another corner, which is what the host's geometry merge
         /// does to a shape. `tangents` is none or one per corner, and is not shuffled.
-        Rtx::Index addBox(Rtx::SceneDesc& scene, const bool mirrored, const float lift = 0.0f,
+        Rtx::MeshIndex addBox(Rtx::SceneDesc& scene, const bool mirrored, const float lift = 0.0f,
             const bool shuffled = false, std::span<const osg::Vec4f> tangents = {})
         {
             std::vector<osg::Vec3f> positions;
@@ -78,7 +78,7 @@ namespace RtxTool
         {
             Rtx::Material material;
             material.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("textures/box.dds"));
-            const Rtx::Index wearing = scene.addMaterial(material);
+            const Rtx::MaterialIndex wearing = scene.addMaterial(material);
 
             const osg::Matrixf stood = osg::Matrixf::translate(10.0f, 20.0f, 30.0f);
             for (std::int32_t which = 0; which < 2; ++which)
@@ -312,7 +312,7 @@ namespace RtxTool
             Rtx::SceneIdentities identities;
             Rtx::SceneDesc scene(identities);
             scene.keepDigests();
-            const Rtx::Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/puff.dds"));
+            const Rtx::TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("textures/puff.dds"));
             const std::array sprites{ Rtx::Sprite{ .mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f),
                 .mRadius = 4.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
@@ -359,7 +359,7 @@ namespace RtxTool
             const std::array positions{ osg::Vec3f(), osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 0.0f),
                 osg::Vec3f(0.0f, 1.0f, 0.0f) };
             const std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
-            const Rtx::Index quad
+            const Rtx::MeshIndex quad
                 = Rtx::Testing::addMesh(scene, Rtx::MeshArrays{ .mPositions = positions, .mIndices = indices }, {},
                     Rtx::RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 })
                       .mMesh;
@@ -406,7 +406,7 @@ namespace RtxTool
             scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
-            const Rtx::Index slot = scene.addInstance(instance);
+            const Rtx::PlacementIndex slot = scene.addInstance(instance);
             const osg::Matrixf there = osg::Matrixf::translate(5.0f, 0.0f, 0.0f);
             if (jumped)
                 scene.placements().jump(slot, there);
@@ -462,7 +462,7 @@ namespace RtxTool
                 lamp.mTraits = 0;
             scene.addLight(lamp);
 
-            const Rtx::Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/rain.dds"));
+            const Rtx::TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("textures/rain.dds"));
             const std::array sprites{ Rtx::Sprite{ .mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f),
                 .mRadius = 4.0f,
                 .mAxis = osg::Vec3f(0.0f, 0.0f, field == Field::Axis ? -2.0f : -1.0f),
@@ -528,14 +528,14 @@ namespace RtxTool
             scene.clearArrivals();
             EXPECT_EQ(digester.digest(scene), first) << "a part read the geometry the host let go of";
 
-            scene.placements().move(0, osg::Matrixf::translate(1.0f, 0.0f, 0.0f));
+            scene.placements().move(Rtx::PlacementIndex(0), osg::Matrixf::translate(1.0f, 0.0f, 0.0f));
             const ScenePartDigests moved = digester.digest(scene);
             EXPECT_EQ(moved[static_cast<std::size_t>(ScenePart::Positions)],
                 first[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_NE(moved[static_cast<std::size_t>(ScenePart::Instances)],
                 first[static_cast<std::size_t>(ScenePart::Instances)]);
 
-            const Rtx::Index third = addBox(scene, true, 2.0f);
+            const Rtx::MeshIndex third = addBox(scene, true, 2.0f);
             const ScenePartDigests grown = digester.digest(scene);
             EXPECT_NE(grown[static_cast<std::size_t>(ScenePart::Positions)],
                 moved[static_cast<std::size_t>(ScenePart::Positions)]);

@@ -586,29 +586,33 @@ namespace Rtx::Testing
             PackedStreams packed;
             const PackedMesh packedReading = packed.of(packed.append(reading.mArrays, reading.mShape));
             Resolving adopted;
-            const Index mesh = adopted.mResolver.adopt(*quad, packedReading);
-            EXPECT_EQ(mesh, 0u);
+            const MeshIndex mesh = adopted.mResolver.adopt(*quad, packedReading);
+            EXPECT_EQ(mesh, MeshIndex(0));
             EXPECT_EQ(adopted.mStats.mMeshesAdded, 1u);
 
             Resolving resolved;
-            EXPECT_EQ(resolved.mResolver.resolve(*quad, readDrawable(*quad, NodeKinds{}.of(*quad), {}), {}), 0u);
+            EXPECT_EQ(
+                resolved.mResolver.resolve(*quad, readDrawable(*quad, NodeKinds{}.of(*quad), {}), {}), MeshIndex(0));
 
             const SceneDesc& left = adopted.mScene;
             const SceneDesc& right = resolved.mScene;
-            EXPECT_EQ(left.meshes().getRows()[0].mVertices.mCount, right.meshes().getRows()[0].mVertices.mCount);
-            EXPECT_EQ(left.meshes().getRows()[0].mIndices.mCount, right.meshes().getRows()[0].mIndices.mCount);
-            EXPECT_EQ(left.deformers().kindOf(left.meshes().getRows()[0]), Deform::None);
-            const std::span<const osg::Vec3f> leftPositions = left.meshes().getArrival(0).mPositions;
-            const std::span<const osg::Vec3f> rightPositions = right.meshes().getArrival(0).mPositions;
-            const std::span<const std::uint32_t> leftIndices = left.meshes().getArrival(0).mIndices;
-            const std::span<const std::uint32_t> rightIndices = right.meshes().getArrival(0).mIndices;
+            EXPECT_EQ(left.meshes().getRows()[MeshIndex(0)].mVertices.mCount,
+                right.meshes().getRows()[MeshIndex(0)].mVertices.mCount);
+            EXPECT_EQ(left.meshes().getRows()[MeshIndex(0)].mIndices.mCount,
+                right.meshes().getRows()[MeshIndex(0)].mIndices.mCount);
+            EXPECT_EQ(left.deformers().kindOf(left.meshes().getRows()[MeshIndex(0)]), Deform::None);
+            const std::span<const osg::Vec3f> leftPositions = left.meshes().getArrival(MeshIndex(0)).mPositions;
+            const std::span<const osg::Vec3f> rightPositions = right.meshes().getArrival(MeshIndex(0)).mPositions;
+            const std::span<const std::uint32_t> leftIndices = left.meshes().getArrival(MeshIndex(0)).mIndices;
+            const std::span<const std::uint32_t> rightIndices = right.meshes().getArrival(MeshIndex(0)).mIndices;
             EXPECT_EQ(std::vector(leftPositions.begin(), leftPositions.end()),
                 std::vector(rightPositions.begin(), rightPositions.end()));
             EXPECT_EQ(std::vector(leftIndices.begin(), leftIndices.end()),
                 std::vector(rightIndices.begin(), rightIndices.end()));
 
             // The walk meeting the drawable after the ring adopted it finds the ring's mesh.
-            EXPECT_EQ(adopted.mResolver.resolve(*quad, readDrawable(*quad, NodeKinds{}.of(*quad), {}), {}), 0u);
+            EXPECT_EQ(
+                adopted.mResolver.resolve(*quad, readDrawable(*quad, NodeKinds{}.of(*quad), {}), {}), MeshIndex(0));
             EXPECT_EQ(adopted.mStats.mMeshesAdded, 1u) << "resolved to the mesh already held";
             EXPECT_EQ(adopted.mStats.mMeshesReused, 1u);
 

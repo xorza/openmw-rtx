@@ -21,7 +21,7 @@
 namespace Rtx
 {
     SkinTables::SkinTables(const Device& device, Batch& batch, const SceneDesc& scene,
-        const std::span<const Index> everyMesh, const std::uint32_t slots, const SceneRoom& room)
+        const std::span<const MeshIndex> everyMesh, const std::uint32_t slots, const SceneRoom& room)
         : mBindPositions(device, BufferKind::DeviceLocal, sTableKeptUsage, "bind positions")
         , mBindNormals(device, BufferKind::DeviceLocal, sTableKeptUsage, "bind normals")
         , mBindTangents(device, BufferKind::DeviceLocal, sTableKeptUsage, "bind tangents")
@@ -44,7 +44,7 @@ namespace Rtx
                 .mBindVertices = std::max(room.mBindVertices, reach.mBindVertices) });
 
         // Whole: the arrivals since the last clear are not every row a world made again holds.
-        std::vector<Index> everyDeformer;
+        std::vector<DeformerIndex> everyDeformer;
         everyIndexBelow(scene.deformers().getRows().size(), everyDeformer);
         write(batch, scene, everyMesh, everyDeformer, scene.meshes().getArrived());
         orderStagedWrites(batch);
@@ -82,11 +82,11 @@ namespace Rtx
             poses.outgrow(VkDeviceSize{ reach.mPoseWords } * sizeof(PoseWord));
     }
 
-    void SkinTables::write(Batch& batch, const SceneDesc& scene, const std::span<const Index> meshes,
-        const std::span<const Index> deformers, const std::span<const Index> posed)
+    void SkinTables::write(Batch& batch, const SceneDesc& scene, const std::span<const MeshIndex> meshes,
+        const std::span<const DeformerIndex> deformers, const std::span<const MeshIndex> posed)
     {
-        const std::span<const MeshRange> ranges = scene.meshes().getRows();
-        for (const Index index : meshes)
+        const auto ranges = scene.meshes().getRows();
+        for (const MeshIndex index : meshes)
         {
             const MeshRange& mesh = ranges[index];
             if (!mesh.deforms() || mesh.mVertices.mCount == 0)
@@ -103,8 +103,8 @@ namespace Rtx
 
         // A freed slot deforms nothing and holds no run to write.
         const DeformerTable& table = scene.deformers();
-        const std::span<const Deformer> rows = table.getRows();
-        for (const Index index : deformers)
+        const auto rows = table.getRows();
+        for (const DeformerIndex index : deformers)
         {
             const Deformer& deformer = rows[index];
             if (!deformer.mRuns.empty())
@@ -121,7 +121,7 @@ namespace Rtx
 
         // The arrivals' poses into the first copy alone. Every other pose of a copy reaches it in the
         // placement that dispatches over it, and the other copies owe the arrivals theirs.
-        for (const Index index : posed)
+        for (const MeshIndex index : posed)
         {
             const MeshRange& mesh = ranges[index];
             if (!mesh.deforms())
@@ -138,11 +138,11 @@ namespace Rtx
     }
 
     void SkinTables::writePoses(
-        const SceneDesc& scene, const FrameSlot slot, const std::span<const Index> meshes, Uploads& uploads)
+        const SceneDesc& scene, const FrameSlot slot, const std::span<const MeshIndex> meshes, Uploads& uploads)
     {
-        const std::span<const MeshRange> rows = scene.meshes().getRows();
+        const auto rows = scene.meshes().getRows();
         mPoseRuns.clear();
-        for (const Index mesh : meshes)
+        for (const MeshIndex mesh : meshes)
         {
             const VkDeviceSize at = VkDeviceSize{ rows[mesh].mPoseOffset } * sizeof(PoseWord);
             mPoseRuns.push_back(CopyRun{ .mFrom = at, .mTo = at, .mSize = scene.getMeshPose(mesh).size_bytes() });

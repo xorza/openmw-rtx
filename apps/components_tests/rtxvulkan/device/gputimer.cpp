@@ -129,7 +129,7 @@ namespace Rtx
             mRenderer.resize(sSize, sSize);
 
             SceneDesc scene(identities);
-            const Index wallPlaced = Testing::addQuad(scene, sWallCorners);
+            const PlacementIndex wallPlaced = Testing::addQuad(scene, sWallCorners);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
             const Shaders::VisibilityConstants camera

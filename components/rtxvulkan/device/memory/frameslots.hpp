@@ -100,16 +100,19 @@ namespace Rtx
     /// behind: it owes the rows that frame changed and the rows this one does. The debt is those
     /// rows — or everything, where the copy was just made — and writing the copy is what settles
     /// it. A frame owes its rows to every copy and settles the one it uses.
+    ///
+    /// @tparam I the table's row (`RowIndex`).
+    template <class I>
     class RowDebt
     {
     public:
         /// Names `rows`, each of them once however often it is named.
-        void owe(std::span<const Index> rows)
+        void owe(std::span<const I> rows)
         {
             if (mEverything)
                 return;
 
-            for (const Index at : rows)
+            for (const I at : rows)
                 mRows.addMakingRoom(at);
         }
 
@@ -118,7 +121,7 @@ namespace Rtx
         bool owesEverything() const { return mEverything; }
         bool owesAnything() const { return mEverything || !mRows.empty(); }
 
-        std::span<const Index> getRows() const { return mRows.getSlots(); }
+        std::span<const I> getRows() const { return mRows.getSlots(); }
 
         void settle()
         {
@@ -133,6 +136,6 @@ namespace Rtx
         /// not a vector, because a value settled in two steps writes its row twice before either
         /// copy is paid, and a debt that searched itself on every write would cost the square of
         /// the rows a frame touches.
-        SlotSet mRows;
+        SlotSet<I> mRows;
     };
 }

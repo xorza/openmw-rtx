@@ -49,10 +49,10 @@ namespace RtxTool
             Misc::DigestWords mWords{};
         };
 
-        void addTexture(Misc::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index texture)
+        void addTexture(Misc::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::TextureIndex texture)
         {
-            digest.add(texture == Rtx::sNoIndex);
-            if (texture == Rtx::sNoIndex)
+            digest.add(texture == Rtx::sNoRow);
+            if (texture == Rtx::sNoRow)
                 return;
 
             const Rtx::TextureRow& row = scene.textures().getRows()[texture];
@@ -86,12 +86,12 @@ namespace RtxTool
 
             // Companion maps only where there are any, each behind its own tag, so a scene with none digests as on
             // record.
-            if (normal != Rtx::sNoIndex)
+            if (normal != Rtx::sNoRow)
             {
                 value(std::uint8_t{ 1 });
                 texture(normal);
             }
-            if (specular != Rtx::sNoIndex)
+            if (specular != Rtx::sNoRow)
             {
                 value(std::uint8_t{ 2 });
                 texture(specular);
@@ -115,19 +115,19 @@ namespace RtxTool
                 value(std::uint8_t{ 8 });
 
             // The maps a mod's surfaces lay in beside the diffuse, each behind its own tag, as the companions are.
-            if (detail != Rtx::sNoIndex)
+            if (detail != Rtx::sNoRow)
             {
                 value(std::uint8_t{ 9 });
                 texture(detail);
                 value(detailUnit);
             }
-            if (decal != Rtx::sNoIndex)
+            if (decal != Rtx::sNoRow)
             {
                 value(std::uint8_t{ 10 });
                 texture(decal);
                 value(decalUnit);
             }
-            if (bump != Rtx::sNoIndex)
+            if (bump != Rtx::sNoRow)
             {
                 value(std::uint8_t{ 11 });
                 texture(bump);
@@ -135,7 +135,7 @@ namespace RtxTool
                 value(bumpMatrix);
                 value(bumpLuma);
             }
-            if (gloss != Rtx::sNoIndex)
+            if (gloss != Rtx::sNoRow)
             {
                 value(std::uint8_t{ 12 });
                 texture(gloss);
@@ -163,21 +163,21 @@ namespace RtxTool
             value(diffuseMean);
         }
 
-        void addMaterial(Misc::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
+        void addMaterial(Misc::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::MaterialIndex index)
         {
-            digest.add(index == Rtx::sNoIndex);
-            if (index == Rtx::sNoIndex)
+            digest.add(index == Rtx::sNoRow);
+            if (index == Rtx::sNoRow)
                 return;
 
             const Rtx::Material& material = scene.materials().getRows()[index];
             forEachMaterialField(
-                material, [&](const Rtx::Index slot) { addTexture(digest, scene, slot); },
+                material, [&](const Rtx::TextureIndex slot) { addTexture(digest, scene, slot); },
                 [&](const Rtx::Run& layers) { digest.add(layers.mCount); },
                 [&](const auto& field) { digest.add(field); });
 
             for (const Rtx::MaterialLayer& layer : material.mLayers.in(scene.materials().getLayers()))
             {
-                addTexture(digest, scene, layer.mDiffuse);
+                addTexture(digest, scene, Rtx::TextureIndex(layer.mDiffuse));
                 digest.add(layer.mDiffuseTransform);
                 digest.add(layer.mMaskTransform);
                 // A layer that covers its chunk whole has no mask.
@@ -185,10 +185,10 @@ namespace RtxTool
                 digest.add(mask.empty() ? Misc::DigestWords{} : scene.materials().getMaskDigest(mask));
 
                 // Only where a layer has them, each behind its tag, as a material's companion maps.
-                if (layer.mNormal != Rtx::sNoIndex)
+                if (layer.mNormal != Rtx::Shaders::NO_TEXTURE)
                 {
                     digest.add(std::uint8_t{ 1 });
-                    addTexture(digest, scene, layer.mNormal);
+                    addTexture(digest, scene, Rtx::TextureIndex(layer.mNormal));
                 }
                 if (layer.mFlags != 0)
                 {
@@ -278,7 +278,7 @@ namespace RtxTool
 
         /// A mesh's shape: the multiset of its triangles, and what deforms it where something does: its deformer's
         /// kind, rows, runs, influences and morph offsets, which the device poses it by.
-        Misc::DigestWords shapeOf(const Rtx::SceneDesc& scene, const Rtx::Index at)
+        Misc::DigestWords shapeOf(const Rtx::SceneDesc& scene, const Rtx::MeshIndex at)
         {
             const Rtx::MeshRange& mesh = scene.meshes().getRows()[at];
             Misc::HashState shape;
@@ -299,12 +299,12 @@ namespace RtxTool
 
     void SceneDigester::digestContent(const Rtx::SceneDesc& scene)
     {
-        const std::span<const Rtx::MeshRange> meshes = scene.meshes().getRows();
+        const auto meshes = scene.meshes().getRows();
         if (mShapesRevision != scene.meshes().getRevision() || mShapes.size() != meshes.size())
         {
             mShapes.resize(meshes.size());
-            for (std::size_t at = 0; at < meshes.size(); ++at)
-                mShapes[at] = shapeOf(scene, static_cast<Rtx::Index>(at));
+            for (const Rtx::MeshIndex mesh : Rtx::everyRow<Rtx::MeshIndex>(meshes.size()))
+                mShapes[mesh] = shapeOf(scene, mesh);
             mShapesRevision = scene.meshes().getRevision();
         }
 
@@ -319,7 +319,7 @@ namespace RtxTool
 
             // Who stood it says who may move it, which no frame draws.
             const auto& [transform, mesh, material, opacity, instanceClass, clockwise, lampBody, stander] = instance;
-            if (mesh == Rtx::sNoIndex)
+            if (mesh == Rtx::sNoRow)
                 continue;
 
             Misc::HashState placement;
@@ -354,8 +354,8 @@ namespace RtxTool
             plume.add(reach);
             plume.add(flags);
             plume.add(width);
-            addTexture(plume, scene, texture);
-            addTexture(plume, scene, lighting);
+            addTexture(plume, scene, Rtx::TextureIndex(texture));
+            addTexture(plume, scene, Rtx::TextureIndex(lighting));
             for (const Rtx::Sprite& sprite : Rtx::spritesOf(emitter).in(scene.sprites()))
             {
                 // Its emitter's slot is the run it stands in; the layers are the device's, nought on the host.
@@ -402,13 +402,12 @@ namespace RtxTool
         // back holds nothing a frame reads.
         const Rtx::MeshTable& meshes = scene.meshes();
         assert(meshes.keepsDigests() && "a scene digested whose meshes keep no digest");
-        const std::span<const Rtx::MeshRange> rows = meshes.getRows();
+        const auto rows = meshes.getRows();
         const auto column = [&](const ScenePart part, Misc::DigestWords Rtx::MeshDigest::* const stream) {
             Column digests(mScratch);
-            for (std::size_t at = 0; at < rows.size(); ++at)
+            for (const Rtx::MeshIndex at : Rtx::everyRow<Rtx::MeshIndex>(rows.size()))
                 if (!rows[at].mVertices.empty())
-                    digests.addFields(
-                        std::tuple(static_cast<Rtx::Index>(at), meshes.getDigest(static_cast<Rtx::Index>(at)).*stream));
+                    digests.addFields(std::tuple(at.at(), meshes.getDigest(at).*stream));
             take(part, digests.take());
         };
         column(ScenePart::Positions, &Rtx::MeshDigest::mPositions);
@@ -449,7 +448,7 @@ namespace RtxTool
         Column materials(mScratch);
         for (const Rtx::Material& material : scene.materials().getRows())
             forEachMaterialField(
-                material, [&](const Rtx::Index slot) { materials.add(slot); },
+                material, [&](const Rtx::TextureIndex slot) { materials.add(slot.at()); },
                 [&](const Rtx::Run& layers) { materials.add(layers); },
                 [&](const auto& field) { materials.add(field); });
         take(ScenePart::Materials, materials.take());
@@ -462,7 +461,7 @@ namespace RtxTool
             const auto& [diffuse, maskOffset, maskWidth, maskHeight, diffuseTransform, maskTransform, normal, flags,
                 padding] = layer;
             layers.addFields(std::tie(diffuse, maskOffset, maskWidth, maskHeight, diffuseTransform, maskTransform));
-            if (normal != Rtx::sNoIndex)
+            if (normal != Rtx::Shaders::NO_TEXTURE)
                 layers.addFields(std::tuple(std::uint8_t{ 1 }, normal));
             if (flags != 0)
                 layers.addFields(std::tuple(std::uint8_t{ 2 }, flags));
@@ -500,7 +499,7 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(name.size()));
 
             textures.add(static_cast<std::uint32_t>(kind));
-            textures.add(static_cast<std::uint32_t>(groundOf));
+            textures.add(groundOf.at());
             textures.add(static_cast<std::uint32_t>(wrap));
             textures.add(static_cast<std::uint32_t>(encoding));
             textures.add(static_cast<std::uint32_t>(format));
@@ -509,8 +508,8 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(stoodFrom));
             textures.add(static_cast<std::uint32_t>(resting ? 1 : 0));
             textures.add(static_cast<std::uint32_t>(waitingAt));
-            textures.add(static_cast<std::uint32_t>(restedBefore));
-            textures.add(static_cast<std::uint32_t>(restedAfter));
+            textures.add(restedBefore.at());
+            textures.add(restedAfter.at());
             textures.add(filedAt);
             textures.add(order);
             static_cast<void>(image);

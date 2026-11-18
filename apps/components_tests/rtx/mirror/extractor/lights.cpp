@@ -407,10 +407,10 @@ namespace Rtx::Testing
 
             const auto rows = mScene.placements().getRows();
             ASSERT_EQ(rows.size(), 4u);
-            EXPECT_TRUE(rows[0].mInstance.mLampBody) << "the paper beside the light is its model";
-            EXPECT_FALSE(rows[1].mInstance.mLampBody) << "a quad beside the lantern";
-            EXPECT_FALSE(rows[2].mInstance.mLampBody) << "a negative lamp's model";
-            EXPECT_FALSE(rows[3].mInstance.mLampBody) << "a marker whose light has gone";
+            EXPECT_TRUE(rows[PlacementIndex(0)].mInstance.mLampBody) << "the paper beside the light is its model";
+            EXPECT_FALSE(rows[PlacementIndex(1)].mInstance.mLampBody) << "a quad beside the lantern";
+            EXPECT_FALSE(rows[PlacementIndex(2)].mInstance.mLampBody) << "a negative lamp's model";
+            EXPECT_FALSE(rows[PlacementIndex(3)].mInstance.mLampBody) << "a marker whose light has gone";
 
             ASSERT_EQ(mScene.lights().size(), 2u) << "one lamp a light, and no second for its marker";
             EXPECT_EQ(mScene.lights()[0].mPosition, osg::Vec3f(0.0f, 0.0f, 30.0f));

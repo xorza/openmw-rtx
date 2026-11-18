@@ -1381,7 +1381,7 @@ namespace Rtx::Testing
 
             const auto glow = [&](float extinction) {
                 SceneDesc scene(identities);
-                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
 
                 // Wide enough to fill the middle of the frame from three scale heights away, which
                 // is what the descent costs in distance.

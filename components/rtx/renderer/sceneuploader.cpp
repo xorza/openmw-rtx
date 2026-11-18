@@ -29,7 +29,7 @@
 
 namespace Rtx
 {
-    bool SceneUploader::isWaiting(const Index slot) const
+    bool SceneUploader::isWaiting(const TextureIndex slot) const
     {
         return std::ranges::any_of(mTextureWaits, [&](const TextureWait& wait) { return wait.mSlot == slot; });
     }
@@ -67,7 +67,7 @@ namespace Rtx
         {
             // Not while what was evicted for it is coming back: handed over first, it stands short again.
             const std::uint64_t lacking = wait.getLacking();
-            if (!wait.mReading && (lacking > free || isCooling(RestKind::Texture, wait.mSlot)))
+            if (!wait.mReading && (lacking > free || isCooling(RoomWaiter(wait.mSlot))))
                 continue;
             const TextureRow& row = scene.textures().getRows()[wait.mSlot];
 
@@ -108,10 +108,9 @@ namespace Rtx
         scene.evictResting(textureShort + structureShort);
     }
 
-    bool SceneUploader::isCooling(const RestKind kind, const Index slot) const
+    bool SceneUploader::isCooling(const RoomWaiter& waiter) const
     {
-        return std::ranges::any_of(
-            mCooling, [&](const WantCooling& cooling) { return cooling.mKind == kind && cooling.mSlot == slot; });
+        return std::ranges::any_of(mCooling, [&](const WantCooling& cooling) { return cooling.mWaiter == waiter; });
     }
 
     void SceneUploader::serveWants(SceneDesc& scene)
@@ -121,18 +120,17 @@ namespace Rtx
         // placement after that, whose answer the hand-over after reads.
         for (const RoomWant& want : mAnswer.mWants)
         {
-            if (isCooling(want.mKind, want.mSlot))
+            if (isCooling(want.mWaiter))
                 continue;
             scene.evictFor(std::span(&want, 1));
-            mCooling.push_back(
-                WantCooling{ .mKind = want.mKind, .mSlot = want.mSlot, .mUntil = mHandOvers + sFramesInFlight + 1 });
+            mCooling.push_back(WantCooling{ .mWaiter = want.mWaiter, .mUntil = mHandOvers + sFramesInFlight + 1 });
         }
     }
 
     void SceneUploader::waitForRoom(SceneDesc& scene, const std::span<const SceneTextures::Stood> described)
     {
         const TextureTable& textures = scene.textures();
-        const auto shortOf = [&](const Index slot) {
+        const auto shortOf = [&](const TextureIndex slot) {
             return std::ranges::find(mAnswer.mShort, slot, &ShortTexture::mSlot) != mAnswer.mShort.end();
         };
         std::erase_if(mTextureWaits, [&](const TextureWait& wait) {
@@ -235,10 +233,10 @@ namespace Rtx
         for (const StoodMesh& stood : mAnswer.mMeshes)
             scene.standMesh(stood.mMesh, stood.mStructureBytes);
         // A slot the scene let go of before the device moved it down fits nothing.
-        for (const FitBytes& fit : mAnswer.mTextureFits)
+        for (const FitBytes<TextureIndex>& fit : mAnswer.mTextureFits)
             if (scene.textures().isLive(fit.mSlot))
                 scene.textures().fit(fit.mSlot, fit.mBytes, fit.mAlignment);
-        for (const FitBytes& fit : mAnswer.mMeshFits)
+        for (const FitBytes<MeshIndex>& fit : mAnswer.mMeshFits)
             scene.fitMesh(fit.mSlot, fit.mBytes, fit.mAlignment);
 
         // **What moved down and stands no coarser than its readers want stands as it is now**: nothing is handed over

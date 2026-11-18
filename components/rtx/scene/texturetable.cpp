@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <format>
 #include <optional>
-#include <span>
 #include <string>
 #include <utility>
 
@@ -53,7 +52,7 @@ namespace Rtx
             return true;
 
         settleResting();
-        if (mResting.first() != sNoIndex)
+        if (mResting.first() != sNoRow)
         {
             releaseOldest();
             return true;
@@ -66,22 +65,22 @@ namespace Rtx
         return false;
     }
 
-    Index TextureTable::takeSlot(TextureRow row)
+    TextureIndex TextureTable::takeSlot(TextureRow row)
     {
         ++mRevision;
 
         // One size, so any freed slot will do — the row is written over wherever it sits, which
         // is what the arrivals list is for. The change list follows the rows in the same call,
         // because it is indexed by the slot.
-        const Index index = takeRow(std::move(row));
+        const TextureIndex index = takeRow(std::move(row));
         mChanges.grow(size());
         mChanges.note(index, SlotNews::Arrived);
 
         return index;
     }
 
-    Index TextureTable::add(const VFS::Path::NormalizedView path, const osg::Image* const image, const TextureWrap wrap,
-        const TextureEncoding encoding, const osg::Image* const partner)
+    TextureIndex TextureTable::add(const VFS::Path::NormalizedView path, const osg::Image* const image,
+        const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const partner)
     {
         assert((partner != nullptr) == (isConverted(encoding) && image != nullptr)
             && "a converted slot is two files, and no other slot is");
@@ -89,23 +88,23 @@ namespace Rtx
         const auto at = static_cast<std::size_t>(wrap);
 
         auto known = mPathIndex.find(path);
-        if (known != mPathIndex.end() && known->second[as][at] != sNoIndex)
+        if (known != mPathIndex.end() && known->second[as][at] != sNoRow)
         {
-            const Index standing = known->second[as][at];
+            const TextureIndex standing = known->second[as][at];
             if (rowAt(standing).mRest.mResting)
                 wake(standing, image, partner);
             return standing;
         }
 
         if (!hasRoom())
-            return sNoIndex;
+            return sNoRow;
 
         // Found again: the room may have been made by freeing a slot that rested, the path's own under
         // another wrap or encoding among them, which takes the path's entry out of the lookup.
         known = mPathIndex.find(path);
 
         const TextureFormat format = image != nullptr ? readFormat(*image, encoding) : TextureFormat::Unnamed;
-        const Index index = takeSlot(TextureRow{
+        const TextureIndex index = takeSlot(TextureRow{
             .mKind = TextureKind::File,
             .mPath = VFS::Path::Normalized(path),
             .mWrap = wrap,
@@ -122,7 +121,7 @@ namespace Rtx
         {
             FileSlots none;
             for (auto& slots : none)
-                slots.fill(sNoIndex);
+                slots.fill(sNoRow);
             known = mPathIndex.emplace(path, none).first;
         }
         known->second[as][at] = index;
@@ -130,38 +129,38 @@ namespace Rtx
         return index;
     }
 
-    Index TextureTable::take(const VFS::Path::NormalizedView path, const osg::Image& image, const TextureWrap wrap,
-        const TextureEncoding encoding, const osg::Image* const partner)
+    TextureIndex TextureTable::take(const VFS::Path::NormalizedView path, const osg::Image& image,
+        const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const partner)
     {
-        const Index slot = add(path, &image, wrap, encoding, partner);
+        const TextureIndex slot = add(path, &image, wrap, encoding, partner);
         hold(slot);
         return slot;
     }
 
-    Index TextureTable::findFile(const VFS::Path::NormalizedView path) const
+    TextureIndex TextureTable::findFile(const VFS::Path::NormalizedView path) const
     {
         const auto known = mPathIndex.find(path);
         if (known == mPathIndex.end())
-            return sNoIndex;
+            return sNoRow;
 
         for (const TextureEncoding encoding : { TextureEncoding::Colour, TextureEncoding::Painted })
-            for (const Index slot : known->second[static_cast<std::size_t>(encoding)])
-                if (slot != sNoIndex && !rowAt(slot).mRest.mResting)
+            for (const TextureIndex slot : known->second[static_cast<std::size_t>(encoding)])
+                if (slot != sNoRow && !rowAt(slot).mRest.mResting)
                     return slot;
 
-        return sNoIndex;
+        return sNoRow;
     }
 
-    Index TextureTable::takeBaked(TextureRow row)
+    TextureIndex TextureTable::takeBaked(TextureRow row)
     {
         if (!hasRoom())
-            return sNoIndex;
+            return sNoRow;
 
         row.mWrap = TextureWrap::Clamp;
         return takeSlot(std::move(row));
     }
 
-    Index TextureTable::addSpriteLight(const VFS::Path::NormalizedView source)
+    TextureIndex TextureTable::addSpriteLight(const VFS::Path::NormalizedView source)
     {
         assert(!source.value().empty() && "a bake of no file is one nothing can find again");
 
@@ -169,52 +168,52 @@ namespace Rtx
         if (known != mSpriteLightIndex.end())
             return known->second;
 
-        const Index index = takeBaked(TextureRow{
+        const TextureIndex index = takeBaked(TextureRow{
             .mKind = TextureKind::SpriteLight,
             .mPath = VFS::Path::Normalized(source),
             .mEncoding = TextureEncoding::Colour,
         });
-        if (index != sNoIndex)
+        if (index != sNoRow)
             mSpriteLightIndex.emplace(source, index);
         return index;
     }
 
-    Index TextureTable::addGround(const Index material, const TextureKind kind)
+    TextureIndex TextureTable::addGround(const MaterialIndex material, const TextureKind kind)
     {
-        assert(material != sNoIndex && "a ground composite names its material");
+        assert(material != sNoRow && "a ground composite names its material");
         assert((kind == TextureKind::GroundAlbedo || kind == TextureKind::GroundGloss) && "a ground is one of two");
 
         const std::size_t side = kind == TextureKind::GroundGloss ? 1 : 0;
         const auto known = mGroundIndex.find(material);
-        if (known != mGroundIndex.end() && known->second[side] != sNoIndex)
+        if (known != mGroundIndex.end() && known->second[side] != sNoRow)
             return known->second[side];
 
-        const Index index = takeBaked(TextureRow{
+        const TextureIndex index = takeBaked(TextureRow{
             .mKind = kind,
             .mGroundOf = material,
             .mEncoding = kind == TextureKind::GroundGloss ? TextureEncoding::Data : TextureEncoding::Colour,
         });
-        if (index == sNoIndex)
-            return sNoIndex;
+        if (index == sNoRow)
+            return sNoRow;
 
         GroundSlots& slots = known != mGroundIndex.end()
             ? known->second
-            : mGroundIndex.emplace(material, GroundSlots{ sNoIndex, sNoIndex }).first->second;
+            : mGroundIndex.emplace(material, GroundSlots{ sNoRow, sNoRow }).first->second;
         slots[side] = index;
         return index;
     }
 
-    void TextureTable::hold(const Index texture)
+    void TextureTable::hold(const TextureIndex texture)
     {
-        if (texture >= sCapacity)
+        if (texture.at() >= sCapacity)
             return;
 
         holdRow(texture);
     }
 
-    void TextureTable::drop(const Index texture)
+    void TextureTable::drop(const TextureIndex texture)
     {
-        if (texture >= sCapacity)
+        if (texture.at() >= sCapacity)
             return;
 
         if (!dropRow(texture))
@@ -232,8 +231,8 @@ namespace Rtx
     TexturesAboveWant TextureTable::measureAboveWant() const
     {
         TexturesAboveWant meter;
-        const std::span<const TextureRow> rows = getRows();
-        for (Index slot = 0; slot < rows.size(); ++slot)
+        const auto rows = getRows();
+        for (const TextureIndex slot : everyRow<TextureIndex>(rows.size()))
         {
             const TextureRow& row = rows[slot];
             if (!isLive(slot) || row.mKind != TextureKind::File || row.mStoodBytes == 0)
@@ -256,9 +255,9 @@ namespace Rtx
         return meter;
     }
 
-    void TextureTable::ask(const Index texture, const std::size_t level)
+    void TextureTable::ask(const TextureIndex texture, const std::size_t level)
     {
-        if (texture >= sCapacity)
+        if (texture.at() >= sCapacity)
             return;
 
         assert(isLive(texture) && "an ask of a slot that stands no texture");
@@ -269,9 +268,9 @@ namespace Rtx
             mFiner.addMakingRoom(texture);
     }
 
-    void TextureTable::unask(const Index texture, const std::size_t level)
+    void TextureTable::unask(const TextureIndex texture, const std::size_t level)
     {
-        if (texture >= sCapacity)
+        if (texture.at() >= sCapacity)
             return;
 
         assert(isLive(texture) && "an ask taken back of a slot that stands no texture");
@@ -281,7 +280,8 @@ namespace Rtx
             row.mLastWant = *finest;
     }
 
-    void TextureTable::stand(const Index slot, const std::uint64_t bytes, const bool made, const std::uint8_t from)
+    void TextureTable::stand(
+        const TextureIndex slot, const std::uint64_t bytes, const bool made, const std::uint8_t from)
     {
         TextureRow& row = rowAt(slot);
         assert(isLive(slot) && "a slot that stands no texture was stood");
@@ -291,7 +291,7 @@ namespace Rtx
         row.mStoodFrom = from;
     }
 
-    void TextureTable::restandResting(const Index slot, const std::uint64_t bytes, const std::uint8_t from)
+    void TextureTable::restandResting(const TextureIndex slot, const std::uint64_t bytes, const std::uint8_t from)
     {
         TextureRow& row = rowAt(slot);
         assert(row.mRest.mResting && "a slot restood in a rest it does not take");
@@ -312,7 +312,7 @@ namespace Rtx
 
     void TextureTable::arriveFiner()
     {
-        for (const Index slot : mFiner.getSlots())
+        for (const TextureIndex slot : mFiner.getSlots())
         {
             const TextureRow& row = rowAt(slot);
             if (isLive(slot) && !row.mRest.mResting && row.mStoodBytes > 0 && getWant(slot) < row.mStoodFrom)
@@ -321,7 +321,7 @@ namespace Rtx
         mFiner.clear();
     }
 
-    void TextureTable::fit(const Index slot, const std::uint64_t bytes, const std::uint64_t alignment)
+    void TextureTable::fit(const TextureIndex slot, const std::uint64_t bytes, const std::uint64_t alignment)
     {
         assert((isLive(slot) || rowAt(slot).mRest.mResting) && "a slot the table does not hold fitted");
         mResting.fit(slot, bytes, alignment, placeOf());
@@ -330,8 +330,8 @@ namespace Rtx
     bool TextureTable::releaseFitting(const std::uint64_t hole, const std::uint64_t alignment)
     {
         settleResting();
-        const Index fitting = mResting.firstFitting(hole, alignment, placeOf());
-        if (fitting == sNoIndex)
+        const TextureIndex fitting = mResting.firstFitting(hole, alignment, placeOf());
+        if (fitting == sNoRow)
             return false;
         release(fitting);
         return true;
@@ -340,11 +340,11 @@ namespace Rtx
     void TextureTable::releaseOldest()
     {
         settleResting();
-        assert(mResting.first() != sNoIndex && "the oldest freed where nothing rests");
+        assert(mResting.first() != sNoRow && "the oldest freed where nothing rests");
         release(mResting.first());
     }
 
-    void TextureTable::rest(const Index slot)
+    void TextureTable::rest(const TextureIndex slot)
     {
         TextureRow& row = rowAt(slot);
         assert(row.mKind == TextureKind::File && "only a file rests");
@@ -362,7 +362,7 @@ namespace Rtx
         mResting.rest(slot, row.mStoodBytes, placeOf());
     }
 
-    void TextureTable::wake(const Index slot, const osg::Image* const image, const osg::Image* const partner)
+    void TextureTable::wake(const TextureIndex slot, const osg::Image* const image, const osg::Image* const partner)
     {
         TextureRow& row = rowAt(slot);
         mResting.wake(slot, row.mStoodBytes, placeOf());
@@ -382,7 +382,7 @@ namespace Rtx
         mResting.settle(mClock, placeOf());
     }
 
-    void TextureTable::release(const Index texture)
+    void TextureTable::release(const TextureIndex texture)
     {
         TextureRow& row = rowAt(texture);
         assert(row.mAsks.empty() && "a slot freed while something still reads it");
@@ -401,9 +401,9 @@ namespace Rtx
                 const auto known = mPathIndex.find(row.mPath);
                 Crash::contract(known != mPathIndex.end(), "a file slot the path index does not know");
                 FileSlots& held = known->second;
-                held[static_cast<std::size_t>(row.mEncoding)][static_cast<std::size_t>(row.mWrap)] = sNoIndex;
+                held[static_cast<std::size_t>(row.mEncoding)][static_cast<std::size_t>(row.mWrap)] = sNoRow;
                 if (std::ranges::all_of(held, [](const auto& slots) {
-                        return std::ranges::all_of(slots, [](const Index slot) { return slot == sNoIndex; });
+                        return std::ranges::all_of(slots, [](const TextureIndex slot) { return slot == sNoRow; });
                     }))
                     mPathIndex.erase(known);
                 if (row.mImage != nullptr)
@@ -418,8 +418,8 @@ namespace Rtx
             {
                 const auto known = mGroundIndex.find(row.mGroundOf);
                 Crash::contract(known != mGroundIndex.end(), "a ground slot the ground index does not know");
-                known->second[row.mKind == TextureKind::GroundGloss ? 1 : 0] = sNoIndex;
-                if (known->second[0] == sNoIndex && known->second[1] == sNoIndex)
+                known->second[row.mKind == TextureKind::GroundGloss ? 1 : 0] = sNoRow;
+                if (known->second[0] == sNoRow && known->second[1] == sNoRow)
                     mGroundIndex.erase(known);
                 break;
             }
@@ -439,9 +439,9 @@ namespace Rtx
             case TextureKind::SpriteLight:
                 return std::format("the light of {}", mPath.value());
             case TextureKind::GroundAlbedo:
-                return std::format("the ground of material {}", mGroundOf);
+                return std::format("the ground of material {}", mGroundOf.at());
             case TextureKind::GroundGloss:
-                return std::format("the ground gloss of material {}", mGroundOf);
+                return std::format("the ground gloss of material {}", mGroundOf.at());
         }
         return {};
     }

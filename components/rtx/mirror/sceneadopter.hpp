@@ -35,13 +35,13 @@ namespace Rtx
 
         /// The material of a reading somebody else made, with one hold taken on it, and the key it
         /// is held under: `chain` keyed by the walk's own table (`ChainKeys::keyOf`), so a chain the
-        /// walk meets as well is one material. `sNoIndex`, a null key and no hold for an empty
+        /// walk meets as well is one material. `sNoRow`, a null key and no hold for an empty
         /// chain.
         virtual MaterialResolver::Resolved adoptMaterial(
             const MaterialReading& reading, std::span<const osg::StateSet* const> chain) = 0;
 
         /// The same for a mesh, held under the identity the walk will find a clone's mesh under.
-        virtual Index adoptMesh(const osg::Drawable& drawable, const PackedMesh& reading) = 0;
+        virtual MeshIndex adoptMesh(const osg::Drawable& drawable, const PackedMesh& reading) = 0;
 
         /// Gives one hold back on what `adoptMesh` held under `drawable`.
         virtual void releaseMesh(const osg::Drawable& drawable) = 0;

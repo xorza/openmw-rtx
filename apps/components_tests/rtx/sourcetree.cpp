@@ -345,7 +345,7 @@ namespace Rtx
                         const std::optional<std::string> take = spelled(code, "addViewScene(");
                         return take.has_value() ? take : spelled(code, "dropViewScene(");
                     },
-                .mExample = "const Index scene = renderer.addViewScene();",
+                .mExample = "const SceneSlot scene = renderer.addViewScene();",
                 .mAllowedFiles = { "viewscene.cpp", "sceneholder.hpp", "vulkanrenderer.hpp", "vulkanrenderer.cpp",
                     "nullrenderer.hpp", "nullrenderer.cpp" },
                 .mFix = "hold an Rtx::ViewScene and delete the drop" },

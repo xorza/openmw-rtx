@@ -31,7 +31,9 @@ namespace Rtx
     /// pays one copy's debt, in one place, where a debt derived from the scene's change lists replayed at
     /// every table failed silently as a frame of wrong geometry. The host rows are the truth, so a row is
     /// computed once however many copies take it.
-    template <class Row>
+    ///
+    /// @tparam I the scene table's row it is written at (`RowIndex`).
+    template <class Row, class I>
     class SlotTable
     {
     public:
@@ -48,31 +50,31 @@ namespace Rtx
 
         std::size_t size() const { return mRows.size(); }
 
-        std::span<const Row> getRows() const { return mRows; }
+        RowSpan<const Row, I> getRows() const { return RowSpan<const Row, I>(std::span<const Row>(mRows)); }
 
         /// The row at `at`, to be written. Owed by every copy from here on, including the one
         /// about to be synced: a caller that writes a row and syncs is a caller whose copy has it.
-        Row& write(Index at)
+        Row& write(const I at)
         {
-            assert(at < mRows.size() && "a row past the end of the table; grow it first");
+            assert(at.at() < mRows.size() && "a row past the end of the table; grow it first");
 
-            for (RowDebt& owed : mOwed.live())
-                owed.owe(std::span<const Index>(&at, 1));
+            for (RowDebt<I>& owed : mOwed.live())
+                owed.owe(std::span<const I>(&at, 1));
 
             ++mWrites;
-            return mRows[at];
+            return mRows[at.at()];
         }
 
         /// `row` at `at` where its bytes differ from the row there, and nothing where they do not: a
         /// row rewritten as it was owes no copy anything and leaves `getWrites` where it was.
-        void writeChanged(Index at, const Row& row)
+        void writeChanged(const I at, const Row& row)
         {
             static_assert(std::is_trivially_copyable_v<Row>);
-            assert(at < mRows.size() && "a row past the end of the table; grow it first");
+            assert(at.at() < mRows.size() && "a row past the end of the table; grow it first");
 
             // A row is written again only where its bytes, which the upload copies, moved.
             // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
-            if (std::memcmp(&mRows[at], &row, sizeof(Row)) != 0)
+            if (std::memcmp(&mRows[at.at()], &row, sizeof(Row)) != 0)
                 write(at) = row;
         }
 
@@ -96,9 +98,9 @@ namespace Rtx
             mAppended.clear();
             mAppended.reserve(rows - had);
             for (std::size_t at = had; at < rows; ++at)
-                mAppended.push_back(static_cast<Index>(at));
+                mAppended.push_back(I(static_cast<std::uint32_t>(at)));
 
-            for (RowDebt& owed : mOwed.live())
+            for (RowDebt<I>& owed : mOwed.live())
                 owed.owe(mAppended);
             ++mWrites;
         }
@@ -124,7 +126,7 @@ namespace Rtx
         void sync(FrameSlot slot, Uploads& uploads)
         {
             GrowableBuffer& copy = mCopies.at(slot);
-            RowDebt& owed = mOwed.at(slot);
+            RowDebt<I>& owed = mOwed.at(slot);
             const VkDeviceSize needed = mRows.size() * sizeof(Row);
 
             // `finishReads` waited out the frame before last, which read the copy about to be written,
@@ -140,7 +142,9 @@ namespace Rtx
                 appendRun(mRuns, CopyRun{ .mFrom = 0, .mTo = 0, .mSize = needed });
             else
             {
-                mOrder.assign(owed.getRows().begin(), owed.getRows().end());
+                mOrder.clear();
+                for (const I row : owed.getRows())
+                    mOrder.push_back(row.at());
                 std::sort(mOrder.begin(), mOrder.end());
                 assert(
                     (mOrder.empty() || mOrder.back() < mRows.size()) && "a debt naming a row the table no longer has");
@@ -178,20 +182,20 @@ namespace Rtx
 
         /// What `slot` would write if it were synced now, which says whether the bookkeeping is
         /// right rather than whether the picture is.
-        std::span<const Index> getOwed(FrameSlot slot) const { return mOwed.at(slot).getRows(); }
+        std::span<const I> getOwed(FrameSlot slot) const { return mOwed.at(slot).getRows(); }
 
         bool owesEverything(FrameSlot slot) const { return mOwed.at(slot).owesEverything(); }
 
     private:
         std::vector<Row> mRows;
         PerSlot<GrowableBuffer> mCopies;
-        PerSlot<RowDebt> mOwed;
+        PerSlot<RowDebt<I>> mOwed;
 
         /// Cleared and refilled by `grow`, never freed: the rows one growth appended.
-        std::vector<Index> mAppended;
+        std::vector<I> mAppended;
 
         /// Cleared and refilled by `sync`, never freed: a debt's rows in order, and the runs they make.
-        std::vector<Index> mOrder;
+        std::vector<std::uint32_t> mOrder;
         std::vector<CopyRun> mRuns;
 
         std::uint64_t mWrites = 0;
@@ -200,6 +204,9 @@ namespace Rtx
     /// One `BlockedBuffer` per frame in flight, and what each copy has yet to be told —
     /// `SlotTable`'s sibling for a table whose truth is the scene's, so the caller says how to read
     /// a run and this says which are owed.
+    ///
+    /// @tparam I the scene table's row each run is owed by (`RowIndex`).
+    template <class I>
     class SlotBlocks
     {
     public:
@@ -229,15 +236,15 @@ namespace Rtx
 
         /// Says that `at`'s run has changed, so every copy owes it — once, however often it is
         /// named before that copy is filled.
-        void write(Index at)
+        void write(I at)
         {
-            for (SlotSet& owed : mOwed.live())
+            for (SlotSet<I>& owed : mOwed.live())
                 owed.addMakingRoom(at);
         }
 
-        void write(std::span<const Index> runs)
+        void write(std::span<const I> runs)
         {
-            for (const Index at : runs)
+            for (const I at : runs)
                 write(at);
         }
 
@@ -247,13 +254,13 @@ namespace Rtx
 
         /// Writes the runs `slot`'s copy owes and clears the debt.
         ///
-        /// @param fill `void(Index at, BlockedBuffer& into)`, which copies that one run in. Called
+        /// @param fill `void(I at, BlockedBuffer& into)`, which copies that one run in. Called
         ///        once per owed run and never for a run this copy already has.
         template <class Fill>
         void sync(FrameSlot slot, Fill&& fill)
         {
-            SlotSet& owed = mOwed.at(slot);
-            for (const Index at : owed.getSlots())
+            SlotSet<I>& owed = mOwed.at(slot);
+            for (const I at : owed.getSlots())
                 fill(at, mCopies.at(slot));
 
             owed.clear();
@@ -275,13 +282,13 @@ namespace Rtx
         }
 
         // Read by the tests and by nothing else.
-        std::span<const Index> getOwed(FrameSlot slot) const { return mOwed.at(slot).getSlots(); }
+        std::span<const I> getOwed(FrameSlot slot) const { return mOwed.at(slot).getSlots(); }
 
     private:
         PerSlot<BlockedBuffer> mCopies;
 
         /// A set and not a `RowDebt`, because a block table's data is the scene's and there is no
         /// "everything" here to owe. Cleared and refilled, never freed.
-        PerSlot<SlotSet> mOwed;
+        PerSlot<SlotSet<I>> mOwed;
     };
 }

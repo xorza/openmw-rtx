@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -67,7 +68,7 @@ namespace Rtx::Testing
             // A slot the table freed is handed out again, so an arrival can land below the end and
             // lengthen nothing at all.
             for (const Rtx::TextureData& one : arrived)
-                countAt(slot) = std::max(countAt(slot), one.mSlot + 1);
+                countAt(slot) = std::max(countAt(slot), one.mSlot.at() + 1);
 
             // The contract `extendScene` is given rather than one it checks: appending only the
             // arrivals has to leave the array exactly as long as the scene's table.
@@ -198,7 +199,7 @@ namespace Rtx::Testing
         {
             if (scene.textures().getFreedCount() == mDroppedThrough)
                 return;
-            const std::span<const Rtx::Index> freed = scene.textures().getFreed();
+            const std::span<const Rtx::TextureIndex> freed = scene.textures().getFreed();
             mDropped.insert(mDropped.end(), freed.begin(), freed.end());
             mDroppedThrough = scene.textures().getFreedCount();
         }
@@ -212,8 +213,7 @@ namespace Rtx::Testing
             {
                 mDescribedSlots.push_back(texture.mSlot);
                 mDescribedBytes.push_back(texture.mBytes.size());
-                if (texture.mSlot >= mDescribedSources.size())
-                    mDescribedSources.resize(std::size_t{ texture.mSlot } + 1, Rtx::TextureSource::StandIn);
+                mDescribedSources.growTo(texture.mSlot, Rtx::TextureSource::StandIn);
                 mDescribedSources[texture.mSlot] = texture.mSource;
                 mDescribedSecondTexels.push_back(
                     texture.mLevels.size() > 1 ? firstTexelOf(texture.mFormat, texture.bytesOf(1)) : Texel{});
@@ -233,14 +233,14 @@ namespace Rtx::Testing
         std::vector<std::uint64_t> mDescribedBytes;
 
         /// What each slot was last described as, by slot, across every hand-over.
-        std::vector<Rtx::TextureSource> mDescribedSources;
+        Rtx::RowVector<Rtx::TextureSource, Rtx::TextureIndex> mDescribedSources;
 
         /// Which slots the last hand-over described, in the order it described them.
         ///
         /// **What says the loader answered about this scene and not the last one.** `SceneTextures`
         /// is held by the uploader and cleared per arrival, so a buffer left unclear would show up
         /// here as a slot belonging to a scene that has gone.
-        std::vector<std::uint32_t> mDescribedSlots;
+        std::vector<Rtx::TextureIndex> mDescribedSlots;
 
         std::vector<std::uint32_t> mViewTextures;
         std::vector<Built> mViewBuilt;
@@ -260,7 +260,7 @@ namespace Rtx::Testing
 
         /// Every texture slot given back, across every call, in the order it was named, and the scene's count of
         /// freed slots as it last read them.
-        std::vector<std::uint32_t> mDropped;
+        std::vector<Rtx::TextureIndex> mDropped;
         std::uint64_t mDroppedThrough = 0;
         std::uint64_t mFrames = 0;
         std::uint64_t mSkipped = 0;
@@ -272,8 +272,8 @@ namespace Rtx::Testing
         std::vector<Rtx::StoodMesh> mStanding;
         std::vector<Rtx::ShortTexture> mShort;
         std::vector<Rtx::RoomWant> mWants;
-        std::vector<Rtx::FitBytes> mTextureFits;
-        std::vector<Rtx::FitBytes> mMeshFits;
+        std::vector<Rtx::FitBytes<Rtx::TextureIndex>> mTextureFits;
+        std::vector<Rtx::FitBytes<Rtx::MeshIndex>> mMeshFits;
 
         /// What `getArrivalRoom` answers: unbounded unless a test bounds it.
         std::optional<Rtx::ArrivalRoom> mArrivalRoom;

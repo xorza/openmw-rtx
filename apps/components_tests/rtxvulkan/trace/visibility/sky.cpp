@@ -349,7 +349,8 @@ namespace Rtx::Testing
 
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             constexpr std::array<std::uint8_t, 4> dim{ 64, 64, 64, 255 };
-            std::array<TextureData, 2> sheets{ describeTexel(white, 0), describeTexel(dim, 1) };
+            std::array<TextureData, 2> sheets{ describeTexel(white, TextureIndex(0)),
+                describeTexel(dim, TextureIndex(1)) };
 
             // Forty-five degrees up, which puts every ray on the deck and none of them on its pole.
             Shaders::VisibilityConstants camera = Testing::makeCamera(

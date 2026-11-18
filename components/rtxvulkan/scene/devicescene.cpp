@@ -20,16 +20,16 @@ namespace Rtx
     {
         /// The rows both halves are built from, made before either: `makeInstanceRecords` fills a
         /// vector, and a member is initialised from a value.
-        std::vector<InstanceRecord> recordsOf(const SceneDesc& scene)
+        RowVector<InstanceRecord, PlacementIndex> recordsOf(const SceneDesc& scene)
         {
-            std::vector<InstanceRecord> records;
+            RowVector<InstanceRecord, PlacementIndex> records;
             makeInstanceRecords(scene, records);
             return records;
         }
 
-        std::vector<Index> everyMeshOf(const SceneDesc& scene)
+        std::vector<MeshIndex> everyMeshOf(const SceneDesc& scene)
         {
-            std::vector<Index> every;
+            std::vector<MeshIndex> every;
             everyIndexBelow(scene.meshes().getRows().size(), every);
             return every;
         }
@@ -42,7 +42,7 @@ namespace Rtx
         , mRecords(recordsOf(scene))
         , mEveryMesh(everyMeshOf(scene))
         , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots, room.mPlacements)
-        , mBuffers(device, batch, scene, mEveryMesh, mRecords, sFrameSlots, room)
+        , mBuffers(device, batch, scene, mEveryMesh, mRecords.rows(), sFrameSlots, room)
         , mSkinTables(device, batch, scene, mEveryMesh, sFrameSlots, room)
         , mTextures(device, batch, passes.mTextureLayout, passes.mTextures, arrival,
               static_cast<std::uint32_t>(scene.textures().getRows().size()), anisotropy)
@@ -57,8 +57,8 @@ namespace Rtx
         mAcceleration.getPoses().write(mEveryMesh);
         for (std::uint32_t copy = 0; copy < mAcceleration.getPoses().count(); ++copy)
             mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }), uploads);
-        mAcceleration.build(batch, uploads, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack,
-            compaction, mAnswer.mRefused);
+        mAcceleration.build(batch, uploads, scene, mEveryMesh, mRecords.rows(), mBuffers.getPositions(),
+            mPasses.mTopLevelPack, compaction, mAnswer.mRefused);
 
         // **Waited on once more where the structures settled**: the last run's loose block went back
         // to the storage under the copies' submit, and its memory is buried under the next, which
@@ -197,13 +197,13 @@ namespace Rtx
         // placement asks again until it comes or is no longer coming.
         mAcceleration.buildWaiting(placing.mWritten, scene, mBuffers.getPositions(), placing.mSlot, mAnswer.mRefused);
 
-        const bool built = mAcceleration.place(scene, mRecords, mChangedRecords, mPasses.mTopLevelPack, placing);
+        const bool built = mAcceleration.place(scene, mRecords.rows(), mChangedRecords, mPasses.mTopLevelPack, placing);
 
         // Nothing to report, because nothing here is recorded into the placement: the tables are
         // host-written, and the uploads' order ahead of the trace makes them visible to it. Only
         // what a moving world changed — rebuilding all of it is tens of milliseconds on a
         // nine-by-nine region.
-        mBuffers.place(scene, mRecords, mChangedRecords, placing.mSlot, placing.mUploads);
+        mBuffers.place(scene, mRecords.rows(), mChangedRecords, placing.mSlot, placing.mUploads);
 
         // The ground that arrived flattened here, after the tables its stack is in are written
         // and the set its layers are in is synced: the trace behind this samples it as a file.
@@ -226,8 +226,8 @@ namespace Rtx
 
     void DeviceScene::measureStars(Shaders::StarField& stars) const
     {
-        stars.mExtent
-            = stars.mTexture == Shaders::NO_TEXTURE ? Shaders::uvec2(0, 0) : mTextures.getExtent(stars.mTexture);
+        stars.mExtent = stars.mTexture == Shaders::NO_TEXTURE ? Shaders::uvec2(0, 0)
+                                                              : mTextures.getExtent(TextureIndex(stars.mTexture));
     }
 
     void DeviceScene::finishReads(const FrameSlot slot) const

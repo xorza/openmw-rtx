@@ -141,8 +141,8 @@ namespace Rtx
         // The bake is keyed on the file, so two emitters drawing with one texture share one
         // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
         // where the sprite stands, because the bake is of its alpha.
-        const Index bake = mScene.textures().addSpriteLight(mThread.pathOf(*held.mSprite));
-        if (bake == sNoIndex)
+        const TextureIndex bake = mScene.textures().addSpriteLight(mThread.pathOf(*held.mSprite));
+        if (bake == sNoRow)
         {
             held.mRefused.refuse(sLightingTake, freed);
             return;
@@ -337,7 +337,7 @@ namespace Rtx
 
         // An untextured system is the white texel coloured by its particles, as the rasterizer
         // draws one, and lit as a flat card, having no alpha to bake.
-        const Index texture = held.mUntextured ? Shaders::TEXTURE_NEUTRAL : held.mSlot.get();
+        const TextureIndex texture = held.mUntextured ? TextureIndex(Shaders::TEXTURE_NEUTRAL) : held.mSlot.get();
         mScene.addEmitter(mSpriteScratch,
             EmitterSpec{ .mTexture = texture,
                 .mBlend = held.mBlend,

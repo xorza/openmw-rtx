@@ -299,7 +299,7 @@ namespace Rtx
         /// reachable through that interface and not in front of every reader of this class. The two adoptions mean
         /// anything only inside a walk; the two releases are allowed between walks as well (`detach`) because giving a
         /// hold back reads nothing of a walk.
-        Index adoptMesh(const osg::Drawable& drawable, const PackedMesh& reading) override
+        MeshIndex adoptMesh(const osg::Drawable& drawable, const PackedMesh& reading) override
         {
             mPhase.expect(Phase::Walking);
             return mMeshes.adopt(drawable, reading);
@@ -448,7 +448,7 @@ namespace Rtx
 
         /// Which slot each placement holds, and when it was last met. One lookup a placement a
         /// frame, and the scene keeps the transform.
-        Kept<boost::unordered_flat_map<std::size_t, Known>> mPlacements{ mPass };
+        Kept<boost::unordered_flat_map<std::size_t, Known<PlacementIndex>>> mPlacements{ mPass };
 
         /// The drawables the walk met, and what poses the ones that deform.
         MeshResolver mMeshes{ mScene, mPass, mContext.mContent.mPreprocessor };

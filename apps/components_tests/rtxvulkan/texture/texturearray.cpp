@@ -82,7 +82,7 @@ namespace Rtx
             // only once `sync` has written what it owes. Ahead of the hold, because a flush behind
             // a held submit waits for the hold.
             const std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
-            const TextureData arrived = Testing::describeTexel(white, 0);
+            const TextureData arrived = Testing::describeTexel(white, TextureIndex(0));
             Batch arrival(pool);
             DeviceAnswer answer;
             std::vector<Refusal>& refused = answer.mRefused;
@@ -102,7 +102,7 @@ namespace Rtx
 
             // A second arrival, owed to both again once the first set is bound: what `sync` has to
             // write once that set is free. Deferred, so it rides ahead of the held submit.
-            const TextureData second = Testing::describeTexel(white, 1);
+            const TextureData second = Testing::describeTexel(white, TextureIndex(1));
             Batch secondArrival(pool);
             textures.write(secondArrival, passes, rooms, std::span(&second, 1), TextureArray::noWants(), answer,
                 WhenRoomless::Refuses, nullptr);
@@ -183,7 +183,7 @@ namespace Rtx
             ASSERT_EQ(sStagingKept, VkDeviceSize{ 64 } << 20) << "the arithmetic above is written against this";
             std::vector<TextureData> arrived(sFiles, large.mData);
             for (std::uint32_t slot = 0; slot < sFiles; ++slot)
-                arrived[slot].mSlot = slot;
+                arrived[slot].mSlot = TextureIndex(slot);
 
             const std::size_t blocks = pool.getStaging().getBlockCount();
             DeviceAnswer answer;
@@ -230,8 +230,12 @@ namespace Rtx
 
             Testing::TestTexture ladder;
             Testing::paintLevels(ladder, 64, 64, 3, "ladder");
-            const TextureData composite{ .mSlot = 1, .mSource = TextureSource::GroundComposite, .mFrom = 0 };
-            const TextureData bake{ .mSlot = 2, .mSource = TextureSource::SpriteBake, .mFrom = 0 };
+            const TextureData composite{
+                .mSlot = TextureIndex(1), .mSource = TextureSource::GroundComposite, .mFrom = MaterialIndex(0)
+            };
+            const TextureData bake{
+                .mSlot = TextureIndex(2), .mSource = TextureSource::SpriteBake, .mFrom = TextureIndex(0)
+            };
 
             Testing::TestTexture normals;
             Testing::paintLevels(normals, 64, 64, 3, "normals");
@@ -317,10 +321,10 @@ namespace Rtx
                 std::fill_n(ladder.mBytes.begin() + ladder.mLevels[level].mOffset,
                     std::size_t{ ladder.mLevels[level].mWidth } * ladder.mLevels[level].mHeight * 4,
                     static_cast<std::uint8_t>(10 * (level + 1)));
-            ladder.mData.mSlot = 0;
+            ladder.mData.mSlot = TextureIndex(0);
             Testing::TestTexture single;
             Testing::paintLevels(single, 64, 64, 1, "single");
-            single.mData.mSlot = 1;
+            single.mData.mSlot = TextureIndex(1);
             {
                 Batch batch(getPool());
                 DeviceAnswer answer;
@@ -351,20 +355,21 @@ namespace Rtx
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
             }
-            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(64u, 64u));
-            EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(64u, 64u)) << "a file of one level";
+            EXPECT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2(64u, 64u));
+            EXPECT_EQ(textures.getExtent(TextureIndex(1)), Shaders::uvec2(64u, 64u)) << "a file of one level";
             EXPECT_EQ(textures.getHeld().mBytes, 20480u + 16384u);
             EXPECT_EQ(textures.getHeld().mReduced, 1u);
             ASSERT_EQ(answer.mShort.size(), 1u);
-            EXPECT_EQ(answer.mShort[0], (ShortTexture{ .mSlot = 0, .mStoodBytes = 20480, .mWholeBytes = 86016 }));
-            EXPECT_EQ(textures.getTexels(0) & Shaders::TEXTURE_TEXELS, 64u * 64u);
+            EXPECT_EQ(answer.mShort[0],
+                (ShortTexture{ .mSlot = TextureIndex(0), .mStoodBytes = 20480, .mWholeBytes = 86016 }));
+            EXPECT_EQ(textures.getTexels(TextureIndex(0)) & Shaders::TEXTURE_TEXELS, 64u * 64u);
 
             std::vector<std::uint8_t> read;
-            textures.getImage(0).read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read, 0);
+            textures.getImage(TextureIndex(0)).read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read, 0);
             ASSERT_EQ(read.size(), 64u * 64u * 4u);
             EXPECT_EQ(read.front(), 20u) << "the ladder's second level, copied on the device";
             EXPECT_EQ(read.back(), 20u);
-            textures.getImage(0).read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read, 1);
+            textures.getImage(TextureIndex(0)).read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, read, 1);
             EXPECT_EQ(read.front(), 30u) << "its third";
 
             {
@@ -376,7 +381,7 @@ namespace Rtx
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
             }
-            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(64u, 64u));
+            EXPECT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2(64u, 64u));
         }
 
         /// **What stands finer than its readers want moves down first, and is not short for it** (`makeRoom`): a
@@ -398,22 +403,24 @@ namespace Rtx
 
             Testing::TestTexture large;
             Testing::paintLevels(large, 256, 256, 3, "large");
-            large.mData.mSlot = 0;
+            large.mData.mSlot = TextureIndex(0);
             Testing::TestTexture small;
             Testing::paintLevels(small, 128, 128, 3, "small");
-            small.mData.mSlot = 1;
+            small.mData.mSlot = TextureIndex(1);
 
             // The scene's table, its slots the array's: the small file's material asked from level 1.
             SceneDesc scene(identities);
             const osg::ref_ptr<osg::Image> largeImage = Testing::makeImage("textures/large.dds", 256, 256);
             const osg::ref_ptr<osg::Image> smallImage = Testing::makeImage("textures/small.dds", 128, 128);
-            ASSERT_EQ(scene.textures().add(VFS::Path::NormalizedView("textures/large.dds"), largeImage.get()), 0u);
-            ASSERT_EQ(scene.textures().add(VFS::Path::NormalizedView("textures/small.dds"), smallImage.get()), 1u);
-            const Index material = scene.addMaterial(Material{ .mDiffuse = 1 });
+            ASSERT_EQ(scene.textures().add(VFS::Path::NormalizedView("textures/large.dds"), largeImage.get()),
+                TextureIndex(0));
+            ASSERT_EQ(scene.textures().add(VFS::Path::NormalizedView("textures/small.dds"), smallImage.get()),
+                TextureIndex(1));
+            const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = TextureIndex(1) });
             MaterialHold held = scene.holdMaterial(material);
             scene.askMaterial(material, 26);
-            ASSERT_EQ(scene.textures().getWant(1), 1u);
-            ASSERT_EQ(scene.textures().getWant(0), 0u);
+            ASSERT_EQ(scene.textures().getWant(TextureIndex(1)), 1u);
+            ASSERT_EQ(scene.textures().getWant(TextureIndex(0)), 0u);
             {
                 Batch batch(getPool());
                 DeviceAnswer answer;
@@ -432,11 +439,11 @@ namespace Rtx
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
             }
-            EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(64u, 64u)) << "the smaller moved first";
-            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(256u, 256u));
+            EXPECT_EQ(textures.getExtent(TextureIndex(1)), Shaders::uvec2(64u, 64u)) << "the smaller moved first";
+            EXPECT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2(256u, 256u));
             EXPECT_TRUE(answer.mShort.empty()) << "it stands all its readers want";
             ASSERT_EQ(answer.mMoved.size(), 1u);
-            EXPECT_EQ(answer.mMoved[0].mSlot, 1u);
+            EXPECT_EQ(answer.mMoved[0].mSlot, TextureIndex(1));
             EXPECT_EQ(answer.mMoved[0].mStoodBytes, 20480u);
             EXPECT_EQ(answer.mMoved[0].mFrom, 1u);
 
@@ -448,9 +455,10 @@ namespace Rtx
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
             }
-            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(128u, 128u)) << "then the larger";
+            EXPECT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2(128u, 128u)) << "then the larger";
             ASSERT_EQ(answer.mShort.size(), 1u);
-            EXPECT_EQ(answer.mShort[0], (ShortTexture{ .mSlot = 0, .mStoodBytes = 81920, .mWholeBytes = 344064 }));
+            EXPECT_EQ(answer.mShort[0],
+                (ShortTexture{ .mSlot = TextureIndex(0), .mStoodBytes = 81920, .mWholeBytes = 344064 }));
             EXPECT_TRUE(answer.mMoved.empty());
 
             scene.unaskMaterial(material, 26);
@@ -478,10 +486,10 @@ namespace Rtx
             Testing::paintLevels(first, 64, 64, 3, "first");
             Testing::TestTexture second;
             Testing::paintLevels(second, 64, 64, 3, "second");
-            second.mData.mSlot = 1;
+            second.mData.mSlot = TextureIndex(1);
             Testing::TestTexture small;
             Testing::paintLevels(small, 32, 32, 2, "small");
-            small.mData.mSlot = 1;
+            small.mData.mSlot = TextureIndex(1);
 
             const std::array alike{ first.mData, second.mData };
             const std::array apart{ first.mData, small.mData };
@@ -521,7 +529,7 @@ namespace Rtx
             Testing::TestTexture second;
             Testing::paintLevels(second, 64, 64, 3, "normals again");
             second.mData.mEncoding = TextureEncoding::Normal;
-            second.mData.mSlot = 1;
+            second.mData.mSlot = TextureIndex(1);
 
             std::vector<std::uint32_t> firsts;
             const auto firstOf = [&](TextureArray& array, const TextureData& texture, const VkDeviceSize room) {
@@ -580,11 +588,11 @@ namespace Rtx
             wide.mData.mWrap = TextureWrap::ClampT;
             Testing::TestTexture single;
             Testing::paintLevels(single, limit + 1, 1, 1, "single");
-            single.mData.mSlot = 1;
+            single.mData.mSlot = TextureIndex(1);
             single.mData.mWrap = TextureWrap::Clamp;
             Testing::TestTexture unread;
             Testing::paintLevels(unread, 4, 4, 1, "unread");
-            unread.mData.mSlot = 2;
+            unread.mData.mSlot = TextureIndex(2);
             unread.mData.mSource = TextureSource::StandIn;
 
             const std::array arrived{ wide.mData, single.mData, unread.mData };
@@ -610,20 +618,22 @@ namespace Rtx
             EXPECT_EQ(held.mBySource.mSpriteBakes + held.mBySource.mGroundComposites + held.mBySource.mGroundGloss, 0u);
             EXPECT_EQ(textures.getRoomHeld(), 0u) << "the device's side is not the room's";
 
-            EXPECT_EQ(textures.getTexels(0), ((limit + 1) >> 1) | (2u << Shaders::TEXTURE_WRAP_SHIFT))
+            EXPECT_EQ(textures.getTexels(TextureIndex(0)), ((limit + 1) >> 1) | (2u << Shaders::TEXTURE_WRAP_SHIFT))
                 << "the level that stands, clamped along t";
-            EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "past the side";
-            EXPECT_EQ(textures.getTexels(2), Shaders::TEXTURE_STANDS_IN | 16u) << "described as the stand-in";
+            EXPECT_EQ(textures.getTexels(TextureIndex(1)), Shaders::TEXTURE_STANDS_IN | 16u) << "past the side";
+            EXPECT_EQ(textures.getTexels(TextureIndex(2)), Shaders::TEXTURE_STANDS_IN | 16u)
+                << "described as the stand-in";
 
             // Across and down apart, which a texel count is not: the second level of a row past the
             // side is half the row by the one texel a level never goes under.
-            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2((limit + 1) >> 1, 1u)) << "the level that stands";
-            EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(4u, 4u)) << "the stand-in's, past the side";
+            EXPECT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2((limit + 1) >> 1, 1u))
+                << "the level that stands";
+            EXPECT_EQ(textures.getExtent(TextureIndex(1)), Shaders::uvec2(4u, 4u)) << "the stand-in's, past the side";
 
             // **The totals follow a slot given back**, which they are kept by and not walked for:
             // the one texture that stood is dropped, and nothing stands, nothing is smaller, and
             // nothing costs. Dropping the stand-in's slot as well takes nothing off.
-            textures.drop(std::array{ 0u, 1u });
+            textures.drop(std::array{ TextureIndex(0), TextureIndex(1) });
             const TexturesHeld dropped = textures.getHeld();
             EXPECT_EQ(dropped.mCount, 0u);
             EXPECT_EQ(dropped.mBytes, 0u);
@@ -635,9 +645,10 @@ namespace Rtx
             // (`anArrivalIsHeldToTheLargestSideItFitsTheRoomAt` derives it).
             Testing::TestTexture lone;
             Testing::paintLevels(lone, 64, 64, 1, "lone");
-            const TextureData bake{
-                .mSlot = 1, .mSource = TextureSource::SpriteBake, .mFrom = 0, .mFormat = TextureFormat::Rgba8Unorm
-            };
+            const TextureData bake{ .mSlot = TextureIndex(1),
+                .mSource = TextureSource::SpriteBake,
+                .mFrom = TextureIndex(0),
+                .mFormat = TextureFormat::Rgba8Unorm };
             {
                 Batch again(getPool());
                 textures.write(again, passes, rooms, std::array{ lone.mData, bake }, TextureArray::noWants(), answer,
@@ -669,17 +680,17 @@ namespace Rtx
 
             Testing::TestTexture ladder;
             Testing::paintLevels(ladder, 1024, 1024, 3, "ladder");
-            ladder.mData.mSlot = 0;
+            ladder.mData.mSlot = TextureIndex(0);
             Testing::TestTexture large;
             Testing::paintLevels(large, 4096, 4096, 1, "large");
-            large.mData.mSlot = 1;
+            large.mData.mSlot = TextureIndex(1);
             {
                 Batch arrival(getPool());
                 DeviceAnswer answer;
                 textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), TextureArray::noWants(), answer,
                     WhenRoomless::Refuses, nullptr);
                 arrival.flush();
-                ASSERT_EQ(textures.getExtent(0), Shaders::uvec2(1024u, 1024u));
+                ASSERT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2(1024u, 1024u));
             }
 
             DeviceAnswer answer;
@@ -692,16 +703,15 @@ namespace Rtx
                 arrival.flush();
             }
             EXPECT_TRUE(answer.mRefused.empty()) << "a file refused where what stood could move down for it";
-            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(512u, 512u)) << "the ladder, a level down";
-            EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "the stand-in, while it waits";
-            EXPECT_NE(
-                std::ranges::find(answer.mShort, ShortTexture{ .mSlot = 1, .mStoodBytes = 0 }), answer.mShort.end())
+            EXPECT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2(512u, 512u)) << "the ladder, a level down";
+            EXPECT_EQ(textures.getTexels(TextureIndex(1)), Shaders::TEXTURE_STANDS_IN | 16u)
+                << "the stand-in, while it waits";
+            EXPECT_NE(std::ranges::find(answer.mShort, ShortTexture{ .mSlot = TextureIndex(1), .mStoodBytes = 0 }),
+                answer.mShort.end())
                 << "the file is not named short";
             const VkMemoryRequirements whole = Image::requirementsFor(device, Texture::describeFile(large.mData, 0));
-            EXPECT_NE(
-                std::ranges::find(answer.mWants,
-                    RoomWant{
-                        .mKind = RestKind::Texture, .mSlot = 1, .mHole = whole.size, .mAlignment = whole.alignment }),
+            EXPECT_NE(std::ranges::find(answer.mWants,
+                          RoomWant{ .mWaiter = TextureIndex(1), .mHole = whole.size, .mAlignment = whole.alignment }),
                 answer.mWants.end())
                 << "the file waits on no range of its whole image";
             device.waitIdle();
@@ -734,7 +744,7 @@ namespace Rtx
             Testing::paintLevels(ladder, 3072, 3072, 2, "ladder");
             Testing::TestTexture lone;
             Testing::paintLevels(lone, 3072, 3072, 1, "lone");
-            lone.mData.mSlot = 1;
+            lone.mData.mSlot = TextureIndex(1);
 
             const Testing::NoRoomForContent full(device);
             EXPECT_EQ(textures.getHeld().mReduced + textures.getHeld().mShortOfRoom, 0u)
@@ -770,12 +780,11 @@ namespace Rtx
                 return Image::requirementsFor(device, Texture::describeFile(data, 0));
             };
             EXPECT_EQ(answer.mWants,
-                (std::vector<RoomWant>{ { .mKind = RestKind::Texture,
-                    .mSlot = ladder.mData.mSlot,
+                (std::vector<RoomWant>{ { .mWaiter = ladder.mData.mSlot,
                     .mHole = requirementsOf(ladder.mData).size,
                     .mAlignment = requirementsOf(ladder.mData).alignment } }));
             EXPECT_EQ(answer.mTextureFits,
-                (std::vector<FitBytes>{ { .mSlot = ladder.mData.mSlot,
+                (std::vector<FitBytes<TextureIndex>>{ { .mSlot = ladder.mData.mSlot,
                     .mBytes = Image::bytesFor(device, Texture::describeFile(ladder.mData, 1)),
                     .mAlignment = textures.getImage(ladder.mData.mSlot).getMemoryAlignment() } }))
                 << "what the ladder's second level gives back once it rests";
@@ -794,9 +803,9 @@ namespace Rtx
             EXPECT_EQ(refused[0].mName, "lone");
             EXPECT_EQ(refused[0].mWhy, "no device memory is left for it");
             EXPECT_EQ(textures.getHeld().mCount, 1u) << "a texture with no room stood";
-            EXPECT_EQ(textures.getTexels(0), 1536u * 1536u);
-            EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "no room";
-            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(1536u, 1536u)) << "the level the room took";
+            EXPECT_EQ(textures.getTexels(TextureIndex(0)), 1536u * 1536u);
+            EXPECT_EQ(textures.getTexels(TextureIndex(1)), Shaders::TEXTURE_STANDS_IN | 16u) << "no room";
+            EXPECT_EQ(textures.getExtent(TextureIndex(0)), Shaders::uvec2(1536u, 1536u)) << "the level the room took";
             EXPECT_EQ(textures.getHeld().mShortOfRoom, 1u) << "refused for want of room";
 
             // **Where room is coming, the file waits rather than being refused**: named by its slot among those the
@@ -811,12 +820,12 @@ namespace Rtx
             EXPECT_TRUE(refused.empty()) << "a file room is coming for was refused";
             EXPECT_EQ(answer.mShort, (std::vector<ShortTexture>{ { .mSlot = lone.mData.mSlot, .mStoodBytes = 0 } }));
             EXPECT_EQ(answer.mWants,
-                (std::vector<RoomWant>{ { .mKind = RestKind::Texture,
-                    .mSlot = lone.mData.mSlot,
+                (std::vector<RoomWant>{ { .mWaiter = lone.mData.mSlot,
                     .mHole = requirementsOf(lone.mData).size,
                     .mAlignment = requirementsOf(lone.mData).alignment } }));
             EXPECT_TRUE(answer.mTextureFits.empty()) << "the stand-in gave back a range";
-            EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "a file that waits drew its own";
+            EXPECT_EQ(textures.getTexels(TextureIndex(1)), Shaders::TEXTURE_STANDS_IN | 16u)
+                << "a file that waits drew its own";
             EXPECT_EQ(textures.getHeld().mShortOfRoom, 1u) << "waiting, and counted once";
             answer.mShort.clear();
             answer.mWants.clear();
@@ -832,13 +841,14 @@ namespace Rtx
             EXPECT_TRUE(refused.empty());
             EXPECT_TRUE(answer.mWants.empty()) << "a file stood whole waits";
             EXPECT_EQ(answer.mTextureFits,
-                (std::vector<FitBytes>{ { .mSlot = lone.mData.mSlot,
+                (std::vector<FitBytes<TextureIndex>>{ { .mSlot = lone.mData.mSlot,
                     .mBytes = Image::bytesFor(device, Texture::describeFile(lone.mData, 0)),
                     .mAlignment = textures.getImage(lone.mData.mSlot).getMemoryAlignment() } }));
             EXPECT_EQ(textures.getHeld().mCount, 2u);
             EXPECT_EQ(textures.getHeld().mReduced, 1u) << "a texture standing as its file was counted as smaller";
-            EXPECT_EQ(textures.getTexels(1), 3072u * 3072u) << "a slot that stands at last still says the stand-in";
-            EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(3072u, 3072u)) << "and still measures it";
+            EXPECT_EQ(textures.getTexels(TextureIndex(1)), 3072u * 3072u)
+                << "a slot that stands at last still says the stand-in";
+            EXPECT_EQ(textures.getExtent(TextureIndex(1)), Shaders::uvec2(3072u, 3072u)) << "and still measures it";
 
             // **What the room held back is what still stands short of it**: the single level stands whole, no slot
             // is short of room, and once the ladder stands whole again nothing is smaller than its file either, and
