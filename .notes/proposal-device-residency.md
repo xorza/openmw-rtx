@@ -8,8 +8,8 @@ memory is the process's own — and four fixes aimed at one symptom each were bu
 the last plan, freeing the oldest resting meshes, moving the textures together). This plan replaces the mechanisms that
 each guard one use with one owner that holds the device to one target and gives memory back when it is over.
 
-Written for `/execute-plan` once the decisions under **For the user** are made: items in order, each a commit, `./omw
-gate` at the end, the merge into master after it. When it lands, its decisions fold into `docs/architecture.md`
+Written for `/execute-plan`, its decisions made (**Approved**): items in order, each a commit, `./omw gate` at the
+end, the merge into master after it. When it lands, its decisions fold into `docs/architecture.md`
 ("Device and memory") and this file is deleted.
 
 ## What the tours show
@@ -98,16 +98,18 @@ All four hold a target that what is held is driven to, not only a ceiling that n
   the reserve's own call to `makeRoom`, and content's "over" as a separate query (`getContentOver`). Wants and waits
   stay as what an arrival asks of the owner. Refused: the owner beside them, two routes to one result.
 
-## For the user
+## Approved
 
-1. **The unified split's speed.** How slowly the device's target follows what the system leaves the process: an
-   exponential average over about a minute, as a cache's budget is smoothed (proposed); or only downward at once and
-   upward over a minute. Each makes a long session's host growth take the device's room back, at a different rate.
-2. **Moving textures between blocks** (step 4 for textures). Item 21 moved them with VMA's defragmentation and was
-   declined for what the caches did with the blocks, which the split above answers. Proposed: moved again, by the
-   texture array's own copy at the texture's level, a step a hand-over, the blocks of the least-filled pool first.
-3. **Whether the bias may take a texture under its want while room is short**, against refusing the arrival. Proposed:
-   yes, as Unreal does; a refusal draws the stand-in, which a bias of one level never shows.
+Decided by the user, 2026-11-18:
+
+1. **The unified split follows smoothly**: the device's target is an exponential average of what the split gives it,
+   over about a minute, both ways, so a host's spike costs the device nothing and a lasting growth takes its room back
+   within the minute. Refused: down at once and up slowly; a fixed share at the start.
+2. **Textures move between blocks by the texture array's own copy**, at their level, the least-filled block first, a
+   frame's share of copies a hand-over, the block given back once empty. Refused: VMA's defragmentation, which chooses
+   what moves outside that bound; structures alone.
+3. **The bias below every want comes before a refusal**, a level at a time while the steps before it fall short, never
+   under 64 texels a side, and off again a level a step once the device is under the band. Refused: refusing first.
 
 ## Open measurements, before the items they decide
 
@@ -128,7 +130,7 @@ All four hold a target that what is held is driven to, not only a ceiling that n
 2. **Settle M2**: the Windows capped tour read against the uncapped one; the meter's swapped figure split from the
    device's pages where Windows says so, or named for what it is.
 3. **The unified split**: one owner of what the system leaves the process, from which the device's target and the
-   caches' budget are both derived (decision 1). Test: the split's arithmetic, exact values, and that a block the device
+   caches' budget are both derived (approved 1). Test: the split's arithmetic, exact values, and that a block the device
    gives back raises no cache's budget.
 4. **`DeviceResidency`**: the target, held by blocks, the band, and the ladder's first three steps (rests, above want,
    empty blocks), replacing the rest limit, `evictForRoom` and the reserve's `makeRoom`. Test: the ladder as a function
@@ -136,9 +138,9 @@ All four hold a target that what is held is driven to, not only a ceiling that n
 5. **Structures out of the least-filled block**: the copy the tight copy uses, into another block's free run, a step a
    hand-over, the block given back when empty. Test on the device: a block emptied by moves frees, the instance rows
    name the new addresses, and `omw repeat` agrees frame for frame.
-6. **Textures out of the least-filled block** (decision 2), the same way. Test on the device: the moved image samples
+6. **Textures out of the least-filled block** (approved 2), the same way. Test on the device: the moved image samples
    the same texels, its slot's descriptor names it, and the block goes.
-7. **The bias below every want** (decision 3), the last step before a refusal, coming off a level a step once under the
+7. **The bias below every want** (approved 3), the last step before a refusal, coming off a level a step once under the
    band. Test: the bias's steps against a scripted budget, and that it never takes a texture under 64 texels.
 8. **Close**: the handheld's Repack and PBR and the Windows machine's Repack flown whole (`--every=1`), held against
    the baseline and against `docs/research/2026-11-18-handheld-rooms-and-device-memory.md`. They pass where the rooms'
