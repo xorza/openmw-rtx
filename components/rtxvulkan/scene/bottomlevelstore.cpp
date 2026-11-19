@@ -110,6 +110,7 @@ namespace Rtx
         , mLooseStorage(sStructureStorageUsage, "loose bottom level structures", blockBytes)
         , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch", GrowableBuffer::Growth::Exact)
         , mRefusedSeen(device.getMemory().getRefusedCount())
+        , mComing(device.getMemory())
     {
     }
 
@@ -125,6 +126,9 @@ namespace Rtx
         }
 
         state.mTightness = Tightness::None;
+        // What leaves the kept storage may be the room a stuck block's structures wanted.
+        if (row.mStructure.getStorage() == &mStorage)
+            mStuck.reset();
         row.mStructure = AccelerationStructure();
         row.mWaiting = false;
         markShortOfRoom(row, false);
@@ -597,6 +601,7 @@ namespace Rtx
         readAnswers();
         const VkDeviceSize copied = copyAnswered(sCompactionPerPlacement);
         moveOut(sCompactionPerPlacement - std::min(copied, sCompactionPerPlacement));
+        mComing.set(givesBlockBack() ? 1 : 0);
         return mMovedMeshes;
     }
 
@@ -707,8 +712,11 @@ namespace Rtx
             if (!asked)
                 return;
             mEmptying = mStorage.blockToEmpty();
-            if (!mEmptying.has_value())
+            if (!mEmptying.has_value() || mEmptying == mStuck)
+            {
+                mEmptying.reset();
                 return;
+            }
             // Listed once, as the block is chosen: a walk of every row a block, not a placement.
             mLeaving.clear();
             for (const MeshIndex slot : everyRow<MeshIndex>(mRows.size()))
@@ -732,7 +740,10 @@ namespace Rtx
                 = VkDeviceSize{ row.mStructure.getRoom().mRun.mCount } * StructureStorage::sAlignment;
             const std::optional<StructureRoom> room = mStorage.takeOutside(size, *mEmptying);
             if (!room.has_value())
+            {
+                mStuck = mEmptying;
                 break;
+            }
             mLeaving.pop_back();
 
             AccelerationStructure made = AccelerationStructure::bottomLevel(mDevice, mStorage, *room, size);
@@ -756,6 +767,14 @@ namespace Rtx
             mEmptying.reset();
             mLeaving.clear();
         }
+    }
+
+    bool BottomLevelStore::givesBlockBack() const
+    {
+        if (mEmptying.has_value())
+            return true;
+        const std::optional<std::uint32_t> block = mStorage.blockToEmpty();
+        return block.has_value() && block != mStuck;
     }
 
     void BottomLevelStore::recordCompaction(const VkCommandBuffer commands, GpuTimer* const timer)

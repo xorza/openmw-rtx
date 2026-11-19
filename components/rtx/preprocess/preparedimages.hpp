@@ -80,9 +80,13 @@ namespace Rtx
         PreparedImage find(
             const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner = nullptr);
 
-        /// Whether what `find` queued for `file` as it was asked is read and made, so the slot that stood in
-        /// arrives again to be handed it. Hands nothing out.
-        bool isReady(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner);
+        /// Whether what `find` queued for `file` as it was asked is still to be read and made: while it is, the slot
+        /// that stood in waits; once it is not, the slot arrives again and asks anew, which hands it what was made, or
+        /// reads it again where nothing is kept. **Nothing kept is no job pending**: slots of one file whose wraps make
+        /// one key share an entry, which the others end as if it were theirs alone — let go of once one is handed it
+        /// (`letGo`), dropped as one leaves (`forget`), its job cancelled — so a slot that waited for the entry as made
+        /// waited for ever, drew its file's stand-in, and a view never stood whole. Hands nothing out.
+        bool isPending(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner);
 
         /// Lets go of what was read and made of `file` for every slot, the device having its copy, and
         /// tells a header's manager its texels may go (`Resource::releaseTexels`): a later ask reads it

@@ -35,6 +35,7 @@
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/scene/bottomlevelstore.hpp>
 #include <components/rtxvulkan/scene/structurebuild.hpp>
+#include <components/rtxvulkan/scene/whenroomless.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -699,7 +700,9 @@ namespace Rtx
         /// **While the device holds more than it is held to, the structures of the kept storage's emptiest block move
         /// to the others' free runs, and the block goes back.** Held to a byte, a placement moves the fourth grid into
         /// the first block's hole, a copy of its structure as it is, and names it moved; once its old room cools, the
-        /// second block goes back. Not held, nothing moves.
+        /// second block goes back. Not held, nothing moves. **A block the moves would empty is room coming**: said to
+        /// the allocator from the first placement, the device not held, so content refused meanwhile waits
+        /// (`whenRoomless`); once one full block is all that stands, none is.
         TEST_F(RtxBottomLevelStoreTest, overItsBudgetTheEmptiestBlocksStructuresMoveAndTheBlockGoes)
         {
             std::array<MeshIndex, 6> grids{};
@@ -711,8 +714,12 @@ namespace Rtx
 
             BottomLevelStore store(getDevice(), sStructureBuildRoom, 3 * tight);
             fragment(store, grids, tight);
+            const MemoryAllocator& memory = getDevice().getMemory();
+            EXPECT_EQ(memory.getBlocksComing(), 0u) << "said once a placement";
             EXPECT_TRUE(place(store).empty()) << "nothing moves where the device is not held";
             EXPECT_EQ(store.getMovedOutBytes(), 0u);
+            EXPECT_EQ(memory.getBlocksComing(), 1u) << "the second block, the next time one is asked for";
+            EXPECT_EQ(whenRoomless(getDevice(), mScene), WhenRoomless::Waits);
 
             const VkAccelerationStructureKHR before = store.getStructure(grids[3]);
             {
@@ -731,8 +738,63 @@ namespace Rtx
             getDevice().collectIdle();
             place(store);
             EXPECT_EQ(store.getBytes() - store.getLooseBytes(), 3 * tight) << "the emptied block went back";
+            EXPECT_EQ(memory.getBlocksComing(), 0u) << "one full block, none to empty";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            EXPECT_EQ(whenRoomless(getDevice(), mScene), WhenRoomless::Refuses) << "the block given back, and buried";
+        }
+
+        /// **A block whose structures find no run outside it is stuck: not chosen again, nor said to come back, until
+        /// a structure leaves the kept storage.** Five grids of sixty-four fill a block of five, and a grid of 88, more
+        /// than one of them and no more than two, stands in a second; the second and fourth let go leave the first two
+        /// holes of one. The second block is the emptiest, and the others' free room holds it, so it is said to come
+        /// back; held, its grid finds no run of its length, nothing moves, and it is said no more, the next placement
+        /// as well. The first let go makes a run of two, and it is said again.
+        TEST_F(RtxBottomLevelStoreTest, aBlockWhoseStructuresFindNoRunOutsideItIsStuckUntilAStructureLeaves)
+        {
+            std::array<MeshIndex, 5> small{};
+            for (std::size_t at = 0; at < small.size(); ++at)
+                small[at] = addGrid(mScene, 64, static_cast<float>(at));
+            const MeshIndex large = addGrid(mScene, 88, 9.0f);
+            stage();
+            const VkDeviceSize tight = tightOf(small[0]);
+            const VkDeviceSize largeTight = tightOf(large);
+            ASSERT_GT(largeTight, tight);
+            ASSERT_LE(largeTight, 2 * tight);
+
+            BottomLevelStore store(getDevice(), sStructureBuildRoom, 5 * tight);
+            build(store, small);
+            ASSERT_EQ(place(store).getSlots().size(), small.size());
+            build(store, std::span(&large, 1));
+            ASSERT_EQ(place(store).getSlots().size(), 1u);
+            ASSERT_EQ(store.getBytes() - store.getLooseBytes(), 10 * tight) << "two blocks of five";
+            const std::array<MeshIndex, 2> holes{ small[1], small[3] };
+            store.release(holes);
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+
+            const MemoryAllocator& memory = getDevice().getMemory();
+            place(store);
+            EXPECT_EQ(memory.getBlocksComing(), 1u) << "the second block, its grid's room free outside it";
+            {
+                const Testing::BudgetLimit held(getDevice().getMemory(), 1);
+                EXPECT_TRUE(place(store).empty()) << "no run of its length";
+                EXPECT_EQ(memory.getBlocksComing(), 0u) << "stuck";
+                EXPECT_TRUE(place(store).empty()) << "not chosen again";
+                EXPECT_EQ(memory.getBlocksComing(), 0u);
+            }
+
+            const std::array<MeshIndex, 1> leaving{ small[2] };
+            store.release(leaving);
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            place(store);
+            EXPECT_EQ(memory.getBlocksComing(), 1u) << "a structure left: a run of three now";
+
             getDevice().waitIdle();
             getDevice().collectIdle();
         }

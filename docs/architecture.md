@@ -479,7 +479,11 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   whatever reads the same geometry. A skinned or morphed mesh is a copy per instance. Refused: the drawable as the key,
   which matches only while its template lives.
 - **Content the device has no room for waits while room is coming**, a bounded number of hand-overs, then is refused.
-  Refused: headroom alone, which an arrival larger than any before outruns; a stand-in for good.
+  **A block the moves give back is room coming** (`BlocksComing`), the one being emptied and the one the refusal will
+  have emptied, as the refusal is what asks for it: the handheld's PBR drew the stand-in at Seyda Neen for good, its
+  texture pool full and a structure block's worth free in the structures' blocks. A block whose structures found no run
+  outside it is not counted until a structure leaves. Refused: headroom alone, which an arrival larger than any before
+  outruns; a stand-in for good.
 - **What waits is given the resting row that surely leaves it room**, by the user's decision: each want the device
   answers frees the oldest resting row of its kind whose own range holds it, its size at its alignment, else the
   oldest until its bytes are given back, once until its room is the device's again (`SceneDesc::evictFor`,

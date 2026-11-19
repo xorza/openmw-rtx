@@ -378,6 +378,7 @@ namespace Rtx
         TextureArrival& arrival, const std::uint32_t slots, const std::uint32_t anisotropy)
         : mDevice(device)
         , mRefusedSeen(device.getMemory().getRefusedCount())
+        , mComing(device.getMemory())
         , mSamplers{ makeContentSampler(device, "textures repeating", TextureWrap::Repeat),
             makeContentSampler(device, "textures clamped along s", TextureWrap::ClampS),
             makeContentSampler(device, "textures clamped along t", TextureWrap::ClampT),
@@ -969,7 +970,14 @@ namespace Rtx
     {
         // What the last call moved out of was handed to the queue with the placement that recorded it.
         mMovedFrom.clear();
+        const VkDeviceSize copied = emptyBlock(arrival, budget);
+        // Until what it moved out of is buried, which the graveyard then counts.
+        mComing.set(mEmptying.has_value() || !mMovedFrom.empty() ? 1 : 0);
+        return copied;
+    }
 
+    VkDeviceSize TextureArray::emptyBlock(TextureArrival& arrival, const VkDeviceSize budget)
+    {
         const bool asked = mDevice.getMemory().asksForBlock(mRefusedSeen);
         if (!mEmptying.has_value())
         {

@@ -25,6 +25,7 @@
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/blockscoming.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -399,6 +400,9 @@ namespace Rtx
         /// (`mChanges`) where the last walk found nothing.
         void chooseBlock();
 
+        /// `moveOut`'s copies, chosen and made: what it copied.
+        VkDeviceSize emptyBlock(TextureArrival& arrival, VkDeviceSize budget);
+
         /// Whether `slot` is a composite yet to be baked, which stays where the bake will write it.
         bool awaitsBake(TextureIndex slot) const;
 
@@ -508,6 +512,9 @@ namespace Rtx
         /// How many takes the allocator had refused at the last `moveOut`, or when the array was made
         /// (`MemoryAllocator::asksForBlock`).
         std::uint64_t mRefusedSeen = 0;
+
+        /// The block `moveOut` empties, said to come back once a placement until what moved out of it is buried.
+        BlocksComing mComing;
 
         /// How many times a slot has changed what it stands (`count`), and the count a walk for a block to empty last
         /// found none at.

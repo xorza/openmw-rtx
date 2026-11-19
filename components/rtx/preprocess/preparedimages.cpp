@@ -112,12 +112,12 @@ namespace Rtx
         return Key{ &file, encoding, delit ? wrap : TextureWrap::Repeat, partner };
     }
 
-    bool PreparedImages::isReady(
+    bool PreparedImages::isPending(
         const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap, const osg::Image* const partner)
     {
         return mMonitor.under([&] {
             const auto entry = mEntries.find(keyOf(file, encoding, wrap, partner));
-            return entry != mEntries.end() && entry->second.mMade;
+            return entry != mEntries.end() && !entry->second.mMade;
         });
     }
 

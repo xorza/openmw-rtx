@@ -364,8 +364,9 @@ namespace Rtx
         /// carrying its chain, 8 by 8 in three levels of 4, 1 and 1 blocks, 48 bytes, has nothing made, and is pending
         /// while its texels are read from the file; then they are handed out with no chain, and the manager's cache
         /// holds them until the device has its copy. As a map of data its chain is made again, coarser levels beside
-        /// the file's finest, whose texels come with them. An image that holds its texels and has no chain made is
-        /// answered at once.
+        /// the file's finest, whose texels come with them. Let go of, nothing is pending, so a slot of another wrap
+        /// that waited on the same entry asks anew and has it read again. An image that holds its texels and has no
+        /// chain made is answered at once.
         TEST(RtxPreparedImagesTest, aHeadersTexelsAreReadOnAThreadAndHandedOutUntilLetGo)
         {
             TestingOpenMW::VFSTestFile file(Testing::ddsDxt1(8, 8, 3, 0x55));
@@ -381,8 +382,9 @@ namespace Rtx
 
             PreparedImages prepared(nullptr, 1);
             EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
+            EXPECT_TRUE(prepared.isPending(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
             prepared.flush();
-            EXPECT_TRUE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
+            EXPECT_FALSE(prepared.isPending(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr)) << "made";
 
             // **One ask of the header for its file, its 48 bytes, held unhanded until a slot takes them.**
             const ContentStats asked = prepared.takeStats();
@@ -415,8 +417,12 @@ namespace Rtx
 
             prepared.letGo(*header);
             EXPECT_EQ(budget.getHeld(), 0u) << "the manager let go of the texels the device has";
-            EXPECT_FALSE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr))
-                << "forgotten, so a later ask reads it again";
+            EXPECT_EQ(prepared.getEntryCount(), 0u) << "forgotten, so a later ask reads it again";
+            EXPECT_FALSE(prepared.isPending(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr))
+                << "nothing kept is no job pending: a slot of another wrap that waited on the entry asks anew";
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Clamp).mPending)
+                << "and has it read again";
+            prepared.flush();
 
             // 4 by 4 in DXT1 with its chain: three levels of a block each, 24 bytes.
             const osg::ref_ptr<osg::Image> texels = new osg::Image;
@@ -528,7 +534,7 @@ namespace Rtx
             prepared.forget(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr);
             EXPECT_EQ(prepared.getHeld().mEntries, 0u) << "made and forgotten, gone at once";
             EXPECT_EQ(prepared.getHeld().mLeftPending, 1u) << "made, so it left nothing pending";
-            EXPECT_FALSE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
+            EXPECT_FALSE(prepared.isPending(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
 
             EXPECT_TRUE(prepared.find(*header, TextureEncoding::Data, TextureWrap::Repeat).mPending);
             prepared.forget(*header, TextureEncoding::Data, TextureWrap::Repeat, nullptr);
@@ -550,6 +556,8 @@ namespace Rtx
             EXPECT_EQ(cancelled.mTexelReads.mCancelled, 1u);
             EXPECT_EQ(cancelled.mTexelReads.count(TexelRead::File), 1u) << "the colour's read alone";
             EXPECT_EQ(cancelled.at(ContentPassId::Chain).mAsked, 0u) << "no chain asked for the map";
+            EXPECT_FALSE(prepared.isPending(*header, TextureEncoding::Data, TextureWrap::Clamp, nullptr))
+                << "a slot of another wrap that waited on the cancelled entry is pending nothing, and asks anew";
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no

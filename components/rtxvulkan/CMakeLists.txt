@@ -518,6 +518,7 @@ target_sources(
                 device/memory/batch.hpp
                 device/memory/blockedbuffer.hpp
                 device/memory/blocklist.hpp
+                device/memory/blockscoming.hpp
                 device/memory/buffer.hpp
                 device/memory/bufferusage.hpp
                 device/memory/descriptorsets.hpp

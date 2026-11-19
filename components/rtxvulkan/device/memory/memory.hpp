@@ -373,6 +373,13 @@ namespace Rtx
         /// placement, with a count of its own.
         bool asksForBlock(std::uint64_t& refusedSeen) const;
 
+        /// What one owner gives back soon, `blocks` in place of the `was` it said before (`BlocksComing`).
+        void noteBlocksComing(std::uint32_t was, std::uint32_t blocks) noexcept;
+
+        /// How many blocks the owners that move content out of them give back soon, together: room coming that a take
+        /// refused meanwhile waits on (`whenRoomless`).
+        std::uint32_t getBlocksComing() const { return mBlocksComing.load(std::memory_order_relaxed); }
+
         /// What `reserveFrame` was last told.
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }
 
@@ -543,6 +550,9 @@ namespace Rtx
 
         /// What the structure storages hold free in their blocks (`noteStructureFree`).
         std::atomic<VkDeviceSize> mStructureFree = 0;
+
+        /// What the owners give back soon (`noteBlocksComing`).
+        std::atomic<std::uint32_t> mBlocksComing = 0;
 
         std::optional<VkDeviceSize> mBudgetLimit;
         VkDeviceSize mFrameReserve = 0;

@@ -389,9 +389,9 @@ namespace Rtx
         /// MiB, 1024 square in eight bits a channel, each painted its own byte, stand in two blocks of 64 MiB. A
         /// texture more than the second holds is dropped from the first, so the second is the emptiest and the first
         /// has room for all of it. Not asked, nothing moves. Asked, a budget of a byte moves one texture, the least a
-        /// call moves; a budget past the block moves the rest, each now in the first block, its texels the ones it was
-        /// painted, its bytes counted as before. Once what they moved out of is buried and the library's one empty
-        /// block given back at its next free, there is one block fewer.
+        /// call moves, and the block is said to come back while it empties; a budget past the block moves the rest,
+        /// each now in the first block, its texels the ones it was painted, its bytes counted as before. Once what they
+        /// moved out of is buried, the library's one empty block goes at its next free.
         TEST_F(RtxTextureArrayTest, whileTheDeviceAsksTheEmptiestBlocksTexturesMoveAndTheBlockGoes)
         {
             Device& device = getDevice();
@@ -465,6 +465,7 @@ namespace Rtx
                 rooms.record(batch, passes, nullptr);
                 batch.flush();
                 EXPECT_EQ(inBlock(emptiest).size(), leaving.size() - 1);
+                EXPECT_EQ(memory.getBlocksComing(), 1u) << "the block begun, coming back";
             }
             {
                 Batch batch(getPool());
@@ -474,6 +475,7 @@ namespace Rtx
                 batch.flush();
             }
             EXPECT_TRUE(inBlock(emptiest).empty());
+            EXPECT_EQ(memory.getBlocksComing(), 1u) << "what moved out stands until the next call buries it";
             EXPECT_EQ(textures.getMovedOutBytes(), leaving.size() * one);
             EXPECT_EQ(textures.getHeld().mBytes, held);
 
@@ -492,6 +494,7 @@ namespace Rtx
             // free, which a drop from the full block makes: the one block fewer is the emptied one, as the full one
             // still stands what it did less a texture.
             EXPECT_EQ(textures.moveOut(rooms, std::uint64_t{ 1 } << 30), 0u);
+            EXPECT_EQ(memory.getBlocksComing(), 0u) << "buried: the graveyard counts it now";
             getPool().submitAndWait([](VkCommandBuffer) {});
             device.waitIdle();
             device.collectIdle();
