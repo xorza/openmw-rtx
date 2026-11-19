@@ -488,6 +488,18 @@ namespace Settings
         throw std::runtime_error("Invalid gyroscope axis: " + std::string(value));
     }
 
+    Rtx::UpscalerChoice readUpscalerChoice(std::string_view setting, std::string_view category)
+    {
+        const std::string& held = Manager::getString(setting, category);
+        if (const std::optional<Rtx::UpscalerChoice> choice = Rtx::sUpscalerNames.named(held))
+            return *choice;
+
+        Log(Debug::Warning) << "[" << category << "] " << setting << " = \"" << held << "\" is not an upscaler ("
+                            << Rtx::sUpscalerNames.list() << "), so " << Rtx::sUpscalerNames.name(Rtx::sUpscalerUnread)
+                            << " is used";
+        return Rtx::sUpscalerUnread;
+    }
+
     NavMeshRenderMode parseNavMeshRenderMode(std::string_view value)
     {
         if (value == "area type")

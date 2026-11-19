@@ -76,10 +76,11 @@ namespace Settings
             EXPECT_THROW([&] { Values values(index); }(), std::runtime_error);
         }
 
-        /// **An upscale mode is read by the one spelling list at load**, as the
-        /// documentation spells them, and refused where the list holds no such name: a typo traced
-        /// under another mode would be a session of the wrong picture. `off` is no mode, but the
-        /// upscaler's own setting, and refused here. Written back by the same name.
+        /// **An upscale mode and an upscaler are read by their spelling lists at load**, as the
+        /// documentation spells them, and written back by the same name. A mode the list does not
+        /// hold is refused: a typo traced under another mode would be a session of the wrong picture,
+        /// and `off` is no mode but the upscaler's own choice. **An upscaler the list does not hold is
+        /// FSR** (`sUpscalerUnread`), the shipped default: a file an older build wrote holds `auto`.
         TEST_F(SettingsValuesTest, constructorShouldReadAModeByItsSpellingAndRefuseOneItLacks)
         {
             for (const auto& [mode, spelling] : Rtx::sUpscaleModeNames.mNames)
@@ -104,6 +105,17 @@ namespace Settings
                 EXPECT_EQ(Manager::mUserSettings.at({ "RTX", "upscale" }), "ultraperformance");
                 values.mRTX.mUpscaler.set(Rtx::UpscalerChoice::Dlss);
                 EXPECT_EQ(Manager::mUserSettings.at({ "RTX", "upscaler" }), "dlss");
+            }
+
+            EXPECT_EQ(
+                Manager::mDefaultSettings.at({ "RTX", "upscaler" }), Rtx::sUpscalerNames.name(Rtx::sUpscalerUnread))
+                << "what an unread upscaler is read as is the shipped default";
+            for (const char* const unread : { "auto", "Fsr", "" })
+            {
+                Manager::mUserSettings[std::make_pair("RTX", "upscaler")] = unread;
+                Index index;
+                Values values(index);
+                EXPECT_EQ(values.mRTX.mUpscaler.get(), Rtx::UpscalerChoice::Fsr) << unread;
             }
 
             for (const char* const refused : { "Quality", "off" })

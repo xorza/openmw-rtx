@@ -42,7 +42,8 @@ from the terrain section decide whether and how the distance's statics stand, an
 Which upscaler stands between the trace and the screen. `off` traces at the frame's size with no upscaler: the
 renderer's own denoisers alone, and no anti-aliasing. `fsr` is AMD FSR 3.1 on any card. `dlss` is NVIDIA DLSS where
 the card is an NVIDIA RTX, the installed driver accepts it, and the DLSS feature library is installed beside the game;
-where it cannot start, the game refuses to start and names the reason rather than quietly drawing through FSR.
+where it cannot start, the game refuses to start and names the reason rather than quietly drawing through FSR. A
+name this does not know, as `auto` an older build wrote, is read as `fsr`, and the log says so.
 
 The game links none of NVIDIA's SDK. The driver supplies NGX — `_nvngx.dll` on Windows and `libnvidia-ngx.so.1` on
 Linux — and the game opens it at run time. The feature library, Ray Reconstruction's `nvngx_dlssd.dll` on Windows or
@@ -70,7 +71,8 @@ DLSS, and the settings window says a change needs a restart. The launcher select
 How hard the upscaler works. The frame's size, `[Video] resolution`, is what comes out; what gets traced is that size
 over the mode's ratio: 3 for `ultraperformance`, 2 for `performance`, 1.7 for `balanced`, 1.5 for `quality` and 1 for
 `native`, which upscales nothing and reconstructs each frame from the frames before it, as the anti-aliasing. Nothing
-under `upscaler = off`. A name this does not know is refused rather than quietly defaulted. Takes effect at once.
+under `upscaler = off`. A name this does not know is refused rather than quietly defaulted; an older build's `off` is
+read as `upscaler = off`. Takes effect at once.
 
 ### indirect lighting
 

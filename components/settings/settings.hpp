@@ -264,18 +264,23 @@ namespace Settings
     }
 
     /// By the one spelling list, which refuses a name it does not hold rather than default: a
-    /// misspelt mode is the player's to correct, and a default chosen here would hide it.
+    /// misspelt mode is the player's to correct, and a default chosen here would hide it. An older
+    /// build's `off` is moved to the upscaler as the file is read (`migrateUserSettings`).
     template <>
     inline Rtx::Upscale Manager::getImpl<Rtx::Upscale>(std::string_view setting, std::string_view category)
     {
         return Rtx::sUpscaleModeNames.require(getString(setting, category), "an upscale mode");
     }
 
+    /// `[RTX] upscaler` by its spelling list, and a name it does not hold as `Rtx::sUpscalerUnread`, said in the
+    /// log, by the user's decision: a file an older build wrote holds `auto`, and a player's game starts anyway.
+    Rtx::UpscalerChoice readUpscalerChoice(std::string_view setting, std::string_view category);
+
     template <>
     inline Rtx::UpscalerChoice Manager::getImpl<Rtx::UpscalerChoice>(
         std::string_view setting, std::string_view category)
     {
-        return Rtx::sUpscalerNames.require(getString(setting, category), "an upscaler");
+        return readUpscalerChoice(setting, category);
     }
 
     template <>

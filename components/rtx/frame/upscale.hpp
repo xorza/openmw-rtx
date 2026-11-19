@@ -59,6 +59,10 @@ namespace Rtx
     /// `fsrcallbacks.glsl` and `rrguides.comp` clamp to.
     inline constexpr float sUpscaleNear = 1.0f;
 
+    /// What an `[RTX] upscaler` that names nothing is read as, by the user's decision: FSR, the shipped default,
+    /// which runs on every card the renderer does. A file an older build wrote holds `auto`.
+    inline constexpr UpscalerChoice sUpscalerUnread = UpscalerChoice::Fsr;
+
     /// What the launcher selects and saves for a stored kind: `Dlss` whose library is not installed
     /// becomes `Fsr`, so a missing library cannot leave a setting the game must refuse to start.
     constexpr UpscalerChoice launcherUpscaler(const UpscalerChoice saved, const bool installed)

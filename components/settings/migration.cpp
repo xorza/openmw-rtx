@@ -34,5 +34,14 @@ namespace Settings
         }
 
         user[marker] = "true";
+
+        // **An older build's no upscaler was a mode**, `upscale = off`; it is the upscaler's own choice now, and the
+        // mode the shipped one.
+        const CategorySetting upscale("RTX", "upscale");
+        if (const auto found = user.find(upscale); found != user.end() && found->second == "off")
+        {
+            user.erase(found);
+            user[CategorySetting("RTX", "upscaler")] = "off";
+        }
     }
 }
