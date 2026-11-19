@@ -4,7 +4,6 @@
 
 - Remove the visibility limit.
 - Custom map notes plugin.
-- 64 bit build?
 
 ## Open questions
 
