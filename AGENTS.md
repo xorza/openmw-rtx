@@ -3,7 +3,7 @@
 ## What this is
 
 A fork of OpenMW whose purpose is a **ray-traced renderer**: a 2002 game made to look astonishing on current hardware —
-ray-traced visibility, path-traced indirect light, materials recovered from pre-lit vanilla textures. Upstream OpenMW
+ray-traced visibility, path-traced indirect light, vanilla textures lit as they were painted. Upstream OpenMW
 stays the host engine — cells, references, physics, scripts, animation, weather, GUI — and stops owning the picture.
 Vanilla content and the PBR replacers made for OpenMW are read as they are: what a replacer's companion maps add reaches
 the trace, and a vanilla picture does not change because the renderer can read them.
