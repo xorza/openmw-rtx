@@ -43,18 +43,30 @@ namespace Rtx
 
     void SceneTextures::describeAll(const SceneDesc& scene, PreparedImages* const prepared, const bool settled)
     {
-        describe(scene, everyIndexBelow(scene.textures().getRows().size(), mEverything), prepared, settled);
+        describeSlots(scene,
+            Ask{ .mSlots = everyIndexBelow(scene.textures().getRows().size(), mEverything),
+                .mPrepared = prepared,
+                .mSettled = settled,
+                .mHanding = Handing::Whole });
     }
 
     void SceneTextures::describe(
         const SceneDesc& scene, std::span<const TextureIndex> slots, PreparedImages* const prepared, const bool settled)
     {
+        describeSlots(
+            scene, Ask{ .mSlots = slots, .mPrepared = prepared, .mSettled = settled, .mHanding = Handing::Arrivals });
+    }
+
+    void SceneTextures::describeSlots(const SceneDesc& scene, const Ask& ask)
+    {
+        const std::span<const TextureIndex> slots = ask.mSlots;
+        PreparedImages* const prepared = ask.mPrepared;
         mPending.clear();
         mStood.clear();
 
         // **Every file the slots need asked for first, and waited for**, where the caller is settled:
         // asked one at a time and each waited for, they would be read and made one after another.
-        if (settled && prepared != nullptr)
+        if (ask.mSettled && prepared != nullptr)
         {
             for (const TextureIndex slot : slots)
                 if (scene.textures().isLive(slot) && isFile(scene.textures().getRows()[slot]))
@@ -66,6 +78,7 @@ namespace Rtx
         mDescriptions.clear();
         mKept.clear();
         mRefusals.clear();
+        mReads.clear();
 
         mKept.reserve(slots.size());
 
@@ -91,6 +104,10 @@ namespace Rtx
             if (made.mPending)
                 mPending.push_back(Pending{
                     .mSlot = slot, .mSource = row.mImage, .mEncoding = row.mEncoding, .mPartner = row.mPartner });
+
+            // What the device stands whole stays while its file is read again, and arrives once it is.
+            if (made.mPending && ask.mHanding == Handing::Arrivals && row.mStoodBytes > 0)
+                continue;
 
             // **A file stands in while it is read and its chain made**, and is handed to the device once, as
             // the image it keeps: stood as it is meanwhile, it was handed over twice, and a widened one was
@@ -121,7 +138,18 @@ namespace Rtx
                 kept.mBakedFrom = scene.textures().findFile(row.mPath);
             }
             else
-                kept.mGround = Ground{ .mMaterial = row.mGroundOf, .mGloss = row.mKind == TextureKind::GroundGloss };
+            {
+                // The layers' diffuse slots the bake reads, the neutral texel a full table gave a layer aside.
+                const std::size_t at = mReads.size();
+                const Material& chunk = scene.materials().getRows()[row.mGroundOf];
+                for (const MaterialLayer& layer : chunk.mLayers.in(scene.materials().getLayers()))
+                    if (layer.mDiffuse != Shaders::TEXTURE_NEUTRAL)
+                        mReads.push_back(TextureIndex(layer.mDiffuse));
+                kept.mGround = Ground{ .mMaterial = row.mGroundOf,
+                    .mGloss = row.mKind == TextureKind::GroundGloss,
+                    .mReadsAt = at,
+                    .mReadsCount = mReads.size() - at };
+            }
 
             mKept.push_back(std::move(kept));
         }
@@ -249,10 +277,12 @@ namespace Rtx
         // chunk and no bytes.
         assert(kept.mGround.has_value() && "a slot with no file and no bake is a chunk's ground");
         const Ground& chunk = *kept.mGround;
+        const std::span<const TextureIndex> reads = std::span(mReads).subspan(chunk.mReadsAt, chunk.mReadsCount);
         if (chunk.mGloss)
             return TextureData{
                 .mSource = TextureSource::GroundGloss,
                 .mFrom = chunk.mMaterial,
+                .mReads = reads,
                 .mFormat = TextureFormat::Bc7Unorm,
                 .mEncoding = kept.mEncoding,
             };
@@ -260,6 +290,7 @@ namespace Rtx
         return TextureData{
             .mSource = TextureSource::GroundComposite,
             .mFrom = chunk.mMaterial,
+            .mReads = reads,
             .mFormat = TextureFormat::Bc7Srgb,
             .mEncoding = kept.mEncoding,
         };

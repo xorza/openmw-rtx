@@ -55,9 +55,9 @@ namespace Rtx
 
         /// Takes the chunks at the front of the schedule, at most `limit` of them, and says how
         /// many. A chunk taken takes a texture slot and goes onto the material that asked; one
-        /// whose slot another chunk took over while it waited is dropped. A chunk the texture table
-        /// has no room for goes back to the front, and nothing is taken again until the table
-        /// frees a slot.
+        /// whose slot another chunk took over while it waited is dropped, and one with a layer whose
+        /// texture the device has yet to be handed whole goes to the back, each looked at once. A chunk the texture
+        /// table has no room for goes back to the front, and nothing is taken again until the table frees a slot.
         std::size_t take(SceneDesc& scene, std::size_t limit);
 
         /// Puts `asked` at the back of the schedule, growing the ring where it is full.

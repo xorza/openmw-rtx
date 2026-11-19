@@ -786,8 +786,14 @@ namespace Rtx::Testing
             EXPECT_EQ(placed(), 3u + sPlacedCells);
             EXPECT_TRUE(mExtractor.retire().empty());
 
-            // The chunks that asked are flattened as the game's queue flattens them, and the rock
-            // reflects, so cell (3, 0) is given a gloss beside its composite.
+            // The chunks that asked are flattened as the game's queue flattens them, once their layers stand as the
+            // device stands a file read and uploaded, and the rock reflects, so cell (3, 0) is given a gloss beside its
+            // composite.
+            TextureTable& textures = mScene.textures();
+            for (std::uint32_t at = 0; at < textures.getRows().size(); ++at)
+                if (const TextureIndex slot(at);
+                    textures.isLive(slot) && textures.getRows()[slot].mKind == TextureKind::File)
+                    textures.stand(slot, 64, false, 0);
             CompositeQueue composites;
             while (composites.advance(mScene) > 0)
             {

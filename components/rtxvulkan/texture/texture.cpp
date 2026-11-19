@@ -830,10 +830,15 @@ namespace Rtx
 
         if ((texture.mSource == TextureSource::GroundComposite || texture.mSource == TextureSource::GroundGloss)
             && !slot.mStandIn)
+        {
             mPendingComposites.push_back(PendingComposite{ .mSlot = texture.mSlot,
                 .mMaterial = std::get<MaterialIndex>(texture.mFrom),
                 .mOutput = texture.mSource == TextureSource::GroundGloss ? Shaders::GROUND_COMPOSITE_GLOSS
-                                                                         : Shaders::GROUND_COMPOSITE_ALBEDO });
+                                                                         : Shaders::GROUND_COMPOSITE_ALBEDO,
+                .mReadsAt = mPendingReads.size(),
+                .mReadsCount = texture.mReads.size() });
+            mPendingReads.insert(mPendingReads.end(), texture.mReads.begin(), texture.mReads.end());
+        }
 
         owe(texture.mSlot);
     }
@@ -1105,6 +1110,19 @@ namespace Rtx
         mEmptying = block;
     }
 
+    void TextureArray::checkReads(const PendingComposite& pending) const
+    {
+        for (const TextureIndex read : std::span(mPendingReads).subspan(pending.mReadsAt, pending.mReadsCount))
+        {
+            const bool standsIn = read.at() >= mSlots.size() || mSlots[read].mStandIn || mSlots[read].isEmpty();
+            if (!standsIn)
+                continue;
+            Log(Debug::Warning) << "Ray tracing baked the ground of material " << pending.mMaterial.at()
+                                << " over texture slot " << read.at() << ", which draws the stand-in";
+            assert(false && "a ground composite baked over a layer that draws the stand-in");
+        }
+    }
+
     bool TextureArray::awaitsBake(const TextureIndex slot) const
     {
         return std::ranges::any_of(
@@ -1230,6 +1248,7 @@ namespace Rtx
                 if (held.isEmpty())
                     continue;
 
+                checkReads(pending);
                 (pending.mOutput == Shaders::GROUND_COMPOSITE_GLOSS ? gloss : albedo) = &held.getImage();
                 outputs |= pending.mOutput;
             }
@@ -1258,6 +1277,7 @@ namespace Rtx
         }
 
         mPendingComposites.clear();
+        mPendingReads.clear();
         return baked;
     }
 

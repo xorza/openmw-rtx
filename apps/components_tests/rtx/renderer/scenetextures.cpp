@@ -829,16 +829,18 @@ namespace Rtx
         }
 
         /// A chunk's flattened ground is a slot the queue gave out: the description carries the
-        /// chunk the device sums into it and no bytes. The slot's row names the chunk, so a rebuild
-        /// on a later frame, which no queue sees, describes both of its slots as the arrival did.
+        /// chunk the device sums into it, the layer slots it reads, and no bytes. The slot's row names the chunk, so a
+        /// rebuild on a later frame, which no queue sees, describes both of its slots as the arrival did.
         TEST(RtxSceneTexturesTest, aCompositeNamesItsChunkOnTheFrameItArrivesAndOnEveryRebuild)
         {
             Rtx::SceneIdentities identities;
             Rtx::SceneDesc scene(identities);
             const std::array<Rtx::MaterialLayer, 2> layers{ Rtx::MaterialLayer{ .mDiffuse = 0 },
                 Rtx::MaterialLayer{ .mDiffuse = 1, .mFlags = Shaders::LAYER_AUTHORED } };
-            scene.textures().add(VFS::Path::NormalizedView("textures/under.dds"));
-            scene.textures().add(VFS::Path::NormalizedView("textures/over.dds"));
+            // Stood whole, as the device stands a layer read and uploaded: a chunk is flattened over layers that stand.
+            for (const VFS::Path::NormalizedView path :
+                { VFS::Path::NormalizedView("textures/under.dds"), VFS::Path::NormalizedView("textures/over.dds") })
+                scene.textures().stand(scene.textures().add(path), 64, false, 0);
             Rtx::Material chunk;
             chunk.mKind = Rtx::MaterialKind::Terrain;
             chunk.mFlatten = GroundFlattening::Every;
@@ -864,12 +866,16 @@ namespace Rtx
                 EXPECT_TRUE(ground->mBytes.empty()) << when << ": a composite carries no bytes";
                 EXPECT_TRUE(ground->mLevels.empty()) << when << ": a composite is shaped by the pass";
                 EXPECT_EQ(ground->getCompanion(), Rtx::TextureCompanion::Neutral) << when;
+                // **The layers' slots the bake reads**, which the device holds to standing their own textures.
+                const std::vector<Rtx::TextureIndex> layerSlots{ Rtx::TextureIndex(0), Rtx::TextureIndex(1) };
+                EXPECT_EQ(std::vector(ground->mReads.begin(), ground->mReads.end()), layerSlots) << when;
 
                 const auto glossy = find(gloss);
                 ASSERT_NE(glossy, described.getDescriptions().end()) << when;
                 EXPECT_EQ(glossy->mSource, Rtx::TextureSource::GroundGloss) << when;
                 EXPECT_EQ(std::get<Rtx::MaterialIndex>(glossy->mFrom), material) << when;
                 EXPECT_EQ(glossy->mFormat, Rtx::TextureFormat::Bc7Unorm) << when;
+                EXPECT_EQ(std::vector(glossy->mReads.begin(), glossy->mReads.end()), layerSlots) << when;
                 // The rebuild describes the layers' files too, which this test never read.
                 for (const Rtx::Refusal& refused : described.getRefusals())
                     EXPECT_TRUE(refused.mName == "textures/under.dds" || refused.mName == "textures/over.dds")
@@ -1013,6 +1019,42 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::File) << "converted";
             EXPECT_EQ(described.getDescriptions()[0].mFormat, TextureFormat::Bc7Unorm);
             scene.drop(std::move(held));
+        }
+
+        /// **A slot the device stands whole stays as it stands while its file is read again**: an arrival of it
+        /// while the read is pending describes nothing and names it pending, where a stand-in would have put the
+        /// stand-in's grey on the device for the read's length. An array built from nothing still stands in for
+        /// it, having nothing to keep, and once read it arrives as made.
+        TEST(RtxSceneTexturesTest, aSlotStandingWholeStaysAsItStandsWhileItsFileIsReadAgain)
+        {
+            Rtx::SceneIdentities identities;
+            constexpr VFS::Path::NormalizedView path("textures/tx_again.dds");
+            osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<std::uint8_t>(128));
+
+            Rtx::SceneDesc scene(identities);
+            const Testing::Model model = Testing::addModel(scene, path, image);
+            scene.textures().stand(model.mTexture, 48, true, 0);
+            const std::array slots{ model.mTexture };
+
+            PreparedImages prepared(nullptr, 1);
+            SceneTextures described;
+            described.describe(scene, slots, &prepared, false);
+            EXPECT_TRUE(described.getDescriptions().empty()) << "the stand-in handed over a whole texture";
+            EXPECT_TRUE(described.getStood().empty()) << "said to stand something else";
+            ASSERT_EQ(described.getPending().size(), 1u);
+            EXPECT_EQ(described.getPending()[0].mSlot, model.mTexture);
+
+            described.describeAll(scene, &prepared, false);
+            ASSERT_EQ(described.getDescriptions().size(), 1u);
+            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::StandIn)
+                << "a new array has nothing to keep";
+
+            prepared.flush();
+            described.describe(scene, slots, &prepared, false);
+            ASSERT_EQ(described.getDescriptions().size(), 1u);
+            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::File);
+            EXPECT_EQ(described.getDescriptions()[0].mFormat, TextureFormat::Bc7Srgb);
         }
 
         /// **A whole chain made in BC7 is described as it was made, under its file's name**: a 4x4

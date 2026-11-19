@@ -933,10 +933,14 @@ namespace Rtx
             EXPECT_EQ(budget.getHeld(), 0u) << "a header stood whole kept its texels";
 
             // **A settled hand-over hands it over on the hand-over the room comes**, its description reading and
-            // waiting for the texels, so two runs agree on the frame it lands.
-            renderer.mShort.push_back(ShortTexture{ .mSlot = model.mTexture, .mStoodBytes = 0 });
+            // waiting for the texels, so two runs agree on the frame it lands. Moved down for room by the device, which
+            // names its whole: arriving again while its texels are read, it is not handed over in the meantime, and
+            // stands what the device left it.
+            renderer.mShort.push_back(ShortTexture{ .mSlot = model.mTexture, .mStoodBytes = 0, .mWholeBytes = 48 });
             scene.textures().arriveAgain(model.mTexture);
+            renderer.mDescribedSlots.clear();
             hand();
+            EXPECT_TRUE(renderer.mDescribedSlots.empty()) << "a texture standing whole handed the stand-in while read";
             renderer.mDescribedSlots.clear();
             uploader.hand(renderer,
                 Rtx::SceneUploader::Handing{

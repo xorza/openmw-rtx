@@ -23,16 +23,26 @@ namespace Rtx
 {
     namespace
     {
+        /// A layer texture at `path`, the device handed it whole where `stood`, as a file read and uploaded is.
+        TextureIndex addLayerTexture(SceneDesc& scene, const VFS::Path::NormalizedView path, const bool stood)
+        {
+            const TextureIndex slot = scene.textures().add(path);
+            if (stood)
+                scene.textures().stand(slot, 64, false, 0);
+            return slot;
+        }
+
         /// A distant chunk of two ground types, which is a chunk that wants flattening. `reflecting`
-        /// makes the top one an authored layer, which is a chunk that wants a gloss too.
+        /// makes the top one an authored layer, which is a chunk that wants a gloss too; `overStood`
+        /// false leaves the top one's texture standing in, as one still read from its file is.
         MaterialIndex addChunk(SceneDesc& scene, const VFS::Path::NormalizedView under,
-            const VFS::Path::NormalizedView over, const bool reflecting = false)
+            const VFS::Path::NormalizedView over, const bool reflecting = false, const bool overStood = true)
         {
             constexpr std::array<float, 4> weights{ 1.0f, 0.0f, 0.0f, 1.0f };
 
             std::array layers{
-                Testing::layerOf(scene.textures().add(under)),
-                Testing::layerOf(scene.textures().add(over), scene.materials().addMask(weights), 2, 2),
+                Testing::layerOf(addLayerTexture(scene, under, true)),
+                Testing::layerOf(addLayerTexture(scene, over, overStood), scene.materials().addMask(weights), 2, 2),
             };
             if (reflecting)
                 layers[1].mFlags = Shaders::LAYER_AUTHORED;
@@ -119,6 +129,32 @@ namespace Rtx
                 scene.clearArrivals();
                 EXPECT_EQ(frame(queue, scene), 0u) << "a chunk with its ground asked again";
             }
+        }
+
+        /// **A chunk is flattened once every layer's texture stands**, and shades from its stack until then: the bake
+        /// reads each layer's diffuse, and over one still read from its file it held the stand-in's grey in the
+        /// distance. A chunk asked after it is taken meanwhile, and the waiting one is taken on the frame its last
+        /// layer stands, once.
+        TEST(RtxCompositeQueueTest, aChunkIsFlattenedOnceEveryLayersTextureStands)
+        {
+            SceneIdentities identities;
+            SceneDesc scene(identities);
+            const MaterialIndex reading = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
+                VFS::Path::NormalizedView("textures/read.dds"), false, false);
+            const MaterialIndex stood = addChunk(
+                scene, VFS::Path::NormalizedView("textures/under.dds"), VFS::Path::NormalizedView("textures/over.dds"));
+
+            CompositeQueue queue;
+            EXPECT_EQ(frame(queue, scene), 1u) << "the chunk behind the waiting one was held up";
+            EXPECT_EQ(scene.materials().getRows()[reading].mDiffuse, sNoRow) << "flattened over a stand-in";
+            EXPECT_NE(scene.materials().getRows()[stood].mDiffuse, sNoRow);
+            EXPECT_EQ(frame(queue, scene), 0u) << "taken while its layer still stands in";
+
+            const TextureIndex read = scene.textures().add(VFS::Path::NormalizedView("textures/read.dds"));
+            scene.textures().stand(read, 64, false, 0);
+            EXPECT_EQ(frame(queue, scene), 1u) << "not taken once its last layer stood";
+            EXPECT_NE(scene.materials().getRows()[reading].mDiffuse, sNoRow);
+            EXPECT_EQ(frame(queue, scene), 0u) << "asked again once given";
         }
 
         /// **A frame with nothing asked allocates nothing**, once a chunk has been taken: every frame of a walk

@@ -52,7 +52,9 @@ namespace Rtx
 
         /// The same, for `slots` and nothing else — what stops a texture being described twice. A
         /// list and not an offset, because a slot a departing cell freed is taken over wherever it
-        /// sits.
+        /// sits. **A slot the device already stands whole is left as it stands while its file is read
+        /// again** (a want moved finer, `TextureTable::arriveFiner`), and named in `getPending`: stood
+        /// in meanwhile, it drew the stand-in's grey, and a ground composite baked then kept it.
         void describe(
             const SceneDesc& scene, std::span<const TextureIndex> slots, PreparedImages* prepared, bool settled);
 
@@ -98,11 +100,36 @@ namespace Rtx
         void letGo();
 
     private:
+        /// Whether a described slot is one of an array built from nothing, which stands in for what is still
+        /// read, or an arrival into one that stands it already.
+        enum class Handing
+        {
+            Whole,
+            Arrivals,
+        };
+
+        /// What one `describe` is asked: the slots, where their images are found, whether to wait for them, and into
+        /// what they are handed.
+        struct Ask
+        {
+            std::span<const TextureIndex> mSlots;
+            PreparedImages* mPrepared;
+            bool mSettled;
+            Handing mHanding;
+        };
+
+        void describeSlots(const SceneDesc& scene, const Ask& ask);
+
         /// The chunk a composite slot flattens, and which of its two layers the slot holds.
         struct Ground
         {
             MaterialIndex mMaterial = sNoRow;
             bool mGloss = false;
+
+            /// Where its layers' slots stand in `mReads`, which the description hands the device
+            /// (`TextureData::mReads`).
+            std::size_t mReadsAt = 0;
+            std::size_t mReadsCount = 0;
         };
 
         /// One slot `describe` decided to describe, and what resolving it found.
@@ -165,6 +192,10 @@ namespace Rtx
         /// Every slot of the scene's table, which is what a rebuild asks about. Held rather than
         /// built, because a rebuild is a fifth of a second and none of it should be this.
         std::vector<TextureIndex> mEverything;
+
+        /// Every composite's layer slots, back to back, which its description spans: filled before the first
+        /// description is taken, and never grown while one spans it.
+        std::vector<TextureIndex> mReads;
 
         std::vector<Refusal> mRefusals;
     };

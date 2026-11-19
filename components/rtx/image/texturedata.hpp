@@ -154,6 +154,10 @@ namespace Rtx
         /// `StandIn`, which are made from nothing but their own bytes.
         std::variant<std::monostate, TextureIndex, MaterialIndex> mFrom{};
 
+        /// The slots a bake made on the device reads, which stand their own textures and never the stand-in when it is
+        /// made (`CompositeQueue`): a ground composite's or its gloss's layers. Empty under every other source.
+        std::span<const TextureIndex> mReads{};
+
         TextureFormat mFormat = TextureFormat::Bc1RgbaSrgb;
 
         /// What the slot's texels are, which the scene's table says per slot and `mFormat` follows.

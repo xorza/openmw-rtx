@@ -22,6 +22,17 @@ namespace Rtx
                 [](const MaterialLayer& layer) { return (layer.mFlags & Shaders::LAYER_AUTHORED) != 0u; });
         }
 
+        /// Whether every layer of `layers` reads a texture the device was handed whole (`TextureRow::mStoodBytes`), or
+        /// the neutral texel a full table gave it: what the bake reads of each is its diffuse, and one that still
+        /// stands in, its file being read, would be flattened into the chunk as the stand-in's grey for good.
+        bool layersStand(const SceneDesc& scene, const Run& layers)
+        {
+            return std::ranges::all_of(layers.in(scene.materials().getLayers()), [&](const MaterialLayer& layer) {
+                return layer.mDiffuse == Shaders::TEXTURE_NEUTRAL
+                    || scene.textures().getRows()[TextureIndex(layer.mDiffuse)].mStoodBytes > 0;
+            });
+        }
+
         /// Whether `material` still wants the ground it asked for as `asked`: the same kind, still
         /// asking, not yet given, and its layers where they were. The run and not the layers in it:
         /// the bake reads the row as it stands when the slot is given, so a run handed out again to
@@ -110,8 +121,10 @@ namespace Rtx
         if (mRefused.stands(sCompositeTake, freed))
             return 0;
 
+        // Each ask looked at once a frame at most: one whose layers still stand in goes to the back.
+        const std::size_t waiting = mCount;
         std::size_t finished = 0;
-        while (finished < limit && mCount > 0)
+        for (std::size_t looked = 0; looked < waiting && finished < limit; ++looked)
         {
             const Asked asked = mWaiting[mFront];
             mFront = (mFront + 1) % mWaiting.size();
@@ -123,6 +136,15 @@ namespace Rtx
             // on another's.
             if (!stillWants(scene, asked.mMaterial, asked.mLayers))
                 continue;
+
+            // **Flattened once every layer's texture stands**, and shading from its stack until then: a bake over a
+            // layer still read from its file held the stand-in's grey in the distance until the chunk was placed
+            // again.
+            if (!layersStand(scene, asked.mLayers))
+            {
+                wait(asked);
+                continue;
+            }
 
             // A table with no room left keeps the chunk on its stack, which the shader sums at the
             // hit as it does for every chunk still waiting, and keeps its place in line: dropped, it

@@ -614,7 +614,17 @@ namespace Rtx
 
             /// `GROUND_COMPOSITE_ALBEDO` or `GROUND_COMPOSITE_GLOSS`.
             std::uint32_t mOutput = 0;
+
+            /// Where the layers it reads stand in `mPendingReads` (`TextureData::mReads`).
+            std::size_t mReadsAt = 0;
+            std::size_t mReadsCount = 0;
         };
         std::vector<PendingComposite> mPendingComposites;
+        std::vector<TextureIndex> mPendingReads;
+
+        /// Says, in the log and in a debug build's assert, every layer of `pending` that draws the stand-in as its
+        /// bake is recorded: the stand-in's grey kept in the distance for good. The scene never asks it
+        /// (`CompositeQueue`), so a tour that meets one has met a bug.
+        void checkReads(const PendingComposite& pending) const;
     };
 }

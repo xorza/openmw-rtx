@@ -357,6 +357,11 @@ filled on the loading screen (`research/2026-11-08-normal-map-chains.md`).
   layout as a setting; every map read as metal-roughness.
 - **A file is read and its chain built on a worker**, never on the frame or the reader: a slot stands in until both
   land, so the device is handed the file once. Refused: the file drawn as it stands meanwhile, handed over twice.
+- **A texture the device stands whole keeps standing while its file is read again**, for a finer want: only a slot
+  with nothing whole draws the stand-in. Refused: the stand-in for the read's length, a grey a bake could keep.
+- **A ground composite is made only of layers the device stands whole**: a chunk waits on its stack until each has
+  arrived, and the device says, in the log a tour reads, any layer that draws the stand-in as a bake is recorded.
+  Refused: rebaking a chunk once a late layer lands, a second bake for what waiting never makes wrong.
 - **The store is filled on the loading screen, in the game's own process** (`Rtx::ContentPreparation`), by the user's
   decision: every model and land texture the content list names, walked as the cell reader walks them. Refused: a
   child tool behind a pipe protocol; a launcher tab, a second route.
