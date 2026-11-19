@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenMW RTX</title>
+<meta name="description" content="A fork of OpenMW that makes Morrowind work your GPU hard again: ray-traced lighting and path-traced indirect light.">
+<link rel="canonical" href="https://openmw-rtx.com/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="OpenMW RTX">
+<meta property="og:description" content="Morrowind made to work your GPU hard again: ray-traced lighting and path-traced indirect light.">
+<meta property="og:url" content="https://openmw-rtx.com/">
+<meta property="og:image" content="https://openmw-rtx.com/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/MysticCards.ttf" as="font" type="font/ttf" crossorigin>
+<style>
+/* The game's own screen: a night screenshot is the world, with the title and a main-menu column on its sky; under it
+   the page is Morrowind's menu mode, windows tiled on a dark ground, each a double bronze line with its caption
+   between rules. The fonts are byte for byte files/data/fonts', unconverted, so their licence's reserved names hold. */
+@font-face {
+  font-family: "Mystic Cards";
+  src: url(fonts/MysticCards.ttf) format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Demonic Letters";
+  src: url(fonts/DemonicLetters.ttf) format("truetype");
+  /* An ornament: unseen until it loads, rather than the title spelled twice in Latin. */
+  font-display: block;
+}
+:root {
+  color-scheme: dark;
+  /* Morrowind.ini [FontColor]: color_normal, _over, _pressed, color_link, color_link_over. */
+  --ink: #caa560;
+  --ink-over: #dfc99f;
+  --ink-pressed: #f3eddd;
+  --link: #707ecf;
+  --link-over: #8f9bda;
+  --ink-dim: #9a8459;
+  --world: #14110c;
+  --window: #050403;
+  --frame: #8a7344;
+  --frame-dim: #4d4026;
+  --text: "Mystic Cards", "Palatino Linotype", Palatino, Georgia, serif;
+  --daedric: "Demonic Letters", "Mystic Cards", serif;
+}
+*, ::before, ::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--world);
+  color: var(--ink);
+  font: 400 1.1875rem/1.5 var(--text);
+}
+a { color: var(--link); }
+a:hover { color: var(--link-over); }
+:focus-visible { outline: 2px solid var(--ink-pressed); outline-offset: 3px; }
+p, h1, h2, dl, dd { margin: 0; }
+
+.wrap {
+  width: 100%;
+  max-width: 74rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: center;
+  min-height: min(42vw, 44rem);
+}
+/* The picture is 2560 wide and stops at 120rem, its ends faded into the ground, rather than stretch across a wider
+   screen. */
+.hero::before {
+  --focus: 62% 30%;
+  --scrim: linear-gradient(to right, color-mix(in srgb, var(--window) 80%, transparent), transparent 68%);
+  --ends: none;
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  max-width: 120rem;
+  margin-inline: auto;
+  background:
+    var(--ends),
+    linear-gradient(to top, var(--world), transparent 28%),
+    var(--scrim),
+    var(--window) url(img/tower-night.jpg) var(--focus) / cover no-repeat;
+}
+.hero .wrap {
+  padding-block: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
+  text-shadow: 0 1px 2px var(--window), 0 0 18px var(--window);
+}
+.daedric {
+  font: 1.15rem/1 var(--daedric);
+  letter-spacing: 0.3em;
+  color: var(--ink-dim);
+}
+h1 {
+  font: 400 clamp(3.2rem, 10vw, 6.5rem)/0.95 var(--text);
+  letter-spacing: 0.01em;
+  color: var(--ink-over);
+}
+.lede {
+  max-width: 30ch;
+  font-size: clamp(1.25rem, 2.4vw, 1.5rem);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding-top: 0.9rem;
+  font-size: 1.65rem;
+  line-height: 1.3;
+}
+.menu a, .button { color: var(--ink); text-decoration: none; }
+.menu a:hover, .button:hover { color: var(--ink-over); }
+.menu a:active, .button:active { color: var(--ink-pressed); }
+
+main.wrap {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+  padding-block: 0.5rem 3rem;
+}
+.window {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 0.9rem clamp(0.9rem, 3vw, 1.6rem) 1.5rem;
+  background: var(--window);
+  border: 3px double var(--frame);
+}
+.caption {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font: 400 1.3rem/1.2 var(--text);
+  color: var(--ink-over);
+}
+.caption::before, .caption::after {
+  content: "";
+  flex: 1;
+  min-width: 1rem;
+  height: 6px;
+  border-block: 1px solid var(--frame);
+}
+.prose { display: flex; flex-direction: column; gap: 0.9rem; max-width: 62ch; }
+
+.stats {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 1.25rem;
+}
+.stats dd { color: var(--ink-over); text-align: right; }
+.button {
+  align-self: flex-start;
+  padding: 0.45rem 1.4rem;
+  font-size: 1.35rem;
+  border: 3px double var(--frame);
+}
+.button:hover { border-color: var(--ink); }
+.note { color: var(--ink-dim); font-size: 1rem; line-height: 1.45; }
+
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: 0.9rem;
+}
+.shots a { display: block; border: 1px solid var(--frame-dim); }
+.shots a:hover { border-color: var(--ink); }
+.shots img { display: block; width: 100%; height: auto; color: var(--ink-dim); font-size: 1rem; }
+
+#viewer {
+  --border: 3px;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+  background: var(--window);
+  border: var(--border) double var(--frame);
+}
+#viewer::backdrop { background: color-mix(in srgb, var(--window) 88%, transparent); }
+#viewer button { display: block; padding: 0; border: 0; background: none; cursor: zoom-out; }
+/* Sized from the screenshots' one shape, 2560 by 1366, so the window stands at its size before the picture loads;
+   the thumbnail is its ground until then. */
+#viewer img {
+  --room: 96vw - 2 * var(--border);
+  --room-tall: 96vh - 2 * var(--border);
+  display: block;
+  width: min(2560px, var(--room), (var(--room-tall)) * 2560 / 1366);
+  aspect-ratio: 2560 / 1366;
+  background-size: cover;
+}
+
+footer.wrap {
+  padding-block: 0 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: var(--ink-dim);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+footer p { max-width: 70ch; }
+
+@media (min-width: 60rem) {
+  .window.about { grid-column: 1 / 4; }
+  .window.get { grid-column: 4 / -1; }
+}
+@media (min-width: 120rem) {
+  .hero::before { --ends: linear-gradient(to right, var(--world), transparent 12%, transparent 88%, var(--world)); }
+}
+@media (max-width: 40rem) {
+  .hero::before {
+    --focus: 72% 38%;
+    --scrim: linear-gradient(color-mix(in srgb, var(--window) 55%, transparent) 0 100%);
+  }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="daedric" aria-hidden="true">openmw rtx</p>
+    <h1>OpenMW RTX</h1>
+    <p class="lede">Morrowind made to work your GPU hard again: ray-traced lighting and path-traced indirect light.</p>
+    <nav class="menu" aria-label="Main">
+      <a href="https://github.com/xorza/openmw-rtx/releases/latest">Download</a>
+      <a href="#screenshots">Screenshots</a>
+      <a href="https://youtu.be/2_a1KQA44-I">Watch the demo</a>
+      <a href="https://github.com/xorza/openmw-rtx">Source code</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="window about" aria-labelledby="about-caption">
+    <h2 class="caption" id="about-caption">What it is</h2>
+    <div class="prose">
+      <p>OpenMW RTX is a fork of <a href="https://openmw.org">OpenMW</a> with a ray tracer in place of its renderer. The whole picture is ray traced on the GPU: visibility, shadows, direct and indirect light, sky, water and fog.</p>
+      <p>OpenMW stays the engine underneath, with its cells, physics, scripts, animation, weather and interface. The goal is a 2002 game made to look astonishing on current hardware, with its content as it stands.</p>
+      <p>Vanilla Morrowind and the PBR replacers made for OpenMW are read as they are. Morrowind's textures have their light painted in, so the renderer estimates that light and divides it out to recover materials the new light can use.</p>
+    </div>
+  </section>
+
+  <section class="window get" aria-labelledby="get-caption">
+    <h2 class="caption" id="get-caption">Download</h2>
+    <dl class="stats">
+      <dt>NVIDIA</dt><dd>RTX 20 or later</dd>
+      <dt>AMD</dt><dd>RX 6000 or later</dd>
+      <dt>Vulkan</dt><dd>1.4 with ray tracing</dd>
+      <dt>System</dt><dd>Linux or Windows</dd>
+      <dt>Game data</dt><dd>your copy of Morrowind</dd>
+    </dl>
+    <p>Each release holds the game, the launcher and the installation wizard: an AppImage for Linux and a zipped portable folder for Windows.</p>
+    <a class="button" href="https://github.com/xorza/openmw-rtx/releases/latest">Download from GitHub</a>
+    <p class="note">Written and tested on NVIDIA first; AMD cards are less tested. FSR upscaling is built in, and on an NVIDIA RTX card the launcher can fetch DLSS Ray Reconstruction from NVIDIA instead.</p>
+  </section>
+
+  <section class="window" id="screenshots" aria-labelledby="shots-caption">
+    <h2 class="caption" id="shots-caption">Screenshots</h2>
+    <div class="shots">
+      <a href="img/hall.jpg"><img src="img/hall-thumb.jpg" width="800" height="427" loading="lazy" alt="A vaulted hall lit by candles and lanterns, their warm light spilling across arches and a dining table"></a>
+      <a href="img/tower-dusk.jpg"><img src="img/tower-dusk-thumb.jpg" width="800" height="427" loading="lazy" alt="A Telvanni mushroom tower on a hill under an ashen evening sky, lanterns glowing at its foot"></a>
+      <a href="img/room.jpg"><img src="img/room-thumb.jpg" width="800" height="427" loading="lazy" alt="A timber-ribbed room where cold blue window light meets the orange of a candle on the counter"></a>
+      <a href="img/waterfalls.jpg"><img src="img/waterfalls-thumb.jpg" width="800" height="427" loading="lazy" alt="Two waterfalls glowing blue in a sandstone hall lit by a single torch"></a>
+      <a href="img/tree.jpg"><img src="img/tree-thumb.jpg" width="800" height="427" loading="lazy" alt="A tree under a timber roof at night, lit from below, with blue lanterns and paper screens behind it"></a>
+      <a href="img/harbour.jpg"><img src="img/harbour-thumb.jpg" width="800" height="427" loading="lazy" alt="A ship moored at a swamp village at night, a few windows lit under the stars"></a>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>OpenMW RTX stands on the work of the OpenMW developers and of everyone who has contributed to OpenMW since 2008. GPLv3, as upstream.</p>
+  <p>Set in Mystic Cards and Demonic Letters, OpenMW's own fonts, under the SIL Open Font License. An unofficial fan project: The Elder Scrolls and Morrowind are trademarks of ZeniMax Media Inc.</p>
+</footer>
+
+<dialog id="viewer" aria-label="Screenshot">
+  <form method="dialog"><button aria-label="Close the screenshot"></button></form>
+</dialog>
+
+<script>
+const viewer = document.getElementById("viewer");
+const frame = viewer.querySelector("button");
+document.querySelector(".shots").addEventListener("click", (event) => {
+  const link = event.target.closest("a");
+  if (!link) return;
+  // A click with a modifier is the browser's: a new tab, a new window, a download.
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  const thumb = link.querySelector("img");
+  // A new element each time, so the last picture never stands in for this one.
+  const picture = document.createElement("img");
+  picture.alt = thumb.alt;
+  picture.style.backgroundImage = `url("${thumb.currentSrc}")`;
+  picture.src = link.href;
+  frame.replaceChildren(picture);
+  viewer.showModal();
+});
+viewer.addEventListener("click", () => viewer.close());
+</script>
+</body>
+</html>
