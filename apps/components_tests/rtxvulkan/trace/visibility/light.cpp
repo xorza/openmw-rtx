@@ -2868,13 +2868,18 @@ namespace Rtx::Testing
         /// the sun and stops it; lifted onto the surface the normals describe (nine tenths of the ten units the
         /// ridge's tangent plane stands above the point) it clears the ridge.
         ///
-        /// The facet the sun faces is lifted too, for a sun sixty degrees off the zenith on the near side,
-        /// (0, 0.866, 0.5), which the plane meets at a cosine of 0.966 and the normal at 0.56164, so
-        /// 0.5 · 4 · 0.56164 / π = 0.35755. A ledge two-sided at z = 95 over y from 13 to 30 stands in its way:
-        /// the ray from the facet meets that height at y = 18.66 and stops, and lifted to z = 99 it starts
-        /// above the ledge and climbs away. That is the Seyda Neen boulder's neighbour standing over a facet
-        /// that faces the sun; a contact shadow of the same height lost is its cost.
-        TEST_F(RtxVisibilityTest, aFacetIsLitWhereItsNormalsFaceTheSunAndNotShadowedWithinItsLift)
+        /// The facet the sun faces is not lifted (`liftedToward`), for a sun sixty degrees off the zenith on the
+        /// near side, (0, 0.866, 0.5), which the plane meets at a cosine of 0.966, past `LIFT_TERMINATOR`. A ledge
+        /// two-sided at z = 95 over y from 13 to 30 stands in its way: the ray from the facet meets that height at
+        /// y = 18.66 and stops, where lifted to z = 99 it would start above the ledge and climb away. That is a
+        /// ledge over a wall at Seyda Neen, whose lift took the sun to the wall under it.
+        ///
+        /// Between the two the lift fades: a sun on the far side 39.26 degrees off the zenith, which the plane meets
+        /// at a cosine of `cos(39.26° + 45°)` = 0.1, takes `1 - 0.1 / 0.5` = 0.8 of the nine units, so the ray
+        /// starts at z = 97.2 over a second ledge at z = 95 over y from 3 to 8, which the ray from the facet meets at
+        /// y = 10 - 5 · tan 39.26° = 5.91. The normal meets that sun at a cosine of 0.72640: 0.5 · 4 · 0.7264 / π =
+        /// 0.46244. At Cycles' tenth the facet would take none of its lift there, and the ledge would stop it.
+        TEST_F(RtxVisibilityTest, aFacetIsLitWhereItsNormalsFaceTheSunAndShadowedByWhatStandsOverItWhereItFacesTheSun)
         {
             SceneIdentities identities;
             constexpr std::uint32_t size = 17;
@@ -2948,8 +2953,17 @@ namespace Rtx::Testing
                 std::array{ osg::Vec3f(-50.0f, 13.0f, 95.0f), osg::Vec3f(50.0f, 13.0f, 95.0f),
                     osg::Vec3f(50.0f, 30.0f, 95.0f), osg::Vec3f(-50.0f, 30.0f, 95.0f) },
                 scene.addMaterial(Material{ .mTwoSided = true }));
-            EXPECT_NEAR(litAt(nearSun), 0.5f * sunlight * (normal * nearSun) / std::numbers::pi_v<float>, 0.003f)
-                << "not shadowed by what stands within its lift";
+            EXPECT_LT(litAt(nearSun), 0.003f) << "shadowed by what stands over a facet facing the sun";
+
+            const float grazing = std::acos(0.1f) - std::numbers::pi_v<float> / 4.0f;
+            const osg::Vec3f grazingSun(0.0f, -std::sin(grazing), std::cos(grazing));
+            ASSERT_NEAR(nearSide * grazingSun, 0.1f, 1e-5f) << "the near side's plane meets the sun at a tenth";
+            addQuad(scene,
+                std::array{ osg::Vec3f(-50.0f, 3.0f, 95.0f), osg::Vec3f(50.0f, 3.0f, 95.0f),
+                    osg::Vec3f(50.0f, 8.0f, 95.0f), osg::Vec3f(-50.0f, 8.0f, 95.0f) },
+                scene.addMaterial(Material{ .mTwoSided = true }));
+            EXPECT_NEAR(litAt(grazingSun), 0.5f * sunlight * (normal * grazingSun) / std::numbers::pi_v<float>, 0.003f)
+                << "lifted over what stands within the part of its lift a sun near its terminator takes";
         }
 
         /// A bounce does not gather through the triangle it left. The same leaning normal, asked of the

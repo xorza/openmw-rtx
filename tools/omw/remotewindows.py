@@ -120,8 +120,9 @@ class WindowsHost:
 def bring_commit(host: WindowsHost, tree: PureWindowsPath, git: Callable[[list[str]], str]) -> str:
     """This commit into the host's clone, checked out detached: what its clone lacks comes as a bundle, which needs
     no Git server on either machine, and a commit it holds already comes as nothing, an ancestor of what it stands at
-    among them, whose bundle would be empty. Refuses a clone with changes of its own, which the checkout would carry
-    along."""
+    among them, whose bundle would be empty. The fetch forces `refs/omw/remote`, which names only the commit last
+    brought and so stands on another line whenever two trees run there. Refuses a clone with changes of its own, which
+    the checkout would carry along."""
     commit = git(["rev-parse", "HEAD"]).strip()
     if host.cmd(f"cd /d {cmd_quote(str(tree))} && git status --porcelain").strip():
         raise Refusal(f"remote: {host.host}'s clone at {tree} has changes of its own; commit or drop them there")
@@ -138,7 +139,7 @@ def bring_commit(host: WindowsHost, tree: PureWindowsPath, git: Callable[[list[s
         host.cmd(f"if not exist {cmd_quote(str(remote_bundle.parent))} mkdir {cmd_quote(str(remote_bundle.parent))}")
         host.put(bundle, remote_bundle)
         bundle.unlink()
-        host.cmd(f"cd /d {cmd_quote(str(tree))} && git fetch -q {cmd_quote(str(remote_bundle))} HEAD:refs/omw/remote")
+        host.cmd(f"cd /d {cmd_quote(str(tree))} && git fetch -q {cmd_quote(str(remote_bundle))} +HEAD:refs/omw/remote")
     if theirs != commit:
         host.cmd(f"cd /d {cmd_quote(str(tree))} && git checkout -q --detach {commit}")
     return commit

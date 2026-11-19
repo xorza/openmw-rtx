@@ -118,8 +118,9 @@ SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
 /// (`docs/research/2026-11-15-radv-wave-tiers.md`).
 struct GatherRays
 {
-    /// Where the rays leave from, the shaded point lifted off its facet (`Surface::mLift`), and the step off
-    /// the triangle that stands on (`stepOf`).
+    /// Where the sky's rays leave from, the shaded point lifted toward the drawn source (`liftedToward`), and the step
+    /// off the triangle the point stands on (`stepOf`). A stage's held lamps leave from their reservoirs' points
+    /// (`Reservoir::mFrom`), each lifted toward its lamp; a path end's from this one (`pathEndLightOf`).
     vec3 mLeaving;
     vec3 mStep;
 
@@ -264,12 +265,12 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
     const vec3 position = surface.mPosition;
     const Facing facing = facingOf(surface);
 
-    // Only the shadow rays leave from the surface the normals describe (`Surface::mLift`): what a
-    // light delivers is weighed at the point shaded, the one the eye sees.
-    const vec3 leaving = position + surface.mLift;
-
-    run.mRays.mLeaving = leaving;
-    run.mRays.mStep = stepOf(surface);
+    // Only the shadow rays leave from the surface the normals describe (`Surface::mLift`), lifted toward each
+    // source by how near it stands to the facet's terminator (`liftedToward`): what a light delivers is weighed
+    // at the point shaded, the one the eye sees.
+    const vec3 step = stepOf(surface);
+    run.mRays.mLeaving = position;
+    run.mRays.mStep = step;
     run.mRays.mSequence = run.mKey + run.mLamps;
 
     // **The eye's own split hit takes its draws from the tile**, the pick here (`STREAM_SKY_PICK`) and its rays'
@@ -300,8 +301,13 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
         weighLampStrata(listed, kept, state, position, facing, INV_PI, gloss, surface.mLampLit, list);
     else
         weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit, frame.mLampCandidates);
-    kept.mFrom = leaving;
-    listed.mFrom = leaving;
+    // Each held lamp's row read only where one was held: a picture no lamp lights may have no row.
+    kept.mFrom = position;
+    listed.mFrom = position;
+    if (kept.mWeight > 0.0)
+        kept.mFrom = liftedToward(position, surface.mLift, step, lightAt(kept.mLamp).mPosition - position);
+    if (listed.mWeight > 0.0)
+        listed.mFrom = liftedToward(position, surface.mLift, step, lightAt(listed.mLamp).mPosition - position);
     run.mKept = kept;
     run.mListed = listed;
 
@@ -354,6 +360,8 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
         // The pick's index is the source's id: `pickByWeight` was handed the three in their ids' order.
         run.mRays.mSkyPicked = pick.mIndex;
         run.mRays.mSkyAsked = true;
+        run.mRays.mLeaving
+            = liftedToward(position, surface.mLift, step, skySourceAt(pick.mIndex).mDirection);
         run.mRays.mSkyNearest = split && !drawnAmong(picked.mLight.mWeight, skyWeight);
 
         // **Each source's term whole, as the lamps' unshadowed sum is**: split, every source with a weight
@@ -771,6 +779,14 @@ PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint lamps, uint indir
     light.mLampDiffuse = (lampArriving - lampTaken) * rated;
     light.mLampSpecular = (gloss.mGlossy ? kept.mSpecular * held : vec3(0.0)) * rated;
     light.mRays.mLamp = kept.mWeight > 0.0 ? kept.mLamp : LAMP_LIST_NONE;
+
+    // **One start for both of a path end's rays**, the sky's and the held lamp's, as a second point held through
+    // their traversals spilled the landing past its ceiling: the one of the two lifted less (`liftedToward`), so
+    // neither ray leaves past what stands over its facet, and the lamp's where the sky asks none.
+    const vec3 position = surface.mPosition;
+    const vec3 sky = gather.mRays.mLeaving;
+    if (kept.mWeight > 0.0 && (!gather.mRays.mSkyAsked || distance(kept.mFrom, position) < distance(sky, position)))
+        light.mRays.mGather.mLeaving = kept.mFrom;
     return light;
 }
 
@@ -1013,6 +1029,9 @@ struct HeldLamps
     float mDistance;
     bool mDrawn;
     uint mRow;
+
+    /// Where the held lamp's ray leaves from: its reservoir's point (`Reservoir::mFrom`).
+    vec3 mLeaving;
 };
 
 /// The stratum `kept` weighed on `surface` and its `gloss`: its unshadowed light less its share of what the
@@ -1030,6 +1049,7 @@ HeldLamps heldLampsOf(Reservoir kept, float stretch, vec3 darkening, vec3 unshad
     vec3 lobe = gloss.mGlossy ? kept.mSpecular * heldShare(kept) / specularModulation(gloss) : vec3(0.0);
     lamps.mDrawn = drawnAmong(kept.mWeight, kept.mTotal);
     lamps.mRow = kept.mWeight > 0.0 ? kept.mLamp : LAMP_LIST_NONE;
+    lamps.mLeaving = kept.mFrom;
 
     // The held lamp's row, read only where one was held: a picture no lamp lights may have no row.
     lamps.mStretchedRadius = 0.0;
@@ -1057,12 +1077,13 @@ HeldLamps heldLampsOf(Reservoir kept, float stretch, vec3 darkening, vec3 unshad
     return lamps;
 }
 
-/// The shadow ray of a stratum's held lamp, from `from` off the triangle `step` stands for, aimed by the eye's draw
-/// `draw` of the tile (`STREAM_LAMP_DISC`, `STREAM_LAMP_DISC_LISTED`): the nearest occluder's where its lamp carried all of its stratum's light, which the penumbra is made of. None where it held
-/// no lamp.
-RayAsk heldLampRay(HeldLamps lamps, vec3 from, vec3 step, vec2 draw)
+/// The shadow ray of a stratum's held lamp, from where it leaves (`HeldLamps::mLeaving`) off the triangle `step` stands
+/// for, aimed by the eye's draw `draw` of the tile (`STREAM_LAMP_DISC`, `STREAM_LAMP_DISC_LISTED`): the nearest
+/// occluder's where its lamp carried all of its stratum's light, which the penumbra is made of. None where it held no
+/// lamp.
+RayAsk heldLampRay(HeldLamps lamps, vec3 step, vec2 draw)
 {
-    return lamps.mRow != LAMP_LIST_NONE ? lampRowAsk(lamps.mRow, from, step, draw, !lamps.mDrawn) : noRay();
+    return lamps.mRow != LAMP_LIST_NONE ? lampRowAsk(lamps.mRow, lamps.mLeaving, step, draw, !lamps.mDrawn) : noRay();
 }
 
 /// A stratum's penumbra once its ray answered `passage`, in `footprint`s, as `seenSolidOf` counts each: the whole

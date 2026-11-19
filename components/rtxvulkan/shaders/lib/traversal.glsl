@@ -55,6 +55,33 @@ vec3 leaveSurface(vec3 point, vec3 step, vec3 direction)
     return point + (dot(direction, step) < 0.0 ? -step : step);
 }
 
+/// The facet's cosine to a light from which a shadow ray leaves from the facet and not from the surface the vertex
+/// normals describe (`liftedToward`): Cycles' shadow terminator geometry offset, which it defaults to a tenth.
+///
+/// **A half, for Morrowind's coarse rocks**: at a tenth the Seyda Neen boulder's facets cast hard wedges on each other
+/// that its normals round over, and at a half they are gone while a wall facing the sun still takes its ledge's shadow.
+const float LIFT_TERMINATOR = 0.5;
+
+/// Where a shadow ray toward `towards` leaves from: `point` lifted by `lift` (`Surface::mLift`) in full where the light
+/// stands at or past the facet's terminator, and not at all where the facet faces it by `LIFT_TERMINATOR` or more,
+/// in a line between.
+///
+/// **Only toward the terminator, as Cycles fades it** (`shadow_ray_offset`): the lift is the curve the vertex
+/// normals describe, which stands off a large triangle by as much as its normals lean, and leaving from there on
+/// every ray took the sun past a ledge's lip to the wall under it at Seyda Neen, the lift there over sixteen units.
+/// The facet faces such a light, so its own shadow rays need none; refused: the lift on every ray (Hanika's chapter
+/// as written), which is that leak.
+///
+/// @param step the facet's step (`stepOf`), turned out of the side the ray met as `lift` is; nought in the air,
+///        where `lift` is nought too.
+/// @param towards the light's direction, of any length.
+vec3 liftedToward(vec3 point, vec3 lift, vec3 step, vec3 towards)
+{
+    const float reach = LIFT_TERMINATOR * length(step) * length(towards);
+    const float share = reach > 0.0 ? clamp(1.0 - dot(step, towards) / reach, 0.0, 1.0) : 1.0;
+    return point + lift * share;
+}
+
 /// Whether a material is meant to be seen through everywhere, rather than in the holes of a mask.
 bool isTranslucent(GpuMaterial material)
 {
@@ -1161,11 +1188,8 @@ struct Surface
     /// faces: what takes a light's side from `mGeometric` and not from `mSmooth` (`facingOf`).
     bool mSheet;
 
-    /// How far above this point the surface the vertex normals describe stands — `smoothLift` — which every
-    /// light's shadow ray leaves from.
-    ///
-    /// **On every shadow ray, as Hanika and RTX Remix lift it**, and not only past the facet's terminator
-    /// as Cycles does.
+    /// How far above this point the surface the vertex normals describe stands — `smoothLift` — which a
+    /// light's shadow ray leaves from by how near the light stands to the facet's terminator (`liftedToward`).
     vec3 mLift;
 
     /// What light on the far side of this surface is worth to the side the ray met, against the same light

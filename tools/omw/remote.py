@@ -211,7 +211,9 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
     rsync = require("rsync", "it is what copies the build there and the files back: rsync")
 
     folder = build.dir
-    probed = subprocess.run([ssh, *SSH, host, f"test -w {shlex.quote(str(folder.parent))}"], check=False)
+    # Made first, as a run's other folders are: a tree first run there has none, under a folder its user may own.
+    parent = shlex.quote(str(folder.parent))
+    probed = subprocess.run([ssh, *SSH, host, f"mkdir -p {parent} 2>/dev/null; test -w {parent}"], check=False)
     if refused := build_refusal(host, folder.parent, probed.returncode):
         raise Refusal(refused)
 

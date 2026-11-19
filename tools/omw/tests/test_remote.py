@@ -215,6 +215,8 @@ class WindowsHostTest(unittest.TestCase):
             remotewindows.bring_commit(lacking, tree, git)
         bundled.assert_called_once()
         self.assertIn("put", lacking.lines)
+        # Forced, as the ref stands at whatever another tree brought last, which need not be an ancestor.
+        self.assertTrue(any(line.endswith(" +HEAD:refs/omw/remote") for line in lacking.lines))
         self.assertTrue(lacking.lines[-1].endswith(f"git checkout -q --detach {'a' * 40}"))
 
     def test_the_task_is_deleted_however_the_wait_ends(self):

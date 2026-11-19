@@ -229,8 +229,8 @@ Lamp lampAt(GpuLight lamp, vec3 position)
 /// off its row when the ray is aimed, so a reservoir whose origin moved aims from where it now is.
 struct Reservoir
 {
-    /// Where the ray this buys leaves from — a shading point lifted off its facet (`Surface::mLift`),
-    /// or a froxel of the air.
+    /// Where the ray this buys leaves from — a shading point lifted toward the lamp held (`liftedToward`), or a
+    /// froxel of the air.
     vec3 mFrom;
 
     /// What the lamp held would deliver there with nothing in the way: `LightCandidate::mRadiance`.

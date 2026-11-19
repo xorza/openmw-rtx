@@ -141,11 +141,9 @@ void main()
                 else if (turn == DIRECT_SKY_OVER)
                     ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), true);
                 else if (turn == DIRECT_LAMP)
-                    ask = heldLampRay(
-                        light.mRestLamps, light.mRays.mLeaving, light.mRays.mStep, unitPair(pixel, STREAM_LAMP_DISC));
+                    ask = heldLampRay(light.mRestLamps, light.mRays.mStep, unitPair(pixel, STREAM_LAMP_DISC));
                 else
-                    ask = heldLampRay(light.mListedLamps, light.mRays.mLeaving, light.mRays.mStep,
-                        unitPair(pixel, STREAM_LAMP_DISC_LISTED));
+                    ask = heldLampRay(light.mListedLamps, light.mRays.mStep, unitPair(pixel, STREAM_LAMP_DISC_LISTED));
 
                 const Passage passage = passageAnswered(answerAsked(ask));
                 if (turn == DIRECT_SKY)

@@ -265,6 +265,10 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   reflectance.
 - **A mapped normal's light fades by GGX's shadowing**, as Cycles fades it (Conty Estevez et al. 2019). Refused: Chiang
   et al. 2019, flat patches at a grazing sun; no term (`research/2026-11-07-bump-terminator.md`).
+- **A shadow ray leaves from the surface the vertex normals describe only toward the facet's terminator**, the lift
+  fading to nought where the facet meets the light at a cosine of a half, as Cycles weighs Hanika's offset, at a cutoff
+  Morrowind's coarse rocks need. Refused: the lift on every ray, which took the sun past a ledge to the wall under it;
+  Cycles' tenth, which cut hard wedges into the rocks (`research/2026-11-19-shadow-lift-leak.md`).
 - **A `_spec` map's blue is an occlusion on indirect diffuse light alone**, as glTF and Filament read it. Refused: in
   the albedo, which darkens the sun (`research/2026-11-07-specular-map-blue-channel.md`).
 - **An `_nh` map's relief is marched, as RTX Remix marches it** (Tatarchuk 2006), at OpenMW's parallax depth, once by
