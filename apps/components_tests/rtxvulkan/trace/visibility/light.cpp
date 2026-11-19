@@ -1224,6 +1224,145 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A bounce's landing takes its lobe as diffuse** (`lobeAsDiffuse`): a white metal floor sends back what a
+        /// white floor with no specular map does. The fill test's wall and floor under the sun alone: the eye sees
+        /// only the wall, and every bounce that reaches the floor lands on white whose lobe reflects all of what
+        /// arrives at any cosine and roughness, `F0 = F90 = 1`, its albedo `whole` by the compensation `1 / whole`:
+        /// one, to the four roundings of the two, a part in 2^22, and the metal's diffuse nought. Both scenes place
+        /// the specular map, the second on a quad over the sun's way down, so both run one kernel. Under a lobe of
+        /// its own the metal floor sent back the sun's mirror image alone, which the eye's wall never meets. Over one
+        /// bounce ray, whose landing is stored in the solid's place, and two, whose first is stored apart
+        /// (`landingApart`).
+        TEST_F(RtxVisibilityTest, aBouncesLandingTakesItsLobeAsDiffuse)
+        {
+            SceneIdentities identities;
+            constexpr std::uint32_t size = 16;
+            constexpr std::array<std::uint8_t, 4> whiteTexel{ 255, 255, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> metalTexel{ 255, 128, 255, 255 };
+            const std::array<TextureData, 2> textures{ describeTexel(whiteTexel, TextureIndex(0)),
+                describeTexel(metalTexel, TextureIndex(1)) };
+            const std::array<osg::Vec3f, 4> floorQuad{ osg::Vec3f(-400.0f, -400.0f, -100.0f),
+                osg::Vec3f(400.0f, -400.0f, -100.0f), osg::Vec3f(400.0f, 0.0f, -100.0f),
+                osg::Vec3f(-400.0f, 0.0f, -100.0f) };
+            const std::array<osg::Vec3f, 4> asideQuad{ osg::Vec3f(-1.0f, 5000.0f, 5000.0f),
+                osg::Vec3f(1.0f, 5000.0f, 5000.0f), osg::Vec3f(1.0f, 5000.0f, 5002.0f),
+                osg::Vec3f(-1.0f, 5000.0f, 5002.0f) };
+
+            const auto indirectOver = [&](bool metal, std::uint32_t rays) {
+                SceneDesc scene(identities);
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                const TextureIndex map = scene.textures().add(
+                    VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                const auto place = [&](const std::array<osg::Vec3f, 4>& quad, const Material& material) {
+                    scene.addInstance(MeshInstance{
+                        .mMesh = Testing::addMesh(
+                            scene, MeshArrays{ .mPositions = quad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                        .mMaterial = scene.addMaterial(material) });
+                };
+                place(sWallQuad, Material{ .mDiffuse = diffuse });
+                place(floorQuad, Material{ .mDiffuse = diffuse, .mSpecular = metal ? map : sNoRow, .mTwoSided = true });
+                place(asideQuad, Material{ .mDiffuse = diffuse, .mSpecular = map, .mTwoSided = true });
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                Testing::unlit(camera);
+                camera.mSun
+                    = Shaders::sunSource(sunStandingAt(osg::DegreesToRadians(30.0f)), osg::Vec3f(2.0f, 2.0f, 2.0f));
+                EXPECT_EQ(shoot(scene, textures, camera, size, { .mBounceRays = rays }).mHits, size * size)
+                    << "the wall fills the frame";
+
+                std::vector<float> indirect;
+                mProbe.readChannel(Channel::Indirect, indirect);
+                return indirect;
+            };
+
+            for (const std::uint32_t rays : { 1u, 2u })
+            {
+                const std::vector<float> white = indirectOver(false, rays);
+                const std::vector<float> metal = indirectOver(true, rays);
+                ASSERT_EQ(metal.size(), white.size());
+                std::size_t landed = 0;
+                for (std::size_t value = 0; value < white.size(); value += 4)
+                {
+                    landed += white[value] > 0.0f ? 1 : 0;
+                    EXPECT_NEAR(metal[value], white[value], white[value] * 0x1p-20f)
+                        << "pixel " << value / 4 << " of " << rays << " bounce rays";
+                }
+                EXPECT_GT(landed, 0u) << "no bounce reached the floor lit, of " << rays << " bounce rays";
+            }
+        }
+
+        /// **A bounce's landing reads no normal map** (`NORMAL_MAP_UNREAD`), a reflection's as well: a white metal
+        /// wall whose lobe is sharp reflects a white board behind the eye, lit by a lamp in front of it, and the
+        /// board's normal map, which leans its normal along its tangent, moves nothing the wall's lobe brings back,
+        /// to the bit, over one bounce ray and two, as the test above. Read where the eye looks, the map moves the
+        /// board's normal.
+        TEST_F(RtxVisibilityTest, aBouncesLandingReadsNoNormalMap)
+        {
+            SceneIdentities identities;
+            constexpr std::uint32_t size = 16;
+            constexpr std::array<std::uint8_t, 4> whiteTexel{ 255, 255, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> mirrorTexel{ 255, 26, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> leaningTexel{ 191, 128, 221, 255 };
+            const std::array<TextureData, 3> textures{ describeTexel(whiteTexel, TextureIndex(0)),
+                describeTexel(mirrorTexel, TextureIndex(1)), describeTexel(leaningTexel, TextureIndex(2)) };
+            const osg::Vec3f towardWall(0.0f, 1.0f, 0.0f);
+            const std::array<osg::Vec3f, 4> boardNormals{ towardWall, towardWall, towardWall, towardWall };
+            const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
+            const std::array<osg::Vec4f, 4> boardTangents{ tangent, tangent, tangent, tangent };
+
+            const auto shotOf = [&](bool mapped, const osg::Vec3f& target, Channel channel, std::uint32_t rays) {
+                SceneDesc scene(identities);
+                const TextureIndex diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                const TextureIndex map = scene.textures().add(
+                    VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                const TextureIndex normalMap = scene.textures().add(
+                    VFS::Path::NormalizedView("white_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
+                scene.addInstance(MeshInstance{ .mMesh = Testing::addMesh(scene,
+                                                    MeshArrays{ .mPositions = uprightQuadAt(400.0f, -300.0f),
+                                                        .mNormals = boardNormals,
+                                                        .mTexCoords = sQuadUv,
+                                                        .mTangents = boardTangents,
+                                                        .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(
+                        Material{ .mDiffuse = diffuse, .mNormal = mapped ? normalMap : sNoRow, .mTwoSided = true }) });
+                scene.addLight(Light{
+                    .mPosition = osg::Vec3f(0.0f, -200.0f, 50.0f),
+                    .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                    .mReach = 500.0f,
+                });
+
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(osg::Vec3f(0.0f, -100.0f, 0.0f), target, 60.0f, size, size, 10000.0f);
+                Testing::unlit(camera);
+                EXPECT_EQ(shoot(scene, textures, camera, size, { .mBounceRays = rays }).mHits, size * size)
+                    << "a surface fills the frame";
+
+                std::vector<float> values;
+                mProbe.readChannel(channel, values);
+                return values;
+            };
+
+            const osg::Vec3f wall(0.0f, 0.0f, 0.0f);
+            for (const std::uint32_t rays : { 1u, 2u })
+            {
+                const std::vector<float> plain = shotOf(false, wall, Channel::Specular, rays);
+                const std::vector<float> mapped = shotOf(true, wall, Channel::Specular, rays);
+                EXPECT_EQ(mapped, plain) << "the board's normal map moved what the wall reflects of it, of " << rays
+                                         << " bounce rays";
+                EXPECT_GT(std::ranges::max(plain), 0.0f)
+                    << "the wall reflected nothing, so its sameness says nothing, of " << rays << " bounce rays";
+            }
+
+            const osg::Vec3f board(0.0f, -300.0f, 0.0f);
+            EXPECT_NE(shotOf(true, board, Channel::Surface, 1u), shotOf(false, board, Channel::Surface, 1u))
+                << "the board's normal map was read nowhere, so it could move nothing";
+        }
+
         /// A wall with a specular map reflects the lamp by the lobe the host evaluates, a dielectric keeps what
         /// the lobe did not take for its diffuse half, and a normal map turns both through the tangent frame
         /// the rasterizer builds. The lamp test's wall, lamp and camera, with a metal and roughness map on the

@@ -68,13 +68,9 @@ namespace Rtx
         constexpr std::array<std::uint32_t, Shaders::SPEC_COUNT> wordsOf(const VisibilityVariant& tuple)
         {
             std::array<std::uint32_t, Shaders::SPEC_COUNT> words{};
-            words[Shaders::SPEC_HAS_SUN] = tuple.mSun ? 1u : 0u;
-            words[Shaders::SPEC_HAS_MOONS] = tuple.mMoons ? 1u : 0u;
             words[Shaders::SPEC_HAS_SEA] = tuple.mSea ? 1u : 0u;
             words[Shaders::SPEC_HAS_MAPS] = tuple.mMaps ? 1u : 0u;
-            words[Shaders::SPEC_HAS_DARK_ALPHA] = tuple.mDarkAlpha ? 1u : 0u;
             words[Shaders::SPEC_HAS_RELIEF] = tuple.mRelief ? 1u : 0u;
-            words[Shaders::SPEC_HAS_MOD_MAPS] = tuple.mModMaps ? 1u : 0u;
             return words;
         }
 
@@ -189,14 +185,35 @@ namespace Rtx
             vkCmdDispatchIndirect(commands, tiles.getHandle(), VkDeviceSize{ 4 } * list * sizeof(std::uint32_t));
         }
 
+        /// The tuple the kernel of a stage's class `kind` (`STAGE_CLASS_*`) runs in a frame of the tuple `frame`: the
+        /// frame's sea, and its maps and its relief only where the class reads them.
+        VisibilityVariant classTupleOf(const VisibilityVariant frame, const std::uint32_t kind)
+        {
+            return VisibilityVariant{
+                .mSea = frame.mSea,
+                .mMaps = frame.mMaps && kind >= Shaders::STAGE_CLASS_MAPS,
+                .mRelief = frame.mRelief && kind == Shaders::STAGE_CLASS_RELIEF,
+            };
+        }
+
+        /// How a stage runs: over every pixel, over a list, or over a list a class with a kernel a class, as
+        /// Uncharted 4's deferred pass runs a permutation a tile by its material features (`STAGE_CLASSES`).
+        enum class Runs
+        {
+            Everywhere,
+            List,
+            ClassLists,
+        };
+
         /// One of the trace's stages: its module, the name its kernels are made under, the zone it
-        /// is timed in, and the list it runs over, or none for one over every pixel.
+        /// is timed in, how it runs, and the list it runs over, or the first of its classes' lists.
         struct Stage
         {
             std::string_view mModule;
             std::string_view mName;
             FrameZone mZone;
-            std::optional<std::uint32_t> mList;
+            Runs mRuns;
+            std::uint32_t mList;
         };
 
         /// The trace's stages in the order a frame runs them, a row at each stage's `Kernel`
@@ -207,66 +224,42 @@ namespace Rtx
         /// the bounce and its landing, once for each of the frame's bounce rays (`landingDispatch`); and in their
         /// place, where no bounce is traced, the ambient's stage.
         constexpr std::array<Stage, 8> sTraceStages{ {
-            { "visibility.comp.spv", "visibility", FrameZone::Trace, std::nullopt },
-            { "visibility.comp.spv", "water", FrameZone::Water, Shaders::STAGE_LIST_WATER },
-            { "direct.comp.spv", "direct", FrameZone::Direct, std::nullopt },
-            { "media.comp.spv", "media", FrameZone::Media, Shaders::STAGE_LIST_MEDIA },
-            { "panes.comp.spv", "panes", FrameZone::Panes, Shaders::STAGE_LIST_PANES },
-            { "bounce.comp.spv", "bounce", FrameZone::Bounce, std::nullopt },
-            { "landing.comp.spv", "landing", FrameZone::Landing, Shaders::STAGE_DISPATCH_LANDING },
-            { "unbounced.comp.spv", "unbounced", FrameZone::Bounce, std::nullopt },
+            { "visibility.comp.spv", "visibility", FrameZone::Trace, Runs::Everywhere, 0 },
+            { "visibility.comp.spv", "water", FrameZone::Water, Runs::List, Shaders::STAGE_LIST_WATER },
+            { "direct.comp.spv", "direct", FrameZone::Direct, Runs::ClassLists, Shaders::STAGE_LIST_SOLID },
+            { "media.comp.spv", "media", FrameZone::Media, Runs::List, Shaders::STAGE_LIST_MEDIA },
+            { "panes.comp.spv", "panes", FrameZone::Panes, Runs::ClassLists, Shaders::STAGE_LIST_PANES },
+            { "bounce.comp.spv", "bounce", FrameZone::Bounce, Runs::ClassLists, Shaders::STAGE_LIST_SOLID },
+            { "landing.comp.spv", "landing", FrameZone::Landing, Runs::List, Shaders::STAGE_DISPATCH_LANDING },
+            { "unbounced.comp.spv", "unbounced", FrameZone::Bounce, Runs::ClassLists, Shaders::STAGE_LIST_SOLID },
         } };
     }
 
-    VisibilityVariant VisibilityVariant::resolve(const Shaders::VisibilityConstants& frame, const TraceSubject& subject)
+    VisibilityVariant VisibilityVariant::resolve(const TraceSubject& subject)
     {
-        // A moon that is drawn and a moon that lights are two facts, and the sky needs the first
-        // where no surface asks for the second: the game fades both out over the hours around dawn,
-        // and a disc still on its way down lights nothing.
-        bool moons = false;
-        for (const Shaders::MoonDisc& moon : frame.mMoons)
-            moons = moons || moon.mAlpha > 0.0f || moon.mSource.mIrradiance != Shaders::vec3();
-
         return VisibilityVariant{
-            // Nought exactly where the sun is not up, and it fades to that across dusk rather than
-            // stepping — `VisibilityConstants::mSun`'s irradiance says why there is no second
-            // field.
-            .mSun = frame.mSun.mIrradiance != Shaders::vec3(),
-            .mMoons = moons,
-
             .mSea = subject.mSea,
             .mMaps = subject.mMapped,
-            .mDarkAlpha = subject.mDarkAlpha,
 
             // A relief is read through a normal map, so a scene with none has none to march.
             .mRelief = subject.mMapped && subject.mRelief,
-            .mModMaps = subject.mModMapped,
         };
     }
 
     std::uint32_t VisibilityVariant::index() const
     {
-        return (mSun ? 1u : 0u) | (mMoons ? 2u : 0u) | (mSea ? 4u : 0u) | (mMaps ? 8u : 0u) | (mDarkAlpha ? 16u : 0u)
-            | (mRelief ? 32u : 0u) | (mModMaps ? 64u : 0u);
+        return (mSea ? 1u : 0u) | (mMaps ? 2u : 0u) | (mRelief ? 4u : 0u);
     }
 
     std::string VisibilityVariant::describe(const std::string_view kernel) const
     {
         std::string name(kernel);
-        if (mSun)
-            name += " sun";
-        if (mMoons)
-            name += " moons";
         if (mSea)
             name += " sea";
         if (mMaps)
             name += " maps";
-        if (mDarkAlpha)
-            name += " dark";
         if (mRelief)
             name += " relief";
-        if (mModMaps)
-            name += " modmaps";
         return name;
     }
 
@@ -348,42 +341,28 @@ namespace Rtx
                     if (stop.stop_requested())
                         throw std::runtime_error("the tuple compile was stopped");
 
-                // The sky's tuples after the dark ones: the order matters less than the tuple a frame waits on, which
-                // the queue takes first. The tuples that read a mod's maps after those that do not, which every
-                // vanilla scene is, and the tuples that read a dark map's alpha last, which nearly no scene asks for.
-                // A relief only beside the maps, which `resolve` never asks without them: the march reads a normal
-                // map.
+                // The order matters less than the tuple a frame waits on, which the queue takes first. A relief only
+                // beside the maps, which `resolve` never asks without them: the march reads a normal map.
                 std::vector<Wanted> kernels;
                 std::vector<TupleRun> runs;
-                for (const bool darkAlpha : { false, true })
-                    for (const bool modMaps : { false, true })
-                        for (const bool sun : { false, true })
-                            for (const bool moons : { false, true })
-                                for (const bool sea : { false, true })
-                                    for (const bool maps : { false, true })
-                                        for (const bool relief : { false, true })
-                                        {
-                                            const VisibilityVariant tuple{ .mSun = sun,
-                                                .mMoons = moons,
-                                                .mSea = sea,
-                                                .mMaps = maps,
-                                                .mDarkAlpha = darkAlpha,
-                                                .mRelief = relief,
-                                                .mModMaps = modMaps };
-                                            if (tuple.index() == VisibilityVariant{}.index() || (relief && !maps))
-                                                continue;
+                for (const bool sea : { false, true })
+                    for (const bool maps : { false, true })
+                        for (const bool relief : { false, true })
+                        {
+                            const VisibilityVariant tuple{ .mSea = sea, .mMaps = maps, .mRelief = relief };
+                            if (tuple.index() == VisibilityVariant{}.index() || (relief && !maps))
+                                continue;
 
-                                            const std::size_t first = kernels.size();
-                                            for (std::size_t stage = 0; stage < sStageCount; ++stage)
-                                                if (runsStage(static_cast<Kernel>(stage), tuple))
-                                                    kernels.push_back(Wanted{
-                                                        .mKernel = static_cast<Kernel>(stage), .mVariant = tuple });
-                                            if (!tuple.mMaps && !tuple.mModMaps)
-                                                kernels.push_back(
-                                                    Wanted{ .mKernel = Kernel::Scatter, .mVariant = tuple });
-                                            runs.push_back(TupleRun{ .mTuple = tuple.index(),
-                                                .mItems = static_cast<std::uint32_t>(kernels.size() - first) });
-                                        }
+                            const std::size_t first = kernels.size();
+                            for (std::size_t stage = 0; stage < sStageCount; ++stage)
+                                if (runsStage(static_cast<Kernel>(stage), tuple, true))
+                                    kernels.push_back(
+                                        Wanted{ .mKernel = static_cast<Kernel>(stage), .mVariant = tuple });
+                            if (!tuple.mMaps)
+                                kernels.push_back(Wanted{ .mKernel = Kernel::Scatter, .mVariant = tuple });
+                            runs.push_back(TupleRun{ .mTuple = tuple.index(),
+                                .mItems = static_cast<std::uint32_t>(kernels.size() - first) });
+                        }
                 assert(runs.size() == VisibilityVariant::sMade - 1 && "a tuple made that the count leaves out");
                 TupleQueue queue(runs, VisibilityVariant::sCount);
 
@@ -575,20 +554,14 @@ namespace Rtx
         return mMade[tuple.index()].load(std::memory_order_acquire);
     }
 
-    VisibilityVariant VisibilityPass::variantFor(
-        const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants) const
+    VisibilityVariant VisibilityPass::variantFor(const VisibilityInputs& inputs) const
     {
-        const VisibilityVariant wanted = VisibilityVariant::resolve(constants, inputs.mSubject);
+        const VisibilityVariant wanted = VisibilityVariant::resolve(inputs.mSubject);
         if (isMade(wanted))
             return wanted;
 
         mWanted.store(wanted.index(), std::memory_order_relaxed);
         return VisibilityVariant{};
-    }
-
-    ChannelWrites VisibilityPass::writesOf(const VisibilityVariant run, const bool puffs, const bool bounced)
-    {
-        return ChannelWrites{ .mLobe = run.mMaps, .mPuffs = puffs, .mFill = bounced };
     }
 
     const ComputePipeline<Shaders::StageConstants>& VisibilityPass::kernelOf(
@@ -608,29 +581,25 @@ namespace Rtx
             return std::ranges::any_of(read, [id](const ModuleSpecConstant& constant) { return constant.mId == id; });
         };
         const VisibilityVariant full{};
-        if (!reads(Shaders::SPEC_HAS_SUN))
-            variant.mSun = full.mSun;
-        if (!reads(Shaders::SPEC_HAS_MOONS))
-            variant.mMoons = full.mMoons;
         if (!reads(Shaders::SPEC_HAS_SEA))
             variant.mSea = full.mSea;
-        if (!reads(Shaders::SPEC_HAS_DARK_ALPHA))
-            variant.mDarkAlpha = full.mDarkAlpha;
-        if (!reads(Shaders::SPEC_HAS_MAPS))
+
+        // **The trace and the water's stage read the maps in every tuple**: they resolve no surface, so the maps cost
+        // them no register (`docs/research/2026-11-19-one-kernel-registers.md`), and the lobe's channels are theirs to
+        // write at every pixel, which a tile's kernel with no maps leaves as they are (`stageClassOf`).
+        if (!reads(Shaders::SPEC_HAS_MAPS) || stage == Kernel::Visibility || stage == Kernel::Water)
             variant.mMaps = full.mMaps;
         if (!reads(Shaders::SPEC_HAS_RELIEF))
             variant.mRelief = variant.mMaps;
-        if (!reads(Shaders::SPEC_HAS_MOD_MAPS))
-            variant.mModMaps = full.mModMaps;
         return variant;
     }
 
-    bool VisibilityPass::hasMedia(const VisibilityVariant variant)
+    bool VisibilityPass::hasMedia(const VisibilityVariant variant, const bool sunUp)
     {
-        return variant.mSun && variant.mSea;
+        return sunUp && variant.mSea;
     }
 
-    bool VisibilityPass::runsStage(const Kernel stage, const VisibilityVariant variant)
+    bool VisibilityPass::runsStage(const Kernel stage, const VisibilityVariant variant, const bool sunUp)
     {
         switch (stage)
         {
@@ -644,7 +613,7 @@ namespace Rtx
             case Kernel::Water:
                 return variant.mSea;
             case Kernel::Media:
-                return hasMedia(variant);
+                return hasMedia(variant, sunUp);
             case Kernel::Scatter:
             case Kernel::Depth:
             case Kernel::Integrate:
@@ -662,7 +631,6 @@ namespace Rtx
     {
         variant.mMaps = false;
         variant.mRelief = false;
-        variant.mModMaps = false;
         const std::uint32_t at = isMade(variant) ? variant.index() : VisibilityVariant{}.index();
         const std::unique_ptr<TracePipeline<NoConstants>>& held = kernels().mScatter[at];
         assert(held != nullptr && "a tuple `compileEvery` made no scatter kernel for");
@@ -838,6 +806,8 @@ namespace Rtx
 
         inputs.mFogVolume.begin(commands);
 
+        const bool sunUp = Shaders::lights(constants.mSun);
+
         const TracePipeline<NoConstants>& scatter = scatterPipelineFor(variant);
 
         const VkExtent2D traced
@@ -907,20 +877,44 @@ namespace Rtx
 
             const Stage& stage = sTraceStages[at];
             const GpuZone timed(timer, commands, stage.mZone);
+            if (stage.mRuns == Runs::ClassLists)
+            {
+                // **A kernel a class over its class's list**, each behind the one before, which wrote the same
+                // images though not the same pixels, and only the classes the frame's tuple lists any tile under
+                // (`stageClassOf`). A class's own kernel where it is made, and the frame's until then.
+                const std::uint32_t kinds = variant.mRelief ? Shaders::STAGE_CLASS_RELIEF + 1
+                    : variant.mMaps                         ? Shaders::STAGE_CLASS_MAPS + 1
+                                                            : Shaders::STAGE_CLASS_PLAIN + 1;
+                for (std::uint32_t kind = 0; kind < kinds; ++kind)
+                {
+                    if (kind > 0)
+                        GBuffer::handToStage(commands);
+                    const VisibilityVariant own = classTupleOf(variant, kind);
+                    const ComputePipeline<Shaders::StageConstants>& kernel
+                        = kernelOf(kernels().mStages[at], isMade(own) ? own : variant);
+                    const std::uint32_t list = stage.mList + kind;
+                    bind(commands, kernel);
+                    pushInputs(commands, kernel, inputs);
+                    kernel.push(commands, Shaders::StageConstants{ .mRay = ray, .mList = list });
+                    dispatchOver(commands, inputs.mChannels, list);
+                }
+                return;
+            }
+
             const ComputePipeline<Shaders::StageConstants>& kernel = kernelOf(kernels().mStages[at], variant);
             bind(commands, kernel);
             pushInputs(commands, kernel, inputs);
-            kernel.push(commands, Shaders::StageConstants{ .mRay = ray });
-            if (stage.mList.has_value())
+            kernel.push(commands, Shaders::StageConstants{ .mRay = ray, .mList = stage.mList });
+            if (stage.mRuns == Runs::List)
                 dispatchOver(
-                    commands, inputs.mChannels, *stage.mList + (static_cast<Kernel>(at) == Kernel::Landing ? ray : 0u));
+                    commands, inputs.mChannels, stage.mList + (static_cast<Kernel>(at) == Kernel::Landing ? ray : 0u));
             else
                 vkCmdDispatch(commands, across, down, 1);
         };
 
         for (std::size_t at = 0; at < static_cast<std::size_t>(Kernel::Bounce); ++at)
         {
-            if (!runsStage(static_cast<Kernel>(at), variant))
+            if (!runsStage(static_cast<Kernel>(at), variant, sunUp))
                 continue;
             recordStage(at, 0);
 

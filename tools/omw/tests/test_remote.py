@@ -176,6 +176,47 @@ class WindowsHostTest(unittest.TestCase):
         self.assertEqual(script[4], "echo %ERRORLEVEL% > C:\\Users\\me\\.cache\\omw-remote\\abc\\done.txt")
         self.assertEqual(script[5], "")
 
+    def test_a_commit_the_clone_holds_is_checked_out_with_no_bundle_and_one_it_lacks_comes_as_one(self):
+        # An ancestor of what the clone stands at is held there, and its bundle would be empty, which git refuses.
+        class Host:
+            host = "win"
+            profile = PureWindowsPath("C:/Users/me")
+
+            def __init__(self, held):
+                self.held = held
+                self.lines = []
+
+            def cmd(self, line):
+                self.lines.append(line)
+                return "" if "status" in line else "b" * 40
+
+            def call(self, line):
+                self.lines.append(line)
+                return 0 if self.held else 1
+
+            def put(self, local, remote):
+                self.lines.append("put")
+
+        def git(command):
+            return "a" * 40 if command == ["rev-parse", "HEAD"] else ""
+
+        tree = PureWindowsPath("C:/Users/me/Projects/openmw")
+        holding = Host(held=True)
+        with mock.patch.object(remotewindows, "run") as bundled:
+            self.assertEqual(remotewindows.bring_commit(holding, tree, git), "a" * 40)
+        bundled.assert_not_called()
+        self.assertNotIn("put", holding.lines)
+        self.assertTrue(holding.lines[-1].endswith(f"git checkout -q --detach {'a' * 40}"))
+
+        lacking = Host(held=False)
+        with (mock.patch.object(remotewindows, "run") as bundled,
+              mock.patch.object(remotewindows.subprocess, "run", return_value=mock.Mock(returncode=0)),
+              mock.patch.object(Path, "unlink")):
+            remotewindows.bring_commit(lacking, tree, git)
+        bundled.assert_called_once()
+        self.assertIn("put", lacking.lines)
+        self.assertTrue(lacking.lines[-1].endswith(f"git checkout -q --detach {'a' * 40}"))
+
     def test_the_task_is_deleted_however_the_wait_ends(self):
         # A task made to run once still fires at the time it names: a run whose wait ran out would otherwise start
         # again there.
@@ -195,8 +236,8 @@ class WindowsHostTest(unittest.TestCase):
             def call(self, _line):
                 return 0
 
-            def exists(self, _path):
-                return False
+            def exists(self, path):
+                return path.name == ".git"
 
             def write(self, _remote, _text):
                 pass
@@ -209,6 +250,27 @@ class WindowsHostTest(unittest.TestCase):
             remotewindows.remote_windows("ssh", "scp", "win", "release", "tour", [], [], [], [], lambda _: "")
         self.assertEqual(lines[-1], "schtasks /delete /tn omw-remote /f")
         self.assertIn("schtasks /run /tn omw-remote", lines)
+
+    def test_each_tree_builds_in_a_clone_of_its_folders_name_and_one_the_host_lacks_is_refused(self):
+        asked = []
+
+        class Host:
+            host = "win"
+            profile = PureWindowsPath("C:/Users/me")
+
+            def __init__(self, *_):
+                pass
+
+            def exists(self, path):
+                asked.append(path)
+                return False
+
+        with (mock.patch.object(remotewindows, "WindowsHost", Host),
+              mock.patch.object(remotewindows, "ROOT", Path("/home/me/Projects/openmw-base")),
+              self.assertRaises(Refusal) as refused):
+            remotewindows.remote_windows("ssh", "scp", "win", "release", "bench", [], [], [], [], lambda _: "")
+        self.assertEqual(asked, [PureWindowsPath("C:/Users/me/Projects/openmw-base/.git")])
+        self.assertIn("C:\\Users\\me\\Projects\\openmw-base", str(refused.exception))
 
 
 if __name__ == "__main__":

@@ -111,6 +111,23 @@ namespace Rtx::Testing
         std::memcpy(words.data(), landing.map(), words.size() * sizeof(std::uint32_t));
     }
 
+    void RendererProbe::readStageTiles(std::vector<std::uint32_t>& words)
+    {
+        assert(mRenderer.mFrame.getChain().isBuilt());
+
+        const Buffer& tiles = mRenderer.mFrame.getChain().getChannels().getStageTiles();
+        const Buffer landing = Buffer::readBack(
+            mRenderer.mDevice, tiles.getSize(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "stage tiles read");
+        mRenderer.mDevice.getPool().submitAndWait([&](VkCommandBuffer commands) {
+            handOver(commands, Use::sBufferComputeWrite, Use::sBufferCopyRead);
+            tiles.copyTo(commands, landing, tiles.getSize());
+            landing.orderForHostRead(commands);
+        });
+
+        words.resize(tiles.getSize() / sizeof(std::uint32_t));
+        std::memcpy(words.data(), landing.map(), words.size() * sizeof(std::uint32_t));
+    }
+
     void RendererProbe::readComposite(std::vector<float>& values)
     {
         assert(mRenderer.mFrame.getChain().isBuilt());

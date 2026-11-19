@@ -3,14 +3,15 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The direct light of every pixel's solid, a stage of its own after the trace (`visibility.comp`): the
-// sun's and the moons' passages, the lamps and the solid's own glow (`SolidLight`), added to the direct
-// channel by what the media in front and a water path let through, and the shadowed sources and the lobe's
-// light written by what the layers let through as well.
+// The solid of every pixel, a stage of its own after the trace (`visibility.comp`), which stored its hit and
+// resolved nothing: the solid resolved here, its relief marched and stored for every stage after this one, what
+// it is in the filter's terms and where it stood last frame written to the eye's channels, and its direct light,
+// the sun's and the moons' passages, the lamps and its own glow (`SolidLight`), added to the direct channel by
+// what the media in front and a water path let through, and the shadowed sources and the lobe's light written by
+// what the layers let through as well.
 //
 // Runs before the layers' stage (`panes.comp`), so the solid's light stands behind them; what the layers let
-// through is the throughput's fourth, which this stage leaves off. The trace's hit is resolved again with no
-// traversal (`storedSolidOf`).
+// through is the throughput's fourth, which this stage leaves off but for the lift.
 
 #include "shared/traceconstants.h"
 #include "camera.h"
@@ -37,10 +38,17 @@ const uint DIRECT_LAMP = 2u;
 const uint DIRECT_LISTED_LAMP = 3u;
 const uint DIRECT_RAYS = 4u;
 
+layout(push_constant, scalar) uniform Push
+{
+    StageConstants stage;
+};
+
 void main()
 {
+    // **Over its class's tiles** (`STAGE_LIST_SOLID`): a kernel a class, so a tile no map stands in pays for none.
+    uvec2 tile;
     uvec2 pixel;
-    if (!stagePixelOf(pixel))
+    if (!listedTileOf(stage.mList, tile) || !stagePixelIn(tile, pixel))
         return;
 
     const uint width = frame.mEyes.mWorld.mWidth;
@@ -57,63 +65,112 @@ void main()
     uvec2 seenLamps = uvec2(LAMP_LIST_NONE);
     if (record.mKind != STAGE_NO_SOLID)
     {
-        // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`), and its
-        // light worked out whole but for what its rays answer (`solidLightOf`): its lamps in two
-        // strata, by the list of the tile it stood in on the frame before (`lampListOf`), read once the
-        // solid is resolved, so the resolve holds none of it.
-        const Surface solid = storedSolidOf(record, stored);
-        const SolidLight light = solidLightOf(solid, pixel, lampListOf(pixel, imageLoad(motion, stored).xy));
+        // **The solid the trace found, resolved off the hit it stored, its relief marched here** (`storedSolidOf`):
+        // the stages after this one read the march back (`storeStageRelief`).
+        const Surface solid = storedSolidOf(record, stored, NORMAL_MAP_MARCHES);
+        storeStageRelief(stored, solid);
 
-        // **The solid's light no ray answers under the layers**, by what the media and the path let through, as
-        // the trace took the water's own light down (`visibility.comp`): written ahead of the rays, which then
-        // carry none of it.
-        const ivec2 directAt = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);
-        RTX_STORE_COUNTED(direct, directAt,
-            vec4(imageLoad(direct, directAt).rgb + light.mRest * imageLoad(stageThroughput, stored).rgb, 1.0))
-
-        Passage skyFirst = openPassage();
-        Passage skyOver = openPassage();
-        Passage lampPassage = openPassage();
-        Passage listedPassage = openPassage();
-        [[dont_unroll]] for (uint turn = 0u; turn < DIRECT_RAYS; ++turn)
-        {
-            // **Each ray asked at its turn** (`GatherRays`), a lamp's of the row its stratum keeps, and the
-            // tile's draw read again, and none held through the traversals before it: two asks of a whole
-            // query each spilled the stage past its registers.
-            RayAsk ask;
-            if (turn == DIRECT_SKY)
-                ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), false);
-            else if (turn == DIRECT_SKY_OVER)
-                ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), true);
-            else if (turn == DIRECT_LAMP)
-                ask = heldLampRay(
-                    light.mRestLamps, light.mRays.mLeaving, light.mRays.mStep, unitPair(pixel, STREAM_LAMP_DISC));
-            else
-                ask = heldLampRay(light.mListedLamps, light.mRays.mLeaving, light.mRays.mStep,
-                    unitPair(pixel, STREAM_LAMP_DISC_LISTED));
-
-            const Passage passage = passageAnswered(answerAsked(ask));
-            if (turn == DIRECT_SKY)
-                skyFirst = passage;
-            else if (turn == DIRECT_SKY_OVER)
-                skyOver = passage;
-            else if (turn == DIRECT_LAMP)
-                lampPassage = passage;
-            else
-                listedPassage = passage;
-        }
-
-        const SeenSolid seen = seenSolidOf(
-            light, pixel, skyLegsJoined(light.mRays, skyFirst, skyOver), lampPassage, listedPassage);
-
-        // **Its shadowed sources and its lobe by the layers' share as well**, which no stage lays over them.
+        // **What the solid is in the filter's terms, written to the eye's channels** (`solidLookOf`), which the
+        // trace leaves unwritten for a solid it did not resolve: its albedos, its lift by all the path let
+        // through, and its normal, turned through the water's plane for the mirror's path.
+        const ivec2 at = ivec2(pixel);
+        const bool eyes = record.mKind == STAGE_EYE_SOLID;
+        const bool shown = eyes && frame.mShow != SHOW_SHADED;
         const vec4 through = imageLoad(stageThroughput, stored);
-        const vec3 transmittance = through.rgb * through.a;
+        const SolidLook look = solidLookOf(solid, glossOf(solid));
+        SurfaceResponse response = shown ? responseOf(solid, vec3(1.0)) : look.mResponse;
+        if (record.mMirror)
+        {
+            const vec3 normal = unpackSurfaceNormal(response.mNormal);
+            response.mNormal = packSurfaceNormal(vec3(normal.xy, -normal.z));
+        }
+        const vec3 seenLift = liftOf(solid);
+        RTX_STORE_COUNTED(albedo, channelAt(CHANNEL_ALBEDO, at, width, swap), vec4(response.mDiffuse, 1.0))
+        RTX_STORE_COUNTED(
+            ambientAlbedo, channelAt(CHANNEL_AMBIENT_ALBEDO, at, width, swap), vec4(response.mAmbient, 1.0))
+        if (HAS_MAPS)
+            RTX_STORE_COUNTED(specularAlbedo, channelAt(CHANNEL_SPECULAR_ALBEDO, at, width, swap),
+                vec4(response.mSpecular, 1.0))
+        RTX_STORE_COUNTED(lift, channelAt(CHANNEL_LIFT, at, width, swap), vec4(through.rgb * through.a * seenLift, 1.0))
+        RTX_STORE_WORDS(
+            stageLift, stored, uvec4(packHalf2x16(seenLift.rg), packHalf2x16(vec2(seenLift.b, 0.0)), 0u, 0u))
 
-        sky = dimmed(seen.mLight.mSky, transmittance);
-        lamps = dimmed(seen.mLight.mLamps, transmittance);
-        lobe = vec4(seen.mSpecular * transmittance, seen.mRoughness);
-        seenLamps = uvec2(seenLampOf(light.mRestLamps, lampPassage), seenLampOf(light.mListedLamps, listedPassage));
+        const ivec2 surfaceAt = channelAt(CHANNEL_SURFACE, at, width, swap);
+        RTX_STORE_COUNTED(
+            surfaceChannel, surfaceAt, vec4(response.mNormal, imageLoad(surfaceChannel, surfaceAt).yzw))
+
+        // **A view of one input paints the pixel with it and lights nothing**: the record names no solid, so no
+        // stage after this one lights or bounces off it.
+        if (shown)
+        {
+            const vec3 painted = frame.mShow == SHOW_ALBEDO ? solid.mAlbedo
+                : frame.mShow == SHOW_NORMAL                ? 0.5 + 0.5 * solid.mNormal
+                : frame.mShow == SHOW_ROUGHNESS             ? vec3(solid.mRoughness)
+                                                            : solid.mSpecular;
+            const ivec2 directAt = channelAt(CHANNEL_DIRECT, at, width, swap);
+            RTX_STORE_COUNTED(direct, directAt, vec4(imageLoad(direct, directAt).rgb + painted * through.rgb, 1.0))
+            StageRecord unlit = record;
+            unlit.mKind = STAGE_NO_SOLID;
+            RTX_STORE_WORDS(stageRecord, stored, packStageRecord(unlit))
+        }
+        else
+        {
+            // **Its light worked out whole but for what its rays answer** (`solidLightOf`): its lamps in two strata,
+            // by the list of the tile it stood in on the frame before (`lampListOf`).
+            const SolidLight light = solidLightOf(solid, pixel, lampListOf(pixel, imageLoad(motion, stored).xy));
+
+            // **The solid's light no ray answers under the layers**, by what the media and the path let through, as
+            // the trace took the water's own light down (`visibility.comp`): written ahead of the rays, which then
+            // carry none of it.
+            const ivec2 directAt = channelAt(CHANNEL_DIRECT, at, width, swap);
+            RTX_STORE_COUNTED(direct, directAt,
+                vec4(imageLoad(direct, directAt).rgb + light.mRest * imageLoad(stageThroughput, stored).rgb, 1.0))
+
+            Passage skyFirst = openPassage();
+            Passage skyOver = openPassage();
+            Passage lampPassage = openPassage();
+            Passage listedPassage = openPassage();
+            [[dont_unroll]] for (uint turn = 0u; turn < DIRECT_RAYS; ++turn)
+            {
+                // **Each ray asked at its turn** (`GatherRays`), a lamp's of the row its stratum keeps, and the
+                // tile's draw read again, and none held through the traversals before it: two asks of a whole
+                // query each spilled the stage past its registers.
+                RayAsk ask;
+                if (turn == DIRECT_SKY)
+                    ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), false);
+                else if (turn == DIRECT_SKY_OVER)
+                    ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), true);
+                else if (turn == DIRECT_LAMP)
+                    ask = heldLampRay(
+                        light.mRestLamps, light.mRays.mLeaving, light.mRays.mStep, unitPair(pixel, STREAM_LAMP_DISC));
+                else
+                    ask = heldLampRay(light.mListedLamps, light.mRays.mLeaving, light.mRays.mStep,
+                        unitPair(pixel, STREAM_LAMP_DISC_LISTED));
+
+                const Passage passage = passageAnswered(answerAsked(ask));
+                if (turn == DIRECT_SKY)
+                    skyFirst = passage;
+                else if (turn == DIRECT_SKY_OVER)
+                    skyOver = passage;
+                else if (turn == DIRECT_LAMP)
+                    lampPassage = passage;
+                else
+                    listedPassage = passage;
+            }
+
+            const SeenSolid seen = seenSolidOf(
+                light, pixel, skyLegsJoined(light.mRays, skyFirst, skyOver), lampPassage, listedPassage);
+
+            // **Its shadowed sources and its lobe by the layers' share as well**, which no stage lays over them: what
+            // the path let through read again here, and not held through the rays.
+            const vec4 passed = imageLoad(stageThroughput, stored);
+            const vec3 transmittance = passed.rgb * passed.a;
+
+            sky = dimmed(seen.mLight.mSky, transmittance);
+            lamps = dimmed(seen.mLight.mLamps, transmittance);
+            lobe = vec4(seen.mSpecular * transmittance, seen.mRoughness);
+            seenLamps = uvec2(seenLampOf(light.mRestLamps, lampPassage), seenLampOf(light.mListedLamps, listedPassage));
+        }
     }
 
     RTX_STORE_COUNTED(shadowed, channelAt(CHANNEL_SHADOWED, ivec2(pixel), width, swap),
@@ -123,8 +180,26 @@ void main()
     RTX_STORE_COUNTED(lampedShare, channelAt(CHANNEL_LAMPED_SHARE, ivec2(pixel), width, swap), vec4(lamps.mOpen))
     RTX_STORE_WORDS(stageLampsSeen, stored, uvec4(seenLamps, 0u, 0u))
 
-    // **The lobe's light only where a surface can have one**: the channel holds no lobe already
-    // without the maps' code (`GBuffer::begin`).
+    // **The lobe's light only where a surface can have one**: the channel holds no lobe already where this kernel
+    // has no maps' code, which the trace wrote.
     if (HAS_MAPS)
         RTX_STORE_COUNTED(specular, channelAt(CHANNEL_SPECULAR, ivec2(pixel), width, swap), lobe)
+
+    // **The eye's own solid's motion and distance measured again to the texel its relief showed**
+    // (`storedMotionOf`), where the trace measured them to its triangle, its depth and its normal read back from
+    // where they were stored, past every other store: the motion's two placements held the stage a tier of
+    // registers up with a relief wherever the light stood live.
+    if (HAS_RELIEF && record.mKind == STAGE_EYE_SOLID)
+    {
+        const float marched = imageLoad(stageRelief, stored).g;
+        if (marched != 0.0)
+        {
+            const ivec2 surfaceAt = channelAt(CHANNEL_SURFACE, ivec2(pixel), width, swap);
+            const vec4 eye = storedMotionOf(pixel, stored, record.mArms, record.mDetailed, marched);
+            RTX_STORE_COUNTED(motion, channelAt(CHANNEL_MOTION, ivec2(pixel), width, swap), vec4(eye.xyz, 0.0))
+            RTX_STORE_COUNTED(surfaceChannel, surfaceAt,
+                vec4(imageLoad(surfaceChannel, surfaceAt).x, packSurfaceDistance(eye.w, record.mArms != 0u), 0.0,
+                    0.0))
+        }
+    }
 }

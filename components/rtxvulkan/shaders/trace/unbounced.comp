@@ -32,8 +32,10 @@ layout(push_constant, scalar) uniform Push
 
 void main()
 {
+    // Over its class's tiles, as `direct` (`STAGE_LIST_SOLID`).
+    uvec2 tile;
     uvec2 pixel;
-    if (!stagePixelOf(pixel))
+    if (!listedTileOf(stage.mList, tile) || !stagePixelIn(tile, pixel))
         return;
 
     const uint width = frame.mEyes.mWorld.mWidth;
@@ -44,7 +46,7 @@ void main()
 
     AmbientRay unbounced = AmbientRay(noRay(), false, 1.0, false);
     vec3 daylight = vec3(0.0);
-    const Surface surface = storedSolidOf(record, stored);
+    const Surface surface = storedSolidOf(record, stored, NORMAL_MAP_STORED);
     if (surface.mHit)
     {
         unbounced = ambientRayOf(surface.mPosition, surface.mNormal, surface.mGeometric, surface.mRounding,

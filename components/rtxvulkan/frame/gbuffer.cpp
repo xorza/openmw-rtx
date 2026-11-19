@@ -111,23 +111,18 @@ namespace Rtx
 
             // What `GBuffer::begin` clears a channel a trace may leave out through, read off the one
             // rule that says which those are.
-            if (!ChannelWrites{ .mLobe = false, .mPuffs = false, .mFill = false }.writes(channel))
+            if (!ChannelWrites{ .mPuffs = false, .mFill = false }.writes(channel))
                 described.mUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
             return described;
         }
 
         /// What a trace writes into a channel `ChannelWrites` may leave out, where it has nothing to
-        /// say: no lobe — nought light at `SPECULAR_NO_LOBE`, and a specular albedo of one — no
-        /// puff, nought colour wholly let through, and no fill, nought.
+        /// say: no puff, nought colour wholly let through, and no fill, nought.
         VkClearColorValue nothingOf(const Channel channel)
         {
             switch (channel)
             {
-                case Channel::Specular:
-                    return VkClearColorValue{ .float32 = { 0.0f, 0.0f, 0.0f, Shaders::SPECULAR_NO_LOBE } };
-                case Channel::SpecularAlbedo:
-                    return VkClearColorValue{ .float32 = { 1.0f, 1.0f, 1.0f, 1.0f } };
                 case Channel::Puffs:
                 case Channel::Fill:
                     return VkClearColorValue{ .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } };
@@ -244,9 +239,10 @@ namespace Rtx
         }
 
         /// What the tile lists are made for: a storage buffer the stages append to, the indirect
-        /// dispatch's arguments, and the head each frame writes inline.
+        /// dispatch's arguments, the head each frame writes inline, and a copy's source, which costs no memory
+        /// and lets a test read the lists back.
         constexpr VkBufferUsageFlags sTileUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
         /// The bytes of a frame's lamp lists, `LAMP_LIST_WORDS` words a tile of a frame `width` by `height`.
         VkDeviceSize lampListBytes(const std::uint32_t width, const std::uint32_t height)
@@ -402,9 +398,6 @@ namespace Rtx
     {
         switch (channel)
         {
-            case Channel::Specular:
-            case Channel::SpecularAlbedo:
-                return mLobe;
             case Channel::Puffs:
                 return mPuffs;
             case Channel::Fill:

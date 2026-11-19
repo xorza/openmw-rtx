@@ -258,7 +258,7 @@ void main()
     // Whatever the moons deliver, whether or not they were worth a ray: `mMoonlit` gates the shadow and nothing
     // else, since gating the energy with it stepped both moons out of the frame when their share crossed
     // `FOG_SHAFT_FLOOR`. `lunar` stands at one where no ray was cast, so the light arrives unshadowed.
-    const vec3 moons = HAS_MOONS ? moonsInAir(position, froxelSources(column, key), lunar) : vec3(0.0);
+    const vec3 moons = moonsUp() ? moonsInAir(position, froxelSources(column, key), lunar) : vec3(0.0);
 
     // Everything below is a property of this point and of nothing along the ray, which is what lets it be
     // reprojected and averaged; the transmittance is the integrate pass's.

@@ -13,7 +13,18 @@
 /// Whether the sun is over the horizon: lighting, casting, and drawn as a disc.
 bool sunUp()
 {
-    return HAS_SUN && frame.mSun.mIrradiance != vec3(0.0);
+    return lights(frame.mSun);
+}
+
+/// Whether either moon is drawn or lights anything: a disc with an alpha or a light with an irradiance, since the
+/// game fades both out over the hours around dawn and a disc still on its way down lights nothing. A uniform's
+/// answer, the same on every lane, so what it guards costs a room nothing but the scalar test.
+bool moonsUp()
+{
+    bool up = false;
+    for (uint moon = 0u; moon < MOON_COUNT; ++moon)
+        up = up || frame.mMoons[moon].mAlpha > 0.0 || lights(frame.mMoons[moon].mSource);
+    return up;
 }
 
 /// Whether the sky is a light: the ambient is the sky's and a ray that leaves the world finds it.

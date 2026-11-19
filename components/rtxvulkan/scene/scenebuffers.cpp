@@ -65,6 +65,7 @@ namespace Rtx
             const bool untextured = material.mDiffuse == sNoRow;
             const AlphaTest test
                 = material.isCutout() ? material.getAlphaTest() : AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
+            const Material::Traversed traversed = material.getTraversed();
 
             return Shaders::GpuMaterial{
                 .mDiffuse = untextured ? Shaders::TEXTURE_NEUTRAL : material.mDiffuse.at(),
@@ -85,9 +86,11 @@ namespace Rtx
                             ? Shaders::MATERIAL_STACKED_SEEN
                             : 0u)
                     | (material.mRelief.has_value() ? Shaders::MATERIAL_PARALLAX : 0u)
-                    | vertexColourFlag(material.mVertexColour)
-                    | (material.mDarkBelowSolid ? Shaders::MATERIAL_DARK_ALPHA : 0u)
-                    | (material.mLampLit ? 0u : Shaders::MATERIAL_NO_LAMPS)
+                    | vertexColourFlag(material.mVertexColour) | (material.mLampLit ? 0u : Shaders::MATERIAL_NO_LAMPS)
+                    | (material.wearsModMaps() ? Shaders::MATERIAL_MOD_MAPS : 0u)
+                    | (traversed.mMapped ? Shaders::MATERIAL_MAPPED : 0u)
+                    | (traversed.mRelief ? Shaders::MATERIAL_RELIEF : 0u)
+                    | (material.mGroundcover ? Shaders::MATERIAL_GROUNDCOVER : 0u)
                     | (material.isAdditive() && material.mBlend == BlendKind::AddWhole ? Shaders::MATERIAL_ADD_WHOLE
                                                                                        : 0u)
                     | ((material.mDarkUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MATERIAL_DARK_UNIT_SHIFT)

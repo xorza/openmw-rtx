@@ -351,11 +351,6 @@ namespace Rtx::Shaders
     /// `Rtx::GroundFlattening::Undetailed`.
     const uint MATERIAL_STACKED_SEEN = 0x400000u;
 
-    /// A blended material whose dark map's alpha falls below solid (`Rtx::Material::mDarkBelowSolid`):
-    /// a see-through hit's coverage takes the dark map's alpha too, where a scene that places one
-    /// compiles the read in (`HAS_DARK_ALPHA`).
-    const uint MATERIAL_DARK_ALPHA = 0x800000u;
-
     /// The normal map's alpha is a height the texture coordinates are shifted by —
     /// `Rtx::Material::mParallax`, and `parallaxShift` says by how much.
     const uint MATERIAL_PARALLAX = 0x20u;
@@ -364,6 +359,25 @@ namespace Rtx::Shaders
     /// texture's alpha times `mOpacity`, and it has no mask. **A bit and not `mOpacity` below one**:
     /// a lantern's glass has an opacity of one and its texture says how much glass.
     const uint MATERIAL_TRANSLUCENT = 0x40u;
+
+    /// The surface wears a mod's detail, decal, bump or gloss map — `Rtx::Material::wearsModMaps` — which a hit
+    /// reads its maps' row for, and no other hit: the row's reads stand behind this bit and not behind a
+    /// specialization constant.
+    const uint MATERIAL_MOD_MAPS = 0x1000000u;
+
+    /// The surface wears a normal or specular map, or its ground's layers a normal map —
+    /// `Rtx::Material::Traversed::mMapped` — and a relief that spans more than one height —
+    /// `Rtx::Material::Traversed::mRelief`: which of a stage's kernels a tile it stands in runs (`stageClassOf`).
+    const uint MATERIAL_MAPPED = 0x800000u;
+    const uint MATERIAL_RELIEF = 0x2000000u;
+
+    /// The surface is groundcover — `Rtx::Material::mGroundcover` — whose cards' normals are authored as the ground's,
+    /// pointing up, and which upstream's groundcover shader lights by them on either face: on a card's back its normal
+    /// is mirrored through the card's plane and not turned round, so it points up on both faces (`resolve`), as
+    /// Unity's HDRP mirrors a double-sided material's back normal where the material asks (its double-sided normal
+    /// mode). **Not lit as a sheet** (`MESH_SHEET`): a sheet takes the light's side from the plane and its far side
+    /// through the normal turned round, which for an up normal under the sun takes no light at all.
+    const uint MATERIAL_GROUNDCOVER = 0x4000000u;
 
     /// Which texture unit the dark map and the glow map are bound at, each in these bits of
     /// `mFlags` — `GpuMesh::mUnitStreams` says which stream that unit reads.
@@ -1025,8 +1039,8 @@ namespace Rtx::Shaders
     };
 
     /// **The maps a mod's surfaces bind beside the diffuse, a row of their own beside each `GpuMaterial`** at the
-    /// same index: read only where `HAS_MOD_MAPS` compiles them in, so the material row every hit reads keeps its 112
-    /// bytes, and a scene with none of them reads what it read before.
+    /// same index: read only where a material says it wears them (`MATERIAL_MOD_MAPS`), so the material row every hit
+    /// reads keeps its 112 bytes, and a scene with none of them reads what it read before.
     struct GpuMaterialMaps
     {
         /// The bump map's matrix, its entries row by row: its red and green move the sheet's coordinates by

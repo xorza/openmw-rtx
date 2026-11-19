@@ -87,9 +87,6 @@ namespace Rtx
         /// `TexelMean`: what a texel of `image` is worth on average.
         MeanTexel meanTexel(const osg::Image& image);
 
-        /// `SolidFall`: whether `image`'s alpha ever falls below solid.
-        bool fallsBelowSolid(const osg::Image& image);
-
         /// `AlphaSpan`: the lowest and the highest alpha `image` holds.
         AlphaRange alphaRange(const osg::Image& image);
 
@@ -169,7 +166,6 @@ namespace Rtx
         FileKeys mKeys{ mTexels };
         SolidReach mSolid{ mTexels, mKeys };
         TexelMean mMean{ mTexels, mKeys };
-        SolidFall mFall{ mTexels, mKeys };
         AlphaSpan mSpan{ mTexels, mKeys };
         SpecularKind mKind{ mTexels, mKeys };
         ChainBuild mBuild;

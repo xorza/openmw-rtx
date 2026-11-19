@@ -76,8 +76,8 @@ namespace RtxTool
             const auto& [kind, diffuse, emissive, emissiveUnit, environment, environmentColour, dark, darkUnit, normal,
                 specular, detail, detailUnit, decal, decalUnit, bump, bumpUnit, bumpMatrix, bumpLuma, gloss, glossUnit,
                 relief, diffuseColour, ambientColour, emissiveColour, opacity, alphaTest, alphaMode, blend,
-                vertexColour, twoSided, lampLit, textureTransform, run, flatten, layersMapped, animated, neverSolid,
-                darkBelowSolid, diffuseMean] = material;
+                vertexColour, twoSided, lampLit, groundcover, textureTransform, run, flatten, layersMapped, animated,
+                neverSolid, diffuseMean] = material;
 
             texture(diffuse);
             texture(emissive);
@@ -111,8 +111,8 @@ namespace RtxTool
             }
             if (!lampLit)
                 value(std::uint8_t{ 7 });
-            if (darkBelowSolid)
-                value(std::uint8_t{ 8 });
+            if (groundcover)
+                value(std::uint8_t{ 13 });
 
             // The maps a mod's surfaces lay in beside the diffuse, each behind its own tag, as the companions are.
             if (detail != Rtx::sNoRow)

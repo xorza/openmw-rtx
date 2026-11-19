@@ -326,7 +326,7 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
     // the frame.
     //
     // **The pick is `pickByWeight`'s**, which says why it is made against the weights.
-    const bool lunar = HAS_MOONS && run.mPath == PATH_SEEN;
+    const bool lunar = moonsUp() && run.mPath == PATH_SEEN;
     const SkyChoice sun = skyChoiceAt(SKY_SOURCE_SUN, facing, sunUp(), gloss);
     const SkyChoice masser = skyChoiceAt(SKY_SOURCE_MASSER, facing, lunar, gloss);
     const SkyChoice secunda = skyChoiceAt(SKY_SOURCE_SECUNDA, facing, lunar, gloss);
@@ -649,12 +649,6 @@ struct SeenPane
 
     SurfaceResponse mResponse;
 };
-
-/// What no layer sends back: what a walk that lights no layer hands `stepEye`.
-SeenPane noPane()
-{
-    return SeenPane(vec3(0.0), vec3(0.0), vec3(0.0), noResponse());
-}
 
 /// The rays a path's end waits on: its occlusion ray, and what its gather's are asked of at their turns
 /// (`GatherRays`) — the sky's passage in its legs, and the held lamp's by its row of the light table,
@@ -1352,7 +1346,7 @@ struct LandingLight
     PathEndRays mRays;
 };
 
-/// @param landing the bounce's landing (`storedLandingOf`).
+/// @param landing the bounce's landing (`storedLandingOf`), its normal map unread.
 /// @param lobe whether the lobe drew the bounce (`BounceDraw::mSpecular`).
 /// @param weight what light arriving along the bounce is worth (`StoredBounce::mWeight`).
 /// @param seeds the sequences the landing draws from, its ray's (`bounceSeedsAt`).
@@ -1363,6 +1357,15 @@ LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight
     landing.mEmissiveColour *= keep;
     landing.mEmitted *= keep;
 
+    // **Its glow whole in what it emits, off its own albedo, and its light off its lobe made diffuse**
+    // (`lobeAsDiffuse`): a landing is no picture, and its lobe held the landing's stage a tier of registers up
+    // with a scene's maps on (`docs/research/2026-11-19-one-kernel-registers.md`). The glow taken here and not
+    // past the light, which held it through the gather and took the landing's stage on a high-end NVIDIA laptop
+    // GPU from 384 bytes of shared memory to 1408.
+    landing.mEmitted = litSurface(landing, vec3(0.0), vec3(0.0));
+    landing.mEmissiveColour = vec3(0.0);
+    landing = lobeAsDiffuse(landing);
+
     PathEndLight end
         = pathEndLightOf(landing, pixel, seeds.mLamps, seeds.mIndirect, lobe ? PATH_SEEN : PATH_INDIRECT);
     if (skyLights())
@@ -1371,7 +1374,7 @@ LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight
         end.mFill = occludedAlbedo(landing, landing.mAmbientAlbedo) * pathEnd(landing.mPosition, 1.0);
 
     LandingLight light;
-    light.mGlow = weight * litSurface(landing, vec3(0.0), vec3(0.0));
+    light.mGlow = weight * landing.mEmitted;
     light.mFill = weight * end.mFill;
     light.mSky = weight * (landing.mAlbedo * end.mSkyDiffuse + end.mSkySpecular);
     light.mLamp = weight * (landing.mAlbedo * end.mLampDiffuse + end.mLampSpecular);

@@ -16,6 +16,7 @@
 #include "frame.glsl"
 #include "pixels.glsl"
 #include "hash.glsl"
+#include "reproject.glsl"
 #include "sharedexponent.glsl"
 #include "stagerecord.glsl"
 #include "traversal.glsl"
@@ -44,6 +45,16 @@ bool stagePixelIn(uvec2 tile, out uvec2 pixel)
 bool stagePixelOf(out uvec2 pixel)
 {
     return stagePixelIn(gl_WorkGroupID.xy, pixel);
+}
+
+/// Which of a stage's kernels a surface of a material whose flags are `flags` asks (`STAGE_CLASS_*`): a relief's
+/// where the frame's kernels march one (`MATERIAL_RELIEF`), the maps' where they read them (`MATERIAL_MAPPED`), and
+/// otherwise the plain one.
+uint stageClassOf(uint flags)
+{
+    return HAS_RELIEF && (flags & MATERIAL_RELIEF) != 0u ? STAGE_CLASS_RELIEF
+        : HAS_MAPS && (flags & MATERIAL_MAPPED) != 0u    ? STAGE_CLASS_MAPS
+                                                         : STAGE_CLASS_PLAIN;
 }
 
 /// How many tiles a list of this frame holds (`stageTileCount`).
@@ -165,31 +176,70 @@ RayAsk eyeAsk(vec3 origin, vec3 direction, float tmin, uint arms, uvec2 pixel)
 
 /// Stores the solid `asked` met (`met`) at the stored place `stored`: the instance's slot, the triangle and
 /// the barycentrics' bits (`STAGE_HIT`); the ray's start with its cone's width where it landed
-/// (`STAGE_RAY_FROM`); the ray's direction with the distance (`STAGE_RAY_ALONG`); and how far toward the
-/// eye its relief showed its texture, `Surface::mRelief`, or `RELIEF_UNMARCHED` for a hit nothing resolved
-/// (`STAGE_RELIEF`), in a frame whose scene has a relief to march at all.
-void storeStageSolid(ivec2 stored, SceneAnswer met, SceneQuery asked, float relief)
+/// (`STAGE_RAY_FROM`); and the ray's direction with the distance (`STAGE_RAY_ALONG`).
+void storeStageSolid(ivec2 stored, SceneAnswer met, SceneQuery asked)
 {
     RTX_STORE_WORDS(stageHit, stored, uvec4(met.mInstance, met.mPrimitive, floatBitsToUint(met.mBary)))
     RTX_STORE_COUNTED(stageRayFrom, stored, vec4(asked.mFrom, footprintOf(asked, met)))
     RTX_STORE_COUNTED(stageRayAlong, stored, vec4(asked.mAlong, met.mDistance))
+}
+
+/// Stores how far toward the eye the solid `surface`'s relief showed its texture (`Surface::mRelief`) and how much
+/// deeper it stood (`Surface::mReliefMarched`) at the stored place `stored` (`STAGE_RELIEF`), which the direct
+/// stage marched and every stage after it reads back (`NORMAL_MAP_STORED`), in a frame whose scene has a relief to
+/// march at all.
+void storeStageRelief(ivec2 stored, Surface surface)
+{
     if (HAS_RELIEF)
-        RTX_STORE_COUNTED(stageRelief, stored, vec4(relief, 0.0, 0.0, 0.0))
+        RTX_STORE_COUNTED(stageRelief, stored, vec4(surface.mRelief, surface.mReliefMarched, 0.0, 0.0))
+}
+
+/// Where the eye's own solid at the stored place `stored` (`storeStageSolid`), resolved at `detailed`, stood last
+/// frame (`motionOf`), through the eye `arms`, **measured to the texel its relief showed**, `marched` deeper in the
+/// units of the sheet its march read (`Surface::mReliefMarched`), which moves with its own parallax: a history
+/// fetched off the triangle's motion is another texel's. And in `w` how far along the eye's ray it stands so: the
+/// pixel's guides' distance. The hit placed again and its sheet read again, for `reliefDepthOf`.
+vec4 storedMotionOf(uvec2 pixel, ivec2 stored, uint arms, bool detailed, float marched)
+{
+    const uvec4 hit = imageLoad(stageHit, stored);
+    const vec4 from = imageLoad(stageRayFrom, stored);
+    const vec4 along = imageLoad(stageRayAlong, stored);
+    const Hit placed = committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w);
+    const GpuMaterial material = materialAt(instanceAt(placed.mInstance).mMaterial);
+    vec2 uv[3];
+    triangleUvs(placed.mCorner, uv);
+    const vec4 sheet
+        = readsStack(material, detailed) ? layerAt(material.mLayerOffset).mDiffuseTransform : material.mTextureTransform;
+    const float seen = along.w + reliefDepthOf(uv, sheet, surfaceConeAt(placed.mEdges, along.xyz), marched);
+    return vec4(
+        motionOf(pixel, from.xyz, along.xyz, seen, hit.x, hit.y, uintBitsToFloat(hit.zw), eyeSpread(arms)), seen);
 }
 
 /// The hit stored at the stored place `stored` (`storeStageSolid`), resolved at the detail `detailed`
-/// with no traversal, at the relief its trace marched to, or a landing's (`storedLandingOf`), whose relief is
-/// shifted and not marched.
-Surface storedHitOf(ivec2 stored, bool detailed, bool landing)
+/// with no traversal: its relief marched (`NORMAL_MAP_MARCHES`), the direct stage's; at the relief that
+/// stage marched to (`NORMAL_MAP_STORED`, `storeStageRelief`); or with no normal map (`NORMAL_MAP_UNREAD`), a
+/// landing's (`storedLandingOf`).
+Surface storedHitOf(ivec2 stored, bool detailed, uint normalMap)
 {
     const uvec4 hit = imageLoad(stageHit, stored);
     const vec4 from = imageLoad(stageRayFrom, stored);
     const vec4 along = imageLoad(stageRayAlong, stored);
     Hit committed = committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w);
-    if (HAS_RELIEF)
+    // The call's constant first, as `readsNormalMaps` asks it.
+    if (normalMap == NORMAL_MAP_STORED && HAS_RELIEF)
         committed.mRelief = imageLoad(stageRelief, stored).r;
-    committed.mMarches = !landing;
-    return resolve(committed, from.xyz, along.xyz, detailed, RELIEF_STORED);
+    return resolve(committed, from.xyz, along.xyz, detailed, normalMap);
+}
+
+/// The class of the solid at the stored place `stored` (`stageClassOf`), off its stored hit's material row alone,
+/// which needs no resolve: the plain one where the record names no solid.
+uint storedSolidClassOf(ivec2 stored)
+{
+    const uint kind = unpackStageRecord(imageLoad(stageRecord, stored)).mKind;
+    if (kind != STAGE_EYE_SOLID && kind != STAGE_WATER_PATH)
+        return STAGE_CLASS_PLAIN;
+
+    return stageClassOf(materialAt(instanceAt(imageLoad(stageHit, stored).x).mMaterial).mFlags);
 }
 
 /// The solid `record` names at the stored place `stored`, resolved off its stored hit as the trace resolved
@@ -198,12 +248,15 @@ Surface storedHitOf(ivec2 stored, bool detailed, bool landing)
 /// **The hit stored and not the ray traced again**, as Falcor's visibility buffer keeps a hit for the
 /// passes after it (`docs/architecture.md`, "The surface a pixel is the hit the trace stored"): the
 /// eye's traversal again cost each stage as much as the whole trace kernel.
-Surface storedSolidOf(StageRecord record, ivec2 stored)
+///
+/// @param normalMap `NORMAL_MAP_MARCHES` for the direct stage, which marches the solid's relief, or
+///        `NORMAL_MAP_STORED` for a stage after it, a constant of the call.
+Surface storedSolidOf(StageRecord record, ivec2 stored, uint normalMap)
 {
     if (record.mKind == STAGE_NO_SOLID)
         return noSurface(frame.mOrigin);
 
-    return storedHitOf(stored, record.mDetailed, false);
+    return storedHitOf(stored, record.mDetailed, normalMap);
 }
 
 /// Whether bounce ray `ray` stores its landing apart from the solid (`STAGE_LANDING_HIT`): every ray
@@ -221,7 +274,7 @@ void storeLandingHit(ivec2 stored, SceneAnswer met, SceneQuery asked, uint ray)
 {
     if (!landingApart(ray))
     {
-        storeStageSolid(stored, met, asked, RELIEF_UNMARCHED);
+        storeStageSolid(stored, met, asked);
         return;
     }
 
@@ -231,19 +284,18 @@ void storeLandingHit(ivec2 stored, SceneAnswer met, SceneQuery asked, uint ray)
 }
 
 /// Bounce ray `ray`'s landing at the stored place `stored` (`storeLandingHit`), resolved as the walk
-/// that traced it would have resolved it (`resolveAsked`), but for its relief, which is shifted and not
-/// marched (`Hit::mMarches`).
+/// that traced it would have resolved it (`resolveAsked`), but for its normal map, which it reads none of
+/// (`NORMAL_MAP_UNREAD`).
 Surface storedLandingOf(StageRecord record, ivec2 stored, uint ray)
 {
     if (!landingApart(ray))
-        return storedHitOf(stored, record.mBounceLobe, true);
+        return storedHitOf(stored, record.mBounceLobe, NORMAL_MAP_UNREAD);
 
     const uvec4 hit = imageLoad(landingHit, stored);
     const vec4 from = imageLoad(landingRayFrom, stored);
     const vec4 along = imageLoad(landingRayAlong, stored);
-    Hit landing = committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w);
-    landing.mMarches = false;
-    return resolve(landing, from.xyz, along.xyz, record.mBounceLobe, RELIEF_STORED);
+    const Hit landing = committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w);
+    return resolve(landing, from.xyz, along.xyz, record.mBounceLobe, NORMAL_MAP_UNREAD);
 }
 
 /// What the bounce hands its landing at the stored place `stored`, `STAGE_BOUNCE`: what light along

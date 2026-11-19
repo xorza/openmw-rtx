@@ -43,11 +43,6 @@ namespace Rtx
         return finest.has_value() ? meanTexel(*finest, scratch) : MeanTexel();
     }
 
-    bool solidFallOf(const std::optional<TextureData>& finest, TexelScratch&)
-    {
-        return finest.has_value() && fallsBelowSolid(*finest);
-    }
-
     AlphaRange alphaSpanOf(const std::optional<TextureData>& finest, TexelScratch&)
     {
         return finest.has_value() ? alphaRange(*finest) : AlphaRange{};

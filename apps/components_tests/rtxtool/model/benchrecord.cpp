@@ -322,7 +322,6 @@ namespace RtxTool
                                                 .mFirstPerson = 46,
                                                 .mMapped = 47,
                                                 .mModMapped = 65,
-                                                .mDarkAlpha = 48,
                                                 .mRelief = 49 },
                 .mInstanceSlots = 50,
                 .mStructureBytes = 51,
@@ -410,7 +409,7 @@ namespace RtxTool
             constexpr std::string_view scene
                 = R"("scene": {"instances": 41, "instanceSlots": 50, "cutoutInstances": 42, "waterInstances": 43, )"
                   R"("mediumInstances": 44, "additiveInstances": 45, "firstPersonInstances": 46, )"
-                  R"("mappedInstances": 47, "modMappedInstances": 65, "darkAlphaInstances": 48, "reliefInstances": 49, )"
+                  R"("mappedInstances": 47, "modMappedInstances": 65, "reliefInstances": 49, )"
                   R"("structureBytes": 51, )"
                   R"("structureLiveBytes": 52, "compactableBytes": 55, "compactableNowBytes": 56, )"
                   R"("structureMovedBytes": 67, "textureMovedBytes": 68, "rebuilt": 57, )"

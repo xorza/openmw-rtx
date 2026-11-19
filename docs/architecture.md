@@ -272,10 +272,12 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   keeps its cost. Only the tuples with maps march, and no setting turns it off. Refused: a max-mip quadtree; true
   displacement (`research/2026-11-08-height-map-range.md`, `research/2026-11-08-parallax-occlusion-techniques.md`,
   `research/2026-11-08-relief-cost-and-noise.md`).
-- **A mod's detail, decal, bump and gloss maps are read as `objects.frag` reads them**, under a constant and a row of
-  their own (`HAS_MOD_MAPS`), so no other tuple's kernel and no other hit's read moves. Refused: under the normal maps'
-  constant, which runs their kernels for one detail-mapped bottle; in the material's row, which moved every kernel; left
-  unread (`research/2026-11-15-mod-maps-registers.md`).
+- **A mod's detail, decal, bump and gloss maps are read as `objects.frag` reads them**, behind a material's bit and
+  from a row of their own (`MATERIAL_MOD_MAPS`), so no other hit's read moves; compiled into every kernel, which holds
+  no more registers on either AMD driver for it (`research/2026-11-19-one-kernel-registers.md`). Refused: under the
+  normal maps' constant, which runs their kernels for one detail-mapped bottle; in the material's row, which moved every
+  kernel; left unread; a constant of their own, a tuple doubled for nothing
+  (`research/2026-11-15-mod-maps-registers.md`).
 
 ### Content the renderer cannot use
 
@@ -567,6 +569,12 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **A room's record is not its light where a bounce is traced**: a landing and an unbounced surface take fixed shares of
   the ambient, by the user's choice (`research/2026-11-05-room-ambient.md`).
 - **`bounce` and `landing` dispatch a ray in turn**, so one ray holds the memory one bounce did.
+- **A bounce's landing reads no normal map and takes its lobe as diffuse** (`lobeAsDiffuse`), a reflection's as well:
+  the lobe's directional albedo at the landing's cosine and roughness added to its diffuse, as Unreal's surface cache
+  takes every hit as diffuse with a metal's reflectance added in (`EnvBRDFApproxFullyRough`) and its ray-traced path
+  drops a material's normal map (the Ray Tracing Quality Switch). Its lobe held the landing a register tier up with a
+  scene's maps (`research/2026-11-19-one-kernel-registers.md`). Refused: the lobe dropped, a metal black in the
+  bounce; the normal map alone, which saved no register.
 - **A frame's rays take the next steps of the golden-ratio turn**, a stratified sample over time (Wolfe et al. 2022).
   Refused: a hash a ray.
 
@@ -634,12 +642,24 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
   made again in every tuple, which slowed the bounce of a scene with maps and no relief.
 - **The surface a pixel is the hit the trace stored**, resolved again by later stages, as Falcor's visibility buffer.
   Refused: tracing the eye's ray again; the resolved surface stored, nearly twice the bytes.
+- **The trace resolves none of the solid it ends on; `direct` resolves and shades it first**, its relief's march and
+  the eye's channels with its light, as Burns and Hunt's visibility buffer shades once from the stored hit: the
+  trace's registers are then its traversal's, 96 in every tuple on the handheld where the maps' held 128
+  (`research/2026-11-19-one-kernel-registers.md`). Refused: a shading stage of its own, a second resolve a pixel for
+  the same registers.
 - **Every water pixel splits on two checkerboard fields**, one the mirror and one the bed, as Quake II RTX's
   `reflect_refract.rgen`.
 - **The frame stored as two dense half-images** where the denoiser reads (`shaders/shared/fields.h`), and a pixel whose
   surface is one in both reads across them.
 - **Work only where there is some**: `media` and `panes` dispatch indirectly over the tiles `visibility` lists,
   FidelityFX's classify and compact.
+- **A kernel a class of tile, not a frame**: the trace lists each tile under the most its solids ask, off their
+  material rows (neither maps nor a relief, the maps, a relief), and its layers likewise, and `direct`, `panes`, the
+  bounce and the ambient's stage run a kernel a class over its list, as Uncharted 4's deferred pass runs a
+  permutation a tile by its material features (El Garawany 2016): the Repack's rooms wear maps on a few tiles of
+  every frame that compiles them in (`research/2026-11-19-one-kernel-registers.md`). Each class's dispatch waits on
+  the one before, which wrote the same images. Refused: a branch on the material in one kernel, which holds the
+  maps' registers on every tile.
 - **A chain under a written image is one dispatch**: AMD's single-pass downsampler. Refused: a blit a level, whose
   drains raised the p99 (`research/2026-11-13-mip-chains-in-one-pass.md`).
 - **Exact numbers over smaller ones**: no f16 arithmetic, no snorm16 normals.
@@ -654,7 +674,25 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 - **Every driver draws its first frames on the full kernels**; the frame's own tuple compiles behind them and takes
   over, as Godot's ubershaders and Dolphin's hybrid mode do. Refused: every tuple ahead of the first frame, minutes and
   gigabytes at a first start.
-- **Specialization constants, not branches, remove what a frame cannot use** (`lib/variants.glsl`).
+- **Specialization constants, not branches, remove what a frame or a tile cannot use** (`lib/variants.glsl`), only
+  where the code they remove holds registers: the sea for the frame, and the maps and a relief for each class of tile
+  past the trace ("A kernel a class of tile, not a frame"); the trace and the water's stage read the maps in every
+  tuple, as they resolve no surface. The sun, the moons and a mod's maps are runtime tests, compiled into every kernel
+  at no register on RADV and none on AMD's Windows driver but beside the sea
+  (`research/2026-11-19-one-kernel-registers.md`). Refused: the sea a runtime test in one kernel, which on AMD's
+  Windows driver cost a room a quarter of its landing and a fifth of `panes` for code it never runs.
+- **A back face's normal is turned round, and groundcover's mirrored through the card**
+  (`MATERIAL_GROUNDCOVER`), as Unity's HDRP sets a double-sided material's back normal by a mode of the material's:
+  a groundcover mod authors its cards' normals pointing up as the ground's, nearly in the card's plane, which turned
+  round point down on half the cards and drew them black (issue 59); upstream's groundcover shader lights both faces
+  by them. Refused: mirroring every surface's, which facets a smooth surface seen from its back where its
+  triangles' planes part; a back copy of each card wound the other way, the doubled triangles the fold removes.
+- **A see-through hit's coverage is the diffuse's alpha alone**, its cut's too, though `objects.frag` multiplies the
+  dark map's in: a dark map whose alpha falls below solid stands on one glow sheet of every content measured, and its
+  read held 16 registers in every stage that walks past a pane (`research/2026-11-19-one-kernel-registers.md`). The
+  eye's hit still takes the dark map's alpha. Refused: a constant for it, a tuple a frame for one sheet; a runtime
+  test, a register tier on both AMD machines; a coverage image baked at load on the diffuse's coordinates, which that
+  sheet's map, bound at another unit and size, is not known to share.
 - **Every store of an image or float goes through the census** (`lib/census.glsl`): the harness's modules count each
   NaN or infinity a module stores, which `check` asserts away; the game's modules carry none. The device keeps the first
   such frame's images, deciding as the frame runs. Refused: a copy of every frame's images.

@@ -67,18 +67,14 @@ namespace Rtx
     /// arithmetic and not always the same bits.
     struct VisibilityVariant
     {
-        bool mSun = true;
-        bool mMoons = true;
         bool mSea = true;
         bool mMaps = true;
-        bool mDarkAlpha = true;
         bool mRelief = true;
-        bool mModMaps = true;
 
-        /// What this frame is: its sea `TraceSubject::mSea`, for the reason given there, and `subject`'s maps, dark
-        /// alpha and relief the scene's answers, because which materials a camera's rays meet is not known until
-        /// they are traced.
-        static VisibilityVariant resolve(const Shaders::VisibilityConstants& frame, const TraceSubject& subject);
+        /// What this frame is: its sea `TraceSubject::mSea`, for the reason given there, and `subject`'s maps and
+        /// relief the scene's answers, because which materials a camera's rays meet is not known until they are
+        /// traced.
+        static VisibilityVariant resolve(const TraceSubject& subject);
 
         /// Which of the table's pipelines this tuple is.
         std::uint32_t index() const;
@@ -87,11 +83,11 @@ namespace Rtx
         std::string describe(std::string_view kernel) const;
 
         /// How many tuples there are, and so how long the table is.
-        static constexpr std::uint32_t sCount = 128;
+        static constexpr std::uint32_t sCount = 8;
 
         /// How many of them are made, the whole tuple's among them: a relief stands only beside the
         /// maps, which a quarter of the table's indices leave out.
-        static constexpr std::uint32_t sMade = 96;
+        static constexpr std::uint32_t sMade = 6;
     };
 
     /// One ray per pixel against the top-level structure. Everything it needs arrives at record
@@ -163,18 +159,11 @@ namespace Rtx
         void recordSpriteEmitters(
             VkCommandBuffer commands, const VisibilityInputs& inputs, std::uint32_t count, GpuTimer* timer) const;
 
-        /// The tuple a frame of these inputs runs: the one its constants call for where it is made, and the full tuple
-        /// until then. Asked once a frame, and handed to `writesOf` and `record`, so the two agree whichever tuple
-        /// lands between them. Resolved from the constants this frame is about to be traced with and nothing kept
-        /// between frames: a dusk moves the tuple and a doorway moves it again.
-        VisibilityVariant variantFor(
-            const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants) const;
-
-        /// What `record` writes of the channels a trace may leave out, in `run`'s kernels: the
-        /// lobe's where they hold the maps' code — a scene that wears a map, or the full tuple — and
-        /// the puffs' where a puff can be met, `puffs` (`SpriteTables::mPuffs`, which `writeFrame`
-        /// states as `mPuffsInFrame`).
-        static ChannelWrites writesOf(VisibilityVariant run, bool puffs, bool bounced);
+        /// The tuple a frame of these inputs runs: the one its scene calls for where it is made, and the full tuple
+        /// until then. Asked once a frame, and handed to `record`, so its stages agree whichever tuple lands while
+        /// it records. Resolved from this frame's subject and nothing kept between frames: a doorway moves
+        /// the tuple. The sun and the moons are no part of it, so a dusk moves none.
+        VisibilityVariant variantFor(const VisibilityInputs& inputs) const;
 
         /// Records the trace in `variant`'s kernels, which `variantFor` answered. After `writeFrame`,
         /// which is what every launch here reads.
@@ -197,7 +186,6 @@ namespace Rtx
         void recordSpriteComposite(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& shown,
             const Shaders::Eyes& eyes, VkExtent2D extent, GpuTimer* timer) const;
 
-    private:
         /// The trace's stages first, in the order a frame runs them, each its own index into
         /// `Kernels::mStages`; the launches and the dispatches beside them after.
         enum class Kernel
@@ -219,6 +207,16 @@ namespace Rtx
             LampLists,
         };
 
+        /// Whether a frame of `variant` runs the media stage: a sun to cast shafts, `sunUp`, and a sea to cast them
+        /// in.
+        static bool hasMedia(VisibilityVariant variant, bool sunUp);
+
+        /// Whether a frame of `variant` runs `stage`, the sun up or not (`sunUp`): the water's where there is a sea,
+        /// the media's where it has media (`hasMedia`), and every other always. A tuple's kernels are made for a
+        /// frame with the sun up, which runs every stage a frame of it can.
+        static bool runsStage(Kernel stage, VisibilityVariant variant, bool sunUp);
+
+    private:
         /// One kernel to make: which of the pass's launches, and for the two tables, which tuple.
         struct Wanted
         {
@@ -269,17 +267,10 @@ namespace Rtx
         static const ComputePipeline<Shaders::StageConstants>& kernelOf(
             const TupleKernels& stage, VisibilityVariant variant);
 
-        /// Whether `variant` runs the media stage: a sun to cast shafts, and a sea to cast them in.
-        static bool hasMedia(VisibilityVariant variant);
-
-        /// Whether a frame of `variant` runs `stage`: the water's where there is a sea, the media's where
-        /// it has media (`hasMedia`), and every other always.
-        static bool runsStage(Kernel stage, VisibilityVariant variant);
-
         /// The launch that fills the fog volume's froxels for `variant`, a room's included: the volume walks the lamps
-        /// once per froxel where the closed form would be a lamp reservoir and a shadow ray per pixel. Neither the maps
-        /// nor a mod's maps are a question it asks, so a tuple is answered by its twin without them where that one is
-        /// made, and by the full tuple's until then.
+        /// once per froxel where the closed form would be a lamp reservoir and a shadow ray per pixel. The maps are no
+        /// question it asks, so a tuple is answered by its twin without them where that one is made, and by the full
+        /// tuple's until then.
         const TracePipeline<NoConstants>& scatterPipelineFor(VisibilityVariant variant) const;
 
         const Device& mDevice;
@@ -319,7 +310,7 @@ namespace Rtx
         struct Kernels
         {
             /// Each stage's kernels, by its `Kernel`, a pipeline per tuple: the media stage's for the
-            /// tuples `hasMedia` names alone.
+            /// tuples with a sea alone.
             std::array<TupleKernels, sStageCount> mStages{};
 
             /// The pipelines `mStages` names, each stage's by the index of the tuple it was made for.
@@ -371,7 +362,8 @@ namespace Rtx
         Kernels mKernels;
 
         /// The tuple whose pipeline `stage` runs for `variant`: every constant the stage's module does not
-        /// read set as the full tuple sets it, a relief only beside maps, as every made tuple stands.
+        /// read set as the full tuple sets it, the maps too for the trace's own two stages, and a relief only
+        /// beside maps, as every made tuple stands.
         VisibilityVariant canonicalOf(Kernel stage, VisibilityVariant variant) const;
 
         /// Where each of a stage's canonical pipelines stands: a hand that wants one another is making

@@ -214,15 +214,6 @@ namespace Rtx
             [](std::uint32_t, std::uint32_t, std::uint8_t alpha) { return alpha == 255; });
     }
 
-    bool fallsBelowSolid(const TextureData& finest)
-    {
-        // Only as far as the first texel under solid: an opaque map is walked whole, once a file.
-        assert(finest.levelsFit() && "an alpha read of a description short of its bytes");
-        const MipLevel& level = finest.mLevels.front();
-        return forEachAlpha(finest.mFormat, finest.bytesOf(0), level.mWidth, level.mHeight,
-            [](std::uint32_t, std::uint32_t, std::uint8_t alpha) { return alpha < 255; });
-    }
-
     AlphaRange alphaRange(const TextureData& finest)
     {
         assert(finest.levelsFit() && "an alpha read of a description short of its bytes");

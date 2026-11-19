@@ -112,3 +112,19 @@ the handheld at `4ca1857b03`, and on the Windows machine at `4ebe9c3153`, the sa
 - **The handheld's PBR still draws the stand-in at Seyda Neen** (leg 3, frame 561): the texture pool's 4288 MiB of
   blocks stand full with no range free, the structures' blocks hold 250 MiB free, and the texture is refused for good
   in the take that is refused, before the placement whose moves the refusal sets off gives a block back.
+
+## Master against the baseline, flown back to back
+
+The whole Repack on the handheld the same night: master at `0c216f9b57`, then the baseline at `ef34131d39`, each
+from its own build, the baseline's tour flying every leg as its own default does.
+
+| flight | legs' p99 median, all / land / rooms, ms | stops over the budget | device held, peak MiB | swapped at the peak | allocations stalled to compact |
+|---|---|---|---|---|---|
+| baseline, `ef34131d39` | 26.1 / 83.4 / 22.2 | 0 | 5018 | 2.7 GiB | 1683 |
+| master, `0c216f9b57` | 47.3 / 81.1 / 34.9 | 0 | 5838 | 1.8 GiB | 872 |
+
+- **The rooms' gap is 12.7 ms**, two whole flights of master's code at 32.2 and 34.9 ms against the baseline's 21.0 and
+  22.2.
+- **Not the host's pressure**: the baseline swapped more and stalled twice as many allocations, and ran its rooms the
+  faster.
+- **The device holds 820 MiB more** at master's peak, under its budget throughout.

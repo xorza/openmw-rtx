@@ -356,8 +356,8 @@ namespace Rtx
             const Daylight room = makeRoomLight(chamber);
 
             // **Nothing anywhere gates a room's sun on a second field**, so a zero irradiance is the
-            // whole of it: no direct term, no shadow ray, no disc drawn, and the kernel's `HAS_SUN`
-            // folds away. `Sun::mIrradiance` carries that invariant.
+            // whole of it: no direct term, no shadow ray, no disc drawn, and the kernel's `sunUp`
+            // answers no. `Sun::mIrradiance` carries that invariant.
             EXPECT_EQ(room.mLight.mSun.mIrradiance, osg::Vec3f(0.0f, 0.0f, 0.0f));
             EXPECT_EQ(room.mLight.mSunAloft.mIrradiance, osg::Vec3f(0.0f, 0.0f, 0.0f)) << "and no deck over it";
 

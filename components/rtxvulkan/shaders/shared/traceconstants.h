@@ -21,24 +21,24 @@ namespace Rtx::Shaders
     /// `visibility.comp` the stage's, and the host fills one table indexed by them, so no table's
     /// order has to agree with a declaration's.
     const uint SPEC_COUNTING = 0u;
-    const uint SPEC_HAS_SUN = 1u;
-    const uint SPEC_HAS_MOONS = 2u;
-    const uint SPEC_HAS_SEA = 3u;
-    const uint SPEC_HAS_MAPS = 4u;
-    const uint SPEC_HAS_DARK_ALPHA = 5u;
-    const uint SPEC_WATER_STAGE = 6u;
-    const uint SPEC_HAS_RELIEF = 7u;
-    const uint SPEC_UPSCALE_MASKS = 8u;
-    const uint SPEC_HAS_MOD_MAPS = 9u;
-    const uint SPEC_COUNT = 10u;
+    const uint SPEC_HAS_SEA = 1u;
+    const uint SPEC_HAS_MAPS = 2u;
+    const uint SPEC_WATER_STAGE = 3u;
+    const uint SPEC_HAS_RELIEF = 4u;
+    const uint SPEC_UPSCALE_MASKS = 5u;
+    const uint SPEC_COUNT = 6u;
 
     /// What a trace stage is pushed beside the frame block: which of the frame's bounce rays the
     /// bounce's and the landing's stages trace and light (`bounce.comp`, `landing.comp`), counting the
-    /// first as nought, which the two are run once for each ray with. Every other stage is pushed
-    /// nought and declares no block.
+    /// first as nought, which the two are run once for each ray with; and the list of tiles a stage that runs a
+    /// kernel a class runs over. A stage that reads neither declares no block.
     struct StageConstants
     {
         uint mRay;
+
+        /// Which list a stage that runs a kernel a class runs over (`STAGE_LIST_SOLID`, `STAGE_LIST_PANES` and the
+        /// classes after each), the class's list.
+        uint mList;
     };
 
     /// The columns and rows of a field one workgroup of a trace stage covers (`stagePixelOf`): 32
@@ -54,7 +54,7 @@ namespace Rtx::Shaders
 
 #ifdef RTX_HOST
     static_assert(TRACE_WORKGROUP_LANES == 32u, "a trace workgroup that is not one subgroup of 32 lanes");
-    static_assert(sizeof(StageConstants) == 4, "StageConstants must be scalar-packed on every side");
+    static_assert(sizeof(StageConstants) == 8, "StageConstants must be scalar-packed on every side");
 #endif
 
     /// How many tiles each of the stages' lists holds for a frame `width` by `height`: every

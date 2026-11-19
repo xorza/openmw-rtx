@@ -97,7 +97,7 @@ vec3 puffLight(uvec2 pixel, vec3 direction, float seen, PuffShape wrapped)
     const vec3 daylight = daylightReaching(frame.mOrigin + direction * seen);
 
     const vec3 sun
-        = HAS_SUN ? frame.mSun.mIrradiance * daylight * (seeing.mTransport * INV_PI * wrapped.mSunLit) : vec3(0.0);
+        = sunUp() ? frame.mSun.mIrradiance * daylight * (seeing.mTransport * INV_PI * wrapped.mSunLit) : vec3(0.0);
 
     return frame.mAmbient * daylight * (seeing.mAmbientSeen * wrapped.mAmbientLit) + sun
         + lamps * (seeing.mLampsSeen * wrapped.mAmbientLit);

@@ -249,8 +249,8 @@ namespace Rtx
                 .mTimer = what.mTimer,
             });
 
-        const VisibilityVariant run = mPasses.mVisibility.variantFor(inputs, what.mSampled);
-        mChannels->begin(commands, VisibilityPass::writesOf(run, tables.mPuffs, what.mSampled.mBounceRays != 0));
+        const VisibilityVariant run = mPasses.mVisibility.variantFor(inputs);
+        mChannels->begin(commands, ChannelWrites{ .mPuffs = tables.mPuffs, .mFill = what.mSampled.mBounceRays != 0 });
         mPasses.mVisibility.record(commands, inputs, run, what.mSampled, what.mTimer);
         mChannels->handOver(commands);
 

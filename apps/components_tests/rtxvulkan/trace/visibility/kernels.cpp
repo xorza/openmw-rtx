@@ -99,9 +99,8 @@ namespace Rtx
         /// the compile is over. What a frame draws with is the full tuple's nine (the trace, the water's walk,
         /// its direct light, media, layers, bounce, the bounce's landing, the ambient's stage and the froxels'
         /// launch) beside the 6 kernels no tuple changes (the air's two, the sprites' three and the lamp lists');
-        /// every other tuple compiles behind them, a tuple a step, 95 of them: the 64 of the maps, a mod's maps, the
-        /// sky and a dark map's alpha, and the 32 with the maps that march a relief beside them, but the full tuple,
-        /// one of those.
+        /// every other tuple compiles behind them, a tuple a step, 5 of them: the 4 of the maps and the sea, and the 2
+        /// with the maps that march a relief beside them, but the full tuple, one of those.
         ///
         /// Only the full tuple is watched as it compiles, the rest read off the suite's renderer, which made
         /// every tuple before any test ran (`Testing::getRenderer` waits for `KernelSet::Every`): every kernel
@@ -140,8 +139,8 @@ namespace Rtx
             EXPECT_EQ(first.mCount, drawing);
             const JobProgress every
                 = Testing::getRenderer().awaitKernels(KernelSet::Every, std::chrono::milliseconds::zero());
-            EXPECT_EQ(every.mMade, drawing + 95u);
-            EXPECT_EQ(every.mCount, drawing + 95u);
+            EXPECT_EQ(every.mMade, drawing + 5u);
+            EXPECT_EQ(every.mCount, drawing + 5u);
         }
 
         /// No kernel spills past its ceiling, where the driver says (`PipelineReport::compiledUseOf`), in any tuple
@@ -175,27 +174,21 @@ namespace Rtx
             /// none.
             struct TupleSet
             {
-                std::optional<bool> mSun = std::nullopt;
-                std::optional<bool> mMoons = std::nullopt;
                 std::optional<bool> mSea = std::nullopt;
                 std::optional<bool> mMaps = std::nullopt;
-                std::optional<bool> mDarkAlpha = std::nullopt;
                 std::optional<bool> mRelief = std::nullopt;
-                std::optional<bool> mModMaps = std::nullopt;
 
                 bool holds(const VisibilityVariant& tuple) const
                 {
                     const auto agrees = [](const std::optional<bool> named, const bool has) {
                         return !named.has_value() || *named == has;
                     };
-                    return agrees(mSun, tuple.mSun) && agrees(mMoons, tuple.mMoons) && agrees(mSea, tuple.mSea)
-                        && agrees(mMaps, tuple.mMaps) && agrees(mDarkAlpha, tuple.mDarkAlpha)
-                        && agrees(mRelief, tuple.mRelief) && agrees(mModMaps, tuple.mModMaps);
+                    return agrees(mSea, tuple.mSea) && agrees(mMaps, tuple.mMaps) && agrees(mRelief, tuple.mRelief);
                 }
 
                 std::ptrdiff_t named() const
                 {
-                    const std::array constants{ mSun, mMoons, mSea, mMaps, mDarkAlpha, mRelief, mModMaps };
+                    const std::array constants{ mSea, mMaps, mRelief };
                     return std::ranges::count_if(
                         constants, [](const std::optional<bool> constant) { return constant.has_value(); });
                 }
@@ -222,33 +215,21 @@ namespace Rtx
             };
 
             // Measured on a low-end AMD integrated GPU under AMD's Windows driver 26.8.1, in every tuple, none of
-            // which holds scratch. The rows were set in two: the whole one, which the rows of a dark map's alpha
-            // are, and the same without that read (`HAS_DARK_ALPHA`), which the others are; every other tuple is
-            // one of the two with code taken out and stands at or under its figure, but for `media` with a dark
-            // map's alpha and no moons, which takes 217 to the whole tuple's 216: the same 224 an RDNA 2 SIMD
-            // allocates in steps of 16, four waves (`docs/research/2026-11-13-amd-integrated-register-tiers.md`).
-            // `visibility` under the rule since a hit's vertex colours and a relief's layers' frame stand past
-            // the ground stack (`docs/research/2026-11-13-amd-integrated-register-tiers.md`); the water and media
+            // which holds scratch, and held by the tuples without a dark map's alpha since its read left every
+            // kernel: every other tuple is the whole one with code taken out and stands at or under its figure
+            // (`docs/research/2026-11-13-amd-integrated-register-tiers.md`). `visibility` under the rule since a
+            // hit's vertex colours and a relief's layers' frame stand past the ground stack; the water and media
             // at what they hold since each walk resolves its hit once ("A walk resolves the surface it ends on
-            // once"); `media` with a dark map's alpha at 216 since a read pairs an image with its sampler
-            // (`TEXTURE`), still four waves on an RDNA SIMD (`docs/research/2026-11-09-separate-samplers.md`);
-            // the landing at 144 since a sheet takes its span off the corners the hit carried
-            // (`docs/research/2026-11-09-sheet-span.md`); `panes` with no scratch since a layer under the water
-            // takes its column's shafts from `media` (`docs/research/2026-11-12-panes-column-ratio.md`), and at 256
-            // in every tuple, four waves as at 248, since a path end's rays are asked at their turns
-            // (`docs/research/2026-11-15-radv-wave-tiers.md`): run again there with a mod's maps read, where
-            // every other row held.
-            constexpr std::array<Row, 10> sAmd{ {
+            // once"); the landing under the rule since it reads no normal map and makes its lobe diffuse, 112 at
+            // most (`docs/research/2026-11-19-one-kernel-registers.md`); `panes` with no scratch since a layer under
+            // the water takes its column's shafts from `media` (`docs/research/2026-11-12-panes-column-ratio.md`), and
+            // at 256 in every tuple, four waves as at 248, since a path end's rays are asked at their turns
+            // (`docs/research/2026-11-15-radv-wave-tiers.md`).
+            constexpr std::array<Row, 4> sAmd{ {
                 { "water", {}, { 0, 177, 2048 } },
-                { "water", { .mDarkAlpha = true }, { 0, 190, 2048 } },
                 { "direct", {}, { 0, 160, 2048 } },
-                { "direct", { .mDarkAlpha = true }, { 0, 144, 2048 } },
                 { "media", {}, { 0, 192, 2048 } },
-                { "media", { .mDarkAlpha = true }, { 0, 216, 2048 } },
-                { "media", { .mMoons = false, .mDarkAlpha = true }, { 0, 217, 2048 } },
                 { "panes", {}, { 0, 256, 2048 } },
-                { "landing", {}, { 0, 144, 2048 } },
-                { "bounce", { .mDarkAlpha = true }, { 0, 144, 2048 } },
             } };
             // Measured on a high-end NVIDIA laptop GPU under driver 620.70.06, in every tuple. Its compiler keeps
             // what a stage's registers do not hold in shared memory, up to a figure its register count sets —
@@ -261,26 +242,23 @@ namespace Rtx
             // again once the stages carried less through their rays and their resolve
             // (`docs/research/2026-11-15-radv-wave-tiers.md`): no stage stands at 168 registers, the eye's at 96
             // in every tuple, and `panes` holds its 6272 bytes and up to 96 of a lane's local memory in all. With
-            // a mod's maps beside the others (`HAS_MOD_MAPS`) the eye's stage holds 120 to 124 registers and no
-            // shared memory in twelve tuples, under the moons or the sea with a relief.
+            // a mod's maps read in every tuple with the maps (`docs/research/2026-11-19-one-kernel-registers.md`) the
+            // landing, which reads no normal map and makes its lobe diffuse, holds in every tuple what it held without
+            // the maps; and the eye's stage and the water's, which store the solid they end on and resolve none of
+            // it, 94 and 128 registers in every tuple, the trace's own 80 where it has no sea with 1152 bytes of
+            // shared memory.
             // `fog integrate` holds its column depths, floats a thread read at an index the tent's loop leaves
             // unrolled, which the compiler keeps in shared memory and not a lane's local memory. `lamp lists`
             // holds its tile's tables, three words a lamp a tile's rays can reach and the list,
             // `3 × 128 × 4 + 8 × 4` and the count.
-            constexpr std::array<Row, 18> sNvidia{ {
-                { "visibility", {}, { 0, 96, 2688 } },
-                { "visibility", { .mMaps = false }, { 0, 96, 0 } },
-                { "visibility", { .mMaps = true, .mModMaps = true }, { 0, 128, 2688 } },
-                { "water", {}, { 0, 128, 3200 } },
-                { "water", { .mDarkAlpha = false }, { 0, 128, 2176 } },
-                { "water", { .mMaps = false, .mDarkAlpha = false }, { 0, 128, 640 } },
+            constexpr std::array<Row, 12> sNvidia{ {
+                { "visibility", {}, { 0, 96, 1152 } },
+                { "water", {}, { 0, 128, 640 } },
                 { "direct", {}, { 0, 128, 4224 } },
                 { "direct", { .mMaps = false }, { 0, 96, 3968 } },
-                { "media", {}, { 16, 128, 6272 } },
-                { "media", { .mDarkAlpha = false }, { 0, 128, 5504 } },
+                { "media", {}, { 0, 128, 5504 } },
                 { "panes", {}, { 96, 128, 6272 } },
-                { "landing", { .mMaps = false }, { 0, 96, 1664 } },
-                { "landing", { .mMaps = false, .mDarkAlpha = false }, { 0, 96, 384 } },
+                { "landing", {}, { 0, 96, 384 } },
                 { "bounce", { .mMaps = false }, { 0, 80, 0 } },
                 { "bounce", { .mMaps = true }, { 0, 128, 896 } },
                 { "bounce", { .mMaps = true, .mRelief = false }, { 0, 128, 0 } },
@@ -292,27 +270,26 @@ namespace Rtx
             // registers stand a step of sixteen under where they stood, and its waves one over, since its rays
             // are asked at their turns, a hit's rows are read again past the ground stack, the bounce's
             // hand-over is stored ahead of its ray and the eye's peel resolves once
-            // (`docs/research/2026-11-15-radv-wave-tiers.md`). `media` and `panes` at what they held. The tuples
-            // that read a mod's maps (`HAS_MOD_MAPS`) on both as well: the handheld's Mesa holds the water's stage
-            // with a relief and a mod's maps a step over the shim's, at 160.
-            constexpr std::array<Row, 18> sRadv{ {
-                { "visibility", { .mMaps = false }, { 0, 96, 2048 } },
-                { "water", {}, { 0, 160, 2048 } },
-                { "water", { .mMaps = false, .mDarkAlpha = false }, { 0, 144, 2048 } },
-                { "water", { .mDarkAlpha = false, .mRelief = true }, { 0, 144, 2048 } },
-                { "water", { .mDarkAlpha = false, .mRelief = true, .mModMaps = true }, { 0, 160, 2048 } },
-                { "direct", { .mRelief = false }, { 0, 112, 2048 } },
-                { "direct", { .mMaps = false, .mDarkAlpha = false }, { 0, 96, 2048 } },
+            // (`docs/research/2026-11-15-radv-wave-tiers.md`). `media` and `panes` at what they held. A mod's maps
+            // are read in every tuple since `docs/research/2026-11-19-one-kernel-registers.md`: the handheld's Mesa
+            // holds the water's stage with a relief at 160, a step over the shim's. The landing at what it held without
+            // the maps in every tuple, since it reads no normal map and makes its lobe diffuse. The eye's stage at 96
+            // and the water's at 144 in every tuple, since they store the solid they end on and resolve none of it,
+            // which `direct` resolves and shades: 128 with the maps, and 144 with a relief, whose march's depth stands
+            // live through the rest of the resolve to be stored.
+            constexpr std::array<Row, 13> sRadv{ {
+                { "visibility", {}, { 0, 96, 2048 } },
+                { "water", {}, { 0, 144, 2048 } },
+                { "water", { .mRelief = true }, { 0, 160, 2048 } },
+                { "direct", { .mRelief = true }, { 0, 144, 2048 } },
+                { "direct", { .mMaps = false }, { 0, 96, 2048 } },
                 { "media", {}, { 0, 176, 2048 } },
-                { "media", { .mDarkAlpha = true }, { 0, 192, 2048 } },
                 { "panes", {}, { 0, 256, 2048 } },
                 { "panes", { .mMaps = false }, { 0, 192, 2048 } },
                 { "panes", { .mSea = false, .mRelief = true }, { 0, 192, 2048 } },
                 { "bounce", { .mMaps = true }, { 0, 112, 2048 } },
-                { "bounce", { .mMaps = false }, { 0, 96, 2048 } },
-                { "bounce", { .mMaps = false, .mDarkAlpha = false }, { 0, 80, 2048 } },
-                { "landing", { .mMaps = false }, { 0, 112, 2048 } },
-                { "landing", { .mMaps = false, .mDarkAlpha = false }, { 0, 96, 2048 } },
+                { "bounce", { .mMaps = false }, { 0, 80, 2048 } },
+                { "landing", {}, { 0, 96, 2048 } },
                 { "unbounced", {}, { 0, 80, 2048 } },
             } };
             const std::array sDrivers{
@@ -339,13 +316,9 @@ namespace Rtx
             for (std::uint32_t bits = 0; bits < VisibilityVariant::sCount; ++bits)
             {
                 const VisibilityVariant tuple{
-                    .mSun = (bits & 1u) != 0,
-                    .mMoons = (bits & 2u) != 0,
-                    .mSea = (bits & 4u) != 0,
-                    .mMaps = (bits & 8u) != 0,
-                    .mDarkAlpha = (bits & 16u) != 0,
-                    .mRelief = (bits & 32u) != 0,
-                    .mModMaps = (bits & 64u) != 0,
+                    .mSea = (bits & 1u) != 0,
+                    .mMaps = (bits & 2u) != 0,
+                    .mRelief = (bits & 4u) != 0,
                 };
                 tuples[tuple.index()] = tuple;
             }
@@ -467,12 +440,39 @@ namespace Rtx
             }
         }
 
+        /// **The sun is the frame's and not the tuple's**: the water's walk runs where the tuple has a sea, sun or
+        /// none; the shafts through it (`media`) where it has a sea and the sun is up, and nowhere else; every other
+        /// stage whatever the frame. A tuple's kernels are made for the sun up, so its media kernel is made with its
+        /// sea.
+        TEST_F(RtxVisibilityKernelsTest, theSunDecidesTheShaftsAndTheSeaTheWaterAndNothingElse)
+        {
+            using Kernel = VisibilityPass::Kernel;
+            const VisibilityVariant sea{ .mSea = true };
+            const VisibilityVariant dry{ .mSea = false };
+            for (const bool sun : { false, true })
+            {
+                SCOPED_TRACE(sun);
+                EXPECT_TRUE(VisibilityPass::runsStage(Kernel::Water, sea, sun));
+                EXPECT_FALSE(VisibilityPass::runsStage(Kernel::Water, dry, sun));
+                EXPECT_EQ(VisibilityPass::runsStage(Kernel::Media, sea, sun), sun);
+                EXPECT_FALSE(VisibilityPass::runsStage(Kernel::Media, dry, sun));
+                for (const Kernel always : { Kernel::Visibility, Kernel::Direct, Kernel::Panes, Kernel::Bounce,
+                         Kernel::Landing, Kernel::Unbounced })
+                {
+                    EXPECT_TRUE(VisibilityPass::runsStage(always, dry, sun));
+                    EXPECT_TRUE(VisibilityPass::runsStage(always, sea, sun));
+                }
+            }
+        }
+
         /// **Tuples a stage reads alike share its pipeline** (`VisibilityPass::canonicalOf`): the unbounced
-        /// stage reads no sun and no moons, so a tuple without either runs the full tuple's pipeline, and it
-        /// reads the sea, so a tuple without one runs a pipeline of its own; the eye's stage reads every
-        /// constant, so no two of its tuples share one. Of the 648 stage pipelines listed, 164 are shared: the 80 the
-        /// sky and the maps share, under either value of a mod's maps' constant, and the media's four, which read no
-        /// mod's maps either.
+        /// stage reads the sea, so a tuple without one runs a pipeline of its own; the eye's stage reads a relief,
+        /// so a tuple without one does too, and the maps in every tuple, so a tuple without them runs the pipeline
+        /// with them. Of the stage pipelines listed, 7 are shared: the media stage reads neither the maps nor a
+        /// relief, so its three tuples, each with a sea, run one pipeline; the landing reads no normal map and so no
+        /// relief (`NORMAL_MAP_UNREAD`), so its four tuples with the maps run two; the eye's stage's two tuples with
+        /// neither, one with a sea and one without, run their tuples' with the maps; and the water's stage's tuple
+        /// with neither runs the one with the maps.
         TEST_F(RtxVisibilityKernelsTest, tuplesAStageReadsAlikeShareItsPipeline)
         {
             const std::vector<VisibilityPass::NamedKernel>& kernels = specialized().mKernels;
@@ -486,9 +486,11 @@ namespace Rtx
             const VisibilityVariant full{};
             const Pipeline* const whole = of("unbounced", full);
             ASSERT_NE(whole, nullptr);
-            EXPECT_EQ(of("unbounced", VisibilityVariant{ .mSun = false, .mMoons = false }), whole);
             EXPECT_NE(of("unbounced", VisibilityVariant{ .mSea = false }), whole);
-            EXPECT_NE(of("visibility", VisibilityVariant{ .mSun = false }), of("visibility", full));
+            const VisibilityVariant flat{ .mRelief = false };
+            EXPECT_NE(of("visibility", flat), of("visibility", full));
+            EXPECT_EQ(of("visibility", VisibilityVariant{ .mMaps = false, .mRelief = false }), of("visibility", flat));
+            EXPECT_NE(of("visibility", flat), nullptr);
 
             std::vector<const Pipeline*> distinct;
             distinct.reserve(kernels.size());
@@ -497,7 +499,7 @@ namespace Rtx
             std::ranges::sort(distinct);
             const auto [first, last] = std::ranges::unique(distinct);
             distinct.erase(first, last);
-            EXPECT_EQ(kernels.size() - distinct.size(), 164u) << "the stage pipelines shared tuples save";
+            EXPECT_EQ(kernels.size() - distinct.size(), 7u) << "the stage pipelines shared tuples save";
         }
 
         /// A kernel that cannot be made is thrown to every ask, the bounded one included, and not only the

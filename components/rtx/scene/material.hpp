@@ -197,6 +197,9 @@ namespace Rtx
         /// Whether the lamps light this surface — `SurfaceDescription::mLampLit`.
         bool mLampLit = true;
 
+        /// Whether this surface is groundcover's — `SurfaceDescription::mGroundcover`.
+        bool mGroundcover = false;
+
         /// Mesh texture coordinates to this material's, as `uv * xy + zw` — the same form the
         /// terrain layers use. Morrowind moves lava, waterfalls, banners and smoke by rewriting a
         /// texture matrix every frame — 432 surfaces in Vivec alone — so this is on the material,
@@ -232,12 +235,6 @@ namespace Rtx
         /// cloud (`isMedium`). False for a material with no diffuse map at all, which is an
         /// untextured pane.
         bool mDiffuseNeverSolid = false;
-
-        /// Whether the dark map's alpha ever falls below solid where the material is blended, so a
-        /// see-through hit's coverage is the diffuse's alpha times the dark map's, as `objects.frag`
-        /// multiplies them. Nearly every dark map is opaque, and the trace reads none for it
-        /// (`HAS_DARK_ALPHA`).
-        bool mDarkBelowSolid = false;
 
         /// What one texel of the diffuse map adds on average under this material's blend, in
         /// linear light: weighted by its own alpha where the blend reads one and whole where it
@@ -319,6 +316,13 @@ namespace Rtx
         /// opaque or cutout surface is all there, and what its alpha holds is not a coverage.
         bool isBlended() const { return mAlphaMode == AlphaMode::Blend; }
 
+        /// Whether it wears a detail, a decal, a bump or a gloss map, a mod's maps beside the diffuse
+        /// (`Shaders::MATERIAL_MOD_MAPS`).
+        bool wearsModMaps() const
+        {
+            return mDetail != sNoRow || mDecal != sNoRow || mBump != sNoRow || mGloss != sNoRow;
+        }
+
         /// Whether what is behind this surface is meant to show through it, by the rasterizer's own
         /// rule: a blend draws every texel at its alpha (`objects.frag`) and discards only where the
         /// content asked for a test. The two answers want opposite things from traversal — a mask
@@ -388,16 +392,9 @@ namespace Rtx
             /// (`InstanceCounts::mMapped`).
             bool mMapped = false;
 
-            /// Whether the material wears a detail, a decal, a bump or a gloss map: what the trace compiles their
-            /// reads in for, and only for a scene that places such a material (`InstanceCounts::mModMapped`). Apart
-            /// from `mMapped`, so a scene whose clutter wears a detail map does not run the normal and specular maps'
-            /// kernels for it.
+            /// Whether the material wears a detail, a decal, a bump or a gloss map (`wearsModMaps`), which a scene's
+            /// count reports (`InstanceCounts::mModMapped`).
             bool mModMapped = false;
-
-            /// `mDarkBelowSolid`: what the trace compiles a see-through candidate's read of the dark
-            /// map's alpha in for, and only for a scene that places such a material
-            /// (`InstanceCounts::mDarkAlpha`).
-            bool mDarkAlpha = false;
 
             /// Whether its relief spans more than one height, which a march has to find its way
             /// through: what the trace compiles the march in for, and only for a scene that places
@@ -429,8 +426,7 @@ namespace Rtx
                 .mAdditive = isAdditive(),
                 .mTwoSided = mTwoSided,
                 .mMapped = mNormal != sNoRow || mSpecular != sNoRow || mLayersMapped,
-                .mModMapped = mDetail != sNoRow || mDecal != sNoRow || mBump != sNoRow || mGloss != sNoRow,
-                .mDarkAlpha = mDarkBelowSolid,
+                .mModMapped = wearsModMaps(),
                 .mRelief = mRelief.has_value() && mRelief->spans(),
             };
         }

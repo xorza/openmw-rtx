@@ -29,9 +29,6 @@ namespace Rtx
         /// What a texel of a texture is worth on average — `TexelMean`.
         TexelMean,
 
-        /// Whether a texture's alpha ever falls below solid — `SolidFall`.
-        SolidFall,
-
         /// The lowest and the highest alpha a texture holds — `AlphaSpan`.
         AlphaSpan,
 
@@ -54,7 +51,6 @@ namespace Rtx
         std::pair{ ContentPassId::Shape, std::string_view("shape") },
         std::pair{ ContentPassId::SolidReach, std::string_view("solid reach") },
         std::pair{ ContentPassId::TexelMean, std::string_view("texel mean") },
-        std::pair{ ContentPassId::SolidFall, std::string_view("solid fall") },
         std::pair{ ContentPassId::AlphaSpan, std::string_view("alpha span") },
         std::pair{ ContentPassId::Chain, std::string_view("chain") },
         std::pair{ ContentPassId::SpecularKind, std::string_view("specular kind") },

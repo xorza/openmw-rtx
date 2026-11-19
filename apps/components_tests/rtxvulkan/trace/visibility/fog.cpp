@@ -1646,7 +1646,7 @@ namespace Rtx::Testing
                 camera.mFogUniform = 1.0f;
 
                 // No disc, because what is measured is the air and not the moon: a disc where the ray runs would
-                // put the moon's own radiance in the pixel, and the irradiance alone carries `HAS_MOONS`, so the
+                // put the moon's own radiance in the pixel, and the irradiance alone carries `moonsUp`, so the
                 // basis, colour and face a disc is cut from stay nothing. `mLimb` is how wide the shadow cone is.
                 Shaders::MoonDisc moon{};
                 osg::Vec3f towards(0.0f, 1.0f, 0.5f);

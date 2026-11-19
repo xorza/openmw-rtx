@@ -485,12 +485,13 @@ namespace Rtx::Testing
                 << "the bit's mean is what the pane lets through";
         }
 
-        /// A pane's dark map hazes its shadow as it hazes the pane. The black pane of the test above, half
-        /// there, wears a dark map whose alpha is 128 of 255 and falls below solid (`Material::mDarkBelowSolid`):
-        /// the eye sees it at `0.5 * 128 / 255` = 0.25098 of the way there, so a shadow ray meets it as often
-        /// and the bit opens on 0.74902 of its draws. Over 32 frames of the 96 by 96 floor, n >= 32 * 96 * 96
-        /// draws: the mean's deviation is `sqrt(0.25 * 0.75 / n)` <= 0.0025, held at four of it.
-        TEST_F(RtxVisibilityTest, aPanesDarkMapHazesItsShadowAsItHazesThePane)
+        /// **A pane's dark map leaves its shadow at the pane's own coverage**: a see-through hit's coverage is the
+        /// diffuse's alpha alone (`candidateStops`). The black pane of the test above, half there, wears a dark
+        /// map whose alpha is 128 of 255, which the eye's hit multiplies in and a shadow ray does not, so the bit
+        /// opens on 0.5 of its draws as it does with no dark map, where the dark map's alpha would make it
+        /// `1 - 0.5 * 128 / 255` = 0.74902. Over 32 frames of the 96 by 96 floor, n >= 32 * 96 * 96 / 2 draws:
+        /// the mean's deviation is `sqrt(0.25 / n)` <= 0.0013, held at four of it, a twentieth of the gap.
+        TEST_F(RtxVisibilityTest, aPanesDarkMapLeavesItsShadowAtThePanesOwnCoverage)
         {
             SceneIdentities identities;
             constexpr std::uint32_t size = 96;
@@ -514,7 +515,6 @@ namespace Rtx::Testing
                 .mOpacity = 0.5f,
                 .mAlphaMode = AlphaMode::Blend,
                 .mTwoSided = true,
-                .mDarkBelowSolid = true,
             });
             const std::array<osg::Vec3f, 4> pane = sheetAt(4000.0f, 40.0f);
             scene.addInstance(
@@ -540,9 +540,9 @@ namespace Rtx::Testing
                  } });
             ASSERT_GE(drawn, static_cast<std::size_t>(frames) * size * size / 2);
             const double open = static_cast<double>(opened) / static_cast<double>(drawn);
-            const double owed = 1.0 - 0.5 * 128.0 / 255.0;
+            const double owed = 0.5;
             EXPECT_NEAR(open, owed, 4.0 * std::sqrt(owed * (1.0 - owed) / static_cast<double>(drawn)))
-                << "the bit's mean is what the pane and its dark map let through";
+                << "the bit's mean is what the pane lets through, its dark map's alpha aside";
         }
 
         /// A penumbra's bits are drawn blue, so a little blur takes most of their noise. The roof of the

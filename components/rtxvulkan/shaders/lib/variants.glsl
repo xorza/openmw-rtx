@@ -18,6 +18,12 @@
 // **Each of these stands in front of the runtime test it replaces and never in place of it.** True leaves the
 // shader exactly as it was; false is set only where the test behind it already answers no, so what the
 // compiler removes is dead code and not an answer.
+//
+// **The sun, the moons and a mod's maps are no constants**: their tests (`sunUp`, `moonsUp`, `MATERIAL_MOD_MAPS`)
+// stand alone, as a kernel compiled with them in holds no more registers on RADV than one without, in every stage,
+// and on AMD's Windows driver only beside the sea (`docs/research/2026-11-19-one-kernel-registers.md`). **Nor is a
+// dark map's alpha**: a see-through hit's coverage is the diffuse's alpha
+// alone, as its cut is (`candidateStops`).
 
 /// Whether the frame counts its hits for the host — `FrameCounts::mMisses`.
 ///
@@ -31,13 +37,6 @@
 /// ray hits. The sky is drawn exactly once for every primary ray that ends in nothing (`missedAlong`), so the
 /// misses are the same count from the other side, and a room adds nought.
 layout(constant_id = SPEC_COUNTING) const bool COUNTING = false;
-
-/// Whether the sun is over the horizon: the constant half of `sunUp`, which says the rest.
-layout(constant_id = SPEC_HAS_SUN) const bool HAS_SUN = true;
-
-/// Whether either moon is drawn or lights anything. Both a disc with an alpha and a light with an
-/// irradiance, because the sky draws one where the surfaces are lit by neither.
-layout(constant_id = SPEC_HAS_MOONS) const bool HAS_MOONS = true;
 
 /// Whether this frame holds any water: a surface the eye can meet, or a level the eye can stand
 /// under. False takes the waves, the caustics and the whole underwater column out of a room.
@@ -54,22 +53,11 @@ layout(constant_id = SPEC_HAS_SEA) const bool HAS_SEA = true;
 
 layout(constant_id = SPEC_HAS_MAPS) const bool HAS_MAPS = true;
 
-/// Whether this frame's scene places a blended material whose dark map falls below solid
-/// (`Rtx::Material::mDarkBelowSolid`). False takes a see-through candidate's read of that map's alpha
-/// (`candidateStops`) out of every scene that has none, which is nearly every scene.
-layout(constant_id = SPEC_HAS_DARK_ALPHA) const bool HAS_DARK_ALPHA = true;
-
 /// Whether this frame's scene places a material whose normal map's relief spans more than one height
 /// (`Rtx::Material::Traversed::mRelief`), which only a scene with maps does. False takes the march through
 /// the relief out of every scene with no `_nh` map, and its stored answer (`STAGE_RELIEF`) with it: such a
 /// surface keeps the one shift it had, which is the march's answer where the relief is flat.
 layout(constant_id = SPEC_HAS_RELIEF) const bool HAS_RELIEF = true;
-
-/// Whether this frame's scene places a material with a detail, a decal, a bump or a gloss map
-/// (`Rtx::Material::Traversed::mModMapped`), which no shipped file binds and a mod's clutter does. False takes
-/// their reads out of every scene with none, apart from `HAS_MAPS`: a scene whose bottles wear a detail map does
-/// not run the normal and specular maps' kernels for it.
-layout(constant_id = SPEC_HAS_MOD_MAPS) const bool HAS_MOD_MAPS = true;
 
 /// Whether the frame's upscaler reads `CHANNEL_UPSCALE_MASKS` (`Rtx::UpscaleMasks`): FSR's does,
 /// and DLSS has no input for them. **A fact of the run and not of the frame**, so it is no part of the

@@ -54,15 +54,6 @@ namespace Rtx
             return *facts.mReachesSolid;
         }
 
-        /// Whether `image`'s alpha ever falls below solid, read into `facts` at the first ask.
-        bool fallsBelowSolid(ImageFacts& facts, const osg::Image& image)
-        {
-            if (!facts.mFallsBelowSolid.has_value())
-                facts.mFallsBelowSolid = factOf(image, &ImageFacts::mFallsBelowSolid,
-                    [&](const osg::Image& texels) { return mPreprocessor.fallsBelowSolid(texels); });
-            return *facts.mFallsBelowSolid;
-        }
-
         /// The lowest and the highest alpha `image` holds, read into `facts` at the first ask.
         AlphaRange alphaRangeOf(ImageFacts& facts, const osg::Image& image)
         {

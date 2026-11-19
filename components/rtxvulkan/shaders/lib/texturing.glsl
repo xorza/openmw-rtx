@@ -463,7 +463,7 @@ vec2 reliefToward(ReliefMaps maps, vec2 bounds, TexturePoint point, vec3 eye, fl
     return vec2(mix(shift, met / rise, marched), marched * (met / rise));
 }
 
-/// How much farther along the ray than the triangle a march's texel stands, in the world (`Surface::mReliefDepth`):
+/// How much farther along the ray than the triangle a march's texel stands, in the world (`storedMotionOf`):
 /// `marched`, the march's own share (`reliefToward`'s `y`) in the units of the sheet `transform` lays, carried by
 /// the triangle's world length of one, the square root of its area in the world over its area on the sheet, so a
 /// texture stretched unevenly takes the mean of its two stretches. Nought where the sheet has no area.

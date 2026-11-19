@@ -375,11 +375,10 @@ namespace Rtx::Testing
             EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mMean.has_value()) << "a pane asks no mean";
         }
 
-        /// **A pane's dark map counts where its alpha falls below solid, and only there.** An opaque dark map is
-        /// read no alpha of; one holding a texel under solid multiplies the coverage, and the scene compiles that
-        /// read in (`Traversed::mDarkAlpha`), apart from the maps' code (`Traversed::mMapped`). An opaque surface's
-        /// dark map is never walked. The ring's reader hands the same fact over.
-        TEST_F(RtxSceneExtractorTest, aPanesDarkMapCountsWhereItsAlphaFallsBelowSolid)
+        /// **A pane's dark map tells traversal nothing, whatever its alpha**: a see-through hit's coverage is the
+        /// diffuse's alpha alone (`candidateStops`), so a dark map with a texel under solid wears the same
+        /// traversal as an opaque one, and neither is the maps' code (`Traversed::mMapped`).
+        TEST_F(RtxSceneExtractorTest, aPanesDarkMapTellsTraversalNothingWhateverItsAlpha)
         {
             Rtx::SceneIdentities identities;
             const auto imageOf = [](std::string_view file, std::array<std::uint8_t, 4> alphas) {
@@ -412,27 +411,12 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Image> stained = imageOf("textures/tx_dark_stained.dds", { 255, 255, 255, 128 });
 
             const Rtx::Material clear = extractOne(*opaque, true);
+            const Rtx::Material tinted = extractOne(*stained, true);
             EXPECT_TRUE(clear.isTranslucent());
             EXPECT_NE(clear.mDark, sNoRow);
-            EXPECT_FALSE(clear.mDarkBelowSolid) << "an opaque dark map";
-            EXPECT_FALSE(clear.getTraversed().mDarkAlpha);
-            EXPECT_FALSE(clear.getTraversed().mMapped);
-
-            const Rtx::Material tinted = extractOne(*stained, true);
-            EXPECT_TRUE(tinted.mDarkBelowSolid) << "a dark map with a texel under solid";
-            EXPECT_TRUE(tinted.getTraversed().mDarkAlpha);
-            EXPECT_FALSE(tinted.getTraversed().mMapped) << "a dark map's alpha is no map's code";
-
-            const Rtx::Material wall = extractOne(*stained, false);
-            EXPECT_FALSE(wall.mDarkBelowSolid) << "an opaque surface reads no coverage";
-
-            PreparedModel model;
-            ThreadContent content;
-            TemplateWalk walk(nullptr);
-            walk.read(*quadWearing(*stained, true), ~0u, model, content);
-            ASSERT_EQ(model.mParts.size(), 1u);
-            ASSERT_TRUE(model.mParts[0].mMaterial.mDarkFacts.has_value());
-            EXPECT_EQ(model.mParts[0].mMaterial.mDarkFacts->mFallsBelowSolid, std::optional<bool>(true));
+            EXPECT_NE(tinted.mDark, sNoRow);
+            EXPECT_EQ(tinted.getTraversed(), clear.getTraversed());
+            EXPECT_FALSE(tinted.getTraversed().mMapped) << "a dark map is no map's code";
         }
 
         /// A surface that adds — `SRC_ALPHA, ONE` — is no cutout, no pane and no medium: it is

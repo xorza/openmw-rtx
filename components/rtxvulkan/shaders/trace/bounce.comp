@@ -79,7 +79,7 @@ bool bouncePixel(uvec2 pixel, uint ray, out bool gathers)
     const StageRecord solid = unpackStageRecord(imageLoad(stageRecord, stored));
 
     // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`).
-    const Surface surface = storedSolidOf(solid, stored);
+    const Surface surface = storedSolidOf(solid, stored, NORMAL_MAP_STORED);
 
     BounceRun bounce = bounceRunOf();
     if (surface.mHit)
@@ -135,8 +135,10 @@ void main()
 {
     const uint ray = stage.mRay;
 
+    // Over its class's tiles, as `direct` (`STAGE_LIST_SOLID`), past whose end a workgroup lists nothing.
+    uvec2 tile;
     uvec2 pixel;
-    const bool inside = stagePixelOf(pixel);
+    const bool inside = listedTileOf(stage.mList, tile) && stagePixelIn(tile, pixel);
 
     bool gathers = false;
     const bool landed = inside && bouncePixel(pixel, ray, gathers);

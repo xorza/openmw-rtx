@@ -403,7 +403,7 @@ namespace Rtx
         double mStressOverlapMs = 0.0;
 
         /// Whether the trace keeps its kernels — the stages' dispatches and the fog's scatter
-        /// launch — per tuple of the frame's facts — the sun, the moons, the sea, the maps,
+        /// launch — per tuple of the frame's facts — the sea, the maps and a relief,
         /// `VisibilityVariant` — or one of each that carries every case. The picture is the same
         /// either way, by the argument `lib/variants.glsl` makes; what differs is the trace's time
         /// in a room and how many kernels the driver compiles, a set a tuple against one set. Off

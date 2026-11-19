@@ -266,6 +266,10 @@ namespace Rtx
         /// is off (`Rtx::CellReader::readModel`).
         bool mLampLit = true;
 
+        /// Whether this surface is groundcover's (`Rtx::CellReader::readModel`), which the trace lights as upstream's
+        /// groundcover shader lights its cards (`Shaders::MATERIAL_GROUNDCOVER`).
+        bool mGroundcover = false;
+
         /// Three of the four colours a `NiMaterialProperty` states for a surface, display-encoded.
         /// The specular and the glossiness beside them are not read: `NifOsg` sets the specular to
         /// black on every Morrowind NIF, because the game had specular lighting disabled. A surface's

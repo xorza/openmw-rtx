@@ -132,7 +132,7 @@ namespace RtxTool
             return std::format(R"({{"instances": {}, "instanceSlots": {}, "cutoutInstances": {}, )"
                                R"("waterInstances": {}, "mediumInstances": {}, "additiveInstances": {}, )"
                                R"("firstPersonInstances": {}, "mappedInstances": {}, "modMappedInstances": {}, )"
-                               R"("darkAlphaInstances": {}, "reliefInstances": {}, )"
+                               R"("reliefInstances": {}, )"
                                R"("structureBytes": {}, "structureLiveBytes": {}, )"
                                R"("compactableBytes": {}, "compactableNowBytes": {}, "structureMovedBytes": {}, )"
                                R"("textureMovedBytes": {}, "rebuilt": {}, )"
@@ -142,10 +142,10 @@ namespace RtxTool
                                R"("spriteBakes": {}, "groundComposites": {}, "groundGloss": {}}}}})",
                 scene.mInstances.mPlaced, scene.mInstanceSlots, scene.mInstances.mCutout, scene.mInstances.mWater,
                 scene.mInstances.mMedium, scene.mInstances.mAdditive, scene.mInstances.mFirstPerson,
-                scene.mInstances.mMapped, scene.mInstances.mModMapped, scene.mInstances.mDarkAlpha,
-                scene.mInstances.mRelief, scene.mStructureBytes, scene.mStructureLiveBytes, scene.mCompactableBytes,
-                scene.mCompactableNowBytes, scene.mStructureMovedBytes, scene.mTextureMovedBytes, scene.mRebuilt,
-                scene.mTableBytes, scene.mGeometryBytes, scene.mWorkBytes, scene.mTextureCount, scene.mTextureBytes,
+                scene.mInstances.mMapped, scene.mInstances.mModMapped, scene.mInstances.mRelief, scene.mStructureBytes,
+                scene.mStructureLiveBytes, scene.mCompactableBytes, scene.mCompactableNowBytes,
+                scene.mStructureMovedBytes, scene.mTextureMovedBytes, scene.mRebuilt, scene.mTableBytes,
+                scene.mGeometryBytes, scene.mWorkBytes, scene.mTextureCount, scene.mTextureBytes,
                 scene.mReducedTextureCount, scene.mTextureBytesBySource.mFiles,
                 scene.mTextureBytesBySource.mSpriteBakes, scene.mTextureBytesBySource.mGroundComposites,
                 scene.mTextureBytesBySource.mGroundGloss);

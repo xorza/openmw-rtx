@@ -243,13 +243,11 @@ namespace Rtx
             TexelScratch scratch;
             ContentStore::Key key;
             bool solid = false;
-            bool falls = false;
             MeanTexel mean;
             {
                 const osg::ref_ptr<const osg::Image> texels = Resource::texelsOf(*header);
                 key = hashFile(*texels, scratch);
                 solid = direct.reachesSolid(*texels);
-                falls = direct.fallsBelowSolid(*texels);
                 mean = direct.meanTexel(*texels);
             }
             Resource::releaseTexels(*header);
@@ -261,7 +259,6 @@ namespace Rtx
             for (ThreadContent& thread : threads)
             {
                 EXPECT_EQ(thread.reachesSolid(thread.factsOf(*header), *header), solid);
-                EXPECT_EQ(thread.fallsBelowSolid(thread.factsOf(*header), *header), falls);
                 EXPECT_EQ(thread.meanOf(*header).mColour, mean.mColour);
                 const ContentStats stats = thread.mPreprocessor.takeStats();
                 EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u);

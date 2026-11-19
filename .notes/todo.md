@@ -4,13 +4,9 @@
 
 - Remove the visibility limit.
 - Custom map notes plugin.
-- Audit macros.
-- `#if OPENMW_FFMPEG_5_OR_GREATER`.
-- Audit `#if`s, remove legacy.
-- Order includes canonically.
 - No upscaler.
-- unsigned int to uint32, etc
 - 64 bit build?
+- dirt missing from balmora buildings
 
 ## Open questions
 
@@ -23,6 +19,12 @@
 - Upstream merge's app token: the exchange is copied from claude-code-action and undocumented (`.github/actions/app-token`). An app of our own (`actions/create-github-app-token`), or CI dispatched with the workflow's token?
 
 ## Performance
+
+- **The sea per tile** (moved out of the one-kernel plan, 2026-11-19): the stages past the trace take the sea from the
+  frame, which a room with none already escapes; classed per tile, a view by the sea would run its dry tiles without
+  it, which needs the landing classed by whether a bounce lands in water. And whether the trace keeps a constant for
+  its stop at the sea, which held it a tier up on AMD's Windows driver while it resolved its solid, to be measured
+  again (`docs/research/2026-11-19-one-kernel-registers.md`).
 
 - **The ring reads what can stand** (moved out of the tree-and-content-memory plan, 2026-11-18): the handheld's Repack
   tour at `b461faf024` loaded 27,004 `Nif`s, 8,828 of them again (33%), and 25,661 `Node`s, 7,494 again (29%). A

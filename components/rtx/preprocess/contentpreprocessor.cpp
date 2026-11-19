@@ -195,13 +195,6 @@ namespace Rtx
         return mean;
     }
 
-    bool ContentPreprocessor::fallsBelowSolid(const osg::Image& image)
-    {
-        bool falls = false;
-        run(mFall, image, falls);
-        return falls;
-    }
-
     AlphaRange ContentPreprocessor::alphaRange(const osg::Image& image)
     {
         AlphaRange range;
@@ -223,7 +216,6 @@ namespace Rtx
         ImageFacts& facts = derived.mFacts;
         facts.mReachesSolid = reachesSolid(texels);
         facts.mMean = meanTexel(texels);
-        facts.mFallsBelowSolid = fallsBelowSolid(texels);
         facts.mAlphaRange = alphaRange(texels);
         facts.mSpecularLayout = specularLayout(texels);
         mKeys.forget();

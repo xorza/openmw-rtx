@@ -76,9 +76,10 @@
 #define GBUFFER_STAGE_HIT STORAGE_RGBA32UI
 #define GBUFFER_STAGE_RAY STORAGE_RGBA32F
 
-// **And how far toward the eye the solid's relief showed its texture** (`Surface::mRelief`), a whole
-// float, so a stage resolves the surface the trace's march found without marching again.
-#define GBUFFER_STAGE_RELIEF STORAGE_R32F
+// **And how far toward the eye the solid's relief showed its texture** (`Surface::mRelief`), and how much
+// deeper it stood (`Surface::mReliefDepth`), whole floats, so a stage resolves the surface the direct stage's
+// march found without marching again, and that stage reads the depth back past its rays.
+#define GBUFFER_STAGE_RELIEF STORAGE_RG32F
 
 // **And what the bounce hands its landing**: the bits of three floats, what light along the bounce
 // is worth or what arrived along it, and the lobe's modulation as the shared-exponent word it is
@@ -301,7 +302,7 @@ namespace Rtx::Shaders
 
     /// And the lists the later stages run over (`StageTiles`): a storage buffer, its head each
     /// list's indirect dispatch, a `VkDispatchIndirectCommand` and a word beside it that counts what
-    /// the list holds, the media stage's, the layers' and the water's (`STAGE_LIST_*`), and a
+    /// the list holds, the media stage's, the water's, the layers' and the solid's (`STAGE_LIST_*`), and a
     /// landing's for each bounce ray last (`STAGE_DISPATCH_LANDING` and the `MAX_BOUNCE_RAYS - 1`
     /// after it); after it the tile lists one after the other, a workgroup of the stored layout each
     /// as `x | y << 16`, and then the pixels whose bounce landed (`appendLandings`). **The landings
@@ -318,9 +319,22 @@ namespace Rtx::Shaders
     /// landings is 115,200 workgroups, and a dispatch is only promised 65,535 along each axis.
     const uint STAGE_TILES = CHANNEL_COUNT + 10u;
     const uint STAGE_LIST_MEDIA = 0u;
-    const uint STAGE_LIST_PANES = 1u;
-    const uint STAGE_LIST_WATER = 2u;
-    const uint STAGE_LISTS = 3u;
+    const uint STAGE_LIST_WATER = 1u;
+
+    /// **The layers' and the solid's lists a class each** (`STAGE_CLASS_*`): the tiles whose layers, or whose
+    /// solids, wear neither maps nor a relief, the maps, and a relief, each run by its own kernel, as Uncharted 4's
+    /// deferred pass runs a permutation a tile by its material features (`stageClassOf`). Every tile stands in
+    /// one solid list, which `direct`, the bounce and the ambient's stage run over.
+    const uint STAGE_CLASSES = 3u;
+
+    /// Which kernel a tile's surfaces ask of a stage (`stageClassOf`), in the order each asks more than the one
+    /// before: neither maps nor a relief, the maps, and a relief, which only a mapped surface carries.
+    const uint STAGE_CLASS_PLAIN = 0u;
+    const uint STAGE_CLASS_MAPS = 1u;
+    const uint STAGE_CLASS_RELIEF = 2u;
+    const uint STAGE_LIST_PANES = 2u;
+    const uint STAGE_LIST_SOLID = STAGE_LIST_PANES + STAGE_CLASSES;
+    const uint STAGE_LISTS = STAGE_LIST_SOLID + STAGE_CLASSES;
     const uint STAGE_DISPATCH_LANDING = STAGE_LISTS;
     const uint STAGE_DISPATCHES = STAGE_LISTS + MAX_BOUNCE_RAYS;
     const uint STAGE_TILES_HEAD_WORDS = 4u * STAGE_DISPATCHES + 2u * MAX_BOUNCE_RAYS;

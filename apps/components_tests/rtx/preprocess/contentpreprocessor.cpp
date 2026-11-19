@@ -530,29 +530,22 @@ namespace Rtx
             EXPECT_FALSE(watched.lock(standing)) << "the image the hit read its key from was held";
         }
 
-        /// **The walks that stop at the first texel that answers are kept too**, their file's key costing nothing more
-        /// than the mean's: the solid reach and the solid fall, each asked twice, run once, are found once, and write
-        /// one entry each.
-        TEST(RtxContentPreprocessorTest, theWalksThatStopAtTheFirstTexelThatAnswersAreKept)
+        /// **The walk that stops at the first texel that answers is kept too**, its file's key costing nothing more
+        /// than the mean's: the solid reach, asked twice, runs once, is found once, and writes one entry.
+        TEST(RtxContentPreprocessorTest, theWalkThatStopsAtTheFirstTexelThatAnswersIsKept)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             ContentPreprocessor content(&store, ContentStore::Reach::Disk);
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
             for (std::int32_t ask = 0; ask < 2; ++ask)
-            {
                 EXPECT_TRUE(content.reachesSolid(*painted));
-                EXPECT_TRUE(content.fallsBelowSolid(*painted));
-            }
 
             const ContentStats stats = content.takeStats();
-            for (const ContentPassId pass : { ContentPassId::SolidReach, ContentPassId::SolidFall })
-            {
-                EXPECT_EQ(stats.at(pass).mAsked, 2u);
-                EXPECT_EQ(stats.at(pass).mHits, 1u);
-                EXPECT_EQ(stats.at(pass).mKeyBytes, 2 * sFinestKeyBytes);
-            }
+            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 2u);
+            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mHits, 1u);
+            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mKeyBytes, 2 * sFinestKeyBytes);
             store.flush();
-            EXPECT_EQ(store.getStats().mWritten, 2u);
+            EXPECT_EQ(store.getStats().mWritten, 1u);
         }
 
         /// A 2x2 RGBA8 image of `sPaint` carrying a 1x1 second level of `second`.

@@ -30,11 +30,17 @@
 
 layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 
+layout(push_constant, scalar) uniform Push
+{
+    StageConstants stage;
+};
+
 void main()
 {
+    // Over the tiles of its layers' class (`STAGE_LIST_PANES`).
     uvec2 pixel;
     uvec2 tile;
-    if (!listedTileOf(STAGE_LIST_PANES, tile) || !stagePixelIn(tile, pixel))
+    if (!listedTileOf(stage.mList, tile) || !stagePixelIn(tile, pixel))
         return;
     const uint width = frame.mEyes.mWorld.mWidth;
     const uint swap = fieldSwapOf(frame.mFrame);
@@ -116,15 +122,11 @@ void main()
 
         Surface surface = resolveAsked(met, eyeRay.mQuery);
 
-        // **The layer lit as the end of a path** (`paneLightOf`), its rays traced before the eye's
-        // walk reads it (`stepEye`).
+        // **The layer lit as the end of a path** (`paneLightOf`), its rays traced before its answer is made
+        // (`paneAnswerOf`).
         const PathEndLight light = paneLightOf(surface, pixel, peel.mLayer);
         const SeenPane pane = seenPaneOf(surface, light, pathEndSeenOf(light.mRays));
-        EyeRun eye = eyeRunOf(peel.mDirection, uint(peel.mArms), peel.mLayer, false, motion,
-            met.mDistance);
-        stepEye(eye, waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR), pane, surface, pixel,
-            PEEL_SHADES_LAYERS);
-        const Answer layer = eye.mAnswer;
+        const Answer layer = paneAnswerOf(surface, pane, motion, met.mDistance);
 
         // The water in front of a point and the air over the whole of it, put together, in front of a layer, and the
         // stretch of it under the water: one composition for the whole path and for every layer peeled off it, the

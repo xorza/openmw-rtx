@@ -337,7 +337,7 @@ ColumnStart columnStartOf(vec3 from, vec3 direction, float path)
     // bed a moon lights is lit by the same moon. A moon's beam is the closed form alone: the
     // shaft march is the sun's.
     vec3 moons = vec3(0.0);
-    if (HAS_MOONS)
+    if (moonsUp())
         for (uint moon = SKY_SOURCE_MASSER; moon <= SKY_SOURCE_SECUNDA; ++moon)
             moons += beamAlong(skySourceAt(moon), from, direction, path);
 

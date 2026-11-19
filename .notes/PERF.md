@@ -11,9 +11,11 @@ commit.
   p99 within 15%. Its host rows move 10–20% between identical runs, so a host change is judged on the other two.
 - **Handheld** (AMD, RADV, its clock held): built in the release container, staged and run by `./omw release remote`,
   1280x800, 300 frames, one or two legs a side. A/A: frame and every zone within 0.1%, p99 within 2%.
-- **AMD iGPU** (a low-end integrated GPU, AMD's Windows driver): native MSVC release of the harness alone, in `base`
-  and `cand` worktrees fed by `git push`. A run needs the logged-on session, so a job is a script a scheduled task
-  starts there; over SSH a run compiles its pipelines and logs their registers but makes no swapchain
+- **AMD iGPU** (a low-end integrated GPU, AMD's Windows driver): native MSVC release of the harness alone, built and
+  run by `./omw release remote`, each desk tree in a clone of its own folder's name there (`Projects\openmw-base`
+  beside `Projects\openmw`, made once as a `git clone` with its `out\deps` linked to the first's), so an A/B of two
+  trees builds neither again. A run needs the logged-on session, so a job is a script a scheduled task starts there;
+  over SSH a run compiles its pipelines and logs their registers but makes no swapchain
   (`docs/research/2026-11-01-windows-tests-over-ssh.md`).
   `bench --size=1280x720 --window=false --frames=200`, two rounds. A/A: frame within 0.3–0.8%. A shader set's cold
   compile is four minutes, a warm vanilla leg 55–85 s; a build beside a run moved a frame by 48%.

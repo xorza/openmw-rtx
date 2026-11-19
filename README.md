@@ -2,7 +2,7 @@
 
 A fork of [OpenMW](https://openmw.org) that makes Morrowind work your GPU hard again: ray-traced lighting and
 path-traced indirect light. The goal is a 2002 game made to look astonishing on current hardware, with its content as
-it stands and new light transport.
+it stands and new light transport. Its website is [openmw-rtx.com](https://openmw-rtx.com).
 
 This tree is OpenMW 0.53 with a ray tracer in place of its renderer. What the engine itself is, the data path and the
 command line are in the [upstream README](https://gitlab.com/OpenMW/openmw/-/blob/master/README.md). This file covers

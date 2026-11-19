@@ -34,10 +34,19 @@ const uint STAGE_DETAILED = 1u << 5u;
 /// (`BounceDraw::mSpecular`).
 const uint STAGE_BOUNCE_LOBE = 1u << 6u;
 
+/// And whether a water path's solid is the mirror's (`WaterRun::mMirror`), whose normal the eye's surface channel
+/// holds turned through the water's plane, as the filter sees the reflection.
+const uint STAGE_MIRROR = 1u << 7u;
+
+/// Where a stage record's flags word holds the class of the layers in front of the pixel's surface
+/// (`StageRecord::mLayerClass`), two bits.
+const uint STAGE_LAYER_CLASS_SHIFT = 8u;
+
 /// What the trace hands its later stages of a pixel, `STAGE_RECORD`: which solid, through which eye and
 /// from where along the eye's last ray, which the media stage casts again (`eyeAsk`, `WaterRun`); whether
 /// the media stage marches a column of its path, whether a layer stands in front, and the detail the solid
-/// is resolved at (`storedSolidOf`); and the two halves of the pane mask the whole pixel's light divides —
+/// is resolved at (`storedSolidOf`), whether a water path's is the mirror's, and the class of the layers in front
+/// (`STAGE_CLASS_*`), which the layers' list the tile joins says; and the two halves of the pane mask the whole pixel's light divides —
 /// the layers' own light and how far apart they move from the surface — beside the water's share, which the
 /// trace measured whole; and what the bounce's stage adds for its landing's.
 struct StageRecord
@@ -48,6 +57,8 @@ struct StageRecord
     bool mLayered;
     bool mDetailed;
     bool mBounceLobe;
+    bool mMirror;
+    uint mLayerClass;
     float mTmin;
     float mPaneOwn;
     float mPaneApart;
@@ -61,7 +72,8 @@ uvec4 packStageRecord(StageRecord record)
 {
     return uvec4(record.mKind | record.mArms << 2u | (record.mMedia ? STAGE_MEDIA : 0u)
             | (record.mLayered ? STAGE_LAYERED : 0u) | (record.mDetailed ? STAGE_DETAILED : 0u)
-            | (record.mBounceLobe ? STAGE_BOUNCE_LOBE : 0u),
+            | (record.mBounceLobe ? STAGE_BOUNCE_LOBE : 0u) | (record.mMirror ? STAGE_MIRROR : 0u)
+            | record.mLayerClass << STAGE_LAYER_CLASS_SHIFT,
         floatBitsToUint(record.mTmin), floatBitsToUint(record.mPaneOwn),
         packHalf2x16(vec2(record.mPaneApart, record.mWaterMisMoved)));
 }
@@ -71,18 +83,20 @@ StageRecord unpackStageRecord(uvec4 words)
     const vec2 shares = unpackHalf2x16(words.w);
     return StageRecord(words.x & 3u, (words.x >> 2u) & 1u, (words.x & STAGE_MEDIA) != 0u,
         (words.x & STAGE_LAYERED) != 0u, (words.x & STAGE_DETAILED) != 0u, (words.x & STAGE_BOUNCE_LOBE) != 0u,
-        uintBitsToFloat(words.y), uintBitsToFloat(words.z), shares.x, shares.y);
+        (words.x & STAGE_MIRROR) != 0u, (words.x >> STAGE_LAYER_CLASS_SHIFT) & 3u, uintBitsToFloat(words.y), uintBitsToFloat(words.z), shares.x, shares.y);
 }
 
 /// What the trace hands the water's stage for a pixel whose eye met the sea (`STAGE_WATER_PENDING`): which
 /// eye, the layer the peel stood at, the turns it took, where its ray started, and what the panes and the
-/// arms let through. The first word as `packStageRecord` lays its kind and eye, the layer in its next
-/// thirteen bits and the turns above them; the floats as their bits.
+/// arms let through, and the class of the layers it peeled (`StageRecord::mLayerClass`). The first word as
+/// `packStageRecord` lays its kind and eye, the layer in its next thirteen bits, the turns in the twelve above
+/// them, `WALK_TURNS` at most, and the class in the two above those; the floats as their bits.
 struct WaterPending
 {
     uint mArms;
     uint mLayer;
     uint mTurns;
+    uint mLayerClass;
     float mTmin;
     float mPanesThrough;
     float mArmsThrough;
@@ -90,13 +104,15 @@ struct WaterPending
 
 uvec4 packWaterPending(WaterPending pending)
 {
-    return uvec4(STAGE_WATER_PENDING | pending.mArms << 2u | pending.mLayer << 3u | pending.mTurns << 16u,
+    return uvec4(STAGE_WATER_PENDING | pending.mArms << 2u | pending.mLayer << 3u | pending.mTurns << 16u
+            | pending.mLayerClass << 28u,
         floatBitsToUint(pending.mTmin), floatBitsToUint(pending.mPanesThrough), floatBitsToUint(pending.mArmsThrough));
 }
 
 WaterPending unpackWaterPending(uvec4 words)
 {
-    return WaterPending((words.x >> 2u) & 1u, (words.x >> 3u) & 0x1fffu, words.x >> 16u, uintBitsToFloat(words.y),
+    return WaterPending((words.x >> 2u) & 1u, (words.x >> 3u) & 0x1fffu, (words.x >> 16u) & 0xfffu,
+        (words.x >> 28u) & 3u, uintBitsToFloat(words.y),
         uintBitsToFloat(words.z), uintBitsToFloat(words.w));
 }
 

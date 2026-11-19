@@ -87,6 +87,10 @@ namespace Rtx::Testing
         /// row by row of tiles.
         void readLampLists(std::vector<std::uint32_t>& words);
 
+        /// The tile lists the last frame's stages wrote (`GBuffer::getStageTiles`) into `words`, every word: the
+        /// heads (`STAGE_TILES_HEAD_WORDS`), then each list's tiles, `stageTileCount` a list, then the landings.
+        void readStageTiles(std::vector<std::uint32_t>& words);
+
         /// The same for the composite's own output, which no channel holds: the frame a measurement
         /// is taken on, where `readPixels` gives the one a display would show. The trace's answer,
         /// whatever upscales it, and so without the puffs the display lays over it.

@@ -575,9 +575,8 @@ namespace Rtx
             EXPECT_EQ(world.mStars.mTexture, Rtx::Shaders::NO_TEXTURE);
             EXPECT_EQ(world.mSkyPatches[0].mTexture, Rtx::Shaders::NO_TEXTURE);
 
-            // **Both halves, because a moon is a disc and a light.** `VisibilityVariant` folds its
-            // kernel away on the pair, so leaving either would keep a room tracing shadow rays at a
-            // body that is not over it.
+            // **Both halves, because a moon is a disc and a light.** The kernels' `moonsUp` reads the
+            // pair, so leaving either would keep a room tracing shadow rays at a body that is not over it.
             EXPECT_EQ(world.mMoons[0].mAlpha, 0.0f) << "no moon drawn in a room";
             EXPECT_EQ(world.mMoons[0].mSource.mIrradiance, osg::Vec3f()) << "and none lighting one";
             EXPECT_EQ(world.mMoons[0].mFace, Rtx::Shaders::NO_TEXTURE) << "and no portrait to draw";

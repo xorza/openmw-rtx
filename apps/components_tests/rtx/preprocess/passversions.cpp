@@ -125,11 +125,7 @@ namespace Rtx
             const MeanTexel mean = content.meanTexel(*painted);
             const AlphaRange span = content.alphaRange(*painted);
             const bool solid = content.reachesSolid(*painted);
-            const std::array<std::uint8_t, 16> opaque{ 255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255,
-                255 };
-            const bool falls = content.fallsBelowSolid(*makeImage(opaque));
             ASSERT_TRUE(solid);
-            ASSERT_FALSE(falls);
 
             const std::array<std::uint8_t, 16> heights{ 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112,
                 128, 251, 200 };
@@ -171,7 +167,6 @@ namespace Rtx
                 Recorded{ "specular kind", SpecularKind::sVersion, digestOf(kind) },
                 Recorded{ "conversion", ConversionPass::sVersion, digestOf(converted) },
                 Recorded{ "solid reach", SolidReach::sVersion, digestOf(solid) },
-                Recorded{ "solid fall", SolidFall::sVersion, digestOf(falls) },
             };
             const std::array recorded{
                 Recorded{ "shape", 4, 0xfe8b49f90aed1c6d },
@@ -183,7 +178,6 @@ namespace Rtx
                 Recorded{ "specular kind", 1, 0x5eac70df15eeb2ef },
                 Recorded{ "conversion", 5, 0xed492221331d8e6e },
                 Recorded{ "solid reach", 1, 0x5eac70df15eeb2ef },
-                Recorded{ "solid fall", 1, 0x6d2d432d2156abeb },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
             {

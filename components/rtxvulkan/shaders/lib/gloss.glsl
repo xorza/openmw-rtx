@@ -93,6 +93,22 @@ Gloss glossOf(Surface surface)
     return gloss;
 }
 
+/// `surface` with its lobe made diffuse, for a hit that shades no lobe of its own: the directional albedo the lobe
+/// reflects toward the eye, compensated (`Gloss::mAlbedo`), added to the diffuse albedo, and no reflectance left,
+/// so `glossOf` answers no lobe in one test and a caller that folds every surface it shades compiles none.
+///
+/// **What the lobe sent back under light from every side alike, in the diffuse half**, its direction lost: as
+/// Unreal's surface cache takes every hit as diffuse with a metal's reflectance added to its diffuse colour
+/// (`EnvBRDFApproxFullyRough`), but at the hit's own roughness and cosine, off the lobe's own table. The diffuse
+/// half keeps the whole of its share, where the lobe took the Fresnel term off it per light: a few hundredths of
+/// a dielectric's albedo. The ambient albedo is left as it is, since no lobe takes the fill.
+Surface lobeAsDiffuse(Surface surface)
+{
+    surface.mAlbedo += glossOf(surface).mAlbedo;
+    surface.mSpecular = vec3(0.0);
+    return surface;
+}
+
 /// Schlick's Fresnel term at `halfway`: the share of light the lobe reflects there, and the share
 /// the diffuse half does not get — glTF's `(1 - F)`.
 vec3 fresnelAt(Gloss gloss, vec3 halfway)

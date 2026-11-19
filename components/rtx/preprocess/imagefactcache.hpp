@@ -31,9 +31,6 @@ namespace Rtx
         /// `ContentPreprocessor::meanTexel`.
         std::optional<MeanTexel> mMean;
 
-        /// `ContentPreprocessor::fallsBelowSolid`.
-        std::optional<bool> mFallsBelowSolid;
-
         /// `ContentPreprocessor::alphaRange`.
         std::optional<AlphaRange> mAlphaRange;
 

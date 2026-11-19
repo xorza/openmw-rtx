@@ -28,13 +28,6 @@
 #include "lib/variants.glsl"
 #include "lib/water.glsl"
 
-/// What a kernel shades of what the eye meets: the surface behind the layers, which the trace lights,
-/// weighing the layers by their opacity alone and measuring the medium in front of the whole path only; or
-/// the layers, which `panes.comp` lights each over the medium in front of it, stopping at the surface
-/// (`Peel`).
-const uint PEEL_SHADES_SURFACE = 0u;
-const uint PEEL_SHADES_LAYERS = 1u;
-
 /// Whether the kernel has still to peel what the ray found: a surface whose opacity is under one, on a layer
 /// short of the peel's budget.
 ///
@@ -62,23 +55,19 @@ float apartFrom(WaterImage image, vec2 surfaceMotion, uvec2 pixel, vec3 directio
     return motionsApart(moved, surfaceMotion);
 }
 
-/// What the eye's ray found, shaded: the answer the kernel stacks and composes.
+/// What the eye's ray found, as the trace answers it with no surface resolved: the answer the kernel composes.
 ///
-/// A pane is lit as the end of a path, `PathEndLight`, with what was drawn for it as the bounce and the
-/// lobe's light, and its own response — `SeenPane`, which the kernel stacks into `CHANNEL_PANE`.
-///
-/// A solid is what it is in the filter's terms (`solidLookOf`); its light is the direct stage's
-/// (`direct.comp`) and its bounce the bounce's (`bounce.comp`), which resolve it again off the hit the
-/// trace stores (`storedSolidOf`): the walk names the solid, `mSolid`.
+/// A solid is named and not read (`mSolid`): the direct stage resolves it off the hit the trace stores, and
+/// lights it and writes what it is in the filter's terms (`storedSolidOf`, `direct.comp`), and the bounce's
+/// stage bounces off it (`bounce.comp`).
 ///
 /// Water: one path a field (`WaterRun`), whose surface replaces the water's as the pixel's and is a solid
 /// as the eye's is, its light arriving by the path's weight — twice its share of the water's light, where
 /// the pixel splits, times what the leg let through — and the later stages resolving the hit it found
 /// (`STAGE_WATER_PATH`).
 ///
-/// A walk (`visibility.comp`, `panes.comp`): the start reads the eye's own surface and hands a layer to the
-/// walk that lights it; at water it stops at `EYE_WATER`, for the kernel to run the water's walk in a loop
-/// of its own, and reads the path's surface once that walk is whole.
+/// A walk (`visibility.comp`): at water the start stops at `EYE_WATER`, for the kernel to run the water's walk
+/// in a loop of its own, and ends once that walk is whole.
 struct EyeRun
 {
     /// `RUN_IDLE` once `mAnswer` holds the answer.
@@ -110,17 +99,18 @@ struct EyeRun
     bool mSplit;
     WaterImage mImage;
 
-    /// Whether the water path's leg is a column the media stage marches (`WaterRun::mMarches`).
+    /// Whether the water path's leg is a column the media stage marches (`WaterRun::mMarches`), and whether its
+    /// solid is the mirror's (`WaterRun::mMirror`).
     bool mMarches;
+    bool mMirror;
 };
 
 const uint EYE_START = 1u;
 const uint EYE_WATER = 3u;
 
-/// @param motion where what the ray met stood last frame, `motionOf`: worked out where the eye's
-///        ray is answered, so the walk carries three numbers across the shading and not the hit's
-///        transforms. A pane's is its own, which the pane filter reprojects its history by; the
-///        pixel's motion stays the surface's behind the stack.
+/// @param motion where what the ray met stood last frame, `motionOf`: worked out where the eye's ray is
+///        answered, so the walk carries three numbers across the shading and not the hit's transforms. A
+///        solid's to its triangle, which the direct stage measures again to the texel its relief showed.
 EyeRun eyeRunOf(vec3 direction, uint arms, uint layer, bool water, vec3 motion, float distance)
 {
     EyeRun run;
@@ -138,63 +128,24 @@ EyeRun eyeRunOf(vec3 direction, uint arms, uint layer, bool water, vec3 motion, 
     run.mSplit = false;
     run.mImage = WaterImage(0.0, 0.0, false);
     run.mMarches = false;
+    run.mMirror = false;
     return run;
 }
 
-/// @param surface the walk's surface: the eye's own when the walk starts, and what a water path found
-///        once its ray is answered.
-/// @param shades `PEEL_SHADES_SURFACE` for the surface behind the layers, which the trace shades, or
-///        `PEEL_SHADES_LAYERS` for a layer the layers' stage peels (`Peel`).
 /// @param water the water's walk, whole, for `EYE_WATER`: what the kernel ran for the eye where it
 ///        stopped at water.
-/// @param pane the layer's light, for `PEEL_SHADES_LAYERS`: what the layers' stage lit it with
-///        (`seenPaneOf`).
-void stepEye(inout EyeRun run, WaterRun water, SeenPane pane, Surface surface, uvec2 pixel, uint shades)
+void stepEye(inout EyeRun run, WaterRun water, uvec2 pixel)
 {
-    const bool layers = shades == PEEL_SHADES_LAYERS;
-
     if (run.mStep == EYE_START)
     {
-        if (!layers && run.mWater)
+        if (run.mWater)
         {
             run.mAnswer.mWater = true;
             run.mStep = EYE_WATER;
             return;
         }
 
-        run.mAnswer.mOpacity = surface.mOpacity;
-        run.mAnswer.mLift = liftOf(surface);
-        if (layers)
-        {
-            run.mAnswer.mPane = true;
-            run.mAnswer.mRadiance = pane.mGlow;
-            run.mAnswer.mBounced = pane.mDrawn;
-            run.mAnswer.mSpecular = pane.mSpecular;
-            run.mAnswer.mResponse = pane.mResponse;
-        }
-        // **The colour is replaced and the surface is not.** What these views change is what a pixel is
-        // painted with; the guides still describe a surface there, and saying otherwise hands every reader
-        // of them a frame with no normals in it — which the wavelet reads as "no surface anywhere".
-        else if (frame.mShow != SHOW_SHADED)
-        {
-            if (frame.mShow == SHOW_ALBEDO)
-                run.mAnswer.mRadiance = surface.mAlbedo;
-            else if (frame.mShow == SHOW_NORMAL)
-                run.mAnswer.mRadiance = 0.5 + 0.5 * surface.mNormal;
-            else if (frame.mShow == SHOW_ROUGHNESS)
-                run.mAnswer.mRadiance = vec3(surface.mRoughness);
-            else
-                run.mAnswer.mRadiance = surface.mSpecular;
-
-            run.mAnswer.mResponse = responseOf(surface, vec3(1.0));
-        }
-        else
-        {
-            const SolidLook look = solidLookOf(surface, glossOf(surface));
-            run.mAnswer.mResponse = look.mResponse;
-            run.mAnswer.mRoughness = look.mRoughness;
-            run.mSolid = STAGE_EYE_SOLID;
-        }
+        run.mSolid = STAGE_EYE_SOLID;
     }
     else
     {
@@ -213,16 +164,10 @@ void stepEye(inout EyeRun run, WaterRun water, SeenPane pane, Surface surface, u
         {
             // **What the path found is the pixel's surface, a solid**, whose light the direct stage gathers
             // by the path's weight (`EyeRun::mPathWeight`), the leg's own light beside it.
-            const SolidLook look = solidLookOf(surface, glossOf(surface));
-            const vec3 normal = unpackSurfaceNormal(look.mResponse.mNormal);
             run.mAnswer.mRadiance = water.mScattered;
-            run.mAnswer.mRoughness = look.mRoughness;
-            run.mAnswer.mLift = liftOf(surface);
-            run.mAnswer.mResponse = look.mResponse;
-            run.mAnswer.mResponse.mNormal
-                = water.mMirror ? packSurfaceNormal(vec3(normal.xy, -normal.z)) : look.mResponse.mNormal;
             run.mGuideDistance = run.mImage.mAway;
             run.mSolid = STAGE_WATER_PATH;
+            run.mMirror = water.mMirror;
         }
     }
 
@@ -234,6 +179,26 @@ void stepEye(inout EyeRun run, WaterRun water, SeenPane pane, Surface surface, u
     run.mAnswer.mHit = true;
     run.mAnswer.mDistance = run.mDistance;
     run.mStep = RUN_IDLE;
+}
+
+/// A layer the layers' stage peeled (`panes.comp`), `surface` lit as the end of a path, `PathEndLight`, with
+/// what was drawn for it as the bounce and the lobe's light, and its own response (`pane`, `seenPaneOf`), which
+/// the stage stacks into `CHANNEL_PANE`; `motion` is the layer's own, which the pane filter reprojects its
+/// history by, and `distance` how far along the eye's ray it stands.
+Answer paneAnswerOf(Surface surface, SeenPane pane, vec3 motion, float distance)
+{
+    Answer answer = noAnswer();
+    answer.mOpacity = surface.mOpacity;
+    answer.mLift = liftOf(surface);
+    answer.mPane = true;
+    answer.mRadiance = pane.mGlow;
+    answer.mBounced = pane.mDrawn;
+    answer.mSpecular = pane.mSpecular;
+    answer.mResponse = pane.mResponse;
+    answer.mMotion = motion;
+    answer.mHit = true;
+    answer.mDistance = distance;
+    return answer;
 }
 
 #endif

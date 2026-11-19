@@ -71,7 +71,7 @@ struct MoonTerms
 vec3 fogMoonTerm(SkySource moon, vec3 direction)
 {
     const float limb = sqrt(max(1.0 - moon.mLimb * moon.mLimb, 0.0));
-    return HAS_MOONS ? moon.mIrradiance * fogPhase(min(dot(direction, moon.mDirection), limb)) : vec3(0.0);
+    return moonsUp() ? moon.mIrradiance * fogPhase(min(dot(direction, moon.mDirection), limb)) : vec3(0.0);
 }
 
 /// What one froxel is to do about the sky's own lights: whether the sun is up, what the moons put into the
@@ -171,10 +171,9 @@ FogSources fogSourcesFrom(MoonTerms terms, float draw)
     const WeightedPick pick = pickByWeight(masser, secunda, 0.0, draw);
     const bool drewMasser = pick.mIndex == 0u;
 
-    // **Each flag carries its own constant and not only the terms behind it.** A moon's share folds
-    // to nothing without one, but the comparison against a uniform does not fold with it — so the
-    // block it guards stays in the kernel, which is the whole of what the constant is for.
-    return FogSources(sunUp(), terms, HAS_MOONS && brightest(terms.mMasser + terms.mSecunda) > worthARay,
+    // **Each flag carries the moons' own test and not only the terms behind it**: the block it guards is
+    // taken on no lane where neither moon is up, a uniform's answer.
+    return FogSources(sunUp(), terms, moonsUp() && brightest(terms.mMasser + terms.mSecunda) > worthARay,
         drewMasser ? terms.mMasser : terms.mSecunda, pick.mChance,
         drewMasser ? skySourceAt(SKY_SOURCE_MASSER) : skySourceAt(SKY_SOURCE_SECUNDA));
 }
@@ -271,7 +270,7 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
     }
 
     const vec3 sun
-        = HAS_SUN ? frame.mSun.mIrradiance * (air.mSunward * fogPhase(dot(direction, frame.mSun.mDirection))) : vec3(0.0);
+        = sunUp() ? frame.mSun.mIrradiance * (air.mSunward * fogPhase(dot(direction, frame.mSun.mDirection))) : vec3(0.0);
 
     return vec4(air.mScattered + sun, air.mTransmittance);
 }

@@ -83,7 +83,7 @@ Crossing crossingOf(Candidate candidate, TriangleEdges edges, vec3 direction, fl
         * darkAt(crossing.mMaterial, mesh, crossing.mCorner, candidate.mBary, point, crossing.mCone, coneWidth, false);
 
     // And the detail and the decal maps past it, as `resolve` lays them, untinted: the walk tints the whole texel.
-    if (HAS_MOD_MAPS)
+    if ((crossing.mMaterial.mFlags & MATERIAL_MOD_MAPS) != 0u)
         crossing.mTexel.rgb = laidColour(crossing.mTexel.rgb, vec3(1.0),
             laidMapsAt(crossing.mInstance.mMaterial, mesh, crossing.mCorner, candidate.mBary, point, crossing.mCone,
                 coneWidth, false));
@@ -239,7 +239,7 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
 
             // Its bump and gloss maps read where `crossingOf` read its texel.
             SheetMaps maps = SheetMaps(vec2(0.0), vec3(1.0));
-            if (HAS_MOD_MAPS && holdsTexture(material.mEnvironment))
+            if ((material.mFlags & MATERIAL_MOD_MAPS) != 0u && holdsTexture(material.mEnvironment))
             {
                 const TexturePoint point = candidatePoint(
                     crossing.mCorner, material, crossing.mBary, crossing.mCone, crossing.mConeWidth, false);

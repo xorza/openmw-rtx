@@ -163,6 +163,14 @@ namespace Rtx::Shaders
         float mLimb;
     };
 
+    /// Whether `source` lights anything: its irradiance is nought exactly where it is down or faded out, which it
+    /// fades to across dusk rather than stepping. What the host's stages and the kernels' tests ask alike (`sunUp`,
+    /// `moonsUp`, `VisibilityPass::record`).
+    RTX_SHADER bool lights(SkySource source)
+    {
+        return source.mIrradiance != vec3(0.0f, 0.0f, 0.0f);
+    }
+
     const uint SKY_SOURCE_SUN = 0u;
     const uint SKY_SOURCE_MASSER = 1u;
     const uint SKY_SOURCE_SECUNDA = 2u;

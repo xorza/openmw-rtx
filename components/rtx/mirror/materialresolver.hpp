@@ -59,9 +59,6 @@ namespace Rtx
         /// the walk over the texels is the reading's whole cost.
         std::optional<ImageFacts> mDiffuseFacts{};
 
-        /// What the dark map's texels say, for a blended surface that wears one, as the diffuse's.
-        std::optional<ImageFacts> mDarkFacts{};
-
         /// What the normal map's texels say, for a surface whose normal map's alpha is a height: the
         /// heights its relief spans.
         std::optional<ImageFacts> mNormalFacts{};

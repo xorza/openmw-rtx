@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <span>
 #include <string>
@@ -55,7 +56,9 @@
 #include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/shaders/shared/tables.h>
+#include <components/rtxvulkan/shaders/shared/traceconstants.h>
 #include <components/rtxvulkan/trace/spritebin.hpp>
 #include <components/rtxvulkan/trace/spritepasses.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -799,6 +802,57 @@ namespace Rtx::Testing
             EXPECT_NEAR(albedo[at], 40.0f / 255.0f, 1e-3f);
             EXPECT_NEAR(albedo[at + 1], 40.0f / 255.0f, 1e-3f);
             EXPECT_NEAR(albedo[at + 2], 40.0f / 255.0f, 1e-3f);
+        }
+
+        /// **A groundcover card's normal, authored pointing up as the ground's, stays up on the card's back, where any
+        /// other surface's turns round.** An upright two-sided wall facing -Y, seen from +Y, its normals
+        /// `(0, -0.2, 1) / sqrt(1.04)`: up and a little toward its front, so on the back the ray meets it stands on the
+        /// wrong side of the plane `(0, 1, 0)` by `0.2 / sqrt(1.04)`. Turned round it is `(0, 0.2, -1) / sqrt(1.04)`,
+        /// pointing down; groundcover's, mirrored through the plane, is `(0, 0.2, 1) / sqrt(1.04)`: its part through
+        /// the card flipped and its up kept. Held to the code's one rounding, as the oblique wall above is.
+        TEST_F(RtxVisibilityTest, aGroundcoverCardsUpNormalStaysUpOnItsBackWhereAnotherSurfacesTurnsRound)
+        {
+            constexpr std::uint32_t size = 64;
+            TestTexture ladder;
+            paintMipLadder(ladder);
+            const std::span<const TextureData> textures(&ladder.mData, 1);
+
+            const float length = std::sqrt(1.04f);
+            const osg::Vec3f authored = osg::Vec3f(0.0f, -0.2f, 1.0f) / length;
+            const std::array<osg::Vec3f, 4> normals{ authored, authored, authored, authored };
+            const float bound = std::sqrt(4.5f) / 2047.0f + 1e-6f;
+
+            const auto normalSeen = [&](const bool groundcover) {
+                SceneIdentities identities;
+                SceneDesc scene(identities);
+                const MeshIndex mesh = Testing::addMesh(scene,
+                    MeshArrays{ .mPositions = sWallQuad,
+                        .mNormals = normals,
+                        .mTexCoords = sQuadUv,
+                        .mIndices = sQuadIndices });
+                const MaterialIndex material = scene.addMaterial(
+                    Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("mip.dds")),
+                        .mTwoSided = true,
+                        .mGroundcover = groundcover });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, 100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mLevelEpsilon = -1.0f });
+                EXPECT_EQ(frame.mHits, size * size) << "the wall's back fills the frame";
+
+                std::vector<float> surface;
+                mProbe.readChannel(Channel::Surface, surface);
+                return Shaders::unpackSurfaceNormal(surface[centreOf(size) * 2]);
+            };
+
+            const osg::Vec3f turned = normalSeen(false);
+            const osg::Vec3f down = osg::Vec3f(0.0f, 0.2f, -1.0f) / length;
+            EXPECT_LE((turned - down).length(), bound) << turned.x() << ' ' << turned.y() << ' ' << turned.z();
+
+            const osg::Vec3f mirrored = normalSeen(true);
+            const osg::Vec3f up = osg::Vec3f(0.0f, 0.2f, 1.0f) / length;
+            EXPECT_LE((mirrored - up).length(), bound) << mirrored.x() << ' ' << mirrored.y() << ' ' << mirrored.z();
         }
 
         /// The vertex colour a hit lands on, and which of the two albedos the content's mode says it
@@ -2136,6 +2190,156 @@ namespace Rtx::Testing
             EXPECT_EQ(after.byte(corner + 2), 0);
             EXPECT_EQ(after.byte(centre), 0) << "the green chunk's run, staged as it arrived";
             EXPECT_EQ(after.byte(centre + 1), 255);
+        }
+
+        /// **A tile runs the kernel of the most its solids ask** (`stageClassOf`, `STAGE_LIST_SOLID`): a 16 by 16
+        /// frame of eight tiles, two across the stored halves and four down, of a red wall with no map, and a green
+        /// card wearing a specular map in front of part of it. The trace lists every tile once, under the maps where
+        /// any pixel of it shows the card, and the plain one where none does, and none under a relief, which no
+        /// material carries. A tile is placed by its pixels' stored places (`storedOf`), as the stages run it.
+        TEST_F(RtxVisibilityTest, aTileIsListedUnderTheMostItsSolidsAsk)
+        {
+            SceneIdentities identities;
+            constexpr std::uint32_t size = 16;
+            constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> greenTexel{ 0, 255, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> mapTexel{ 0, 128, 255, 255 };
+            const std::array<TextureData, 3> textures{ describeTexel(redTexel, TextureIndex(0)),
+                describeTexel(greenTexel, TextureIndex(1)), describeTexel(mapTexel, TextureIndex(2)) };
+
+            SceneDesc scene(identities);
+            const TextureIndex red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+            const TextureIndex green = scene.textures().add(VFS::Path::NormalizedView("green.dds"));
+            const TextureIndex map = scene.textures().add(
+                VFS::Path::NormalizedView("green_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+            scene.addInstance(MeshInstance{
+                .mMesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                .mMaterial = scene.addMaterial(Material{ .mDiffuse = red }) });
+            scene.addInstance(MeshInstance{
+                .mMesh = Testing::addMesh(scene,
+                    MeshArrays{ .mPositions = uprightQuadAt(15.0f, -50.0f, osg::Vec2f(-12.0f, 7.0f)),
+                        .mTexCoords = sQuadUv,
+                        .mIndices = sQuadIndices }),
+                .mMaterial = scene.addMaterial(Material{ .mDiffuse = green, .mSpecular = map, .mTwoSided = true }) });
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            ASSERT_EQ(shoot(scene, textures, camera, size).mHits, size * size) << "the wall fills the frame";
+
+            std::vector<float> albedo;
+            mProbe.readChannel(Channel::Albedo, albedo);
+            ASSERT_EQ(albedo.size(), std::size_t{ size } * size * 4);
+            const std::uint32_t tiles = Shaders::stageTileCount(size, size);
+            ASSERT_EQ(tiles, 8u);
+            const std::uint32_t swap = Shaders::fieldSwapOf(camera.mFrame);
+            const auto tileWord = [&](std::uint32_t x, std::uint32_t y) {
+                const Shaders::uvec2 stored = Shaders::storedOf(Shaders::uvec2(x, y), swap, size);
+                return stored.x() / Shaders::TRACE_WORKGROUP_WIDTH
+                    | (stored.y() / Shaders::TRACE_WORKGROUP_HEIGHT) << 16u;
+            };
+            std::vector<std::uint32_t> mapped;
+            std::vector<std::uint32_t> every;
+            for (std::uint32_t y = 0; y < size; ++y)
+                for (std::uint32_t x = 0; x < size; ++x)
+                {
+                    const std::uint32_t word = tileWord(x, y);
+                    every.push_back(word);
+                    if (albedo[(std::size_t{ y } * size + x) * 4 + 1] > 0.5f)
+                        mapped.push_back(word);
+                }
+            ASSERT_FALSE(mapped.empty()) << "the card stands in no pixel";
+            const auto distinct = [](std::vector<std::uint32_t> words) {
+                std::ranges::sort(words);
+                const auto [first, last] = std::ranges::unique(words);
+                words.erase(first, last);
+                return words;
+            };
+            const std::vector<std::uint32_t> allTiles = distinct(every);
+            const std::vector<std::uint32_t> mappedTiles = distinct(mapped);
+            ASSERT_EQ(allTiles.size(), tiles);
+            ASSERT_LT(mappedTiles.size(), allTiles.size()) << "the card stands in every tile";
+            std::vector<std::uint32_t> plainTiles;
+            std::ranges::set_difference(allTiles, mappedTiles, std::back_inserter(plainTiles));
+
+            std::vector<std::uint32_t> words;
+            mProbe.readStageTiles(words);
+            const auto listed = [&](std::uint32_t list) {
+                const std::uint32_t count = words[4 * list + 3];
+                const auto start = words.begin() + Shaders::STAGE_TILES_HEAD_WORDS + std::ptrdiff_t{ list } * tiles;
+                return distinct(std::vector<std::uint32_t>(start, start + count));
+            };
+            EXPECT_EQ(listed(Shaders::STAGE_LIST_SOLID + Shaders::STAGE_CLASS_PLAIN), plainTiles);
+            EXPECT_EQ(listed(Shaders::STAGE_LIST_SOLID + Shaders::STAGE_CLASS_MAPS), mappedTiles);
+            EXPECT_EQ(words[4 * (Shaders::STAGE_LIST_SOLID + Shaders::STAGE_CLASS_RELIEF) + 3], 0u)
+                << "a tile listed under a relief no material carries";
+        }
+
+        /// **A tile with no map holds no lobe, whatever the frame before left there**: its kernel of `direct` writes no
+        /// lobe's channel, and a frame with the maps clears none (`GBuffer::begin`), so the trace writes no lobe at
+        /// every pixel of such a frame. A glossy metal wall under a lamp first, whose lobe fills `CHANNEL_SPECULAR`;
+        /// then the same frame's wall with no map and a green card wearing one in front of part of it: every pixel
+        /// of the wall holds no lobe, nought and `SPECULAR_NO_LOBE`, in its tiles of the plain kernel and beside the
+        /// card's alike.
+        TEST_F(RtxVisibilityTest, aTileWithNoMapHoldsNoLobeWhateverTheFrameBeforeLeft)
+        {
+            SceneIdentities identities;
+            constexpr std::uint32_t size = 16;
+            constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> greenTexel{ 0, 255, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> metalTexel{ 255, 40, 255, 255 };
+            const std::array<TextureData, 3> textures{ describeTexel(redTexel, TextureIndex(0)),
+                describeTexel(greenTexel, TextureIndex(1)), describeTexel(metalTexel, TextureIndex(2)) };
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto wallScene = [&](bool glossy) {
+                SceneDesc scene(identities);
+                const TextureIndex red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+                const TextureIndex green = scene.textures().add(VFS::Path::NormalizedView("green.dds"));
+                const TextureIndex map = scene.textures().add(
+                    VFS::Path::NormalizedView("metal_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(
+                        scene, MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = red, .mSpecular = glossy ? map : sNoRow }) });
+                if (!glossy)
+                    scene.addInstance(MeshInstance{
+                        .mMesh = Testing::addMesh(scene,
+                            MeshArrays{ .mPositions = uprightQuadAt(15.0f, -50.0f, osg::Vec2f(-12.0f, 7.0f)),
+                                .mTexCoords = sQuadUv,
+                                .mIndices = sQuadIndices }),
+                        .mMaterial
+                        = scene.addMaterial(Material{ .mDiffuse = green, .mSpecular = map, .mTwoSided = true }) });
+                scene.addLight(Light{
+                    .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
+                    .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                    .mReach = 500.0f,
+                });
+                return scene;
+            };
+
+            std::vector<float> lobes;
+            ASSERT_EQ(shoot(wallScene(true), textures, camera, size).mHits, size * size);
+            mProbe.readChannel(Channel::Specular, lobes);
+            ASSERT_EQ(lobes.size(), std::size_t{ size } * size * 4);
+            EXPECT_GT(std::ranges::max(lobes), 0.0f) << "the glossy wall left no lobe for the next frame to keep";
+
+            ASSERT_EQ(shoot(wallScene(false), textures, camera, size).mHits, size * size);
+            std::vector<float> albedo;
+            mProbe.readChannel(Channel::Albedo, albedo);
+            mProbe.readChannel(Channel::Specular, lobes);
+            std::size_t wall = 0;
+            for (std::size_t pixel = 0; pixel < std::size_t{ size } * size; ++pixel)
+            {
+                // The wall's albedo is red, and the metal card's diffuse half nought.
+                if (!(albedo[pixel * 4] > 0.5f))
+                    continue;
+                ++wall;
+                EXPECT_EQ(lobes[pixel * 4], 0.0f) << "pixel " << pixel;
+                EXPECT_EQ(lobes[pixel * 4 + 3], Shaders::SPECULAR_NO_LOBE) << "pixel " << pixel;
+            }
+            EXPECT_GT(wall, std::size_t{ size } * size / 2) << "the card hides the wall";
         }
 
         /// **Every landing of a list longer than a row of its dispatch is visited** (`growDispatch`). The

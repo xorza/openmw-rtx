@@ -349,7 +349,7 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float 
     //
     // **This is also the whole of an eclipse**, and of one moon in front of the other: Masser is nineteen
     // degrees across against the sun's half a degree, so on the rare crossing it is total.
-    if (HAS_MOONS && discs)
+    if (moonsUp() && discs)
         for (uint moon = 0u; moon < MOON_COUNT; ++moon)
         {
             float covered;

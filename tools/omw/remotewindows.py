@@ -1,5 +1,5 @@
-"""`omw [flavour] remote <host> <verb> [args]` on a Windows host: its own clone of the tree takes this commit, builds it
-there with MSVC, and runs the verb in the logged-on user's session, the one place a run on Windows has a surface a
+"""`omw [flavour] remote <host> <verb> [args]` on a Windows host: the tree's own clone there takes this commit, builds
+it there with MSVC, and runs the verb in the logged-on user's session, the one place a run on Windows has a surface a
 swapchain takes (`docs/research/2026-11-01-windows-tests-over-ssh.md`). The files the line names are brought back.
 
 **Started by an interactive scheduled task**, since a process SSH starts has no desktop; the task's script writes the
@@ -17,8 +17,9 @@ from omw.system import ROOT, Refusal, output, run, status
 
 SSH = ("-o", "BatchMode=yes")
 
-# The tree's clone on the host, from the user's profile, as the machine's own setup keeps it.
-TREE = PureWindowsPath("Projects", "openmw")
+# Where the trees' clones stand on the host, from the user's profile: **a clone a tree of this desk, under its folder's
+# name**, so two trees' commits each build in a folder of their own and an A/B of them builds neither again.
+CLONES = PureWindowsPath("Projects")
 
 # Where a run's script, output and files stand on the host, from the user's profile.
 RUNS = PureWindowsPath(".cache", "omw-remote")
@@ -118,12 +119,16 @@ class WindowsHost:
 
 def bring_commit(host: WindowsHost, tree: PureWindowsPath, git: Callable[[list[str]], str]) -> str:
     """This commit into the host's clone, checked out detached: what its clone lacks comes as a bundle, which needs
-    no Git server on either machine. Refuses a clone with changes of its own, which the checkout would carry along."""
+    no Git server on either machine, and a commit it holds already comes as nothing, an ancestor of what it stands at
+    among them, whose bundle would be empty. Refuses a clone with changes of its own, which the checkout would carry
+    along."""
     commit = git(["rev-parse", "HEAD"]).strip()
     if host.cmd(f"cd /d {cmd_quote(str(tree))} && git status --porcelain").strip():
         raise Refusal(f"remote: {host.host}'s clone at {tree} has changes of its own; commit or drop them there")
     theirs = host.cmd(f"cd /d {cmd_quote(str(tree))} && git rev-parse HEAD").strip()
-    if theirs != commit:
+    # The object alone, as cmd reads a caret as its escape and `^{commit}` would reach git without it.
+    held = host.call(f"cd /d {cmd_quote(str(tree))} && git cat-file -e {commit}") == 0
+    if theirs != commit and not held:
         known = subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e", f"{theirs}^{{commit}}"],
                                check=False, stderr=subprocess.DEVNULL).returncode == 0
         bundle = ROOT / "out" / "omw-remote.bundle"
@@ -133,8 +138,9 @@ def bring_commit(host: WindowsHost, tree: PureWindowsPath, git: Callable[[list[s
         host.cmd(f"if not exist {cmd_quote(str(remote_bundle.parent))} mkdir {cmd_quote(str(remote_bundle.parent))}")
         host.put(bundle, remote_bundle)
         bundle.unlink()
-        host.cmd(f"cd /d {cmd_quote(str(tree))} && git fetch -q {cmd_quote(str(remote_bundle))} HEAD:refs/omw/remote "
-                 f"&& git checkout -q --detach {commit}")
+        host.cmd(f"cd /d {cmd_quote(str(tree))} && git fetch -q {cmd_quote(str(remote_bundle))} HEAD:refs/omw/remote")
+    if theirs != commit:
+        host.cmd(f"cd /d {cmd_quote(str(tree))} && git checkout -q --detach {commit}")
     return commit
 
 
@@ -153,7 +159,10 @@ def remote_windows(ssh: str, scp: str, host_name: str, flavour: str, verb: str, 
                    git: Callable[[list[str]], str]) -> int:
     """The run on a Windows host: `args` as `remote_line` made them, their paths mapped into the run's folder there."""
     host = WindowsHost(ssh, scp, host_name)
-    tree = host.profile / TREE
+    tree = host.profile / CLONES / ROOT.name
+    if not host.exists(tree / ".git"):
+        raise Refusal(f"remote: {host_name} has no clone at {tree} for this tree: make one there, a `git clone` of "
+                      f"another tree's clone with its out\\deps")
     commit = bring_commit(host, tree, git)
     print(f"remote: {host_name} builds {commit[:10]}", flush=True)
     if host.call(f"cd /d {cmd_quote(str(tree))} && omw.cmd {flavour} build openmw-rtxtool") != 0:

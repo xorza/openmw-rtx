@@ -302,14 +302,9 @@ namespace Rtx
         /// whether the trace needs the maps' code at all (`HAS_MAPS`). None in a vanilla scene.
         std::uint32_t mMapped = 0;
 
-        /// How many wear a detail, a decal, a bump or a gloss map — `Material::Traversed::mModMapped` — and so
-        /// whether the trace reads them at all (`HAS_MOD_MAPS`). None in a vanilla scene.
+        /// How many wear a detail, a decal, a bump or a gloss map — `Material::Traversed::mModMapped` — which a
+        /// measured run reports. None in a vanilla scene.
         std::uint32_t mModMapped = 0;
-
-        /// How many wear a dark map whose alpha falls below solid — `Material::Traversed::mDarkAlpha`
-        /// — and so whether the trace reads a dark map's alpha at a see-through candidate at all
-        /// (`HAS_DARK_ALPHA`). None in nearly every scene.
-        std::uint32_t mDarkAlpha = 0;
 
         /// How many wear a relief that spans more than one height — `Material::Traversed::mRelief` —
         /// and so whether the trace needs the march through it at all (`HAS_RELIEF`). None in a scene

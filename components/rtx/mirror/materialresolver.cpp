@@ -268,15 +268,6 @@ namespace Rtx
             reading.mDiffuseFacts = known;
         }
 
-        if (const osg::Image* const dark = described.getTexture(SurfaceMap::Dark);
-            described.mAlphaMode == AlphaMode::Blend && dark != nullptr
-            && !SceneUtil::EmbeddedImage::nameOf(*dark).empty())
-        {
-            ImageFacts& known = thread.factsOf(*dark);
-            thread.fallsBelowSolid(known, *dark);
-            reading.mDarkFacts = known;
-        }
-
         // And the heights a normal map's relief spans, for every surface whose normal map carries one:
         // a cutout's as well, which `describe` then leaves unread, since the file's facts are kept for
         // every material that names it.
@@ -598,6 +589,7 @@ namespace Rtx
 
         material.mTwoSided = described->mTwoSided;
         material.mLampLit = described->mLampLit;
+        material.mGroundcover = described->mGroundcover;
         material.mOpacity = described->mOpacity;
 
         // Decoded here, because this is where the game's numbers enter the trace. A record's
@@ -656,17 +648,6 @@ namespace Rtx
                 && "a reading that read another fact than its material wants");
             if (ImageFacts* const facts = read.has_value() ? &*read : takenFacts(diffuse); facts != nullptr)
                 takeBlendFact(mThread, *facts, *diffuse, material);
-        }
-
-        // The same for the dark map, whose alpha a see-through hit's coverage is multiplied by.
-        if (material.isBlended() && material.mDark != sNoRow)
-        {
-            const osg::Image* const dark = described->getTexture(SurfaceMap::Dark);
-            std::optional<ImageFacts> read = reading.mDarkFacts;
-            assert((!read.has_value() || read->mFallsBelowSolid.has_value())
-                && "a reading that read another fact than its material wants");
-            if (ImageFacts* const facts = read.has_value() ? &*read : takenFacts(dark); facts != nullptr)
-                material.mDarkBelowSolid = mThread.fallsBelowSolid(*facts, *dark);
         }
 
         return material;

@@ -1367,14 +1367,7 @@ namespace Rtx
             scene.setMaterial(sea, Material{ .mKind = MaterialKind::Water });
             EXPECT_EQ(counts().mMapped, 1u);
 
-            // A dark map whose alpha falls below solid counts apart from the maps: the arms' one
-            // placement, still mapped, and none once the dark map is opaque again.
-            EXPECT_EQ(counts().mDarkAlpha, 0u);
-            scene.setMaterial(foliage, Material{ .mDiffuse = leaf, .mSpecular = leaf, .mDarkBelowSolid = true });
-            EXPECT_EQ(counts().mDarkAlpha, 1u);
-            EXPECT_EQ(counts().mMapped, 1u);
             scene.setMaterial(foliage, Material{ .mDiffuse = leaf });
-            EXPECT_EQ(counts().mDarkAlpha, 0u);
             EXPECT_EQ(counts().mMapped, 0u);
 
             // A detail, a decal, a bump or a gloss map counts apart from the maps too, each on its own, and a normal

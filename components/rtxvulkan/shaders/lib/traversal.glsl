@@ -243,10 +243,9 @@ vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, Texture
 /// (`DETAIL_GREY`) — and then `mDecal`'s colour laid over that by `mLaid`, its alpha and the surface's own. Neutral
 /// where a surface has neither: one, and nothing laid.
 ///
-/// **Read only where `HAS_MOD_MAPS` compiles it in**, by the caller's branch on the constant: a material that wears
-/// one is a mod-mapped one (`Rtx::Material::Traversed::mModMapped`). The neutral does not fold away on its own, since
-/// a mix by nought keeps the other side's infinities and the pinned arithmetic may not drop them, and the tint it
-/// holds live cost every other scene's kernels registers.
+/// **Read only where the material wears a mod's maps**, by the caller's branch on `MATERIAL_MOD_MAPS`. The neutral
+/// does not fold away on its own, since a mix by nought keeps the other side's infinities and the pinned arithmetic
+/// may not drop them.
 struct LaidMaps
 {
     vec3 mDetail;
@@ -266,7 +265,7 @@ LaidMaps laidMapsAt(uint row, GpuMesh mesh, uvec3 corner, vec2 bary, TexturePoin
         cone, coneWidth, detailed);
     // **The material's own alpha read again here and not handed in from the caller's row**, which a decal is laid
     // by as `objects.frag` lays it by `diffuseColor.a`: a use of the caller's field moved where the optimizer loads
-    // the row's fields for every tuple, `HAS_MOD_MAPS` or not, and so how the driver scheduled every other scene's
+    // the row's fields for every hit, a mod's maps or not, and so how the driver scheduled every other scene's
     // kernels.
     const float opacity = materialAt(row).mOpacity;
     return LaidMaps(detail / DETAIL_GREY, decal.rgb, decal.a * opacity);
@@ -317,8 +316,8 @@ SheetMaps sheetMapsAt(uint row, GpuMesh mesh, uvec3 corner, vec2 bary, TexturePo
 ///        them and not fetched again here: a second fetch inside the surface's resolve held the bounce and
 ///        the landing a wave short on AMD's Windows driver (`docs/research/2026-11-09-sheet-span.md`).
 /// @param shading the normal the surface shows the ray, in world space and unit.
-/// @param maps what the material's bump and gloss maps do to it (`sheetMapsAt`), read only where `HAS_MOD_MAPS`
-///        compiles them in.
+/// @param maps what the material's bump and gloss maps do to it (`sheetMapsAt`), read only where the material wears
+///        them (`MATERIAL_MOD_MAPS`).
 vec3 sheetAt(GpuMaterial material, SheetSpan span, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth,
     SheetMaps maps)
 {
@@ -336,7 +335,7 @@ vec3 sheetAt(GpuMaterial material, SheetSpan span, vec3 shading, vec3 direction,
     // indexed by the reflection is not read at the level the mesh's coordinates ask for.
     TexturePoint sheet = spherePoint(span, normalEye, viewEye, cone, coneWidth);
     vec3 colour = material.mEnvironmentColour;
-    if (HAS_MOD_MAPS)
+    if ((material.mFlags & MATERIAL_MOD_MAPS) != 0u)
     {
         sheet.mAt += maps.mShift;
         colour *= maps.mScale;
@@ -460,19 +459,12 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
     const TexturePoint point = candidatePoint(triangleCorners(meshAt(instance.mMesh), candidate.mPrimitive), material,
         candidate.mBary, surfaceConeAt(edges, direction), coneWidth, detailed);
 
-    // **The diffuse's alpha alone for the cut**, where `objects.frag` multiplies the dark map's in before
-    // `alphaTest`.
+    // **The diffuse's alpha alone, for the cut and for a see-through hit's coverage**, where `objects.frag`
+    // multiplies the dark map's in before `alphaTest` and `resolve` multiplies it into what the eye sees of the
+    // hit. A dark map whose alpha falls below solid stands on one material of every content measured, a glow sheet,
+    // and its read held 16 registers in every stage that walks past a pane
+    // (`docs/research/2026-11-19-one-kernel-registers.md`): what it changes is how much that sheet lets past.
     const float painted = sampleDiffuse(material.mDiffuse, point).a;
-
-    // **And the dark map's alpha for a see-through hit's coverage**, which the hit's `resolve` multiplies
-    // in: one surface hazed one way from either side (`sampledOpacity`).
-    float covered = painted;
-    if (HAS_DARK_ALPHA && (material.mFlags & MATERIAL_DARK_ALPHA) != 0u)
-    {
-        const GpuMesh mesh = meshAt(instance.mMesh);
-        covered *= darkAt(material, mesh, triangleCorners(mesh, candidate.mPrimitive), candidate.mBary, point,
-            surfaceConeAt(edges, direction), coneWidth, detailed).a;
-    }
 
     // **Tested as the rasterizer tests it**, with the alpha raised by a quarter a level the read stands
     // below the finest (`alpha.glsl`'s `coveragePreservingAlphaScale`, on by default): a box filter's level
@@ -487,7 +479,7 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
     // on every side.
     if (walkPast)
     {
-        blocked = addShare(blocked, blockedBy(there ? sampledOpacity(opacity, covered) : 0.0));
+        blocked = addShare(blocked, blockedBy(there ? sampledOpacity(opacity, painted) : 0.0));
         return false;
     }
 
@@ -497,7 +489,7 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
     {
         uint draws = randomSeed(rayKey + SEED_SEE_THROUGH + candidate.mInstance * 0x9E3779B9u
             + candidate.mPrimitive * 0x85EBCA6Bu);
-        return there && randomNext(draws) < sampledOpacity(opacity, covered);
+        return there && randomNext(draws) < sampledOpacity(opacity, painted);
     }
 
     return there;
@@ -659,12 +651,14 @@ RayAnswer answerAsked(RayAsk asked)
 /// any march's answer, which a texture's side bounds (`reliefToward`).
 const float RELIEF_UNMARCHED = 3.0e38;
 
-/// Where `resolve` takes a hit's relief from, a constant of each call so a stage that reads stored hits
-/// compiles no march: `RELIEF_MARCHES`, the trace's, which marches a relief it finds unmarched; or
-/// `RELIEF_STORED`, a stage's, whose hit carries the march the trace stored, or is a landing, whose relief
-/// is held flat and so is its shift (`reliefToward`).
-const uint RELIEF_MARCHES = 0u;
-const uint RELIEF_STORED = 1u;
+/// What `resolve` reads of a hit's normal map, a constant of each call so a stage compiles only what it reads:
+/// `NORMAL_MAP_MARCHES`, the trace's, which marches a relief it finds unmarched; `NORMAL_MAP_STORED`, a stage's,
+/// whose hit carries the march the trace stored; or `NORMAL_MAP_UNREAD`, a bounce's landing's, which is no picture
+/// and reads no normal map and so no relief: the interpolated normal, as Unreal's ray-traced path drops a material's
+/// normal map (the Ray Tracing Quality Switch), and one landing pipeline for a scene with a relief and one without.
+const uint NORMAL_MAP_MARCHES = 0u;
+const uint NORMAL_MAP_STORED = 1u;
+const uint NORMAL_MAP_UNREAD = 2u;
 
 /// What `reliefToward` answers a relief held flat, or met edge on: its shift alone, at `height`.
 vec2 reliefShiftOf(float height)
@@ -741,11 +735,6 @@ struct Hit
     /// (`Surface::mRelief`), which a stage reads back off the trace's (`storedHitOf`), or
     /// `RELIEF_UNMARCHED` for `resolve` to march.
     float mRelief;
-
-    /// Whether a relief nothing marched is marched, or shifted once: shifted at a bounce's landing, a
-    /// reflection's, as RTX Remix leaves an indirect hit's relief unmarched — marched there, the landing's
-    /// stage cost the close wall 0.13 ms of a 6.4 ms frame (`research/2026-11-08-relief-cost-and-noise.md`).
-    bool mMarches;
 };
 
 /// A ray that committed nothing, as far away as anything can be.
@@ -767,7 +756,6 @@ Hit noHit()
     hit.mSecondTurn = vec3(0.0);
     hit.mThirdTurn = vec3(0.0);
     hit.mRelief = RELIEF_UNMARCHED;
-    hit.mMarches = true;
 
     return hit;
 }
@@ -832,7 +820,6 @@ Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float
     hit.mDistance = distance;
     hit.mFootprint = footprint;
     hit.mRelief = RELIEF_UNMARCHED;
-    hit.mMarches = true;
 
     // **The vertex fetches a hit takes, here so that the transform need not survive the call.** The test is
     // on the mesh's own normal rather than on the transformed one: a mesh with no normals stores zeros, and
@@ -1204,12 +1191,13 @@ struct Surface
     /// or none.
     ReliefSite mReliefSite;
 
-    /// How much farther than `mDistance` along the ray the texel its relief showed stands, in the world
-    /// (`reliefDepthOf`), less than nought where the texel stands over the triangle. What the eye's motion and
-    /// its distance are measured to (`visibility.comp`); nought where the march took no step, so a relief a
-    /// tuple marches and one it shifts stand at one distance where both shift, and nought off a stored hit,
-    /// whose motion its trace measured.
-    float mReliefDepth;
+    /// How much deeper the texel its relief showed stands than the triangle, in the units of the sheet the march
+    /// read (`reliefToward`'s `y`), which `reliefDepthOf` carries into the world: what the eye's motion and its
+    /// distance are measured to (`storedMotionOf`). Nought where the march took no step, so a relief a tuple
+    /// marches and one it shifts stand at one distance where both shift, and nought off a stored hit, which the
+    /// direct stage marched. Carried in the world here, it held that stage a tier of registers up
+    /// (`docs/research/2026-11-19-one-kernel-registers.md`).
+    float mReliefMarched;
 };
 
 /// A ray that met nothing, as far away as anything can be: what `resolveAsked` answers with for a
@@ -1242,7 +1230,7 @@ Surface noSurface(vec3 origin)
     surface.mLampLit = true;
     surface.mRelief = 0.0;
     surface.mReliefSite = noReliefSite();
-    surface.mReliefDepth = 0.0;
+    surface.mReliefMarched = 0.0;
 
     return surface;
 }
@@ -1291,11 +1279,28 @@ vec3 carriedNormalOf(Hit hit, vec3 plane)
     return dot(hit.mShading, hit.mShading) > 0.0 ? normalize(hit.mShading) : plane;
 }
 
-/// Whether a hit reads its material's normal map: a picture's (`detailed`), of a material that wears one, on a
-/// mesh that carries tangents.
-bool readsNormalMap(Hit hit, GpuMaterial material, bool detailed)
+/// Whether a hit on `material` resolved at `detailed` reads the ground's layers summed, and their sheet (`resolve`),
+/// or one sheet of its own.
+bool readsStack(GpuMaterial material, bool detailed)
 {
-    return HAS_MAPS && detailed && holdsTexture(material.mNormal) && dot(hit.mTangent.xyz, hit.mTangent.xyz) > 0.0;
+    return (material.mFlags & MATERIAL_STACKED) != 0u || ((material.mFlags & MATERIAL_STACKED_SEEN) != 0u && detailed)
+        || (material.mLayerCount > 0u && !holdsTexture(material.mDiffuse));
+}
+
+/// Whether a hit resolved at `detailed` by a call that reads `normalMap` reads normal maps at all, its own or a
+/// stack's layers': a picture's, but a bounce's landing's (`NORMAL_MAP_UNREAD`).
+bool readsNormalMaps(bool detailed, uint normalMap)
+{
+    // The call's constant first, so a call that reads none leaves no test of a specialization constant behind.
+    return normalMap != NORMAL_MAP_UNREAD && HAS_MAPS && detailed;
+}
+
+/// Whether a hit reads its material's normal map (`readsNormalMaps`), of a material that wears one, on a mesh
+/// that carries tangents.
+bool readsNormalMap(Hit hit, GpuMaterial material, bool detailed, uint normalMap)
+{
+    return readsNormalMaps(detailed, normalMap) && holdsTexture(material.mNormal)
+        && dot(hit.mTangent.xyz, hit.mTangent.xyz) > 0.0;
 }
 
 /// The frame a hit's normal map is read through, as `normals.glsl` builds it: the tangent unit, the bitangent
@@ -1320,18 +1325,11 @@ vec3 towardEyeIn(MapFrame frame, vec3 direction)
     return vec3(dot(frame.mTangent, -direction), dot(frame.mBitangent, -direction), dot(frame.mNormal, -direction));
 }
 
-/// The heights a hit's relief spans (`reliefBoundsOf`), or a relief held flat, which is its shift
-/// (`reliefToward`).
-vec2 reliefBoundsOf(Hit hit, GpuMaterial material)
-{
-    return hit.mMarches ? reliefBoundsOf(material.mRelief) : vec2(1.0, 0.0);
-}
-
 /// Shifts `point`, where a hit lands on its material's own sheet, toward the eye by its normal map's height
 /// (`MATERIAL_PARALLAX`), so every read on the sheet after it lands where the relief puts it: the map itself, the
 /// albedo, the opacity, and the specular, emissive and dark maps. **Marched through the relief** where the scene
 /// has one that spans more than one height (`HAS_RELIEF`), read back where the trace marched it already
-/// (`Hit::mRelief`), and shifted and not marched for a stored landing (`RELIEF_STORED`).
+/// (`Hit::mRelief`), and shifted and not marched for a stored hit nothing marched (`NORMAL_MAP_STORED`).
 ///
 /// **One statement of the shift, for the resolve and for a peel that weighs a layer by its opacity alone**
 /// (`layerOpacityOf`): the two read one texel.
@@ -1340,7 +1338,7 @@ vec2 reliefBoundsOf(Hit hit, GpuMaterial material)
 ///        (`reliefBoundsOf`).
 /// @return how far toward the eye the relief showed its texture, and by how much deeper it stood
 ///         (`reliefDepthOf`): noughts in a scene with no relief to march.
-vec2 shiftToRelief(inout TexturePoint point, Hit hit, GpuMaterial material, vec3 eye, vec2 bounds, uint reliefSource)
+vec2 shiftToRelief(inout TexturePoint point, Hit hit, GpuMaterial material, vec3 eye, vec2 bounds, uint normalMap)
 {
     const float height = sampleDiffuse(material.mNormal, point).a;
 
@@ -1349,7 +1347,7 @@ vec2 shiftToRelief(inout TexturePoint point, Hit hit, GpuMaterial material, vec3
     if (HAS_RELIEF)
     {
         const vec2 shown = hit.mRelief != RELIEF_UNMARCHED ? vec2(hit.mRelief, 0.0)
-            : reliefSource == RELIEF_STORED ? reliefShiftOf(height)
+            : normalMap == NORMAL_MAP_STORED ? reliefShiftOf(height)
                                             : reliefToward(reliefMapOf(material.mNormal), bounds, point, eye, height);
         point.mAt += eye.xy * shown.x;
         return shown;
@@ -1371,8 +1369,8 @@ vec2 shiftToRelief(inout TexturePoint point, Hit hit, GpuMaterial material, vec3
 ///        and relief read there moved nothing a 1024-frame reference could tell from its own noise,
 ///        at Balmora or in the census office. The albedo, the reflectance and the roughness are read
 ///        either way, because the energy the hit sends back is theirs.
-/// @param reliefSource `RELIEF_MARCHES` or `RELIEF_STORED`, a constant of the call.
-Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint reliefSource)
+/// @param normalMap `NORMAL_MAP_MARCHES`, `NORMAL_MAP_STORED` or `NORMAL_MAP_UNREAD`, a constant of the call.
+Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint normalMap)
 {
     Surface surface = noSurface(origin);
 
@@ -1413,12 +1411,25 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     // ground, on a quad whose plane is level to a hundredth. Turned to face the *ray* that normal stays
     // pointing down, and a floor with a normal under it drops every lamp overhead on the cosine and sends its
     // bounce into itself.
+    //
+    // **Turned round, a smooth surface seen from its back stays smooth**: its whole field of normals turns, as
+    // the inside of a chamber seen from without does. **Groundcover's is mirrored through the plane** instead,
+    // its part through the card flipped and its part along it kept: a card's normals are authored pointing up
+    // as the ground's are, nearly in the card's own plane, so turned round they pointed down on the card's back
+    // and half a groundcover mod's cards drew black (issue 59, Aesthesia's and Remiros' grass). Mirrored, every
+    // surface's would facet where its triangles' planes part.
     surface.mGeometric = faceforward(surface.mGeometric, direction, surface.mGeometric);
     const bool turned = dot(normal, surface.mGeometric) < 0.0;
     surface.mNormal = turned ? -normal : normal;
+
+    // Groundcover's mirrored out of what was turned, from the turned normal and the plane alone, both of which
+    // stand here anyway, so the normal as carried is held past the material's read by nothing.
+    const GpuMaterial material = materialAt(instance.mMaterial);
+    const bool groundcover = (material.mFlags & MATERIAL_GROUNDCOVER) != 0u;
+    if (turned && groundcover)
+        surface.mNormal = surface.mGeometric * (2.0 * dot(surface.mNormal, surface.mGeometric)) - surface.mNormal;
     surface.mSmooth = surface.mNormal;
 
-    const GpuMaterial material = materialAt(instance.mMaterial);
     surface.mGround = material.mLayerCount > 0u;
 
     surface.mSheet = (mesh.mShape & MESH_SHEET) != 0u;
@@ -1449,7 +1460,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     TexturePoint point = texturePoint(uv, hit.mBary, material.mTextureTransform, cone, surface.mFootprint, detailed);
 
     // **A normal map, read through the tangents the mesh carries** (`MapFrame`).
-    if (readsNormalMap(hit, material, detailed))
+    if (readsNormalMap(hit, material, detailed, normalMap))
     {
         const MapFrame frame = mapFrameOf(hit, normal);
         const vec3 tangent = frame.mTangent;
@@ -1458,14 +1469,14 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         // **Shifted toward the eye by the map's height first**, where it carries one (`shiftToRelief`).
         if ((material.mFlags & MATERIAL_PARALLAX) != 0u)
         {
-            const vec2 bounds = reliefBoundsOf(hit, material);
-            const vec2 shown = shiftToRelief(point, hit, material, towardEyeIn(frame, direction), bounds, reliefSource);
+            const vec2 bounds = reliefBoundsOf(material.mRelief);
+            const vec2 shown = shiftToRelief(point, hit, material, towardEyeIn(frame, direction), bounds, normalMap);
             if (HAS_RELIEF)
             {
                 surface.mRelief = shown.x;
                 surface.mReliefSite = ReliefSite(material.mNormal, point.mAt, bounds, tangent, bitangent, normal,
                     reliefLevelOf(material.mNormal, point));
-                surface.mReliefDepth = reliefDepthOf(uv, material.mTextureTransform, cone, shown.y);
+                surface.mReliefMarched = shown.y;
             }
         }
 
@@ -1486,9 +1497,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     //
     // **Near ground's bounce reads the composite**, which the layers' delit colours were baked into as
     // the stack sums them.
-    const bool stacked = (material.mFlags & MATERIAL_STACKED) != 0u
-        || ((material.mFlags & MATERIAL_STACKED_SEEN) != 0u && detailed)
-        || (material.mLayerCount > 0u && !holdsTexture(material.mDiffuse));
+    const bool stacked = readsStack(material, detailed);
     vec3 albedo = vec3(0.0);
 
     // Asked once: each is a load through a buffer reference, and three branches below ask it. A
@@ -1519,7 +1528,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         // program and move its digest by a normalize.
         LayerFrame layers = LayerFrame(vec3(0.0), vec3(0.0));
         vec3 layerEye = vec3(0.0);
-        if (HAS_MAPS && detailed)
+        if (readsNormalMaps(detailed, normalMap))
         {
             layers = layerFrameOf(normal);
             layerEye
@@ -1532,14 +1541,14 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         // `HAS_RELIEF` and the chunk's own relief, so a stack with none shifts each layer as `terrain.frag` does.
         bool stackMarched = false;
         float stackToward = 0.0;
-        if (HAS_RELIEF && HAS_MAPS && detailed && (material.mFlags & MATERIAL_PARALLAX) != 0u
+        if (readsNormalMaps(detailed, normalMap) && HAS_RELIEF && (material.mFlags & MATERIAL_PARALLAX) != 0u
             && hit.mRelief != RELIEF_UNMARCHED)
         {
             // Read back where the trace marched it, as a surface's is.
             stackMarched = true;
             stackToward = hit.mRelief;
         }
-        else if (HAS_RELIEF && HAS_MAPS && detailed && (material.mFlags & MATERIAL_PARALLAX) != 0u)
+        else if (readsNormalMaps(detailed, normalMap) && HAS_RELIEF && (material.mFlags & MATERIAL_PARALLAX) != 0u)
         {
             ReliefMaps maps = ReliefMaps(0u, uvec4(NO_TEXTURE), vec4(0.0), 0.0);
             float total = 0.0;
@@ -1573,16 +1582,13 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
                 vec2 bounds = reliefBoundsOf(material.mRelief);
                 if (maps.mFlat > 0.0)
                     bounds = vec2(min(bounds.x, 0.5), max(bounds.y, 0.5));
-                if (!hit.mMarches)
-                    bounds = vec2(1.0, 0.0);
-                const vec2 shown = reliefSource == RELIEF_STORED ? reliefShiftOf(height)
-                                                                 : reliefToward(maps, bounds, sheet, layerEye, height);
+                const vec2 shown = normalMap == NORMAL_MAP_STORED ? reliefShiftOf(height)
+                                                                  : reliefToward(maps, bounds, sheet, layerEye, height);
                 stackMarched = true;
                 stackToward = shown.x;
                 surface.mRelief = shown.x;
 
-                surface.mReliefDepth
-                    = reliefDepthOf(uv, layerAt(material.mLayerOffset).mDiffuseTransform, cone, shown.y);
+                surface.mReliefMarched = shown.y;
             }
         }
 
@@ -1600,7 +1606,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
             // Shifted as `terrain.frag` shifts the layer, before any read of it, by the height read
             // where the layer was.
             TexturePoint at = texturePoint(uv, hit.mBary, layer.mDiffuseTransform, cone, surface.mFootprint, detailed);
-            const bool mapped = HAS_MAPS && detailed && holdsTexture(layer.mNormal);
+            const bool mapped = readsNormalMaps(detailed, normalMap) && holdsTexture(layer.mNormal);
             if (stackMarched)
                 at.mAt += layerEye.xy * stackToward;
             else if (mapped && (layer.mFlags & LAYER_PARALLAX) != 0u)
@@ -1746,7 +1752,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
 
     // **Then the detail and the decal maps, in `objects.frag`'s order** (`LaidMaps`): past the dark map, so a decal is
     // not darkened by it, and tinted as the texture is, since there the lighting multiplies both.
-    if (HAS_MOD_MAPS)
+    if ((materialPast.mFlags & MATERIAL_MOD_MAPS) != 0u)
     {
         const LaidMaps laid
             = laidMapsAt(instance.mMaterial, meshPast, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
@@ -1780,7 +1786,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     // Its bump and gloss maps only where it has a sheet for them to change, which is the only place the content
     // binds them (`Rtx::Material::mBump`).
     SheetMaps sheetMaps = SheetMaps(vec2(0.0), vec3(1.0));
-    if (HAS_MOD_MAPS && holdsTexture(materialPast.mEnvironment))
+    if ((materialPast.mFlags & MATERIAL_MOD_MAPS) != 0u && holdsTexture(materialPast.mEnvironment))
         sheetMaps
             = sheetMapsAt(instance.mMaterial, meshPast, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
     const vec3 sheet = sheetAt(materialPast, span, surface.mNormal, direction, cone, surface.mFootprint, sheetMaps);
@@ -1814,11 +1820,11 @@ float layerOpacityOf(SceneAnswer met, SceneQuery asked)
     vec2 uv[3];
     triangleUvs(hit.mCorner, uv);
     TexturePoint point = texturePoint(uv, hit.mBary, material.mTextureTransform, cone, hit.mFootprint, detailed);
-    if (readsNormalMap(hit, material, detailed) && (material.mFlags & MATERIAL_PARALLAX) != 0u)
+    if (readsNormalMap(hit, material, detailed, NORMAL_MAP_MARCHES) && (material.mFlags & MATERIAL_PARALLAX) != 0u)
     {
         const MapFrame frame = mapFrameOf(hit, carriedNormalOf(hit, planeOf(hit.mEdges)));
-        shiftToRelief(point, hit, material, towardEyeIn(frame, asked.mAlong), reliefBoundsOf(hit, material),
-            RELIEF_MARCHES);
+        shiftToRelief(point, hit, material, towardEyeIn(frame, asked.mAlong), reliefBoundsOf(material.mRelief),
+            NORMAL_MAP_MARCHES);
     }
 
     return sampledOpacity(opacity, material, point)
@@ -1859,7 +1865,7 @@ Surface resolveAsked(SceneAnswer met, SceneQuery asked)
     if (met.mCommitted != 0u)
         hit = committedHit(met.mInstance, met.mPrimitive, met.mBary, met.mDistance, footprintOf(asked, met));
 
-    return resolve(hit, asked.mFrom, asked.mAlong, asked.mDetailed != 0u, RELIEF_MARCHES);
+    return resolve(hit, asked.mFrom, asked.mAlong, asked.mDetailed != 0u, NORMAL_MAP_MARCHES);
 }
 
 #endif

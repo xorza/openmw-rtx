@@ -1811,7 +1811,7 @@ namespace Rtx::Testing
         /// so the active grid's cell is the ring's too. The grass band is the reach and a cell past it.
         ///
         /// **A plant wears upstream's cut and not the model's own**: the fern read as grass is a material apart
-        /// from the fern read as a static, cut at half its alpha.
+        /// from the fern read as a static, cut at half its alpha and marked groundcover, which the static is not.
         TEST_F(RtxCellRingTest, groundcoverStandsWithinItsReachAndGoesWholePastIt)
         {
             mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
@@ -1866,6 +1866,8 @@ namespace Rtx::Testing
                 (AlphaTest{ .mReference = 128.0f / 255.0f,
                     .mPasses = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE }));
             EXPECT_TRUE(cut.mLampLit);
+            EXPECT_TRUE(cut.mGroundcover) << "lit as upstream's groundcover";
+            EXPECT_FALSE(mScene.materials().getRows()[fern].mGroundcover) << "the static lit as before";
 
             // Ten cells east, past every plant: the grass goes with its cells, and the band there
             // holds cells of none.
