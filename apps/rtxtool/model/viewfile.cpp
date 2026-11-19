@@ -65,20 +65,17 @@ namespace RtxTool
         return found == suites.end() ? nullptr : &*found;
     }
 
+    std::string stopNameOf(std::string_view name)
+    {
+        std::string safe(name);
+        for (char& letter : safe)
+            if (std::string_view(",:/\\*?\"<>|").find(letter) != std::string_view::npos)
+                letter = '_';
+        return safe;
+    }
+
     namespace
     {
-        /// A cell's name as a stop's name, which a hash file's row and a picture's file are keyed on: the name as it
-        /// is, but each character a row or a file name cannot hold as `_`. `-2,-9` is `-2_-9`, which `slugOf`'s
-        /// `2-9` would share with `2,9`.
-        std::string stopNameOf(std::string_view cell)
-        {
-            std::string name(cell);
-            for (char& letter : name)
-                if (std::string_view(",:/\\*?\"<>|").find(letter) != std::string_view::npos)
-                    letter = '_';
-            return name;
-        }
-
         /// A field a view names another view by, `to` or `like` or the `speed` beside a `to`,
         /// waiting for every view to be read: the view that wrote it, and the field, for its line.
         struct Pending

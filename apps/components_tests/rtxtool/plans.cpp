@@ -281,6 +281,23 @@ namespace RtxTool
             EXPECT_EQ(sampledNames,
                 (std::vector<std::string>{ "leg-1-land-0,1", "leg-3-room-Arrille's Tradehouse", "leg-5-closing-0,1" }));
 
+            // **A leg's frames where `--frame-times` names a folder**, each under its leg's name as a file holds it,
+            // and none written where it names none.
+            for (const Stop& stop : stops)
+                EXPECT_TRUE(stop.mActions.mFrameTimes.empty()) << stop.mName << ": frames written unasked";
+            const std::filesystem::path frameTimes = TestingOpenMW::currentTestDirPath() / "frames";
+            const HostedRun timed
+                = planOf(Verb::Tour, { "--every=1", "--frame-times=" + Files::pathToUnicodeString(frameTimes) },
+                    [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
+            std::vector<std::filesystem::path> written;
+            for (const Stop& stop : timed.mRequest.mPlanWhereTheWorldStands(30.0f))
+                written.push_back(stop.mActions.mFrameTimes);
+            EXPECT_EQ(written,
+                (std::vector<std::filesystem::path>{ frameTimes / "leg-1-land-0_1.txt",
+                    frameTimes / "leg-2-land-10_1.txt", frameTimes / "leg-3-room-Arrille's Tradehouse.txt",
+                    frameTimes / "leg-4-room-Balmora_ Guild of Mages.txt", frameTimes / "leg-5-closing-0_1.txt" }));
+            EXPECT_TRUE(std::filesystem::is_directory(frameTimes)) << "the folder made before the first leg writes";
+
             const HostedRun later = planOf(Verb::Tour, { "--legs=4-", "--every=1" },
                 [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
             EXPECT_EQ(

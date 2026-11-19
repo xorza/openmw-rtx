@@ -440,9 +440,13 @@ namespace RtxTool
         if (line.mPaced)
             framed.mWindow.mFramerateLimit = sStepRate;
 
-        // What the tour writes, each after every leg: its record and its findings, and the pictures Home marks.
+        // What the tour writes, each after every leg: its record and its findings, the pictures Home marks, and each
+        // leg's frames where asked.
         const std::filesystem::path out = outOf(command);
         std::filesystem::create_directories(out);
+        const std::filesystem::path frameTimes = command.mLine.mBench.mFrameTimes;
+        if (!frameTimes.empty())
+            std::filesystem::create_directories(frameTimes);
 
         const Rtx::RenderProfile profile = framed.mSetup.mRun.mProfile;
         HostedRun hosted = sessionFor(command, std::move(framed), {});
@@ -461,7 +465,7 @@ namespace RtxTool
             .mExpected = line.mExpected };
         request.mJson = out / "tour.json";
         request.mHomePictures = out / "marks";
-        request.mPlanWhereTheWorldStands = [pacing, line, profile, readMap = std::move(readMap),
+        request.mPlanWhereTheWorldStands = [pacing, line, profile, frameTimes, readMap = std::move(readMap),
                                                policy = policyOf(command.mVerb)](const float ownTimeScale) mutable {
             pacing.mTimeScale = ownTimeScale;
             const auto reading = std::chrono::steady_clock::now();
@@ -484,6 +488,9 @@ namespace RtxTool
                 for (const Check check : everyCheck())
                     if (canAsk(check, stop, profile))
                         stop.mActions.mChecks.push_back(check);
+                // A leg's name is the cell's spelling, which a file name may not hold.
+                if (!frameTimes.empty())
+                    stop.mActions.mFrameTimes = frameTimes / (stopNameOf(stop.mName) + ".txt");
             }
             return stops;
         };

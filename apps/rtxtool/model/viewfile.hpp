@@ -37,6 +37,11 @@ namespace RtxTool
     /// The suite called `name`, or null.
     const BenchSuite* findSuite(const std::vector<BenchSuite>& suites, std::string_view name);
 
+    /// A name as a stop's name, which a hash file's row and a file are keyed on: the name as it is, but each character
+    /// a row or a file name cannot hold as `_`. A cell's `-2,-9` is `-2_-9`, which `slugOf`'s `2-9` would share with
+    /// `2,9`.
+    std::string stopNameOf(std::string_view name);
+
     /// One stop from a view file entry and the sky the command line named. A view id names one frame, so a place
     /// measured at dawn says so in `mSky.mHour`; the command line still wins, as it does for `pos` and `look`, for
     /// the hour, the weather and the air, each where it names one. What comes back has the hour and the weather
