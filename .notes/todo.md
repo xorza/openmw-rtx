@@ -29,9 +29,6 @@
   go further as the cell nears. It needs each model's radius in the store's manifest before the model is read, and
   `CellPlacer` adopting a cell in parts. Held by the count again, `repeat` and `shot`, and no outrun.
 
-- `x86_64-v3`.
-- Publish rgbcx.
-- AVX encoders.
 - Bake distant land into one mesh.
 
 ## Prompts
