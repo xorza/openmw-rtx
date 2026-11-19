@@ -113,9 +113,9 @@ namespace Rtx
         struct Ask
         {
             std::span<const TextureIndex> mSlots;
-            PreparedImages* mPrepared;
-            bool mSettled;
-            Handing mHanding;
+            PreparedImages* mPrepared = nullptr;
+            bool mSettled = false;
+            Handing mHanding = Handing::Whole;
         };
 
         void describeSlots(const SceneDesc& scene, const Ask& ask);
