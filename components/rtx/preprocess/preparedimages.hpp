@@ -18,7 +18,6 @@
 #include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 
 #include "contentstats.hpp"
@@ -57,9 +56,9 @@ namespace Rtx
     {
     public:
         /// Whether `file` read as `encoding` has its chain made: none in a format the scene refuses
-        /// (`describeImage`); a normal or data map's, whose replacers' chains use wrong filters; a painted
-        /// colour's, delit; any file's that carries none and is more than a texel; and a loose file's,
-        /// encoded to BC7 (`ChainPass`). A block colour's own chain stands as the file holds it.
+        /// (`describeImage`); a normal or data map's, whose replacers' chains use wrong filters; any file's
+        /// that carries none and is more than a texel; and a loose file's, encoded to BC7 (`ChainPass`). A block
+        /// colour's own chain stands as the file holds it.
         static bool prepares(const osg::Image& file, TextureEncoding encoding);
 
         /// @param store where the chains are found and kept, or null for none.
@@ -72,33 +71,32 @@ namespace Rtx
         PreparedImages(const PreparedImages&) = delete;
         PreparedImages& operator=(const PreparedImages&) = delete;
 
-        /// What the device is handed of `file`, read as `encoding` by a slot that addresses it as `wrap`:
+        /// What the device is handed of `file`, read as `encoding`, whatever the wrap the slot addresses it by:
         /// its texels and its chain made again where `prepares` says, ready, or queued and pending. A file
         /// whose texels it holds and that has no chain made is answered at once. Never waits.
         /// @param partner a converted slot's other file (`TextureRow::mPartner`), and null for every
         ///        other slot.
-        PreparedImage find(
-            const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner = nullptr);
+        PreparedImage find(const osg::Image& file, TextureEncoding encoding, const osg::Image* partner = nullptr);
 
         /// Whether what `find` queued for `file` as it was asked is still to be read and made: while it is, the slot
         /// that stood in waits; once it is not, the slot arrives again and asks anew, which hands it what was made, or
-        /// reads it again where nothing is kept. **Nothing kept is no job pending**: slots of one file whose wraps make
-        /// one key share an entry, which the others end as if it were theirs alone — let go of once one is handed it
-        /// (`letGo`), dropped as one leaves (`forget`), its job cancelled — so a slot that waited for the entry as made
-        /// waited for ever, drew its file's stand-in, and a view never stood whole. Hands nothing out.
-        bool isPending(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner);
+        /// reads it again where nothing is kept. **Nothing kept is no job pending**: slots of one file and encoding
+        /// share an entry whatever their wraps, which the others end as if it were theirs alone — let go of once one is
+        /// handed it (`letGo`), dropped as one leaves (`forget`), its job cancelled — so a slot that waited for the
+        /// entry as made waited for ever, drew its file's stand-in, and a view never stood whole. Hands nothing out.
+        bool isPending(const osg::Image& file, TextureEncoding encoding, const osg::Image* partner);
 
         /// Lets go of what was read and made of `file` for every slot, the device having its copy, and
         /// tells a header's manager its texels may go (`Resource::releaseTexels`): a later ask reads it
         /// again. What a job reading it holds goes as the job ends.
         void letGo(const osg::Image& file);
 
-        /// Forgets what `find` was asked of `file` as `encoding` and `wrap` by a slot that leaves before it was
+        /// Forgets what `find` was asked of `file` as `encoding` by a slot that leaves before it was
         /// handed what was read and made for it: the entry goes now where it is made, and as its job lands where it is
         /// still read or made, unless a slot asks for it again first; and a header's manager may let go of its texels.
         /// Without it the entry would hold its chain and its texels for the session, its file's header being kept
         /// for the run (`Resource::ImageManager`).
-        void forget(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner);
+        void forget(const osg::Image& file, TextureEncoding encoding, const osg::Image* partner);
 
         /// Whether nothing is queued or being made: what a run that compares frames waits for, so
         /// every frame it compares draws the made chains.
@@ -123,7 +121,7 @@ namespace Rtx
         std::size_t getScratchBytes();
 
     private:
-        using Key = std::tuple<const osg::Image*, TextureEncoding, TextureWrap, const osg::Image*>;
+        using Key = std::tuple<const osg::Image*, TextureEncoding, const osg::Image*>;
 
         struct Entry
         {
@@ -163,9 +161,6 @@ namespace Rtx
             /// Whether its slot left before it started (`forget`), so it reads nothing.
             bool mCancelled = false;
         };
-
-        /// The entry `file` is found under as a slot asks for it: the wrap only where it decides what is made.
-        static Key keyOf(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner);
 
         /// What `entry` answers, made: its chain and its texels as the upload reads them, or pending where
         /// what it held was let go of by every texture and is queued to be read or made again.

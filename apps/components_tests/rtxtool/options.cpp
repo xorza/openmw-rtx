@@ -387,7 +387,7 @@ namespace RtxTool
         /// Every option says which commands read it, and the ones that say "all of them" say it.
         ///
         /// What this holds shut: a knob with no owner would answer `VerbSet::every()`, so `info --size=800x600
-        /// --delight=0` would be taken and thrown away.
+        /// --exposure=1` would be taken and thrown away.
         TEST(RtxToolOptionsTest, everyOptionSaysWhichCommandsReadIt)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);

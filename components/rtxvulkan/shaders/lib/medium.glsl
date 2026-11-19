@@ -226,7 +226,7 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         const float glowing = rule.mVertexTint ? float((material.mFlags & MATERIAL_VERTEX_GLOW) != 0u) : 0.0;
 
         gathered.mUnlit = addShare(
-            gathered.mUnlit, sharePart(texel.rgb * mix(material.mDiffuseColour, colours.mHue, tinted) * alpha));
+            gathered.mUnlit, sharePart(texel.rgb * mix(material.mDiffuseColour, colours.mTint, tinted) * alpha));
         gathered.mGlowed = addShare(
             gathered.mGlowed, sharePart(texel.rgb * mix(material.mEmissiveColour, colours.mColour, glowing) * alpha));
         if (rule.mSheets)

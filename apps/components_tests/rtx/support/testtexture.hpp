@@ -144,29 +144,4 @@ namespace Rtx::Testing
 
         texture.describe(texture.mLevels.front().mWidth, texture.mLevels.front().mHeight, "alpha sheet");
     }
-
-    /// How many texels across `paintTwoTones` paints.
-    inline constexpr std::uint32_t sTwoTonesExtent = 128;
-
-    /// A texture whose shading estimate is known: two tones along `u`, bytes of 255 across the columns
-    /// `[from, to)` of a hundred and twenty-eight and 156 outside them (1.0 and 0.3325 in light).
-    /// Display-encoded unless `format` says otherwise. The estimate normalises to a mean of one, so with
-    /// the bright half a half the bright cells come to 1.501 and the dark ones to the floor, 0.5, the
-    /// blur reaching three cells either side. A cell is four texels, a block's width: the one size at
-    /// which the host's per-block estimate and the device's per-texel one name the same cell.
-    inline TestTexture paintTwoTones(
-        std::uint32_t from, std::uint32_t to, TextureFormat format = TextureFormat::Rgba8Srgb)
-    {
-        constexpr std::uint32_t extent = sTwoTonesExtent;
-        std::vector<std::uint8_t> texels(std::size_t{ extent } * extent * 4, 255);
-        for (std::uint32_t y = 0; y < extent; ++y)
-            for (std::uint32_t x = 0; x < extent; ++x)
-                for (std::size_t channel = 0; channel < 3; ++channel)
-                    texels[(std::size_t{ y } * extent + x) * 4 + channel] = x >= from && x < to ? 255 : 156;
-
-        TestTexture painted;
-        paintFlat(painted, extent, texels, "two tones");
-        painted.describe(extent, extent, "two tones", format);
-        return painted;
-    }
 }

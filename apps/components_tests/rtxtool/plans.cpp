@@ -116,12 +116,12 @@ namespace RtxTool
         }
 
         /// **A shot's pictures are held to where they came from**: the frame by its hashes where an upscaler
-        /// reconstructed it, by its picture where the wavelet composed it and nothing upscaled it; the tile denoised
-        /// and the sheet exact. Each is named after its place under `--out`, which its hashes go beside.
+        /// reconstructed it, by its picture where the wavelet composed it and nothing upscaled it; the tile denoised.
+        /// Each is named after its place under `--out`, which its hashes go beside.
         TEST_F(RtxPlanTest, aShotsPicturesAreHeldToWhereTheyCameFrom)
         {
             const std::filesystem::path out = TestingOpenMW::currentTestDirPath() / "shot";
-            const std::vector<std::string> line{ "--views=seyda-neen-ship", "--map", "--textures",
+            const std::vector<std::string> line{ "--views=seyda-neen-ship", "--map",
                 "--out=" + Files::pathToUnicodeString(out) };
 
             Framed framed;
@@ -129,13 +129,11 @@ namespace RtxTool
             framed.mSetup.mRun.mProfile.mReconstruction.mDenoise = true;
             const ShotPlan upscaled = planOf(Verb::Shot, line, planShot, framed);
             EXPECT_EQ(upscaled.mOut, out);
-            ASSERT_EQ(upscaled.mPictures.size(), 3u);
+            ASSERT_EQ(upscaled.mPictures.size(), 2u);
             EXPECT_EQ(upscaled.mPictures[0].mFile, "seyda-neen-ship.png");
             EXPECT_EQ(upscaled.mPictures[0].mRule, PictureRule::Hashed);
             EXPECT_EQ(upscaled.mPictures[1].mFile, "seyda-neen-ship-map.png");
             EXPECT_EQ(upscaled.mPictures[1].mRule, PictureRule::Denoised);
-            EXPECT_EQ(upscaled.mPictures[2].mFile, "seyda-neen-ship-textures.png");
-            EXPECT_EQ(upscaled.mPictures[2].mRule, PictureRule::Exact);
             EXPECT_EQ(upscaled.mRun.mRequest.mHashes, out / sRunHashes);
             EXPECT_EQ(upscaled.mRun.mRequest.mAgainst, std::filesystem::path());
 

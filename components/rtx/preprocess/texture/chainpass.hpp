@@ -14,7 +14,6 @@
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/filekeys.hpp>
 #include <components/rtx/preprocess/texelreads.hpp>
@@ -32,9 +31,8 @@ namespace Rtx
         /// The whole chain in BC7, from the finest down (`MadeImage`).
         Bc7,
 
-        /// The whole chain in the file's own format, from the finest down: a painted colour's, every
-        /// level delit, and every other's finest as the file holds it above the levels built
-        /// (`MadeImage`).
+        /// The whole chain in the file's own format, from the finest down: the finest as the file holds
+        /// it above the levels built (`MadeImage`).
         Own,
     };
 
@@ -79,14 +77,9 @@ namespace Rtx
     /// is whole"); **nothing made** for a format `ChainBuild` does not rebuild, a block colour that carried its
     /// chain, and a BC1 file that carried a chain and has a cut.
     ///
-    /// **A painted colour's whole chain delit** (`docs/architecture.md`, "A painted colour is stored
-    /// delit, keyed by use"): every level it carries, and the levels under a chainless one boxed from
-    /// the delit finest, in the file's own format; in BC7 where it is loose, small and chainless, or
-    /// holds a cut, whose one bit of alpha rgbcx's BC1 does not encode.
-    ///
-    /// **The key is everything the run reads**: the file's (`FileKeys`), the encoding, and a painted colour's wrap. A
-    /// header's key reads nothing, so a chain the store holds whole comes back with no read of its file; a run reads
-    /// the file's texels through the header.
+    /// **The key is everything the run reads**: the file's (`FileKeys`) and the encoding. A header's key reads
+    /// nothing, so a chain the store holds whole comes back with no read of its file; a run reads the file's texels
+    /// through the header.
     class ChainPass
     {
     public:
@@ -94,9 +87,6 @@ namespace Rtx
         {
             const osg::Image& mImage;
             TextureEncoding mEncoding{};
-
-            /// How the slot addresses it past its edges, which a painted colour's estimate follows.
-            TextureWrap mWrap = TextureWrap::Repeat;
 
             /// Why a run reads a header's texels, where it must.
             TexelRead mWhy = TexelRead::File;

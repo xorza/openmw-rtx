@@ -102,7 +102,6 @@ openmw_rtx_layer(
         image/formatcensus.cpp
         image/imagedescription.cpp
         image/madeimage.cpp
-        image/shadingmap.cpp
         image/texels.cpp
         image/texturedata.cpp
         image/textureformat.cpp
@@ -115,7 +114,6 @@ openmw_rtx_layer(
         image/formatcensus.hpp
         image/imagedescription.hpp
         image/madeimage.hpp
-        image/shadingmap.hpp
         image/specularlayout.hpp
         image/texels.hpp
         image/texturedata.hpp

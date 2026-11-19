@@ -564,11 +564,10 @@ namespace Rtx
             for (const SurfaceMap map : { SurfaceMap::Detail, SurfaceMap::Decal, SurfaceMap::Bump, SurfaceMap::Gloss })
                 EXPECT_NE(bump.getTexture(map), nullptr) << static_cast<std::int32_t>(map);
 
-            // Encoded as each is read: the detail and the gloss maps as colour, the decal as the diffuse it lies on,
-            // painted where the diffuse is, and the bump map as data.
+            // Encoded as each is read: the detail, the gloss and the decal maps as colour, and the bump map as data.
             EXPECT_EQ(bump.encodingOf(SurfaceMap::Detail, SpecularLayout::MetalRoughness), TextureEncoding::Colour);
             EXPECT_EQ(bump.encodingOf(SurfaceMap::Gloss, SpecularLayout::MetalRoughness), TextureEncoding::Colour);
-            EXPECT_EQ(bump.encodingOf(SurfaceMap::Decal, SpecularLayout::MetalRoughness), TextureEncoding::Painted);
+            EXPECT_EQ(bump.encodingOf(SurfaceMap::Decal, SpecularLayout::MetalRoughness), TextureEncoding::Colour);
             EXPECT_EQ(bump.encodingOf(SurfaceMap::Bump, SpecularLayout::MetalRoughness), TextureEncoding::Data);
 
             // A state set with neither leaves both where they were, as everything else does.
@@ -696,7 +695,7 @@ namespace Rtx
 
             SurfaceDescription lone;
             lone.setTexture(SurfaceMap::Diffuse, diffuse.get());
-            EXPECT_EQ(lone.encodingOf(SurfaceMap::Diffuse, SpecularLayout::Classic), TextureEncoding::Painted);
+            EXPECT_EQ(lone.encodingOf(SurfaceMap::Diffuse, SpecularLayout::Classic), TextureEncoding::Colour);
             EXPECT_EQ(lone.partnerOf(SurfaceMap::Diffuse, SpecularLayout::Classic), nullptr);
         }
 

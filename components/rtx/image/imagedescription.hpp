@@ -28,7 +28,7 @@ namespace Rtx
 
     /// What a texture that cannot stand is drawn as, described: one texel block of mid grey, in
     /// storage of its own that lasts the program. The one definition, which a backend stands once
-    /// for every slot that draws it and a contact sheet draws as it is.
+    /// for every slot that draws it.
     TextureData describeStandIn();
 
     /// Whether this renderer uploads `image` as `encoding`, and why not where it does not: a format

@@ -204,9 +204,9 @@ namespace Rtx
         /// @param kind `GroundAlbedo` or `GroundGloss`.
         TextureIndex addGround(MaterialIndex material, TextureKind kind);
 
-        /// The slot `path` stands in as a colour, painted or not, under any wrap, or `sNoRow` where it
-        /// stands in none. What a bake made from a file's alpha finds its source by: the alpha is the same
-        /// under every wrap and in both encodings, and the bake names the file and not the slot. **A live slot,
+        /// The slot `path` stands in as a colour, under any wrap, or `sNoRow` where it stands in none. What a
+        /// bake made from a file's alpha finds its source by: the alpha is the same under every wrap, and the
+        /// bake names the file and not the slot. **A live slot,
         /// never one that rests**: what rests is freed whenever room is wanted, the hand-over that describes the bake
         /// among them, and a bake made from a slot freed in its own hand-over named nothing.
         TextureIndex findFile(VFS::Path::NormalizedView path) const;

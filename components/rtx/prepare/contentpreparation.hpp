@@ -23,7 +23,6 @@
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
@@ -94,9 +93,6 @@ namespace Rtx
         /// Whether the normal map may carry a height in its alpha, which the ground reads
         /// (`carriesHeight`).
         bool mParallax = false;
-
-        /// Whether the diffuse is a `_diffusespec` the storage found, which `layerEncodingOf` reads.
-        bool mDiffuseSpec = false;
     };
 
     /// What a preparation took, once `finish` returned.
@@ -169,7 +165,6 @@ namespace Rtx
             osg::ref_ptr<const osg::Image> mImage;
             osg::ref_ptr<const osg::Image> mPartner;
             TextureEncoding mEncoding;
-            TextureWrap mWrap;
             std::size_t mWalk;
         };
 
@@ -199,15 +194,13 @@ namespace Rtx
         void convert(Hand& hand, const ConversionPass::Input& input);
 
         /// **What makes a chain one chain**, as the store keys it: its image's name, its partner's for a
-        /// converted one, its encoding, and its wrap where it matters (a painted colour's or a
-        /// conversion's). Fields and not one string, where the name and the encoding's digit ran into one
-        /// another and a name that ended in a digit met another chain's.
+        /// converted one, and its encoding. Fields and not one string, where the name and the encoding's digit ran into
+        /// one another and a name that ended in a digit met another chain's.
         struct ChainIdentity
         {
             std::string mImage;
             std::string mPartner;
             TextureEncoding mEncoding = TextureEncoding::Colour;
-            TextureWrap mWrap = TextureWrap::Repeat;
 
             bool operator==(const ChainIdentity&) const = default;
         };

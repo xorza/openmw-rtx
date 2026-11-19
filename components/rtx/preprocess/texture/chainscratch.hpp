@@ -14,12 +14,11 @@ namespace Rtx
     {
         /// The file's levels laid where they are not spanned in place (`describeImage`).
         File,
-        /// `ChainBuild::Scratch`'s five.
+        /// `ChainBuild::Scratch`'s four.
         Alpha,
         Texels,
         Band,
         Ring,
-        Columns,
         /// The chain made, which its caller holds.
         Made,
         /// The payload the store is handed, a copy of the made chain that the store frees once it wrote
@@ -89,7 +88,6 @@ namespace Rtx
             (*this)[ChainBuffer::Texels] = build.mTexels;
             (*this)[ChainBuffer::Band] = build.mBand;
             (*this)[ChainBuffer::Ring] = build.mRing;
-            (*this)[ChainBuffer::Columns] = build.mColumns;
         }
     };
 }

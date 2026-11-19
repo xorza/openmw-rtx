@@ -12,7 +12,6 @@
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/filekeys.hpp>
 #include <components/rtx/preprocess/texelreads.hpp>
@@ -33,7 +32,7 @@ namespace Rtx
         float mMetal = 0.0f;
     };
 
-    /// `diffuse` and `specular`, a classic pair's delit diffuse and highlight at one texel, as Khronos'
+    /// `diffuse` and `specular`, a classic pair's diffuse and highlight at one texel, as Khronos'
     /// `ConvertToMetallicRoughness` solves them: the metalness from the two's perceived brightness, a
     /// highlight under the dielectric's reflectance a dielectric, and the base colour the blend of what
     /// each answers for, weighed by the metalness squared.
@@ -41,14 +40,13 @@ namespace Rtx
 
     /// A classic pair's base colour or metal-roughness map, made of the pair's diffuse and its classic
     /// `_spec` (`docs/architecture.md`, "One specular layout, a classic map converted"): every
-    /// texel of the job's own file converted with its partner's nearest texel (`convertTexel`), the
-    /// diffuse delit first as a painted colour is (`ChainBuild`), and the roughness the exponent's
-    /// (`roughnessOfExponent`), the occlusion one. The whole chain is made to a texel from the
-    /// converted finest: a base colour in the diffuse's own block format where it has one and no cut,
-    /// as a painted colour is kept, and in BC7 otherwise; a metal-roughness map in BC7.
+    /// texel of the job's own file converted with its partner's nearest texel (`convertTexel`), and the
+    /// roughness the exponent's (`roughnessOfExponent`), the occlusion one. The whole chain is made to a
+    /// texel from the converted finest: a base colour in the diffuse's own block format where it has one and
+    /// no cut, and in BC7 otherwise; a metal-roughness map in BC7.
     ///
-    /// **The key is everything the run reads**: the encoding, the wrap the diffuse is delit under, and both files'
-    /// keys (`FileKeys`), which read nothing of a header.
+    /// **The key is everything the run reads**: the encoding and both files' keys (`FileKeys`), which read
+    /// nothing of a header.
     class ConversionPass
     {
     public:
@@ -63,8 +61,6 @@ namespace Rtx
             /// `TextureEncoding::ConvertedColour` or `TextureEncoding::ConvertedSpecular`.
             TextureEncoding mEncoding{};
 
-            TextureWrap mWrap = TextureWrap::Repeat;
-
             /// Why a run reads each header's texels, where it must.
             TexelRead mWhy = TexelRead::File;
             TexelRead mPartnerWhy = TexelRead::Partner;
@@ -76,7 +72,7 @@ namespace Rtx
         using Output = MadeChain;
 
         /// @param build the chain build this pass and `ChainPass` share (`ChainPass`'s reason), which
-        ///        delits the diffuse and then makes the converted chain.
+        ///        reads the diffuse and then makes the converted chain.
         /// @param keys the keys of the preprocessor's files, and `reads` where it counts a header's texels read.
         ConversionPass(ChainBuild& build, FileKeys& keys, TexelReads& reads)
             : mChain(build)
@@ -86,7 +82,7 @@ namespace Rtx
         }
 
         static constexpr ContentPassId sPass = ContentPassId::Conversion;
-        static constexpr std::uint32_t sVersion = 5;
+        static constexpr std::uint32_t sVersion = 6;
 
         void digest(const Input& input, ContentStore::Digest& digest);
         void run(const Input& input, Output& output);
@@ -114,8 +110,8 @@ namespace Rtx
         void letGo();
 
     private:
-        /// Describes `input`'s two files into the scratch, the diffuse as a painted colour and the
-        /// `_spec` as a colour, their texels read and held where they are headers.
+        /// Describes `input`'s two files into the scratch, each as a colour, their texels read and held where they are
+        /// headers.
         void describe(const Input& input);
 
         /// Lets go of both files' texels a run described (`ChainPass::release`).

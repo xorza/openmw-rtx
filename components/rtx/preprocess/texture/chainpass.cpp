@@ -18,16 +18,12 @@ namespace Rtx
         mTexels.clear();
         const Result<TextureData, std::string> read = describeImage(*mHeld, input.mEncoding, mLevels, mTexels);
         mFile = read.isOk() ? std::optional(read.value()) : std::nullopt;
-        if (mFile.has_value())
-            mFile->mWrap = input.mWrap;
     }
 
     void ChainPass::digest(const Input& input, ContentStore::Digest& digest)
     {
         digest.add(mKeys.of(input.mImage));
         digest.add(input.mEncoding);
-        if (input.mEncoding == TextureEncoding::Painted)
-            digest.add(input.mWrap);
     }
 
     namespace
@@ -79,29 +75,22 @@ namespace Rtx
             const bool chainless = plan.mChainless;
             const bool built = plan.mBuilt;
             const bool loose = !layoutOf(file.mFormat).isBlocked();
-            const bool painted = file.mEncoding == TextureEncoding::Painted;
             const bool normals = file.mEncoding == TextureEncoding::Normal;
 
             // A colour's own chain stands, and is encoded as it stands where it is loose; every other
-            // chain is built, a painted colour's from every level it carries.
+            // chain is built.
             if (built)
                 mChain.build(file, plan.mLevels);
 
             const bool cut = built && mChain.holdsCut(file);
             const bool small = std::max(finest.mWidth, finest.mHeight) <= sLargestBc7ChainSide;
-            if (normals || loose || (chainless && small) || (cut && (chainless || painted)))
+            if (normals || loose || (chainless && small) || (cut && chainless))
             {
                 output.mForm = ChainForm::Bc7;
                 if (built)
                     mChain.encodeBc7(file.mEncoding, output.mBytes);
                 else
                     ChainBuild::encodeOwnBc7(file, output.mBytes);
-            }
-            else if (painted)
-            {
-                // Every level delit, so the finest is made again with the rest, in the file's format.
-                output.mForm = ChainForm::Own;
-                mChain.encode(file, 0, output.mBytes);
             }
             else if (built && !cut)
             {
@@ -197,7 +186,7 @@ namespace Rtx
         const std::uint32_t width = plan.mWidth;
         const std::uint32_t height = plan.mHeight;
         if (plan.mBuilt)
-            scratch.setBuild(ChainBuild::scratchOf(width, height, plan.mFileLevels, input.mEncoding, plan.mLevels));
+            scratch.setBuild(ChainBuild::scratchOf(width, height, input.mEncoding, plan.mLevels));
 
         // Whole in BC7, or whole in the file's own block format, the larger: a loose file is made in BC7
         // alone.

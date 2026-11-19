@@ -45,9 +45,9 @@
 #include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 
-// What the loading screen's preparation spends most of its threads on: a painted colour's chain made again in
-// BC1, every level delit and encoded by rgbcx, a normal map's made in BC7 by bc7enc, and in every mode of BC7 the
-// painted colour's that BC1 cannot hold (`docs/research/2026-11-13-preparation-cpu-by-codec.md`).
+// What the loading screen's preparation spends its threads on: a data map's chain made again in BC1 by rgbcx, a
+// normal map's made in BC7 by bc7enc, and in every mode of BC7 a colour's the pass makes in BC7
+// (`docs/research/2026-11-13-preparation-cpu-by-codec.md`).
 //
 // **Over a corpus of each kind, each file taken as the chain pass takes it**: the files of the folder
 // `OPENMW_RTX_BENCH_TEXTURES` names, sampled across it up to its kind's most texels, or pictures made here where it
@@ -67,15 +67,16 @@ namespace Rtx
         /// What a corpus's files are read as, which is the encoder their chains go through.
         enum class ChainKind : std::uint8_t
         {
-            /// A BC1 colour read as painted: its whole chain delit and made again in BC1, by rgbcx.
-            PaintedBc1,
+            /// A data map in BC1, a `_spec` among them: its chain built again and the levels under its finest made
+            /// in BC1, by rgbcx.
+            DataBc1,
 
             /// A normal map: its whole chain made in BC7, a block in one mode, by bc7enc.
             NormalBc7,
 
-            /// A colour read as painted that BC1 cannot hold again, a cut in it, or loose, or small with no
-            /// chain: its whole chain delit and made in BC7, a block in the best of every mode bc7enc has.
-            PaintedBc7,
+            /// A colour with no chain that the pass makes in BC7, as BC1 cannot hold it: loose, or small, or a
+            /// BC1 file with a cut. Its whole chain made in BC7, a block in the best of every mode bc7enc has.
+            ColourBc7,
         };
 
         /// What tells a kind from the others.
@@ -100,17 +101,17 @@ namespace Rtx
         {
             switch (kind)
             {
-                case ChainKind::PaintedBc1:
-                    return { TextureEncoding::Painted, ChainForm::Own, std::size_t{ 32 } << 20, "buildPaintedChain",
-                        "encodePaintedBc1", "makePaintedChain" };
+                case ChainKind::DataBc1:
+                    return { TextureEncoding::Data, ChainForm::Own, std::size_t{ 32 } << 20, "buildDataChain",
+                        "encodeDataBc1", "makeDataChain" };
                 case ChainKind::NormalBc7:
                     return { TextureEncoding::Normal, ChainForm::Bc7, std::size_t{ 32 } << 20, "buildNormalChain",
                         "encodeNormalBc7", "makeNormalChain" };
-                case ChainKind::PaintedBc7:
+                case ChainKind::ColourBc7:
                     break;
             }
-            return { TextureEncoding::Painted, ChainForm::Bc7, std::size_t{ 4 } << 20, "buildPaintedBc7Chain",
-                "encodePaintedBc7", "makePaintedBc7Chain" };
+            return { TextureEncoding::Colour, ChainForm::Bc7, std::size_t{ 4 } << 20, "buildColourBc7Chain",
+                "encodeColourBc7", "makeColourBc7Chain" };
         }
 
         constexpr TextureEncoding encodingOf(ChainKind kind)
@@ -120,22 +121,33 @@ namespace Rtx
 
         /// Whether a file of this name goes to `kind`'s corpus, by the patterns the settings name a companion
         /// map with where a player has set no other: a normal map (`_n`, `_nh`) to the normals', a specular
-        /// one (`_spec`) to none, and every other file to the colours'.
+        /// one (`_spec`) to the data maps', and every other file to the colours'.
         bool isNamedAs(ChainKind kind, const std::filesystem::path& path)
         {
             const std::string stem = Misc::StringUtils::lowerCase(Files::pathToUnicodeString(path.stem()));
             const bool normal = stem.ends_with("_n") || stem.ends_with("_nh");
-            return kind == ChainKind::NormalBc7 ? normal : !normal && !stem.ends_with("_spec");
+            const bool data = stem.ends_with("_spec");
+            switch (kind)
+            {
+                case ChainKind::NormalBc7:
+                    return normal;
+                case ChainKind::DataBc1:
+                    return data;
+                case ChainKind::ColourBc7:
+                    break;
+            }
+            return !normal && !data;
         }
 
-        /// Whether the pass could make a painted `file` in BC7: one loose, or small with no chain, or a BC1
-        /// file with a hole in its finest level. So a file it would make in its own format is not encoded to
-        /// be left out of the corpus; the pass still says which of these it does make so.
-        bool mayBePaintedInBc7(const TextureData& file)
+        /// Whether the pass makes a colour `file` in BC7 from a chain it built: one with no chain that is
+        /// loose, or small, or a BC1 file with a hole in its finest level. So a file it would leave standing or
+        /// make in its own format is not encoded to be left out of the corpus.
+        bool isColourBuiltInBc7(const TextureData& file)
         {
             const MipLevel& finest = file.mLevels.front();
-            if (!layoutOf(file.mFormat).isBlocked()
-                || (file.mLevels.size() == 1 && std::max(finest.mWidth, finest.mHeight) <= sLargestBc7ChainSide))
+            if (file.mLevels.size() != 1)
+                return false;
+            if (!layoutOf(file.mFormat).isBlocked() || std::max(finest.mWidth, finest.mHeight) <= sLargestBc7ChainSide)
                 return true;
             if (!isBc1(file.mFormat))
                 return false;
@@ -155,16 +167,15 @@ namespace Rtx
         public:
             /// Describes `image` and runs the chain pass over it: the pass decides how a file's chain is made,
             /// so a corpus holds what a preparation would encode its kind's way and nothing it would not. A
-            /// painted colour in a format its kind's corpus cannot hold is left unread, so none is encoded to
-            /// be left out.
+            /// file in a format its kind's corpus cannot hold is left unread, so none is encoded to be left out.
             CorpusChain(osg::ref_ptr<const osg::Image> image, ChainKind kind)
                 : mKind(kind)
                 , mImage(std::move(image))
             {
                 const Result<TextureData, std::string> described
                     = describeImage(*mImage, encodingOf(mKind), mLevels, mTexels);
-                if (!described.isOk() || (mKind == ChainKind::PaintedBc1 && !isBc1(described.value().mFormat))
-                    || (mKind == ChainKind::PaintedBc7 && !mayBePaintedInBc7(described.value())))
+                if (!described.isOk() || (mKind == ChainKind::DataBc1 && !isBc1(described.value().mFormat))
+                    || (mKind == ChainKind::ColourBc7 && !isColourBuiltInBc7(described.value())))
                     return;
 
                 mFile = described.value();
@@ -187,9 +198,8 @@ namespace Rtx
             CorpusChain& operator=(const CorpusChain&) = delete;
             ~CorpusChain() = default;
 
-            /// Whether the pass made the file's whole chain its kind's way: a painted colour's in BC1, which
-            /// has no cut and is not small and chainless, and a normal map's or the other painted colours' in
-            /// BC7.
+            /// Whether the pass made the file's whole chain its kind's way: a data map's in BC1, which has no
+            /// cut and is not small and chainless, and a normal map's or a colour's in BC7.
             bool isMadeAsItsKind() const { return mMade.mForm == traitsOf(mKind).mForm; }
 
             const osg::Image& getImage() const { return *mImage; }
@@ -243,21 +253,25 @@ namespace Rtx
                 return squares;
             }
 
-            /// Builds the chain again in `into`, as the pass built it: its levels read and boxed, a painted
-            /// colour's delit.
+            /// Builds the chain again in `into`, as the pass built it: its finest read and its levels boxed.
             void build(ChainBuild& into) const
             {
                 assert(isMadeAsItsKind() && "a chain built that the pass made another way");
                 into.build(*mFile, mBuilt.getLevelCount());
             }
 
-            /// Appends the built chain to `into` as the pass encodes its kind's: in the file's own format from
-            /// its finest level (`ChainBuild::encode`), or in BC7 (`ChainBuild::encodeBc7`).
+            /// Appends the built chain to `into` as the pass encodes its kind's: in the file's own format, its
+            /// finest as the file holds it above the levels built (`ChainBuild::encode`), or in BC7
+            /// (`ChainBuild::encodeBc7`).
             void encode(Misc::ByteBuffer& into) const
             {
                 assert(isMadeAsItsKind() && "a chain encoded that the pass made another way");
                 if (mMade.mForm == ChainForm::Own)
-                    mBuilt.encode(*mFile, 0, into);
+                {
+                    const std::span<const std::byte> held = mFile->bytesOf(0);
+                    into.insert(into.end(), held.begin(), held.end());
+                    mBuilt.encode(*mFile, 1, into);
+                }
                 else
                     mBuilt.encodeBc7(encodingOf(mKind), into);
             }
@@ -579,8 +593,8 @@ namespace Rtx
             });
         }
 
-        /// The pictures made here for a kind: stone, wood and plaster, a square and two oblongs, for the
-        /// colours BC1 holds; two normal maps, one with a height and one without; and two cut colours.
+        /// The pictures made here for a kind: stone, wood and plaster, a square and two oblongs, read as the
+        /// data BC1 holds; two normal maps, one with a height and one without; and two cut colours.
         Corpus makeCorpus(ChainKind kind)
         {
             Corpus corpus{ .mKind = kind };
@@ -590,11 +604,11 @@ namespace Rtx
                     corpus.add(makeNormalMap(256, true, 4));
                     corpus.add(makeNormalMap(256, false, 5));
                     break;
-                case ChainKind::PaintedBc7:
+                case ChainKind::ColourBc7:
                     corpus.add(makeCutColour(128, 6));
                     corpus.add(makeCutColour(64, 7));
                     break;
-                case ChainKind::PaintedBc1:
+                case ChainKind::DataBc1:
                     // rgbcx's tables, for the pictures' own blocks: `ChainBuild` makes the same ones again by
                     // its own flag, on this thread.
                     rgbcx::init(rgbcx::bc1_approx_mode::cBC1Ideal);
@@ -606,7 +620,7 @@ namespace Rtx
             return corpus;
         }
 
-        /// The build alone: every file's levels read and boxed, a painted colour's delit, with no block encoded.
+        /// The build alone: every file's finest read and its levels boxed, with no block encoded.
         void buildChains(benchmark::State& state, const Corpus& corpus)
         {
             ChainBuild build;
@@ -679,8 +693,8 @@ namespace Rtx
                 = folder != nullptr ? listTextures(folder) : std::vector<std::filesystem::path>();
             const auto stand
                 = [&](ChainKind kind) { return folder != nullptr ? readCorpus(paths, kind) : makeCorpus(kind); };
-            const std::array<Corpus, 3> corpora{ stand(ChainKind::PaintedBc1), stand(ChainKind::NormalBc7),
-                stand(ChainKind::PaintedBc7) };
+            const std::array<Corpus, 3> corpora{ stand(ChainKind::DataBc1), stand(ChainKind::NormalBc7),
+                stand(ChainKind::ColourBc7) };
 
             bool any = false;
             for (const Corpus& corpus : corpora)
@@ -709,8 +723,8 @@ int main(std::int32_t argc, char** argv)
         if (!Rtx::runChains())
         {
             static_cast<void>(std::fputs(
-                "no file under OPENMW_RTX_BENCH_TEXTURES makes a painted chain in BC1 or BC7 or a normal map's in "
-                "BC7\n",
+                "no file under OPENMW_RTX_BENCH_TEXTURES makes a data map's chain in BC1, a colour's in BC7 or a "
+                "normal map's in BC7\n",
                 stderr));
             return 1;
         }

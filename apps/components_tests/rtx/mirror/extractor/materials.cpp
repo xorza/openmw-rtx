@@ -624,9 +624,9 @@ namespace Rtx::Testing
             EXPECT_EQ(shiny.mBumpLuma, osg::Vec2f(1.0f, 0.0f));
             EXPECT_EQ(mScene.refusals().count(Refused::Surface), 0u);
 
-            // Each read as its encoding says: the bump map as data, the decal painted as the diffuse is.
+            // Each read as its encoding says: the bump map as data, the decal a colour as the diffuse is.
             EXPECT_EQ(mScene.textures().getRows()[shiny.mBump].mEncoding, TextureEncoding::Data);
-            EXPECT_EQ(mScene.textures().getRows()[shiny.mDecal].mEncoding, TextureEncoding::Painted);
+            EXPECT_EQ(mScene.textures().getRows()[shiny.mDecal].mEncoding, TextureEncoding::Colour);
             EXPECT_EQ(mScene.textures().getRows()[shiny.mDetail].mEncoding, TextureEncoding::Colour);
             EXPECT_EQ(mScene.textures().getRows()[shiny.mGloss].mEncoding, TextureEncoding::Colour);
         }
@@ -743,7 +743,7 @@ namespace Rtx::Testing
 
             const auto [bare, bareRows] = extractOne(std::nullopt, TextureRole::Normal);
             EXPECT_EQ(bare.mSpecular, sNoRow);
-            EXPECT_EQ(bareRows[bare.mDiffuse.at()].mEncoding, TextureEncoding::Painted) << "no specular map, a picture";
+            EXPECT_EQ(bareRows[bare.mDiffuse.at()].mEncoding, TextureEncoding::Colour) << "no specular map, as painted";
 
             const auto [cut, cutRows] = extractOne(grey, TextureRole::NormalHeight, true);
             EXPECT_TRUE(cut.isCutout());
@@ -1781,8 +1781,8 @@ namespace Rtx::Testing
         /// Three walks against the full table, one beside a clamped surface, then one after a slot is freed: the
         /// second and third catch a refusal asked again, the fifth a remembered refusal outliving the room it lacked.
         ///
-        /// **The refusal is the wrap's and not the file's.** Slot 5 holds the banner clamped, as a painted colour
-        /// (a diffuse with no specular map), so a clamped surface wearing the image the animated one was refused
+        /// **The refusal is the wrap's and not the file's.** Slot 5 holds the banner clamped, as a colour (a
+        /// diffuse with no specular map), so a clamped surface wearing the image the animated one was refused
         /// under a repeat still finds it.
         TEST_F(RtxSceneExtractorTest, aRefusedTextureIsAskedAgainOnlyOnceASlotIsFreed)
         {
@@ -1793,7 +1793,7 @@ namespace Rtx::Testing
             {
                 const TextureIndex slot = at == clampedSlot
                     ? textures.add(VFS::Path::NormalizedView("textures/tx_banner.dds"), TextureWrap::Clamp,
-                          TextureEncoding::Painted)
+                          TextureEncoding::Colour)
                     : textures.add(VFS::Path::Normalized("textures/tx_" + std::to_string(at) + ".dds"));
                 ASSERT_EQ(slot.at(), at);
                 holds.texture(slot);

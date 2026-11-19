@@ -300,9 +300,9 @@ namespace Rtx
 
         /// What `map` is bound as, its `_spec` map measured as `specular` (`specularLayoutOf`): a normal map as a
         /// normal map; a classic pair's diffuse and `_spec` as its converted base colour and metal-roughness map; a
-        /// metal-roughness `_spec` as data, beside an authored base colour, a colour read as it stands; a diffuse with
-        /// no `_spec` as a painted colour, delit on the host; and every other map as a colour. The one rule, which the
-        /// material resolver binds by and the loading screen's preparation makes the chains of.
+        /// metal-roughness `_spec` as data; and every other map, a diffuse with or without a `_spec` among them, as a
+        /// colour. The one rule, which the material resolver binds by and the loading screen's preparation makes the
+        /// chains of.
         TextureEncoding encodingOf(SurfaceMap map, SpecularLayout specular) const;
 
         /// The other file `map` is made with where its encoding converts a classic pair

@@ -387,6 +387,15 @@ namespace Rtx::Shaders
     /// same light twice.
     const float SHEET_TRANSMISSION = 0.5f;
 
+    /// How much of a model's vertex colour's brightness tints its surface, from none, its hue alone, to
+    /// one, the colour as the content painted it (`tintOf`).
+    ///
+    /// **Morrowind paints both shadow and grime into its vertex colours** (`in_dwrv_corr2_03.nif`
+    /// darkens its corners to two fifths), and the trace casts the shadow itself while nothing else
+    /// draws the grime: whole, a corner is darkened twice; at none, the grime is gone. Set by eye at
+    /// RTX Remix's default for the same dial (`rtx.vertexColorStrength`).
+    const float VERTEX_COLOUR_SHARE = 0.6f;
+
     /// The reflectance at normal incidence of whatever a `_spec` map calls no metal: glTF 2.0's 4%,
     /// an index of refraction of 1.5. A vanilla surface is none of these — it has no specular map and
     /// reflects nothing, which is what its NIF says (`nifloader.cpp` sets specular to black on every

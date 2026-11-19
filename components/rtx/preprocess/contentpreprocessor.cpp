@@ -11,7 +11,6 @@
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/common/letgo.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 
@@ -226,35 +225,33 @@ namespace Rtx
     {
         // A chain takes milliseconds to seconds of a thread, all of it inside the file's decode and the
         // encoders, so a crash there names the file and how it is read.
-        const Crash::NoteScope noted("making the chain of \"{}\" as {}, {}",
-            SceneUtil::EmbeddedImage::nameOf(input.mImage), sTextureEncodings.name(input.mEncoding),
-            sTextureWraps.name(input.mWrap));
+        const Crash::NoteScope noted("making the chain of \"{}\" as {}", SceneUtil::EmbeddedImage::nameOf(input.mImage),
+            sTextureEncodings.name(input.mEncoding));
         return run(mChain, input, made, ask);
     }
 
     bool ContentPreprocessor::convert(const ConversionPass::Input& input, MadeChain& made, const ContentAsk ask)
     {
-        const Crash::NoteScope noted("converting \"{}\" with \"{}\" as {}, {}",
+        const Crash::NoteScope noted("converting \"{}\" with \"{}\" as {}",
             SceneUtil::EmbeddedImage::nameOf(input.mImage), SceneUtil::EmbeddedImage::nameOf(input.mPartner),
-            sTextureEncodings.name(input.mEncoding), sTextureWraps.name(input.mWrap));
+            sTextureEncodings.name(input.mEncoding));
         return run(mConversion, input, made, ask);
     }
 
     bool ContentPreprocessor::chain(
         const ChainPass::Input& input, BufferPool& pool, const std::stop_token& stop, PooledChain& made)
     {
-        const Crash::NoteScope noted("making the chain of \"{}\" as {}, {}",
-            SceneUtil::EmbeddedImage::nameOf(input.mImage), sTextureEncodings.name(input.mEncoding),
-            sTextureWraps.name(input.mWrap));
+        const Crash::NoteScope noted("making the chain of \"{}\" as {}", SceneUtil::EmbeddedImage::nameOf(input.mImage),
+            sTextureEncodings.name(input.mEncoding));
         return runPooled(mChain, input, pool, stop, made);
     }
 
     bool ContentPreprocessor::convert(
         const ConversionPass::Input& input, BufferPool& pool, const std::stop_token& stop, PooledChain& made)
     {
-        const Crash::NoteScope noted("converting \"{}\" with \"{}\" as {}, {}",
+        const Crash::NoteScope noted("converting \"{}\" with \"{}\" as {}",
             SceneUtil::EmbeddedImage::nameOf(input.mImage), SceneUtil::EmbeddedImage::nameOf(input.mPartner),
-            sTextureEncodings.name(input.mEncoding), sTextureWraps.name(input.mWrap));
+            sTextureEncodings.name(input.mEncoding));
         return runPooled(mConversion, input, pool, stop, made);
     }
 

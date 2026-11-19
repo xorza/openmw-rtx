@@ -190,7 +190,7 @@ namespace RtxTool
         for (const Stop& stop : request.mStops)
         {
             const Actions& actions = stop.mActions;
-            for (const std::filesystem::path& file : { actions.mFrameTimes, actions.mSheet, actions.mMapTile })
+            for (const std::filesystem::path& file : { actions.mFrameTimes, actions.mMapTile })
                 removeEarlier(file);
             if (actions.mCapture.has_value())
                 removeEarlier(actions.mCapture->mFile);

@@ -18,10 +18,8 @@
 #include <components/rtx/shaders/scene.h>
 
 #include "colour.hpp"
-#include "shadingmap.hpp"
 #include "texels.hpp"
 #include "textureformat.hpp"
-#include "texturewrap.hpp"
 
 namespace Rtx
 {
@@ -143,18 +141,15 @@ namespace Rtx
     }
 
     ChainBuild::Scratch ChainBuild::scratchOf(const std::uint32_t width, const std::uint32_t height,
-        const std::uint32_t fileLevels, const TextureEncoding encoding, const std::uint32_t levels)
+        const TextureEncoding encoding, const std::uint32_t levels)
     {
-        // The levels `build` reads and lays out, as it reads and lays them: a painted colour's own up to
-        // `levels`, every other file's finest alone, and `levels` laid four bytes a texel.
-        const std::uint32_t read
-            = encoding == TextureEncoding::Painted ? std::min(levels, std::max(fileLevels, 1u)) : 1u;
+        // What `build` reads and lays out, as it reads and lays it: the file's finest alone, and `levels`
+        // laid four bytes a texel.
         const auto texelsOf = [&](std::uint32_t level) {
             return std::size_t{ std::max(width >> level, 1u) } * std::max(height >> level, 1u);
         };
         Scratch scratch;
-        for (std::uint32_t level = 0; level < read; ++level)
-            scratch.mAlpha += texelsOf(level);
+        scratch.mAlpha = texelsOf(0);
         for (std::uint32_t level = 0; level < levels; ++level)
             scratch.mTexels += texelsOf(level) * sTexel;
         // A normal map is read through no band: its texels are laid as its blocks are read.
@@ -163,8 +158,6 @@ namespace Rtx
                 scratch.mRing += std::size_t{ sRingRows } * std::max(width >> level, 1u) * sizeof(osg::Vec4f);
         else
             scratch.mBand = std::size_t{ width } * 4 * sizeof(osg::Vec3f);
-        if (encoding == TextureEncoding::Painted)
-            scratch.mColumns = std::size_t{ width } * sizeof(PaintedAxis);
         return scratch;
     }
 
@@ -173,8 +166,7 @@ namespace Rtx
         return Scratch{ .mAlpha = mAlpha.capacity(),
             .mTexels = mTexels.capacity(),
             .mBand = mBand.capacity() * sizeof(osg::Vec3f),
-            .mRing = mRing.capacity() * sizeof(osg::Vec4f),
-            .mColumns = mColumns.capacity() * sizeof(PaintedAxis) };
+            .mRing = mRing.capacity() * sizeof(osg::Vec4f) };
     }
 
     void ChainBuild::letGo()
@@ -184,7 +176,6 @@ namespace Rtx
         letGoOf(mRing);
         letGoOf(mRingAt);
         letGoOf(mBoxed);
-        letGoOf(mColumns);
         letGoOf(mTexels);
         letGoOf(mLevels);
     }
@@ -207,15 +198,11 @@ namespace Rtx
     {
         assert(levels >= 1 && "a chain of no level");
 
-        // **The levels read, as the readers take a description**: a painted colour's own levels, each
-        // delit where it stands, and every other chain's finest alone, the levels under it what is made
-        // here and never read.
-        const std::uint32_t read = file.mEncoding == TextureEncoding::Painted
-            ? std::min(levels, static_cast<std::uint32_t>(file.mLevels.size()))
-            : 1u;
+        // **The finest level alone, as the readers take a description**: the levels under it are what is
+        // made here, and never read.
         TextureData first = file;
-        first.mLevels = file.mLevels.first(read);
-        first.mBytes = file.mBytes.first(file.mLevels[read - 1].mOffset + file.bytesOf(read - 1).size());
+        first.mLevels = file.mLevels.first(1);
+        first.mBytes = file.mBytes.first(file.mLevels[0].mOffset + file.bytesOf(0).size());
         mAlpha.build(first);
 
         // Each buffer grown to the size this build needs and no more, as `scratchOf` predicts it.
@@ -245,33 +232,26 @@ namespace Rtx
         // A band of the finest level's four rows, reserved before the reader resizes it.
         mBand.reserve(std::size_t{ top.mWidth } * 4);
 
-        // The levels read through the readers that know every format: colour a band of blocks at a
+        // The finest read through the readers that know every format: colour a band of blocks at a
         // time, as stored, and alpha a byte a texel.
-        for (std::uint32_t at = 0; at < read; ++at)
+        for (std::uint32_t row = 0; row < top.mHeight; row += 4)
         {
-            const MipLevel& level = first.mLevels[at];
-            for (std::uint32_t row = 0; row < level.mHeight; row += 4)
-            {
-                readTexelBand(first, level, row / 4, mBand);
-                for (std::uint32_t y = row; y < row + mBand.size() / level.mWidth; ++y)
-                    for (std::uint32_t x = 0; x < level.mWidth; ++x)
-                    {
-                        const osg::Vec3f& colour = mBand[std::size_t{ y - row } * level.mWidth + x];
-                        const std::size_t into = mLevels[at].texelOffset(x, y, sTexel);
-                        for (std::int32_t channel = 0; channel < 3; ++channel)
-                            mTexels[into + static_cast<std::size_t>(channel)] = unitByte(colour[channel]);
-                        mTexels[into + 3] = static_cast<std::byte>(mAlpha.at(at, x, y));
-                    }
-            }
+            readTexelBand(first, top, row / 4, mBand);
+            for (std::uint32_t y = row; y < row + mBand.size() / top.mWidth; ++y)
+                for (std::uint32_t x = 0; x < top.mWidth; ++x)
+                {
+                    const osg::Vec3f& colour = mBand[std::size_t{ y - row } * top.mWidth + x];
+                    const std::size_t into = mLevels[0].texelOffset(x, y, sTexel);
+                    for (std::int32_t channel = 0; channel < 3; ++channel)
+                        mTexels[into + static_cast<std::size_t>(channel)] = unitByte(colour[channel]);
+                    mTexels[into + 3] = static_cast<std::byte>(mAlpha.at(0, x, y));
+                }
         }
-
-        if (file.mEncoding == TextureEncoding::Painted)
-            delight(first);
 
         const DisplayCurve& curve = DisplayCurve::get();
         const bool encoded = isSrgb(file.mFormat);
         const bool coverage = isColour(file.mEncoding);
-        for (std::size_t at = read; at < mLevels.size(); ++at)
+        for (std::size_t at = 1; at < mLevels.size(); ++at)
         {
             const MipLevel& above = mLevels[at - 1];
             const MipLevel& level = mLevels[at];
@@ -317,44 +297,6 @@ namespace Rtx
                             = encoded ? curve.encodedByte(mean[channel]) : unitByte(mean[channel]);
                     mTexels[into + 3] = unitByte(painted);
                 }
-        }
-    }
-
-    void ChainBuild::delight(const TextureData& read)
-    {
-        assert(isSrgb(read.mFormat) && "a painted colour that is not display-encoded");
-
-        // **The light painted in, estimated off the finest level** (`ShadingMap`), and divided out of
-        // every level read at its own texels' centres, in linear light.
-        // Each column placed once a level and each row once, and the four cells lerped at every texel.
-        const ShadingMap map(read, mAlpha);
-        const std::span<const float> painted = map.getValues();
-        const DisplayCurve& curve = DisplayCurve::get();
-        for (std::size_t at = 0; at < read.mLevels.size(); ++at)
-        {
-            const MipLevel& level = mLevels[at];
-            mColumns.clear();
-            mColumns.reserve(level.mWidth);
-            for (std::uint32_t x = 0; x < level.mWidth; ++x)
-                mColumns.push_back(paintedAxis(
-                    (static_cast<float>(x) + 0.5f) / static_cast<float>(level.mWidth), clampsS(read.mWrap)));
-            for (std::uint32_t y = 0; y < level.mHeight; ++y)
-            {
-                const PaintedAxis row = paintedAxis(
-                    (static_cast<float>(y) + 0.5f) / static_cast<float>(level.mHeight), clampsT(read.mWrap));
-                for (std::uint32_t x = 0; x < level.mWidth; ++x)
-                {
-                    const float factor = paintedLight(painted, mColumns[x], row);
-                    const std::size_t into = level.texelOffset(x, y, sTexel);
-                    osg::Vec3f light;
-                    for (std::int32_t channel = 0; channel < 3; ++channel)
-                        light[channel] = curve.toLinear(
-                            std::to_integer<std::uint8_t>(mTexels[into + static_cast<std::size_t>(channel)]));
-                    const osg::Vec3f divided = Rtx::delit(light, factor);
-                    for (std::int32_t channel = 0; channel < 3; ++channel)
-                        mTexels[into + static_cast<std::size_t>(channel)] = curve.encodedByte(divided[channel]);
-                }
-            }
         }
     }
 

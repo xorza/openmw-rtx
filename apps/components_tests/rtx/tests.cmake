@@ -40,7 +40,6 @@ target_sources(
         rtx/image/blockdecode.cpp
         rtx/image/chainbuild.cpp
         rtx/image/colour.cpp
-        rtx/image/shadingmap.cpp
         rtx/image/spritelight.cpp
         rtx/image/texels.cpp
         rtx/mirror/cells/cellgrid.cpp
@@ -111,7 +110,6 @@ target_sources(
         rtxtool/framed.cpp
         rtxtool/homekey.cpp
         rtxtool/instruments/cardwatch.cpp
-        rtxtool/instruments/contactsheet.cpp
         rtxtool/instruments/drivercache.cpp
         rtxtool/instruments/framehashes.cpp
         rtxtool/instruments/frametimes.cpp

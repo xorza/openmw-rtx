@@ -10,7 +10,6 @@ target_sources(
         homekey.cpp
         instruments/amdgpu.cpp
         instruments/cardwatch.cpp
-        instruments/contactsheet.cpp
         instruments/digest.cpp
         instruments/drivercache.cpp
         instruments/framehashes.cpp
@@ -67,7 +66,6 @@ target_sources(
                 instruments/amdgpu.hpp
                 instruments/cardsample.hpp
                 instruments/cardwatch.hpp
-                instruments/contactsheet.hpp
                 instruments/digest.hpp
                 instruments/drivercache.hpp
                 instruments/framehashes.hpp

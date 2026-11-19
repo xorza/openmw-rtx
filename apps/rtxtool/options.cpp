@@ -372,10 +372,6 @@ namespace RtxTool
         option({ Verb::Shot }, "map", bpo::bool_switch(),
             "also write one local-map tile of the place, traced straight down and framed the way "
             "the game's own compass frames one");
-        option({ Verb::Shot }, "textures", bpo::bool_switch(),
-            "also write every texture the world around the place uses, vanilla beside de-lit, as "
-            "one sheet: what a frame there would actually sample, since a town's people wear "
-            "textures the town itself never names");
 
         option(VerbSet{ Verb::Info, Verb::Film }.complement(), "upscale",
             bpo::value<std::string>()->default_value(
@@ -1063,7 +1059,6 @@ namespace RtxTool
             .mRepeat = count("repeat"),
             .mDoll = text("doll"),
             .mMap = on("map"),
-            .mTextures = on("textures"),
         };
 
         ToolLine::Noise& noise = line.mNoise;

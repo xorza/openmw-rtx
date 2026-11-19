@@ -444,7 +444,6 @@ namespace RtxTool
             stop.mName = "pier";
             stop.mActions.mCapture = Actions::Capture{ .mFile = folder / "pier.png" };
             stop.mActions.mFrameTimes = folder / "pier.txt";
-            stop.mActions.mSheet = folder / "pier-textures.png";
             stop.mActions.mMapTile = folder / "pier-map.png";
             stop.mActions.mDoll = Actions::Doll{ .mWho = "someone", .mFile = folder / "pier-doll.png" };
             stop.mActions.mMean = Actions::Mean{ .mFile = folder / "mean.png", .mOf = 2 };
@@ -455,8 +454,8 @@ namespace RtxTool
             request.mJson = folder / "begun.json";
             request.mPictures = folder;
 
-            const std::vector<std::string> earlier{ "hashes.csv", "begun.json", "pier.png", "pier.txt",
-                "pier-textures.png", "pier-map.png", "pier-doll.png", "mean.png", "pier-1.png", "pier-24.png" };
+            const std::vector<std::string> earlier{ "hashes.csv", "begun.json", "pier.png", "pier.txt", "pier-map.png",
+                "pier-doll.png", "mean.png", "pier-1.png", "pier-24.png" };
             const std::vector<std::string> kept{ "deck-1.png", "pier-notes.png", "pier-1.txt" };
             for (const std::vector<std::string>* names : { &earlier, &kept })
                 for (const std::string& name : *names)

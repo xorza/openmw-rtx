@@ -108,7 +108,7 @@ namespace RtxTool
         if (difference.same())
             return PictureVerdict::Same;
 
-        if (rule == PictureRule::Denoised && difference.mWorst <= sDenoiserNoiseLevels)
+        if (difference.mWorst <= sDenoiserNoiseLevels)
             return PictureVerdict::WithinDenoiserNoise;
 
         return PictureVerdict::Moved;

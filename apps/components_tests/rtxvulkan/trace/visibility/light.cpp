@@ -1377,11 +1377,12 @@ namespace Rtx::Testing
         /// the eye's side of the wall. A frame built another way round (a bitangent flipped, a tangent read as
         /// the bitangent) leans it elsewhere and every term below moves with it.
         ///
-        /// A vertex tint's hue darkens both halves, and the reflectance's edge with it: a colour of half
-        /// `(0.25, 0.25, 1)` is that hue with its brightness taken out (`hueOf`), which takes the dielectric's
-        /// 4% to 1% in red and green and the edge, which green states for all three, to `50 * 0.01 = 0.5`;
-        /// blue keeps 4%. A vertex normal leaning past the eye keeps its lobe, tilted toward the plane until it
-        /// faces the eye at `SHADING_MIN_FACING`: a lobe dropped there leaves the diffuse half alone with no
+        /// A vertex tint darkens both halves, and the reflectance's edge with it: a colour of `(0.25, 0.25, 1)`,
+        /// at a brightness of one, tints by itself whatever share of its brightness is taken in (`tintOf`),
+        /// which takes the dielectric's 4% to 1% in red and green and the edge, which green states for all three, to
+        /// `50 * 0.01 = 0.5`; blue keeps 4%. A vertex normal leaning past the eye keeps its lobe, tilted toward the
+        /// plane until it faces the eye at `SHADING_MIN_FACING`: a lobe dropped there leaves the diffuse half alone
+        /// with no
         /// `(1 - F)` on it, and a door whose normals lean that way would show the curve where the lean crosses
         /// the eye as a hard edge.
         ///
@@ -1417,7 +1418,7 @@ namespace Rtx::Testing
                       const std::array<std::uint8_t, 4> mapTexel{ metal, 128, 255, 255 };
                       const std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
                           describeTexel(mapTexel, TextureIndex(1)), describeTexel(sLeaningTexel, TextureIndex(2)) };
-                      const osg::Vec3f colour = osg::Vec3f(tint, tint, 1.0f) * 0.5f;
+                      const osg::Vec3f colour(tint, tint, 1.0f);
                       const std::array<osg::Vec3f, 4> colours{ colour, colour, colour, colour };
 
                       SceneDesc scene(identities);
@@ -1489,7 +1490,7 @@ namespace Rtx::Testing
             const float tinted = expected(normal, normal, normal, 0.0f, 0.25f);
             EXPECT_NEAR(lit(0, false, SurfaceView::Shaded, 0.25f).x(), tinted, tinted * 1e-4f) << "a tinted dielectric";
             EXPECT_EQ(lit(0, false, SurfaceView::Specular, 0.25f), osg::Vec3f(0.01f, 0.01f, 0.04f))
-                << "the hue on the reflectance, and the brightness nowhere";
+                << "the tint on the reflectance";
 
             // The lobe's light is divided by its albedo held at `SPECULAR_ALBEDO_FLOOR` from below: the
             // dielectric's own at the eye's 45°, and a hue of a twentieth in red and green, which takes their

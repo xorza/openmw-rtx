@@ -54,7 +54,7 @@ namespace Rtx
             if (same && !waitedMost)
                 return false;
             if (prepared != nullptr && wait.mReading)
-                prepared->forget(*wait.mSource, wait.mEncoding, wait.mWrap, wait.mPartner.get());
+                prepared->forget(*wait.mSource, wait.mEncoding, wait.mPartner.get());
             return true;
         });
 
@@ -77,15 +77,14 @@ namespace Rtx
                 {
                     wait.mReading = true;
                     wait.mEncoding = row.mEncoding;
-                    wait.mWrap = row.mWrap;
                     wait.mPartner = row.mPartner;
                     free -= lacking;
                     // Held until the hand-over describes it: what is read is the asker's to hold once handed out.
-                    wait.mRead = prepared->find(*wait.mSource, row.mEncoding, row.mWrap, row.mPartner.get());
+                    wait.mRead = prepared->find(*wait.mSource, row.mEncoding, row.mPartner.get());
                     if (wait.mRead.mPending)
                         continue;
                 }
-                else if (prepared->isPending(*wait.mSource, row.mEncoding, row.mWrap, row.mPartner.get()))
+                else if (prepared->isPending(*wait.mSource, row.mEncoding, row.mPartner.get()))
                     continue;
             }
             else
@@ -204,7 +203,6 @@ namespace Rtx
             .mWaited = 0,
             .mReading = false,
             .mEncoding = {},
-            .mWrap = {},
             .mPartner = nullptr,
             .mRead = {} });
 
@@ -298,7 +296,7 @@ namespace Rtx
         timed.at(Timing::Bake) = since(began, gathered);
 
         // **A slot whose texels were read and chain made since it stood in arrives again**, before the
-        // arrivals are read, so this hand-over hands it over, and so does one whose entry a slot of another wrap
+        // arrivals are read, so this hand-over hands it over, and so does one whose entry another slot of its file
         // was handed and let go of, which asks anew. One the scene gave back, or gave another file, lets go of what
         // was read for it.
         if (handing.mPrepared != nullptr)
@@ -307,12 +305,10 @@ namespace Rtx
                     && scene.textures().getRows()[pending.mSlot].mImage == pending.mSource;
                 if (!same)
                 {
-                    handing.mPrepared->forget(
-                        *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get());
+                    handing.mPrepared->forget(*pending.mSource, pending.mEncoding, pending.mPartner.get());
                     return true;
                 }
-                if (handing.mPrepared->isPending(
-                        *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get()))
+                if (handing.mPrepared->isPending(*pending.mSource, pending.mEncoding, pending.mPartner.get()))
                     return false;
                 scene.textures().arriveAgain(pending.mSlot);
                 return true;

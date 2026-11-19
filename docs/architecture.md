@@ -15,8 +15,8 @@ are in [`settings.md`](settings.md).
 
 The target is NVIDIA Turing and AMD RDNA 2 and later, through Vulkan's ray tracing. The light is filtered by the
 renderer's own denoiser under AMD's FSR, or by NVIDIA DLSS Ray Reconstruction where the card and the player's library
-allow. Vanilla textures are pre-lit, so the content's preparation estimates the painted light and divides it out; a PBR
-replacer's companion maps reach the trace, and a vanilla scene draws the same whether or not the renderer reads them.
+allow. Vanilla textures reach the trace as they were painted; a PBR replacer's companion maps reach the trace, and a
+vanilla scene draws the same whether or not the renderer reads them.
 
 ## Layers and libraries
 
@@ -262,7 +262,7 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
 ### Materials
 
 - **The surface is glTF 2.0's metal-roughness** (`shaders/brdf.h`); a vanilla surface is that model with no specular
-  reflectance. `ShadingMap` estimates the light painted into a vanilla texture, which the preparation divides out.
+  reflectance.
 - **A mapped normal's light fades by GGX's shadowing**, as Cycles fades it (Conty Estevez et al. 2019). Refused: Chiang
   et al. 2019, flat patches at a grazing sun; no term (`research/2026-11-07-bump-terminator.md`).
 - **A `_spec` map's blue is an occlusion on indirect diffuse light alone**, as glTF and Filament read it. Refused: in
@@ -345,9 +345,13 @@ filled on the loading screen (`research/2026-11-08-normal-map-chains.md`).
 - **rgbcx and bc7enc are made faster where they stand, and make the same blocks**, by the user's decision
   (`research/2026-11-13-preparation-cpu-by-codec.md`). Refused: a painted block made with its file's own selectors,
   faster for worse blocks and every store made again.
-- **A painted colour is stored delit, keyed by use**, by the user's decisions: a diffuse with no metal-roughness map and
-  an unauthored ground layer are divided by `ShadingMap`'s estimate at every level; a file used both ways is two slots.
-  Refused: every colour delit, which flattens the replacers' base colours.
+- **A vanilla colour reaches the trace as it was painted**, by the user's decision: the OpenGL renderer and RTX Remix
+  draw it so. Refused: dividing out an estimate of the light painted in, its brightness blurred on a coarse grid, which
+  took out the grime Morrowind paints the same way, Balmora's walls clean.
+- **A model's vertex colour tints by its hue and a share of its brightness** (`VERTEX_COLOUR_SHARE`), by the user's
+  decision, as RTX Remix's `rtx.vertexColorStrength`: the colours hold both baked shadow, which the trace casts again,
+  and grime, which nothing else draws. Refused: the hue alone, which drops the grime; the colour whole, which darkens a
+  corner twice.
 - **One specular layout, a classic map converted**, by the user's decisions: a `_spec` map whose channels spread little
   is classic, and it and its diffuse are converted per texel as Khronos converts specular-glossiness. Refused: the
   layout as a setting; every map read as metal-roughness.
@@ -562,8 +566,8 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   (`research/2026-10-03-bounce-rate.md`).
 - **Several bounce rays a pixel, averaged** (`[RTX] bounce rays`), as NVIDIA's NRD sample averages its paths
   (`research/2026-11-01-bounce-rays.md`).
-- **One bounce, no deeper path**, by the user's choice: a delit wall's albedo makes a second bounce a tenth of the first
-  (`research/2026-11-05-room-ambient.md`).
+- **One bounce, no deeper path**, by the user's choice: a wall's albedo made a second bounce a tenth of the first,
+  measured while vanilla colours were delit (`research/2026-11-05-room-ambient.md`).
 - **Indirect lighting can be turned off** (`[RTX] indirect lighting`): off, a kernel apart (`unbounced.comp`) stands the
   ambient under one occlusion ray, so the bounce's registers are not paid for.
 - **A room's record is not its light where a bounce is traced**: a landing and an unbounced surface take fixed shares of

@@ -8,7 +8,6 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/image/textureformat.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
@@ -51,7 +50,8 @@ namespace Rtx
         /// commands however many there are: the copies' way in, and their way out to the sampler.
         TEST_F(RtxTextureArrivalTest, aRunsBarriersAreItsPhasesWhateverItsLength)
         {
-            const Testing::TestTexture painted = Testing::paintTwoTones(32, 96, TextureFormat::Rgba8Unorm);
+            Testing::TestTexture painted;
+            Testing::paintLevels(painted, 128, 128, 1, "one level");
             EXPECT_EQ(barriersFor(painted.mData, 1), 2u);
             EXPECT_EQ(barriersFor(painted.mData, 8), 2u);
         }

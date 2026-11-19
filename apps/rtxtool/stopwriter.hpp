@@ -33,8 +33,8 @@ namespace RtxTool
     class RunRecord;
 
     /// Writes what `Actions` asks of the place a stop stood at: what a stop produces, apart from what drove it
-    /// there. A picture, its frame times, a scene report, a contact sheet, a map tile, a doll, a listing and a set
-    /// of claims each need the renderer and a path, and none needs the schedule, the route, the camera or the sky.
+    /// there. A picture, its frame times, a scene report, a map tile, a doll, a listing and a set of claims each
+    /// need the renderer and a path, and none needs the schedule, the route, the camera or the sky.
     ///
     /// Held for the whole run for its read-back buffer alone: three of the writers land a frame in host memory,
     /// and a stop that allocates one is a stop measuring its own allocator.
@@ -81,9 +81,6 @@ namespace RtxTool
 
         /// Every measured frame's figures, a frame a line.
         void writeFrameTimes(const Writing& into, const std::filesystem::path& file, const FrameSamples& samples);
-
-        /// Every texture the scene holds, vanilla beside de-lit, as one sheet.
-        void writeSheet(const Writing& into, const std::filesystem::path& sheet);
 
         /// One local-map tile of wherever the stop stands.
         void writeMapTile(const Writing& into, const std::filesystem::path& file);

@@ -2,8 +2,6 @@
 
 #include <cstdint>
 
-#include "textureencoding.hpp"
-
 namespace Rtx
 {
     /// What a `_spec` map's channels mean. The file does not say, and one install can hold both, so
@@ -22,14 +20,4 @@ namespace Rtx
         /// the layout of Wareya's and Rafael's PBR shaders and of the packs made for them.
         MetalRoughness,
     };
-
-    /// What a ground layer's diffuse is bound as: an authored albedo with its roughness in alpha where
-    /// it is a `_diffusespec`, as the PBR packs ship every one, and a painted colour, delit on the host,
-    /// otherwise. A `_diffusespec` holds a colour in either layout, so no measure tells a classic one
-    /// apart, and no install read here holds one (`docs/architecture.md`, "One specular layout, a classic
-    /// map converted").
-    constexpr TextureEncoding layerEncodingOf(const bool diffuseSpec)
-    {
-        return diffuseSpec ? TextureEncoding::Colour : TextureEncoding::Painted;
-    }
 }

@@ -91,10 +91,8 @@ namespace Rtx
         mDiffuseLevels.clear();
         mDiffuseTexels.clear();
         const Result<TextureData, std::string> readDiffuse
-            = describeImage(diffuse, TextureEncoding::Painted, mDiffuseLevels, mDiffuseTexels);
+            = describeImage(diffuse, TextureEncoding::Colour, mDiffuseLevels, mDiffuseTexels);
         mDiffuse = readDiffuse.isOk() ? std::optional(readDiffuse.value()) : std::nullopt;
-        if (mDiffuse.has_value())
-            mDiffuse->mWrap = input.mWrap;
 
         mSpecularLevels.clear();
         mSpecularTexels.clear();
@@ -112,7 +110,6 @@ namespace Rtx
     void ConversionPass::digest(const Input& input, ContentStore::Digest& digest)
     {
         digest.add(input.mEncoding);
-        digest.add(input.mWrap);
         digest.add(mKeys.of(input.mImage));
         digest.add(mKeys.of(input.mPartner));
     }
@@ -128,13 +125,12 @@ namespace Rtx
             const TextureData& specular = *mSpecular;
             const bool colour = input.mEncoding == TextureEncoding::ConvertedColour;
 
-            // The diffuse delit, at its finest level, as a painted colour's chain is.
-            // **One build for both chains**: the delit diffuse is read into the converted level and whether
-            // it holds a cut before the build makes the converted chain over it.
+            // The diffuse's finest level, decoded. **One build for both chains**: the diffuse is read into the
+            // converted level and whether it holds a cut before the build makes the converted chain over it.
             mChain.build(diffuse, 1);
             const bool cut = mChain.holdsCut(diffuse);
-            const MipLevel lit = mChain.getLevel(0);
-            const std::span<const std::byte> delit = mChain.getTexels(0);
+            const MipLevel paintedLevel = mChain.getLevel(0);
+            const std::span<const std::byte> painted = mChain.getTexels(0);
 
             // The highlight, display-encoded as the artist saw it, and the exponent in its alpha.
             const MipLevel& shine = specular.mLevels.front();
@@ -151,22 +147,22 @@ namespace Rtx
 
             // **Every texel of the slot's own file, with its partner's nearest.**
             const DisplayCurve& curve = DisplayCurve::get();
-            const MipLevel& own = colour ? lit : shine;
+            const MipLevel& own = colour ? paintedLevel : shine;
             mConverted.reserve(std::size_t{ own.mWidth } * own.mHeight * 4);
             mConverted.assign(std::size_t{ own.mWidth } * own.mHeight * 4, std::byte{ 0 });
             for (std::uint32_t y = 0; y < own.mHeight; ++y)
                 for (std::uint32_t x = 0; x < own.mWidth; ++x)
                 {
-                    const std::uint32_t dx = colour ? x : nearest(x, own.mWidth, lit.mWidth);
-                    const std::uint32_t dy = colour ? y : nearest(y, own.mHeight, lit.mHeight);
+                    const std::uint32_t dx = colour ? x : nearest(x, own.mWidth, paintedLevel.mWidth);
+                    const std::uint32_t dy = colour ? y : nearest(y, own.mHeight, paintedLevel.mHeight);
                     const std::uint32_t sx = colour ? nearest(x, own.mWidth, shine.mWidth) : x;
                     const std::uint32_t sy = colour ? nearest(y, own.mHeight, shine.mHeight) : y;
 
-                    const std::size_t from = (std::size_t{ dy } * lit.mWidth + dx) * 4;
+                    const std::size_t from = (std::size_t{ dy } * paintedLevel.mWidth + dx) * 4;
                     osg::Vec3f light;
                     for (std::int32_t channel = 0; channel < 3; ++channel)
                         light[channel] = curve.toLinear(
-                            std::to_integer<std::uint8_t>(delit[from + static_cast<std::size_t>(channel)]));
+                            std::to_integer<std::uint8_t>(painted[from + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f highlight = toLinear(mHighlights[std::size_t{ sy } * shine.mWidth + sx]);
                     const ConvertedTexel converted = convertTexel(light, highlight);
 
@@ -176,7 +172,7 @@ namespace Rtx
                         for (std::int32_t channel = 0; channel < 3; ++channel)
                             mConverted[into + static_cast<std::size_t>(channel)]
                                 = curve.encodedByte(converted.mBase[channel]);
-                        mConverted[into + 3] = delit[from + 3];
+                        mConverted[into + 3] = painted[from + 3];
                     }
                     else
                     {
@@ -200,8 +196,8 @@ namespace Rtx
             };
             mChain.build(made, levelsTo1x1(own.mWidth, own.mHeight));
 
-            // A base colour in the diffuse's own block format where it has one and holds no cut, as a
-            // painted colour is kept; every other in BC7.
+            // A base colour in the diffuse's own block format where it has one and holds no cut; every other in
+            // BC7.
             const bool blocked = layoutOf(diffuse.mFormat).isBlocked();
             if (colour && blocked && !cut)
             {
@@ -260,7 +256,7 @@ namespace Rtx
         const bool colour = input.mEncoding == TextureEncoding::ConvertedColour;
         const osg::Image& diffuse = colour ? input.mImage : input.mPartner;
         const osg::Image& specular = colour ? input.mPartner : input.mImage;
-        const TextureFormat diffuseFormat = readFormat(diffuse, TextureEncoding::Painted);
+        const TextureFormat diffuseFormat = readFormat(diffuse, TextureEncoding::Colour);
 
         ChainScratch scratch;
         scratch[ChainBuffer::DiffuseFile] = laidBytes(diffuse, diffuseFormat);
@@ -279,19 +275,17 @@ namespace Rtx
         scratch[ChainBuffer::Highlights] = shineTexels * sizeof(osg::Vec3f);
 
         // The converted level is the slot's own file's finest, and its chain is built to a texel over the
-        // diffuse's delit finest: the build holds the larger of the two.
+        // diffuse's decoded finest: the build holds the larger of the two.
         const std::uint32_t ownWidth = colour ? diffuseWidth : shineWidth;
         const std::uint32_t ownHeight = colour ? diffuseHeight : shineHeight;
         const std::uint32_t levels = levelsTo1x1(ownWidth, ownHeight);
         scratch[ChainBuffer::Converted] = std::size_t{ ownWidth } * ownHeight * 4;
-        ChainBuild::Scratch build = ChainBuild::scratchOf(
-            diffuseWidth, diffuseHeight, std::max(levelCountOf(diffuse), 1u), TextureEncoding::Painted, 1);
-        const ChainBuild::Scratch made = ChainBuild::scratchOf(ownWidth, ownHeight, 1, input.mEncoding, levels);
+        ChainBuild::Scratch build = ChainBuild::scratchOf(diffuseWidth, diffuseHeight, TextureEncoding::Colour, 1);
+        const ChainBuild::Scratch made = ChainBuild::scratchOf(ownWidth, ownHeight, input.mEncoding, levels);
         build.mAlpha = std::max(build.mAlpha, made.mAlpha);
         build.mTexels = std::max(build.mTexels, made.mTexels);
         build.mBand = std::max(build.mBand, made.mBand);
         build.mRing = std::max(build.mRing, made.mRing);
-        build.mColumns = std::max(build.mColumns, made.mColumns);
         scratch.setBuild(build);
 
         // Whole in BC7, or whole in the diffuse's block format, the larger.

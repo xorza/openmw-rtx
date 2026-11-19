@@ -284,7 +284,7 @@ namespace RtxTool
 
         // **What each picture is held to is where it came from.** A frame the wavelet composed and nothing
         // upscaled is the picture the hashes cannot judge; a doll and a tile are always denoised
-        // (`Reconstruction::forPicture`); the sheet is the textures and nothing traced.
+        // (`Reconstruction::forPicture`).
         const Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
         const PictureRule frameRule = profile.mReconstruction.mDenoise && !Rtx::upscales(profile.mUpscale)
             ? PictureRule::Denoised
@@ -306,8 +306,6 @@ namespace RtxTool
                 stop.mActions.mDoll = Actions::Doll{ .mWho = doll, .mFile = file("-doll", PictureRule::Denoised) };
             if (line.mMap)
                 stop.mActions.mMapTile = file("-map", PictureRule::Denoised);
-            if (line.mTextures)
-                stop.mActions.mSheet = file("-textures", PictureRule::Exact);
         }
 
         plan.mRun = sessionFor(command, std::move(framed), std::move(stops));

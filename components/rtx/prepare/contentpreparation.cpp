@@ -86,29 +86,25 @@ namespace Rtx
         /// How long a chain of `image` read as `encoding` is estimated to take on one thread: its texels,
         /// the chain's a third past the finest's, at what one thread builds and encodes a second, from the
         /// benches (`docs/research/2026-11-09-content-preparation-cost.md`): BC1 at rgbcx's level 10
-        /// 7.4 million texels a second and a painted colour's delight past it, BC7 in one mode 20.6 million
-        /// and a normal map's build past it. An estimate orders a backfill and admits nothing.
+        /// 7.4 million texels a second, BC7 in one mode 20.6 million and a normal map's build past it. An
+        /// estimate orders a backfill and admits nothing.
         double estimatedSeconds(const osg::Image& image, const TextureEncoding encoding)
         {
-            constexpr double paintedRate = 5.0e6;
             constexpr double normalRate = 13.0e6;
             constexpr double otherRate = 10.0e6;
-            const double rate = encoding == TextureEncoding::Painted ? paintedRate
-                : encoding == TextureEncoding::Normal                ? normalRate
-                                                                     : otherRate;
+            const double rate = encoding == TextureEncoding::Normal ? normalRate : otherRate;
             const double texels = static_cast<double>(std::max(image.s(), 0)) * std::max(image.t(), 0);
             return texels * 4.0 / 3.0 / rate;
         }
 
         /// What a queued chain needs, read off its images' headers: its make's scratch, its images' bytes and
         /// its time.
-        ChainNeed needOf(
-            const osg::Image& image, const osg::Image* partner, const TextureEncoding encoding, const TextureWrap wrap)
+        ChainNeed needOf(const osg::Image& image, const osg::Image* partner, const TextureEncoding encoding)
         {
             const ChainScratch scratch = partner != nullptr
-                ? ConversionPass::scratchOf(ConversionPass::Input{
-                      .mImage = image, .mPartner = *partner, .mEncoding = encoding, .mWrap = wrap })
-                : ChainPass::scratchOf(ChainPass::Input{ .mImage = image, .mEncoding = encoding, .mWrap = wrap });
+                ? ConversionPass::scratchOf(
+                      ConversionPass::Input{ .mImage = image, .mPartner = *partner, .mEncoding = encoding })
+                : ChainPass::scratchOf(ChainPass::Input{ .mImage = image, .mEncoding = encoding });
             std::uint64_t images = image.getTotalSizeInBytesIncludingMipmaps();
             if (partner != nullptr)
                 images += partner->getTotalSizeInBytesIncludingMipmaps();
@@ -278,7 +274,7 @@ namespace Rtx
                     for (auto& at : hand.mQueued)
                     {
                         [[maybe_unused]] const std::size_t chain
-                            = mDispatcher.queue(needOf(*at.mImage, at.mPartner.get(), at.mEncoding, at.mWrap));
+                            = mDispatcher.queue(needOf(*at.mImage, at.mPartner.get(), at.mEncoding));
                         assert(chain == mChains.size() && "a chain numbered apart from its queue");
                         use(std::string(SceneUtil::EmbeddedImage::nameOf(*at.mImage)));
                         if (at.mPartner != nullptr)
@@ -306,9 +302,8 @@ namespace Rtx
                         Log(Debug::Info) << "The content's preparation makes the chain of \""
                                          << SceneUtil::EmbeddedImage::nameOf(*queuedChain.mImage)
                                          << "\" alone: it needs more than the whole budget of memory";
-                        makes = admitsChain(needOf(*queuedChain.mImage, queuedChain.mPartner.get(),
-                                                queuedChain.mEncoding, queuedChain.mWrap)
-                                                .mScratch,
+                        makes = admitsChain(
+                            needOf(*queuedChain.mImage, queuedChain.mPartner.get(), queuedChain.mEncoding).mScratch,
                             *queuedChain.mImage);
                     }
                     if (makes)
@@ -402,15 +397,13 @@ namespace Rtx
             hand.mContent.mPreprocessor.convert(ConversionPass::Input{ .mImage = *queued.mImage,
                                                     .mPartner = *queued.mPartner,
                                                     .mEncoding = queued.mEncoding,
-                                                    .mWrap = queued.mWrap,
                                                     .mWhy = TexelRead::Preparation,
                                                     .mPartnerWhy = TexelRead::Preparation },
                 hand.mChain, ContentAsk::Stored);
         else
-            hand.mContent.mPreprocessor.chain(ChainPass::Input{ .mImage = *queued.mImage,
-                                                  .mEncoding = queued.mEncoding,
-                                                  .mWrap = queued.mWrap,
-                                                  .mWhy = TexelRead::Preparation },
+            hand.mContent.mPreprocessor.chain(
+                ChainPass::Input{
+                    .mImage = *queued.mImage, .mEncoding = queued.mEncoding, .mWhy = TexelRead::Preparation },
                 hand.mChain, ContentAsk::Stored);
         hand.mContent.mPreprocessor.collectKeys(nullptr);
     }
@@ -456,13 +449,11 @@ namespace Rtx
                     }
 
                     const TextureEncoding encoding = described.encodingOf(surfaceMap, layout);
-                    const TextureWrap wrap = described.getTextureUse(surfaceMap).mWrap;
                     if (const osg::Image* const partner = described.partnerOf(surfaceMap, layout))
                         convert(hand,
-                            ConversionPass::Input{
-                                .mImage = *image, .mPartner = *partner, .mEncoding = encoding, .mWrap = wrap });
+                            ConversionPass::Input{ .mImage = *image, .mPartner = *partner, .mEncoding = encoding });
                     else
-                        chain(hand, ChainPass::Input{ .mImage = *image, .mEncoding = encoding, .mWrap = wrap });
+                        chain(hand, ChainPass::Input{ .mImage = *image, .mEncoding = encoding });
                 }
             }
 
@@ -476,17 +467,14 @@ namespace Rtx
     {
         hand.mFiles.push_back(layer.mDiffuse);
 
-        // As the cell reader reads a layer: the diffuse as `layerEncodingOf` binds it, the normal map a
-        // normal map, and where it may carry a height and does, the heights it spans.
+        // As the cell reader reads a layer: the diffuse a colour, the normal map a normal map, and where it may carry a
+        // height and does, the heights it spans.
         const Result<osg::ref_ptr<const osg::Image>, std::string> diffuse
             = mContent.getImage(VFS::Path::NormalizedView(layer.mDiffuse.c_str()));
         if (diffuse.isOk() && diffuse.value() != nullptr)
             meet(hand, *diffuse.value());
         if (diffuse.isOk() && diffuse.value() != nullptr)
-            chain(hand,
-                ChainPass::Input{ .mImage = *diffuse.value(),
-                    .mEncoding = layerEncodingOf(layer.mDiffuseSpec),
-                    .mWrap = TextureWrap::Repeat });
+            chain(hand, ChainPass::Input{ .mImage = *diffuse.value(), .mEncoding = TextureEncoding::Colour });
 
         if (layer.mNormal.empty())
             return;
@@ -506,30 +494,22 @@ namespace Rtx
         if (!PreparedImages::prepares(input.mImage, input.mEncoding))
             return;
 
-        // Claimed by its name, its encoding and, for a painted colour, its wrap: what the store keys it by.
+        // Claimed by its name and its encoding: what the store keys it by.
         if (claim(ChainIdentity{ .mImage = std::string(SceneUtil::EmbeddedImage::nameOf(input.mImage)),
                 .mPartner = {},
-                .mEncoding = input.mEncoding,
-                .mWrap = input.mEncoding == TextureEncoding::Painted ? input.mWrap : TextureWrap::Repeat }))
-            hand.mQueued.push_back(QueuedChain{ .mImage = &input.mImage,
-                .mPartner = nullptr,
-                .mEncoding = input.mEncoding,
-                .mWrap = input.mWrap,
-                .mWalk = 0 });
+                .mEncoding = input.mEncoding }))
+            hand.mQueued.push_back(
+                QueuedChain{ .mImage = &input.mImage, .mPartner = nullptr, .mEncoding = input.mEncoding, .mWalk = 0 });
     }
 
     void ContentPreparation::convert(Hand& hand, const ConversionPass::Input& input)
     {
-        // Claimed by both names, the encoding and the wrap: what the store keys it by.
+        // Claimed by both names and the encoding: what the store keys it by.
         if (claim(ChainIdentity{ .mImage = std::string(SceneUtil::EmbeddedImage::nameOf(input.mImage)),
                 .mPartner = std::string(SceneUtil::EmbeddedImage::nameOf(input.mPartner)),
-                .mEncoding = input.mEncoding,
-                .mWrap = input.mWrap }))
-            hand.mQueued.push_back(QueuedChain{ .mImage = &input.mImage,
-                .mPartner = &input.mPartner,
-                .mEncoding = input.mEncoding,
-                .mWrap = input.mWrap,
-                .mWalk = 0 });
+                .mEncoding = input.mEncoding }))
+            hand.mQueued.push_back(QueuedChain{
+                .mImage = &input.mImage, .mPartner = &input.mPartner, .mEncoding = input.mEncoding, .mWalk = 0 });
     }
 
     std::size_t ContentPreparation::ChainIdentityHash::operator()(const ChainIdentity& identity) const
@@ -538,7 +518,6 @@ namespace Rtx
         Misc::hashCombine(seed, identity.mImage);
         Misc::hashCombine(seed, identity.mPartner);
         Misc::hashCombine(seed, static_cast<std::size_t>(identity.mEncoding));
-        Misc::hashCombine(seed, static_cast<std::size_t>(identity.mWrap));
         return seed;
     }
 

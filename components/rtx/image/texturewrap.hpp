@@ -1,12 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <string_view>
-#include <utility>
-
-#include <components/rtx/common/namedenum.hpp>
 
 namespace Rtx
 {
@@ -24,15 +19,6 @@ namespace Rtx
     };
 
     inline constexpr std::size_t sTextureWrapCount = static_cast<std::size_t>(TextureWrap::Clamp) + 1;
-
-    /// What a crash report names a wrap by (`ContentPreprocessor::chain`).
-    inline constexpr NamedEnum sTextureWraps{ std::array{
-        std::pair{ TextureWrap::Repeat, std::string_view("repeat") },
-        std::pair{ TextureWrap::ClampS, std::string_view("clamp s") },
-        std::pair{ TextureWrap::ClampT, std::string_view("clamp t") },
-        std::pair{ TextureWrap::Clamp, std::string_view("clamp") },
-    } };
-    static_assert(sTextureWraps.mNames.size() == sTextureWrapCount);
 
     inline constexpr TextureWrap textureWrapOf(const bool clampS, const bool clampT)
     {

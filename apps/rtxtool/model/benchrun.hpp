@@ -393,9 +393,6 @@ namespace RtxTool
         /// cost a frame has, so only a stop that asked pays for it: this, or `Check::WalkTwice`.
         bool mWalkTwice = false;
 
-        /// Where every texture the scene holds is written, vanilla beside de-lit, as one sheet.
-        std::filesystem::path mSheet;
-
         /// Where one local-map tile of the place is written, framed the way the game's own compass
         /// frames one.
         std::filesystem::path mMapTile;

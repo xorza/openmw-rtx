@@ -231,8 +231,6 @@ namespace RtxTool
                 PictureVerdict mMissing;
             };
             constexpr Case sCases[] = {
-                { PictureRule::Exact, PictureVerdict::Same, PictureVerdict::Moved, PictureVerdict::Moved,
-                    PictureVerdict::NoReference },
                 { PictureRule::Denoised, PictureVerdict::Same, PictureVerdict::WithinDenoiserNoise,
                     PictureVerdict::Moved, PictureVerdict::NoReference },
                 { PictureRule::Hashed, PictureVerdict::Measured, PictureVerdict::Measured, PictureVerdict::Measured,
@@ -308,32 +306,32 @@ namespace RtxTool
                 const char* mWhat;
             };
             const Case cases[] = {
-                { { { "same.png", PictureRule::Exact } }, ExitStatus::Passed, "the same picture" },
-                { { { "one-level.png", PictureRule::Exact } }, ExitStatus::Differed, "one level under the exact rule" },
+                { { { "same.png", PictureRule::Denoised } }, ExitStatus::Passed, "the same picture" },
                 { { { "one-level.png", PictureRule::Denoised } }, ExitStatus::Passed,
                     "one level under the denoiser's rule" },
                 { { { "moved.png", PictureRule::Denoised } }, ExitStatus::Differed,
                     "forty levels under the denoiser's rule" },
                 { { { "moved.png", PictureRule::Hashed } }, ExitStatus::Passed, "a hashed picture that moved" },
-                { { { "no-reference.png", PictureRule::Exact } }, ExitStatus::Failed, "a picture with no reference" },
-                { { { "not-drawn.png", PictureRule::Exact } }, ExitStatus::Failed, "a reference with no picture" },
-                { { { "same.png", PictureRule::Exact }, { "moved.png", PictureRule::Exact } }, ExitStatus::Differed,
-                    "one moved picture among the same" },
-                { { { "moved.png", PictureRule::Exact }, { "no-reference.png", PictureRule::Exact } },
+                { { { "no-reference.png", PictureRule::Denoised } }, ExitStatus::Failed,
+                    "a picture with no reference" },
+                { { { "not-drawn.png", PictureRule::Denoised } }, ExitStatus::Failed, "a reference with no picture" },
+                { { { "same.png", PictureRule::Denoised }, { "moved.png", PictureRule::Denoised } },
+                    ExitStatus::Differed, "one moved picture among the same" },
+                { { { "moved.png", PictureRule::Denoised }, { "no-reference.png", PictureRule::Denoised } },
                     ExitStatus::Failed, "a moved picture beside one with nothing to compare against" },
                 { {}, ExitStatus::Failed, "nothing to compare" },
             };
             for (const Case& expected : cases)
                 EXPECT_EQ(compareRuns(drawn, wrote, against, expected.mPictures), expected.mStatus) << expected.mWhat;
 
-            const std::vector<WrittenPicture> moving = { { "moved.png", PictureRule::Exact } };
+            const std::vector<WrittenPicture> moving = { { "moved.png", PictureRule::Denoised } };
             EXPECT_EQ(compareRuns(drawn, wrote, {}, moving), ExitStatus::Passed)
                 << "no reference directory asks for no comparison";
 
             // **A picture the run did not keep fails as one not drawn**, as a run that ended before
             // the stop that writes it leaves it; and a picture is found under the folder it was
             // written to and no other.
-            const std::vector<WrittenPicture> same = { { "same.png", PictureRule::Exact } };
+            const std::vector<WrittenPicture> same = { { "same.png", PictureRule::Denoised } };
             EXPECT_EQ(compareRuns(PictureShelf(), wrote, against, same), ExitStatus::Failed)
                 << "a picture this run did not draw";
             EXPECT_EQ(compareRuns(drawn, root / "elsewhere", against, same), ExitStatus::Failed)

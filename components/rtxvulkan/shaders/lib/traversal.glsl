@@ -1115,7 +1115,7 @@ struct Surface
     /// has one vector meaning "out of this surface" and no side of its own to work out.
     vec3 mGeometric;
 
-    /// The diffuse albedo: the texture's, delit, for a vanilla surface, and `(1 - metal)` of the
+    /// The diffuse albedo: the texture's for a vanilla surface, and `(1 - metal)` of the
     /// authored base colour for one with a specular map.
     vec3 mAlbedo;
 
@@ -1495,8 +1495,8 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint normal
     // sharpness, or the chunk has no composite, and one fetch for everything else, an untextured surface
     // included: its diffuse is `TEXTURE_NEUTRAL`, whose one texel is white.
     //
-    // **Near ground's bounce reads the composite**, which the layers' delit colours were baked into as
-    // the stack sums them.
+    // **Near ground's bounce reads the composite**, which the layers' colours were baked into as the stack
+    // sums them.
     const bool stacked = readsStack(material, detailed);
     vec3 albedo = vec3(0.0);
 
@@ -1672,15 +1672,15 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint normal
     // nought (`MATERIAL_VERTEX_TINT` says why the mode does not survive the trip). Over half of Morrowind's
     // shapes and every piece of ground carry a colour, so a branch would be taken by most of the frame anyway.
     //
-    // **A model is tinted by its colours' hue and the ground by its colours whole**: the ground's are the
-    // level's painted shading and tint, which nothing traced stands in for.
+    // **A model is tinted by its colours' tint (`tintOf`) and the ground by its colours whole**: the ground's
+    // are the level's painted shading and tint, which nothing traced stands in for.
     //
     // **Read here, past the stack and its maps, and not where the hit's other fetches are**: what is fetched
     // ahead of the stack is held in registers through every layer's reads, where a stage's registers peak, and
     // read ahead of it the colours held the eye's stage a tier of registers up in a scene with a relief
     // (`docs/research/2026-11-13-amd-integrated-register-tiers.md`).
     const TriangleColour colours = triangleColour(corner, hit.mBary);
-    const vec3 vertexColour = surface.mGround ? colours.mColour : colours.mHue;
+    const vec3 vertexColour = surface.mGround ? colours.mColour : colours.mTint;
     const float tinted = float((materialPast.mFlags & MATERIAL_VERTEX_TINT) != 0u);
     const float ambientTinted = float((materialPast.mFlags & MATERIAL_VERTEX_AMBIENT) != 0u);
     const float glowing = float((materialPast.mFlags & MATERIAL_VERTEX_GLOW) != 0u);

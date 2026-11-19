@@ -2,7 +2,7 @@
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_GROUND_GLSL
 
 // A piece of ground, as one texel of it is read: which of its layers show there, and what each shows — its
-// albedo, with the light painted into the layer's texture divided back out, and how rough it is.
+// albedo and how rough it is.
 //
 // **Its own file because the trace and `groundcomposite.comp` must sum the same stack the same way**: the
 // sum is written over tables handed in by address, since the bake has no trace frame block.
@@ -46,8 +46,8 @@ bool layerAuthored(GpuLayer layer, TexelTable texels)
     return (layer.mFlags & LAYER_AUTHORED) != 0u && holdsTexture(texels, layer.mDiffuse);
 }
 
-/// What one layer shows where `texel` was read from it: its albedo in rgb, a painted colour delit on the
-/// host (`TextureEncoding::Painted`), and its perceptual roughness in alpha, a Lambert layer's one.
+/// What one layer shows where `texel` was read from it: its albedo in rgb, and its perceptual roughness in
+/// alpha, a Lambert layer's one.
 ///
 /// @param authored `layerAuthored`, which the trace asks only where `HAS_MAPS` says a layer can be.
 vec4 layerTexel(vec4 texel, bool authored)

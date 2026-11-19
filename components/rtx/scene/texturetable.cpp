@@ -143,10 +143,9 @@ namespace Rtx
         if (known == mPathIndex.end())
             return sNoRow;
 
-        for (const TextureEncoding encoding : { TextureEncoding::Colour, TextureEncoding::Painted })
-            for (const TextureIndex slot : known->second[static_cast<std::size_t>(encoding)])
-                if (slot != sNoRow && !rowAt(slot).mRest.mResting)
-                    return slot;
+        for (const TextureIndex slot : known->second[static_cast<std::size_t>(TextureEncoding::Colour)])
+            if (slot != sNoRow && !rowAt(slot).mRest.mResting)
+                return slot;
 
         return sNoRow;
     }

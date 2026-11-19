@@ -6,7 +6,6 @@
 - Custom map notes plugin.
 - No upscaler.
 - 64 bit build?
-- dirt missing from balmora buildings
 
 ## Open questions
 

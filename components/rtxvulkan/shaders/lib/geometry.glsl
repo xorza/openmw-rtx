@@ -4,6 +4,7 @@
 // What a hit is, before any material is read: which vertices, where between them, and the
 // plane the triangle lies in.
 
+#include "look.h"
 #include "scene.h"
 #include "tangent.h"
 #include "bindings.glsl"
@@ -171,11 +172,11 @@ vec3 triangleDeformation(GpuMesh mesh, uvec3 corner, vec2 bary)
     return acrossTriangle(now.at[at.x] - was.at[at.x], now.at[at.y] - was.at[at.y], now.at[at.z] - was.at[at.z], bary);
 }
 
-/// A vertex colour as a hit reads it: the colour whole, and its hue (`hueOf`).
+/// A vertex colour as a hit reads it: the colour whole, and what it tints a model by (`tintOf`).
 struct TriangleColour
 {
     vec3 mColour;
-    vec3 mHue;
+    vec3 mTint;
 };
 
 /// A vertex's colour out of its halves (`GpuVertexColour`), an exact conversion.
@@ -184,18 +185,16 @@ vec3 colourOf(GpuVertexColour packed)
     return vec3(unpackHalf2x16(packed.mRedGreen), unpackHalf2x16(packed.mBlue).x);
 }
 
-/// A vertex colour with its brightness taken out: each component divided by the largest, and white where
-/// the colour is black, which has no hue to keep.
-///
-/// **A model's vertex colours are mostly light baked in** (`in_dwrv_corr2_03.nif` darkens its corners to two
-/// fifths); the trace casts that occlusion itself, so only the hue tints a surface.
-vec3 hueOf(vec3 colour)
+/// What a vertex colour tints a model by: its hue, each component divided by the largest and white where the
+/// colour is black, which has no hue to keep, taken toward the colour whole by `VERTEX_COLOUR_SHARE`.
+vec3 tintOf(vec3 colour)
 {
     const float peak = max(max(colour.r, colour.g), colour.b);
-    return peak > 0.0 ? colour / peak : vec3(1.0);
+    const vec3 hue = peak > 0.0 ? colour / peak : vec3(1.0);
+    return mix(hue, colour, VERTEX_COLOUR_SHARE);
 }
 
-/// The vertex colour interpolated across the triangle a hit landed on, in linear light, whole and as its hue.
+/// The vertex colour interpolated across the triangle a hit landed on, in linear light, whole and as its tint.
 ///
 /// **White where the mesh brought none**: `MeshTable::writeVertices` fills an absent colour with ones.
 ///
@@ -210,7 +209,7 @@ TriangleColour triangleColour(uvec3 corner, vec2 bary)
     const vec3 second = colourOf(block.at[at.y]);
     const vec3 third = colourOf(block.at[at.z]);
     return TriangleColour(acrossTriangle(first, second, third, bary),
-        acrossTriangle(hueOf(first), hueOf(second), hueOf(third), bary));
+        acrossTriangle(tintOf(first), tintOf(second), tintOf(third), bary));
 }
 
 #endif

@@ -869,9 +869,11 @@ namespace Rtx::Testing
         /// which encode to 137, 188 and 99. The diffuse albedo is read off the picture and the
         /// ambient one off its channel, encoded the same way.
         ///
-        /// **What tints a model is the colour's hue** (`hueOf`): the same colour at half its
-        /// brightness, `(0.25, 0.5, 0.125)`, divides back to `(0.5, 1, 0.25)` and tints alike, and
-        /// black, which has no hue, tints nothing.
+        /// **What tints a model is the colour's hue taken toward the colour whole by
+        /// `VERTEX_COLOUR_SHARE`** (`tintOf`), `s` here: the same colour at half its brightness,
+        /// `(0.25, 0.5, 0.125)`, has the hue `(0.5, 1, 0.25)` and tints by it times `1 - s / 2`; black,
+        /// which has no hue, by white times `1 - s`. A colour at a brightness of one is its own hue, so
+        /// the share leaves it alone and the bytes above hold whatever it is set to.
         TEST_F(RtxVisibilityTest, aVertexColourTintsTheAlbedoWhereTheContentAsksAndNowhereElse)
         {
             SceneIdentities identities;
@@ -920,13 +922,20 @@ namespace Rtx::Testing
             // applies to it is the one that changes nothing.
             EXPECT_EQ(albedoUnder(VertexColour::Tint, {}), plain);
 
+            const float share = Shaders::VERTEX_COLOUR_SHARE;
+            const auto tintedBy = [](const osg::Vec3f& tint) {
+                const auto byte
+                    = [&](std::int32_t channel) -> std::int32_t { return encodeSrgb(128.0f / 255.0f * tint[channel]); };
+                return std::array<std::int32_t, 6>{ byte(0), byte(1), byte(2), byte(0), byte(1), byte(2) };
+            };
             const osg::Vec3f half(0.25f, 0.5f, 0.125f);
             EXPECT_EQ(albedoUnder(VertexColour::Tint, std::array<osg::Vec3f, 4>{ half, half, half, half }),
-                (std::array<std::int32_t, 6>{ 137, 188, 99, 137, 188, 99 }))
-                << "the brightness baked into the colour is taken out";
+                tintedBy(osg::Vec3f(0.5f, 1.0f, 0.25f) * (1.0f - share / 2.0f)))
+                << "the brightness baked into the colour is taken in at the share";
             const osg::Vec3f black;
-            EXPECT_EQ(albedoUnder(VertexColour::Tint, std::array<osg::Vec3f, 4>{ black, black, black, black }), plain)
-                << "black has no hue";
+            EXPECT_EQ(albedoUnder(VertexColour::Tint, std::array<osg::Vec3f, 4>{ black, black, black, black }),
+                tintedBy(osg::Vec3f(1.0f, 1.0f, 1.0f) * (1.0f - share)))
+                << "black has no hue, and darkens white by the share";
         }
 
         /// The glow the mode names is the material's own glow said another way.

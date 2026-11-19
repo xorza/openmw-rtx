@@ -604,7 +604,7 @@ namespace Rtx::Testing
         };
 
         /// **A `_diffusespec` is an authored albedo** with its roughness in alpha, as the PBR packs ship
-        /// every one (`layerEncodingOf`), and bound as a colour read as it stands.
+        /// every one, and bound as a colour, as every layer's diffuse is.
         TEST_F(RtxCellRingTest, aDiffusespecIsAnAuthoredAlbedo)
         {
             EXPECT_EQ(rockLayer(), Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);

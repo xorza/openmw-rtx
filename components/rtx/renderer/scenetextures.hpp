@@ -64,7 +64,6 @@ namespace Rtx
             TextureIndex mSlot;
             osg::ref_ptr<const osg::Image> mSource;
             TextureEncoding mEncoding;
-            TextureWrap mWrap;
             osg::ref_ptr<const osg::Image> mPartner;
         };
 

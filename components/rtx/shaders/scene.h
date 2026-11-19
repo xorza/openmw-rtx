@@ -744,8 +744,8 @@ namespace Rtx::Shaders
     };
 
     /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its alpha
-    /// — a `_diffusespec`, as Wareya's shaders read it (`Rtx::layerEncodingOf`). **Not delit, and a
-    /// dielectric**: painted as a surface and not as a picture of one lit, so its F0 is `DIELECTRIC_F0`.
+    /// — a `_diffusespec`, as Wareya's shaders read it. **A dielectric**: painted as a surface, so its F0
+    /// is `DIELECTRIC_F0`.
     const uint LAYER_AUTHORED = 0x01u;
 
     /// A ground layer whose normal map's alpha is a height, as `MATERIAL_PARALLAX` is for a surface:
@@ -1027,8 +1027,7 @@ namespace Rtx::Shaders
         uint mNormal;
 
         /// A `_spec` map in the metal and roughness layout, or `NO_TEXTURE`: metalness in red, perceptual
-        /// roughness in green, occlusion in blue. **What names it also says the diffuse was authored as
-        /// an albedo**, so such a material is not delit (`Rtx::SpecularLayout`).
+        /// roughness in green, occlusion in blue (`Rtx::SpecularLayout`).
         uint mSpecular;
 
         /// The heights the normal map's relief spans, where `MATERIAL_PARALLAX` says its alpha is one

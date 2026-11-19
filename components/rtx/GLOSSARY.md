@@ -32,7 +32,6 @@ that owns each. Read this once and the headers read as the field's.
 | a picture | render-to-texture view for the interface | `OffscreenTrace`, `TracedView` |
 | a subject | the doll or the race preview in a scene of its own | `SubjectView` |
 | the puffs, sprites | particle billboards | `SpriteBin`, `spriteshade.comp` |
-| sheet | a texture read as one shading map | `ShadingMap` |
 | fold, folded shape | a mesh's duplicate back faces removed: exact reversed twins, and pocket walls | `ShapeFold` |
 | pocket | an inside-out gap between two faces of one mesh, where its generalized winding number is minus one | `ShapeFold`, `PocketTree` |
 | knobs | the mirror's settings | `MWRender::MirrorKnobs` |

@@ -10,7 +10,6 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 
 #include "arrivalwindow.hpp"
@@ -202,7 +201,6 @@ namespace Rtx
             /// How the read was asked, while `mReading`: what a wait that ends before it was handed forgets
             /// (`PreparedImages::forget`), its slot perhaps another file's by then.
             TextureEncoding mEncoding{};
-            TextureWrap mWrap{};
             osg::ref_ptr<const osg::Image> mPartner;
 
             /// What the read handed back where it was ready at once, held until the hand-over describes it.

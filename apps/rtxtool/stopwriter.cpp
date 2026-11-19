@@ -24,7 +24,6 @@
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/manualref.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
-#include <apps/rtxtool/instruments/contactsheet.hpp>
 #include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/instruments/scenereport.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
@@ -36,7 +35,6 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtx/renderer/scenetextures.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
@@ -100,9 +98,6 @@ namespace RtxTool
 
         if (actions.mDigest)
             into.mRecord.note(describeScene(context.mMirror.getScene(), report.mWalked));
-
-        if (!actions.mSheet.empty())
-            writeSheet(into, actions.mSheet);
 
         if (!actions.mMapTile.empty())
             writeMapTile(into, actions.mMapTile);
@@ -183,33 +178,6 @@ namespace RtxTool
         }
 
         into.mRecord.note(std::format("wrote {} frames to {}\n", samples.size(), Files::pathToUnicodeString(file)));
-    }
-
-    void StopWriter::writeSheet(const Writing& into, const std::filesystem::path& sheet)
-    {
-        const Rtx::SceneDesc& scene = into.mContext.mMirror.getScene();
-
-        Rtx::SceneTextures described;
-        described.describeAll(scene, nullptr, false);
-
-        const ContactSheet drawn = drawContactSheet(described.getDescriptions());
-        if (drawn.mCount == 0)
-        {
-            into.mRecord.note("the world uses no textures\n");
-            into.mRecord.fail();
-            return;
-        }
-
-        if (!writePicture(into, sheet, drawn.mWidth, drawn.mHeight, drawn.mPixels))
-            return;
-
-        // Left to right, top to bottom, the way it was drawn.
-        std::vector<std::string> names;
-        listSheetNames(described.getDescriptions(), scene.textures().getRows(), names);
-        for (std::size_t at = 0; at < names.size(); ++at)
-            into.mRecord.note(std::format("  {}  {}\n", at, names[at]));
-
-        into.mRecord.note(std::format("wrote {}, {} textures\n", Files::pathToUnicodeString(sheet), drawn.mCount));
     }
 
     void StopWriter::writeView(const Writing& into, MWRender::OffscreenView& view, const std::filesystem::path& file)

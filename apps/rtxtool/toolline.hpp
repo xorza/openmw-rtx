@@ -189,7 +189,6 @@ namespace RtxTool
             std::uint32_t mRepeat = 0;
             std::string mDoll;
             bool mMap = false;
-            bool mTextures = false;
         };
 
         /// How `noise` takes its frame, and what its other side changes.

@@ -30,7 +30,7 @@ namespace Rtx
         PreparedImage findUpload(const TextureRow& row, PreparedImages* const prepared)
         {
             if (prepared != nullptr)
-                return prepared->find(*row.mImage, row.mEncoding, row.mWrap, row.mPartner.get());
+                return prepared->find(*row.mImage, row.mEncoding, row.mPartner.get());
             assert(!Resource::isHeader(*row.mImage) && "a header described with no service to read its texels");
             return PreparedImage{ .mFile = row.mImage };
         }
@@ -89,11 +89,8 @@ namespace Rtx
             const bool file = isFile(row);
             const PreparedImage made = file ? findUpload(row, prepared) : PreparedImage{};
             if (made.mPending)
-                mPending.push_back(Pending{ .mSlot = slot,
-                    .mSource = row.mImage,
-                    .mEncoding = row.mEncoding,
-                    .mWrap = row.mWrap,
-                    .mPartner = row.mPartner });
+                mPending.push_back(Pending{
+                    .mSlot = slot, .mSource = row.mImage, .mEncoding = row.mEncoding, .mPartner = row.mPartner });
 
             // **A file stands in while it is read and its chain made**, and is handed to the device once, as
             // the image it keeps: stood as it is meanwhile, it was handed over twice, and a widened one was

@@ -69,15 +69,7 @@ namespace Rtx
             case SurfaceMap::Specular:
                 return classic ? TextureEncoding::ConvertedSpecular : TextureEncoding::Data;
             case SurfaceMap::Diffuse:
-                if (classic)
-                    return TextureEncoding::ConvertedColour;
-                return getTexture(SurfaceMap::Specular) != nullptr ? TextureEncoding::Colour : TextureEncoding::Painted;
-
-            // **A decal is laid over the diffuse, so it is the diffuse's kind of colour**: delit where the diffuse
-            // is painted, as it was lit with it. Never converted, which only a pair of the diffuse and its
-            // `_spec` is.
-            case SurfaceMap::Decal:
-                return getTexture(SurfaceMap::Specular) != nullptr ? TextureEncoding::Colour : TextureEncoding::Painted;
+                return classic ? TextureEncoding::ConvertedColour : TextureEncoding::Colour;
 
             // Offsets and a luma, read as they are stored, as the rasterizer's sampler reads them.
             case SurfaceMap::Bump:

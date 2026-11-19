@@ -11,7 +11,6 @@
 #include <components/misc/bytebuffer.hpp>
 
 #include "alphaimage.hpp"
-#include "shadingmap.hpp"
 #include "texturedata.hpp"
 #include "textureencoding.hpp"
 
@@ -36,14 +35,12 @@ namespace Rtx
             std::size_t mTexels = 0;
             std::size_t mBand = 0;
             std::size_t mRing = 0;
-            std::size_t mColumns = 0;
         };
 
-        /// What `build` of a file `width` by `height`, of `fileLevels` levels, read as `encoding`, to
-        /// `levels` levels holds of each buffer at its largest: what a thread's buffers grow to, at most,
-        /// where they held less.
-        static Scratch scratchOf(std::uint32_t width, std::uint32_t height, std::uint32_t fileLevels,
-            TextureEncoding encoding, std::uint32_t levels);
+        /// What `build` of a file `width` by `height`, read as `encoding`, to `levels` levels holds of each
+        /// buffer at its largest: what a thread's buffers grow to, at most, where they held less.
+        static Scratch scratchOf(
+            std::uint32_t width, std::uint32_t height, TextureEncoding encoding, std::uint32_t levels);
 
         /// What each buffer holds now, its capacity, which no build gives back.
         Scratch capacity() const;
@@ -64,9 +61,7 @@ namespace Rtx
 
         /// Decodes the first level of `file`, a description `rebuilds` holds, and boxes `levels` levels in all from it,
         /// each half the one above and at least a texel, four bytes a texel, display-encoded where `file`'s format is.
-        /// **A painted colour** reads every level it carries instead, up to `levels`, delit
-        /// (`docs/architecture.md`, "A painted colour is stored delit, keyed by use"), the levels past its own
-        /// boxed from the last of them. Refills this one.
+        /// Refills this one.
         void build(const TextureData& file, std::uint32_t levels);
 
         /// Whether the finest level built holds a texel of no alpha in a BC1 format: a cut in its one
@@ -106,15 +101,8 @@ namespace Rtx
         /// `build` of a normal map: the levels laid, the finest's alpha read.
         void buildNormals(const TextureData& first);
 
-        /// `build` of a painted colour: the light painted into `read`, its levels read as the levels
-        /// built, divided out of each.
-        void delight(const TextureData& read);
-
         AlphaImage mAlpha;
         std::vector<osg::Vec3f> mBand;
-
-        /// A painted colour's level's columns placed on its light (`delight`), refilled each level.
-        std::vector<PaintedAxis> mColumns;
 
         /// How many of a level's rows a normal map's build holds at once: the finest's band of four the
         /// reader decodes, and the two before it the box of the level under reads.

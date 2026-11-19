@@ -103,8 +103,7 @@ namespace RtxTool
     };
 
     /// What `shot` runs. The frame is judged by its hashes where they can judge it, and by its picture where the
-    /// wavelet composed it and nothing upscaled it; a doll and a tile are always denoised; the sheet is the
-    /// textures and nothing traced.
+    /// wavelet composed it and nothing upscaled it; a doll and a tile are always denoised.
     ShotPlan planShot(const Command& command, Framed framed);
 
     /// What `bench` runs: the suite's places for its span, nothing written and nothing hashed unless asked. Throws

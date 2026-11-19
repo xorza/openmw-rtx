@@ -53,10 +53,6 @@ namespace RtxTool
     /// What a picture of a run is held to against the same picture of its reference.
     enum class PictureRule
     {
-        /// Nothing between the tree and the picture that two runs may disagree about: any
-        /// difference is one.
-        Exact,
-
         /// The wavelet put it together — a doll, a map tile, a frame denoised and not upscaled:
         /// within `sDenoiserNoiseLevels` is the card's, and past it a difference.
         Denoised,
@@ -82,7 +78,7 @@ namespace RtxTool
     struct WrittenPicture
     {
         std::string mFile;
-        PictureRule mRule = PictureRule::Exact;
+        PictureRule mRule;
     };
 
     /// How far a picture stands from the one it should converge to, in levels of 255. A pixel's error

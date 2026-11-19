@@ -137,12 +137,6 @@ namespace Rtx
             MadeChain data;
             content.chain(ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data }, data);
             ASSERT_EQ(data.mForm, ChainForm::Own);
-            MadeChain own;
-            content.chain(
-                ChainPass::Input{
-                    .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Painted, .mWrap = TextureWrap::ClampS },
-                own);
-            ASSERT_EQ(own.mForm, ChainForm::Own);
             const SpecularLayout kind = content.specularLayout(*makeImage(heights));
             MadeChain converted;
             content.convert(ConversionPass::Input{ .mImage = *painted,
@@ -163,7 +157,6 @@ namespace Rtx
                 Recorded{ "alpha span", AlphaSpan::sVersion, digestOf(span) },
                 Recorded{ "chain in BC7", ChainPass::sVersion, digestOf(chain) },
                 Recorded{ "data chain", ChainPass::sVersion, digestOf(data) },
-                Recorded{ "painted chain", ChainPass::sVersion, digestOf(own) },
                 Recorded{ "specular kind", SpecularKind::sVersion, digestOf(kind) },
                 Recorded{ "conversion", ConversionPass::sVersion, digestOf(converted) },
                 Recorded{ "solid reach", SolidReach::sVersion, digestOf(solid) },
@@ -174,9 +167,8 @@ namespace Rtx
                 Recorded{ "alpha span", 1, 0xb02496efa84a6d00 },
                 Recorded{ "chain in BC7", 8, 0x49e28ea38c0ba847 },
                 Recorded{ "data chain", 8, 0x6bf8b7518c018d9e },
-                Recorded{ "painted chain", 8, 0x75154d36494e4adb },
                 Recorded{ "specular kind", 1, 0x5eac70df15eeb2ef },
-                Recorded{ "conversion", 5, 0xed492221331d8e6e },
+                Recorded{ "conversion", 6, 0xed492221331d8e6e },
                 Recorded{ "solid reach", 1, 0x5eac70df15eeb2ef },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
