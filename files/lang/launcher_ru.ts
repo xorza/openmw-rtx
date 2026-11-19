@@ -171,12 +171,12 @@
         <translation>Оконный</translation>
     </message>
     <message>
-        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
-        <translation>Сколько пикселей трассируется. «Выкл» и «Нативное» трассируют каждый пиксель; «Нативное» также использует масштабирование как сглаживание. Остальные режимы трассируют меньше пикселей и масштабируют кадр.</translation>
+        <source>How many pixels the ray tracer traces. Native traces every pixel and uses the upscaler as anti-aliasing; the other modes trace fewer pixels and upscale the frame. Waits while the upscaler is off.</source>
+        <translation>Сколько пикселей трассируется. «Нативное» трассирует каждый пиксель и использует масштабирование как сглаживание; остальные режимы трассируют меньше пикселей и масштабируют кадр. Не действует, пока масштабирование выключено.</translation>
     </message>
     <message>
-        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
-        <translation>«Автоматически» использует NVIDIA DLSS на видеокарте NVIDIA с установленным DLSS, иначе AMD FSR. Если выбран DLSS и он не может работать, OpenMW не запустится. Вступает в силу после перезапуска.</translation>
+        <source>Off traces every pixel with no upscaler and no anti-aliasing. NVIDIA DLSS needs an NVIDIA card with DLSS installed; if it is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>«Выкл» трассирует каждый пиксель без масштабирования и без сглаживания. NVIDIA DLSS требует видеокарту NVIDIA с установленным DLSS; если выбран DLSS и он не может работать, OpenMW не запустится. Вступает в силу после перезапуска.</translation>
     </message>
     <message>
         <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
@@ -231,8 +231,8 @@
         <translation>Вертикальная синхронизация</translation>
     </message>
     <message>
-        <source>Upscaling</source>
-        <translation>Масштабирование</translation>
+        <source>Upscaling Quality</source>
+        <translation>Качество масштабирования</translation>
     </message>
     <message>
         <source>Upscaler</source>
@@ -253,10 +253,6 @@
     <message>
         <source>Native</source>
         <translation>Нативное</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Автоматически</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>

@@ -181,7 +181,10 @@ namespace RtxTool
                 EXPECT_EQ(line.mFrame.mUpscale.mValue, Rtx::Upscale::Quality);
             }
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { lineOf(options, { "--upscaler=unknown" }, Verb::Bench); }),
-                "\"unknown\" is not an upscaler: auto, fsr or dlss");
+                "\"unknown\" is not an upscaler: off, fsr or dlss");
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { lineOf(options, { "--upscale=off" }, Verb::Bench); }),
+                "\"off\" is not an upscale mode: ultraperformance, performance, balanced, quality or native")
+                << "no upscaler is --upscaler's to say";
         }
 
         /// **The line is read once into what each option means, and a condition nobody named is none**:
@@ -231,7 +234,7 @@ namespace RtxTool
 
             const ToolLine named = lineOf(options,
                 { "--hour=6.5", "--weather=Rain", "--turn-weather=Clear,Ashstorm", "--day=3", "--hold=false",
-                    "--upscale=off", "--cell=-2,-9", "--pos=1,2,3", "--out=pictures", "--size=640x360" },
+                    "--upscaler=off", "--cell=-2,-9", "--pos=1,2,3", "--out=pictures", "--size=640x360" },
                 Verb::Shot);
             EXPECT_EQ(named.mSky.mHour, 6.5f);
             EXPECT_EQ(named.mSky.mWeather, Rtx::Weather::Rain);
@@ -240,8 +243,8 @@ namespace RtxTool
             EXPECT_TRUE(named.mFrame.mDay.mNamed);
             EXPECT_FALSE(named.mFrame.mHold.mValue);
             EXPECT_TRUE(named.mFrame.mHold.mNamed) << "a hold named off is named";
-            EXPECT_EQ(named.mFrame.mUpscale.mValue, Rtx::Upscale::Off);
-            EXPECT_TRUE(named.mFrame.mUpscale.mNamed);
+            EXPECT_EQ(named.mFrame.mUpscaler.mValue, Rtx::UpscalerChoice::Off);
+            EXPECT_TRUE(named.mFrame.mUpscaler.mNamed);
             EXPECT_TRUE(named.mPlaces.mCell.isExterior());
             EXPECT_EQ(named.mPlaces.mPos, osg::Vec3f(1.0f, 2.0f, 3.0f));
             EXPECT_EQ(named.mOut, std::filesystem::path("pictures"));
@@ -370,7 +373,7 @@ namespace RtxTool
 
             // Two the command does not read, around one it does and one nobody restricted.
             const bpo::parsed_options line
-                = parse(options, { "--suite=default", "--upscale=off", "--find=barrel", "--seconds=4" });
+                = parse(options, { "--suite=default", "--upscale=quality", "--find=barrel", "--seconds=4" });
 
             EXPECT_EQ(
                 options.complainAbout(line, Verb::Bench), "`bench` does not read --find, which belongs to `scene`.\n");

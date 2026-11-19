@@ -262,7 +262,7 @@ namespace RtxTool
             if (!asked.mDenoise && !Rtx::rendererFilters(upscale, input))
                 return std::format(
                     "{} asks for the light unfiltered at the {} mode, and the upscaler filters the "
-                    "light itself there: name --filter=true, --upscale=off or another --upscaler",
+                    "light itself there: name --filter=true or another --upscaler",
                     stop.mName, Rtx::sUpscaleNames.name(upscale));
         }
         return std::nullopt;

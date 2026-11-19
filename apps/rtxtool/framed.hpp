@@ -48,11 +48,6 @@ namespace RtxTool
     /// its figures, and every frame drawn sooner is the streaming driven harder.
     inline constexpr FrameSize sTourFrame{ .mWidth = 800, .mHeight = 600 };
 
-    /// What a frame is upscaled by when nobody names a mode. The one knob whose default is the
-    /// harness's own and not `settings-default.cfg`'s. Quality rather than Performance, so a plain
-    /// run is the renderer with everything on and not one that quietly quartered its pixels.
-    inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::Upscale::Quality;
-
     /// What every film is made under, and no line chooses another: native, every pixel traced and
     /// the upscaler still reconstructing across frames, because a film is watched and never timed,
     /// and the one picture a person keeps is the best one the renderer draws.
@@ -149,8 +144,7 @@ namespace RtxTool
     inline constexpr float sTourCells = 10.0f;
 
     /// A tour's settings: `measured`, seeing `sTourCells` cells, upscaled by `sTourUpscale` through the upscaler the
-    /// game ships (`auto`, DLSS where the card has it), where a measured run takes FSR so a picture does not move
-    /// with the card: a tour flies what a player plays.
+    /// game ships: a tour flies what a player plays.
     MWRender::RtxSettingValues touredSettings(const ShippedDefaults& shipped, MWRender::RtxSettingValues measured);
 
     /// How the game streams cells in ahead of the player, as `[Cells]` states it, written before the engine reads it.

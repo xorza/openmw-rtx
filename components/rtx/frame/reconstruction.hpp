@@ -348,14 +348,12 @@ namespace Rtx
     struct RenderProfile
     {
         /// What the upscaler is built with, decided once per set of targets: whether one runs, and
-        /// at what quality.
+        /// at what quality. `Off` wherever `mUpscaler` is, and a menu moves it under an upscaler alone.
         Upscale mUpscale = Upscale::Off;
 
-        /// Which upscaler is asked for, which the backend resolves where the renderer is made. A
-        /// harness's profile that says nothing asks for FSR, so a measured picture does not change
-        /// with the card it was measured on; a played session takes its value from `[RTX] upscaler`.
-        /// **A renderer's own profile (`Renderer::getProfile`) holds what the choice came to**, never
-        /// `Auto`, so what runs is read where every other fact of the run is.
+        /// Which upscaler the renderer is made with, or none, fixed for its life. A harness's profile
+        /// that says nothing asks for FSR, so a measured picture does not change with the card it was
+        /// measured on; a played session takes its value from `[RTX] upscaler`.
         UpscalerChoice mUpscaler = UpscalerChoice::Fsr;
 
         /// What every frame asks of the reconstruction, before the upscaler has its say —

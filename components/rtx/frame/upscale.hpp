@@ -13,15 +13,13 @@
 
 namespace Rtx
 {
-    /// Which upscaler the player asked for: `[RTX] upscaler`. The quality mode stays `Upscale`; this
-    /// chooses whose arithmetic turns the traced extent into the shown one.
-    ///
-    /// **`Auto` is a policy and not a third upscaler**: the backend resolves it once, where the
-    /// device is known, to DLSS where it runs and to FSR everywhere else. What it came to is the
-    /// backend's, which no frame asks twice.
+    /// Which upscaler the player asked for: `[RTX] upscaler`, none or whose arithmetic turns the traced
+    /// extent into the shown one. The quality mode stays `Upscale`. **Made once with the renderer**, by
+    /// the user's decision: every change of it asks for a restart, and `Off` makes no upscaler at all,
+    /// so the frame is traced at the size it is shown at under the renderer's denoisers alone.
     enum class UpscalerChoice
     {
-        Auto,
+        Off,
         Fsr,
         Dlss,
     };
@@ -29,13 +27,13 @@ namespace Rtx
     /// How an `UpscalerChoice` is spelled in a setting file and in a report — the one list of the
     /// names, as `sUpscaleNames` is for the modes.
     inline constexpr NamedEnum sUpscalerNames{ std::array{
-        std::pair{ UpscalerChoice::Auto, std::string_view("auto") },
+        std::pair{ UpscalerChoice::Off, std::string_view("off") },
         std::pair{ UpscalerChoice::Fsr, std::string_view("fsr") },
         std::pair{ UpscalerChoice::Dlss, std::string_view("dlss") },
     } };
 
     /// The upscalers the launcher and the settings window list, in the order both list them:
-    /// `auto` first, then the two concrete choices. Every value `sUpscalerNames` spells, in its
+    /// none first, then the two upscalers. Every value `sUpscalerNames` spells, in its
     /// order, so a value added there stops the build until each menu gives it a label.
     inline constexpr std::array<UpscalerChoice, sUpscalerNames.mNames.size()> sUpscalerMenu = sUpscalerNames.values();
     static_assert(sUpscalerMenu.back() == UpscalerChoice::Dlss, "DLSS last, so a menu without it is a prefix");
@@ -61,12 +59,11 @@ namespace Rtx
     /// `fsrcallbacks.glsl` and `rrguides.comp` clamp to.
     inline constexpr float sUpscaleNear = 1.0f;
 
-    /// What the launcher selects and saves for a stored kind: an explicit `Dlss` whose library is
-    /// not installed becomes `Auto`, so a missing library cannot leave a setting the game must
-    /// refuse to start.
+    /// What the launcher selects and saves for a stored kind: `Dlss` whose library is not installed
+    /// becomes `Fsr`, so a missing library cannot leave a setting the game must refuse to start.
     constexpr UpscalerChoice launcherUpscaler(const UpscalerChoice saved, const bool installed)
     {
-        return saved == UpscalerChoice::Dlss && !installed ? UpscalerChoice::Auto : saved;
+        return saved == UpscalerChoice::Dlss && !installed ? UpscalerChoice::Fsr : saved;
     }
 
     /// How the frame gets from the size it is traced at to the size it is shown at — a quality
@@ -74,8 +71,10 @@ namespace Rtx
     enum class Upscale
     {
         /// Trace and present at the same size, with no upscaler in the frame at all: the denoisers
-        /// and nothing after them, and no anti-aliasing — what every test and every reference
-        /// render uses.
+        /// and nothing after them, and no anti-aliasing. What a renderer made with no upscaler
+        /// (`UpscalerChoice::Off`) traces every frame at, and what one made with an upscaler can
+        /// pass it by at, for a reference picture of the same run; never a setting
+        /// (`sUpscaleModeNames`).
         Off,
 
         /// The fewest pixels traced for a given output.
@@ -91,9 +90,9 @@ namespace Rtx
         Native,
     };
 
-    /// How an `Upscale` is spelled on a command line, in a setting file and in a report — the one
-    /// list of the names, so a mode added here reaches the parser, the report and every line of
-    /// prose that offers the modes at once.
+    /// How an `Upscale` is spelled in a report, and with `Off` left out on a command line and in a
+    /// setting file (`sUpscaleModeNames`) — the one list of the names, so a mode added here reaches
+    /// the parser, the report and every line of prose that offers the modes at once.
     inline constexpr NamedEnum sUpscaleNames{ std::array{
         std::pair{ Upscale::Off, std::string_view("off") },
         std::pair{ Upscale::UltraPerformance, std::string_view("ultraperformance") },
@@ -103,11 +102,21 @@ namespace Rtx
         std::pair{ Upscale::Native, std::string_view("native") },
     } };
 
-    /// The modes the launcher and the settings window offer, in the order both list them: no
-    /// upscaler first, then fewest pixels traced to every pixel. Every mode `sUpscaleNames` spells,
-    /// in its order, so a mode added there stops the build until each menu gives it a label, and
-    /// whatever `[RTX] upscale` holds is one the menus offer.
-    inline constexpr std::array<Upscale, sUpscaleNames.mNames.size()> sUpscaleMenu = sUpscaleNames.values();
+    /// The modes an upscaler runs at, as `[RTX] upscale` and `--upscale` spell them: every mode
+    /// `sUpscaleNames` spells but `Off`, which is no upscaler's mode but the absence of one, chosen as
+    /// `UpscalerChoice::Off`.
+    inline constexpr NamedEnum sUpscaleModeNames = NamedEnum<Upscale, sUpscaleNames.mNames.size() - 1>([] {
+        static_assert(sUpscaleNames.mNames.front().first == Upscale::Off, "Off first, so the rest are the modes");
+        std::array<std::pair<Upscale, std::string_view>, sUpscaleNames.mNames.size() - 1> modes{};
+        std::ranges::copy(std::span(sUpscaleNames.mNames).subspan(1), modes.begin());
+        return modes;
+    }());
+
+    /// The modes the launcher and the settings window offer, in the order both list them: fewest
+    /// pixels traced to every pixel. Every mode `sUpscaleModeNames` spells, in its order, so a mode
+    /// added there stops the build until each menu gives it a label, and whatever `[RTX] upscale`
+    /// holds is one the menus offer.
+    inline constexpr std::array<Upscale, sUpscaleModeNames.mNames.size()> sUpscaleMenu = sUpscaleModeNames.values();
 
     /// Whether a mode runs the upscaler at all, which every mode but `Off` does — `Native` too.
     constexpr bool upscales(Upscale mode)

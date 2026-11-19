@@ -207,12 +207,12 @@
         <translation>The resolution the game renders at, scaled to fit the window. Native uses the window&apos;s size. In windowed mode, the window keeps the size you last gave it.</translation>
     </message>
     <message>
-        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
-        <translation>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</translation>
+        <source>How many pixels the ray tracer traces. Native traces every pixel and uses the upscaler as anti-aliasing; the other modes trace fewer pixels and upscale the frame. Waits while the upscaler is off.</source>
+        <translation>How many pixels the ray tracer traces. Native traces every pixel and uses the upscaler as anti-aliasing; the other modes trace fewer pixels and upscale the frame. Waits while the upscaler is off.</translation>
     </message>
     <message>
-        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
-        <translation>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</translation>
+        <source>Off traces every pixel with no upscaler and no anti-aliasing. NVIDIA DLSS needs an NVIDIA card with DLSS installed; if it is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>Off traces every pixel with no upscaler and no anti-aliasing. NVIDIA DLSS needs an NVIDIA card with DLSS installed; if it is selected and cannot run, OpenMW does not start. Takes effect after a restart.</translation>
     </message>
     <message>
         <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
@@ -231,8 +231,8 @@
         <translation></translation>
     </message>
     <message>
-        <source>Upscaling</source>
-        <translation>Upscaling</translation>
+        <source>Upscaling Quality</source>
+        <translation>Upscaling Quality</translation>
     </message>
     <message>
         <source>Upscaler</source>
@@ -253,10 +253,6 @@
     <message>
         <source>Native</source>
         <translation>Native</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Auto</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>

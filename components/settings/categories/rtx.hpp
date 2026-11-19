@@ -35,14 +35,13 @@ namespace Settings
         SettingValue<float> mDistantLandCells{ mIndex, "RTX", "distant land cells",
             makeClampSanitizerFloat(0.0f, sMaxDistantLandCells) };
 
-        /// How hard the upscaler works, or `off`, as `Rtx::sUpscaleNames` spells the modes and read
-        /// by it at load. Changing it rebuilds every target. `Rtx::sUpscaleMenu` is what the launcher
-        /// and the settings window offer of it.
+        /// How hard the upscaler works, as `Rtx::sUpscaleModeNames` spells the modes and read by it at
+        /// load. Changing it rebuilds every target; under no upscaler it waits for one. `Rtx::sUpscaleMenu`
+        /// is what the launcher and the settings window offer of it.
         SettingValue<Rtx::Upscale> mUpscale{ mIndex, "RTX", "upscale" };
 
-        /// Which upscaler does the work, as `Rtx::sUpscalerNames` spells them: `auto` chooses DLSS
-        /// on an NVIDIA card where the build has it, FSR elsewhere. Read once where the renderer is
-        /// made, because the two bring different histories and pipelines.
+        /// Which upscaler does the work, or none, as `Rtx::sUpscalerNames` spells them. Read once where
+        /// the renderer is made, because each brings its own histories and pipelines.
         SettingValue<Rtx::UpscalerChoice> mUpscaler{ mIndex, "RTX", "upscaler" };
 
         /// Whether the eye's surface traces bounces, or the record's ambient stands on it:

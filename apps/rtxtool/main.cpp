@@ -415,6 +415,8 @@ namespace RtxTool
             FilmPacing pacing = line.mPacing;
             framed.mStep = pacing.mStep;
             framed.mSetup.mSettled = true;
+            if (framed.mSetup.mRun.mProfile.mUpscaler == Rtx::UpscalerChoice::Off)
+                throw std::runtime_error("a film is made under an upscaler, at native: name --upscaler=fsr or dlss");
             framed.mSetup.mRun.mProfile.mUpscale = sFilmUpscale;
 
             pacing.mFieldOfView = framed.mWindow.mFieldOfView;

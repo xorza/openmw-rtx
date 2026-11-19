@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <numbers>
+#include <optional>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -403,6 +404,35 @@ namespace Rtx::Testing
 
             const std::vector<std::uint8_t> first = run();
             EXPECT_EQ(run(), first);
+        }
+
+        using RtxUpscalerChoiceTest = DeviceTest;
+
+        /// **Each choice makes the upscaler it names, and `Off` makes none**: FSR reads the trace's masks and
+        /// the filtered light; no upscaler reads neither, holds nothing, and traces a frame at the size it is
+        /// shown at, 320 by 180 at a shown 320 by 180. No device memory and no runtime of its own under either.
+        TEST_F(RtxUpscalerChoiceTest, eachChoiceMakesTheUpscalerItNamesAndOffMakesNone)
+        {
+            const Upscaler none(getDevice(), UpscalerChoice::Off, DlssAvailability::NotInstalled, nullptr);
+            EXPECT_EQ(none.getChoice(), UpscalerChoice::Off);
+            EXPECT_EQ(none.getMasks(), UpscaleMasks::Skipped);
+            EXPECT_EQ(none.getInput(), UpscalerInput::Filtered);
+            EXPECT_EQ(none.getRuntimeResources(), std::nullopt);
+            EXPECT_EQ(none.describe(), "none");
+            EXPECT_FALSE(none.isBuilt());
+            EXPECT_EQ(none.getSharedCount(), 0u);
+            EXPECT_EQ(none.getHeldOutside(), 0u);
+            const FrameExtents native = none.extentsFor(320, 180, Upscale::Off);
+            EXPECT_EQ(native.mRenderWidth, 320u);
+            EXPECT_EQ(native.mRenderHeight, 180u);
+            EXPECT_EQ(none.getDlss(), DlssAvailability::NotInstalled) << "no attempt made, the facts stand";
+
+            const Upscaler fsr(getDevice(), UpscalerChoice::Fsr, DlssAvailability::NotInstalled, nullptr);
+            EXPECT_EQ(fsr.getChoice(), UpscalerChoice::Fsr);
+            EXPECT_EQ(fsr.getMasks(), UpscaleMasks::Written);
+            EXPECT_EQ(fsr.getInput(), UpscalerInput::Filtered);
+            EXPECT_EQ(fsr.getRuntimeResources(), std::nullopt);
+            EXPECT_NE(fsr.describe(), none.describe());
         }
     }
 }

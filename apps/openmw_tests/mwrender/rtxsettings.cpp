@@ -19,7 +19,7 @@ namespace MWRender
         RtxSettingValues valid()
         {
             return RtxSettingValues{
-                .mUpscale = Rtx::Upscale::Balanced,
+                .mUpscale = Rtx::Upscale::Performance,
                 .mUpscaler = Rtx::UpscalerChoice::Dlss,
                 .mIndirectLighting = false,
                 .mBounceRays = 3,
@@ -42,7 +42,7 @@ namespace MWRender
         TEST(RtxSettingsTest, eachValueReachesItsSettingAndTheCellsTheReach)
         {
             const RtxSettings derived = RtxSettings::derive(valid());
-            EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
+            EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Performance);
             EXPECT_EQ(derived.mUpscaler, Rtx::UpscalerChoice::Dlss);
             EXPECT_FALSE(derived.mIndirectLighting);
             EXPECT_EQ(derived.mBounceRays, 3u);
@@ -64,7 +64,7 @@ namespace MWRender
             Rtx::RenderProfile profile{ .mRadianceWidth = Rtx::RadianceWidth::Shown };
             profile.mReconstruction.mDenoise = false;
             derived.applyTo(profile);
-            EXPECT_EQ(profile.mUpscale, Rtx::Upscale::Balanced);
+            EXPECT_EQ(profile.mUpscale, Rtx::Upscale::Performance);
             EXPECT_EQ(profile.mUpscaler, Rtx::UpscalerChoice::Dlss);
             EXPECT_FALSE(profile.mReconstruction.mSampling.mIndirect);
             EXPECT_EQ(profile.mReconstruction.mSampling.mBounceRays, 3u);
@@ -87,6 +87,17 @@ namespace MWRender
             RtxSettingValues unfiltered = valid();
             unfiltered.mAnisotropy = 0;
             EXPECT_EQ(RtxSettings::derive(unfiltered).mAnisotropy, 1u) << "nought filters as one does";
+
+            // **No upscaler traces at no mode**, and the mode waits for one: the derivation keeps it, and
+            // the profile both hosts trace under holds `Off`.
+            RtxSettingValues none = valid();
+            none.mUpscaler = Rtx::UpscalerChoice::Off;
+            const RtxSettings unupscaled = RtxSettings::derive(none);
+            EXPECT_EQ(unupscaled.mUpscale, Rtx::Upscale::Performance);
+            Rtx::RenderProfile traced;
+            unupscaled.applyTo(traced);
+            EXPECT_EQ(traced.mUpscaler, Rtx::UpscalerChoice::Off);
+            EXPECT_EQ(traced.mUpscale, Rtx::Upscale::Off);
         }
 
         /// A gamma that is not a finite number over nought is refused: nought and less raise the

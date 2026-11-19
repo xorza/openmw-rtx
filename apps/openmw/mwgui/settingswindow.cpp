@@ -131,7 +131,6 @@ namespace
     }
 
     constexpr std::array<Rtx::MenuLabel<Rtx::Upscale>, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
-        { Rtx::Upscale::Off, "#{OMWEngine:RayTracingUpscaleOff}" },
         { Rtx::Upscale::UltraPerformance, "#{OMWEngine:RayTracingUpscaleUltraPerformance}" },
         { Rtx::Upscale::Performance, "#{OMWEngine:RayTracingUpscalePerformance}" },
         { Rtx::Upscale::Balanced, "#{OMWEngine:RayTracingUpscaleBalanced}" },
@@ -141,7 +140,7 @@ namespace
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
     constexpr std::array<Rtx::MenuLabel<Rtx::UpscalerChoice>, Rtx::sUpscalerMenu.size()> sUpscalerLabels{ {
-        { Rtx::UpscalerChoice::Auto, "#{OMWEngine:RayTracingUpscalerAuto}" },
+        { Rtx::UpscalerChoice::Off, "#{OMWEngine:RayTracingUpscalerOff}" },
         { Rtx::UpscalerChoice::Fsr, "#{OMWEngine:RayTracingUpscalerFsr}" },
         { Rtx::UpscalerChoice::Dlss, "#{OMWEngine:RayTracingUpscalerDlss}" },
     } };
@@ -555,6 +554,7 @@ namespace MWGui
             return;
 
         Settings::rtx().mUpscaler.set(chosen);
+        updateUpscaleList();
         apply();
         MWBase::Environment::get().getWindowManager()->interactiveMessageBox(
             "#{OMWEngine:ChangeRequiresRestart}", { "#{Interface:OK}" }, true);
@@ -800,7 +800,16 @@ namespace MWGui
         mRayTracingUpscaler->setIndexSelected(upscaler != mUpscalers.end()
                 ? static_cast<std::size_t>(std::distance(mUpscalers.begin(), upscaler))
                 : MyGUI::ITEM_NONE);
+        updateUpscaleList();
         updateBounceRaysSlider();
+    }
+
+    void SettingsWindow::updateUpscaleList()
+    {
+        // Its value stays as it is, for when an upscaler is chosen again.
+        const bool upscaled = Settings::rtx().mUpscaler.get() != Rtx::UpscalerChoice::Off;
+        mRayTracingUpscale->setEnabled(upscaled);
+        mRayTracingUpscale->setAlpha(upscaled ? 1.0f : 0.5f);
     }
 
     void SettingsWindow::updateBounceRaysSlider()

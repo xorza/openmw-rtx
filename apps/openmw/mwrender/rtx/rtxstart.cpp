@@ -21,8 +21,8 @@ namespace MWRender
             said += "\n\nThis build draws with hardware ray tracing alone. It needs an NVIDIA GeForce RTX 20 series "
                     "or later, or an AMD Radeon RX 6000 series (RDNA 2) or later, with a current graphics driver.";
         if (dynamic_cast<const Rtx::UpscalerRefused*>(&failure) != nullptr)
-            said += "\n\nThe upscaler chosen in the launcher cannot run here. Choose Auto or FSR there, or set "
-                    "[RTX] upscaler to auto in settings.cfg.";
+            said += "\n\nThe upscaler chosen in the launcher cannot run here. Choose FSR or Off there, or set "
+                    "[RTX] upscaler to fsr in settings.cfg.";
         said += "\n\nThe log in ";
         said += Files::pathToUnicodeString(logFolder);
         said += " says each step of the start.";

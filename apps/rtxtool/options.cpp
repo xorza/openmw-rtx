@@ -375,17 +375,18 @@ namespace RtxTool
 
         option(VerbSet{ Verb::Info, Verb::Film }.complement(), "upscale",
             bpo::value<std::string>()->default_value(
-                std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mRun.mProfile.mUpscale))),
-            std::format("put the upscaler, FSR 3.1, between the trace and the picture: {}. --size is "
-                        "what comes out, and what gets traced is --size over the mode's ratio. `{}` "
-                        "by default, `{}` under `tour`. `film` is always `{}`",
-                Rtx::sUpscaleNames.list(), Rtx::sUpscaleNames.name(sUpscaleByDefault),
-                Rtx::sUpscaleNames.name(sTourUpscale), Rtx::sUpscaleNames.name(sFilmUpscale)));
+                std::string(Rtx::sUpscaleModeNames.name(byDefault.mSetup.mRun.mProfile.mUpscale))),
+            std::format("how hard the upscaler works: {}. --size is what comes out, and what gets traced "
+                        "is --size over the mode's ratio. `{}` by default, `{}` under `tour`. `film` is "
+                        "always `{}`. Nothing under --upscaler=off",
+                Rtx::sUpscaleModeNames.list(), Rtx::sUpscaleModeNames.name(sUpscaleByDefault),
+                Rtx::sUpscaleModeNames.name(sTourUpscale), Rtx::sUpscaleModeNames.name(sFilmUpscale)));
 
         option(sFramed, "upscaler",
             bpo::value<std::string>()->default_value(
                 std::string(Rtx::sUpscalerNames.name(byDefault.mSetup.mRun.mProfile.mUpscaler))),
-            std::format("reconstruction backend: {}. `{}` by default for repeatable measurements",
+            std::format("which upscaler stands between the trace and the picture: {}. `off` traces every "
+                        "pixel under the renderer's denoisers alone. `{}` by default for repeatable measurements",
                 Rtx::sUpscalerNames.list(), Rtx::sUpscalerNames.name(byDefault.mSetup.mRun.mProfile.mUpscaler)));
 
         option(sFramed, "exposure", bpo::value<std::string>()->default_value("auto"),
@@ -868,7 +869,7 @@ namespace RtxTool
             "average this many differently-seeded frames into one picture. A converged reference, "
             "which is the only ground truth a sampled renderer has: error falls as the square root "
             "of this, so a hundred is a clean picture and a thousand is a reference. Wants "
-            "--upscale=off, because a denoiser resolves every frame towards its own opinion rather "
+            "--upscaler=off, because a denoiser resolves every frame towards its own opinion rather "
             "than towards the integral");
 
         option(sFramed, "jitter",
@@ -960,7 +961,7 @@ namespace RtxTool
         frame.mDay = { variables["day"].as<std::int32_t>(), named("day") };
         if (const Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
             throw std::runtime_error(std::format("--day={} {}", frame.mDay.mValue, checked.error()));
-        frame.mUpscale = { Rtx::sUpscaleNames.require(text("upscale"), "an upscale mode"), named("upscale") };
+        frame.mUpscale = { Rtx::sUpscaleModeNames.require(text("upscale"), "an upscale mode"), named("upscale") };
         frame.mUpscaler = { Rtx::sUpscalerNames.require(text("upscaler"), "an upscaler"), named("upscaler") };
         if (named("grass"))
             frame.mGrass = on("grass");

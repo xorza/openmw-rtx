@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <optional>
-#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -14,6 +13,7 @@
 
 #include "dlssupscaler.hpp"
 #include "fsrupscaler.hpp"
+#include "noupscaler.hpp"
 #include "upscaleinputs.hpp"
 
 namespace Rtx
@@ -21,54 +21,23 @@ namespace Rtx
     class Device;
     class GpuTimer;
 
-    /// Which upscaler runs: what an `UpscalerChoice` came to on this machine.
-    enum class UpscalerKind
-    {
-        Fsr,
-        Dlss,
-    };
-
     /// Whether a menu offers DLSS under `availability`: where it runs, or where every fact holds and
-    /// nothing tried it, and not where it was made and refused.
+    /// nothing tried it.
     constexpr bool offersDlss(const DlssAvailability availability)
     {
         return availability == DlssAvailability::Present || availability == DlssAvailability::Ready;
     }
 
-    /// What `choice` comes to under `availability`: a concrete choice as it stands, so an explicit
-    /// `Dlss` still tries and fails by name rather than quietly drawing through FSR; `Auto` is DLSS
-    /// where it is offered, and FSR elsewhere.
-    constexpr UpscalerKind chooseUpscaler(const UpscalerChoice choice, const DlssAvailability availability)
-    {
-        switch (choice)
-        {
-            case UpscalerChoice::Fsr:
-                return UpscalerKind::Fsr;
-            case UpscalerChoice::Dlss:
-                return UpscalerKind::Dlss;
-            case UpscalerChoice::Auto:
-                break;
-        }
-        return offersDlss(availability) ? UpscalerKind::Dlss : UpscalerKind::Fsr;
-    }
-
-    /// What a log says of an upscaler: `running`, its backend's name, then the choice `asked` and, where
-    /// `Auto` passed DLSS over, why — `dlss`, and the `refusal` where it was made and refused.
-    std::string describeUpscalerChoice(
-        std::string_view running, UpscalerChoice asked, DlssAvailability dlss, std::string_view refusal);
-
-    /// The reconstruction between the trace and the display, whichever backend makes it. Both
+    /// The reconstruction between the trace and the display, whichever backend makes it, or none. Both
     /// upscalers write an arena image and hand it to the display, so the rest of the frame never
-    /// asks which one is running.
+    /// asks which one is running; under none, every frame is traced at `Upscale::Off`.
     ///
-    /// **`Auto` is resolved where the device is known** (`chooseUpscaler`): DLSS where it is present,
-    /// FSR everywhere else, and FSR as well where DLSS then refuses to start. An explicit `Dlss` that
-    /// cannot start is an `UpscalerRefused` naming why, so a test never mistakes FSR's picture for
-    /// DLSS's.
+    /// **The choice is made as asked**: a `Dlss` that cannot start is an `UpscalerRefused` naming
+    /// why, so a test never mistakes FSR's picture for DLSS's.
     class Upscaler
     {
     public:
-        /// @param availability what `Auto` resolves by, which the renderer looked for once.
+        /// @param availability whether DLSS runs here, which the renderer looked for once.
         /// @param application what NGX is told of the application, which outlives this; null in a
         ///        run that never asked for DLSS.
         Upscaler(const Device& device, UpscalerChoice choice, DlssAvailability availability,
@@ -78,10 +47,7 @@ namespace Rtx
         Upscaler& operator=(const Upscaler&) = delete;
         ~Upscaler() = default;
 
-        /// What the choice came to.
-        UpscalerKind getKind() const;
-
-        /// What the choice came to, as a choice: `Fsr` or `Dlss`, never `Auto`.
+        /// Which upscaler this is.
         UpscalerChoice getChoice() const;
 
         /// Whether DLSS runs here, as the attempt left it where one was made.
@@ -151,22 +117,14 @@ namespace Rtx
         /// One line for `info`: which upscaler this renderer has.
         std::string_view describe() const;
 
-        /// Which upscaler this renderer has, what was asked, and why `Auto` passed DLSS over where it
-        /// did (`describeUpscalerChoice`).
-        std::string describeChoice() const;
-
     private:
-        using Backend = std::variant<FsrUpscaler, DlssUpscaler>;
+        using Backend = std::variant<NoUpscaler, FsrUpscaler, DlssUpscaler>;
 
-        /// @param refusal what NGX said where DLSS was made and refused.
         static Backend makeBackend(const Device& device, UpscalerChoice choice, DlssAvailability& availability,
-            std::string& refusal, const Dlss::Application* application);
+            const Dlss::Application* application);
 
-        const UpscalerChoice mAsked;
-
-        /// Before the backend, which the constructor resolves them with.
+        /// Before the backend, which the constructor makes it Ready by.
         DlssAvailability mDlss;
-        std::string mRefusal;
 
         /// The one backend the constructor resolved, fixed for the run: a settings change asks for
         /// a restart, so nothing swaps it afterwards.

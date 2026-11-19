@@ -1,6 +1,7 @@
 #include "rtxsettings.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <format>
 #include <utility>
@@ -48,6 +49,7 @@ namespace MWRender
         if (values.mBounceRays < 1 || std::cmp_greater(values.mBounceRays, Rtx::Shaders::MAX_BOUNCE_RAYS))
             throw Rtx::InputError(
                 std::format("{} bounce rays is outside one to {}", values.mBounceRays, Rtx::Shaders::MAX_BOUNCE_RAYS));
+        assert(values.mUpscale != Rtx::Upscale::Off && "no upscaler named as a mode");
 
         return RtxSettings{
             .mUpscale = values.mUpscale,
@@ -70,7 +72,7 @@ namespace MWRender
 
     void RtxSettings::applyTo(Rtx::RenderProfile& profile) const
     {
-        profile.mUpscale = mUpscale;
+        profile.mUpscale = mUpscaler == Rtx::UpscalerChoice::Off ? Rtx::Upscale::Off : mUpscale;
         profile.mUpscaler = mUpscaler;
         profile.mReconstruction.mSampling.mIndirect = mIndirectLighting;
         profile.mReconstruction.mSampling.mBounceRays = mBounceRays;

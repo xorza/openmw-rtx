@@ -41,6 +41,7 @@ namespace Launcher
         void slotFullScreenChanged(std::int32_t mode);
         void slotStandardToggled(bool checked);
         void slotFramerateLimitToggled(bool checked);
+        void slotUpscalerChanged(std::int32_t index);
         void downloadDlss();
         void readDlssDownload();
         void finishDlssDownload();

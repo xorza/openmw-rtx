@@ -284,9 +284,8 @@ namespace RtxTool
 
     /// **A length in samples a shown pixel**: as many frames, summed, as a frame of the run's own mode holds
     /// samples a shown pixel after `mAfter` frames of history, rounded down, at most `mMost` and never under one.
-    /// The extents are the renderer's to give (DLSS's are NGX's, and an upscaler asked for as `auto` is chosen only
-    /// as the renderer is made), so a stop states its length this way and the session settles it into frames
-    /// (`SessionRequest::settleUnder`).
+    /// The extents are the renderer's to give (DLSS's are NGX's), so a stop states its length this way and the
+    /// session settles it into frames (`SessionRequest::settleUnder`).
     struct HeldFrames
     {
         std::uint32_t mAfter = 0;

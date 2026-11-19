@@ -51,7 +51,7 @@ namespace RtxTool
                     std::ofstream(file, std::ios::binary) << Base64::Base64::Encode(
                         "[Video]\ngamma = 1.25\n[Cells]\npreload distance = 1000\npreload num threads = 1\n"
                         "preload cell cache min = 12\npreload cell cache max = 20\n[Physics]\nasync num threads = 1\n"
-                        "[RTX]\nupscale = balanced\nupscaler = auto\n");
+                        "[RTX]\nupscale = balanced\nupscaler = dlss\n");
                     return ShippedDefaults(file);
                 }())
             {
@@ -335,7 +335,7 @@ namespace RtxTool
             measured.mViewingDistance = 7168.0f;
             const MWRender::RtxSettingValues toured = touredSettings(mShipped, measured);
             EXPECT_EQ(toured.mUpscale, Rtx::Upscale::Balanced);
-            EXPECT_EQ(toured.mUpscaler, Rtx::UpscalerChoice::Auto);
+            EXPECT_EQ(toured.mUpscaler, Rtx::UpscalerChoice::Dlss);
             EXPECT_EQ(toured.mDistantLandCells, 10.0f);
             EXPECT_EQ(toured.mViewingDistance, 81920.0f) << "ten cells of 8192";
         }

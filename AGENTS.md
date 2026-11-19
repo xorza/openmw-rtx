@@ -92,9 +92,9 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`, one task a
 **Checking a rendering change** — through the harness at the places in `files/rtx/views.cfg` and the suites in
 `files/rtx/benches.cfg`, never by opening the game window; `view` is for what only a window shows.
 
-- `./omw shot --views=all --map --upscale=off --out=<dir>` before a change and `--against=<dir>` after it names the
+- `./omw shot --views=all --map --upscaler=off --out=<dir>` before a change and `--against=<dir>` after it names the
   pictures the change moved. Narrow an investigation to its place, and run `all` last. Keep the baseline outside
-  `/tmp`, whose cleaner empties it. `--upscale=off`, because an upscaled picture moves with anything its history saw.
+  `/tmp`, whose cleaner empties it. `--upscaler=off`, because an upscaled picture moves with anything its history saw.
 - `./omw noise` holds the frame's noise against its own frames averaged, with each place's bias and fireflies. Its legs
   show different faults: `--strafe` and `--walk` a history length or a filter's reach, `--cut` the fireflies after a
   cut, `--upscale=native` a temporal filter that fetches its history off the pixel. An A/B is

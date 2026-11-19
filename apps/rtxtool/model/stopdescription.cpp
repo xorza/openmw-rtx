@@ -145,7 +145,6 @@ namespace RtxTool
 
     std::string_view describeUpscaler(const Rtx::RenderProfile& profile)
     {
-        assert(profile.mUpscaler != Rtx::UpscalerChoice::Auto && "a profile no renderer resolved");
         return Rtx::upscales(profile.mUpscale) ? Rtx::sUpscalerNames.name(profile.mUpscaler) : "no";
     }
 

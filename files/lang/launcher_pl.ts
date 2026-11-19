@@ -207,12 +207,12 @@
         <translation>Rozdzielczość renderowania gry, skalowana do rozmiaru okna. „Natywna” używa rozmiaru okna. W trybie okienkowym okno zachowuje ostatni rozmiar.</translation>
     </message>
     <message>
-        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
-        <translation>Ile pikseli śledzi ray tracing. „Wyłączone” i „Natywna” śledzą każdy piksel; „Natywna” używa też skalowania jako antyaliasingu. Pozostałe tryby śledzą mniej pikseli i skalują obraz.</translation>
+        <source>How many pixels the ray tracer traces. Native traces every pixel and uses the upscaler as anti-aliasing; the other modes trace fewer pixels and upscale the frame. Waits while the upscaler is off.</source>
+        <translation>Ile pikseli śledzi ray tracing. „Natywna” śledzi każdy piksel i używa skalowania jako antyaliasingu; pozostałe tryby śledzą mniej pikseli i skalują obraz. Bez znaczenia, gdy skalowanie jest wyłączone.</translation>
     </message>
     <message>
-        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
-        <translation>„Automatycznie” używa NVIDIA DLSS na karcie NVIDIA z zainstalowanym DLSS, a w przeciwnym razie AMD FSR. Jeśli wybrano DLSS, a nie może on działać, OpenMW się nie uruchomi. Zmiana działa po ponownym uruchomieniu.</translation>
+        <source>Off traces every pixel with no upscaler and no anti-aliasing. NVIDIA DLSS needs an NVIDIA card with DLSS installed; if it is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>„Wyłączone” śledzi każdy piksel bez skalowania i bez antyaliasingu. NVIDIA DLSS wymaga karty NVIDIA z zainstalowanym DLSS; jeśli wybrano DLSS, a nie może on działać, OpenMW się nie uruchomi. Zmiana działa po ponownym uruchomieniu.</translation>
     </message>
     <message>
         <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
@@ -231,8 +231,8 @@
         <translation>Synchronizacja pionowa</translation>
     </message>
     <message>
-        <source>Upscaling</source>
-        <translation>Skalowanie</translation>
+        <source>Upscaling Quality</source>
+        <translation>Jakość skalowania</translation>
     </message>
     <message>
         <source>Upscaler</source>
@@ -253,10 +253,6 @@
     <message>
         <source>Native</source>
         <translation>Natywna</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Automatycznie</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>

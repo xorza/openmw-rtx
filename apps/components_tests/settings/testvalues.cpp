@@ -78,10 +78,11 @@ namespace Settings
 
         /// **An upscale mode is read by the one spelling list at load**, as the
         /// documentation spells them, and refused where the list holds no such name: a typo traced
-        /// under `off` would be a session of the wrong picture. Written back by the same name.
+        /// under another mode would be a session of the wrong picture. `off` is no mode, but the
+        /// upscaler's own setting, and refused here. Written back by the same name.
         TEST_F(SettingsValuesTest, constructorShouldReadAModeByItsSpellingAndRefuseOneItLacks)
         {
-            for (const auto& [mode, spelling] : Rtx::sUpscaleNames.mNames)
+            for (const auto& [mode, spelling] : Rtx::sUpscaleModeNames.mNames)
             {
                 Manager::mUserSettings[std::make_pair("RTX", "upscale")] = std::string(spelling);
                 Index index;
@@ -105,10 +106,11 @@ namespace Settings
                 EXPECT_EQ(Manager::mUserSettings.at({ "RTX", "upscaler" }), "dlss");
             }
 
-            Manager::mUserSettings[std::make_pair("RTX", "upscale")] = "Quality";
+            for (const char* const refused : { "Quality", "off" })
             {
+                Manager::mUserSettings[std::make_pair("RTX", "upscale")] = refused;
                 Index index;
-                EXPECT_THROW([&] { Values values(index); }(), Rtx::InputError);
+                EXPECT_THROW([&] { Values values(index); }(), Rtx::InputError) << refused;
             }
         }
 

@@ -326,8 +326,8 @@ namespace Rtx
                 Ngx::failed(queried) || available == 0)
                 throw UpscalerRefused(refusalOf(mCapabilities.get()));
 
-            // **A library that cannot say what its features hold is refused here**, where `auto` can
-            // still fall back, and not at the first resize, whose reserve counts what they hold.
+            // **A library that cannot say what its features hold is refused here**, as the renderer starts,
+            // and not at the first resize, whose reserve counts what they hold.
             // NOLINTNEXTLINE(google-runtime-int): NGX's type
             unsigned long long held = 0;
             if (const Ngx::Result stated = Ngx::statsBytes(mCapabilities.get(), held); Ngx::failed(stated))
@@ -340,7 +340,7 @@ namespace Rtx
             mParameters.get().Set(Ngx::sFreeMemoryOnRelease, 1);
             Ngx::setRayReconstructionConstants(mParameters.get());
 
-            // **A small feature is the real answer before `auto` commits**, as the query before a
+            // **A small feature is the real answer before the renderer commits**, as the query before a
             // device exists can be inconclusive, and creating it loads the player's library. The
             // frame's own feature is made at its extents in `resize`; this one is released at once.
             const VkExtent2D probe{ sProbeSide, sProbeSide };

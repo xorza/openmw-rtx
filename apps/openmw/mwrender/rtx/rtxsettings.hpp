@@ -14,8 +14,9 @@ namespace MWRender
     /// alone. The upscaler and the map layout arrive parsed, each source parsing its own text where it enters.
     struct RtxSettingValues
     {
-        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
-        Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Auto;
+        /// A mode an upscaler runs at, never `Off`: no upscaler is `mUpscaler`'s to say.
+        Rtx::Upscale mUpscale = Rtx::Upscale::Balanced;
+        Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Fsr;
         bool mIndirectLighting = true;
         std::int32_t mBounceRays = 1;
         float mDistantLandCells = 0.0f;
@@ -39,10 +40,12 @@ namespace MWRender
     /// What those values mean for a ray tracer: the one derivation, for both hosts.
     struct RtxSettings
     {
-        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+        /// The mode the upscaler runs at, never `Off`: `RenderProfile::mUpscale` under an upscaler, and
+        /// waiting under none.
+        Rtx::Upscale mUpscale = Rtx::Upscale::Balanced;
 
         /// `RenderProfile::mUpscaler`: the setting.
-        Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Auto;
+        Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Fsr;
 
         /// `SamplingSwitches::mIndirect`: the setting.
         bool mIndirectLighting = true;

@@ -207,12 +207,12 @@
         <translation>Разделителната способност на играта, мащабирана спрямо прозореца. „Естествена“ използва размера на прозореца. В режим на прозорец той запазва последния си размер.</translation>
     </message>
     <message>
-        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
-        <translation>Колко пиксела се трасират. „Изключено“ и „Естествена“ трасират всеки пиксел, като „Естествена“ използва мащабирането за изглаждане. Другите режими трасират по-малко пиксели и мащабират кадъра.</translation>
+        <source>How many pixels the ray tracer traces. Native traces every pixel and uses the upscaler as anti-aliasing; the other modes trace fewer pixels and upscale the frame. Waits while the upscaler is off.</source>
+        <translation>Колко пиксела се трасират. „Естествена“ трасира всеки пиксел и използва мащабирането за изглаждане; другите режими трасират по-малко пиксели и мащабират кадъра. Без ефект, когато мащабирането е изключено.</translation>
     </message>
     <message>
-        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
-        <translation>„Автоматично“ използва NVIDIA DLSS на карта NVIDIA с инсталиран DLSS, иначе AMD FSR. Ако е избран DLSS и не може да работи, OpenMW не стартира. Влиза в сила след рестарт.</translation>
+        <source>Off traces every pixel with no upscaler and no anti-aliasing. NVIDIA DLSS needs an NVIDIA card with DLSS installed; if it is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>„Изключено“ трасира всеки пиксел без мащабиране и без изглаждане. NVIDIA DLSS изисква карта NVIDIA с инсталиран DLSS; ако е избран и не може да работи, OpenMW не стартира. Влиза в сила след рестарт.</translation>
     </message>
     <message>
         <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
@@ -231,8 +231,8 @@
         <translation>Вертикална синхронизация</translation>
     </message>
     <message>
-        <source>Upscaling</source>
-        <translation>Мащабиране</translation>
+        <source>Upscaling Quality</source>
+        <translation>Качество на мащабиране</translation>
     </message>
     <message>
         <source>Upscaler</source>
@@ -253,10 +253,6 @@
     <message>
         <source>Native</source>
         <translation>Естествена</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Автоматично</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>

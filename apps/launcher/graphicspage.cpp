@@ -50,7 +50,6 @@ namespace
 
     // In the context the .ui's own strings are translated in, which is where these came from
     constexpr std::array<Rtx::MenuLabel<Rtx::Upscale>, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
-        { Rtx::Upscale::Off, QT_TRANSLATE_NOOP("GraphicsPage", "Off") },
         { Rtx::Upscale::UltraPerformance, QT_TRANSLATE_NOOP("GraphicsPage", "Ultra Performance") },
         { Rtx::Upscale::Performance, QT_TRANSLATE_NOOP("GraphicsPage", "Performance") },
         { Rtx::Upscale::Balanced, QT_TRANSLATE_NOOP("GraphicsPage", "Balanced") },
@@ -60,7 +59,7 @@ namespace
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
     constexpr std::array<Rtx::MenuLabel<Rtx::UpscalerChoice>, Rtx::sUpscalerMenu.size()> sUpscalerLabels{ {
-        { Rtx::UpscalerChoice::Auto, QT_TRANSLATE_NOOP("GraphicsPage", "Auto") },
+        { Rtx::UpscalerChoice::Off, QT_TRANSLATE_NOOP("GraphicsPage", "Off") },
         { Rtx::UpscalerChoice::Fsr, QT_TRANSLATE_NOOP("GraphicsPage", "AMD FSR 3.1") },
         { Rtx::UpscalerChoice::Dlss, QT_TRANSLATE_NOOP("GraphicsPage", "NVIDIA DLSS") },
     } };
@@ -90,6 +89,8 @@ Launcher::GraphicsPage::GraphicsPage(DlssLibrary::Folders dlss, QWidget* parent)
 
     addMenuItems<Rtx::Upscale>(rayTracingUpscaleComboBox, sUpscaleLabels);
     buildUpscalerItems();
+    connect(rayTracingUpscalerComboBox, qOverload<std::int32_t>(&QComboBox::currentIndexChanged), this,
+        &GraphicsPage::slotUpscalerChanged);
     rayTracingDistantLandSpinBox->setRange(static_cast<std::int32_t>(Settings::RTXCategory::sMinDistantLandCellsInMenu),
         static_cast<std::int32_t>(Settings::RTXCategory::sMaxDistantLandCells));
 
@@ -385,6 +386,8 @@ bool Launcher::GraphicsPage::loadSettings()
         = std::ranges::find(mUpscalers, Rtx::launcherUpscaler(Settings::rtx().mUpscaler.get(), mDlssInstalled));
     rayTracingUpscalerComboBox->setCurrentIndex(
         upscaler != mUpscalers.end() ? static_cast<std::int32_t>(std::distance(mUpscalers.begin(), upscaler)) : -1);
+    // Said here as well, since a box already at the saved entry signals no change.
+    slotUpscalerChanged(rayTracingUpscalerComboBox->currentIndex());
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
@@ -536,4 +539,11 @@ void Launcher::GraphicsPage::slotStandardToggled(bool checked)
 void Launcher::GraphicsPage::slotFramerateLimitToggled(bool checked)
 {
     framerateLimitSpinBox->setEnabled(checked);
+}
+
+void Launcher::GraphicsPage::slotUpscalerChanged(std::int32_t index)
+{
+    // Its value stays as it is, for when an upscaler is chosen again.
+    rayTracingUpscaleComboBox->setEnabled(index < 0 || std::cmp_greater_equal(index, mUpscalers.size())
+        || mUpscalers[static_cast<std::size_t>(index)] != Rtx::UpscalerChoice::Off);
 }

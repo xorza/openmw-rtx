@@ -678,6 +678,7 @@ target_sources(
                 upscale/dlssupscaler.hpp
                 upscale/fsrframe.hpp
                 upscale/fsrupscaler.hpp
+                upscale/noupscaler.hpp
                 upscale/upscaleinputs.hpp
                 upscale/upscaler.hpp
                 vulkanrenderer.hpp

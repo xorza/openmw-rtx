@@ -28,6 +28,11 @@
 
 namespace RtxTool
 {
+    /// What a frame is upscaled by when nobody names a mode. The one knob whose default is the
+    /// harness's own and not `settings-default.cfg`'s. Quality rather than Performance, so a plain
+    /// run is the renderer with everything on and not one that quietly quartered its pixels.
+    inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::Upscale::Quality;
+
     /// An option's value, and whether the line or a configuration file named it rather than leaving
     /// it at its default: what a verb reads where it answers an option nobody named another way.
     template <class T>
@@ -84,7 +89,7 @@ namespace RtxTool
             float mFieldOfView = 0.0f;
             Named<std::int32_t> mDay;
 
-            Named<Rtx::Upscale> mUpscale;
+            Named<Rtx::Upscale> mUpscale{ sUpscaleByDefault };
 
             /// `--upscaler`: which backend runs, FSR by default so a measured picture does not
             /// change with the card it was measured on.

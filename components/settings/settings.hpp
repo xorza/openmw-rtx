@@ -268,7 +268,7 @@ namespace Settings
     template <>
     inline Rtx::Upscale Manager::getImpl<Rtx::Upscale>(std::string_view setting, std::string_view category)
     {
-        return Rtx::sUpscaleNames.require(getString(setting, category), "an upscale mode");
+        return Rtx::sUpscaleModeNames.require(getString(setting, category), "an upscale mode");
     }
 
     template <>

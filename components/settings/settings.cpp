@@ -457,7 +457,7 @@ namespace Settings
 
     void Manager::set(std::string_view setting, std::string_view category, Rtx::Upscale value)
     {
-        setString(setting, category, std::string(Rtx::sUpscaleNames.name(value)));
+        setString(setting, category, std::string(Rtx::sUpscaleModeNames.name(value)));
     }
 
     void Manager::set(std::string_view setting, std::string_view category, Rtx::UpscalerChoice value)

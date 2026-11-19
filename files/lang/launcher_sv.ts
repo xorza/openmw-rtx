@@ -151,8 +151,8 @@
 <context>
     <name>GraphicsPage</name>
     <message>
-        <source>Upscaling</source>
-        <translation>Uppskalning</translation>
+        <source>Upscaling Quality</source>
+        <translation>Uppskalningskvalitet</translation>
     </message>
     <message>
         <source>Off</source>
@@ -165,10 +165,6 @@
     <message>
         <source>Native</source>
         <translation>Nativ</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Automatisk</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>
@@ -227,16 +223,16 @@
         <translation>Upplösningen spelet renderas i, skalad till fönstret. Nativ använder fönstrets storlek. I fönsterläge behåller fönstret sin senaste storlek.</translation>
     </message>
     <message>
-        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
-        <translation>Hur många pixlar strålspårningen beräknar. Av och Nativ beräknar varje pixel; Nativ använder även uppskalningen som kantutjämning. Övriga lägen beräknar färre pixlar och skalar upp bilden.</translation>
+        <source>How many pixels the ray tracer traces. Native traces every pixel and uses the upscaler as anti-aliasing; the other modes trace fewer pixels and upscale the frame. Waits while the upscaler is off.</source>
+        <translation>Hur många pixlar strålspårningen beräknar. Nativ beräknar varje pixel och använder uppskalaren som kantutjämning; övriga lägen beräknar färre pixlar och skalar upp bilden. Verkar inte när uppskalaren är av.</translation>
     </message>
     <message>
         <source>Upscaler</source>
         <translation>Uppskalare</translation>
     </message>
     <message>
-        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
-        <translation>Automatisk använder NVIDIA DLSS på ett NVIDIA-kort med DLSS installerat, annars AMD FSR. Om DLSS är valt men inte kan köras startar inte OpenMW. Gäller efter omstart.</translation>
+        <source>Off traces every pixel with no upscaler and no anti-aliasing. NVIDIA DLSS needs an NVIDIA card with DLSS installed; if it is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>Av beräknar varje pixel utan uppskalare och utan kantutjämning. NVIDIA DLSS kräver ett NVIDIA-kort med DLSS installerat; om det är valt men inte kan köras startar inte OpenMW. Gäller efter omstart.</translation>
     </message>
     <message>
         <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>

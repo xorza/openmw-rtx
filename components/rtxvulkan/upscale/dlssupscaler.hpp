@@ -26,8 +26,8 @@ namespace Rtx
     struct DriverProfile;
     class GpuTimer;
 
-    /// Whether DLSS runs on this machine: each fact `Auto` and the menus read, in the order they are
-    /// asked, and what the attempt came to once one was made.
+    /// Whether DLSS runs on this machine: each fact the menus read, in the order they are asked, and
+    /// what the attempt came to once one was made.
     enum class DlssAvailability
     {
         /// The renderer's device is not NVIDIA's.
@@ -36,11 +36,8 @@ namespace Rtx
         /// The player's feature library is not where NGX looks.
         NotInstalled,
 
-        /// Every fact holds, and no DLSS was made: what `Auto` resolves to DLSS by.
+        /// Every fact holds, and no DLSS was made: what a menu offers DLSS by.
         Present,
-
-        /// DLSS was made and refused, so `Auto` came to FSR.
-        Refused,
 
         /// DLSS runs.
         Ready,
@@ -54,8 +51,8 @@ namespace Rtx
     ///
     /// The library's own default preset applies, as NVIDIA's guide recommends (DLSS-RR Integration Guide, 3.13), so a
     /// newer library the player installs brings its own defaults. The constructor is the answer to whether DLSS runs:
-    /// it opens NGX for the device and creates a small feature, so every refusal is an `UpscalerRefused` there, where
-    /// `Upscaler` can fall back from `auto`, and not at the first resize.
+    /// it opens NGX for the device and creates a small feature, so every refusal is an `UpscalerRefused` there, as the
+    /// renderer starts, and not at the first resize.
     class DlssUpscaler
     {
     public:

@@ -228,7 +228,6 @@ namespace MWRender
         mRenderer = createBackend(setup.mBackend, options);
         mUpscale = setup.mRun.mProfile.mUpscale;
 
-        // What `auto` came to is the device's description's `upscaler` line.
         Log(Debug::Info) << "Ray tracing device\n" << mRenderer->describeDevice();
 
         // A driver that takes a crash signal for itself as it starts leaves the crash catcher blind to every
@@ -705,7 +704,9 @@ namespace MWRender
             return;
         }
 
-        if (upscale)
+        // **A mode moves under the upscaler the renderer was made with**, and waits under none: the upscaler
+        // the menu now names is the next start's.
+        if (upscale && mRenderer->getProfile().mUpscaler != Rtx::UpscalerChoice::Off)
             mUpscale = settings->mUpscale;
 
         // The ring, the air and the map follow the reach while the game runs. Handed over here and never

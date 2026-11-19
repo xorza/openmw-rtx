@@ -24,7 +24,7 @@ from omw.system import Refusal, Switches, read_text, temporary_folder
 # **What `repeat` sets on every run**: what the walk is and how it is taken. Named twice, `bench` refuses the line,
 # so each is refused here first.
 WALK = {"--views": "one-cell-walk", "--seconds": "6"}
-TAKEN = {"--window": "false", "--upscale": "off", "--filter": "false"}
+TAKEN = {"--window": "false", "--upscaler": "off", "--filter": "false"}
 
 # **The frame every run walks at unless the line names another**: `RtxTool::sCheckFrame`, which a test holds this
 # to. A default and not one of `TAKEN`, so a difference is still read at any size.

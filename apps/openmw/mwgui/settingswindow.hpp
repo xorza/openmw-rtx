@@ -29,6 +29,7 @@ namespace MWGui
 
         void updateVSyncModeSettings();
         void updateRayTracingSettings();
+        void updateUpscaleList();
         void updateBounceRaysSlider();
 
         void updateWindowModeSettings();

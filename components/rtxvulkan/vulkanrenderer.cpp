@@ -122,11 +122,11 @@ namespace Rtx
             return options.mReporting == Reporting::Measured;
         }
 
-        /// What NGX is told of the application, where the run may use DLSS: a profile that only
-        /// ever uses FSR makes none, and no folder is made for it.
+        /// What NGX is told of the application, where the run uses DLSS: a profile that does not
+        /// makes none, and no folder is made for it.
         std::optional<Dlss::Application> dlssApplicationFor(const RendererOptions& options)
         {
-            if (options.mRun.mProfile.mUpscaler == UpscalerChoice::Fsr)
+            if (options.mRun.mProfile.mUpscaler != UpscalerChoice::Dlss)
                 return std::nullopt;
 
             return std::optional<Dlss::Application>(std::in_place, options.mDlss);
@@ -191,8 +191,13 @@ namespace Rtx
         , mPictures(mDevice, mTracePasses, mProfile.mRadianceWidth)
         , mReservedUpscales(options.mRun.mReservedUpscales)
     {
+        if (mProfile.mUpscaler == UpscalerChoice::Off)
+        {
+            assert(mProfile.mUpscale == Upscale::Off && "a mode under no upscaler");
+            assert(std::ranges::all_of(mReservedUpscales, [](Upscale mode) { return mode == Upscale::Off; })
+                && "a mode reserved under no upscaler");
+        }
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
-        mProfile.mUpscaler = mUpscaler.getChoice();
 
         // **NGX's hazards between its own commands on its own resources are not the renderer's to answer
         // for** (seen in Ray Reconstruction 310.9.16: a clear after its own layout transition).
@@ -229,6 +234,8 @@ namespace Rtx
 
     void VulkanRenderer::setUpscale(Upscale upscale)
     {
+        if (mProfile.mUpscaler == UpscalerChoice::Off)
+            assert(upscale == Upscale::Off && "a mode under no upscaler");
         if (upscale == mProfile.mUpscale)
             return;
 
@@ -263,11 +270,12 @@ namespace Rtx
         // **Logged where the frame differs from the last one logged or anything is made again**: the mode
         // alone, Native against Off, moves no extent, and a mode that keeps its extents keeps the chain and
         // every history; a resize to the size the targets stand at says nothing new.
-        std::string frame
-            = std::format("{}x{} shown, traced at {}x{} ({}, {:.1f}% a side), by {}, the light filtered by the {}",
-                output.width, output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),
-                100.0 * render.width / output.width, sUpscalerNames.name(mUpscaler.getChoice()),
-                rendererFilters(mProfile.mUpscale, mUpscaler.getInput()) ? "renderer" : "upscaler");
+        std::string frame = std::format(
+            "{}x{} shown, traced at {}x{} ({}, {:.1f}% a side), by {}, the light filtered by the {}", output.width,
+            output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),
+            100.0 * render.width / output.width,
+            mUpscaler.getChoice() == UpscalerChoice::Off ? "no upscaler" : sUpscalerNames.name(mUpscaler.getChoice()),
+            rendererFilters(mProfile.mUpscale, mUpscaler.getInput()) ? "renderer" : "upscaler");
         if (frame != mFrameLogged || moves.mTrace || moves.mUpscaler)
             Log(Debug::Info) << "Frame: " << frame << ", the trace chain " << (moves.mTrace ? "made again" : "kept")
                              << ", the upscaler's targets " << (moves.mUpscaler ? "made again" : "kept");
@@ -371,7 +379,7 @@ namespace Rtx
         report += mDevice.getPhysicalDevice().describe();
         report += mInstance.getLayers().describe();
 
-        report += "\nupscaler:          " + mUpscaler.describeChoice() + '\n';
+        report += "\nupscaler:          " + std::string(mUpscaler.describe()) + '\n';
 
         // What the video memory comes to once the frame's targets stand, and what the system leaves the
         // process beside it: the two figures a report of running short is read against.

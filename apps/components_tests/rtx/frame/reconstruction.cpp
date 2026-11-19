@@ -393,20 +393,35 @@ namespace Rtx
         {
             const std::span<const UpscalerChoice> without = offeredUpscalers(false);
             EXPECT_EQ(std::vector(without.begin(), without.end()),
-                (std::vector<UpscalerChoice>{ UpscalerChoice::Auto, UpscalerChoice::Fsr }));
+                (std::vector<UpscalerChoice>{ UpscalerChoice::Off, UpscalerChoice::Fsr }));
             const std::span<const UpscalerChoice> with = offeredUpscalers(true);
             EXPECT_EQ(std::vector(with.begin(), with.end()),
-                (std::vector<UpscalerChoice>{ UpscalerChoice::Auto, UpscalerChoice::Fsr, UpscalerChoice::Dlss }));
+                (std::vector<UpscalerChoice>{ UpscalerChoice::Off, UpscalerChoice::Fsr, UpscalerChoice::Dlss }));
         }
 
         /// The launcher must not save `dlss` for a library that is not installed; that was the
-        /// configuration the game refused to start with.
+        /// configuration the game refused to start with. It saves FSR in its place, and every other
+        /// choice as it stands.
         TEST(RtxUpscalerTest, theLauncherDoesNotKeepDlssWithoutItsLibrary)
         {
             EXPECT_EQ(launcherUpscaler(UpscalerChoice::Dlss, true), UpscalerChoice::Dlss);
-            EXPECT_EQ(launcherUpscaler(UpscalerChoice::Dlss, false), UpscalerChoice::Auto);
+            EXPECT_EQ(launcherUpscaler(UpscalerChoice::Dlss, false), UpscalerChoice::Fsr);
             EXPECT_EQ(launcherUpscaler(UpscalerChoice::Fsr, false), UpscalerChoice::Fsr);
-            EXPECT_EQ(launcherUpscaler(UpscalerChoice::Auto, false), UpscalerChoice::Auto);
+            EXPECT_EQ(launcherUpscaler(UpscalerChoice::Off, false), UpscalerChoice::Off);
+        }
+
+        /// **The modes a setting and a line take are every mode but `Off`**, which is no upscaler's mode but
+        /// the absence of one, named by the upscaler's own setting: `off` is refused as a mode, and the menu
+        /// is the five from ultra performance to native, in that order.
+        TEST(RtxUpscalerTest, theSettableModesAreEveryModeButOff)
+        {
+            EXPECT_EQ(sUpscaleModeNames.named("off"), std::nullopt);
+            EXPECT_EQ(sUpscaleNames.named("off"), Upscale::Off) << "a report still names it";
+            EXPECT_EQ(sUpscaleModeNames.named("native"), Upscale::Native);
+            EXPECT_EQ(std::vector(sUpscaleMenu.begin(), sUpscaleMenu.end()),
+                (std::vector<Upscale>{ Upscale::UltraPerformance, Upscale::Performance, Upscale::Balanced,
+                    Upscale::Quality, Upscale::Native }));
+            EXPECT_EQ(sUpscaleModeNames.list(), "ultraperformance, performance, balanced, quality or native");
         }
     }
 }

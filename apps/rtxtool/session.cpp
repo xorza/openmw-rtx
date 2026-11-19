@@ -66,8 +66,8 @@ namespace RtxTool
         // The engine names the renderer it chose itself, and it chose none here.
         Crash::annotate("renderer", MWRender::nameOf(MWRender::RendererKind::RayTraced));
         auto renderer = std::make_unique<MWRender::RtxRenderer>(spec, &mInstalled);
-        // **Before the first frame**, once `auto` has come to an upscaler: a stop the upscaler cannot
-        // trace would otherwise break the reconstruction's contract on its first frame.
+        // **Before the first frame**, once the upscaler is made: a stop the upscaler cannot trace would
+        // otherwise break the reconstruction's contract on its first frame.
         if (const std::optional<std::string> refused = mRequest.refusalUnder(renderer->getUpscalerInput()))
             throw std::runtime_error("the run cannot be traced: " + *refused);
         // And the stops' lengths, where one is what the run's frames hold, at the extents the renderer made.

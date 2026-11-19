@@ -151,8 +151,8 @@
 <context>
     <name>GraphicsPage</name>
     <message>
-        <source>Upscaling</source>
-        <translation>Mise à l&apos;échelle</translation>
+        <source>Upscaling Quality</source>
+        <translation>Qualité de mise à l&apos;échelle</translation>
     </message>
     <message>
         <source>Off</source>
@@ -165,10 +165,6 @@
     <message>
         <source>Native</source>
         <translation>Native</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Automatique</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>
@@ -227,16 +223,16 @@
         <translation>La résolution de rendu du jeu, mise à l&apos;échelle de la fenêtre. « Native » utilise la taille de la fenêtre. En mode fenêtré, la fenêtre garde sa dernière taille.</translation>
     </message>
     <message>
-        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
-        <translation>Nombre de pixels calculés par le ray tracing. « Inactif » et « Native » calculent chaque pixel ; « Native » utilise aussi la mise à l&apos;échelle comme anticrénelage. Les autres modes calculent moins de pixels et agrandissent l&apos;image.</translation>
+        <source>How many pixels the ray tracer traces. Native traces every pixel and uses the upscaler as anti-aliasing; the other modes trace fewer pixels and upscale the frame. Waits while the upscaler is off.</source>
+        <translation>Nombre de pixels calculés par le ray tracing. « Native » calcule chaque pixel et utilise la mise à l&apos;échelle comme anticrénelage ; les autres modes calculent moins de pixels et agrandissent l&apos;image. Sans effet si la mise à l&apos;échelle est inactive.</translation>
     </message>
     <message>
         <source>Upscaler</source>
         <translation>Méthode de mise à l&apos;échelle</translation>
     </message>
     <message>
-        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
-        <translation>« Automatique » utilise NVIDIA DLSS sur une carte NVIDIA avec DLSS installé, sinon AMD FSR. Si DLSS est choisi mais ne peut pas fonctionner, OpenMW ne démarre pas. Prend effet après un redémarrage.</translation>
+        <source>Off traces every pixel with no upscaler and no anti-aliasing. NVIDIA DLSS needs an NVIDIA card with DLSS installed; if it is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>« Inactif » calcule chaque pixel sans mise à l&apos;échelle ni anticrénelage. NVIDIA DLSS demande une carte NVIDIA avec DLSS installé ; s&apos;il est choisi mais ne peut pas fonctionner, OpenMW ne démarre pas. Prend effet après un redémarrage.</translation>
     </message>
     <message>
         <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>

@@ -33,28 +33,16 @@ renderer that culls: at 7168 units against a cell of 8192 it barely leaves the a
 Takes effect at once: the ring, the air and the map follow the new reach. `object paging` and `object paging min size`
 from the terrain section decide whether and how the distance's statics stand, and those two are read once at start.
 
-### upscale
-
-| Type | Range | Default |
-|---|---|---|
-| string | off, ultraperformance, performance, balanced, quality, native | balanced |
-
-Put the selected upscaler between the trace and the screen. The frame's size, `[Video] resolution`, is what comes out;
-what gets traced is that size over the mode's ratio: 3 for `ultraperformance`, 2 for `performance`, 1.7 for
-`balanced`, 1.5 for `quality` and 1 for `native`, which upscales nothing and reconstructs each frame from the frames
-before it, as the anti-aliasing. `off` traces at the frame's size with no upscaler: the renderer's own denoisers
-alone, and no anti-aliasing. A name this does not know is refused rather than quietly defaulted.
-
 ### upscaler
 
 | Type | Range | Default |
 |---|---|---|
-| string | auto, fsr, dlss | auto |
+| string | off, fsr, dlss | fsr |
 
-Which upscaler does the work above. `auto` uses NVIDIA DLSS where the card is an NVIDIA RTX, the installed driver
-accepts it, and the DLSS feature library is installed beside the game; FSR 3.1 everywhere else. `fsr` never looks for
-DLSS, which is what an AMD card or an A/B against FSR wants. `dlss` refuses to start where DLSS cannot, naming the
-reason, rather than quietly drawing through FSR.
+Which upscaler stands between the trace and the screen. `off` traces at the frame's size with no upscaler: the
+renderer's own denoisers alone, and no anti-aliasing. `fsr` is AMD FSR 3.1 on any card. `dlss` is NVIDIA DLSS where
+the card is an NVIDIA RTX, the installed driver accepts it, and the DLSS feature library is installed beside the game;
+where it cannot start, the game refuses to start and names the reason rather than quietly drawing through FSR.
 
 The game links none of NVIDIA's SDK. The driver supplies NGX — `_nvngx.dll` on Windows and `libnvidia-ngx.so.1` on
 Linux — and the game opens it at run time. The feature library, Ray Reconstruction's `nvngx_dlssd.dll` on Windows or
@@ -67,11 +55,22 @@ looks beside its own executable, where a manually downloaded copy can be placed;
 settings window lists DLSS where the card the game draws on is NVIDIA's and the library is installed.
 
 DLSS here is Ray Reconstruction: one pass that both denoises the traced light and upscales it, in place of the
-renderer's own denoisers, which run under FSR and with `upscale = off`. Super Resolution's library, `nvngx_dlss.dll`
+renderer's own denoisers, which run under FSR and with `upscaler = off`. Super Resolution's library, `nvngx_dlss.dll`
 or `libnvidia-ngx-dlss.so.*`, is not used; a player who has only that one is offered the download again. DLSS uses
 the library's own default preset: this build sets no preset hints, so a newer library the player installs brings its
-own defaults. Read once, where the renderer is made: the launcher and the settings window offer all three upscalers,
-and the settings window says a change needs a restart.
+own defaults. Read once, where the renderer is made: the launcher and the settings window offer no upscaler, FSR and
+DLSS, and the settings window says a change needs a restart. The launcher selects DLSS once its download completes.
+
+### upscale
+
+| Type | Range | Default |
+|---|---|---|
+| string | ultraperformance, performance, balanced, quality, native | balanced |
+
+How hard the upscaler works. The frame's size, `[Video] resolution`, is what comes out; what gets traced is that size
+over the mode's ratio: 3 for `ultraperformance`, 2 for `performance`, 1.7 for `balanced`, 1.5 for `quality` and 1 for
+`native`, which upscales nothing and reconstructs each frame from the frames before it, as the anti-aliasing. Nothing
+under `upscaler = off`. A name this does not know is refused rather than quietly defaulted. Takes effect at once.
 
 ### indirect lighting
 

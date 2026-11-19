@@ -63,8 +63,8 @@ An NVIDIA RTX card may use **DLSS Ray Reconstruction** instead of FSR, which den
 of the renderer's own denoisers. No NVIDIA code is built into or shipped with the game: the driver's NGX core is
 loaded at run time, and the player supplies the DLSS feature library. The launcher's **Download DLSS** button links to
 NVIDIA's licence beside it, fetches the library from NVIDIA's release and checks its SHA-256; a copy placed beside the
-executable also works. `[RTX] upscaler = auto | fsr | dlss` chooses, and `auto` falls back to FSR when the library is
-absent.
+executable also works. `[RTX] upscaler = off | fsr | dlss` chooses; once the download completes, the launcher selects
+DLSS.
 
 ## When it crashes
 

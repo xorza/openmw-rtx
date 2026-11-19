@@ -361,8 +361,8 @@ namespace RtxTool
             EXPECT_EQ(request.refusalUnder(Rtx::UpscalerInput::Filtered), std::nullopt);
             EXPECT_EQ(request.refusalUnder(Rtx::UpscalerInput::Noisy),
                 std::optional<std::string>("pier asks for the light unfiltered at the quality mode, and the upscaler "
-                                           "filters the light itself there: name --filter=true, --upscale=off or "
-                                           "another --upscaler"));
+                                           "filters the light itself there: name --filter=true or another "
+                                           "--upscaler"));
 
             request.mSetup.mRun.mProfile.mReconstruction.mDenoise = true;
             request.mStops[1].mSchedule.mUpscale = Rtx::Upscale::Native;

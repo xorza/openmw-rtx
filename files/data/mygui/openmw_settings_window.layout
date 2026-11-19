@@ -406,15 +406,15 @@
                     <Widget type="TabItem">
                         <Property key="Caption" value=" #{OMWEngine:RayTracing} "/>
 
-                        <Widget type="TextBox" skin="NormalText" position="0 4 420 18" align="Left Top" name="RayTracingUpscaleText">
-                            <Property key="Caption" value="#{OMWEngine:RayTracingUpscale}"/>
-                        </Widget>
-                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 24 420 24" align="Left Top" name="RayTracingUpscaleList"/>
-
-                        <Widget type="TextBox" skin="NormalText" position="0 54 420 18" align="Left Top" name="RayTracingUpscalerText">
+                        <Widget type="TextBox" skin="NormalText" position="0 4 420 18" align="Left Top" name="RayTracingUpscalerText">
                             <Property key="Caption" value="#{OMWEngine:RayTracingUpscaler}"/>
                         </Widget>
-                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 74 420 24" align="Left Top" name="RayTracingUpscalerList"/>
+                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 24 420 24" align="Left Top" name="RayTracingUpscalerList"/>
+
+                        <Widget type="TextBox" skin="NormalText" position="0 54 420 18" align="Left Top" name="RayTracingUpscaleText">
+                            <Property key="Caption" value="#{OMWEngine:RayTracingUpscale}"/>
+                        </Widget>
+                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 74 420 24" align="Left Top" name="RayTracingUpscaleList"/>
 
                         <Widget type="HBox" position="0 104 420 28">
                             <Widget type="AutoSizedButton" skin="MW_Button" position="0 0 24 24" align="Left Top">

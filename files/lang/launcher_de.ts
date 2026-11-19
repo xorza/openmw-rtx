@@ -151,8 +151,8 @@
 <context>
     <name>GraphicsPage</name>
     <message>
-        <source>Upscaling</source>
-        <translation>Hochskalierung</translation>
+        <source>Upscaling Quality</source>
+        <translation>Hochskalierungsqualität</translation>
     </message>
     <message>
         <source>Off</source>
@@ -165,10 +165,6 @@
     <message>
         <source>Native</source>
         <translation>Nativ</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation>Automatisch</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>
@@ -227,16 +223,16 @@
         <translation>Die Auflösung, in der das Spiel rendert, an das Fenster angepasst. „Nativ“ nutzt die Fenstergröße. Im Fenstermodus behält das Fenster seine zuletzt gewählte Größe.</translation>
     </message>
     <message>
-        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
-        <translation>Wie viele Pixel das Raytracing berechnet. „Aus“ und „Nativ“ berechnen jedes Pixel; „Nativ“ nutzt den Upscaler zusätzlich als Kantenglättung. Die übrigen Modi berechnen weniger Pixel und skalieren das Bild hoch.</translation>
+        <source>How many pixels the ray tracer traces. Native traces every pixel and uses the upscaler as anti-aliasing; the other modes trace fewer pixels and upscale the frame. Waits while the upscaler is off.</source>
+        <translation>Wie viele Pixel das Raytracing berechnet. „Nativ“ berechnet jedes Pixel und nutzt den Upscaler als Kantenglättung; die übrigen Modi berechnen weniger Pixel und skalieren das Bild hoch. Ohne Upscaler ohne Wirkung.</translation>
     </message>
     <message>
         <source>Upscaler</source>
         <translation>Upscaler</translation>
     </message>
     <message>
-        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
-        <translation>„Automatisch“ nutzt NVIDIA DLSS auf einer NVIDIA-Karte mit installiertem DLSS, sonst AMD FSR. Ist DLSS gewählt und nicht lauffähig, startet OpenMW nicht. Wird nach einem Neustart wirksam.</translation>
+        <source>Off traces every pixel with no upscaler and no anti-aliasing. NVIDIA DLSS needs an NVIDIA card with DLSS installed; if it is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>„Aus“ berechnet jedes Pixel ohne Upscaler und ohne Kantenglättung. NVIDIA DLSS braucht eine NVIDIA-Karte mit installiertem DLSS; ist es gewählt und nicht lauffähig, startet OpenMW nicht. Wird nach einem Neustart wirksam.</translation>
     </message>
     <message>
         <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>

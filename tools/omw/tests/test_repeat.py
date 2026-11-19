@@ -148,7 +148,7 @@ class RepeatTest(unittest.TestCase):
             (["--seconds=2"], walk.format("--seconds=2")),
             (["--frames=60"], walk.format("--frames=60")),
             (["--pairs=0"], "--pairs=0 is not a count of one or more"),
-            (["--upscale=quality"], "repeat sets --upscale itself, on every run"),
+            (["--upscaler=fsr"], "repeat sets --upscaler itself, on every run"),
             (["--hold"], "repeat sets --hold itself, on every run"),
             (["--against=old"], "repeat sets --against itself, on every run"),
             (["--out=mine"], "repeat sets --out itself, on every run"),
