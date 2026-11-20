@@ -587,10 +587,20 @@ namespace MWRender
                     .mAwait
                     = [&](const std::chrono::milliseconds patience) { return mMirror.awaitPreparing(patience); },
                     .mQuits = quits });
-        if (waited == ScreenWait::Done)
-            mWalked.mSession.mLoading += mMirror.finishPreparing();
-        else
+        if (waited != ScreenWait::Done)
+        {
             mMirror.abandonPreparing();
+            return;
+        }
+        mWalked.mSession.mLoading += mMirror.finishPreparing();
+
+        // **And the store's own tail under the same screen** (`WorldMirror::awaitStored`): a quit asked here
+        // leaves the store writing, which its going finishes.
+        awaitOnScreen(listener,
+            ScreenWaitAsk{ .mLabel = "#{OMWEngine:PreparingContent}",
+                .mNote = "#{OMWEngine:PreparingContentNote}",
+                .mAwait = [&](const std::chrono::milliseconds patience) { return mMirror.awaitStored(patience); },
+                .mQuits = quits });
 
         // Drops what a job's files did not name, so the models a run keeps do not hang on the threads' timing.
         getResources().clearCache();

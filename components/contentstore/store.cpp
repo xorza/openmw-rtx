@@ -613,6 +613,16 @@ namespace ContentStore
         mMonitor.await([&] { return mQueue.empty() && mInFlight == 0; });
     }
 
+    std::size_t Store::flushFor(const std::chrono::milliseconds patience)
+    {
+        std::size_t left = 0;
+        const Misc::Monitor::Awaited awaited = mMonitor.awaitFor(patience, [&] {
+            left = mQueue.size() + static_cast<std::size_t>(mInFlight);
+            return left == 0;
+        });
+        return awaited == Misc::Monitor::Awaited::StillWaiting ? left : 0;
+    }
+
     Stats Store::getStats()
     {
         return mMonitor.under([&] { return mStats; });

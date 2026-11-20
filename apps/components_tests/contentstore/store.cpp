@@ -118,6 +118,22 @@ namespace ContentStore
                 sTailBytes + sLarge);
             EXPECT_EQ(countFiles(folder, ".partial"), 0u) << "the temporary was renamed into place";
 
+            // **A flush with a patience answers what is left, and nought once nothing is**: the wait a start makes
+            // under its loading screen, a few milliseconds at a time, ends with every write done as `flush` ends.
+            {
+                const std::filesystem::path apart = TestingOpenMW::currentTestDirPath() / "store-waited";
+                std::filesystem::remove_all(apart);
+                Store waited(apart, sPolicy);
+                waited.write(
+                    Filed{ .mKey = sKey, .mKind = sFact, .mVersion = 3, .mPayload = payload, .mSegmentEnds = {} },
+                    Reach::Disk);
+                std::size_t asks = 0;
+                while (waited.flushFor(std::chrono::milliseconds(1)) > 0)
+                    ASSERT_LT(++asks, 60000u) << "the store never finished one write";
+                EXPECT_EQ(waited.getStats().mWritten, 1u);
+                EXPECT_EQ(waited.flushFor(std::chrono::milliseconds::zero()), 0u);
+            }
+
             Store again(folder, sPolicy);
             again.flush();
             Misc::ByteBuffer read;

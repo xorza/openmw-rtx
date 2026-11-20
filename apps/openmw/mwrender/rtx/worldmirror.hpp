@@ -102,8 +102,16 @@ namespace MWRender
         Rtx::JobProgress awaitPreparing(std::chrono::milliseconds patience);
 
         /// Once `awaitPreparing` says it is done: the manifest written, the threads ended, the sea's shape
-        /// read into the store's memory, and what they computed, nothing where none ran.
+        /// handed to the store, and what they computed, nothing where none ran. The store is still writing
+        /// (`awaitStored`).
         Rtx::ContentStats finishPreparing();
+
+        /// How far the store came with what the preparation handed it, its writes and its stamps, once it is done or
+        /// `patience` passed: done where there is no store. **Before the first frame, which asks the store's memory
+        /// alone**: an entry still on its way from the disk was computed again. Waited out under the loading screen
+        /// and not inside `finishPreparing`, where a day's first start stood undrawn for as long as its disk took to
+        /// stamp every entry, 27 s on the handheld.
+        Rtx::JobProgress awaitStored(std::chrono::milliseconds patience);
 
         /// Stops a preparation where it stands, for a player who asked to quit under it: its threads ended, what
         /// they wrote kept in the store, and no manifest written, so the next start walks what this one left.
@@ -214,6 +222,9 @@ namespace MWRender
         /// The loading screen's preparation and what it reads, while it runs.
         struct Preparing;
         std::unique_ptr<Preparing> mPreparing;
+
+        /// The most the store ever had left to do under `awaitStored`, which its progress is counted of.
+        std::uint32_t mStoringMost = 0;
 
         /// The world's groundcover, or null where it has none. Before the ring, as the content is.
         std::unique_ptr<TracedGroundcover> mGroundcover;

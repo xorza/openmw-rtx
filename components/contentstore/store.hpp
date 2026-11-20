@@ -220,6 +220,11 @@ namespace ContentStore
         /// Waits until every write, stamp and the start's sweep handed so far are done.
         void flush();
 
+        /// `flush` for `patience` at most, answering how many of them are still to do, nought once none is or none
+        /// can be done: what a start waits out under its loading screen, since a day's first start stamps every entry
+        /// it found, thousands of them, and on a slow disk that is the screen undrawn for tens of seconds.
+        std::size_t flushFor(std::chrono::milliseconds patience);
+
         /// The folder the store's files are in: its format's under the directory it was made at.
         const std::filesystem::path& getDirectory() const { return mDirectory; }
 

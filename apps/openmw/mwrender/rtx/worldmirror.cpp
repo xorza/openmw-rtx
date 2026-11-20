@@ -322,10 +322,6 @@ namespace MWRender
         Rtx::ContentStats stats = mPreparing->mRun.getStats();
         stats += prepareSea(*mStore, *mSea->getChild(0)->asGeometry());
 
-        // Swept and loaded before the first frame asks the store's memory, which the frame reaches alone: an
-        // entry still on its way from the disk was computed again.
-        mStore->flush();
-
         // The wall against the threads' CPU says whether they waited, and the passes say on what the CPU went.
         const Rtx::PreparationTimes times = mPreparing->mRun.getTimes();
         using Seconds = std::chrono::duration<double>;
@@ -354,6 +350,18 @@ namespace MWRender
         // glibc keeps what a thread's arena freed until a trim (`Platform::trimHeap`).
         Platform::trimHeap();
         return stats;
+    }
+
+    Rtx::JobProgress WorldMirror::awaitStored(const std::chrono::milliseconds patience)
+    {
+        if (mStore == nullptr)
+            return Rtx::JobProgress{};
+
+        // The count is the most that was ever left, so the bar fills as the store works them off.
+        const auto left = static_cast<std::uint32_t>(
+            std::min<std::size_t>(mStore->flushFor(patience), std::numeric_limits<std::uint32_t>::max() - 1));
+        mStoringMost = std::max(mStoringMost, left);
+        return Rtx::JobProgress::of(mStoringMost - left, mStoringMost, left == 0);
     }
 
     void WorldMirror::abandonPreparing()

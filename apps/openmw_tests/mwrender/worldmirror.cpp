@@ -217,6 +217,12 @@ namespace MWRender
                     mirror.startPreparing(resources, {}, {}, 1);
                     EXPECT_TRUE(mirror.awaitPreparing(std::chrono::milliseconds::zero()).isDone()) << "nothing to walk";
                     counted.mLoading = mirror.finishPreparing().at(Rtx::ContentPassId::Shape);
+                    // The store waited out, as a start waits it out under its screen before its first frame.
+                    std::uint32_t asks = 0;
+                    while (!mirror.awaitStored(std::chrono::milliseconds(1)).isDone() && ++asks < 60000)
+                    {
+                    }
+                    EXPECT_LT(asks, 60000u) << "the store never took what the preparation handed it";
                 }
                 world.mWorld.mWater.mEnabled = true;
                 counted.mFrame
