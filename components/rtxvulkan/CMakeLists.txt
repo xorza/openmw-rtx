@@ -678,6 +678,7 @@ target_sources(
                 trace/visibilitypass.hpp
                 trace/wavepass.hpp
                 upscale/dlssupscaler.hpp
+                upscale/featurebytes.hpp
                 upscale/fsrframe.hpp
                 upscale/fsrupscaler.hpp
                 upscale/noupscaler.hpp

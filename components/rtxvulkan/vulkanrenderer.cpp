@@ -305,9 +305,39 @@ namespace Rtx
             mDevice.collectIdle();
         }
 
-        // **What the upscaler's runtime allocates is made before the reserve that counts it**: DLSS's
-        // feature is hundreds of megabytes the driver shows only once it stands. Each mode the run moves
-        // to is measured once at this output (`Upscaler::measure`).
+        // **The world stays whatever the reserve does**: one that grows past what content holds is room made by
+        // textures moving down (`makeRoom`), copied on the device, what moved handed over whole again once the room is
+        // back; one that shrinks sets what the device refused for room waiting again, structures and textures, as the
+        // room it did not see coming is room after all (`DeviceScene::waitAgain`). A rebuild was every structure and
+        // texture in one flushed batch, seconds of a frame, and needed the host's copy of every mesh.
+        MemoryAllocator& memory = mDevice.getMemory();
+        DeviceScene* const world = mScenes.find(SceneSlot::world());
+        const VkDeviceSize reserved = memory.getFrameReserve();
+        const auto reserveFrame = [&](const VkDeviceSize bytes) {
+            memory.refreshBudget(mDevice.getTimeline().getNext());
+            memory.reserveFrame(bytes);
+            if (follows != ContentFollows::TheReserve || world == nullptr || bytes <= reserved)
+                return;
+            if (const VkDeviceSize over = memory.getContentOver(); over > 0)
+            {
+                Batch moved(mDevice.getPool());
+                world->makeTextureRoom(moved, mArrival, over);
+                moved.flush();
+            }
+        };
+
+        // **Room for what the upscaler's runtime allocates is made before it allocates**, by what the feature was
+        // measured at, or the most any was where this one never stood (`Upscaler::bytesAt`): DLSS's feature is
+        // hundreds of megabytes the driver takes outside the allocator. Made after the exact reserve alone, a larger
+        // mode on a full card was refused by the driver, where FSR's targets, the allocator's, found the room made.
+        memory.holdOutside(mUpscaler.getHeldOutside());
+        if (upscales(mProfile.mUpscale) && !mUpscaler.isAt(render, output))
+            if (const VkDeviceSize ahead = frameAt(mDevice, width, height, mPictureRoom, mProfile, mUpscaler, declared);
+                ahead > reserved)
+                reserveFrame(ahead);
+
+        // The feature's bytes are exact only once it stands. Each mode the run moves to is measured once at this
+        // output (`Upscaler::measure`).
         if (upscales(mProfile.mUpscale))
             mUpscaler.prepare(mProfile.mUpscale, render, output);
         for (const Upscale mode : mReservedUpscales)
@@ -316,7 +346,6 @@ namespace Rtx
                 const FrameExtents its = mUpscaler.extentsFor(width, height, mode);
                 mUpscaler.measure(mode, VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output);
             }
-        MemoryAllocator& memory = mDevice.getMemory();
         memory.holdOutside(mUpscaler.getHeldOutside());
 
         // **Room for the running mode's targets, not for the most any mode would take**: native's are about
@@ -325,32 +354,17 @@ namespace Rtx
         VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, mUpscaler, declared);
         for (const Upscale mode : mReservedUpscales)
         {
-            RenderProfile reserved = mProfile;
-            reserved.mUpscale = mode;
+            RenderProfile itsProfile = mProfile;
+            itsProfile.mUpscale = mode;
             const FrameExtents its = mUpscaler.extentsFor(width, height, mode);
             std::vector<ArenaImage> itsDeclared;
             FrameTracer::declare(
-                VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output, reserved, mUpscaler, itsDeclared);
+                VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output, itsProfile, mUpscaler, itsDeclared);
             reserve
-                = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, reserved, mUpscaler, itsDeclared));
+                = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, itsProfile, mUpscaler, itsDeclared));
         }
 
-        // **The world stays whatever the reserve does**: one that grows past what content holds is room made by
-        // textures moving down (`makeRoom`), copied on the device, what moved handed over whole again once the room is
-        // back; one that shrinks sets what the device refused for room waiting again, structures and textures, as the
-        // room it did not see coming is room after all (`DeviceScene::waitAgain`). A rebuild was every structure and
-        // texture in one flushed batch, seconds of a frame, and needed the host's copy of every mesh.
-        const VkDeviceSize reserved = memory.getFrameReserve();
-        memory.refreshBudget(mDevice.getTimeline().getNext());
-        memory.reserveFrame(reserve);
-        DeviceScene* const world = mScenes.find(SceneSlot::world());
-        if (follows == ContentFollows::TheReserve && world != nullptr && reserve > reserved)
-            if (const VkDeviceSize over = memory.getContentOver(); over > 0)
-            {
-                Batch moved(mDevice.getPool());
-                world->makeTextureRoom(moved, mArrival, over);
-                moved.flush();
-            }
+        reserveFrame(reserve);
         if (follows == ContentFollows::TheReserve && world != nullptr && reserve < reserved)
             world->waitAgain();
 

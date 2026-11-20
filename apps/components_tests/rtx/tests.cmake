@@ -188,6 +188,7 @@ target_sources(
         rtxvulkan/spirv/spirvpin.cpp
         rtxvulkan/texture/meansgrownto.cpp
         rtxvulkan/trace/tuplequeue.cpp
+        rtxvulkan/upscale/featurebytes.cpp
         rtxvulkan/upscale/fsrframe.cpp
         rtxvulkan/upscale/upscaler.cpp
         sky/skyclock.cpp
