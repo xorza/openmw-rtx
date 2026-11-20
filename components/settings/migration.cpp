@@ -34,5 +34,16 @@ namespace Settings
         }
 
         user[marker] = "true";
+
+        // **A released build's no upscaler was a mode**, `upscale = off` (0.4.5 and 0.5), which the mode's
+        // spelling list now refuses and the game would not start: it is the upscaler's own choice, and the mode
+        // the shipped one. A player's file is data from outside, read at the boundary, and not code to keep
+        // compatible with.
+        const CategorySetting upscale("RTX", "upscale");
+        if (const auto found = user.find(upscale); found != user.end() && found->second == "off")
+        {
+            user.erase(found);
+            user[CategorySetting("RTX", "upscaler")] = "off";
+        }
     }
 }

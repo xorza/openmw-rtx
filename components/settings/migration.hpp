@@ -13,7 +13,7 @@ namespace Settings
     /// One without it that names a resolution and no window is upstream's: its resolution becomes the
     /// window, and the frame the window's own, nought by nought, which is what upstream drew.
     ///
-    /// **No upscaler**: an older build of the fork named it as a mode, `[RTX] upscale = off`, which
+    /// **No upscaler**: a released build of the fork named it as a mode, `[RTX] upscale = off`, which
     /// becomes `[RTX] upscaler = off`, the mode left to its default.
     void migrateUserSettings(CategorySettingValueMap& user);
 }

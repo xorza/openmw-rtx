@@ -67,5 +67,28 @@ namespace Settings
                 (CategorySettingValueMap{
                     { { "Video", "window mode" }, "2" }, { { "Video", "resolution sets the frame" }, "true" } }));
         }
+
+        /// **A released build's no upscaler moves to the upscaler.** It was a mode, `upscale = off`: 0.4.5 had no
+        /// upscaler key at all, and 0.5 one of its own beside it, `auto`. No upscaler is the upscaler's choice
+        /// now, so the upscaler becomes `off` and the mode goes, left to its default; a file that kept the
+        /// mode would not start, since the mode's spelling list refuses `off`. Any other mode stays as it
+        /// was, and so does its upscaler.
+        TEST(SettingsMigrationTest, aReleasedBuildsNoUpscalerMovesToTheUpscaler)
+        {
+            const CategorySetting marker("Video", "resolution sets the frame");
+            CategorySettingValueMap first{ { { "RTX", "upscale" }, "off" } };
+            migrateUserSettings(first);
+            EXPECT_EQ(first, (CategorySettingValueMap{ { { "RTX", "upscaler" }, "off" }, { marker, "true" } }));
+
+            CategorySettingValueMap second{ { { "RTX", "upscale" }, "off" }, { { "RTX", "upscaler" }, "auto" } };
+            migrateUserSettings(second);
+            EXPECT_EQ(second, (CategorySettingValueMap{ { { "RTX", "upscaler" }, "off" }, { marker, "true" } }));
+
+            CategorySettingValueMap upscaled{ { { "RTX", "upscale" }, "quality" }, { { "RTX", "upscaler" }, "dlss" } };
+            CategorySettingValueMap kept = upscaled;
+            kept[marker] = "true";
+            migrateUserSettings(upscaled);
+            EXPECT_EQ(upscaled, kept);
+        }
     }
 }
