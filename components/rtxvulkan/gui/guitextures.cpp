@@ -155,8 +155,11 @@ namespace Rtx
         mBatch.keep(std::move(mImages[slot.get()]));
         mFree.free(RowIndex<struct GuiTextureRows>(slot.get()));
 
-        // The buffer stays for whatever takes the slot next; what was in it is nobody's now.
-        mCopies[slot.get()].mRides = Copy::sNever;
+        // **The read-back buffer goes with the texture**, on the batch as the image does, which a copy recorded against
+        // it may still ride: a slot nothing takes again held its last picture's bytes for the session.
+        Copy& copy = mCopies[slot.get()];
+        copy.mBuffer.letGo(mBatch);
+        copy.mRides = Copy::sNever;
     }
 
     void GuiTextures::readBackWith(const GuiSlot slot, const VkCommandBuffer commands)

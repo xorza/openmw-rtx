@@ -302,6 +302,7 @@ target_sources(
         rtxvulkan/device/commands.cpp
         rtxvulkan/device/device.cpp
         rtxvulkan/device/gputimer.cpp
+        rtxvulkan/device/graveyard.cpp
         rtxvulkan/device/halfstore.cpp
         rtxvulkan/device/memory/barriers.cpp
         rtxvulkan/device/memory/buffer.cpp

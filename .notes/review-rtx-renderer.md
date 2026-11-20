@@ -1072,57 +1072,6 @@ tours beside the desk's. Whoever addresses an item deletes it. An item marked
 An item that says "ends" names a defect in code its batch deletes: it is there so the new shape gets the test the
 old one lacked.
 
-## Batch 9: the device's foundation and the passes
-
-Files: `components/rtxvulkan/device/` (but the arena), `components/rtxvulkan/{frame,present,trace,denoise,upscale,
-display,gui}`, `frametracer`, `picturetracer`, `vulkanrenderer`, `components/myguirtx/`.
-
-- [ ] `texture.cpp:507-511` → `Batch::flush` → `Device::waitFor` — an arrival that staged 64 MiB waited out both
-  frames in flight on the frame. With an upload share a frame it is reachable only under the loading screen; the
-  flush stays there and is asserted out of a played frame.
-- [ ] `device/memory/batch.cpp:79-84` — every batch that stages a byte takes its own 8 MiB block for two frames:
-  48–72 MiB carrying kilobytes, by a count of batches not measured. Target: one append cursor a submit, shared by
-  the batches that ride it; the count measured first.
-- [ ] `device/memory/stagingring.hpp:22-34`, `vulkanrenderer.cpp:454,812` — one constant is the ring's floor, the
-  spares' floor and a batch's ceiling; 600 submits is 200–300 frames, not the ten seconds the document states;
-  trim and shed are the renderer's. Target: the ring owns its policy, in frames and bytes.
-- [ ] `device/device.hpp:160-203` — `const Device&` hands out every mutable part, so a compile hand holds the right
-  to submit. Target: a resource holds a narrow view (bury, name, allocate); the pool is handed to the main thread's
-  owners.
-- [ ] `device/memory/batch.hpp:86-91`, `gui/guitextures.cpp:146-158` — "stamped for the next submit" is false for a
-  batch open across one, which `GuiTextures` patches by hand. Target: a long-lived batch stamps at hand-over, or the
-  type refuses to stay open.
-- [ ] `vulkanrenderer.cpp:81-100` and each owner's `bytesAt` — the frame's reserve is a second composition of what
-  `createTargets` makes, held equal by three tests. Target: an owner states one list of descriptions an extent and
-  mode; its constructor makes from it and the reserve sums it, as `FsrUpscaler::Targets` does.
-- [ ] `trace/tracechain.cpp:89-92,152-166`, `frametracer.cpp:17-25,82-88`, `upscale/dlssupscaler.cpp:81-87` — an
-  arena's order is written three times an owner and indexed by hand; only the count is asserted. Target: `declare`
-  answers a typed range its owner resolves.
-- [ ] `gui/guitextures.cpp:44-58`, `myguirtx/rendermanager.cpp:171-187` — every name MyGUI asks becomes an
-  uncompressed essential image nothing destroys; the global map is about 126 MiB twice. Target: a counted use with
-  a stated bound and a rest (a name not drawn for N frames gives its image back and is read again); the figure in
-  the memory report first.
-- [ ] `gui/guitextures.cpp:158-159` — a slot keeps its read-back buffer after its texture goes. Target: it goes
-  with it.
-- [ ] `vulkanrenderer.cpp:1005-1015`, `picturetracer.cpp:55-73` — the pictures' room is a whole denoising chain at
-  the bounding box of every view, for the session. Target: measured, then let go when no view has been asked for N
-  frames.
-- [ ] `trace/spritebin.cpp:58`, `trace/ripplepass.cpp:126-129`, `gui/guitextures.cpp:184` — three hand-rolled
-  read-backs of one word. Target: one type owning the buffer and the value it rides.
-- [ ] `denoise/` and `display/` — each pass states its bindings twice in C++. Target: FSR's `Bind` table, from
-  which the layout and the writes are made.
-- [ ] `denoise/denoisepasses.cpp:80`, `denoise/atrouspass.cpp:116` — an optional parameter selects the behaviour
-  and the shape of the result. Target: a shared prefix and two endings.
-- [ ] `trace/visibilitypass.cpp:416-470` — which pipelines are shared is decided under a lock by racing hands,
-  though it is known before any starts. Target: the work list is the distinct (stage, canonical tuple) pairs.
-- [ ] `TraceChain`, `FsrUpscaler`, `BloomPass`, `PictureTracer`, `DenoiseHistory`, `DlssUpscaler` — `resize` means
-  four things. Target: `make(extent)`, `place(run)`, `release()`.
-- [ ] `trace/spritebin.cpp:47-65`, `gui/guidrawer.cpp:59`, `display/displaychain.cpp:242` — device allocations that
-  can land on a frame. Target: the sprite tables sized from the scene's counts at hand-over.
-- [ ] Tests: the graveyard has none of its own (an off-thread burial, the buried count); a shed after an idle
-  collect; `device/readstamp.cpp:69` and `slottable.cpp:413` release a held submit from a thread that sleeps;
-  `present/presenter.cpp:251` asserts a wall time.
-
 ## Batch 10: the harness and the tests as a body
 
 Files: `apps/rtxtool/`, `apps/components_tests/`, `apps/openmw_tests/mwrender/`, `cmake/Tests.cmake`.
@@ -1235,6 +1184,15 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 ## Changed
 
 Items that landed in another shape than their target, each with how and why.
+
+- Batch 9's tests: the graveyard's own, an off-thread burial held until the submit after the one in flight runs. The
+  read stamp's and the slot table's releases after a sleep stay: a release that wins the race still passes, and only
+  the sleep proves the wait waited; the shed after an idle collect and the presenter's wall time are left.
+
+- Batch 9's staging ring: its idle bound says what 600 submits are, 200 to 300 frames at two or three submits a frame,
+  where it said ten seconds; the policy stays where it stands, the constant's three readers each its own use of one
+  figure. A dropped GUI slot's read-back buffer goes with its texture on the batch (`GrowableBuffer::letGo`), with no
+  test, since nothing outside counts those buffers.
 
 - Batch 9's presenter: `Fit` (matches, stale, lost) and the `Suboptimal` latch in place of four flags, and
   `mRemade` stays a flag of its own, a fact beside the fit. A watched submit that fails ends as a device that failed,
@@ -1494,3 +1452,32 @@ Items judged and not done, each with the reason.
 - Batch 8's heap free memory counted for what small entries take, or not at all: the handheld's Repack heap held
   38–117 MiB free at its stops' ends beside budgets of 4–9 GiB, and the desk's 38 MiB, so the budget moves by 1–3%
   either way; most entries are under the 1 MiB past which glibc maps a block of its own and can take it.
+- Batch 9's flush of a big arrival kept out of a played frame: a played frame's upload share is 16 MiB and the flush
+  comes at 64 MiB staged, which a hand-over in play reaches only with a chain past 48 MiB, an 8192² BC7 file's: that
+  one arrival waits out the frames in flight once. Keeping it out takes the hand-over's pace into the device's
+  interface for that case alone.
+- Batch 9's one staging cursor a submit: not measured, and the ring gives back past `sStagingKept` (64 MiB) what its
+  batches took; a shared cursor moves every uploader's batch onto a submit's lifetime for at most that.
+- Batch 9's narrow views of the device: a capability every resource is handed, not a defect met; the narrowing
+  changes every resource's constructor.
+- Batch 9's frame reserve and arena orders from one list of descriptions: both held equal by tests today (the
+  reserve's three, each owner's count asserted), and each is a rewrite of every owner's target making.
+- Batch 9's bindings from one table in the denoiser and the display: a rewrite of each pass for what the validation
+  layers and the tests already hold.
+- Batch 9's long-lived batch stamped at hand-over: the GUI's is the one batch open across a submit, and its drop keeps
+  on the batch as the batch's doc says to; a type-level guard is a second kind of batch for that one owner.
+- Batch 9's rest for the GUI's named textures: MyGUI's widgets hold a texture by pointer, so a rest could drop only its
+  image, read again on the frame that next draws it; upstream's GL backend keeps them the same way, and the figure
+  was not taken.
+- Batch 9's pictures' room let go when idle: not measured; the next picture would make the targets again on its frame,
+  a pause where the inventory opens, for room the frame's reserve already counts.
+- Batch 9's one type for the read-backs of a word: the GUI's is a picture's bytes, and the sprite bin's and the
+  ripples' words are read past different stamps, so what would be shared is a buffer and a map call.
+- Batch 9's shared prefix and two endings in the denoiser's passes: the public calls are the two endings already, and
+  the pointer that tells them apart is private to each pass.
+- Batch 9's distinct pipelines listed before the hands start: each canonical pipeline is made once by a single flight,
+  as the caches load, failure handed to its waiters; the list up front saves no compile.
+- Batch 9's `make`, `place` and `release` in place of `resize`: each owner's doc states what its `resize` does, and the
+  split touches every target's making beside the reserve's rewrite declined above.
+- Batch 9's sprite tables sized at the hand-over: the hand-over is on the frame too, and a doubling table is made again
+  a logarithmic number of times.

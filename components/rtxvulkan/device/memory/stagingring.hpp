@@ -26,8 +26,9 @@ namespace Rtx
     /// settles again.
     inline constexpr VkDeviceSize sStagingKept = 8 * sStagingBlock;
 
-    /// **How long a spare block stands unused before `StagingRing::shed` gives it back**, in submits: some ten seconds
-    /// at the frame rate, as jemalloc gives a page back after it decays unused for ten
+    /// **How long a spare block stands unused before `StagingRing::shed` gives it back**, in submits: a frame submits
+    /// two or three times (its placements, its trace, a picture's), so 600 are some 200 to 300 frames, three to ten
+    /// seconds by the frame rate, as jemalloc gives a page back after it decays unused for ten
     /// ([`dirty_decay_ms`](https://jemalloc.net/jemalloc.3.html)). A block shed a frame after the crossing that grew it
     /// was made again at the next, each a device allocation the kernel clears on a frame
     /// (`docs/research/2026-11-17-longest-frames.md`).
