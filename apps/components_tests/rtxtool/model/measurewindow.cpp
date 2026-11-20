@@ -193,7 +193,7 @@ namespace RtxTool
                     .mArriving = true }));
             EXPECT_EQ(describeUnstood(images.getUnstood()),
                 "11 images still being made (8 on their way, 1 come and waiting for room, not yet asked 1 files, 0 "
-                "bakes and 1 composites), content still arriving");
+                "bakes and 1 composites, and 0 made with no room), content still arriving");
 
             MeasureWindow both(0, 30, false);
             both.take(making(3, 10, false));
@@ -207,7 +207,7 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(both.getStalledMs(), 1000.0);
             EXPECT_EQ(describeUnstood(both.getUnstood()),
                 "2 cells short, 24 images still being made (21 on their way, 1 come and waiting for room, not yet "
-                "asked 1 files, 0 bakes and 1 composites)");
+                "asked 1 files, 0 bakes and 1 composites, and 0 made with no room)");
 
             // And a mesh standing nothing is named apart.
             EXPECT_EQ(describeUnstood(MeasureWindow::Unstood{ .mMissing = Rtx::MissingDemanded{ .mMeshes = 3 } }),

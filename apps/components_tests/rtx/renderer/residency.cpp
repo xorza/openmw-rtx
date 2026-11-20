@@ -517,6 +517,74 @@ namespace Rtx
                 EXPECT_EQ(world.standingOf(world.mTextures[at].get()), std::optional<std::uint8_t>(0));
         }
 
+        /// **A drain waiting on another scene's hand-over asks the transit chunk**: a view's scene fills a chunk's
+        /// sixteen slabs with 512² chains and gives back all but two of each slab's; the world then takes 256² chains,
+        /// whose class has no slab. The drain picks a slab of the view's, which the world's hand-over cannot move and
+        /// the view, never handed over again, never does: the world's chains stand all the same, in a chunk past the
+        /// plan's, where once they waited for good.
+        TEST(RtxResidencyTest, aDrainWaitingOnAnotherScenesHandOverAsksTheTransitChunk)
+        {
+            World world(2 * sChunk);
+            const SceneSlot viewSlot = SceneSlot::view(0);
+            world.mResidency.addScene(viewSlot);
+            SceneIdentities viewIdentities;
+            SceneDesc view{ viewIdentities };
+            std::vector<osg::ref_ptr<osg::Image>> images;
+            std::vector<TextureHold> holds;
+            const auto handView = [&] {
+                world.mResidency.openFrame(world.mDevice, world.mFeed);
+                std::ignore = world.mResidency.handOver(Residency::HandOver{
+                    .mDevice = world.mDevice, .mSlot = viewSlot, .mScene = view, .mFeed = world.mFeed });
+                world.mResidency.closeFrame(world.mDevice);
+                world.mFeed.nextFrame();
+            };
+            for (std::uint32_t at = 0; at < 176; ++at)
+            {
+                const std::string name = "textures/view" + std::to_string(at) + ".dds";
+                images.push_back(chainOf(name, 512));
+                holds.push_back(
+                    view.takeTexture(HoldTier::Shown, VFS::Path::NormalizedView(name.c_str()), *images.back()));
+            }
+            for (std::uint32_t frame = 0; frame < 16; ++frame)
+                handView();
+            std::vector<std::uint32_t> keptIn;
+            for (std::size_t at = holds.size(); at-- > 0;)
+            {
+                const auto* stands
+                    = std::get_if<TextureStands>(&world.mResidency.getTexture(viewSlot, holds[at].get()).mStanding);
+                if (stands == nullptr)
+                    continue;
+                const auto slab = static_cast<std::size_t>(stands->mSlot.mSlab.at());
+                keptIn.resize(std::max(keptIn.size(), slab + 1), 0);
+                if (keptIn[slab] < 2)
+                {
+                    ++keptIn[slab];
+                    continue;
+                }
+                view.drop(std::move(holds[at]));
+                holds.erase(holds.begin() + static_cast<std::ptrdiff_t>(at));
+            }
+            for (std::uint32_t frame = 0; frame < 4; ++frame)
+                handView();
+            world.mDevice.setCap(sChunk + sChunk / 2);
+
+            for (std::uint32_t at = 0; at < 300; ++at)
+                world.texture("textures/small" + std::to_string(at) + ".dds", 256, HoldTier::Shown);
+            std::uint32_t frames = 0;
+            do
+            {
+                ASSERT_LT(++frames, 200u) << "the world's chains waited on the view's drain";
+                world.frame();
+            } while (!world.mResidency.isSettled(HoldTier::Shown));
+            for (const TextureHold& small : world.mTextures)
+                EXPECT_TRUE(world.standingOf(small.get()).has_value());
+            EXPECT_TRUE(world.mResidency.getLedger().isConsistent());
+
+            for (TextureHold& hold : holds)
+                view.drop(std::move(hold));
+            world.mResidency.forgetScene(viewSlot, world.mFeed);
+        }
+
         /// **Texels that fail make the texture failed, and what stood of it is given back**: stood two levels down
         /// beside a 512² under a cap of a chunk, its raise under three asks the feed, which fails it. The texture is
         /// failed, planned at nothing, and the next hand-over drops its old slot; it is asked of the feed no more.

@@ -946,11 +946,15 @@ namespace Rtx
             return true;
         // Where the arena has every chunk the plan stands in, none is asked: content of a class with room to spare
         // moves, out of its emptiest slab (`SlotLedger::drainFor`).
+        // **A drain that could not move a slot this hand-over is no drain**, and the transit chunk is wanted as though
+        // none were: one waiting on another scene's hand-over, or on room its slots' class lost to the arrivals, waited
+        // for good beside a composite the handheld's tour never stood, with half its budget free.
         const ArenaIndex arena = mLedger.getArena(of);
         const SlabTier tier = mLedger.getTier(of);
         const std::uint64_t chunks = std::uint64_t{ mLedger.getChunkCount(arena) } * mLedger.getLayout().mChunkBytes;
-        if (tier != SlabTier::Large && chunks >= mCounts.chunkBytesIn(arena) && !mLedger.nextToMove().has_value()
-            && !mLedger.drainFor(arena, tier).has_value())
+        if (tier != SlabTier::Large && chunks >= mCounts.chunkBytesIn(arena)
+            && (mDrainStalled[static_cast<std::size_t>(arena)]
+                || (!mLedger.nextToMove().has_value() && !mLedger.drainFor(arena, tier).has_value())))
             mTransitWanted[static_cast<std::size_t>(arena)] = true;
         return false;
     }
@@ -1036,8 +1040,13 @@ namespace Rtx
         {
             const OwnerParts owner = partsOf(mLedger.getOwnerOf(*moving));
             const ClassIndex of = mLedger.getClassOf(*moving);
-            if (owner.mScene != indexOf(scene) || mSpent.mCopyBytes >= shares.mCopyBytes || !mLedger.hasRoom(of))
+            if (mSpent.mCopyBytes >= shares.mCopyBytes)
                 return;
+            if (owner.mScene != indexOf(scene) || !mLedger.hasRoom(of))
+            {
+                mDrainStalled[static_cast<std::size_t>(mLedger.getArena(of))] = true;
+                return;
+            }
             const Slot to = mLedger.reserve(of, mLedger.getOwnerOf(*moving));
             mLedger.commit(to);
             if (owner.mStructure)
@@ -1283,6 +1292,7 @@ namespace Rtx
         mRefused.clear();
         mStandingChanges.clear();
         mStructureStandingChanges.clear();
+        mDrainStalled.fill(false);
         ++scene.mHandOvers;
         for (const OwedDrop& owed : scene.mDropsOwed)
         {
@@ -1351,9 +1361,15 @@ namespace Rtx
                 if (arriving != nullptr)
                     ++(arriving->mMade.has_value() ? missing.mArrived : missing.mAsked);
                 else if (texture.mBakedFrom != sNoRow)
-                    ++missing.mUnaskedBakes;
+                {
+                    const std::optional<std::uint8_t> source = standingLevelOf(each.mTextures[texture.mBakedFrom]);
+                    ++(source == texture.mPlannedLevel ? missing.mUnaskedForRoom : missing.mUnaskedBakes);
+                }
                 else if (texture.mGroundOf != sNoRow)
-                    ++missing.mUnaskedComposites;
+                    // The layers are told apart in the scene handed over alone, whose description this has.
+                    ++(&each == &scene && layersStand(each.mTextures, handing.mScene, texture.mGroundOf)
+                            ? missing.mUnaskedForRoom
+                            : missing.mUnaskedComposites);
                 else
                     ++missing.mUnaskedFiles;
             }

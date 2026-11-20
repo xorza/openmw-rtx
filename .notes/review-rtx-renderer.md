@@ -1501,8 +1501,11 @@ Items that landed in another shape than their target, each with how and why.
   and the arena's held bytes beside it: the leg's end is the one moment the harness reads the driver now, and a
   finding judged on one sample a leg would repeat the defect batch 2 named.
 - A ground composite waiting to be made holds its layers at its own tier (`Residency::syncTextures`): a layer held at
-  the cache's tier alone can be dropped under a tight cap, which leaves the composite waiting for good. The handheld's
-  Repack tour waited on 31 textures not yet asked at its first leg, which is what that comes to.
+  the cache's tier alone can be dropped under a tight cap, which leaves the composite waiting for good.
+- **A drain that could not move a slot this hand-over is no drain**: `ensureRoom` wants the transit chunk as though
+  none stood (`Residency::mDrainStalled`). The handheld's Repack tour waited at its first leg, and every few legs
+  after, on 31 composites ready to be made with no room, half its budget free: the drain chosen for their class held
+  a slot of a scene not handed over, or one whose class had lost its room.
 - Batch 5's moves out of a draining slab took the same slot again until the copy share ran out: a slot given back
   stayed live until the hand-over's epoch was known. It now leaves the ledger at once (`SlotLedger::leave`), which
   the handheld's Repack tour found, an assert in debug and a GPU timer never written in release.

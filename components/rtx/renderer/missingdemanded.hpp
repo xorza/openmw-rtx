@@ -16,18 +16,19 @@ namespace Rtx
         std::uint32_t mArrived = 0;
 
         /// Textures not asked yet: a file's while the feed is out of credit; a sprite's light bake while its source
-        /// stands at another level or there is no room; a ground composite while a layer stands nothing or there is
-        /// no room.
+        /// stands at another level; a ground composite while a layer stands nothing; a bake or a composite ready to be
+        /// made with no room for it.
         std::uint32_t mUnaskedFiles = 0;
         std::uint32_t mUnaskedBakes = 0;
         std::uint32_t mUnaskedComposites = 0;
+        std::uint32_t mUnaskedForRoom = 0;
 
         /// Meshes placing nothing.
         std::uint32_t mMeshes = 0;
 
         constexpr std::uint32_t textures() const
         {
-            return mAsked + mArrived + mUnaskedFiles + mUnaskedBakes + mUnaskedComposites;
+            return mAsked + mArrived + mUnaskedFiles + mUnaskedBakes + mUnaskedComposites + mUnaskedForRoom;
         }
 
         constexpr std::uint32_t total() const { return textures() + mMeshes; }

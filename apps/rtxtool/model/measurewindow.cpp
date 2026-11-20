@@ -102,9 +102,9 @@ namespace RtxTool
         const Rtx::MissingDemanded& missing = unstood.mMissing;
         add(missing.textures() > 0,
             std::format("{} images still being made ({} on their way, {} come and waiting for room, not yet asked {} "
-                        "files, {} bakes and {} composites)",
+                        "files, {} bakes and {} composites, and {} made with no room)",
                 missing.textures(), missing.mAsked, missing.mArrived, missing.mUnaskedFiles, missing.mUnaskedBakes,
-                missing.mUnaskedComposites));
+                missing.mUnaskedComposites, missing.mUnaskedForRoom));
         add(missing.mMeshes > 0, std::format("{} meshes still being built", missing.mMeshes));
         add(unstood.mArriving, "content still arriving");
         return text;

@@ -450,6 +450,10 @@ namespace Rtx
         /// plan stands in: each asks the transit chunk at the frame's close, where a lowering's destination stands
         /// while its source retires. Cleared as each close reads it.
         std::array<bool, 256> mTransitWanted{};
+
+        /// The arenas whose drain this hand-over's moves met a slot of they could not move: another scene's, or one
+        /// whose class had no room left (`issueMoves`).
+        std::array<bool, 256> mDrainStalled{};
         bool mPlanStale = true;
         std::uint32_t mNextTicket = 0;
 
