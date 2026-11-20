@@ -279,8 +279,8 @@ namespace Rtx
                     material.markUnread(UnreadState::FlatShading,
                         static_cast<const osg::ShadeModel&>(attribute).getMode() == osg::ShadeModel::FLAT);
                     return;
+                // Its mode says whether it fogs (`readMode`): attached with the mode off, it fogs nothing.
                 case osg::StateAttribute::FOG:
-                    material.markUnread(UnreadState::Fog, true);
                     return;
                 case osg::StateAttribute::STENCIL:
                     // **A test that passes everywhere is no state**: it rejects no fragment, and what it writes
@@ -300,8 +300,9 @@ namespace Rtx
             }
         }
 
-        /// The same for a mode.
-        void readMode(const osg::StateAttribute::GLMode mode, SurfaceDescription& material)
+        /// The same for a mode, by what `value` turns on.
+        void readMode(const osg::StateAttribute::GLMode mode, const osg::StateAttribute::GLModeValue value,
+            SurfaceDescription& material)
         {
             if (roleOf(mode) != StateRole::Examined)
                 return;
@@ -309,7 +310,7 @@ namespace Rtx
             switch (mode)
             {
                 case GL_FOG:
-                    material.markUnread(UnreadState::Fog, true);
+                    material.markUnread(UnreadState::Fog, (value & osg::StateAttribute::ON) != 0);
                     return;
                 default:
                     material.markUnread(UnreadState::Unknown, true);
@@ -466,16 +467,13 @@ namespace Rtx
         }
 
         // Blending wins over testing, and the threshold survives for a renderer that would rather cut.
-        // The function says how the blend composites; a mode alone says only that it does.
-        if (const osg::StateSet::RefAttributePair* blended = stateSet.getAttributePair(osg::StateAttribute::BLENDFUNC))
-        {
-            if (SurfaceLocks::takes(locks.mBlend, blended->second))
-            {
-                material.mAlphaMode = AlphaMode::Blend;
-                material.mBlend = blendKindOf(*static_cast<const osg::BlendFunc*>(blended->first.get()));
-            }
-        }
-        else if (const osg::StateAttribute::GLModeValue blend = stateSet.getMode(GL_BLEND);
+        // **The mode says whether the surface blends and the function how, each under its own lock**, as OpenGL
+        // keeps the two: a function attached with its mode off (`setAttributeAndModes(function, OFF)`, a parent's way
+        // of turning a subgraph's blending off) blends nothing, and read by its presence it blended.
+        if (const osg::StateSet::RefAttributePair* blended = stateSet.getAttributePair(osg::StateAttribute::BLENDFUNC);
+            blended != nullptr && SurfaceLocks::takes(locks.mBlendFunction, blended->second))
+            material.mBlend = blendKindOf(*static_cast<const osg::BlendFunc*>(blended->first.get()));
+        if (const osg::StateAttribute::GLModeValue blend = stateSet.getMode(GL_BLEND);
             blend != osg::StateAttribute::INHERIT && SurfaceLocks::takes(locks.mBlend, blend))
             material.mAlphaMode = (blend & osg::StateAttribute::ON) ? AlphaMode::Blend
                 : material.mAlphaTest.cuts()                        ? AlphaMode::Cutout
@@ -536,7 +534,7 @@ namespace Rtx
             for (const auto& [type, attribute] : unit)
                 readAttribute(*attribute.first, material);
         for (const auto& [mode, value] : stateSet.getModeList())
-            readMode(mode, material);
+            readMode(mode, value, material);
 
         return said;
     }

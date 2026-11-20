@@ -247,7 +247,16 @@ namespace Rtx
         /// nearer one's, as every other fact here is.
         std::uint32_t mUnread = 0;
 
-        bool isUnread(UnreadState state) const { return (mUnread & static_cast<std::uint32_t>(state)) != 0; }
+        /// The states unread of the surface as it stands: the chain's, less a blend's pair and equation where the
+        /// surface does not blend, which then composite nothing.
+        std::uint32_t getUnread() const
+        {
+            constexpr std::uint32_t ofABlend = static_cast<std::uint32_t>(UnreadState::BlendPair)
+                | static_cast<std::uint32_t>(UnreadState::BlendEquation);
+            return mAlphaMode == AlphaMode::Blend ? mUnread : mUnread & ~ofABlend;
+        }
+
+        bool isUnread(UnreadState state) const { return (getUnread() & static_cast<std::uint32_t>(state)) != 0; }
 
         void markUnread(UnreadState state, bool unread)
         {

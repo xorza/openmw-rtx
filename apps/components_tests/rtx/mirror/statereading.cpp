@@ -265,6 +265,37 @@ namespace Rtx
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Blend);
             EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 128.0f / 255.0f);
 
+            // **The mode says whether a surface blends, and the function how.** A function attached with its mode off
+            // blends nothing and falls back to the test, and still says how a mode turned on nearer composites; a
+            // function alone turns nothing on; and a parent that turned blending off for everything under it, with
+            // `OVERRIDE`, keeps it off against a child's function and mode.
+            osg::ref_ptr<osg::StateSet> additiveOff = new osg::StateSet;
+            additiveOff->setAttributeAndModes(new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE), osg::StateAttribute::OFF);
+            describeStateSet(*additiveOff, material);
+            EXPECT_EQ(material.mAlphaMode, AlphaMode::Cutout);
+            EXPECT_EQ(material.mBlend, BlendKind::Add);
+            osg::ref_ptr<osg::StateSet> modeOn = new osg::StateSet;
+            modeOn->setMode(GL_BLEND, osg::StateAttribute::ON);
+            describeStateSet(*modeOn, material);
+            EXPECT_EQ(material.mAlphaMode, AlphaMode::Blend);
+            EXPECT_EQ(material.mBlend, BlendKind::Add);
+
+            osg::ref_ptr<osg::StateSet> functionAlone = new osg::StateSet;
+            functionAlone->setAttribute(new osg::BlendFunc(GL_ONE, GL_ONE));
+            material = SurfaceDescription{};
+            describeStateSet(*functionAlone, material);
+            EXPECT_EQ(material.mAlphaMode, AlphaMode::Opaque);
+            EXPECT_EQ(material.mBlend, BlendKind::AddWhole);
+
+            osg::ref_ptr<osg::StateSet> offForAll = new osg::StateSet;
+            offForAll->setAttributeAndModes(
+                new osg::BlendFunc, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+            SurfaceLocks locks;
+            material = SurfaceDescription{};
+            describeStateSet(*offForAll, material, locks);
+            describeStateSet(*blended, material, locks);
+            EXPECT_EQ(material.mAlphaMode, AlphaMode::Opaque);
+
             osg::ref_ptr<osg::StateSet> root = new osg::StateSet;
             root->setAttribute(Shader::RemovedAlphaFunc::getInstance(GL_ALWAYS));
             material = SurfaceDescription{};
@@ -466,7 +497,7 @@ namespace Rtx
             const auto unreadOf = [](const osg::StateSet& state) {
                 SurfaceDescription material;
                 describeStateSet(state, material);
-                return material.mUnread;
+                return material.getUnread();
             };
             const auto bit = [](UnreadState state) { return static_cast<std::uint32_t>(state); };
 
@@ -482,6 +513,21 @@ namespace Rtx
             osg::ref_ptr<osg::StateSet> multiply = new osg::StateSet;
             multiply->setAttributeAndModes(new osg::BlendFunc(GL_DST_COLOR, GL_ZERO));
             EXPECT_EQ(unreadOf(*multiply), bit(UnreadState::BlendPair));
+
+            // **By what it does, not by its presence**: the same pair with its mode off composites nothing, and a fog
+            // attached with its mode off, or a mode turned off with no fog, fogs nothing.
+            osg::ref_ptr<osg::StateSet> multiplyOff = new osg::StateSet;
+            multiplyOff->setAttributeAndModes(new osg::BlendFunc(GL_DST_COLOR, GL_ZERO), osg::StateAttribute::OFF);
+            EXPECT_EQ(unreadOf(*multiplyOff), 0u);
+            osg::ref_ptr<osg::StateSet> fogOff = new osg::StateSet;
+            fogOff->setAttributeAndModes(new osg::Fog, osg::StateAttribute::OFF);
+            EXPECT_EQ(unreadOf(*fogOff), 0u);
+            osg::ref_ptr<osg::StateSet> fogModeOff = new osg::StateSet;
+            fogModeOff->setMode(GL_FOG, osg::StateAttribute::OFF);
+            EXPECT_EQ(unreadOf(*fogModeOff), 0u);
+            osg::ref_ptr<osg::StateSet> fogUnset = new osg::StateSet;
+            fogUnset->setAttribute(new osg::Fog);
+            EXPECT_EQ(unreadOf(*fogUnset), 0u);
 
             osg::ref_ptr<osg::StateSet> wire = new osg::StateSet;
             wire->setAttributeAndModes(new osg::Fog);

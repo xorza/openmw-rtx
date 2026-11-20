@@ -525,7 +525,7 @@ namespace Rtx
 
         // What the surface states and the trace does not read, said once for each texture: the
         // rest of the surface is drawn.
-        if (described->mUnread != 0)
+        if (described->getUnread() != 0)
         {
             const osg::Image* const named = described->getTexture(SurfaceMap::Diffuse);
             const std::string_view name
