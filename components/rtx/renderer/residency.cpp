@@ -4,7 +4,9 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <optional>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -427,17 +429,27 @@ namespace Rtx
         mPlanStale = true;
     }
 
-    void Residency::describeShape(
+    std::optional<std::string> Residency::describeShape(
         TextureResident& texture, const TextureTable& table, const TextureIndex row, const ResidencyDevice& device)
     {
         const TextureRow& described = table.getRows()[row];
         switch (described.mKind)
         {
             case TextureKind::File:
-                if (described.mImage == nullptr || described.mFormat == TextureFormat::Unnamed)
+                if (described.mImage == nullptr)
                 {
                     texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
-                    return;
+                    return std::string(sNoImage);
+                }
+                // **A file in the wrong slot says so**, as the upload's own check words it: a normal map's BC5 read
+                // as a colour is a known format, not an unreadable file.
+                if (described.mFormat == TextureFormat::Unnamed)
+                {
+                    texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
+                    const Result<void, std::string> uploadable
+                        = checkUploadable(*described.mImage, described.mEncoding);
+                    return uploadable.isOk() ? std::string("its format is not one this renderer uploads")
+                                             : uploadable.error();
                 }
                 texture.mShape = shapeOfFile(*described.mImage, described.mPartner.get(), described.mEncoding);
                 break;
@@ -448,11 +460,11 @@ namespace Rtx
                 if (source == sNoRow)
                 {
                     texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
-                    return;
+                    return std::string("no file of its own is held to bake from");
                 }
                 texture.mBakedFrom = source;
                 texture.mBakedFromGeneration = table.generationOf(source);
-                return;
+                return std::nullopt;
             }
             case TextureKind::GroundAlbedo:
             case TextureKind::GroundGloss:
@@ -470,8 +482,11 @@ namespace Rtx
             }
         }
         priceLevels(texture, device);
-        if (texture.mClassAt[texture.mFloorLevel].isNone())
-            texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
+        if (!texture.mClassAt[texture.mFloorLevel].isNone())
+            return std::nullopt;
+        texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
+        return std::format("it is {} by {} texels, which this device holds no image of", texture.mShape.mWidth,
+            texture.mShape.mHeight);
     }
 
     void Residency::syncTextures(Scene& scene, const HandOver& handing)
@@ -494,9 +509,8 @@ namespace Rtx
             {
                 texture.mLive = true;
                 texture.mGeneration = table.generationOf(row);
-                describeShape(texture, table, row, handing.mDevice);
-                if (std::holds_alternative<StandingFailed>(texture.mStanding))
-                    scene.mFailed.push_back(FailedRow{ .mTexture = row, .mWhy = std::string(sNoImage) });
+                if (std::optional<std::string> why = describeShape(texture, table, row, handing.mDevice))
+                    scene.mFailed.push_back(FailedRow{ .mTexture = row, .mWhy = std::move(*why) });
                 mPlanStale = true;
             }
             if (std::holds_alternative<StandingFailed>(texture.mStanding))
@@ -1234,6 +1248,7 @@ namespace Rtx
         mTexelsAt.clear();
         mRefused.clear();
         mStandingChanges.clear();
+        mStructureStandingChanges.clear();
         ++scene.mHandOvers;
         for (const OwedDrop& owed : scene.mDropsOwed)
         {
@@ -1278,18 +1293,42 @@ namespace Rtx
                 mStandingChanges.push_back(StandingChange{ .mTexture = TextureIndex(at), .mStands = stands });
             texture.mStoodReported = stands;
         }
+        for (std::uint32_t at = 0; at < scene.mStructures.size(); ++at)
+        {
+            StructureResident& structure = scene.mStructures[MeshIndex(at)];
+            const bool stands = structure.mLive && slotOf(structure).has_value();
+            if (stands != structure.mStoodReported && structure.mLive)
+                mStructureStandingChanges.push_back(
+                    StructureStandingChange{ .mMesh = MeshIndex(at), .mStands = stands });
+            structure.mStoodReported = stands;
+        }
 
         std::uint32_t waiting = 0;
         std::uint32_t demanded = 0;
+        std::uint32_t missing = 0;
         for (const Scene& each : mScenes)
         {
+            missing
+                += static_cast<std::uint32_t>(std::ranges::count_if(each.mTextures, [](const TextureResident& texture) {
+                       return isDemanded(texture.mTier) && texture.mPlannedLevel.has_value()
+                           && !standingLevelOf(texture).has_value();
+                   }));
+            missing += static_cast<std::uint32_t>(
+                std::ranges::count_if(each.mStructures, [](const StructureResident& structure) {
+                    return isDemanded(structure.mTier) && structure.mPlanned && !slotOf(structure).has_value();
+                }));
             waiting += static_cast<std::uint32_t>(std::ranges::count_if(each.mTextures, textureWaits));
             waiting += static_cast<std::uint32_t>(std::ranges::count_if(each.mStructures, structureWaits));
             demanded += static_cast<std::uint32_t>(std::ranges::count_if(each.mTextures,
                 [](const TextureResident& texture) { return isDemanded(texture.mTier) && textureWaits(texture); }));
+            demanded += static_cast<std::uint32_t>(
+                std::ranges::count_if(each.mStructures, [](const StructureResident& structure) {
+                    return isDemanded(structure.mTier) && structureWaits(structure);
+                }));
         }
         mReport.mWaiting = waiting;
         mReport.mWaitingDemanded = demanded;
+        mReport.mMissingDemanded = missing;
         return epoch;
     }
 

@@ -416,7 +416,6 @@ target_sources(
         device/memory/largestowed.cpp
         device/memory/owedgrowth.cpp
         device/memory/stagingring.cpp
-        device/memory/structurestorage.cpp
         device/memory/uploads.cpp
         device/physicaldevice.cpp
         device/pipelinecache.cpp
@@ -521,8 +520,6 @@ target_sources(
                 device/memory/barriers.hpp
                 device/memory/batch.hpp
                 device/memory/blockedbuffer.hpp
-                device/memory/blocklist.hpp
-                device/memory/blockscoming.hpp
                 device/memory/buffer.hpp
                 device/memory/bufferusage.hpp
                 device/memory/descriptorsets.hpp
@@ -541,7 +538,6 @@ target_sources(
                 device/memory/referencealignment.hpp
                 device/memory/slottable.hpp
                 device/memory/stagingring.hpp
-                device/memory/structurestorage.hpp
                 device/memory/systemshare.hpp
                 device/memory/uploads.hpp
                 device/owned.hpp
@@ -596,7 +592,6 @@ target_sources(
                 scene/spritesource.hpp
                 scene/structurebuild.hpp
                 scene/toplevelpackpass.hpp
-                scene/whenroomless.hpp
                 shaders/shared/accumulate.h
                 shaders/shared/atrous.h
                 shaders/shared/bc7.h

@@ -16,7 +16,6 @@
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
-#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
@@ -31,7 +30,6 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
-#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -199,7 +197,10 @@ namespace Rtx
         /// and a caller asking once a frame is answered once a frame however many that drain accounted for.
         TEST_F(RtxFramesTest, aFrameTheRingDrainedToMakeRoomStillReports)
         {
-            // Placed before every frame, the first included, so the three record the same zones.
+            // Placed before every frame, the first included, so the three record the same zones, after a frame that
+            // takes in what the fixture's hand-over built.
+            mProbe.traceFrame(ahead(), FrameOptions{});
+            ASSERT_TRUE(mRenderer.finishFrame().has_value());
             moveTo(200.0f);
             mProbe.traceFrame(ahead(), FrameOptions{});
             moveTo(-1000.0f);
@@ -624,11 +625,9 @@ namespace Rtx
 
         /// **The frame's reserve is the running mode's, and the world stays whatever it does.** Native upscaling keeps
         /// the upscaler's images beside a trace of the same extent, so its reserve stands over the mode with none. A
-        /// reserve that moves within the room content left keeps the world; one that grows past it (a budget at the
-        /// textures' ceiling over the heap, which native mode's larger reserve lowers) keeps it too, residency lowering
-        /// its textures under the smaller cap; one that shrinks over a world built where the device had no room for its
-        /// structures keeps it as well, and names every structure refused for room short in its next answer, so the
-        /// uploader hands it over again as the room comes (`DeviceScene::waitAgain`). A run that sums
+        /// reserve that moves within the room content left keeps the world; one that grows past it (a budget that
+        /// leaves the arena a cap of nought, which native mode's larger reserve leaves less) keeps it too, residency
+        /// following the smaller cap over the frames after; one that shrinks keeps it as well. A run that sums
         /// (`RadianceWidth::Summed`) fills its reserve to the byte once a frame sums, since nothing is kept that no
         /// frame makes. **A run that names the modes it moves between** (`RunProfile::mReservedUpscales`) reserves the
         /// largest of theirs under each.
@@ -656,7 +655,7 @@ namespace Rtx
             EXPECT_TRUE(worldHeld()) << "a reserve that shrank built again a world nothing was held back from";
 
             {
-                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAtContent(memory));
+                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetForCap(mProbe.getDevice(), 0));
                 EXPECT_EQ(runAt(Upscale::Native), upscaled);
             }
             EXPECT_TRUE(worldHeld()) << "a reserve that grew past what content left built the world again";
@@ -664,17 +663,6 @@ namespace Rtx
             EXPECT_EQ(runAt(Upscale::Native), upscaled);
             EXPECT_TRUE(worldHeld()) << "a reserve that stayed where it was built the world again";
 
-            // Let go of first, since content fills the ranges the world gives back however full the
-            // device is, and built again with no room for content.
-            SceneIdentities emptied;
-            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), SceneDesc(emptied), {});
-            {
-                const Testing::NoRoomForContent full(mProbe.getDevice());
-                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), mScene, {});
-            }
-            Rtx::DeviceAnswer answer;
-            mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
-            ASSERT_FALSE(answer.mRefused.empty()) << "the device had room for the world, so nothing was held back";
             EXPECT_EQ(runAt(Upscale::Off), alone);
             EXPECT_TRUE(worldHeld()) << "a reserve that shrank built the world again";
 
@@ -698,7 +686,7 @@ namespace Rtx
             ASSERT_TRUE(worldHeld());
             EXPECT_EQ(runAt(Upscale::Off), upscaled) << "the reserve kept no room for a mode the run named";
             {
-                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAtContent(memory));
+                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetForCap(mProbe.getDevice(), 0));
                 EXPECT_EQ(runAt(Upscale::Native), upscaled);
                 EXPECT_TRUE(worldHeld()) << "a move between two modes the run named built the world again";
                 EXPECT_EQ(runAt(Upscale::Off), upscaled);
@@ -708,66 +696,27 @@ namespace Rtx
             EXPECT_EQ(runAt(Upscale::Off), alone) << "the reserve did not follow the run's modes back";
         }
 
-        /// **A structure built once its room came is placed by the placement that built it.** A wall arrives while the
-        /// device has no room for content and a texture rests, so it waits; every row placing it is written naming no
-        /// structure. The next placement, on which nothing of the scene moves, builds it and writes those rows again:
-        /// before, the wall stayed out of the top level until its tight copy landed, or its placement next moved.
-        TEST_F(RtxFramesTest, aStructureBuiltOnceItsRoomCameIsPlacedByThePlacementThatBuiltIt)
+        /// **The placements of what a hand-over built are written in it**: a wall arrives behind nothing, its structure
+        /// built into the slot residency named in the hand-over that brought it, and the frame after hits it at every
+        /// pixel, its rows written naming the structure in that same hand-over.
+        TEST_F(RtxFramesTest, aStructureBuiltInAHandOverIsPlacedByIt)
         {
             // The fixture's wall walks behind the eye, so what a frame hits is the arrival alone.
             mScene.clearArrivals();
             mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
             Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mScene.placements().advance();
-
-            // A mesh rests, so room is coming, and what the device has no room for waits.
-            const MeshIndex resting = Testing::addMesh(
-                mScene, MeshArrays{ .mPositions = Testing::wallAt(200.0f), .mIndices = Testing::sQuadIndices });
-            mScene.standMesh(resting, 64);
-            Testing::letGoMesh(mScene, resting);
-            mScene.compact();
-            ASSERT_EQ(mScene.getRestingBytes(), 64u);
+            mProbe.traceFrame(ahead(), FrameOptions{});
+            ASSERT_EQ(finishedHits(), 0u) << "the fixture's wall was hit behind the eye";
 
             const MeshIndex arrival = Testing::addMesh(
                 mScene, MeshArrays{ .mPositions = Testing::wallAt(100.0f), .mIndices = Testing::sQuadIndices });
             mScene.addInstance(MeshInstance{ .mMesh = arrival });
-            {
-                const Testing::NoRoomForContent full(mProbe.getDevice());
-                Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), mScene, {});
-                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
-            }
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mScene.clearArrivals();
             mScene.placements().advance();
-            Rtx::DeviceAnswer answer;
-            mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
-            ASSERT_TRUE(answer.mRefused.empty()) << "the wall was refused, where room was coming";
-
             mProbe.traceFrame(ahead(), FrameOptions{});
-            ASSERT_EQ(finishedHits(), 0u) << "the device had room for the wall, so nothing waited";
-
-            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
-            mProbe.traceFrame(ahead(), FrameOptions{});
-            EXPECT_EQ(finishedHits(), sEveryPixel) << "the wall was built and no row placing it was written again";
-        }
-
-        /// **The world is handed over with its structures tight, and a picture's scene with its
-        /// loose** (`BuildCompaction`): the world's build waits, so its static wall is copied out
-        /// of the loose storage before the hand-over returns and its textures are made; a picture's
-        /// rides the next submit, so the same wall stands loose until a placement copies it.
-        TEST_F(RtxFramesTest, aWorldIsHandedOverWithItsStructuresTightAndAPicturesWithItsLoose)
-        {
-            SceneIdentities identities;
-            SceneDesc wall(identities);
-            wall.addInstance(MeshInstance{ .mMesh = Testing::addQuadMesh(wall, Testing::wallAt(300.0f)) });
-
-            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), wall, {});
-            EXPECT_EQ(mProbe.getLooseStructureBytes(Rtx::SceneSlot::world()), 0u)
-                << "the world was handed over with a structure still loose";
-
-            const SceneSlot doll = mRenderer.addViewScene();
-            Testing::standerOf(mRenderer).setScene(mRenderer, doll, wall, {});
-            EXPECT_GT(mProbe.getLooseStructureBytes(doll), 0u) << "a picture's scene waited for its structures";
-            mRenderer.dropViewScene(doll);
+            EXPECT_EQ(finishedHits(), sEveryPixel) << "the wall was built and no row placing it was written";
         }
 
         /// **A picture's scene let go gives back every allocation it took**, once the queue has run

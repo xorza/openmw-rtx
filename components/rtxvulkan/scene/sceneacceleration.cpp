@@ -10,7 +10,6 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/rowspan.hpp>
-#include <components/rtx/common/slots.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
@@ -78,7 +77,7 @@ namespace Rtx
         , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage",
               GrowableBuffer::Growth::Exact)
         , mPacked(device, BufferKind::DeviceLocal, sBuildInputUsage, "instances packed")
-        , mBottomLevel(device, sStructureBuildRoom, placementRoom > 0 ? sContentBlockBytes : sSmallSceneBlockBytes)
+        , mBottomLevel(device)
         , mRefitScratch(device, BufferKind::DeviceLocal, sScratchUsage, "refit scratch", GrowableBuffer::Growth::Exact)
         , mTopLevelScratch(
               device, BufferKind::DeviceLocal, sScratchUsage, "top level scratch", GrowableBuffer::Growth::Exact)
@@ -106,16 +105,9 @@ namespace Rtx
     }
 
     void SceneAcceleration::build(Batch& batch, Uploads& uploads, const SceneDesc& scene,
-        std::span<const MeshIndex> everyMesh, RowSpan<const InstanceRecord, PlacementIndex> records,
-        const BlockedBuffer& positions, const TopLevelPackPass& pack, const BuildCompaction compaction,
-        std::vector<Refusal>& refused)
+        RowSpan<const InstanceRecord, PlacementIndex> records, const TopLevelPackPass& pack)
     {
-        assert(mBottomLevel.size() == 0 && mTopLevel.isEmpty() && "a scene built twice");
-
-        // The rows after the structures, because a row names the address of the structure it places.
-        mBottomLevel.build(
-            batch, scene, everyMesh, mPoses.at(FrameSlot{}), positions, mIndices, mPlacements + 1, compaction, refused);
-        sizeRefitScratch();
+        assert(mTopLevel.isEmpty() && "a scene built twice");
         writeRows(records, {});
         prepareTopLevel(scene, FrameSlot{}, uploads);
         uploads.order();
@@ -129,6 +121,7 @@ namespace Rtx
         // what holds one per frame in flight.
         mPoses.reserve(batch, scene.deformers().getBindVertexCount());
         mIndices.reserve(batch, scene.meshes().getIndexRuns().getEnd());
+        mBottomLevel.grow(scene.meshes().getRows().size());
 
         // **No pose here**: a body's run in every copy is the skin pass's, which poses whatever
         // arrives into each copy before the build reads the first (`SkinPass::recordArrived`). A
@@ -157,39 +150,31 @@ namespace Rtx
         writeGeometry(batch, scene, scene.meshes().getArrived());
     }
 
-    void SceneAcceleration::buildArrived(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions,
-        GpuTimer* timer, std::vector<Refusal>& refused)
+    void SceneAcceleration::standStructures(Batch& batch, const ContentArena& arena, const SceneDesc& scene,
+        const BlockedBuffer& positions, GpuTimer* const timer, const std::span<const ResidencyOp> ops)
     {
-        // The builds a crossing brings, bracketed as one zone. Without it they are device time
-        // the frame's fence carries and no zone accounts for, so the frame a player feels is the one
-        // frame whose report says nothing about what made it slow.
-        const GpuZone timed(timer, batch.getCommands(), FrameZone::Blas);
-
-        // Noted as built on the next posed placement, which is the one that brings them: built whole
-        // here, nothing on it builds them whole again.
-        mBottomLevel.build(batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), positions, mIndices,
-            mPlacements + 1, BuildCompaction::Streamed, refused);
-        sizeRefitScratch();
-
-        // **A structure built is a top level to build, whatever its rows say.** A top level holds
-        // each instance's bounds from the structure it named at its own build, and a slot the scene
-        // handed out again may land its new structure at the address a buried one gave back: rows
-        // the same to the byte over different geometry.
-        if (!scene.meshes().getArrived().empty())
-            mBuiltOverWrites.reset();
-    }
-
-    void SceneAcceleration::buildWaiting(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions,
-        const FrameSlot slot, std::vector<Refusal>& refused)
-    {
-        if (mBottomLevel.buildWaiting(batch, scene, mPoses.at(slot), positions, mIndices, mPlacements + 1, refused)
-            == 0)
+        if (ops.empty())
             return;
+        const bool built = std::ranges::any_of(
+            ops, [](const ResidencyOp& op) { return std::holds_alternative<BuildStructure>(op); });
 
+        // Noted as built on the next posed placement, which is the one that brings them: built whole here, nothing on
+        // it builds them whole again.
+        mBottomLevel.execute(BottomLevelStore::Executing{ .mBatch = batch,
+                                 .mArena = arena,
+                                 .mPoses = mPoses.at(FrameSlot{}),
+                                 .mPositions = positions,
+                                 .mIndices = mIndices,
+                                 .mPlacement = mPlacements + 1,
+                                 .mTimer = timer },
+            scene, ops);
         sizeRefitScratch();
-        // A structure built is a top level to build, for the reason `buildArrived` gives.
-        mBuiltOverWrites.reset();
-        mPlacesBuiltWaiting = true;
+
+        // **A structure built is a top level to build, whatever its rows say.** A top level holds each instance's
+        // bounds from the structure it named at its own build, and a slot built again may land its new structure at
+        // the address a buried one gave back: rows the same to the byte over different geometry.
+        if (built)
+            mBuiltOverWrites.reset();
     }
 
     void SceneAcceleration::sizeRefitScratch()
@@ -311,20 +296,16 @@ namespace Rtx
 
         writeRows(records, changed);
 
-        // **A structure built once its room came is placed by the placement that built it.** Its placements' rows
-        // were written while the mesh went without, naming no structure, and nothing has changed them since.
-        if (std::exchange(mPlacesBuiltWaiting, false))
-            placeMeshes(scene, records, mBottomLevel.getBuiltWaiting());
-
-        // After the rows are grown to the scene and before the copy they are synced from. A
-        // structure copied tight has moved, and the rows naming it are written again here — into
+        // **The rows of every mesh whose structure residency built, copied or dropped**, after the rows are grown to
+        // the scene and before the copy they are synced from: written while it stood elsewhere or nowhere, and into
         // the same table, so every copy owes them the way it owes anything else.
-        const bool compacting = placeCompacted(scene, records);
+        placeMeshes(scene, records, mBottomLevel.getChanged());
+        mBottomLevel.clearChanged();
 
         // Whether the rows moved since the top level was last built, and not what this copy owes:
         // there is one top level, so a row the copy before was synced with is in it already. A refit
         // alone still updates it, because a top level caches the bounds of what it names.
-        if (!compacting && mRowTable.getWrites() == mBuiltOverWrites && mRefit.mBuilds.empty())
+        if (mRowTable.getWrites() == mBuiltOverWrites && mRefit.mBuilds.empty())
             return false;
 
         prepareTopLevel(scene, placing.mSlot, placing.mUploads);
@@ -334,25 +315,10 @@ namespace Rtx
         // frames in flight, is behind the head barrier every command buffer opens with
         // (`CommandPool::begin`), and the pose the refit reads is behind the barrier the skin pass
         // ends in.
-        if (compacting)
-            mBottomLevel.recordCompaction(placing.mCommands, placing.mTimer);
-
         if (!mRefit.mBuilds.empty())
             recordRefit(placing.mCommands, placing.mTimer);
 
         recordTopLevel(placing.mCommands, pack, placing.mTimer);
-        return true;
-    }
-
-    bool SceneAcceleration::placeCompacted(
-        const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records)
-    {
-        const SlotSet<MeshIndex>& moved = mBottomLevel.prepareCompaction();
-        if (moved.empty())
-            return false;
-
-        // Every row that placed one of these names an address that has moved.
-        placeMeshes(scene, records, moved.getSlots());
         return true;
     }
 
@@ -456,7 +422,7 @@ namespace Rtx
         if (record.mFlipFacing)
             flags |= VK_GEOMETRY_INSTANCE_TRIANGLE_FLIP_FACING_BIT_KHR;
 
-        assert(mBottomLevel.holds(record.mMesh) && "a row placing a mesh nothing built");
+        assert(mBottomLevel.holds(record.mMesh) && "a row placing a mesh the geometry never took in");
 
         // The geometry is built opaque, so forcing is the whole of how a cutout (asked whether
         // anything is at the hit) or a translucent surface (asked how much) reaches the shader. An
@@ -478,6 +444,7 @@ namespace Rtx
             // nothing would say so.
             .instanceShaderBindingTableRecordOffset = static_cast<std::uint32_t>(record.mKind),
             .flags = flags,
+            // Nought for a mesh residency stands no structure of yet, which the packing leaves out.
             .accelerationStructureReference = mBottomLevel.getAddress(record.mMesh),
         };
 

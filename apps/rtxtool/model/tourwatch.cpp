@@ -100,8 +100,6 @@ namespace RtxTool
         }
         mRefusalsRead = met.size();
 
-        mRestReuse.read(frame.mScene);
-
         // How many cells the game made active on this frame: its loads, which run on the frame's own thread.
         mActive.assign(frame.mActiveCells.begin(), frame.mActiveCells.end());
         std::ranges::sort(mActive);

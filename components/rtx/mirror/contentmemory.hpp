@@ -20,6 +20,11 @@ namespace Rtx
         std::uint32_t mRestingVertices = 0;
         std::uint32_t mRestingIndices = 0;
 
+        /// How many separate holes the vertex and the index runs leave below their reach (`RunAllocator::
+        /// getHoleCount`): what says whether the runs' allocator, walked a hole at a time, wants another shape.
+        std::uint32_t mVertexHoles = 0;
+        std::uint32_t mIndexHoles = 0;
+
         /// What the host holds of the geometry: the arrivals waiting for a hand-over (`MeshTable::getGeometryBytes`).
         std::uint64_t mGeometryBytes = 0;
 

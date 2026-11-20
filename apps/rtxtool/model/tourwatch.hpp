@@ -20,7 +20,6 @@
 #include "logtally.hpp"
 #include "longestframes.hpp"
 #include "measurewindow.hpp"
-#include "restreuse.hpp"
 
 namespace RtxTool
 {
@@ -97,9 +96,6 @@ namespace RtxTool
         /// Where the watcher pressed Home.
         void mark(FindingPlaces& places);
 
-        /// How the textures came back from rest over the tour (`RestReuse`).
-        const RestReuse& getRestReuse() const { return mRestReuse; }
-
         /// What the log is heard by, from any thread.
         LogTally& getLog() { return mLog; }
 
@@ -138,7 +134,6 @@ namespace RtxTool
         std::size_t mRefusalsRead = 0;
 
         /// How the textures came back from rest over the tour.
-        RestReuse mRestReuse;
 
         LongestFrames mLongest;
 

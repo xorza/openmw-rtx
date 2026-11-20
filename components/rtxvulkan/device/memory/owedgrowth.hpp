@@ -8,19 +8,18 @@
 
 namespace Rtx
 {
-    /// **What one owner's next growth will take of the video heap**, owed to the allocator for as long as the owner
-    /// stands: a table made again at twice its size beside the old one, a blocked buffer's next block, a structure
-    /// storage's next block. Content's ceilings keep room for the largest owner's of each use before them
-    /// (`MemoryAllocator::ceilingOf`), not for every owner's or a second copy of everything it holds.
+    /// **What one essential owner's next growth will take of the video heap**, owed to the allocator for as long as the
+    /// owner stands: a table made again at twice its size beside the old one, a blocked buffer's next block. The
+    /// arena's cap keeps room for the largest (`MemoryAllocator::getOwedOutside`), not for every owner's or a second
+    /// copy of everything it holds.
     class OwedGrowth
     {
     public:
         /// Owes nothing, to nothing: what an owner that is not opened holds.
         OwedGrowth() = default;
 
-        OwedGrowth(MemoryAllocator& memory, MemoryUse use)
+        explicit OwedGrowth(MemoryAllocator& memory)
             : mMemory(&memory)
-            , mUse(use)
         {
         }
 
@@ -28,7 +27,6 @@ namespace Rtx
 
         OwedGrowth(OwedGrowth&& other) noexcept
             : mMemory(other.mMemory)
-            , mUse(other.mUse)
             , mBytes(std::exchange(other.mBytes, 0))
         {
         }
@@ -39,7 +37,6 @@ namespace Rtx
                 return *this;
             set(0);
             mMemory = other.mMemory;
-            mUse = other.mUse;
             mBytes = std::exchange(other.mBytes, 0);
             return *this;
         }
@@ -55,7 +52,6 @@ namespace Rtx
 
     private:
         MemoryAllocator* mMemory = nullptr;
-        MemoryUse mUse = MemoryUse::Essential;
         VkDeviceSize mBytes = 0;
     };
 }

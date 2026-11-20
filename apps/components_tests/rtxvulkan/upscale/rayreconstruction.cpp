@@ -98,7 +98,12 @@ namespace Rtx
                 Testing::awaitKernels(*sRenderer);
             }
 
-            static void TearDownTestSuite() { sRenderer.reset(); }
+            static void TearDownTestSuite()
+            {
+                if (sRenderer != nullptr)
+                    Testing::releaseStanderOf(*sRenderer);
+                sRenderer.reset();
+            }
 
         protected:
             RtxDlssRendererTest()

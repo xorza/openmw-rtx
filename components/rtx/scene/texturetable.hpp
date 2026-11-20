@@ -112,10 +112,10 @@ namespace Rtx
     /// follows. Two ways in and one table: a slot is a file the content named or a key this renderer
     /// made for something it baked, never both. A slot that is freed keeps its index.
     ///
-    /// **A file the device stands whole rests when nothing names it** (`docs/architecture.md`, "One residency policy
-    /// for the content"): it keeps its slot, its path and the device's image, and lets go of the host's, so the next
-    /// take of it is the slot it had, with nothing described and nothing uploaded. The scene frees what rests, the
-    /// oldest first across its tables (`SceneDesc::evictResting`), and this table its oldest where the array is full.
+    /// **A file residency stands rests when nothing names it** (`docs/architecture.md`, "One residency policy for the
+    /// content"): it keeps its slot, its path and the device's image, and lets go of the host's, so the next take of it
+    /// is the slot it had, with nothing described and nothing uploaded. It is freed once residency stops standing it
+    /// (`SceneDesc::standTexture`), and the oldest first where the array is full.
     /// A bake is freed the moment nothing names it, since its source stands beside it.
     ///
     /// **A slot is a file, its wrap and its encoding.** The same file bound clamped and bound
@@ -203,11 +203,10 @@ namespace Rtx
         std::uint64_t getRevision() const { return mRevision; }
 
         /// Settles what a drop took out of the arrivals, so they can be read, and files the slots that came to rest
-        /// since the last at `clock`, the scene's.
-        void compact(const std::uint64_t clock)
+        /// since the last.
+        void compact()
         {
             mChanges.compact();
-            mClock = clock;
             settleResting();
         }
 
@@ -266,8 +265,7 @@ namespace Rtx
         /// Takes `slot` out of the lookups and the census, empties it and reports it freed.
         void release(TextureIndex texture);
 
-        /// Files the slots that came to rest since the last, by their slots, after every slot already filed, at the
-        /// clock `compact` was last given.
+        /// Files the slots that came to rest since the last, by their slots, after every slot already filed.
         void settleResting();
 
         /// Frees the slot that has rested longest, where the table is full.
@@ -301,10 +299,8 @@ namespace Rtx
         std::unordered_map<VFS::Path::Normalized, TextureIndex, VFS::Path::Hash, std::equal_to<>> mSpriteLightIndex;
         std::unordered_map<MaterialIndex, GroundSlots> mGroundIndex;
 
-        /// The slots that rest (`RestQueue`), and the scene's clock at the last `compact`, which a slot filed
-        /// between two is filed at.
+        /// The slots that rest (`RestQueue`).
         RestQueue<TextureIndex> mResting;
-        std::uint64_t mClock = 0;
 
         std::uint64_t mRevision = 0;
         std::uint32_t mRefused = 0;

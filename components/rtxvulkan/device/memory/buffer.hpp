@@ -87,12 +87,6 @@ namespace Rtx
         static Buffer make(MemoryUse use, const Device& device, BufferKind kind, VkDeviceSize size,
             VkBufferUsageFlags usage, std::string_view name);
 
-        /// `make`, for a buffer something stands in for: why there is none where the device has
-        /// no room for it as `use` — `MemoryAllocator::tryTake`. The use first, as
-        /// `Image::tryMake` takes it.
-        static Result<Buffer, MemoryRefusal> tryMake(MemoryUse use, const Device& device, BufferKind kind,
-            VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
-
         /// What a buffer of `size` bytes for `usage` takes of the memory it is made in: the size the
         /// driver asks of it, which is what the allocator counts it at.
         static VkDeviceSize bytesFor(const Device& device, VkDeviceSize size, VkBufferUsageFlags usage);
@@ -246,8 +240,7 @@ namespace Rtx
         }
 
     private:
-        /// The handle alone, named and bound to nothing: what `make` and `tryMake` both begin
-        /// with, before either knows whether there is room.
+        /// The handle alone, named and bound to nothing: what `make` begins with.
         Buffer(
             const Device& device, BufferKind kind, VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
 

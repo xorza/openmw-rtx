@@ -61,8 +61,6 @@ namespace Rtx
         void awaitBlocks() override { mDevice.awaitBlocks(); }
         void standScene(SceneSlot slot, const SceneDesc& scene) override;
         SceneHeld describeHeld(SceneSlot slot) const override;
-        void takeAnswer(SceneSlot, DeviceAnswer&) override {}
-        std::optional<ArrivalRoom> getArrivalRoom(SceneSlot) const override { return std::nullopt; }
         SceneSlot addViewScene() override;
         void dropViewScene(SceneSlot slot) override;
 

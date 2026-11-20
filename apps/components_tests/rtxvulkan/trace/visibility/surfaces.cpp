@@ -42,7 +42,6 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
-#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
@@ -212,13 +211,12 @@ namespace Rtx::Testing
                     + room.mMaterials * (sizeof(Shaders::GpuMaterial) + sizeof(Shaders::GpuMaterialMaps)));
         }
 
-        /// **An arrival with no room for content's pools stands its structures in the blocks kept and its texture in
-        /// the slot it was handed**: the nearer wall that arrived stands, drawn blue, and a body posed on a rig beside
-        /// it stands and is posed again. Two structures and a texture arrive: the structures stand in the blocks the
-        /// world's build made and kept (`StructureStorage`), and the texture in the arena's slot residency reserved,
-        /// which no pool's room decides. A trace that met the wall would draw the far wall's red were its structure
-        /// left out, and the grey were its texture refused; it draws the blue.
-        TEST_F(RtxVisibilityTest, anArrivalWithNoRoomInThePoolsStandsWhereItWasHanded)
+        /// **An arrival under a budget of nought stands where it was handed**: the nearer wall that arrived stands,
+        /// drawn blue, and a body posed on a rig beside it stands and is posed again. Two structures and a texture
+        /// arrive into the arena's slots residency reserved, which no budget of the device's decides: what fits is the
+        /// plan's. A trace that met the wall would draw the far wall's red were its structure left out, and the grey
+        /// were its texture refused; it draws the blue.
+        TEST_F(RtxVisibilityTest, anArrivalUnderABudgetOfNoughtStandsWhereItWasHanded)
         {
             SceneIdentities identities;
             constexpr std::uint32_t size = 32;
@@ -239,10 +237,6 @@ namespace Rtx::Testing
             mRenderer.resize(size, size);
             const TextureData first = describeTexel(redTexel, TextureIndex(0));
             Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, std::span(&first, 1));
-            DeviceAnswer answer;
-            mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
-            const std::vector<Refusal>& refused = answer.mRefused;
-            EXPECT_TRUE(refused.empty());
 
             // Handed over, as `SceneUploader` ends every hand-over: what arrives next is only what
             // follows.
@@ -265,15 +259,10 @@ namespace Rtx::Testing
             TextureData second = describeTexel(blueTexel, scene.materials().getRows()[blue].mDiffuse);
             second.mName = "blue";
             {
-                const Testing::NoRoomForContent full(mProbe.getDevice());
+                const Testing::BudgetLimit none(mProbe.getDevice().getMemory(), 0);
                 Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             }
-            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
-
-            // **A texture is residency's to fit and no refusal of the device's**: it stands in the slot it was handed,
-            // and the structure the kept blocks held is refused nothing.
-            mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
-            EXPECT_TRUE(refused.empty()) << "a structure the kept blocks held was refused";
 
             Testing::poseByOneBone(scene, body.mMesh, Testing::sUnitQuad, osg::Matrixf::translate(0.0f, 0.0f, 2.0f));
             Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);

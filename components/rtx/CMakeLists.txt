@@ -149,7 +149,6 @@ openmw_rtx_layer(
     HEADERS
         scene/compositequeue.hpp
         scene/deformertable.hpp
-        scene/deviceanswer.hpp
         scene/foldedshape.hpp
         scene/instancerecord.hpp
         scene/levelasks.hpp
@@ -289,7 +288,6 @@ openmw_rtx_layer(
         renderer/nullrenderer.cpp
         renderer/sceneuploader.cpp
     HEADERS
-        renderer/arrivalwindow.hpp
         renderer/channel.hpp
         renderer/denoiserimage.hpp
         renderer/framedescriber.hpp
@@ -310,7 +308,6 @@ openmw_rtx_layer(
         renderer/nullrenderer.hpp
         renderer/picturerenderer.hpp
         renderer/renderer.hpp
-        renderer/roomwaits.hpp
         renderer/sceneholder.hpp
         renderer/sceneuploader.hpp
         renderer/shaderset.hpp

@@ -28,7 +28,7 @@ namespace RtxTool
         /// What the device's video heap held by use, the frame's own memory among it.
         std::uint64_t heldByUse(const Rtx::MemoryUses& uses)
         {
-            return uses.mFrame + uses.mEssential + uses.mStructures + uses.mTextures;
+            return uses.mFrame + uses.mEssential + uses.mContent;
         }
 
         /// The meshes the ring holds that stand in no placement, and their vertices, at every distance together.
@@ -82,12 +82,12 @@ namespace RtxTool
                 const Rtx::ContentMemory& content = peak->mContent;
                 out += std::format(
                     "the geometry reached at most {:.2f} M vertices and {:.2f} M indices, at {}: {:.2f} M and {:.2f} M "
-                    "of them resting, {:.2f} M and {:.2f} M in holes; {:.1f} MiB on the host, {:.1f} MiB on the "
-                    "device\n",
+                    "of them resting, {:.2f} M and {:.2f} M in {} and {} holes; {:.1f} MiB on the host, {:.1f} MiB "
+                    "on the device\n",
                     content.mVertexEnd / 1e6, content.mIndexEnd / 1e6, peak->mView, content.mRestingVertices / 1e6,
                     content.mRestingIndices / 1e6, (content.mVertexEnd - content.mVerticesUsed) / 1e6,
-                    (content.mIndexEnd - content.mIndicesUsed) / 1e6, Rtx::mebibytes(content.mGeometryBytes),
-                    Rtx::mebibytes(peak->mScene.mGeometryBytes));
+                    (content.mIndexEnd - content.mIndicesUsed) / 1e6, content.mVertexHoles, content.mIndexHoles,
+                    Rtx::mebibytes(content.mGeometryBytes), Rtx::mebibytes(peak->mScene.mGeometryBytes));
             }
 
             if (const BenchPlace* const peak

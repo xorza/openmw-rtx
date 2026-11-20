@@ -5,10 +5,11 @@
 #include <optional>
 #include <vector>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slotledger.hpp>
+#include <components/rtxvulkan/device/owned.hpp>
 
 #include "chunksupply.hpp"
 #include "memory.hpp"
@@ -47,8 +48,17 @@ namespace Rtx
         /// The memory `block` is, which has arrived.
         const DeviceMemory& getBlock(BlockIndex block) const;
 
+        /// The buffer over the whole of `block`, which has arrived, where its arena stands structures: what a
+        /// structure's slot is a range of, at the slot's offset.
+        VkBuffer getBuffer(BlockIndex block) const;
+
         /// What the arena's blocks come to, whole: the `A` of the arena's cap.
         VkDeviceSize getBytes() const { return mBytes; }
+
+        /// **The arena's cap** (`docs/architecture.md`, "The arena's cap"): what `memory`'s budget leaves of everything
+        /// the process holds outside the arena, as it stands, less what that owes and the chunk kept for what moves.
+        /// Read once a frame, after `MemoryAllocator::refreshBudget`.
+        VkDeviceSize capUnder(const MemoryAllocator& memory) const;
 
         /// Whether nothing asked or given back is on the supply's thread, and the wait until it is: what a run that
         /// compares frames waits on (`ResidencyDevice::awaitBlocks`).
@@ -56,9 +66,21 @@ namespace Rtx
         void awaitIdle() const { mSupply.awaitIdle(); }
 
     private:
+        /// One block that arrived: its memory, and where its arena stands structures, a buffer over all of it, made as
+        /// the block arrives and let go of as it goes back.
+        struct Block
+        {
+            DeviceMemory mMemory;
+            Owned<VkBuffer, vkDestroyBuffer> mBuffer;
+        };
+
+        const Device& mDevice;
         ChunkSupply mSupply;
         std::array<ArenaIndex, sSlotKindCount> mArenaOf{};
-        RowVector<std::optional<DeviceMemory>, BlockIndex> mBlocks;
+        RowVector<std::optional<Block>, BlockIndex> mBlocks;
+
+        /// The arena each block was asked in.
+        RowVector<ArenaIndex, BlockIndex> mBlockArenas;
         std::vector<BlockMade> mMade;
         VkDeviceSize mBytes = 0;
     };

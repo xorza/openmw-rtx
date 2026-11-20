@@ -7,7 +7,7 @@ namespace Rtx
         // Owed to nothing, an owner outside the video heap owes nothing, whatever it grows to.
         if (mMemory == nullptr || bytes == mBytes)
             return;
-        mMemory->owe(mUse, mBytes, bytes);
+        mMemory->owe(mBytes, bytes);
         mBytes = bytes;
     }
 }

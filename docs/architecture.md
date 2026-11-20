@@ -419,9 +419,9 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   Refused: a pool a frame slot, which would stop a deferred batch from riding any submit.
 - **The pipeline cache is a file named for the driver and the shaders**, checked by a header of its own before the
   driver sees it, written whole or not at all.
-- **What a frame cannot go without is essential and never refused**; content is taken against the driver's budget, and a
-  refusal leaves the mesh out or draws the stand-in. Refused: an arrival scheduler, a destroyer thread, blocks made
-  ahead, since a crossing's worst frames are the engine's (`research/2026-10-22-crossing-worst-frames.md`).
+- **What a frame cannot go without is essential and never refused**; content stands in the arena residency plans
+  under the cap, and nothing it holds is refused by the device but a block. Refused: a destroyer thread, since the
+  graveyard's destroys were measured cheap.
 - **Host writes are staged on every card**: written into staging and copied ahead of the submit that reads, as VMA's
   advanced uploading and D3D12's upload heaps split it. Refused: writes mapped into video memory, bounded by a window
   NVIDIA's Windows driver budgets at nought (`research/2026-11-10-host-writes-on-three-machines.md`); a shared device
@@ -429,16 +429,12 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **A texture's image and sampler stand apart, paired at each read**: AMD's Windows driver hung on a combined array
   (`research/2026-11-09-separate-samplers.md`).
 - **The frame's targets are counted from what makes them**, and the reserve is the running mode's.
-- **Content leaves room for one growth a use**, by the user's decision: a doubling table owes its next size, a blocked
-  stream and a structure storage their next block, each stating its own (`MemoryAllocator`'s growth owed), and a
-  ceiling is the budget less the frame's gap and the largest growth one owner of each use before it owes. Two growths
-  of one use at once take the heap past its budget for a hand-over, and content gives the room back, as Unreal's
-  texture streaming pool takes what the rest leaves and Dawn evicts the least recently used when something must stand.
-  A scratch or a storage held to a room owes nothing. Refused: every owner's growth summed, which held 410 MiB of the
-  handheld's heap from every texture and refused a texture and a structure block under it; the larger of the uses'
-  largest growths alone, under which the textures filled the PBR replacers' heap to the structures' ceiling and left a
-  mesh out (`research/2026-11-20-handheld-open-issues.md`); a second copy of memory that is appended and never made
-  again; no reserve, under which a growth past what the card holds, on a driver that refuses it, ends the renderer.
+- **The arena's cap keeps room for one essential growth**, by the user's decision: a doubling table owes its next size
+  and a blocked stream its next block (`OwedGrowth`), and the cap stands below the budget by the largest of them, as
+  Unreal's texture streaming pool takes what the rest leaves. Two growths at once take the heap past its budget for a
+  hand-over, and content gives the room back. Refused: every owner's growth summed, which held 410 MiB of the
+  handheld's heap from every texture; a second copy of memory that is appended and never made again; no reserve,
+  under which a growth past what the card holds, on a driver that refuses it, ends the renderer.
 - **On a unified device the device and the caches split the system's memory** (`SystemShare`), by the user's
   decision: the device is held to what it holds and what the system leaves beside it, less half a gigabyte, half the
   caches' reserve, so as the two meet the caches stop first; that bound is an exponential average over a minute, both
@@ -452,8 +448,6 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   second against the caches', which let a block given back go to the caches the next second; a fixed split, which a
   host that grows in a long session outruns; a heap both device-local and host-visible as the sign, which a discrete
   card with resizable BAR states too; the kernel's pressure stall figures, which report a stall once it has happened.
-- **The room kept for the next arrival is the most of the last 64 extensions** (`ArrivalWindow`), some three crossings
-  at a tour's speed, a sliding maximum: the session's, which one heavy arrival held for good, is refused.
 - **Device memory is made off the frame where it can be kept**: a buffer that grows with its batch doubles within its
   room (the normal spread's means), and a staging block past the kept size goes back only once idle 600 submits, about
   ten seconds, as jemalloc's dirty pages decay (`StagingRing::shed`). The handheld's PBR tour spent 1.9 s of its
@@ -477,23 +471,12 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **The transit chunk is where a lowering's destination stands while its source retires**: asked past the plan only
   where an operation found no room and nothing could drain to make it, as a texture lowered into a small slab beside
   the full chunk of medium slabs it leaves; the chunk it emptied goes back once its slot retires.
-- **One residency policy for the content**, by the user's decision: textures and static meshes follow one rule. Content
-  nothing names is kept while it fits, the most lately held first, and its next take is its slot: a texture under the
-  plan's share of nine tenths of what the demand leaves, at the level it stands or a level coarser, and a mesh's
-  structure, until it joins the arena, under the rest limit below, the oldest freed first, as D3D12's residency model
-  and VMA's budget treat a card (`research/2026-11-16-texture-uploads-and-host-memory.md`). A mesh counts what its eviction gives back, its
-  structure: its geometry stands in storage the device keeps whole (`BlockedBuffer`), whose runs later meshes take, so
-  counted it read as room freed and use gone where neither was. Refused: textures alone; a limit per kind.
-- **The structures' rest limit is derived from the budget**, by the user's decision: what rests may stand nine tenths of what the
-  driver's budget leaves of what is in use, read at each hand-over; live content is bounded by the budget alone
-  (`SceneUploader::restLimitOf`, `research/2026-11-16-rest-reuse-and-device-budgets.md`). In use is the driver's usage
-  less what rests, what content's blocks have free and what is buried (`MemoryAllocator::getVideoBudget`): the driver
-  counts a block whole and a buried range until its frames are done, and a rest freed would otherwise read as use. The
-  tenth is other programs', which Linux, unlike Windows, does not ask room for. Refused: a measured limit, which missed
-  11.6% of the PBR tour's reuse; a measured ceiling beside it, a figure the content decides; Dawn's 95%.
-- **A limit that drops is followed a step a hand-over**, the most one extension handed the device and a row at least,
-  and the room an arrival needs at once (`RestLimit`), as Microsoft's guidance frees unused objects about once a frame.
-  Refused: all at once, one long frame per drop; a rebuild's size as the step, the whole world, which paces nothing.
+- **One residency policy for the content**, by the user's decision: textures and static meshes follow one rule, the
+  plan's. Content nothing names is kept while it fits nine tenths of what the demand leaves, the most lately held
+  first, a texture at the level it stands or a level coarser, and its next take is its slot, as D3D12's residency
+  model and VMA's budget treat a card (`research/2026-11-16-texture-uploads-and-host-memory.md`). The scene's row
+  rests as long as residency stands it. Refused: textures alone; a limit per kind; a rest limit beside the cap,
+  which two figures held to two ceilings.
 - **On a unified device the host's caches and the device's rest compete**, by the user's decision: the host's yield to
   the device's memory by their own budget, and content resting on the device keeps no host copy. Refused: a fixed
   split; one order across host and device.
@@ -511,45 +494,22 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **A static mesh is the one its content is**: filed under a digest of its arrays, so a resting mesh is found again by
   whatever reads the same geometry. A skinned or morphed mesh is a copy per instance. Refused: the drawable as the key,
   which matches only while its template lives.
-- **Content the device has no room for waits while room is coming**, a bounded number of hand-overs, then is refused.
-  **A block the moves give back is room coming** (`BlocksComing`), the one being emptied and the one the refusal will
-  have emptied, as the refusal is what asks for it: the handheld's PBR drew the stand-in at Seyda Neen for good, its
-  texture pool full and a structure block's worth free in the structures' blocks. A block whose structures found no run
-  outside it is not counted until a structure leaves. Refused: headroom alone, which an arrival larger than any before
-  outruns; a stand-in for good.
-- **What waits is given the resting row that surely leaves it room**, by the user's decision: each structure the device
-  answers short frees the oldest resting mesh whose own range holds it, its size at its alignment, else the
-  oldest until its bytes are given back, once until its room is the device's again (`SceneDesc::evictFor`,
-  `RestQueue::firstFitting`), as Microsoft's residency guidance and Dawn's residency manager free and try again. Room
-  is counted where it can be taken, a storage's own free runs among it. Room counted in bytes says nothing of where a
-  hole lands: the handheld refused a thousand small takes with a hundred megabytes free in pieces
-  (`research/2026-11-16-handheld-content-pool-fragmentation.md`). Refused: room counted by
-  the pools' ranges, a walk of every allocation VMA keeps for rare use; VMA's incremental defragmentation of the
-  texture pool, built and flown on the handheld's Repack tour: the blocks it gave back went to the caches, and once the device's reserve
-  stood below theirs its 24 runs left the structures refused 133 times where the tour without them refused 3, and the
-  legs' p99 at 73 ms against 51 (`research/2026-11-18-closing-tours.md`).
-- **Held is counted as the system backs it: blocks** (`MemoryAllocator::getBlocksOver`). A free run in a block is held
-  until the block goes, so a device over its budget by its blocks gives memory back by emptying them, which content's
-  ranges never see: the handheld's Repack held its structures' blocks at 2184 MiB with 711 of it free while the device
-  stood over its budget at 119 stops (`research/2026-11-18-handheld-rooms-and-device-memory.md`). Refused: ranges as
-  held, which read that storage as room the system held.
-- **Over its budget, or a take refused since the last placement, the emptiest structure block is emptied**
-  (`MemoryAllocator::asksForBlock`): a refusal under the budget is a ceiling met while blocks stand part empty, as the
-  handheld's PBR drew the stand-in at Seyda Neen with 250 MiB free in the structures' blocks. The kept structure
-  storage's structures are copied as they are into the other blocks' free runs, within the placement's copy budget the
-  tight copies leave (`BottomLevelStore::moveOut`); a refit, or a structure whose tight copy is owed, stays, as a refit
-  records against the handle it was prepared with. A structure copied tight in a placement moves in a later one:
-  its move would clone what that copy writes, in one run of copies, which hung the handheld's GPU. Either block goes
-  back once its last range does; a block begun is emptied whole. With it the handheld's Repack stood over its budget at
-  2 stops of 155, against 120, and its rooms ran at 32 ms against 62
-  (`research/2026-11-18-handheld-rooms-and-device-memory.md`). Refused: a new block to move into, which gives nothing
-  back; every block at once, a frame's worth of copies; a bias below every texture's want before a refusal, as
-  Unreal's `MipBias`, which lowers every texture for one and reads files again as it comes off.
-- **A bottom level is built loose and copied out tight**, as RTXMU does, and the world's build compacts before its
-  textures are made, as NVIDIA's `buildBlas` does. **Both storages take blocks of content's block size outside the
-  arena textures stand in, and keep their last** (`StructureStorage`), by the user's decision, as NVIDIA pools
-  structures in large containers of their own: a block sized to what a build had left cut ranges of every size between
-  textures that stay. Refused: blocks sized to the build; the loose block given back, made again at the next arrival.
+- **The arena's blocks are counted whole**, the `A` of the cap, and what the process holds outside them as the driver
+  states it: a block given back is room the cap sees at once, as the system backs it. Refused: ranges as held, which
+  read a structure block's free runs as room the system held (`research/2026-11-18-handheld-rooms-and-device-memory.md`).
+- **What drains is moved by the plan, a frame's copy share at a time**: a class with slots to spare drains its emptiest
+  slab for another, a texture copied at its level and a structure cloned whole (`StructureCopy::Clone`), the
+  placements naming a moved structure written again in the hand-over that moved it. A structure is copied only once
+  its build has run, so no copy reads what another writes unordered, which hung the handheld's GPU when a move cloned
+  a tight copy not yet written. Refused: a new block to move into, which gives nothing back; every block at once, a
+  frame's worth of copies; a bias below every texture's want, as Unreal's `MipBias`, which lowers every texture for
+  one and reads files again as it comes off.
+- **A bottom level is built loose into its slot and copied tight into another once the device answers its size**
+  (`BottomLevelStore`, `TightSize`), as RTXMU does; one built to be refitted is built where it stays. The world's
+  structures arrive like any other, over hand-overs under the frame's triangle share, from the device's own
+  geometry, so no host copy waits on a build. Refused: the world's build compacted before anything else, which held
+  the whole world's loose structures at once; storages of their own beside the arena, whose blocks a texture could
+  not take.
 - Refused, by the user's decision: textures shared across scenes; 16-bit indices; one bottom level
   per template (`research/2026-10-22-instances-per-placed-model.md`).
 - **The glossy lobe's images exist on every install**, by the user's decision, since a scan cannot see a map a model

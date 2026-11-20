@@ -237,13 +237,13 @@ namespace Rtx
         row.mImage = nullptr;
         row.mPartner = nullptr;
 
-        mResting.rest(slot, 0, placeOf());
+        mResting.rest(slot, placeOf());
     }
 
     void TextureTable::wake(const TextureIndex slot, const osg::Image* const image, const osg::Image* const partner)
     {
         TextureRow& row = rowAt(slot);
-        mResting.wake(slot, 0, placeOf());
+        mResting.wake(slot, placeOf());
 
         // The taker's images, which a rebuild describes the slot from; the device stands them already.
         row.mImage = image;
@@ -254,7 +254,7 @@ namespace Rtx
 
     void TextureTable::settleResting()
     {
-        mResting.settle(mClock, placeOf());
+        mResting.settle(placeOf());
     }
 
     void TextureTable::release(const TextureIndex texture)

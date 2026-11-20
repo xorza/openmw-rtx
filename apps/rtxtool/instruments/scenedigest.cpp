@@ -207,9 +207,9 @@ namespace RtxTool
         auto fieldsOf(const Rtx::MeshRange& mesh)
         {
             const auto& [vertices, indices, sharedIndexKey, secondTexCoords, unitStreams, tangents, shape, deformer,
-                bindOffset, poseOffset, posed, bounds, uvDensity, key, stoodBytes, rest] = mesh;
+                bindOffset, poseOffset, posed, bounds, uvDensity, key, stands, rest] = mesh;
             return std::tie(vertices, indices, secondTexCoords, unitStreams, shape, deformer, bindOffset, poseOffset,
-                posed, bounds, stoodBytes, rest.mResting);
+                posed, bounds, stands, rest.mResting);
         }
 
         auto fieldsOf(const Rtx::MeshInstance& instance)
@@ -490,8 +490,7 @@ namespace RtxTool
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
             const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stands, rest, asks] = row;
-            const auto& [resting, waitingAt, restedBefore, restedAfter, filedAt, order, fit, fitAlignment, fitBefore,
-                fitAfter] = rest;
+            const auto& [resting, waitingAt, restedBefore, restedAfter] = rest;
             const std::string_view name = path.value();
             textures.add(std::span<const char>(name.data(), name.size()));
             textures.add(static_cast<std::uint32_t>(name.size()));
@@ -506,16 +505,8 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(waitingAt));
             textures.add(restedBefore.at());
             textures.add(restedAfter.at());
-            textures.add(filedAt);
-            textures.add(order);
             static_cast<void>(image);
             static_cast<void>(partner);
-            // What the device says a slot gives back once it rests, and its class's neighbours by it, are its answers,
-            // landing whenever it answers: a want's eviction reads them, and the scene it leaves is what is bound.
-            static_cast<void>(fit);
-            static_cast<void>(fitAlignment);
-            static_cast<void>(fitBefore);
-            static_cast<void>(fitAfter);
         }
         take(ScenePart::Textures, textures.take());
 

@@ -507,13 +507,13 @@ namespace Rtx::Testing
             EXPECT_GT(held(bright), lit) << "a held eye adapted to the bright sky";
 
             // A new extent keeps the eye: an eye adapted to the bright sky meets the dim one past two upscale
-            // modes barely moved, where an eye that lost its past would start again at a day. Under a budget a byte
-            // short of the textures' ceiling at the heap, whichever mode grows the reserve finds content past what it
-            // leaves, and the world stays, its textures moved down for the room.
+            // modes barely moved, where an eye that lost its past would start again at a day. Under a budget that
+            // leaves the arena nothing, whichever mode grows the reserve finds content past what it leaves, and the
+            // world stays, residency following the cap.
             EXPECT_EQ(settle(bright), lit);
             {
                 MemoryAllocator& memory = mProbe.getDevice().getMemory();
-                const Testing::BudgetLimit tight(memory, Testing::budgetAtContent(memory) - 1);
+                const Testing::BudgetLimit tight(memory, Testing::budgetForCap(mProbe.getDevice(), 0));
                 mRenderer.setUpscale(Upscale::Quality);
                 mRenderer.setUpscale(Upscale::Off);
             }

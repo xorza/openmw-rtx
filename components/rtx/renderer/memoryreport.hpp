@@ -51,15 +51,11 @@ namespace Rtx
         /// and the staging behind uploads.
         std::uint64_t mEssential = 0;
 
-        /// The largest next growth one essential table owes, which the ceilings of the uses after it hold back, and one
-        /// structure storage's, which the textures' ceiling holds back as well.
+        /// The largest next growth one essential table owes, which the arena's cap holds back.
         std::uint64_t mEssentialGrowth = 0;
 
-        std::uint64_t mStructures = 0;
-        std::uint64_t mStructureGrowth = 0;
-        std::uint64_t mStructureRoom = 0;
-        std::uint64_t mTextures = 0;
-        std::uint64_t mTextureRoom = 0;
+        /// The content arena's blocks, whole: what residency stands every structure and texture in.
+        std::uint64_t mContent = 0;
     };
 
     /// Every heap of the device the renderer is running on.

@@ -23,10 +23,11 @@ namespace Rtx
 
 namespace Rtx::Testing
 {
-    /// **What a GPU test stands a scene's textures with**: the textures it describes stood whole in slots of a ledger
-    /// of its own, as residency would issue them, with no plan, cap or feed between — a test of what the device makes
-    /// of an operation, not of what residency decides. Each texture from its want (`TextureData::mWant`), a bake from
-    /// its description. One a renderer, kept across the tests that share it.
+    /// **What a GPU test stands a scene's textures and structures with**: the textures it describes and every mesh's
+    /// structure stood whole in slots of a ledger of its own, as residency would issue them, with no plan, cap or feed
+    /// between — a test of what the device makes of an operation, not of what residency decides. Each texture from its
+    /// want (`TextureData::mWant`), a bake from its description, each structure built loose and left so. One a
+    /// renderer, kept across the tests that share it.
     class SceneStander
     {
     public:
@@ -38,15 +39,16 @@ namespace Rtx::Testing
         /// Gives back every block it was given: what is bound in them is the dead images of what it stood.
         ~SceneStander();
 
-        /// The slot's first build, then `textures` stood and the scene placed where there are any: what stood of the
-        /// slot's last scene retires.
+        /// The slot's first build, then every mesh's structure and `textures` stood and the scene placed where there
+        /// are any: what stood of the slot's last scene retires.
         void setScene(
             SceneHolder& holder, SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures);
 
         /// `arrived` stood by the next `placeScene`, beside what arrived in the scene.
         void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived);
 
-        /// One hand-over: what arrived appended, what `extendScene` queued stood, and the scene placed.
+        /// One hand-over: what arrived appended, its meshes' structures built and the freed meshes' dropped, what
+        /// `extendScene` queued stood, and the scene placed.
         void placeScene(SceneHolder& holder, SceneSlot slot, const SceneDesc& scene);
 
         /// **The operations that stand `textures` in `slot`'s scene**, and drop what stood of `freed`, valid until the
@@ -65,10 +67,30 @@ namespace Rtx::Testing
             ImageShape mShape;
         };
 
+        struct StructureStanding
+        {
+            SceneSlot mScene;
+            MeshIndex mMesh = sNoRow;
+            Slot mSlot;
+        };
+
+        /// What a slot's hand-overs last read of its scene's meshes: the revision, and the count of freed rows.
+        struct MeshesSeen
+        {
+            std::uint64_t mRevision = 0;
+            std::uint64_t mFreed = 0;
+        };
+
+        /// Appends to `mOps` the drops of what stood of the meshes `scene` freed since `seen`, and the builds of those
+        /// that arrived, or of every mesh it holds where `every`.
+        void structureOperations(SceneSlot slot, const SceneDesc& scene, MeshesSeen& seen, bool every);
+        void buildStructure(SceneSlot slot, const SceneDesc& scene, MeshIndex mesh);
+
         /// Opens a frame: what finished collected, blocks arrived, the device's events read.
         void openFrame(ResidencyDevice& device);
 
         /// A slot of `of` reserved, asking the device for a block and waiting for it where none has room.
+        Slot reserveSlot(ResidencyDevice& device, ClassIndex of);
         Slot reserve(
             ResidencyDevice& device, ClassIndex of, SceneSlot scene, TextureIndex texture, const ImageShape& shape);
 
@@ -84,6 +106,7 @@ namespace Rtx::Testing
         DeviceEvents mEvents;
         DeviceEpoch mLast;
         std::vector<Standing> mStanding;
+        std::vector<StructureStanding> mStructures;
 
         /// What the next hand-over stands, each a copy of the test's description spanning the test's storage.
         struct Queued
@@ -96,9 +119,11 @@ namespace Rtx::Testing
         std::vector<TextureData> mTexels;
         std::vector<ResidencyOp> mOps;
         std::vector<Slot> mFreed;
+        std::uint32_t mNextOwner = 0;
 
-        /// The scene's count of freed slots as each slot's hand-over last read it, the world's first.
+        /// The scene's count of freed slots as each slot's hand-over last read it, and its meshes, the world's first.
         std::map<std::uint32_t, std::uint64_t> mFreedSeen;
+        std::map<std::uint32_t, MeshesSeen> mMeshesSeen;
     };
 
     /// The stander kept beside `renderer`, one a renderer the binary shares.
@@ -106,6 +131,9 @@ namespace Rtx::Testing
 
     /// Lets every stander go, giving its blocks back: before the renderers they stand on go.
     void releaseStanders();
+
+    /// Lets `renderer`'s go, where it has one: before a renderer of a suite's own goes.
+    void releaseStanderOf(const ResidencyDevice& renderer);
 
     /// **The device's content arena as a device residency hands operations to**, for a test that stands textures in an
     /// array of its own and executes them itself: prices and blocks the device's, and no scene to hand over.
@@ -120,7 +148,7 @@ namespace Rtx::Testing
         ArenaIndex arenaOf(SlotKind kind) const override;
         std::optional<ContentPrice> priceImage(const ImageShape& shape) const override;
         ContentPrice priceStructure(const StructureShape& shape) const override;
-        bool standsStructures() const override { return false; }
+        bool standsStructures() const override { return true; }
         ContentBudget openFrame(DeviceEvents& events) override;
         DeviceEpoch handOver(SceneSlot slot, const SceneDesc& scene, std::span<const ResidencyOp> ops) override;
         void acquireBlock(BlockIndex block, ArenaIndex arena, std::uint64_t bytes) override;

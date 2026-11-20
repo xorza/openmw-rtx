@@ -1,24 +1,17 @@
 #include "sceneuploader.hpp"
 
-#include <algorithm>
 #include <chrono>
 #include <cstdint>
-#include <format>
 #include <limits>
-#include <optional>
 #include <string>
 
-#include <components/debug/debuglog.hpp>
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
-#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 
-#include "framesinflight.hpp"
 #include "framespend.hpp"
 #include "sceneholder.hpp"
 #include "slot.hpp"
@@ -48,43 +41,6 @@ namespace Rtx
         };
     }
 
-    bool SceneUploader::isCooling(const MeshIndex mesh) const
-    {
-        return std::ranges::any_of(mCooling, [&](const WantCooling& cooling) { return cooling.mMesh == mesh; });
-    }
-
-    void SceneUploader::serveWants(SceneDesc& scene)
-    {
-        // The last answer's, served ahead of the placement that reports what goes, as the device reads freed slots
-        // there; its room comes back once the frames in flight past it are done, and the device asks again at the
-        // placement after that, whose answer the hand-over after reads.
-        for (const RoomWant& want : mAnswer.mWants)
-        {
-            if (isCooling(want.mWaiter))
-                continue;
-            scene.evictFor(std::span(&want, 1));
-            mCooling.push_back(WantCooling{ .mMesh = want.mWaiter, .mUntil = mHandOvers + sFramesInFlight + 1 });
-        }
-    }
-
-    void SceneUploader::takeAnswer(SceneHolder& scenes, const SceneSlot slot, SceneDesc& scene)
-    {
-        mAnswer.clear();
-        scenes.takeAnswer(slot, mAnswer);
-        scene.refusals().refuse(mAnswer.mRefused);
-
-        // **And what rested beside a mesh the device left out**, the room an eviction had to give. At Info, beside the
-        // refusal's own record.
-        if (std::ranges::any_of(
-                mAnswer.mRefused, [](const Refusal& refusal) { return refusal.mKind == Refused::Mesh; }))
-            Log(Debug::Info) << std::format("Ray tracing refused content beside {} resting meshes of {:.1f} MiB",
-                scene.meshes().getResting().getCount(), mebibytes(scene.meshes().getResting().getBytes()));
-        for (const StoodMesh& stood : mAnswer.mMeshes)
-            scene.standMesh(stood.mMesh, stood.mStructureBytes);
-        for (const FitBytes<MeshIndex>& fit : mAnswer.mMeshFits)
-            scene.fitMesh(fit.mSlot, fit.mBytes, fit.mAlignment);
-    }
-
     SceneUpload SceneUploader::hand(SceneHolder& scenes, const Handing& handing)
     {
         const SceneSlot slot = handing.mSlot;
@@ -95,10 +51,6 @@ namespace Rtx
         // rather than guarded.
         FrameSpend unread;
         FrameSpend& timed = handing.mSpend != nullptr ? *handing.mSpend : unread;
-
-        // A hand-over more on the clock a want cools by, and a want whose room is the device's again cools no more.
-        ++mHandOvers;
-        std::erase_if(mCooling, [&](const WantCooling& cooling) { return cooling.mUntil <= mHandOvers; });
 
         // Whether the backend holds this scene in this slot: appending onto a slot something else filled would begin
         // past the end of this scene's own tables.
@@ -118,24 +70,11 @@ namespace Rtx
         const std::chrono::steady_clock::time_point gathered = std::chrono::steady_clock::now();
         timed.at(Timing::Bake) = since(began, gathered);
 
-        // **The meshes that rest give their room back before anything arrives**: all of it ahead of a rebuild, and
-        // otherwise as much as keeps room for an arrival's structures as large as any so far, and for every structure
-        // that waits for room it found none for.
-        const std::optional<ArrivalRoom> room = mine ? scenes.getArrivalRoom(slot) : std::nullopt;
+        // **A slot built anew holds nothing residency stood of the scene before**, so nothing rests on it.
         if (!mine)
-            scene.evictResting(std::numeric_limits<std::uint64_t>::max());
-        else if (room.has_value())
-        {
-            // **And never past their limit, coming down to it a step a hand-over** (`docs/architecture.md`, "One
-            // residency policy for the content").
-            scene.setRestLimit(RestLimit{
-                .mBytes = restLimitOf(*room, scene.getRestingBytes()), .mStep = mArrivals.largest().mStructures });
-            serveWants(scene);
-            const std::uint64_t structures = mArrivals.largest().mStructures;
-            scene.evictResting(room->mStructureFree < structures ? structures - room->mStructureFree : 0);
-        }
+            scene.releaseResting();
 
-        // After the calls above, because they rewrite what the spans reach.
+        // After the call above, because it rewrites what the spans reach.
         scene.compact();
         const SceneDesc& tables = scene;
 
@@ -165,19 +104,8 @@ namespace Rtx
         scene.refusals().refuse(residency.getRefused());
         for (const Residency::StandingChange& change : residency.getStandingChanges())
             scene.standTexture(change.mTexture, change.mStands);
-
-        // What the device made of the meshes, reported and stood as the scene's.
-        takeAnswer(scenes, slot, scene);
-
-        // An extension's structures, and not a rebuild's, which hands over the whole world and is no arrival a
-        // crossing makes.
-        if (mine && arrived)
-        {
-            std::uint64_t structures = 0;
-            for (const StoodMesh& stood : mAnswer.mMeshes)
-                structures += stood.mStructureBytes;
-            mArrivals.note(ArrivalBytes{ .mAll = structures, .mStructures = structures });
-        }
+        for (const Residency::StructureStandingChange& change : residency.getStructureStandingChanges())
+            scene.standMesh(change.mMesh, change.mStands);
         timed.at(Timing::Upload) = since(gathered, std::chrono::steady_clock::now());
 
         // **The array's own limit, met where a texture was added and not where one stands**: one refusal for what

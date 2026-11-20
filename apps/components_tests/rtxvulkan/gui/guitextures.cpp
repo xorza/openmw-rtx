@@ -38,6 +38,7 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/contentarena.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/gui/guitextures.hpp>
@@ -644,7 +645,7 @@ namespace Rtx
 
             const VkDeviceSize reserve = memory.getFrameReserve();
             const Testing::BudgetLimit limit(memory, VkDeviceSize{ 1 });
-            ASSERT_FALSE(memory.contentFits()) << "a budget of a byte holds no content";
+            ASSERT_EQ(mProbe.getDevice().getContent().capUnder(memory), 0u) << "a budget of a byte leaves content room";
             mRenderer.reservePicture(mProbe.getPictureRoom().width + 16, mProbe.getPictureRoom().height);
             EXPECT_GT(memory.getFrameReserve(), reserve)
                 << "the reserve did not move, so nothing was asked of the world";

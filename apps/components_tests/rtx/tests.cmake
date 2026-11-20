@@ -72,7 +72,6 @@ target_sources(
         rtx/preprocess/passversions.cpp
         rtx/preprocess/shape/creasesplit.cpp
         rtx/preprocess/shape/shapefold.cpp
-        rtx/renderer/arrivalwindow.cpp
         rtx/renderer/framedescriber.cpp
         rtx/renderer/frameimage.cpp
         rtx/renderer/frametimehistogram.cpp
@@ -86,7 +85,6 @@ target_sources(
         rtx/renderer/sceneuploader.cpp
         rtx/renderer/shaderset.cpp
         rtx/scene/compositequeue.cpp
-        rtx/scene/deviceanswer.cpp
         rtx/scene/instancerecord.cpp
         rtx/scene/lightgrid.cpp
         rtx/scene/mesharrivals.cpp
@@ -138,7 +136,6 @@ target_sources(
         rtxtool/model/legselection.cpp
         rtxtool/model/longestframes.cpp
         rtxtool/model/measurewindow.cpp
-        rtxtool/model/restreuse.cpp
         rtxtool/model/runrecord.cpp
         rtxtool/model/skycrossing.cpp
         rtxtool/model/stopdescription.cpp
@@ -309,7 +306,6 @@ target_sources(
         rtxvulkan/device/memory/imagearenadevice.cpp
         rtxvulkan/device/memory/memory.cpp
         rtxvulkan/device/memory/slottable.cpp
-        rtxvulkan/device/memory/structurestorage.cpp
         rtxvulkan/device/pipelinecache.cpp
         rtxvulkan/device/probe.cpp
         rtxvulkan/device/readstamp.cpp

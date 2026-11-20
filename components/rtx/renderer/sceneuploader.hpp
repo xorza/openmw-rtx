@@ -2,10 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <span>
-#include <vector>
 
-#include "arrivalwindow.hpp"
 #include "framespend.hpp"
 #include "residency.hpp"
 #include "sceneholder.hpp"
@@ -81,57 +78,5 @@ namespace Rtx
         /// `PlacementTable::advance`. Here and nowhere else, because the hand-over is the one thing that reads the
         /// change lists through a backend.
         SceneUpload hand(SceneHolder& scenes, const Handing& handing);
-
-        /// **One part in this many of what the budget leaves is other programs'**, the denominator: Windows lowers a
-        /// process's budget when another wants memory, and Linux tells no one, so this is what a browser or the
-        /// compositor finds free before the next reading sees their usage (`docs/architecture.md`, "The limit is
-        /// derived from the budget").
-        static constexpr std::uint64_t sOthersShare = 10;
-
-        /// **What the meshes that rest may stand**: what `room`'s budget leaves of what is in use, less other
-        /// programs' share, where in use is what the process holds less the `resting` bytes in it, so that what rests
-        /// does not shrink its own limit. Nought where use fills the budget.
-        static constexpr std::uint64_t restLimitOf(const ArrivalRoom& room, const std::uint64_t resting)
-        {
-            const std::uint64_t inUse = room.mHeld > resting ? room.mHeld - resting : 0;
-            const std::uint64_t left = room.mBudget > inUse ? room.mBudget - inUse : 0;
-            return left - left / sOthersShare;
-        }
-
-    private:
-        /// Takes what the device made of the scene's meshes: reports what it could not stand with the scene's own
-        /// refusals, stands each mesh's structure in the scene, which is written here and which the backend holds
-        /// const, and files what each tight copy gives back once it rests.
-        void takeAnswer(SceneHolder& scenes, SceneSlot slot, SceneDesc& scene);
-
-        /// **Evicts for each mesh the last answer said waits what surely leaves it room** (`SceneDesc::evictFor`),
-        /// once: a want evicted for cools until the frames that may still read what went are done, the device has
-        /// asked again, and its answer is read, then is evicted for again if the device still waits.
-        void serveWants(SceneDesc& scene);
-
-        /// Whether a want for `mesh` was evicted for and its room is not yet the device's.
-        bool isCooling(MeshIndex mesh) const;
-
-        /// The most bytes one recent extension's structures took, which only the device knows once it built them: the
-        /// room an arrival's structures may take (`SceneDesc::evictResting`), and the step what rests comes down to
-        /// its limit by. Not a rebuild's, which hands over the whole world and would pace nothing.
-        ArrivalWindow mArrivals;
-
-        /// What the device made of a hand-over (`SceneHolder::takeAnswer`), refilled each time.
-        DeviceAnswer mAnswer;
-
-        /// A want evicted for (`serveWants`): whose, and the hand-over from which the room its eviction gave back is
-        /// the device's.
-        struct WantCooling
-        {
-            MeshIndex mMesh;
-            std::uint64_t mUntil = 0;
-        };
-
-        /// The wants evicted for whose room is still coming, each mesh once: no more than the device waits on.
-        std::vector<WantCooling> mCooling;
-
-        /// The hand-overs made, the clock a want cools by.
-        std::uint64_t mHandOvers = 0;
     };
 }

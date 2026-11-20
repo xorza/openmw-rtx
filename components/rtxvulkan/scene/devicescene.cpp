@@ -35,7 +35,7 @@ namespace Rtx
     }
 
     DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, TextureArrival& arrival,
-        const SceneDesc& scene, const std::uint32_t anisotropy, const SceneRoom& room, const BuildCompaction compaction)
+        const SceneDesc& scene, const std::uint32_t anisotropy, const SceneRoom& room)
         : mPasses(passes)
         , mRecords(recordsOf(scene))
         , mEveryMesh(everyMeshOf(scene))
@@ -55,13 +55,7 @@ namespace Rtx
         mAcceleration.getPoses().write(mEveryMesh);
         for (std::uint32_t copy = 0; copy < mAcceleration.getPoses().count(); ++copy)
             mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }), uploads);
-        mAcceleration.build(batch, uploads, scene, mEveryMesh, mRecords.rows(), mBuffers.getPositions(),
-            mPasses.mTopLevelPack, compaction, mAnswer.mRefused);
-
-        // **Waited on once more where the structures settled**: the last run's loose block went back to the storage
-        // under the copies' submit, and its memory is buried under the next, which this is.
-        if (compaction == BuildCompaction::Settled)
-            batch.flush();
+        mAcceleration.build(batch, uploads, scene, mRecords.rows(), mPasses.mTopLevelPack);
 
         // Every texture the table holds draws the stand-in until residency stands it.
         standInTaken(scene);
@@ -158,9 +152,9 @@ namespace Rtx
             // the build reads — and only the meshes that arrived, over the rows `SkinTables::extend`
             // staged. `SkinPass::recordArrived` says why it may not be every mesh the copy owes.
             mPasses.mSkin.recordArrived(batch.getCommands(), skinning(scene, FrameSlot{}), scene.meshes().getArrived());
-            mAcceleration.buildArrived(batch, scene, mBuffers.getPositions(), timer, mAnswer.mRefused);
             mBuiltMeshes = scene.meshes().getRevision();
         }
+        mAcceleration.standStructures(batch, extending.mArena, scene, mBuffers.getPositions(), timer, ops);
 
         // Residency's operations, and then every slot the table took since that stands nothing yet.
         mTextures.execute(TextureArray::Executing{ .mBatch = batch,
@@ -196,11 +190,6 @@ namespace Rtx
         const bool posed
             = mPasses.mSkin.record(placing.mCommands, skinning(scene, placing.mSlot, placing.mTimer), placing.mUploads);
 
-        // What waited for room, built where the room is back, ahead of the refit and the top level that name it. The
-        // memory a burial gives back comes back a frame or two after the textures that rested went, so every
-        // placement asks again until it comes or is no longer coming.
-        mAcceleration.buildWaiting(placing.mWritten, scene, mBuffers.getPositions(), placing.mSlot, mAnswer.mRefused);
-
         const bool built = mAcceleration.place(scene, mRecords.rows(), mChangedRecords, mPasses.mTopLevelPack, placing);
 
         // Nothing to report, because nothing here is recorded into the placement: the tables are
@@ -216,12 +205,6 @@ namespace Rtx
         mCounts = scene.placements().getCounts();
 
         return posed || built || baked;
-    }
-
-    void DeviceScene::takeAnswer(DeviceAnswer& into)
-    {
-        mAnswer.handTo(into);
-        mAcceleration.takeAnswer(into);
     }
 
     void DeviceScene::measureStars(Shaders::StarField& stars) const
@@ -265,7 +248,6 @@ namespace Rtx
         stats.mRebuilt = mAcceleration.getRebuildCount();
 
         stats.mStructureBytes = mAcceleration.getStructureBytes();
-        stats.mStructureLiveBytes = mAcceleration.getStructureLiveBytes();
 
         const TexturesHeld& textures = mTextures.getHeld();
         stats.mTextureCount = textures.mCount;

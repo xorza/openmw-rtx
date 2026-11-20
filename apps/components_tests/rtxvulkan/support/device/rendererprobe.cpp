@@ -36,7 +36,7 @@ namespace Rtx::Testing
     {
         mRenderer.mReservedUpscales = std::move(modes);
         const VkExtent2D output = mRenderer.mTarget.getExtent();
-        mRenderer.createTargets(output.width, output.height, VulkanRenderer::ContentFollows::TheReserve);
+        mRenderer.createTargets(output.width, output.height);
     }
 
     const TracePasses& RendererProbe::getTracePasses() const
@@ -52,12 +52,6 @@ namespace Rtx::Testing
     const TraceChain& RendererProbe::getChain() const
     {
         return mRenderer.mFrame.getChain();
-    }
-
-    VkDeviceSize RendererProbe::getLooseStructureBytes(const SceneSlot slot) const
-    {
-        const DeviceScene* held = mRenderer.mScenes.find(slot);
-        return held != nullptr ? held->getAcceleration().getBottomLevel().getLooseLiveBytes() : 0;
     }
 
     std::uint32_t RendererProbe::getTextureCount(const SceneSlot slot) const

@@ -1,16 +1,11 @@
 #include "memorylimits.hpp"
 
-#include <cstddef>
-#include <cstdint>
 #include <optional>
 #include <stdexcept>
-#include <string_view>
-#include <utility>
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/misc/result.hpp>
-#include <components/rtx/renderer/memoryreport.hpp>
+#include <components/rtxvulkan/device/memory/contentarena.hpp>
 
 namespace Rtx::Testing
 {
@@ -25,45 +20,19 @@ namespace Rtx::Testing
         mMemory.limitBudget(std::nullopt);
     }
 
-    VkDeviceSize budgetAbove(const MemoryAllocator& memory, const MemoryUse use, const VkDeviceSize above)
+    VkDeviceSize budgetForCap(const Device& device, const VkDeviceSize cap)
     {
+        MemoryAllocator& memory = device.getMemory();
         if (!memory.hasBudget())
             throw std::runtime_error("a device with no budget extension cannot say what the heap holds");
 
-        const std::uint32_t heap = memory.getVideoHeap();
-        const HeapUse held = memory.report().mHeaps[heap];
-
-        VkDeviceSize owed = 0;
-        const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
-        if (memory.getFrameReserve() > frame)
-            owed += memory.getFrameReserve() - frame;
-        for (auto before = static_cast<std::size_t>(MemoryUse::Essential); before < static_cast<std::size_t>(use);
-            ++before)
-            owed += memory.getLargestOwed(static_cast<MemoryUse>(before));
-
-        return held.mHeld + owed + above;
-    }
-
-    VkDeviceSize budgetAtContent(const MemoryAllocator& memory)
-    {
-        const VkDeviceSize usage = memory.report().mHeaps[memory.getVideoHeap()].mHeld;
-        return budgetAbove(memory, MemoryUse::Texture, 0) - (usage - memory.getVideoBudget().mHeld);
-    }
-
-    NoRoomForContent::NoRoomForContent(const Device& device)
-        : mNone(device.getMemory(), 0)
-    {
-        // Largest first, so the gaps fill in a few dozen buffers and not thousands, down to the
-        // structure alignment, below which no resource content asks for is placed.
-        for (VkDeviceSize size = VkDeviceSize{ 16 } << 20; size >= 256; size /= 16)
-            while (true)
-            {
-                Result<Buffer, MemoryRefusal> filler = Buffer::tryMake(MemoryUse::Texture, device,
-                    BufferKind::DeviceLocal, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "content filler");
-                if (!filler.isOk())
-                    break;
-
-                mFillers.push_back(std::move(filler.value()));
-            }
+        // The cap is the budget less what stands outside the arena and what that owes, which no budget moves: read
+        // under the driver's own budget, where the cap stands above nought, it says what a budget for `cap` is.
+        memory.limitBudget(std::nullopt);
+        const VkDeviceSize budget = memory.getVideoBudget().mBudget;
+        const VkDeviceSize under = device.getContent().capUnder(memory);
+        if (under == 0)
+            throw std::runtime_error("the device's own budget leaves the arena nothing, so no budget names a cap");
+        return cap + (budget - under);
     }
 }

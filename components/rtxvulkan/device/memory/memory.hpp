@@ -6,14 +6,12 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/misc/result.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
 #include "largestowed.hpp"
@@ -21,29 +19,10 @@
 
 struct VmaAllocation_T;
 struct VmaAllocator_T;
-struct VmaPool_T;
 
 namespace Rtx
 {
     class Device;
-
-    /// Why the device's memory refused an allocation: the one case content is refused for, which the
-    /// caller decides the fate of (a stand-in, a mesh left out).
-    enum class MemoryRefusal : std::uint8_t
-    {
-        NoRoom,
-    };
-
-    /// What a refusal says in a log and a report.
-    constexpr std::string_view describe(const MemoryRefusal refusal)
-    {
-        switch (refusal)
-        {
-            case MemoryRefusal::NoRoom:
-                break;
-        }
-        return "no device memory is left for it";
-    }
 
     class MemoryAllocator;
 
@@ -64,14 +43,10 @@ namespace Rtx
     /// every staging block in a window of 246 MiB. Nought where no type has what is asked.
     std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, VkMemoryPropertyFlags required);
 
-    /// Where content — every structure and every texture — is placed: the types `memoryTypesFor`
-    /// names for video memory alone, each a pool of its own, and the heap the first stands on,
-    /// whose budget content's room is measured against.
-    ///
-    /// **Every such type, and not the first**: the library places each resource in whichever of
-    /// them its requirements allow, and RADV lists a second that buffers alone take, so a structure
-    /// storage's block, memory of its own (`StructureStorage`), may stand in another type than the
-    /// textures in the pools.
+    /// Where content — every structure and every texture — may be placed: the types `memoryTypesFor` names for video
+    /// memory alone, and the heap the first stands on, whose budget content's cap is measured against. **Every such
+    /// type, and not the first**: RADV lists a second that buffers alone take, so the arena's structures may stand in
+    /// another type than its images (`ContentArena`).
     struct ContentTypes
     {
         std::uint32_t mTypes = 0;
@@ -81,31 +56,26 @@ namespace Rtx
     /// `ContentTypes` of a device. Throws `Unsupported` where no type is video memory alone.
     ContentTypes contentTypesOf(const VkPhysicalDeviceMemoryProperties& memory);
 
-    /// What a range of memory is for, which says what becomes of the content where the device has
-    /// no room for it — and so the order the room is given in. Each use stops where the frame's
-    /// targets and the largest next growth of each use before it still fit (`MemoryAllocator::ceilingOf`).
+    /// What a range of memory is for: what a report counts it as, and the priority a driver that runs short evicts it
+    /// by.
     enum class MemoryUse : std::uint8_t
     {
-        /// The frame's targets, which a change of mode makes again at its new extents. Made again
-        /// only once the old are gone (`VulkanRenderer::createTargets`), so what they hold is
-        /// counted once, and room is kept for the running mode's (`MemoryAllocator::reserveFrame`).
-        /// Never refused here, as essential memory is not.
+        /// The frame's targets, which a change of mode makes again at its new extents. Made again only once the old
+        /// are gone (`VulkanRenderer::createTargets`), so what they hold is counted once, and room is kept for the
+        /// running mode's (`MemoryAllocator::reserveFrame`). Never refused here.
         Frame,
 
-        /// What the frame cannot go without besides its targets: its tables, and the geometry every
-        /// hit reads. Nothing stands in for one, so it is never refused here, and a device that
-        /// refuses it is the end of the renderer.
+        /// What the frame cannot go without besides its targets: its tables, and the geometry every hit reads.
+        /// Nothing stands in for one, so it is never refused here, and a device that refuses it is the end of the
+        /// renderer.
         Essential,
 
-        /// A mesh's bottom-level structure. Refused, the mesh is left out, and every placement of
-        /// it hits nothing.
-        Structure,
-
-        /// A texture's images. Refused, its slot draws the stand-in.
-        Texture,
+        /// The content arena's blocks (`ContentArena`), which residency cuts into slots: what a device that has no
+        /// room for one refuses (`MemoryAllocator::takeBlock`).
+        Content,
     };
 
-    inline constexpr std::size_t sMemoryUses = static_cast<std::size_t>(MemoryUse::Texture) + 1;
+    inline constexpr std::size_t sMemoryUses = static_cast<std::size_t>(MemoryUse::Content) + 1;
 
     /// The block a content type is grown by: sixty-four megabytes, against the library's quarter of a gigabyte, so the
     /// unused tail of a type's last block is a quarter of the library's. The content at the ship comes to some 6 blocks
@@ -114,7 +84,7 @@ namespace Rtx
     /// one, a resource is given memory of its own.
     inline constexpr VkDeviceSize sContentBlockBytes = 64 * 1024 * 1024;
 
-    /// What `use` is called in a message: "frame", "essential", "structure", "texture".
+    /// What `use` is called in a message: "frame", "essential", "content".
     std::string_view nameOf(MemoryUse use);
 
     /// **What a refused `take` says**: the library's answer, the bytes, the use and the resource it
@@ -123,33 +93,15 @@ namespace Rtx
     std::string describeRefusedTake(
         VkResult result, VkDeviceSize bytes, MemoryUse use, std::string_view name, const MemoryReport& report);
 
-    /// Whether `use` is memory nothing stands in for, which `MemoryAllocator::take` makes and never
-    /// refuses.
-    constexpr bool isNeverRefused(const MemoryUse use)
-    {
-        return use == MemoryUse::Frame || use == MemoryUse::Essential;
-    }
-
-    /// What `VK_EXT_memory_priority` is told of the memory a use takes: the order a driver that runs short
-    /// evicts it in, lowest first. **The one statement of the priorities.** **Memory nothing stands in for
-    /// stands at a half**, the library's priority for every block outside a pool, so a target big enough
-    /// for an allocation of its own stands where a table in a shared block stands. **Content stands at a
-    /// quarter**, one figure for structures and textures: both are what rests and is evicted by one policy
-    /// (`docs/architecture.md`, "One residency policy for the content"), and neither goes before the other.
+    /// What `VK_EXT_memory_priority` is told of the memory a use takes: the order a driver that runs short evicts it
+    /// in, lowest first. **The one statement of the priorities.** **Memory nothing stands in for stands at a half**,
+    /// the library's priority for every block outside a pool, so a target big enough for an allocation of its own
+    /// stands where a table in a shared block stands. **Content stands at a quarter**: what rests is residency's to
+    /// let go of, and goes before what the frame cannot go without.
     constexpr float memoryPriorityOf(const MemoryUse use)
     {
-        return isNeverRefused(use) ? 0.5f : 0.25f;
+        return use == MemoryUse::Content ? 0.25f : 0.5f;
     }
-
-    /// Where a range stands, which says whether moving what it holds gives a block back.
-    enum class RangeIn : std::uint8_t
-    {
-        /// Memory of its own, or the library's blocks outside content's pools, where what is never refused stands.
-        Elsewhere,
-
-        /// A block of content's pools, which goes back to the device once its last range does.
-        ContentBlock,
-    };
 
     /// A range of one device allocation, and the allocator that hands it back. Not an allocation
     /// of its own: one `vkAllocateMemory` per image was 1554 for the cell the game starts in, most
@@ -183,15 +135,12 @@ namespace Rtx
         /// the range stands, and memory need not be unmapped before it is freed.
         void* map() const { return mMapped; }
 
-        /// Whether the range stands in a block of content's pools, which its handle names, beside other ranges.
-        bool standsInContentBlock() const { return mIn == RangeIn::ContentBlock; }
-
     private:
         friend class Graveyard;
         friend class MemoryAllocator;
 
         DeviceMemory(MemoryAllocator* owner, VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset,
-            void* mapped, VkDeviceSize size, std::uint32_t heap, MemoryUse use, RangeIn in);
+            void* mapped, VkDeviceSize size, std::uint32_t heap, MemoryUse use);
 
         /// Hands the range to the graveyard, where it holds one.
         void bury();
@@ -209,7 +158,6 @@ namespace Rtx
         VkDeviceSize mSize = 0;
         std::uint32_t mHeap = 0;
         MemoryUse mUse = MemoryUse::Essential;
-        RangeIn mIn = RangeIn::Elsewhere;
     };
 
     /// The video heap's budget for this process, which the driver states as what is free and what the process holds
@@ -220,39 +168,10 @@ namespace Rtx
         VkDeviceSize mHeld = 0;
     };
 
-    /// One content pool's room, as the library counts it: the blocks it took, what is allocated in them, and the
-    /// largest free range, the largest resource it places without memory of its own.
-    struct PoolRoom
-    {
-        std::uint32_t mType = 0;
-        VkDeviceSize mBlocks = 0;
-        VkDeviceSize mAllocated = 0;
-        VkDeviceSize mLargestFree = 0;
-    };
-
-    /// What a content take the allocator refused for room asked, and how the heap stood: the use, the bytes, the
-    /// memory type, whether it was to have memory of its own; the video heap's budget and what the process held; what
-    /// each use held and the room each content use had left; and every content pool as it stood when the refusal was
-    /// read (`MemoryAllocator::getLastRefused`).
-    struct RefusedTake
-    {
-        MemoryUse mUse = MemoryUse::Texture;
-        VkDeviceSize mBytes = 0;
-        std::uint32_t mType = 0;
-        bool mOwn = false;
-        VideoBudget mVideo;
-        MemoryUses mUses;
-        std::array<PoolRoom, VK_MAX_MEMORY_TYPES> mPools{};
-        std::uint32_t mPoolCount = 0;
-    };
-
-    /// A refused take as one log line says it.
-    std::string describe(const RefusedTake& refused);
-
     /// The extensions of the device's memory that were enabled, which the allocator works with.
     struct MemoryExtensions
     {
-        /// `VK_EXT_memory_budget`. Optional, because a driver without it only leaves the ceilings
+        /// `VK_EXT_memory_budget`. Optional, because a driver without it only leaves the arena's cap
         /// on the library's own estimate — four fifths of each heap, less what it holds itself —
         /// and the report without its budget.
         bool mBudget = false;
@@ -305,81 +224,26 @@ namespace Rtx
         /// memory, so never refused here, and throwing as `take` for a buffer does.
         DeviceMemory take(const VkMemoryRequirements& requirements, MemoryUse use, std::string_view name);
 
-        /// Room for `buffer` as `use`, or why there is none. Out of the blocks content already holds
-        /// wherever it fits there, because that costs the heap nothing; otherwise out of new memory — a
-        /// block, or an allocation of its own for a resource larger than half of one — only where the heap
-        /// stays below `use`'s ceiling with it. Memory nothing stands in for is `take`, which is never
-        /// refused and throws instead, as does every failure but the device having no room. `name` is what
-        /// `take` names, for a use never refused here.
-        ///
-        /// **Content never shares a block with what the frame holds.** A range of content in a block the
-        /// frame's own memory opened would take room the frame had already been given, past every ceiling;
-        /// in blocks of their own, what each use holds and may take are both exact to the block.
-        Result<DeviceMemory, MemoryRefusal> tryTake(VkBuffer buffer, VkMemoryPropertyFlags properties,
-            VkDeviceSize alignment, MemoryUse use, std::string_view name);
-
-        /// The same for an image.
-        Result<DeviceMemory, MemoryRefusal> tryTake(
-            VkImage image, VkMemoryPropertyFlags properties, MemoryUse use, std::string_view name);
-
         /// **A block of the content arena** (`ContentArena`): `bytes` of memory type `type`, an allocation of its own,
-        /// at content's priority. No ceiling is asked, since the arena's cap is the one figure content is held to; the
-        /// device having none is the refusal. Called from the arena's thread (`ChunkSupply`).
-        Result<DeviceMemory, MemoryRefusal> takeBlock(std::uint32_t type, VkDeviceSize bytes);
+        /// at content's priority, or nothing where the device has no room for it. No ceiling is asked, since the
+        /// arena's cap is the one figure content is held to. Called from the arena's thread (`ChunkSupply`).
+        std::optional<DeviceMemory> takeBlock(std::uint32_t type, VkDeviceSize bytes);
 
         /// Frees `block` at once, which nothing stands in and nothing in flight reads: the arena's, on its thread.
         void giveBlock(DeviceMemory&& block);
 
-        /// About how many bytes of video memory `use` may still take: what content's blocks have
-        /// free, and the whole blocks its ceiling leaves room for. For a caller sizing what it asks
-        /// for, and not a promise: a free range may be too small for the resource that asks, so
-        /// `tryTake` has the last word.
-        VkDeviceSize getRoom(MemoryUse use) const;
-
         /// What the video heap's budget allows this process, as the driver states it and `limitBudget` holds it, and
-        /// what the process holds of the heap: the driver's usage less what content's blocks have free and what is
-        /// buried, both of which content takes again. What the content that rests keeps a share of the rest of
-        /// (`ArrivalRoom`).
+        /// what the process holds of the heap: the driver's usage less what is buried, which goes back as its frames
+        /// are done. What the arena's cap is read from.
         VideoBudget getVideoBudget() const;
 
         /// What `use` holds on `heap`, the ranges and not the blocks around them.
         VkDeviceSize getHeld(std::uint32_t heap, MemoryUse use) const;
 
-        /// Keeps room on the video heap for the frame's targets to be made at `bytes`, what the
-        /// running mode's take: content stops where that, and not only what the targets hold now,
-        /// still fits. Asked by each change of mode.
+        /// Keeps room on the video heap for the frame's targets to be made at `bytes`, what the running mode's take:
+        /// the arena's cap stands where that, and not only what the targets hold now, still fits (`getOwedOutside`).
+        /// Asked by each change of mode.
         void reserveFrame(VkDeviceSize bytes);
-
-        /// Whether the video heap stands under the ceiling a texture is made against, as the
-        /// budget and the frame's reserve set it now: whether everything content holds is what a
-        /// load would stand it in. What the process holds and keeps is read, free runs and what is
-        /// buried left out (`getVideoBudget`); what rests is the core's, and counted. Asks the
-        /// driver's budget as the library last read it, so after `refreshBudget` for an answer
-        /// about now.
-        bool contentFits() const { return getContentOver() == 0; }
-
-        /// What content holds past that ceiling, nought where it fits (`contentFits`).
-        VkDeviceSize getContentOver() const;
-
-        /// **What the process holds on the video heap past what it is held to, counting blocks as the system backs
-        /// them**: the driver's usage, every block whole and its free runs with it, less the budget as `limitBudget`
-        /// and the system's share hold it (`docs/architecture.md`, "Held is counted as the system backs it"). What a
-        /// block emptied and given back answers, and what content's ranges never see. Nought where it fits.
-        VkDeviceSize getBlocksOver() const;
-
-        /// **Whether a block is to be given back now**: the device holds past its budget by blocks (`getBlocksOver`),
-        /// or a take was refused since `refusedSeen`, which this brings up to now. A refusal under the budget is a
-        /// ceiling met while blocks stand part empty, as the handheld's PBR drew the stand-in at Seyda Neen with 250
-        /// MiB free in the structures' blocks. What each owner that moves its content out of a block asks, once a
-        /// placement, with a count of its own.
-        bool asksForBlock(std::uint64_t& refusedSeen) const;
-
-        /// What one owner gives back soon, `blocks` in place of the `was` it said before (`BlocksComing`).
-        void noteBlocksComing(std::uint32_t was, std::uint32_t blocks) noexcept;
-
-        /// How many blocks the owners that move content out of them give back soon, together: room coming that a take
-        /// refused meanwhile waits on (`whenRoomless`).
-        std::uint32_t getBlocksComing() const { return mBlocksComing.load(std::memory_order_relaxed); }
 
         /// What `reserveFrame` was last told.
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }
@@ -394,7 +258,7 @@ namespace Rtx
         /// memory held, so a reserve that counts it is not owed it twice. Replaces what was said before.
         void holdOutside(VkDeviceSize bytes) { mHeldOutside = bytes; }
 
-        /// The heap video memory is taken out of, whose room `getRoom` measures.
+        /// The heap video memory is taken out of, whose budget the arena's cap is read against.
         std::uint32_t getVideoHeap() const { return mContent.mHeap; }
 
         /// The memory types content stands in (`ContentTypes::mTypes`).
@@ -405,10 +269,9 @@ namespace Rtx
         /// stated at nought, and a budget held to nought (`limitBudget`) reports nought.
         bool hasBudget() const { return mBudget; }
 
-        /// Holds every heap to `bytes` where the driver states more, or to the driver's word where
-        /// nothing: for a run that asks what a smaller card does, and for a test that drives
-        /// content past the room. The ceilings move with it and essential memory does not, which
-        /// is never refused here.
+        /// Holds every heap to `bytes` where the driver states more, or to the driver's word where nothing: for a run
+        /// that asks what a smaller card does, and for a test that drives content past the room. The arena's cap moves
+        /// with it and essential memory does not, which is never refused here.
         void limitBudget(std::optional<VkDeviceSize> bytes);
 
         /// Has the library ask the driver its budget again, which it otherwise does only every
@@ -424,20 +287,12 @@ namespace Rtx
         /// Whether the device's memory is the system's: an integrated device, as its type states.
         bool isUnified() const { return mUnified; }
 
-        /// What one owner's next growth of `use` takes, `bytes`, in place of the `was` it owed before
-        /// (`OwedGrowth`): the largest of `use`'s kept free under the ceilings of the uses given room after it.
-        void owe(MemoryUse use, VkDeviceSize was, VkDeviceSize bytes) noexcept;
+        /// What one essential owner's next growth takes, `bytes`, in place of the `was` it owed before (`OwedGrowth`):
+        /// the largest is kept free under the arena's cap (`getOwedOutside`).
+        void owe(VkDeviceSize was, VkDeviceSize bytes) noexcept;
 
-        /// What `use` may take on the video heap at most, as the budget and the frame's reserve stand and the largest
-        /// growth each use before it owes: what a test of the ceiling reads.
-        VkDeviceSize getCeiling(MemoryUse use) const;
-
-        /// What the structure storages hold free in their blocks, `bytes` in place of the `was` one storage said
-        /// before: room only a structure takes, which the driver counts as held (`StructureStorage`).
-        void noteStructureFree(VkDeviceSize was, VkDeviceSize bytes) noexcept;
-
-        /// The largest next growth one of `use`'s owners owes on the video heap.
-        VkDeviceSize getLargestOwed(MemoryUse use) const { return mOwed[static_cast<std::size_t>(use)].largest(); }
+        /// The largest next growth one essential owner owes on the video heap.
+        VkDeviceSize getLargestOwed() const { return mOwed.largest(); }
 
         /// How many calls to `vkAllocateMemory` stand behind everything handed out.
         std::size_t getBlockCount() const;
@@ -449,15 +304,10 @@ namespace Rtx
         /// is left.
         MemoryReport report() const;
 
-        /// The last content take refused for room, its pools walked now, and how many have been: what a caller that
-        /// refuses content for good reads to say why, once a hand-over, beside the refusal (`DeviceScene`).
-        std::optional<RefusedTake> getLastRefused() const;
-        std::uint64_t getRefusedCount() const { return mRefusedCount.load(std::memory_order_relaxed); }
-
     private:
         friend class DeviceMemory;
 
-        /// The video heap's memory by use, as `report` and `noteRefused` state it.
+        /// The video heap's memory by use, as `report` states it.
         MemoryUses uses() const;
 
         /// What a resource needs of an allocation, and whether the driver binds it to nothing but an
@@ -478,39 +328,15 @@ namespace Rtx
         template <auto& Query, class Info>
         Requirements requirementsOf(const Info& info) const;
 
-        /// `tryTake`'s one path for either resource: `allocate` asks the library with the flags it
-        /// is handed, which place the resource at `alignment` at least.
-        template <class Allocate>
-        Result<DeviceMemory, MemoryRefusal> tryAllocate(const Requirements& requirements, VkDeviceSize alignment,
-            VkMemoryPropertyFlags properties, MemoryUse use, std::string_view name, Allocate&& allocate);
-
         /// What the library placed, as a range counted for `use`.
         DeviceMemory hold(VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset, void* mapped,
-            VkDeviceSize size, std::uint32_t type, MemoryUse use, RangeIn in);
+            VkDeviceSize size, std::uint32_t type, MemoryUse use);
 
         /// Buries `memory` in the device's graveyard.
         void retire(DeviceMemory&& memory);
 
         /// Frees what `memory` holds and takes it off what its use holds.
         void give(DeviceMemory& memory);
-
-        /// How far up `heap` a use content takes may go, against the process's whole usage of it: the budget,
-        /// less what the uses before `use` would take to grow, for the reason `MemoryUse` gives — on the video heap,
-        /// what the frame's reserve has beyond what its targets hold, and the largest growth one owner of each owes.
-        /// **One growth a use and not every owner's**: every owner's held 410 MiB of the handheld's heap from every
-        /// texture and refused both a texture and a structure block under it; two growths of one use at once take the
-        /// heap past its budget for a hand-over, and content gives the room back. A structure keeps a block of its own
-        /// above the textures: with only the larger of the two uses' growths kept, the textures filled the heap to the
-        /// structures' ceiling on the PBR replacers and left a mesh out
-        /// (`docs/research/2026-11-20-handheld-open-issues.md`).
-        ///
-        /// **What the process holds outside the library is counted once, in the usage**: the swapchain and
-        /// the driver's own memory. Taken off the budget as well, it stood twice under the ceiling, and a
-        /// 7680 by 2160 swapchain of three images held two hundred megabytes of content out for nothing.
-        VkDeviceSize ceilingOf(std::uint32_t heap, MemoryUse use, VkDeviceSize budget) const;
-
-        /// What content's blocks on the video heap have free: ranges content takes again before a new block.
-        VkDeviceSize getContentFree() const;
 
         const Device& mDevice;
         const VkPhysicalDeviceMemoryProperties& mMemory;
@@ -519,14 +345,11 @@ namespace Rtx
         /// what it asked for itself.
         bool mBudget = false;
 
-        /// The types content is taken out of, and their heap, which is the one a use's room is
-        /// measured on. Ahead of the library's allocator, because a device with none is refused
-        /// before anything is made on it.
+        /// The types content is taken out of, and their heap, which the arena's cap is measured on. Ahead of the
+        /// library's allocator, because a device with none is refused before anything is made on it.
         ContentTypes mContent;
 
-        /// The library's allocator and content's pools over it, which its destructor ends pools
-        /// first and the allocator last: a member, so whatever throws after the allocator was made
-        /// — a pool the library refuses — leaves nothing of either behind.
+        /// The library's allocator, ended last: a member, so whatever throws after it was made leaves nothing behind.
         class Library
         {
         public:
@@ -539,16 +362,8 @@ namespace Rtx
 
             VmaAllocator_T* get() const { return mAllocator; }
 
-            /// Content's blocks over memory type `type`, every block `sBlockBytes`: a size of the
-            /// pool's own, so new memory is exactly a block. Null for a type content never asks for.
-            VmaPool_T* poolOf(std::uint32_t type) const { return mPools[type]; }
-
-            /// Makes the pool over `type`.
-            void makePool(const Device& device, std::uint32_t type);
-
         private:
             VmaAllocator_T* mAllocator = nullptr;
-            std::array<VmaPool_T*, VK_MAX_MEMORY_TYPES> mPools{};
         };
 
         Library mLibrary;
@@ -556,14 +371,8 @@ namespace Rtx
         /// What each use holds on each heap. Atomic, for the threads `take` is reached from.
         std::array<std::array<std::atomic<VkDeviceSize>, sMemoryUses>, VK_MAX_MEMORY_HEAPS> mHeld{};
 
-        /// What each use's owners owe their next growth on the video heap, by its largest (`OwedGrowth`).
-        std::array<LargestOwed, sMemoryUses> mOwed{};
-
-        /// What the structure storages hold free in their blocks (`noteStructureFree`).
-        std::atomic<VkDeviceSize> mStructureFree = 0;
-
-        /// What the owners give back soon (`noteBlocksComing`).
-        std::atomic<std::uint32_t> mBlocksComing = 0;
+        /// What the essential owners owe their next growth on the video heap, by its largest (`OwedGrowth`).
+        LargestOwed mOwed;
 
         std::optional<VkDeviceSize> mBudgetLimit;
         VkDeviceSize mFrameReserve = 0;
@@ -579,12 +388,5 @@ namespace Rtx
 
         /// What `holdOutside` was last told.
         VkDeviceSize mHeldOutside = 0;
-
-        /// The last content take refused for room and the count of them, under their lock: a take is reached from
-        /// several threads.
-        void noteRefused(MemoryUse use, VkDeviceSize bytes, std::uint32_t type, bool own);
-        mutable std::mutex mRefusedMutex;
-        std::optional<RefusedTake> mLastRefused;
-        std::atomic<std::uint64_t> mRefusedCount = 0;
     };
 }

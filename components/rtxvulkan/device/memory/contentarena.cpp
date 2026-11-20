@@ -10,6 +10,7 @@
 
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/result.hpp>
 
 #include "buffer.hpp"
 #include "bufferusage.hpp"
@@ -35,7 +36,8 @@ namespace Rtx
     }
 
     ContentArena::ContentArena(const Device& device, MemoryAllocator& allocator)
-        : mSupply(allocator)
+        : mDevice(device)
+        , mSupply(allocator)
     {
         // **Every colour image of one tiling asks the same types**, as Vulkan states of `memoryTypeBits`; one
         // texture's image stands for every one. A description the device takes: a compressed image asking for storage
@@ -55,9 +57,9 @@ namespace Rtx
 
     ContentArena::~ContentArena()
     {
-        for (std::optional<DeviceMemory>& block : mBlocks)
+        for (std::optional<Block>& block : mBlocks)
             if (block.has_value())
-                mSupply.give(std::move(*block));
+                mSupply.give(std::move(block->mMemory));
     }
 
     void ContentArena::acquire(const BlockIndex block, const ArenaIndex arena, const VkDeviceSize bytes)
@@ -65,16 +67,20 @@ namespace Rtx
         assert((arena == arenaOf(SlotKind::Image) || arena == arenaOf(SlotKind::Buffer))
             && "a block of an arena content does not stand in");
         if (block.at() >= mBlocks.size())
+        {
             mBlocks.resize(std::size_t{ block.at() } + 1);
+            mBlockArenas.resize(std::size_t{ block.at() } + 1);
+        }
         assert(!mBlocks[block].has_value() && "a block asked that the arena holds");
+        mBlockArenas[block] = arena;
         mSupply.ask(block, static_cast<std::uint32_t>(arena), bytes);
     }
 
     void ContentArena::release(const BlockIndex block)
     {
         assert(mBlocks.holds(block) && mBlocks[block].has_value() && "a block given back that the arena holds not");
-        mBytes -= mBlocks[block]->getSize();
-        mSupply.give(std::move(*mBlocks[block]));
+        mBytes -= mBlocks[block]->mMemory.getSize();
+        mSupply.give(std::move(mBlocks[block]->mMemory));
         mBlocks[block].reset();
     }
 
@@ -89,7 +95,30 @@ namespace Rtx
                 continue;
             }
             mBytes += made.mMemory->getSize();
-            mBlocks[made.mBlock] = std::move(made.mMemory);
+            Block& stood = mBlocks[made.mBlock].emplace(Block{ .mMemory = std::move(*made.mMemory), .mBuffer = {} });
+            // **A buffer over the whole block where structures stand in its arena**, a structure's slot a range of
+            // it: making a buffer allocates nothing, so one a block costs a handle. Every block of the arena, since a
+            // chunk's slabs may be of either kind where images and buffers share the arena.
+            if (mBlockArenas[made.mBlock] == arenaOf(SlotKind::Buffer))
+            {
+                const VkBufferCreateInfo create{
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = 0,
+                    .size = stood.mMemory.getSize(),
+                    .usage = sStructureStorageUsage,
+                    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                    .queueFamilyIndexCount = 0,
+                    .pQueueFamilyIndices = nullptr,
+                };
+                stood.mBuffer
+                    = Owned<VkBuffer, vkDestroyBuffer>::make(mDevice, vkCreateBuffer, create, "vkCreateBuffer");
+                checkVk(mDevice,
+                    vkBindBufferMemory(
+                        mDevice.getHandle(), stood.mBuffer.get(), stood.mMemory.getHandle(), stood.mMemory.getOffset()),
+                    "vkBindBufferMemory");
+                mDevice.setName(stood.mBuffer.get(), "content structures");
+            }
             arrived.push_back(made.mBlock);
         }
         mMade.clear();
@@ -99,6 +128,22 @@ namespace Rtx
     {
         assert(mBlocks.holds(block) && "a block the arena never asked for");
         assert(mBlocks[block].has_value() && "a block that has not arrived");
-        return *mBlocks[block];
+        return mBlocks[block]->mMemory;
+    }
+
+    VkDeviceSize ContentArena::capUnder(const MemoryAllocator& memory) const
+    {
+        const VideoBudget video = memory.getVideoBudget();
+        const VkDeviceSize outside = video.mHeld > mBytes ? video.mHeld - mBytes : 0;
+        const VkDeviceSize spoken = outside + memory.getOwedOutside() + SlotLayout{}.mChunkBytes;
+        return video.mBudget > spoken ? video.mBudget - spoken : 0;
+    }
+
+    VkBuffer ContentArena::getBuffer(const BlockIndex block) const
+    {
+        assert(mBlocks.holds(block) && "a block the arena never asked for");
+        assert(mBlocks[block].has_value() && "a block that has not arrived");
+        assert(mBlocks[block]->mBuffer.get() != VK_NULL_HANDLE && "a structure in a block of an arena of images");
+        return mBlocks[block]->mBuffer.get();
     }
 }

@@ -17,7 +17,6 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "deformertable.hpp"
-#include "deviceanswer.hpp"
 #include "foldedshape.hpp"
 #include "light.hpp"
 #include "material.hpp"
@@ -287,39 +286,21 @@ namespace Rtx
 
         /// Settles every list the tables took a slot out of, once in a hand-over and before anything
         /// reads them: a sweep gives back thousands of slots, and a pass over a list for each was
-        /// what settling at every drop cost. Files what came to rest at the scene's clock, one tick a
-        /// hand-over, which orders the rests of every table as one.
+        /// what settling at every drop cost. Files what came to rest since the last.
         void compact();
-
-        /// What the meshes that rest may stand, set by the uploader from the device's budget at each hand-over.
-        void setRestLimit(const RestLimit& limit) { mRestLimit = limit; }
-
-        /// Frees the meshes that rest, the oldest first, until `room` is given back and then while they stand past the
-        /// limit, a step more at most and a row at least; answers the bytes given back: each slot reported freed by
-        /// its table, its structure the backend's to drop. A texture's rest keeps its slot alone, and what the device
-        /// stands of it is residency's.
-        std::uint64_t evictResting(std::uint64_t room = 0);
-
-        /// **Frees, for each of `wants`, what surely leaves it room** (`docs/architecture.md`, "What waits is given the
-        /// resting row that surely leaves it room"): the mesh that has rested longest that gives back at least its hole
-        /// where it can take it, or, with none, what rested longest until its hole is given back; answers the bytes
-        /// given back, each slot reported freed by its table.
-        std::uint64_t evictFor(std::span<const RoomWant> wants);
-
-        /// The bytes the meshes that rest stand on the device.
-        std::uint64_t getRestingBytes() const;
 
         /// **Says whether the device stands something of `texture`**, residency's word after a hand-over: a file that
         /// stands rests once nothing names it, and one that rests and stands nothing any more, its image let go of by
         /// residency, is freed.
         void standTexture(TextureIndex texture, bool stands);
 
-        /// What the device stands of `mesh`'s bottom-level structure, the device's answer (`DeviceAnswer`): what lets a
-        /// static mesh rest, and what its rest holds.
-        void standMesh(MeshIndex mesh, std::uint64_t structureBytes);
+        /// The same of `mesh`'s structure: a static mesh that stands rests once nothing names it, and one that rests
+        /// and stands nothing any more is freed.
+        void standMesh(MeshIndex mesh, bool stands);
 
-        /// What the device's tight copy of `mesh`'s structure gives back once it rests (`MeshTable::fit`).
-        void fitMesh(MeshIndex mesh, std::uint64_t bytes, std::uint64_t alignment);
+        /// Frees every row that rests, of every table: what a slot built anew calls, which holds nothing residency
+        /// stood of the scene before.
+        void releaseResting();
 
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();
@@ -397,8 +378,6 @@ namespace Rtx
 
         /// The scene's clock, one tick a `compact`, which the tables file their rests at; and the limit on what
         /// rests.
-        std::uint64_t mRestClock = 0;
-        RestLimit mRestLimit;
         DeformerTable mDeformers;
 
         /// Every mesh, its runs, and the geometry that arrived since the last hand-over.

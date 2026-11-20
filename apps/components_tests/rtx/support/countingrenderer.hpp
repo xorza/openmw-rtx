@@ -81,12 +81,6 @@ namespace Rtx::Testing
         /// How long `slot`'s texture array stands: its scene's table.
         std::uint32_t textureCountOf(Rtx::SceneSlot slot) const { return countAt(slot); }
 
-        /// What the device made of a hand-over, which a test fills to be what the next take answers, and empties.
-        void takeAnswer(Rtx::SceneSlot, Rtx::DeviceAnswer& into) override { mAnswer.handTo(into); }
-
-        /// What the device has room for, which a test sets to be what the next hand-over reads.
-        std::optional<Rtx::ArrivalRoom> getArrivalRoom(Rtx::SceneSlot) const override { return mArrivalRoom; }
-
         void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
         Rtx::FrameExtents getExtents() const override { return mExtents; }
         Rtx::FrameTraced renderFrame(const Rtx::FrameRequest&) override
@@ -253,13 +247,6 @@ namespace Rtx::Testing
         std::uint64_t mDroppedThrough = 0;
         std::uint64_t mFrames = 0;
         std::uint64_t mSkipped = 0;
-
-        /// What `takeAnswer` answers, as a device would after a hand-over: what it refused of the meshes, what each
-        /// mesh's structure takes, what waits on room, and what each tight copy gives back once it rests.
-        Rtx::DeviceAnswer mAnswer;
-
-        /// What `getArrivalRoom` answers: unbounded unless a test bounds it.
-        std::optional<Rtx::ArrivalRoom> mArrivalRoom;
 
         /// What `getProfile` answers, which a test sets to say what the run decided.
         Rtx::RenderProfile mProfile;

@@ -48,15 +48,11 @@ namespace Rtx
     class DeviceScene
     {
     public:
-        /// Builds every structure, table and texture of `scene` into `batch`, which the caller
-        /// flushes: one submit for the whole cell, not a round trip apiece. Every scene is traced by
-        /// two frames at once, the doll's included (a picture rides the frame it was asked on and
-        /// the next frame may place it again), so every table has `sFrameSlots` copies. The
-        /// structures before the textures, because a mesh left out is worse than a texture held to
-        /// a smaller side, and the textures are held to what the structures left; what the device
-        /// had no room for is `getRefusals`. Left tight where `compaction` settles them: a load
-        /// that waits copies them tight first, so the textures are held to what the tight
-        /// structures leave.
+        /// Builds every table of `scene` into `batch`, which the caller flushes: one submit for the whole cell, not
+        /// a round trip apiece. Every scene is traced by two frames at once, the doll's included (a picture rides the
+        /// frame it was asked on and the next frame may place it again), so every table has `sFrameSlots` copies.
+        /// No structure and no texture stands until residency stands it, every texture drawing the stand-in and
+        /// every mesh placing nothing until then.
         ///
         /// @param passes what poses this scene's bodies, at the build and at every placement, what
         ///        every texture is made with as it arrives, and what flattens every chunk's stack
@@ -65,10 +61,8 @@ namespace Rtx
         ///        for every scene: `TextureArray`'s constructor says why one.
         /// @param anisotropy `RenderProfile::mAnisotropy`, which the textures are read along a
         ///        footprint by.
-        /// @param compaction `BuildCompaction::Settled` for a caller that flushes `batch` and may
-        ///        wait, which this then flushes as well; Streamed for one that defers it.
         DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, TextureArrival& arrival,
-            const SceneDesc& scene, std::uint32_t anisotropy, const SceneRoom& room, BuildCompaction compaction);
+            const SceneDesc& scene, std::uint32_t anisotropy, const SceneRoom& room);
 
         /// `TextureArray::setAnisotropy`.
         void setAnisotropy(std::uint32_t anisotropy) { mTextures.setAnisotropy(anisotropy); }
@@ -83,9 +77,9 @@ namespace Rtx
             GpuTimer* mTimer = nullptr;
         };
 
-        /// Appends what the scene gained since its last build or extension — its meshes, their structures and its
-        /// materials' runs — and does residency's texture operations, every slot the table took since drawing the
-        /// stand-in until something stands in it. Does not place.
+        /// Appends what the scene gained since its last build or extension — its meshes' geometry and its materials'
+        /// runs — and does residency's operations, structures and textures, every texture slot the table took since
+        /// drawing the stand-in until something stands in it. Does not place.
         void extend(const Extending& extending, const SceneDesc& scene, std::span<const ResidencyOp> ops);
 
         /// Everything a placement of this scene is, recorded and written where `placing` says. True
@@ -116,17 +110,8 @@ namespace Rtx
         /// What this scene holds, as `SceneHolder::describeHeld` answers it.
         SceneHeld describe() const;
 
-        /// Whether the room the scene was built and extended in held any of it back: a texture stood
-        /// smaller than its file, or a texture or a structure left out. A scene built again in more
-        /// room would stand more of it.
-        /// Sets what the device refused for room waiting again, its structures (`BottomLevelStore::waitAgain`): what a
-        /// reserve that shrank may stand.
-        void waitAgain() { mAcceleration.waitAgain(); }
-
-        /// Appends what the build, an `extend` or a placement made of the scene since the last take, and forgets it:
-        /// what it left out, for want of room on the device or for a side the device does not take, and what each
-        /// mesh's structure took at its build — `SceneHolder::takeAnswer`.
-        void takeAnswer(DeviceAnswer& into);
+        /// `BottomLevelStore::readAnswers`, as `slot`'s.
+        void readAnswers(const SceneSlot slot, std::vector<TightSize>& into) { mAcceleration.readAnswers(slot, into); }
 
         /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
         /// total kept as it changes, so a placement on the frame path reads them all.
@@ -231,10 +216,5 @@ namespace Rtx
 
         /// The submit a picture of each copy rides, as the timeline value it was recorded for.
         std::array<std::uint64_t, sFrameSlots> mPictureRides{};
-
-        /// Filled by the build, refilled by every `extend`, and never freed.
-        /// What the build, the extensions and the placements made of the scene since the last `takeAnswer`, but the
-        /// structures' sizes, which the acceleration keeps.
-        DeviceAnswer mAnswer;
     };
 }

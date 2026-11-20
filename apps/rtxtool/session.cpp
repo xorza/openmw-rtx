@@ -129,8 +129,7 @@ namespace RtxTool
     {
         const SessionRequest::Watching& watching = *mRequest.mWatching;
         mWatch->drainLog();
-        std::string text = describeFindings(mWatch->getTable()) + mWatch->getRestReuse().describe()
-            + mWatch->getLongest().describe();
+        std::string text = describeFindings(mWatch->getTable()) + mWatch->getLongest().describe();
         text
             += std::format("\nflown through {}, stop {} of {}\n", currentStop().mName, mAt + 1, mRequest.mStops.size());
         mRecord.writeBeside(watching.mFindings, std::move(text));
@@ -144,7 +143,7 @@ namespace RtxTool
             return;
         mWatch->drainLog();
         const FindingTable& table = mWatch->getTable();
-        mRecord.note(describeFindings(table) + mWatch->getRestReuse().describe());
+        mRecord.note(describeFindings(table));
         mRecord.count(countFindings(table));
         if (table.statusUnder(mRequest.mWatching->mFailOn) != ExitStatus::Passed)
             mRecord.fail();

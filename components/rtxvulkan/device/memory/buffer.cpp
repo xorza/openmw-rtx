@@ -178,19 +178,6 @@ namespace Rtx
         return made;
     }
 
-    Result<Buffer, MemoryRefusal> Buffer::tryMake(const MemoryUse use, const Device& device, const BufferKind kind,
-        const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
-    {
-        Buffer made(device, kind, size, usage, name);
-        Result<DeviceMemory, MemoryRefusal> memory = device.getMemory().tryTake(
-            made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use, name);
-        if (!memory.isOk())
-            return Err{ memory.error() };
-
-        made.bind(std::move(memory.value()));
-        return made;
-    }
-
     Buffer Buffer::deviceLocal(
         const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
     {

@@ -69,8 +69,8 @@ namespace MWRender
         /// How many cells the walk left to stand, `Rtx::CellRing::getCellsToStand`.
         std::uint32_t mCellsToStand = 0;
 
-        /// How many of the world's demanded textures residency still waits on: texels asked of the feed, or a slot
-        /// (`Rtx::ResidencyReport::mWaitingDemanded`).
+        /// How many of the world's demanded residents stand nothing yet: a texture drawing the stand-in, a mesh placing
+        /// nothing (`Rtx::ResidencyReport::mMissingDemanded`).
         std::uint32_t mImagesPending = 0;
 
         /// Whether the world stood paused for this frame: the game's own flag, as the frame was

@@ -19,7 +19,7 @@ namespace Rtx
         , mUsage(usage)
         , mName(name)
         , mOwed(growth == Growth::Doubling && (kind == BufferKind::DeviceLocal || kind == BufferKind::HostWritten)
-                  ? OwedGrowth(device.getMemory(), MemoryUse::Essential)
+                  ? OwedGrowth(device.getMemory())
                   : OwedGrowth())
     {
     }

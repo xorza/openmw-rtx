@@ -259,11 +259,9 @@ namespace Rtx
         /// found again by whatever reads the same geometry; nothing for a mesh that deforms, a copy per instance.
         std::optional<MeshKey> mKey;
 
-        /// What its eviction would give the device back, its bottom-level structure (`MeshTable::stand`), and nought
-        /// until the device has said: what a mesh that rests holds of the device's room, and whether it may. Not its
-        /// geometry, which stands in storage the device keeps whole and later meshes take its runs of
-        /// (`docs/architecture.md`, "One residency policy for the content").
-        std::uint64_t mStoodBytes = 0;
+        /// Whether the device stands its bottom-level structure, as residency last said (`MeshTable::setStanding`):
+        /// what lets a static mesh rest once nothing names it, its structure kept for the next take.
+        bool mStands = false;
 
         /// Its place among the meshes that rest (`MeshTable::drop`, `RestQueue`).
         RestPlace<MeshIndex> mRest{};

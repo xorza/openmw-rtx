@@ -149,6 +149,9 @@ namespace Rtx
         HoldTier mTier = HoldTier::Unheld;
         std::uint32_t mLastHeld = 0;
         bool mLive = false;
+
+        /// Whether it stood as the last hand-over of its scene ended, which a change of is reported.
+        bool mStoodReported = false;
     };
 
     /// What residency came to, for a report and a tour's findings.
@@ -166,10 +169,15 @@ namespace Rtx
         std::uint32_t mStarvedStructures = 0;
 
         /// Demanded textures planned coarser than their want, and residents whose standing is not what is planned, and
-        /// of those the textures of a demanded tier: what a run that compares frames waits on.
+        /// of those the residents of a demanded tier: what a run that compares frames waits on.
         std::uint32_t mBelowWant = 0;
         std::uint32_t mWaiting = 0;
         std::uint32_t mWaitingDemanded = 0;
+
+        /// Residents of a demanded tier the plan gives something that stand nothing yet: a texture drawing the
+        /// stand-in, a mesh placing nothing. What a frame that draws the whole world has none of, where a raise still
+        /// on its way draws what stands below it.
+        std::uint32_t mMissingDemanded = 0;
 
         /// This frame's work.
         std::uint32_t mOpsIssued = 0;
@@ -284,6 +292,19 @@ namespace Rtx
         };
 
         std::span<const StandingChange> getStandingChanges() const { return mStandingChanges; }
+
+        /// A mesh's structure that began or stopped standing in the last hand-over (`SceneDesc::standMesh`): what lets
+        /// a static mesh rest.
+        struct StructureStandingChange
+        {
+            MeshIndex mMesh = sNoRow;
+            bool mStands = false;
+        };
+
+        std::span<const StructureStandingChange> getStructureStandingChanges() const
+        {
+            return mStructureStandingChanges;
+        }
         const TextureResident& getTexture(SceneSlot slot, TextureIndex texture) const;
         const StructureResident& getStructure(SceneSlot slot, MeshIndex mesh) const;
         const SlotLedger& getLedger() const { return mLedger; }
@@ -407,8 +428,8 @@ namespace Rtx
         /// Where `slot` stands, as an operation names its destination.
         SlotPlace placeOf(Slot slot) const;
 
-        /// The shape a live row stands as, or why it stands as nothing.
-        void describeShape(
+        /// The shape a live row stands as; where it stands as nothing, the row failed and why, as a refusal says it.
+        std::optional<std::string> describeShape(
             TextureResident& texture, const TextureTable& table, TextureIndex row, const ResidencyDevice& device);
 
         /// A bake's or a composite's description, kept for this hand-over's operation.
@@ -460,6 +481,7 @@ namespace Rtx
         std::vector<TexelsAt> mTexelsAt;
         std::vector<Refusal> mRefused;
         std::vector<StandingChange> mStandingChanges;
+        std::vector<StructureStandingChange> mStructureStandingChanges;
         bool mStandsStructures = false;
 
         ResidencyReport mReport;

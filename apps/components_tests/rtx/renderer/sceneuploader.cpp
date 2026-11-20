@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -85,23 +84,23 @@ namespace Rtx
             EXPECT_EQ(renderer.mRebuilt, 1u);
             EXPECT_EQ(renderer.mTextures, 3u);
 
-            // The first model goes: its placement, and with it the last holds on its mesh and its material. **Nothing
-            // is renumbered by that**, so it is not a rebuild, and its texture is given back on that same frame.
+            // The first model goes: its placement, and with it the last holds on its mesh and its material, which
+            // rests, residency standing its structure. **Nothing is renumbered by that**, so it is not a rebuild, and
+            // its texture is given back on that same frame.
             scene.dropInstance(first.mPlacement, Stander::Walk);
-            ASSERT_FALSE(scene.meshes().isLive(first.mMesh));
+            ASSERT_TRUE(scene.meshes().getRows()[first.mMesh].mRest.mResting);
             const SceneUpload left = rig.hand(uploader, scene);
             EXPECT_EQ(left.mKind, SceneUpload::Kind::Placed) << "a cell leaving cost a build";
             EXPECT_EQ(renderer.mRebuilt, 1u);
             EXPECT_EQ(renderer.mExtended, 1u);
             EXPECT_EQ(renderer.mTextures, 3u) << "the array shrank, so an append would begin in the wrong place";
 
-            // **A ring arriving into the slot one left is still an append**, and a crossing, one ring arriving as
-            // another goes, is one too.
+            // **A ring arriving is still an append**, and a crossing, one ring arriving as another goes, is one too.
             const Testing::Model fourth = Testing::addModel(scene, VFS::Path::NormalizedView("textures/four.dds"));
             EXPECT_EQ(rig.hand(uploader, scene).mKind, SceneUpload::Kind::Extended);
             Testing::addModel(scene, VFS::Path::NormalizedView("textures/five.dds"));
             scene.dropInstance(fourth.mPlacement, Stander::Walk);
-            ASSERT_FALSE(scene.meshes().isLive(fourth.mMesh));
+            ASSERT_TRUE(scene.meshes().getRows()[fourth.mMesh].mRest.mResting);
             EXPECT_EQ(rig.hand(uploader, scene).mKind, SceneUpload::Kind::Extended);
             EXPECT_EQ(renderer.mRebuilt, 1u) << "nothing renumbered, so nothing was built again";
         }
@@ -150,35 +149,27 @@ namespace Rtx
                 << "runs staged once were staged again";
         }
 
-        /// **What the device could not stand of the meshes is reported with the scene's refusals**, taken after every
-        /// hand-over, and what each mesh's structure takes stands the mesh: a refused mesh, then a placement's refusal
-        /// and a structure of 100; a refusal taken is not taken again.
-        TEST(RtxSceneUploaderTest, whatTheDeviceCouldNotStandIsReportedWithTheScenesRefusals)
+        /// **What residency stands of a mesh's structure stands the mesh in the scene**, and what fails is reported
+        /// with the scene's refusals: a model whose path names nothing. The first hand-over builds the slot and asks
+        /// the device a chunk; the second builds the structure loose into it, which the scene is told; the texture is
+        /// refused once, on the hand-over that met it.
+        TEST(RtxSceneUploaderTest, whatResidencyStandsOfAMeshStandsItInTheScene)
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
             SceneUploader uploader;
             Rig rig;
-            rig.mRenderer.mAnswer.mRefused
-                = { Refusal{ .mKind = Refused::Mesh, .mWhy = "no device memory is left for it" } };
             Testing::addModel(scene, VFS::Path::NormalizedView("textures/one.dds"));
+            const MeshIndex mesh = scene.placements().getRows()[PlacementIndex(0)].mInstance.mMesh;
 
             EXPECT_EQ(rig.hand(uploader, scene).mKind, SceneUpload::Kind::Rebuilt);
-            EXPECT_EQ(scene.refusals().count(Refused::Mesh), 1u);
+            EXPECT_FALSE(scene.meshes().getRows()[mesh].mStands) << "a structure stood before its chunk came";
             EXPECT_EQ(scene.refusals().count(Refused::Texture), 1u) << "a path that names nothing";
 
-            const MeshIndex mesh = scene.placements().getRows()[PlacementIndex(0)].mInstance.mMesh;
-            rig.mRenderer.mAnswer.mMeshes.push_back(StoodMesh{ .mMesh = mesh, .mStructureBytes = 100 });
-            rig.mRenderer.mAnswer.mRefused.push_back(
-                Refusal{ .mKind = Refused::Mesh, .mWhy = "no room is coming for it" });
             EXPECT_EQ(rig.hand(uploader, scene).mKind, SceneUpload::Kind::Placed);
-            EXPECT_EQ(scene.meshes().getRows()[mesh].mStoodBytes, 100u);
-            EXPECT_EQ(scene.refusals().count(Refused::Mesh), 2u) << "a placement's refusal was not taken";
-
-            Testing::addModel(scene, VFS::Path::NormalizedView("textures/two.dds"));
-            EXPECT_EQ(rig.hand(uploader, scene).mKind, SceneUpload::Kind::Extended);
-            EXPECT_EQ(scene.refusals().count(Refused::Mesh), 2u) << "a refusal taken was taken again";
-            EXPECT_EQ(scene.refusals().count(Refused::Texture), 2u);
+            EXPECT_TRUE(scene.meshes().getRows()[mesh].mStands);
+            EXPECT_EQ(scene.refusals().count(Refused::Texture), 1u) << "a refusal taken was taken again";
+            EXPECT_EQ(scene.refusals().count(Refused::Mesh), 0u);
         }
 
         /// **The array's limit is reported on the hand-over that met it, whichever branch it went**: a texture the full

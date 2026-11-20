@@ -78,6 +78,13 @@ it is shown") is carried here whole, rewritten to fit, and its own file is gone.
   of the classes the plan leaves. Refused: asking it ahead of every lowering, a chunk held past the plan for nothing
   most frames.
 
+- **A frame draws the whole world where no demanded resident stands nothing** (`ResidencyReport::mMissingDemanded`,
+  `FrameReport::mImagesPending`), not where every one stands at its plan: a raise on its way draws what stands below
+  it, as the image still being made did before residency, and a handheld flight under a tight cap counted every
+  cell outrun while a raise was always waiting somewhere. Batch 7's wholeness replaces it with its two predicates.
+- **A texture's row that fails says why, as the upload's own check words it** (`checkUploadable`): a BC5 normal map
+  read as a colour is a known format in the wrong slot, which the handheld's PBR flight's expectations name.
+
 **Superseded by the first decision**, all "by the user's decision" in `docs/architecture.md`: "the limit is derived
 from the budget" (the nine tenths stay, as the cache's share); "what waits is given the resting row that surely
 leaves it room"; "both storages take blocks of content's block size … and keep their last"; "content leaves room for
@@ -1083,17 +1090,6 @@ What is left here reads batch 2's residency records, which land with batch 4, so
   cut, the plan's time. It fixes `SlotLayout` (a third slab order or not; the ladder's steps), the frame's shares and
   the hold; a dated note records them, and the estimate under "Device memory" is replaced by its figures.
 
-## Batch 4: the contract, and textures onto it
-
-Files: `components/rtx/renderer/{sceneholder.hpp,renderer.hpp,nullrenderer,sceneuploader,scenetextures}`,
-`components/rtx/scene/{texturetable,deviceanswer,compositequeue,scenedesc}`, `components/rtx/preprocess/
-{texturefeed,preparedimages}`, `components/rtxvulkan/device/memory/{contentarena,chunksupply,memory,image}`,
-`components/rtxvulkan/texture/`, `components/rtxvulkan/scene/devicescene`, `vulkanrenderer`, `apps/openmw/mwrender/
-rtx/{rtxrenderer,worldmirror}`, `components/rtx/view/offscreentrace`, the tests of each.
-
-- [ ] The third open issue (`.notes/ISSUES.md`, the PBR tour's stand-in at Seyda Neen) flown on the handheld and
-  closed or rewritten.
-
 ## Batch 5: structures onto the arena
 
 Files: `components/rtxvulkan/scene/{bottomlevelstore,sceneacceleration,devicescene,whenroomless.hpp}`,
@@ -1101,36 +1097,10 @@ Files: `components/rtxvulkan/scene/{bottomlevelstore,sceneacceleration,devicesce
 `components/rtx/scene/{meshtable,restqueue.hpp,deviceanswer.hpp,scenedesc}`, `components/rtx/renderer/
 {arrivalwindow.hpp,roomwaits.hpp}`, the tests of each.
 
-- [ ] `BottomLevelStore` builds into the slot it is handed and copies between two (`BuildStructure`,
-  `CopyStructure`, `DropStructure`); a tight size is an event. `moveOut`, `mEmptying`, `mLeaving`, `mStuck`,
-  `mWaiting`, `Backlog`, `waitAgain`, `takeAnswer`, both storages, `StructureStorage`, `BlockList`, `BlocksComing`,
-  `whenRoomless` go. `Row`'s `Tightness::None` for both "no structure" and "kept", and "refused" as a pair of flags,
-  end with `StructureStanding`.
-- [ ] A build is issued under the frame's triangle share and from the device's own geometry, so it needs no host
-  copy past its hand-over; the placements of what a hand-over built are rewritten in it.
-- [ ] `MeshRange` loses `mStoodBytes` and `mRest`; `MeshTable` loses `stand`, `fit`, `mResting`; `SceneDesc` loses
-  `evictResting`, `evictFor`, `evictRestingTexture`, `setRestLimit`, `getRestingBytes`, `standMesh`, `fitMesh`,
-  `mRestClock`, `mRestLimit`. `restqueue.hpp`, `deviceanswer.hpp`, `arrivalwindow.hpp`, `roomwaits.hpp` go.
-- [ ] `MemoryAllocator`: `MemoryUse` becomes `EssentialUse { Frame, Essential }`; `tryTake`, `ceilingOf` a use,
-  `getRoom`, `getContentOver`, `contentFits`, `getBlocksOver`, `asksForBlock`, `noteBlocksComing`,
-  `noteStructureFree`, `getLastRefused`, `RefusedTake`, `MemoryRefusal`, `RangeIn` go. `mHeld`'s atomics and
-  `LargestOwed`'s mutex are kept only if an essential take is shown to come off the frame's thread.
-- [ ] `apps/components_tests/rtxvulkan/support/device/memorylimits.cpp:29-48` re-implements the ceiling and omits
-  what is held outside. Target: it reads the cap.
-- [ ] Ends: `whenroomless.hpp:19` (refused while its own room cools), `bottomlevelstore.cpp:652-655` (a full kept
-  storage draining a copy every three hand-overs, each failed take setting both moves off),
-  `sceneuploader.cpp:100-107` (a structure's shortfall evicting textures, and freed again on each of three
-  hand-overs), `bottomlevelstore.cpp:202` (a refusal terminal while the row is held), `meshtable.cpp:230-241`
-  (`mStoodBytes` surviving a rebuild), `memory.cpp:549` (structure room summed across storages no one taker takes
-  from), `sceneuploader.hpp:117` against `memory.cpp:458` (the rest limit and the take ceiling), `memory.cpp:460,469`
-  (a refusal counted an attempt, a `VkBuffer` of 64 MiB made and buried for each), `bottomlevelstore.cpp:604,772`
-  (a block "coming" for longer than the waits), `:651` (a copy placed in the block being emptied). Held by the
-  ledger's tests and by: a structure whose slot is reserved is built, with no wait and no want.
-- [ ] `blocklist.hpp:56-73`, `runs.cpp:31,125` — an allocate-then-release probe of every block a take, and every
-  hole of every block walked a placement, end with the storages. `RunAllocator` stays for the geometry's runs; its
-  hole count after a tour is added to the report, and its fate decided on that figure.
-- [ ] `docs/architecture.md` "Device and memory" written again; the first and second open issues flown, the first
-  with a CPU profile of the rooms after the land legs, which has not been taken.
+- [ ] The first and second open issues (`.notes/ISSUES.md`) flown on the handheld's Repack tour, the first with a CPU
+  profile of the rooms after the land legs.
+- [ ] `RunAllocator`'s fate decided on the holes a whole Repack tour leaves its vertex and index runs (the report's
+  `vertexHoles`, `indexHoles`), now that nothing walks them a placement.
 
 ## Batch 6: content, from a file to texels
 
@@ -1543,6 +1513,17 @@ Items that landed in another shape than their target, each with how and why.
   `Timeline::poll` answers what finished without waiting. A settled run waits for every block asked as well as every
   texel (`ResidencyDevice::awaitBlocks`) and hands over every operation a frame (`Residency::Shares::whole`), so two
   processes stand one image on one frame and a picture of the world waits until the shown content stands.
+
+- Batch 5's mesh rows keep their place in the rest (`RestPlace`), filed on residency's word as textures' are
+  (`SceneDesc::standMesh`), and `RestQueue` stays, cut to the order alone: a lookup by key takes a resting row back,
+  which only the scene's table can. Its bytes, fits and classes went with the rest limit.
+- `MemoryUse` keeps its name, its uses `Frame`, `Essential` and `Content`, the last the arena's blocks: one held figure
+  a use, which the report and the graveyard count by, where a separate `EssentialUse` would have needed a second
+  count for the blocks. `mHeld` stays atomic, since blocks are taken on the arena's thread and essential memory from
+  the compile threads.
+- The harness's rest reuse model went with the meshes' rest bytes it was measured by: the question it answered, what
+  a rest limit of each size kept, is the cache's share now.
+- `SceneUploader` holds no state: the rest limit, the wants and the device's answer it kept all went.
 
 ## Declined
 

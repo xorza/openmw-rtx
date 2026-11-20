@@ -79,11 +79,6 @@ namespace Rtx
         /// asks, which an arena places it by.
         static VkMemoryRequirements requirementsFor(const Device& device, const ImageDescription& description);
 
-        /// The same, for an image something stands in for: why there is none where the device has
-        /// no room for it as `use` — `MemoryAllocator::tryTake`.
-        static Result<Image, MemoryRefusal> tryMake(
-            MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
-
         /// What the image was made as, which an image made again to stand in its place is made of.
         ImageDescription getDescription() const
         {
@@ -227,8 +222,7 @@ namespace Rtx
         }
 
     private:
-        /// The handle alone, with no memory bound and no view: what the constructor and `tryMake`
-        /// both begin with, before either knows whether there is room.
+        /// The handle alone, with no memory bound and no view: what the constructor begins with.
         struct Unbound
         {
         };

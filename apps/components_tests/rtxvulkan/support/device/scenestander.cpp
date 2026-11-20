@@ -9,12 +9,15 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/imageshape.hpp>
 #include <components/rtx/renderer/sceneholder.hpp>
+#include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/contentarena.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
+#include <components/rtxvulkan/scene/bottomlevelstore.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 
 namespace Rtx::Testing
@@ -79,6 +82,13 @@ namespace Rtx::Testing
     Slot SceneStander::reserve(ResidencyDevice& device, const ClassIndex of, const SceneSlot scene,
         const TextureIndex texture, const ImageShape& shape)
     {
+        const Slot slot = reserveSlot(device, of);
+        mStanding.push_back(Standing{ .mScene = scene, .mTexture = texture, .mSlot = slot, .mShape = shape });
+        return slot;
+    }
+
+    Slot SceneStander::reserveSlot(ResidencyDevice& device, const ClassIndex of)
+    {
         if (!mLedger.hasRoom(of))
         {
             const BlockIndex block = mLedger.getTier(of) == SlabTier::Large ? mLedger.askLarge(of)
@@ -92,10 +102,51 @@ namespace Rtx::Testing
                 openFrame(device);
             }
         }
-        const Slot slot = mLedger.reserve(of, SlotOwner{ static_cast<std::uint32_t>(mStanding.size()) });
+        const Slot slot = mLedger.reserve(of, SlotOwner{ mNextOwner++ });
         mLedger.commit(slot);
-        mStanding.push_back(Standing{ .mScene = scene, .mTexture = texture, .mSlot = slot, .mShape = shape });
         return slot;
+    }
+
+    void SceneStander::buildStructure(const SceneSlot slot, const SceneDesc& scene, const MeshIndex mesh)
+    {
+        const MeshRange& range = scene.meshes().getRows()[mesh];
+        if (range.getTriangleCount() == 0)
+            return;
+        const StructureShape shape{
+            .mTriangles = range.getTriangleCount(), .mVertices = range.mVertices.mCount, .mRefits = range.deforms()
+        };
+        const ContentPrice price = mDevice.priceStructure(shape);
+        const Slot to = reserveSlot(mDevice, mLedger.classOf(SlotKind::Buffer, price.mBytes, price.mAlignment));
+        mStructures.push_back(StructureStanding{ .mScene = slot, .mMesh = mesh, .mSlot = to });
+        mOps.push_back(BuildStructure{ .mMesh = mesh,
+            .mGeneration = scene.meshes().generationOf(mesh),
+            .mLoose = SlotPlace{ .mSlot = to, .mBlock = mLedger.getBlockOf(to), .mOffset = mLedger.getOffsetOf(to) },
+            .mBytes = price.mBytes });
+    }
+
+    void SceneStander::structureOperations(
+        const SceneSlot slot, const SceneDesc& scene, MeshesSeen& seen, const bool every)
+    {
+        const MeshTable& meshes = scene.meshes();
+        if (meshes.getFreedCount() != seen.mFreed)
+            for (const MeshIndex gone : meshes.getFreed())
+                std::erase_if(mStructures, [&](const StructureStanding& standing) {
+                    if (standing.mScene != slot || standing.mMesh != gone)
+                        return false;
+                    mOps.push_back(DropStructure{ .mMesh = gone, .mFrom = standing.mSlot });
+                    mFreed.push_back(standing.mSlot);
+                    return true;
+                });
+        if (every)
+        {
+            for (std::uint32_t at = 0; at < meshes.getRows().size(); ++at)
+                if (meshes.isLive(MeshIndex(at)))
+                    buildStructure(slot, scene, MeshIndex(at));
+        }
+        else if (meshes.getRevision() != seen.mRevision)
+            for (const MeshIndex arrived : meshes.getArrived())
+                buildStructure(slot, scene, arrived);
+        seen = MeshesSeen{ .mRevision = meshes.getRevision(), .mFreed = meshes.getFreedCount() };
     }
 
     void SceneStander::letGo(const SceneSlot scene, const TextureIndex texture)
@@ -117,15 +168,30 @@ namespace Rtx::Testing
             mLedger.retire(freed, mLast);
         mFreed.clear();
         std::erase_if(mQueued, [&](const Queued& queued) { return queued.mScene == slot; });
+        std::erase_if(mStructures, [&](const StructureStanding& standing) {
+            if (standing.mScene == slot)
+                mLedger.retire(standing.mSlot, mLast);
+            return standing.mScene == slot;
+        });
         holder.standScene(slot, scene);
-        mFreedSeen[slot.isWorld() ? 0 : slot.getViewIndex() + 1] = scene.textures().getFreedCount();
+        const std::uint32_t at = slot.isWorld() ? 0 : slot.getViewIndex() + 1;
+        mFreedSeen[at] = scene.textures().getFreedCount();
 
-        // A build places what it built; a hand-over follows only for textures to stand, so a scene of none leaves
+        // A build places what it built; a hand-over follows only for something to stand, so a scene of nothing leaves
         // nothing deferred behind a build that waited.
-        if (textures.empty())
+        if (textures.empty() && scene.meshes().getLiveCount() == 0)
             return;
         extendScene(slot, scene, textures);
-        placeScene(holder, slot, scene);
+        mArrived.clear();
+        for (const Queued& queued : mQueued)
+            if (queued.mScene == slot)
+                mArrived.push_back(queued.mTexels);
+        std::erase_if(mQueued, [&](const Queued& queued) { return queued.mScene == slot; });
+        std::ignore = operationsFor(holder, slot, mArrived, {});
+        MeshesSeen& seen = mMeshesSeen[at];
+        seen = MeshesSeen{};
+        structureOperations(slot, scene, seen, true);
+        handedOver(holder.handOver(slot, scene, mOps));
     }
 
     void SceneStander::extendScene(
@@ -152,7 +218,9 @@ namespace Rtx::Testing
     void SceneStander::handOver(
         SceneHolder& holder, const SceneSlot slot, const SceneDesc& scene, std::span<const TextureIndex> freed)
     {
-        handedOver(holder.handOver(slot, scene, operationsFor(holder, slot, mArrived, freed)));
+        std::ignore = operationsFor(holder, slot, mArrived, freed);
+        structureOperations(slot, scene, mMeshesSeen[slot.isWorld() ? 0 : slot.getViewIndex() + 1], false);
+        handedOver(holder.handOver(slot, scene, mOps));
     }
 
     std::span<const ResidencyOp> SceneStander::operationsFor(ResidencyDevice& device, const SceneSlot slot,
@@ -246,6 +314,11 @@ namespace Rtx::Testing
         standers().clear();
     }
 
+    void releaseStanderOf(const ResidencyDevice& renderer)
+    {
+        standers().erase(&renderer);
+    }
+
     ArenaIndex ArenaDevice::arenaOf(const SlotKind kind) const
     {
         return mDevice.getContent().arenaOf(kind);
@@ -256,9 +329,9 @@ namespace Rtx::Testing
         return Texture::price(mDevice, shape);
     }
 
-    ContentPrice ArenaDevice::priceStructure(const StructureShape& /*shape*/) const
+    ContentPrice ArenaDevice::priceStructure(const StructureShape& shape) const
     {
-        Crash::fatal("a structure priced by a test's arena");
+        return BottomLevelStore::price(mDevice, shape);
     }
 
     ContentBudget ArenaDevice::openFrame(DeviceEvents& events)

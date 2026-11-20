@@ -357,49 +357,10 @@ namespace Rtx
 
     void SceneDesc::compact()
     {
-        ++mRestClock;
-        mMeshes.compact(mRestClock);
-        mTextures.compact(mRestClock);
+        mMeshes.compact();
+        mTextures.compact();
         mDeformers.compact();
         mPlacements.compact();
-    }
-
-    std::uint64_t SceneDesc::evictResting(const std::uint64_t room)
-    {
-        // Filed first, so nothing waits unordered. The meshes alone rest on the device's room: what a texture stands is
-        // residency's.
-        mMeshes.settleResting();
-        std::uint64_t freed = 0;
-        // A row past the limit at least, so a step of nought still comes down to it.
-        const auto pastLimit = [&] {
-            const std::uint64_t beyondRoom = freed > room ? freed - room : 0;
-            return getRestingBytes() > mRestLimit.mBytes && (beyondRoom == 0 || beyondRoom < mRestLimit.mStep);
-        };
-        while (getRestingBytes() > 0 && (freed < room || pastLimit()))
-        {
-            const std::uint64_t before = getRestingBytes();
-            mMeshes.releaseOldest(mDeformers);
-            freed += before - getRestingBytes();
-        }
-        return freed;
-    }
-
-    std::uint64_t SceneDesc::evictFor(const std::span<const RoomWant> wants)
-    {
-        // Filed first, so nothing waits unordered; and nothing past the hole, the limit's pace being the arrivals'.
-        mMeshes.settleResting();
-        const std::uint64_t before = getRestingBytes();
-        for (const RoomWant& want : wants)
-        {
-            const bool fitted = mMeshes.releaseFitting(mDeformers, want.mHole, want.mAlignment);
-            for (std::uint64_t freed = 0; !fitted && freed < want.mHole && mMeshes.getResting().first() != sNoRow;)
-            {
-                const std::uint64_t resting = getRestingBytes();
-                mMeshes.releaseOldest(mDeformers);
-                freed += resting - getRestingBytes();
-            }
-        }
-        return before - getRestingBytes();
     }
 
     void SceneDesc::standTexture(const TextureIndex texture, const bool stands)
@@ -409,19 +370,21 @@ namespace Rtx
             mTextures.release(texture);
     }
 
-    std::uint64_t SceneDesc::getRestingBytes() const
+    void SceneDesc::standMesh(const MeshIndex mesh, const bool stands)
     {
-        return mMeshes.getResting().getBytes();
+        mMeshes.setStanding(mesh, stands);
+        if (!stands && mMeshes.getRows()[mesh].mRest.mResting)
+            mMeshes.release(mDeformers, mesh);
     }
 
-    void SceneDesc::fitMesh(const MeshIndex mesh, const std::uint64_t bytes, const std::uint64_t alignment)
+    void SceneDesc::releaseResting()
     {
-        mMeshes.fit(mesh, bytes, alignment);
-    }
-
-    void SceneDesc::standMesh(const MeshIndex mesh, const std::uint64_t structureBytes)
-    {
-        mMeshes.stand(mesh, structureBytes);
+        mMeshes.settleResting();
+        while (mMeshes.getResting().first() != sNoRow)
+            mMeshes.release(mDeformers, mMeshes.getResting().first());
+        mTextures.settleResting();
+        while (mTextures.getResting().first() != sNoRow)
+            mTextures.release(mTextures.getResting().first());
     }
 
     void SceneDesc::clearArrivals()

@@ -442,6 +442,8 @@ namespace MWRender
             .mIndicesUsed = meshes.getIndexRuns().getUsed(),
             .mRestingVertices = meshes.getRestingGeometry().mVertices,
             .mRestingIndices = meshes.getRestingGeometry().mIndices,
+            .mVertexHoles = static_cast<std::uint32_t>(meshes.getVertexRuns().getHoleCount()),
+            .mIndexHoles = static_cast<std::uint32_t>(meshes.getIndexRuns().getHoleCount()),
             .mGeometryBytes = meshes.getGeometryBytes(),
             .mLayerEnd = count(mScene.materials().getLayers()),
             .mMaskEnd = mScene.materials().getMaskRuns().getEnd(),

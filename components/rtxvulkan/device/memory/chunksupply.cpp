@@ -90,9 +90,8 @@ namespace Rtx
             {
                 if (auto* asked = std::get_if<Ask>(&request))
                 {
-                    Result<DeviceMemory, MemoryRefusal> block = mAllocator.takeBlock(asked->mType, asked->mBytes);
-                    made.push_back(BlockMade{ .mBlock = asked->mBlock,
-                        .mMemory = block.isOk() ? std::optional(std::move(block.value())) : std::nullopt });
+                    made.push_back(BlockMade{
+                        .mBlock = asked->mBlock, .mMemory = mAllocator.takeBlock(asked->mType, asked->mBytes) });
                 }
                 else
                     mAllocator.giveBlock(std::move(std::get<DeviceMemory>(request)));

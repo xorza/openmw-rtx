@@ -36,7 +36,6 @@ target_sources(
         model/expectations.cpp
         model/finding.cpp
         model/heapdescription.cpp
-        model/restreuse.cpp
         model/logtally.cpp
         model/legselection.cpp
         model/longestframes.cpp
@@ -95,7 +94,6 @@ target_sources(
                 model/expectations.hpp
                 model/finding.hpp
                 model/heapdescription.hpp
-                model/restreuse.hpp
                 model/findingkind.hpp
                 model/logtally.hpp
                 model/legselection.hpp

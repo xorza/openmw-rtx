@@ -166,10 +166,8 @@ namespace RtxTool
             const Rtx::MemoryUses& uses = memory.mUses;
             return std::format(R"({{"heaps": {}, )"
                                R"("uses": {{"frame": {}, "frameReserve": {}, "essential": {}, "essentialGrowth": {}, )"
-                               R"("structures": {}, "structureGrowth": {}, "structureRoom": {}, "textures": {}, )"
-                               R"("textureRoom": {}}}}})",
-                heaps, uses.mFrame, uses.mFrameReserve, uses.mEssential, uses.mEssentialGrowth, uses.mStructures,
-                uses.mStructureGrowth, uses.mStructureRoom, uses.mTextures, uses.mTextureRoom);
+                               R"("content": {}}}}})",
+                heaps, uses.mFrame, uses.mFrameReserve, uses.mEssential, uses.mEssentialGrowth, uses.mContent);
         }
 
         /// What the graphics driver held, by region, or null where the system states none.
@@ -187,21 +185,22 @@ namespace RtxTool
         std::string asJson(const Rtx::ContentMemory& content)
         {
             const Rtx::ReaderMemory& reader = content.mReader;
-            std::string out
-                = std::format(R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
-                              R"("restingVertices": {}, "restingIndices": {}, "geometryBytes": {}, )"
-                              R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
-                              R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
-                              R"("restingTextures": {}, )"
-                              R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
-                              R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}, "lentContentBytes": {}, )"
-                              R"("filedContentBytes": {}}}, "ring": [)",
-                    content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed,
-                    content.mRestingVertices, content.mRestingIndices, content.mGeometryBytes, content.mLayerEnd,
-                    content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
-                    content.mBindVertexEnd, content.mRestingTextures, reader.mLentModels, reader.mSpareModels,
-                    reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes, reader.mFiledBytes,
-                    reader.mLentContentBytes, reader.mFiledContentBytes);
+            std::string out = std::format(
+                R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
+                R"("restingVertices": {}, "restingIndices": {}, "vertexHoles": {}, "indexHoles": {}, )"
+                R"("geometryBytes": {}, )"
+                R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
+                R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
+                R"("restingTextures": {}, )"
+                R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
+                R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}, "lentContentBytes": {}, )"
+                R"("filedContentBytes": {}}}, "ring": [)",
+                content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed,
+                content.mRestingVertices, content.mRestingIndices, content.mVertexHoles, content.mIndexHoles,
+                content.mGeometryBytes, content.mLayerEnd, content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd,
+                content.mOffsetEnd, content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures,
+                reader.mLentModels, reader.mSpareModels, reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes,
+                reader.mFiledBytes, reader.mLentContentBytes, reader.mFiledContentBytes);
             for (std::size_t distance = 0; distance < Rtx::sRingDistances; ++distance)
             {
                 const Rtx::RingDistance& at = content.mRing.mByDistance[distance];
