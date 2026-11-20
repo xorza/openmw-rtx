@@ -556,8 +556,12 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   plan's. Content nothing names is kept while it fits nine tenths of what the demand leaves, the most lately held
   first, a texture at the level it stands or a level coarser, and its next take is its slot, as D3D12's residency
   model and VMA's budget treat a card (`research/2026-11-16-texture-uploads-and-host-memory.md`). The scene's row
-  rests as long as residency stands it. Refused: textures alone; a limit per kind; a rest limit beside the cap,
-  which two figures held to two ceilings.
+  rests as long as residency stands it, **and no more of a table's rows rest than are held** (`SceneDesc::boundResting`,
+  the user's decision, 2026-11-20), the oldest freed first a bounded number a hand-over, a bake's source kept while
+  its bake stands: residency walks every row, resting ones among them, and a room after the land walked the land's 21 k
+  where it held 6 k (`research/2026-11-20-handheld-rooms-resting.md`). Refused: textures alone; a limit per kind; a
+  byte limit beside the cap, which two figures held to two ceilings; letting go of what rests at a change of
+  worldspace, which leaves the land's own frames walking it.
 - **On a unified device the host's caches and the device's rest compete**, by the user's decision: the host's yield to
   the device's memory by their own budget, and content resting on the device keeps no host copy. Refused: a fixed
   split; one order across host and device.

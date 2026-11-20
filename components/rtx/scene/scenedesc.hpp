@@ -302,6 +302,17 @@ namespace Rtx
         /// stood of the scene before.
         void releaseResting();
 
+        /// **What rests of a table is bounded by what it holds**: no more rows rest than are held, the oldest freed
+        /// first and at most `sRestingReleasedMost` of each table a call, so no one frame frees a crossing's worth.
+        /// What a hand-over calls (`SceneUploader`). Residency walks every row of a table, resting ones among them, so
+        /// a cache bounded by the device's room alone kept a room's frames walking the land it left: 21 k rows a
+        /// hand-over where the room held 6 k (`docs/research/2026-11-20-handheld-rooms-resting.md`).
+        void boundResting();
+
+        /// The most rows of one table `boundResting` frees a call: a hand-over's frees, each a slot dropped beside the
+        /// frame's own, where a room entered after the land owes tens of thousands.
+        static constexpr std::size_t sRestingReleasedMost = 64;
+
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();
 

@@ -70,9 +70,12 @@ namespace Rtx
         const std::chrono::steady_clock::time_point gathered = std::chrono::steady_clock::now();
         timed.at(Timing::Bake) = since(began, gathered);
 
-        // **A slot built anew holds nothing residency stood of the scene before**, so nothing rests on it.
+        // **A slot built anew holds nothing residency stood of the scene before**, so nothing rests on it; one that
+        // stands keeps what rests within its bound.
         if (!mine)
             scene.releaseResting();
+        else
+            scene.boundResting();
 
         // After the call above, because it rewrites what the spans reach.
         scene.compact();

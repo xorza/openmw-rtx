@@ -387,6 +387,22 @@ namespace Rtx
             mTextures.release(mTextures.getResting().first());
     }
 
+    void SceneDesc::boundResting()
+    {
+        // A table is over its bound where more of its live rows rest than are held.
+        const auto over = [](const std::size_t live, const std::size_t resting) { return resting > live - resting; };
+
+        mMeshes.settleResting();
+        for (std::size_t freed = 0;
+            freed < sRestingReleasedMost && over(mMeshes.getLiveCount(), mMeshes.getResting().getCount()); ++freed)
+            mMeshes.release(mDeformers, mMeshes.getResting().first());
+
+        for (std::size_t freed = 0;
+            freed < sRestingReleasedMost && over(mTextures.getLiveCount(), mTextures.getResting().getCount()); ++freed)
+            if (!mTextures.releaseOldest())
+                break;
+    }
+
     void SceneDesc::clearArrivals()
     {
         mMeshes.clearArrivals();

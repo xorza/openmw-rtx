@@ -115,7 +115,8 @@ namespace Rtx
     /// **A file residency stands rests when nothing names it** (`docs/architecture.md`, "One residency policy for the
     /// content"): it keeps its slot, its path and the device's image, and lets go of the host's, so the next take of it
     /// is the slot it had, with nothing described and nothing uploaded. It is freed once residency stops standing it
-    /// (`SceneDesc::standTexture`), and the oldest first where the array is full.
+    /// (`SceneDesc::standTexture`), and the oldest first where the array is full or more rest than are held
+    /// (`SceneDesc::boundResting`).
     /// A bake is freed the moment nothing names it, since its source stands beside it.
     ///
     /// **A slot is a file, its wrap and its encoding.** The same file bound clamped and bound
@@ -268,8 +269,12 @@ namespace Rtx
         /// Files the slots that came to rest since the last, by their slots, after every slot already filed.
         void settleResting();
 
-        /// Frees the slot that has rested longest, where the table is full.
-        void releaseOldest();
+        /// Frees the slot that has rested longest of those no bake is made from, where the table is full or past its
+        /// bound (`SceneDesc::boundResting`), and answers whether there was one. **A file a sprite's light bake is made
+        /// from stays while the bake does**: residency shapes the bake from its source's slot (`findFile`), which can
+        /// come to rest where the sprite's own slot is another wrap of the file, and a bake whose source went is
+        /// refused for good.
+        bool releaseOldest();
 
         /// A row's place in the rest, for `RestQueue`.
         auto placeOf()

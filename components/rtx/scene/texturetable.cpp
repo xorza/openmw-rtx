@@ -17,12 +17,8 @@ namespace Rtx
         if (getLiveCount() < sCapacity)
             return true;
 
-        settleResting();
-        if (mResting.first() != sNoRow)
-        {
-            releaseOldest();
+        if (releaseOldest())
             return true;
-        }
 
         // Counted and not reported: a table does not reach the scene's `Refusals`, and
         // `SceneUploader` reports the limit on the hand-over that met it.
@@ -219,11 +215,18 @@ namespace Rtx
         row.mAsks.unask(level);
     }
 
-    void TextureTable::releaseOldest()
+    bool TextureTable::releaseOldest()
     {
         settleResting();
-        assert(mResting.first() != sNoRow && "the oldest freed where nothing rests");
-        release(mResting.first());
+        for (TextureIndex slot = mResting.first(); slot != sNoRow; slot = rowAt(slot).mRest.mAfter)
+        {
+            const TextureRow& row = rowAt(slot);
+            if (row.mEncoding == TextureEncoding::Colour && mSpriteLightIndex.contains(row.mPath))
+                continue;
+            release(slot);
+            return true;
+        }
+        return false;
     }
 
     void TextureTable::rest(const TextureIndex slot)

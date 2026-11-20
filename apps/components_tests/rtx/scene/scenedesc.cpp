@@ -936,6 +936,89 @@ namespace Rtx
             EXPECT_FALSE(scene.textures().isLive(texture));
         }
 
+        /// **What rests is bounded by what is held, the oldest freed first, a bounded number a call**
+        /// (`SceneDesc::boundResting`): six meshes resting beside two held are freed oldest first, the lowest slots
+        /// filed first, until no more rest than are held: four freed, two left resting beside the two held. A table at
+        /// its bound frees nothing, and past `sRestingReleasedMost` over it a call frees that many and no more.
+        TEST(RtxSceneDescTest, whatRestsIsBoundedByWhatIsHeldOldestFirst)
+        {
+            SceneIdentities identities;
+            SceneDesc scene(identities);
+            std::vector<MeshIndex> meshes;
+            for (std::int32_t at = 0; at < 8; ++at)
+            {
+                meshes.push_back(Testing::addQuadMesh(scene, Testing::unitQuadAt(static_cast<float>(at))));
+                scene.standMesh(meshes.back(), true);
+            }
+            for (std::size_t at = 0; at < 6; ++at)
+                Testing::letGoMesh(scene, meshes[at]);
+            scene.compact();
+            ASSERT_EQ(scene.meshes().getResting().getCount(), 6u);
+            ASSERT_EQ(scene.meshes().getLiveCount(), 8u);
+
+            scene.boundResting();
+            EXPECT_EQ(scene.meshes().getResting().getCount(), 2u);
+            EXPECT_EQ(scene.meshes().getLiveCount(), 4u);
+            for (std::size_t at = 0; at < 4; ++at)
+                EXPECT_FALSE(scene.meshes().isLive(meshes[at])) << "the oldest, " << at << ", was kept";
+            for (std::size_t at = 4; at < 8; ++at)
+                EXPECT_TRUE(scene.meshes().isLive(meshes[at])) << at << " was freed before an older one";
+
+            scene.boundResting();
+            EXPECT_EQ(scene.meshes().getResting().getCount(), 2u) << "a table at its bound freed a row";
+
+            // Past the most a call frees: one held, sRestingReleasedMost + 3 resting, so the bound wants all but one
+            // gone and a call frees sRestingReleasedMost of them.
+            SceneDesc many(identities);
+            constexpr std::size_t resting = SceneDesc::sRestingReleasedMost + 3;
+            std::vector<MeshIndex> rows;
+            for (std::size_t at = 0; at <= resting; ++at)
+            {
+                rows.push_back(Testing::addQuadMesh(many, Testing::unitQuadAt(static_cast<float>(at))));
+                many.standMesh(rows.back(), true);
+            }
+            for (std::size_t at = 0; at < resting; ++at)
+                Testing::letGoMesh(many, rows[at]);
+            many.compact();
+            many.boundResting();
+            EXPECT_EQ(many.meshes().getResting().getCount(), resting - SceneDesc::sRestingReleasedMost);
+            many.boundResting();
+            EXPECT_EQ(many.meshes().getResting().getCount(), 1u) << "the next call goes on to the bound";
+        }
+
+        /// **A file a sprite's light bake is made from stays while the bake does**: with the fire's file and another
+        /// resting beside the bake alone held, the bound frees the other, though the fire's file rested first, and
+        /// frees the fire's once the bake goes; a bake whose source went would be refused for good.
+        TEST(RtxSceneDescTest, aBakesSourceRestsUntilTheBakeGoes)
+        {
+            SceneIdentities identities;
+            SceneDesc scene(identities);
+            const auto rested = [&](const char* path) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->setFileName(path);
+                TextureHold held = scene.takeTexture(HoldTier::Shown, VFS::Path::NormalizedView(path), *image);
+                const TextureIndex texture = held.get();
+                scene.standTexture(texture, true);
+                return std::pair{ texture, std::move(held) };
+            };
+            auto [fire, fireHold] = rested("textures/fire.dds");
+            ReadingHold bake
+                = scene.holdReading(scene.textures().addSpriteLight(VFS::Path::NormalizedView("textures/fire.dds")));
+            auto [other, otherHold] = rested("textures/other.dds");
+            scene.drop(std::move(fireHold));
+            scene.drop(std::move(otherHold));
+            scene.compact();
+            ASSERT_EQ(scene.textures().getResting().getCount(), 2u);
+
+            scene.boundResting();
+            EXPECT_TRUE(scene.textures().isLive(fire)) << "the bake's source was freed under it";
+            EXPECT_FALSE(scene.textures().isLive(other));
+
+            scene.drop(std::move(bake));
+            scene.boundResting();
+            EXPECT_FALSE(scene.textures().isLive(fire)) << "the source outlived its bake past the bound";
+        }
+
         /// **Every table hands out its lowest free slot, however its slots were given back**
         /// (`Rtx::SlotRows`). A slot is the custom index a hit reads and the row a material is looked up
         /// in, and the top-level structure is built in slot order, so which free slot an arrival takes
