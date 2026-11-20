@@ -73,6 +73,8 @@ namespace Rtx::Testing
     /// **A structure's price grows with its triangles** and is aligned as an image's is.
     TYPED_TEST_P(ResidencyDeviceConformance, pricesAStructureByItsTriangles)
     {
+        if (!this->mDevice->standsStructures())
+            GTEST_SKIP() << "the device stands its structures outside the arena";
         const ContentPrice one = this->mDevice->priceStructure(StructureShape{ .mTriangles = 2, .mVertices = 4 });
         const ContentPrice many
             = this->mDevice->priceStructure(StructureShape{ .mTriangles = 20'000, .mVertices = 10'000 });
@@ -82,9 +84,10 @@ namespace Rtx::Testing
         EXPECT_EQ(many.mBytes % many.mAlignment, 0u);
     }
 
-    /// **Epochs rise with every hand-over, and what finished never runs ahead of them or back**: three empty
-    /// hand-overs ride epochs each past the last; the events' finished epoch never falls and never passes the last
-    /// handed over, and reaches it within the device's bound.
+    /// **Epochs never fall, and what finished never runs ahead of them or back**: three empty hand-overs ride epochs
+    /// each at or past the last, a device that submits nothing for nothing answering the last it submitted; the
+    /// events' finished epoch never falls and never passes the last handed over, and reaches it within the device's
+    /// bound.
     TYPED_TEST_P(ResidencyDeviceConformance, epochsRiseAndFinishInOrder)
     {
         std::ignore = this->mDevice->openFrame(this->mEvents);
@@ -92,7 +95,7 @@ namespace Rtx::Testing
         for (std::uint32_t at = 0; at < 3; ++at)
         {
             const DeviceEpoch epoch = this->mDevice->handOver(SceneSlot::world(), this->mScene, {});
-            EXPECT_GT(epoch, last);
+            EXPECT_GE(epoch, last);
             last = epoch;
         }
         DeviceEpoch finished = this->mEvents.mFinished;
@@ -108,7 +111,8 @@ namespace Rtx::Testing
     /// arrived is gone without an answer.
     TYPED_TEST_P(ResidencyDeviceConformance, aBlockAskedIsAnsweredOnce)
     {
-        const BlockIndex block(0);
+        // Far past what a test's own ledger names on a device the binary shares.
+        const BlockIndex block(4000);
         this->mDevice->acquireBlock(block, this->mDevice->arenaOf(SlotKind::Image), std::uint64_t{ 64 } << 20);
         std::uint32_t answers = 0;
         bool arrived = false;

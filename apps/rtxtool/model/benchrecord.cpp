@@ -192,22 +192,16 @@ namespace RtxTool
                               R"("restingVertices": {}, "restingIndices": {}, "geometryBytes": {}, )"
                               R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
                               R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
-                              R"("restingTextures": {}, "restingTextureBytes": {}, )"
-                              R"("aboveWant": {{"stood": {}, "above": {}, "textures": {}, "restingStood": {}, )"
-                              R"("restingAbove": {}}}, )"
+                              R"("restingTextures": {}, )"
                               R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
                               R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}, "lentContentBytes": {}, )"
-                              R"("filedContentBytes": {}}}, )"
-                              R"("prepared": {{"entries": {}, "bytes": {}, "leftPending": {}}}, "ring": [)",
+                              R"("filedContentBytes": {}}}, "ring": [)",
                     content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed,
                     content.mRestingVertices, content.mRestingIndices, content.mGeometryBytes, content.mLayerEnd,
                     content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
-                    content.mBindVertexEnd, content.mRestingTextures, content.mRestingTextureBytes,
-                    content.mAboveWant.mStood, content.mAboveWant.mAbove, content.mAboveWant.mTextures,
-                    content.mAboveWant.mRestingStood, content.mAboveWant.mRestingAbove, reader.mLentModels,
-                    reader.mSpareModels, reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes, reader.mFiledBytes,
-                    reader.mLentContentBytes, reader.mFiledContentBytes, content.mPrepared.mEntries,
-                    content.mPrepared.mBytes, content.mPrepared.mLeftPending);
+                    content.mBindVertexEnd, content.mRestingTextures, reader.mLentModels, reader.mSpareModels,
+                    reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes, reader.mFiledBytes,
+                    reader.mLentContentBytes, reader.mFiledContentBytes);
             for (std::size_t distance = 0; distance < Rtx::sRingDistances; ++distance)
             {
                 const Rtx::RingDistance& at = content.mRing.mByDistance[distance];
@@ -433,8 +427,7 @@ namespace RtxTool
             "{:.2f} M, {:.2f} M, {:.2f} M of {:.2f} M   geometry {:.1f} MiB   reader {:.1f} MiB lent in {} models "
             "holding {:.1f}, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {} holding {:.1f}\n"
             "  runs  layers {}   masks {}   rig runs {}   influences {}   offsets {}   pose words {}   "
-            "bind vertices {}   resting textures {}, {:.1f} MiB   above want {:.1f} of {:.1f} MiB stood whole, in {} "
-            "textures, {:.1f} of {:.1f} MiB resting   prepared {} unhanded, {:.1f} MiB, {} slots left pending\n",
+            "bind vertices {}   resting textures {}\n",
             (content.mVerticesUsed - content.mRestingVertices) / 1e6, content.mRestingVertices / 1e6,
             (content.mVertexEnd - content.mVerticesUsed) / 1e6, content.mVertexEnd / 1e6,
             (content.mIndicesUsed - content.mRestingIndices) / 1e6, content.mRestingIndices / 1e6,
@@ -443,11 +436,7 @@ namespace RtxTool
             Rtx::mebibytes(reader.mLentContentBytes), Rtx::mebibytes(reader.mSpareBytes), reader.mSpareModels,
             Rtx::mebibytes(reader.mFiledBytes), reader.mFiledModels, Rtx::mebibytes(reader.mFiledContentBytes),
             content.mLayerEnd, content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd,
-            content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures,
-            Rtx::mebibytes(content.mRestingTextureBytes), Rtx::mebibytes(content.mAboveWant.mAbove),
-            Rtx::mebibytes(content.mAboveWant.mStood), content.mAboveWant.mTextures,
-            Rtx::mebibytes(content.mAboveWant.mRestingAbove), Rtx::mebibytes(content.mAboveWant.mRestingStood),
-            content.mPrepared.mEntries, Rtx::mebibytes(content.mPrepared.mBytes), content.mPrepared.mLeftPending);
+            content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures);
     }
 
     std::string describeGameHeld(const GameHeld& game)

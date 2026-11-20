@@ -196,8 +196,8 @@ namespace Rtx::Testing
     /// all arrive together the way a model does. The triangle stands as high as the meshes the scene has added, so
     /// each model is a mesh of its own: one geometry is one mesh (`SceneDesc::addMesh`).
     ///
-    /// The path is made up, and with no `image` the slot keeps none: `SceneTextures` answers it with the
-    /// stand-in and counts it unreadable, the description a decision needs, with no content files.
+    /// The path is made up, and with no `image` the slot keeps none: residency fails it and the device draws the
+    /// stand-in, the description a decision needs, with no content files.
     inline Model addModel(SceneDesc& scene, const VFS::Path::NormalizedView texture, const osg::Image* image = nullptr)
     {
         const auto z = static_cast<float>(scene.meshes().getRevision());

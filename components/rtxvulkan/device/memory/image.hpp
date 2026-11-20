@@ -84,12 +84,6 @@ namespace Rtx
         static Result<Image, MemoryRefusal> tryMake(
             MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
 
-        /// An image `description` describes, as a texture, in a block content's pools hold already other than
-        /// `block`, or no room where none has it (`MemoryAllocator::tryTakeOutside`): what a texture moved to give
-        /// `block` back stands in.
-        static Result<Image, MemoryRefusal> tryMakeOutside(
-            const Device& device, const ImageDescription& description, VkDeviceMemory block, std::string_view name);
-
         /// What the image was made as, which an image made again to stand in its place is made of.
         ImageDescription getDescription() const
         {

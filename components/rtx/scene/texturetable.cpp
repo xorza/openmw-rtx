@@ -3,9 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 #include <format>
-#include <optional>
 #include <string>
 #include <utility>
 
@@ -14,38 +12,6 @@
 
 namespace Rtx
 {
-    namespace
-    {
-        /// The bytes `row`, a file stood whole, stands in levels finer than `want`: what the device stood for it, in
-        /// its own format, split as its chain to one texel is, by the file's layout or, where the chain was made again,
-        /// BC7's four-texel blocks, whose share alone is read. Nought where the row keeps no image to measure.
-        std::uint64_t bytesAbove(const TextureRow& row, const std::uint8_t want)
-        {
-            constexpr TexelLayout made{ .mSide = 4, .mBytes = 16 };
-            if (want <= row.mStoodFrom || row.mImage == nullptr || row.mStoodBytes == 0)
-                return 0;
-
-            const TexelLayout layout = row.mStoodMade ? made : layoutOf(row.mFormat);
-            const auto width = static_cast<std::uint32_t>(row.mImage->s());
-            const auto height = static_cast<std::uint32_t>(row.mImage->t());
-            std::uint64_t whole = 0;
-            std::uint64_t above = 0;
-            // From the level it stood from, which its bytes began at.
-            for (std::uint32_t level = row.mStoodFrom; (width >> level) > 0 || (height >> level) > 0; ++level)
-            {
-                const std::uint64_t bytes
-                    = layout.levelBytes(std::max(width >> level, 1u), std::max(height >> level, 1u));
-                whole += bytes;
-                if (level < want)
-                    above += bytes;
-            }
-            if (whole == 0)
-                return 0;
-            return static_cast<std::uint64_t>(
-                static_cast<double>(row.mStoodBytes) * static_cast<double>(above) / static_cast<double>(whole));
-        }
-    }
-
     bool TextureTable::hasRoom()
     {
         if (getLiveCount() < sCapacity)
@@ -218,40 +184,19 @@ namespace Rtx
         if (!dropRow(texture, tier))
             return;
 
-        // A file the device stands whole rests; anything else, a file the device has not stood yet among
-        // them, goes now, since nothing would take its rest back to the device.
+        // **A file the device stands rests, keeping its slot**, so residency may keep what stands and a take of it
+        // finds it there; anything else goes now, a bake among it, since its source stands beside it.
         const TextureRow& row = rowAt(texture);
-        if (row.mKind == TextureKind::File && row.mStoodBytes > 0)
+        if (row.mKind == TextureKind::File && row.mStands)
             rest(texture);
         else
             release(texture);
     }
 
-    TexturesAboveWant TextureTable::measureAboveWant() const
+    void TextureTable::setStanding(const TextureIndex slot, const bool stands)
     {
-        TexturesAboveWant meter;
-        const auto rows = getRows();
-        for (const TextureIndex slot : everyRow<TextureIndex>(rows.size()))
-        {
-            const TextureRow& row = rows[slot];
-            if (!isLive(slot) || row.mKind != TextureKind::File || row.mStoodBytes == 0)
-                continue;
-
-            if (row.mRest.mResting)
-            {
-                meter.mRestingStood += row.mStoodBytes;
-                meter.mRestingAbove += row.mRestAbove;
-                continue;
-            }
-
-            meter.mStood += row.mStoodBytes;
-            if (const std::uint64_t above = bytesAbove(row, getWant(slot)); above > 0)
-            {
-                meter.mAbove += above;
-                ++meter.mTextures;
-            }
-        }
-        return meter;
+        assert(isLive(slot) && "a slot said to stand that the table holds no more");
+        rowAt(slot).mStands = stands;
     }
 
     void TextureTable::ask(const TextureIndex texture, const std::size_t level)
@@ -262,9 +207,6 @@ namespace Rtx
         assert(isLive(texture) && "an ask of a slot that stands no texture");
         TextureRow& row = rowAt(texture);
         row.mAsks.ask(level);
-        row.mLastWant = *row.mAsks.finest();
-        if (row.mStoodBytes > 0 && row.mLastWant < row.mStoodFrom)
-            mFiner.addMakingRoom(texture);
     }
 
     void TextureTable::unask(const TextureIndex texture, const std::size_t level)
@@ -275,65 +217,6 @@ namespace Rtx
         assert(isLive(texture) && "an ask taken back of a slot that stands no texture");
         TextureRow& row = rowAt(texture);
         row.mAsks.unask(level);
-        if (const std::optional<std::uint8_t> finest = row.mAsks.finest())
-            row.mLastWant = *finest;
-    }
-
-    void TextureTable::stand(
-        const TextureIndex slot, const std::uint64_t bytes, const bool made, const std::uint8_t from)
-    {
-        TextureRow& row = rowAt(slot);
-        assert(isLive(slot) && "a slot that stands no texture was stood");
-        assert(!row.mRest.mResting && "a slot that rests was described");
-        row.mStoodBytes = bytes;
-        row.mStoodMade = made;
-        row.mStoodFrom = from;
-    }
-
-    void TextureTable::restandResting(const TextureIndex slot, const std::uint64_t bytes, const std::uint8_t from)
-    {
-        TextureRow& row = rowAt(slot);
-        assert(row.mRest.mResting && "a slot restood in a rest it does not take");
-        assert(bytes <= row.mStoodBytes && "a rest moved up");
-        mResting.restand(row.mStoodBytes, bytes);
-
-        // What it holds above its last want now: what it did, less the levels the move let go, which all stood above
-        // the want, the move stopping at it; nought where it came down to the want.
-        const std::uint64_t freed = row.mStoodBytes - bytes;
-        assert(mRestingAbove >= row.mRestAbove && "a rest restood past what rests above its want");
-        mRestingAbove -= row.mRestAbove;
-        row.mRestAbove = from >= row.mLastWant || row.mRestAbove <= freed ? 0 : row.mRestAbove - freed;
-        mRestingAbove += row.mRestAbove;
-
-        row.mStoodBytes = bytes;
-        row.mStoodFrom = from;
-    }
-
-    void TextureTable::arriveFiner()
-    {
-        for (const TextureIndex slot : mFiner.getSlots())
-        {
-            const TextureRow& row = rowAt(slot);
-            if (isLive(slot) && !row.mRest.mResting && row.mStoodBytes > 0 && getWant(slot) < row.mStoodFrom)
-                arriveAgain(slot);
-        }
-        mFiner.clear();
-    }
-
-    void TextureTable::fit(const TextureIndex slot, const std::uint64_t bytes, const std::uint64_t alignment)
-    {
-        assert((isLive(slot) || rowAt(slot).mRest.mResting) && "a slot the table does not hold fitted");
-        mResting.fit(slot, bytes, alignment, placeOf());
-    }
-
-    bool TextureTable::releaseFitting(const std::uint64_t hole, const std::uint64_t alignment)
-    {
-        settleResting();
-        const TextureIndex fitting = mResting.firstFitting(hole, alignment, placeOf());
-        if (fitting == sNoRow)
-            return false;
-        release(fitting);
-        return true;
     }
 
     void TextureTable::releaseOldest()
@@ -348,26 +231,19 @@ namespace Rtx
         TextureRow& row = rowAt(slot);
         assert(row.mKind == TextureKind::File && "only a file rests");
 
-        // What it would hold above the level its last readers asked, measured while its image is still here.
-        row.mRestAbove = bytesAbove(row, row.mLastWant);
-        mRestingAbove += row.mRestAbove;
-
         // The census counts what the host keeps, and the host keeps nothing of a slot that rests.
         if (row.mImage != nullptr)
             mFormats.discount(row.mFormat, row.mImage->getNumMipmapLevels() > 1);
         row.mImage = nullptr;
         row.mPartner = nullptr;
 
-        mResting.rest(slot, row.mStoodBytes, placeOf());
+        mResting.rest(slot, 0, placeOf());
     }
 
     void TextureTable::wake(const TextureIndex slot, const osg::Image* const image, const osg::Image* const partner)
     {
         TextureRow& row = rowAt(slot);
-        mResting.wake(slot, row.mStoodBytes, placeOf());
-        assert(mRestingAbove >= row.mRestAbove && "a wake past what rests above its want");
-        mRestingAbove -= row.mRestAbove;
-        row.mRestAbove = 0;
+        mResting.wake(slot, 0, placeOf());
 
         // The taker's images, which a rebuild describes the slot from; the device stands them already.
         row.mImage = image;

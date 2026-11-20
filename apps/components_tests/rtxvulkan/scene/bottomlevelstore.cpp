@@ -10,6 +10,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <components/rtx/common/index.hpp>
@@ -20,7 +21,6 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
-#include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -36,7 +36,6 @@
 #include <components/rtxvulkan/scene/bottomlevelstore.hpp>
 #include <components/rtxvulkan/scene/structurebuild.hpp>
 #include <components/rtxvulkan/scene/whenroomless.hpp>
-#include <components/vfs/pathutil.hpp>
 
 namespace Rtx
 {
@@ -395,13 +394,14 @@ namespace Rtx
             EXPECT_FALSE(store.isWaiting(grids[1]))
                 << "a refusal kept past the mesh that went without, which stands now";
 
-            // Let go of, with a texture resting so room is coming, and refused again.
+            // Let go of, with a mesh resting so room is coming, and refused again.
             store.release(std::span(grids).subspan(1, 1));
-            const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
-            mScene.textures().stand(resting, 64, false, 0);
-            mScene.drop(mScene.holdTexture(resting, HoldTier::Shown));
+            const MeshIndex resting = Testing::addMesh(
+                mScene, MeshArrays{ .mPositions = Testing::wallAt(200.0f), .mIndices = Testing::sQuadIndices });
+            mScene.standMesh(resting, 64);
+            Testing::letGoMesh(mScene, resting);
             mScene.compact();
-            ASSERT_EQ(mScene.textures().getResting().getBytes(), 64u);
+            ASSERT_EQ(mScene.getRestingBytes(), 64u);
             {
                 const Testing::NoRoomForContent full(getDevice());
                 Batch batch(getPool());
@@ -512,9 +512,10 @@ namespace Rtx
             const MeshIndex body = Testing::addOneBoneBody(
                 mScene, MeshArrays{ .mPositions = corners, .mNormals = up, .mIndices = triangle })
                                        .mMesh;
-            const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
-            mScene.textures().stand(resting, 64, false, 0);
-            mScene.drop(mScene.holdTexture(resting, HoldTier::Shown));
+            const MeshIndex resting = Testing::addMesh(
+                mScene, MeshArrays{ .mPositions = Testing::wallAt(200.0f), .mIndices = Testing::sQuadIndices });
+            mScene.standMesh(resting, 64);
+            Testing::letGoMesh(mScene, resting);
             mScene.compact();
             stage();
             std::vector<Refusal> refused;

@@ -14,6 +14,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtxvulkan/device/memory/contentarena.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "commands.hpp"
@@ -256,6 +257,7 @@ namespace Rtx
         mGraveyard = std::make_unique<Graveyard>(*this);
         // `new` and not `make_unique`, which the pool's private constructor does not admit.
         mPool.reset(new CommandPool(*this));
+        mContent = std::make_unique<ContentArena>(*this, *mMemory);
 
         mFaults = std::make_unique<FaultReport>(*this, faultEntries, has(DeviceOption::UncachedMarkers));
 

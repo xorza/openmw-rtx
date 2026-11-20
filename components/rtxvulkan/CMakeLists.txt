@@ -408,6 +408,8 @@ target_sources(
         device/memory/formats.cpp
         device/memory/growablebuffer.cpp
         device/memory/image.cpp
+        device/memory/chunksupply.cpp
+        device/memory/contentarena.cpp
         device/memory/imagearena.cpp
         device/memory/joinedblocks.cpp
         device/memory/memory.cpp
@@ -528,6 +530,8 @@ target_sources(
                 device/memory/frameslots.hpp
                 device/memory/growablebuffer.hpp
                 device/memory/image.hpp
+                device/memory/chunksupply.hpp
+                device/memory/contentarena.hpp
                 device/memory/imagearena.hpp
                 device/memory/imageuse.hpp
                 device/memory/joinedblocks.hpp

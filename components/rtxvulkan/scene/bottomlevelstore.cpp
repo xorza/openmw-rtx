@@ -220,7 +220,7 @@ namespace Rtx
                 into.mMeshFits.push_back(fit);
         for (const RoomWant& want : mWants)
         {
-            const MeshIndex mesh = std::get<MeshIndex>(want.mWaiter);
+            const MeshIndex mesh = want.mWaiter;
             if (mRows[mesh].mWaiting || mRows[mesh].mCompaction.mTightness == Tightness::Answered)
                 into.mWants.push_back(want);
         }

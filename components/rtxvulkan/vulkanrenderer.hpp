@@ -77,12 +77,19 @@ namespace Rtx
         CardAddress getCardAddress() const override;
         bool isValidating() const override;
 
-        void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) override;
-        void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;
+        ArenaIndex arenaOf(SlotKind kind) const override;
+        std::optional<ContentPrice> priceImage(const ImageShape& shape) const override;
+        ContentPrice priceStructure(const StructureShape& shape) const override;
+        bool standsStructures() const override { return false; }
+        ContentBudget openFrame(DeviceEvents& events) override;
+        DeviceEpoch handOver(SceneSlot slot, const SceneDesc& scene, std::span<const ResidencyOp> ops) override;
+        void acquireBlock(BlockIndex block, ArenaIndex arena, std::uint64_t bytes) override;
+        void releaseBlock(BlockIndex block) override;
+        void awaitBlocks() override;
+        void standScene(SceneSlot slot, const SceneDesc& scene) override;
         SceneHeld describeHeld(SceneSlot slot) const override;
         void takeAnswer(SceneSlot slot, DeviceAnswer& into) override;
         std::optional<ArrivalRoom> getArrivalRoom(SceneSlot slot) const override;
-        void placeScene(SceneSlot slot, const SceneDesc& scene) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         MemoryReport getMemoryReport() const override;
         MemoryPrices priceMemory() const override;
@@ -159,6 +166,10 @@ namespace Rtx
         /// @param width, height what the frame is presented at. What it is traced at is the
         ///        upscaler's answer for the mode, `Upscaler::extentsFor`.
         void createTargets(std::uint32_t width, std::uint32_t height, ContentFollows follows);
+
+        /// The same scene with its instances and lights somewhere else and its actors in a new pose: rebuilds only what
+        /// says where things are, plus the structure of each mesh `getDeformed` names. The last part of a hand-over.
+        void place(SceneSlot slot, const SceneDesc& scene);
 
         /// The one way the queue is emptied: everything given to it and everything waiting finished,
         /// everything buried let go. The order is load-bearing — the interface's batch and the deferred

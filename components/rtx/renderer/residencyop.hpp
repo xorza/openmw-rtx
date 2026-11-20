@@ -6,42 +6,42 @@
 
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slotledger.hpp>
+#include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/preprocess/texturefeed.hpp>
 
 namespace Rtx
 {
-    /// Which request of the feed an operation's texels came back as (`TextureFeed`).
-    enum class FeedTicket : std::uint32_t
+    /// **Where a slot stands**: the slot, and the block and offset its bytes are at, which the ledger says as the slot
+    /// is reserved, so a device maps an operation to memory with no ledger of its own.
+    struct SlotPlace
     {
+        Slot mSlot;
+        BlockIndex mBlock = sNoRow;
+        std::uint64_t mOffset = 0;
+
+        friend bool operator==(const SlotPlace&, const SlotPlace&) = default;
     };
 
-    /// A run of a chain's levels, `mFirst` up to and not including `mEnd`, level 0 the finest.
-    struct LevelSpan
-    {
-        std::uint8_t mFirst = 0;
-        std::uint8_t mEnd = 0;
-
-        bool empty() const { return mFirst >= mEnd; }
-
-        friend bool operator==(const LevelSpan&, const LevelSpan&) = default;
-    };
-
-    /// **An image stood in a slot**: an arrival, a raise, a lowering or a move out of a draining slab, one operation.
-    /// Its levels from `mLevel` down; what stands at `mFrom` already is copied on the device where it shares a level,
-    /// and the levels `mUpload` names come from the feed's texels for `mFeed`.
+    /// **An image stood in a slot**: an arrival, a raise, a lowering, a move out of a draining slab or a bake, one
+    /// operation. Its levels from `mLevel` down; what stands at `mFrom` already is copied on the device where it shares
+    /// a level, and the levels `mUpload` names come from `mTexels`.
     struct StandImage
     {
         TextureIndex mTexture = sNoRow;
         std::uint32_t mGeneration = 0;
-        Slot mTo;
+        SlotPlace mTo;
         std::uint8_t mLevel = 0;
 
         /// What stands now and the level it stands from, whose shared levels are copied: none for an arrival.
         std::optional<Slot> mFrom{};
         std::uint8_t mFromLevel = 0;
 
-        /// The finer levels, in the feed's texels for `mFeed`: empty for a lowering or a move.
+        /// The finer levels, out of `mTexels`: empty for a lowering or a move.
         LevelSpan mUpload{};
-        std::optional<FeedTicket> mFeed{};
+
+        /// What the levels are made of, which stays valid until the hand-over returns: a file's texels from the feed,
+        /// or a bake's description, which the device writes from its sources. None for a lowering or a move.
+        const TextureData* mTexels = nullptr;
 
         friend bool operator==(const StandImage&, const StandImage&) = default;
     };
@@ -60,7 +60,7 @@ namespace Rtx
     {
         MeshIndex mMesh = sNoRow;
         std::uint32_t mGeneration = 0;
-        Slot mLoose;
+        SlotPlace mLoose;
 
         /// What the device priced the build at (`ResidencyDevice::priceStructure`), which the slot holds.
         std::uint64_t mBytes = 0;
@@ -80,7 +80,7 @@ namespace Rtx
         MeshIndex mMesh = sNoRow;
         std::uint32_t mGeneration = 0;
         Slot mFrom;
-        Slot mTo;
+        SlotPlace mTo;
         StructureCopy mKind = StructureCopy::Compact;
 
         friend bool operator==(const CopyStructure&, const CopyStructure&) = default;

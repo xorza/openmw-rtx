@@ -70,7 +70,6 @@ target_sources(
         rtx/prepare/preparationmanifest.cpp
         rtx/preprocess/contentpreprocessor.cpp
         rtx/preprocess/passversions.cpp
-        rtx/preprocess/preparedimages.cpp
         rtx/preprocess/shape/creasesplit.cpp
         rtx/preprocess/shape/shapefold.cpp
         rtx/renderer/arrivalwindow.cpp
@@ -84,7 +83,6 @@ target_sources(
         rtx/renderer/structuretightness.cpp
         rtx/renderer/notfinite.cpp
         rtx/renderer/nullrenderer.cpp
-        rtx/renderer/scenetextures.cpp
         rtx/renderer/sceneuploader.cpp
         rtx/renderer/shaderset.cpp
         rtx/scene/compositequeue.cpp
@@ -324,6 +322,7 @@ target_sources(
         rtxvulkan/frame/notfinitekeep.cpp
         rtxvulkan/framering.cpp
         rtxvulkan/frames.cpp
+        rtxvulkan/residencydevice.cpp
         rtxvulkan/memorypricing.cpp
         rtxvulkan/gui/guipass.cpp
         rtxvulkan/gui/guitextures.cpp
@@ -342,6 +341,7 @@ target_sources(
         rtxvulkan/support/device/memorylimits.cpp
         rtxvulkan/support/device/readback.cpp
         rtxvulkan/support/device/rendererprobe.cpp
+        rtxvulkan/support/device/scenestander.cpp
         rtxvulkan/texture/bc7encodepass.cpp
         rtxvulkan/texture/groundcompositepass.cpp
         rtxvulkan/texture/mipchainpass.cpp
@@ -388,6 +388,7 @@ target_sources(
                 rtxvulkan/support/device/memorylimits.hpp
                 rtxvulkan/support/device/readback.hpp
                 rtxvulkan/support/device/rendererprobe.hpp
+                rtxvulkan/support/device/scenestander.hpp
                 rtxvulkan/trace/visibility/fixture.hpp
                 ${RTX_TEST_SUPPORT_HEADERS}
 )

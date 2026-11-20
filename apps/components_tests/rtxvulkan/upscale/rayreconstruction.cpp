@@ -15,6 +15,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/dlss/dlss.hpp>
 #include <components/platform/gpu.hpp>
 #include <components/rtx/frame/frameextents.hpp>
@@ -196,7 +197,7 @@ namespace Rtx
 
             SceneDesc scene(identities);
             Testing::addQuad(scene, Testing::sheetAt(4000.0f, 0.0f));
-            mRenderer.setScene(SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, SceneSlot::world(), scene, {});
 
             const auto draw = [&] {
                 const FrameExtents extents = mRenderer.getExtents();

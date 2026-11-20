@@ -29,23 +29,6 @@
 
 namespace Rtx
 {
-    /// **What the textures stood whole hold above the level each is wanted from** (`TextureTable::measureAboveWant`):
-    /// the bytes they were handed over in, the share of those in levels finer than their want, and how many hold any.
-    /// A meter, and moves nothing (`docs/architecture.md`, "A texture stands from the level its nearest user asks").
-    struct TexturesAboveWant
-    {
-        std::uint64_t mStood = 0;
-        std::uint64_t mAbove = 0;
-        std::uint32_t mTextures = 0;
-
-        /// The same of the textures that rest, each against the level its last readers asked (`TextureRow::mLastWant`):
-        /// what a rest at that level would give back.
-        std::uint64_t mRestingStood = 0;
-        std::uint64_t mRestingAbove = 0;
-
-        bool operator==(const TexturesAboveWant&) const = default;
-    };
-
     /// What stands in a live texture slot, and so which of the row's two names carries it, stated
     /// rather than deduced from two names. Whether a slot is live is the table's to say
     /// (`HeldRows::isLive`), and a free row's kind means nothing.
@@ -106,30 +89,18 @@ namespace Rtx
         /// `TextureFormat::Unnamed` where there is no image.
         TextureFormat mFormat = TextureFormat::Unnamed;
 
-        /// The bytes the device stands of a file whose whole image it was handed (`TextureTable::stand`), and
-        /// nought until then: what a slot that rests holds of the device's room, and whether it may rest.
-        std::uint64_t mStoodBytes = 0;
+        /// Whether the device stands something of it, as residency last said (`TextureTable::setStanding`): what lets a
+        /// file rest once nothing names it, its device image kept for the next take.
+        bool mStands = false;
 
-        /// Whether what the device was handed is the file's chain made again (`PreparedImages`), which moves
-        /// every level under the finest, rather than the file's own.
-        bool mStoodMade = false;
-
-        /// The level the device was handed it whole from (`TextureTable::stand`): its want then.
-        std::uint8_t mStoodFrom = 0;
-
-        /// Its place among the slots that rest (`TextureTable::drop`, `RestQueue`).
+        /// Its place among the slots that rest (`TextureTable::drop`, `RestQueue`): the order a full table frees them
+        /// in.
         RestPlace<TextureIndex> mRest{};
 
         /// The levels it is asked at (`TextureTable::getWant`): one ask for each material that reads it, at the level
         /// the finest footprint asked of the material makes of it, and one at level 0 for each holder that reads it
         /// itself. Empty where nothing reads it.
         TextureAsks mAsks{};
-
-        /// The finest level asked while its last ask stood, kept once the asks go: what its readers wanted of it as
-        /// it came to rest. And what it then stood above that level, measured as it was laid to rest, while its
-        /// image was still at hand (`TextureTable::measureAboveWant`).
-        std::uint8_t mLastWant = 0;
-        std::uint64_t mRestAbove = 0;
 
         /// What a person reads the slot as, in a refusal or a legend: a file's path, and what a bake
         /// or a composite was made from.
@@ -165,7 +136,6 @@ namespace Rtx
         {
             reserveRows(room.mTextures);
             mChanges.reserve(room.mTextures);
-            mFiner.reserve(room.mTextures);
             mPathIndex.reserve(room.mTextures);
             mResting.reserve(room.mTextures);
         }
@@ -211,39 +181,17 @@ namespace Rtx
         /// among them, and a bake made from a slot freed in its own hand-over named nothing.
         TextureIndex findFile(VFS::Path::NormalizedView path) const;
 
-        /// Says what the device was last handed of `slot`: the whole of its image from level `from`, its want then,
-        /// `bytes` of it, its chain made again or not, or nought where it stood in or drew the stand-in. What lets a
-        /// file rest once nothing names it, what its rest holds of the device's room, and what a want finer than
-        /// `from` hands over again (`compact`).
-        void stand(TextureIndex slot, std::uint64_t bytes, bool made, std::uint8_t from);
+        /// Says whether the device stands something of `slot`, residency's word after a hand-over: what lets a file
+        /// rest once nothing names it.
+        void setStanding(TextureIndex slot, bool stands);
 
         /// **The first level `slot` is wanted from**, the finest its readers ask (`TextureRow::mAsks`): level 0 where
         /// nothing asks, so a texture no distance is known for stands whole (`docs/architecture.md`, "A texture stands
         /// from the level its nearest user asks").
         std::uint8_t getWant(const TextureIndex slot) const { return rowAt(slot).mAsks.finest().value_or(0); }
 
-        /// The meter of `TexturesAboveWant`, from one walk of the slots: every file stood whole, its bytes split by its
-        /// chain's own levels, its file's layout or, where its chain was made again, the block layout every made chain
-        /// stands in; one that rests against the level its last readers asked. A walk, for a report and not a frame.
-        TexturesAboveWant measureAboveWant() const;
-
-        /// Says what the device moved `slot`, which rests, down to in its rest: `bytes` from level `from`, the level
-        /// its last readers asked or finer (`DeviceAnswer::mMoved`). A rest shrunk to its last want, kept rather than
-        /// evicted.
-        void restandResting(TextureIndex slot, std::uint64_t bytes, std::uint8_t from);
-
-        /// What the textures that rest stand above the level their last readers asked, together: what moving them down
-        /// gives back before any is evicted (`SceneUploader::evictForRoom`). A sum over what rests, kept as rows rest,
-        /// wake and are moved.
-        std::uint64_t getRestingAboveWant() const { return mRestingAbove; }
-
-        /// What the device made of `slot`'s image gives back of the pools textures stand in, `bytes`, the device's
-        /// answer (`DeviceAnswer::mTextureFits`): the hole its eviction leaves for a texture the device waits on.
-        void fit(TextureIndex slot, std::uint64_t bytes, std::uint64_t alignment);
-
-        /// The slots that rest, oldest first (`RestQueue`): how many, the bytes they stand on the device, and the
-        /// order, each row's `mRest.mAfter` carrying it on. What the scene frees across its tables
-        /// (`SceneDesc::evictResting`).
+        /// The slots that rest, oldest first (`RestQueue`): how many, and the order, each row's `mRest.mAfter` carrying
+        /// it on. What a full table frees, the oldest first (`hasRoom`).
         const RestQueue<TextureIndex>& getResting() const { return mResting; }
 
         std::span<const TextureIndex> getArrived() const { return mChanges.getArrived(); }
@@ -254,21 +202,10 @@ namespace Rtx
         /// has to read as a change.
         std::uint64_t getRevision() const { return mRevision; }
 
-        /// Has `slot`, a live file's slot that stood in while its texels were read and its chain made, arrive
-        /// again, so the next hand-over hands it over.
-        void arriveAgain(TextureIndex slot)
-        {
-            assert(isLive(slot) && "a slot that stands no texture arrived again");
-            mChanges.note(slot, SlotNews::Arrived);
-            ++mRevision;
-        }
-
-        /// Settles what a drop took out of the arrivals, so they can be read, files the slots that came to rest since
-        /// the last at `clock`, the scene's, and has every named slot whose want moved finer than the level it stood
-        /// whole from arrive again, which hands it over from its want.
+        /// Settles what a drop took out of the arrivals, so they can be read, and files the slots that came to rest
+        /// since the last at `clock`, the scene's.
         void compact(const std::uint64_t clock)
         {
-            arriveFiner();
             mChanges.compact();
             mClock = clock;
             settleResting();
@@ -320,10 +257,6 @@ namespace Rtx
         /// counting and reporting the refusal where none rests.
         bool hasRoom();
 
-        /// Has each slot `ask` found wanted finer than it stood arrive again, where it is named, stands whole and is
-        /// still wanted finer; one that rests waits for its take, whose asks find it again.
-        void arriveFiner();
-
         /// Lays `slot`, a file nothing names, to rest, letting go of its host images.
         void rest(TextureIndex slot);
 
@@ -337,12 +270,8 @@ namespace Rtx
         /// clock `compact` was last given.
         void settleResting();
 
-        /// Frees the slot that has rested longest, which the scene asks for across its tables.
+        /// Frees the slot that has rested longest, where the table is full.
         void releaseOldest();
-
-        /// Frees the slot that has rested longest of those whose eviction gives back at least `hole` where a texture
-        /// the device waits on can take it, and answers whether one did (`RestQueue::firstFitting`).
-        bool releaseFitting(std::uint64_t hole, std::uint64_t alignment);
 
         /// A row's place in the rest, for `RestQueue`.
         auto placeOf()
@@ -358,9 +287,6 @@ namespace Rtx
         using FileSlots = std::array<std::array<TextureIndex, sTextureWrapCount>, sTextureEncodingCount>;
 
         SlotChanges<TextureIndex> mChanges;
-
-        /// The slots an ask found wanted finer than they stood whole from (`arriveFiner`), each once.
-        SlotSet<TextureIndex> mFiner;
 
         /// A material's ground slots, the albedo's and the gloss's, `sNoRow` where it holds none.
         using GroundSlots = std::array<TextureIndex, 2>;
@@ -379,9 +305,6 @@ namespace Rtx
         /// between two is filed at.
         RestQueue<TextureIndex> mResting;
         std::uint64_t mClock = 0;
-
-        /// What the rows that rest stand above their last want, their `mRestAbove` summed (`getRestingAboveWant`).
-        std::uint64_t mRestingAbove = 0;
 
         std::uint64_t mRevision = 0;
         std::uint32_t mRefused = 0;

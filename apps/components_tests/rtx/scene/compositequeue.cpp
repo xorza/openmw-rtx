@@ -23,26 +23,28 @@ namespace Rtx
 {
     namespace
     {
-        /// A layer texture at `path`, the device handed it whole where `stood`, as a file read and uploaded is.
-        TextureIndex addLayerTexture(SceneDesc& scene, const VFS::Path::NormalizedView path, const bool stood)
+        /// What residency says stands: every texture but those a test names still read from their files.
+        class Layers final : public LayerStanding
         {
-            const TextureIndex slot = scene.textures().add(path);
-            if (stood)
-                scene.textures().stand(slot, 64, false, 0);
-            return slot;
-        }
+        public:
+            bool stands(const TextureIndex texture) const override
+            {
+                return std::ranges::find(mReading, texture) == mReading.end();
+            }
+
+            std::vector<TextureIndex> mReading;
+        };
 
         /// A distant chunk of two ground types, which is a chunk that wants flattening. `reflecting`
-        /// makes the top one an authored layer, which is a chunk that wants a gloss too; `overStood`
-        /// false leaves the top one's texture standing in, as one still read from its file is.
+        /// makes the top one an authored layer, which is a chunk that wants a gloss too.
         MaterialIndex addChunk(SceneDesc& scene, const VFS::Path::NormalizedView under,
-            const VFS::Path::NormalizedView over, const bool reflecting = false, const bool overStood = true)
+            const VFS::Path::NormalizedView over, const bool reflecting = false)
         {
             constexpr std::array<float, 4> weights{ 1.0f, 0.0f, 0.0f, 1.0f };
 
             std::array layers{
-                Testing::layerOf(addLayerTexture(scene, under, true)),
-                Testing::layerOf(addLayerTexture(scene, over, overStood), scene.materials().addMask(weights), 2, 2),
+                Testing::layerOf(scene.textures().add(under)),
+                Testing::layerOf(scene.textures().add(over), scene.materials().addMask(weights), 2, 2),
             };
             if (reflecting)
                 layers[1].mFlags = Shaders::LAYER_AUTHORED;
@@ -75,9 +77,9 @@ namespace Rtx
 
         /// One frame of the uploader's sequence around the queue: take, then let go of the
         /// arrivals, so the next frame's gather sees only what the next walk writes.
-        std::size_t frame(CompositeQueue& queue, SceneDesc& scene)
+        std::size_t frame(CompositeQueue& queue, SceneDesc& scene, const Layers& layers = Layers{})
         {
-            const std::size_t taken = queue.advance(scene);
+            const std::size_t taken = queue.advance(scene, layers);
             scene.clearArrivals();
             return taken;
         }
@@ -98,7 +100,7 @@ namespace Rtx
                     VFS::Path::NormalizedView("textures/over.dds"), reflecting);
 
                 CompositeQueue queue;
-                EXPECT_EQ(queue.advance(scene), 1u) << "the chunk that asked was not given its slot";
+                EXPECT_EQ(queue.advance(scene, Layers{}), 1u) << "the chunk that asked was not given its slot";
 
                 const Material& given = scene.materials().getRows()[chunk];
                 const TextureIndex baked = given.mDiffuse;
@@ -140,21 +142,22 @@ namespace Rtx
             SceneIdentities identities;
             SceneDesc scene(identities);
             const MaterialIndex reading = addChunk(scene, VFS::Path::NormalizedView("textures/under.dds"),
-                VFS::Path::NormalizedView("textures/read.dds"), false, false);
+                VFS::Path::NormalizedView("textures/read.dds"), false);
             const MaterialIndex stood = addChunk(
                 scene, VFS::Path::NormalizedView("textures/under.dds"), VFS::Path::NormalizedView("textures/over.dds"));
+            Layers layers;
+            layers.mReading.push_back(scene.textures().add(VFS::Path::NormalizedView("textures/read.dds")));
 
             CompositeQueue queue;
-            EXPECT_EQ(frame(queue, scene), 1u) << "the chunk behind the waiting one was held up";
+            EXPECT_EQ(frame(queue, scene, layers), 1u) << "the chunk behind the waiting one was held up";
             EXPECT_EQ(scene.materials().getRows()[reading].mDiffuse, sNoRow) << "flattened over a stand-in";
             EXPECT_NE(scene.materials().getRows()[stood].mDiffuse, sNoRow);
-            EXPECT_EQ(frame(queue, scene), 0u) << "taken while its layer still stands in";
+            EXPECT_EQ(frame(queue, scene, layers), 0u) << "taken while its layer still stands in";
 
-            const TextureIndex read = scene.textures().add(VFS::Path::NormalizedView("textures/read.dds"));
-            scene.textures().stand(read, 64, false, 0);
-            EXPECT_EQ(frame(queue, scene), 1u) << "not taken once its last layer stood";
+            layers.mReading.clear();
+            EXPECT_EQ(frame(queue, scene, layers), 1u) << "not taken once its last layer stood";
             EXPECT_NE(scene.materials().getRows()[reading].mDiffuse, sNoRow);
-            EXPECT_EQ(frame(queue, scene), 0u) << "asked again once given";
+            EXPECT_EQ(frame(queue, scene, layers), 0u) << "asked again once given";
         }
 
         /// **A frame with nothing asked allocates nothing**, once a chunk has been taken: every frame of a walk
@@ -271,7 +274,7 @@ namespace Rtx
             const MaterialIndex chunk = addChunk(scene, paths[chunks * 2 + 1], paths[chunks * 2 + 2]);
             ASSERT_EQ(chunk, waiting);
 
-            EXPECT_EQ(queue.advance(scene), 1u);
+            EXPECT_EQ(queue.advance(scene, Layers{}), 1u);
             const TextureIndex baked = scene.materials().getRows()[chunk].mDiffuse;
             ASSERT_NE(baked, sNoRow);
             EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, chunk);

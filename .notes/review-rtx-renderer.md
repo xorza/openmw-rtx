@@ -70,6 +70,14 @@ it is shown") is carried here whole, rewritten to fit, and its own file is gone.
   runs on to its loop**, which ends before a frame. Refused: ending `Engine::go` early, a change to upstream's start
   nobody approved, which upstream's own data loading does not make either.
 
+- **A sprite's light bake is planned as one unit with its source**, counted, lowered and starved together, its
+  stride added to the source's: it is made from the source's slot at the source's level, so a cap that holds one and
+  not both must lower both (`SpriteLightPass` reads the source's slot). Refused: the bake planned after its source, which starved it beside a source a level could have spared.
+- **The transit chunk is asked only where an operation found no room, no drain could make it, and the arena holds
+  every chunk the plan stands in**, as "Progress is guaranteed" places a lowering's destination: the slabs held are
+  of the classes the plan leaves. Refused: asking it ahead of every lowering, a chunk held past the plan for nothing
+  most frames.
+
 **Superseded by the first decision**, all "by the user's decision" in `docs/architecture.md`: "the limit is derived
 from the budget" (the nine tenths stay, as the cache's share); "what waits is given the resting row that surely
 leaves it room"; "both storages take blocks of content's block size … and keep their last"; "content leaves room for
@@ -1083,53 +1091,8 @@ Files: `components/rtx/renderer/{sceneholder.hpp,renderer.hpp,nullrenderer,scene
 `components/rtxvulkan/texture/`, `components/rtxvulkan/scene/devicescene`, `vulkanrenderer`, `apps/openmw/mwrender/
 rtx/{rtxrenderer,worldmirror}`, `components/rtx/view/offscreentrace`, the tests of each.
 
-- [ ] `SceneHolder`: `arenaOf`, `priceImage`, `priceStructure`, `openFrame`, `standScene`, `handOver`, `acquireBlock`,
-  `releaseBlock` in place of `setScene`, `extendScene`, `placeScene`, `takeAnswer`, `getArrivalRoom` (which took a
-  slot it ignored). `renderer.hpp:584-600`'s text, which still promises a rebuild the host has no geometry for, is
-  written again.
-- [ ] `ContentArena` and `ChunkSupply`: blocks by arena, slabs to ranges, a structure slab's buffer, acquisition and
-  release on the worker, the cap as specified. Texture pools, both `tryTake`s for a texture and `tryTakeOutside` go.
-- [ ] `vulkanrenderer.cpp:248-357` (`createTargets`) — a mode that grows the frame moves textures down in one flushed
-  batch on the calling thread, and one that shrinks it sets every wait again. Target: the new mode's reserve is
-  stated, content settles under the new cap in covered frames, then the targets are made;
-  `DeviceScene::makeTextureRoom` and `waitAgain` go, and with them the order that made NGX's feature before its room.
-- [ ] `TextureArray` stands an image in the slot it is handed (`StandImage`, `BakeImage`, `DropImage`) and decides
-  nothing: `makeRoom`, `chooseLevels`, `costAt`, `moveOut`, `chooseBlock`, `emptyBlock`, `waitAgain`, `noWants`,
-  `mMovedFrom`'s policy, `Slot::mShortOfRoom`, `mWholeBytes`, `mReduced` go; `Slot::mFirst` is read off the image.
-- [ ] `TextureFeed` over the chain hands, in place of `PreparedImages`' table: requests and completions as
-  specified, whole chains still read (batch 6 makes the read ranged). `PooledBuffer` holds `BufferPool&`.
-- [ ] `TextureRow` loses `mStoodBytes`, `mStoodMade`, `mStoodFrom`, `mRest`, `mLastWant`, `mRestAbove`;
-  `TextureTable` loses `stand`, `restandResting`, `fit`, `arriveFiner`, `mFiner`, `mResting`; `hasRoom` asks
-  `Residency` for the oldest unheld texture.
-- [ ] `SceneUploader` loses `mTextureWaits`, `mMovedResting`, `mCooling`, `mPending`, `mArrivals`, `serveWaits`,
-  `serveWants`, `evictForRoom`, `waitForRoom`, `fileWait`, `settleMovedResting`, `restLimitOf`; it orders the
-  lights, settles the tables and calls `Residency::handOver`. A picture's scene hands over through the one
-  `Residency`, its holds `Forced`, and is handed over where `Residency::owes` it.
-- [ ] `Residency` issues `BakeImage` for a bake's row (until then failed where it has no file's image) and holds a
-  texture's companion beside it, `mImage` in each operation and two slots a standing; `HandOver`'s pace takes the
-  loading screen's `Slice` with batch 7's streamer, and `admits` arrives with the cell's admission.
-- [ ] `CompositeQueue` asks `Residency::standsFrom`; a composite's layers are held `Forced` at their bake level
-  until it is baked.
-- [ ] Until batch 5 the structure storages stand outside the arena and count in `U − A`.
-- [ ] Ends: `sceneuploader.cpp:437-444`, one refused texture zeroing every slot of its arrival (a refusal carried a
-  name and no slot). Held by: a resident a row, `Failed` naming its row.
-- [ ] Ends: `sceneuploader.cpp:44-59`, a smaller side abandoned after six tries, and a stand-in refused after six
-  hand-overs with no way back. Held by: a test that a texture below its plan is raised whenever the plan gives it
-  room, however late.
-- [ ] Ends: `texture.cpp:783-794,940-946`, refused for good where room cannot come (`makeRoom` allocating before it
-  frees, a bake or a composite never waiting): the third open issue. Held by: a test at a full arena that a bake
-  stands once a lowering's slot retires.
-- [ ] Ends: `texture.cpp:763-774`, a slot handed over again losing what it stood before the new image is known to
-  be as fine. Held by: `Restanding` keeps `mNow` until the operation rides.
-- [ ] Ends: `texture.cpp:1284-1301` (a departure not reopening a fruitless walk), `:815` (short tested by width
-  alone), `sceneuploader.cpp:66-93` (the room charged only as a read starts), `memory.cpp:541-557` (the heap's
-  headroom counted in both rooms), `vk_mem_alloc.h:12044` (the library keeping an empty pool block the fork believes
-  returned), `texture.cpp:1043-1110` (`chooseBlock` blind to other scenes' ranges),
-  `components/rtxvulkan/scene/sceneacceleration.cpp:81` (a picture's 4 MiB structure blocks in the texture pools).
-- [ ] The conformance suite passes over Vulkan. The GPU's policy tests of `texturearray.cpp` that the core now
-  covers go; what stays is that an operation stands what it says.
-- [ ] `docs/architecture.md`: "Loading" from "A texture that stands moves down" and "Device and memory" for
-  textures, written again from this document's decisions. The third open issue is flown and closed or rewritten.
+- [ ] The third open issue (`.notes/ISSUES.md`, the PBR tour's stand-in at Seyda Neen) flown on the handheld and
+  closed or rewritten.
 
 ## Batch 5: structures onto the arena
 
@@ -1211,6 +1174,7 @@ Files: `components/rtx/preprocess/` (all), `components/rtx/prepare/`, `component
 - [ ] `pp/texture/chainadmission.cpp:16`, `worldmirror.cpp:240` — play's chain misses are admitted a chain against
   the system's free memory, each hand alone, and the preparation's budget is read once. Target: one sum over the
   hands against a figure the arbiter derives (batch 8; the system's own until then).
+- [ ] `PooledBuffer` holds `BufferPool&` in place of a `shared_ptr`, its pool outliving every made image by owner.
 - [ ] `common/bufferpool.cpp:102-107,136` — `take` frees evicted buffers under the mutex a frame's give-back takes,
   and `give` frees on the dropping thread, the frame's included. Target: both past the lock, on the hand.
 - [ ] `apps/openmw/mwrender/rtx/contentmodels.cpp` — the preparation lists no groundcover model
@@ -1254,6 +1218,9 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
   `changeToExteriorCell` after its `changeCellGrid` (line 1037) and the end of `changeToInteriorCell`, `Cut`.
   `RenderingManager::standWhole` forwards to `Renderer::standWhole`, empty for the rasterizer. `changeEvent` is not
   the kind: a walk sets it as a teleport does. Cost: a conflict with an upstream edit at any of the three.
+- [ ] `vulkanrenderer.cpp` (`createTargets`) — a change of mode makes its targets at once, and content settles under
+  the new cap in the frames after it. Target: the new mode's reserve is stated, content settles under it in covered
+  frames, then the targets are made, and with them NGX's feature after its room.
 - [ ] `RtxRenderer::standWhole` and the covered frame: `Between → Walking → Placing → Gui → Between`, a phase
   sequence of its own; a world event from the run's hook is staged between frames by the harness
   (`apps/rtxtool/stager.cpp:223`), so `standWhole` is entered from `Between` alone.
@@ -1554,6 +1521,28 @@ Items that landed in another shape than their target, each with how and why.
 - `SlotLedger::bytesFor` takes the arena it answers for, since a plan's classes stand in two where a driver gives
   images and buffers two memory types. A class's open slabs are kept in a list a reserve walks for the fullest, where
   the design had them kept ordered: a class holds a few open slabs at a time, since draining empties the emptiest.
+
+- Batch 4's contract: `SceneHolder` takes on `ResidencyDevice`, and keeps `takeAnswer` and `getArrivalRoom` for the
+  meshes alone until batch 5 moves structures onto the arena; `renderer.hpp`'s promise of a rebuild went with
+  `makeTextureRoom`. The structure storages stand outside the arena and count in `U − A`, as planned.
+- A bake is a `StandImage` whose texels are its source's slot, read on the device, not a `BakeImage`: one operation
+  stands every image, and a backend tells a bake from an upload by the shape's source. A sprite's bake is planned as
+  one with its source ("Decisions"), a composite at its source level; its layers are not held `Forced` yet, as the
+  ground's chunks ask their layers `Shown` and a composite waits on what stands (`CompositeQueue`'s `LayerStanding`).
+  A texture's companion stands in its slot beside it, priced with it, not in a second slot.
+- The feed's types stand in the preprocess folder (`texturefeed.hpp`), which the renderer's folder includes after it,
+  and the feed over the hands is `TextureHands`. A file's shape is an estimate before its chain is made
+  (`shapeOfFile`: a cut BC1 is known only from its texels); a completion in another shape prices the classes again
+  and plans again, so the slot reserved holds what arrived.
+- `TextureTable` keeps its own rest order of the rows residency says stand (`setStanding`, from the hand-over's
+  standing changes), in place of asking `Residency` for the oldest unheld row: the scene stays below the renderer's
+  folder, and the order is the same.
+- A raise uploads the levels it lacks and copies the rest from the slot that stands; the change of mode's covered
+  frames wait for batch 7 (its item there), and `Timing::Textures` went with the uploader's texture work.
+- A device's epochs are non-decreasing, not rising: a hand-over that issues nothing hands out the epoch before it, and
+  `Timeline::poll` answers what finished without waiting. A settled run waits for every block asked as well as every
+  texel (`ResidencyDevice::awaitBlocks`) and hands over every operation a frame (`Residency::Shares::whole`), so two
+  processes stand one image on one frame and a picture of the world waits until the shown content stands.
 
 ## Declined
 

@@ -81,13 +81,24 @@ namespace Rtx
         return ContentBudget{ .mCapBytes = mCapBytes };
     }
 
-    void NullDevice::stand(const Slot slot)
+    void NullDevice::stand(const Slot slot, const SceneSlot scene)
     {
         assert(!slot.mSlab.isNone() && "an operation into no slot");
         SlotRecord& record = mSlots[SlotKey(slot.mSlab.at(), slot.mAt)];
         assert(record.mUse != SlotUse::Live && "a slot stood twice");
         assert(record.mUse != SlotUse::Retiring && "a slot stood before the epoch it was given back at finished");
         record.mUse = SlotUse::Live;
+        record.mScene = scene;
+    }
+
+    void NullDevice::forgetScene(const SceneSlot scene)
+    {
+        for (auto& [key, record] : mSlots)
+            if (record.mUse == SlotUse::Live && record.mScene == scene)
+            {
+                record.mUse = SlotUse::Retiring;
+                record.mRetiredAt = DeviceEpoch{ .mValue = mEpoch };
+            }
     }
 
     void NullDevice::give(const Slot slot, const DeviceEpoch at)
@@ -108,7 +119,7 @@ namespace Rtx
                 [&]<class Op>(const Op& doing) {
                     if constexpr (std::is_same_v<Op, StandImage>)
                     {
-                        stand(doing.mTo);
+                        stand(doing.mTo.mSlot, slot);
                         if (doing.mFrom.has_value())
                             give(*doing.mFrom, epoch);
                     }
@@ -116,7 +127,7 @@ namespace Rtx
                         give(doing.mFrom, epoch);
                     else if constexpr (std::is_same_v<Op, BuildStructure>)
                     {
-                        stand(doing.mLoose);
+                        stand(doing.mLoose.mSlot, slot);
                         // A refitted structure is never made tight, and answers nothing.
                         if (doing.mBytes > 0)
                             mBuilt.push_back(TightSize{ .mScene = slot,
@@ -126,7 +137,7 @@ namespace Rtx
                     }
                     else if constexpr (std::is_same_v<Op, CopyStructure>)
                     {
-                        stand(doing.mTo);
+                        stand(doing.mTo.mSlot, slot);
                         give(doing.mFrom, epoch);
                     }
                 },
@@ -150,11 +161,11 @@ namespace Rtx
         mBlocks.erase(block.at());
     }
 
-    void NullFeed::ask(const FeedRequest& request)
+    void NullFeed::ask(FeedRequest request)
     {
         assert(hasCredit() && "a request past the feed's credit");
-        mInFlight.push_back(InFlight{ .mRequest = request });
         mAllAsked.push_back(request);
+        mInFlight.push_back(InFlight{ .mRequest = std::move(request) });
     }
 
     void NullFeed::nextFrame()
@@ -172,9 +183,11 @@ namespace Rtx
             if (flight.mForgotten)
                 continue;
             const bool fails = std::ranges::find(mFailing, flight.mRequest.mTexture) != mFailing.end();
+            // Made in the shape asked, with no texels: the null device uploads nothing.
             return FeedArrival{ .mRequest = flight.mRequest,
-                .mOutcome = fails ? std::variant<FeedMade, FeedFailed>(FeedFailed{ .mCause = Refused::Texture })
-                                  : std::variant<FeedMade, FeedFailed>(FeedMade{}) };
+                .mOutcome = fails
+                    ? std::variant<FeedMade, FeedFailed>(FeedFailed{ .mCause = Refused::Texture, .mWhy = "failed" })
+                    : std::variant<FeedMade, FeedFailed>(FeedMade{ .mShape = flight.mRequest.mShape }) };
         }
         return std::nullopt;
     }

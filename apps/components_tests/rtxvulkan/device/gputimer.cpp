@@ -18,6 +18,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -130,7 +131,7 @@ namespace Rtx
 
             SceneDesc scene(identities);
             const PlacementIndex wallPlaced = Testing::addQuad(scene, sWallCorners);
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
             const Shaders::VisibilityConstants camera
                 = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, sSize, sSize, 10000.0f);
@@ -189,7 +190,7 @@ namespace Rtx
             // compaction changes them only on a driver whose tight copy is smaller: RADV's copy of
             // this wall is the 448 bytes it was built in.
             ASSERT_TRUE(scene.placements().move(wallPlaced, osg::Matrixf::translate(0.0f, 50.0f, 0.0f)));
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             const Drawn placed = draw(mRenderer, camera);
 
             EXPECT_TRUE(reports(placed.mGpu.spans(), FrameZone::Tlas))
@@ -211,7 +212,7 @@ namespace Rtx
             // unchanged into the other frame's copy, which owes the rows the top level was built
             // over the frame before, so there is nothing to build.
             scene.placements().advance();
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             const Drawn after = draw(mRenderer, camera);
             EXPECT_EQ(after.mGpu.spans().size(), drawn.mGpu.spans().size())
                 << "last frame's zones were carried into this one";
@@ -228,8 +229,8 @@ namespace Rtx
                 osg::Vec3f(-500.0f, 150.0f, 500.0f) };
             Testing::addQuad(scene, nearer);
 
-            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             const Drawn arrived = draw(mRenderer, camera);
 
             EXPECT_TRUE(reports(arrived.mGpu.spans(), FrameZone::Blas))
@@ -255,8 +256,8 @@ namespace Rtx
             normals.mData.mEncoding = TextureEncoding::Normal;
             normals.mData.mSlot = scene.textures().add(VFS::Path::NormalizedView("textures/normals_n.dds"));
             const std::array textures{ colour.mData, normals.mData };
-            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, textures);
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, textures);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             const Drawn textured = draw(mRenderer, camera);
             EXPECT_TRUE(reports(textured.mGpu.spans(), FrameZone::Spread)) << "a normal map's spread unmeasured";
             EXPECT_FALSE(reports(textured.mGpu.spans(), FrameZone::Bake)) << "a bake no sprite asked for";
@@ -269,8 +270,8 @@ namespace Rtx
             scene.placements().advance();
             scene.clearArrivals();
             Testing::addQuadMesh(scene);
-            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             const Drawn unplaced = draw(mRenderer, camera);
             EXPECT_TRUE(reports(unplaced.mGpu.spans(), FrameZone::Blas));
             EXPECT_TRUE(reports(unplaced.mGpu.spans(), FrameZone::Tlas))
@@ -303,7 +304,7 @@ namespace Rtx
             // the scene holds is pressed and the step comes first of all, ahead of the sea.
             SceneDesc flooding = wallOverWater(identities);
             flooding.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
-            mRenderer.setScene(Rtx::SceneSlot::world(), flooding, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), flooding, {});
 
             Shaders::VisibilityConstants standing = flooded;
             standing.mWaterLevel = -100.0f;
@@ -313,7 +314,7 @@ namespace Rtx
 
             // Placed again, as the game places every frame: the stood frame spent what the setting
             // kept, on a clock that had not moved.
-            mRenderer.placeScene(Rtx::SceneSlot::world(), flooding);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), flooding);
             const Drawn stepped = draw(mRenderer, standing, 1.0 / 60.0);
             EXPECT_TRUE(reports(stepped.mGpu.spans(), FrameZone::Ripples))
                 << "a sixtieth on, the field was not stepped";

@@ -49,7 +49,7 @@ namespace RtxTool
         /// picture is drawn inside the next, so this is a drain a stop may pay and a frame may not.
         void drawPicturesNow(const MWRender::FrameContext& context)
         {
-            context.mRenderer.drawViews();
+            context.mRenderer.drawViewsAtStop();
             context.mBackend.finishGuiTraces();
         }
 

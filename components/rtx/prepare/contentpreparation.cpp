@@ -28,11 +28,11 @@
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/preprocess/texturehands.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -288,7 +288,7 @@ namespace Rtx
                 case Dispatch::Kind::Chain:
                 {
                     // **Alone past the budget, and not at all past what the system has left**: the chain
-                    // is the file's own, as play keeps it (`PreparedImages::admits`).
+                    // is the file's own, as play keeps it (`TextureHands`).
                     // Outside the lock, the log and the ask of the system's memory both: the chain is this
                     // hand's alone, and the other hands queue and take beside it.
                     const QueuedChain& queuedChain = mChains[dispatch.mJob];
@@ -488,7 +488,7 @@ namespace Rtx
 
     void ContentPreparation::chain(Hand& hand, const ChainPass::Input& input)
     {
-        if (!PreparedImages::prepares(input.mImage, input.mEncoding))
+        if (!isChainMade(input.mImage, input.mEncoding))
             return;
 
         // Claimed by its name and its encoding: what the store keys it by.

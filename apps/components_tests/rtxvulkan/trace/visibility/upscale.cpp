@@ -17,6 +17,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -105,7 +106,7 @@ namespace Rtx::Testing
                 SCOPED_TRACE(sUpscaleNames.name(mode));
                 mRenderer.resize(size, size);
                 const UpscaleFor upscale(mRenderer, mode);
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
                 // The camera the trace is handed is built for the render extent, which is the mode's:
                 // square, as the output is.
@@ -160,7 +161,7 @@ namespace Rtx::Testing
                 SCOPED_TRACE(sUpscaleNames.name(mode));
                 mRenderer.resize(side, side);
                 const UpscaleFor upscale(mRenderer, mode);
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
                 const Shaders::VisibilityConstants camera = overTheFloor(mRenderer.getExtents().mRenderWidth);
                 for (std::uint32_t at = 0; at < 4; ++at)
@@ -320,7 +321,7 @@ namespace Rtx::Testing
             mRenderer.resize(size, size);
             const UpscaleFor native(mRenderer, Upscale::Native);
             const auto run = [&](const SceneDesc& scene) {
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
                 for (std::uint32_t at = 0; at < frames; ++at)
                 {
                     Shaders::VisibilityConstants camera

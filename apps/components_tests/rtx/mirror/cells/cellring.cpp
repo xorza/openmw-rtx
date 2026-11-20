@@ -95,6 +95,16 @@ namespace Rtx::Testing
 {
     namespace
     {
+        /// What residency says of a chunk's layers where every texture stands.
+        class EveryLayerStands final : public LayerStanding
+        {
+        public:
+            bool stands(TextureIndex /*texture*/) const override { return true; }
+        };
+    }
+
+    namespace
+    {
         constexpr float sCellSize = static_cast<float>(Constants::CellSizeInUnits);
 
         /// One reference a storage stands.
@@ -786,16 +796,10 @@ namespace Rtx::Testing
             EXPECT_EQ(placed(), 3u + sPlacedCells);
             EXPECT_TRUE(mExtractor.retire().empty());
 
-            // The chunks that asked are flattened as the game's queue flattens them, once their layers stand as the
-            // device stands a file read and uploaded, and the rock reflects, so cell (3, 0) is given a gloss beside its
-            // composite.
-            TextureTable& textures = mScene.textures();
-            for (std::uint32_t at = 0; at < textures.getRows().size(); ++at)
-                if (const TextureIndex slot(at);
-                    textures.isLive(slot) && textures.getRows()[slot].mKind == TextureKind::File)
-                    textures.stand(slot, 64, false, 0);
+            // The chunks that asked are flattened as the game's queue flattens them, every layer standing, and the
+            // rock reflects, so cell (3, 0) is given a gloss beside its composite.
             CompositeQueue composites;
-            while (composites.advance(mScene) > 0)
+            while (composites.advance(mScene, EveryLayerStands{}) > 0)
             {
             }
             const TextureIndex farAlbedo = mScene.materials().getRows()[far->mMaterial].mDiffuse;

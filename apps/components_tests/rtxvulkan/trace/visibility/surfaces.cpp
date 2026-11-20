@@ -27,6 +27,7 @@
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -211,16 +212,13 @@ namespace Rtx::Testing
                     + room.mMaterials * (sizeof(Shaders::GpuMaterial) + sizeof(Shaders::GpuMaterialMaps)));
         }
 
-        /// An arrival the device has no room for is drawn without what it could not stand, and
-        /// says what that was: the nearer wall that arrived stands, its texture drawn as the
-        /// stand-in, and a body posed on a rig beside it stands and is posed again.
-        ///
-        /// **Room for the frame's memory and none for content's, and the structures' blocks kept.**
-        /// Two structures and a texture arrive, and each is content: the structures stand in the
-        /// blocks the world's build made and kept (`StructureStorage`), and the texture, which needs
-        /// a range of the full pool, is refused. A trace that met the wall would draw it blue were
-        /// its texture stood, and the far wall's red were its structure left out; it draws the grey.
-        TEST_F(RtxVisibilityTest, anArrivalTheDeviceHasNoRoomForIsLeftOutAndSaysSo)
+        /// **An arrival with no room for content's pools stands its structures in the blocks kept and its texture in
+        /// the slot it was handed**: the nearer wall that arrived stands, drawn blue, and a body posed on a rig beside
+        /// it stands and is posed again. Two structures and a texture arrive: the structures stand in the blocks the
+        /// world's build made and kept (`StructureStorage`), and the texture in the arena's slot residency reserved,
+        /// which no pool's room decides. A trace that met the wall would draw the far wall's red were its structure
+        /// left out, and the grey were its texture refused; it draws the blue.
+        TEST_F(RtxVisibilityTest, anArrivalWithNoRoomInThePoolsStandsWhereItWasHanded)
         {
             SceneIdentities identities;
             constexpr std::uint32_t size = 32;
@@ -240,7 +238,7 @@ namespace Rtx::Testing
 
             mRenderer.resize(size, size);
             const TextureData first = describeTexel(redTexel, TextureIndex(0));
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&first, 1));
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, std::span(&first, 1));
             DeviceAnswer answer;
             mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
             const std::vector<Refusal>& refused = answer.mRefused;
@@ -268,25 +266,24 @@ namespace Rtx::Testing
             second.mName = "blue";
             {
                 const Testing::NoRoomForContent full(mProbe.getDevice());
-                mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
+                Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
             }
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
 
+            // **A texture is residency's to fit and no refusal of the device's**: it stands in the slot it was handed,
+            // and the structure the kept blocks held is refused nothing.
             mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
-            ASSERT_EQ(refused.size(), 1u) << "a structure the kept blocks held was refused";
-            EXPECT_EQ(refused[0].mWhy, "no device memory is left for it");
-            EXPECT_EQ(refused[0].mKind, Refused::Texture);
-            EXPECT_EQ(refused[0].mName, "blue");
+            EXPECT_TRUE(refused.empty()) << "a structure the kept blocks held was refused";
 
             Testing::poseByOneBone(scene, body.mMesh, Testing::sUnitQuad, osg::Matrixf::translate(0.0f, 0.0f, 2.0f));
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             std::vector<std::uint8_t> shown;
             mRenderer.readPixels(shown);
             ASSERT_GT(shown.size(), centre + 2);
-            EXPECT_LT(shown[centre], 200) << "the nearer wall was left out, and the far wall's red shows";
-            EXPECT_NEAR(shown[centre], shown[centre + 2], 8) << "the nearer wall is not drawn as the grey stand-in";
+            EXPECT_LT(shown[centre], 50) << "the nearer wall was left out, and the far wall's red shows";
+            EXPECT_GT(shown[centre + 2], 200) << "the nearer wall's texture did not stand";
         }
 
         /// One renderer, three scenes, and the number of textures changing under it.
@@ -324,7 +321,7 @@ namespace Rtx::Testing
 
             mRenderer.resize(size, size);
             const TextureData first = describeTexel(redTexel, TextureIndex(0));
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&first, 1));
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, std::span(&first, 1));
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             // **A hue rather than a pair of exact bytes.** The tone curve rolls a saturated colour
@@ -351,8 +348,8 @@ namespace Rtx::Testing
             // written where it belongs rather than after whatever is already there.
             const TextureIndex blueTexture = scene.materials().getRows()[blue].mDiffuse;
             const TextureData second = describeTexel(blueTexel, blueTexture);
-            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             EXPECT_EQ(mProbe.getTextureCount(Rtx::SceneSlot::world()), 2u);
 
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
@@ -366,7 +363,7 @@ namespace Rtx::Testing
             // And the first texture is still where it was: move the near wall out of the way and the
             // one behind it has to be red again, sampled from a descriptor nothing rewrote.
             scene.dropInstance(PlacementIndex(1), Stander::Walk);
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
 
@@ -380,16 +377,19 @@ namespace Rtx::Testing
             ASSERT_FALSE(scene.textures().isLive(blueTexture));
             ASSERT_EQ(scene.textures().getRows().size(), 2u) << "the table does not shrink";
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&first, 1));
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, std::span(&first, 1));
 
             EXPECT_EQ(mProbe.getTextureCount(Rtx::SceneSlot::world()), 2u)
                 << "the array stopped at the last texture it was handed rather than at the table";
 
             // **And what the report says is what is stood, not how long the table is.** The two are
-            // one number until something is freed, so only a route, which frees, tells them apart. One texel of four
-            // bytes, a colour with nothing beside it, is the whole of what is left here.
+            // one number until something is freed, so only a route, which frees, tells them apart. One texel, a colour
+            // with nothing beside it, at what the device prices its image, is the whole of what is left here.
             EXPECT_EQ(mRenderer.getSceneStats().mTextureCount, 1u);
-            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytes, redTexel.size());
+            const std::optional<ContentPrice> texel
+                = mRenderer.priceImage(ImageShape{ .mFormat = first.mFormat, .mWidth = 1, .mHeight = 1, .mLevels = 1 });
+            ASSERT_TRUE(texel.has_value());
+            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytes, texel->mBytes);
 
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
@@ -412,7 +412,7 @@ namespace Rtx::Testing
             holds.dropMaterial(red);
             ASSERT_FALSE(scene.textures().isLive(TextureIndex(0)));
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, std::span(&second, 1));
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
 
@@ -438,7 +438,7 @@ namespace Rtx::Testing
                 scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene) });
                 scene.addInstance(MeshInstance{
                     .mMesh = Testing::addMesh(scene, MeshArrays{ .mPositions = sUnitQuad, .mIndices = indices }) });
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
                 return mRenderer.getSceneStats().mGeometryBytes;
             };
 
@@ -469,7 +469,7 @@ namespace Rtx::Testing
             scene.addInstance(MeshInstance{ .mMesh = mesh });
 
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             std::vector<std::uint8_t> untextured;
@@ -478,7 +478,7 @@ namespace Rtx::Testing
             // Settled, as every hand-over of the world settles it: a placement still on the moved
             // list has its row written again at every hand-over, which would hide the fault.
             scene.placements().advance();
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             scene.placements().advance();
 
             // A red material arrives and nothing wears it: the row it lands in is the one the
@@ -488,8 +488,8 @@ namespace Rtx::Testing
                 = scene.addMaterial(Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("red.dds")) });
             holds.material(red);
             const TextureData arrived = describeTexel(redTexel, scene.materials().getRows()[red].mDiffuse);
-            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&arrived, 1));
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, std::span(&arrived, 1));
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             std::vector<std::uint8_t> after;
@@ -522,16 +522,16 @@ namespace Rtx::Testing
             scene.addInstance(MeshInstance{ .mMesh = mesh });
 
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
             scene.placements().advance();
 
             const auto arriveAndPlace = [&](std::uint32_t materials) {
                 for (std::uint32_t at = 0; at < materials; ++at)
                     holds.material(scene.addMaterial(Material{}));
-                mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
+                Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, {});
                 for (std::int32_t frame = 0; frame < 2; ++frame)
                 {
-                    mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                    Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                     mProbe.traceFrame(camera, FrameOptions{});
                 }
                 return mRenderer.getSceneStats().mTableBytes;
@@ -553,7 +553,7 @@ namespace Rtx::Testing
             const MeshIndex bareMesh = addQuadMesh(bare);
             bareHolds.mesh(bareMesh);
             bare.addInstance(MeshInstance{ .mMesh = bareMesh });
-            mRenderer.setScene(Rtx::SceneSlot::world(), bare, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), bare, {});
             EXPECT_LT(
                 mRenderer.getSceneStats().mTableBytes + std::uint64_t{ 2 } * sWorldRoom.mMaterials * materialRow, empty)
                 << "a world opened at nought was made at the world's room";
@@ -2163,7 +2163,7 @@ namespace Rtx::Testing
             const std::array<TextureData, 3> textures{ describeTexel(blueTexel, blue), describeTexel(redTexel, red),
                 describeTexel(greenTexel, green) };
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, textures);
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, textures);
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             const Frame before = readFrame(size);
             EXPECT_EQ(before.byte(centre), 255) << "the red chunk, before any arrival";
@@ -2173,7 +2173,7 @@ namespace Rtx::Testing
             // alone.
             scene.clearArrivals();
             scene.placements().advance();
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             scene.placements().advance();
 
             const std::size_t layersBefore = scene.materials().getLayers().size();
@@ -2190,8 +2190,8 @@ namespace Rtx::Testing
             holds.mesh(nearMesh);
             scene.addInstance(MeshInstance{ .mMesh = nearMesh, .mMaterial = arrived });
 
-            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             const Frame after = readFrame(size);
             EXPECT_EQ(after.byte(corner), 255) << "the red chunk's run, copied by the growth";
@@ -3339,7 +3339,7 @@ namespace Rtx::Testing
             for (std::int32_t pass = 0; pass < 2; ++pass)
             {
                 scene.placements().advance();
-                mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                 mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
                 ASSERT_TRUE(mRenderer.finishFrame().has_value());
             }
@@ -3361,17 +3361,26 @@ namespace Rtx::Testing
 
             // Into the standing world: the arrival stands the composite empty, and the placement
             // after it bakes it.
-            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&composite, 1));
-            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), scene, std::span(&composite, 1));
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             ASSERT_TRUE(mRenderer.finishFrame().has_value());
             frame = readFrame(size);
             everyPixelIs(frame, "arrived into a standing world");
 
-            // **And the ground's bytes are the composite and what made it, once**: the composite in
-            // BC7, 349552; the albedo's canvas, a chain of 349525 texels at four bytes, 1398100; and
-            // the blocks, 349552 — 2097204 in all. No gloss arrived, so no gloss canvas was made.
-            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytesBySource.mGroundComposites, 2097204u);
+            // **And the ground's bytes are the composite and what made it, once**: the composite at what the device
+            // prices its image, the albedo's canvas, a chain of 349525 texels at four bytes, 1398100; and the blocks,
+            // 349552. No gloss arrived, so no gloss canvas was made.
+            constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
+            const std::optional<ContentPrice> compositePrice
+                = mRenderer.priceImage(ImageShape{ .mSource = TextureSource::GroundComposite,
+                    .mFormat = TextureFormat::Bc7Srgb,
+                    .mWidth = extent,
+                    .mHeight = extent,
+                    .mLevels = static_cast<std::uint8_t>(levelsTo1x1(extent, extent)) });
+            ASSERT_TRUE(compositePrice.has_value());
+            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytesBySource.mGroundComposites,
+                compositePrice->mBytes + 1398100u + 349552u);
             EXPECT_EQ(mRenderer.getSceneStats().mTextureBytesBySource.mGroundGloss, 0u);
 
             // And from nothing, where there is no placement before the first trace.

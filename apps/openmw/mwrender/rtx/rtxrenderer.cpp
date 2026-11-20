@@ -66,7 +66,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
 #include <components/rtx/preprocess/imagederivation.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/rtx/preprocess/texturehands.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
@@ -132,9 +132,9 @@ namespace MWRender
                   : nullptr)
         , mDerivation(std::make_unique<Rtx::ImageDerivation>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
-        , mPrepared(std::make_unique<Rtx::PreparedImages>(
+        , mHands(std::make_unique<Rtx::TextureHands>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
-        , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get(), mSceneIdentities)
+        , mMirror(setup.mMirror, mContentStore.get(), mSceneIdentities)
     {
         mSettled = setup.mSettled;
         mCacheBudget = setup.mCacheBudget;
@@ -200,6 +200,9 @@ namespace MWRender
                 Log(Debug::Warning) << "[" << setting.first << "] " << setting.second << " is on: " << declined;
 
         mRenderer = createBackend(setup.mBackend, options);
+        mResidency.emplace(*mRenderer, Rtx::SlotLayout{});
+        mMirror.getWalkContext().mResidency = &*mResidency;
+        mMirror.getWalkContext().mFeed = mHands.get();
         mUpscale = setup.mRun.mProfile.mUpscale;
 
         Log(Debug::Info) << "Ray tracing device\n" << mRenderer->describeDevice();
@@ -502,7 +505,7 @@ namespace MWRender
 
     double RtxRenderer::drawViews()
     {
-        mPhase.expect(Phase::Views, Phase::Run);
+        mPhase.expect(Phase::Views);
         assert(!mViews.isDrawing() && "drawViews inside drawViews");
 
         // A cell asks for its map tile as it loads, the frame before the one that first mirrors it; the
@@ -514,6 +517,24 @@ namespace MWRender
         mViews.draw(sWorldViewsPerFrame, getFrameStamp(), mMirror.getRing(), mPictureReleases);
         mMirror.release(mPictureReleases);
         return Rtx::since(began, std::chrono::steady_clock::now());
+    }
+
+    void RtxRenderer::drawViewsAtStop()
+    {
+        mPhase.expect(Phase::Run);
+        assert(!mViews.isDrawing() && "drawViewsAtStop inside drawViews");
+
+        // **A frame of residency's own each draw**, so what a picture's hand-over asked of the feed and the device
+        // arrives and stands before the redraw that reads it, as a frame would bring it.
+        for (std::uint32_t drawn = 0; drawn < sStopDrawsMost && mViews.hasDeferred(); ++drawn)
+        {
+            mHands->flush();
+            mRenderer->awaitBlocks();
+            mResidency->openFrame(*mRenderer, *mHands);
+            mViews.draw(sWorldViewsPerFrame, getFrameStamp(), mMirror.getRing(), mPictureReleases);
+            mMirror.release(mPictureReleases);
+            mResidency->closeFrame(*mRenderer);
+        }
     }
 
     void RtxRenderer::renderGui() noexcept
@@ -848,6 +869,16 @@ namespace MWRender
         // would otherwise take the world. `tws` is no cover: it is the world's view mask, read by the walk and
         // the trace. The emitter clock stops too, so a plume resumes where it left off. A picture of a subject
         // is drawn all the same, on a scene no walk of the world feeds.
+        // **Residency opens the frame before any scene is handed over and closes it after the last**: what the device
+        // finished and found, the cap and what the feed made in, blocks asked and given back out. A settled run waits
+        // for every texel and block asked, so two processes stand one image on one frame.
+        if (mMirror.getRing().isSettled())
+        {
+            mHands->flush();
+            mRenderer->awaitBlocks();
+        }
+        mResidency->openFrame(*mRenderer, *mHands);
+
         if (!isWorldShown())
         {
             mRipples.dropStrikes();
@@ -855,6 +886,7 @@ namespace MWRender
             mViews.draw(0, getFrameStamp(), mMirror.getRing(), mPictureReleases);
             mMirror.release(mPictureReleases);
             mPhase.step(Phase::Gui, Phase::Views);
+            mResidency->closeFrame(*mRenderer);
             present(PresentOf::World);
             mBehind = report.mSpend;
             return;
@@ -886,7 +918,7 @@ namespace MWRender
             mWalked.mSession += mWalked.mFound.mPreprocessed;
             if (mWalked.mAgain.has_value())
                 mWalked.mSession += mWalked.mAgain->mPreprocessed;
-            mWalked.mSession.mPrepared += mPrepared->takeStats();
+            mWalked.mSession.mPrepared += mHands->takeStats();
             mWalked.mSession.mDerived += mDerivation->takeStats();
             if (mContentStore != nullptr)
                 mWalked.mStore = mContentStore->getStats();
@@ -896,6 +928,7 @@ namespace MWRender
         mMirror.addRipples(mRipples.getImpulses());
 
         traceWorld(frame, view, report, since);
+        mResidency->closeFrame(*mRenderer);
 
         // The one exit that stamps the frame as left, reached from a walk that placed nothing, a refused eye
         // or the run's hook after the trace.
@@ -967,11 +1000,11 @@ namespace MWRender
     {
         // Placed, appended or rebuilt: the decision is the harness's too, written once (`Rtx::SceneUploader`).
         const std::chrono::steady_clock::time_point handing = std::chrono::steady_clock::now();
-        const Rtx::SceneUpload handed = mMirror.hand(*mRenderer, report.mSpend);
+        const Rtx::SceneUpload handed = mMirror.hand(*mRenderer, *mResidency, *mHands, report.mSpend);
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
         report.mUpload = handed;
         report.mCellsToStand = mMirror.getRing().getCellsToStand();
-        report.mImagesPending = static_cast<std::uint32_t>(mMirror.getImagesPending());
+        report.mImagesPending = mResidency->getReport().mWaitingDemanded;
 
         // What the device gave back lately stays its own to take again, not the caches' next second.
         getResources().getCacheBudget().yieldTo(mRenderer->getSystemClaim());

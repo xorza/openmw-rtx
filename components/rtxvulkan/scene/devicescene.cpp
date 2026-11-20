@@ -12,7 +12,6 @@
 #include "placing.hpp"
 #include "scenepasses.hpp"
 #include "skinpass.hpp"
-#include "whenroomless.hpp"
 
 namespace Rtx
 {
@@ -36,8 +35,7 @@ namespace Rtx
     }
 
     DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, TextureArrival& arrival,
-        const SceneDesc& scene, std::span<const TextureData> textures, const std::uint32_t anisotropy,
-        const SceneRoom& room, const BuildCompaction compaction)
+        const SceneDesc& scene, const std::uint32_t anisotropy, const SceneRoom& room, const BuildCompaction compaction)
         : mPasses(passes)
         , mRecords(recordsOf(scene))
         , mEveryMesh(everyMeshOf(scene))
@@ -60,17 +58,15 @@ namespace Rtx
         mAcceleration.build(batch, uploads, scene, mEveryMesh, mRecords.rows(), mBuffers.getPositions(),
             mPasses.mTopLevelPack, compaction, mAnswer.mRefused);
 
-        // **Waited on once more where the structures settled**: the last run's loose block went back
-        // to the storage under the copies' submit, and its memory is buried under the next, which
-        // this is. The textures below are then held to what the tight structures leave, and not to
-        // a loose block nothing holds any more.
+        // **Waited on once more where the structures settled**: the last run's loose block went back to the storage
+        // under the copies' submit, and its memory is buried under the next, which this is.
         if (compaction == BuildCompaction::Settled)
             batch.flush();
-        mTextures.write(batch, mPasses.mTextures, arrival, textures, scene.textures(), mAnswer,
-            whenRoomless(device, scene), nullptr);
+
+        // Every texture the table holds draws the stand-in until residency stands it.
+        standInTaken(scene);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedMeshes = scene.meshes().getFreedCount();
-        mReleasedTextures = scene.textures().getFreedCount();
         mBuiltStructure = scene.getStructureRevision();
         mBuiltFrom = scene.getIdentity();
         mCounts = scene.placements().getCounts();
@@ -83,19 +79,26 @@ namespace Rtx
         bakeGround(batch.getCommands(), FrameSlot{}, nullptr, uploads);
     }
 
+    void DeviceScene::standInTaken(const SceneDesc& scene)
+    {
+        // By the table's revision and not its arrivals, which a caller that has not compacted cannot read: a walk of
+        // the rows on a hand-over a slot was taken in, which every slot standing already passes over.
+        if (scene.textures().getRevision() == mStoodInRevision)
+            return;
+        mStoodInRevision = scene.textures().getRevision();
+        mEveryTexture.clear();
+        for (std::uint32_t at = 0; at < scene.textures().getRows().size(); ++at)
+            if (scene.textures().isLive(TextureIndex(at)))
+                mEveryTexture.push_back(TextureIndex(at));
+        mTextures.standIn(mEveryTexture);
+    }
+
     void DeviceScene::releaseFreed(const SceneDesc& scene)
     {
         if (const std::uint64_t freed = scene.meshes().getFreedCount(); freed != mReleasedMeshes)
         {
             mAcceleration.release(scene.meshes().getFreed());
             mReleasedMeshes = freed;
-        }
-
-        // The slots keep their place, as they do in the scene's own table, and no live material names a freed one.
-        if (const std::uint64_t freed = scene.textures().getFreedCount(); freed != mReleasedTextures)
-        {
-            mTextures.drop(scene.textures().getFreed());
-            mReleasedTextures = freed;
         }
     }
 
@@ -132,21 +135,7 @@ namespace Rtx
         return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables, timer);
     }
 
-    void DeviceScene::makeTextureRoom(Batch& batch, TextureArrival& arrival, const VkDeviceSize bytes)
-    {
-        mTextures.makeRoom(arrival, TextureArray::RoomAsk{ .mBytes = bytes, .mKeep = {}, .mCopyMost = bytes },
-            TextureArray::noWants(), mAnswer);
-        arrival.record(batch, mPasses.mTextures, nullptr);
-    }
-
-    void DeviceScene::moveTexturesOut(Batch& batch, TextureArrival& arrival)
-    {
-        if (mTextures.moveOut(arrival, TextureArray::sMoveOutPerPlacement) > 0)
-            arrival.record(batch, mPasses.mTextures, nullptr);
-    }
-
-    void DeviceScene::extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene,
-        std::span<const TextureData> arrived, const WhenRoomless whenRoomless, GpuTimer* const timer)
+    void DeviceScene::extend(const Extending& extending, const SceneDesc& scene, std::span<const ResidencyOp> ops)
     {
         assert(scene.getIdentity() == mBuiltFrom && "an extension of a scene this slot was not built from");
 
@@ -155,6 +144,8 @@ namespace Rtx
         // **The buffers stage both kinds of arrival**: a material's layer and mask runs arrive without a mesh where
         // the mesh it stands on is one the scene holds already — a cell's flat ground, which one geometry is one mesh
         // of (`SceneDesc::addMesh`).
+        Batch& batch = extending.mBatch;
+        GpuTimer* const timer = extending.mTimer;
         const bool meshesArrived = scene.meshes().getRevision() != mBuiltMeshes;
         if (meshesArrived || scene.materials().getRunRevision() != mBuiltStructure.mMaterialRuns)
             mBuffers.extend(batch, scene);
@@ -171,7 +162,14 @@ namespace Rtx
             mBuiltMeshes = scene.meshes().getRevision();
         }
 
-        mTextures.write(batch, mPasses.mTextures, arrival, arrived, scene.textures(), mAnswer, whenRoomless, timer);
+        // Residency's operations, and then every slot the table took since that stands nothing yet.
+        mTextures.execute(TextureArray::Executing{ .mBatch = batch,
+                              .mPasses = mPasses.mTextures,
+                              .mArrival = extending.mArrival,
+                              .mArena = extending.mArena,
+                              .mTimer = timer },
+            ops);
+        standInTaken(scene);
 
         mBuiltStructure = scene.getStructureRevision();
     }
@@ -264,7 +262,6 @@ namespace Rtx
         stats.mCompactableNowBytes = mAcceleration.getCompactableNowBytes();
         stats.mTightness = mAcceleration.getTightness();
         stats.mStructureMovedBytes = mAcceleration.getMovedOutBytes();
-        stats.mTextureMovedBytes = mTextures.getMovedOutBytes();
         stats.mRebuilt = mAcceleration.getRebuildCount();
 
         stats.mStructureBytes = mAcceleration.getStructureBytes();
@@ -275,6 +272,5 @@ namespace Rtx
         stats.mTextureBytes = textures.mBytes + textures.mCanvasBytes;
         stats.mTextureBytesBySource = textures.mBySource;
         stats.mTextureBytesBySource.mGroundComposites += textures.mCanvasBytes;
-        stats.mReducedTextureCount = textures.mReduced;
     }
 }

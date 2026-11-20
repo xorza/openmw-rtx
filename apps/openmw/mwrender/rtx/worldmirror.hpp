@@ -31,9 +31,9 @@
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/ripple.hpp>
@@ -72,11 +72,8 @@ namespace MWRender
     public:
         /// @param store the process's content store, or null for none: the frame's walks reach its
         ///        memory alone, and the cell reader its files too.
-        /// @param prepared where the world's normal and data maps find their chains made again, or
-        ///        null for none (`Rtx::PreparedImages`).
         /// @param identities the renderer's, which the world's scene takes its identity from, and which outlives it.
-        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::PreparedImages* prepared,
-            Rtx::SceneIdentities& identities);
+        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::SceneIdentities& identities);
 
         /// Asserts the scene empty, so a row a detached world did not give back is named here. Not while an
         /// exception unwinds, where the frame's own message is the one to read.
@@ -147,11 +144,10 @@ namespace MWRender
         /// A cell the scene added, which the sea is centred on as `Water::changeCell` centres it
         /// (`seaCentre`): the middle of the cell outdoors, the origin indoors, the last one added winning.
         void standSea(const MWWorld::CellStore& cell);
-
-        /// Hands the scene to `scenes`, building only what has to be built, and then ends the placement:
-        /// where everything stands is what the next frame measures its motion against, and the change lists
-        /// start again.
-        Rtx::SceneUpload hand(Rtx::SceneHolder& scenes, Rtx::FrameSpend& spend);
+        /// Hands the world to `scenes` through `residency`, which decides what stands of it, its texels from `feed`
+        /// (`Rtx::SceneUploader`).
+        Rtx::SceneUpload hand(
+            Rtx::SceneHolder& scenes, Rtx::Residency& residency, Rtx::TextureFeed& feed, Rtx::FrameSpend& spend);
 
         /// How much world this renderer builds, in units: the ground, the air and the distant lights are all
         /// measured over it. The settings' count of cells in the cells of the worldspace the last walk stood
@@ -189,10 +185,6 @@ namespace MWRender
         /// What every walk on the frame thread shares: the world's, the sky's and every traced view's
         /// (`Rtx::WalkContext`).
         Rtx::WalkContext& getWalkContext() { return mWalk; }
-
-        /// How many of the world's slots stand their files as they are while their images are made
-        /// (`Rtx::SceneUploader::getPendingCount`).
-        std::size_t getImagesPending() const { return mUploader.getPendingCount(); }
 
         /// What the world's walk may see. Read by the tests and by nothing else.
         osg::Node::NodeMask getTraversalMask() const { return mTraversal; }

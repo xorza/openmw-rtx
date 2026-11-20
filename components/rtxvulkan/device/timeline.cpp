@@ -34,6 +34,16 @@ namespace Rtx
     {
     }
 
+    std::uint64_t Timeline::poll() const
+    {
+        mThread.check();
+        std::uint64_t signalled = 0;
+        checkVk(mDevice, vkGetSemaphoreCounterValue(mDevice.getHandle(), mHandle.get(), &signalled),
+            "vkGetSemaphoreCounterValue");
+        mFinished = std::max(mFinished, signalled);
+        return mFinished;
+    }
+
     void Timeline::waitFor(const std::uint64_t value, const char* const what) const
     {
         mThread.check();

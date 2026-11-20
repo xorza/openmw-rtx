@@ -139,7 +139,7 @@ namespace Rtx
             return;
 
         // The bake is keyed on the file, so two emitters drawing with one texture share one
-        // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
+        // bake, and it is made when the texture is opened for upload — `Residency`. Only
         // where the sprite stands, because the bake is of its alpha.
         const TextureIndex bake = mScene.textures().addSpriteLight(mThread.pathOf(*held.mSprite));
         if (bake == sNoRow)

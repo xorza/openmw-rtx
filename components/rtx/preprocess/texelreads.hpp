@@ -16,7 +16,7 @@ namespace Rtx
         /// A fact of the file no thread had read yet (`ThreadContent::factOf`).
         Fact,
 
-        /// A slot's file, for its chain's key, its chain made again or its levels handed over (`PreparedImages`).
+        /// A slot's file, for its chain's key, its chain made again or its levels handed over (`TextureHands`).
         File,
 
         /// A converted slot's other file (`TextureRow::mPartner`).

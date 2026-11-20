@@ -17,6 +17,21 @@ namespace Rtx
     /// their stacks.
     inline constexpr std::size_t sCompositesPerFrame = 2;
 
+    /// **Whether a texture stands on the device**, which residency says and the queue asks of a chunk's layers: an
+    /// interface, since what stands is decided past the scene's folder (`Residency::standsFrom`).
+    class LayerStanding
+    {
+    public:
+        virtual bool stands(TextureIndex texture) const = 0;
+
+        LayerStanding(const LayerStanding&) = delete;
+        LayerStanding& operator=(const LayerStanding&) = delete;
+
+    protected:
+        LayerStanding() = default;
+        ~LayerStanding() = default;
+    };
+
     /// Every chunk whose ground is to be flattened (`GroundFlattening`), in the order the walks
     /// asked. A chunk that asks is given a slot and its material's `mDiffuse`, and the slot arrives
     /// at the device empty: the backend sums the chunk's own stack into it in the placement after,
@@ -36,7 +51,7 @@ namespace Rtx
         /// Hands the chunks this walk marked to the schedule, then takes the next few in order,
         /// and says how many. Before anything reads what arrived, because a chunk taken takes a
         /// texture slot and is an arrival like any other.
-        std::size_t advance(SceneDesc& scene);
+        std::size_t advance(SceneDesc& scene, const LayerStanding& standing);
 
     private:
         /// Which chunk asked: the material's slot and where its layers sat when it did, so a slot
@@ -58,7 +73,7 @@ namespace Rtx
         /// whose slot another chunk took over while it waited is dropped, and one with a layer whose
         /// texture the device has yet to be handed whole goes to the back, each looked at once. A chunk the texture
         /// table has no room for goes back to the front, and nothing is taken again until the table frees a slot.
-        std::size_t take(SceneDesc& scene, std::size_t limit);
+        std::size_t take(SceneDesc& scene, const LayerStanding& standing, std::size_t limit);
 
         /// Puts `asked` at the back of the schedule, growing the ring where it is full.
         void wait(const Asked& asked);

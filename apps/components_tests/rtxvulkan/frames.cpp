@@ -16,10 +16,12 @@
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
+#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -78,7 +80,7 @@ namespace Rtx
                             .mMesh;
                 mInstance = mScene.addInstance(MeshInstance{ .mMesh = mWall });
                 Testing::poseByOneBone(mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::identity());
-                mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), mScene, {});
             }
 
             /// Moves the wall by its instance and hands the placement over, which goes through the
@@ -86,7 +88,7 @@ namespace Rtx
             void moveTo(float away)
             {
                 mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             }
 
             /// Moves the wall by its pose instead, which is what a skinned body does and goes
@@ -96,7 +98,7 @@ namespace Rtx
                 mScene.clearPlacement();
                 Testing::poseByOneBone(
                     mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             }
 
             std::uint32_t finishedHits()
@@ -155,8 +157,8 @@ namespace Rtx
             }
 
             mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
-            mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), mScene, {});
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
 
             mProbe.traceFrame(ahead(), FrameOptions{});
 
@@ -181,8 +183,8 @@ namespace Rtx
             mScene.addInstance(MeshInstance{ .mMesh = mWall, .mMaterial = mScene.addMaterial(ground) });
             ASSERT_EQ(mScene.meshes().getRevision(), meshesBefore) << "a mesh arrived, which stages the runs anyway";
 
-            mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), mScene, {});
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mProbe.traceFrame(ahead(), FrameOptions{});
 
             EXPECT_EQ(finishedHits(), sEveryPixel);
@@ -397,7 +399,7 @@ namespace Rtx
         {
             const PlacementIndex arrived = mScene.addInstance(
                 MeshInstance{ .mTransform = osg::Matrixf::translate(0.0f, -1200.0f, 0.0f), .mMesh = mWall });
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mProbe.traceFrame(ahead(), FrameOptions{});
 
             // Placed into the copy the first frame is not reading, while that frame is in flight.
@@ -410,7 +412,7 @@ namespace Rtx
             EXPECT_EQ(finishedHits(), sEveryPixel) << "the first wall, before anything moved";
 
             mScene.placements().move(arrived, osg::Matrixf::identity());
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mProbe.traceFrame(ahead(), FrameOptions{});
 
             EXPECT_EQ(finishedHits(), 0u) << "both walls behind the eye, in the copy that grew late";
@@ -472,22 +474,22 @@ namespace Rtx
             const auto movedBy = [&](const osg::Vec3f& step) {
                 mScene.clearPlacement();
                 Testing::poseByOneBone(mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::identity());
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
                 mScene.clearPlacement();
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
                 mScene.placements().move(mInstance, osg::Matrixf::translate(step));
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
                 const osg::Vec3f byInstance = centreMotion();
 
                 mScene.placements().move(mInstance, osg::Matrixf::identity());
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
                 mScene.clearPlacement();
                 Testing::poseByOneBone(mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::translate(step));
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
 
                 return Moved{ .mByInstance = byInstance, .mByPose = centreMotion() };
@@ -509,7 +511,7 @@ namespace Rtx
             // A frame on which the body did not move: the copy this frame traces and the copy it
             // did not hold the same pose, so the step is nought exactly and not a rounding.
             mScene.clearPlacement();
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mProbe.traceFrame(ahead(), FrameOptions{});
             const osg::Vec3f still = centreMotion();
             EXPECT_EQ(still.x(), 0.0f) << "nothing moved and the vector says something did";
@@ -541,8 +543,8 @@ namespace Rtx
                 mScene.addInstance(MeshInstance{ .mMesh = arrived });
                 Testing::poseByOneBone(mScene, arrived, Testing::wallAt(200.0f),
                     osg::Matrixf::translate(0.0f, -10.0f * static_cast<float>(copy + 1), 0.0f));
-                mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), mScene, {});
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
 
                 std::vector<float> motion;
@@ -586,14 +588,14 @@ namespace Rtx
                                                     .mIndices = Testing::sQuadIndices }) });
 
             Testing::poseByOneBone(scene, body, Testing::wallAt(200.0f), osg::Matrixf::identity());
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
             // Two floats a pixel: the normal's code, then the distance.
             constexpr std::size_t centre = (std::size_t{ sSize / 2 } * sSize + sSize / 2) * 2;
             const auto centreNormalPosedBy = [&](const osg::Matrixf& bone) {
                 scene.clearPlacement();
                 Testing::poseByOneBone(scene, body, Testing::wallAt(200.0f), bone);
-                mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
 
                 std::vector<float> surface;
@@ -623,10 +625,10 @@ namespace Rtx
         /// **The frame's reserve is the running mode's, and the world stays whatever it does.** Native upscaling keeps
         /// the upscaler's images beside a trace of the same extent, so its reserve stands over the mode with none. A
         /// reserve that moves within the room content left keeps the world; one that grows past it (a budget at the
-        /// textures' ceiling over the heap, which native mode's larger reserve lowers) keeps it too, its textures moved
-        /// down to make the room (`TextureArray::makeRoom`); one that shrinks over a world built where the device had
-        /// no room for its content keeps it as well, and names every texture refused for room short in its next answer,
-        /// so the uploader hands it over again as the room comes (`DeviceScene::waitAgain`). A run that sums
+        /// textures' ceiling over the heap, which native mode's larger reserve lowers) keeps it too, residency lowering
+        /// its textures under the smaller cap; one that shrinks over a world built where the device had no room for its
+        /// structures keeps it as well, and names every structure refused for room short in its next answer, so the
+        /// uploader hands it over again as the room comes (`DeviceScene::waitAgain`). A run that sums
         /// (`RadianceWidth::Summed`) fills its reserve to the byte once a frame sums, since nothing is kept that no
         /// frame makes. **A run that names the modes it moves between** (`RunProfile::mReservedUpscales`) reserves the
         /// largest of theirs under each.
@@ -665,28 +667,19 @@ namespace Rtx
             // Let go of first, since content fills the ranges the world gives back however full the
             // device is, and built again with no room for content.
             SceneIdentities emptied;
-            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc(emptied), {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), SceneDesc(emptied), {});
             {
                 const Testing::NoRoomForContent full(mProbe.getDevice());
-                mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), mScene, {});
             }
             Rtx::DeviceAnswer answer;
             mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
-            const std::vector<Rtx::Refusal>& refused = answer.mRefused;
-            ASSERT_FALSE(refused.empty()) << "the device had room for the world, so nothing was held back";
-            const auto texturesRefused
-                = static_cast<std::size_t>(std::ranges::count(refused, Refused::Texture, &Refusal::mKind));
+            ASSERT_FALSE(answer.mRefused.empty()) << "the device had room for the world, so nothing was held back";
             EXPECT_EQ(runAt(Upscale::Off), alone);
             EXPECT_TRUE(worldHeld()) << "a reserve that shrank built the world again";
-            Rtx::DeviceAnswer again;
-            mRenderer.takeAnswer(Rtx::SceneSlot::world(), again);
-            EXPECT_EQ(again.mShort.size(), texturesRefused) << "a texture refused for room did not wait again";
-            EXPECT_TRUE(std::ranges::all_of(again.mShort, [](const ShortTexture& stood) {
-                return stood.mWholeBytes > 0;
-            })) << "a texture waiting again with no bytes its file asks";
 
             ASSERT_EQ(mRenderer.getProfile().mRadianceWidth, RadianceWidth::Summed);
-            mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), mScene, {});
             mProbe.traceFrame(ahead(), FrameOptions{ .mAccumulate = 1 });
             ASSERT_TRUE(mRenderer.finishFrame().has_value());
             EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), memory.getFrameReserve())
@@ -724,23 +717,24 @@ namespace Rtx
             // The fixture's wall walks behind the eye, so what a frame hits is the arrival alone.
             mScene.clearArrivals();
             mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mScene.placements().advance();
 
-            // A texture rests, so room is coming, and what the device has no room for waits.
-            const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
-            mScene.textures().stand(resting, 64, false, 0);
-            mScene.drop(mScene.holdTexture(resting, HoldTier::Shown));
+            // A mesh rests, so room is coming, and what the device has no room for waits.
+            const MeshIndex resting = Testing::addMesh(
+                mScene, MeshArrays{ .mPositions = Testing::wallAt(200.0f), .mIndices = Testing::sQuadIndices });
+            mScene.standMesh(resting, 64);
+            Testing::letGoMesh(mScene, resting);
             mScene.compact();
-            ASSERT_EQ(mScene.textures().getResting().getBytes(), 64u);
+            ASSERT_EQ(mScene.getRestingBytes(), 64u);
 
             const MeshIndex arrival = Testing::addMesh(
                 mScene, MeshArrays{ .mPositions = Testing::wallAt(100.0f), .mIndices = Testing::sQuadIndices });
             mScene.addInstance(MeshInstance{ .mMesh = arrival });
             {
                 const Testing::NoRoomForContent full(mProbe.getDevice());
-                mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), mScene, {});
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             }
             mScene.clearArrivals();
             mScene.placements().advance();
@@ -751,7 +745,7 @@ namespace Rtx
             mProbe.traceFrame(ahead(), FrameOptions{});
             ASSERT_EQ(finishedHits(), 0u) << "the device had room for the wall, so nothing waited";
 
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mProbe.traceFrame(ahead(), FrameOptions{});
             EXPECT_EQ(finishedHits(), sEveryPixel) << "the wall was built and no row placing it was written again";
         }
@@ -766,12 +760,12 @@ namespace Rtx
             SceneDesc wall(identities);
             wall.addInstance(MeshInstance{ .mMesh = Testing::addQuadMesh(wall, Testing::wallAt(300.0f)) });
 
-            mRenderer.setScene(Rtx::SceneSlot::world(), wall, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), wall, {});
             EXPECT_EQ(mProbe.getLooseStructureBytes(Rtx::SceneSlot::world()), 0u)
                 << "the world was handed over with a structure still loose";
 
             const SceneSlot doll = mRenderer.addViewScene();
-            mRenderer.setScene(doll, wall, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, doll, wall, {});
             EXPECT_GT(mProbe.getLooseStructureBytes(doll), 0u) << "a picture's scene waited for its structures";
             mRenderer.dropViewScene(doll);
         }
@@ -802,7 +796,7 @@ namespace Rtx
                 const Testing::Model model = Testing::addModel(scene, VFS::Path::NormalizedView("textures/grey.dds"));
                 const std::array<std::uint8_t, 4> grey{ 128, 128, 128, 255 };
                 const TextureData described = Testing::describeTexel(grey, model.mTexture);
-                mRenderer.setScene(doll, scene, std::span(&described, 1));
+                Testing::standerOf(mRenderer).setScene(mRenderer, doll, scene, std::span(&described, 1));
                 mProbe.tracePicture(texture, doll, ahead(), GuiTraceOptions{});
                 const std::size_t taken = memory.getLiveCount();
                 mRenderer.dropViewScene(doll);
@@ -860,8 +854,8 @@ namespace Rtx
             mScene.addInstance(MeshInstance{ .mMesh = second });
             mScene.clearPlacement();
             Testing::poseByOneBone(mScene, second, Testing::wallAt(300.0f), osg::Matrixf::identity());
-            mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), mScene, {});
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mScene.clearArrivals();
             const std::uint64_t arrived = rebuilt();
             EXPECT_EQ(arrived, alone + 3) << "an arrival is built again on the placement that brings it";
@@ -871,7 +865,7 @@ namespace Rtx
                 Testing::poseByOneBone(mScene, mWall, Testing::wallAt(200.0f), osg::Matrixf::translate(x, 0.0f, 0.0f));
                 Testing::poseByOneBone(
                     mScene, second, Testing::wallAt(300.0f), osg::Matrixf::translate(-x, 0.0f, 0.0f));
-                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             };
             for (std::uint64_t placement = 1; placement <= 4; ++placement)
             {
@@ -882,7 +876,7 @@ namespace Rtx
             // And a placement that poses neither is not a placement of the rota at all, however
             // long it has been.
             mScene.clearPlacement();
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             EXPECT_EQ(rebuilt(), arrived + 4);
 
             // A frame over the placements above, because the zones a placement opens are the next
@@ -911,7 +905,7 @@ namespace Rtx
             SceneDesc scene(identities);
             const MeshIndex wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
             const PlacementIndex standing = scene.addInstance(MeshInstance{ .mMesh = wall });
-            mRenderer.setScene(doll, scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, doll, scene, {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
 
@@ -927,9 +921,9 @@ namespace Rtx
             // Faded out, and placed twice: into the other copy, which leaves the picture deferred,
             // and then into the picture's own.
             scene.placements().fade(standing, 0.0f);
-            mRenderer.placeScene(doll, scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, doll, scene);
             EXPECT_FALSE(mRenderer.takeGuiCopy(texture, copy)) << "a placement into the other copy carried it";
-            mRenderer.placeScene(doll, scene);
+            Testing::standerOf(mRenderer).placeScene(mRenderer, doll, scene);
 
             mRenderer.finishGuiTraces();
             ASSERT_TRUE(mRenderer.takeGuiCopy(texture, copy));
@@ -953,7 +947,7 @@ namespace Rtx
 
             const Timeline& timeline = mProbe.getDevice().getTimeline();
             const std::uint64_t opened = timeline.getNext();
-            mRenderer.setScene(doll, scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, doll, scene, {});
             EXPECT_EQ(timeline.getNext(), opened) << "opening a picture's scene submitted";
 
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
@@ -969,7 +963,7 @@ namespace Rtx
             // An empty scene in its place, with the picture of the wall still deferred.
             const std::uint64_t replaced = timeline.getNext();
             SceneIdentities emptied;
-            mRenderer.setScene(doll, SceneDesc(emptied), {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, doll, SceneDesc(emptied), {});
             EXPECT_EQ(timeline.getNext(), replaced) << "replacing a picture's scene submitted";
             EXPECT_FALSE(mRenderer.takeGuiCopy(texture, copy)) << "replacing the scene carried the picture";
 
@@ -998,7 +992,7 @@ namespace Rtx
             SceneDesc scene(identities);
             const MeshIndex wall = Testing::addQuadMesh(scene, Testing::wallAt(200.0f));
             scene.addInstance(MeshInstance{ .mMesh = wall });
-            mRenderer.setScene(doll, scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, doll, scene, {});
 
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
 

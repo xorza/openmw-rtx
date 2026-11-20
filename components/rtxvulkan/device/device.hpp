@@ -27,6 +27,7 @@ namespace Rtx
     class Graveyard;
     class Instance;
     class ValidationLog;
+    class ContentArena;
     class MemoryAllocator;
     class NotFiniteCensus;
     class Timeline;
@@ -158,6 +159,9 @@ namespace Rtx
         /// hundred images. Not const although the device is, because every resource that asks holds
         /// the device by const reference.
         MemoryAllocator& getMemory() const;
+
+        /// The memory content stands in, which residency names by block (`ContentArena`).
+        ContentArena& getContent() const { return *mContent; }
 
         /// The queue's clock, which every submit signals and every wait reads.
         Timeline& getTimeline() const { return *mTimeline; }
@@ -300,6 +304,10 @@ namespace Rtx
 
         /// Made on the allocator, for AMD's buffer markers, so torn down before it.
         std::unique_ptr<FaultReport> mFaults;
+
+        /// Its blocks are freed through the allocator, so it goes before it, and after every scene: a block may go
+        /// while an image the graveyard holds is still bound to it, which Vulkan allows of one nothing uses.
+        std::unique_ptr<ContentArena> mContent;
 
         /// Made on the allocator, so torn down before it.
         std::unique_ptr<NotFiniteCensus> mCensus;

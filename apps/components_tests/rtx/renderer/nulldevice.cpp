@@ -29,6 +29,7 @@ namespace Rtx
         };
 
         const Slot sSlot{ .mSlab = SlabIndex(3), .mAt = 7 };
+        const SlotPlace sPlace{ .mSlot = sSlot };
 
         /// What a hand-over places: nothing, since the null device reads only the operations.
         struct EmptyScene
@@ -70,7 +71,7 @@ namespace Rtx
             DeviceEvents events;
             std::ignore = device.openFrame(events);
             const std::vector<ResidencyOp> build{ BuildStructure{
-                .mMesh = MeshIndex(5), .mGeneration = 2, .mLoose = sSlot, .mBytes = 1024 } };
+                .mMesh = MeshIndex(5), .mGeneration = 2, .mLoose = sPlace, .mBytes = 1024 } };
             const DeviceEpoch first = device.handOver(SceneSlot::world(), empty.mScene, build);
             EXPECT_EQ(first, DeviceEpoch{ .mValue = 1 });
 
@@ -109,7 +110,7 @@ namespace Rtx
         TEST(RtxNullDeviceTest, refusesASlotStoodTwiceOrBeforeItsEpoch)
         {
             EmptyScene empty;
-            const StandImage stand{ .mTexture = TextureIndex(0), .mTo = sSlot, .mUpload = { .mFirst = 0, .mEnd = 1 } };
+            const StandImage stand{ .mTexture = TextureIndex(0), .mTo = sPlace, .mUpload = { .mFirst = 0, .mEnd = 1 } };
             Testing::expectAssertDies(
                 [&] {
                     NullDevice device(0);

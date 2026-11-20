@@ -144,14 +144,12 @@ namespace RtxTool
                     .mFiledBytes = 1 * sMiB,
                     .mLentContentBytes = 3 * sMiB / 2,
                     .mFiledContentBytes = sMiB / 4 },
-                .mPrepared = Rtx::PreparedHeld{ .mEntries = 7, .mBytes = 3 * sMiB, .mLeftPending = 2 },
                 .mRing = {} };
             const std::string line = describeHostHeld(content);
             EXPECT_EQ(line.substr(0, line.find("   reader")),
                 "  host  vertices 1.20 M placed, 0.30 M resting, 0.10 M in holes of 1.60 M reached   indices 1.80 M, "
                 "0.60 M, 0.60 M of 3.00 M   geometry 52.0 MiB")
                 << line;
-            EXPECT_TRUE(line.ends_with("   prepared 7 unhanded, 3.0 MiB, 2 slots left pending\n")) << line;
             // The reader's room beside what its lent and filed models fill of it.
             EXPECT_NE(line.find("   reader 2.0 MiB lent in 3 models holding 1.5, 6.0 MiB spare in 4, 1.0 MiB filed "
                                 "unlent in 5 holding 0.2\n"),
@@ -369,12 +367,6 @@ namespace RtxTool
                 .mPoseEnd = 30,
                 .mBindVertexEnd = 31,
                 .mRestingTextures = 38,
-                .mRestingTextureBytes = 39,
-                .mAboveWant = Rtx::TexturesAboveWant{ .mStood = 63,
-                    .mAbove = 64,
-                    .mTextures = 65,
-                    .mRestingStood = 66,
-                    .mRestingAbove = 67 },
                 .mReader = Rtx::ReaderMemory{ .mLentModels = 32,
                     .mSpareModels = 33,
                     .mFiledModels = 34,
@@ -383,7 +375,6 @@ namespace RtxTool
                     .mFiledBytes = 37,
                     .mLentContentBytes = 61,
                     .mFiledContentBytes = 62 },
-                .mPrepared = Rtx::PreparedHeld{ .mEntries = 43, .mBytes = 44, .mLeftPending = 45 },
                 .mRing = {} };
             place.mContent.mRing.mByDistance[1] = Rtx::RingDistance{ .mPlacements = 55,
                 .mPlacementsStanding = 56,
@@ -420,12 +411,10 @@ namespace RtxTool
                 = R"("content": {"vertexEnd": 21, "verticesUsed": 22, "indexEnd": 23, "indicesUsed": 24, )"
                   R"("restingVertices": 40, "restingIndices": 41, "geometryBytes": 42, )"
                   R"("layerEnd": 25, "maskEnd": 26, "rigRunEnd": 27, "influenceEnd": 28, "offsetEnd": 29, )"
-                  R"("poseEnd": 30, "bindVertexEnd": 31, "restingTextures": 38, "restingTextureBytes": 39, )"
-                  R"("aboveWant": {"stood": 63, "above": 64, "textures": 65, "restingStood": 66, "restingAbove": 67}, )"
+                  R"("poseEnd": 30, "bindVertexEnd": 31, "restingTextures": 38, )"
                   R"("reader": {"lentModels": 32, "spareModels": 33, )"
                   R"("filedModels": 34, "lentBytes": 35, "spareBytes": 36, "filedBytes": 37, )"
-                  R"("lentContentBytes": 61, "filedContentBytes": 62}, )"
-                  R"("prepared": {"entries": 43, "bytes": 44, "leftPending": 45}, "ring": [{"placements": 0, )"
+                  R"("lentContentBytes": 61, "filedContentBytes": 62}, "ring": [{"placements": 0, )"
                   R"("placementsStanding": 0, "meshes": 0, "meshesStanding": 0, "vertices": 0, "verticesStanding": 0}, )"
                   R"({"placements": 55, "placementsStanding": 56, "meshes": 57, "meshesStanding": 58, "vertices": 59, )"
                   R"("verticesStanding": 60}, {"placements": 0,)";

@@ -18,6 +18,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/debuglines.hpp>
@@ -670,7 +671,7 @@ namespace Rtx::Testing
                     = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
 
                 mRenderer.resize(size, size);
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
                 for (const std::uint32_t frame : { 1u, 2u })
                 {
@@ -994,7 +995,7 @@ namespace Rtx::Testing
                 scene.clearPlacement();
                 poseByOneBone(scene, wall, wallAt(200.0f), osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
                 scene.addInstance(MeshInstance{ .mMesh = wall });
-                mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             };
 
             deformTo(400.0f);

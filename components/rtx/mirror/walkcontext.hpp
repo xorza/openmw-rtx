@@ -6,7 +6,8 @@
 
 namespace Rtx
 {
-    class PreparedImages;
+    class Residency;
+    class TextureFeed;
 
     /// What every walk on one thread shares: where its traversal numbers come from, what it computes from the content,
     /// and what the content's `_spec` maps mean. **One a thread, owned by what owns the thread's walks, and handed to
@@ -16,8 +17,9 @@ namespace Rtx
         Traversals mTraversals{};
         ThreadContent mContent{};
 
-        /// Where a scene this thread hands over finds its files' chains made (`PreparedImages`), or
-        /// null for none: the world's and every picture's.
-        PreparedImages* mPrepared = nullptr;
+        /// What decides what stands of a scene this thread hands over, and where its texels come from: the
+        /// renderer's, which every scene of it shares, the world's and every picture's.
+        Residency* mResidency = nullptr;
+        TextureFeed* mFeed = nullptr;
     };
 }

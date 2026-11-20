@@ -484,16 +484,12 @@ namespace RtxTool
         // means. A file and a sprite's bake name their file, a ground its material; the kind tells them apart, and
         // each path ends with its length so two laid end to end cannot read as one. Every other field is bound whole,
         // as `forEachMaterialField` does: the wrap and encoding reach the sampler and the decode. The image and
-        // partner are files' bytes, which the path names; of what the device stands its bytes, the level it stands
-        // from, and whether it is the chain made again, which moves every level under the finest. Its asks, its last
-        // want and what it rests above
-        // it are left out: they are the placements' and the ring's distances, and the level they make stood is
-        // digested where it lands.
+        // partner are files' bytes, which the path names. Its asks are left out: they are the placements' and the
+        // ring's distances, and what residency stands of them is the device's.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stoodBytes, stoodMade, stoodFrom,
-                rest, asks, lastWant, restAbove] = row;
+            const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stands, rest, asks] = row;
             const auto& [resting, waitingAt, restedBefore, restedAfter, filedAt, order, fit, fitAlignment, fitBefore,
                 fitAfter] = rest;
             const std::string_view name = path.value();
@@ -505,9 +501,7 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(wrap));
             textures.add(static_cast<std::uint32_t>(encoding));
             textures.add(static_cast<std::uint32_t>(format));
-            textures.add(stoodBytes);
-            textures.add(static_cast<std::uint32_t>(stoodMade ? 1 : 0));
-            textures.add(static_cast<std::uint32_t>(stoodFrom));
+            textures.add(static_cast<std::uint32_t>(stands ? 1 : 0));
             textures.add(static_cast<std::uint32_t>(resting ? 1 : 0));
             textures.add(static_cast<std::uint32_t>(waitingAt));
             textures.add(restedBefore.at());

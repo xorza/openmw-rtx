@@ -56,6 +56,10 @@ namespace Rtx
         /// than once per object.
         std::uint64_t getKnownFinished() const { return mFinished; }
 
+        /// **What the queue has signalled, asked of it without waiting**, and kept as known: what a frame's opening
+        /// reads, so what retired is collected as soon as it is done rather than at the next wait.
+        std::uint64_t poll() const;
+
         /// The signal a submit puts in its `pSignalSemaphoreInfos` for `value`.
         VkSemaphoreSubmitInfo signal(std::uint64_t value) const;
 

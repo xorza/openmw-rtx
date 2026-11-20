@@ -29,7 +29,9 @@
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/rtx/preprocess/texturehands.hpp>
+#include <components/rtx/renderer/nulldevice.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
@@ -66,8 +68,10 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, aPictureOfTheWorldOwnsNoSceneAndOneOfASubjectDoes)
         {
             SceneIdentities identities;
-            WalkContext context{};
             Testing::CountingRenderer renderer;
+            NullFeed feed;
+            Residency residency(renderer, SlotLayout{});
+            WalkContext context{ .mResidency = &residency, .mFeed = &feed };
             osg::ref_ptr<osg::Group> subject = new osg::Group;
             subject->addChild(Testing::makeQuad());
 
@@ -106,8 +110,10 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, aPictureHandsItsLightWhatItDrawsAndItsBackdrop)
         {
             SceneIdentities identities;
-            WalkContext context{};
             Testing::CountingRenderer renderer;
+            NullFeed feed;
+            Residency residency(renderer, SlotLayout{});
+            WalkContext context{ .mResidency = &residency, .mFeed = &feed };
             OffscreenTrace world(renderer,
                 ViewRequest{ .mWidth = 64,
                     .mHeight = 64,
@@ -150,8 +156,10 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, aViewSceneGivesItsSlotBackOnceHoweverItIsMoved)
         {
             Testing::CountingRenderer renderer;
+            NullFeed feed;
+            Residency residency(renderer, SlotLayout{});
             {
-                ViewScene taken(renderer);
+                ViewScene taken(renderer, residency, feed);
                 EXPECT_TRUE(taken.holds());
                 EXPECT_EQ(taken.get(), SceneSlot::view(0));
                 EXPECT_EQ(renderer.mViewScenes, 1u);
@@ -172,7 +180,7 @@ namespace Rtx
                 EXPECT_TRUE(renderer.mViewDropped.empty()) << "a move dropped the slot";
 
                 // Assigned over, the slot a handle held goes back before it takes the next.
-                assigned = ViewScene(renderer);
+                assigned = ViewScene(renderer, residency, feed);
                 EXPECT_EQ(renderer.mViewDropped, (std::vector<std::uint32_t>{ 0 }));
                 EXPECT_EQ(assigned.get(), SceneSlot::view(1));
             }
@@ -188,8 +196,10 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, aRebuiltSubjectPlacesWhatArrivedAndHandsTheRoomToWhatComesNext)
         {
             SceneIdentities identities;
-            WalkContext context{};
             Testing::CountingRenderer renderer;
+            NullFeed feed;
+            Residency residency(renderer, SlotLayout{});
+            WalkContext context{ .mResidency = &residency, .mFeed = &feed };
             Released releasing;
 
             osg::ref_ptr<osg::Geometry> body = Testing::makeQuad();
@@ -208,7 +218,7 @@ namespace Rtx
                 context, identities);
             const SceneDesc& scene = *trace.getScene();
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, true));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
 
             // Two quads of two triangles each: what a scene holding both looks like.
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
@@ -220,7 +230,7 @@ namespace Rtx
             osg::ref_ptr<osg::Geometry> hat = Testing::makeQuad(2.0f);
             subject->addChild(hat);
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing, true));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing));
 
             // **The shirt goes to the caller's sink and not where the sweep stands**, so its last
             // reference is dropped on the queue the world's go to: the picture's own sink is empty,
@@ -250,7 +260,7 @@ namespace Rtx
             osg::ref_ptr<osg::Geometry> boots = Testing::makeQuad(3.0f);
             subject->addChild(boots);
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(3), releasing, true));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(3), releasing));
 
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
 
@@ -273,7 +283,7 @@ namespace Rtx
                 boots = Testing::makeQuad();
                 subject->addChild(boots);
 
-                ASSERT_TRUE(trace.rebuildSubject(*stampAt(redraw), releasing, true));
+                ASSERT_TRUE(trace.rebuildSubject(*stampAt(redraw), releasing));
                 ASSERT_TRUE(scene.placements().getMoved().empty()) << "redraw " << redraw;
             }
         }
@@ -299,8 +309,10 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, aSubjectsWalkSharesTheThreadsContentAndRunsAtTheWorldsClock)
         {
             SceneIdentities identities;
-            WalkContext context{};
             Testing::CountingRenderer renderer;
+            NullFeed feed;
+            Residency residency(renderer, SlotLayout{});
+            WalkContext context{ .mResidency = &residency, .mFeed = &feed };
             Released releasing;
 
             const osg::ref_ptr<ClockedController> glow = new ClockedController;
@@ -315,24 +327,20 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
                 context, identities);
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(7), releasing, true));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(7), releasing));
 
             EXPECT_EQ(context.mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 1u)
                 << "the doll's one shape was folded somewhere nobody counts";
             EXPECT_EQ(glow->mAt, 7.0) << "the doll's glow ran at a clock of its own";
         }
 
-        /// **A picture whose file's chain is being made awaits it unless settled**: a quad of a 2x2 colour
-        /// of one level, its one solid texel white beside three holes, handed over unsettled stands the
-        /// file at its one level and awaits its image; once made, the next rebuild describes the slot
-        /// with the chain, its second level white under a quarter's alpha, and awaits nothing. A
-        /// second picture of the same quad, settled, under a service that has made nothing yet,
-        /// describes the chain at its first rebuild.
-        TEST(RtxOffscreenTraceTest, aPictureAwaitsTheImagesBeingMadeUnlessSettled)
+        /// **A picture whose texels are on their way awaits them**: a quad of a 2x2 colour of one level, its one solid
+        /// texel white beside three holes, is asked of the feed at its first rebuild and awaits; once the feed made its
+        /// chain and residency took it, the next rebuild stands the slot with the chain, its second level white under a
+        /// quarter's alpha, and awaits nothing.
+        TEST(RtxOffscreenTraceTest, aPictureAwaitsTheTexelsOnTheirWay)
         {
             SceneIdentities identities;
-            PreparedImages prepared(nullptr, 1);
-            WalkContext context{ .mPrepared = &prepared };
             Released releasing;
 
             const std::uint8_t bytes[] = { 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -356,23 +364,22 @@ namespace Rtx
             };
 
             Testing::CountingRenderer renderer;
+            TextureHands hands(nullptr, 1);
+            Residency residency(renderer, SlotLayout{});
+            WalkContext context{ .mResidency = &residency, .mFeed = &hands };
             OffscreenTrace trace(renderer, request, context, identities);
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, false));
-            EXPECT_FALSE(holdsChain(renderer)) << "the hand-over waited";
+            residency.openFrame(renderer, hands);
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
+            residency.closeFrame(renderer);
+            EXPECT_FALSE(holdsChain(renderer)) << "stood before its texels came";
             EXPECT_TRUE(trace.awaitsImages());
 
-            prepared.flush();
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing, false));
-            EXPECT_TRUE(holdsChain(renderer)) << "the made image was not stood";
+            hands.flush();
+            residency.openFrame(renderer, hands);
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing));
+            residency.closeFrame(renderer);
+            EXPECT_TRUE(holdsChain(renderer)) << "the made chain was not stood";
             EXPECT_FALSE(trace.awaitsImages());
-
-            PreparedImages fresh(nullptr, 1);
-            WalkContext freshContext{ .mPrepared = &fresh };
-            Testing::CountingRenderer settledRenderer;
-            OffscreenTrace settled(settledRenderer, request, freshContext, identities);
-            ASSERT_TRUE(settled.rebuildSubject(*stampAt(3), releasing, true));
-            EXPECT_TRUE(holdsChain(settledRenderer));
-            EXPECT_FALSE(settled.awaitsImages());
         }
 
         /// A subject with nothing in it is a picture nobody should trace.
@@ -383,8 +390,10 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, anEmptySubjectSaysThereIsNothingToTrace)
         {
             SceneIdentities identities;
-            WalkContext context{};
             Testing::CountingRenderer renderer;
+            NullFeed feed;
+            Residency residency(renderer, SlotLayout{});
+            WalkContext context{ .mResidency = &residency, .mFeed = &feed };
             Released releasing;
 
             osg::ref_ptr<osg::Group> subject = new osg::Group;
@@ -396,7 +405,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
                 context, identities);
-            EXPECT_FALSE(trace.rebuildSubject(*stampAt(1), releasing, true));
+            EXPECT_FALSE(trace.rebuildSubject(*stampAt(1), releasing));
             EXPECT_EQ(trace.getScene()->placements().getCounts().mPlaced, 0u);
         }
 
@@ -405,8 +414,10 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, theSubjectMaskKeepsTheWalkOutOfWhatItDoesNotName)
         {
             SceneIdentities identities;
-            WalkContext context{};
             Testing::CountingRenderer renderer;
+            NullFeed feed;
+            Residency residency(renderer, SlotLayout{});
+            WalkContext context{ .mResidency = &residency, .mFeed = &feed };
             Released releasing;
 
             constexpr osg::Node::NodeMask wanted = 1u << 3;
@@ -431,7 +442,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = wanted },
                 context, identities);
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, true));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
 
             // One of the two, and the same fixture with `wanted | other` would take both — which is
             // what says the mask is doing the choosing rather than the fixture.
@@ -444,7 +455,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = wanted | other },
                 context, identities);
-            ASSERT_TRUE(both.rebuildSubject(*stampAt(1), releasing, true));
+            ASSERT_TRUE(both.rebuildSubject(*stampAt(1), releasing));
             EXPECT_EQ(both.getScene()->placements().getCounts().mPlaced, 2u);
         }
 
@@ -468,8 +479,10 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, aPickMeetsAPartPutOnSinceTheLastRedrawAndLogsNothing)
         {
             SceneIdentities identities;
-            WalkContext context{};
             Testing::CountingRenderer renderer;
+            NullFeed feed;
+            Residency residency(renderer, SlotLayout{});
+            WalkContext context{ .mResidency = &residency, .mFeed = &feed };
             Released releasing;
 
             osg::ref_ptr<SceneUtil::Skeleton> skeleton = new SceneUtil::Skeleton;
@@ -498,7 +511,7 @@ namespace Rtx
 
             osg::NodePath hit;
             EXPECT_FALSE(trace.pick(0.0f, 0.0f, hit)) << "picked before there was a picture";
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, true));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
             ASSERT_TRUE(trace.pick(0.0f, 0.0f, hit)) << "the part the redraw drew";
 
             // Put on in front of the first, so the nearest hit is the new part.

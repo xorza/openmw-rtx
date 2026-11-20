@@ -36,23 +36,21 @@ namespace Rtx
         return slot.isWorld() ? mWorld : mViews.at(ViewRow(slot.getViewIndex()));
     }
 
-    void NullRenderer::setScene(const SceneSlot slot, const SceneDesc& scene, std::span<const TextureData>)
+    void NullRenderer::standScene(const SceneSlot slot, const SceneDesc& scene)
     {
+        mDevice.forgetScene(slot);
         heldAt(slot)
             = SceneHeld{ .mIdentity = scene.getIdentity(), .mStructureRevision = scene.getStructureRevision() };
         mOpen = mOpen || slot.isWorld();
     }
 
-    void NullRenderer::extendScene(const SceneSlot slot, const SceneDesc& scene, std::span<const TextureData>)
+    DeviceEpoch NullRenderer::handOver(
+        const SceneSlot slot, const SceneDesc& scene, const std::span<const ResidencyOp> ops)
     {
+        assert(heldAt(slot).mIdentity == scene.getIdentity() && "a scene handed over that the slot was not built from");
         heldAt(slot).mStructureRevision = scene.getStructureRevision();
         mOpen = mOpen || slot.isWorld();
-    }
-
-    void NullRenderer::placeScene(const SceneSlot slot, [[maybe_unused]] const SceneDesc& scene)
-    {
-        assert(heldAt(slot).mIdentity == scene.getIdentity() && "a scene placed that the slot was not built from");
-        mOpen = mOpen || slot.isWorld();
+        return mDevice.handOver(slot, scene, ops);
     }
 
     SceneHeld NullRenderer::describeHeld(const SceneSlot slot) const
@@ -68,6 +66,7 @@ namespace Rtx
     void NullRenderer::dropViewScene(const SceneSlot slot)
     {
         assert(!slot.isWorld() && holds(slot) && "a view scene dropped that is not held");
+        mDevice.forgetScene(slot);
         mViews.free(ViewRow(slot.getViewIndex()));
     }
 

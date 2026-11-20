@@ -6,7 +6,6 @@
 #include <string>
 #include <tuple>
 #include <utility>
-#include <variant>
 
 #include <osg/Image>
 #include <osg/Vec3f>
@@ -367,9 +366,8 @@ namespace Rtx
 
     std::uint64_t SceneDesc::evictResting(const std::uint64_t room)
     {
-        // **One order across the tables**: the older of the two oldest, by when each was filed on the scene's
-        // clock, a texture first where both were filed at one tick. Filed first, so nothing waits unordered.
-        mTextures.settleResting();
+        // Filed first, so nothing waits unordered. The meshes alone rest on the device's room: what a texture stands is
+        // residency's.
         mMeshes.settleResting();
         std::uint64_t freed = 0;
         // A row past the limit at least, so a step of nought still comes down to it.
@@ -378,64 +376,42 @@ namespace Rtx
             return getRestingBytes() > mRestLimit.mBytes && (beyondRoom == 0 || beyondRoom < mRestLimit.mStep);
         };
         while (getRestingBytes() > 0 && (freed < room || pastLimit()))
-            freed += releaseOldestResting();
-        return freed;
-    }
-
-    std::uint64_t SceneDesc::releaseOldestResting()
-    {
-        const std::uint64_t before = getRestingBytes();
-        const TextureIndex texture = mTextures.getResting().first();
-        const MeshIndex mesh = mMeshes.getResting().first();
-        const bool textureFirst = mesh == sNoRow
-            || (texture != sNoRow
-                && mTextures.getRows()[texture].mRest.mFiledAt <= mMeshes.getRows()[mesh].mRest.mFiledAt);
-        if (textureFirst)
-            mTextures.releaseOldest();
-        else
+        {
+            const std::uint64_t before = getRestingBytes();
             mMeshes.releaseOldest(mDeformers);
-        return before - getRestingBytes();
+            freed += before - getRestingBytes();
+        }
+        return freed;
     }
 
     std::uint64_t SceneDesc::evictFor(const std::span<const RoomWant> wants)
     {
         // Filed first, so nothing waits unordered; and nothing past the hole, the limit's pace being the arrivals'.
-        mTextures.settleResting();
         mMeshes.settleResting();
         const std::uint64_t before = getRestingBytes();
         for (const RoomWant& want : wants)
         {
-            const bool texture = std::holds_alternative<TextureIndex>(want.mWaiter);
-            const bool fitted = texture ? mTextures.releaseFitting(want.mHole, want.mAlignment)
-                                        : mMeshes.releaseFitting(mDeformers, want.mHole, want.mAlignment);
-            // **A structure's want frees meshes alone**: a texture's range gives back room in the pools, which no
-            // structure takes, its storages being blocks of their own. A texture's frees what rested longest across
-            // the tables, a mesh whose block empties giving the heap room a pool's block takes.
-            for (std::uint64_t freed = 0; !fitted && freed < want.mHole;)
+            const bool fitted = mMeshes.releaseFitting(mDeformers, want.mHole, want.mAlignment);
+            for (std::uint64_t freed = 0; !fitted && freed < want.mHole && mMeshes.getResting().first() != sNoRow;)
             {
                 const std::uint64_t resting = getRestingBytes();
-                if (!texture && mMeshes.getResting().first() != sNoRow)
-                    mMeshes.releaseOldest(mDeformers);
-                else if (texture && resting > 0)
-                    releaseOldestResting();
-                else
-                    break;
+                mMeshes.releaseOldest(mDeformers);
                 freed += resting - getRestingBytes();
             }
         }
         return before - getRestingBytes();
     }
 
-    void SceneDesc::evictRestingTexture(const TextureIndex slot)
+    void SceneDesc::standTexture(const TextureIndex texture, const bool stands)
     {
-        assert(mTextures.isLive(slot) && "a texture evicted that the table holds no more");
-        assert(mTextures.getRows()[slot].mRest.mResting && "a texture evicted out of its turn that does not rest");
-        mTextures.release(slot);
+        mTextures.setStanding(texture, stands);
+        if (!stands && mTextures.getRows()[texture].mRest.mResting)
+            mTextures.release(texture);
     }
 
     std::uint64_t SceneDesc::getRestingBytes() const
     {
-        return mTextures.getResting().getBytes() + mMeshes.getResting().getBytes();
+        return mMeshes.getResting().getBytes();
     }
 
     void SceneDesc::fitMesh(const MeshIndex mesh, const std::uint64_t bytes, const std::uint64_t alignment)

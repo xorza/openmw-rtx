@@ -136,8 +136,8 @@ namespace Rtx::Shaders
         uint mTexture;
 
         /// How many texels the sheet `mTexture` names stands at, across and down. **The backend's and
-        /// not the scene's**: the array can stand a texture smaller than its file
-        /// (`TextureArray::chooseLevels`). Written beside the ripples, so a starry pixel reads a
+        /// not the scene's**: residency can stand a texture smaller than its file
+        /// (`Residency`'s plan). Written beside the ripples, so a starry pixel reads a
         /// number the host holds rather than a texture header.
         uvec2 mExtent RTX_ZERO;
     };

@@ -21,6 +21,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -763,7 +764,7 @@ namespace Rtx::Testing
                             [&, at = 0](const Frame&) mutable {
                                 if (++at == 20 && between == Between::Untraced)
                                 {
-                                    mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                                    Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                                     mRenderer.skipFrame();
                                 }
                             } })

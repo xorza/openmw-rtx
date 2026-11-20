@@ -174,7 +174,7 @@ namespace Rtx
         Resource::ImageManager& images, const VFS::Path::NormalizedView path)
     {
         // A model's image, as every texture the scene takes: its header where the host keeps no texels, which the
-        // service reads (`PreparedImages`).
+        // service reads (`TextureHands`).
         osg::ref_ptr<const osg::Image> image;
         try
         {

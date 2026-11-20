@@ -90,33 +90,6 @@ namespace RtxTool
                     Rtx::mebibytes(peak->mScene.mGeometryBytes));
             }
 
-            // What stood whole above the level its nearest reader asks, at its most (`docs/architecture.md`, "A
-            // texture stands from the level its nearest user asks").
-            if (const BenchPlace* const peak
-                = peakOf(places, [](const BenchPlace& place) { return place.mContent.mAboveWant.mAbove; }))
-            {
-                const Rtx::TexturesAboveWant& above = peak->mContent.mAboveWant;
-                out += std::format(
-                    "the textures stood above their want at most {:.1f} of {:.1f} MiB stood whole, {:.1f}%, in {} "
-                    "textures, at {}\n",
-                    Rtx::mebibytes(above.mAbove), Rtx::mebibytes(above.mStood),
-                    above.mStood > 0 ? 100.0 * static_cast<double>(above.mAbove) / static_cast<double>(above.mStood)
-                                     : 0.0,
-                    above.mTextures, peak->mView);
-            }
-            if (const BenchPlace* const peak
-                = peakOf(places, [](const BenchPlace& place) { return place.mContent.mAboveWant.mRestingAbove; }))
-            {
-                const Rtx::TexturesAboveWant& above = peak->mContent.mAboveWant;
-                out += std::format(
-                    "the resting textures stood above their last want at most {:.1f} of {:.1f} MiB, {:.1f}%, at {}\n",
-                    Rtx::mebibytes(above.mRestingAbove), Rtx::mebibytes(above.mRestingStood),
-                    above.mRestingStood > 0
-                        ? 100.0 * static_cast<double>(above.mRestingAbove) / static_cast<double>(above.mRestingStood)
-                        : 0.0,
-                    peak->mView);
-            }
-
             if (const BenchPlace* const peak
                 = peakOf(places, [](const BenchPlace& place) { return unstoodOf(place.mContent.mRing).mMeshes; }))
             {
@@ -125,11 +98,6 @@ namespace RtxTool
                     "the ring held at most {} meshes standing in no placement, {:.2f} M vertices, at {}\n",
                     unstood.mMeshes, static_cast<double>(unstood.mVertices) / 1e6, peak->mView);
             }
-
-            if (const BenchPlace* const peak
-                = peakOf(places, [](const BenchPlace& place) { return place.mContent.mPrepared.mBytes; }))
-                out += std::format("the prepared images held at most {} unhanded, {:.1f} MiB, at {}\n",
-                    peak->mContent.mPrepared.mEntries, Rtx::mebibytes(peak->mContent.mPrepared.mBytes), peak->mView);
 
             if (const BenchPlace* const peak
                 = peakOf(places, [](const BenchPlace& place) { return readerRoomOf(place.mContent.mReader); }))
@@ -149,9 +117,6 @@ namespace RtxTool
             if (!places.empty())
             {
                 const BenchPlace& last = places.back();
-                if (last.mContent.mPrepared.mLeftPending > 0)
-                    out += std::format(
-                        "{} slots left while their files were read\n", last.mContent.mPrepared.mLeftPending);
                 if (last.mGame.mStarvedLooks > 0)
                     out += std::format("{} looks for room in the caches found all in use\n", last.mGame.mStarvedLooks);
                 if (const std::string reads = describeTexelReads(last.mTexelReads); !reads.empty())

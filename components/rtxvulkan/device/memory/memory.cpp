@@ -364,37 +364,32 @@ namespace Rtx
             });
     }
 
-    Result<DeviceMemory, MemoryRefusal> MemoryAllocator::tryTakeOutside(
-        const VkImage image, const VkDeviceMemory block, const std::string_view name)
+    Result<DeviceMemory, MemoryRefusal> MemoryAllocator::takeBlock(const std::uint32_t type, const VkDeviceSize bytes)
     {
-        const Requirements requirements = requirementsOf<vkGetImageMemoryRequirements2>(VkImageMemoryRequirementsInfo2{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2, .pNext = nullptr, .image = image });
-        if (requirements.mOwn || requirements.mMemory.size > sContentBlockBytes / 2)
-            return Err{ MemoryRefusal::NoRoom };
-
+        assert(type < mMemory.memoryTypeCount && "a block of a memory type the device has not");
+        assert((mContent.mTypes & (1u << type)) != 0 && "a block of a type content does not stand in");
         VmaAllocationCreateInfo create = askingFor(mMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Texture);
-        std::uint32_t type = 0;
-        checkTaken(vmaFindMemoryTypeIndex(mLibrary.get(), requirements.mMemory.memoryTypeBits, &create, &type),
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, requirements.mMemory.size, MemoryUse::Texture, name);
-        assert(mLibrary.poolOf(type) != nullptr && "content asked for memory that is not video memory");
-        create.pool = mLibrary.poolOf(type);
-        create.flags |= VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT;
+        create.memoryTypeBits = 1u << type;
+        create.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+        const VkMemoryRequirements requirements{ .size = bytes, .alignment = 1, .memoryTypeBits = 1u << type };
 
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
-        const VkResult result = vmaAllocateMemoryForImage(mLibrary.get(), image, &create, &allocation, &placed);
+        const VkResult result = vmaAllocateMemory(mLibrary.get(), &requirements, &create, &allocation, &placed);
         if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
-            return Err{ MemoryRefusal::NoRoom };
-        checkTaken(result, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, requirements.mMemory.size, MemoryUse::Texture, name);
-
-        // The library tries the fullest blocks first, so one that lands in `block` found room nowhere else.
-        if (placed.deviceMemory == block)
         {
-            vmaFreeMemory(mLibrary.get(), allocation);
+            noteRefused(MemoryUse::Texture, bytes, type, true);
             return Err{ MemoryRefusal::NoRoom };
         }
+        checkTaken(result, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bytes, MemoryUse::Texture, "a content block");
         return hold(allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType,
-            MemoryUse::Texture, RangeIn::ContentBlock);
+            MemoryUse::Texture, RangeIn::Elsewhere);
+    }
+
+    void MemoryAllocator::giveBlock(DeviceMemory&& block)
+    {
+        DeviceMemory gone = std::move(block);
+        gone.releaseNow();
     }
 
     template <auto& Query, class Info>
@@ -704,6 +699,13 @@ namespace Rtx
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         return ceilingOf(mContent.mHeap, use, budgets[mContent.mHeap].budget);
+    }
+
+    VkDeviceSize MemoryAllocator::getOwedOutside() const
+    {
+        const VkDeviceSize frame = mHeld[mContent.mHeap][static_cast<std::size_t>(MemoryUse::Frame)] + mHeldOutside;
+        const VkDeviceSize gap = mFrameReserve > frame ? mFrameReserve - frame : 0;
+        return gap + mOwed[static_cast<std::size_t>(MemoryUse::Essential)].largest();
     }
 
     VkDeviceSize MemoryAllocator::heldTo(const VkDeviceSize budget) const

@@ -86,7 +86,7 @@ namespace Rtx
 
         /// **Every take past the most while it stands**, for a waiter that holds whatever it waits for until it has
         /// it all and gives back nothing meanwhile: a settled hand-over, which stands an arrival's every chain at once
-        /// (`PreparedImages::flush`). Under the most, its workers would wait for buffers only the waiter gives back,
+        /// (`TextureHands::flush`). Under the most, its workers would wait for buffers only the waiter gives back,
         /// and the waiter for them. What it lets past is what that waiter asked, bounded by what it holds.
         class [[nodiscard]] Overdraft
         {

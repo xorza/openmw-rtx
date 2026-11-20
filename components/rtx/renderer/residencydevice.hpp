@@ -9,7 +9,8 @@
 #include <components/rtx/common/deviceepoch.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slotledger.hpp>
-#include <components/rtx/image/textureformat.hpp>
+#include <components/rtx/image/imageshape.hpp>
+#include <components/rtx/preprocess/texturefeed.hpp>
 #include <components/rtx/scene/refusal.hpp>
 
 #include "residencyop.hpp"
@@ -18,17 +19,6 @@
 namespace Rtx
 {
     class SceneDesc;
-
-    /// What an image is, as a device prices it: its format, its sides and its levels.
-    struct ImageShape
-    {
-        TextureFormat mFormat = TextureFormat::Unnamed;
-        std::uint32_t mWidth = 0;
-        std::uint32_t mHeight = 0;
-        std::uint8_t mLevels = 0;
-
-        friend bool operator==(const ImageShape&, const ImageShape&) = default;
-    };
 
     /// What a mesh's structure is, as a device prices its first build.
     struct StructureShape
@@ -101,11 +91,20 @@ namespace Rtx
         virtual std::optional<ContentPrice> priceImage(const ImageShape& shape) const = 0;
         virtual ContentPrice priceStructure(const StructureShape& shape) const = 0;
 
+        /// Whether the device stands meshes' structures in the arena's slots, as `BuildStructure` names them; a
+        /// device that does not keeps them in memory of its own, outside the cap, and is handed no structure's
+        /// operation.
+        virtual bool standsStructures() const = 0;
+
         /// Reads the budget and fills `events`, which the caller keeps and this clears first.
         virtual ContentBudget openFrame(DeviceEvents& events) = 0;
 
         /// Appends what arrived in `scene`, does `ops` in order and places it: one submit, whose epoch it answers.
         virtual DeviceEpoch handOver(SceneSlot slot, const SceneDesc& scene, std::span<const ResidencyOp> ops) = 0;
+
+        /// Waits until every block asked is answered: what a run that compares frames calls before a frame opens, so
+        /// two processes take each block on one frame whatever the device's thread's timing.
+        virtual void awaitBlocks() = 0;
 
         /// Asks for a block of `bytes` in `arena`, answered by an event; gives back one nothing stands in.
         virtual void acquireBlock(BlockIndex block, ArenaIndex arena, std::uint64_t bytes) = 0;
@@ -117,59 +116,5 @@ namespace Rtx
     protected:
         ResidencyDevice() = default;
         ~ResidencyDevice() = default;
-    };
-
-    /// One ask of the feed: the levels from `mFirstLevel` up to `mLevelEnd` of a scene's texture, for the tenant
-    /// `mGeneration` names.
-    struct FeedRequest
-    {
-        FeedTicket mTicket{};
-        SceneSlot mScene;
-        TextureIndex mTexture = sNoRow;
-        std::uint32_t mGeneration = 0;
-        LevelSpan mLevels;
-    };
-
-    /// The levels asked, made or read.
-    struct FeedMade
-    {
-    };
-
-    /// Content the renderer cannot use: terminal for the tenant.
-    struct FeedFailed
-    {
-        Refused mCause = Refused::Texture;
-    };
-
-    /// A request answered: the request whole, so what it was for is read off it and no table of asks is kept.
-    struct FeedArrival
-    {
-        FeedRequest mRequest;
-        std::variant<FeedMade, FeedFailed> mOutcome;
-    };
-
-    /// **Where a texture's texels come from**: requests issued by residency, completions taken in the order asked, so
-    /// two processes stand one image on one frame whatever their threads' timing. Only what is in flight is past
-    /// recall, and the credit bounds it.
-    class TextureFeed
-    {
-    public:
-        virtual bool hasCredit() const = 0;
-
-        /// Asserts `hasCredit`.
-        virtual void ask(const FeedRequest& request) = 0;
-
-        /// The next completion in the order asked, or nothing where it has not come; never blocks.
-        virtual std::optional<FeedArrival> take() = 0;
-
-        /// Its completion is dropped as it lands.
-        virtual void forget(FeedTicket ticket) = 0;
-
-        TextureFeed(const TextureFeed&) = delete;
-        TextureFeed& operator=(const TextureFeed&) = delete;
-
-    protected:
-        TextureFeed() = default;
-        ~TextureFeed() = default;
     };
 }

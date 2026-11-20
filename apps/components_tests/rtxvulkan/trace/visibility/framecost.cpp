@@ -15,6 +15,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -22,7 +23,6 @@
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/deformertable.hpp>
-#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
@@ -96,7 +96,7 @@ namespace Rtx::Testing
             const TextureIndex puff = scene.textures().add(VFS::Path::NormalizedView("puff.dds"));
 
             renderer.resize(size, size);
-            renderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(renderer).setScene(renderer, Rtx::SceneSlot::world(), scene, {});
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
@@ -117,7 +117,7 @@ namespace Rtx::Testing
                 const osg::Matrixf bone = osg::Matrixf::translate(0.0f, walked, 0.0f);
                 packRig(toGpuBone(osg::Matrixf::identity()), std::array{ toGpuBone(bone) }, words);
                 scene.pose(body, words, reachUnder(sWallQuad, bone));
-                renderer.placeScene(Rtx::SceneSlot::world(), scene);
+                Testing::standerOf(renderer).placeScene(renderer, Rtx::SceneSlot::world(), scene);
             };
 
             // Sixty-four sprites on the first frame and fewer on every one after, a different count
@@ -136,7 +136,7 @@ namespace Rtx::Testing
 
                 scene.clearPlacement();
                 scene.addEmitter(sprites, EmitterSpec{ .mTexture = puff, .mBlend = BlendKind::Over });
-                renderer.placeScene(Rtx::SceneSlot::world(), scene);
+                Testing::standerOf(renderer).placeScene(renderer, Rtx::SceneSlot::world(), scene);
             };
             const auto thicken = [&] { rain(mostSprites - storm++ % mostSprites); };
 
@@ -244,16 +244,18 @@ namespace Rtx::Testing
             const TexturePasses passes(device);
             TextureArrival rooms(device);
             Batch setup(pool);
+            Testing::ArenaDevice arena(device);
+            Testing::SceneStander stander(arena);
             TextureArray array(device, setup, layout, passes, rooms, slots);
             setup.flush();
 
-            // Held across the arrivals as a scene holds its own, and never written to: a device
-            // with room refuses nothing.
-            DeviceAnswer answer;
             const auto arrive = [&](Batch& batch, TextureIndex slot) {
                 const TextureData described = describe(slot);
-                array.write(batch, passes, rooms, std::span(&described, 1), TextureArray::noWants(), answer,
-                    WhenRoomless::Refuses, nullptr);
+                array.execute(
+                    TextureArray::Executing{
+                        .mBatch = batch, .mPasses = passes, .mArrival = rooms, .mArena = device.getContent() },
+                    stander.operationsFor(arena, SceneSlot::world(), std::span(&described, 1)));
+                stander.handedOver(DeviceEpoch{ .mValue = device.getTimeline().getNext() });
             };
 
             {

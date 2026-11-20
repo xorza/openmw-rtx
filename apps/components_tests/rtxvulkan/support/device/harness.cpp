@@ -32,6 +32,8 @@
 #include <components/rtxvulkan/spirv/shaderfolder.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
+#include "scenestander.hpp"
+
 namespace Rtx::Testing
 {
     namespace
@@ -198,8 +200,9 @@ namespace Rtx::Testing
 
             void TearDown() override
             {
-                // The renderer before the raw devices, which is the order they were built in; neither
-                // depends on the other.
+                // What stands on the renderers first, which gives its blocks back to them; then the renderer before the
+                // raw devices, which is the order they were built in; neither depends on the other.
+                Testing::releaseStanders();
                 for (const Validation validation : { Validation::Validated, Validation::Unvalidated })
                     rendererCache(validation).release();
                 for (const Validation validation : { Validation::Validated, Validation::Unvalidated })
@@ -353,7 +356,7 @@ namespace Rtx::Testing
         // did not draw, and a footfall one test presses into the water bends the next test's still sea. A new world
         // costs every history, as it does the game.
         SceneIdentities emptied;
-        mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc(emptied), {});
+        Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), SceneDesc(emptied), {});
 
         // And none of what a previous test told the renderer: the modes its reserve keeps room for, its gamma, its
         // upscaler, its filtering, its bounces and its sea, as the renderer was made with them, so a test that failed

@@ -130,7 +130,7 @@ namespace MWRender
         {
             TwoBodyFrame world;
             Rtx::SceneIdentities identities;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, identities);
             const osg::Matrixd view = osg::Matrixd::identity();
 
             const Rtx::ExtractionStats both = mirror.mirror(world.frame(1), view);
@@ -165,7 +165,7 @@ namespace MWRender
         {
             TwoBodyFrame world;
             Rtx::SceneIdentities identities;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, identities);
             const osg::Matrixd view = osg::Matrixd::identity();
 
             osg::ref_ptr<osg::Image> sheet = Rtx::Testing::makeImage("textures/sheet.dds", 2, 2);
@@ -210,7 +210,7 @@ namespace MWRender
             const auto session = [&](bool prepared) {
                 ContentStore::Store store(folder, Rtx::sContentStorePolicy);
                 Rtx::SceneIdentities identities;
-                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, nullptr, identities);
+                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, identities);
                 Session counted;
                 if (prepared)
                 {
@@ -257,7 +257,7 @@ namespace MWRender
         TEST(RtxWorldMirrorTest, thePlayerAndTheActorsAreWalkedWhereTheViewMaskKeepsThem)
         {
             Rtx::SceneIdentities identities;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, identities);
 
             const osg::Node::NodeMask playing = mirror.getTraversalMask();
             EXPECT_NE(playing & Mask_Player, 0u) << "a game somebody is playing draws them";
@@ -297,7 +297,7 @@ namespace MWRender
 
             Rtx::SceneIdentities identities;
             const osg::Node::NodeMask mask
-                = WorldMirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities).getTraversalMask();
+                = WorldMirror(MWRender::MirrorKnobs{}, nullptr, identities).getTraversalMask();
 
             NifOsg::Loader::setHiddenNodeMask(told);
 

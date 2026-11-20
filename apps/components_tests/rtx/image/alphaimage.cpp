@@ -232,7 +232,7 @@ namespace Rtx
         }
 
         /// An image read again is the texture it was handed and nothing of the one before, and it costs the heap
-        /// nothing to say so. `ChainBuild` and `SceneTextures` keep one of these through a cell's worth of
+        /// nothing to say so. `ChainBuild` and `TextureHands` keep one of these through a cell's worth of
         /// textures: one that carried the last texture's levels through would weigh one texture's colours by
         /// another's alpha, and one that gave its room back would go to the heap once a texture.
         TEST(RtxAlphaImageTest, anImageReadAgainIsTheNewTextureAndKeepsTheRoomOfTheLast)

@@ -22,14 +22,13 @@ namespace Rtx
                 [](const MaterialLayer& layer) { return (layer.mFlags & Shaders::LAYER_AUTHORED) != 0u; });
         }
 
-        /// Whether every layer of `layers` reads a texture the device was handed whole (`TextureRow::mStoodBytes`), or
-        /// the neutral texel a full table gave it: what the bake reads of each is its diffuse, and one that still
-        /// stands in, its file being read, would be flattened into the chunk as the stand-in's grey for good.
-        bool layersStand(const SceneDesc& scene, const Run& layers)
+        /// Whether every layer of `layers` reads a texture that stands on the device (`LayerStanding`), or the neutral
+        /// texel a full table gave it: what the bake reads of each is its diffuse, and one that still stands in, its
+        /// file being read, would be flattened into the chunk as the stand-in's grey for good.
+        bool layersStand(const SceneDesc& scene, const Run& layers, const LayerStanding& standing)
         {
             return std::ranges::all_of(layers.in(scene.materials().getLayers()), [&](const MaterialLayer& layer) {
-                return layer.mDiffuse == Shaders::TEXTURE_NEUTRAL
-                    || scene.textures().getRows()[TextureIndex(layer.mDiffuse)].mStoodBytes > 0;
+                return layer.mDiffuse == Shaders::TEXTURE_NEUTRAL || standing.stands(TextureIndex(layer.mDiffuse));
             });
         }
 
@@ -47,10 +46,10 @@ namespace Rtx
         }
     }
 
-    std::size_t CompositeQueue::advance(SceneDesc& scene)
+    std::size_t CompositeQueue::advance(SceneDesc& scene, const LayerStanding& standing)
     {
         gather(scene);
-        return take(scene, sCompositesPerFrame);
+        return take(scene, standing, sCompositesPerFrame);
     }
 
     void CompositeQueue::gather(const SceneDesc& scene)
@@ -115,7 +114,7 @@ namespace Rtx
         ++mCount;
     }
 
-    std::size_t CompositeQueue::take(SceneDesc& scene, const std::size_t limit)
+    std::size_t CompositeQueue::take(SceneDesc& scene, const LayerStanding& standing, const std::size_t limit)
     {
         const std::uint64_t freed = scene.textures().getFreedCount();
         if (mRefused.stands(sCompositeTake, freed))
@@ -140,7 +139,7 @@ namespace Rtx
             // **Flattened once every layer's texture stands**, and shading from its stack until then: a bake over a
             // layer still read from its file held the stand-in's grey in the distance until the chunk was placed
             // again.
-            if (!layersStand(scene, asked.mLayers))
+            if (!layersStand(scene, asked.mLayers, standing))
             {
                 wait(asked);
                 continue;

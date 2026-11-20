@@ -57,6 +57,9 @@ namespace Rtx
         /// apart — a resize and shutdown — which have no next submit to give a deferred batch.
         void finishDeferred();
 
+        /// Whether a batch waits to go ahead of the next submit.
+        bool hasDeferred() const { return !mDeferred.empty(); }
+
         const Device& getDevice() const { return mDevice; }
 
         /// The device's staging, which a batch writes its uploads into.

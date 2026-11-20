@@ -291,28 +291,28 @@ namespace Rtx
         /// hand-over, which orders the rests of every table as one.
         void compact();
 
-        /// What everything that rests may stand, set by the uploader from the device's budget at each hand-over.
+        /// What the meshes that rest may stand, set by the uploader from the device's budget at each hand-over.
         void setRestLimit(const RestLimit& limit) { mRestLimit = limit; }
 
-        /// Frees what rests, the oldest to rest first across the tables, until `room` is given back and then while it
-        /// stands past the limit, a step more at most and a row at least; answers the bytes given back: each slot
-        /// reported freed by its table, its device image the backend's to drop.
+        /// Frees the meshes that rest, the oldest first, until `room` is given back and then while they stand past the
+        /// limit, a step more at most and a row at least; answers the bytes given back: each slot reported freed by
+        /// its table, its structure the backend's to drop. A texture's rest keeps its slot alone, and what the device
+        /// stands of it is residency's.
         std::uint64_t evictResting(std::uint64_t room = 0);
 
         /// **Frees, for each of `wants`, what surely leaves it room** (`docs/architecture.md`, "What waits is given the
-        /// resting row that surely leaves it room"): the row
-        /// that has rested longest of its kind's that gives back at least its hole where it can take it, or, with
-        /// none, what rested longest until its hole is given back, holes that may join — across the tables for a
-        /// texture, of the meshes alone for a structure, which takes no texture's room; answers the bytes given back,
-        /// each slot reported freed by its table.
+        /// resting row that surely leaves it room"): the mesh that has rested longest that gives back at least its hole
+        /// where it can take it, or, with none, what rested longest until its hole is given back; answers the bytes
+        /// given back, each slot reported freed by its table.
         std::uint64_t evictFor(std::span<const RoomWant> wants);
 
-        /// Frees `slot`, a texture that rests, out of its turn: what one the device moved down for room comes to, as a
-        /// rest holds the file whole (`TextureTable::stand`), and a slot reported freed is the backend's to drop.
-        void evictRestingTexture(TextureIndex slot);
-
-        /// The bytes everything that rests stands on the device.
+        /// The bytes the meshes that rest stand on the device.
         std::uint64_t getRestingBytes() const;
+
+        /// **Says whether the device stands something of `texture`**, residency's word after a hand-over: a file that
+        /// stands rests once nothing names it, and one that rests and stands nothing any more, its image let go of by
+        /// residency, is freed.
+        void standTexture(TextureIndex texture, bool stands);
 
         /// What the device stands of `mesh`'s bottom-level structure, the device's answer (`DeviceAnswer`): what lets a
         /// static mesh rest, and what its rest holds.
@@ -339,10 +339,6 @@ namespace Rtx
         void noteSwept();
 
     private:
-        /// Frees the row that has rested longest across the tables, a texture first where both were filed at one tick,
-        /// and answers the bytes it stood; something rests, filed.
-        std::uint64_t releaseOldestResting();
-
         /// Where the frame stands: open to the walks that fill its lists, walked and owing the
         /// sweep after it, or handed to a backend that has read them.
         ///

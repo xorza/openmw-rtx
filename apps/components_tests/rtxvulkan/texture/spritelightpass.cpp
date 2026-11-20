@@ -50,9 +50,7 @@ namespace Rtx
                 TextureArrival arrival(device);
                 std::vector<VkBufferImageCopy> regions;
                 Texture source;
-                EXPECT_TRUE(
-                    source.standFile(device, upload, arrival, sprite, 0, "sprite", regions, MemoryUse::Essential)
-                        .isOk());
+                source.standFile(device, upload, arrival, sprite, 0, "sprite", regions, TexturePlace{});
                 arrival.bake(source.getImage(), bake);
                 arrival.record(upload, passes, nullptr);
                 upload.flush();

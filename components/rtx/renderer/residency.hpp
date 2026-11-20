@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -12,6 +14,9 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slotledger.hpp>
+#include <components/rtx/image/imageshape.hpp>
+#include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/preprocess/texturefeed.hpp>
 #include <components/rtx/scene/refusal.hpp>
 
 #include "residencydevice.hpp"
@@ -21,6 +26,7 @@
 namespace Rtx
 {
     class SceneDesc;
+    class TextureTable;
 
     /// Nothing stands, and nothing is on its way.
     struct NotStanding
@@ -46,15 +52,13 @@ namespace Rtx
     };
 
     /// Texels asked of the feed for `mToLevel` and the levels under it to what stands, which keeps standing meanwhile
-    /// (`mNow`, none for an arrival); `mArrived` once they are in hand.
+    /// (`mNow`, none for an arrival); `mMade` once they are in hand, held until the operation that uploads them rides.
     struct TextureArriving
     {
         std::uint8_t mToLevel = 0;
         FeedTicket mTicket{};
         std::optional<TextureStands> mNow{};
-        bool mArrived = false;
-
-        friend bool operator==(const TextureArriving&, const TextureArriving&) = default;
+        std::optional<FeedMade> mMade{};
     };
 
     using TextureStanding = std::variant<NotStanding, TextureStands, TextureArriving, StandingFailed>;
@@ -63,7 +67,18 @@ namespace Rtx
     struct TextureResident
     {
         TextureStanding mStanding;
+
+        /// What it stands as: a file's texels as the feed makes them, a sprite's light bake shaped as its source, a
+        /// chunk's composite.
         ImageShape mShape;
+
+        /// A bake's source row and its tenant, which the bake follows a level at a time; a composite's chunk.
+        TextureIndex mBakedFrom = sNoRow;
+        std::uint32_t mBakedFromGeneration = 0;
+        MaterialIndex mGroundOf = sNoRow;
+
+        /// The demanded bake made from it, which the plan counts, lowers and starves with it as one: set by each plan.
+        TextureIndex mBake = sNoRow;
 
         /// The class each level stands in, from the finest down: what the plan counts.
         std::array<ClassIndex, 16> mClassAt{};
@@ -87,6 +102,9 @@ namespace Rtx
         /// The hand-over a hold last stood on it, which the cache keeps the most lately held by.
         std::uint32_t mLastHeld = 0;
         bool mLive = false;
+
+        /// Whether it stood as the last hand-over of its scene ended, which a change of is reported.
+        bool mStoodReported = false;
     };
 
     /// A structure built loose, its tight size once the device answered it.
@@ -147,9 +165,11 @@ namespace Rtx
         std::uint32_t mStarvedTextures = 0;
         std::uint32_t mStarvedStructures = 0;
 
-        /// Demanded textures planned coarser than their want, and residents whose standing is not what is planned.
+        /// Demanded textures planned coarser than their want, and residents whose standing is not what is planned, and
+        /// of those the textures of a demanded tier: what a run that compares frames waits on.
         std::uint32_t mBelowWant = 0;
         std::uint32_t mWaiting = 0;
+        std::uint32_t mWaitingDemanded = 0;
 
         /// This frame's work.
         std::uint32_t mOpsIssued = 0;
@@ -177,6 +197,15 @@ namespace Rtx
             std::uint64_t mCopyBytes = std::uint64_t{ 8 } << 20;
             std::uint32_t mBuildTriangles = std::uint32_t{ 1 } << 20;
             std::uint32_t mTightCopies = 64;
+
+            /// Every operation a frame: what a settled run pours, which a frame's arrival then never splits.
+            static constexpr Shares whole()
+            {
+                return Shares{ .mUploadBytes = ~std::uint64_t{ 0 },
+                    .mCopyBytes = ~std::uint64_t{ 0 },
+                    .mBuildTriangles = ~std::uint32_t{ 0 },
+                    .mTightCopies = ~std::uint32_t{ 0 } };
+            }
         };
 
         /// What one scene's hand-over is of.
@@ -203,7 +232,7 @@ namespace Rtx
         /// How many scenes stand at once: the world and the pictures inside the interface.
         static constexpr std::size_t sScenesMost = 64;
 
-        /// @param device read for its arenas, as the layout is made.
+        /// @param device read for its arenas, as the layout is made, and whether it stands structures.
         Residency(const ResidencyDevice& device, const SlotLayout& layout);
 
         Residency(const Residency&) = delete;
@@ -212,8 +241,13 @@ namespace Rtx
 
         void addScene(SceneSlot slot);
 
-        /// Its residents are dropped as its last hand-over rides, which `handing` is of; the device's scene goes after.
-        void dropScene(const HandOver& handing);
+        /// **The device let the scene's slot go or builds it anew** (`SceneHolder::dropViewScene`, `standScene`): every
+        /// image of the scene goes with it, so its residents are forgotten and their slots retire at the last epoch any
+        /// hand-over rode, with nothing handed over.
+        void forgetScene(SceneSlot slot, TextureFeed& feed);
+
+        /// Whether residency holds a scene in `slot`.
+        bool holds(SceneSlot slot) const { return findScene(slot) != nullptr; }
 
         /// Once a frame, before any scene is handed over: what the device finished and found, its cap, and what the
         /// feed made.
@@ -236,6 +270,20 @@ namespace Rtx
         bool standsFrom(SceneSlot slot, TextureIndex texture, std::uint8_t level) const;
 
         const ResidencyReport& getReport() const { return mReport; }
+
+        /// What the last hand-over found the renderer cannot use, for the scene's owner to report with the rest of
+        /// what content was refused (`SceneDesc::refusals`).
+        std::span<const Refusal> getRefused() const { return mRefused; }
+
+        /// A texture that began or stopped standing in the last hand-over, which the scene's owner tells its table
+        /// (`SceneDesc::standTexture`): what lets a file rest.
+        struct StandingChange
+        {
+            TextureIndex mTexture = sNoRow;
+            bool mStands = false;
+        };
+
+        std::span<const StandingChange> getStandingChanges() const { return mStandingChanges; }
         const TextureResident& getTexture(SceneSlot slot, TextureIndex texture) const;
         const StructureResident& getStructure(SceneSlot slot, MeshIndex mesh) const;
         const SlotLedger& getLedger() const { return mLedger; }
@@ -246,6 +294,12 @@ namespace Rtx
         {
             TextureIndex mTexture = sNoRow;
             Slot mSlot;
+        };
+
+        struct FailedRow
+        {
+            TextureIndex mTexture = sNoRow;
+            std::string mWhy;
         };
 
         struct Scene
@@ -259,6 +313,10 @@ namespace Rtx
             /// owner names, never moves.
             bool mActive = false;
             std::vector<OwedDrop> mDropsOwed{};
+
+            /// What failed since the scene was last handed over, and why: named as a refusal by the next hand-over,
+            /// which holds the scene's table.
+            std::vector<FailedRow> mFailed{};
         };
 
         /// The slots a plan stands in, a count a class, with what they come to in whole chunks and blocks kept as they
@@ -319,6 +377,12 @@ namespace Rtx
         void resetTexture(Scene& scene, TextureIndex row, TextureFeed& feed);
         void resetStructure(Scene& scene, MeshIndex row);
         void plan();
+
+        /// What a texture and its bake (`TextureResident::mBake`) take at `level`, counted or taken back as one; the
+        /// bake's part only where the device prices its level. A unit's stride is what a lowering weighs it by.
+        void addUnit(const Scene& scene, const TextureResident& texture, std::uint8_t level);
+        void removeUnit(const Scene& scene, const TextureResident& texture, std::uint8_t level);
+        std::uint64_t unitStride(const Scene& scene, const TextureResident& texture, std::uint8_t level) const;
         void planLowerings(std::uint64_t cap);
         void planStarving(std::uint64_t cap);
         void planCache(std::uint64_t cap);
@@ -329,7 +393,7 @@ namespace Rtx
         void issueDrops(Scene& scene, TextureFeed& feed);
         void issueLowerings(Scene& scene, TextureFeed& feed, const Shares& shares);
         void issueMoves(Scene& scene, const Shares& shares);
-        void issueArrivals(Scene& scene, TextureFeed& feed, const Shares& shares);
+        void issueArrivals(Scene& scene, const HandOver& handing);
         void issueStructures(Scene& scene, const Shares& shares);
 
         /// A slot given back by this hand-over, retired at the epoch it rides.
@@ -337,19 +401,66 @@ namespace Rtx
 
         static SlotOwner ownerOf(std::uint8_t scene, bool structure, std::uint32_t row);
 
+        /// Prices every level of a texture's shape, and its floor.
+        void priceLevels(TextureResident& texture, const ResidencyDevice& device);
+
+        /// Where `slot` stands, as an operation names its destination.
+        SlotPlace placeOf(Slot slot) const;
+
+        /// The shape a live row stands as, or why it stands as nothing.
+        void describeShape(
+            TextureResident& texture, const TextureTable& table, TextureIndex row, const ResidencyDevice& device);
+
+        /// A bake's or a composite's description, kept for this hand-over's operation.
+        std::size_t describeBake(const SceneDesc& scene, const TextureResident& texture, TextureIndex row);
+
+        /// Points each issued `StandImage` at what it uploads or bakes from.
+        void pointTexels();
+
         SlotLedger mLedger;
         std::vector<Scene> mScenes;
         DeviceEvents mEvents;
         ContentBudget mBudget;
         PlanCounts mCounts;
+
+        /// The arenas where an operation found no room, no drain could make it and the arena holds every chunk the
+        /// plan stands in: each asks the transit chunk at the frame's close, where a lowering's destination stands
+        /// while its source retires. Cleared as each close reads it.
+        std::array<bool, 256> mTransitWanted{};
         bool mPlanStale = true;
         std::uint32_t mNextTicket = 0;
+
+        /// The latest epoch a hand-over rode, which what goes with no hand-over of its own retires at.
+        DeviceEpoch mLastEpoch{};
 
         /// What this frame has spent of its share, and what this hand-over issues and gives back.
         Shares mSpent;
         std::vector<ResidencyOp> mOps;
         std::vector<Slot> mFreed;
         std::vector<Weighed> mWeighed;
+
+        /// What this hand-over's operations upload or bake from, which each `StandImage` points into once every
+        /// operation is issued (`TexelsAt`): the feed's texels, and the bakes' descriptions and the composites' layers.
+        struct TexelsAt
+        {
+            std::size_t mOp = 0;
+            bool mBake = false;
+            std::size_t mAt = 0;
+        };
+        std::vector<FeedMade> mIssued;
+        std::vector<TextureData> mBakes;
+        struct ReadsAt
+        {
+            std::size_t mBake = 0;
+            std::size_t mAt = 0;
+            std::size_t mCount = 0;
+        };
+        std::vector<ReadsAt> mBakeReadsAt;
+        std::vector<TextureIndex> mBakeReads;
+        std::vector<TexelsAt> mTexelsAt;
+        std::vector<Refusal> mRefused;
+        std::vector<StandingChange> mStandingChanges;
+        bool mStandsStructures = false;
 
         ResidencyReport mReport;
     };

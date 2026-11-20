@@ -80,7 +80,7 @@ namespace Rtx
 {
     class ImageDerivation;
     class PoseUpdate;
-    class PreparedImages;
+    class TextureHands;
 }
 
 namespace MyGUIRtx
@@ -231,8 +231,13 @@ namespace MWRender
 
         /// Draws the pictures asked for since the last frame — `ViewQueue::draw` with this
         /// renderer's budget of world views — and answers how long that took. From the frame's
-        /// own `Views` phase, and from the run's hook.
+        /// own `Views` phase.
         double drawViews();
+
+        /// The same from the run's hook, where a picture is wanted before the next frame: each draw stands under a
+        /// residency frame of its own, and a picture that awaits what residency owes its scene is drawn again once the
+        /// feed has made it, `sStopDrawsMost` times at most.
+        void drawViewsAtStop();
 
     protected:
         void drawFrame(const SceneFrame& frame, const AsideSpan& aside) override;
@@ -361,6 +366,10 @@ namespace MWRender
         /// for a row of three map tiles and a fresh load for nine.
         static constexpr std::uint32_t sWorldViewsPerFrame = 3;
 
+        /// What a stop draws its pictures over at most: an ask of the feed, its arrival stood, and the redraw that
+        /// reads it, with room for a block the device answers a draw late.
+        static constexpr std::uint32_t sStopDrawsMost = 8;
+
         /// MyGUI's backend, which `createGuiPlatform` makes and the window manager owns. Never null
         /// where a frame runs, because the window manager outlives every frame.
         MyGUIRtx::RenderManager* mGui = nullptr;
@@ -390,6 +399,10 @@ namespace MWRender
         osg::Timer_t mStartTick = 0;
 
         std::unique_ptr<Rtx::Renderer> mRenderer;
+
+        /// **What stands of every scene on the device** (`Rtx::Residency`): made once the backend says its arenas, and
+        /// told of each frame's start and end around every hand-over.
+        std::optional<Rtx::Residency> mResidency;
 
         /// What the settings or the command line upscale by, which a stop may set aside (`RtxRun::getUpscale`)
         /// and a menu moves. Taken at the next frame's start, so one place changes the targets, ahead of the
@@ -422,9 +435,9 @@ namespace MWRender
         /// loader's thread, and taken back before this goes (`mDerivesHeaders`).
         std::unique_ptr<Rtx::ImageDerivation> mDerivation;
 
-        /// The world's normal and data maps with their chains made again, on half the processors
-        /// (`Rtx::Hands::Half`). After the store its threads write to, before the mirror whose hand-over reads it.
-        std::unique_ptr<Rtx::PreparedImages> mPrepared;
+        /// Where every texture's texels come from, read and with their chains made again on half the processors
+        /// (`Rtx::TextureHands`). After the store its threads write to, before residency and the mirror that ask it.
+        std::unique_ptr<Rtx::TextureHands> mHands;
 
         /// Where every scene this renderer's slots meet takes its identity: the world's and every traced view's.
         /// Before the mirror, whose scene takes one, and every view.

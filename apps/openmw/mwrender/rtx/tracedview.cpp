@@ -153,7 +153,7 @@ namespace MWRender
     {
         if (!mTrace.isOfWorld())
         {
-            if (!mTrace.rebuildSubject(posing, releasing, ring.isSettled()))
+            if (!mTrace.rebuildSubject(posing, releasing))
                 return;
         }
 

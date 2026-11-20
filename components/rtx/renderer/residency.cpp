@@ -12,10 +12,14 @@
 
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/textureformat.hpp>
+#include <components/rtx/preprocess/texturehands.hpp>
+#include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/materialtable.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/shaders/scene.h>
 
 namespace Rtx
 {
@@ -24,15 +28,6 @@ namespace Rtx
         constexpr std::uint64_t ceilDiv(const std::uint64_t value, const std::uint64_t by)
         {
             return (value + by - 1) / by;
-        }
-
-        /// What `level` of a chain of `shape` is, and the levels under it.
-        ImageShape shapeAt(const ImageShape& shape, const std::uint8_t level)
-        {
-            return ImageShape{ .mFormat = shape.mFormat,
-                .mWidth = std::max(shape.mWidth >> level, 1u),
-                .mHeight = std::max(shape.mHeight >> level, 1u),
-                .mLevels = static_cast<std::uint8_t>(shape.mLevels - level) };
         }
 
         /// The first level whose longer side is `side` texels or fewer, and the coarsest the chain has where none is.
@@ -67,6 +62,18 @@ namespace Rtx
             if (const auto* arriving = std::get_if<TextureArriving>(&texture.mStanding))
                 return arriving->mNow;
             return std::nullopt;
+        }
+
+        /// Whether every layer a chunk's composite reads stands: its diffuse slots, the neutral texel aside.
+        bool layersStand(const RowVector<TextureResident, TextureIndex>& residents, const SceneDesc& described,
+            const MaterialIndex chunk)
+        {
+            const Material& material = described.materials().getRows()[chunk];
+            return std::ranges::all_of(
+                material.mLayers.in(described.materials().getLayers()), [&](const MaterialLayer& layer) {
+                    return layer.mDiffuse == Shaders::TEXTURE_NEUTRAL
+                        || standingOf(residents[TextureIndex(layer.mDiffuse)]).has_value();
+                });
         }
 
         std::optional<std::uint8_t> standingLevelOf(const TextureResident& texture)
@@ -214,6 +221,7 @@ namespace Rtx
             return arenas;
         }())
         , mCounts(mLedger)
+        , mStandsStructures(device.standsStructures())
     {
         mScenes.reserve(sScenesMost);
     }
@@ -263,23 +271,21 @@ namespace Rtx
         mScenes.push_back(Scene{ .mSlot = slot, .mActive = true });
     }
 
-    void Residency::dropScene(const HandOver& handing)
+    void Residency::forgetScene(const SceneSlot slot, TextureFeed& feed)
     {
-        Scene& scene = sceneOf(handing.mSlot);
-        mOps.clear();
-        mFreed.clear();
-        for (std::uint32_t at = 0; at < scene.mTextures.size(); ++at)
-            resetTexture(scene, TextureIndex(at), handing.mFeed);
-        for (std::uint32_t at = 0; at < scene.mStructures.size(); ++at)
-            resetStructure(scene, MeshIndex(at));
-        for (const OwedDrop& owed : scene.mDropsOwed)
+        Scene& scene = sceneOf(slot);
+        for (const TextureResident& texture : scene.mTextures)
         {
-            mOps.push_back(DropImage{ .mTexture = owed.mTexture, .mFrom = owed.mSlot });
-            retireAfter(owed.mSlot);
+            if (const auto* arriving = std::get_if<TextureArriving>(&texture.mStanding))
+                feed.forget(arriving->mTicket);
+            if (const std::optional<TextureStands> stands = standingOf(texture))
+                mLedger.retire(stands->mSlot, mLastEpoch);
         }
-        const DeviceEpoch epoch = handing.mDevice.handOver(handing.mSlot, handing.mScene, mOps);
-        for (const Slot freed : mFreed)
-            mLedger.retire(freed, epoch);
+        for (const StructureResident& structure : scene.mStructures)
+            if (const std::optional<Slot> standing = slotOf(structure))
+                mLedger.retire(*standing, mLastEpoch);
+        for (const OwedDrop& owed : scene.mDropsOwed)
+            mLedger.retire(owed.mSlot, mLastEpoch);
         scene = Scene{};
         mPlanStale = true;
     }
@@ -309,27 +315,50 @@ namespace Rtx
 
         // **What arrives for a tenant that left is dropped in one place**: a ticket is never issued twice, and a row's
         // arrival keeps the ticket it waits on.
-        while (const std::optional<FeedArrival> arrival = feed.take())
+        while (std::optional<FeedArrival> arrival = feed.take())
         {
             const FeedRequest& request = arrival->mRequest;
-            Scene* const scene = findScene(request.mScene);
-            if (scene == nullptr || !scene->mTextures.holds(request.mTexture))
+            if (request.mScene >= mScenes.size() || !mScenes[request.mScene].mActive)
                 continue;
-            TextureResident& texture = scene->mTextures[request.mTexture];
+            Scene& scene = mScenes[request.mScene];
+            if (!scene.mTextures.holds(request.mTexture))
+                continue;
+            TextureResident& texture = scene.mTextures[request.mTexture];
             auto* arriving = std::get_if<TextureArriving>(&texture.mStanding);
             if (arriving == nullptr || arriving->mTicket != request.mTicket)
                 continue;
             assert(texture.mGeneration == request.mGeneration && "a ticket outlived its row's tenant");
-            if (const auto* failed = std::get_if<FeedFailed>(&arrival->mOutcome))
+            if (auto* failed = std::get_if<FeedFailed>(&arrival->mOutcome))
             {
                 if (arriving->mNow.has_value())
-                    scene->mDropsOwed.push_back(
+                    scene.mDropsOwed.push_back(
                         OwedDrop{ .mTexture = request.mTexture, .mSlot = arriving->mNow->mSlot });
+                scene.mFailed.push_back(FailedRow{ .mTexture = request.mTexture, .mWhy = std::move(failed->mWhy) });
                 texture.mStanding = StandingFailed{ .mCause = failed->mCause };
                 mPlanStale = true;
                 continue;
             }
-            arriving->mArrived = true;
+
+            // **Texels made in another shape than planned stand as they are**: the classes are priced again and the
+            // plan run again, so the slot reserved holds what arrived.
+            auto& made = std::get<FeedMade>(arrival->mOutcome);
+            if (made.mShape != texture.mShape)
+            {
+                texture.mShape = made.mShape;
+                priceLevels(texture, device);
+                mPlanStale = true;
+                if (texture.mClassAt[texture.mFloorLevel].isNone())
+                {
+                    if (arriving->mNow.has_value())
+                        scene.mDropsOwed.push_back(
+                            OwedDrop{ .mTexture = request.mTexture, .mSlot = arriving->mNow->mSlot });
+                    scene.mFailed.push_back(
+                        FailedRow{ .mTexture = request.mTexture, .mWhy = "the device holds none of its shape" });
+                    texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
+                    continue;
+                }
+            }
+            arriving->mMade = std::move(made);
         }
 
         mSpent = Shares{ .mUploadBytes = 0, .mCopyBytes = 0, .mBuildTriangles = 0, .mTightCopies = 0 };
@@ -339,10 +368,32 @@ namespace Rtx
         mReport.mTrianglesBuilt = 0;
         mReport.mTightCopies = 0;
         // **The plan is run again where an input moved**: the cap here; a row's tier, want or tenant as a scene is
-        // handed over; a tight size or a failure above. What arrived or stood moves no input.
+        // handed over; a tight size, a shape or a failure above. What arrived or stood moves no input.
         if (mReport.mCapBytes != mBudget.mCapBytes)
             mPlanStale = true;
         mReport.mCapBytes = mBudget.mCapBytes;
+    }
+
+    void Residency::priceLevels(TextureResident& texture, const ResidencyDevice& device)
+    {
+        texture.mClassAt.fill(sNoRow);
+        texture.mFloorLevel
+            = texture.mShape.mSource == TextureSource::File || texture.mShape.mSource == TextureSource::SpriteBake
+            ? floorLevelOf(texture.mShape, sFloorSide)
+            : 0;
+        for (std::uint8_t level = 0; level < texture.mShape.mLevels; ++level)
+        {
+            const std::optional<ContentPrice> price = device.priceImage(texture.mShape.from(level));
+            texture.mClassAt[level]
+                = price.has_value() ? mLedger.classOf(SlotKind::Image, price->mBytes, price->mAlignment) : sNoRow;
+        }
+        if (texture.mWantedLevel >= texture.mShape.mLevels)
+            texture.mWantedLevel = texture.mShape.mLevels - 1;
+    }
+
+    SlotPlace Residency::placeOf(const Slot slot) const
+    {
+        return SlotPlace{ .mSlot = slot, .mBlock = mLedger.getBlockOf(slot), .mOffset = mLedger.getOffsetOf(slot) };
     }
 
     void Residency::retireAfter(const Slot slot)
@@ -376,6 +427,53 @@ namespace Rtx
         mPlanStale = true;
     }
 
+    void Residency::describeShape(
+        TextureResident& texture, const TextureTable& table, const TextureIndex row, const ResidencyDevice& device)
+    {
+        const TextureRow& described = table.getRows()[row];
+        switch (described.mKind)
+        {
+            case TextureKind::File:
+                if (described.mImage == nullptr || described.mFormat == TextureFormat::Unnamed)
+                {
+                    texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
+                    return;
+                }
+                texture.mShape = shapeOfFile(*described.mImage, described.mPartner.get(), described.mEncoding);
+                break;
+            case TextureKind::SpriteLight:
+            {
+                // Shaped as its source stands, which the source's own resident says once it is synced.
+                const TextureIndex source = table.findFile(described.mPath);
+                if (source == sNoRow)
+                {
+                    texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
+                    return;
+                }
+                texture.mBakedFrom = source;
+                texture.mBakedFromGeneration = table.generationOf(source);
+                return;
+            }
+            case TextureKind::GroundAlbedo:
+            case TextureKind::GroundGloss:
+            {
+                constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
+                const bool gloss = described.mKind == TextureKind::GroundGloss;
+                texture.mGroundOf = described.mGroundOf;
+                texture.mShape
+                    = ImageShape{ .mSource = gloss ? TextureSource::GroundGloss : TextureSource::GroundComposite,
+                          .mFormat = gloss ? TextureFormat::Bc7Unorm : TextureFormat::Bc7Srgb,
+                          .mWidth = extent,
+                          .mHeight = extent,
+                          .mLevels = static_cast<std::uint8_t>(levelsTo1x1(extent, extent)) };
+                break;
+            }
+        }
+        priceLevels(texture, device);
+        if (texture.mClassAt[texture.mFloorLevel].isNone())
+            texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
+    }
+
     void Residency::syncTextures(Scene& scene, const HandOver& handing)
     {
         const TextureTable& table = handing.mScene.textures();
@@ -396,35 +494,9 @@ namespace Rtx
             {
                 texture.mLive = true;
                 texture.mGeneration = table.generationOf(row);
-                const TextureRow& described = rows[row];
-                // A bake has no file's image: what stands it is a bake's own operation, which this does not issue yet.
-                if (described.mImage == nullptr || described.mFormat == TextureFormat::Unnamed)
-                {
-                    texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
-                    continue;
-                }
-                const osg::Image& image = *described.mImage;
-                texture.mShape = ImageShape{ .mFormat = described.mFormat,
-                    .mWidth = static_cast<std::uint32_t>(std::max(image.s(), 1)),
-                    .mHeight = static_cast<std::uint32_t>(std::max(image.t(), 1)),
-                    .mLevels = static_cast<std::uint8_t>(std::clamp<std::uint32_t>(
-                        levelCountOf(image), 1, static_cast<std::uint32_t>(texture.mClassAt.size()))) };
-                texture.mFloorLevel = floorLevelOf(texture.mShape, sFloorSide);
-                for (std::uint8_t level = 0; level < texture.mShape.mLevels; ++level)
-                {
-                    const std::optional<ContentPrice> price
-                        = handing.mDevice.priceImage(shapeAt(texture.mShape, level));
-                    texture.mClassAt[level] = price.has_value()
-                        ? mLedger.classOf(SlotKind::Image, price->mBytes, price->mAlignment)
-                        : sNoRow;
-                }
-                if (texture.mClassAt[texture.mFloorLevel].isNone())
-                {
-                    texture.mStanding = StandingFailed{ .mCause = Refused::Texture };
-                    continue;
-                }
-                // The coarsest, so the want below is taken at once, as a want that rises is.
-                texture.mWantedLevel = texture.mShape.mLevels - 1;
+                describeShape(texture, table, row, handing.mDevice);
+                if (std::holds_alternative<StandingFailed>(texture.mStanding))
+                    scene.mFailed.push_back(FailedRow{ .mTexture = row, .mWhy = std::string(sNoImage) });
                 mPlanStale = true;
             }
             if (std::holds_alternative<StandingFailed>(texture.mStanding))
@@ -438,10 +510,13 @@ namespace Rtx
             }
             if (tier != HoldTier::Unheld)
                 texture.mLastHeld = scene.mHandOvers;
+            if (texture.mShape.mLevels == 0)
+                continue;
 
-            // A want rises at once and falls only once it has stood.
-            const auto want
-                = static_cast<std::uint8_t>(std::min<std::size_t>(table.getWant(row), texture.mShape.mLevels - 1u));
+            // A want rises at once and falls only once it has stood; a composite stands whole.
+            const auto want = texture.mGroundOf != sNoRow
+                ? std::uint8_t{ 0 }
+                : static_cast<std::uint8_t>(std::min<std::size_t>(table.getWant(row), texture.mShape.mLevels - 1u));
             if (want < texture.mWantedLevel)
             {
                 texture.mWantedLevel = want;
@@ -464,6 +539,37 @@ namespace Rtx
             }
             else
                 texture.mFallingTo.reset();
+        }
+
+        // **A sprite's light bake is shaped as its source stands**, read once every source is synced: a bake whose
+        // source went is a bake of nothing.
+        for (std::uint32_t at = 0; at < scene.mTextures.size(); ++at)
+        {
+            TextureResident& bake = scene.mTextures[TextureIndex(at)];
+            if (!bake.mLive || bake.mBakedFrom == sNoRow || std::holds_alternative<StandingFailed>(bake.mStanding))
+                continue;
+            const TextureResident& source = scene.mTextures[bake.mBakedFrom];
+            if (!source.mLive || source.mGeneration != bake.mBakedFromGeneration
+                || std::holds_alternative<StandingFailed>(source.mStanding))
+            {
+                resetTexture(scene, TextureIndex(at), handing.mFeed);
+                bake.mLive = true;
+                bake.mGeneration = table.generationOf(TextureIndex(at));
+                bake.mStanding = StandingFailed{ .mCause = Refused::Texture };
+                scene.mFailed.push_back(
+                    FailedRow{ .mTexture = TextureIndex(at), .mWhy = "the texture it bakes is no longer held" });
+                continue;
+            }
+            ImageShape shape = source.mShape;
+            shape.mSource = TextureSource::SpriteBake;
+            shape.mFormat = TextureFormat::Rgba8Unorm;
+            shape.mCompanion = TextureCompanion::Neutral;
+            if (shape == bake.mShape)
+                continue;
+            bake.mShape = shape;
+            bake.mWantedLevel = shape.mLevels - 1;
+            priceLevels(bake, handing.mDevice);
+            mPlanStale = true;
         }
     }
 
@@ -511,6 +617,32 @@ namespace Rtx
         }
     }
 
+    void Residency::addUnit(const Scene& scene, const TextureResident& texture, const std::uint8_t level)
+    {
+        mCounts.add(classAt(texture, level));
+        if (texture.mBake != sNoRow)
+            if (const ClassIndex bake = classAt(scene.mTextures[texture.mBake], level); !bake.isNone())
+                mCounts.add(bake);
+    }
+
+    void Residency::removeUnit(const Scene& scene, const TextureResident& texture, const std::uint8_t level)
+    {
+        mCounts.remove(classAt(texture, level));
+        if (texture.mBake != sNoRow)
+            if (const ClassIndex bake = classAt(scene.mTextures[texture.mBake], level); !bake.isNone())
+                mCounts.remove(bake);
+    }
+
+    std::uint64_t Residency::unitStride(
+        const Scene& scene, const TextureResident& texture, const std::uint8_t level) const
+    {
+        std::uint64_t stride = mLedger.getStrideBytes(classAt(texture, level));
+        if (texture.mBake != sNoRow)
+            if (const ClassIndex bake = classAt(scene.mTextures[texture.mBake], level); !bake.isNone())
+                stride += mLedger.getStrideBytes(bake);
+        return stride;
+    }
+
     void Residency::plan()
     {
         mCounts.clear();
@@ -518,21 +650,43 @@ namespace Rtx
         mReport.mStarvedTextures = 0;
         mReport.mStarvedStructures = 0;
 
-        // 1. What is demanded, at what it wants: a texture at its want, or the first level under it the device prices;
-        // a structure in the class it stands or will stand in.
+        // 0. **A bake is planned as one with its source**, made from it at its level: a cap that holds the source and
+        // not the bake beside it lowers both, where planning the bake after its source left it starved beside a
+        // source that would have stood coarser for it.
         for (Scene& scene : mScenes)
         {
             for (TextureResident& texture : scene.mTextures)
             {
                 texture.mPlannedLevel.reset();
+                texture.mBake = sNoRow;
+            }
+            for (std::uint32_t row = 0; row < scene.mTextures.size(); ++row)
+            {
+                const TextureResident& bake = scene.mTextures[TextureIndex(row)];
+                if (!bake.mLive || bake.mBakedFrom == sNoRow || std::holds_alternative<StandingFailed>(bake.mStanding)
+                    || !isDemanded(bake.mTier) || bake.mShape.mLevels == 0)
+                    continue;
+                TextureResident& source = scene.mTextures[bake.mBakedFrom];
+                assert(source.mBake == sNoRow && "a file with two bakes");
+                assert(bake.mShape.mLevels == source.mShape.mLevels && "a bake shaped apart from its source");
+                source.mBake = TextureIndex(row);
+            }
+        }
+
+        // 1. What is demanded, at what it wants: a texture at its want, or the first level under it the device prices,
+        // with its bake; a structure in the class it stands or will stand in.
+        for (Scene& scene : mScenes)
+        {
+            for (TextureResident& texture : scene.mTextures)
+            {
                 if (!texture.mLive || std::holds_alternative<StandingFailed>(texture.mStanding)
-                    || !isDemanded(texture.mTier))
+                    || !isDemanded(texture.mTier) || texture.mBakedFrom != sNoRow || texture.mShape.mLevels == 0)
                     continue;
                 std::uint8_t level = texture.mWantedLevel;
                 while (level < texture.mFloorLevel && classAt(texture, level).isNone())
                     ++level;
                 texture.mPlannedLevel = level;
-                mCounts.add(classAt(texture, level));
+                addUnit(scene, texture, level);
             }
             for (StructureResident& structure : scene.mStructures)
             {
@@ -556,13 +710,21 @@ namespace Rtx
                 for (TextureResident& texture : scene.mTextures)
                 {
                     const std::optional<std::uint8_t> standing = standingLevelOf(texture);
-                    if (!texture.mPlannedLevel.has_value() || !standing.has_value()
+                    if (texture.mBakedFrom != sNoRow || !texture.mPlannedLevel.has_value() || !standing.has_value()
                         || *texture.mPlannedLevel >= *standing)
                         continue;
-                    mCounts.remove(classAt(texture, *texture.mPlannedLevel));
-                    mCounts.add(classAt(texture, *standing));
+                    removeUnit(scene, texture, *texture.mPlannedLevel);
+                    addUnit(scene, texture, *standing);
                     texture.mPlannedLevel = standing;
                 }
+
+        // 3. A bake at the level its source is planned at, where the device prices it there.
+        for (Scene& scene : mScenes)
+            for (const TextureResident& source : scene.mTextures)
+                if (source.mBake != sNoRow && source.mPlannedLevel.has_value())
+                    if (TextureResident& bake = scene.mTextures[source.mBake];
+                        !classAt(bake, *source.mPlannedLevel).isNone())
+                        bake.mPlannedLevel = source.mPlannedLevel;
 
         mReport.mDemandedBytes = mCounts.total();
         planCache(cap);
@@ -586,11 +748,12 @@ namespace Rtx
         };
         mWeighed.clear();
         const auto offer = [&](const std::uint8_t sceneAt, const std::uint32_t row) {
-            const TextureResident& texture = mScenes[sceneAt].mTextures[TextureIndex(row)];
+            const Scene& scene = mScenes[sceneAt];
+            const TextureResident& texture = scene.mTextures[TextureIndex(row)];
             if (!texture.mPlannedLevel.has_value() || *texture.mPlannedLevel >= texture.mFloorLevel)
                 return;
             mWeighed.push_back(Weighed{ .mTier = texture.mTier,
-                .mKey = mLedger.getStrideBytes(classAt(texture, *texture.mPlannedLevel)),
+                .mKey = unitStride(scene, texture, *texture.mPlannedLevel),
                 .mScene = sceneAt,
                 .mRow = row });
             std::ranges::push_heap(mWeighed, lessLowered);
@@ -604,13 +767,14 @@ namespace Rtx
             std::ranges::pop_heap(mWeighed, lessLowered);
             const Weighed victim = mWeighed.back();
             mWeighed.pop_back();
+            const Scene& scene = mScenes[victim.mScene];
             TextureResident& texture = mScenes[victim.mScene].mTextures[TextureIndex(victim.mRow)];
             const std::uint8_t from = *texture.mPlannedLevel;
             std::uint8_t to = from + 1;
             while (to < texture.mFloorLevel && classAt(texture, to).isNone())
                 ++to;
-            mCounts.remove(classAt(texture, from));
-            mCounts.add(classAt(texture, to));
+            removeUnit(scene, texture, from);
+            addUnit(scene, texture, to);
             texture.mPlannedLevel = to;
             offer(victim.mScene, victim.mRow);
         }
@@ -626,9 +790,9 @@ namespace Rtx
             const auto at = static_cast<std::uint8_t>(sceneAt);
             for (std::uint32_t row = 0; row < scene.mTextures.size(); ++row)
                 if (const TextureResident& texture = scene.mTextures[TextureIndex(row)];
-                    texture.mPlannedLevel.has_value())
+                    texture.mPlannedLevel.has_value() && texture.mBakedFrom == sNoRow)
                     mWeighed.push_back(Weighed{ .mTier = texture.mTier,
-                        .mKey = mLedger.getStrideBytes(classAt(texture, *texture.mPlannedLevel)),
+                        .mKey = unitStride(scene, texture, *texture.mPlannedLevel),
                         .mScene = at,
                         .mRow = row });
             for (std::uint32_t row = 0; row < scene.mStructures.size(); ++row)
@@ -657,9 +821,11 @@ namespace Rtx
                 continue;
             }
             TextureResident& texture = scene.mTextures[TextureIndex(starved.mRow)];
-            mCounts.remove(classAt(texture, *texture.mPlannedLevel));
+            removeUnit(scene, texture, *texture.mPlannedLevel);
             texture.mPlannedLevel.reset();
             ++mReport.mStarvedTextures;
+            if (texture.mBake != sNoRow)
+                ++mReport.mStarvedTextures;
         }
     }
 
@@ -735,8 +901,9 @@ namespace Rtx
         const ArenaIndex arena = mLedger.getArena(of);
         const SlabTier tier = mLedger.getTier(of);
         const std::uint64_t chunks = std::uint64_t{ mLedger.getChunkCount(arena) } * mLedger.getLayout().mChunkBytes;
-        if (tier != SlabTier::Large && chunks >= mCounts.chunkBytesIn(arena) && !mLedger.nextToMove().has_value())
-            std::ignore = mLedger.drainFor(arena, tier);
+        if (tier != SlabTier::Large && chunks >= mCounts.chunkBytesIn(arena) && !mLedger.nextToMove().has_value()
+            && !mLedger.drainFor(arena, tier).has_value())
+            mTransitWanted[static_cast<std::size_t>(arena)] = true;
         return false;
     }
 
@@ -802,7 +969,7 @@ namespace Rtx
             mLedger.commit(to);
             mOps.push_back(StandImage{ .mTexture = row,
                 .mGeneration = texture.mGeneration,
-                .mTo = to,
+                .mTo = placeOf(to),
                 .mLevel = *texture.mPlannedLevel,
                 .mFrom = stands->mSlot,
                 .mFromLevel = stands->mLevel });
@@ -831,7 +998,7 @@ namespace Rtx
                 mOps.push_back(CopyStructure{ .mMesh = MeshIndex(owner.mRow),
                     .mGeneration = structure.mGeneration,
                     .mFrom = *moving,
-                    .mTo = to,
+                    .mTo = placeOf(to),
                     .mKind = StructureCopy::Clone });
                 std::visit(
                     [&]<class S>(S& standing) {
@@ -848,7 +1015,7 @@ namespace Rtx
                     = arriving != nullptr ? *arriving->mNow : std::get<TextureStands>(texture.mStanding);
                 mOps.push_back(StandImage{ .mTexture = TextureIndex(owner.mRow),
                     .mGeneration = texture.mGeneration,
-                    .mTo = to,
+                    .mTo = placeOf(to),
                     .mLevel = stands.mLevel,
                     .mFrom = moving,
                     .mFromLevel = stands.mLevel });
@@ -860,9 +1027,52 @@ namespace Rtx
         }
     }
 
-    void Residency::issueArrivals(Scene& scene, TextureFeed& feed, const Shares& shares)
+    std::size_t Residency::describeBake(const SceneDesc& scene, const TextureResident& texture, const TextureIndex row)
     {
-        // Arrivals and raisings, the most protected first: texels asked of the feed, then stood once they came.
+        const TextureRow& described = scene.textures().getRows()[row];
+        TextureData bake{ .mSlot = row, .mWrap = described.mWrap, .mEncoding = described.mEncoding };
+        if (texture.mBakedFrom != sNoRow)
+        {
+            bake.mSource = TextureSource::SpriteBake;
+            bake.mFrom = texture.mBakedFrom;
+            bake.mFormat = TextureFormat::Rgba8Unorm;
+        }
+        else
+        {
+            // The layers' diffuse slots the bake reads, the neutral texel a full table gave a layer aside.
+            const std::size_t at = mBakeReads.size();
+            const Material& chunk = scene.materials().getRows()[texture.mGroundOf];
+            for (const MaterialLayer& layer : chunk.mLayers.in(scene.materials().getLayers()))
+                if (layer.mDiffuse != Shaders::TEXTURE_NEUTRAL)
+                    mBakeReads.push_back(TextureIndex(layer.mDiffuse));
+            mBakeReadsAt.push_back(ReadsAt{ .mBake = mBakes.size(), .mAt = at, .mCount = mBakeReads.size() - at });
+            bake.mSource = texture.mShape.mSource;
+            bake.mFrom = texture.mGroundOf;
+            bake.mFormat = texture.mShape.mFormat;
+        }
+        bake.mWidth = texture.mShape.mWidth;
+        bake.mHeight = texture.mShape.mHeight;
+        mBakes.push_back(bake);
+        return mBakes.size() - 1;
+    }
+
+    void Residency::pointTexels()
+    {
+        for (const ReadsAt& reads : mBakeReadsAt)
+            mBakes[reads.mBake].mReads = std::span<const TextureIndex>(mBakeReads).subspan(reads.mAt, reads.mCount);
+        for (const TexelsAt& texels : mTexelsAt)
+            std::get<StandImage>(mOps[texels.mOp]).mTexels
+                = texels.mBake ? &mBakes[texels.mAt] : &mIssued[texels.mAt].mTexels;
+    }
+
+    void Residency::issueArrivals(Scene& scene, const HandOver& handing)
+    {
+        const Shares& shares = handing.mShares;
+        TextureFeed& feed = handing.mFeed;
+        const TextureTable& table = handing.mScene.textures();
+
+        // Arrivals and raisings, the most protected first: texels asked of the feed, then stood once they came; a bake
+        // once what it is made of stands.
         for (const HoldTier tier : { HoldTier::Forced, HoldTier::Shown, HoldTier::Hidden })
             for (std::uint32_t at = 0; at < scene.mTextures.size(); ++at)
             {
@@ -875,26 +1085,64 @@ namespace Rtx
                 if (now.has_value() && now->mLevel <= planned)
                     continue;
                 const std::uint8_t end = now.has_value() ? now->mLevel : texture.mShape.mLevels;
+                const ClassIndex of = classAt(texture, planned);
 
-                if (const auto* arriving = std::get_if<TextureArriving>(&texture.mStanding))
+                // A bake stands whole from what it is made of: a sprite's light from its source at the same level, a
+                // composite from its layers. **Each read as it stands after this hand-over's drops**, which come
+                // first: a composite's queue saw its layers stand before the hand-over that dropped one, and the bake
+                // drew the stand-in it read.
+                if (texture.mBakedFrom != sNoRow || texture.mGroundOf != sNoRow)
                 {
-                    const ClassIndex of = classAt(texture, planned);
-                    if (!arriving->mArrived || mSpent.mUploadBytes >= shares.mUploadBytes || !ensureRoom(of))
+                    if (texture.mBakedFrom != sNoRow)
+                    {
+                        const auto* source = std::get_if<TextureStands>(&scene.mTextures[texture.mBakedFrom].mStanding);
+                        if (source == nullptr || source->mLevel != planned)
+                            continue;
+                    }
+                    else if (!layersStand(scene.mTextures, handing.mScene, texture.mGroundOf))
+                        continue;
+                    if (!ensureRoom(of))
                         continue;
                     const Slot to = mLedger.reserve(of, ownerOf(indexOf(scene), false, at));
                     mLedger.commit(to);
-                    StandImage stand{ .mTexture = row,
-                        .mGeneration = texture.mGeneration,
-                        .mTo = to,
-                        .mLevel = planned,
-                        .mUpload = LevelSpan{ .mFirst = planned, .mEnd = end },
-                        .mFeed = arriving->mTicket };
+                    StandImage stand{
+                        .mTexture = row, .mGeneration = texture.mGeneration, .mTo = placeOf(to), .mLevel = planned
+                    };
                     if (now.has_value())
                     {
                         stand.mFrom = now->mSlot;
                         stand.mFromLevel = now->mLevel;
                         retireAfter(now->mSlot);
                     }
+                    mTexelsAt.push_back(TexelsAt{
+                        .mOp = mOps.size(), .mBake = true, .mAt = describeBake(handing.mScene, texture, row) });
+                    mOps.push_back(stand);
+                    texture.mStanding = TextureStands{ .mLevel = planned, .mSlot = to };
+                    continue;
+                }
+
+                if (auto* arriving = std::get_if<TextureArriving>(&texture.mStanding))
+                {
+                    if (!arriving->mMade.has_value() || mSpent.mUploadBytes >= shares.mUploadBytes || !ensureRoom(of))
+                        continue;
+                    const Slot to = mLedger.reserve(of, ownerOf(indexOf(scene), false, at));
+                    mLedger.commit(to);
+                    StandImage stand{ .mTexture = row,
+                        .mGeneration = texture.mGeneration,
+                        .mTo = placeOf(to),
+                        .mLevel = planned,
+                        .mUpload = LevelSpan{ .mFirst = planned, .mEnd = end } };
+                    if (now.has_value())
+                    {
+                        stand.mFrom = now->mSlot;
+                        stand.mFromLevel = now->mLevel;
+                        retireAfter(now->mSlot);
+                    }
+                    FeedMade& made = mIssued.emplace_back(std::move(*arriving->mMade));
+                    made.mTexels.mSlot = row;
+                    made.mTexels.mWrap = table.getRows()[row].mWrap;
+                    made.mTexels.mWant = planned;
+                    mTexelsAt.push_back(TexelsAt{ .mOp = mOps.size(), .mBake = false, .mAt = mIssued.size() - 1 });
                     mOps.push_back(stand);
                     texture.mStanding = TextureStands{ .mLevel = planned, .mSlot = to };
                     mSpent.mUploadBytes += mLedger.getStrideBytes(of);
@@ -904,11 +1152,16 @@ namespace Rtx
 
                 if (!feed.hasCredit())
                     continue;
+                const TextureRow& described = table.getRows()[row];
                 const FeedTicket ticket{ mNextTicket++ };
                 feed.ask(FeedRequest{ .mTicket = ticket,
-                    .mScene = scene.mSlot,
+                    .mScene = indexOf(scene),
                     .mTexture = row,
                     .mGeneration = texture.mGeneration,
+                    .mFile = described.mImage,
+                    .mPartner = described.mPartner,
+                    .mEncoding = described.mEncoding,
+                    .mShape = texture.mShape,
                     .mLevels = LevelSpan{ .mFirst = planned, .mEnd = end } });
                 texture.mStanding = TextureArriving{ .mToLevel = planned, .mTicket = ticket, .mNow = now };
             }
@@ -932,7 +1185,7 @@ namespace Rtx
                     mLedger.commit(loose);
                     mOps.push_back(BuildStructure{ .mMesh = row,
                         .mGeneration = structure.mGeneration,
-                        .mLoose = loose,
+                        .mLoose = placeOf(loose),
                         .mBytes = structure.mLoosePrice.mBytes });
                     structure.mStanding = structure.mShape.mRefits
                         ? StructureStanding(StructureKept{ .mSlot = loose })
@@ -960,7 +1213,7 @@ namespace Rtx
                 mOps.push_back(CopyStructure{ .mMesh = row,
                     .mGeneration = structure.mGeneration,
                     .mFrom = loose->mSlot,
-                    .mTo = tight,
+                    .mTo = placeOf(tight),
                     .mKind = StructureCopy::Compact });
                 retireAfter(loose->mSlot);
                 structure.mStanding = StructureTight{ .mSlot = tight };
@@ -974,6 +1227,13 @@ namespace Rtx
         Scene& scene = sceneOf(handing.mSlot);
         mOps.clear();
         mFreed.clear();
+        mIssued.clear();
+        mBakes.clear();
+        mBakeReads.clear();
+        mBakeReadsAt.clear();
+        mTexelsAt.clear();
+        mRefused.clear();
+        mStandingChanges.clear();
         ++scene.mHandOvers;
         for (const OwedDrop& owed : scene.mDropsOwed)
         {
@@ -982,29 +1242,54 @@ namespace Rtx
         }
         scene.mDropsOwed.clear();
         syncTextures(scene, handing);
-        syncStructures(scene, handing);
+        if (mStandsStructures)
+            syncStructures(scene, handing);
         if (mPlanStale)
             plan();
 
         issueDrops(scene, handing.mFeed);
         issueLowerings(scene, handing.mFeed, handing.mShares);
         issueMoves(scene, handing.mShares);
-        issueArrivals(scene, handing.mFeed, handing.mShares);
-        issueStructures(scene, handing.mShares);
+        issueArrivals(scene, handing);
+        if (mStandsStructures)
+            issueStructures(scene, handing.mShares);
+        pointTexels();
+
+        // What failed since the scene was last handed over, named as its table names it.
+        for (FailedRow& failed : scene.mFailed)
+            if (handing.mScene.textures().isLive(failed.mTexture))
+                mRefused.push_back(Refusal{ .mKind = Refused::Texture,
+                    .mName = handing.mScene.textures().getRows()[failed.mTexture].getName(),
+                    .mWhy = std::move(failed.mWhy) });
+        scene.mFailed.clear();
 
         const DeviceEpoch epoch = handing.mDevice.handOver(handing.mSlot, handing.mScene, mOps);
+        mLastEpoch = epoch;
         for (const Slot freed : mFreed)
             mLedger.retire(freed, epoch);
         mReport.mOpsIssued += static_cast<std::uint32_t>(mOps.size());
         mReport.mSlots = mLedger.count();
 
+        for (std::uint32_t at = 0; at < scene.mTextures.size(); ++at)
+        {
+            TextureResident& texture = scene.mTextures[TextureIndex(at)];
+            const bool stands = texture.mLive && standingOf(texture).has_value();
+            if (stands != texture.mStoodReported && texture.mLive)
+                mStandingChanges.push_back(StandingChange{ .mTexture = TextureIndex(at), .mStands = stands });
+            texture.mStoodReported = stands;
+        }
+
         std::uint32_t waiting = 0;
+        std::uint32_t demanded = 0;
         for (const Scene& each : mScenes)
         {
             waiting += static_cast<std::uint32_t>(std::ranges::count_if(each.mTextures, textureWaits));
             waiting += static_cast<std::uint32_t>(std::ranges::count_if(each.mStructures, structureWaits));
+            demanded += static_cast<std::uint32_t>(std::ranges::count_if(each.mTextures,
+                [](const TextureResident& texture) { return isDemanded(texture.mTier) && textureWaits(texture); }));
         }
         mReport.mWaiting = waiting;
+        mReport.mWaitingDemanded = demanded;
         return epoch;
     }
 
@@ -1012,7 +1297,10 @@ namespace Rtx
     {
         // **A chunk is asked as the plan needs it**, where the plan stands in more chunks than the arena holds and has
         // asked, and a block of its own for each large slot the plan gives that has none; a free block is given back
-        // only while what is held stands past the cap and a chunk past the plan.
+        // only while what is held stands past the cap and a chunk past the plan. **Past the plan by one, the transit
+        // chunk** (the cap's `transit`), where an operation found no room and nothing could drain to make it: the
+        // arena holds the plan's chunks, but of other slabs than it now wants, as a lowering's destination of a
+        // smaller class beside a full chunk of its source's. Its source retires, and the chunk it emptied goes back.
         const std::uint64_t chunkBytes = mLedger.getLayout().mChunkBytes;
         std::array<bool, 256> seen{};
         for (std::uint32_t at = 0; at < mLedger.getClassCount(); ++at)
@@ -1021,7 +1309,9 @@ namespace Rtx
             if (std::exchange(seen[static_cast<std::size_t>(arena)], true))
                 continue;
             const std::uint64_t chunks = std::uint64_t{ mLedger.getChunkCount(arena) } * chunkBytes;
-            if (mCounts.chunkBytesIn(arena) > chunks)
+            const bool transit = std::exchange(mTransitWanted[static_cast<std::size_t>(arena)], false)
+                && mCounts.chunkBytesIn(arena) + chunkBytes > chunks;
+            if (mCounts.chunkBytesIn(arena) > chunks || transit)
             {
                 const BlockIndex block = mLedger.askChunk(arena);
                 device.acquireBlock(block, arena, chunkBytes);

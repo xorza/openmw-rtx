@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <variant>
 #include <vector>
 
 #include <components/rtx/common/index.hpp>
@@ -16,11 +15,12 @@ namespace Rtx
 
 namespace RtxTool
 {
-    /// **How content comes back from rest, as a cache of every size would have kept it**: each texture or mesh that
-    /// wakes is counted by its own bytes and the bytes of either kind that came to rest after it and still rest, the
-    /// least cache of what rests that would still hold it — its stack distance, which gives the hits of a
-    /// least-recently-rested cache of every size in one run (Mattson et al. 1970, "Evaluation techniques for storage
-    /// hierarchies"). What sets the bound on the bytes that rest (`TextureTable`).
+    /// **How meshes come back from rest, as a cache of every size would have kept them**: each mesh that wakes is
+    /// counted by its own bytes and the bytes that came to rest after it and still rest, the least cache of what rests
+    /// that would still hold it — its stack distance, which gives the hits of a least-recently-rested cache of every
+    /// size in one run (Mattson et al. 1970, "Evaluation techniques for storage hierarchies"). What sets the bound on
+    /// the bytes that rest (`MeshTable`). A texture's rest keeps its slot alone; what the device stands of it is
+    /// residency's.
     class RestReuse
     {
     public:
@@ -30,8 +30,8 @@ namespace RtxTool
 
         RestReuse();
 
-        /// Reads which textures and meshes of `scene` woke from rest since the read before, and what rested after each,
-        /// in the scene's one order. Once a frame: a row woken and laid to rest again between two reads is not seen.
+        /// Reads which meshes of `scene` woke from rest since the read before, and what rested after each, in their
+        /// table's order. Once a frame: a row woken and laid to rest again between two reads is not seen.
         void read(const Rtx::SceneDesc& scene);
 
         /// The bytes woken, and of them what a cache of `bytes` would have kept: a whole step at most.
@@ -42,17 +42,17 @@ namespace RtxTool
         std::string describe() const;
 
     private:
-        /// One row at rest as the read before saw it: a mesh's or a texture's slot, when it was filed, what it stood
-        /// on the device, and the bytes that came to rest after it and still rest.
+        /// One mesh at rest as the read before saw it: its slot, when it was filed, what it stood on the device, and
+        /// the bytes that came to rest after it and still rest.
         struct Rested
         {
-            std::variant<Rtx::TextureIndex, Rtx::MeshIndex> mSlot;
+            Rtx::MeshIndex mSlot;
             std::uint64_t mFiledAt = 0;
             std::uint64_t mBytes = 0;
             std::uint64_t mAfter = 0;
         };
 
-        /// What rested at the read before, oldest first, refilled each read into room for every slot of both tables.
+        /// What rested at the read before, oldest first, refilled each read into room for every slot of the table.
         std::vector<Rested> mRested;
 
         std::array<std::uint64_t, sSteps> mSteps{};

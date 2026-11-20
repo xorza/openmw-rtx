@@ -28,35 +28,10 @@ namespace Rtx
         std::uint64_t mStructureBytes = 0;
     };
 
-    /// A texture the device stood short of its file for want of room: the bytes it stood — nought for the stand-in, a
-    /// smaller side otherwise — which the scene's owner hands over again once the room holds the file
-    /// (`SceneUploader`): the device keeps no texels to stand it whole later.
-    struct ShortTexture
-    {
-        TextureIndex mSlot = sNoRow;
-        std::uint64_t mStoodBytes = 0;
-
-        /// What it stood before it moved down to make room (`TextureArray::makeRoom`), which the hand-over that moved
-        /// it did not describe; nought for a texture the hand-over stood short as it arrived.
-        std::uint64_t mWholeBytes = 0;
-
-        bool operator==(const ShortTexture& other) const = default;
-    };
-
-    /// **A named texture the device moved down to make room while it stood finer than its readers want**
-    /// (`TextureArray::makeRoom`): what it stands now, and the level of its file it stands from. Not short, since its
-    /// readers want no finer, so its owner tells the slot what stands and hands nothing over again.
-    struct MovedTexture
-    {
-        TextureIndex mSlot = sNoRow;
-        std::uint64_t mStoodBytes = 0;
-        std::uint8_t mFrom = 0;
-    };
-
-    /// **What waits on room, and so whose rest serves it** (`RoomWant`): a texture, served by the textures' rest in the
-    /// pools textures stand in, or a mesh, by the meshes' rest in the storage their structures stand in once copied
-    /// tight. The slot names the want from one take to the next.
-    using RoomWaiter = std::variant<TextureIndex, MeshIndex>;
+    /// **What waits on room, and so whose rest serves it** (`RoomWant`): a mesh, by the meshes' rest in the storage
+    /// their structures stand in once copied tight, until structures stand in the content arena. The slot names the
+    /// want from one take to the next.
+    using RoomWaiter = MeshIndex;
 
     /// **Content the device had no room for and waits on**, met since the last take (`DeviceAnswer::mWants`): what
     /// waits
@@ -73,8 +48,8 @@ namespace Rtx
         bool operator==(const RoomWant& other) const = default;
     };
 
-    /// What a slot the device stands gives back where a want can take it once it rests (`RestPlace::mFit`): a texture
-    /// its image's range of the pools textures stand in, a static mesh its tight copy's room in the structure storage.
+    /// What a slot the device stands gives back where a want can take it once it rests (`RestPlace::mFit`): a static
+    /// mesh its tight copy's room in the structure storage.
     ///
     /// @tparam I the slot's table's row (`RowIndex`).
     template <class I>
@@ -89,29 +64,22 @@ namespace Rtx
         bool operator==(const FitBytes& other) const = default;
     };
 
-    /// **What the device made of what it was handed, since the last take** (`SceneHolder::takeAnswer`): what it could
-    /// not stand, what each mesh's structure took at its build, which a static mesh rests on (`MeshTable::stand`), each
-    /// texture it stood short for want of room, what waits on room, and what each texture made and each tight copy
-    /// gives back once it rests. One answer, so one call carries everything the device says of an
-    /// arrival.
+    /// **What the device made of a scene's meshes, since the last take** (`SceneHolder::takeAnswer`): what it could not
+    /// stand, what each mesh's structure took at its build, which a static mesh rests on (`MeshTable::stand`), what
+    /// waits on room, and what each tight copy gives back once it rests. One answer, so one call carries everything the
+    /// device says of an arrival.
     struct DeviceAnswer
     {
         std::vector<Refusal> mRefused;
         std::vector<StoodMesh> mMeshes;
-        std::vector<ShortTexture> mShort;
-        std::vector<MovedTexture> mMoved;
         std::vector<RoomWant> mWants;
-        std::vector<FitBytes<TextureIndex>> mTextureFits;
         std::vector<FitBytes<MeshIndex>> mMeshFits;
 
         void clear()
         {
             mRefused.clear();
             mMeshes.clear();
-            mShort.clear();
-            mMoved.clear();
             mWants.clear();
-            mTextureFits.clear();
             mMeshFits.clear();
         }
 
@@ -127,14 +95,11 @@ namespace Rtx
             };
             hand(mRefused, into.mRefused);
             hand(mMeshes, into.mMeshes);
-            hand(mShort, into.mShort);
-            hand(mMoved, into.mMoved);
             hand(mWants, into.mWants);
-            hand(mTextureFits, into.mTextureFits);
             hand(mMeshFits, into.mMeshFits);
         }
     };
 
-    static_assert(sizeof(DeviceAnswer) == 7 * sizeof(std::vector<Refusal>),
+    static_assert(sizeof(DeviceAnswer) == 4 * sizeof(std::vector<Refusal>),
         "a list added to the answer is cleared and handed on with the rest");
 }

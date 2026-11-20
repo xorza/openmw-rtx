@@ -11,9 +11,11 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/framesinflight.hpp>
+#include <components/rtx/renderer/nulldevice.hpp>
 #include <components/rtx/renderer/nullrenderer.hpp>
 #include <components/rtx/renderer/picturerenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -50,7 +52,7 @@ namespace Rtx
             NullRenderer renderer(optionsOf(8, 4));
             SceneIdentities identities;
             const SceneDesc scene(identities);
-            renderer.setScene(SceneSlot::world(), scene, {});
+            renderer.standScene(SceneSlot::world(), scene);
 
             EXPECT_FALSE(renderer.finishFrame().has_value()) << "a report of a frame never drawn";
 
@@ -76,7 +78,7 @@ namespace Rtx
             // and never reported.
             renderer.skipFrame();
             EXPECT_EQ(renderer.getFrameCount(), 2u) << "a skip numbered a frame nothing opened";
-            renderer.placeScene(SceneSlot::world(), scene);
+            std::ignore = renderer.handOver(SceneSlot::world(), scene, {});
             renderer.skipFrame();
             EXPECT_EQ(renderer.getFrameCount(), 3u);
             EXPECT_FALSE(renderer.finishFrame().has_value()) << "a skipped frame reported";
@@ -105,7 +107,7 @@ namespace Rtx
             NullRenderer renderer(optionsOf(8, 4));
             SceneIdentities identities;
             const SceneDesc scene(identities);
-            renderer.setScene(SceneSlot::world(), scene, {});
+            renderer.standScene(SceneSlot::world(), scene);
 
             FrameRequest raw;
             raw.mOptions.mReconstruction = ReconstructionRequest{ .mDenoise = false };
@@ -131,10 +133,21 @@ namespace Rtx
             NullRenderer renderer(optionsOf(8, 4));
             SceneDesc scene(identities);
             SceneUploader uploader;
+            Residency residency(renderer, SlotLayout{});
+            NullFeed feed;
             Testing::addModel(scene, VFS::Path::NormalizedView("textures/one.dds"));
 
             const auto hand = [&](const SceneSlot slot) {
-                return uploader.hand(renderer, SceneUploader::Handing{ .mSlot = slot, .mScene = scene }).mKind;
+                residency.openFrame(renderer, feed);
+                const SceneUpload::Kind kind
+                    = uploader
+                          .hand(renderer,
+                              SceneUploader::Handing{
+                                  .mSlot = slot, .mScene = scene, .mResidency = residency, .mFeed = feed })
+                          .mKind;
+                residency.closeFrame(renderer);
+                feed.nextFrame();
+                return kind;
             };
             EXPECT_EQ(hand(SceneSlot::world()), SceneUpload::Kind::Rebuilt);
             EXPECT_EQ(hand(SceneSlot::world()), SceneUpload::Kind::Placed);
@@ -149,10 +162,14 @@ namespace Rtx
             EXPECT_EQ(view, SceneSlot::view(0));
             EXPECT_EQ(renderer.describeHeld(view).mIdentity, SceneIdentity{});
             SceneUploader viewUploader;
-            static_cast<void>(
-                viewUploader.hand(renderer, SceneUploader::Handing{ .mSlot = view, .mScene = scene }).mKind);
+            static_cast<void>(viewUploader
+                    .hand(renderer,
+                        SceneUploader::Handing{
+                            .mSlot = view, .mScene = scene, .mResidency = residency, .mFeed = feed })
+                    .mKind);
             EXPECT_EQ(renderer.describeHeld(view).mIdentity, scene.getIdentity());
 
+            residency.forgetScene(view, feed);
             renderer.dropViewScene(view);
             EXPECT_EQ(renderer.addViewScene(), SceneSlot::view(0));
             EXPECT_EQ(renderer.describeHeld(SceneSlot::view(0)).mIdentity, SceneIdentity{})

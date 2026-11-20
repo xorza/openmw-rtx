@@ -60,8 +60,9 @@
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/rtx/preprocess/texturefeed.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/sceneholder.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -190,10 +191,10 @@ namespace MWRender
         }
     }
 
-    WorldMirror::WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* const store,
-        Rtx::PreparedImages* const prepared, Rtx::SceneIdentities& identities)
+    WorldMirror::WorldMirror(
+        const MirrorKnobs& knobs, ContentStore::Store* const store, Rtx::SceneIdentities& identities)
         : mStore(store)
-        , mWalk{ .mContent{ store, ContentStore::Reach::Memory }, .mPrepared = prepared }
+        , mWalk{ .mContent{ store, ContentStore::Reach::Memory } }
         , mScene(identities, Rtx::sWorldRoom)
         , mKnobs(knobs)
         , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom, Rtx::HoldTier::Shown)
@@ -450,10 +451,7 @@ namespace MWRender
             .mPoseEnd = count(deformers.getPoses()),
             .mBindVertexEnd = deformers.getBindVertexCount(),
             .mRestingTextures = static_cast<std::uint32_t>(mScene.textures().getResting().getCount()),
-            .mRestingTextureBytes = mScene.textures().getResting().getBytes(),
-            .mAboveWant = mScene.textures().measureAboveWant(),
             .mReader = mRing.getReaderMemory(),
-            .mPrepared = mWalk.mPrepared != nullptr ? mWalk.mPrepared->getHeld() : Rtx::PreparedHeld{},
             .mRing = mRing.countStanding(),
         };
     }
@@ -570,15 +568,17 @@ namespace MWRender
             mScene.addRipple(impulse);
     }
 
-    Rtx::SceneUpload WorldMirror::hand(Rtx::SceneHolder& scenes, Rtx::FrameSpend& spend)
+    Rtx::SceneUpload WorldMirror::hand(
+        Rtx::SceneHolder& scenes, Rtx::Residency& residency, Rtx::TextureFeed& feed, Rtx::FrameSpend& spend)
     {
         return mUploader.hand(scenes,
             Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(),
                 .mScene = mScene,
+                .mResidency = residency,
+                .mFeed = feed,
                 .mComposites = &mComposites,
                 .mSpend = &spend,
-                .mPrepared = mWalk.mPrepared,
-                .mSettled = mRing.isSettled() });
+                .mShares = mRing.isSettled() ? Rtx::Residency::Shares::whole() : Rtx::Residency::Shares{} });
     }
 
 }

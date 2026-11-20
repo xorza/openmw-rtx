@@ -32,12 +32,12 @@ namespace Rtx
 
         /// An image `record` bakes into: `GROUND_COMPOSITE_EXTENT` square with a chain to one texel, a
         /// storage view with no curve and both transfer usages for the chain's blits. The albedo's
-        /// under the curve, so its chain is filtered in light; the gloss's as data. Or why the
-        /// device has no room for it.
-        static Result<Image, MemoryRefusal> makeCanvas(const Device& device, bool gloss, std::string_view name);
+        /// under the curve, so its chain is filtered in light; the gloss's as data. Essential memory, outside the
+        /// content arena: one a scene, made with its first composite.
+        static Image makeCanvas(const Device& device, bool gloss, std::string_view name);
 
-        /// The blocks `encode` writes a canvas's chain through, or why the device has no room.
-        static Result<Buffer, MemoryRefusal> makeBlocks(const Device& device, std::string_view name);
+        /// The blocks `encode` writes a canvas's chain through, essential as the canvas is.
+        static Buffer makeBlocks(const Device& device, std::string_view name);
 
         /// Records `chunk`'s bake into its albedo and its gloss, every level of each: one sum into both first levels,
         /// the chains blitted below them in step. Each is met undefined and left as the chain's blits leave it

@@ -117,6 +117,7 @@ openmw_rtx_layer(
         image/colourblock.hpp
         image/formatcensus.hpp
         image/imagedescription.hpp
+        image/imageshape.hpp
         image/madeimage.hpp
         image/specularlayout.hpp
         image/texels.hpp
@@ -186,7 +187,7 @@ openmw_rtx_layer(
         preprocess/filekeys.cpp
         preprocess/imagederivation.cpp
         preprocess/imagefactcache.cpp
-        preprocess/preparedimages.cpp
+        preprocess/texturehands.cpp
         preprocess/shape/creasesplit.cpp
         preprocess/shape/pockettree.cpp
         preprocess/shape/shapefold.cpp
@@ -206,8 +207,8 @@ openmw_rtx_layer(
         preprocess/headerderived.hpp
         preprocess/imagederivation.hpp
         preprocess/imagefactcache.hpp
-        preprocess/preparedheld.hpp
-        preprocess/preparedimages.hpp
+        preprocess/texturefeed.hpp
+        preprocess/texturehands.hpp
         preprocess/shape/creasesplit.hpp
         preprocess/shape/facecross.hpp
         preprocess/shape/pockettree.hpp
@@ -286,7 +287,6 @@ openmw_rtx_layer(
         renderer/residency.cpp
         renderer/structuretightness.cpp
         renderer/nullrenderer.cpp
-        renderer/scenetextures.cpp
         renderer/sceneuploader.cpp
     HEADERS
         renderer/arrivalwindow.hpp
@@ -312,7 +312,6 @@ openmw_rtx_layer(
         renderer/renderer.hpp
         renderer/roomwaits.hpp
         renderer/sceneholder.hpp
-        renderer/scenetextures.hpp
         renderer/sceneuploader.hpp
         renderer/shaderset.hpp
         renderer/slot.hpp

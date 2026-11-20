@@ -352,12 +352,12 @@ namespace Rtx
             const TextureIndex normalOnly = scene.textures().add(normal, TextureWrap::Repeat, TextureEncoding::Normal);
             EXPECT_EQ(scene.textures().findFile(normal), sNoRow) << "data is no bake's source";
 
-            // **A bake finds a slot that stands, never one that rests**: the device frees what rests whenever room is
-            // wanted, and a bake made from a slot freed in its own hand-over names nothing.
+            // **A bake finds a slot that stands, never one that rests**: a full table frees what rests, and a bake made
+            // from a slot freed in its own hand-over names nothing.
             constexpr VFS::Path::NormalizedView spark("textures/tx_spark.dds");
             const TextureIndex clamped = scene.textures().add(spark, TextureWrap::Clamp);
             const TextureIndex repeated = scene.textures().add(spark, TextureWrap::Repeat);
-            scene.textures().stand(clamped, 64, false, 0);
+            scene.textures().setStanding(clamped, true);
             scene.drop(scene.holdTexture(clamped, HoldTier::Shown));
             scene.compact();
             ASSERT_TRUE(scene.textures().getRows()[clamped].mRest.mResting);
@@ -416,16 +416,15 @@ namespace Rtx
             EXPECT_EQ(textures.getRefusedArrivals(), 0u);
             EXPECT_EQ(textures.getRefused(), 2u) << "the count since the table began";
 
-            // 5 comes to rest a batch before 3, each stood whole, and the full table stays full.
+            // 5 comes to rest a batch before 3, each standing, and the full table stays full.
             for (const TextureIndex resting : { TextureIndex(5), TextureIndex(3) })
             {
-                textures.stand(resting, 64, false, 0);
+                textures.setStanding(resting, true);
                 scene.drop(scene.holdTexture(resting, HoldTier::Shown));
                 scene.compact();
             }
             EXPECT_EQ(textures.getLiveCount(), TextureTable::sCapacity);
             EXPECT_EQ(textures.getResting().getCount(), 2u);
-            EXPECT_EQ(textures.getResting().getBytes(), 128u);
 
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_a.dds")), TextureIndex(5))
                 << "the oldest to rest";
@@ -433,14 +432,13 @@ namespace Rtx
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_c.dds")), sNoRow) << "none rests now";
             EXPECT_EQ(textures.getRefused(), 3u);
             EXPECT_EQ(textures.getResting().getCount(), 0u);
-            EXPECT_EQ(textures.getResting().getBytes(), 0u);
             scene.compact();
             EXPECT_TRUE(textures.getFreed().empty()) << "each freed and taken over, which reads as an arrival";
             EXPECT_EQ(sorted(textures.getArrived()), (std::vector{ TextureIndex(3), TextureIndex(5) }));
 
             // The room made by freeing the file's own slot under another wrap, which took the file out of the
             // lookup the take then files it under.
-            textures.stand(TextureIndex(9), 64, false, 0);
+            textures.setStanding(TextureIndex(9), true);
             scene.drop(scene.holdTexture(TextureIndex(9), HoldTier::Shown));
             EXPECT_EQ(textures.add(names[9], TextureWrap::Clamp), TextureIndex(9));
             EXPECT_EQ(textures.findFile(names[9]), TextureIndex(9));
@@ -463,7 +461,7 @@ namespace Rtx
                      VFS::Path::NormalizedView("textures/tx_3.dds"), VFS::Path::NormalizedView("textures/tx_4.dds") })
             {
                 const TextureIndex slot = textures.add(name);
-                textures.stand(slot, 8, false, 0);
+                textures.setStanding(slot, true);
                 holds.push_back(scene.holdTexture(slot, HoldTier::Shown));
             }
 
@@ -475,16 +473,13 @@ namespace Rtx
             scene.compact();
             scene.drop(std::move(holds[4]));
 
-            // One at a time, each the oldest to rest: 8 bytes asks for one.
+            // The order a full table frees them in, the oldest first, 4 filed at the tick after.
+            scene.compact();
             EXPECT_EQ(textures.getResting().getCount(), 4u);
             std::vector<TextureIndex> order;
-            while (textures.getResting().getCount() > 0)
-            {
-                ASSERT_EQ(scene.evictResting(1), 8u);
-                for (const TextureIndex slot : everyRow<TextureIndex>(5))
-                    if (!textures.isLive(slot) && std::ranges::find(order, slot) == order.end())
-                        order.push_back(slot);
-            }
+            for (TextureIndex slot = textures.getResting().first(); slot != sNoRow;
+                slot = textures.getRows()[slot].mRest.mAfter)
+                order.push_back(slot);
             EXPECT_EQ(order, (std::vector{ TextureIndex(0), TextureIndex(1), TextureIndex(2), TextureIndex(4) }));
             EXPECT_TRUE(textures.isLive(TextureIndex(3))) << "taken again, and no rest of it";
             scene.drop(std::move(holds[3]));
@@ -859,14 +854,12 @@ namespace Rtx
             EXPECT_EQ(Testing::addOneBoneBody(scene, quad).mDeformer, second.mDeformer) << "then the one above it";
         }
 
-        /// **A static mesh is the one its content is, and rests as a texture does** (`docs/architecture.md`, "One
-        /// residency policy for the content"). Two quads of one geometry are one mesh; another shape is another.
-        /// A quad the device stood whole — its geometry, 4 vertices at 36 bytes and 6 indices at 4, 168 bytes, and a
-        /// structure of 100 — rests when nothing holds it, and the same geometry added again is that mesh, taken
-        /// back with nothing arriving; one the device never stood is freed. The rests of both tables are one order:
-        /// a texture that rested on an earlier hand-over goes before a mesh that rested on a later one, and the limit
-        /// frees the oldest first whatever its kind. A mesh that deforms is filed under no key.
-        TEST(RtxSceneDescTest, aStaticMeshIsItsContentAndRestsInOneOrderWithTheTextures)
+        /// **A static mesh is the one its content is, and rests** (`docs/architecture.md`, "One residency policy for
+        /// the content"). Two quads of one geometry are one mesh; another shape is another. A quad the device stood
+        /// whole — its geometry, 4 vertices at 36 bytes and 6 indices at 4, 168 bytes, and a structure of 100 — rests
+        /// when nothing holds it, and the same geometry added again is that mesh, taken back with nothing arriving; one
+        /// the device never stood is freed. The limit frees it. A mesh that deforms is filed under no key.
+        TEST(RtxSceneDescTest, aStaticMeshIsItsContentAndRests)
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
@@ -880,12 +873,6 @@ namespace Rtx
                 FoldedShape{ .mSheet = true });
             EXPECT_NE(sheet, quad) << "the shape is part of what a mesh is";
 
-            // A texture that rests first, on a hand-over of its own.
-            const TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("textures/tx_old.dds"));
-            scene.textures().stand(texture, 64, false, 0);
-            scene.drop(scene.holdTexture(texture, HoldTier::Shown));
-            scene.compact();
-
             // A mesh rests what its eviction gives back, its structure's 100 bytes, and not its geometry's.
             scene.standMesh(quad, 100);
             scene.clearArrivals();
@@ -895,7 +882,7 @@ namespace Rtx
             EXPECT_TRUE(scene.meshes().isLive(quad)) << "a mesh the device stood whole was freed";
             EXPECT_TRUE(scene.meshes().getRows()[quad].mRest.mResting);
             EXPECT_FALSE(scene.meshes().isLive(other)) << "a mesh the device never stood rested";
-            EXPECT_EQ(scene.getRestingBytes(), 64u + 100u);
+            EXPECT_EQ(scene.getRestingBytes(), 100u);
             // What it rests in the runs is the quad's 4 vertices and 6 indices, the one never stood holding none.
             EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 4u);
             EXPECT_EQ(scene.meshes().getRestingGeometry().mIndices, 6u);
@@ -904,19 +891,15 @@ namespace Rtx
             scene.clearArrivals();
             EXPECT_EQ(Testing::addQuadMesh(scene), quad);
             EXPECT_TRUE(scene.meshes().getArrived().empty()) << "a mesh taken back from rest arrived again";
-            EXPECT_EQ(scene.getRestingBytes(), 64u);
+            EXPECT_EQ(scene.getRestingBytes(), 0u);
             EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 0u) << "a mesh taken back still rests its runs";
             EXPECT_EQ(scene.meshes().getRestingGeometry().mIndices, 0u);
             Testing::letGoMesh(scene, quad);
             scene.compact();
 
-            // The texture rested on the earlier tick, so it goes first. **Paced**: past a limit of nought by a step of
-            // nought, a row goes and no more; the room an arrival needs goes whole all the same, a byte of it the whole
-            // mesh.
+            // **Paced**: past a limit of nought by a step of nought, a row goes and no more; the room an arrival needs
+            // goes whole all the same, a byte of it the whole mesh.
             scene.setRestLimit(RestLimit{ .mBytes = 0, .mStep = 0 });
-            EXPECT_EQ(scene.evictResting(), 64u);
-            EXPECT_FALSE(scene.textures().isLive(texture));
-            EXPECT_TRUE(scene.meshes().isLive(quad));
             EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 4u);
             EXPECT_EQ(scene.evictResting(1), 100u);
             EXPECT_FALSE(scene.meshes().isLive(quad));
@@ -930,32 +913,14 @@ namespace Rtx
             EXPECT_FALSE(scene.meshes().getRows()[body.mMesh].mKey.has_value()) << "a body was filed under a key";
         }
 
-        /// **A want frees the row of its kind that has rested longest of those that surely hold it, and else the oldest
-        /// until its hole is given back** (`SceneDesc::evictFor`). Five textures of 8 bytes rest a tick apart, giving
-        /// back 32, 1000, 100, 64 and nought where a texture can take it: a hole of 64 is held by the second, in a
-        /// class past the hole's, before the third and fourth of its own class, which it rested before; then by the
-        /// third, the older of its class that holds it; then by the fourth, 64 holding 64. Two meshes rested a tick
-        /// apart with nothing to give back until their tight copies landed, 300 each, the later's first: the earlier
-        /// still goes first for a structure's 200, filed back by when it rested, and the textures stay, as they stay
-        /// once no mesh rests; and a hole of 65 no texture holds frees what rested longest, the two left, 16 bytes,
-        /// past which nothing rests.
-        TEST(RtxSceneDescTest, aWantFreesTheOldestRowOfItsKindThatSurelyHoldsItAndElseTheOldest)
+        /// **A want frees the mesh that has rested longest of those that surely hold it, and else the oldest until its
+        /// hole is given back** (`SceneDesc::evictFor`). Two meshes rested a tick apart with nothing to give back until
+        /// their tight copies landed, 300 each, the later's first: the earlier still goes first for a structure's 200,
+        /// filed back by when it rested; and with no mesh resting, a want frees nothing.
+        TEST(RtxSceneDescTest, aWantFreesTheOldestMeshThatSurelyHoldsIt)
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
-            std::vector<TextureIndex> slots;
-            for (const std::uint64_t fit : { 32u, 1000u, 100u, 64u, 0u })
-            {
-                const VFS::Path::Normalized name(std::format("textures/tx_{}.dds", slots.size()));
-                const TextureIndex slot = scene.textures().add(name);
-                scene.textures().stand(slot, 8, false, 0);
-                if (fit > 0)
-                    scene.textures().fit(slot, fit, 1);
-                scene.drop(scene.holdTexture(slot, HoldTier::Shown));
-                scene.compact();
-                slots.push_back(slot);
-            }
-
             const MeshIndex quad = Testing::addQuadMesh(scene);
             const MeshIndex raised = Testing::addQuadMesh(scene, Testing::unitQuadAt(1.0f));
             scene.standMesh(quad, 100);
@@ -967,22 +932,7 @@ namespace Rtx
             scene.compact();
             scene.fitMesh(raised, 300, 1);
             scene.fitMesh(quad, 300, 1);
-            ASSERT_EQ(scene.getRestingBytes(), 5 * 8u + 200u);
-
-            const auto live = [&] {
-                std::vector<TextureIndex> standing;
-                for (const TextureIndex slot : slots)
-                    if (scene.textures().isLive(slot))
-                        standing.push_back(slot);
-                return standing;
-            };
-            const RoomWant texture64{ .mWaiter = TextureIndex(0), .mHole = 64 };
-            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[2], slots[3], slots[4] }));
-            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[3], slots[4] }));
-            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[4] }));
+            ASSERT_EQ(scene.getRestingBytes(), 200u);
 
             const RoomWant structure{ .mWaiter = MeshIndex(0), .mHole = 200 };
             EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 100u);
@@ -990,45 +940,38 @@ namespace Rtx
             EXPECT_TRUE(scene.meshes().isLive(raised)) << "the mesh fitted first went first";
             EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 100u);
             EXPECT_FALSE(scene.meshes().isLive(raised));
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[4] })) << "a structure's want freed a texture";
-            EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 0u)
-                << "with no mesh resting, a structure frees nothing";
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[4] })) << "a structure's want freed a texture";
-
-            const RoomWant texture65{ .mWaiter = TextureIndex(0), .mHole = 65 };
-            EXPECT_EQ(scene.evictFor(std::span(&texture65, 1)), 16u);
-            EXPECT_TRUE(live().empty());
+            EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 0u) << "with no mesh resting, a want frees nothing";
             EXPECT_EQ(scene.getRestingBytes(), 0u);
         }
 
         /// **A want frees only a rest whose range starts at its alignment or a coarser one**: a freed range holds a
-        /// resource of its kind as large where it starts as aligned (`RoomWant::mAlignment`). Two textures rest a tick
-        /// apart, each giving back 100, the older starting at 256 and the later at 4096: a hole of 64 at 1024 frees the
+        /// resource of its kind as large where it starts as aligned (`RoomWant::mAlignment`). Two meshes rest a tick
+        /// apart, each giving back 300, the older starting at 256 and the later at 4096: a hole of 64 at 1024 frees the
         /// later, which the older does not suit though it rested first; then one at 256 frees the older.
         TEST(RtxSceneDescTest, aWantFreesOnlyARestWhoseRangeStartsAtItsAlignment)
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
-            std::vector<TextureIndex> slots;
-            for (const std::uint64_t alignment : { 256u, 4096u })
-            {
-                const VFS::Path::Normalized name(std::format("textures/tx_{}.dds", slots.size()));
-                const TextureIndex slot = scene.textures().add(name);
-                scene.textures().stand(slot, 8, false, 0);
-                scene.textures().fit(slot, 100, alignment);
-                scene.drop(scene.holdTexture(slot, HoldTier::Shown));
-                scene.compact();
-                slots.push_back(slot);
-            }
+            const MeshIndex older = Testing::addQuadMesh(scene);
+            const MeshIndex later = Testing::addQuadMesh(scene, Testing::unitQuadAt(1.0f));
+            scene.standMesh(older, 100);
+            scene.standMesh(later, 100);
+            scene.clearArrivals();
+            Testing::letGoMesh(scene, older);
+            scene.compact();
+            Testing::letGoMesh(scene, later);
+            scene.compact();
+            scene.fitMesh(older, 300, 256);
+            scene.fitMesh(later, 300, 4096);
 
-            const RoomWant coarse{ .mWaiter = TextureIndex(0), .mHole = 64, .mAlignment = 1024 };
-            EXPECT_EQ(scene.evictFor(std::span(&coarse, 1)), 8u);
-            EXPECT_TRUE(scene.textures().isLive(slots[0])) << "the older rest starts finer than the want";
-            EXPECT_FALSE(scene.textures().isLive(slots[1]));
+            const RoomWant coarse{ .mWaiter = MeshIndex(0), .mHole = 64, .mAlignment = 1024 };
+            EXPECT_EQ(scene.evictFor(std::span(&coarse, 1)), 100u);
+            EXPECT_TRUE(scene.meshes().isLive(older)) << "the older rest starts finer than the want";
+            EXPECT_FALSE(scene.meshes().isLive(later));
 
-            const RoomWant fine{ .mWaiter = TextureIndex(0), .mHole = 64, .mAlignment = 256 };
-            EXPECT_EQ(scene.evictFor(std::span(&fine, 1)), 8u);
-            EXPECT_FALSE(scene.textures().isLive(slots[0]));
+            const RoomWant fine{ .mWaiter = MeshIndex(0), .mHole = 64, .mAlignment = 256 };
+            EXPECT_EQ(scene.evictFor(std::span(&fine, 1)), 100u);
+            EXPECT_FALSE(scene.meshes().isLive(older));
         }
 
         /// **Every table hands out its lowest free slot, however its slots were given back**

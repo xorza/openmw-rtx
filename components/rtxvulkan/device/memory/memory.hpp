@@ -322,11 +322,13 @@ namespace Rtx
         Result<DeviceMemory, MemoryRefusal> tryTake(
             VkImage image, VkMemoryPropertyFlags properties, MemoryUse use, std::string_view name);
 
-        /// **Room for `image` as a texture in a block content's pools hold already, other than `block`**: where a
-        /// texture moved to give `block` back stands (`TextureArray::moveOut`). No new memory, so no ceiling is asked;
-        /// the library tries the fullest blocks first. No room is no refusal for room, and counts as none
-        /// (`getRefusedCount`): a move that finds none ends, and nothing waits on it.
-        Result<DeviceMemory, MemoryRefusal> tryTakeOutside(VkImage image, VkDeviceMemory block, std::string_view name);
+        /// **A block of the content arena** (`ContentArena`): `bytes` of memory type `type`, an allocation of its own,
+        /// at content's priority. No ceiling is asked, since the arena's cap is the one figure content is held to; the
+        /// device having none is the refusal. Called from the arena's thread (`ChunkSupply`).
+        Result<DeviceMemory, MemoryRefusal> takeBlock(std::uint32_t type, VkDeviceSize bytes);
+
+        /// Frees `block` at once, which nothing stands in and nothing in flight reads: the arena's, on its thread.
+        void giveBlock(DeviceMemory&& block);
 
         /// About how many bytes of video memory `use` may still take: what content's blocks have
         /// free, and the whole blocks its ceiling leaves room for. For a caller sizing what it asks
@@ -382,6 +384,11 @@ namespace Rtx
         /// What `reserveFrame` was last told.
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }
 
+        /// **What the heap owes beyond what it holds, outside the content arena**: what the frame's reserve has beyond
+        /// what its targets and what the upscaler's runtime holds, and the largest growth one essential table owes —
+        /// the `gap` and the `owed` of the arena's cap (`docs/architecture.md`, "The arena's cap").
+        VkDeviceSize getOwedOutside() const;
+
         /// Says the frame holds `bytes` on the video heap that something else allocated on this device
         /// — DLSS's feature, which NGX allocates — and which the driver's usage counts once made: frame
         /// memory held, so a reserve that counts it is not owed it twice. Replaces what was said before.
@@ -389,6 +396,9 @@ namespace Rtx
 
         /// The heap video memory is taken out of, whose room `getRoom` measures.
         std::uint32_t getVideoHeap() const { return mContent.mHeap; }
+
+        /// The memory types content stands in (`ContentTypes::mTypes`).
+        std::uint32_t getContentTypes() const { return mContent.mTypes; }
 
         /// Whether the driver states what this process holds and may hold (`VK_EXT_memory_budget`).
         /// Asked, and not read off the report's figures: a heap the process holds nothing on is

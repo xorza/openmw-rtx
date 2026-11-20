@@ -37,12 +37,18 @@ namespace Rtx
         ArenaIndex arenaOf(SlotKind kind) const override;
         std::optional<ContentPrice> priceImage(const ImageShape& shape) const override;
         ContentPrice priceStructure(const StructureShape& shape) const override;
+        bool standsStructures() const override { return true; }
         ContentBudget openFrame(DeviceEvents& events) override;
         DeviceEpoch handOver(SceneSlot slot, const SceneDesc& scene, std::span<const ResidencyOp> ops) override;
+        void awaitBlocks() override {}
         void acquireBlock(BlockIndex block, ArenaIndex arena, std::uint64_t bytes) override;
         void releaseBlock(BlockIndex block) override;
 
         void setCap(std::uint64_t capBytes) { mCapBytes = capBytes; }
+
+        /// A scene's slot let go of or built anew: whatever it stood retires at the last epoch handed out, as a card's
+        /// images go with the scene (`SceneHolder::dropViewScene`, `standScene`).
+        void forgetScene(SceneSlot scene);
 
         /// The next block asked is refused.
         void refuseNextBlock() { mRefuseNext = true; }
@@ -67,11 +73,14 @@ namespace Rtx
         {
             SlotUse mUse = SlotUse::Free;
             DeviceEpoch mRetiredAt;
+
+            /// The scene it stands for, while it is live.
+            SceneSlot mScene;
         };
 
         using SlotKey = std::tuple<std::uint32_t, std::uint16_t>;
 
-        void stand(Slot slot);
+        void stand(Slot slot, SceneSlot scene);
         void give(Slot slot, DeviceEpoch at);
 
         std::uint64_t mCapBytes;
@@ -102,7 +111,7 @@ namespace Rtx
         static constexpr std::size_t sInFlightMost = 64;
 
         bool hasCredit() const override { return mInFlight.size() < sInFlightMost; }
-        void ask(const FeedRequest& request) override;
+        void ask(FeedRequest request) override;
         std::optional<FeedArrival> take() override;
         void forget(FeedTicket ticket) override;
 

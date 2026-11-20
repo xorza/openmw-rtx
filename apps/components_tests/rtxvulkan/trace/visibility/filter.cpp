@@ -19,6 +19,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -466,7 +467,7 @@ namespace Rtx::Testing
             SceneIdentities identities;
             const SceneDesc sky(identities);
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), sky, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), sky, {});
 
             // The dim sky at a day's exposure, which every frame with no past draws.
             const double dayDim = shot(dim);
@@ -524,7 +525,7 @@ namespace Rtx::Testing
             // is handed over spends nothing of the eye's loss, and the measured frame after it starts
             // at a day, as a cut's frame does, rather than easing from the old world's eye.
             SceneIdentities emptied;
-            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc(emptied), {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), SceneDesc(emptied), {});
             held(bright);
             EXPECT_EQ(shot(dim), dayDim) << "the measured frame eased from the old world's eye";
         }
@@ -561,7 +562,7 @@ namespace Rtx::Testing
             camera.mAmbientFromSky = 1.0f;
 
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
             const auto renderOne = [&](std::uint32_t frame, bool filter, HistoryLoss loss = HistoryLoss::None) {
                 Shaders::VisibilityConstants sampled = camera;
@@ -949,7 +950,7 @@ namespace Rtx::Testing
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             const PlacementIndex bar = addQuad(scene, roofOver(start, start + width, height));
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -1.0f, eye), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -986,7 +987,7 @@ namespace Rtx::Testing
                         // Advanced after each hand-over, as `SceneUploader` does, or the bar's motion
                         // is every step since it stood still.
                         scene.placements().move(bar, osg::Matrixf::translate(moved, 0.0f, 0.0f));
-                        mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                        Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                         scene.placements().advance();
                         camera.mFrame = 3000 + 100 * draw + at;
                         mProbe.traceFrame(camera,
@@ -1147,7 +1148,8 @@ namespace Rtx::Testing
             constexpr std::uint32_t settled = 160;
 
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), lanternOverAFloor(identities), {});
+            Testing::standerOf(mRenderer).setScene(
+                mRenderer, Rtx::SceneSlot::world(), lanternOverAFloor(identities), {});
             const Shaders::VisibilityConstants camera = overTheLantern(size);
 
             std::vector<float> read;
@@ -1188,7 +1190,7 @@ namespace Rtx::Testing
             SceneDesc scene(identities);
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             mRenderer.resize(size, size);
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -200.0f, 150.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);

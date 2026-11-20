@@ -34,7 +34,6 @@ namespace Rtx
         Preprocess,
         Place,
         Bake,
-        Textures,
         Upload,
         Trace,
 
@@ -72,7 +71,6 @@ namespace Rtx
         std::pair{ Timing::Preprocess, std::string_view("preprocess") },
         std::pair{ Timing::Place, std::string_view("place") },
         std::pair{ Timing::Bake, std::string_view("bake") },
-        std::pair{ Timing::Textures, std::string_view("textures") },
         std::pair{ Timing::Upload, std::string_view("upload") },
         std::pair{ Timing::Trace, std::string_view("trace") },
         std::pair{ Timing::Views, std::string_view("views") },

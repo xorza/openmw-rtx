@@ -26,6 +26,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/debuglines.hpp>
@@ -519,7 +520,8 @@ namespace Rtx::Testing
         /// `shoot` hands its own: for a test that reads the shown picture, which `shoot` does not.
         void setWorld(const SceneDesc& scene, std::span<const TextureData> textures)
         {
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(scene, textures));
+            Testing::standerOf(mRenderer).setScene(
+                mRenderer, Rtx::SceneSlot::world(), scene, inSceneOrder(scene, textures));
         }
 
         /// What `shoot` hands the renderer before its frames: `scene` at `size` square, and the
@@ -536,7 +538,7 @@ namespace Rtx::Testing
             if (shot.mSetScene)
                 setWorld(scene, textures);
             else
-                mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
         }
 
         /// Draws `scene` at `size` square and returns the last frame of the shot.
@@ -807,7 +809,7 @@ namespace Rtx::Testing
         /// slot back has a hole in its table and none in its descriptions. The span reaches into `mNumbered`,
         /// which the next render overwrites; safe because `setWorld` is the one caller and hands it straight to
         /// `setScene`. `textures` at the slots `scene` numbers them by, each under the encoding the slot was
-        /// taken as, as `SceneTextures` makes of the table.
+        /// taken as, as residency describes the table.
         std::span<const TextureData> inSceneOrder(const SceneDesc& scene, std::span<const TextureData> textures)
         {
             const auto rows = scene.textures().getRows();
