@@ -19,7 +19,7 @@ namespace Settings
         /// The most cells `distant land cells` takes: a bound on how much world a frame is asked to
         /// stand, and so on what the ring's ask costs. Nought stays nought, which hands the reach
         /// back to `viewing distance`.
-        static constexpr float sMaxDistantLandCells = 10.0f;
+        static constexpr float sMaxDistantLandCells = 30.0f;
 
         /// The fewest the two menus offer. A file may name fewer, and the launcher leaves such a
         /// value as it found it.

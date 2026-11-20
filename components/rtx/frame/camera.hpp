@@ -12,10 +12,10 @@
 
 namespace Rtx
 {
-    /// Far enough to cross any cell. Every camera's reach (`VisibilityConstants::mReach`), and the
-    /// world camera's clip as well, so a harness that traced to a different one measured a
-    /// different frame from the game.
-    constexpr float sFarPlane = 200000.0f;
+    /// Far enough to cross any cell the widest reach stands (`LandReach::sMostCells`), held over it where the
+    /// ring is: 32 of Morrowind's cells. Every camera's reach (`VisibilityConstants::mReach`), and the world
+    /// camera's clip as well, so a harness that traced to a different one measured a different frame from the game.
+    constexpr float sFarPlane = 262144.0f;
 
     /// Where the depth buffer's zero sits: one unit, of the 8192 a cell is wide. Nothing is
     /// clipped against it — `VisibilityConstants::mNear` says why a ray tracer has one at all — so

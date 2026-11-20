@@ -161,12 +161,14 @@ namespace Rtx
             EXPECT_FLOAT_EQ(CellGrid(4096.0f).reachOf({ .mCells = -1.0f, .mViewingDistance = 7168.0f }), 7168.0f)
                 << "a negative count is none";
 
-            // **Both sources stop at ten cells of the grid's width**: a viewing distance of 300000
-            // under nought cells is 81920 units in Morrowind's world and 40960 in the other, and a
-            // count past ten, which the setting's clamp keeps out, would be held there too.
-            EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 0.0f, .mViewingDistance = 300000.0f }), 81920.0f);
-            EXPECT_FLOAT_EQ(CellGrid(4096.0f).reachOf({ .mCells = 0.0f, .mViewingDistance = 300000.0f }), 40960.0f);
-            EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 12.0f, .mViewingDistance = 7168.0f }), 81920.0f);
+            // **Both sources stop at thirty cells of the grid's width**: a viewing distance of 300000
+            // under nought cells is 30 × 8192 = 245760 units in Morrowind's world and 30 × 4096 = 122880
+            // in the other, and a count past thirty, which the setting's clamp keeps out, would be held
+            // there too; twelve, under it, is 12 × 8192 = 98304.
+            EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 0.0f, .mViewingDistance = 300000.0f }), 245760.0f);
+            EXPECT_FLOAT_EQ(CellGrid(4096.0f).reachOf({ .mCells = 0.0f, .mViewingDistance = 300000.0f }), 122880.0f);
+            EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 32.0f, .mViewingDistance = 7168.0f }), 245760.0f);
+            EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 12.0f, .mViewingDistance = 7168.0f }), 98304.0f);
         }
 
         /// **The grid is the worldspace's.** An eye at x = 40960 stands in cell 5 of Morrowind's

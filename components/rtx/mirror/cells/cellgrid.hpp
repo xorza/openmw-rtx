@@ -19,7 +19,7 @@ namespace Rtx
         /// The most cells the reach takes, from either source: a bound on how much world a frame is
         /// asked to stand, and the one `sFarPlane` is held over. `[RTX] distant land cells` is
         /// clamped to the same number, which the settings state apart and the game asserts equal.
-        static constexpr float sMostCells = 10.0f;
+        static constexpr float sMostCells = 30.0f;
 
         float mCells = 0.0f;
         float mViewingDistance = 0.0f;

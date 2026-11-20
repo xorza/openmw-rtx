@@ -21,7 +21,7 @@ also follow the settings window while the game runs.
 
 | Type | Range | Default |
 |---|---|---|
-| float | 0 to 10 | 10 |
+| float | 0 to 30 | 10 |
 
 How far out from the eye the world is built, in cells. Rays go everywhere, so this says how much world exists rather
 than how far the camera can see, and the fog closes at the same distance — air tuned to a shorter reach makes a world
