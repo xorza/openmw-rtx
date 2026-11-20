@@ -45,13 +45,4 @@ namespace MWRender
 
         return {};
     }
-
-    std::string_view RenderSupport::declinedRequest(PictureRequest request) const
-    {
-        for (const RequestSupport& entry : mRequests)
-            if (entry.mRequest == request)
-                return entry.mDeclined;
-
-        return {};
-    }
 }

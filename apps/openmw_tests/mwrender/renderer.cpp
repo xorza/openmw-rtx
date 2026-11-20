@@ -57,8 +57,7 @@ namespace MWRender
             { "RTX", "upscale", "no upscaler here" },
         });
         constexpr std::array sDeclaredModes{ ModeSupport{ Render_Wireframe, "no wireframe here" } };
-        constexpr std::array sDeclaredRequests{ RequestSupport{ PictureRequest::ShaderReload, "no shaders here" } };
-        constexpr RenderSupport sSupport(sDeclared, sDeclaredModes, sDeclaredRequests);
+        constexpr RenderSupport sSupport(sDeclared, sDeclaredModes);
 
         /// A renderer that draws nothing and records what the seam tells it about the world.
         class RecordingRenderer final : public Renderer
@@ -89,6 +88,9 @@ namespace MWRender
 
             void configureResources(Resource::ResourceSystem&) override {}
             SDL_Window* getWindow() const override { return nullptr; }
+            std::string_view functionKey(std::int32_t, SDLUtil::KeyChange) override { return {}; }
+            std::string_view reloadShaders() override { return {}; }
+            std::string_view setLiveShaderReload(bool) override { return {}; }
             std::unique_ptr<Ground> createGround(const GroundSpec&) override { return nullptr; }
             float getGroundReach() const override { return 0.0f; }
             osg::ref_ptr<osg::Group> createSceneRoot() override { return new osg::Group; }
@@ -138,8 +140,6 @@ namespace MWRender
             EXPECT_FALSE(sSupport.namesSetting("RTX", "enabled"));
             EXPECT_EQ(sSupport.declinedMode(Render_Wireframe), "no wireframe here");
             EXPECT_EQ(sSupport.declinedMode(Render_Pathgrid), "");
-            EXPECT_EQ(sSupport.declinedRequest(PictureRequest::ShaderReload), "no shaders here");
-            EXPECT_EQ(sSupport.declinedRequest(PictureRequest::LiveShaderReload), "");
             EXPECT_EQ(notAvailable("Wireframe Rendering", sSupport.declinedMode(Render_Wireframe)),
                 "Wireframe Rendering -> not available under this renderer: no wireframe here")
                 << "what the console says in place of a state";

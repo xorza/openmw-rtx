@@ -26,33 +26,15 @@ namespace MWRender
         std::string_view mDeclined;
     };
 
-    /// A request a script or a key makes of the picture that is no render mode and no setting.
-    enum class PictureRequest
-    {
-        /// Lua's `debug.triggerShaderReload`.
-        ShaderReload,
-
-        /// Lua's `debug.setShaderHotReloadEnabled`.
-        LiveShaderReload,
-
-        /// F3's profiler and F4's statistics, OpenSceneGraph's overlays over the picture.
-        StatsOverlay,
-    };
-
-    struct RequestSupport
-    {
-        PictureRequest mRequest;
-        std::string_view mDeclined;
-    };
-
     /// What the console or a script is told where the renderer declines what it asked for: what it
     /// asked, and the reason, in place of a state the renderer would never have drawn.
     std::string notAvailable(std::string_view what, std::string_view declined);
 
     /// **One declaration of what a renderer honours**, made once per renderer and asked by every
     /// reader that would otherwise branch on which renderer it has: the console and Lua answer a
-    /// declined mode or request with it, and `Renderer::processChangedSettings` hands the renderer
-    /// only what it honours. A key, a mode or a request the declaration does not name is honoured:
+    /// declined mode with it, and `Renderer::processChangedSettings` hands the renderer only what it
+    /// honours. A request that is a call of its own answers its refusal itself (`Renderer::reloadShaders`).
+    /// A key or a mode the declaration does not name is honoured:
     /// the tables list what a renderer has a reason to refuse, and the ray tracer's lists every key
     /// the game's renderers read, so that a key upstream adds is decided before it is shipped. The
     /// settings window and the launcher offer only the keys the ray tracer honours, which
@@ -60,11 +42,9 @@ namespace MWRender
     class RenderSupport
     {
     public:
-        constexpr RenderSupport(std::span<const SettingSupport> settings, std::span<const ModeSupport> modes,
-            std::span<const RequestSupport> requests)
+        constexpr RenderSupport(std::span<const SettingSupport> settings, std::span<const ModeSupport> modes)
             : mSettings(settings)
             , mModes(modes)
-            , mRequests(requests)
         {
         }
 
@@ -75,11 +55,9 @@ namespace MWRender
         bool namesSetting(std::string_view category, std::string_view name) const;
 
         std::string_view declinedMode(RenderMode mode) const;
-        std::string_view declinedRequest(PictureRequest request) const;
 
         std::span<const SettingSupport> getSettings() const { return mSettings; }
         std::span<const ModeSupport> getModes() const { return mModes; }
-        std::span<const RequestSupport> getRequests() const { return mRequests; }
 
     private:
         /// The entry that answers for the setting: its own key, or else its category's.
@@ -87,6 +65,5 @@ namespace MWRender
 
         std::span<const SettingSupport> mSettings;
         std::span<const ModeSupport> mModes;
-        std::span<const RequestSupport> mRequests;
     };
 }

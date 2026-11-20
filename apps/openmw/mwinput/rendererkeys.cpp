@@ -1,6 +1,7 @@
 #include "rendererkeys.hpp"
 
 #include <cstdint>
+#include <format>
 #include <string_view>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -22,19 +23,13 @@ namespace MWInput
 
     void RendererKeys::functionKey(const std::int32_t index, const SDLUtil::KeyChange change)
     {
-        // F3 and F4: the indices count from F1. A declined key is told once, as it goes down, and the renderer
-        // hears none of it.
-        if (index == 2 || index == 3)
-            if (const std::string_view declined
-                = mRenderer.support().declinedRequest(MWRender::PictureRequest::StatsOverlay);
-                !declined.empty())
-            {
-                if (change == SDLUtil::KeyChange::Pressed)
-                    MWBase::Environment::get().getWindowManager()->messageBox(
-                        MWRender::notAvailable("The statistics overlay", declined));
-                return;
-            }
-        mRenderer.functionKey(index, change);
+        // A declined key is told once, as it goes down, by its name and the renderer's reason: the renderer knows what
+        // the key asks, and the indices count from F1.
+        const std::string_view declined = mRenderer.functionKey(index, change);
+        if (declined.empty() || change != SDLUtil::KeyChange::Pressed)
+            return;
+        MWBase::Environment::get().getWindowManager()->messageBox(
+            MWRender::notAvailable(std::format("F{}", index + 1), declined));
     }
 
     void RendererKeys::windowResized(

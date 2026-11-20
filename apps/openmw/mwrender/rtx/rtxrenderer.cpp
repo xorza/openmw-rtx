@@ -300,7 +300,7 @@ namespace MWRender
 
     void RtxRenderer::configureResources(Resource::ResourceSystem& resources) noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectEngineCall();
         const std::optional<float> stated = getLoopClock().getStatedStep();
         setResourceExpiry(resources, stated, mSteppedExpiry);
 
@@ -365,7 +365,7 @@ namespace MWRender
 
     osg::ref_ptr<osg::Group> RtxRenderer::createSceneRoot() noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectEngineCall();
         // An allocation that fails ends the process, as this noexcept function means.
         // NOLINTNEXTLINE(bugprone-unhandled-exception-at-new)
         mSceneRoot = new osg::Group;
@@ -376,7 +376,7 @@ namespace MWRender
     // NOLINTNEXTLINE(bugprone-exception-escape)
     std::unique_ptr<Ground> RtxRenderer::createGround(const GroundSpec& spec) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         if (spec.mWorldspace == ESM::Cell::sDefaultWorldspaceId)
             mMirror.growGroundcover(spec.mGroundcoverStore);
 
@@ -387,7 +387,7 @@ namespace MWRender
     // NOLINTNEXTLINE(bugprone-exception-escape)
     void RtxRenderer::addCell(const MWWorld::CellStore* cell) noexcept
     {
-        expectWorldEvent();
+        expectGameCall();
         mMirror.standSea(*cell);
 
         // Where the player is, for a report: the cells a load adds share their worldspace, an interior's its own.
@@ -400,51 +400,51 @@ namespace MWRender
 
     void RtxRenderer::removeCell(const MWWorld::CellStore* cell) noexcept
     {
-        expectWorldEvent();
+        expectGameCall();
         mRipples.removeCell(*cell);
     }
 
     void RtxRenderer::addWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept
     {
-        expectWorldEvent();
+        expectGameCall();
         mRipples.add(ptr);
     }
 
     void RtxRenderer::removeWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept
     {
-        expectWorldEvent();
+        expectGameCall();
         mRipples.remove(ptr);
     }
 
     void RtxRenderer::emitWaterRipple(const osg::Vec3f& position) noexcept
     {
-        expectWorldEvent();
+        expectGameCall();
         mRipples.splash(position);
     }
 
     void RtxRenderer::poseForIntersection(osg::Drawable& drawable) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         mPoser.pose(drawable, getFrameStamp());
     }
 
     void RtxRenderer::listAssetsToPreload(
         std::vector<VFS::Path::Normalized>& models, std::vector<VFS::Path::Normalized>& textures) noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectEngineCall();
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
     }
 
     void RtxRenderer::windowResized(
         std::int32_t, std::int32_t, const std::int32_t width, const std::int32_t height) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         presentIn(osg::Vec2i(width, height));
     }
 
     void RtxRenderer::onAttachWorld(RenderingManager&, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectEngineCall();
         // Straight under the root: the rasterizer hangs its shadowed scene between the two, and
         // this renderer has nothing to put there. The root is kept for what the game hangs on it
         // beside the scene: its debug nodes, which every frame reads off it.
@@ -461,7 +461,7 @@ namespace MWRender
 
     void RtxRenderer::adoptTraversalRoot(osg::Group& root) noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectEngineCall();
         // Under the camera, whose matrices are what put a viewport ray in the world; parented once
         // however often it is said.
         osg::Camera& camera = getCamera();
@@ -471,7 +471,7 @@ namespace MWRender
 
     void RtxRenderer::advance(double simulationTime) noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectEngineCall();
         getFrameStamp().setFrameNumber(getFrameStamp().getFrameNumber() + 1);
 
         // What OpenMW ages its caches by, so it comes from the host's clock and not the wall.
@@ -481,7 +481,7 @@ namespace MWRender
 
     void RtxRenderer::updateTraversal() noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectEngineCall();
         // Before the early return, because a main menu has no scene root: MyGUI's animation, key repeat,
         // tooltip timers and faders all hang off this call. The frame's own step and not MyGUI's timer, a
         // wall clock in whole milliseconds that made two runs draw a hit's red overlay at different strengths.
@@ -605,7 +605,7 @@ namespace MWRender
 
     void RtxRenderer::prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener)
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
 
         // Content is prepared beside the kernels' compile, so play reads from the store what it would
         // otherwise compute (`Rtx::ContentPreparation`). Every CPU but the main thread's, which draws the
@@ -660,7 +660,7 @@ namespace MWRender
 
     void RtxRenderer::standWhole(const SceneFrame& frame, const WorldChanged& changed, Loading::Listener& listener)
     {
-        mPhase.expect(Phase::Between);
+        expectEngineCall();
         const Crash::NoteScope noted("standing the world whole around where the cells changed");
 
         // The eye where the change stands it, turned as the camera is: the player is moved there only after.
@@ -762,7 +762,7 @@ namespace MWRender
 
     void RtxRenderer::capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         const osg::ref_ptr<osg::Image> taken = FrameReader::read(*mRenderer, width, height, Rtx::Channels::Rgb);
         if (taken == nullptr)
             return;
@@ -772,7 +772,7 @@ namespace MWRender
 
     void RtxRenderer::saveScreenshot() noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         // Three channels, as the rasterizer reads its screenshots: the JPEG writer `screenshot
         // format` may name refuses four (`Rtx::Channels::Rgb`).
         const osg::ref_ptr<osg::Image> taken = FrameReader::read(*mRenderer, 0, 0, Rtx::Channels::Rgb);
@@ -794,38 +794,54 @@ namespace MWRender
 
     std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         return traceView(spec, ViewKind::World);
     }
 
     std::unique_ptr<SubjectView> RtxRenderer::createSubjectView(const OffscreenViewSpec& spec) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         return traceView(spec, ViewKind::Subject);
     }
 
     std::unique_ptr<MapOverlay> RtxRenderer::createMapOverlay(const MapOverlaySpec& spec) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         assert(mGui != nullptr && "an overlay before the interface was made");
         return std::make_unique<TracedOverlay>(spec, mViews, *mGui);
     }
 
     void RtxRenderer::setVSync(SDLUtil::VSyncMode mode) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         mPending.mVerticalSync = verticalSyncOf(mode);
     }
 
     void RtxRenderer::awaitPresented() noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         mRenderer->awaitPresented();
     }
 
     const RenderSupport& RtxRenderer::support() const noexcept
     {
         return rtxSupport();
+    }
+
+    std::string_view RtxRenderer::functionKey(const std::int32_t index, SDLUtil::KeyChange /*change*/) noexcept
+    {
+        // F3 and F4: the indices count from F1.
+        return index == 2 || index == 3 ? sNoStatsOverlays : std::string_view();
+    }
+
+    std::string_view RtxRenderer::reloadShaders() noexcept
+    {
+        return sKernelsCompiledIn;
+    }
+
+    std::string_view RtxRenderer::setLiveShaderReload(bool /*enabled*/) noexcept
+    {
+        return sKernelsCompiledIn;
     }
 
     std::span<const Rtx::UpscalerChoice> RtxRenderer::getUpscalers() const noexcept
@@ -835,7 +851,7 @@ namespace MWRender
 
     void RtxRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         const bool upscale = changed.contains({ "RTX", "upscale" });
         const bool indirect = changed.contains({ "RTX", "indirect lighting" });
         const bool bounceRays = changed.contains({ "RTX", "bounce rays" });
@@ -874,7 +890,7 @@ namespace MWRender
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept
     {
         // A full readback, which a load screen is exactly the moment to afford.
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectGameCall();
         assert(mGui != nullptr && "a frame frozen before the interface was made");
         return mFrames.freeze(*mRenderer, *mGui);
     }
@@ -906,7 +922,7 @@ namespace MWRender
 
     void RtxRenderer::notifyCut() noexcept
     {
-        expectWorldEvent();
+        expectGameCall();
         closeStretch();
         // Told rather than worked out: the mirror recycles its slots and is never cleared, so a cell load
         // looks like a step across a room. Kept for the next frame the world is traced in.
@@ -915,7 +931,7 @@ namespace MWRender
 
     void RtxRenderer::notifyWorldspaceChanged() noexcept
     {
-        expectWorldEvent();
+        expectGameCall();
         closeStretch();
         mLoss = Rtx::HistoryLoss::Worldspace;
         mRipples.dropStrikes();

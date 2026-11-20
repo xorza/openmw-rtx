@@ -97,19 +97,12 @@ namespace MWLua
         };
 
         api["triggerShaderReload"] = [context]() {
-            context.mLuaManager->addAction([] {
-                if (!refuses("debug.triggerShaderReload",
-                        renderer().support().declinedRequest(MWRender::PictureRequest::ShaderReload)))
-                    renderer().reloadShaders();
-            });
+            context.mLuaManager->addAction([] { refuses("debug.triggerShaderReload", renderer().reloadShaders()); });
         };
 
         api["setShaderHotReloadEnabled"] = [context](bool value) {
-            context.mLuaManager->addAction([value] {
-                if (!refuses("debug.setShaderHotReloadEnabled",
-                        renderer().support().declinedRequest(MWRender::PictureRequest::LiveShaderReload)))
-                    renderer().setLiveShaderReload(value);
-            });
+            context.mLuaManager->addAction(
+                [value] { refuses("debug.setShaderHotReloadEnabled", renderer().setLiveShaderReload(value)); });
         };
 
         return LuaUtil::makeReadOnly(api);

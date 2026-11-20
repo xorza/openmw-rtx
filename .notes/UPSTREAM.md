@@ -17,8 +17,10 @@ conflict here resolves by keeping the seam:
   is told to the player.
 - `CharacterPreview`, `LocalMap` and `GlobalMap` stand on the renderer's `OffscreenView` and `MapOverlay`; the
   post-processor's exterior flag comes from `GlWorld`.
-- `Renderer::support`, asked where the console, Lua and F2 would toggle what does nothing under the renderer; a script's post-processing shader under a renderer that declines the chain loads
-  by name and draws nothing, where it stopped at the null post-processor, and the chain lists empty
+- `Renderer::support`, asked where the console, Lua and F2 would toggle what does nothing under the renderer, and Lua's
+  shader reloads asking the renderer, which answers its refusal (`Renderer::reloadShaders`, `setLiveShaderReload` in
+  `debugbindings.cpp`, the user's yes, 2026-11-20); a script's post-processing shader under a renderer that declines
+  the chain loads by name and draws nothing, where it stopped at the null post-processor, and the chain lists empty
   (`RenderSupport::declinedSetting`; `load` and `getChain` in `postprocessingbindings.cpp`).
 - MyGUI's backend behind `MyGUIPlatform::GuiRenderManager` (`components/myguiplatform`), which `myguirtx` implements
   beside OSG's, and `VideoWidget`'s texture through `MyGUIPlatform::shareTexture` (`videowidget.cpp`).

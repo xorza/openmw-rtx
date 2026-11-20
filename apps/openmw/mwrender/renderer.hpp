@@ -164,9 +164,9 @@ namespace MWRender
         /// The events of one frame are about to be read (`SDLUtil::GraphicsListener::beginEvents`).
         virtual void beginEvents() {}
 
-        /// F1 to F12, as `index` nought to eleven, that this renderer has not declined
-        /// (`SDLUtil::GraphicsListener::functionKey`).
-        virtual void functionKey(std::int32_t index, SDLUtil::KeyChange change) {}
+        /// F1 to F12, as `index` nought to eleven (`SDLUtil::GraphicsListener::functionKey`): taken, or why this
+        /// renderer declines the key, which the caller tells the player as it goes down. Empty where it takes it.
+        [[nodiscard]] virtual std::string_view functionKey(std::int32_t index, SDLUtil::KeyChange change) = 0;
 
         /// The window's drawable size changed, in pixels (`SDLUtil::GraphicsListener::windowResized`).
         virtual void windowResized(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) {}
@@ -277,11 +277,12 @@ namespace MWRender
         virtual PostProcessor* getPostProcessor() { return nullptr; }
 
         /// Recompiles every shader this renderer draws with, from source: the debug package's
-        /// `triggerShaderReload`.
-        virtual void reloadShaders() {}
+        /// `triggerShaderReload`. Answers why it does not where it cannot, empty where it did.
+        [[nodiscard]] virtual std::string_view reloadShaders() = 0;
 
         /// Whether a shader edited on disk is recompiled as it changes, `setShaderHotReloadEnabled`.
-        virtual void setLiveShaderReload(bool enabled) {}
+        /// Answers why it does not where it cannot, empty where it took it.
+        [[nodiscard]] virtual std::string_view setLiveShaderReload(bool enabled) = 0;
 
         /// The scripts were reset, so nothing a script asked of this renderer holds: the rasterizer
         /// drops the techniques scripts enabled. From `LuaManager::clear`.

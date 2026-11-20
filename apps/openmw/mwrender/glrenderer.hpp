@@ -101,8 +101,8 @@ namespace MWRender
 
         /// The scene manager's GLSL and the chain's, both from source; and the chain's live reload,
         /// beside the shader manager's. Upstream's `debug` package did both by hand.
-        void reloadShaders() override;
-        void setLiveShaderReload(bool enabled) override;
+        std::string_view reloadShaders() override;
+        std::string_view setLiveShaderReload(bool enabled) override;
 
         /// `PostProcessor::disableDynamicShaders`: the techniques scripts enabled are dropped.
         void forgetScriptState() override;
@@ -151,7 +151,7 @@ namespace MWRender
         /// Into the viewer's queue, for the handlers it carries: the stats overlay's keys, and
         /// the resize its own handlers reposition by. The graphics context follows the window too.
         void beginEvents() override;
-        void functionKey(std::int32_t index, SDLUtil::KeyChange change) override;
+        std::string_view functionKey(std::int32_t index, SDLUtil::KeyChange change) override;
         void windowResized(std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height) override;
 
         /// Upstream's camera blit for the world map's overlay, hung under the traversal root.

@@ -206,6 +206,12 @@ namespace MWRender
         void setVSync(SDLUtil::VSyncMode mode) noexcept override;
         void awaitPresented() noexcept override;
         const RenderSupport& support() const noexcept override;
+
+        /// Declined, each with its reason (`sNoStatsOverlays`, `sKernelsCompiledIn`): what they ask is drawn and
+        /// compiled by the rasterizer alone. Any key but F3 and F4 is taken, and does nothing.
+        std::string_view functionKey(std::int32_t index, SDLUtil::KeyChange change) noexcept override;
+        std::string_view reloadShaders() noexcept override;
+        std::string_view setLiveShaderReload(bool enabled) noexcept override;
         std::span<const Rtx::UpscalerChoice> getUpscalers() const noexcept override;
 
         std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(float scalingFactor,
@@ -265,12 +271,12 @@ namespace MWRender
         /// asked at the frame, which neither walks nor traces under one.
         void applyViewMask() noexcept override
         {
-            mPhase.expect(Phase::Between, Phase::Run);
+            expectGameCall();
             mMirror.setViewMask(worldViewMask());
         }
         void applyWorldShown() noexcept override
         {
-            mPhase.expect(Phase::Between, Phase::Run);
+            expectGameCall();
             mMirror.setViewMask(worldViewMask());
         }
 
@@ -316,9 +322,13 @@ namespace MWRender
             Gui,
         };
 
-        /// What the world tells the renderer (a cell, an emitter, a cut, a worldspace) arrives between two
-        /// frames or from the run's hook; the next frame's walk reads what it changes.
-        void expectWorldEvent() const { mPhase.expect(Phase::Between, Phase::Run); }
+        /// **A call the game makes**, a world event or a request: between two frames, or from the run's hook, which
+        /// acts on the game as its update would. What a world event changes the next frame's walk reads.
+        void expectGameCall() const { mPhase.expect(Phase::Between, Phase::Run); }
+
+        /// **A call of the engine's own loop or of setting the renderer up**: between two frames alone, never from the
+        /// run's hook, which a frame's own steps would meet half done.
+        void expectEngineCall() const { mPhase.expect(Phase::Between); }
 
         /// Traces the world the walk has just mirrored and closes the report. Its refusals (an empty world, a
         /// camera with no roll) are no reason not to present, so they end here and not in `renderFrame`.

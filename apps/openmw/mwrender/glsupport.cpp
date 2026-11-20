@@ -12,7 +12,7 @@ namespace MWRender
             { "RTX", "upscale", "The ray tracer's upscaler. The rasterizer draws at the resolution." },
         });
 
-        constexpr RenderSupport sSupport(sSettings, {}, {});
+        constexpr RenderSupport sSupport(sSettings, {});
     }
 
     const RenderSupport& glSupport()

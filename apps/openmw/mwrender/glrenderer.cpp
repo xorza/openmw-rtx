@@ -370,18 +370,20 @@ namespace MWRender
         return mWorld ? &mWorld->getPostProcessor() : nullptr;
     }
 
-    void GlRenderer::reloadShaders()
+    std::string_view GlRenderer::reloadShaders()
     {
         getResources().getSceneManager()->getShaderManager().triggerShaderReload();
         if (mWorld)
             mWorld->getPostProcessor().triggerShaderReload();
+        return {};
     }
 
-    void GlRenderer::setLiveShaderReload(const bool enabled)
+    std::string_view GlRenderer::setLiveShaderReload(const bool enabled)
     {
         getResources().getSceneManager()->getShaderManager().setHotReloadEnabled(enabled);
         if (mWorld)
             mWorld->getPostProcessor().mEnableLiveReload = enabled;
+        return {};
     }
 
     void GlRenderer::forgetScriptState()
@@ -909,7 +911,7 @@ namespace MWRender
         mViewer->getEventQueue()->frame(0.f);
     }
 
-    void GlRenderer::functionKey(const std::int32_t index, const SDLUtil::KeyChange change)
+    std::string_view GlRenderer::functionKey(const std::int32_t index, const SDLUtil::KeyChange change)
     {
         // A repeat is a press, as upstream's wrapper handed OpenSceneGraph every key down.
         const std::int32_t key = osgGA::GUIEventAdapter::KEY_F1 + index;
@@ -917,6 +919,7 @@ namespace MWRender
             mViewer->getEventQueue()->keyRelease(key);
         else
             mViewer->getEventQueue()->keyPress(key);
+        return {};
     }
 
     void GlRenderer::windowResized(
