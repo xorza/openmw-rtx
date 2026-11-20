@@ -516,13 +516,14 @@ namespace Rtx
         mScenes.at(slot).takeAnswer(into);
 
         // **A refusal says how the heap stood**, once each time the allocator refused content anew: what the take
-        // asked and every content pool's room, the figures a mesh left out beside resting textures is read by.
+        // asked and every content pool's room, the figures a mesh left out beside resting textures is read by. At
+        // Info: the refusal is its record's, and a line of live figures was a new warning each time it was said.
         const MemoryAllocator& memory = mDevice.getMemory();
         if (into.mRefused.size() > refusedBefore && memory.getRefusedCount() > mRefusedTakesSaid)
         {
             mRefusedTakesSaid = memory.getRefusedCount();
             if (const std::optional<RefusedTake> refused = memory.getLastRefused(); refused.has_value())
-                Log(Debug::Warning) << "Ray tracing had " << describe(*refused);
+                Log(Debug::Info) << "Ray tracing had " << describe(*refused);
         }
     }
 
@@ -621,6 +622,11 @@ namespace Rtx
     MemoryPrices VulkanRenderer::priceMemory() const
     {
         return Rtx::priceMemory(mDevice);
+    }
+
+    std::vector<CopyRate> VulkanRenderer::measureCopies()
+    {
+        return Rtx::measureCopies(mDevice);
     }
 
     MemoryReport VulkanRenderer::getMemoryReport() const

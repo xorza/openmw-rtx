@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -71,6 +72,28 @@ namespace Rtx
         /// By triangles, in `sPricedTriangles`' order.
         std::vector<StructurePrice> mStructures;
     };
+
+    /// How long the device took to copy one size of texture chain on the device, as a move or a lowering does:
+    /// `mCopies` chains of `mSide` texels a side in BC7, each into an image of its own, `mBytes` of texels in all, in
+    /// `mMs` by the device's own clock.
+    struct CopyRate
+    {
+        std::uint32_t mSide = 0;
+        std::uint32_t mCopies = 0;
+        std::uint64_t mBytes = 0;
+        double mMs = 0.0;
+
+        bool operator==(const CopyRate& other) const = default;
+    };
+
+    /// The sides copied: a floor's chain, a common file's, a large one's and the largest a file of the game holds.
+    inline constexpr std::array<std::uint32_t, 4> sCopiedSides{ 64, 256, 1024, 4096 };
+
+    /// The texels each side's run copies, about, so a run is long enough for the clock and short enough for any card.
+    inline constexpr std::uint64_t sCopiedBytes = std::uint64_t{ 128 } << 20;
+
+    /// The rates as a report prints them, a line a side: the bytes a millisecond and what one chain takes.
+    std::string describe(std::span<const CopyRate> rates);
 
     /// The formats priced: one of each layout a device stores a texture in, since the same blocks read as a colour
     /// or as data are one size.

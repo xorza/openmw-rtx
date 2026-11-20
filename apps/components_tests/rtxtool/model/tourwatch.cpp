@@ -117,9 +117,9 @@ namespace RtxTool
                 << hitch->mNote;
 
             watch.endLeg(leg, BenchPlace{}, {}, places);
-            const Finding* const slow
-                = find(watch.getTable(), FindingKind::SlowFrames, "3 of 6 frames of leg-1 over the 16.7 ms budget");
+            const Finding* const slow = find(watch.getTable(), FindingKind::SlowFrames, "leg-1");
             ASSERT_NE(slow, nullptr);
+            EXPECT_EQ(slow->mNote, "3 of 6 frames over the 16.7 ms budget") << "the figures apart from what it is";
             EXPECT_DOUBLE_EQ(slow->mWorstMs, 60.0);
             EXPECT_EQ(slow->mPlace.mFrame, 6u);
             EXPECT_NE(find(watch.getTable(), FindingKind::Outrun,
@@ -138,8 +138,8 @@ namespace RtxTool
             EXPECT_NE(find(paced.getTable(), FindingKind::Hitch, "led by walk on leg-2"), nullptr);
         }
 
-        /// **What the content gave that the renderer refused is a finding a refusal, by its kind and its name**, met
-        /// once however many frames follow it, and so is a kernel that stored a value not finite, a leg that failed
+        /// **What the content gave that the renderer refused is a finding a refusal, by its kind, its name and why**,
+        /// met once however many frames follow it, and so is a kernel that stored a value not finite, a leg that failed
         /// and the watcher's mark, each at the frame of its leg it was met on.
         TEST(RtxTourWatchTest, aRefusalAKernelAFailedLegAndAMarkAreFindingsWhereTheyWereMet)
         {
@@ -159,11 +159,11 @@ namespace RtxTool
             watch.frame(third, places);
 
             const Finding* const texture
-                = find(watch.getTable(), FindingKind::Refused, "a texture \"textures/tx_a.dds\"");
+                = find(watch.getTable(), FindingKind::Refused, "a texture \"textures/tx_a.dds\": no file");
             ASSERT_NE(texture, nullptr);
             EXPECT_EQ(texture->mCount, 1u);
             EXPECT_EQ(texture->mPlace.mFrame, 1u);
-            const Finding* const mesh = find(watch.getTable(), FindingKind::Refused, "a mesh");
+            const Finding* const mesh = find(watch.getTable(), FindingKind::Refused, "a mesh: past a block");
             ASSERT_NE(mesh, nullptr);
             EXPECT_EQ(mesh->mPlace.mFrame, 3u);
             const Finding* const kernel = find(watch.getTable(), FindingKind::NotFinite, "trace.rgen");
@@ -175,6 +175,14 @@ namespace RtxTool
             EXPECT_NE(find(watch.getTable(), FindingKind::Mark, "marked on frame 3 of leg-1"), nullptr);
             EXPECT_NE(find(watch.getTable(), FindingKind::LegFailed, "leg-1: the world stalled"), nullptr);
             EXPECT_EQ(watch.getTable().getFindings().size(), 5u);
+
+            // The same texture refused for another reason is another finding.
+            world.mScene.refusals().refuse(Rtx::Refused::Texture, "textures/tx_a.dds", "its side is past the device's");
+            watch.frame(world.frame(std::nullopt), places);
+            EXPECT_NE(find(watch.getTable(), FindingKind::Refused,
+                          "a texture \"textures/tx_a.dds\": its side is past the device's"),
+                nullptr);
+            EXPECT_EQ(watch.getTable().getFindings().size(), 6u);
         }
     }
 }

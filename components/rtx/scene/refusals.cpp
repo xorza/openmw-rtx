@@ -58,13 +58,15 @@ namespace Rtx
         mNamed.push_back(Refusal{ .mKind = kind, .mName = std::string(name), .mWhy = std::string(why) });
         ++mCounts[static_cast<std::size_t>(kind)];
 
+        // **At Info, not as a warning**: the refusal is a record already (`getMet`), which a tour turns into its one
+        // finding; a warning beside it was the same refusal counted twice more by the log's listener.
         const Wording& wording = sWording[static_cast<std::size_t>(kind)];
         if (name.empty())
-            Log(Debug::Warning) << "Ray tracing " << wording.mDoes << ' ' << wording.mArticle << ' ' << wording.mNoun
-                                << ": " << why;
+            Log(Debug::Info) << "Ray tracing " << wording.mDoes << ' ' << wording.mArticle << ' ' << wording.mNoun
+                             << ": " << why;
         else
-            Log(Debug::Warning) << "Ray tracing " << wording.mDoes << " the " << wording.mNoun << " \"" << name
-                                << "\": " << why;
+            Log(Debug::Info) << "Ray tracing " << wording.mDoes << " the " << wording.mNoun << " \"" << name
+                             << "\": " << why;
     }
 
     void Refusals::refuse(std::span<const Refusal> held)

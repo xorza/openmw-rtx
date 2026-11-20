@@ -94,7 +94,9 @@ namespace RtxTool
         {
             const std::string_view kind = sRefusedNames[static_cast<std::size_t>(refusal.mKind)];
             add(FindingKind::Refused,
-                refusal.mName.empty() ? std::string(kind) : std::format("{} \"{}\"", kind, refusal.mName), places);
+                refusal.mName.empty() ? std::format("{}: {}", kind, refusal.mWhy)
+                                      : std::format("{} \"{}\": {}", kind, refusal.mName, refusal.mWhy),
+                places);
         }
         mRefusalsRead = met.size();
 
@@ -149,15 +151,18 @@ namespace RtxTool
             mFirstPass = SoakFigures::of(place);
         if (stop.mActions.mSoak == Actions::Soak::Again && mFirstPass.has_value())
             if (const std::optional<std::string> growth = describeGrowth(*mFirstPass, SoakFigures::of(place)))
-                add(FindingKind::Growth, *growth, places);
+                mTable.add(FindingKind::Growth, "the closing leg against the first", places.read(mLeg, mFrame, mAir),
+                    FindingMet{ .mNote = *growth });
 
         for (const Check check : failed)
             add(FindingKind::CheckFailed, checkName(check), places);
 
         if (!mPaced && mSlow > 0 && mSlowWorst.has_value())
-            mTable.add(FindingKind::SlowFrames,
-                std::format("{} of {} frames of {} over the {:.1f} ms budget", mSlow, mMeasured, mLeg, mBudgetMs),
-                *mSlowWorst, FindingMet{ .mMs = mSlowWorstMs });
+        {
+            const std::string figures
+                = std::format("{} of {} frames over the {:.1f} ms budget", mSlow, mMeasured, mBudgetMs);
+            mTable.add(FindingKind::SlowFrames, mLeg, *mSlowWorst, FindingMet{ .mMs = mSlowWorstMs, .mNote = figures });
+        }
 
         for (const osg::Vec2i& cell : stop.mActions.mCovers)
             if (std::ranges::find(mCovered, cell.x()) == mCovered.end())

@@ -362,7 +362,8 @@ namespace RtxTool
         option({ Verb::Info }, "prices", bpo::bool_switch(),
             "after the device, print what it charges for what content stands in: each kind of memory, what a texture "
             "of each format and side asks with its whole chain, what a mesh's structure asks by its triangles, and "
-            "how many allocations may stand; the figures content's memory is cut up by");
+            "how many allocations may stand; the figures content's memory is cut up by; and how fast it copies texture "
+            "chains on itself, which a frame's share of copies is set from");
 
         option(sFramed, "filter",
             bpo::value<bool>()

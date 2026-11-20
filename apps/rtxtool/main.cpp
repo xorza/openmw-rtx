@@ -223,7 +223,9 @@ namespace RtxTool
                 });
                 Debug::getRawStdout() << renderer->describeDevice() << '\n';
                 if (command.mLine.mPrices)
-                    Debug::getRawStdout() << '\n' << Rtx::describe(renderer->priceMemory());
+                    Debug::getRawStdout() << '\n'
+                                          << Rtx::describe(renderer->priceMemory()) << '\n'
+                                          << Rtx::describe(std::span<const Rtx::CopyRate>(renderer->measureCopies()));
                 return ExitStatus::Passed;
             }
             catch (const Rtx::Unsupported& obstacle)

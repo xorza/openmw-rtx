@@ -3,10 +3,12 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -131,8 +133,23 @@ namespace RtxTool
         Finding* find(FindingKind kind, std::string_view detail);
         bool hasRoom(FindingKind kind) const;
 
+        /// A string table that is asked by a view, so a lookup builds no string.
+        struct DetailHash
+        {
+            using is_transparent = void;
+            std::size_t operator()(std::string_view detail) const noexcept
+            {
+                return std::hash<std::string_view>{}(detail);
+            }
+        };
+        using DetailIndex = std::unordered_map<std::string, std::uint32_t, DetailHash, std::equal_to<>>;
+
         Expectations mExpected;
         std::vector<Finding> mFindings;
+
+        /// Where each finding stands in `mFindings`, by its kind and then its detail: a finding met on every frame of
+        /// a long tour was a walk of the whole table each time.
+        std::array<DetailIndex, static_cast<std::size_t>(FindingKind::Count)> mIndex;
         std::size_t mFaults = 0;
         std::array<std::uint32_t, static_cast<std::size_t>(FindingKind::Count)> mDropped{};
     };

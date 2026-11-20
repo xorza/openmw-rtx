@@ -87,6 +87,7 @@ namespace Rtx
         bool isValidating() const override { return false; }
         MemoryReport getMemoryReport() const override { return {}; }
         MemoryPrices priceMemory() const override;
+        std::vector<CopyRate> measureCopies() override { return {}; }
         std::uint64_t getSystemClaim() const override { return 0; }
         const SceneStats& getSceneStats() const override { return mStats; }
         void readPixels(std::vector<std::uint8_t>& pixels) override;

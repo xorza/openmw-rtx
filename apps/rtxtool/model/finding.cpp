@@ -104,9 +104,9 @@ namespace RtxTool
 
     const Finding* FindingTable::find(const FindingKind kind, const std::string_view detail) const
     {
-        const auto found = std::ranges::find_if(
-            mFindings, [&](const Finding& finding) { return finding.mKind == kind && finding.mDetail == detail; });
-        return found == mFindings.end() ? nullptr : &*found;
+        const DetailIndex& index = mIndex[static_cast<std::size_t>(kind)];
+        const auto found = index.find(detail);
+        return found == index.end() ? nullptr : &mFindings[found->second];
     }
 
     Finding* FindingTable::find(const FindingKind kind, const std::string_view detail)
@@ -148,6 +148,7 @@ namespace RtxTool
             return;
         }
         mFaults += isFault(kind) ? 1 : 0;
+        mIndex[static_cast<std::size_t>(kind)].emplace(detail, static_cast<std::uint32_t>(mFindings.size()));
         mFindings.push_back(Finding{ .mKind = kind,
             .mDetail = std::string(detail),
             .mPlace = place,

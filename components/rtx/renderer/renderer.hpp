@@ -714,6 +714,11 @@ namespace Rtx
         /// questions and nothing made, so once and never on a frame.
         virtual MemoryPrices priceMemory() const = 0;
 
+        /// How fast the device copies texture chains on itself (`CopyRate`), a side of `sCopiedSides` each: what a
+        /// frame's share of copies is set from. Makes images of `sCopiedBytes` a side and waits for the device, so
+        /// once, on a device that draws nothing; empty where nothing can be timed.
+        virtual std::vector<CopyRate> measureCopies() = 0;
+
         /// What the device claims of the host's caches, where its memory is the system's: memory it gave back lately
         /// and is likely to take again, which the caches leave it (`Resource::CacheBudget::yieldTo`); nought where the
         /// device has memory of its own. Asked once a frame.

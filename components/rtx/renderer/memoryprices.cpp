@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <span>
 #include <string>
 
 #include <components/rtx/common/mebibytes.hpp>
@@ -31,6 +32,22 @@ namespace Rtx
         for (std::uint32_t at = side; at >= 1; at /= 2)
             bytes += layout.levelBytes(at, at);
         return bytes;
+    }
+
+    std::string describe(const std::span<const CopyRate> rates)
+    {
+        std::string text
+            = "copies of BC7 chains on the device: the chains, their texels, the time, the rate, one chain's time\n";
+        for (const CopyRate& rate : rates)
+        {
+            const double gibPerSecond = rate.mMs > 0.0
+                ? static_cast<double>(rate.mBytes) / (rate.mMs / 1000.0) / static_cast<double>(std::uint64_t{ 1 } << 30)
+                : 0.0;
+            text += std::format(
+                "  {:>5}  {:>5} chains  {:>10} bytes  {:>8.3f} ms  {:>6.1f} GiB/s  {:>8.4f} ms a chain\n", rate.mSide,
+                rate.mCopies, rate.mBytes, rate.mMs, gibPerSecond, rate.mCopies > 0 ? rate.mMs / rate.mCopies : 0.0);
+        }
+        return text;
     }
 
     std::string describe(const MemoryPrices& prices)

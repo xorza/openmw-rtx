@@ -1,10 +1,12 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/renderer/memoryprices.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -57,6 +59,23 @@ namespace Rtx
             EXPECT_NE(prices.mStructureKinds & every, 0u);
             EXPECT_GT(prices.mAllocationsMost, 0u);
             EXPECT_GT(prices.mGranularity, 0u);
+        }
+
+        /// **Every side is copied at least four times, in a time the device's clock took**, and the bytes are the
+        /// chains' texels: what a frame's share of copies is set from.
+        TEST_F(RtxMemoryPricingTest, theDeviceCopiesEverySideAndTimesIt)
+        {
+            const std::vector<CopyRate> rates = measureCopies(getDevice());
+            ASSERT_EQ(rates.size(), sCopiedSides.size());
+            for (std::size_t at = 0; at < rates.size(); ++at)
+            {
+                SCOPED_TRACE(at);
+                EXPECT_EQ(rates[at].mSide, sCopiedSides[at]);
+                EXPECT_GE(rates[at].mCopies, 4u);
+                EXPECT_EQ(
+                    rates[at].mBytes, rates[at].mCopies * chainTexelBytes(TextureFormat::Bc7Srgb, rates[at].mSide));
+                EXPECT_GT(rates[at].mMs, 0.0);
+            }
         }
     }
 }

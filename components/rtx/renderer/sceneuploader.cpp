@@ -220,10 +220,11 @@ namespace Rtx
 
         // **And what rested beside a mesh the device left out**, the room an eviction had to give: textures and meshes
         // apart, since the two stand in memory one cannot always take of the other. A mesh is left out for room
-        // alone; a texture may be refused for its side, which rest has nothing to do with.
+        // alone; a texture may be refused for its side, which rest has nothing to do with. At Info, beside the
+        // refusal's own record.
         if (std::ranges::any_of(
                 mAnswer.mRefused, [](const Refusal& refusal) { return refusal.mKind == Refused::Mesh; }))
-            Log(Debug::Warning) << std::format(
+            Log(Debug::Info) << std::format(
                 "Ray tracing refused content beside {} resting textures of {:.1f} MiB "
                 "and {} resting meshes of {:.1f} MiB",
                 scene.textures().getResting().getCount(), mebibytes(scene.textures().getResting().getBytes()),

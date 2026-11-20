@@ -1,3 +1,5 @@
+#include <array>
+#include <span>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -62,6 +64,19 @@ namespace Rtx
                 "\nstructures as first built, by triangles: the structure's bytes, a triangle's share, the build's "
                 "scratch\n"
                 "     1024       65536      64.0        4096\n");
+        }
+
+        /// **A copy's rate is its bytes over its time**, a line a side: 16 chains of 1024 in BC7, 1 398 128 bytes each,
+        /// in 2 ms are 10.4 GiB/s and 0.125 ms a chain; one timed at nought says nought, not an infinity.
+        TEST(RtxMemoryPricesTest, aCopysRateIsItsBytesOverItsTime)
+        {
+            const std::array<CopyRate, 2> rates{ CopyRate{
+                                                     .mSide = 1024, .mCopies = 16, .mBytes = 16 * 1398128, .mMs = 2.0 },
+                CopyRate{ .mSide = 64, .mCopies = 0, .mBytes = 0, .mMs = 0.0 } };
+            EXPECT_EQ(describe(std::span<const CopyRate>(rates)),
+                "copies of BC7 chains on the device: the chains, their texels, the time, the rate, one chain's time\n"
+                "   1024     16 chains    22370048 bytes     2.000 ms    10.4 GiB/s    0.1250 ms a chain\n"
+                "     64      0 chains           0 bytes     0.000 ms     0.0 GiB/s    0.0000 ms a chain\n");
         }
 
         /// **With no device a texture costs its texels**, every priced format at every side to 4096, 13 a format, in
