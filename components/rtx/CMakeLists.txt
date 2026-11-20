@@ -64,11 +64,13 @@ openmw_rtx_layer(
     SOURCES
         common/bufferpool.cpp
         common/runs.cpp
+        common/slotledger.cpp
     HEADERS
         common/asserts.hpp
         common/bufferpool.hpp
         common/cardaddress.hpp
         common/clock.hpp
+        common/deviceepoch.hpp
         common/error.hpp
         common/finite.hpp
         common/index.hpp
@@ -86,6 +88,7 @@ openmw_rtx_layer(
         common/rowvector.hpp
         common/runs.hpp
         common/scratch.hpp
+        common/slotledger.hpp
         common/slots.hpp
         common/stepped.hpp
 )

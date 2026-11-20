@@ -21,6 +21,7 @@ target_sources(
         rtx/common/radicalinverse.cpp
         rtx/common/rows.cpp
         rtx/common/runs.cpp
+        rtx/common/slotledger.cpp
         rtx/common/slots.cpp
         rtx/common/stepped.cpp
         rtx/environment/atmospheremesh.cpp
