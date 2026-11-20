@@ -1,0 +1,128 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <apps/openmw/mwrender/rtx/framereport.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/expectations.hpp>
+#include <apps/rtxtool/model/finding.hpp>
+#include <apps/rtxtool/model/logtally.hpp>
+#include <apps/rtxtool/model/longestframes.hpp>
+#include <apps/rtxtool/model/measurewindow.hpp>
+#include <apps/rtxtool/model/restreuse.hpp>
+#include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/world/frameworld.hpp>
+
+#include "standingnote.hpp"
+
+namespace RtxTool
+{
+    /// What a tour meets, turned into findings with the place each was met at: the stores a shader made that were not
+    /// finite, by module; what the content gave that the renderer refused, by kind; the hitches and the slow frames;
+    /// the cells a leg outran; the claims of `check` a leg failed at its end; a leg that failed; the watcher's marks.
+    /// The only part of a tour that runs every frame, and a frame that finds nothing takes no place and builds no
+    /// string; the place is the note's (`StandingNote`), taken when something is found.
+    class TourWatch
+    {
+    public:
+        /// @param stepSeconds the run's step, which is the frame budget: a slow frame is over it.
+        /// @param paced whether the frames are held to the step, where a slow frame is the limiter's.
+        /// @param expected what the content is known to meet, which fails no run (`--expected`).
+        TourWatch(float stepSeconds, bool paced, Expectations expected);
+
+        /// A leg begins.
+        void begin(const Stop& stop);
+
+        /// The frame `report` describes, of the leg begun, and the span its arrival closed where the frame was
+        /// measured (`Measurer::getMeasuredSpan`): a hitch and a slow frame are judged on measured spans alone, as
+        /// the frames ahead of them wait for the world, and a hitch is read in the span, which holds the work of the
+        /// frame before with the game's update this one arrived through.
+        void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report, StandingNote& note,
+            const std::optional<ClosedSpan>& measured);
+
+        /// The leg ended, `place` what it came to and `failed` the claims it asked that did not hold: those, its slow
+        /// frames, the cells it covers that no frame stood whole in, and the closing leg's growth past the first.
+        void endLeg(const Stop& stop, const BenchPlace& place, std::span<const Check> failed, StandingNote& note);
+
+        /// The leg could not go on, for `why`.
+        void failLeg(const Stop& stop, std::string_view why, StandingNote& note);
+
+        /// Where the watcher pressed Home.
+        void mark(StandingNote& note);
+
+        /// How the textures came back from rest over the tour (`RestReuse`).
+        const RestReuse& getRestReuse() const { return mRestReuse; }
+
+        /// What the log is heard by, from any thread.
+        LogTally& getLog() { return mLog; }
+
+        /// Takes in the log's lines heard so far, which a leg's end does too.
+        void drainLog() { mLog.drainInto(mTable); }
+
+        const FindingTable& getTable() const { return mTable; }
+
+        /// The tour's longest measured frames, as they stood on the screen, and when each ended.
+        const LongestFrames& getLongest() const { return mLongest; }
+
+    private:
+        FindingPlace placeOf(StandingNote& note);
+
+        void add(FindingKind kind, std::string_view detail, StandingNote& note, double ms = 0.0);
+
+        /// Counts the hitch `span` is, as it stood on the screen (`Rtx::FrameSpend::seen`), by its leg and the
+        /// stretch it spent most in, placed at the worst of them with `loaded` the cells the game made active on it.
+        void addHitch(const ClosedSpan& span, std::size_t loaded, StandingNote& note);
+
+        double mBudgetMs = 0.0;
+        bool mPaced = false;
+
+        /// The leg's name and how many of its frames were seen.
+        std::string mLeg;
+        std::uint32_t mFrame = 0;
+
+        /// The frame before's time, which a hitch stands out from.
+        double mLastMs = 0.0;
+
+        /// The game's active cells on the frame before and on this one, sorted, which tell a frame the game loaded
+        /// cells on: it changes its grid apart from the frame the player's own cell changes. Refilled each frame
+        /// into room reserved for two grids.
+        std::vector<const void*> mActive;
+        std::vector<const void*> mLastActive;
+
+        /// How many of the scene's refusals, in the order met, are counted so far, so a frame's new ones are the rest.
+        std::size_t mRefusalsRead = 0;
+
+        /// How the textures came back from rest over the tour.
+        RestReuse mRestReuse;
+
+        LongestFrames mLongest;
+
+        /// The columns of the leg's cells a frame stood whole in while the player was there.
+        std::vector<std::int32_t> mCovered;
+
+        /// The leg's slow frames, the worst of them and where it stood.
+        std::uint32_t mSlow = 0;
+        std::uint32_t mMeasured = 0;
+        double mSlowWorstMs = 0.0;
+        std::optional<FindingPlace> mSlowWorst;
+
+        /// What the soak's first pass came to, once it is flown.
+        std::optional<SoakFigures> mFirstPass;
+
+        /// The last air the frames reported, which a place taken at a leg's end stands under.
+        Rtx::AirClock mAir{};
+
+        /// A hitch's detail, refilled for each hitch: a hitch that takes no place builds no string.
+        std::string mHitch;
+
+        FindingTable mTable;
+        LogTally mLog;
+    };
+}
