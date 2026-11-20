@@ -31,6 +31,7 @@ target_sources(
         mwrender/rtxsettings.cpp
         mwrender/rtxsupport.cpp
         mwrender/rtxwindow.cpp
+        mwrender/screenwait.cpp
         mwrender/searules.cpp
         mwrender/skystate.cpp
         mwrender/traceclocks.cpp

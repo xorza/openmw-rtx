@@ -105,6 +105,10 @@ namespace MWRender
         /// read into the store's memory, and what they computed, nothing where none ran.
         Rtx::ContentStats finishPreparing();
 
+        /// Stops a preparation where it stands, for a player who asked to quit under it: its threads ended, what
+        /// they wrote kept in the store, and no manifest written, so the next start walks what this one left.
+        void abandonPreparing();
+
         /// The world is going: every thread that reads it stops and every row it stood is swept, so a
         /// detached world is an empty scene. `SkyReader::detach` gives the sky's own back before this.
         void detach();

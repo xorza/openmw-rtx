@@ -30,6 +30,8 @@
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/mapoverlay.hpp>
 #include <apps/openmw/mwrender/offscreenview.hpp>
@@ -58,7 +60,6 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -87,6 +88,7 @@
 #include "contentmodels.hpp"
 #include "rtxsettings.hpp"
 #include "rtxsupport.hpp"
+#include "screenwait.hpp"
 #include "tracedground.hpp"
 #include "tracedoverlay.hpp"
 #include "tracedview.hpp"
@@ -109,34 +111,6 @@ namespace MWRender
                     return Rtx::VerticalSync::Adaptive;
             }
             Crash::fatal("a vertical sync mode past the three");
-        }
-
-        /// Waits out `await` under the loading screen, its label `label` and its note `note`, empty for none.
-        /// **Under a frame of the loading screen's**, so the screen paces it and not this wait: every report
-        /// draws, the count moved or not, as the draw pumps the window's events and beats the crash catcher's
-        /// heart, and one kernel alone takes seconds cold.
-        template <class Await>
-        void awaitOnScreen(
-            Loading::Listener& listener, const std::string_view label, const std::string_view note, Await&& await)
-        {
-            Rtx::JobProgress progress = await(std::chrono::milliseconds::zero());
-            if (progress.isDone())
-                return;
-
-            listener.setLabel(std::string(label));
-            if (!note.empty())
-                listener.setNote(note);
-            listener.setProgressRange(progress.mCount);
-
-            constexpr std::chrono::milliseconds patience{ 8 };
-            listener.setProgress(progress.mMade);
-            while (!progress.isDone())
-            {
-                progress = await(patience);
-                listener.setProgress(progress.mMade);
-            }
-            if (!note.empty())
-                listener.setNote({});
         }
     }
 
@@ -592,16 +566,31 @@ namespace MWRender
         mMirror.startPreparing(getResources(), std::move(models), std::move(layers),
             std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
 
-        awaitOnScreen(listener, "#{OMWEngine:CompilingShaders}", {},
-            [&](const std::chrono::milliseconds patience) { return mRenderer->awaitKernels(mKernels, patience); });
+        // **A quit asked under either wait leaves both**: the preparation is stopped where it stands, what it
+        // read kept, and the engine's loop ends before a frame; a trace on the way there waits for its own kernels.
+        const auto quits = [] { return MWBase::Environment::get().getStateManager()->hasQuitRequest(); };
+        ScreenWait waited = awaitOnScreen(listener,
+            ScreenWaitAsk{ .mLabel = "#{OMWEngine:CompilingShaders}",
+                .mNote = {},
+                .mAwait
+                = [&](const std::chrono::milliseconds patience) { return mRenderer->awaitKernels(mKernels, patience); },
+                .mQuits = quits });
 
         // A cold start waits here up to minutes, 364 s on a large mod list, and a player told nothing takes it for
         // a hang (`docs/research/2026-11-09-content-preparation-cost.md`). Each file is let go of by the loader's
         // caches as the last job reading it ends (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`):
         // cleared once a second the caches held 7.3 GiB at the peak of a PBR start, and aged by their expiry, 14.7 GB.
-        awaitOnScreen(listener, "#{OMWEngine:PreparingContent}", "#{OMWEngine:PreparingContentNote}",
-            [&](const std::chrono::milliseconds patience) { return mMirror.awaitPreparing(patience); });
-        mWalked.mSession.mLoading += mMirror.finishPreparing();
+        if (waited == ScreenWait::Done)
+            waited = awaitOnScreen(listener,
+                ScreenWaitAsk{ .mLabel = "#{OMWEngine:PreparingContent}",
+                    .mNote = "#{OMWEngine:PreparingContentNote}",
+                    .mAwait
+                    = [&](const std::chrono::milliseconds patience) { return mMirror.awaitPreparing(patience); },
+                    .mQuits = quits });
+        if (waited == ScreenWait::Done)
+            mWalked.mSession.mLoading += mMirror.finishPreparing();
+        else
+            mMirror.abandonPreparing();
 
         // Drops what a job's files did not name, so the models a run keeps do not hang on the threads' timing.
         getResources().clearCache();

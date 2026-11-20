@@ -356,6 +356,11 @@ namespace MWRender
         return stats;
     }
 
+    void WorldMirror::abandonPreparing()
+    {
+        mPreparing.reset();
+    }
+
     void WorldMirror::attach(Resource::ResourceSystem& resources, SceneUtil::UnrefQueue& released)
     {
         mContent = std::make_unique<SceneContent>(*resources.getSceneManager());

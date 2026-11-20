@@ -688,6 +688,7 @@ target_sources(
         mwrender/rtx/rtxstart.cpp
         mwrender/rtx/rtxsupport.cpp
         mwrender/rtx/rtxwindow.cpp
+        mwrender/rtx/screenwait.cpp
         mwrender/rtx/skyreader.cpp
         mwrender/rtx/tracedground.cpp
         mwrender/rtx/tracedgroundcover.cpp
@@ -786,6 +787,7 @@ target_sources(
                 mwrender/rtx/rtxstart.hpp
                 mwrender/rtx/rtxsupport.hpp
                 mwrender/rtx/rtxwindow.hpp
+                mwrender/rtx/screenwait.hpp
                 mwrender/rtx/skyreader.hpp
                 mwrender/rtx/tracedground.hpp
                 mwrender/rtx/tracedgroundcover.hpp
