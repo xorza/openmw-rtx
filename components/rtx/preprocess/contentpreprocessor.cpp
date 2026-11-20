@@ -90,6 +90,17 @@ namespace Rtx
         std::optional<PooledBuffer> buffer;
         if (whole)
         {
+            // **Checked against the file's layouts before a buffer is taken for it**: an entry is untrusted, and one
+            // that fills no form's layout would otherwise size a take.
+            const bool fillsAForm = std::ranges::any_of(
+                std::array{ ChainForm::Stands, ChainForm::Bc7, ChainForm::Own }, [&](const ChainForm form) {
+                    return fillsLayout(Pass::madeLayout(input, form), form, payloadBytes - 1);
+                });
+            if (!fillsAForm)
+            {
+                mCache.discard<Pass>(key);
+                return false;
+            }
             buffer = pool.take(payloadBytes, stop);
             if (!buffer.has_value() || !mCache.readSegments(*opened, 0, 1, buffer->bytes()))
                 return false;

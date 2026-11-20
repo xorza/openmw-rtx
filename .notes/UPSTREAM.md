@@ -94,8 +94,9 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
 - An archive opened once and read by position (`Platform::File::readAt`): `Bsa::BSAFile` holds a `Files::SharedFile`,
   and each entry's `ConstrainedFileStreamBuf` keeps its own position, where each entry opened the archive again (18,082
   opens of `Morrowind.bsa` in 75 s); POSIX `pread`, Windows `ReadFile` at an `OVERLAPPED`'s offset, the file shared for
-  writing and deletion. Cost: a conflict with an edit to the stream buffer, `BSAFile::open` and `close`, or where the
-  four archive kinds open an entry's stream.
+  writing and deletion; read on from a short count, and a failure answered as a `Result`, which the stream throws.
+  Cost: a conflict with an edit to the stream buffer, `BSAFile::open` and `close`, or where the four archive kinds open
+  an entry's stream.
 - The caches kept by a byte budget in one least-recently-used order (`Resource::CacheBudget`, owned by `ResourceSystem`)
   in place of `cache expiry delay`; each load states its bytes (`Resource::Loaded`), and `navmeshtool` and
   `bulletobjecttool` hand a budget of nought. A run may hold it under a limit (`CacheBudget::limit`, the harness's

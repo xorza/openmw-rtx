@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -90,6 +91,9 @@ namespace ContentStore
             const std::uint64_t tail = tailBytesOf(trailer.mSegments);
             if (fileBytes < tail || trailer.mPayloadBytes != fileBytes - tail)
                 return "its length";
+            // On every path, the ranged read's among them, which takes a buffer by what the trailer says.
+            if (trailer.mPayloadBytes > Store::sPayloadMost)
+                return "its size";
             return {};
         }
 
@@ -380,35 +384,46 @@ namespace ContentStore
 
     bool Store::openFile(Opened& opened, const Key& key, const std::uint32_t kind, const std::uint32_t version)
     {
+        std::uint64_t fileBytes = 0;
         try
         {
             opened.mFile = Platform::File::open(opened.mPath);
+            fileBytes = Platform::File::size(opened.mFile);
         }
-        catch (const std::system_error&)
+        // Either system's: POSIX throws `std::system_error` and Windows its base.
+        catch (const std::runtime_error&)
         {
+            opened.mFile = Platform::File::ScopedHandle();
             return false;
         }
 
-        const std::uint64_t fileBytes = Platform::File::size(opened.mFile);
         EntryTrailer trailer{};
         std::string_view failed;
-        if (fileBytes < sizeof(trailer)
-            || Platform::File::readAt(
-                   opened.mFile, static_cast<std::size_t>(fileBytes - sizeof(trailer)), &trailer, sizeof(trailer))
-                != sizeof(trailer))
+        RangeRead read = fileBytes < sizeof(trailer)
+            ? RangeRead::Short
+            : readRange(opened, fileBytes - sizeof(trailer), std::as_writable_bytes(std::span(&trailer, 1)));
+        if (read == RangeRead::Short)
             failed = "its length";
-        if (failed.empty())
+        if (read == RangeRead::Whole)
             failed = checkTrailer(trailer, key, fileBytes, mPolicy.mKindCount);
         if (failed.empty() && (trailer.mKind != kind || trailer.mVersion != version))
             failed = trailer.mKind != kind ? "the kind asked for" : "the version asked for";
 
         std::array<SegmentRecord, sSegmentsMost> records{};
-        const std::size_t tableBytes = std::size_t{ trailer.mSegments } * sizeof(SegmentRecord);
-        if (failed.empty()
-            && Platform::File::readAt(
-                   opened.mFile, static_cast<std::size_t>(trailer.mPayloadBytes), records.data(), tableBytes)
-                != tableBytes)
-            failed = "its length";
+        if (read == RangeRead::Whole && failed.empty())
+        {
+            read = readRange(
+                opened, trailer.mPayloadBytes, std::as_writable_bytes(std::span(records.data(), trailer.mSegments)));
+            if (read == RangeRead::Short)
+                failed = "its length";
+        }
+        // **A read the system failed is a miss, and the file stays**: the fault is the disk's or the moment's, and an
+        // entry deleted for it is one a play computes again for nothing.
+        if (read == RangeRead::Failed)
+        {
+            opened.mFile = Platform::File::ScopedHandle();
+            return false;
+        }
         if (failed.empty()
             && digestOf(std::as_bytes(std::span(records.data(), trailer.mSegments))) != trailer.mTableDigest)
             failed = "its table's digest";
@@ -449,14 +464,8 @@ namespace ContentStore
             return true;
         }
 
-        bool whole = true;
-        for (std::size_t done = 0; whole && done < into.size();)
-        {
-            const std::size_t read = Platform::File::readAt(
-                entry.mFile, static_cast<std::size_t>(start) + done, into.data() + done, into.size() - done);
-            whole = read > 0;
-            done += read;
-        }
+        const RangeRead read = readRange(entry, start, into);
+        bool whole = read == RangeRead::Whole;
         for (std::uint32_t at = first; whole && at < first + count; ++at)
             whole = digestOf(into.subspan(static_cast<std::size_t>(entry.startOf(at) - start),
                         static_cast<std::size_t>(entry.endOf(at) - entry.startOf(at))))
@@ -464,9 +473,24 @@ namespace ContentStore
         if (!whole)
         {
             entry.mFile = Platform::File::ScopedHandle();
-            refuse(entry.mPath, "its digest");
+            if (read != RangeRead::Failed)
+                refuse(entry.mPath, read == RangeRead::Short ? "its length" : "its digest");
         }
         return whole;
+    }
+
+    Store::RangeRead Store::readRange(const Opened& entry, const std::uint64_t offset, const std::span<std::byte> into)
+    {
+        const Result<std::size_t, std::error_code> read
+            = Platform::File::readAt(entry.mFile, offset, into.data(), into.size());
+        if (read.isOk())
+            return read.value() == into.size() ? RangeRead::Whole : RangeRead::Short;
+
+        // Said once, as a whole file that would not read is (`readFile`), and counted as the miss it is.
+        if (!mReadFailureLogged.exchange(true, std::memory_order_relaxed))
+            Log(Debug::Warning) << "The content store could not read " << Files::pathToUnicodeString(entry.mPath)
+                                << ", and counts every miss after it: " << read.error().message();
+        return RangeRead::Failed;
     }
 
     bool Store::holds(const Key& key, const std::uint32_t kind, const Reach reach)

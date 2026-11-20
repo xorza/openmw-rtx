@@ -198,8 +198,8 @@ namespace ContentStore
         std::optional<Opened> open(const Key& key, std::uint32_t kind, std::uint32_t version, Reach reach);
 
         /// Reads `count` segments of `entry` from `first` into `into`, as long as they are, each checked against its
-        /// digest: false where the file does not read so or a digest does not hold, which refuses and deletes it, and
-        /// `into` is then unspecified.
+        /// digest: false where the file is shorter than its segments or a digest does not hold, which refuses and
+        /// deletes it, and where the system failed the read, which leaves it; `into` is then unspecified.
         bool readSegments(Opened& entry, std::uint32_t first, std::uint32_t count, std::span<std::byte> into);
 
         /// Whether an entry stands under `key` within `reach`, held in memory or as a file whose trailer holds for
@@ -267,8 +267,24 @@ namespace ContentStore
         void stampFile(const Key& key, std::uint32_t kind);
 
         /// Opens `opened`'s file, which stands, for `key` filed as `kind` at `version`, and reads its trailer and its
-        /// table; refuses and deletes it where either does not hold.
+        /// table; refuses and deletes it where either does not hold. A file the system will not open or read is a
+        /// miss, and stays.
         bool openFile(Opened& opened, const Key& key, std::uint32_t kind, std::uint32_t version);
+
+        /// What a read of a range of an entry's file came to.
+        enum class RangeRead : std::uint8_t
+        {
+            Whole,
+
+            /// The file ended first: an entry cut short, which is refused.
+            Short,
+
+            /// The system failed the read: a miss, said once a session.
+            Failed,
+        };
+
+        /// Reads `into`'s length of `entry`'s file at `offset`.
+        RangeRead readRange(const Opened& entry, std::uint64_t offset, std::span<std::byte> into);
 
         /// Reads the file at `path` for `key` into `kind`, `version` and `payload`, answering whether
         /// it was whole; refuses and deletes it where it was not. Nothing where there is no file.

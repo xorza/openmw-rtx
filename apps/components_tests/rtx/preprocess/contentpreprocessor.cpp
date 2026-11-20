@@ -774,6 +774,46 @@ namespace Rtx
             EXPECT_EQ(stats.mRunMs, 0.0);
         }
 
+        /// **An entry that fills no form's layout of its file is discarded before a buffer is taken for it**: an entry
+        /// is untrusted, and a pooled read once sized its take by what the entry said. One segment of 200 KiB and a
+        /// form's byte, filed under an 8 by 8 file's key, whose chain is 112 bytes: the chain is made and handed over
+        /// in the smallest buffer, 64 KiB, and the pool has made no other, where the misfit's took 256 KiB.
+        TEST(RtxContentPreprocessorTest, anEntryThatFillsNoLayoutOfItsFileIsDiscardedBeforeABufferIsTaken)
+        {
+            const osg::ref_ptr<osg::Image> single = makeBc1(8, 8, 1);
+            const ChainPass::Input input{ .mImage = *single, .mEncoding = TextureEncoding::Colour };
+            ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
+            {
+                ChainBuild build;
+                TexelScratch scratch;
+                FileKeys keys(scratch);
+                TexelReads reads;
+                ChainPass pass(build, keys, reads);
+                pass.digest(input, digest);
+            }
+
+            Misc::ByteBuffer payload;
+            ContentCodec<MadeChain>::encode(
+                MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(std::size_t{ 200 } << 10) }, payload);
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
+            store.write(ContentStore::Filed{ .mKey = digest.getKey(),
+                            .mKind = storeKindOf(ContentPassId::Chain),
+                            .mVersion = ChainPass::sVersion,
+                            .mPayload = payload,
+                            .mSegmentEnds = {} },
+                ContentStore::Reach::Disk);
+            store.flush();
+
+            const std::shared_ptr<BufferPool> pool = BufferPool::make(std::size_t{ 1 } << 20);
+            ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+            PooledChain made;
+            ASSERT_TRUE(content.chain(input, *pool, {}, made));
+            EXPECT_EQ(made.mForm, ChainForm::Bc7);
+            EXPECT_EQ(made.mBytes.bytes().size(), 112u);
+            EXPECT_EQ(pool->getHeld().mInUse, std::size_t{ 64 } << 10);
+            EXPECT_EQ(pool->getHeld().mFree, 0u) << "a buffer was taken for the entry before its layout was checked";
+        }
+
         /// **A stored chain that reads whole and does not fit its file is run again and replaced**, as a
         /// shape is: an 8 by 8 BC1 file of one level makes its chain whole in BC7 to a texel, 64 + 16 +
         /// 16 + 16 = 112 bytes. A form's byte alone, 111 bytes, 113 bytes, an own chain a level short, and

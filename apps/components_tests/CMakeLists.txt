@@ -74,6 +74,7 @@ target_sources(
         nifosg/testnifloader.cpp
         nifosg/testparticle.cpp
         platform/appendfile.cpp
+        platform/file.cpp
         platform/folder.cpp
         platform/glibctext.cpp
         platform/heap.cpp

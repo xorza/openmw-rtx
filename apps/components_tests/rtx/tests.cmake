@@ -249,6 +249,9 @@ elseif(LINUX)
     target_sources(
         components-tests
         PRIVATE
+            contentstore/storelinux.cpp
+            files/constrainedfilestreamlinux.cpp
+            platform/filelinux.cpp
             platform/gpulinux.cpp
             platform/kernelfilelinux.cpp
             platform/processlinux.cpp
