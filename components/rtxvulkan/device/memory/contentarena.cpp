@@ -3,6 +3,7 @@
 #include <bit>
 #include <cassert>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -25,7 +26,10 @@ namespace Rtx
         {
             const std::uint32_t allowed = types & content;
             if (allowed == 0)
-                throw Unsupported("no memory type of video memory alone takes the content's resources");
+                throw Unsupported(
+                    std::format("no memory type of video memory alone takes the content's resources: "
+                                "the resource takes types {:#x}, video memory alone is {:#x}",
+                        types, content));
             return static_cast<ArenaIndex>(std::countr_zero(allowed));
         }
     }
@@ -34,13 +38,14 @@ namespace Rtx
         : mSupply(allocator)
     {
         // **Every colour image of one tiling asks the same types**, as Vulkan states of `memoryTypeBits`; one
-        // texture's image stands for every one.
+        // texture's image stands for every one. A description the device takes: a compressed image asking for storage
+        // with no second format is no valid image, which AMD's Windows driver answered with no types at all.
         const std::uint32_t content = allocator.getContentTypes();
         const VkMemoryRequirements image = Image::requirementsFor(device,
             ImageDescription{ .mWidth = 256,
                 .mHeight = 256,
                 .mFormat = toVulkanFormat(TextureFormat::Bc7Srgb),
-                .mUsage = sWrittenTextureUsage,
+                .mUsage = sUploadedTextureUsage,
                 .mMipLevels = 9 });
         const VkMemoryRequirements buffer = Buffer::requirementsFor(device, sContentBlockBytes, sStructureStorageUsage);
         mArenaOf[static_cast<std::size_t>(SlotKind::Image)] = arenaAmong(image.memoryTypeBits, content);
