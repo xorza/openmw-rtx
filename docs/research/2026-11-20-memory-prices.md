@@ -3,8 +3,8 @@
 What three drivers state for a texture, a structure and an allocation, asked with `openmw-rtxtool info --prices`
 (`Rtx::priceMemory`, nothing made) at `f1c5c806fa`: the desk's NVIDIA card under NVIDIA's Linux driver 620.73, the
 Windows machine's AMD integrated card under AMD's driver 26.8.1, and the handheld under RADV (Mesa 26.2.0-devel).
-The figures the size classes, the slabs and a floor are to be cut by (`.notes/review-rtx-renderer.md`, "Before
-anything is built"). A texture is a square with its whole chain under it, as `Texture::describeFile` describes a
+The figures the size classes, the slabs and a floor are to be cut by (`.notes/review-rtx-renderer.md` at
+`a66d42e374`, "Before anything is built"). A texture is a square with its whole chain under it, as `Texture::describeFile` describes a
 file's, which is also what a larger texture standing from that level asks.
 
 ## A texture

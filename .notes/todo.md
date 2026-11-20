@@ -4,6 +4,20 @@
 
 - Remove the visibility limit.
 
+- **The seam's structure, a proposal of its own** (the user's decision, 2026-11-20; found by the renderer's review):
+  - `MWRender::Renderer` holds seven responsibilities and state of its own: 22 of 55 virtuals have work in one
+    renderer, and the base reads settings and the wall clock and sleeps. The pacing (`awaitFrame`, `openFrame`,
+    `openNestedFrame`, `FramesAside`, the limiter) as a concrete pacer the engine owns; the factory calls and world
+    events stay. `RendererTest`'s wall clock and settings go with it.
+  - A renderer is made by ten ordered calls (`Engine::prepareEngine`, `RenderingManager`'s constructor), each guarded
+    by an assert, every state between two representable: what exists before the window in `RendererSpec`, resources
+    with the one call that needs them.
+  - A declined request has two sources, a virtual that does nothing and `RenderSupport`'s table keyed by strings: one
+    call that answers its refusal, and the chain's callers taking the post-processor from one accessor that carries
+    the reason beside the null.
+  - `RtxRenderer`'s phase rule is spelled two ways, and `updateTraversal` and `renderGui` take `Between` alone: named
+    expectations a caller kind.
+
 ## Open questions
 
 - **Whether a tour runs unsettled, as the game walks** (moved out of the tree-and-content-memory plan, 2026-11-18): a

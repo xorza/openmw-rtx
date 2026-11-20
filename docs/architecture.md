@@ -125,6 +125,10 @@ What the game reads from files (`components/resource`), changed for the handheld
   figure, `HeapSummary`, walks the heap under its lock, 1.2 s a second on a 2.5 GiB heap. The worker that derives the budget
   destroys what was evicted, where upstream had put its own expiry. Refused: a trim on a timer, which walks every
   arena to give back what should never have entered one.
+- **A cgroup's pages of files are room, active and inactive both, under the lower of `memory.high` and `memory.max`**,
+  as the kernel's `MemAvailable` counts both lists the system's to give, and past `memory.high` the kernel reclaims
+  before it throttles ([cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html)). Refused: `inactive_file`
+  alone, as `docker stats` subtracts it, which reports what a container uses where this asks what it may still take.
 - **A large buffer never reaches an arena, and the arenas are four** (`Platform::tuneHeap`): the mapping threshold is
   pinned at 1 MiB, which turns glibc's own adjustment of it off (`mallopt(3)`), so a large block is given back whole
   whichever thread frees it. The setting that left the heap least free on both machines' Repack tours, and took
@@ -174,7 +178,7 @@ What the game reads from files (`components/resource`), changed for the handheld
   shared levels on the device, a raise asks the feed for the finer levels alone, and what stood stays until the
   operation rides. Refused: the backend choosing levels as its pools allowed, which allocated before it freed and
   refused a bake or a composite for good at a full pool, and whose waits, moves and rest each held a part of one
-  answer (`.notes/review-rtx-renderer.md`).
+  answer (the renderer's review, `.notes/review-rtx-renderer.md` at `a66d42e374`).
 - **A sprite's light bake is planned as one with its source**, made from it on the device at its level: a cap that
   holds one and not both lowers both. Refused: the bake planned after its source, which starved the bake beside a
   source that could have stood a level coarser for it.
@@ -279,6 +283,8 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   its own and its groundcover's, is a stage — wanted, in hand, read, adopted — that the frame and the reader move it
   through under one monitor, so "is it on its way" and "is the band whole" are a record's answer. Refused: a request
   list re-sent whole as the eye moved, the lists handed over and the takes counted between them, kept in step by hand.
+  The reader's thread and the monitor are `CellSupply`'s, over the table, and `CellStreamer` holds the frame's policy.
+  Refused: one class of the thread, the lock and the policy.
 - **The reader runs at most `CellTable::sReadAheadMost` reads ahead of the frame**, a read nearer than every one waiting
   taken past it, so a settled walk's wait for its nearest cell is never a wait for room. Refused: a reader let read a whole band ahead of a frame that adopts one cell a frame.
 - **The world is whole before a frame shows it** (`Renderer::standWhole`), asked at the three places upstream's
@@ -303,6 +309,10 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   content. Every pass states everything it reads, which is the key its output is filed under in the content store.
 - **`Rtx::SceneUploader` hands a scene to the backend once a frame**, in the cheapest of three ways: place what moved,
   extend with what arrived, or rebuild.
+- **A mesh's runs stand where they were placed** (`RunAllocator`, best fit, touching holes merged): a handheld Repack
+  flight of 32 legs left 2357 vertex holes and 1513 index holes among 3.1 M vertices, whose free elements an earlier
+  leg measured at 0.03 M and 0.13 M, a run the next mesh of its size takes again. Refused: compacting, which moves live
+  geometry and every device address built from it for room that small.
 - **The world a frame is told** (`world/`): a `WorldReading` becomes the frame's sun, moons, sky, clouds, fog and water;
   the sky's sheets and meshes are read out of the content once.
 
@@ -426,6 +436,9 @@ filled on the loading screen (`research/2026-11-08-normal-map-chains.md`).
   ccache's direct mode does, and every lookup is keyed by the bytes, so a lying stamp costs a miss, never a wrong
   answer. A model stands only where the store holds every entry its walk made, as the Remote Execution API's action
   cache does.
+- **A quit asked under the preparation leaves the wait and stops it**, and the engine's start runs on to its loop,
+  which ends before a frame. Refused: ending `Engine::go` early, a change to upstream's start its own data loading
+  does not make either.
 - **A pass's version is held by a test** (`RtxPassVersionsTest`), which digests its outputs over fixed inputs, so a
   forgotten bump fails. Refused: the build's revision in every key, which empties the store at every build.
 - **The scene graph stays the renderer's one input**: the store holds what the mirror derives, not models.
@@ -465,7 +478,14 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **Setup work is a batch written into the device's staging ring**, which the pool lends, riding the next submit.
   Refused: a pool a frame slot, which would stop a deferred batch from riding any submit.
 - **The pipeline cache is a file named for the driver and the shaders**, checked by a header of its own before the
-  driver sees it, written whole or not at all.
+  driver sees it, written whole or not at all. A cache that grows while it is read is kept as the driver's short
+  answer, which "can be provided as the `pInitialData`" of a new one
+  ([`vkGetPipelineCacheData`](https://docs.vulkan.org/refpages/latest/refpages/source/vkGetPipelineCacheData.html)).
+  Refused: a save that answers whether it wrote, for the start to try again, which under a disk that refuses writes
+  writes a blob every 8 ms of the loading screen.
+- **No sparse residency and no defragmentation.** Sparse binding rounds every small texture up to 64 KiB pages, and
+  its bind cost is erratic on NVIDIA and unbatched on AMD under Linux; content stands in slots by size class, and a
+  slab moves between classes (memcached's slab automover) where VMA would move live allocations.
 - **What a frame cannot go without is essential and never refused**; content stands in the arena residency plans
   under the cap, and nothing it holds is refused by the device but a block. Refused: a destroyer thread, since the
   graveyard's destroys were measured cheap.
