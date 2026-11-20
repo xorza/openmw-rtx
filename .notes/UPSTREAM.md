@@ -232,7 +232,8 @@ and upstream's two Lua storage tests writing there.
   held (`MyGUIPlatform::DataManager::hold`); every text sub-widget and list is the fork's (`Gui::FontUsers`,
   `Gui::TrackedText`, `Gui::ListBox`) in MyGUI's factories; a book page drops its book on a refit and its owner typesets
   it again (`BookPage::adviseRetypeset`); `Gui::InterfaceFonts` owns fonts and registries and refits them at every
-  layout (`WindowManager::fitFonts`). The cursor, the windows, the local map and the inventory follow the scale, and
+  layout (`WindowManager::fitFonts`). The cursor, the windows, the local map and the inventory follow the scale, the
+  map's tiles drawn again once no loading screen is up (`WindowManager::redrawMaps`, from `updateVisible`), and
   `[GUI] scaling factor` applies live from a settling slider (`Gui::SettlingScrollBar`).
 - `[GUI] font size` read from the fonts' owner alone (`FontFit::mFontSize`, `MWBase::WindowManager::getFontSize`, held
   by a source scan): `FontWrapper` goes, a book is typeset at a stated size (`BookTypesetter::create`), a window with

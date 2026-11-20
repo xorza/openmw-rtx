@@ -588,6 +588,9 @@ namespace MWGui
         osg::Vec2i mLaidOutFrame;
         float mScalingFactor;
 
+        /// Whether a refit changed the raster the map's tiles are drawn at and they are not drawn again yet.
+        bool mMapsOwed = false;
+
         /// What the cursors were made at, and what a change of any of it makes them anew by: the
         /// window pixels a unit of the interface covered, the window pixels a pixel of the frame
         /// covered — what a Lua cursor is scaled by, whose size a script states in the pixels
@@ -665,6 +668,10 @@ namespace MWGui
         /// Rasterizes the fonts again where `fontFitNow` moved: a scale, a display, a frame, or the
         /// font size.
         void fitFonts();
+
+        /// Draws the map's tiles again at the raster where a refit owes them (`mMapsOwed`), and not under a loading
+        /// screen, whose cells are changing under the player: its end asks again (`updateVisible`).
+        void redrawMaps();
 
         void onClipboardChanged(std::string_view type, std::string_view data);
         void onClipboardRequested(std::string_view type, std::string& data);

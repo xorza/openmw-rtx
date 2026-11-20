@@ -356,6 +356,11 @@ namespace MWRender
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
 
+        /// Sizes the trace, the surface and the viewport to the presentation as `RtxWindow::fit` settles it. Asked by
+        /// every frame that presents, the world's and a loading screen's, since the interface is laid out for the
+        /// presentation the moment the window moves, and a load draws none of the world's frames.
+        void fitWindow();
+
         /// Whose frame a present ends: the world's, which leaves the renderer and starts the game's update, or
         /// one the interface draws of its own inside that update, a stretch of `Rtx::Timing::Interface`.
         enum class PresentOf

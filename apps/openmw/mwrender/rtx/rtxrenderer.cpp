@@ -561,7 +561,13 @@ namespace MWRender
         // From between two frames alone, which is a loading screen presenting: a frame presents
         // through its own exits, and a hook that presented from inside one presented it twice.
         mPhase.step(Phase::Gui, Phase::Between);
+        fitWindow();
         present(PresentOf::Interface);
+    }
+
+    void RtxRenderer::fitWindow()
+    {
+        mWindow.fit(*mRenderer, getCamera(), getPresentation(), getLoopClock().getNow());
     }
 
     /// The frame the trace made, on the screen before the call that made it returns: no composite or
@@ -962,7 +968,7 @@ namespace MWRender
         }
 
         // Ahead of the trace, so the frame drawn is the one the window's extent asked for and not the one behind.
-        mWindow.fit(*mRenderer, getCamera(), getPresentation(), getLoopClock().getNow());
+        fitWindow();
 
         // The stop's upscaling, else the run's: beside the fit because both rebuild the targets, and the
         // camera below is built for the extent they leave.
