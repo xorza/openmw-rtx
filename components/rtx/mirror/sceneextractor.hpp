@@ -86,7 +86,8 @@ namespace Rtx
     };
 
     /// The world's: past what every view of the suites reaches at the default ten cells of land, on
-    /// vanilla content and under the Fullrest Repack with Tamriel Rebuilt, which `rooms-held` holds.
+    /// vanilla content and under the Fullrest Repack with Tamriel Rebuilt, which `rooms-held` holds. The frozen
+    /// roots past the Repack tour's: its leg 29, east over the Tamriel Rebuilt mainland, held 13,918 at its most.
     inline constexpr ExtractorRoom sWorldExtractorRoom{ .mPlacements = 65536,
         .mMeshes = 16384,
         .mDeformers = 2048,
@@ -94,7 +95,7 @@ namespace Rtx
         .mTextures = 8192,
         .mAnimated = 4096,
         .mEmitters = 2048,
-        .mFrozen = 8192,
+        .mFrozen = 16384,
         .mEffects = 256 };
 
     /// A picture's subject: a doll dressed in every slot with a weapon drawn and a spell held, with

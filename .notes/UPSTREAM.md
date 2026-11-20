@@ -159,6 +159,9 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   tests hold the budget's semantics: a tile past the budget is handed over and kept while used. Cost: a conflict with
   an edit to `navmeshtilescache.{hpp,cpp}`, the navigator's constructors, or the setting. Approved with item 10 of the
   tree and content memory plan (2026-11-17).
+- `GenericResourceManager::mExpiryDelay` an atomic (the user's yes, 2026-11-20): `Scene::testExteriorCells` and
+  `testInteriorCells` set it on the main thread while the cell preloader's worker reads it in `updateCache`, a race
+  ThreadSanitizer met and upstream's master still has.
 - `NavMeshTilesCache::releaseItem` lowers a tile's use count under the cache's lock, where it lowered it before taking
   it: a `get` between the two found the tile at nought among the busy and raised it, and the release then filed a tile
   in use among the free, where upstream's size limit and the fork's budget both evict. A fix upstream could take.

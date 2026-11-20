@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -71,7 +72,10 @@ namespace Resource
         ~GenericResourceManager() override = default;
 
         /// Clear cache entries that have not been referenced for longer than expiryDelay.
-        void updateCache(double referenceTime) override { mCache->update(referenceTime, mExpiryDelay); }
+        void updateCache(double referenceTime) override
+        {
+            mCache->update(referenceTime, mExpiryDelay.load(std::memory_order_relaxed));
+        }
 
         /// Clear all cache entries.
         void clearCache() override { mCache->clear(); }
@@ -81,8 +85,8 @@ namespace Resource
         void removeFromCache(const auto& key) { mCache->removeFromObjectCache(key); }
 
         /// How long to keep objects in cache after no longer being referenced.
-        void setExpiryDelay(double expiryDelay) final { mExpiryDelay = expiryDelay; }
-        double getExpiryDelay() const { return mExpiryDelay; }
+        void setExpiryDelay(double expiryDelay) final { mExpiryDelay.store(expiryDelay, std::memory_order_relaxed); }
+        double getExpiryDelay() const { return mExpiryDelay.load(std::memory_order_relaxed); }
 
         const VFS::Manager* getVFS() const { return mVFS; }
 
@@ -98,7 +102,10 @@ namespace Resource
     protected:
         const VFS::Manager* mVFS;
         std::unique_ptr<CacheType> mCache;
-        double mExpiryDelay;
+
+        /// Written on the main thread (`Scene::testExteriorCells`) and read on the preloader's worker (`updateCache`):
+        /// one value, no ordering with anything else.
+        std::atomic<double> mExpiryDelay;
     };
 
     /// Caching a scene graph is the common case, so it gets a name rather than the

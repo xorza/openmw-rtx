@@ -323,6 +323,12 @@ namespace RtxTool
             EXPECT_EQ(paced.mWindow.mFramerateLimit, 60.0f);
             EXPECT_FALSE(request.mWatching->mPaced);
             EXPECT_EQ(run.mWindow.mFramerateLimit, 0.0f) << "as fast as the card draws";
+
+            // Settled unless the line says otherwise, which streams as the game does.
+            EXPECT_EQ(request.mSetup.mSettled, std::optional<bool>(true));
+            const HostedRun streamed = planOf(Verb::Tour, { "--settled=no" },
+                [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
+            EXPECT_EQ(streamed.mRequest.mSetup.mSettled, std::optional<bool>(false));
             EXPECT_EQ(Rtx::Testing::refusalOf([&] {
                 planOf(Verb::Tour, { "--pace=walk" },
                     [&](const Command& command, Framed f) { return planTourRun(command, std::move(f), map); });
