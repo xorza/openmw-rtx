@@ -86,6 +86,12 @@ namespace Rtx
         const std::size_t capacity = classBytesOf(bytes);
         std::vector<std::unique_ptr<std::byte[]>>& own = mFree[classOf(capacity)];
 
+        // **Whether a buffer may be made now**, the free ones of other classes dropped for it: under the most, or past
+        // it where nothing else is in use, so a take larger than the pool is made and not waited on for ever, or while
+        // an overdraft stands. One statement, which the take and its wait both read: stated twice, the wait's left
+        // the pool standing empty out, and a take past the most that met a buffer in use waited for ever.
+        const auto mayMake = [&] { return mInUse + capacity <= mMostBytes || mInUse == 0 || mOverdrafts > 0; };
+
         std::unique_lock lock(mMutex);
         while (true)
         {
@@ -98,26 +104,23 @@ namespace Rtx
                 return PooledBuffer(shared_from_this(), std::move(data), capacity, bytes);
             }
 
-            // Free buffers of other classes dropped, the largest first, until the new one fits under the most.
-            for (std::size_t at = sClassCount; at-- > 0 && mInUse + mFreeBytes + capacity > mMostBytes;)
-                while (!mFree[at].empty() && mInUse + mFreeBytes + capacity > mMostBytes)
-                {
-                    mFree[at].pop_back();
-                    mFreeBytes -= sClassLeast << at;
-                }
-
-            // **One past the most where nothing else is in use**, so a take larger than the pool is made and not
-            // waited on for ever, and any past it while an overdraft stands.
-            if (mInUse + mFreeBytes + capacity <= mMostBytes || mInUse == 0 || mOverdrafts > 0)
+            if (mayMake())
             {
+                // Free buffers of other classes dropped, the largest first, until the new one fits under the most.
+                for (std::size_t at = sClassCount; at-- > 0 && mInUse + mFreeBytes + capacity > mMostBytes;)
+                    while (!mFree[at].empty() && mInUse + mFreeBytes + capacity > mMostBytes)
+                    {
+                        mFree[at].pop_back();
+                        mFreeBytes -= sClassLeast << at;
+                    }
+
                 mInUse += capacity;
                 lock.unlock();
                 return PooledBuffer(
                     shared_from_this(), std::make_unique_for_overwrite<std::byte[]>(capacity), capacity, bytes);
             }
 
-            if (!mGiven.wait(
-                    lock, stop, [&] { return !own.empty() || mInUse + capacity <= mMostBytes || mOverdrafts > 0; }))
+            if (!mGiven.wait(lock, stop, [&] { return !own.empty() || mayMake(); }))
                 return std::nullopt;
         }
     }

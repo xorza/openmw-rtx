@@ -94,6 +94,18 @@ namespace Rtx
             past.reset();
             EXPECT_LE(pool->getHeld().mFree, 256 * sKiB) << "let go of as it came back";
             EXPECT_EQ(pool->getHeld().mInUse, 0u);
+
+            // **And made once the pool stands empty where it met a buffer in use**: the wait ends on the same word the
+            // take is made on, where it once left "nothing else in use" out and never ended. Whichever of the two
+            // threads runs first, the take returns.
+            std::optional<PooledBuffer> held = pool->take(64 * sKiB, {});
+            ASSERT_TRUE(held.has_value());
+            std::optional<PooledBuffer> large;
+            std::thread larger([&] { large = pool->take(512 * sKiB, {}); });
+            held.reset();
+            larger.join();
+            ASSERT_TRUE(large.has_value()) << "a take past the most waited past the pool standing empty";
+            EXPECT_EQ(large->bytes().size(), 512 * sKiB);
         }
 
         /// **An overdraft lets a take past the most while it stands**, for the waiter that holds what is taken until it
