@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -27,7 +28,8 @@ namespace Platform
             return std::nullopt;
 
         // **Every cgroup from the process's own up to the root**, as each caps what the groups under it
-        // hold: the room is the least any of them leaves.
+        // hold: the room is the least any of them leaves, under the lower of its two limits and with its pages
+        // of files counted as room (`LinuxText::cgroupRoom`).
         const std::optional<std::string_view> listed = KernelFile::read("/proc/self/cgroup", buffer);
         if (!listed.has_value())
             return available;
@@ -38,17 +40,22 @@ namespace Platform
         while (!group.empty() && group != "/")
         {
             const std::string folder = "/sys/fs/cgroup" + group;
-            const std::optional<std::string_view> maxText = KernelFile::read((folder + "/memory.max").c_str(), buffer);
-            const std::optional<std::uint64_t> most
-                = maxText.has_value() ? LinuxText::cgroupBytes(*maxText) : std::nullopt;
-            if (most.has_value())
+            const auto bytesOf = [&](const char* const file) -> std::optional<std::uint64_t> {
+                const std::optional<std::string_view> text = KernelFile::read((folder + file).c_str(), buffer);
+                return text.has_value() ? LinuxText::cgroupBytes(*text) : std::nullopt;
+            };
+            const std::optional<std::uint64_t> most = bytesOf("/memory.max");
+            const std::optional<std::uint64_t> high = bytesOf("/memory.high");
+            const std::optional<std::uint64_t> current = bytesOf("/memory.current");
+            if ((most.has_value() || high.has_value()) && current.has_value())
             {
-                const std::optional<std::string_view> currentText
-                    = KernelFile::read((folder + "/memory.current").c_str(), buffer);
-                const std::optional<std::uint64_t> current
-                    = currentText.has_value() ? LinuxText::cgroupBytes(*currentText) : std::nullopt;
-                if (current.has_value())
-                    available = std::min(*available, *most - std::min(*current, *most));
+                constexpr std::uint64_t unlimited = std::numeric_limits<std::uint64_t>::max();
+                const std::optional<std::string_view> stat
+                    = KernelFile::read((folder + "/memory.stat").c_str(), buffer);
+                const std::uint64_t fileBytes = stat.has_value() ? LinuxText::cgroupFileBytes(*stat) : 0;
+                available = std::min(*available,
+                    LinuxText::cgroupRoom(
+                        std::min(most.value_or(unlimited), high.value_or(unlimited)), *current, fileBytes));
             }
             group.resize(group.find_last_of('/'));
         }

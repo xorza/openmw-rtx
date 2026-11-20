@@ -231,6 +231,30 @@ namespace Platform::LinuxText
         return bytes;
     }
 
+    std::uint64_t cgroupFileBytes(std::string_view stat)
+    {
+        std::uint64_t bytes = 0;
+        for (std::string_view rest = stat; !rest.empty();)
+        {
+            const std::size_t end = rest.find('\n');
+            std::string_view line = rest.substr(0, end);
+            rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+            for (const std::string_view field :
+                { std::string_view("inactive_file "), std::string_view("active_file ") })
+            {
+                if (!line.starts_with(field))
+                    continue;
+                line.remove_prefix(field.size());
+                std::uint64_t value = 0;
+                const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), value);
+                if (!line.empty() && read.ec == std::errc{} && read.ptr == line.data() + line.size())
+                    bytes += value;
+                break;
+            }
+        }
+        return bytes;
+    }
+
     std::optional<std::uint16_t> pciId(std::string_view text)
     {
         if (text.ends_with('\n'))

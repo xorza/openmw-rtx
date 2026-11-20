@@ -153,6 +153,27 @@ namespace
         EXPECT_EQ(Platform::LinuxText::cgroupBytes("12 bytes\n"), std::nullopt);
     }
 
+    /// **A cgroup's room is its limit less what it holds that is not pages of files**: of 1000 bytes under a limit of
+    /// 1500, 300 inactive and 200 active pages of files leave 500 held and 1000 of room, where the limit less the
+    /// whole was 500; `anon` and `file`, which holds both, are not read twice, nor is `inactive_file_extra`. Nothing
+    /// held past the limit is room; file pages past what the group holds leave the whole limit.
+    TEST(RtxPlatformLinuxTextTest, aCgroupsRoomIsItsLimitLessWhatItHoldsThatIsNotFilePages)
+    {
+        constexpr std::string_view stat
+            = "anon 400\nfile 600\ninactive_anon 1\nactive_anon 2\n"
+              "inactive_file 300\nactive_file 200\ninactive_file_extra 7\n";
+        EXPECT_EQ(Platform::LinuxText::cgroupFileBytes(stat), 500u);
+        EXPECT_EQ(Platform::LinuxText::cgroupFileBytes("inactive_file 300\n"), 300u);
+        EXPECT_EQ(Platform::LinuxText::cgroupFileBytes("active_file 200"), 200u);
+        EXPECT_EQ(Platform::LinuxText::cgroupFileBytes("active_file many\ninactive_file 5 kB\n"), 0u);
+        EXPECT_EQ(Platform::LinuxText::cgroupFileBytes(""), 0u);
+
+        EXPECT_EQ(Platform::LinuxText::cgroupRoom(1500, 1000, 500), 1000u);
+        EXPECT_EQ(Platform::LinuxText::cgroupRoom(1500, 1000, 0), 500u);
+        EXPECT_EQ(Platform::LinuxText::cgroupRoom(1500, 2000, 100), 0u);
+        EXPECT_EQ(Platform::LinuxText::cgroupRoom(1500, 1000, 4000), 1500u);
+    }
+
     /// **A PCI id is `0x` and four hexadecimal digits, with the line break sysfs writes**: NVIDIA's
     /// `0x10de` is 4318, upper case as well, and anything else is not one: no prefix, three or five
     /// digits, a sign, a word, an empty file.
