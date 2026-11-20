@@ -613,12 +613,22 @@ namespace Resource
             CacheBudget watched(100);
             SharedCache deferred(watched);
             const std::weak_ptr<const std::string> first = deferred.getOrLoad(1, loadOf(40));
-            deferred.getOrLoad(2, loadOf(40));
+            const std::weak_ptr<const std::string> second = deferred.getOrLoad(2, loadOf(40));
             deferred.getOrLoad(3, loadOf(40));
             EXPECT_EQ(deferred.getRefFromObjectCacheOrNone(1), std::nullopt) << "evicted";
             EXPECT_FALSE(first.expired()) << "destroyed by the inserting thread";
             watched.makeRoom();
             EXPECT_TRUE(first.expired()) << "kept past the deriving worker's look";
+
+            // **And before the worker reads the system's memory for the budget**, by `destroyEvicted` alone, which
+            // evicts nothing: the second goes for a fourth, is destroyed, and the two left stay.
+            deferred.getOrLoad(4, loadOf(40));
+            EXPECT_EQ(deferred.getRefFromObjectCacheOrNone(2), std::nullopt) << "evicted";
+            EXPECT_FALSE(second.expired());
+            watched.destroyEvicted();
+            EXPECT_TRUE(second.expired());
+            EXPECT_EQ(deferred.getStats().mSize, 2);
+            EXPECT_EQ(watched.getHeld(), 80);
 
             // The same three under a budget of 120 keep all three: the budget is what decides.
             CacheBudget roomy(120);

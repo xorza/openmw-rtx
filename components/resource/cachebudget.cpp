@@ -52,7 +52,11 @@ namespace Resource
         mStarved.store(false, std::memory_order_relaxed);
         if (getHeld() > getBytes())
             evictToBudget();
+        destroyEvicted();
+    }
 
+    void CacheBudget::destroyEvicted()
+    {
         const std::scoped_lock lock(mMutex);
         for (BudgetedCache* const cache : mCaches)
             cache->destroyEvicted();

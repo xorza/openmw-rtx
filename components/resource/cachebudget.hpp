@@ -91,6 +91,11 @@ namespace Resource
         /// been let go, by the worker that derives the budget. Outside every cache's lock.
         void makeRoom();
 
+        /// Destroys what every eviction since the last call let go of, outside every cache's lock: `makeRoom`'s last
+        /// step, and alone before the system's memory is read for the budget, since an evicted value still alive is
+        /// in no term of `derive` — not held, not free on the heap, not the system's to give.
+        void destroyEvicted();
+
         /// What the caches hold, held or not.
         std::uint64_t getHeld() const { return mHeld.load(std::memory_order_relaxed); }
 

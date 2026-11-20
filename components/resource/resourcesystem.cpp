@@ -98,6 +98,9 @@ namespace Resource
             resourceManager->updateCache(referenceTime);
         // After the caches stamped what is in use: one read of the system's figure and of the heap's, and one look for
         // room, off the frame, on the preloader's worker once a second and on the scene's thread as a cell changes.
+        // **What insertions evicted since the last look is destroyed before the read**: alive, its bytes were in no
+        // term of the budget, which came out that much lower and evicted that much more.
+        mCacheBudget.destroyEvicted();
         const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
         const std::uint64_t heapFree
             = heap.has_value() && heap->mTaken > heap->mInUse ? heap->mTaken - heap->mInUse : 0;

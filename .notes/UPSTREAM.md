@@ -99,7 +99,7 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   an entry's stream.
 - The caches kept by a byte budget in one least-recently-used order (`Resource::CacheBudget`, owned by `ResourceSystem`)
   in place of `cache expiry delay`; each load states its bytes (`Resource::Loaded`), and `navmeshtool` and
-  `bulletobjecttool` hand a budget of nought. A run may hold it under a limit (`CacheBudget::limit`, the harness's
+  `bulletobjecttool` hand a budget with no bound, as upstream's delay there was never applied. A run may hold it under a limit (`CacheBudget::limit`, the harness's
   `--cache-budget`), so the desk loads as a machine short of memory does. Cost: also a conflict with an edit to the
   managers' constructors, `ResourceSystem`'s, or the physics system's shape manager. The budget counts the heap's free memory, which the
   system counts as the process's (`ResourceSystem::updateCache` reads `Platform::heapHeld` with the system's figure);
