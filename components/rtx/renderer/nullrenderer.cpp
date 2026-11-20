@@ -103,6 +103,9 @@ namespace Rtx
 
     GuiSlot NullRenderer::addGuiTexture(const std::uint32_t width, const std::uint32_t height)
     {
+        // As a device refuses a size no image takes: a widget made at nought fails that one texture.
+        if (width == 0 || height == 0)
+            return GuiSlot::none();
         return GuiSlot::at(mGuiTextures.take(GuiTexture{ .mWidth = width, .mHeight = height, .mCopied = false }).at());
     }
 

@@ -82,10 +82,8 @@ namespace Rtx
     ContentTypes contentTypesOf(const VkPhysicalDeviceMemoryProperties& memory);
 
     /// What a range of memory is for, which says what becomes of the content where the device has
-    /// no room for it — and so the order the room is given in. Each use stops where every use
-    /// before it could be made again: the running mode's targets, and everything else essential
-    /// once more, since a table grows by making itself again while the frame behind reads the old
-    /// one.
+    /// no room for it — and so the order the room is given in. Each use stops where the frame's
+    /// targets and the largest next growth of each use before it still fit (`MemoryAllocator::ceilingOf`).
     enum class MemoryUse : std::uint8_t
     {
         /// The frame's targets, which a change of mode makes again at its new extents. Made again

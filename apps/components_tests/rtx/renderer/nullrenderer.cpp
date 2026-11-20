@@ -214,6 +214,11 @@ namespace Rtx
             renderer.dropGuiTexture(second);
             EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot::at(0));
             EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot::at(1));
+
+            // An extent of nought is no texture and takes no slot, as on a device.
+            EXPECT_TRUE(renderer.addGuiTexture(0, 2).isNone());
+            EXPECT_TRUE(renderer.addGuiTexture(2, 0).isNone());
+            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot::at(2));
         }
 
         /// The extents follow the size and the upscaler as a device's do, and the picture read back

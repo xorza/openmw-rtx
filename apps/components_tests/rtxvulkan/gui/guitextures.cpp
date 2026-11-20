@@ -20,6 +20,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/readback.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/camera.hpp>
@@ -639,14 +640,12 @@ namespace Rtx
             ASSERT_TRUE(mProbe.holdsScene(SceneSlot::world()));
 
             const VkDeviceSize reserve = memory.getFrameReserve();
-            memory.limitBudget(VkDeviceSize{ 1 });
+            const Testing::BudgetLimit limit(memory, VkDeviceSize{ 1 });
             ASSERT_FALSE(memory.contentFits()) << "a budget of a byte holds no content";
             mRenderer.reservePicture(mProbe.getPictureRoom().width + 16, mProbe.getPictureRoom().height);
-            const bool held = mProbe.holdsScene(SceneSlot::world());
-            const VkDeviceSize grown = memory.getFrameReserve();
-            memory.limitBudget(std::nullopt);
-            EXPECT_GT(grown, reserve) << "the reserve did not move, so nothing was asked of the world";
-            EXPECT_TRUE(held) << "a picture's room built the world again";
+            EXPECT_GT(memory.getFrameReserve(), reserve)
+                << "the reserve did not move, so nothing was asked of the world";
+            EXPECT_TRUE(mProbe.holdsScene(SceneSlot::world())) << "a picture's room built the world again";
         }
 
         /// **A picture from a viewpoint is the picture of the block its options lay over it**: the map camera's sheet
