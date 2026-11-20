@@ -205,6 +205,20 @@ namespace Rtx
         return mBlocks[block].mBytes;
     }
 
+    std::uint32_t SlotLedger::getChunkCount(const ArenaIndex arena) const
+    {
+        return static_cast<std::uint32_t>(std::ranges::count_if(mBlocks, [&](const Block& block) {
+            return block.mArena == arena && block.mUse == BlockUse::Chunk && block.mState != BlockState::Gone;
+        }));
+    }
+
+    std::uint32_t SlotLedger::getLargeBlockCount(const ClassIndex of) const
+    {
+        return static_cast<std::uint32_t>(std::ranges::count_if(mBlocks, [&](const Block& block) {
+            return block.mUse == BlockUse::Large && block.mLargeClass == of && block.mState != BlockState::Gone;
+        }));
+    }
+
     std::optional<std::pair<BlockIndex, std::uint8_t>> SlotLedger::findFreePiece(const ArenaIndex arena) const
     {
         // **A chunk already cut into small slabs first, the fullest of them**, so a free chunk stays whole for a medium

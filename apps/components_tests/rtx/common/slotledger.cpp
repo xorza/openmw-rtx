@@ -200,12 +200,17 @@ namespace Rtx
             EXPECT_TRUE(ledger.hasRoom(small));
 
             const ClassIndex large = ledger.classOf(SlotKind::Image, 20 * sMiB, 1);
+            EXPECT_EQ(ledger.getChunkCount(sImages), 1u);
+            EXPECT_EQ(ledger.getLargeBlockCount(large), 0u);
             const BlockIndex refused = ledger.askLarge(large);
+            EXPECT_EQ(ledger.getLargeBlockCount(large), 1u) << "asked counts";
+            EXPECT_EQ(ledger.getChunkCount(sImages), 1u) << "a large block is no chunk";
             EXPECT_EQ(ledger.getBlockBytes(refused), 20 * sMiB);
             EXPECT_EQ(ledger.count().mBlocksAsked, 1u);
             EXPECT_FALSE(ledger.hasRoom(large)) << "asked is not arrived";
             ledger.blockRefused(refused);
             EXPECT_EQ(ledger.count().mBlocksAsked, 0u);
+            EXPECT_EQ(ledger.getLargeBlockCount(large), 0u) << "refused is gone";
             EXPECT_FALSE(ledger.hasRoom(large));
 
             const BlockIndex block = ledger.askLarge(large);
@@ -220,8 +225,10 @@ namespace Rtx
             ledger.collect(epoch(1));
             EXPECT_TRUE(ledger.hasRoom(large)) << "its block emptied is its class's again";
             ledger.blockReleased(chunk);
+            EXPECT_EQ(ledger.getChunkCount(sImages), 0u);
             EXPECT_EQ(ledger.freeBlock(sImages), std::optional<BlockIndex>(block));
             ledger.blockReleased(block);
+            EXPECT_EQ(ledger.getLargeBlockCount(large), 0u);
             EXPECT_EQ(ledger.count().mBlocksHeld, 0u);
             EXPECT_TRUE(ledger.isConsistent());
         }

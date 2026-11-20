@@ -151,6 +151,12 @@ namespace Rtx
 
         std::uint64_t getBlockBytes(BlockIndex block) const;
 
+        /// How many chunks of `arena` are asked or held, and how many blocks of its own `of` has asked or holds.
+        std::uint32_t getChunkCount(ArenaIndex arena) const;
+        std::uint32_t getLargeBlockCount(ClassIndex of) const;
+
+        const SlotLayout& getLayout() const { return mLayout; }
+
         /// Whether `reserve(of, …)` has a slot: a free slot of the class outside what drains, a free slab, a free
         /// chunk for a medium class, an arrived block for a large one.
         bool hasRoom(ClassIndex of) const;

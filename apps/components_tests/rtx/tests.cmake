@@ -78,6 +78,8 @@ target_sources(
         rtx/renderer/frameimage.cpp
         rtx/renderer/frametimehistogram.cpp
         rtx/renderer/memoryprices.cpp
+        rtx/renderer/nulldevice.cpp
+        rtx/renderer/residency.cpp
         rtx/renderer/memoryreport.cpp
         rtx/renderer/structuretightness.cpp
         rtx/renderer/notfinite.cpp

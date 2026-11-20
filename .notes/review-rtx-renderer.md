@@ -1069,16 +1069,8 @@ meshtable,texturetable,materialtable,placementtable}`, `components/rtx/common/sl
 `components/rtx/renderer/{residency,resident,residencyop,nulldevice}`, `apps/components_tests/rtx/{common,renderer}`,
 `apps/rtxtool` (replay).
 
-- [ ] A property test: from random plans that fit, random arrivals and drops, the frame's shares held, every
-  operation is issued within a bounded number of hand-overs and no slot is in two states.
-- [ ] `Residency`: residents, the plan, the operations, the frame's shares, as specified. Tests over `NullDevice`,
-  exact: a plan that fits gives every want; one over the cap lowers the most bytes of the lowest tier first, to
-  floors and no further; the cache keeps nine tenths of what the demand leaves; a want that falls is held
-  `sWantHoldHandOvers`; a raise waits a chunk under the cap; a starved floor is named; a completion for another
-  generation is dropped.
-- [ ] `NullDevice`: prices by formula, a slot table asserting no slot stood twice or before its epoch, events a
-  frame late, a budget a test sets. One conformance suite, written against `SceneHolder`, that batch 4 also runs
-  over Vulkan.
+What is left here reads batch 2's residency records, which land with batch 4, so it follows them.
+
 - [ ] The replay program over batch 2's records: stranded bytes, operations a frame, hand-overs to converge after a
   cut, the plan's time. It fixes `SlotLayout` (a third slab order or not; the ladder's steps), the frame's shares and
   the hold; a dated note records them, and the estimate under "Device memory" is replaced by its figures.
@@ -1113,6 +1105,9 @@ rtx/{rtxrenderer,worldmirror}`, `components/rtx/view/offscreentrace`, the tests 
   `serveWants`, `evictForRoom`, `waitForRoom`, `fileWait`, `settleMovedResting`, `restLimitOf`; it orders the
   lights, settles the tables and calls `Residency::handOver`. A picture's scene hands over through the one
   `Residency`, its holds `Forced`, and is handed over where `Residency::owes` it.
+- [ ] `Residency` issues `BakeImage` for a bake's row (until then failed where it has no file's image) and holds a
+  texture's companion beside it, `mImage` in each operation and two slots a standing; `HandOver`'s pace takes the
+  loading screen's `Slice` with batch 7's streamer, and `admits` arrives with the cell's admission.
 - [ ] `CompositeQueue` asks `Residency::standsFrom`; a composite's layers are held `Forced` at their bake level
   until it is baked.
 - [ ] Until batch 5 the structure storages stand outside the arena and count in `U − A`.
@@ -1495,6 +1490,17 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 
 Items that landed in another shape than their target, each with how and why.
 
+- The backend's half of residency's contract is its own interface, `ResidencyDevice`, which `SceneHolder` takes on in
+  batch 4: `Residency` and `NullDevice` need none of the rest of a backend, and the conformance suite is
+  type-parameterized over it. `priceImage` answers nothing for a shape the device holds none of, which a texture's
+  floor then fails on, rather than a price nothing can stand in.
+- The plan is a full pass over the flat residents wherever an input moved, its scratch kept, rather than the
+  incremental walk over a list a tier (`RetentionLink`): no list to keep in step with every tier change, and a pass
+  is bounded by the rows. The replay program measures the plan's time; lists come back where it costs a frame.
+- A raise is a `TextureArriving` that keeps what stands (`mNow`), not a fifth state `Restanding`; a structure's build
+  and copy are recorded and stood in the one hand-over, so `Building` and `Copying` are not states either.
+- A feed's arrival is its request whole, so no table of asks is kept and a ticket, never issued twice, is the one
+  check that what arrives is for the tenant waiting on it.
 - `Platform::File::readAt` answers `Result<std::size_t, std::error_code>`, not an `IoError` of the fork's: the
   standard's type is one type on both systems and keeps the system's own code, which a new enum would map and lose.
 - `CellPreloader::isTerrainLoaded` reads `ResourceSystem::getExpiryDelay`, the delay the system was made with and
