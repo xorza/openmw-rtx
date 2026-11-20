@@ -1055,34 +1055,6 @@ tours beside the desk's. Whoever addresses an item deletes it. An item marked
 An item that says "ends" names a defect in code its batch deletes: it is there so the new shape gets the test the
 old one lacked.
 
-## Batch 2: see it first
-
-The harness judges memory, and the prices and a tour's inputs are recorded, before anything changes.
-
-Files: `apps/rtxtool/{session,measurer,tourwatch,checks}.cpp`, `apps/rtxtool/model/`, `components/rtx/renderer/
-{memoryreport,framereport}`, `apps/openmw/mwrender/rtx/framereport.hpp`, `tools/omw/tour.py`,
-`apps/components_tests/rtxtool/`.
-
-What is left here reads `Residency`'s report and the core's types, so it lands with batch 4, after the contract.
-
-- [ ] `tour --record-residency=<file>`: a hand-over's asks, holds by tier, arrivals, drops and budget, in the core's
-  types. One Repack and one PBR tour of the handheld and of the desk are kept as the replay's inputs.
-
-## Batch 3: the ledger and the plan, with no device
-
-New core code and its tests. The game does not use it yet.
-
-Files: `components/rtx/common/{slotledger,deviceepoch}`, `components/rtx/scene/{tier.hpp,rowhold.hpp,scenedesc,
-meshtable,texturetable,materialtable,placementtable}`, `components/rtx/common/slots.hpp`,
-`components/rtx/renderer/{residency,resident,residencyop,nulldevice}`, `apps/components_tests/rtx/{common,renderer}`,
-`apps/rtxtool` (replay).
-
-What is left here reads batch 2's residency records, which land with batch 4, so it follows them.
-
-- [ ] The replay program over batch 2's records: stranded bytes, operations a frame, hand-overs to converge after a
-  cut, the plan's time. It fixes `SlotLayout` (a third slab order or not; the ladder's steps), the frame's shares and
-  the hold; a dated note records them, and the estimate under "Device memory" is replaced by its figures.
-
 ## Batch 5: structures onto the arena
 
 Files: `components/rtxvulkan/scene/{bottomlevelstore,sceneacceleration,devicescene,whenroomless.hpp}`,
@@ -1142,8 +1114,6 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
   made at adoption.
 - [ ] `cellplacer.cpp:815-822` — a change of the field of view re-asks every material of every held cell. Target:
   the ask's step is derived from a quantity that does not follow a zoom, or the re-ask is measured and kept.
-- [ ] `cellring.cpp:102-110` — a reader rebuilt is silent. Target: one line naming which field of `CellWorld`
-  moved.
 - [ ] `SceneExtractor::walk(…, CellRing*, bool falls)`, `readModel(path, bool groundcover)`,
   `onTheWay(cell, bool grass)`, `moveReference(…, bool away)` — flags select behaviour. Target: an enum each.
 - [ ] Tests: a world change while a cell is read; the eye indoors; a cell entering and leaving the grid, "never both,
@@ -1528,3 +1498,8 @@ Items judged and not done, each with the reason.
   reads, and no caller tells them apart — `hashFile` and the chain passes ask only whether one read, the feed hands the
   message on — so an enum would be a message spelt twice; the folder's one call into the image manager is the file's
   open, which the sky's and the moons' builders ask as the cells' reader does.
+- Batch 2's `--record-residency` and batch 3's replay over it: every tour now reports each place's residency at its
+  most — operations a frame, bytes uploaded and copied, slots live and retiring, bytes held under the cap — and the
+  findings name what starved, drew a stand-in or stood below its want, on every machine a tour flies. A replay would
+  answer the same questions offline from a second statement of residency's inputs, a record format that drifts as the
+  plan and the scene's tables change; `SlotLayout` and the shares are tuned from the tours' figures instead.

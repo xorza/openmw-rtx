@@ -11,6 +11,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
@@ -101,6 +102,12 @@ namespace Rtx
 
         if (mSupply.isReading(around.mWorld))
             return;
+
+        // Said, with what moved: a reader made again drops every cell it held, which a field that changes when
+        // nothing should, as a mask or the state above, would do every frame.
+        if (mSupply.hasReader())
+            Log(Debug::Info) << "Ray tracing reads the cells again, for "
+                             << describeChange(mSupply.getWorld(), around.mWorld);
 
         // Everything held names the reader that is about to go, so it is let go of before the
         // supply is pointed anywhere else. Nothing is given back: what the frame held dies with the

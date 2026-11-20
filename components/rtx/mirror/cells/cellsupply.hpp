@@ -83,6 +83,9 @@ namespace Rtx
         /// Whether this is already reading `world`, so a caller need not let go of what it holds.
         bool isReading(const CellWorld& world) const { return mWorld == world; }
 
+        /// The world it reads.
+        const CellWorld& getWorld() const { return mWorld; }
+
         /// Whether there is a reader at all, which a world with no content answers no to.
         bool hasReader() const { return mReader != nullptr; }
 

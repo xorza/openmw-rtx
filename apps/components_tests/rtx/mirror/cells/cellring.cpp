@@ -2126,6 +2126,18 @@ namespace Rtx::Testing
             mRing.follow(WorldAround{});
         }
 
+        /// **A world made again names what moved**: nothing for one world, and each field that moved in its order,
+        /// the worldspace and the mask here.
+        TEST(RtxCellWorldTest, aChangeNamesWhatMoved)
+        {
+            CellWorld from;
+            EXPECT_EQ(describeChange(from, from), "");
+            CellWorld to = from;
+            to.mWorldspace = ESM::RefId::stringRefId("sys::default");
+            to.mMask = 1u;
+            EXPECT_EQ(describeChange(from, to), "the worldspace, the mask");
+        }
+
         /// **An ask for nothing cancels the list in flight**, as a newer list does: the eye has
         /// moved and nothing it lacked is lacked now. It left the list to be read to its end,
         /// because what said "newer" was a list that was not empty. The thread is held inside the

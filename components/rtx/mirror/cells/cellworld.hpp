@@ -102,6 +102,10 @@ namespace Rtx
         bool operator==(const CellWorld& other) const = default;
     };
 
+    /// Which fields of a world moved from `from` to `to`, named and comma-separated in their order: what a reader made
+    /// again says it was made again for.
+    std::string describeChange(const CellWorld& from, const CellWorld& to);
+
     /// Where the eye stands and how much world there is around it, as one value the ring reads.
     /// **What the eye resolves**, which a held cell asks its materials' textures by at its distance (`CellPlacer`):
     /// the angle a pixel's cone opens by at the render size (`Shaders::Camera::mSpreadAngle`) and the frame's level

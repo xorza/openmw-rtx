@@ -328,6 +328,7 @@ openmw_rtx_layer(
         mirror/cells/cellreader.cpp
         mirror/cells/cellring.cpp
         mirror/cells/cellsupply.cpp
+        mirror/cells/cellworld.cpp
         mirror/cells/groundreader.cpp
         mirror/cells/held.cpp
         mirror/cells/templatewalk.cpp
