@@ -111,6 +111,11 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   the same (`CellPreloader::admitsPreload`) before `findCell` loads a door's destination, which a skipped preload had
   loaded all the same. Cost: a conflict with an edit to that loop. Approved with item 10 of the tree and content
   memory plan (2026-11-17).
+- `CellPreloader::isTerrainLoaded` reads the delay the resource system was made with and last set
+  (`ResourceSystem::getExpiryDelay`), where it read the scene manager's: a budgeted manager is made with none, so
+  the terrain read as never loaded and every exterior crossing of a played session preloaded it again. Cost: a
+  conflict with an edit to that line or to `ResourceSystem`'s constructor and `setExpiryDelay`. Approved with the
+  renderer review's plan (2026-11-20).
 - A model's texture holds the file's header and not its texels where the renderer reads texels itself
   (`ImageManager::getModelImage` in place of `getImage` in the NIF loader's `getTextureImage`, `attachAutoMaps` and the
   scene manager's image reader; `Resource::ModelImages::Headers`, `Resource::ImageHeader`, `Resource::texelsOf`,
@@ -125,6 +130,10 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   tests hold the budget's semantics: a tile past the budget is handed over and kept while used. Cost: a conflict with
   an edit to `navmeshtilescache.{hpp,cpp}`, the navigator's constructors, or the setting. Approved with item 10 of the
   tree and content memory plan (2026-11-17).
+- `NavMeshTilesCache::releaseItem` lowers a tile's use count under the cache's lock, where it lowered it before taking
+  it: a `get` between the two found the tile at nought among the busy and raised it, and the release then filed a tile
+  in use among the free, where upstream's size limit and the fork's budget both evict. A fix upstream could take.
+  Approved with the renderer review's plan (2026-11-20).
 - The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`) in place of its SQLite database,
   which leaves the build: one store for what the fork derives from the content, shared across profiles, its key
   versioned (`DetourNavigatorTileVersionTest`). A tile is keyed on its recast mesh's triangles, so `MeshSource` and

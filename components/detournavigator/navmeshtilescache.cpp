@@ -141,10 +141,13 @@ namespace DetourNavigator
 
     void NavMeshTilesCache::releaseItem(ItemIterator iterator)
     {
+        // Counted under the lock, as it is acquired: counted before it, an acquire between the count and the lock
+        // found a tile at nought in the busy list, and this then filed a tile in use among the free, where the budget
+        // evicts.
+        const std::scoped_lock lock(mMutex);
+
         if (--iterator->mUseCount > 0)
             return;
-
-        const std::scoped_lock lock(mMutex);
 
         iterator->mUsed = mBudget.stamp();
         mFreeItems.splice(mFreeItems.begin(), mBusyItems, iterator);

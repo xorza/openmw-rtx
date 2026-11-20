@@ -445,7 +445,8 @@ namespace MWWorld
 
     bool CellPreloader::isTerrainLoaded(const PositionCellGrid& position, double referenceTime) const
     {
-        return mLoadedTerrainTimestamp + mResourceSystem->getSceneManager()->getExpiryDelay() > referenceTime
+        // The terrain's own delay, a cache that keeps the timer: the scene manager's is a budget's, and holds none.
+        return mLoadedTerrainTimestamp + mResourceSystem->getExpiryDelay() > referenceTime
             && contains(mLoadedTerrainPositions, position, Constants::CellSizeInUnits);
     }
 

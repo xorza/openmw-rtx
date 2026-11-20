@@ -44,6 +44,7 @@ target_sources(
         mwscript/visibilitygates.cpp
         mwsound/testheadcache.cpp
         mwsound/testwarmqueue.cpp
+        mwworld/testcellpreloader.cpp
         mwworld/testdatetimemanager.cpp
         mwworld/testduration.cpp
         mwworld/testlocalscripts.cpp

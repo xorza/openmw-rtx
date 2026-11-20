@@ -73,6 +73,10 @@ namespace Resource
         /// How long to keep objects in cache after no longer being referenced.
         void setExpiryDelay(double expiryDelay);
 
+        /// The delay as it was last set, which the caches that keep the timer are held to: what is built from memory,
+        /// the land and the terrain among it. Not a budgeted manager's, which holds none and answers nought.
+        double getExpiryDelay() const { return mExpiryDelay; }
+
         /// What keeps the caches of what is read from files, derived from the memory the system leaves the process
         /// (`CacheBudget::derive`) as the resource system is made and at every `updateCache`.
         CacheBudget& getCacheBudget() { return mCacheBudget; }
@@ -102,6 +106,8 @@ namespace Resource
         std::vector<BaseResourceManager*> mResourceManagers;
 
         const VFS::Manager* mVFS;
+
+        double mExpiryDelay;
     };
 
 }

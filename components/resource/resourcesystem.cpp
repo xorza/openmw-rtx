@@ -22,6 +22,7 @@ namespace Resource
         const VFS::Manager* vfs, double expiryDelay, const ToUTF8::StatelessUtf8Encoder* encoder)
         : mCacheBudget(CacheBudget::derive(Platform::availableMemory(), 0, 0))
         , mVFS(vfs)
+        , mExpiryDelay(expiryDelay)
     {
         mNifFileManager = std::make_unique<NifFileManager>(vfs, mCacheBudget, encoder);
         mBgsmFileManager = std::make_unique<BgsmFileManager>(vfs, expiryDelay);
@@ -86,6 +87,7 @@ namespace Resource
 
     void ResourceSystem::setExpiryDelay(double expiryDelay)
     {
+        mExpiryDelay = expiryDelay;
         for (auto& resourceManager : mResourceManagers)
             resourceManager->setExpiryDelay(expiryDelay);
     }
