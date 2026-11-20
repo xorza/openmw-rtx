@@ -1061,10 +1061,10 @@ Files: `apps/rtxtool/{session,measurer,tourwatch,checks}.cpp`, `apps/rtxtool/mod
 - [ ] `apps/rtxtool/model/finding.hpp:66-79`, `finding.cpp:105-110` — a finding's identity and its description are
   one string, searched linearly; a refusal's reason is not in its key. Target: a key a kind (a sum type), figures
   apart; expectations match keys.
-- [ ] New verb `prices`: for each format and side of the texture ladder and each level, the driver's requirement
-  and alignment; for a sample of meshes, loose and tight structure sizes; the memory types an image and a structure's
-  buffer take, which fixes the arenas; `maxMemoryAllocationCount`; a 64-texel chain's requirement in each format,
-  which prices a floor. Run on the three machines; a dated note in `docs/research/`.
+- [ ] What a structure comes to made tight against as first built, for a sample of real meshes: a tally in
+  `BottomLevelStore` by triangles' octave, said at the session's end. `info --prices` states the first-built sizes
+  alone, since a tight size is known only once a structure is built
+  (`docs/research/2026-11-20-memory-prices.md`).
 - [ ] `tour --record-residency=<file>`: a hand-over's asks, holds by tier, arrivals, drops and budget, in the core's
   types. One Repack and one PBR tour of the handheld and of the desk are kept as the replay's inputs.
 - [ ] The handheld's device-to-device copy rate, by a bench of `vkCmdCopyImage` at the ladder's sizes.
@@ -1546,6 +1546,10 @@ Items that landed in another shape than their target, each with how and why.
   game for it and tests of its hitches, slow frames, refusals and outrun cells. `checks.cpp` stays in the
   executable: `check`'s claims are asked of the world and the device by name, and a plain-facts form of them is
   the typed finding keys' item below.
+- The prices are a switch of `info`, `info --prices`, not a verb: a verb is a row in every table of the harness's
+  options for one question asked of a device that draws nothing, which `info` already stands up. It states each
+  texture's and each first-built structure's size, the kinds of memory and the limits, on the three machines
+  (`docs/research/2026-11-20-memory-prices.md`); a structure's tight size stays an item of the batch.
 
 ## Declined
 
