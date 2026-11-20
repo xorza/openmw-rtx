@@ -32,16 +32,20 @@ namespace osg
 
 namespace Rtx
 {
+    /// Each of `Pass`'s versions at its id, nought at an id none of them has.
+    template <ContentPass... Pass>
+    constexpr std::array<std::uint32_t, sContentPassCount> contentPassVersionsOf()
+    {
+        std::array<std::uint32_t, sContentPassCount> versions{};
+        ((versions[static_cast<std::size_t>(Pass::sPass)] = Pass::sVersion), ...);
+        return versions;
+    }
+
     /// **Every pass's version, by its id**: what stands for the passes as a whole wherever all of them decide an
     /// answer, as a preparation's signature does (`ContentPreparation::signatureOf`). A pass with no entry here does
     /// not compile, where a list written out at its reader left one out.
-    inline constexpr std::array<std::uint32_t, sContentPassCount> sContentPassVersions = [] {
-        std::array<std::uint32_t, sContentPassCount> versions{};
-        const auto state
-            = [&]<ContentPass... Pass>() { ((versions[static_cast<std::size_t>(Pass::sPass)] = Pass::sVersion), ...); };
-        state.operator()<ShapePass, SolidReach, TexelMean, AlphaSpan, ChainPass, SpecularKind, ConversionPass>();
-        return versions;
-    }();
+    inline constexpr std::array<std::uint32_t, sContentPassCount> sContentPassVersions
+        = contentPassVersionsOf<ShapePass, SolidReach, TexelMean, AlphaSpan, ChainPass, SpecularKind, ConversionPass>();
 
     static_assert(std::ranges::none_of(sContentPassVersions, [](const std::uint32_t version) { return version == 0; }),
         "a pass whose version nothing states: every `ContentPassId` is in `sContentPassVersions`");
