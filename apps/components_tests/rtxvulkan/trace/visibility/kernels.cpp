@@ -221,13 +221,14 @@ namespace Rtx
             // hit's vertex colours and a relief's layers' frame stand past the ground stack; the water and media
             // at what they hold since each walk resolves its hit once ("A walk resolves the surface it ends on
             // once"); the landing under the rule since it reads no normal map and makes its lobe diffuse, 112 at
-            // most (`docs/research/2026-11-19-one-kernel-registers.md`); `panes` with no scratch since a layer under
-            // the water takes its column's shafts from `media` (`docs/research/2026-11-12-panes-column-ratio.md`), and
-            // at 256 in every tuple, four waves as at 248, since a path end's rays are asked at their turns
+            // most (`docs/research/2026-11-19-one-kernel-registers.md`); `direct` at the 144 it holds; `panes` with no
+            // scratch since a layer under the water takes its column's shafts from `media`
+            // (`docs/research/2026-11-12-panes-column-ratio.md`), and at 256 in every tuple, four waves as at 248,
+            // since a path end's rays are asked at their turns
             // (`docs/research/2026-11-15-radv-wave-tiers.md`).
             constexpr std::array<Row, 4> sAmd{ {
                 { "water", {}, { 0, 177, 2048 } },
-                { "direct", {}, { 0, 160, 2048 } },
+                { "direct", {}, { 0, 144, 2048 } },
                 { "media", {}, { 0, 192, 2048 } },
                 { "panes", {}, { 0, 256, 2048 } },
             } };
@@ -246,7 +247,9 @@ namespace Rtx
             // landing, which reads no normal map and makes its lobe diffuse, holds in every tuple what it held without
             // the maps; and the eye's stage and the water's, which store the solid they end on and resolve none of
             // it, 94 and 128 registers in every tuple, the trace's own 80 where it has no sea with 1152 bytes of
-            // shared memory.
+            // shared memory. Measured again under 620.73.04, where `direct` keeps 3456 bytes in shared memory with the
+            // maps and 2688 without, `panes` up to 80 of a lane's local memory, and the bounce with the maps 112
+            // registers and 96 with a relief.
             // `fog integrate` holds its column depths, floats a thread read at an index the tent's loop leaves
             // unrolled, which the compiler keeps in shared memory and not a lane's local memory. `lamp lists`
             // holds its tile's tables, three words a lamp a tile's rays can reach and the list,
@@ -254,14 +257,14 @@ namespace Rtx
             constexpr std::array<Row, 12> sNvidia{ {
                 { "visibility", {}, { 0, 96, 1152 } },
                 { "water", {}, { 0, 128, 640 } },
-                { "direct", {}, { 0, 128, 4224 } },
-                { "direct", { .mMaps = false }, { 0, 96, 3968 } },
+                { "direct", {}, { 0, 128, 3456 } },
+                { "direct", { .mMaps = false }, { 0, 96, 2688 } },
                 { "media", {}, { 0, 128, 5504 } },
-                { "panes", {}, { 96, 128, 6272 } },
+                { "panes", {}, { 80, 128, 6272 } },
                 { "landing", {}, { 0, 96, 384 } },
                 { "bounce", { .mMaps = false }, { 0, 80, 0 } },
-                { "bounce", { .mMaps = true }, { 0, 128, 896 } },
-                { "bounce", { .mMaps = true, .mRelief = false }, { 0, 128, 0 } },
+                { "bounce", { .mMaps = true }, { 0, 96, 896 } },
+                { "bounce", { .mMaps = true, .mRelief = false }, { 0, 112, 0 } },
                 { "fog integrate", {}, { 0, 128, 1792 } },
                 { "lamp lists", {}, { 0, 128, 1584 } },
             } };
