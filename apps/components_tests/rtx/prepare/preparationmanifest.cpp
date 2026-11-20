@@ -37,9 +37,9 @@ namespace Rtx
         }
 
         constexpr StoredKey sShared{ .mKey = { { 0x1111222233334444ull, 0x5555666677778888ull } },
-            .mPass = ContentPassId::AlphaSpan };
+            .mPass = ContentPassId::FileFacts };
         constexpr StoredKey sOwn{ .mKey = { { 0x9999aaaabbbbccccull, 0xddddeeeeffff0000ull } },
-            .mPass = ContentPassId::AlphaSpan };
+            .mPass = ContentPassId::FileFacts };
 
         /// **What is written is read back under the same signature, and nothing under another, each name
         /// and each key once**: two models' digests, files and keys come back as they went, and the
@@ -198,7 +198,7 @@ namespace Rtx
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             for (const StoredKey& key : { sShared, sOwn })
                 store.write(ContentStore::Filed{ .mKey = key.mKey,
-                                .mKind = storeKindOf(ContentPassId::AlphaSpan),
+                                .mKind = storeKindOf(ContentPassId::FileFacts),
                                 .mVersion = 1,
                                 .mPayload = Misc::ByteBuffer{ std::byte{ 1 } },
                                 .mSegmentEnds = {} },
@@ -275,7 +275,7 @@ namespace Rtx
 
             // Re-walked from the vanilla files, now with a key the store holds: that entry is replaced, not added.
             store.write(ContentStore::Filed{ .mKey = sOwn.mKey,
-                            .mKind = storeKindOf(ContentPassId::AlphaSpan),
+                            .mKind = storeKindOf(ContentPassId::FileFacts),
                             .mVersion = 1,
                             .mPayload = Misc::ByteBuffer{ std::byte{ 1 } },
                             .mSegmentEnds = {} },

@@ -17,7 +17,7 @@
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
-#include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/preprocess/texture/filefactspass.hpp>
 
 #include "contentcache.hpp"
 #include "contentpass.hpp"
@@ -45,10 +45,19 @@ namespace Rtx
     /// answer, as a preparation's signature does (`ContentPreparation::signatureOf`). A pass with no entry here does
     /// not compile, where a list written out at its reader left one out.
     inline constexpr std::array<std::uint32_t, sContentPassCount> sContentPassVersions
-        = contentPassVersionsOf<ShapePass, SolidReach, TexelMean, AlphaSpan, ChainPass, SpecularKind, ConversionPass>();
+        = contentPassVersionsOf<ShapePass, FileFactsPass, ChainPass, ConversionPass>();
 
     static_assert(std::ranges::none_of(sContentPassVersions, [](const std::uint32_t version) { return version == 0; }),
         "a pass whose version nothing states: every `ContentPassId` is in `sContentPassVersions`");
+
+    /// Each store kind's version (`ContentStore::Policy::mVersions`): its pass's, and nought for a kind retired,
+    /// which no entry was written at.
+    inline constexpr std::array<std::uint32_t, sStoreKindCount> sStoreKindVersions = [] {
+        std::array<std::uint32_t, sStoreKindCount> versions{};
+        for (std::size_t pass = 0; pass < sContentPassCount; ++pass)
+            versions[sStoreKinds[pass]] = sContentPassVersions[pass];
+        return versions;
+    }();
 
     /// The ray tracer's store: a pass a kind, held in memory where small, so the frame's thread finds a
     /// fact without a wait on the disk, and a shape at any size, since a shape the frame misses it folds and
@@ -61,14 +70,14 @@ namespace Rtx
     /// bucket; sized by the bytes alone, the held table took 2^24 buckets for the 9,586,980 entries of no payload
     /// they could hold, 80 MiB and 272 MiB.
     inline constexpr ContentStore::Policy sContentStorePolicy{
-        .mKindCount = static_cast<std::uint32_t>(ContentPassId::Count),
+        .mKindCount = sStoreKindCount,
         .mHolding = ContentStore::Holding{
-            .mAtAnySize = std::uint64_t{ 1 } << static_cast<std::uint32_t>(ContentPassId::Shape),
+            .mAtAnySize = std::uint64_t{ 1 } << storeKindOf(ContentPassId::Shape),
             .mResidentBytesMost = std::size_t{ 512 } << 20,
             .mResidentCountMost = std::size_t{ 1 } << 20,
             .mStampedMost = std::size_t{ 1 } << 20,
         },
-        .mVersions = sContentPassVersions,
+        .mVersions = sStoreKindVersions,
     };
 
     /// Which runs of the chain and conversion passes a preprocessor makes where the store holds no output: every one,
@@ -117,20 +126,11 @@ namespace Rtx
         /// `ShapePass`: what a drawable's triangles come to, and its normals where they split.
         void shape(const ShapePass::Input& input, ShapePass::Output& output);
 
-        /// `SolidReach`: whether `image`'s alpha ever reaches solid.
-        bool reachesSolid(const osg::Image& image);
+        /// `FileFactsPass`: every fact a material asks of `image`, which holds its own texels (`FileKeys::of`).
+        ImageFacts facts(const osg::Image& image);
 
-        /// `TexelMean`: what a texel of `image` is worth on average.
-        MeanTexel meanTexel(const osg::Image& image);
-
-        /// `AlphaSpan`: the lowest and the highest alpha `image` holds.
-        AlphaRange alphaRange(const osg::Image& image);
-
-        /// `SpecularKind`: what `image`'s channels mean as a `_spec` map.
-        SpecularLayout specularLayout(const osg::Image& image);
-
-        /// **What is derived of a file where its texels are first read**: its key (`hashFile`), hashed once, and every
-        /// fact above keyed from it, so a header carries what any later ask would read its file again for
+        /// **What is derived of a file where its texels are first read**: its key (`hashFile`), hashed once, and its
+        /// facts keyed from it, so a header carries what any later ask would read its file again for
         /// (`ImageDerivation`).
         FileFacts derive(const osg::Image& texels);
 
@@ -204,6 +204,9 @@ namespace Rtx
         bool readPooled(const ContentStore::Key& key, const typename Pass::Input& input, std::uint8_t first,
             BufferPool& pool, const std::stop_token& stop, PooledChain& made);
 
+        /// The file key of `texels` a fact's ask is keyed by (`FileKeys::of`), timed as the facts' key.
+        ContentStore::Key keyOf(const osg::Image& texels);
+
         /// Whether `pass`'s run of `input` is made: a chain or a conversion as `mChainRuns` says, every other pass.
         template <ContentPass Pass>
         bool admits(const Pass& pass, const typename Pass::Input& input) const;
@@ -211,11 +214,8 @@ namespace Rtx
         ContentStats mStats;
         ShapePass mShape;
         TexelScratch mTexels;
-        FileKeys mKeys{ mTexels };
-        SolidReach mSolid{ mTexels, mKeys };
-        TexelMean mMean{ mTexels, mKeys };
-        AlphaSpan mSpan{ mTexels, mKeys };
-        SpecularKind mKind{ mTexels, mKeys };
+        FileKeys mKeys{ mTexels, mStats.mFileKeys };
+        FileFactsPass mFacts{ mTexels };
         ChainBuild mBuild;
         ChainPass mChain{ mBuild, mKeys, mStats.mTexelReads };
         ConversionPass mConversion{ mBuild, mKeys, mStats.mTexelReads };

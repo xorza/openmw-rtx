@@ -131,7 +131,6 @@ namespace Rtx
             std::size_t mWalked = 0;
             std::uint32_t mShapes = 0;
             std::uint32_t mChains = 0;
-            std::uint32_t mSpans = 0;
             bool mWritten = false;
             PreparationTimes mTimes;
 
@@ -158,7 +157,6 @@ namespace Rtx
             return Prepared{ .mWalked = preparation.getWalked(),
                 .mShapes = preparation.getStats().at(ContentPassId::Shape).mAsked,
                 .mChains = preparation.getStats().at(ContentPassId::Chain).mAsked,
-                .mSpans = preparation.getStats().at(ContentPassId::AlphaSpan).mAsked,
                 .mWritten = written,
                 .mTimes = preparation.getTimes(),
                 .mAround = around };
@@ -284,9 +282,9 @@ namespace Rtx
         }
 
         /// **A ground layer is read as the ground reader reads it**: its diffuse of one level has its
-        /// chain made, its normal map's chain is made, and the normal map, which may carry a height and
-        /// does, has its heights' span read; read again only once a file of it moves or a normal map
-        /// comes beside its diffuse.
+        /// chain made and its normal map's chain is made, the heights its alpha spans being the file's facts,
+        /// derived where it is read; read again only once a file of it moves or a normal map comes beside its
+        /// diffuse.
         TEST(RtxContentPreparationTest, aGroundLayerIsReadAsTheGroundReaderReadsIt)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
@@ -298,12 +296,11 @@ namespace Rtx
                 .mManifest = folder / "prepared.manifest",
                 .mHands = 1 };
             const std::vector<PreparationLayer> layers{ PreparationLayer{
-                .mDiffuse = "textures/tx_ground.dds", .mNormal = "textures/tx_rock_n.dds", .mParallax = true } };
+                .mDiffuse = "textures/tx_ground.dds", .mNormal = "textures/tx_rock_n.dds" } };
 
             const Prepared first = prepare(setup, {}, layers);
             EXPECT_EQ(first.mWalked, 1u);
             EXPECT_EQ(first.mChains, 2u) << "the diffuse's whole chain and the normal map's";
-            EXPECT_EQ(first.mSpans, 1u) << "the heights the normal map's alpha spans";
 
             EXPECT_EQ(prepare(setup, {}, layers).mWalked, 0u);
             content.mStamps["textures/tx_rock_n.dds"] = 3;
@@ -315,12 +312,6 @@ namespace Rtx
             EXPECT_EQ(prepare(setup, {}, { bare }).mWalked, 1u);
             EXPECT_EQ(prepare(setup, {}, { bare }).mWalked, 0u);
             EXPECT_EQ(prepare(setup, {}, layers).mWalked, 0u) << "the layer with its normal map stood";
-
-            // **And no span where the layer reads no height**, as the reader reads none.
-            PreparationLayer flat = layers.front();
-            flat.mParallax = false;
-            content.mStamps["textures/tx_rock_n.dds"] = 4;
-            EXPECT_EQ(prepare(setup, {}, { flat }).mSpans, 0u);
         }
     }
 }

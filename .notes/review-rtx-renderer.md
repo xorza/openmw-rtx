@@ -1112,9 +1112,6 @@ Files: `components/rtx/preprocess/` (all), `components/rtx/prepare/`, `component
 - [ ] `SourceIndex` in the preparation's manifest, as specified; `ImageManager::getModelImage` makes a header from
   a record whose stamp holds (`components/resource/imagemanager.cpp:224-250`). A record newer than the manifest's
   write is not trusted. The read of every source texture a session ends.
-- [ ] `FileFactsPass`: one pass, one entry, in the source's record. `ImageFactCache`, `HeaderDerived`,
-  `ImageHeader::mDerivedMutex`, `FileKeys::name/forget`, `ImageDerivation`'s lent preprocessors go; loaders are
-  bounded by a counting semaphore. `hashFile` is counted in `ContentStats`.
 - [ ] **(upstream, approved)** `components/resource/scenemanager.{hpp,cpp}` — a model deriver beside
   `ImageManager::setModelImages`' header deriver, called once a template after its load and before any other thread
   sees it. `Rtx::ModelDerivation` finds or makes each drawable's fold and keeps it on the drawable; `geometryBytes`
@@ -1512,6 +1509,11 @@ Items that landed in another shape than their target, each with how and why.
 - The texel pool is the renderer's, ahead of residency and the hands, and keeps every buffer given back where its
   class's list has room, past the most too: the giving thread frees nothing, and the next take drops the excess past
   the lock. A kept buffer is taken under the same word a new one is made on, so what is in use never passes the most.
+- `FileFactsPass` is one pass and one entry; the header is made carrying an immutable `HeaderDerived`, so its mutex
+  and `FileKeys::name/forget` went, and `hashFile` is counted (`ContentStats::mFileKeys`). `ImageFactCache` stays for
+  the images that hold their own texels, which a model embeds and no header derives; `ImageDerivation` keeps lending
+  its preprocessors, since one made a load would allocate its passes at every file a loader reads. A store kind is a
+  number apart from the pass's place (`sStoreKinds`), so the made chains kept their kind.
 - The store's refusal reads the delete's answer and says a failed one, but still deletes by path: naming the digest
   it refused changes `Store::discard`, which the navigator's tile store calls from an upstream file this item was not
   approved for. A late refusal over a fresh write of the same key costs that entry's miss at the next ask.

@@ -15,16 +15,14 @@
 #include <apps/components_tests/rtx/support/pooledchain.hpp>
 #include <components/contentstore/key.hpp>
 #include <components/misc/bytebuffer.hpp>
-#include <components/rtx/image/alpharange.hpp>
-#include <components/rtx/image/specularlayout.hpp>
-#include <components/rtx/image/texels.hpp>
+#include <components/rtx/image/imagefacts.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentcodec.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
-#include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/preprocess/texture/filefactspass.hpp>
 
 namespace Rtx
 {
@@ -123,10 +121,8 @@ namespace Rtx
             const std::array<std::uint8_t, 16> paint{ 255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 255, 255, 255,
                 255 };
             const osg::ref_ptr<osg::Image> painted = makeImage(paint);
-            const MeanTexel mean = content.meanTexel(*painted);
-            const AlphaRange span = content.alphaRange(*painted);
-            const bool solid = content.reachesSolid(*painted);
-            ASSERT_TRUE(solid);
+            const ImageFacts facts = content.facts(*painted);
+            ASSERT_TRUE(facts.mReachesSolid);
 
             const std::array<std::uint8_t, 16> heights{ 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112,
                 128, 251, 200 };
@@ -137,7 +133,7 @@ namespace Rtx
             const MadeChain data = *Testing::chainOf(
                 content, ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data });
             ASSERT_EQ(data.mForm, ChainForm::Own);
-            const SpecularLayout kind = content.specularLayout(*makeImage(heights));
+            const ImageFacts heightFacts = content.facts(*makeImage(heights));
             const MadeChain converted = *Testing::chainOf(content,
                 ConversionPass::Input{ .mImage = *painted,
                     .mPartner = *makeImage(heights),
@@ -152,23 +148,19 @@ namespace Rtx
             };
             const std::array computed{
                 Recorded{ "shape", ShapePass::sVersion, digestOf(shape) },
-                Recorded{ "texel mean", TexelMean::sVersion, digestOf(mean) },
-                Recorded{ "alpha span", AlphaSpan::sVersion, digestOf(span) },
+                Recorded{ "file facts", FileFactsPass::sVersion, digestOf(facts) },
                 Recorded{ "chain in BC7", ChainPass::sVersion, digestOf(chain) },
                 Recorded{ "data chain", ChainPass::sVersion, digestOf(data) },
-                Recorded{ "specular kind", SpecularKind::sVersion, digestOf(kind) },
+                Recorded{ "heights' facts", FileFactsPass::sVersion, digestOf(heightFacts) },
                 Recorded{ "conversion", ConversionPass::sVersion, digestOf(converted) },
-                Recorded{ "solid reach", SolidReach::sVersion, digestOf(solid) },
             };
             const std::array recorded{
                 Recorded{ "shape", 4, 0xfe8b49f90aed1c6d },
-                Recorded{ "texel mean", 1, 0xfaa7e2c796ee8c55 },
-                Recorded{ "alpha span", 1, 0xb02496efa84a6d00 },
+                Recorded{ "file facts", 2, 0x9a30665f65b8cade },
                 Recorded{ "chain in BC7", 8, 0x49e28ea38c0ba847 },
                 Recorded{ "data chain", 8, 0x6bf8b7518c018d9e },
-                Recorded{ "specular kind", 1, 0x5eac70df15eeb2ef },
+                Recorded{ "heights' facts", 2, 0x1b363cb9a6c14cbe },
                 Recorded{ "conversion", 6, 0xed492221331d8e6e },
-                Recorded{ "solid reach", 1, 0x5eac70df15eeb2ef },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
             {

@@ -23,20 +23,11 @@ namespace Rtx
         /// smoothed them across a hard edge — `ShapePass`.
         Shape,
 
-        /// Whether a texture's alpha ever reaches solid — `SolidReach`.
-        SolidReach,
-
-        /// What a texel of a texture is worth on average — `TexelMean`.
-        TexelMean,
-
-        /// The lowest and the highest alpha a texture holds — `AlphaSpan`.
-        AlphaSpan,
+        /// Every fact a material asks of a file's texels — `FileFactsPass`.
+        FileFacts,
 
         /// A file's levels under its finest, made again from it — `ChainPass`.
         Chain,
-
-        /// What a `_spec` map's channels mean — `SpecularKind`.
-        SpecularKind,
 
         /// A classic pair's base colour or metal-roughness map, made of its diffuse and its `_spec` —
         /// `ConversionPass`.
@@ -49,11 +40,8 @@ namespace Rtx
     /// files every output of the pass under a new key.
     inline constexpr NamedEnum sContentPasses{ std::array{
         std::pair{ ContentPassId::Shape, std::string_view("shape") },
-        std::pair{ ContentPassId::SolidReach, std::string_view("solid reach") },
-        std::pair{ ContentPassId::TexelMean, std::string_view("texel mean") },
-        std::pair{ ContentPassId::AlphaSpan, std::string_view("alpha span") },
+        std::pair{ ContentPassId::FileFacts, std::string_view("file facts") },
         std::pair{ ContentPassId::Chain, std::string_view("chain") },
-        std::pair{ ContentPassId::SpecularKind, std::string_view("specular kind") },
         std::pair{ ContentPassId::Conversion, std::string_view("conversion") },
     } };
 
@@ -63,10 +51,19 @@ namespace Rtx
     /// harness's both, so a measured run reads what the game wrote.
     inline constexpr std::string_view sContentStoreFolder = "rtx-content";
 
-    /// The kind a pass files its entries as in the ray tracer's store.
+    /// **The kind a pass files its entries as in the ray tracer's store, a number the store's folders keep across
+    /// builds**, apart from the pass's place in `ContentPassId`: a pass's chains stand under the kind they were made
+    /// under however the passes beside it change, and the kinds no pass files under any more (`sStoreKindCount`) are
+    /// emptied by the store's sweep, their version nought.
+    inline constexpr std::array<std::uint32_t, sContentPassCount> sStoreKinds{ 0, 1, 4, 6 };
+
+    /// Every kind the store has a folder of: the passes' and those retired between them, the four fact passes'
+    /// three after the first, kinds 2, 3 and 5, which `FileFactsPass` took the place of.
+    inline constexpr std::uint32_t sStoreKindCount = 7;
+
     constexpr std::uint32_t storeKindOf(ContentPassId pass)
     {
-        return static_cast<std::uint32_t>(pass);
+        return sStoreKinds[static_cast<std::size_t>(pass)];
     }
 
     /// An entry the store holds: its key and the pass that filed it, which a key alone does not say.

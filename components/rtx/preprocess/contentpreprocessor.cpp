@@ -195,45 +195,31 @@ namespace Rtx
         run(mShape, input, output);
     }
 
-    bool ContentPreprocessor::reachesSolid(const osg::Image& image)
+    ImageFacts ContentPreprocessor::facts(const osg::Image& image)
     {
-        bool solid = true;
-        run(mSolid, image, solid);
-        return solid;
-    }
-
-    MeanTexel ContentPreprocessor::meanTexel(const osg::Image& image)
-    {
-        MeanTexel mean;
-        run(mMean, image, mean);
-        return mean;
-    }
-
-    AlphaRange ContentPreprocessor::alphaRange(const osg::Image& image)
-    {
-        AlphaRange range;
-        run(mSpan, image, range);
-        return range;
-    }
-
-    SpecularLayout ContentPreprocessor::specularLayout(const osg::Image& image)
-    {
-        SpecularLayout layout = SpecularLayout::MetalRoughness;
-        run(mKind, image, layout);
-        return layout;
+        // Keyed only where there is a store to find the facts in, as every pass is keyed (`runCached`).
+        ImageFacts facts;
+        run(mFacts,
+            FileFactsPass::Input{ .mTexels = image, .mFile = mCache.holds() ? keyOf(image) : ContentStore::Key{} },
+            facts);
+        return facts;
     }
 
     FileFacts ContentPreprocessor::derive(const osg::Image& texels)
     {
-        FileFacts derived{ .mFile = hashFile(texels, mTexels), .mFacts = {} };
-        mKeys.name(texels, derived.mFile);
-        ImageFacts& facts = derived.mFacts;
-        facts.mReachesSolid = reachesSolid(texels);
-        facts.mMean = meanTexel(texels);
-        facts.mAlphaRange = alphaRange(texels);
-        facts.mSpecularLayout = specularLayout(texels);
-        mKeys.forget();
+        FileFacts derived{ .mFile = keyOf(texels), .mFacts = {} };
+        run(mFacts, FileFactsPass::Input{ .mTexels = texels, .mFile = derived.mFile }, derived.mFacts);
         return derived;
+    }
+
+    ContentStore::Key ContentPreprocessor::keyOf(const osg::Image& texels)
+    {
+        // Timed into the facts' key figure, as a pass whose digest keys its file counts it in its own.
+        const auto started = std::chrono::steady_clock::now();
+        const ContentStore::Key key = mKeys.of(texels);
+        mStats.at(ContentPassId::FileFacts).mKeyMs
+            += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
+        return key;
     }
 
     bool ContentPreprocessor::prepareChain(const ChainPass::Input& input)

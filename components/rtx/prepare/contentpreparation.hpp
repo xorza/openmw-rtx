@@ -89,10 +89,6 @@ namespace Rtx
 
         /// The normal map, or empty for none.
         std::string mNormal{};
-
-        /// Whether the normal map may carry a height in its alpha, which the ground reads
-        /// (`carriesHeight`).
-        bool mParallax = false;
     };
 
     /// What a preparation took, once `finish` returned.

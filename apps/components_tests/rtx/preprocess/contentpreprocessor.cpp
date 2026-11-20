@@ -42,7 +42,7 @@
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
-#include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/preprocess/texture/filefactspass.hpp>
 #include <components/rtx/shaders/tangent.h>
 #include <components/testing/util.hpp>
 
@@ -216,7 +216,7 @@ namespace Rtx
             EXPECT_EQ(shaped.mAsked, 1u);
             EXPECT_EQ(shaped.mHits, 0u);
             EXPECT_EQ(shaped.mKeyBytes, 0u);
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u) << "a pass not asked counts nothing";
+            EXPECT_EQ(stats.at(ContentPassId::FileFacts).mAsked, 0u) << "a pass not asked counts nothing";
         }
 
         /// **With no store, every ask runs.** The same shape asked twice is asked twice and found
@@ -359,10 +359,11 @@ namespace Rtx
             EXPECT_FALSE(ContentCodec<MadeChain>::decode(empty, read));
         }
 
-        /// The texture passes through the preprocessor answer what the readings of the described
-        /// level do, for an image they read and for one they cannot: a file in RGB 3-3-2, which is
-        /// solid by the rule that changes nothing, and worth nothing.
-        TEST(RtxContentPreprocessorTest, theTexturePassesAnswerWhatTheDirectReadingsDo)
+        /// **The facts through the preprocessor answer what the readings of the described level do**, for an image they
+        /// read and for one they cannot: a file in RGB 3-3-2, which is solid by the rule that changes nothing, worth
+        /// nothing, spans the whole byte range and is read as metal-roughness. With no store, each ask runs, and keys
+        /// no file.
+        TEST(RtxContentPreprocessorTest, theFactsAnswerWhatTheDirectReadingsDo)
         {
             ContentPreprocessor content;
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
@@ -370,22 +371,26 @@ namespace Rtx
             TexelScratch scratch;
             const std::optional<TextureData> finest = describeFinest(*painted, scratch);
             ASSERT_TRUE(finest.has_value());
-            EXPECT_EQ(content.reachesSolid(*painted), reachesSolid(*finest));
-            EXPECT_TRUE(content.reachesSolid(*painted)) << "its last texel is solid";
+            const ImageFacts asked = content.facts(*painted);
+            EXPECT_EQ(asked.mReachesSolid, reachesSolid(*finest));
+            EXPECT_TRUE(asked.mReachesSolid) << "its last texel is solid";
+            EXPECT_EQ(asked.mAlphaRange, alphaRange(*finest));
 
             const MeanTexel direct = meanTexel(*finest, scratch);
-            const MeanTexel asked = content.meanTexel(*painted);
-            EXPECT_EQ(asked.mColour, direct.mColour);
-            EXPECT_EQ(asked.mWhole, direct.mWhole);
-            EXPECT_EQ(asked.mAlpha, direct.mAlpha);
+            EXPECT_EQ(asked.mMean.mColour, direct.mColour);
+            EXPECT_EQ(asked.mMean.mWhole, direct.mWhole);
+            EXPECT_EQ(asked.mMean.mAlpha, direct.mAlpha);
 
             osg::ref_ptr<osg::Image> odd = Testing::makeImage("odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            EXPECT_TRUE(content.reachesSolid(*odd));
-            EXPECT_EQ(content.meanTexel(*odd).mColour, osg::Vec3f());
+            const ImageFacts unread = content.facts(*odd);
+            EXPECT_TRUE(unread.mReachesSolid);
+            EXPECT_EQ(unread.mMean.mColour, osg::Vec3f());
+            EXPECT_EQ(unread.mAlphaRange, AlphaRange{});
+            EXPECT_EQ(unread.mSpecularLayout, SpecularLayout::MetalRoughness);
 
             const ContentStats stats = content.takeStats();
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 3u);
-            EXPECT_EQ(stats.at(ContentPassId::TexelMean).mAsked, 2u);
+            EXPECT_EQ(stats.at(ContentPassId::FileFacts).mAsked, 2u);
+            EXPECT_EQ(stats.mFileKeys.mAsked, 0u);
         }
 
         /// **A `_spec` map's layout is its channels' spread**: four texels of `(100, 100, 125)` spread
@@ -406,13 +411,13 @@ namespace Rtx
                 }
                 return bytes;
             };
-            EXPECT_EQ(content.specularLayout(*makeImage(texels(125), "under.dds")), SpecularLayout::Classic);
-            EXPECT_EQ(content.specularLayout(*makeImage(texels(126), "over.dds")), SpecularLayout::MetalRoughness);
-            EXPECT_EQ(content.specularLayout(*makeImage(sPaint, "painted.dds")), SpecularLayout::MetalRoughness);
+            EXPECT_EQ(content.facts(*makeImage(texels(125), "under.dds")).mSpecularLayout, SpecularLayout::Classic);
+            EXPECT_EQ(
+                content.facts(*makeImage(texels(126), "over.dds")).mSpecularLayout, SpecularLayout::MetalRoughness);
+            EXPECT_EQ(content.facts(*makeImage(sPaint, "painted.dds")).mSpecularLayout, SpecularLayout::MetalRoughness);
 
             osg::ref_ptr<osg::Image> odd = Testing::makeImage("odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            EXPECT_EQ(content.specularLayout(*odd), SpecularLayout::MetalRoughness);
-            EXPECT_EQ(content.takeStats().at(ContentPassId::SpecularKind).mAsked, 4u);
+            EXPECT_EQ(content.facts(*odd).mSpecularLayout, SpecularLayout::MetalRoughness);
         }
 
         /// **Khronos' converter, texel by texel**, every colour in linear light:
@@ -441,13 +446,13 @@ namespace Rtx
             EXPECT_NEAR(between.mBase.z(), 0.5972f, 1e-4f);
         }
 
-        /// What a texture pass's key reads: its file's key (`hashFile`).
+        /// What the facts' key reads: its file's key (`hashFile`).
         constexpr std::uint64_t sFinestKeyBytes = sizeof(ContentStore::Key);
 
-        /// **A pass the store keeps is found again**: the texel mean asked twice through a store is
-        /// run once and found once, keyed both times on what it read, and answers the same; and a
-        /// later session's frame thread, whose reach is memory alone, finds it in a store made on
-        /// the same folder, which held it from its start.
+        /// **A pass the store keeps is found again**: the facts asked twice through a store are run once and found
+        /// once, keyed both times on what they read, and answer the same, one entry written; and a later session's
+        /// frame thread, whose reach is memory alone, finds them in a store made on the same folder, which held them
+        /// from its start.
         TEST(RtxContentPreprocessorTest, aStoredPassIsFoundAgainInThisSessionAndTheNext)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
@@ -457,26 +462,31 @@ namespace Rtx
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
                 ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-                const MeanTexel run = content.meanTexel(*painted);
-                const MeanTexel found = content.meanTexel(*painted);
-                EXPECT_EQ(run.mColour, direct.mColour);
-                EXPECT_EQ(found.mColour, direct.mColour);
-                EXPECT_EQ(found.mWhole, direct.mWhole);
-                EXPECT_EQ(found.mAlpha, direct.mAlpha);
+                const ImageFacts run = content.facts(*painted);
+                const ImageFacts found = content.facts(*painted);
+                EXPECT_EQ(run.mMean.mColour, direct.mColour);
+                EXPECT_EQ(found.mMean.mColour, direct.mColour);
+                EXPECT_EQ(found.mMean.mWhole, direct.mWhole);
+                EXPECT_EQ(found.mMean.mAlpha, direct.mAlpha);
+                EXPECT_EQ(found.mReachesSolid, run.mReachesSolid);
+                EXPECT_EQ(found.mAlphaRange, run.mAlphaRange);
+                EXPECT_EQ(found.mSpecularLayout, run.mSpecularLayout);
 
-                const PassStats stats = content.takeStats().at(ContentPassId::TexelMean);
+                const PassStats stats = content.takeStats().at(ContentPassId::FileFacts);
                 EXPECT_EQ(stats.mAsked, 2u);
                 EXPECT_EQ(stats.mHits, 1u);
                 EXPECT_EQ(stats.mKeyBytes, 2 * sFinestKeyBytes);
+                store.flush();
+                EXPECT_EQ(store.getStats().mWritten, 1u) << "one entry for every fact";
             }
 
             ContentStore::Store next(folder, sContentStorePolicy);
             next.flush();
             ContentPreprocessor frame(&next, ContentStore::Reach::Memory);
-            const MeanTexel found = frame.meanTexel(*painted);
-            EXPECT_EQ(found.mColour, direct.mColour);
-            EXPECT_EQ(found.mAlpha, direct.mAlpha);
-            EXPECT_EQ(frame.takeStats().at(ContentPassId::TexelMean).mHits, 1u);
+            const ImageFacts found = frame.facts(*painted);
+            EXPECT_EQ(found.mMean.mColour, direct.mColour);
+            EXPECT_EQ(found.mMean.mAlpha, direct.mAlpha);
+            EXPECT_EQ(frame.takeStats().at(ContentPassId::FileFacts).mHits, 1u);
         }
 
         /// **A chain asked only to be stored is run where the store lacks it, and not read where it holds
@@ -525,24 +535,6 @@ namespace Rtx
             EXPECT_FALSE(watched.lock(standing)) << "the image the hit read its key from was held";
         }
 
-        /// **The walk that stops at the first texel that answers is kept too**, its file's key costing nothing more
-        /// than the mean's: the solid reach, asked twice, runs once, is found once, and writes one entry.
-        TEST(RtxContentPreprocessorTest, theWalkThatStopsAtTheFirstTexelThatAnswersIsKept)
-        {
-            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-            const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
-            for (std::int32_t ask = 0; ask < 2; ++ask)
-                EXPECT_TRUE(content.reachesSolid(*painted));
-
-            const ContentStats stats = content.takeStats();
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 2u);
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mHits, 1u);
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mKeyBytes, 2 * sFinestKeyBytes);
-            store.flush();
-            EXPECT_EQ(store.getStats().mWritten, 1u);
-        }
-
         /// A 2x2 RGBA8 image of `sPaint` carrying a 1x1 second level of `second`.
         osg::ref_ptr<osg::Image> makeChained(const std::uint8_t second)
         {
@@ -581,52 +573,51 @@ namespace Rtx
             otherOdd->data()[0] ^= 1;
             EXPECT_NE(hashFile(*odd, scratch), hashFile(*otherOdd, scratch)) << "two images no reader decodes";
 
-            FileKeys keys(scratch);
-            const osg::ref_ptr<osg::Image> named = makeImage(sPaint, "painted.dds");
-            const ContentStore::Key handed{ .mHash = { 1, 2 } };
-            keys.name(*named, handed);
-            EXPECT_EQ(keys.of(*named), handed);
+            // **Each file keyed by its texels counted**: two, and their bytes, 16 and 16.
+            PassStats counted;
+            FileKeys keys(scratch, counted);
             EXPECT_EQ(keys.of(*makeImage(sPaint, "painted.dds")), key) << "another image of the same texels";
-            keys.forget();
-            EXPECT_EQ(keys.of(*named), key);
+            EXPECT_EQ(keys.of(*makeImage(sPaint, "again.dds")), key);
+            EXPECT_EQ(counted.mAsked, 2u);
+            EXPECT_EQ(counted.mKeyBytes, 32u);
         }
 
         /// **A stored payload its codec cannot read is a miss, and the output run again is filed in its
-        /// place**: a texel mean filed as three bytes, against the 28 its codec reads, runs, and the
+        /// place**: a file's facts filed as three bytes, against the 32 their codec reads, run, and the
         /// run's output replaces the held payload, so the next ask finds it, and the file, so the next
-        /// session reads the 28.
+        /// session reads the 32.
         TEST(RtxContentPreprocessorTest, aPayloadItsCodecCannotReadIsRunAgainAndReplaced)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
 
             TexelScratch scratch;
-            ContentStore::Digest digest(sContentPasses.name(ContentPassId::TexelMean), TexelMean::sVersion);
+            ContentStore::Digest digest(sContentPasses.name(ContentPassId::FileFacts), FileFactsPass::sVersion);
             digest.add(hashFile(*painted, scratch));
             const Misc::ByteBuffer broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
             store.write(ContentStore::Filed{ .mKey = digest.getKey(),
-                            .mKind = storeKindOf(ContentPassId::TexelMean),
-                            .mVersion = TexelMean::sVersion,
+                            .mKind = storeKindOf(ContentPassId::FileFacts),
+                            .mVersion = FileFactsPass::sVersion,
                             .mPayload = broken,
                             .mSegmentEnds = {} },
                 ContentStore::Reach::Disk);
 
             ContentPreprocessor content(&store, ContentStore::Reach::Memory);
-            const MeanTexel first = content.meanTexel(*painted);
-            const MeanTexel second = content.meanTexel(*painted);
-            EXPECT_EQ(second.mColour, first.mColour);
-            EXPECT_EQ(second.mAlpha, first.mAlpha);
+            const ImageFacts first = content.facts(*painted);
+            const ImageFacts second = content.facts(*painted);
+            EXPECT_EQ(second.mMean.mColour, first.mMean.mColour);
+            EXPECT_EQ(second.mMean.mAlpha, first.mMean.mAlpha);
 
-            const PassStats stats = content.takeStats().at(ContentPassId::TexelMean);
+            const PassStats stats = content.takeStats().at(ContentPassId::FileFacts);
             EXPECT_EQ(stats.mAsked, 2u);
             EXPECT_EQ(stats.mHits, 1u) << "the second, from the run's output";
 
             store.flush();
             Misc::ByteBuffer filed;
             ContentStore::Store next(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ASSERT_TRUE(next.read(digest.getKey(), storeKindOf(ContentPassId::TexelMean), TexelMean::sVersion,
+            ASSERT_TRUE(next.read(digest.getKey(), storeKindOf(ContentPassId::FileFacts), FileFactsPass::sVersion,
                 ContentStore::Reach::Disk, filed));
-            EXPECT_EQ(filed.size(), 28u) << "the broken file stood";
+            EXPECT_EQ(filed.size(), 32u) << "the broken file stood";
         }
 
         /// **A stored shape that reads whole and does not fit its input is run again and replaced**: the digest says
@@ -812,7 +803,8 @@ namespace Rtx
             {
                 ChainBuild build;
                 TexelScratch scratch;
-                FileKeys keys(scratch);
+                PassStats counted;
+                FileKeys keys(scratch, counted);
                 TexelReads reads;
                 ChainPass pass(build, keys, reads);
                 pass.digest(input, digest);
@@ -854,7 +846,8 @@ namespace Rtx
             {
                 ChainBuild build;
                 TexelScratch scratch;
-                FileKeys keys(scratch);
+                PassStats counted;
+                FileKeys keys(scratch, counted);
                 TexelReads reads;
                 ChainPass pass(build, keys, reads);
                 pass.digest(input, digest);
@@ -972,7 +965,7 @@ namespace Rtx
 
             ContentStats second;
             second.at(ContentPassId::Shape) = PassStats{ .mAsked = 1, .mKeyMs = 3.0, .mFoundMs = 0.25, .mKeyBytes = 5 };
-            second.at(ContentPassId::TexelMean) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
+            second.at(ContentPassId::FileFacts) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
 
             Preprocessed both{ .mOnFrame = first };
             both += Preprocessed{ .mOnFrame = second, .mOffFrame = second, .mPrepared = first, .mLoading = second };
@@ -984,7 +977,7 @@ namespace Rtx
             EXPECT_EQ(fold.mFoundMs, 0.75);
             EXPECT_EQ(fold.mRunMs, 2.0);
             EXPECT_EQ(fold.mKeyBytes, 15u);
-            EXPECT_EQ(both.mOnFrame.at(ContentPassId::TexelMean).mAsked, 4u);
+            EXPECT_EQ(both.mOnFrame.at(ContentPassId::FileFacts).mAsked, 4u);
             EXPECT_EQ(both.mOnFrame.getMs(), 10.75);
             EXPECT_EQ(both.mOffFrame.getMs(), 7.25);
             EXPECT_EQ(both.mPrepared.getMs(), 3.5) << "the chain threads' figures not summed";

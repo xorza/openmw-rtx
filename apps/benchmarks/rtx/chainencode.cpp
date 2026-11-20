@@ -41,6 +41,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
+#include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/filekeys.hpp>
 #include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
@@ -180,7 +181,8 @@ namespace Rtx
 
                 mFile = described.value();
                 TexelScratch scratch;
-                FileKeys keys(scratch);
+                PassStats keyed;
+                FileKeys keys(scratch, keyed);
                 TexelReads reads;
                 ChainPass pass(mBuilt, keys, reads);
                 pass.run(ChainPass::Input{ .mImage = *mImage, .mEncoding = encodingOf(mKind) }, mMade);
@@ -654,7 +656,8 @@ namespace Rtx
         {
             ChainBuild build;
             TexelScratch scratch;
-            FileKeys keys(scratch);
+            PassStats keyed;
+            FileKeys keys(scratch, keyed);
             TexelReads reads;
             ChainPass pass(build, keys, reads);
             MadeChain made;

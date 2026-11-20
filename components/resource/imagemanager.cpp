@@ -232,8 +232,7 @@ namespace Resource
             const osg::ref_ptr<osg::Image> pixels = getImage(path);
             if (pixels == mWarningImage)
                 return Loaded<osg::ref_ptr<osg::Image>>{ .mValue = pixels, .mBytes = 0 };
-            const osg::ref_ptr<ImageHeader> made = new ImageHeader(*pixels, *this);
-            mDeriver(*pixels, *made);
+            const osg::ref_ptr<ImageHeader> made = new ImageHeader(*pixels, *this, mDeriver(*pixels));
             return Loaded<osg::ref_ptr<osg::Image>>{ .mValue = made, .mBytes = 0 };
         });
     }

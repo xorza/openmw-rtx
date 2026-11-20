@@ -142,14 +142,16 @@ What the game reads from files (`components/resource`), changed for the handheld
   not readable drop their host copy (`research/2026-11-16-texture-uploads-and-host-memory.md`). Refused: freeing a
   shared image's texels in place, which every reader would race.
 - **A file is keyed once, where its texels are first read** (`Rtx::ImageDerivation`, `Rtx::FileKeys`): the image
-  manager hands a renderer the texels and the new header before any other thread sees it, and the renderer files on
-  the header the file's key, a hash of its levels as described, and every fact a material asks, each pass keyed from
-  the file's key. A chain the store holds whole then comes back with no read of its file, and no fact reads one. As
+  manager hands a renderer the texels before it makes the header, and the header is made carrying the file's key, a
+  hash of its levels as described, and every fact a material asks, read in one pass keyed from the file's key
+  (`FileFactsPass`), never written again, so any thread reads it without a lock. A chain the store holds whole then
+  comes back with no read of its file, and no fact reads one. As
   OpenSceneGraph hooks a read through its registry's `ReadFileCallback`, and as Unreal's derived data keys a texture
   by its source's hash taken at import. Derived on the loader's own thread through a pool of preprocessors, half the
   processors, a loader past them waiting (`Rtx::ImageDerivation`). Refused: a key a pass hashes from the texels each ask,
   which reads the file to key what the store holds; facts made at a material's first ask, which read the file again
-  once the texels went; a preprocessor a thread (`thread_local`), global state no owner bounds.
+  once the texels went; four fact passes, four entries a file, each read at its own ask, which the first read asks
+  anyway; a preprocessor a thread (`thread_local`), global state no owner bounds.
 - **Residency plans every texture, and the device stands what it is told** (`Rtx::Residency`, `ResidencyDevice`),
   by the user's decision: a texture's level follows its want, its tier and the arena's cap, the least protected and the
   most bytes lowered first, each to a floor of 64 texels a side, as Unreal's streamer takes a level off the textures
@@ -177,9 +179,13 @@ What the game reads from files (`components/resource`), changed for the handheld
   rises is taken at once, one that falls once it has stood `Residency::sWantHoldHandOvers` hand-overs, so a step back
   and forth lowers nothing. Refused: a scan of the placements each frame, which the frame rule
   forbids, and a feedback pass, which measures what a derived bound already states.
+- **A store kind is a number its folders keep, apart from a pass's place among the passes**
+  (`Rtx::sStoreKinds`): a retired kind's version is nought, and the store's start after the versions moved removes
+  every entry of a version no owner makes, by its trailer, once (`ContentStore::Policy::mVersions`). Refused: kinds
+  numbered by the passes' order, which moved every made chain to another kind when a pass before it went.
 - **A made chain is handed over in a buffer of a bounded pool, read a segment at a time** (`Rtx::BufferPool`,
   `ContentPreprocessor::chain` into a pool): the store's entry is opened, its form's byte read, and its levels read
-  by position into a pooled buffer, each segment's digest checked; the buffer goes back to the pool as the made image
+  by position into a pooled buffer from the first level the request asks, each segment's digest checked; the buffer goes back to the pool as the made image
   goes, the device having its copy. 256 MiB in use and free, by size class a power of two, so a hand-over allocates
   nothing once warm, as DirectStorage reads into a bounded staging buffer. A job whose slot left before it started is
   cancelled. Refused: a buffer allocated a read, freed on the frame's thread; reading into the staging memory, which

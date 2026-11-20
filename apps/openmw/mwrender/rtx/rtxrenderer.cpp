@@ -320,8 +320,7 @@ namespace MWRender
         // Held first, so a manager handed again is taken back from before it is handed the derivation, not after.
         mDerivesHeaders.reset(resources.getImageManager());
         resources.getImageManager()->setModelImages(Resource::ModelImages::Headers,
-            [derivation = mDerivation.get()](
-                const osg::Image& texels, const Resource::ImageHeader& header) { derivation->derive(texels, header); });
+            [derivation = mDerivation.get()](const osg::Image& texels) { return derivation->derive(texels); });
         setAutoMaps(scene);
     }
 

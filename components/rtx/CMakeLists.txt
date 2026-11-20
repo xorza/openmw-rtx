@@ -117,6 +117,7 @@ openmw_rtx_layer(
         image/colourblock.hpp
         image/formatcensus.hpp
         image/imagedescription.hpp
+        image/imagefacts.hpp
         image/imageshape.hpp
         image/madeimage.hpp
         image/specularlayout.hpp
@@ -195,7 +196,7 @@ openmw_rtx_layer(
         preprocess/texture/chainadmission.cpp
         preprocess/texture/chainpass.cpp
         preprocess/texture/conversionpass.cpp
-        preprocess/texture/texturepass.cpp
+        preprocess/texture/filefactspass.cpp
     HEADERS
         preprocess/contentcache.hpp
         preprocess/contentcodec.hpp
@@ -219,7 +220,7 @@ openmw_rtx_layer(
         preprocess/texture/chainpass.hpp
         preprocess/texture/chainscratch.hpp
         preprocess/texture/conversionpass.hpp
-        preprocess/texture/texturepass.hpp
+        preprocess/texture/filefactspass.hpp
         preprocess/threadcontent.hpp
 )
 

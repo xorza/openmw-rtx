@@ -12,12 +12,14 @@
 #include <gtest/gtest.h>
 
 #include <osg/Array>
+#include <osg/CopyOp>
 #include <osg/Drawable>
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/Image>
 #include <osg/NodeVisitor>
 #include <osg/PrimitiveSet>
+#include <osg/Referenced>
 #include <osg/Texture2D>
 
 #include <apps/components_tests/rtx/support/ddsfile.hpp>
@@ -140,7 +142,9 @@ namespace
         EXPECT_FALSE(Resource::isHeader(*texels)) << "texels, where models keep them";
         EXPECT_EQ(texels->getTotalSizeInBytesIncludingMipmaps(), 48u);
 
-        images.setModelImages(Resource::ModelImages::Headers, [](const osg::Image&, const Resource::ImageHeader&) {});
+        const osg::ref_ptr<const osg::Referenced> carried = new osg::Referenced;
+        images.setModelImages(Resource::ModelImages::Headers,
+            [&](const osg::Image&) { return osg::ref_ptr<const osg::Referenced>(carried); });
         const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
         ASSERT_TRUE(Resource::isHeader(*header));
         EXPECT_EQ(header->data(), nullptr);
@@ -151,6 +155,11 @@ namespace
         EXPECT_EQ(header->getNumMipmapLevels(), 3u);
         EXPECT_EQ(header->getFileName(), path.value());
         EXPECT_EQ(images.getModelImage(path), header) << "one header a file";
+        EXPECT_EQ(&static_cast<const Resource::ImageHeader&>(*header).derived<osg::Referenced>(), carried.get())
+            << "made carrying what was derived";
+        const osg::ref_ptr<osg::Image> copied = static_cast<osg::Image*>(header->clone(osg::CopyOp::SHALLOW_COPY));
+        EXPECT_EQ(&static_cast<const Resource::ImageHeader&>(*copied).derived<osg::Referenced>(), carried.get())
+            << "a copy carries the file's derivation";
 
         EXPECT_EQ(Resource::texelsOf(*header), texels) << "the texels the cache holds";
         EXPECT_EQ(Resource::texelsOf(*texels), texels) << "an image that holds its texels is its own";
@@ -181,8 +190,10 @@ namespace
         Resource::ResourceSystem resources(vfs.get(), 1.0, &encoder.getStatelessEncoder());
         Resource::ImageManager& images = *resources.getImageManager();
         std::atomic<std::uint32_t> derived = 0;
-        images.setModelImages(Resource::ModelImages::Headers,
-            [&](const osg::Image&, const Resource::ImageHeader&) { derived.fetch_add(1); });
+        images.setModelImages(Resource::ModelImages::Headers, [&](const osg::Image&) {
+            derived.fetch_add(1);
+            return osg::ref_ptr<const osg::Referenced>(new osg::Referenced);
+        });
 
         constexpr std::size_t sLoaders = 8;
         std::latch start(sLoaders);

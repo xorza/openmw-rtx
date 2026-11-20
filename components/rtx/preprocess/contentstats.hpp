@@ -36,6 +36,10 @@ namespace Rtx
         std::array<PassStats, sContentPassCount> mPasses{};
         TexelReads mTexelReads{};
 
+        /// Every file keyed by its texels (`hashFile`): how many, in `mAsked`, and their bytes; the time is in the key
+        /// figure of the pass that asked. A header's key, derived where its file was first read, is no ask.
+        PassStats mFileKeys{};
+
         PassStats& at(ContentPassId pass) { return mPasses[static_cast<std::size_t>(pass)]; }
         const PassStats& at(ContentPassId pass) const { return mPasses[static_cast<std::size_t>(pass)]; }
 

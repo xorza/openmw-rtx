@@ -13,6 +13,7 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texturedata.hpp>
 
+#include "contentstats.hpp"
 #include "headerderived.hpp"
 
 namespace Rtx
@@ -66,25 +67,10 @@ namespace Rtx
     ContentStore::Key FileKeys::of(const osg::Image& image)
     {
         if (const auto* const header = dynamic_cast<const Resource::ImageHeader*>(&image))
-        {
-            const std::optional<FileFacts>& derived = header->derived<HeaderDerived>().mFacts;
-            assert(derived.has_value() && "a header its manager handed out underived");
-            return derived->mFile;
-        }
-        if (&image == mNamed)
-            return mNamedKey;
+            return header->derived<HeaderDerived>().getFacts().mFile;
+
+        ++mCounted.mAsked;
+        mCounted.mKeyBytes += image.getTotalSizeInBytesIncludingMipmaps();
         return hashFile(image, mScratch);
-    }
-
-    void FileKeys::name(const osg::Image& texels, const ContentStore::Key& key)
-    {
-        assert(mNamed == nullptr && "a second image named before the first was forgotten");
-        mNamed = &texels;
-        mNamedKey = key;
-    }
-
-    void FileKeys::forget()
-    {
-        mNamed = nullptr;
     }
 }

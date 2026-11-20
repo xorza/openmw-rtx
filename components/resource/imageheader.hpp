@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <functional>
-#include <mutex>
 
 #include <osg/CopyOp>
 #include <osg/Image>
@@ -22,8 +21,9 @@ namespace Resource
     class ImageHeader final : public osg::Image
     {
     public:
-        /// The header of `pixels`, a file's image as its manager read it, whose texels `source` reads again.
-        ImageHeader(const osg::Image& pixels, ImageManager& source);
+        /// The header of `pixels`, a file's image as its manager read it, whose texels `source` reads again, carrying
+        /// what its manager's deriver made of them (`HeaderDeriver`), or null where there is no deriver.
+        ImageHeader(const osg::Image& pixels, ImageManager& source, osg::ref_ptr<const osg::Referenced> derived);
 
         ImageHeader() = default;
 
@@ -42,17 +42,15 @@ namespace Resource
         void releaseTexels() const;
 
         /// What a reader derived from the file's texels, kept with the header so every thread that meets the file
-        /// finds it rather than reading the texels again once they are let go of: made the first time any thread
-        /// asks, and the same object after. One kind a header; `Derived` guards what it holds itself.
+        /// finds it rather than reading the texels again once they are let go of. **Made before the header was, and
+        /// never changed**: any thread reads it without a lock.
         template <class Derived>
-        Derived& derived() const
+        const Derived& derived() const
         {
-            const std::scoped_lock lock(mDerivedMutex);
-            if (mDerived == nullptr)
-                mDerived = new Derived;
-            assert(
-                dynamic_cast<Derived*>(mDerived.get()) != nullptr && "a header asked for two kinds of what it keeps");
-            return static_cast<Derived&>(*mDerived);
+            assert(mDerived != nullptr && "a header made with nothing derived");
+            assert(dynamic_cast<const Derived*>(mDerived.get()) != nullptr
+                && "a header asked for another kind than it carries");
+            return static_cast<const Derived&>(*mDerived);
         }
 
     protected:
@@ -60,16 +58,14 @@ namespace Resource
 
     private:
         ImageManager* mSource = nullptr;
-
-        mutable std::mutex mDerivedMutex;
-        mutable osg::ref_ptr<osg::Referenced> mDerived;
+        osg::ref_ptr<const osg::Referenced> mDerived;
     };
 
-    /// **What a renderer derives of a file where its texels are first read**, handed the texels and the new header on
-    /// the thread that read them, before any other thread sees the header (`ImageManager::setModelImages`): what it
-    /// keys and learns of the file, kept on the header (`ImageHeader::derived`), so nothing reads the file again for
-    /// it. As OpenSceneGraph hooks every read through its registry's `ReadFileCallback`.
-    using HeaderDeriver = std::function<void(const osg::Image& texels, const ImageHeader& header)>;
+    /// **What a renderer derives of a file where its texels are first read**, handed the texels on the thread that
+    /// read them, before the header exists (`ImageManager::setModelImages`): what it keys and learns of the file, which
+    /// the header is made carrying (`ImageHeader::derived`), so nothing reads the file again for it. As OpenSceneGraph
+    /// hooks every read through its registry's `ReadFileCallback`.
+    using HeaderDeriver = std::function<osg::ref_ptr<const osg::Referenced>(const osg::Image& texels)>;
 
     /// Whether `image` is a header (`ImageHeader`), whose texels its manager reads: asked without reading them.
     bool isHeader(const osg::Image& image);

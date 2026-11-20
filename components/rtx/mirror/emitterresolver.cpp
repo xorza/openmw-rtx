@@ -361,8 +361,7 @@ namespace Rtx
                 if (held.mFacts == nullptr)
                     held.mFacts = &mThread.factsOf(*held.mSprite);
 
-                glows[*pending.mGlow].addSprites(
-                    emitter, mSpriteScratch, meanUnder(mThread.meanOf(*held.mFacts, *held.mSprite), held.mBlend));
+                glows[*pending.mGlow].addSprites(emitter, mSpriteScratch, meanUnder(held.mFacts->mMean, held.mBlend));
             }
         }
     }

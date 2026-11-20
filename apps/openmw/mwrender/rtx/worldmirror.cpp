@@ -346,6 +346,9 @@ namespace MWRender
                     "{:>10.1f} ms running",
                     name, counted.mAsked, counted.mHits, counted.mKeyMs, counted.mFoundMs, counted.mRunMs);
         }
+        if (stats.mFileKeys.mAsked > 0)
+            Log(Debug::Info) << std::format("  {:<12} {:>7} keyed by their texels, {:.1f} MiB read", "files",
+                stats.mFileKeys.mAsked, Rtx::mebibytes(stats.mFileKeys.mKeyBytes));
         mPreparing.reset();
 
         // glibc keeps what a thread's arena freed until a trim (`Platform::trimHeap`).

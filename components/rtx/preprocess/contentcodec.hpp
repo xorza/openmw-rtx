@@ -14,9 +14,8 @@
 #include <osg/Vec3f>
 
 #include <components/misc/bytebuffer.hpp>
-#include <components/rtx/image/alpharange.hpp>
+#include <components/rtx/image/imagefacts.hpp>
 #include <components/rtx/image/specularlayout.hpp>
-#include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/shaders/tangent.h>
@@ -90,78 +89,39 @@ namespace Rtx
     template <class T>
     struct ContentCodec;
 
-    /// A yes or a no: one byte, nought or one.
+    /// Every fact of a file's texels: whether it reaches solid and what its channels mean, a byte each, nought or one;
+    /// its alpha's span, two bytes; its mean, seven floats.
     template <>
-    struct ContentCodec<bool>
+    struct ContentCodec<ImageFacts>
     {
-        static void encode(const bool value, Misc::ByteBuffer& into)
+        static void encode(const ImageFacts& facts, Misc::ByteBuffer& into)
         {
-            ContentBytes::put(into, static_cast<std::uint8_t>(value));
-        }
-
-        static bool decode(std::span<const std::byte> from, bool& value)
-        {
-            std::uint8_t stored = 0;
-            if (!ContentBytes::take(from, stored) || !from.empty() || stored > 1)
-                return false;
-            value = stored == 1;
-            return true;
-        }
-    };
-
-    template <>
-    struct ContentCodec<AlphaRange>
-    {
-        static void encode(const AlphaRange& range, Misc::ByteBuffer& into)
-        {
-            ContentBytes::put(into, range.mLow);
-            ContentBytes::put(into, range.mHigh);
-        }
-
-        static bool decode(std::span<const std::byte> from, AlphaRange& range)
-        {
-            return ContentBytes::take(from, range.mLow) && ContentBytes::take(from, range.mHigh) && from.empty();
-        }
-    };
-
-    template <>
-    struct ContentCodec<MeanTexel>
-    {
-        static void encode(const MeanTexel& mean, Misc::ByteBuffer& into)
-        {
-            for (const osg::Vec3f& colour : { mean.mColour, mean.mWhole })
+            ContentBytes::put(into, static_cast<std::uint8_t>(facts.mReachesSolid));
+            ContentBytes::put(into, static_cast<std::uint8_t>(facts.mSpecularLayout));
+            ContentBytes::put(into, facts.mAlphaRange.mLow);
+            ContentBytes::put(into, facts.mAlphaRange.mHigh);
+            for (const osg::Vec3f& colour : { facts.mMean.mColour, facts.mMean.mWhole })
                 for (std::int32_t channel = 0; channel < 3; ++channel)
                     ContentBytes::put(into, colour[channel]);
-            ContentBytes::put(into, mean.mAlpha);
+            ContentBytes::put(into, facts.mMean.mAlpha);
         }
 
-        static bool decode(std::span<const std::byte> from, MeanTexel& mean)
+        static bool decode(std::span<const std::byte> from, ImageFacts& facts)
         {
-            for (osg::Vec3f* colour : { &mean.mColour, &mean.mWhole })
+            std::uint8_t solid = 0;
+            std::uint8_t layout = 0;
+            if (!ContentBytes::take(from, solid) || solid > 1 || !ContentBytes::take(from, layout)
+                || layout > static_cast<std::uint8_t>(SpecularLayout::MetalRoughness)
+                || !ContentBytes::take(from, facts.mAlphaRange.mLow)
+                || !ContentBytes::take(from, facts.mAlphaRange.mHigh))
+                return false;
+            facts.mReachesSolid = solid == 1;
+            facts.mSpecularLayout = static_cast<SpecularLayout>(layout);
+            for (osg::Vec3f* colour : { &facts.mMean.mColour, &facts.mMean.mWhole })
                 for (std::int32_t channel = 0; channel < 3; ++channel)
                     if (!ContentBytes::take(from, (*colour)[channel]))
                         return false;
-            return ContentBytes::take(from, mean.mAlpha) && from.empty();
-        }
-    };
-
-    /// What a `_spec` map's channels mean: one byte.
-    template <>
-    struct ContentCodec<SpecularLayout>
-    {
-        static void encode(const SpecularLayout& layout, Misc::ByteBuffer& into)
-        {
-            ContentBytes::put(into, static_cast<std::uint8_t>(layout));
-        }
-
-        static bool decode(std::span<const std::byte> from, SpecularLayout& layout)
-        {
-            std::uint8_t stored = 0;
-            if (!ContentBytes::take(from, stored) || !from.empty()
-                || stored > static_cast<std::uint8_t>(SpecularLayout::MetalRoughness))
-                return false;
-            layout = static_cast<SpecularLayout>(stored);
-            return true;
+            return ContentBytes::take(from, facts.mMean.mAlpha) && from.empty();
         }
     };
 

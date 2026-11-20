@@ -57,16 +57,14 @@ namespace Rtx
             return count;
         }
 
-        /// The one fact of its diffuse texels a blended material keeps, read through `thread` into `facts`, which keeps
-        /// it for the next asker: the mean an additive sheet glows by, or whether a blend over what is behind ever
-        /// reaches solid. One function for the reader, whose walk over the texels is the reading's whole cost, and for
-        /// `describe`, which reads the answer back out of `facts` without a walk.
-        void takeBlendFact(ThreadContent& thread, ImageFacts& facts, const osg::Image& image, Material& into)
+        /// The one fact of its diffuse texels a blended material keeps: the mean an additive sheet glows by, or whether
+        /// a blend over what is behind ever reaches solid.
+        void takeBlendFact(const ImageFacts& facts, Material& into)
         {
             if (into.isAdditive())
-                into.mDiffuseMean = meanUnder(thread.meanOf(facts, image), into.mBlend);
+                into.mDiffuseMean = meanUnder(facts.mMean, into.mBlend);
             else
-                into.mDiffuseNeverSolid = !thread.reachesSolid(facts, image);
+                into.mDiffuseNeverSolid = !facts.mReachesSolid;
         }
     }
 
@@ -261,32 +259,19 @@ namespace Rtx
 
         if (described.mAlphaMode == AlphaMode::Blend && diffuse != nullptr
             && !SceneUtil::EmbeddedImage::nameOf(*diffuse).empty())
-        {
-            ImageFacts& known = thread.factsOf(*diffuse);
-            Material blended{ .mAlphaMode = described.mAlphaMode, .mBlend = described.mBlend };
-            takeBlendFact(thread, known, *diffuse, blended);
-            reading.mDiffuseFacts = known;
-        }
+            reading.mDiffuseFacts = thread.factsOf(*diffuse);
 
         // And the heights a normal map's relief spans, for every surface whose normal map carries one:
         // a cutout's as well, which `describe` then leaves unread, since the file's facts are kept for
         // every material that names it.
         if (const osg::Image* const normal = described.getTexture(SurfaceMap::Normal);
             described.mNormalHeight && normal != nullptr && !SceneUtil::EmbeddedImage::nameOf(*normal).empty())
-        {
-            ImageFacts& known = thread.factsOf(*normal);
-            thread.alphaRangeOf(known, *normal);
-            reading.mNormalFacts = known;
-        }
+            reading.mNormalFacts = thread.factsOf(*normal);
 
         // And what the `_spec` map's channels mean, which every surface wearing one binds its maps by.
         if (const osg::Image* const specular = described.getTexture(SurfaceMap::Specular);
             specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty())
-        {
-            ImageFacts& known = thread.factsOf(*specular);
-            thread.specularLayoutOf(known, *specular);
-            reading.mSpecularFacts = known;
-        }
+            reading.mSpecularFacts = thread.factsOf(*specular);
 
         return reading;
     }
@@ -472,7 +457,7 @@ namespace Rtx
         return slot.get();
     }
 
-    ImageFacts* MaterialResolver::takenFacts(const osg::Image* const image)
+    const ImageFacts* MaterialResolver::takenFacts(const osg::Image* const image)
     {
         if (image == nullptr)
             return nullptr;
@@ -485,7 +470,7 @@ namespace Rtx
             return nullptr;
 
         // Kept by the slot, so the frames after the first find it without the name.
-        ImageFacts*& facts = known->second.mFacts;
+        const ImageFacts*& facts = known->second.mFacts;
         if (facts == nullptr)
             facts = &mThread.factsOf(*image);
 
@@ -539,15 +524,13 @@ namespace Rtx
         // twice for it is asking twice.
         const osg::Image* const diffuse = described->getTexture(SurfaceMap::Diffuse);
 
-        // **What the `_spec` map means, measured on it** (`specularLayoutOf`): a classic map makes, with
+        // **What the `_spec` map means, measured on it** (`ImageFacts::mSpecularLayout`): a classic map makes, with
         // its diffuse, a base colour and a metal-roughness map, each slot keyed by both files. The reader's answer
         // where it made one, so the frame reads no texel of it.
         const osg::Image* const specular = described->getTexture(SurfaceMap::Specular);
-        std::optional<ImageFacts> readSpecular = reading.mSpecularFacts;
-        assert((!readSpecular.has_value() || readSpecular->mSpecularLayout.has_value())
-            && "a reading that read another fact than its material wants");
         const SpecularLayout layout = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
-            ? mThread.specularLayoutOf(readSpecular.has_value() ? *readSpecular : mThread.factsOf(*specular), *specular)
+            ? (reading.mSpecularFacts.has_value() ? *reading.mSpecularFacts : mThread.factsOf(*specular))
+                  .mSpecularLayout
             : SpecularLayout::MetalRoughness;
 
         // Every map bound by the surface's one rule (`encodingOf`, `partnerOf`), which the loading
@@ -620,9 +603,9 @@ namespace Rtx
         if (described->mNormalHeight && material.mNormal != sNoRow && !material.isCutout())
         {
             const osg::Image* const normal = described->getTexture(SurfaceMap::Normal);
-            std::optional<ImageFacts> read = reading.mNormalFacts;
-            ImageFacts* const facts = read.has_value() ? &*read : takenFacts(normal);
-            material.mRelief = facts != nullptr ? mThread.alphaRangeOf(*facts, *normal) : AlphaRange{};
+            const ImageFacts* const facts
+                = reading.mNormalFacts.has_value() ? &*reading.mNormalFacts : takenFacts(normal);
+            material.mRelief = facts != nullptr ? facts->mAlphaRange : AlphaRange{};
         }
 
         // Scaled about the middle of the texture, then offset, which is what `NifOsg` builds its
@@ -640,14 +623,10 @@ namespace Rtx
         // where one was made, the walk only where none was.
         if (material.isBlended() && material.mDiffuse != sNoRow)
         {
-            std::optional<ImageFacts> read = reading.mDiffuseFacts;
-            // The reader asked what this asks, of the same image: a reading that holds the other fact
-            // would walk the texels here, on the frame, into a copy that keeps nothing.
-            assert((!read.has_value()
-                       || (material.isAdditive() ? read->mMean.has_value() : read->mReachesSolid.has_value()))
-                && "a reading that read another fact than its material wants");
-            if (ImageFacts* const facts = read.has_value() ? &*read : takenFacts(diffuse); facts != nullptr)
-                takeBlendFact(mThread, *facts, *diffuse, material);
+            if (const ImageFacts* const facts
+                = reading.mDiffuseFacts.has_value() ? &*reading.mDiffuseFacts : takenFacts(diffuse);
+                facts != nullptr)
+                takeBlendFact(*facts, material);
         }
 
         return material;

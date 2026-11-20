@@ -1,4 +1,4 @@
-#include "texturepass.hpp"
+#include "filefactspass.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -22,7 +22,7 @@ namespace Rtx
 
     void FinestTexels::describe(const osg::Image& image)
     {
-        assert(!Resource::isHeader(image) && "a texture pass handed a header, whose facts its derivation holds");
+        assert(!Resource::isHeader(image) && "a file's facts asked of a header, whose derivation holds them");
         mImage = &image;
         mFinest = describeFinest(image, mScratch);
     }
@@ -33,30 +33,29 @@ namespace Rtx
         mImage = nullptr;
     }
 
-    bool solidReachOf(const std::optional<TextureData>& finest, TexelScratch&)
+    void FileFactsPass::run(const Input& input, ImageFacts& facts)
     {
-        return !finest.has_value() || reachesSolid(*finest);
+        mFinest.describe(input.mTexels);
+        facts = factsOf(mFinest.get(), mFinest.getScratch());
+        mFinest.clear();
     }
 
-    MeanTexel texelMeanOf(const std::optional<TextureData>& finest, TexelScratch& scratch)
+    ImageFacts factsOf(const std::optional<TextureData>& finest, TexelScratch& scratch)
     {
-        return finest.has_value() ? meanTexel(*finest, scratch) : MeanTexel();
-    }
+        if (!finest.has_value())
+            return ImageFacts{};
 
-    AlphaRange alphaSpanOf(const std::optional<TextureData>& finest, TexelScratch&)
-    {
-        return finest.has_value() ? alphaRange(*finest) : AlphaRange{};
-    }
-
-    SpecularLayout specularKindOf(const std::optional<TextureData>& finest, TexelScratch& scratch)
-    {
-        if (!finest.has_value() || !readsColour(*finest))
-            return SpecularLayout::MetalRoughness;
+        const TextureData& texture = *finest;
+        ImageFacts facts{ .mReachesSolid = reachesSolid(texture),
+            .mMean = meanTexel(texture, scratch),
+            .mAlphaRange = alphaRange(texture),
+            .mSpecularLayout = SpecularLayout::MetalRoughness };
+        if (!readsColour(texture))
+            return facts;
 
         // **The mean of each texel's channels' spread, as stored**: a classic map's highlight is grey,
         // its three channels near equal, where a metal-roughness map holds a metalness, a roughness and
         // an occlusion apart (`docs/architecture.md`, "One specular layout, a classic map converted").
-        const TextureData& texture = *finest;
         const MipLevel& level = texture.mLevels.front();
         double spread = 0.0;
         for (std::uint32_t row = 0; row < level.mHeight; row += 4)
@@ -67,6 +66,8 @@ namespace Rtx
                     std::max({ texel.x(), texel.y(), texel.z() }) - std::min({ texel.x(), texel.y(), texel.z() }));
         }
         const double texels = static_cast<double>(level.mWidth) * level.mHeight;
-        return spread / texels < sClassicSpreadMost ? SpecularLayout::Classic : SpecularLayout::MetalRoughness;
+        facts.mSpecularLayout
+            = spread / texels < sClassicSpreadMost ? SpecularLayout::Classic : SpecularLayout::MetalRoughness;
+        return facts;
     }
 }

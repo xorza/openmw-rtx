@@ -371,8 +371,7 @@ namespace Rtx::Testing
             walk.read(*quad, ~0u, model, content);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
-            EXPECT_EQ(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid, std::optional<bool>(false));
-            EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mMean.has_value()) << "a pane asks no mean";
+            EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid);
         }
 
         /// **A pane's dark map tells traversal nothing, whatever its alpha**: a see-through hit's coverage is the

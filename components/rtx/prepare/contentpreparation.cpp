@@ -31,7 +31,7 @@
 #include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
-#include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/preprocess/texture/filefactspass.hpp>
 #include <components/rtx/preprocess/texturehands.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -203,7 +203,7 @@ namespace Rtx
     std::uint64_t ContentPreparation::signatureOf(const PreparationSetup& setup)
     {
         // Every pass's version and the file key's, so whichever of them moves leaves no model standing: written out
-        // pass by pass, the list left `SolidReach` and the file key out.
+        // pass by pass, the list left a fact pass and the file key out.
         ContentStore::Digest digest("preparation", TemplateWalk::sVersion);
         digest.add(std::span<const std::uint32_t>(sContentPassVersions));
         digest.add(sFileKeyVersion);
@@ -420,7 +420,7 @@ namespace Rtx
                 const osg::Image* const specular = described.getTexture(SurfaceMap::Specular);
                 const SpecularLayout layout
                     = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
-                    ? hand.mContent.specularLayoutOf(hand.mContent.factsOf(*specular), *specular)
+                    ? hand.mContent.factsOf(*specular).mSpecularLayout
                     : SpecularLayout::MetalRoughness;
                 for (std::size_t map = 0; map < sSurfaceMapCount; ++map)
                 {
@@ -476,8 +476,6 @@ namespace Rtx
             return;
         meet(hand, *normal.value());
         chain(hand, ChainPass::Input{ .mImage = *normal.value(), .mEncoding = TextureEncoding::Normal });
-        if (layer.mParallax && carriesHeight(*normal.value()))
-            hand.mContent.alphaRangeOf(hand.mContent.factsOf(*normal.value()), *normal.value());
     }
 
     void ContentPreparation::chain(Hand& hand, const ChainPass::Input& input)

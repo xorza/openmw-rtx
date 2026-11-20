@@ -188,6 +188,7 @@ namespace RtxTool
         for (const auto& [thread, passes] : { std::pair{ "frame", &preprocessed.mOnFrame },
                  std::pair{ "ring", &preprocessed.mOffFrame }, std::pair{ "chains", &preprocessed.mPrepared },
                  std::pair{ "loading", &preprocessed.mLoading }, std::pair{ "derived", &preprocessed.mDerived } })
+        {
             for (const auto& [pass, name] : Rtx::sContentPasses.mNames)
             {
                 const Rtx::PassStats& counted = passes->at(pass);
@@ -197,15 +198,19 @@ namespace RtxTool
                         thread, name, counted.mAsked, counted.mHits, counted.mKeyMs, Rtx::mebibytes(counted.mKeyBytes),
                         counted.mFoundMs, counted.mRunMs));
             }
+            out += (std::format("  {:<8}{:<12} {:>7} keyed by their texels, {:>8.1f} MiB read\n", thread, "files",
+                passes->mFileKeys.mAsked, Rtx::mebibytes(passes->mFileKeys.mKeyBytes)));
+        }
 
         if (walked.mStore.has_value())
         {
             const ContentStore::Stats& store = *walked.mStore;
             out
                 += (std::format("  store   {:>7} found, {:>7} missed, {:>7} written, {:>7} dropped, "
-                                "{:>7} refused, {:>7} stamped, {:>7} stale, {:>7} past the memory's caps\n",
+                                "{:>7} refused, {:>7} stamped, {:>7} stale, {:>7} outdated, {:>7} past the memory's "
+                                "caps\n",
                     store.mFound, store.mMissed, store.mWritten, store.mDropped, store.mRefused, store.mStamped,
-                    store.mStale, store.mUnheldInMemory));
+                    store.mStale, store.mOutdated, store.mUnheldInMemory));
         }
 
         if (walked.mAgain.has_value())

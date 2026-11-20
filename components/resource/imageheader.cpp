@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 #include <components/vfs/pathutil.hpp>
 
@@ -10,8 +11,10 @@
 
 namespace Resource
 {
-    ImageHeader::ImageHeader(const osg::Image& pixels, ImageManager& source)
+    ImageHeader::ImageHeader(
+        const osg::Image& pixels, ImageManager& source, osg::ref_ptr<const osg::Referenced> derived)
         : mSource(&source)
+        , mDerived(std::move(derived))
     {
         assert(!pixels.getFileName().empty() && "a header of an image no file names, which nothing can read again");
         setFileName(pixels.getFileName());
@@ -26,10 +29,8 @@ namespace Resource
     ImageHeader::ImageHeader(const ImageHeader& copy, const osg::CopyOp& op)
         : osg::Image(copy, op)
         , mSource(copy.mSource)
+        , mDerived(copy.mDerived)
     {
-        // What was derived of the texels is the file's, which the copy names too.
-        const std::scoped_lock lock(copy.mDerivedMutex);
-        mDerived = copy.mDerived;
     }
 
     osg::ref_ptr<const osg::Image> ImageHeader::readTexels() const

@@ -12,6 +12,7 @@ namespace osg
 namespace Rtx
 {
     struct TexelScratch;
+    struct PassStats;
 
     /// The version a file's key is made under (`hashFile`): up whenever the key of the same texels changes, which
     /// files every pass's output of every file apart from the older ones.
@@ -24,12 +25,14 @@ namespace Rtx
     /// builds for a block format with no chain, where it describes; as OpenSceneGraph holds it where it does not.
     ContentStore::Key hashFile(const osg::Image& texels, TexelScratch& scratch);
 
-    /// The file keys a preprocessor's image passes ask, one a preprocessor beside the scratch it hashes through.
+    /// The file keys a preprocessor's image passes ask, one a preprocessor beside the scratch it hashes through, each
+    /// hash counted where its stats say (`ContentStats::mFileKeys`).
     class FileKeys
     {
     public:
-        explicit FileKeys(TexelScratch& scratch)
+        FileKeys(TexelScratch& scratch, PassStats& counted)
             : mScratch(scratch)
+            , mCounted(counted)
         {
         }
 
@@ -37,18 +40,12 @@ namespace Rtx
         FileKeys& operator=(const FileKeys&) = delete;
         ~FileKeys() = default;
 
-        /// `image`'s: a header's as derived where its file was first read, which reads nothing; the key `name` was
-        /// handed for the image it named; else hashed off `image`'s own texels.
+        /// `image`'s: a header's as derived where its file was first read, which reads nothing; else hashed off
+        /// `image`'s own texels.
         ContentStore::Key of(const osg::Image& image);
-
-        /// Answers `key` for `texels` until `forget`: the derivation's, which keys a file once for every fact it
-        /// makes of it.
-        void name(const osg::Image& texels, const ContentStore::Key& key);
-        void forget();
 
     private:
         TexelScratch& mScratch;
-        const osg::Image* mNamed = nullptr;
-        ContentStore::Key mNamedKey;
+        PassStats& mCounted;
     };
 }

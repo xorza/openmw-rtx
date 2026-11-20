@@ -506,7 +506,7 @@ namespace RtxTool
         /// and close, and a model's companion maps are named by the player's patterns. Otherwise the
         /// run closes any a script opens, draws the interface only where `mHud` asks, and takes the
         /// shipped patterns, so two machines with the same content trace one scene; what a `_spec`
-        /// map's channels mean is measured on each map (`Rtx::specularLayoutOf`).
+        /// map's channels mean is measured on each map (`Rtx::ImageFacts::mSpecularLayout`).
         bool mPlayed = false;
 
         /// Whether the game's HUD is drawn over the picture, and for a session nobody plays whether

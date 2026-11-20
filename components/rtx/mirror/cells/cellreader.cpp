@@ -237,7 +237,7 @@ namespace Rtx
             PreparedTexture& normal = readTexture(files[at].mNormalPath);
             layer.mNormalTexture = &normal;
             if (files[at].mParallax && normal.mImage != nullptr && carriesHeight(*normal.mImage))
-                layer.mRelief = mComputed.alphaRangeOf(mComputed.factsOf(*normal.mImage), *normal.mImage);
+                layer.mRelief = mComputed.factsOf(*normal.mImage).mAlphaRange;
         }
 
         // One cell at a time, which is the paging's near answer: containers page here as they do in the active grid's

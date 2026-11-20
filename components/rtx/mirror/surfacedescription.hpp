@@ -307,9 +307,9 @@ namespace Rtx
 
         const TextureUse& getTextureUse(SurfaceMap map) const { return mTextures[static_cast<std::size_t>(map)]; }
 
-        /// What `map` is bound as, its `_spec` map measured as `specular` (`specularLayoutOf`): a normal map as a
-        /// normal map; a classic pair's diffuse and `_spec` as its converted base colour and metal-roughness map; a
-        /// metal-roughness `_spec` as data; and every other map, a diffuse with or without a `_spec` among them, as a
+        /// What `map` is bound as, its `_spec` map measured as `specular` (`ImageFacts::mSpecularLayout`): a normal map
+        /// as a normal map; a classic pair's diffuse and `_spec` as its converted base colour and metal-roughness map;
+        /// a metal-roughness `_spec` as data; and every other map, a diffuse with or without a `_spec` among them, as a
         /// colour. The one rule, which the material resolver binds by and the loading screen's preparation makes the
         /// chains of.
         TextureEncoding encodingOf(SurfaceMap map, SpecularLayout specular) const;

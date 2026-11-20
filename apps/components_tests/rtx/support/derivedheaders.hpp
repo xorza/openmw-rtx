@@ -16,10 +16,8 @@ namespace Rtx::Testing
         explicit DerivedHeaders(Resource::ImageManager& images)
             : mImages(images)
         {
-            images.setModelImages(
-                Resource::ModelImages::Headers, [this](const osg::Image& texels, const Resource::ImageHeader& header) {
-                    mDerivation.derive(texels, header);
-                });
+            images.setModelImages(Resource::ModelImages::Headers,
+                [this](const osg::Image& texels) { return mDerivation.derive(texels); });
         }
 
         DerivedHeaders(const DerivedHeaders&) = delete;

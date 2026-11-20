@@ -45,7 +45,6 @@
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
@@ -170,16 +169,16 @@ namespace MWRender
             const osg::Matrixd view = osg::Matrixd::identity();
 
             osg::ref_ptr<osg::Image> sheet = Rtx::Testing::makeImage("textures/sheet.dds", 2, 2);
-            mirror.getWalkContext().mContent.meanOf(*sheet);
+            std::ignore = mirror.getWalkContext().mContent.factsOf(*sheet);
 
             const Rtx::ExtractionStats first = mirror.mirror(world.frame(1), view);
-            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 1u)
+            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::FileFacts).mAsked, 1u)
                 << "what ran before the first walk was lost";
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape).mAsked, 1u)
                 << "the one quad both bodies share";
 
             const Rtx::ExtractionStats second = mirror.mirror(world.frame(2), view);
-            EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 0u) << "counted twice";
+            EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::FileFacts).mAsked, 0u) << "counted twice";
             EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape).mAsked, 0u);
 
             // A mirror goes standing nothing.
