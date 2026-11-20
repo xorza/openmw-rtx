@@ -242,9 +242,6 @@ namespace RtxTool
             /// Whether the frames are held to the step, the world's second the wall's (`--pace=real`), or flown as
             /// fast as the card draws them.
             bool mPaced = false;
-
-            /// Whether each walk waits for the cell it adopts (`--settled`), or streams as the game does.
-            bool mSettled = true;
         };
 
         /// What the hosted game is started with, as `apps/openmw/main.cpp` reads it.

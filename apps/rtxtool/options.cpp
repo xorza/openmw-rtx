@@ -837,9 +837,6 @@ namespace RtxTool
         option({ Verb::Tour }, "pace", bpo::value<std::string>()->default_value("card"),
             "card flies a tour as fast as the card draws, the hardest the streaming is driven; real holds every frame "
             "to the step, so the world's second is the wall's and a slow frame is the limiter's and no finding");
-        option({ Verb::Tour }, "settled", bpo::value<bool>()->default_value(true)->implicit_value(true),
-            "whether each walk waits for the nearest cell and ground its band lacks, so two flights draw one picture; "
-            "--settled=no streams as the game does, waiting only where the cells change, so a pop is a finding");
         option({ Verb::Tour }, "fail-on", bpo::value<std::string>()->default_value(""),
             "the costs that fail a tour beside its faults, comma separated: hitch, slow-frames, log-warning, growth. "
             "A fault always fails it: a store not finite, a refusal, a failed check, an error in the log, an outrun "
@@ -1127,7 +1124,6 @@ namespace RtxTool
         if (!legs.isOk())
             throw std::runtime_error(legs.error());
         tour.mLegs = legs.value();
-        tour.mSettled = on("settled");
         if (const std::string& pace = text("pace"); pace == "real")
             tour.mPaced = true;
         else if (pace != "card")

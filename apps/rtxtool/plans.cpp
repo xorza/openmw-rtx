@@ -439,7 +439,6 @@ namespace RtxTool
         assert(pacing.mStep == sStepSeconds && "a tour steps at the measured rate, which its limit is held to");
         if (line.mPaced)
             framed.mWindow.mFramerateLimit = sStepRate;
-        framed.mSetup.mSettled = line.mSettled;
 
         // What the tour writes, each after every leg: its record and its findings, the pictures Home marks, and each
         // leg's frames where asked.

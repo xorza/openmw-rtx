@@ -18,14 +18,6 @@
   - `RtxRenderer`'s phase rule is spelled two ways, and `updateTraversal` and `renderGui` take `Between` alone: named
     expectations a caller kind.
 
-## Open questions
-
-- **Whether a tour runs unsettled, as the game walks** (moved out of the tree-and-content-memory plan, 2026-11-18): a
-  settled walk waits on the frame for its nearest cell and its ground's bake (`CellSupply::awaitOwed`; 111 ms of a
-  135 ms frame on the desk's Repack tour before the table), which no player waits for, where the game waits under the
-  loading screen at a change of cells alone (`Renderer::standWhole`). Decide by an A/B of worst frames, pops and
-  crossings held on the handheld, then fly the baseline again (`docs/research/2026-11-17-longest-frames.md`).
-
 ## Performance
 
 - **The sea per tile** (moved out of the one-kernel plan, 2026-11-19): the stages past the trace take the sea from the
@@ -33,12 +25,9 @@
   it, which needs the landing classed by whether a bounce lands in water. And whether the trace keeps a constant for
   its stop at the sea, which held it a tier up on AMD's Windows driver while it resolved its solid, to be measured
   again (`docs/research/2026-11-19-one-kernel-registers.md`).
-
-- **The ring reads what can stand** (moved out of the tree-and-content-memory plan, 2026-11-18): the handheld's Repack
-  tour at `b461faf024` loaded 27,004 `Nif`s, 8,828 of them again (33%), and 25,661 `Node`s, 7,494 again (29%). A
-  cell's references read as a prefix by radius, one band ahead of the size rule, a cell's record in `CellTable` asking
-  the reader to go further as the cell nears. It needs each model's radius in the store's manifest before the model is
-  read, and `CellPlacer` adopting a cell in parts. Held by the count again, `repeat` and `shot`, and no pop.
+  The sea's code outside its own stages costs 0.09 ms at the ship and 0.34 at the shore on the desk, 1.1 and 2.25 ms
+  of 48 and 35 ms frames on the handheld, all tiles counted: the most a class by the sea saves, on the dry tiles alone
+  (`docs/research/2026-11-20-tour-pacing-ring-reads-sea-tiles.md`).
 
 ## Prompts
 
