@@ -36,6 +36,7 @@
 #include "picturerenderer.hpp"
 #include "shaderset.hpp"
 #include "slot.hpp"
+#include "structuretightness.hpp"
 #include "verticalsync.hpp"
 
 struct SDL_Window;
@@ -267,6 +268,9 @@ namespace Rtx
         /// the device would not say: the difference from `mStructureBytes` is what compacting gives.
         std::uint64_t mCompactableBytes = 0;
         std::uint64_t mCompactableNowBytes = 0;
+
+        /// What every structure answered so far came to tight against as first built, by its triangles.
+        StructureTightness mTightness{};
 
         /// What the structures moved out of a block to give it back have come to since the scene was made: what the
         /// device's memory past its budget has cost in copies.

@@ -11,6 +11,7 @@
 #include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/renderer/roomwaits.hpp>
+#include <components/rtx/renderer/structuretightness.hpp>
 #include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
@@ -239,6 +240,9 @@ namespace Rtx
         /// back.
         VkDeviceSize getCompactableNowBytes() const { return mCompactableNow; }
 
+        /// What every structure answered so far came to tight against as first built, by its triangles.
+        const StructureTightness& getTightness() const { return mTightness; }
+
         /// What the structures moved out of a block to empty it came to, since the store was made: what giving the
         /// device's blocks back has cost in copies (`moveOut`).
         VkDeviceSize getMovedOutBytes() const { return mMovedOut; }
@@ -283,6 +287,7 @@ namespace Rtx
             std::uint64_t mAskedAt = 0;
             VkDeviceSize mBuiltSize = 0;
             VkDeviceSize mTightSize = 0;
+            std::uint32_t mTriangles = 0;
         };
 
         /// Records the compaction question for every loose structure not yet asked about — `mLoose`,
@@ -434,6 +439,7 @@ namespace Rtx
         /// so the pair the report prints is a saving rather than a number on its own.
         VkDeviceSize mCompactableNow = 0;
         VkDeviceSize mCompactableTight = 0;
+        StructureTightness mTightness;
 
         /// How many rows are short of room (`Row::mShortOfRoom`).
         std::uint32_t mShortOfRoom = 0;

@@ -278,6 +278,7 @@ openmw_rtx_layer(
         renderer/frametimehistogram.cpp
         renderer/memoryprices.cpp
         renderer/memoryreport.cpp
+        renderer/structuretightness.cpp
         renderer/nullrenderer.cpp
         renderer/scenetextures.cpp
         renderer/sceneuploader.cpp
@@ -295,6 +296,7 @@ openmw_rtx_layer(
         renderer/guirenderer.hpp
         renderer/memoryprices.hpp
         renderer/memoryreport.hpp
+        renderer/structuretightness.hpp
         renderer/nullrenderer.hpp
         renderer/picturerenderer.hpp
         renderer/renderer.hpp

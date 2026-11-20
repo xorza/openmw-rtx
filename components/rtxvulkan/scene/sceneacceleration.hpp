@@ -162,6 +162,7 @@ namespace Rtx
 
         VkDeviceSize getCompactableBytes() const { return mBottomLevel.getCompactableBytes(); }
         VkDeviceSize getCompactableNowBytes() const { return mBottomLevel.getCompactableNowBytes(); }
+        const StructureTightness& getTightness() const { return mBottomLevel.getTightness(); }
         VkDeviceSize getMovedOutBytes() const { return mBottomLevel.getMovedOutBytes(); }
 
         /// How many structures the rota has built whole again since the scene was made, for the

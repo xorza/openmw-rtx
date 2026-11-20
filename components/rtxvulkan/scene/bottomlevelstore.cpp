@@ -409,6 +409,7 @@ namespace Rtx
                 // Kept per slot so the figure compaction is judged against covers the whole scene
                 // rather than the meshes this call happened to build.
                 row.mCompaction.mBuiltSize = mBuilding[at].mSize;
+                row.mCompaction.mTriangles = mBuild.mRanges[at].primitiveCount;
 
                 // Built loose whatever stood in the slot before, and a mesh that refits keeps its
                 // slack: a refit writes back into it.
@@ -576,6 +577,7 @@ namespace Rtx
                 // left in the loose storage would hold its block there for good.
                 state.mTightness = Tightness::Answered;
                 state.mTightSize = mReadScratch[at];
+                mTightness.add(state.mTriangles, state.mBuiltSize, state.mTightSize);
                 if (shrinks(state))
                 {
                     mCompactableNow += state.mBuiltSize;

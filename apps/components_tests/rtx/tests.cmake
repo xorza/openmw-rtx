@@ -78,6 +78,7 @@ target_sources(
         rtx/renderer/frametimehistogram.cpp
         rtx/renderer/memoryprices.cpp
         rtx/renderer/memoryreport.cpp
+        rtx/renderer/structuretightness.cpp
         rtx/renderer/notfinite.cpp
         rtx/renderer/nullrenderer.cpp
         rtx/renderer/scenetextures.cpp

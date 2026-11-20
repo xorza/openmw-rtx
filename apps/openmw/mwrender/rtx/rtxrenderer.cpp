@@ -245,7 +245,13 @@ namespace MWRender
         Log(Debug::Info) << "Frame times of the session: " << Rtx::describe(mSessionTimes.summarise());
 
         // What the session came to, where the log otherwise holds the scene only as the first world built it.
-        Log(Debug::Info) << "Scene at the session's end: " << Rtx::describeSceneHeld(mRenderer->getSceneStats());
+        const Rtx::SceneStats scene = mRenderer->getSceneStats();
+        Log(Debug::Info) << "Scene at the session's end: " << Rtx::describeSceneHeld(scene);
+        if (std::string tight = Rtx::describe(scene.mTightness); !tight.empty())
+        {
+            tight.pop_back();
+            Log(Debug::Info) << "Structures made tight over the session, by their meshes' triangles\n" << tight;
+        }
         std::string memory = Rtx::describeMemory(mRenderer->getMemoryReport());
         if (memory.ends_with('\n'))
             memory.pop_back();
