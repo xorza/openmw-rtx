@@ -144,7 +144,7 @@ namespace RtxTool
             EXPECT_EQ(played.getWarmedPaused(), 0u);
         }
 
-        /// **The wait fails after `sStallMs` of frames that brought no cell nearer.** At a second a
+        /// **The wait fails after `sStallMs` of frames that brought no cell and no image nearer.** At a second a
         /// frame: the first frame sets the fewest cells, and ten more bring none, which is 10 s and
         /// not past it. The twelfth is past it. A frame that leaves fewer cells starts the count over.
         /// A played session never stalls.
@@ -155,7 +155,8 @@ namespace RtxTool
             EXPECT_EQ(waiting, std::vector<Outcome>(11, Outcome::Ahead));
             EXPECT_DOUBLE_EQ(window.getStalledMs(), sStallMs);
             EXPECT_EQ(window.take(standing(5, 1000.0)).mOutcome, Outcome::Stalled);
-            EXPECT_EQ(window.getLeastToStand(), 5u);
+            EXPECT_EQ(window.getUnstood(), (MeasureWindow::Unstood{ .mCells = 5, .mImages = 0, .mArriving = false }));
+            EXPECT_EQ(describeUnstood(window.getUnstood()), "5 cells short");
 
             MeasureWindow arriving(0, 30, false);
             takeAll(arriving, std::vector<WindowFrame>(10, standing(5, 1000.0)));
@@ -164,6 +165,38 @@ namespace RtxTool
 
             MeasureWindow played(0, 30, true);
             EXPECT_EQ(takeAll(played, std::vector<WindowFrame>(30, standing(5, 1000.0))).back(), Outcome::Ahead);
+
+            // **An image nearer is the world nearer as a cell is**: every cell stood and 40 images to make, one fewer
+            // a frame, never stalls over thirty seconds of frames, where counted in cells alone it stalled at the
+            // twelfth. The same images standing still stall, and the failure names them and what still arrives; a
+            // cell nearer counts its own images from where it brought them.
+            const auto making = [](const std::uint32_t cells, const std::uint32_t images, const bool arriving) {
+                WindowFrame frame = standing(cells, 1000.0);
+                frame.mWhole = false;
+                frame.mImagesPending = images;
+                frame.mArriving = arriving;
+                return frame;
+            };
+            MeasureWindow images(0, 30, false);
+            for (std::uint32_t left = 40; left > 10; --left)
+                ASSERT_EQ(images.take(making(0, left, true)).mOutcome, Outcome::Ahead) << left;
+            EXPECT_DOUBLE_EQ(images.getStalledMs(), 0.0);
+            EXPECT_EQ(takeAll(images, std::vector<WindowFrame>(10, making(0, 11, true))).back(), Outcome::Ahead);
+            EXPECT_EQ(images.take(making(0, 11, true)).mOutcome, Outcome::Stalled);
+            EXPECT_EQ(images.getUnstood(), (MeasureWindow::Unstood{ .mCells = 0, .mImages = 11, .mArriving = true }));
+            EXPECT_EQ(describeUnstood(images.getUnstood()), "11 images still being made, content still arriving");
+
+            MeasureWindow both(0, 30, false);
+            both.take(making(3, 10, false));
+            takeAll(both, std::vector<WindowFrame>(5, making(3, 10, false)));
+            EXPECT_DOUBLE_EQ(both.getStalledMs(), 5000.0);
+            both.take(making(2, 25, false));
+            EXPECT_DOUBLE_EQ(both.getStalledMs(), 0.0) << "a cell nearer, though it brought more images";
+            both.take(making(2, 24, false));
+            EXPECT_DOUBLE_EQ(both.getStalledMs(), 0.0) << "an image nearer, counted from what the cell brought";
+            both.take(making(2, 24, false));
+            EXPECT_DOUBLE_EQ(both.getStalledMs(), 1000.0);
+            EXPECT_EQ(describeUnstood(both.getUnstood()), "2 cells short, 24 images still being made");
         }
 
         /// A pause ahead of the measurement fails the stop on the frame past its limit: a limit of

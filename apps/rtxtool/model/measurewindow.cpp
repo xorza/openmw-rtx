@@ -1,6 +1,9 @@
 #include "measurewindow.hpp"
 
 #include <cassert>
+#include <format>
+#include <string>
+#include <string_view>
 
 namespace RtxTool
 {
@@ -58,13 +61,21 @@ namespace RtxTool
             return taken;
         }
 
-        if (mWaited++ == 0 || frame.mCellsToStand < mLeastToStand)
+        // **Nearer by either count that a whole frame asks to reach nought**: counted in cells alone, a world whose
+        // cells all stood and whose images were still being made, steadily, stalled. A cell nearer brings its own
+        // images, so the fewest images are counted from there again.
+        const bool cellNearer = mWaited++ == 0 || frame.mCellsToStand < mUnstood.mCells;
+        const bool imageNearer = frame.mImagesPending < mUnstood.mImages;
+        if (cellNearer)
+            mUnstood.mCells = frame.mCellsToStand;
+        if (cellNearer || imageNearer)
         {
-            mLeastToStand = frame.mCellsToStand;
+            mUnstood.mImages = frame.mImagesPending;
             mStalledMs = 0.0;
         }
         else
             mStalledMs += frame.mSpend.at(Rtx::Timing::Frame);
+        mUnstood.mArriving = frame.mArriving;
         mWhole = frame.mWhole;
         if (mWhole)
             mStoodAt = mSeen;
@@ -75,6 +86,22 @@ namespace RtxTool
             taken.mOutcome = Outcome::Stalled;
 
         return taken;
+    }
+
+    std::string describeUnstood(const MeasureWindow::Unstood& unstood)
+    {
+        std::string text;
+        const auto add = [&](const bool held, const std::string_view part) {
+            if (!held)
+                return;
+            if (!text.empty())
+                text += ", ";
+            text += part;
+        };
+        add(unstood.mCells > 0, std::format("{} cells short", unstood.mCells));
+        add(unstood.mImages > 0, std::format("{} images still being made", unstood.mImages));
+        add(unstood.mArriving, "content still arriving");
+        return text;
     }
 
     std::optional<std::uint32_t> MeasureWindow::getMeasuredIndex() const
