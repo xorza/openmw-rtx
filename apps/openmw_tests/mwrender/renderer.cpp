@@ -231,41 +231,6 @@ namespace MWRender
             EXPECT_LE(renderer.getLastHold(), after - between) << "nothing held it past its own call";
         }
 
-        /// A nested frame is opened as the loop opens its own: held to the limit, and a wall clock moved on
-        /// by what it stood for, so a loading screen or a message box steps the interface by its own time. At
-        /// 200 frames a second the hold is 5 ms, so the step is never less; how much more is the system's
-        /// sleep. A clock that states its step moves by the loop's frames alone: a nested frame of a measured
-        /// run leaves the clock where the loop put it, because how many a run draws is the wall's answer.
-        TEST(RendererTest, aNestedFrameStepsAWallClockAndLeavesAStatedOne)
-        {
-            RecordingRenderer renderer;
-            renderer.setFrameRateLimit(200.0f);
-
-            Misc::LoopClock wall;
-            renderer.setLoopClock(wall);
-            renderer.awaitFrame();
-            const float step = renderer.openNestedFrame();
-            EXPECT_EQ(step, static_cast<float>(wall.getStep()));
-            EXPECT_GE(wall.getStep(), 0.005);
-
-            Misc::LoopClock stated(1.0f / 60.0f);
-            renderer.setLoopClock(stated);
-            EXPECT_EQ(renderer.openFrame(), static_cast<double>(1.0f / 60.0f))
-                << "the loop's frame takes the stated step";
-            const double now = stated.getNow();
-            EXPECT_EQ(now, static_cast<double>(1.0f / 60.0f));
-            EXPECT_EQ(renderer.openNestedFrame(), 0.0f);
-            EXPECT_EQ(stated.getNow(), now) << "a nested frame moved a clock whose steps are the loop's";
-
-            // **And whatever reads the clock inside the nested frame reads the same nought**: the
-            // interface stepped by the clock's step, which was still the loop frame's, once for
-            // every loading frame the wall happened to draw.
-            EXPECT_EQ(stated.getStep(), 0.0) << "the nested frame left the loop frame's step open";
-
-            EXPECT_EQ(renderer.openFrame(), static_cast<double>(1.0f / 60.0f));
-            EXPECT_EQ(stated.getNow(), 2.0 * static_cast<double>(1.0f / 60.0f));
-        }
-
         /// **A hidden window's interface frame draws nothing and ends as a drawn one does**: with the
         /// advance at the frame's own simulation time, so the frame the caller is in the middle of
         /// is numbered right whether or not the window is shown.

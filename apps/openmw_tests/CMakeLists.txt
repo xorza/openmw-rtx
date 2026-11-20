@@ -15,6 +15,7 @@ target_sources(
         mwrender/classmasks.cpp
         mwrender/contentmodels.cpp
         mwrender/debugwalk.cpp
+        mwrender/framepacer.cpp
         mwrender/framesaside.cpp
         mwrender/frametimer.cpp
         mwrender/localmap.cpp

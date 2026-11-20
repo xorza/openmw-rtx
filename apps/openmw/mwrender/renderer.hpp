@@ -19,7 +19,6 @@
 #include <osg/ref_ptr>
 
 #include <components/misc/cstringview.hpp>
-#include <components/misc/frameratelimiter.hpp>
 #include <components/misc/presentation.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/sdlutil/graphicslistener.hpp>
@@ -27,6 +26,7 @@
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "framepacer.hpp"
 #include "framesaside.hpp"
 #include "ground.hpp"
 #include "rendermode.hpp"
@@ -291,12 +291,12 @@ namespace MWRender
         /// The host's clock: what time it is and how long the frame now open stands for. Handed
         /// over once, before the first frame, and outlives this. The ray tracer stamps what this
         /// says, which is what makes a stated step a run that repeats.
-        void setLoopClock(Misc::LoopClock& clock) { mClock = &clock; }
+        void setLoopClock(Misc::LoopClock& clock) { mPacer.setClock(clock); }
 
         /// `[Video] framerate limit`, in frames a second, or nought for none. Once, beside the
         /// clock and before the first frame: the setting is the launcher's and is not offered while
         /// the game runs. The one route the limit reaches a renderer by.
-        void setFrameRateLimit(float limit);
+        void setFrameRateLimit(float limit) { mPacer.setFrameRateLimit(limit, std::chrono::steady_clock::now()); }
 
         /// Holds the game in the frame-rate limit until the next frame may begin, and says how long
         /// the last one stood for on the wall. Once per loop, before input is read, because what is
@@ -320,7 +320,7 @@ namespace MWRender
         /// What `setFrameRateLimit` handed over, nought before it has: what the loading screen holds
         /// its own rate under. The main menu's video paces a thread of its own by the environment's
         /// copy, as upstream's does.
-        float getFrameRateLimit() const { return mFrameRateLimit; }
+        float getFrameRateLimit() const { return mPacer.getFrameRateLimit(); }
 
         /// Stamps the next frame. Simulation time stops when the game is paused; reference time
         /// does not.
@@ -514,10 +514,10 @@ namespace MWRender
         Resource::ResourceSystem& getResources() const;
 
         /// What `setLoopClock` handed over. Asserts that it has.
-        const Misc::LoopClock& getLoopClock() const;
+        const Misc::LoopClock& getLoopClock() const { return mPacer.getClock(); }
 
         /// How long the last `awaitFrame` held the game in the limiter.
-        std::chrono::steady_clock::duration getLastHold() const { return mLastHold; }
+        std::chrono::steady_clock::duration getLastHold() const { return mPacer.getLastHold(); }
 
         /// The view mask has changed; put `getViewMask()` where this renderer reads it from.
         virtual void applyViewMask() = 0;
@@ -561,15 +561,8 @@ namespace MWRender
         void detachWorld();
 
         Resource::ResourceSystem* mResources = nullptr;
-        Misc::LoopClock* mClock = nullptr;
-        float mFrameRateLimit = 0.0f;
-
-        /// The frames that drew no world since the last that did, which `renderFrame` hands its hook.
-        FramesAside mAside;
-
-        /// What `awaitFrame` sleeps in, made anew by `setFrameRateLimit`.
-        Misc::FrameRateLimiter mLimiter{ std::chrono::steady_clock::duration::zero() };
-        std::chrono::steady_clock::duration mLastHold{};
+        /// The frame-rate limit, the host's clock and what stood aside between two frames of the world.
+        FramePacer mPacer;
         /// Borrowed from `Engine`, which stops it and lets it go before the renderer: held here, it was the work
         /// queue's last holder, and its threads joined after the ray tracer's members were gone.
         SceneUtil::AsyncScreenCaptureOperation* mScreenshotWriter = nullptr;

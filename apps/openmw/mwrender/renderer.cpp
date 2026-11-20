@@ -1,6 +1,5 @@
 #include "renderer.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstdint>
@@ -18,8 +17,6 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/misc/frameclock.hpp>
-#include <components/misc/frameratelimiter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/screencapture.hpp>
@@ -102,18 +99,6 @@ namespace MWRender
         return *mResources;
     }
 
-    const Misc::LoopClock& Renderer::getLoopClock() const
-    {
-        assert(mClock != nullptr && "a frame before the host's clock was handed over");
-        return *mClock;
-    }
-
-    void Renderer::setFrameRateLimit(const float limit)
-    {
-        mFrameRateLimit = limit;
-        mLimiter = Misc::makeFrameRateLimiter(limit);
-    }
-
     std::chrono::steady_clock::duration Renderer::awaitFrame()
     {
         // Here, because every frame the game draws opens through here: the world's, the loading
@@ -124,10 +109,7 @@ namespace MWRender
         // Ahead of the limiter, which then measures the frame from a screen two presents behind.
         awaitPresented();
 
-        const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
-        mLimiter.limit();
-        mLastHold = std::chrono::steady_clock::now() - began;
-        return mLimiter.getLastFrameDuration();
+        return mPacer.hold();
     }
 
     void Renderer::setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer)
@@ -174,7 +156,7 @@ namespace MWRender
 
     void Renderer::renderFrame(const SceneFrame& frame)
     {
-        drawFrame(frame, mAside.takeAtWorldFrame());
+        drawFrame(frame, mPacer.takeAtWorldFrame());
     }
 
     void Renderer::renderGuiFrame()
@@ -183,14 +165,14 @@ namespace MWRender
         updateTraversal();
         renderGui();
         advance(getFrameStamp().getSimulationTime());
-        mAside.endNested(std::chrono::steady_clock::now(), FramesAside::NestedEnd::Drawn);
+        mPacer.endNested(std::chrono::steady_clock::now(), FramesAside::NestedEnd::Drawn);
     }
 
     void Renderer::skipGuiFrame()
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
         advance(getFrameStamp().getSimulationTime());
-        mAside.endNested(std::chrono::steady_clock::now(), FramesAside::NestedEnd::Hidden);
+        mPacer.endNested(std::chrono::steady_clock::now(), FramesAside::NestedEnd::Hidden);
     }
 
     void Renderer::renderLoadingFrame(const double targetFrameRate)
@@ -200,46 +182,16 @@ namespace MWRender
         renderGuiFrame();
     }
 
-    namespace
-    {
-        /// The longest a frame is allowed to stand for, whatever the wall says: a frame after a
-        /// stall steps the world by this much and no more.
-        constexpr std::chrono::steady_clock::duration sLongestFrame = std::chrono::milliseconds(200);
-
-        double secondsStood(const std::chrono::steady_clock::duration stood)
-        {
-            return std::chrono::duration_cast<std::chrono::duration<double>>(std::min(stood, sLongestFrame)).count();
-        }
-    }
-
     double Renderer::openFrame()
     {
-        assert(mClock != nullptr && "a frame before the host's clock was handed over");
-
-        mClock->advance(secondsStood(awaitFrame()));
-        mAside.openLoop(std::chrono::steady_clock::now());
-        return mClock->getStep();
+        const std::chrono::steady_clock::duration stood = awaitFrame();
+        return mPacer.openLoop(stood, std::chrono::steady_clock::now());
     }
 
     float Renderer::openNestedFrame()
     {
-        assert(mClock != nullptr && "a frame before the host's clock was handed over");
-
         const std::chrono::steady_clock::duration stood = awaitFrame();
-        mAside.openNested(std::chrono::steady_clock::now());
-
-        // **A clock that states its step counts the loop's frames and no others.** How many
-        // loading frames a run draws is the wall's answer, and a clock stepped by them would age
-        // the resource caches differently in two runs of one build. Such a frame stands for nothing
-        // of the world's.
-        if (mClock->getStatedStep().has_value())
-        {
-            mClock->hold();
-            return 0.0f;
-        }
-
-        mClock->advance(secondsStood(stood));
-        return static_cast<float>(mClock->getStep());
+        return mPacer.openNested(stood, std::chrono::steady_clock::now());
     }
 
     void Renderer::presentIn(const osg::Vec2i& drawable)
