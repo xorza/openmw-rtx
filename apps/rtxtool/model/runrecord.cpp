@@ -340,17 +340,38 @@ namespace RtxTool
             }
         }
 
-        if (!request.mJson.empty())
-        {
-            if (wrote(writeJson(request.mJson, mHeader, mPlaces)))
-                mReport += "wrote " + Files::pathToUnicodeString(request.mJson) + '\n';
-        }
+        // **A record that measured no place is written all the same**: one that was not would leave the last run's
+        // at its path, to be compared as this one's.
+        save(request);
+        bool written = true;
+        for (const std::string& failure : mFiles.finish())
+            written = wrote(Result<void, std::string>(Err{ failure })) && written;
+        if (written && !request.mJson.empty())
+            mReport += "wrote " + Files::pathToUnicodeString(request.mJson) + '\n';
     }
 
     void RunRecord::save(const SessionRequest& request)
     {
-        if (!request.mJson.empty())
-            wrote(writeJson(request.mJson, mHeader, mPlaces));
+        if (request.mJson.empty())
+            return;
+
+        if (!mHeaderSaved)
+        {
+            mFiles.write(request.mJson, recordHeaderLine(mHeader), FileWriter::As::Whole);
+            mHeaderSaved = true;
+        }
+        for (; mPlacesSaved < mPlaces.size(); ++mPlacesSaved)
+            mFiles.write(request.mJson, recordPlaceLine(mPlaces[mPlacesSaved]), FileWriter::As::Appended);
+        if (mFindingCounts.has_value() && mFindingCounts != mCountsSaved)
+        {
+            mFiles.write(request.mJson, recordFindingsLine(*mFindingCounts), FileWriter::As::Appended);
+            mCountsSaved = mFindingCounts;
+        }
+    }
+
+    void RunRecord::writeBeside(const std::filesystem::path& path, std::string text)
+    {
+        mFiles.write(path, std::move(text), FileWriter::As::Whole);
     }
 
     void RunRecord::abandon(const SessionRequest& request)

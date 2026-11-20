@@ -19,7 +19,6 @@
 #include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
-#include <apps/rtxtool/instruments/reportfile.hpp>
 #include <apps/rtxtool/instruments/resourcecaches.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/heapdescription.hpp>
@@ -134,8 +133,8 @@ namespace RtxTool
             + mWatch->getLongest().describe();
         text
             += std::format("\nflown through {}, stop {} of {}\n", currentStop().mName, mAt + 1, mRequest.mStops.size());
-        if (const Result<void, std::string> written = writeReport(watching.mFindings, text); !written.isOk())
-            Log(Debug::Warning) << "Ray tracing session: " << written.error();
+        mRecord.writeBeside(watching.mFindings, std::move(text));
+        mRecord.count(countFindings(mWatch->getTable()));
         mRecord.save(mRequest);
     }
 
@@ -146,6 +145,7 @@ namespace RtxTool
         mWatch->drainLog();
         const FindingTable& table = mWatch->getTable();
         mRecord.note(describeFindings(table) + mWatch->getRestReuse().describe());
+        mRecord.count(countFindings(table));
         if (table.statusUnder(mRequest.mWatching->mFailOn) != ExitStatus::Passed)
             mRecord.fail();
     }

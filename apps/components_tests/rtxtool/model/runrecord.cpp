@@ -350,11 +350,11 @@ namespace RtxTool
             constexpr std::string_view premises
                 = R"("measures": false, "hashed": true, "turnsWeather": true, "maps": "player", "hugePageShare": )";
             constexpr std::string_view setup
-                = R"(  "filter": false, "jitter": false, "gamma": 2.200, "show": "albedo", )"
-                  R"("exposure": 1.5000, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";
-            constexpr std::string_view mirror = R"(  "landCells": 4.0, "viewingDistance": 7168.0, )"
+                = R"("filter": false, "jitter": false, "gamma": 2.200, "show": "albedo", )"
+                  R"("exposure": 1.5000, "exposureHeld": false, "variants": false, "holdMs": 8.000, )";
+            constexpr std::string_view mirror = R"("landCells": 4.0, "viewingDistance": 7168.0, )"
                                                 R"("distantStatics": false, "step": 0.0625, "settled": false, )"
-                                                R"("memoryBudget": 536870912, "cacheBudget": 268435456,)";
+                                                R"("memoryBudget": 536870912, "cacheBudget": 268435456}})";
             EXPECT_NE(json.find(premises), std::string::npos) << json;
             EXPECT_NE(json.find(setup), std::string::npos) << json;
             EXPECT_NE(json.find(mirror), std::string::npos) << json;
@@ -365,6 +365,55 @@ namespace RtxTool
                 std::string::npos)
                 << json;
             EXPECT_NE(json.find(Rtx::sAssertsOn ? R"("asserts": true)" : R"("asserts": false)"), std::string::npos);
+        }
+
+        /// **A save adds what the record gained since the last, a line each, and writes nothing twice**: the header
+        /// before the first place, each place once however often the run saves, and the findings' counts where they
+        /// moved. What a tour does after every leg, so a save costs a place's worth and one that dies has said how far
+        /// it came; the end adds what is left, and a record that measured nothing is still its header.
+        TEST(RtxRunRecordTest, aSaveAddsWhatTheRecordGainedALineEach)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "record-lines";
+            std::filesystem::remove_all(folder);
+            std::filesystem::create_directories(folder);
+            const auto linesOf = [](const std::filesystem::path& path) {
+                std::vector<std::string> lines;
+                std::ifstream file(path);
+                for (std::string line; std::getline(file, line);)
+                    lines.push_back(line.substr(0, 18));
+                return lines;
+            };
+            const auto placeAt = [](const std::string_view view) {
+                BenchPlace place;
+                place.mView = view;
+                return place;
+            };
+
+            SessionRequest request;
+            request.mJson = folder / "tour.jsonl";
+            {
+                RunRecord record;
+                record.add(placeAt("leg-1"));
+                record.count(FindingCounts{ .mFaults = 0, .mCosts = 2, .mExpected = 0 });
+                record.save(request);
+                record.save(request);
+                record.add(placeAt("leg-2"));
+                record.save(request);
+                record.add(placeAt("leg-3"));
+                record.count(FindingCounts{ .mFaults = 1, .mCosts = 2, .mExpected = 0 });
+                record.finish(request);
+                EXPECT_NE(
+                    record.getReport().find("wrote " + Files::pathToUnicodeString(request.mJson)), std::string::npos)
+                    << record.getReport();
+            }
+            EXPECT_EQ(linesOf(request.mJson),
+                (std::vector<std::string>{ R"({"header": {"suite)", R"({"place": {"view":)", R"({"findings": {"fau)",
+                    R"({"place": {"view":)", R"({"place": {"view":)", R"({"findings": {"fau)" }));
+
+            request.mJson = folder / "nothing.jsonl";
+            RunRecord nothing;
+            nothing.finish(request);
+            EXPECT_EQ(linesOf(request.mJson), (std::vector<std::string>{ R"({"header": {"suite)" }));
         }
 
         /// **A record that cannot be written fails the run and keeps its report.** The close runs inside

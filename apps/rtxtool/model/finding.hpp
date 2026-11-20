@@ -176,4 +176,20 @@ namespace RtxTool
     /// and detail once with how often and where it is placed, the block a `view`, a `shot` or a `bench` stands at
     /// under it; and the counts past the table's bound, by kind.
     std::string describeFindings(const FindingTable& table);
+
+    /// How many findings a table holds of each standing in the report: the faults, the costs and marks, and those
+    /// the content is known to meet.
+    struct FindingCounts
+    {
+        std::size_t mFaults = 0;
+        std::size_t mCosts = 0;
+        std::size_t mExpected = 0;
+
+        bool operator==(const FindingCounts& other) const = default;
+    };
+    FindingCounts countFindings(const FindingTable& table);
+
+    /// The counts as a line of the run's record (`recordHeaderLine`), `{"findings": …}`: what a tour's driver reads,
+    /// where it read the report's wording. A tour adds one after every leg, and the last stands.
+    std::string recordFindingsLine(const FindingCounts& counts);
 }

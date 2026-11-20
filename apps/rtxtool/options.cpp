@@ -659,8 +659,8 @@ namespace RtxTool
             "its times are quoted from. Where the driver offers none, nothing is read");
 
         option({ Verb::Bench }, "json", bpo::value<std::string>()->default_value(""),
-            "also write the run to this file as one record, for comparing against the "
-            "same run on another commit");
+            "also write the run to this file as a record, its header and then a line a place (JSON lines), "
+            "for comparing against the same run on another commit");
 
         option({ Verb::Bench, Verb::Tour }, "frame-times", bpo::value<std::string>()->default_value(""),
             "also write every measured frame's figures, a frame a line and a row of the report a "
@@ -745,7 +745,7 @@ namespace RtxTool
             "the device and a run under this or --against is no benchmark; and every picture, as "
             "<view>.png beside <view>-doll.png, "
             "<view>-map.png and <view>-textures.png, a film's frames/000000.png onwards and "
-            "<keys>.mp4, a tour's findings.txt and tour.json after every leg and the pictures its Home marks "
+            "<keys>.mp4, a tour's findings.txt and tour.jsonl after every leg and the pictures its Home marks "
             "under marks/, the picture of each Home press in a `view` as <view>-<n>.png, with the "
             "block Home prints inside it as the PNG's Description, or `noise`'s five pictures of a "
             "place as <view>.png beside <view>-mean.png, <view>-reference.png, <view>-averaged.png "

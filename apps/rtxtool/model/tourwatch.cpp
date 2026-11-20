@@ -2,9 +2,7 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <optional>
 #include <span>
@@ -13,18 +11,11 @@
 #include <utility>
 #include <vector>
 
-#include <apps/openmw/mwbase/environment.hpp>
-#include <apps/openmw/mwbase/world.hpp>
-#include <apps/openmw/mwrender/rtx/worldmirror.hpp>
-#include <apps/openmw/mwworld/cell.hpp>
-#include <apps/openmw/mwworld/cellstore.hpp>
-#include <apps/openmw/mwworld/ptr.hpp>
-#include <apps/openmw/mwworld/scene.hpp>
 #include <components/misc/constants.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/world/weather.hpp>
 
 namespace RtxTool
 {
@@ -64,30 +55,15 @@ namespace RtxTool
         mSlowWorst.reset();
     }
 
-    FindingPlace TourWatch::placeOf(StandingNote& note)
-    {
-        note.take(mAir);
-        const MWBase::World& world = *MWBase::Environment::get().getWorld();
-        FindingPlace place{ .mLeg = mLeg, .mFrame = mFrame };
-        if (const Stop* stood = note.getLeft())
-            place.mStood = *stood;
-        FindingSky sky;
-        sky.mLeft = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId()).value_or(Rtx::Weather::Clear);
-        sky.mArriving = Rtx::weatherOfScriptId(world.getNextWeatherScriptId()).value_or(sky.mLeft);
-        sky.mCrossed = 1.0f - world.getWeatherTransition();
-        place.mSky = sky;
-        return place;
-    }
-
-    void TourWatch::add(const FindingKind kind, const std::string_view detail, StandingNote& note, const double ms)
+    void TourWatch::add(const FindingKind kind, const std::string_view detail, FindingPlaces& places, const double ms)
     {
         if (mTable.takesPlace(kind, detail, ms))
-            mTable.add(kind, detail, placeOf(note), FindingMet{ .mMs = ms });
+            mTable.add(kind, detail, places.read(mLeg, mFrame, mAir), FindingMet{ .mMs = ms });
         else
             mTable.count(kind, detail, ms);
     }
 
-    void TourWatch::addHitch(const ClosedSpan& span, const std::size_t loaded, StandingNote& note)
+    void TourWatch::addHitch(const ClosedSpan& span, const std::size_t loaded, FindingPlaces& places)
     {
         const double frameMs = span.mSpend.at(Rtx::Timing::Frame);
         describeHitchKey(mHitch, mLeg, span.mSpend);
@@ -96,40 +72,36 @@ namespace RtxTool
             mTable.count(FindingKind::Hitch, mHitch, frameMs);
             return;
         }
-        mTable.add(FindingKind::Hitch, mHitch, placeOf(note),
+        mTable.add(FindingKind::Hitch, mHitch, places.read(mLeg, mFrame, mAir),
             FindingMet{ .mMs = frameMs, .mNote = describeHitch(span, mLastMs, loaded) });
     }
 
-    void TourWatch::frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report,
-        StandingNote& note, const std::optional<ClosedSpan>& measured)
+    void TourWatch::frame(const WatchFrame& frame, FindingPlaces& places)
     {
         ++mFrame;
-        mAir = report.mAir;
+        mAir = frame.mAir;
         mLog.at(mLeg, mFrame);
 
-        if (report.mResult.has_value())
-            for (const Rtx::NotFiniteStores& stores : report.mResult->mNotFinite.kernels())
-                add(FindingKind::NotFinite, stores.mKernel, note);
+        for (const Rtx::NotFiniteStores& stores : frame.mNotFinite)
+            add(FindingKind::NotFinite, stores.mKernel, places);
 
         // **Each new refusal by its kind and its name**, as the log names it, so an expected one is told apart from
         // another of its kind (`Expectations`). A scene made again begins its record from nothing.
-        const std::span<const Rtx::Refusal> met = context.mMirror.getScene().refusals().getMet();
+        const std::span<const Rtx::Refusal> met = frame.mScene.refusals().getMet();
         if (met.size() < mRefusalsRead)
             mRefusalsRead = 0;
         for (const Rtx::Refusal& refusal : met.subspan(mRefusalsRead))
         {
             const std::string_view kind = sRefusedNames[static_cast<std::size_t>(refusal.mKind)];
             add(FindingKind::Refused,
-                refusal.mName.empty() ? std::string(kind) : std::format("{} \"{}\"", kind, refusal.mName), note);
+                refusal.mName.empty() ? std::string(kind) : std::format("{} \"{}\"", kind, refusal.mName), places);
         }
         mRefusalsRead = met.size();
 
-        mRestReuse.read(context.mMirror.getScene());
+        mRestReuse.read(frame.mScene);
 
         // How many cells the game made active on this frame: its loads, which run on the frame's own thread.
-        const MWWorld::Scene::CellStoreCollection& active
-            = MWBase::Environment::get().getWorldScene()->getActiveCells();
-        mActive.assign(active.begin(), active.end());
+        mActive.assign(frame.mActiveCells.begin(), frame.mActiveCells.end());
         std::ranges::sort(mActive);
         std::size_t loaded = 0;
         if (!mLastActive.empty())
@@ -139,17 +111,11 @@ namespace RtxTool
 
         // Covered where the world stood whole while the player stood in the cell's column: the rows of a leg's band
         // stand in the active grid together.
-        const MWWorld::CellStore* standing = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
-        if (report.isWhole())
-        {
-            if (standing != nullptr && standing->getCell()->isExterior())
-            {
-                const std::int32_t column = standing->getCell()->getGridX();
-                if (std::ranges::find(mCovered, column) == mCovered.end())
-                    mCovered.push_back(column);
-            }
-        }
+        if (frame.mWhole && frame.mStandingColumn.has_value()
+            && std::ranges::find(mCovered, *frame.mStandingColumn) == mCovered.end())
+            mCovered.push_back(*frame.mStandingColumn);
 
+        const std::optional<ClosedSpan>& measured = frame.mMeasured;
         if (!measured.has_value())
             return;
 
@@ -157,12 +123,7 @@ namespace RtxTool
         // As it stood on the screen: a window covered for a minute is no frame of a minute.
         const ClosedSpan seen{ .mSpend = measured->mSpend.seen(), .mArrived = measured->mArrived };
         const double frameMs = seen.mSpend.at(Rtx::Timing::Frame);
-        mLongest.offer(seen.mSpend,
-            LongestFrames::Seen{ .mLeg = mLeg,
-                .mFrame = mFrame,
-                .mEndNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::steady_clock::now().time_since_epoch())
-                    .count() });
+        mLongest.offer(seen.mSpend, LongestFrames::Seen{ .mLeg = mLeg, .mFrame = mFrame, .mEndNs = frame.mEndNs });
         if (frameMs > mBudgetMs)
         {
             ++mSlow;
@@ -170,28 +131,28 @@ namespace RtxTool
             if (!mPaced && frameMs > mSlowWorstMs)
             {
                 mSlowWorstMs = frameMs;
-                mSlowWorst = placeOf(note);
+                mSlowWorst = places.read(mLeg, mFrame, mAir);
             }
             // **Whose it was, said**: `update` is the game's own work between two frames, and a frame the game made
             // cells active on is one it loaded them on.
             if (mLastMs > 0.0 && frameMs > sHitchRatio * mLastMs)
-                addHitch(seen, loaded, note);
+                addHitch(seen, loaded, places);
         }
         mLastMs = frameMs;
     }
 
     void TourWatch::endLeg(
-        const Stop& stop, const BenchPlace& place, const std::span<const Check> failed, StandingNote& note)
+        const Stop& stop, const BenchPlace& place, const std::span<const Check> failed, FindingPlaces& places)
     {
         drainLog();
         if (stop.mActions.mSoak == Actions::Soak::First)
             mFirstPass = SoakFigures::of(place);
         if (stop.mActions.mSoak == Actions::Soak::Again && mFirstPass.has_value())
             if (const std::optional<std::string> growth = describeGrowth(*mFirstPass, SoakFigures::of(place)))
-                add(FindingKind::Growth, *growth, note);
+                add(FindingKind::Growth, *growth, places);
 
         for (const Check check : failed)
-            add(FindingKind::CheckFailed, checkName(check), note);
+            add(FindingKind::CheckFailed, checkName(check), places);
 
         if (!mPaced && mSlow > 0 && mSlowWorst.has_value())
             mTable.add(FindingKind::SlowFrames,
@@ -202,17 +163,17 @@ namespace RtxTool
             if (std::ranges::find(mCovered, cell.x()) == mCovered.end())
                 add(FindingKind::Outrun,
                     std::format("cell {},{} never stood whole while the player was in its column", cell.x(), cell.y()),
-                    note);
+                    places);
     }
 
-    void TourWatch::failLeg(const Stop& stop, const std::string_view why, StandingNote& note)
+    void TourWatch::failLeg(const Stop& stop, const std::string_view why, FindingPlaces& places)
     {
         drainLog();
-        add(FindingKind::LegFailed, std::format("{}: {}", stop.mName, why), note);
+        add(FindingKind::LegFailed, std::format("{}: {}", stop.mName, why), places);
     }
 
-    void TourWatch::mark(StandingNote& note)
+    void TourWatch::mark(FindingPlaces& places)
     {
-        add(FindingKind::Mark, std::format("marked on frame {} of {}", mFrame, mLeg), note);
+        add(FindingKind::Mark, std::format("marked on frame {} of {}", mFrame, mLeg), places);
     }
 }

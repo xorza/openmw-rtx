@@ -12,6 +12,7 @@ target_sources(
         instruments/cardwatch.cpp
         instruments/digest.cpp
         instruments/drivercache.cpp
+        instruments/filewriter.cpp
         instruments/framehashes.cpp
         instruments/frametimes.cpp
         instruments/gpuclock.cpp
@@ -69,6 +70,7 @@ target_sources(
                 instruments/cardwatch.hpp
                 instruments/digest.hpp
                 instruments/drivercache.hpp
+                instruments/filewriter.hpp
                 instruments/framehashes.hpp
                 instruments/frametimes.hpp
                 instruments/gpuclock.hpp

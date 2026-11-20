@@ -9,26 +9,68 @@
 #include <string_view>
 #include <vector>
 
-#include <apps/openmw/mwrender/rtx/framereport.hpp>
-#include <apps/rtxtool/model/benchrun.hpp>
-#include <apps/rtxtool/model/expectations.hpp>
-#include <apps/rtxtool/model/finding.hpp>
-#include <apps/rtxtool/model/logtally.hpp>
-#include <apps/rtxtool/model/longestframes.hpp>
-#include <apps/rtxtool/model/measurewindow.hpp>
-#include <apps/rtxtool/model/restreuse.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/world/frameworld.hpp>
 
-#include "standingnote.hpp"
+#include "benchrun.hpp"
+#include "expectations.hpp"
+#include "finding.hpp"
+#include "logtally.hpp"
+#include "longestframes.hpp"
+#include "measurewindow.hpp"
+#include "restreuse.hpp"
 
 namespace RtxTool
 {
+    /// **What one frame tells the watch**, the facts of the frame's report and of the world it decides by, as plain
+    /// values: what reads the game is the session's (`watchFrameOf`), so a test holds the judgement with no world.
+    struct WatchFrame
+    {
+        /// Where the air's clocks stood, which a place taken at a leg's end stands under.
+        Rtx::AirClock mAir{};
+
+        /// The kernels that stored a value that was not finite on the frame the device answered for.
+        std::span<const Rtx::NotFiniteStores> mNotFinite{};
+
+        /// The scene traced: every refusal it met so far in the order met, and how its textures came back from rest.
+        const Rtx::SceneDesc& mScene;
+
+        /// The cells the game holds active, in any order.
+        std::span<const void* const> mActiveCells{};
+
+        /// The frame drew the whole world (`FrameReport::isWhole`), and the column of the exterior cell the player
+        /// stood in, nothing for an interior.
+        bool mWhole = false;
+        std::optional<std::int32_t> mStandingColumn{};
+
+        /// The span the frame's arrival closed, where the frame was measured (`Measurer::getMeasuredSpan`), and when
+        /// it ended on the steady clock.
+        std::optional<ClosedSpan> mMeasured{};
+        std::int64_t mEndNs = 0;
+    };
+
+    /// Where a finding is met, read only where one takes a place: the stop that would put a camera back there and
+    /// the sky it stood under, which are the world's to say.
+    class FindingPlaces
+    {
+    public:
+        virtual FindingPlace read(std::string_view leg, std::uint32_t frame, const Rtx::AirClock& air) = 0;
+
+        FindingPlaces(const FindingPlaces&) = delete;
+        FindingPlaces& operator=(const FindingPlaces&) = delete;
+
+    protected:
+        FindingPlaces() = default;
+        ~FindingPlaces() = default;
+    };
+
     /// What a tour meets, turned into findings with the place each was met at: the stores a shader made that were not
     /// finite, by module; what the content gave that the renderer refused, by kind; the hitches and the slow frames;
     /// the cells a leg outran; the claims of `check` a leg failed at its end; a leg that failed; the watcher's marks.
     /// The only part of a tour that runs every frame, and a frame that finds nothing takes no place and builds no
-    /// string; the place is the note's (`StandingNote`), taken when something is found.
+    /// string; the place is read when something is found (`FindingPlaces`).
     class TourWatch
     {
     public:
@@ -40,22 +82,20 @@ namespace RtxTool
         /// A leg begins.
         void begin(const Stop& stop);
 
-        /// The frame `report` describes, of the leg begun, and the span its arrival closed where the frame was
-        /// measured (`Measurer::getMeasuredSpan`): a hitch and a slow frame are judged on measured spans alone, as
-        /// the frames ahead of them wait for the world, and a hitch is read in the span, which holds the work of the
-        /// frame before with the game's update this one arrived through.
-        void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report, StandingNote& note,
-            const std::optional<ClosedSpan>& measured);
+        /// One frame of the leg begun. A hitch and a slow frame are judged on measured spans alone, as the frames
+        /// ahead of them wait for the world, and a hitch is read in the span, which holds the work of the frame
+        /// before with the game's update this one arrived through.
+        void frame(const WatchFrame& frame, FindingPlaces& places);
 
         /// The leg ended, `place` what it came to and `failed` the claims it asked that did not hold: those, its slow
         /// frames, the cells it covers that no frame stood whole in, and the closing leg's growth past the first.
-        void endLeg(const Stop& stop, const BenchPlace& place, std::span<const Check> failed, StandingNote& note);
+        void endLeg(const Stop& stop, const BenchPlace& place, std::span<const Check> failed, FindingPlaces& places);
 
         /// The leg could not go on, for `why`.
-        void failLeg(const Stop& stop, std::string_view why, StandingNote& note);
+        void failLeg(const Stop& stop, std::string_view why, FindingPlaces& places);
 
         /// Where the watcher pressed Home.
-        void mark(StandingNote& note);
+        void mark(FindingPlaces& places);
 
         /// How the textures came back from rest over the tour (`RestReuse`).
         const RestReuse& getRestReuse() const { return mRestReuse; }
@@ -72,13 +112,11 @@ namespace RtxTool
         const LongestFrames& getLongest() const { return mLongest; }
 
     private:
-        FindingPlace placeOf(StandingNote& note);
-
-        void add(FindingKind kind, std::string_view detail, StandingNote& note, double ms = 0.0);
+        void add(FindingKind kind, std::string_view detail, FindingPlaces& places, double ms = 0.0);
 
         /// Counts the hitch `span` is, as it stood on the screen (`Rtx::FrameSpend::seen`), by its leg and the
         /// stretch it spent most in, placed at the worst of them with `loaded` the cells the game made active on it.
-        void addHitch(const ClosedSpan& span, std::size_t loaded, StandingNote& note);
+        void addHitch(const ClosedSpan& span, std::size_t loaded, FindingPlaces& places);
 
         double mBudgetMs = 0.0;
         bool mPaced = false;

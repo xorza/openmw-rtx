@@ -112,6 +112,7 @@ target_sources(
         rtxtool/homekey.cpp
         rtxtool/instruments/cardwatch.cpp
         rtxtool/instruments/drivercache.cpp
+        rtxtool/instruments/filewriter.cpp
         rtxtool/instruments/framehashes.cpp
         rtxtool/instruments/frametimes.cpp
         rtxtool/instruments/gpuclock.cpp

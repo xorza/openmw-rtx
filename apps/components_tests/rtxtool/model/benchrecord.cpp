@@ -1,10 +1,7 @@
+#include <algorithm>
 #include <array>
-#include <filesystem>
-#include <fstream>
 #include <limits>
 #include <optional>
-#include <span>
-#include <sstream>
 #include <string>
 #include <string_view>
 
@@ -17,7 +14,6 @@
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/mesh.hpp>
-#include <components/testing/util.hpp>
 
 namespace RtxTool
 {
@@ -218,12 +214,21 @@ namespace RtxTool
             place.mCard.mViewed = true;
             place.mCard.mHolders.push_back(CardHolder{ .mName = "tab\there", .mSamples = 1 });
 
-            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "escaped-record.json";
-            ASSERT_TRUE(writeJson(path, BenchHeader{ .mSuite = "a\nb" }, std::span(&place, 1)).isOk());
-
-            std::ostringstream read;
-            read << std::ifstream(path).rdbuf();
-            const std::string json = read.str();
+            // **A line each, ending in its line break and holding no other**, a name's own written as its escape: what
+            // lets a run add a place to its record without writing the record again.
+            const std::string headerLine = recordHeaderLine(BenchHeader{ .mSuite = "a\nb" });
+            const std::string placeLine = recordPlaceLine(place);
+            constexpr std::string_view headerOpens = R"({"header": {"suite": "a\nb", "output": [0, 0], )";
+            constexpr std::string_view headerCloses = R"("cacheBudget": null}})"
+                                                      "\n";
+            constexpr std::string_view placeOpens = R"({"place": {"view": "say \"hi\"", )";
+            EXPECT_TRUE(headerLine.starts_with(headerOpens)) << headerLine;
+            EXPECT_TRUE(headerLine.ends_with(headerCloses)) << headerLine;
+            EXPECT_EQ(std::ranges::count(headerLine, '\n'), 1);
+            EXPECT_TRUE(placeLine.starts_with(placeOpens)) << placeLine;
+            EXPECT_TRUE(placeLine.ends_with("}}\n")) << placeLine;
+            EXPECT_EQ(std::ranges::count(placeLine, '\n'), 1);
+            const std::string json = headerLine + placeLine;
 
             // Named outside the assertions: MSVC's preprocessor reads a raw string's `\"` inside a
             // macro argument as the end of the literal.
@@ -262,12 +267,7 @@ namespace RtxTool
                 .mTwoKinds = true,
                 .mRead = true };
 
-            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "clock-record.json";
-            ASSERT_TRUE(writeJson(path, BenchHeader{}, places).isOk());
-
-            std::ostringstream read;
-            read << std::ifstream(path).rdbuf();
-            const std::string json = read.str();
+            const std::string json = recordPlaceLine(places[0]) + recordPlaceLine(places[1]);
 
             constexpr std::string_view clock = R"("clock": {"core": {"meanMhz": 1945, "lowestMhz": 1785, )"
                                                R"("highestMhz": 2070, "readings": 3}, "memory": {"meanMhz": 8500, )"
@@ -294,11 +294,7 @@ namespace RtxTool
             BenchHeader header;
             header.mHugePageShare = std::numeric_limits<float>::quiet_NaN();
 
-            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "not-finite.json";
-            ASSERT_TRUE(writeJson(path, header, places).isOk());
-            std::ostringstream read;
-            read << std::ifstream(path).rdbuf();
-            const std::string json = read.str();
+            const std::string json = recordHeaderLine(header) + recordPlaceLine(places[0]);
 
             EXPECT_NE(json.find(R"("wallSeconds": null, "hitPercent": null, )"), std::string::npos) << json;
             EXPECT_NE(json.find(R"("travelled": 0.5000, )"), std::string::npos) << json;
@@ -402,11 +398,7 @@ namespace RtxTool
             place.mTexelReads.mCancelled = 66;
             place.mGame = GameHeld{ .mLoadedCells = 63, .mPreloadedCells = 64, .mStarvedLooks = 65 };
 
-            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "memory-record.json";
-            ASSERT_TRUE(writeJson(path, BenchHeader{}, std::span(&place, 1)).isOk());
-            std::ostringstream read;
-            read << std::ifstream(path).rdbuf();
-            const std::string json = read.str();
+            const std::string json = recordPlaceLine(place);
 
             constexpr std::string_view scene
                 = R"("scene": {"instances": 41, "instanceSlots": 50, "cutoutInstances": 42, "waterInstances": 43, )"

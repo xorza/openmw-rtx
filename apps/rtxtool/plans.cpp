@@ -463,7 +463,7 @@ namespace RtxTool
             .mPaced = line.mPaced,
             .mFindings = out / "findings.txt",
             .mExpected = line.mExpected };
-        request.mJson = out / "tour.json";
+        request.mJson = out / "tour.jsonl";
         request.mHomePictures = out / "marks";
         request.mPlanWhereTheWorldStands = [pacing, line, profile, frameTimes, readMap = std::move(readMap),
                                                policy = policyOf(command.mVerb)](const float ownTimeScale) mutable {

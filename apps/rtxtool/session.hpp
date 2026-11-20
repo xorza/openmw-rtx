@@ -26,7 +26,7 @@
 #include "stager.hpp"
 #include "standingnote.hpp"
 #include "stopwriter.hpp"
-#include "tourwatch.hpp"
+#include "worldwatch.hpp"
 
 namespace MWRender
 {
@@ -183,6 +183,9 @@ namespace RtxTool
 
         CameraDriver mCamera;
         StandingNote mNote;
+
+        /// What reads the game for the watch. After the note it takes a finding's place by.
+        WorldWatch mWorldWatch{ mNote };
 
         /// The upscaler the last frame passed through, as the title names it (`describeUpscaler`):
         /// read every frame, since a stop may trace at a mode of its own.

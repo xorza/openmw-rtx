@@ -16,7 +16,6 @@
 
 #include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
 #include <apps/rtxtool/instruments/jsontext.hpp>
-#include <apps/rtxtool/instruments/reportfile.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
@@ -81,11 +80,10 @@ namespace RtxTool
         {
             const Rtx::RenderProfile& profile = setup.mRun.mProfile;
             const MWRender::MirrorKnobs& mirror = setup.mMirror;
-            return std::format(R"(  "filter": {}, "jitter": {}, "gamma": {}, "show": "{}", )"
-                               R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {},)"
-                               "\n"
-                               R"(  "landCells": {}, "viewingDistance": {}, "distantStatics": {}, "step": {}, )"
-                               R"("settled": {}, "memoryBudget": {}, "cacheBudget": {},)",
+            return std::format(R"("filter": {}, "jitter": {}, "gamma": {}, "show": "{}", )"
+                               R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {}, )"
+                               R"("landCells": {}, "viewingDistance": {}, "distantStatics": {}, "step": {}, )"
+                               R"("settled": {}, "memoryBudget": {}, "cacheBudget": {})",
                 profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, jsonNumber(profile.mGamma, 3),
                 Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
                 std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeKernels,
@@ -641,26 +639,21 @@ namespace RtxTool
         return std::format("\n{} places, {} frames in {:.1f} s\n", places.size(), frames, lasted);
     }
 
-    Result<void, std::string> writeJson(
-        const std::filesystem::path& path, const BenchHeader& header, const std::span<const BenchPlace> places)
+    std::string recordHeaderLine(const BenchHeader& header)
     {
-        std::ostringstream file;
+        std::ostringstream line;
 
-        file
-            << "{\n"
-            << std::format(R"(  "suite": {},)", asJson(header.mSuite)) << '\n'
-            << std::format(R"(  "output": [{}, {}],)", header.mExtents.mOutputWidth, header.mExtents.mOutputHeight)
-            << '\n'
-            << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
-            << '\n'
-            << std::format(R"(  "upscale": "{}", "lightFilter": "{}", "jittered": {},)",
+        line
+            << R"({"header": {)" << std::format(R"("suite": {}, )", asJson(header.mSuite))
+            << std::format(R"("output": [{}, {}], )", header.mExtents.mOutputWidth, header.mExtents.mOutputHeight)
+            << std::format(R"("render": [{}, {}], )", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
+            << std::format(R"("upscale": "{}", "lightFilter": "{}", "jittered": {}, )",
                    Rtx::sUpscaleNames.name(header.mReconstruction.mUpscale),
                    Rtx::sLightFilterNames.name(header.mReconstruction.mFilter), header.mReconstruction.mJitter)
-            << '\n'
             << std::format(
-                   R"(  "noise": "{}", "levelBias": {}, "antilag": {}, )"
+                   R"("noise": "{}", "levelBias": {}, "antilag": {}, )"
                    R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {}, "lampCandidates": {}, )"
-                   R"("indirect": {}, "bounceRays": {}, "relief": {}, "softEdgeDither": {}, "waterInterleave": {},)",
+                   R"("indirect": {}, "bounceRays": {}, "relief": {}, "softEdgeDither": {}, "waterInterleave": {}, )",
                    Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise),
                    jsonNumber(header.mReconstruction.mLevelBias, 3), header.mReconstruction.mFilters.mAntilag,
                    header.mReconstruction.mFilters.mHistoryFix, header.mReconstruction.mFilters.mDualMotion,
@@ -669,68 +662,59 @@ namespace RtxTool
                    header.mReconstruction.mSampling.mLampCandidates, header.mReconstruction.mSampling.mIndirect,
                    header.mReconstruction.mSampling.mBounceRays, header.mReconstruction.mSampling.mRelief,
                    header.mReconstruction.mSoftEdgeDither, header.mReconstruction.mSampling.mWaterInterleave)
-            << '\n'
-            << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
+            << std::format(R"("frames": {}, "warmup": {}, "validation": {}, )", header.mMeasured, header.mWarmup,
                    header.mValidating)
-            << '\n'
-            << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "maps": "{}", )"
-                           R"("hugePageShare": {},)",
+            << std::format(R"("asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "maps": "{}", )"
+                           R"("hugePageShare": {}, )",
                    header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather,
                    describeMaps(header.mPlayed), asJson(header.mHugePageShare))
-            << '\n'
-            << asJson(header.mSetup, header.mStep) << '\n'
-            << R"(  "places": [)" << '\n';
+            << asJson(header.mSetup, header.mStep) << "}}\n";
+        return std::move(line).str();
+    }
 
-        for (std::size_t at = 0; at < places.size(); ++at)
+    std::string recordPlaceLine(const BenchPlace& place)
+    {
+        std::ostringstream file;
+        file << std::format(R"({{"place": {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
+            asJson(place.mCell), jsonNumber(place.mHour, 4), asJson(place.mWeather))
+             << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
+             << R"(, "driver": )" << asJson(place.mDriver) << R"(, "content": )" << asJson(place.mContent)
+             << R"(, "texelReads": )" << asJson(place.mTexelReads)
+             << std::format(R"(, "game": {{"loadedCells": {}, "preloadedCells": {}, "starvedLooks": {}}})",
+                    place.mGame.mLoadedCells, place.mGame.mPreloadedCells, place.mGame.mStarvedLooks)
+             << std::format(R"(, "frames": {}, "wallSeconds": {}, "hitPercent": {}, )", place.mFrames,
+                    jsonNumber(place.mWallSeconds, 4), jsonNumber(place.mHitPercent, 2))
+             << R"("crossings": )" << asJson(place.mCrossings) << R"(, "arrivals": )" << asJson(place.mArrivals)
+             << std::format(R"(, "overlap": {{"mean": {}, "least": {}}}, "travelled": {}, )",
+                    jsonNumber(place.mOverlap.getMean(), 4), place.mOverlap.mLeast, jsonNumber(place.mTravelled, 4));
+
+        for (const Rtx::Timing timing : Rtx::sTimings.values())
+            file << std::format(R"("{}Ms": )", Rtx::sTimings.name(timing)) << asJson(place.mRows[indexOf(timing)])
+                 << ", ";
+
+        file << R"("gpuMs": {)";
+
+        for (std::size_t zone = 0; zone < place.mGpu.size(); ++zone)
+            file << std::format(R"({}{}: {})", zone == 0 ? "" : ", ",
+                asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)), asJson(place.mGpu[zone]));
+
+        // Beside the times and not inside them, so a record read for its times reads as it did.
+        file << R"(}, "gpuCounters": {)";
+        for (std::size_t zone = 0; zone < place.mGpu.size() && !place.mCounterNames.empty(); ++zone)
         {
-            const BenchPlace& place = places[at];
-            file << std::format(R"(    {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
-                asJson(place.mCell), jsonNumber(place.mHour, 4), asJson(place.mWeather))
-                 << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
-                 << R"(, "driver": )" << asJson(place.mDriver) << R"(, "content": )" << asJson(place.mContent)
-                 << R"(, "texelReads": )" << asJson(place.mTexelReads)
-                 << std::format(R"(, "game": {{"loadedCells": {}, "preloadedCells": {}, "starvedLooks": {}}})",
-                        place.mGame.mLoadedCells, place.mGame.mPreloadedCells, place.mGame.mStarvedLooks)
-                 << std::format(R"(, "frames": {}, "wallSeconds": {}, "hitPercent": {}, )", place.mFrames,
-                        jsonNumber(place.mWallSeconds, 4), jsonNumber(place.mHitPercent, 2))
-                 << R"("crossings": )" << asJson(place.mCrossings) << R"(, "arrivals": )" << asJson(place.mArrivals)
-                 << std::format(R"(, "overlap": {{"mean": {}, "least": {}}}, "travelled": {}, )",
-                        jsonNumber(place.mOverlap.getMean(), 4), place.mOverlap.mLeast,
-                        jsonNumber(place.mTravelled, 4));
-
-            for (const Rtx::Timing timing : Rtx::sTimings.values())
-                file << std::format(R"("{}Ms": )", Rtx::sTimings.name(timing)) << asJson(place.mRows[indexOf(timing)])
-                     << ", ";
-
-            file << R"("gpuMs": {)";
-
-            for (std::size_t zone = 0; zone < place.mGpu.size(); ++zone)
-                file << std::format(R"({}{}: {})", zone == 0 ? "" : ", ",
-                    asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)), asJson(place.mGpu[zone]));
-
-            // Beside the times and not inside them, so a record read for its times reads as it did.
-            file << R"(}, "gpuCounters": {)";
-            for (std::size_t zone = 0; zone < place.mGpu.size() && !place.mCounterNames.empty(); ++zone)
+            file << std::format(
+                R"({}{}: {{)", zone == 0 ? "" : ", ", asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)));
+            for (std::size_t counter = 0; counter < place.mCounterNames.size(); ++counter)
             {
-                file << std::format(
-                    R"({}{}: {{)", zone == 0 ? "" : ", ", asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)));
-                for (std::size_t counter = 0; counter < place.mCounterNames.size(); ++counter)
-                {
-                    // A counter no run read a number for is null, which JSON has and NaN it has not.
-                    file << std::format(R"({}{}: {})", counter == 0 ? "" : ", ", asJson(place.mCounterNames[counter]),
-                        jsonSignificant(place.mGpu[zone].mCounters[counter], 6));
-                }
-                file << '}';
+                // A counter no run read a number for is null, which JSON has and NaN it has not.
+                file << std::format(R"({}{}: {})", counter == 0 ? "" : ", ", asJson(place.mCounterNames[counter]),
+                    jsonSignificant(place.mGpu[zone].mCounters[counter], 6));
             }
-
-            file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard)
-                 << ", \"thread\": " << asJson(place.mThread) << "}" << (at + 1 < places.size() ? "," : "") << '\n';
+            file << '}';
         }
 
-        file << "  ]\n}\n";
-
-        // A record compared across commits that was never written would leave the last one at its path to be
-        // compared as this one, so a failed write is reported.
-        return writeReport(path, file.view());
+        file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard)
+             << ", \"thread\": " << asJson(place.mThread) << "}}\n";
+        return std::move(file).str();
     }
 }

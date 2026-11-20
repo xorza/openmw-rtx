@@ -319,11 +319,12 @@ namespace RtxTool
     /// said everything this would.
     std::string describeTotal(std::span<const BenchPlace> places);
 
-    /// Writes the run as one record, for comparing against the same run on another commit, or says
-    /// which path it could not write.
+    /// **The record a run writes for comparing against the same run on another commit, a line each** (JSON lines):
+    /// `{"header": …}` first, then `{"place": …}` as each place was measured, so a long run adds a line a stop and
+    /// one that dies has said how far it came (`RunRecord::save`). Each ends in its line break and holds no other.
     ///
     /// Hand-written rather than through a library: this is numbers and the names of places, and the
     /// alternative is a dependency for the sake of a page.
-    Result<void, std::string> writeJson(
-        const std::filesystem::path& path, const BenchHeader& header, std::span<const BenchPlace> places);
+    std::string recordHeaderLine(const BenchHeader& header);
+    std::string recordPlaceLine(const BenchPlace& place);
 }

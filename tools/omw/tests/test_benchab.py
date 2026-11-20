@@ -10,12 +10,13 @@ from typing import cast
 from omw.benchab import Plan, Row, ab, gather, plan, read_rows, table
 from omw.build import Build
 from omw.noise import Side
+from omw.record import Record
 from omw.system import Refusal
 
 
-def _record(view: str, trace: tuple[float, float], frame: tuple[float, float]) -> dict:
-    return {"places": [{"view": view, "frameMs": {"median": frame[0], "p99": frame[1]},
-                        "gpuMs": {"trace": {"times": {"median": trace[0], "p99": trace[1]}}}}]}
+def _record(view: str, trace: tuple[float, float], frame: tuple[float, float]) -> Record:
+    return Record({}, ({"view": view, "frameMs": {"median": frame[0], "p99": frame[1]},
+                        "gpuMs": {"trace": {"times": {"median": trace[0], "p99": trace[1]}}}},), None)
 
 
 class PlanTest(unittest.TestCase):
@@ -79,7 +80,9 @@ class _Harness:
         record = next((arg.removeprefix("--json=") for arg in args if arg.startswith("--json=")), None)
         if record:
             trace = 1.1 if "--variants=false" in args else 1.0
-            Path(record).write_text(json.dumps(_record("v", (trace, trace + 1.0), (6.0, 9.0))))
+            written = _record("v", (trace, trace + 1.0), (6.0, 9.0))
+            Path(record).write_text(json.dumps({"header": written.header}) + "\n"
+                                    + "".join(json.dumps({"place": place}) + "\n" for place in written.places))
         return subprocess.CompletedProcess([verb, *args], 0)
 
 
