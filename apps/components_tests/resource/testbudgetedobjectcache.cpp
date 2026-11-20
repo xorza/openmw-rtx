@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <components/resource/budgetedobjectcache.hpp>
 #include <components/resource/cachebudget.hpp>
 
@@ -28,10 +29,9 @@ namespace Resource
         template <class Ready>
         bool awaitWithin(Ready ready)
         {
-            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-            while (!ready())
+            for (const Rtx::Testing::WaitBound bound(std::chrono::seconds(2)); !ready();)
             {
-                if (std::chrono::steady_clock::now() > until)
+                if (bound.passed())
                     return false;
                 std::this_thread::yield();
             }

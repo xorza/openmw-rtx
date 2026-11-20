@@ -1072,33 +1072,6 @@ tours beside the desk's. Whoever addresses an item deletes it. An item marked
 An item that says "ends" names a defect in code its batch deletes: it is there so the new shape gets the test the
 old one lacked.
 
-## Batch 10: the harness and the tests as a body
-
-Files: `apps/rtxtool/`, `apps/components_tests/`, `apps/openmw_tests/mwrender/`, `cmake/Tests.cmake`.
-
-- [ ] `apps/rtxtool/session.hpp:49` — ten responsibilities against "the sequence and nothing else". Target: the
-  tour's files and log listener with the watch; the clock with staging; the `RtxRun` answers a function of one stop
-  state (ten getters repeat `if (mDone || !mStarted)`).
-- [ ] `apps/rtxtool/instruments/scenereport.cpp:12` includes a game-side header, unseen by `RtxSourceTreeTest`,
-  which also skips `.h`. Target: `WalkReport`'s parts are core types; the test reads every header.
-- [ ] `apps/rtxtool/model/benchrecord.cpp` — the record's field list exists in the struct, fifteen `asJson`
-  overloads, the report and the test's literal. Target: one field table a struct; `writeJson` returns text, so ten
-  test files stop writing and reading back real files.
-- [ ] `apps/rtxtool/model/restreuse.cpp:59` — `inplace_merge` allocates on every tour frame. It goes with the rest
-  queue; its successor reads the plan's cache tier.
-- [ ] Fixtures: `sceneuploader.cpp`'s set-up repeated in 12–18 tests; thirteen local `osg::Image` builders beside
-  `support/image.hpp`; seven `refusalOf` wrappers beside `support/refusal.hpp`; four private wait bounds beside
-  `WaitBound` (`cardwatchdevice.cpp:118,133`, `testobjectcache.cpp:436`, `platform/thread.cpp:109`). Target: one of
-  each.
-- [ ] `support/device/harness.hpp` — the GPU binary's one allocator is shared by every test of a shard and three
-  other processes; the memory tests assert differences from "now". With the policy in the core, they go; what stays
-  on the device is a handful of end-to-end cases.
-- [ ] `apps/components_tests/rtx/common/slots.cpp` holds `RtxScratchTest` and `RtxSparesTest`;
-  `apps/components_tests/rtx/scene/scenedesc.cpp` is 2842 lines with the same two opening lines in 46 tests. Target:
-  a file a type; a fixture.
-- [ ] `tools/omw/testing.py` — the gate allows two seconds a test where the rule is one, and sets no limit a suite.
-  Target: the rule's figures, or the reason beside them.
-
 ## Batch 11: the seam's defects
 
 The seam's structure is a proposal of its own, by the user's decision, after the memory work lands. Its findings are
@@ -1184,6 +1157,14 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 ## Changed
 
 Items that landed in another shape than their target, each with how and why.
+
+- Batch 10: the folder order reads the shared `.h` headers too, which put one of them back on quoted includes; the
+  instruments' and the model's reach into the game's headers stays, since the records name `RunSetup`, the
+  renderer's own run setup, and moving `WalkReport` alone would leave the rule broken by `rtxrun.hpp`. The four
+  private wait bounds are `WaitBound`, and the scratch's and spares' tests a file of their own; the local image
+  builders, the `refusalOf` wrappers, the scene description's fixture and the uploader's set-up are left. The gate
+  bounds a suite at 30 s beside its test's 2 s, whose reason stood beside it. The rest queue's reuse went with the
+  queue.
 
 - Batch 9's tests: the graveyard's own, an off-thread burial held until the submit after the one in flight runs. The
   read stamp's and the slot table's releases after a sleep stay: a release that wins the race still passes, and only
@@ -1481,3 +1462,9 @@ Items judged and not done, each with the reason.
   split touches every target's making beside the reserve's rewrite declined above.
 - Batch 9's sprite tables sized at the hand-over: the hand-over is on the frame too, and a doubling table is made again
   a logarithmic number of times.
+- Batch 10's session split three ways: its stop state is what the clock, the files and the run's answers each read,
+  and three owners would each read it again.
+- Batch 10's one field table a record: the record's struct, its writer and the report are held together by the
+  record's test literal; a table is a rewrite of the writer and its tests.
+- Batch 10's GPU memory tests replaced by the core's: the device's memory tests left are end-to-end ones of the arena
+  and the allocator, which the core's tests of the ledger do not reach.

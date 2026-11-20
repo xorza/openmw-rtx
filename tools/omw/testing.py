@@ -49,6 +49,10 @@ def _one(build: Build, binary: str, args: list[str]) -> int:
 # again and stands up a device about a quarter of a second each.
 LIMIT_SECONDS = 2.0
 
+# Thirty seconds a suite, one CTest test: a GoogleTest binary, or one shard of the GPU binary, which `cmake/Tests.cmake`
+# cuts so that no shard runs past it; the largest shard ran 22 s.
+SUITE_LIMIT_SECONDS = 30.0
+
 # **The least of up to three runs alone**: what else the desk runs only ever slows a run, so the least of them is
 # what a test costs (Chen, Revels and Edelman, "Robust benchmarking in noisy environments", 2016). On a low-end AMD
 # integrated GPU one test took 1.67 to 2.12 s alone from one run to the next.
@@ -77,6 +81,11 @@ def times_folder(build: Build) -> Path:
     return build.folder("RTX_TEST_OUTPUT_DIR") / "times"
 
 
+def suite_seconds(report: dict) -> float:
+    """The seconds one GoogleTest JSON report's whole run took, nought where it says none."""
+    return float(str(report.get("time", "0s")).removesuffix("s"))
+
+
 def durations(report: dict, fork: frozenset[str], root: Path = ROOT) -> dict[str, float]:
     """The fork's tests of one GoogleTest JSON report, those in a file of `fork` (`fork_files`), by full
     name, with the seconds each took. Upstream's are upstream's to change."""
@@ -87,15 +96,21 @@ def durations(report: dict, fork: frozenset[str], root: Path = ROOT) -> dict[str
 
 
 def timing(build: Build) -> int:
-    """**No test of the fork's takes longer than `LIMIT_SECONDS`, measured alone**: the last `test` run's reports
-    name the candidates, which ran beside the others, and each runs again by itself, warm (`least_alone`)."""
+    """**No test of the fork's takes longer than `LIMIT_SECONDS`, measured alone, and no suite longer than
+    `SUITE_LIMIT_SECONDS`**: the last `test` run's reports name the candidates, which ran beside the others, and each
+    test runs again by itself, warm (`least_alone`)."""
     targets = {test["name"]: target for test in build.tests()
                if (target := properties_of(test).get("OPENMW_TARGET")) is not None}
     alone = build.folder("RTX_TEST_OUTPUT_DIR") / "alone.json"
     fork = fork_files()
     slow = 0
     for path in sorted(times_folder(build).glob("*.json")):
-        for name, shared in durations(json.loads(read_text(path)), fork).items():
+        report = json.loads(read_text(path))
+        suite = suite_seconds(report)
+        if suite > SUITE_LIMIT_SECONDS:
+            print(f"timing: the suite {path.stem} took {suite:.1f} s, past {SUITE_LIMIT_SECONDS:g} s")
+            slow += 1
+        for name, shared in durations(report, fork).items():
             if shared <= LIMIT_SECONDS:
                 continue
             seconds = least_alone(partial(_alone_once, build, build.binary(targets[path.stem]), name, alone, fork))
@@ -103,5 +118,5 @@ def timing(build: Build) -> int:
             if seconds > LIMIT_SECONDS:
                 slow += 1
     if slow:
-        print(f"timing: {slow} test(s) over {LIMIT_SECONDS:g} s alone")
+        print(f"timing: {slow} test(s) or suite(s) over their bound")
     return 1 if slow else 0

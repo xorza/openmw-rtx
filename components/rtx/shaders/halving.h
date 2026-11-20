@@ -1,8 +1,8 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_HALVING_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_HALVING_H
 
-#include <components/rtx/shaders/hosttypes.h>
-#include <components/rtx/shaders/portable.h>
+#include "hosttypes.h"
+#include "portable.h"
 
 // How a level of a mip chain is made from the one above it: which texels each of its texels covers,
 // and what each is worth. Read by the device's pass that halves a normal map's spread,

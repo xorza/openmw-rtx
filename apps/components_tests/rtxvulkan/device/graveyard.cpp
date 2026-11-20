@@ -25,8 +25,11 @@ namespace Rtx
         {
             const Device& device = getDevice();
             Graveyard& graveyard = device.getGraveyard();
+            // Emptied first, of what the shard's tests before this one buried, which a wait here would end besides.
             device.waitIdle();
+            device.collectIdle();
             const std::size_t before = graveyard.getHeldCount();
+            ASSERT_EQ(before, 0u);
 
             Testing::HeldSubmit held(device);
             const LentCommands commands = getPool().lend(1);
