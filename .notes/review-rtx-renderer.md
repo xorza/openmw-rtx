@@ -1048,11 +1048,6 @@ Files: `apps/rtxtool/{session,measurer,tourwatch,checks}.cpp`, `apps/rtxtool/mod
 {memoryreport,framereport}`, `apps/openmw/mwrender/rtx/framereport.hpp`, `tools/omw/tour.py`,
 `apps/components_tests/rtxtool/`.
 
-- [ ] `apps/rtxtool/model/measurewindow.cpp:9`, `tourwatch.cpp:58,177`, `session.cpp:129-140` — a continuing leg is
-  measured from its second frame and each leg opens a fresh window, so one interval at every leg's boundary reaches
-  no sample and the next frame cannot be a hitch; it is dropped because the whole record is rewritten there, on the
-  frame's thread. Target: a tour is one window with legs as labels; a place is appended a leg (JSON lines), written
-  off the frame.
 - [ ] `apps/rtxtool/measurer.cpp:462-467` — memory is one sample a leg's end. Target: `FrameReport` carries a
   frame's residency (operations queued and issued, bytes uploaded and copied, slots by state, residents below their
   want, stand-ins drawn, starved) and the record keeps each leg's most.
@@ -1066,13 +1061,6 @@ Files: `apps/rtxtool/{session,measurer,tourwatch,checks}.cpp`, `apps/rtxtool/mod
 - [ ] `apps/rtxtool/model/finding.hpp:66-79`, `finding.cpp:105-110` — a finding's identity and its description are
   one string, searched linearly; a refusal's reason is not in its key. Target: a key a kind (a sum type), figures
   apart; expectations match keys.
-- [ ] `apps/rtxtool/tourwatch.cpp`, `checks.cpp` — the tour's judgement reaches `MWBase::Environment` and links only
-  into the executable; no test names `TourWatch`. Target: the watch takes plain frame facts, as `MeasureWindow` takes
-  `WindowFrame`, and moves to `model/`; a thin adapter reads the world.
-- [ ] `apps/rtxtool/model/measurewindow.cpp:61-75` — the wait for a whole world counts progress in cells alone, so
-  images arriving steadily do not reset its stall. Target: progress is any condition `isWhole` reads; the failure
-  names which held.
-- [ ] `tools/omw/tour.py` `read_counts` — a regex over the report's wording. Target: the counts in the record.
 - [ ] New verb `prices`: for each format and side of the texture ladder and each level, the driver's requirement
   and alignment; for a sample of meshes, loose and tight structure sizes; the memory types an image and a structure's
   buffer take, which fixes the arenas; `maxMemoryAllocationCount`; a 64-texel chain's requirement in each format,
@@ -1547,6 +1535,17 @@ Items that landed in another shape than their target, each with how and why.
   blends (`SurfaceDescription::getUnread`), and the function and the mode have a lock each, as OpenGL keeps them.
 - `LargestOwed`'s ceilings stood as the item's target already, by `6047cd186b`, which landed before the plan was
   worked; the one comment that still described the design before (`MemoryUse`) was brought in line.
+- A run's record is JSON lines, a line a place and the findings' counts after it, and it and a tour's findings are
+  written on a writer's thread (`RtxTool::FileWriter`): a leg's end no longer writes the whole record on the
+  frame's thread. **A tour is still a window a leg**, and a continuing leg's first interval is still unmeasured: a
+  leg's end drains the device's queue and reads the memory reports for its place (`Measurer::finish`), which no
+  frame of a player's flight does, so the interval would measure the harness. One window over a tour means routing
+  the device's late answers across legs, a rewrite of the measurer every verb shares; it waits for the batch that
+  gives a frame its own memory figures, which takes the leg's end off the device.
+- `TourWatch` judges plain frame facts in `model/` (`WatchFrame`, `FindingPlaces`), with `WorldWatch` reading the
+  game for it and tests of its hitches, slow frames, refusals and outrun cells. `checks.cpp` stays in the
+  executable: `check`'s claims are asked of the world and the device by name, and a plain-facts form of them is
+  the typed finding keys' item below.
 
 ## Declined
 
