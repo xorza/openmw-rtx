@@ -26,8 +26,8 @@ namespace Rtx
     /// makes, and the thread, last.
     struct TextureHands::Hand
     {
-        explicit Hand(ContentStore::Store* store)
-            : mContent(store, ChainRuns::WithinMemory)
+        Hand(ContentStore::Store* store, ChainAdmission& admission)
+            : mContent(store, &admission)
         {
         }
 
@@ -110,7 +110,7 @@ namespace Rtx
         assert(hands >= 1 && "no thread to make texels on");
         for (std::size_t at = 0; at < hands; ++at)
         {
-            Hand& hand = *mHands.emplace_back(std::make_unique<Hand>(mStore));
+            Hand& hand = *mHands.emplace_back(std::make_unique<Hand>(mStore, mAdmission));
             hand.mWorker
                 = Platform::startThread("texels", [this, &hand](const std::stop_token& stop) { serve(hand, stop); });
         }

@@ -159,8 +159,8 @@ namespace Rtx
             ASSERT_EQ(world.mFeed.getAsked().size(), 3u);
             EXPECT_EQ(world.mFeed.getAsked()[0].mLevels, (LevelSpan{ .mFirst = 0, .mEnd = 10 }));
             EXPECT_EQ(world.mDevice.getBlocksHeld(), 1u) << "a chunk asked one ahead";
-            EXPECT_EQ(world.mResidency.getReport().mMissingDemanded, 3u)
-                << "three textures planned and standing nothing";
+            EXPECT_EQ(world.mResidency.getReport().mMissingDemanded, (MissingDemanded{ .mAsked = 3 }))
+                << "three textures planned, asked of the feed, and standing nothing";
             EXPECT_FALSE(world.mResidency.isSettled(HoldTier::Shown));
             EXPECT_TRUE(world.mResidency.owes(SceneSlot::world()));
 
@@ -176,7 +176,7 @@ namespace Rtx
             EXPECT_EQ(world.mResidency.getReport().mStarvedTextures, 0u);
             EXPECT_EQ(world.mResidency.getReport().mBelowWant, 0u);
             EXPECT_TRUE(world.mResidency.isSettled(HoldTier::Shown));
-            EXPECT_EQ(world.mResidency.getReport().mMissingDemanded, 0u);
+            EXPECT_EQ(world.mResidency.getReport().mMissingDemanded, MissingDemanded{});
             EXPECT_FALSE(world.mResidency.owes(SceneSlot::world()));
             EXPECT_TRUE(world.mResidency.getLedger().isConsistent());
         }
@@ -301,7 +301,7 @@ namespace Rtx
             const auto* arriving = std::get_if<TextureArriving>(&world.residentOf(shown).mStanding);
             ASSERT_NE(arriving, nullptr);
             EXPECT_EQ(arriving->mToLevel, 0u);
-            EXPECT_EQ(world.mResidency.getReport().mMissingDemanded, 0u)
+            EXPECT_EQ(world.mResidency.getReport().mMissingDemanded, MissingDemanded{})
                 << "a raise on its way stands what is below it";
             EXPECT_GT(world.mResidency.getReport().mWaitingDemanded, 0u);
             ASSERT_TRUE(arriving->mNow.has_value());

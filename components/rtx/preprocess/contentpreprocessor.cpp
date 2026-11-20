@@ -17,12 +17,13 @@
 namespace Rtx
 {
     template <ContentPass Pass>
-    bool ContentPreprocessor::admits(const Pass& pass, const typename Pass::Input& input) const
+    std::optional<ChainAdmission::Ticket> ContentPreprocessor::admits(
+        const Pass& /*pass*/, const typename Pass::Input& input)
     {
         if constexpr (requires { Pass::scratchOf(input); })
-            return mChainRuns == ChainRuns::Always || admitsChain(Pass::scratchOf(input), input.mImage);
-        else
-            return true;
+            if (mAdmission != nullptr)
+                return mAdmission->admit(Pass::scratchOf(input), input.mImage);
+        return ChainAdmission::Ticket{};
     }
 
     template <ContentPass Pass, class Found, class Make>
@@ -53,7 +54,8 @@ namespace Rtx
             }
         }
 
-        if (!admits(pass, input))
+        const std::optional<ChainAdmission::Ticket> admitted = admits(pass, input);
+        if (!admitted.has_value())
             return false;
         const bool made = make(key);
         stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
@@ -235,9 +237,9 @@ namespace Rtx
         return runPooled(mConversion, input, first, pool, stop, made);
     }
 
-    ContentPreprocessor::ContentPreprocessor(ContentStore::Store* const store, const ChainRuns runs)
+    ContentPreprocessor::ContentPreprocessor(ContentStore::Store* const store, ChainAdmission* const admission)
         : mCache(store)
-        , mChainRuns(runs)
+        , mAdmission(admission)
     {
     }
 

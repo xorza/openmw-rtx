@@ -19,6 +19,7 @@
 #include <components/rtx/preprocess/texturefeed.hpp>
 #include <components/rtx/scene/refusal.hpp>
 
+#include "missingdemanded.hpp"
 #include "residencydevice.hpp"
 #include "residencyop.hpp"
 #include "slot.hpp"
@@ -174,10 +175,8 @@ namespace Rtx
         std::uint32_t mWaiting = 0;
         std::uint32_t mWaitingDemanded = 0;
 
-        /// Residents of a demanded tier the plan gives something that stand nothing yet: a texture drawing the
-        /// stand-in, a mesh placing nothing. What a frame that draws the whole world has none of, where a raise still
-        /// on its way draws what stands below it.
-        std::uint32_t mMissingDemanded = 0;
+        /// Residents of a demanded tier the plan gives something that stand nothing yet, by why.
+        MissingDemanded mMissingDemanded;
 
         /// This frame's work.
         std::uint32_t mOpsIssued = 0;

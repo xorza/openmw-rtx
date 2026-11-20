@@ -65,12 +65,12 @@ namespace RtxTool
         // cells all stood and whose images were still being made, steadily, stalled. A cell nearer brings its own
         // images, so the fewest images are counted from there again.
         const bool cellNearer = mWaited++ == 0 || frame.mCellsToStand < mUnstood.mCells;
-        const bool imageNearer = frame.mImagesPending < mUnstood.mImages;
+        const bool imageNearer = frame.mMissing.total() < mUnstood.mMissing.total();
         if (cellNearer)
             mUnstood.mCells = frame.mCellsToStand;
         if (cellNearer || imageNearer)
         {
-            mUnstood.mImages = frame.mImagesPending;
+            mUnstood.mMissing = frame.mMissing;
             mStalledMs = 0.0;
         }
         else
@@ -99,7 +99,12 @@ namespace RtxTool
             text += part;
         };
         add(unstood.mCells > 0, std::format("{} cells short", unstood.mCells));
-        add(unstood.mImages > 0, std::format("{} images still being made", unstood.mImages));
+        const Rtx::MissingDemanded& missing = unstood.mMissing;
+        const std::uint32_t images = missing.mAsked + missing.mArrived + missing.mUnasked;
+        add(images > 0,
+            std::format("{} images still being made ({} on their way, {} come and waiting for room, {} not yet asked)",
+                images, missing.mAsked, missing.mArrived, missing.mUnasked));
+        add(missing.mMeshes > 0, std::format("{} meshes still being built", missing.mMeshes));
         add(unstood.mArriving, "content still arriving");
         return text;
     }

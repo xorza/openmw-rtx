@@ -24,6 +24,7 @@
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/shader/automaps.hpp>
@@ -252,6 +253,9 @@ namespace Rtx
 
         /// `PreparationSetup::mBudget`.
         const std::optional<std::uint64_t> mBudget;
+
+        /// What admits a chain the dispatcher hands a thread alone, past the whole budget, against the system's memory.
+        ChainAdmission mAdmission;
 
         /// Each job's entry where this run read it, the models first and the layers after them,
         /// written by the one thread that read it.

@@ -287,17 +287,17 @@ namespace Rtx
                     // hand's alone, and the other hands queue and take beside it.
                     const QueuedChain& queuedChain = mChains[dispatch.mJob];
                     lock.unlock();
-                    bool makes = true;
+                    std::optional<ChainAdmission::Ticket> admitted = ChainAdmission::Ticket{};
                     if (dispatch.mAlone)
                     {
                         Log(Debug::Info) << "The content's preparation makes the chain of \""
                                          << SceneUtil::EmbeddedImage::nameOf(*queuedChain.mImage)
                                          << "\" alone: it needs more than the whole budget of memory";
-                        makes = admitsChain(
+                        admitted = mAdmission.admit(
                             needOf(*queuedChain.mImage, queuedChain.mPartner.get(), queuedChain.mEncoding).mScratch,
                             *queuedChain.mImage);
                     }
-                    if (makes)
+                    if (admitted.has_value())
                         makeChain(hand, queuedChain);
                     else
                         hand.mKeys.clear();

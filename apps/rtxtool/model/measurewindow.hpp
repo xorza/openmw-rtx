@@ -5,6 +5,7 @@
 #include <string>
 
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/missingdemanded.hpp>
 
 namespace RtxTool
 {
@@ -23,10 +24,10 @@ namespace RtxTool
         /// The world stood paused under the frame.
         bool mPaused = false;
 
-        /// How many cells the ring still has to stand, and how many images are still being made
-        /// (`FrameReport::mImagesPending`).
+        /// How many cells the ring still has to stand, and which demanded residents still stand nothing
+        /// (`FrameReport::mMissing`).
         std::uint32_t mCellsToStand = 0;
-        std::uint32_t mImagesPending = 0;
+        Rtx::MissingDemanded mMissing{};
 
         /// The frame's placement brought something to the device, which a whole frame's does not.
         bool mArriving = false;
@@ -164,7 +165,7 @@ namespace RtxTool
         struct Unstood
         {
             std::uint32_t mCells = 0;
-            std::uint32_t mImages = 0;
+            Rtx::MissingDemanded mMissing{};
             bool mArriving = false;
 
             bool operator==(const Unstood& other) const = default;

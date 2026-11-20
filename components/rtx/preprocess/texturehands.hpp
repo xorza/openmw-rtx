@@ -15,6 +15,7 @@
 #include <components/rtx/image/imageshape.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 
 #include "contentstats.hpp"
 #include "texturefeed.hpp"
@@ -108,6 +109,9 @@ namespace Rtx
         ContentStore::Store* const mStore;
 
         BufferPool& mPool;
+
+        /// What admits a chain any hand makes, against the system's memory less what the others' makings hold.
+        ChainAdmission mAdmission;
 
         mutable Misc::Monitor mMonitor;
 

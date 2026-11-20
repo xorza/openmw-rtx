@@ -1315,15 +1315,20 @@ namespace Rtx
 
         std::uint32_t waiting = 0;
         std::uint32_t demanded = 0;
-        std::uint32_t missing = 0;
+        MissingDemanded missing;
         for (const Scene& each : mScenes)
         {
-            missing
-                += static_cast<std::uint32_t>(std::ranges::count_if(each.mTextures, [](const TextureResident& texture) {
-                       return isDemanded(texture.mTier) && texture.mPlannedLevel.has_value()
-                           && !standingLevelOf(texture).has_value();
-                   }));
-            missing += static_cast<std::uint32_t>(
+            for (const TextureResident& texture : each.mTextures)
+            {
+                if (!isDemanded(texture.mTier) || !texture.mPlannedLevel.has_value()
+                    || standingLevelOf(texture).has_value())
+                    continue;
+                const auto* const arriving = std::get_if<TextureArriving>(&texture.mStanding);
+                ++(arriving == nullptr                ? missing.mUnasked
+                        : arriving->mMade.has_value() ? missing.mArrived
+                                                      : missing.mAsked);
+            }
+            missing.mMeshes += static_cast<std::uint32_t>(
                 std::ranges::count_if(each.mStructures, [](const StructureResident& structure) {
                     return isDemanded(structure.mTier) && structure.mPlanned && !slotOf(structure).has_value();
                 }));

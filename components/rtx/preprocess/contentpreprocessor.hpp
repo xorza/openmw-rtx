@@ -14,6 +14,7 @@
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
@@ -66,15 +67,6 @@ namespace Rtx
         .mVersions = sStoreKindVersions,
     };
 
-    /// Which runs of the chain and conversion passes a preprocessor makes where the store holds no output: every one,
-    /// or those the system has the memory for (`admitsChain`), asked only past the store's miss, so a chain the store
-    /// holds is read whatever its making would cost.
-    enum class ChainRuns : std::uint8_t
-    {
-        Always,
-        WithinMemory,
-    };
-
     /// A made chain as the device is handed it: its form, and its bytes in a buffer of a `BufferPool`, empty where it
     /// stands.
     struct PooledChain
@@ -101,8 +93,9 @@ namespace Rtx
         /// @param store the process's store, or null for none (`ContentCache`): a test's, which
         ///        computes every ask.
         /// @param reach where this thread's asks may reach in it.
-        /// @param runs which chains and conversions it makes where the store holds none.
-        explicit ContentPreprocessor(ContentStore::Store* store = nullptr, ChainRuns runs = ChainRuns::Always);
+        /// @param admission what admits each chain and conversion it makes where the store holds none, shared by every
+        ///        hand that makes them at once, or null to make every one.
+        explicit ContentPreprocessor(ContentStore::Store* store = nullptr, ChainAdmission* admission = nullptr);
 
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;
@@ -121,7 +114,7 @@ namespace Rtx
 
         /// **`ChainPass`, held by the store and read by nothing**: a preparation's ask, which reads no entry the store
         /// holds and hands the store what a run made. False where the store held none and its run was not admitted
-        /// (`ChainRuns`).
+        /// (`ChainAdmission`).
         bool prepareChain(const ChainPass::Input& input);
 
         /// `ConversionPass`, as `prepareChain` answers: a classic pair's base colour or metal-roughness map.
@@ -192,9 +185,10 @@ namespace Rtx
         /// The file key of `texels` a fact's ask is keyed by (`FileKeys::of`), timed as the facts' key.
         ContentStore::Key keyOf(const osg::Image& texels);
 
-        /// Whether `pass`'s run of `input` is made: a chain or a conversion as `mChainRuns` says, every other pass.
+        /// Whether `pass`'s run of `input` is made, and what it holds while it is: a chain or a conversion as
+        /// `mAdmission` admits it, every other pass holding nothing.
         template <ContentPass Pass>
-        bool admits(const Pass& pass, const typename Pass::Input& input) const;
+        std::optional<ChainAdmission::Ticket> admits(const Pass& pass, const typename Pass::Input& input);
 
         ContentStats mStats;
         ShapePass mShape;
@@ -206,7 +200,7 @@ namespace Rtx
         ConversionPass mConversion{ mBuild, mKeys, mStats.mTexelReads };
 
         ContentCache mCache;
-        ChainRuns mChainRuns = ChainRuns::Always;
+        ChainAdmission* mAdmission = nullptr;
 
         /// What a chain's run makes before it is copied into its buffer or moved into the store, kept for the next.
         MadeChain mMade;

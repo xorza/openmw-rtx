@@ -131,7 +131,7 @@ namespace RtxTool
             // The stager's own hold is the wait, which the window counts as one; a pause is anything else.
             .mPaused = report.mPaused && Staging::pausedBeyondHold(),
             .mCellsToStand = report.mCellsToStand,
-            .mImagesPending = report.mImagesPending,
+            .mMissing = report.mMissing,
             .mArriving = report.mUpload.mKind != Rtx::SceneUpload::Kind::Placed,
             .mArrivedMeshes = report.mUpload.mArrivedMeshes,
             .mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell(),

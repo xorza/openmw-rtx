@@ -24,6 +24,7 @@
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
+#include <components/platform/memory.hpp>
 #include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/chainbuild.hpp>
@@ -39,6 +40,7 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
@@ -956,6 +958,33 @@ namespace Rtx
             ASSERT_TRUE(cache.find<ShapePass>(key, input, found));
             EXPECT_EQ(foundNormals, normals);
             EXPECT_EQ(foundKept, kept);
+        }
+
+        /// **A chain's making is admitted against what the system has left less what the makings admitted hold**: two
+        /// makings of six tenths of what the system has left each pass alone, and the second beside the first does
+        /// not; its ticket moved holds what it held, and both gone hold nothing.
+        TEST(RtxChainAdmissionTest, aMakingIsAdmittedAgainstWhatTheOthersHold)
+        {
+            const std::optional<std::uint64_t> available = Platform::availableMemory();
+            if (!available.has_value())
+                GTEST_SKIP() << "a system that says nothing of its memory admits every making";
+            ChainScratch scratch;
+            scratch[ChainBuffer::Made] = static_cast<std::size_t>(*available / 10 * 6);
+            const osg::ref_ptr<osg::Image> file = makeImage(sPaint, "painted.dds");
+
+            ChainAdmission admission;
+            std::optional<ChainAdmission::Ticket> first = admission.admit(scratch, *file);
+            ASSERT_TRUE(first.has_value());
+            EXPECT_EQ(admission.getHeld(), scratch.total());
+            EXPECT_FALSE(admission.admit(scratch, *file).has_value()) << "two makings past what the system has left";
+
+            ChainAdmission::Ticket moved = std::move(*first);
+            first.reset();
+            EXPECT_EQ(admission.getHeld(), scratch.total()) << "a ticket moved gave back what it held";
+            moved = ChainAdmission::Ticket{};
+            EXPECT_EQ(admission.getHeld(), 0u);
+            EXPECT_TRUE(admission.admit(scratch, *file).has_value()) << "alone once the first went";
+            EXPECT_EQ(admission.getHeld(), 0u) << "a ticket dropped at once";
         }
 
         /// A sum is pass by pass and figure by figure, and the whole is every key, every found output's

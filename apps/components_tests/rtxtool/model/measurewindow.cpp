@@ -155,7 +155,7 @@ namespace RtxTool
             EXPECT_EQ(waiting, std::vector<Outcome>(11, Outcome::Ahead));
             EXPECT_DOUBLE_EQ(window.getStalledMs(), sStallMs);
             EXPECT_EQ(window.take(standing(5, 1000.0)).mOutcome, Outcome::Stalled);
-            EXPECT_EQ(window.getUnstood(), (MeasureWindow::Unstood{ .mCells = 5, .mImages = 0, .mArriving = false }));
+            EXPECT_EQ(window.getUnstood(), (MeasureWindow::Unstood{ .mCells = 5, .mMissing = {}, .mArriving = false }));
             EXPECT_EQ(describeUnstood(window.getUnstood()), "5 cells short");
 
             MeasureWindow arriving(0, 30, false);
@@ -168,12 +168,13 @@ namespace RtxTool
 
             // **An image nearer is the world nearer as a cell is**: every cell stood and 40 images to make, one fewer
             // a frame, never stalls over thirty seconds of frames, where counted in cells alone it stalled at the
-            // twelfth. The same images standing still stall, and the failure names them and what still arrives; a
-            // cell nearer counts its own images from where it brought them.
+            // twelfth. The same images standing still stall, and the failure names them by why, and what still
+            // arrives; a cell nearer counts its own images from where it brought them. The images are asked of the
+            // feed, but for one come and waiting for room and two not yet asked.
             const auto making = [](const std::uint32_t cells, const std::uint32_t images, const bool arriving) {
                 WindowFrame frame = standing(cells, 1000.0);
                 frame.mWhole = false;
-                frame.mImagesPending = images;
+                frame.mMissing = Rtx::MissingDemanded{ .mAsked = images - 3, .mArrived = 1, .mUnasked = 2 };
                 frame.mArriving = arriving;
                 return frame;
             };
@@ -183,8 +184,13 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(images.getStalledMs(), 0.0);
             EXPECT_EQ(takeAll(images, std::vector<WindowFrame>(10, making(0, 11, true))).back(), Outcome::Ahead);
             EXPECT_EQ(images.take(making(0, 11, true)).mOutcome, Outcome::Stalled);
-            EXPECT_EQ(images.getUnstood(), (MeasureWindow::Unstood{ .mCells = 0, .mImages = 11, .mArriving = true }));
-            EXPECT_EQ(describeUnstood(images.getUnstood()), "11 images still being made, content still arriving");
+            EXPECT_EQ(images.getUnstood(),
+                (MeasureWindow::Unstood{ .mCells = 0,
+                    .mMissing = Rtx::MissingDemanded{ .mAsked = 8, .mArrived = 1, .mUnasked = 2 },
+                    .mArriving = true }));
+            EXPECT_EQ(describeUnstood(images.getUnstood()),
+                "11 images still being made (8 on their way, 1 come and waiting for room, 2 not yet asked), content "
+                "still arriving");
 
             MeasureWindow both(0, 30, false);
             both.take(making(3, 10, false));
@@ -196,7 +202,13 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(both.getStalledMs(), 0.0) << "an image nearer, counted from what the cell brought";
             both.take(making(2, 24, false));
             EXPECT_DOUBLE_EQ(both.getStalledMs(), 1000.0);
-            EXPECT_EQ(describeUnstood(both.getUnstood()), "2 cells short, 24 images still being made");
+            EXPECT_EQ(describeUnstood(both.getUnstood()),
+                "2 cells short, 24 images still being made (21 on their way, 1 come and waiting for room, 2 not yet "
+                "asked)");
+
+            // And a mesh standing nothing is named apart.
+            EXPECT_EQ(describeUnstood(MeasureWindow::Unstood{ .mMissing = Rtx::MissingDemanded{ .mMeshes = 3 } }),
+                "3 meshes still being built");
         }
 
         /// A pause ahead of the measurement fails the stop on the frame past its limit: a limit of

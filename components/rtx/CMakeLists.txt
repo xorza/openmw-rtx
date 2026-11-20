@@ -304,6 +304,7 @@ openmw_rtx_layer(
         renderer/memoryprices.hpp
         renderer/memoryreport.hpp
         renderer/nulldevice.hpp
+        renderer/missingdemanded.hpp
         renderer/residency.hpp
         renderer/residencydevice.hpp
         renderer/residencyop.hpp

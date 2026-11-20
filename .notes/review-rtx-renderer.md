@@ -1102,22 +1102,6 @@ Files: `components/rtxvulkan/scene/{bottomlevelstore,sceneacceleration,devicesce
 - [ ] `RunAllocator`'s fate decided on the holes a whole Repack tour leaves its vertex and index runs (the report's
   `vertexHoles`, `indexHoles`), now that nothing walks them a placement.
 
-## Batch 6: content, from a file to texels
-
-Files: `components/rtx/preprocess/` (all), `components/rtx/prepare/`, `components/contentstore/`,
-`components/rtx/image/{madeimage,imagedescription}`, `components/rtx/common/bufferpool`,
-`components/resource/{imagemanager,imageheader}`, `components/rtx/mirror/{meshreader,meshresolver}`,
-`apps/openmw/mwrender/rtx/{worldmirror,contentmodels}`, `components/detournavigator/navmeshtilestore.cpp`.
-
-- [ ] `pp/texture/chainadmission.cpp:16`, `worldmirror.cpp:240` — play's chain misses are admitted a chain against
-  the system's free memory, each hand alone, and the preparation's budget is read once. Target: one sum over the
-  hands against a figure the arbiter derives (batch 8; the system's own until then).
-- [ ] `img/imagedescription.cpp` (`openImage`) pulls `Resource::ImageManager` into the decode folder; errors are
-  strings `hashFile` and both chain passes discard. Target: the read is handed in; a cause is an enum.
-- [ ] Tests: two loaders of one file; a template loaded on two threads at once derived once; a read error on an entry;
-  a cancel and a shutdown with a request in flight; a stamp that moved; a record too new to trust.
-- [ ] `docs/architecture.md` "Loading" and "The content store" written again.
-
 ## Batch 7: the world is whole before it is shown
 
 Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextractor`, `apps/openmw/mwrender/rtx/
@@ -1512,6 +1496,9 @@ Items that landed in another shape than their target, each with how and why.
   frame's folds came to 86 shapes and 4.9 ms over the frames at `seyda-neen-ship` in the debug build, against the
   222 MiB of shapes the store's memory held for them. The navigator's tile store is the fork's own file, so its calls
   dropped the reach and it states its version to the store's sweep.
+- Play's chains are admitted by one `ChainAdmission` the hands share, each making's most summed against what the
+  system has left, and the preparation's chain made alone by one of its own; the figure is the system's until batch
+  8's arbiter derives one, and the preparation's budget is still read once at its start until then.
 - Batch 5's moves out of a draining slab took the same slot again until the copy share ran out: a slot given back
   stayed live until the hand-over's epoch was known. It now leaves the ledger at once (`SlotLedger::leave`), which
   the handheld's Repack tour found, an assert in debug and a GPU timer never written in release.
@@ -1529,3 +1516,8 @@ Items judged and not done, each with the reason.
 - `SceneDesc::addMesh` and `MeshTable::find` answering a `MeshHold`: every caller holds the row in the statement that
   adds it, and `SceneDesc::isConsistent`, asserted after every retire, names a row nothing holds; a hold answered
   would change 141 test sites for a leak no path has.
+
+- Batch 6's `openImage` out of the decode folder, its causes an enum: the description's refusals are messages a person
+  reads, and no caller tells them apart — `hashFile` and the chain passes ask only whether one read, the feed hands the
+  message on — so an enum would be a message spelt twice; the folder's one call into the image manager is the file's
+  open, which the sky's and the moons' builders ask as the cells' reader does.
