@@ -227,9 +227,9 @@ namespace Rtx
         return true;
     }
 
-    void MeshTable::drop(DeformerTable& deformers, const MeshIndex mesh)
+    void MeshTable::drop(DeformerTable& deformers, const MeshIndex mesh, const HoldTier tier)
     {
-        if (!dropRow(mesh))
+        if (!dropRow(mesh, tier))
             return;
 
         // **A static mesh the device stands whole rests** (`docs/architecture.md`, "One residency policy for the

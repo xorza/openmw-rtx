@@ -118,7 +118,8 @@ namespace Rtx
         /// @param context what every walk on this thread shares — `WalkContext`. The game hands the
         ///        frame thread's to the world's walk and to every traced view's.
         /// @param room what the identity maps are reserved at, once, so no frame rehashes one.
-        SceneExtractor(SceneDesc& scene, WalkContext& context, const ExtractorRoom& room);
+        /// @param placed what the walk's placements hold their rows at: the world's are shown, a picture's forced.
+        SceneExtractor(SceneDesc& scene, WalkContext& context, const ExtractorRoom& room, HoldTier placed);
 
         /// Gives back every hold the maps took on the scene — every placement, every row, every
         /// texture — so a scene that outlives this holds nothing of it. The scene outlives it by
@@ -403,6 +404,9 @@ namespace Rtx
 
         /// What this thread's walks share, the owner's.
         WalkContext& mContext;
+
+        /// What the walk's placements hold their rows at.
+        HoldTier mPlaced;
 
         /// Every node until the owner states a mask (`setTraversalMask`).
         osg::Node::NodeMask mTraversalMask;

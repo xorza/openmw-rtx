@@ -73,6 +73,7 @@ openmw_rtx_layer(
         common/deviceepoch.hpp
         common/error.hpp
         common/finite.hpp
+        common/holdtier.hpp
         common/index.hpp
         common/job.hpp
         common/jobprogress.hpp

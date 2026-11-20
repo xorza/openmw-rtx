@@ -163,9 +163,11 @@ namespace Rtx
         /// sheets. A texture hold of nothing — `sNoRow`, or the neutral texel a layer names where
         /// the table had no room — is empty or costs nothing, and a drop of an empty hold changes no
         /// count; a mesh and a material are held by a row that is one.
-        MeshHold holdMesh(MeshIndex mesh);
-        MaterialHold holdMaterial(MaterialIndex material);
-        TextureHold holdTexture(TextureIndex texture);
+        ///
+        /// Each hold states its tier (`HoldTier`), which the row is counted at while it stands.
+        MeshHold holdMesh(MeshIndex mesh, HoldTier tier);
+        MaterialHold holdMaterial(MaterialIndex material, HoldTier tier);
+        TextureHold holdTexture(TextureIndex texture, HoldTier tier);
         void drop(MeshHold&& hold);
         void drop(MaterialHold&& hold);
         void drop(TextureHold&& hold);
@@ -174,7 +176,8 @@ namespace Rtx
         void drop(std::vector<ReadingHold>& holds);
 
         /// `takeTexture` and `holdTexture` for a holder that reads the texture itself, and its drop (`ReadingHold`):
-        /// the hold asks its finest level until it is given back.
+        /// the hold asks its finest level until it is given back, and is `Forced`, since what reads it is drawn
+        /// whatever stands around it.
         ReadingHold takeReading(
             VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat);
         ReadingHold holdReading(TextureIndex texture);
@@ -188,7 +191,7 @@ namespace Rtx
         /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
         /// caller: what a surface, a sprite, a sky layer and a moon turn their image into —
         /// `TextureTable::take`. Empty where the table refuses it.
-        TextureHold takeTexture(VFS::Path::NormalizedView path, const osg::Image& image,
+        TextureHold takeTexture(HoldTier tier, VFS::Path::NormalizedView path, const osg::Image& image,
             TextureWrap wrap = TextureWrap::Repeat, TextureEncoding encoding = TextureEncoding::Colour,
             const osg::Image* partner = nullptr);
 

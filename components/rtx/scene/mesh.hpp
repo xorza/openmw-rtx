@@ -12,6 +12,7 @@
 #include <osg/Vec4f>
 
 #include <components/misc/digestwords.hpp>
+#include <components/rtx/common/holdtier.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/shaders/scene.h>
 
@@ -113,6 +114,9 @@ namespace Rtx
 
         MeshIndex mMesh = sNoRow;
         MaterialIndex mMaterial = sNoRow;
+
+        /// What the placement's holds on its mesh and its material state: the walk's are shown, a picture's forced.
+        HoldTier mTier = HoldTier::Shown;
 
         /// How much of this placement is there — the fade the game is applying to one actor, with
         /// Invisibility and Chameleon, which ride the same pair of uniforms. On the placement and

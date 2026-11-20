@@ -89,7 +89,7 @@ namespace Rtx
 
             // Held, as the identity a walk or the ring met it under holds it while it asks.
             const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = first });
-            MaterialHold held = scene.holdMaterial(material);
+            MaterialHold held = scene.holdMaterial(material, HoldTier::Shown);
             EXPECT_EQ(textures.getWant(first), 0u) << "nothing asks it, so it is wanted whole";
 
             // Step 34, footprint 2: level 12. Step 30, footprint -2, beside it: 8, the finer, stands.
@@ -159,9 +159,9 @@ namespace Rtx
             textures.stand(whole, 5592404, false, 0);
 
             const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = far });
-            MaterialHold held = scene.holdMaterial(material);
+            MaterialHold held = scene.holdMaterial(material, HoldTier::Shown);
             const MaterialIndex other = scene.addMaterial(Material{ .mDiffuse = unstood });
-            MaterialHold otherHeld = scene.holdMaterial(other);
+            MaterialHold otherHeld = scene.holdMaterial(other, HoldTier::Shown);
             scene.askMaterial(material, 23);
             scene.askMaterial(other, 23);
             EXPECT_EQ(textures.getWant(far), 1u);
@@ -206,7 +206,7 @@ namespace Rtx
             textures.stand(slot, 64, false, 3);
 
             const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = slot });
-            MaterialHold held = scene.holdMaterial(material);
+            MaterialHold held = scene.holdMaterial(material, HoldTier::Shown);
 
             // Step 37, footprint 5, plus the offset of 10: level 15, coarser than 3. Nothing arrives.
             scene.askMaterial(material, 37);

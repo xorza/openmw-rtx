@@ -151,13 +151,13 @@ namespace Rtx
         /// frame, once.
         void notePosed(MeshIndex mesh, const osg::BoundingBoxf& bounds);
 
-        void hold(MeshIndex mesh) { holdRow(mesh); }
+        void hold(MeshIndex mesh, HoldTier tier) { holdRow(mesh, tier); }
 
         /// Gives one hold on `mesh` back, and where that was the last, rests a static mesh the device stands whole
         /// and frees anything else: its geometry goes back to the allocators and a deforming mesh's runs to
         /// `deformers`, which it stood on. The slot stays where it is, because every index above it names a
         /// bottom-level acceleration structure that would otherwise be built again.
-        void drop(DeformerTable& deformers, MeshIndex mesh);
+        void drop(DeformerTable& deformers, MeshIndex mesh, HoldTier tier);
 
         /// Frees `mesh`, which nothing holds, as `drop` frees it.
         void release(DeformerTable& deformers, MeshIndex mesh);

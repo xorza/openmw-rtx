@@ -51,9 +51,8 @@ namespace Rtx
 
     MaterialIndex MaterialTable::add(TextureTable& textures, const Material& material)
     {
-        holdTextures(textures, material);
-
         const MaterialIndex index = takeRow(material);
+        holdTextures(textures, material, textureTierOf(index));
         mAsks.growTo(index);
         assert(mAsks[index].empty() && "a material slot taken over with its asks still standing");
         note(index);
@@ -162,7 +161,8 @@ namespace Rtx
         // it already had names the same texture twice running; releasing first would take that slot
         // to zero, empty its path and hand it to the next thing that asked — a slot changing
         // identity under everything standing on it, on a frame where nothing was supposed to move.
-        holdTextures(textures, what);
+        const HoldTier tier = textureTierOf(material);
+        holdTextures(textures, what, tier);
 
         // What it asks of its textures moves with what it names: the new set asked before the old is taken back,
         // as it is held before the old is given back, and the old taken back before it is given back, since a slot
@@ -176,7 +176,7 @@ namespace Rtx
             askTextures(textures, row, finest, std::nullopt);
         }
 
-        dropTextures(textures, row);
+        dropTextures(textures, row, tier);
 
         row = what;
         note(material);
@@ -190,8 +190,32 @@ namespace Rtx
         mWritten.add(slot);
     }
 
-    void MaterialTable::holdTextures(TextureTable& textures, const Material& material)
+    HoldTier MaterialTable::textureTierOf(const MaterialIndex material) const
     {
+        const HoldTier tier = getTier(material);
+        return tier == HoldTier::Unheld ? HoldTier::Kept : tier;
+    }
+
+    void MaterialTable::hold(TextureTable& textures, const MaterialIndex material, const HoldTier tier)
+    {
+        const HoldTier before = textureTierOf(material);
+        holdRow(material, tier);
+        retierTextures(textures, material, before);
+    }
+
+    void MaterialTable::retierTextures(TextureTable& textures, const MaterialIndex material, const HoldTier before)
+    {
+        const HoldTier after = textureTierOf(material);
+        if (after == before)
+            return;
+        // The new tier held before the old is given back, so no texture passes through no hold at all.
+        holdTextures(textures, rowAt(material), after);
+        dropTextures(textures, rowAt(material), before);
+    }
+
+    void MaterialTable::holdTextures(TextureTable& textures, const Material& material, const HoldTier tier)
+    {
+
         // The trace reads what a normal map's levels lost beside it (`normalMapSlopes`), which only
         // a slot taken as a normal map has: bound as any other data, it has no spread there, and the
         // companion a slot of no spread binds read as a loss is a gloss gone matt.
@@ -199,12 +223,12 @@ namespace Rtx
             material.mNormal == sNoRow || textures.getRows()[material.mNormal].mEncoding == TextureEncoding::Normal,
             "a material's normal map in a slot not taken as one");
 
-        forEachTexture(material, [&](const TextureIndex texture) { textures.hold(texture); });
+        forEachTexture(material, [&](const TextureIndex texture) { textures.hold(texture, tier); });
     }
 
-    void MaterialTable::dropTextures(TextureTable& textures, const Material& material)
+    void MaterialTable::dropTextures(TextureTable& textures, const Material& material, const HoldTier tier)
     {
-        forEachTexture(material, [&](const TextureIndex texture) { textures.drop(texture); });
+        forEachTexture(material, [&](const TextureIndex texture) { textures.drop(texture, tier); });
     }
 
     Run MaterialTable::addMask(std::span<const float> weights)
@@ -246,10 +270,14 @@ namespace Rtx
         return run;
     }
 
-    void MaterialTable::drop(TextureTable& textures, const MaterialIndex material)
+    void MaterialTable::drop(TextureTable& textures, const MaterialIndex material, const HoldTier tier)
     {
-        if (!dropRow(material))
+        const HoldTier before = textureTierOf(material);
+        if (!dropRow(material, tier))
+        {
+            retierTextures(textures, material, before);
             return;
+        }
 
         Material& going = rowAt(material);
         assert(mAsks[material].empty() && "a material freed while something still asks it");
@@ -257,7 +285,7 @@ namespace Rtx
         // What it named goes with it, and before its layer run does: the run is what says which
         // textures those were, and it is about to be handed to an allocator that will let the next
         // chunk write over it.
-        dropTextures(textures, going);
+        dropTextures(textures, going, before);
 
         // Its layers and the masks behind them go with it. A material that carries layers is a
         // terrain chunk, so without this what accumulates is a blend map per chunk walked past; the

@@ -399,7 +399,7 @@ namespace Rtx
             store.release(std::span(grids).subspan(1, 1));
             const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
             mScene.textures().stand(resting, 64, false, 0);
-            mScene.drop(mScene.holdTexture(resting));
+            mScene.drop(mScene.holdTexture(resting, HoldTier::Shown));
             mScene.compact();
             ASSERT_EQ(mScene.textures().getResting().getBytes(), 64u);
             {
@@ -514,7 +514,7 @@ namespace Rtx
                                        .mMesh;
             const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
             mScene.textures().stand(resting, 64, false, 0);
-            mScene.drop(mScene.holdTexture(resting));
+            mScene.drop(mScene.holdTexture(resting, HoldTier::Shown));
             mScene.compact();
             stage();
             std::vector<Refusal> refused;

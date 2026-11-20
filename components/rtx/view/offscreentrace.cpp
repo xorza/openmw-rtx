@@ -56,7 +56,8 @@ namespace Rtx
         held.mPoseStamp = new osg::FrameStamp;
         held.mSlot = ViewScene(renderer);
 
-        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, context, sSubjectExtractorRoom);
+        held.mExtractor
+            = std::make_unique<SceneExtractor>(*held.mScene, context, sSubjectExtractorRoom, HoldTier::Forced);
         held.mExtractor->setTraversalMask(request.mSubjectMask);
         held.mPose->setFrameStamp(held.mPoseStamp);
     }

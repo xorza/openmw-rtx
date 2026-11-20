@@ -148,7 +148,7 @@ namespace Rtx::Testing
         WalkContext mContext{};
         Rtx::SceneIdentities mIdentities;
         Rtx::SceneDesc mScene{ mIdentities };
-        SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom };
+        SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom, HoldTier::Shown };
         double mWorldSeconds = 0.0;
     };
 

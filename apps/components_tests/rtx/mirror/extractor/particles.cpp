@@ -248,7 +248,7 @@ namespace Rtx::Testing
 
                       Rtx::SceneDesc scene(identities);
                       WalkContext context{};
-                      SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                      SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                       extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
                       EXPECT_EQ(scene.emitters().size(), 1u);
@@ -301,7 +301,7 @@ namespace Rtx::Testing
 
             SceneDesc scene(identities);
             WalkContext context{};
-            SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+            SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
             extractor.extractPrecipitation(falling, eye, 0);
 
             ASSERT_EQ(scene.placements().getCounts().mPlaced, 1u) << "the drop was not walked at all";
@@ -310,7 +310,7 @@ namespace Rtx::Testing
             // And a world with no weather over it, or a fall the game hides, is the other case the
             // one call answers.
             SceneDesc dry(identities);
-            SceneExtractor none(dry, context, sSubjectExtractorRoom);
+            SceneExtractor none(dry, context, sSubjectExtractorRoom, HoldTier::Shown);
             none.extractPrecipitation(nullptr, eye, 0);
 
             EXPECT_EQ(dry.placements().getCounts().mPlaced, 0u);
@@ -326,7 +326,7 @@ namespace Rtx::Testing
             emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
             Rtx::SceneDesc scene(identities);
-            SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
+            SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom, HoldTier::Shown);
 
             extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), 0);
             ASSERT_EQ(scene.emitters().size(), 1u);
@@ -370,7 +370,7 @@ namespace Rtx::Testing
             emit(*particles, osg::Vec3f(), 1.0f, osg::Vec4f(0.25f, 0.5f, 1.0f, 1.0f));
 
             Rtx::SceneDesc bareScene(identities);
-            SceneExtractor bareExtractor(bareScene, mContext, sSubjectExtractorRoom);
+            SceneExtractor bareExtractor(bareScene, mContext, sSubjectExtractorRoom, HoldTier::Shown);
             EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity(), 0).mEmitters, 1u);
             EXPECT_TRUE(bareScene.textures().getRows().empty()) << "a slot taken for no image";
             ASSERT_EQ(bareScene.emitters().size(), 1u);
@@ -411,7 +411,7 @@ namespace Rtx::Testing
             unnamed.mParticles->setName("nameless");
             emit(*unnamed.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
             Rtx::SceneDesc namelessScene(identities);
-            SceneExtractor namelessExtractor(namelessScene, mContext, sSubjectExtractorRoom);
+            SceneExtractor namelessExtractor(namelessScene, mContext, sSubjectExtractorRoom, HoldTier::Shown);
             namelessExtractor.extract(*unnamed.mRoot, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(namelessScene.refusals().count(Refused::Emitter), 1u);
@@ -732,7 +732,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
 
                 // The first turn only starts the clock; the second emits and integrates.
                 for (std::int32_t turn = 0; turn < 2; ++turn)
@@ -768,7 +768,7 @@ namespace Rtx::Testing
             drive(plume, 100.0, true);
 
             Rtx::SceneDesc scene(identities);
-            SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
+            SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom, HoldTier::Shown);
             for (const double seconds : { 0.1, 1.1 })
             {
                 scene.clearPlacement();

@@ -937,7 +937,8 @@ namespace Rtx
             image->setFileName(std::string(path.value()));
 
             Rtx::SceneDesc scene(identities);
-            TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Data);
+            TextureHold held
+                = scene.takeTexture(HoldTier::Shown, path, *image, TextureWrap::Repeat, TextureEncoding::Data);
             PreparedImages prepared(nullptr, 1);
             SceneTextures described;
             described.describeAll(scene, &prepared, true);
@@ -973,7 +974,8 @@ namespace Rtx
             image->setFileName(std::string(path.value()));
 
             Rtx::SceneDesc scene(identities);
-            TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Normal);
+            TextureHold held
+                = scene.takeTexture(HoldTier::Shown, path, *image, TextureWrap::Repeat, TextureEncoding::Normal);
             SceneTextures described;
             described.describeAll(scene, nullptr, false);
             ASSERT_EQ(described.getDescriptions().size(), 1u);
@@ -1006,8 +1008,8 @@ namespace Rtx
             diffuse->setFileName("textures/tx_ore.dds");
 
             Rtx::SceneDesc scene(identities);
-            TextureHold held = scene.takeTexture(
-                path, *specular, TextureWrap::Repeat, TextureEncoding::ConvertedSpecular, diffuse.get());
+            TextureHold held = scene.takeTexture(HoldTier::Shown, path, *specular, TextureWrap::Repeat,
+                TextureEncoding::ConvertedSpecular, diffuse.get());
             SceneTextures described;
             described.describeAll(scene, nullptr, false);
             ASSERT_EQ(described.getDescriptions().size(), 1u);
@@ -1126,7 +1128,7 @@ namespace Rtx
             // **Wanted from level 1, it stands whole from there**: the walk's placement taken out, its material
             // asked at step 31, footprint -1, plus the 4-square file's offset 0.5 log2(16) = 2: level 1, whose
             // levels from there are two BC7 blocks, 32 bytes.
-            MaterialHold kept = scene.holdMaterial(read.mMaterial);
+            MaterialHold kept = scene.holdMaterial(read.mMaterial, HoldTier::Shown);
             scene.dropInstance(read.mPlacement, Stander::Walk);
             scene.askMaterial(read.mMaterial, 31);
             described.describeAll(scene, &prepared, true);

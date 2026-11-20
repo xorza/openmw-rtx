@@ -55,15 +55,25 @@ namespace Rtx
             ASSERT_EQ(rows.getLiveCount(), 2u);
             EXPECT_EQ(rows.getHolds(second), 0u) << "a row arrives with no holds";
 
-            rows.holdRow(second);
-            rows.holdRow(second);
+            // **A row's tier is the best any hold on it states**: kept, then shown over it, then kept again once the
+            // shown hold goes, and unheld with none.
+            EXPECT_EQ(rows.getTier(second), HoldTier::Unheld);
+            rows.holdRow(second, HoldTier::Kept);
+            EXPECT_EQ(rows.getTier(second), HoldTier::Kept);
+            rows.holdRow(second, HoldTier::Shown);
             EXPECT_EQ(rows.getHolds(second), 2u);
+            EXPECT_EQ(rows.getTier(second), HoldTier::Shown);
 
             // One hold back is still held; the last is where the table frees the row.
-            EXPECT_FALSE(rows.dropRow(second));
-            EXPECT_TRUE(rows.dropRow(second));
+            EXPECT_FALSE(rows.dropRow(second, HoldTier::Shown));
+            EXPECT_EQ(rows.getTier(second), HoldTier::Kept);
+            EXPECT_TRUE(rows.dropRow(second, HoldTier::Kept));
+            EXPECT_EQ(rows.getTier(second), HoldTier::Unheld);
             EXPECT_EQ(rows.getFreedCount(), 0u) << "the table frees, not the drop";
+            const std::uint32_t tenant = rows.generationOf(second);
             rows.freeRow(second);
+            EXPECT_EQ(rows.generationOf(second), tenant + 1) << "a slot freed is another tenant's next";
+            EXPECT_EQ(rows.generationOf(first), 0u);
             EXPECT_EQ(rows.getFreedCount(), 1u);
             EXPECT_EQ(rows.getLiveCount(), 1u);
             EXPECT_FALSE(rows.isLive(second));
@@ -74,8 +84,10 @@ namespace Rtx
             EXPECT_EQ(again, second) << "the lowest free slot";
             EXPECT_EQ(rows.getHolds(again), 0u);
 
-            Testing::expectAssertDies([&] { rows.dropRow(first); }, "a slot given back more often than it was held");
-            rows.holdRow(first);
+            rows.holdRow(first, HoldTier::Shown);
+            Testing::expectAssertDies([&] { rows.dropRow(first, HoldTier::Kept); },
+                "a slot given back at a tier more often than it was held at it");
+            Testing::expectAssertDies([&] { rows.holdRow(first, HoldTier::Unheld); }, "a hold that states no tier");
             Testing::expectAssertDies([&] { rows.freeRow(first); }, "a slot freed while something holds it");
         }
 

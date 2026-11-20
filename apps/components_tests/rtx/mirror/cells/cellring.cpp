@@ -599,7 +599,7 @@ namespace Rtx::Testing
             WalkContext mContext{};
             SceneIdentities mIdentities;
             SceneDesc mScene{ mIdentities };
-            SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom };
+            SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom, HoldTier::Shown };
             CellRing mRing{ mExtractor };
         };
 
@@ -617,7 +617,7 @@ namespace Rtx::Testing
             SceneIdentities identities;
             WalkContext context{};
             SceneDesc other(identities);
-            SceneExtractor stranger(other, context, sWorldExtractorRoom);
+            SceneExtractor stranger(other, context, sWorldExtractorRoom, HoldTier::Shown);
             expectAssertDies([&] { stranger.extractWorld(*mEmpty, 0, 1, mRing); },
                 "a ring made on another extractor adopts into its scene");
         }

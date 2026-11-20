@@ -541,7 +541,7 @@ namespace RtxTool
                 moved[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_EQ(grown, digestParts(scene));
 
-            scene.drop(scene.holdMesh(third));
+            scene.drop(scene.holdMesh(third, Rtx::HoldTier::Shown));
             const ScenePartDigests released = digester.digest(scene);
             EXPECT_EQ(released[static_cast<std::size_t>(ScenePart::Positions)],
                 moved[static_cast<std::size_t>(ScenePart::Positions)])

@@ -272,8 +272,8 @@ namespace Rtx
 
             Rtx::SceneDesc scene(identities);
             Testing::addModel(scene, VFS::Path::NormalizedView("textures/one.dds"));
-            TextureHold held = scene.takeTexture(VFS::Path::NormalizedView("textures/tx_test_nh.dds"), *file,
-                TextureWrap::Repeat, TextureEncoding::Normal);
+            TextureHold held = scene.takeTexture(HoldTier::Shown, VFS::Path::NormalizedView("textures/tx_test_nh.dds"),
+                *file, TextureWrap::Repeat, TextureEncoding::Normal);
             const TextureIndex slot = held.get();
 
             PreparedImages prepared(nullptr, 1);
@@ -314,8 +314,9 @@ namespace Rtx
 
             Rtx::SceneDesc picture(identities);
             Testing::addModel(picture, VFS::Path::NormalizedView("textures/one.dds"));
-            TextureHold pictured = picture.takeTexture(VFS::Path::NormalizedView("textures/tx_test_nh.dds"), *file,
-                TextureWrap::Repeat, TextureEncoding::Normal);
+            TextureHold pictured
+                = picture.takeTexture(HoldTier::Shown, VFS::Path::NormalizedView("textures/tx_test_nh.dds"), *file,
+                    TextureWrap::Repeat, TextureEncoding::Normal);
             PreparedImages fresh(nullptr, 1);
             SceneUploader once;
             Testing::CountingRenderer drawn;

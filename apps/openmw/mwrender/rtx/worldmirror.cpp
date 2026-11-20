@@ -196,7 +196,7 @@ namespace MWRender
         , mWalk{ .mContent{ store, ContentStore::Reach::Memory }, .mPrepared = prepared }
         , mScene(identities, Rtx::sWorldRoom)
         , mKnobs(knobs)
-        , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom)
+        , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom, Rtx::HoldTier::Shown)
         , mTraversal(worldTraversal(~0u))
     {
         mRing.setMinSize(knobs.mMinSize);

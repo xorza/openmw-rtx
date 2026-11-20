@@ -337,7 +337,7 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.isConsistent());
             const TextureIndex orphan = mScene.textures().add(VFS::Path::NormalizedView("textures/forgotten.dds"));
             EXPECT_FALSE(mScene.isConsistent()) << "a live texture with no hold was not reported";
-            TextureHold held = mScene.holdTexture(orphan);
+            TextureHold held = mScene.holdTexture(orphan, HoldTier::Shown);
             EXPECT_TRUE(mScene.isConsistent());
 
             // **A texture that rests is neither**: stood whole and let go of, it stands unheld until its room
@@ -649,7 +649,7 @@ namespace Rtx::Testing
             // And a caller that names no class — the harness — places the same graph as static
             // five times.
             Rtx::SceneDesc unnamed(identities);
-            SceneExtractor silent(unnamed, mContext, sSubjectExtractorRoom);
+            SceneExtractor silent(unnamed, mContext, sSubjectExtractorRoom, HoldTier::Shown);
             silent.extract(*root, osg::Matrixf::identity(), 0);
             Rtx::makeInstanceRecords(unnamed, records);
             ASSERT_EQ(records.size(), 5u);

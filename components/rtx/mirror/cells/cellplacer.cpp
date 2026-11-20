@@ -391,8 +391,8 @@ namespace Rtx
 
         // Held on the scene, because no drawable and no state set will ever name them:
         // `dropGround` is what lets go.
-        stands.mMeshHold = mScene.holdMesh(stands.mStood.mMesh);
-        stands.mMaterialHold = mScene.holdMaterial(stands.mStood.mMaterial);
+        stands.mMeshHold = mScene.holdMesh(stands.mStood.mMesh, HoldTier::Shown);
+        stands.mMaterialHold = mScene.holdMaterial(stands.mStood.mMaterial, HoldTier::Shown);
 
         ++stats.mMeshesAdded;
         ++stats.mMaterialsAdded;

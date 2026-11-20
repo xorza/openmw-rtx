@@ -210,7 +210,7 @@ namespace Rtx
 
     MaterialResolver::Entry MaterialResolver::adopt(const osg::StateSet* const key, const Material& material)
     {
-        MaterialHold row = mScene.holdMaterial(mScene.addMaterial(material));
+        MaterialHold row = mScene.holdMaterial(mScene.addMaterial(material), HoldTier::Kept);
         ++mPass.getStats().mMaterialsAdded;
 
         return mMaterials.add(key, HeldMaterial{ .mRow = std::move(row) });
@@ -437,11 +437,11 @@ namespace Rtx
                 std::string both(mThread.pathOf(*image).value());
                 both += '|';
                 both += mThread.pathOf(*partner).value();
-                slot
-                    = mScene.takeTexture(VFS::Path::NormalizedView(both.c_str()), *image, use.mWrap, encoding, partner);
+                slot = mScene.takeTexture(
+                    HoldTier::Kept, VFS::Path::NormalizedView(both.c_str()), *image, use.mWrap, encoding, partner);
             }
             else
-                slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding);
+                slot = mScene.takeTexture(HoldTier::Kept, mThread.pathOf(*image), *image, use.mWrap, encoding);
             if (slot.empty())
                 held.mRefused.refuse(bit, freed);
         }

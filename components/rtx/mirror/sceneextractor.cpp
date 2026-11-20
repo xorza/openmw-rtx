@@ -601,10 +601,12 @@ namespace Rtx
 
     /// Every node, until the owner states a mask — `setTraversalMask`, which says why the default
     /// is not the narrower answer it looks like it should be.
-    SceneExtractor::SceneExtractor(SceneDesc& scene, WalkContext& context, const ExtractorRoom& room)
+    SceneExtractor::SceneExtractor(
+        SceneDesc& scene, WalkContext& context, const ExtractorRoom& room, const HoldTier placed)
         : mScene(scene)
         , mWalk(std::make_unique<Traversal>(*this, mKinds))
         , mContext(context)
+        , mPlaced(placed)
         , mTraversalMask(~0u)
     {
         // Reserved once, so no frame rehashes a map. A cell's drawables arriving grow every
@@ -938,6 +940,7 @@ namespace Rtx
             .mTransform = place,
             .mMesh = mesh,
             .mMaterial = material.mIndex,
+            .mTier = mPlaced,
             .mOpacity = fade,
             .mClass = what,
             .mClockwise = clockwiseThrough(shading),

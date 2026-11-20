@@ -541,7 +541,7 @@ namespace Rtx
             ASSERT_EQ(scene.textures().add(VFS::Path::NormalizedView("textures/small.dds"), smallImage.get()),
                 TextureIndex(1));
             const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = TextureIndex(1) });
-            MaterialHold held = scene.holdMaterial(material);
+            MaterialHold held = scene.holdMaterial(material, HoldTier::Shown);
             scene.askMaterial(material, 26);
             ASSERT_EQ(scene.textures().getWant(TextureIndex(1)), 1u);
             ASSERT_EQ(scene.textures().getWant(TextureIndex(0)), 0u);

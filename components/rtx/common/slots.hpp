@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -10,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "holdtier.hpp"
 #include "index.hpp"
 #include "rowspan.hpp"
 
@@ -378,7 +380,27 @@ namespace Rtx
         std::uint32_t getHolds(const I slot) const
         {
             assert(slot.at() < mHolds.size());
-            return mHolds[slot.at()];
+            return mHolds[slot.at()].mTotal;
+        }
+
+        /// The best tier any hold on `slot` states, `Unheld` where none holds it.
+        HoldTier getTier(const I slot) const
+        {
+            assert(slot.at() < mHolds.size());
+            const std::array<std::uint32_t, sHoldTierCount>& byTier = mHolds[slot.at()].mByTier;
+            for (std::size_t tier = 0; tier < sHoldTierCount; ++tier)
+                if (byTier[tier] > 0)
+                    return static_cast<HoldTier>(tier);
+            return HoldTier::Unheld;
+        }
+
+        /// **Which tenant `slot` has**, raised as the slot is freed: what a ticket or an operation issued for a row
+        /// carries, so what arrives for a tenant that left is dropped in one place, where an image's address
+        /// compared or nothing at all guarded a slot taken over.
+        std::uint32_t generationOf(const I slot) const
+        {
+            assert(slot.at() < mGenerations.size());
+            return mGenerations[slot.at()];
         }
 
     protected:
@@ -390,6 +412,7 @@ namespace Rtx
         {
             mRows.reserve(count);
             mHolds.reserve(count);
+            mGenerations.reserve(count);
         }
 
         /// `SlotRows::take`, the slot arriving with no holds: the caller holds it before anything
@@ -398,38 +421,59 @@ namespace Rtx
         {
             const I index = mRows.take(std::move(row));
             if (index.at() == mHolds.size())
-                mHolds.push_back(0);
+            {
+                mHolds.push_back(Holds{});
+                mGenerations.push_back(0);
+            }
 
-            assert(mHolds[index.at()] == 0 && "a free slot something still holds");
+            assert(mHolds[index.at()].mTotal == 0 && "a free slot something still holds");
             return index;
         }
 
         void freeRow(const I slot)
         {
-            assert(mHolds[slot.at()] == 0 && "a slot freed while something holds it");
+            assert(mHolds[slot.at()].mTotal == 0 && "a slot freed while something holds it");
             mRows.free(slot);
+            ++mGenerations[slot.at()];
         }
 
-        void holdRow(const I slot)
+        void holdRow(const I slot, const HoldTier tier)
         {
             assert(isLive(slot) && "a hold on a slot nothing stands in");
-            ++mHolds[slot.at()];
+            assert(tier != HoldTier::Unheld && "a hold that states no tier");
+            Holds& holds = mHolds[slot.at()];
+            ++holds.mByTier[static_cast<std::size_t>(tier)];
+            ++holds.mTotal;
         }
 
-        /// Counts one holder off `slot`, and says whether that was the last, which is where the
+        /// Counts one holder of `tier` off `slot`, and says whether that was the last of any tier, which is where the
         /// table frees the row.
-        bool dropRow(const I slot)
+        bool dropRow(const I slot, const HoldTier tier)
         {
             assert(slot.at() < mHolds.size());
-            assert(mHolds[slot.at()] > 0 && "a slot given back more often than it was held");
-            return --mHolds[slot.at()] == 0;
+            assert(tier != HoldTier::Unheld && "a hold that states no tier");
+            Holds& holds = mHolds[slot.at()];
+            std::uint32_t& ofTier = holds.mByTier[static_cast<std::size_t>(tier)];
+            assert(ofTier > 0 && "a slot given back at a tier more often than it was held at it");
+            --ofTier;
+            return --holds.mTotal == 0;
         }
 
     private:
+        /// How many holds stand on a row, by tier and in all.
+        struct Holds
+        {
+            std::array<std::uint32_t, sHoldTierCount> mByTier{};
+            std::uint32_t mTotal = 0;
+        };
+
         SlotRows<Row, I> mRows;
 
         /// How many things hold each row, parallel to the rows.
-        std::vector<std::uint32_t> mHolds;
+        std::vector<Holds> mHolds;
+
+        /// Each slot's tenant (`generationOf`), parallel to the rows.
+        std::vector<std::uint32_t> mGenerations;
     };
 
     /// Orders rows by the key `KeyOf` takes from each, and takes a bare key on either side, so a

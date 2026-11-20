@@ -129,11 +129,11 @@ namespace Rtx
         return index;
     }
 
-    TextureIndex TextureTable::take(const VFS::Path::NormalizedView path, const osg::Image& image,
+    TextureIndex TextureTable::take(const HoldTier tier, const VFS::Path::NormalizedView path, const osg::Image& image,
         const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const partner)
     {
         const TextureIndex slot = add(path, &image, wrap, encoding, partner);
-        hold(slot);
+        hold(slot, tier);
         return slot;
     }
 
@@ -202,20 +202,20 @@ namespace Rtx
         return index;
     }
 
-    void TextureTable::hold(const TextureIndex texture)
+    void TextureTable::hold(const TextureIndex texture, const HoldTier tier)
     {
         if (texture.at() >= sCapacity)
             return;
 
-        holdRow(texture);
+        holdRow(texture, tier);
     }
 
-    void TextureTable::drop(const TextureIndex texture)
+    void TextureTable::drop(const TextureIndex texture, const HoldTier tier)
     {
         if (texture.at() >= sCapacity)
             return;
 
-        if (!dropRow(texture))
+        if (!dropRow(texture, tier))
             return;
 
         // A file the device stands whole rests; anything else, a file the device has not stood yet among

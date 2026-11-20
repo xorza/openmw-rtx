@@ -163,7 +163,7 @@ namespace Rtx::Testing
             const auto shownAt = [&frames, &identities](double seconds) {
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.setSimulationTime(seconds, 0.0);
                 extractor.extract(*frames, osg::Matrixf::identity(), 0);
 
@@ -205,7 +205,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 if (mask.has_value())
                     extractor.setTraversalMask(*mask);
 

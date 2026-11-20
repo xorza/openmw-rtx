@@ -299,7 +299,7 @@ namespace Rtx
         /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
         /// caller until it drops it: what a surface, a sprite, a sky layer and a moon turn their
         /// image into. `sNoRow`, holding nothing, where `add` refuses it.
-        TextureIndex take(VFS::Path::NormalizedView path, const osg::Image& image,
+        TextureIndex take(HoldTier tier, VFS::Path::NormalizedView path, const osg::Image& image,
             TextureWrap wrap = TextureWrap::Repeat, TextureEncoding encoding = TextureEncoding::Colour,
             const osg::Image* partner = nullptr);
 
@@ -308,8 +308,8 @@ namespace Rtx
         /// compare. The slot is freed by the `drop` after which nothing names it. A particle
         /// emitter's sprite names a texture this way: an emitter is rebuilt every frame, so whatever
         /// recognises it between frames is what has to hold the texture.
-        void hold(TextureIndex texture);
-        void drop(TextureIndex texture);
+        void hold(TextureIndex texture, HoldTier tier);
+        void drop(TextureIndex texture, HoldTier tier);
 
         /// One ask more, and one fewer, of `texture` at `level`: what a material that reads it says of it, and a
         /// holder that reads it itself (`SceneDesc::takeReading`). Nothing for "none", as `hold` takes none.

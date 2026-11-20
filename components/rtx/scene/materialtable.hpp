@@ -130,7 +130,9 @@ namespace Rtx
         /// what it stops naming given back.
         bool set(TextureTable& textures, MaterialIndex material, const Material& what);
 
-        void hold(MaterialIndex material) { holdRow(material); }
+        /// One hold more on `material` at `tier`, moving the holds it takes on its textures to its best tier where that
+        /// moved: a texture is wanted as much as the best of the materials naming it is.
+        void hold(TextureTable& textures, MaterialIndex material, HoldTier tier);
 
         /// One ask more, and one fewer, of `material` at footprint `step`, asking its textures again where its finest
         /// step moved: a placement the walk stands wearing it asks the finest, a cell of the ring its own distance's.
@@ -139,7 +141,7 @@ namespace Rtx
 
         /// Gives one hold on `material` back, and frees it where that was the last: what it named
         /// goes back to `textures`, and its layer and mask runs to their allocators.
-        void drop(TextureTable& textures, MaterialIndex material);
+        void drop(TextureTable& textures, MaterialIndex material, HoldTier tier);
 
         /// Records that `slot`'s row was written, once however many times it is.
         void note(MaterialIndex slot);
@@ -160,10 +162,17 @@ namespace Rtx
             }
         }
 
-        /// Takes and gives back those slots. Only ever called in that pair, and `set` is why the
-        /// order between them matters.
-        void holdTextures(TextureTable& textures, const Material& material);
-        void dropTextures(TextureTable& textures, const Material& material);
+        /// Takes and gives back those slots at `tier`. Only ever called in that pair, and `set` is why the order
+        /// between them matters.
+        void holdTextures(TextureTable& textures, const Material& material, HoldTier tier);
+        void dropTextures(TextureTable& textures, const Material& material, HoldTier tier);
+
+        /// The tier `material`'s holds on its textures state: its own best, and `Kept` while nothing holds it, the
+        /// moment between its `add` and its first hold, as a material holds what it names from the moment it is.
+        HoldTier textureTierOf(MaterialIndex material) const;
+
+        /// Moves `material`'s holds on its textures from the tier they stated, `before`, to the one they state now.
+        void retierTextures(TextureTable& textures, MaterialIndex material, HoldTier before);
 
         /// Calls `visit` with every texture slot `material` reads, the half log of what its texels and its transform
         /// lay on a unit of the mesh's coordinates, `0.5 log2(T w h)`, and the coarsest level any read of it takes:

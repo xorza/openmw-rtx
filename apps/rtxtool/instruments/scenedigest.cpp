@@ -214,8 +214,9 @@ namespace RtxTool
 
         auto fieldsOf(const Rtx::MeshInstance& instance)
         {
-            const auto& [transform, mesh, material, opacity, instanceClass, clockwise, lampBody, stander] = instance;
-            return std::tie(transform, mesh, material, opacity, instanceClass, clockwise, lampBody, stander);
+            const auto& [transform, mesh, material, tier, opacity, instanceClass, clockwise, lampBody, stander]
+                = instance;
+            return std::tie(transform, mesh, material, tier, opacity, instanceClass, clockwise, lampBody, stander);
         }
 
         /// Field by field, because the kind is a byte and the row carries padding after it.
@@ -317,8 +318,9 @@ namespace RtxTool
             // The worn traits are the material's, read through it; the links chain slots, which are the layout.
             const auto& [instance, previous, worn, wearing, placing] = row;
 
-            // Who stood it says who may move it, which no frame draws.
-            const auto& [transform, mesh, material, opacity, instanceClass, clockwise, lampBody, stander] = instance;
+            // Who stood it and the tier it holds at say what may move it and what keeps it, which no frame draws.
+            const auto& [transform, mesh, material, tier, opacity, instanceClass, clockwise, lampBody, stander]
+                = instance;
             if (mesh == Rtx::sNoRow)
                 continue;
 

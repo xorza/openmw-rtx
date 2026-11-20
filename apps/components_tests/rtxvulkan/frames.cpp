@@ -730,7 +730,7 @@ namespace Rtx
             // A texture rests, so room is coming, and what the device has no room for waits.
             const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
             mScene.textures().stand(resting, 64, false, 0);
-            mScene.drop(mScene.holdTexture(resting));
+            mScene.drop(mScene.holdTexture(resting, HoldTier::Shown));
             mScene.compact();
             ASSERT_EQ(mScene.textures().getResting().getBytes(), 64u);
 

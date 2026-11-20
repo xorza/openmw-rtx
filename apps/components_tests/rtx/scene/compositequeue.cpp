@@ -309,7 +309,7 @@ namespace Rtx
             EXPECT_EQ(textures.getRefused(), 1u) << "a refused take was asked again before anything was freed";
 
             const TextureIndex first = textures.add(fillers[0]);
-            scene.drop(scene.holdTexture(first));
+            scene.drop(scene.holdTexture(first, HoldTier::Shown));
             EXPECT_EQ(frame(queue, scene), 1u);
             EXPECT_EQ(diffuse(0), first) << "the chunk refused first was not first in line";
             EXPECT_EQ(diffuse(1), sNoRow);
@@ -318,7 +318,7 @@ namespace Rtx
             EXPECT_EQ(textures.getRefused(), 2u);
 
             const TextureIndex second = textures.add(fillers[1]);
-            scene.drop(scene.holdTexture(second));
+            scene.drop(scene.holdTexture(second, HoldTier::Shown));
             EXPECT_EQ(frame(queue, scene), 1u);
             EXPECT_EQ(diffuse(1), second) << "the second chunk was dropped at its refusal";
             EXPECT_EQ(frame(queue, scene), 0u);
