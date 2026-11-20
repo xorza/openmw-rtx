@@ -47,6 +47,7 @@ target_sources(
         rtx/mirror/cells/cellstreamer.cpp
         rtx/mirror/cells/celltable.cpp
         rtx/mirror/cells/groundreader.cpp
+        rtx/mirror/cells/predictedbands.cpp
         rtx/mirror/cells/templatewalk.cpp
         rtx/mirror/drawableposer.cpp
         rtx/mirror/extractor/frozen.cpp

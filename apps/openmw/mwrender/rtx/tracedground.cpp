@@ -45,6 +45,11 @@ namespace MWRender
         return mRing.placementsIn(cell);
     }
 
+    Rtx::PredictedBands& TracedGround::getPredictedBands() const
+    {
+        return mRing.getPredictedBands();
+    }
+
     bool TracedGround::enableReference(std::int32_t type, const MWWorld::ConstPtr& ptr, const bool enabled)
     {
         mRing.setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);

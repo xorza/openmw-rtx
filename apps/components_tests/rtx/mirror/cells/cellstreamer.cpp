@@ -12,6 +12,7 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -1166,6 +1167,15 @@ namespace Rtx::Testing
             mAround.mEye = osg::Vec3f(1.5f * sCellSize, 0.5f * sCellSize, 0.0f);
             walk(mWalked++);
             EXPECT_EQ(askedAt(), 25u) << "a band nearer, a level finer";
+            // **A predicted centre asks as an eye does**: one at the panel's own cell asks its finest, and the ground
+            // of a cell in that band alone is held `Hidden`; gone, the eye's distance asks again.
+            const PredictedBands::Slot slot = mRing.getPredictedBands().open();
+            mRing.getPredictedBands().place(slot, osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 0.0f));
+            walk(mWalked++);
+            EXPECT_EQ(askedAt(), 0u) << "the cell the prediction stands in";
+            mRing.getPredictedBands().close(slot);
+            walk(mWalked++);
+            EXPECT_EQ(askedAt(), 25u);
         }
 
         /// **A static the ring stands shows the face its model's state stack fronts**, as the frame's walk stands it
@@ -1745,6 +1755,24 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getCellsToStand(), 0u) << "the exterior's shortfall outlived it";
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(0, 0))) << "a room stands no ground";
             EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Kept) << "indoors the land rests";
+
+            // **A predicted band stands hidden**: outside again with a prediction ten cells east, a cell of its band
+            // alone is read, adopted and held `Hidden`; the prediction let go of, the cell goes with what it kept.
+            mAround.mExterior = true;
+            const PredictedBands::Slot slot = mRing.getPredictedBands().open();
+            mRing.getPredictedBands().place(slot, osg::Vec3f(10.5f * sCellSize, 0.5f * sCellSize, 0.0f));
+            // Bounded by time and not by walks: what is predicted is not waited for, so the walks race the reader.
+            for (const Testing::WaitBound bound(Testing::sHandOverPatience);
+                mRing.getGroundTier(osg::Vec2i(13, 0)) == HoldTier::Unheld && !bound.passed();)
+            {
+                walk(mWalked++);
+                std::this_thread::yield();
+            }
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(13, 0)), HoldTier::Hidden);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Shown);
+            mRing.getPredictedBands().close(slot);
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(13, 0)), HoldTier::Unheld) << "past every band's keep";
         }
 
         /// **A cell is read at the band and let go a cell past it**, so an eye that steps across the
@@ -2179,7 +2207,8 @@ namespace Rtx::Testing
                     .mBand = 0.25f * sCellSize,
                     .mKept = 1.25f * sCellSize,
                     .mGrassBand = 0.0f,
-                    .mGrassKept = 0.0f };
+                    .mGrassKept = 0.0f,
+                    .mPredicted = {} };
             };
             CellsDropped dropped;
             supply.retarget(at(osg::Vec2i(0, 0)), dropped);

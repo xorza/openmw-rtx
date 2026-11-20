@@ -542,12 +542,18 @@ namespace Rtx
         return free;
     }
 
-    std::optional<Drain> SlotLedger::drainFor(const ArenaIndex arena, const SlabTier tier)
+    std::optional<Drain> SlotLedger::drainFor(const ArenaIndex arena, const SlabTier tier, const MovableOwners movable)
     {
         // What must move out of a slab: its slots in use, but those retiring, which free themselves.
-        const auto mustMove = [&](const Slab& slab) {
-            return static_cast<std::uint32_t>(std::ranges::count_if(slab.mSlots,
-                [](const SlotState state) { return state == SlotState::Live || state == SlotState::Reserved; }));
+        const auto inUse
+            = [](const SlotState state) { return state == SlotState::Live || state == SlotState::Reserved; };
+        const auto mustMove
+            = [&](const Slab& slab) { return static_cast<std::uint32_t>(std::ranges::count_if(slab.mSlots, inUse)); };
+        const auto pinned = [&](const Slab& slab) {
+            for (std::size_t slot = 0; slot < slab.mSlots.size(); ++slot)
+                if (inUse(slab.mSlots[slot]) && !movable.admits(slab.mOwners[slot]))
+                    return true;
+            return false;
         };
 
         if (tier == SlabTier::Small)
@@ -565,7 +571,7 @@ namespace Rtx
                 if (held.mArena != arena)
                     continue;
                 const std::uint32_t moving = mustMove(slab);
-                if (moving > freeSlotsOutside(slab.mClass, SlabIndex(at), sNoRow))
+                if (moving > freeSlotsOutside(slab.mClass, SlabIndex(at), sNoRow) || pinned(slab))
                     continue;
                 const std::uint64_t bytes = std::uint64_t{ moving } * held.mStride;
                 if (!best.has_value() || bytes < bestBytes)
@@ -610,6 +616,11 @@ namespace Rtx
             bool fits = true;
             const auto weigh = [&](const SlabIndex row) {
                 const Slab& slab = mSlabs[row];
+                if (pinned(slab))
+                {
+                    fits = false;
+                    return;
+                }
                 const SizeClass& held = mClasses[slab.mClass];
                 const std::uint32_t moving = mustMove(slab);
                 bytes += std::uint64_t{ moving } * held.mStride;

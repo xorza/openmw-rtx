@@ -38,6 +38,7 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/resource/sptfilemanager.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/cells/predictedbands.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
@@ -59,6 +60,9 @@ namespace MWRender
         {
             bool standsGround(const osg::Vec2i&) const override { return false; }
             std::span<const Rtx::Placement> placementsIn(const osg::Vec2i&) const override { return {}; }
+            Rtx::PredictedBands& getPredictedBands() const override { return mBands; }
+
+            mutable Rtx::PredictedBands mBands;
         };
 
         struct TwoBodyFrame

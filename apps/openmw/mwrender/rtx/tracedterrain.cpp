@@ -1,6 +1,7 @@
 #include "tracedterrain.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -25,6 +26,7 @@
 
 #include <apps/openmw/mwrender/objectpaging.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
+#include <components/rtx/mirror/cells/predictedbands.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/userdata.hpp>
@@ -36,10 +38,28 @@ namespace MWRender
 {
     namespace
     {
-        class NullView final : public Terrain::View
+        /// A predicted band's hold: its slot, emptied as upstream resets the view and given back as it lets go.
+        class BandView final : public Terrain::View
         {
         public:
-            void reset() override {}
+            explicit BandView(Rtx::PredictedBands& bands)
+                : mBands(bands)
+                , mSlot(bands.open())
+            {
+            }
+
+            ~BandView() override { mBands.close(mSlot); }
+
+            BandView(const BandView&) = delete;
+            BandView& operator=(const BandView&) = delete;
+
+            void reset() override { mBands.clear(mSlot); }
+
+            void place(const osg::Vec3f& centre) { mBands.place(mSlot, centre); }
+
+        private:
+            Rtx::PredictedBands& mBands;
+            const Rtx::PredictedBands::Slot mSlot;
         };
 
         /// Hands an intersection visitor to one of `TracedTerrain`'s answers and answers every other
@@ -217,7 +237,14 @@ namespace MWRender
 
     std::unique_ptr<Terrain::View> TracedTerrain::createView()
     {
-        return std::make_unique<NullView>();
+        return std::make_unique<BandView>(mDistance.getPredictedBands());
+    }
+
+    void TracedTerrain::preload(Terrain::View* const view, const osg::Vec3f& viewPoint, const osg::Vec4i& /*cellgrid*/,
+        std::atomic<bool>& /*abort*/, Loading::Reporter& /*reporter*/)
+    {
+        // Every view upstream hands back is one `createView` made.
+        static_cast<BandView*>(view)->place(viewPoint);
     }
 
     TracedTerrain::CellGrid TracedTerrain::takeGrid()

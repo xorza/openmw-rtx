@@ -84,6 +84,12 @@ it is shown") is carried here whole, rewritten to fit, and its own file is gone.
   cell outrun while a raise was always waiting somewhere. Batch 7's wholeness replaces it with its two predicates.
 - **A texture's row that fails says why, as the upload's own check words it** (`checkUploadable`): a BC5 normal map
   read as a colour is a known format in the wrong slot, which the handheld's PBR flight's expectations name.
+- **A drain chooses only what the hand-over draining may move, and a chunk past the plan is asked while the cap has
+  room**, found flying the handheld: a drain of a picture's slots waited on 375 to 2766 frames a leg for a hand-over
+  the picture never had again, and with one chunk past the plan at the most a hundred meshes waited for good from the
+  eighteenth leg on, held 4727 MiB under a cap of 4872. Refused: handing every picture over each frame its slots
+  drain, which draws pictures nobody shows; a drain's owner of no scene, which the slots of two scenes share slabs
+  against.
 - **The reader's bound is `CellTable::sReadAheadMost` = 8 reads, cells and groundcover together, and a read nearer
   than every waiting one of its kind is taken past it.** The frame adopts one of each a frame; eight is a crossing's
   worth of half a band's edge ahead, and what a waiting read holds is its models' lends. Taking the nearest past the
@@ -1081,25 +1087,10 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
 {rtxrenderer,worldmirror,tracedterrain,framereport}`, `apps/openmw/mwrender/{renderer.hpp,renderingmanager}`,
 `apps/openmw/mwworld/scene.cpp`, `apps/rtxtool/{stager,session}`, `apps/rtxtool/model/`.
 
-- [ ] `CellStreamer`'s bands: the eye's alone stands today; `Awaited` and `Predicted` bands, each record's band bits
-  and tier, and the pump called from a covered frame come with the items below that need them.
 - [ ] `cellring.cpp:358-380` — the adoption's budget is a count. Target: steps of bounded cost under the frame's
   share, resumable inside a cell (`AdoptCursor`); under a covered frame, a time slice in the settled order.
 - [ ] One room leg flown after land legs on the handheld says whether the land resting indoors is the rooms' 21
   against 51 ms.
-- [ ] A hidden cell asks its textures by its distance from its own band's centre (`cellplacer.cpp:612-617` asks by
-  the eye's), with the predicted bands.
-- [ ] `TracedTerrain::preload` registers a band and returns; `createView` answers the band's hold
-  (`tracedterrain.hpp:93-95`). The list between the preload worker and the frame is the streamer's, locked, bounded
-  by upstream's views.
-- [ ] `vulkanrenderer.cpp` (`createTargets`) — a change of mode makes its targets at once, and content settles under
-  the new cap in the frames after it. Target: the new mode's reserve is stated, content settles under it in covered
-  frames, then the targets are made, and with them NGX's feature after its room.
-- [ ] Tests: a world change while a cell is read; the eye indoors; a cell entering and leaving the grid, "never both,
-  never neither" frame by frame; a band whose view goes; `standWhole` over `NullRenderer`, by kind; the bound on cells
-  read ahead.
-- [ ] `.notes/todo.md`'s unsettled-tours item and "The ring reads what can stand" go or are rewritten against the
-  streamer; `docs/architecture.md` takes the decisions.
 
 ## Batch 8: host memory
 
@@ -1314,6 +1305,17 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 
 Items that landed in another shape than their target, each with how and why.
 
+- Batch 7's tests: the bound on reads ahead, a read whose band left while in hand, the eye indoors, a predicted band
+  that goes, the tiers and the findings each have a test; a world change while a cell is read and the cells the game
+  takes into its grid stood by one of the two were held already; `standWhole` over a renderer stands no backend in a
+  test of its own, and is flown by every stop the harness stages, which reach it through `Scene`.
+
+- Batch 7's bands: the eye's band and the predicted ones (`Rtx::PredictedBands`, a slot a preloader view, filled by
+  `TracedTerrain::preload` and emptied by the view's reset or going), no `Awaited` kind, since a covered frame stands
+  the eye where the change puts it; no band bits on a record, whose order (`mRank`, `mAway`) and its ground's tier
+  (`CellStreamer::tierOf`) are derived from the target as it moves. A cell asks its materials from the nearest of the
+  eye and the predicted centres, which is its own band's for a cell in a predicted band alone.
+
 - Batch 7's findings: `LateStand` counts the measured frames a demanded mesh stood nothing on, since a texture that
   stands nothing draws the stand-in and is `StandInDrawn`'s already; `Pop` is a fault from the leg's first whole frame
   on, so a cut's own frames are the wait's; `LevelStep` and `HeldAtCrossing` are costs.
@@ -1514,3 +1516,6 @@ Items judged and not done, each with the reason.
   and not yet adopted names it, is adopted again from streams the reader has let go of, so the frame would pack it
   on the frame or the reader would race the frame to fill them again; the 20–52 MiB on the desk's Repack legs do not
   pay for either route.
+- Batch 7's targets made after content settles under a new mode's reserve: the frame's targets are essential and
+  are made first, the set a mode leaves going before the new is made, and content's cap follows what stands outside it
+  on the next frame; a settle under covered frames would hold a menu's change of mode for the same end.

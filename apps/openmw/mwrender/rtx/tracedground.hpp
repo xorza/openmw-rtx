@@ -63,6 +63,7 @@ namespace MWRender
         bool standsGround(const osg::Vec2i& cell) const override;
 
         std::span<const Rtx::Placement> placementsIn(const osg::Vec2i& cell) const override;
+        Rtx::PredictedBands& getPredictedBands() const override;
 
     private:
         TracedTerrain mTerrain;

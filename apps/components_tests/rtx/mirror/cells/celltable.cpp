@@ -32,6 +32,7 @@ namespace Rtx
                 .mKept = 2.0f * sCell,
                 .mGrassBand = 0.4f * sCell,
                 .mGrassKept = 1.4f * sCell,
+                .mPredicted = {},
             };
         }
 
@@ -46,7 +47,7 @@ namespace Rtx
             CellTable mTable;
             CellReturns mBack;
             CellsDropped mDropped;
-            std::array<PreparedCell, 16> mCells;
+            std::array<PreparedCell, 32> mCells;
             std::array<PreparedGrass, 4> mGrass;
             std::size_t mUsed = 0;
 
@@ -152,6 +153,39 @@ namespace Rtx
             late.mCell = inHand->mCell;
             EXPECT_FALSE(mTable.file(*inHand, late)) << "in hand as its band left, so the reader's to give back";
             EXPECT_EQ(mTable.findOwed(ReadKind::Cell), std::optional<std::size_t>(0)) << "the new band's nearest";
+        }
+
+        /// **A predicted band's cells are wanted after the eye's, and kept as the eye's are**: the eye at (0, 0) and a
+        /// prediction at (10, 0), each band nine cells; the eye's nine are read first, then the prediction's, its own
+        /// cell first. The prediction gone, its cells are wanted no more, and one read and adopted is let go of.
+        TEST_F(RtxCellTableTest, aPredictedBandsCellsAreWantedAfterTheEyes)
+        {
+            CellTarget target = targetAt(osg::Vec2i(0, 0));
+            target.mGrassBand = 0.0f;
+            target.mGrassKept = 0.0f;
+            target.mPredicted = { targetAt(osg::Vec2i(10, 0)).mEye };
+            mTable.retarget(target, mBack, mDropped);
+
+            std::vector<osg::Vec2i> taken;
+            std::vector<PreparedCell*> cells;
+            std::vector<PreparedGrass*> grasses;
+            for (std::size_t at = 0; at < 2 * sNearestFirst.size(); ++at)
+            {
+                taken.push_back(readNextCell());
+                mTable.collectFiled(cells, grasses);
+                ASSERT_NE(mTable.adoptCell(), nullptr);
+            }
+            EXPECT_FALSE(mTable.canPick()) << "both bands read";
+            for (std::size_t at = 0; at < sNearestFirst.size(); ++at)
+            {
+                EXPECT_EQ(taken[at], sNearestFirst[at]);
+                EXPECT_EQ(taken[sNearestFirst.size() + at], sNearestFirst[at] + osg::Vec2i(10, 0));
+            }
+
+            target.mPredicted.clear();
+            mTable.retarget(target, mBack, mDropped);
+            EXPECT_EQ(mTable.countStood(ReadKind::Cell), 9u) << "the prediction's nine let go";
+            EXPECT_TRUE(mDropped.mCells.empty()) << "stood, so the frame's placer lets go of them";
         }
 
         /// **A settled walk is owed the nearest read its band lacks**, within the band alone: nothing once the band

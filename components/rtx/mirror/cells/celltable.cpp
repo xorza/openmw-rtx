@@ -16,23 +16,16 @@ namespace Rtx
 {
     namespace
     {
-        /// The order a band's cells are read and adopted in: nearest first, then a fixed order among equals, so two
-        /// runs from one eye take one order.
-        struct Nearer
+        /// The order a band's cells are read and adopted in: the eye's band, a predicted band's, the kept ring, each
+        /// nearest first, then a fixed order among equals, so two runs from one eye take one order.
+        bool nearer(const CellRecord& left, const CellRecord& right)
         {
-            const CellGrid& mGrid;
-            osg::Vec3f mEye;
-
-            bool operator()(const CellRecord& left, const CellRecord& right) const
-            {
-                const float leftAway = mGrid.distanceSquaredTo(left.mCell, mEye);
-                const float rightAway = mGrid.distanceSquaredTo(right.mCell, mEye);
-                if (leftAway != rightAway)
-                    return leftAway < rightAway;
-
-                return left.mCell < right.mCell;
-            }
-        };
+            if (left.mRank != right.mRank)
+                return left.mRank < right.mRank;
+            if (left.mAway != right.mAway)
+                return left.mAway < right.mAway;
+            return left.mCell < right.mCell;
+        }
 
         template <class Prepared>
         bool isPending(const CellStage<Prepared>& stage)
@@ -181,11 +174,18 @@ namespace Rtx
         const auto within = [&](const osg::Vec2i& cell, const float radius) {
             return radius > 0.0f && grid.withinReach(cell, target.mEye, radius);
         };
+        const auto predicted = [&](const osg::Vec2i& cell, const float radius) {
+            return radius > 0.0f && std::ranges::any_of(target.mPredicted, [&](const osg::Vec3f& centre) {
+                return grid.withinReach(cell, centre, radius);
+            });
+        };
+        const auto inBand
+            = [&](const osg::Vec2i& cell) { return within(cell, target.mBand) || predicted(cell, target.mBand); };
 
         for (CellRecord& record : mRecords)
         {
-            relax(record.mCellStage, within(record.mCell, target.mBand), within(record.mCell, target.mKept), back,
-                dropped.mCells);
+            relax(record.mCellStage, inBand(record.mCell),
+                within(record.mCell, target.mKept) || predicted(record.mCell, target.mKept), back, dropped.mCells);
             relax(record.mGrassStage, within(record.mCell, target.mGrassBand), within(record.mCell, target.mGrassKept),
                 back, dropped.mGrass);
         }
@@ -194,33 +194,53 @@ namespace Rtx
                 && std::holds_alternative<Unwanted>(record.mGrassStage);
         });
 
-        // By the cell, so each of the band's cells finds its record in a search; then nearest first again.
+        // By the cell, so each of the bands' cells finds its record in a search; a cell two bands hold is fresh once.
         const auto byCell = [](const CellRecord& left, const CellRecord& right) { return left.mCell < right.mCell; };
         std::ranges::sort(mRecords, byCell);
         mFresh.clear();
+        const auto meet = [&](const osg::Vec2i& cell) {
+            const bool wanted = inBand(cell);
+            const bool grass = within(cell, target.mGrassBand);
+            const auto record = std::lower_bound(mRecords.begin(), mRecords.end(), cell,
+                [](const CellRecord& held, const osg::Vec2i& asked) { return held.mCell < asked; });
+            if (record != mRecords.end() && record->mCell == cell)
+            {
+                if (wanted)
+                    want(record->mCellStage);
+                if (grass)
+                    want(record->mGrassStage);
+                return;
+            }
+            mFresh.push_back(CellRecord{
+                .mCell = cell,
+                .mCellStage = wanted ? CellStage<PreparedCell>(Wanted{}) : CellStage<PreparedCell>(Unwanted{}),
+                .mGrassStage = grass ? CellStage<PreparedGrass>(Wanted{}) : CellStage<PreparedGrass>(Unwanted{}),
+            });
+        };
         const float widest = std::max(target.mBand, target.mGrassBand);
         if (widest > 0.0f)
-            grid.forEachCellWithin(target.mEye, widest, [&](const osg::Vec2i& cell) {
-                const bool inBand = within(cell, target.mBand);
-                const bool inGrass = within(cell, target.mGrassBand);
-                const auto record = std::lower_bound(mRecords.begin(), mRecords.end(), cell,
-                    [](const CellRecord& held, const osg::Vec2i& asked) { return held.mCell < asked; });
-                if (record != mRecords.end() && record->mCell == cell)
-                {
-                    if (inBand)
-                        want(record->mCellStage);
-                    if (inGrass)
-                        want(record->mGrassStage);
-                    return;
-                }
-                mFresh.push_back(CellRecord{
-                    .mCell = cell,
-                    .mCellStage = inBand ? CellStage<PreparedCell>(Wanted{}) : CellStage<PreparedCell>(Unwanted{}),
-                    .mGrassStage = inGrass ? CellStage<PreparedGrass>(Wanted{}) : CellStage<PreparedGrass>(Unwanted{}),
-                });
-            });
+            grid.forEachCellWithin(target.mEye, widest, meet);
+        if (target.mBand > 0.0f)
+            for (const osg::Vec3f& centre : target.mPredicted)
+                grid.forEachCellWithin(centre, target.mBand, meet);
+        std::ranges::sort(mFresh, byCell);
+        const auto repeated = std::ranges::unique(
+            mFresh, [](const CellRecord& left, const CellRecord& right) { return left.mCell == right.mCell; });
+        mFresh.erase(repeated.begin(), repeated.end());
         mRecords.insert(mRecords.end(), mFresh.begin(), mFresh.end());
-        std::ranges::sort(mRecords, Nearer{ .mGrid = grid, .mEye = target.mEye });
+
+        for (CellRecord& record : mRecords)
+        {
+            const bool eyeBand = within(record.mCell, target.mBand);
+            const bool predictedBand = !eyeBand && predicted(record.mCell, target.mBand);
+            float away = grid.distanceSquaredTo(record.mCell, target.mEye);
+            if (predictedBand)
+                for (const osg::Vec3f& centre : target.mPredicted)
+                    away = std::min(away, grid.distanceSquaredTo(record.mCell, centre));
+            record.mRank = eyeBand ? 0 : predictedBand ? 1 : 2;
+            record.mAway = away;
+        }
+        std::ranges::sort(mRecords, nearer);
     }
 
     void CellTable::withdraw()

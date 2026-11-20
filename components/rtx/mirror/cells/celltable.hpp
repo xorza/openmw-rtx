@@ -64,6 +64,11 @@ namespace Rtx
         osg::Vec2i mCell;
         CellStage<PreparedCell> mCellStage;
         CellStage<PreparedGrass> mGrassStage;
+
+        /// What it is ordered by, set as the bands move: the eye's band first, a predicted band's next, the kept ring
+        /// last, and within each by the distance from the nearest centre of its kind.
+        std::uint8_t mRank = 0;
+        float mAway = 0.0f;
     };
 
     /// A read the reader took.
@@ -73,9 +78,9 @@ namespace Rtx
         ReadKind mKind = ReadKind::Cell;
     };
 
-    /// What the bands want: a cell within `mBand` of the eye is read, and one past `mKept` let go, a cell further out
-    /// so that an eye walking to and fro across the band's edge reads nothing again; the groundcover's likewise, nought
-    /// where the world has none.
+    /// What the bands want: a cell within `mBand` of the eye or of a predicted centre is read, and one past `mKept` of
+    /// every one let go, a cell further out so that an eye walking to and fro across the band's edge reads nothing
+    /// again; the groundcover's likewise about the eye alone, nought where the world has none.
     struct CellTarget
     {
         CellGrid mGrid;
@@ -84,6 +89,9 @@ namespace Rtx
         float mKept = 0.0f;
         float mGrassBand = 0.0f;
         float mGrassKept = 0.0f;
+
+        /// Where the game predicts the eye will stand (`PredictedBands`).
+        std::vector<osg::Vec3f> mPredicted;
 
         bool operator==(const CellTarget& other) const = default;
     };

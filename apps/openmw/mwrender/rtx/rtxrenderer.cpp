@@ -659,9 +659,10 @@ namespace MWRender
 
         // What is left to stand, nought once whole: the cells, the demanded residents standing nothing, and a hand-over
         // that did more than place.
+        FrameReport report;
         const auto cover = [&] {
             advance(getFrameStamp().getSimulationTime());
-            FrameReport report;
+            report = FrameReport{};
             coverFrame(frame, view, report);
             if (report.isWhole())
                 return 0u;
@@ -704,9 +705,17 @@ namespace MWRender
         if (changed.mChange == WorldChange::Crossing)
             mHeldAtCrossingMs = Rtx::since(began, std::chrono::steady_clock::now());
         if (gaveUp)
-            Log(Debug::Warning) << "Ray tracing showed the world with " << left << " of it still to stand: "
-                                << std::chrono::duration_cast<std::chrono::seconds>(sStandWholePatience).count()
-                                << " s brought it no nearer";
+        {
+            const Rtx::MissingDemanded& missing = report.mResidency.mMissingDemanded;
+            Log(Debug::Warning) << std::format(
+                "Ray tracing showed the world with {} cells to stand, {} textures standing nothing ({} asked, {} come "
+                "and waiting for room, {} files, {} bakes and {} composites not asked, {} made with no room) and {} "
+                "meshes ({} with no room) and a {} hand-over: {} s brought it no nearer",
+                report.mCellsToStand, missing.textures(), missing.mAsked, missing.mArrived, missing.mUnaskedFiles,
+                missing.mUnaskedBakes, missing.mUnaskedComposites, missing.mUnaskedForRoom, missing.mMeshes,
+                missing.mMeshesForRoom, report.mUpload.mKind == Rtx::SceneUpload::Kind::Placed ? "placing" : "building",
+                std::chrono::duration_cast<std::chrono::seconds>(sStandWholePatience).count());
+        }
     }
 
     void RtxRenderer::coverFrame(const SceneFrame& frame, const osg::Matrixd& view, FrameReport& report)

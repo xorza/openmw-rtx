@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -25,12 +26,14 @@
 #include <apps/openmw/mwrender/vismask.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
+#include <components/loadinglistener/reporter.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/resource/sptfilemanager.hpp>
 #include <components/rtx/frame/debuglines.hpp>
+#include <components/rtx/mirror/cells/predictedbands.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/userdata.hpp>
@@ -78,6 +81,10 @@ namespace MWRender
                     return {};
                 return mPlacements;
             }
+
+            Rtx::PredictedBands& getPredictedBands() const override { return mBands; }
+
+            mutable Rtx::PredictedBands mBands;
         };
 
         /// What a cast from `from` to `to` under `mask` meets: where, and the reference number its
@@ -164,9 +171,22 @@ namespace MWRender
 
             EXPECT_EQ(making.mSceneRoot->getNumChildren(), 2u) << "the terrain root and the statics' answer";
 
-            const std::unique_ptr<Terrain::View> view = ground.createView();
+            // **A view is a predicted band's hold**: preloaded, the ring is told its centre; reset, none; let go of,
+            // its slot is the next view's.
+            std::unique_ptr<Terrain::View> view = ground.createView();
             ASSERT_NE(view, nullptr);
+            std::atomic<bool> abort{ false };
+            Loading::Reporter reporter;
+            ground.preload(view.get(), osg::Vec3f(100.0f, 200.0f, 0.0f), osg::Vec4i(), abort, reporter);
+            std::vector<osg::Vec3f> centres;
+            making.mStood.mBands.collect(centres);
+            EXPECT_EQ(centres, std::vector<osg::Vec3f>{ osg::Vec3f(100.0f, 200.0f, 0.0f) });
             (*view).reset();
+            centres.clear();
+            making.mStood.mBands.collect(centres);
+            EXPECT_TRUE(centres.empty()) << "a view reset predicts nothing";
+            view = nullptr;
+            EXPECT_EQ(making.mStood.mBands.open(), 0u) << "the view's slot, the first, given back";
 
             ASSERT_EQ(making.mWorldRoot->getNumChildren(), 1u);
             osg::Group& borders = *making.mWorldRoot->getChild(0)->asGroup();

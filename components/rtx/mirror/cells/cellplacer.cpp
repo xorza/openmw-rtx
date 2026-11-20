@@ -656,12 +656,15 @@ namespace Rtx
         held.mReachOut = held.mPlacements.empty() ? 0.0f : held.mPlacements.front().mRadius;
     }
 
-    void CellPlacer::askByDistance(HeldCell& cell, const WorldAround& around, const bool sightMoved)
+    void CellPlacer::askByDistance(
+        HeldCell& cell, const WorldAround& around, const std::span<const osg::Vec3f> predicted, const bool sightMoved)
     {
         const CellGrid& grid = around.mWorld.mGrid;
         const float size = grid.getCellSize();
-        const float distance
-            = std::max(0.0f, std::sqrt(grid.distanceSquaredTo(cell.mCell, around.mEye)) - cell.mReachOut);
+        float nearest = grid.distanceSquaredTo(cell.mCell, around.mEye);
+        for (const osg::Vec3f& centre : predicted)
+            nearest = std::min(nearest, grid.distanceSquaredTo(cell.mCell, centre));
+        const float distance = std::max(0.0f, std::sqrt(nearest) - cell.mReachOut);
         const float asked = distance < size ? 0.0f : size * std::exp2(std::floor(std::log2(distance / size)) - 1.0f);
         if (!sightMoved && cell.mAskedAt == asked)
             return;
@@ -857,7 +860,7 @@ namespace Rtx
         return standing == getPlaced() + getGroundPlaced() + getGrassPlaced();
     }
 
-    std::uint32_t CellPlacer::place(const WorldAround& around)
+    std::uint32_t CellPlacer::place(const WorldAround& around, const std::span<const osg::Vec3f> predicted)
     {
         const bool sightMoved = around.mSight != mSight;
         mSight = around.mSight;
@@ -865,7 +868,7 @@ namespace Rtx
         std::uint32_t lit = 0;
         for (HeldCell& cell : mCells)
         {
-            askByDistance(cell, around, sightMoved);
+            askByDistance(cell, around, predicted, sightMoved);
             lit += place(cell, around);
         }
 

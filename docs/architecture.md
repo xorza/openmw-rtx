@@ -287,7 +287,13 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   screen only where the first frame is not whole, so a crossing whose band stands shows no screen. A wait that brings
   it no nearer for ten seconds shows the world, said. Refused: the preload worker blocking until the ring stands,
   which waits on the main thread with nothing between them; a timed hold.
-- **A cell's ground is held `Shown` inside the band a load waits on and `Kept` past it, and indoors the land rests**:
+- **Ahead by upstream's predictions, hidden until in reach**: a view the preloader holds is a slot of
+  `Rtx::PredictedBands`, which `TracedTerrain::preload` fills with the position predicted and returns; the streamer
+  wants a band of cells around each centre after the eye's, holds their ground `Hidden` and asks their materials from
+  the nearest centre, so the land arrives whole. The view's reset or going is upstream's own word that the position
+  is predicted no more. Refused: blocking the preload worker until the band stands.
+- **A cell's ground is held `Shown` inside the band a load waits on, `Hidden` in a predicted band and `Kept` past
+  both, and indoors the land rests**:
   the grounds held `Kept` and the reader's wants withdrawn, so the plan keeps the exterior while it fits beside a
   room and gives its room to the room where it does not. Refused: the ring's whole hold live beside a room nothing of
   it is drawn in.
@@ -507,9 +513,14 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   table owes and one chunk in transit. Until structures join it, their storages stand outside and count so. Refused:
   pools a use, which starved one kind at its ceiling beside another's room; a take a texture, whose holes the
   handheld refused a thousand small takes beside (`research/2026-11-16-handheld-content-pool-fragmentation.md`).
-- **The transit chunk is where a lowering's destination stands while its source retires**: asked past the plan only
-  where an operation found no room and nothing could drain to make it, as a texture lowered into a small slab beside
-  the full chunk of medium slabs it leaves; the chunk it emptied goes back once its slot retires.
+- **A chunk past the plan is asked where an operation found no room and nothing could drain to make it**, the
+  transit chunk where the arena holds the plan's, and more while what is held and one chunk fit the cap: the plan
+  counts the slots it gives, and the slabs a class holds past those are holes no drain could empty. The chunk a drain
+  emptied goes back while what is held stands past the cap. Refused: one chunk past the plan at the most, under which
+  the handheld's flight stood a hundred meshes short for good.
+- **A drain chooses only what the hand-over draining may move** (`MovableOwners`), and a drain whose class lost its
+  room elsewhere is given up: one of a picture's slots waited for a hand-over that picture never had again, 2766
+  frames of a handheld leg.
 - **One residency policy for the content**, by the user's decision: textures and static meshes follow one rule, the
   plan's. Content nothing names is kept while it fits nine tenths of what the demand leaves, the most lately held
   first, a texture at the level it stands or a level coarser, and its next take is its slot, as D3D12's residency

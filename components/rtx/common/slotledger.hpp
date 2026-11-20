@@ -86,6 +86,16 @@ namespace Rtx
         friend bool operator==(const Drain&, const Drain&) = default;
     };
 
+    /// The owners whose slots a drain may move now: those whose bits under `mMask` are `mValue`, every owner for a mask
+    /// of nought. A drain of a slab holding a slot it may not move waits for whoever may, and that may be never.
+    struct MovableOwners
+    {
+        std::uint32_t mMask = 0;
+        std::uint32_t mValue = 0;
+
+        bool admits(const SlotOwner owner) const { return (static_cast<std::uint32_t>(owner) & mMask) == mValue; }
+    };
+
     /// What the ledger holds, by state: what a report says and a test reads.
     struct SlotCounts
     {
@@ -198,9 +208,9 @@ namespace Rtx
         std::uint64_t getBytesInUse(ArenaIndex arena) const;
 
         /// Marks draining what must empty for a free slab of `tier` to come in `arena`, and answers it: of what can be
-        /// emptied into free slots of its classes and free slabs elsewhere, what holds the fewest live bytes. Nothing
-        /// where nothing can, or a free one stands already.
-        std::optional<Drain> drainFor(ArenaIndex arena, SlabTier tier);
+        /// emptied into free slots of its classes and free slabs elsewhere, and holds no slot `movable` refuses, what
+        /// holds the fewest live bytes. Nothing where nothing can, or a free one stands already.
+        std::optional<Drain> drainFor(ArenaIndex arena, SlabTier tier, MovableOwners movable);
 
         /// The next live slot of what drains, lowest slab and slot first; none once nothing live is left in it.
         std::optional<Slot> nextToMove() const;

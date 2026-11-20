@@ -7,9 +7,10 @@
 ## Open questions
 
 - **Whether a tour runs unsettled, as the game walks** (moved out of the tree-and-content-memory plan, 2026-11-18): a
-  settled walk waits on the frame for its nearest cell and its ground's bake (`CellSupply::waitForOne`, 111 ms of a
-  135 ms frame on the desk's Repack tour), which no player waits for. Decide by an A/B of worst frames and outruns on
-  the handheld, then fly the baseline again (`docs/research/2026-11-17-longest-frames.md`).
+  settled walk waits on the frame for its nearest cell and its ground's bake (`CellSupply::awaitOwed`; 111 ms of a
+  135 ms frame on the desk's Repack tour before the table), which no player waits for, where the game waits under the
+  loading screen at a change of cells alone (`Renderer::standWhole`). Decide by an A/B of worst frames, pops and
+  crossings held on the handheld, then fly the baseline again (`docs/research/2026-11-17-longest-frames.md`).
 
 ## Performance
 
@@ -21,9 +22,9 @@
 
 - **The ring reads what can stand** (moved out of the tree-and-content-memory plan, 2026-11-18): the handheld's Repack
   tour at `b461faf024` loaded 27,004 `Nif`s, 8,828 of them again (33%), and 25,661 `Node`s, 7,494 again (29%). A
-  cell's references read as a prefix by radius, one band ahead of the size rule, with `CellRing` asking the reader to
-  go further as the cell nears. It needs each model's radius in the store's manifest before the model is read, and
-  `CellPlacer` adopting a cell in parts. Held by the count again, `repeat` and `shot`, and no outrun.
+  cell's references read as a prefix by radius, one band ahead of the size rule, a cell's record in `CellTable` asking
+  the reader to go further as the cell nears. It needs each model's radius in the store's manifest before the model is
+  read, and `CellPlacer` adopting a cell in parts. Held by the count again, `repeat` and `shot`, and no pop.
 
 ## Prompts
 

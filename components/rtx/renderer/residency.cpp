@@ -128,6 +128,12 @@ namespace Rtx
             std::uint32_t mRow = 0;
         };
 
+        /// The slots a hand-over of the scene at `scene` may move: its own, by the scene its owner names.
+        MovableOwners movableIn(const std::uint8_t scene)
+        {
+            return MovableOwners{ .mMask = 0xffu << 24, .mValue = std::uint32_t{ scene } << 24 };
+        }
+
         OwnerParts partsOf(const SlotOwner owner)
         {
             const auto packed = static_cast<std::uint32_t>(owner);
@@ -943,7 +949,7 @@ namespace Rtx
         }
     }
 
-    bool Residency::ensureRoom(const ClassIndex of)
+    bool Residency::ensureRoom(const Scene& scene, const ClassIndex of)
     {
         if (mLedger.hasRoom(of))
             return true;
@@ -957,7 +963,8 @@ namespace Rtx
         const std::uint64_t chunks = std::uint64_t{ mLedger.getChunkCount(arena) } * mLedger.getLayout().mChunkBytes;
         if (tier != SlabTier::Large && chunks >= mCounts.chunkBytesIn(arena)
             && (mDrainStalled[static_cast<std::size_t>(arena)]
-                || (!mLedger.nextToMove().has_value() && !mLedger.drainFor(arena, tier).has_value())))
+                || (!mLedger.nextToMove().has_value()
+                    && !mLedger.drainFor(arena, tier, movableIn(indexOf(scene))).has_value())))
             mTransitWanted[static_cast<std::size_t>(arena)] = true;
         return false;
     }
@@ -1018,7 +1025,7 @@ namespace Rtx
             if (stands == nullptr || !texture.mPlannedLevel.has_value() || *texture.mPlannedLevel <= stands->mLevel)
                 continue;
             const ClassIndex of = classAt(texture, *texture.mPlannedLevel);
-            if (mSpent.mCopyBytes >= shares.mCopyBytes || !ensureRoom(of))
+            if (mSpent.mCopyBytes >= shares.mCopyBytes || !ensureRoom(scene, of))
                 continue;
             const Slot to = mLedger.reserve(of, ownerOf(indexOf(scene), false, at));
             mLedger.commit(to);
@@ -1172,7 +1179,7 @@ namespace Rtx
                     }
                     else if (!layersStand(scene.mTextures, handing.mScene, texture.mGroundOf))
                         continue;
-                    if (!ensureRoom(of))
+                    if (!ensureRoom(scene, of))
                         continue;
                     const Slot to = mLedger.reserve(of, ownerOf(indexOf(scene), false, at));
                     mLedger.commit(to);
@@ -1194,7 +1201,8 @@ namespace Rtx
 
                 if (auto* arriving = std::get_if<TextureArriving>(&texture.mStanding))
                 {
-                    if (!arriving->mMade.has_value() || mSpent.mUploadBytes >= shares.mUploadBytes || !ensureRoom(of))
+                    if (!arriving->mMade.has_value() || mSpent.mUploadBytes >= shares.mUploadBytes
+                        || !ensureRoom(scene, of))
                         continue;
                     const Slot to = mLedger.reserve(of, ownerOf(indexOf(scene), false, at));
                     mLedger.commit(to);
@@ -1252,7 +1260,7 @@ namespace Rtx
                 {
                     if (mSpent.mBuildTriangles >= shares.mBuildTriangles)
                         continue;
-                    if (!ensureRoom(structure.mLooseClass))
+                    if (!ensureRoom(scene, structure.mLooseClass))
                     {
                         if (isDemanded(tier))
                         {
@@ -1287,7 +1295,7 @@ namespace Rtx
                     structure.mStanding = StructureTight{ .mSlot = loose->mSlot };
                     continue;
                 }
-                if (!ensureRoom(structure.mTightClass))
+                if (!ensureRoom(scene, structure.mTightClass))
                     continue;
                 const Slot tight = mLedger.reserve(structure.mTightClass, ownerOf(indexOf(scene), true, at));
                 mLedger.commit(tight);
@@ -1444,8 +1452,12 @@ namespace Rtx
             if (std::exchange(seen[static_cast<std::size_t>(arena)], true))
                 continue;
             const std::uint64_t chunks = std::uint64_t{ mLedger.getChunkCount(arena) } * chunkBytes;
+            // **And past it while the cap has room**: what the plan counts is the slots it gives, and the slabs a class
+            // holds past those are holes no drain could empty, a view's slots among them; the handheld's flight stood
+            // at the plan and one beside it while a hundred meshes waited for good.
             const bool transit = std::exchange(mTransitWanted[static_cast<std::size_t>(arena)], false)
-                && mCounts.chunkBytesIn(arena) + chunkBytes > chunks;
+                && (mCounts.chunkBytesIn(arena) + chunkBytes > chunks
+                    || mLedger.count().mBytesHeld + chunkBytes <= mBudget.mCapBytes);
             if (mCounts.chunkBytesIn(arena) > chunks || transit)
             {
                 const BlockIndex block = mLedger.askChunk(arena);

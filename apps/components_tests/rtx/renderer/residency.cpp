@@ -525,12 +525,11 @@ namespace Rtx
                 EXPECT_EQ(world.standingOf(world.mTextures[at].get()), std::optional<std::uint8_t>(0));
         }
 
-        /// **A drain waiting on another scene's hand-over asks the transit chunk**: a view's scene fills a chunk's
-        /// sixteen slabs with 512² chains and gives back all but two of each slab's; the world then takes 256² chains,
-        /// whose class has no slab. The drain picks a slab of the view's, which the world's hand-over cannot move and
-        /// the view, never handed over again, never does: the world's chains stand all the same, in a chunk past the
-        /// plan's, where once they waited for good.
-        TEST(RtxResidencyTest, aDrainWaitingOnAnotherScenesHandOverAsksTheTransitChunk)
+        /// **A drain never waits on another scene's hand-over**: a view's scene fills a chunk's sixteen slabs with 512²
+        /// chains and gives back all but two of each slab's; the world then takes 256² chains, whose class has no slab.
+        /// No drain picks a slab of the view's, which the world's hand-over cannot move and the view, never handed over
+        /// again, never would: the world's chains stand in a chunk past the plan's, where once they waited for good.
+        TEST(RtxResidencyTest, aDrainNeverWaitsOnAnotherScenesHandOver)
         {
             World world(2 * sChunk);
             const SceneSlot viewSlot = SceneSlot::view(0);
@@ -583,6 +582,8 @@ namespace Rtx
             {
                 ASSERT_LT(++frames, 200u) << "the world's chains waited on the view's drain";
                 world.frame();
+                EXPECT_FALSE(world.mResidency.getReport().mDrainWaitsOnScene)
+                    << "a drain of the view's slots, frame " << frames;
             } while (!world.mResidency.isSettled(HoldTier::Shown));
             for (const TextureHold& small : world.mTextures)
                 EXPECT_TRUE(world.standingOf(small.get()).has_value());

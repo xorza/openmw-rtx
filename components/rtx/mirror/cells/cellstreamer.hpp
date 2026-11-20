@@ -20,6 +20,7 @@
 #include "cellsupply.hpp"
 #include "cellworld.hpp"
 #include "held.hpp"
+#include "predictedbands.hpp"
 #include "prepared.hpp"
 #include "readermemory.hpp"
 
@@ -87,6 +88,10 @@ namespace Rtx
         /// band the last walk asked over and not yet held: a picture of the ground there taken now
         /// shows the cell's objects on nothing. False where the last walk stood nothing.
         bool waitsUnder(const osg::Vec2f& low, const osg::Vec2f& high) const;
+
+        /// Where the game predicts the eye will stand, which the preload worker writes as it preloads and the walk
+        /// stands a band hidden around (`MWRender::TracedTerrain::createView`). Its lock is its own.
+        PredictedBands& getPredictedBands() { return mPredictedBands; }
 
         /// `CellSupply::getReaderMemory`.
         ReaderMemory getReaderMemory() { return mSupply.getReaderMemory(); }
@@ -159,9 +164,13 @@ namespace Rtx
         template <class Prepared>
         void adoptModels(Prepared& prepared);
 
-        /// Moves the table's bands to `target`, lets go of the cells past what they keep, and counts the bands' cells
-        /// against what the placer holds.
+        /// Moves the table's bands to `target`, lets go of the cells past what they keep, holds each held ground at its
+        /// band's tier, and counts the eye's band's cells against what the placer holds.
         void retarget(const CellTarget& target);
+
+        /// The tier a cell's ground is held at under the last target: `Shown` in the eye's band, `Hidden` in a
+        /// predicted band, `Kept` past both.
+        HoldTier tierOf(const osg::Vec2i& cell) const;
 
         /// Forgets the target with the band's counts made from it, for a walk that stands nothing:
         /// indoors, or with no reader.
@@ -232,8 +241,11 @@ namespace Rtx
         bool mSettled = false;
 
         /// What the table was last retargeted to, which a walk retargets it from only where it moved: the bands are
-        /// walked on the frames the eye moves, and on no other.
+        /// walked on the frames the eye or a prediction moves, and on no other. The walk's own, refilled per walk.
         std::optional<CellTarget> mAsked;
+        CellTarget mTarget;
+
+        PredictedBands mPredictedBands;
 
         /// How many cells the band held when `retarget` last walked it, the reach and the band past it,
         /// or nought where the last walk stood nothing — indoors, or with no reader. The grass band's

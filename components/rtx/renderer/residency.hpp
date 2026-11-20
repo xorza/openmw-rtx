@@ -420,8 +420,9 @@ namespace Rtx
         void planStarving(std::uint64_t cap);
         void planCache(std::uint64_t cap);
 
-        /// Whether `of` has a slot now; where not, a drain is asked where no block can come.
-        bool ensureRoom(ClassIndex of);
+        /// Whether `of` has a slot now; where not, a drain is asked where no block can come, of what `scene`'s
+        /// hand-over may move.
+        bool ensureRoom(const Scene& scene, ClassIndex of);
 
         void issueDrops(Scene& scene, TextureFeed& feed);
         void issueLowerings(Scene& scene, TextureFeed& feed, const Shares& shares);

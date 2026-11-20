@@ -217,8 +217,7 @@ namespace Rtx
                 return target.mGrassKept > 0.0f && grid.withinReach(held.mCell, target.mEye, target.mGrassKept);
             },
             [&](const HeldGrass& held) { letGo(held.mModels); });
-        mPlacer.retierGrounds(
-            [&](const osg::Vec2i& cell) { return grid.withinReach(cell, target.mEye, target.mBand); });
+        mPlacer.retierGrounds([&](const osg::Vec2i& cell) { return tierOf(cell); });
 
         mBandCells = 0;
         mBandHeld = 0;
@@ -233,6 +232,17 @@ namespace Rtx
                 ++mGrassBandCells;
                 mGrassBandHeld += mPlacer.holdsGrass(cell) ? 1u : 0u;
             });
+    }
+
+    HoldTier CellStreamer::tierOf(const osg::Vec2i& cell) const
+    {
+        assert(mAsked.has_value() && "a ground's tier asked with no band");
+        const CellGrid& grid = mAsked->mGrid;
+        if (grid.withinReach(cell, mAsked->mEye, mAsked->mBand))
+            return HoldTier::Shown;
+        const bool predicted = std::ranges::any_of(mAsked->mPredicted,
+            [&](const osg::Vec3f& centre) { return grid.withinReach(cell, centre, mAsked->mBand); });
+        return predicted ? HoldTier::Hidden : HoldTier::Kept;
     }
 
     void CellStreamer::adoptRead(const std::size_t frame)
@@ -283,8 +293,9 @@ namespace Rtx
         if (mAsked.has_value() && mAround.mWorld.mGrid.withinReach(cell.mCell, mAsked->mEye, mAsked->mBand))
         {
             ++mBandHeld;
-            mPlacer.retierGround(cell.mCell, HoldTier::Shown);
         }
+        if (mAsked.has_value())
+            mPlacer.retierGround(cell.mCell, tierOf(cell.mCell));
 
         mSupply.giveBack().mCells.push_back(&cell);
     }
@@ -406,7 +417,7 @@ namespace Rtx
             if (mAsked.has_value())
             {
                 mSupply.withdraw();
-                mPlacer.retierGrounds([](const osg::Vec2i&) { return false; });
+                mPlacer.retierGrounds([](const osg::Vec2i&) { return HoldTier::Kept; });
             }
             standNothing();
             mPlacer.dropSlots();
@@ -418,16 +429,16 @@ namespace Rtx
         // frame a cell crosses into the reach owes only its placements.
         const float band = mAround.mReach + mAround.mWorld.mGrid.getCellSize();
         const float grass = grassBand();
-        const CellTarget target{
-            .mGrid = mAround.mWorld.mGrid,
-            .mEye = mAround.mEye,
-            .mBand = band,
-            .mKept = keptTo(band),
-            .mGrassBand = grass,
-            .mGrassKept = keptTo(grass),
-        };
-        if (mAsked != target)
-            retarget(target);
+        mTarget.mGrid = mAround.mWorld.mGrid;
+        mTarget.mEye = mAround.mEye;
+        mTarget.mBand = band;
+        mTarget.mKept = keptTo(band);
+        mTarget.mGrassBand = grass;
+        mTarget.mGrassKept = keptTo(grass);
+        mTarget.mPredicted.clear();
+        mPredictedBands.collect(mTarget.mPredicted);
+        if (mAsked != mTarget)
+            retarget(mTarget);
 
         // Waited for after the retarget that names it and never before, because what the reader is about to file is
         // what that retarget wants. Nothing is owed where the band is whole, and then there is nothing to wait for.
@@ -439,7 +450,7 @@ namespace Rtx
 
         adoptRead(frame);
 
-        stats.mLights += mPlacer.place(mAround);
+        stats.mLights += mPlacer.place(mAround, mTarget.mPredicted);
 
         mSupply.publish();
     }

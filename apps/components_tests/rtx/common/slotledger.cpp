@@ -273,7 +273,7 @@ namespace Rtx
             ledger.collect(epoch(1));
             ASSERT_EQ(ledger.getBlockOf(few[0]), other);
 
-            EXPECT_EQ(ledger.drainFor(sImages, SlabTier::Small), std::nullopt)
+            EXPECT_EQ(ledger.drainFor(sImages, SlabTier::Small, MovableOwners{}), std::nullopt)
                 << "a free slab stands in the other chunk";
             const ClassIndex filler = ledger.classOf(SlotKind::Image, 128 * sKiB, 1);
             const Slot fills = ledger.reserve(filler, SlotOwner{ 500 });
@@ -281,7 +281,17 @@ namespace Rtx
             ASSERT_EQ(ledger.getBlockOf(fills), other);
             ASSERT_EQ(ledger.count().mSlabsFree, 0u);
 
-            const std::optional<Drain> drain = ledger.drainFor(sImages, SlabTier::Small);
+            // **A drain holds no slot its hand-over may not move**: owners with bit 5 or 6 refused, the three (100 to
+            // 102) are pinned, and the drain is of the full chunk's first slab, ten live of sixteen, which fit the
+            // second's three free slots and the three's slab's thirteen. Given up, the three's slab is the drain again.
+            const std::optional<Drain> around
+                = ledger.drainFor(sImages, SlabTier::Small, MovableOwners{ .mMask = 0x60u, .mValue = 0 });
+            ASSERT_TRUE(around.has_value());
+            EXPECT_EQ(around->mSlab, held[0].mSlab);
+            EXPECT_EQ(around->mLiveBytes, 10 * 256 * sKiB);
+            ledger.abandonDrain(held[1]);
+
+            const std::optional<Drain> drain = ledger.drainFor(sImages, SlabTier::Small, MovableOwners{});
             ASSERT_TRUE(drain.has_value());
             EXPECT_EQ(drain->mSlab, few[0].mSlab);
             EXPECT_EQ(drain->mLiveBytes, 3 * 256 * sKiB);
@@ -308,7 +318,7 @@ namespace Rtx
             EXPECT_TRUE(ledger.isConsistent());
             for (const Slot slot : taking)
                 ledger.unreserve(slot);
-            const std::optional<Drain> again = ledger.drainFor(sImages, SlabTier::Small);
+            const std::optional<Drain> again = ledger.drainFor(sImages, SlabTier::Small, MovableOwners{});
             ASSERT_TRUE(again.has_value());
             EXPECT_EQ(again->mSlab, few[0].mSlab);
 
@@ -333,7 +343,7 @@ namespace Rtx
 
             // No chunk empties: the full one's two slabs want two free slabs elsewhere and one stands, and the other's
             // filler has no room of its class outside it.
-            EXPECT_EQ(ledger.drainFor(sImages, SlabTier::Medium), std::nullopt);
+            EXPECT_EQ(ledger.drainFor(sImages, SlabTier::Medium, MovableOwners{}), std::nullopt);
             EXPECT_EQ(ledger.count().mSlabsDraining, 0u);
         }
 
@@ -368,7 +378,7 @@ namespace Rtx
             ledger.collect(epoch(1));
             ASSERT_FALSE(ledger.hasRoom(medium));
 
-            const std::optional<Drain> drain = ledger.drainFor(sImages, SlabTier::Medium);
+            const std::optional<Drain> drain = ledger.drainFor(sImages, SlabTier::Medium, MovableOwners{});
             ASSERT_TRUE(drain.has_value());
             EXPECT_EQ(*drain, (Drain{ .mBlock = second, .mSlab = sNoRow, .mLiveBytes = 2 * 256 * sKiB }));
             EXPECT_EQ(ledger.count().mSlabsDraining, 1u);

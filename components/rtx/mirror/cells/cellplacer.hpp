@@ -104,13 +104,14 @@ namespace Rtx
         /// Whether a cell at `cell` is held.
         bool holds(const osg::Vec2i& cell) const { return mCells.contains(cell); }
 
-        /// Holds every held cell's ground at `Shown` where `shown(cell)` says, its band one a load waits on, and at
-        /// `Kept` where not, past the band or with the eye indoors, so the plan lowers and leaves it first.
-        template <class Shown>
-        void retierGrounds(Shown shown)
+        /// Holds every held cell's ground at the tier `tierOf(cell)` answers: `Shown` in the band a load waits on,
+        /// `Hidden` in a predicted band, `Kept` past the bands or with the eye indoors, so the plan lowers and leaves
+        /// what is further from being seen first.
+        template <class TierOf>
+        void retierGrounds(TierOf tierOf)
         {
             for (HeldCell& cell : mCells)
-                retierGround(cell.mGround, shown(cell.mCell) ? HoldTier::Shown : HoldTier::Kept);
+                retierGround(cell.mGround, tierOf(cell.mCell));
         }
 
         /// `retierGrounds` for the held cell at `cell` alone, as it is adopted: its ground is held `Kept` until this.
@@ -159,9 +160,11 @@ namespace Rtx
         /// the lamps nothing the game says keeps down, where the cell is in reach and outside the grid (the game's own
         /// graph carries the lamps inside it, and a lantern must not be counted twice). Stands a cell's groundcover
         /// whole within `WorldAround::mGroundcoverReach`, the active grid included, whose cells the game stands no
-        /// grass in for this renderer, and drops it whole past it.
+        /// grass in for this renderer, and drops it whole past it. A cell asks its materials from the nearest of the
+        /// eye and `predicted`'s centres, so a predicted band's land arrives whole and does not sharpen as the eye
+        /// comes.
         /// @return how many lamps were stood.
-        std::uint32_t place(const WorldAround& around);
+        std::uint32_t place(const WorldAround& around, std::span<const osg::Vec3f> predicted);
 
         /// Appends the reference number of every static standing in the top level.
         void collectStanding(std::vector<ESM::RefNum>& into) const;
@@ -229,7 +232,8 @@ namespace Rtx
         /// another band or what the eye resolves changed (`docs/architecture.md`, "A texture stands from the level its
         /// nearest user asks"). The bands double from a cell's size, the first reaching it, and a cell asks the near
         /// edge of the band before its own: its levels arrive a band ahead of the eye, as the ring reads a band ahead.
-        void askByDistance(HeldCell& cell, const WorldAround& around, bool sightMoved);
+        void askByDistance(
+            HeldCell& cell, const WorldAround& around, std::span<const osg::Vec3f> predicted, bool sightMoved);
 
         /// Takes back everything `cell` or `grass` asks, before what it holds is let go of.
         void unaskAll(HeldCell& cell);

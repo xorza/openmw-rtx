@@ -332,6 +332,7 @@ openmw_rtx_layer(
         mirror/cells/cellworld.cpp
         mirror/cells/groundreader.cpp
         mirror/cells/held.cpp
+        mirror/cells/predictedbands.cpp
         mirror/cells/templatewalk.cpp
         mirror/chainkeys.cpp
         mirror/drawableposer.cpp
@@ -362,6 +363,7 @@ openmw_rtx_layer(
         mirror/cells/groundreader.hpp
         mirror/cells/held.hpp
         mirror/cells/nightday.hpp
+        mirror/cells/predictedbands.hpp
         mirror/cells/prepared.hpp
         mirror/cells/readermemory.hpp
         mirror/cells/ringstanding.hpp
