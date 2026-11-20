@@ -1065,9 +1065,6 @@ Files: `apps/rtxtool/{session,measurer,tourwatch,checks}.cpp`, `apps/rtxtool/mod
 
 What is left here reads `Residency`'s report and the core's types, so it lands with batch 4, after the contract.
 
-- [ ] `apps/rtxtool/measurer.cpp:462-467` — memory is one sample a leg's end. Target: `FrameReport` carries a
-  frame's residency (operations queued and issued, bytes uploaded and copied, slots by state, residents below their
-  want, stand-ins drawn, starved) and the record keeps each leg's most.
 - [ ] `apps/rtxtool/model/finding.hpp` — no finding for memory. Target: `OverBudget` (the driver's usage past its
   budget, by frames), `BelowWant` (a shown texture coarser than wanted for more than N frames), `StandInDrawn`
   (frames a shown slot drew it), `Starved`, `LedgerDrift` (the arena's chunks against the driver's usage less what
@@ -1499,6 +1496,13 @@ Items that landed in another shape than their target, each with how and why.
 - Play's chains are admitted by one `ChainAdmission` the hands share, each making's most summed against what the
   system has left, and the preparation's chain made alone by one of its own; the figure is the system's until batch
   8's arbiter derives one, and the preparation's budget is still read once at its start until then.
+- `FrameReport` carries residency's whole report, and a place keeps each figure at its most over every frame of it,
+  its wait among them (`ResidencyMost`), the cap at its least; what keeps a demanded resident from standing is counted
+  by why (`Rtx::MissingDemanded`), which a stalled leg names. Operations queued are not apart from those issued: the
+  hand-over issues all it plans, so the two are one count.
+- A ground composite waiting to be made holds its layers at its own tier (`Residency::syncTextures`): a layer held at
+  the cache's tier alone can be dropped under a tight cap, which leaves the composite waiting for good. The handheld's
+  Repack tour waited on 31 textures not yet asked at its first leg, which is what that comes to.
 - Batch 5's moves out of a draining slab took the same slot again until the copy share ran out: a slot given back
   stayed live until the hand-over's epoch was known. It now leaves the ledger at once (`SlotLedger::leave`), which
   the handheld's Repack tour found, an assert in debug and a GPU timer never written in release.

@@ -15,14 +15,22 @@ namespace Rtx
         /// Textures whose texels came and wait for room in the arena or for the upload's share.
         std::uint32_t mArrived = 0;
 
-        /// Textures not asked yet: the feed out of credit, no room for a bake or a composite, or what one is made of
-        /// not standing.
-        std::uint32_t mUnasked = 0;
+        /// Textures not asked yet: a file's while the feed is out of credit; a sprite's light bake while its source
+        /// stands at another level or there is no room; a ground composite while a layer stands nothing or there is
+        /// no room.
+        std::uint32_t mUnaskedFiles = 0;
+        std::uint32_t mUnaskedBakes = 0;
+        std::uint32_t mUnaskedComposites = 0;
 
         /// Meshes placing nothing.
         std::uint32_t mMeshes = 0;
 
-        constexpr std::uint32_t total() const { return mAsked + mArrived + mUnasked + mMeshes; }
+        constexpr std::uint32_t textures() const
+        {
+            return mAsked + mArrived + mUnaskedFiles + mUnaskedBakes + mUnaskedComposites;
+        }
+
+        constexpr std::uint32_t total() const { return textures() + mMeshes; }
 
         bool operator==(const MissingDemanded& other) const = default;
     };

@@ -460,6 +460,10 @@ namespace Rtx
         Shares mSpent;
         std::vector<ResidencyOp> mOps;
         std::vector<Slot> mFreed;
+
+        /// The tier each texture of the scene being synced is held at as a waiting composite's layer, `Unheld` for
+        /// none (`syncTextures`): kept, so a sync allocates nothing.
+        std::vector<HoldTier> mLayerTiers;
         std::vector<Weighed> mWeighed;
 
         /// What this hand-over's operations upload or bake from, which each `StandImage` points into once every

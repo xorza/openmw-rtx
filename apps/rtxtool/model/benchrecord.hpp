@@ -26,6 +26,8 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
+#include "residencymost.hpp"
+
 namespace RtxTool
 {
     /// How many cell boundaries a route crossed, and what the frames that crossed them cost: a count and totals,
@@ -213,6 +215,9 @@ namespace RtxTool
         /// What every thread asked of the files' headers for their texels since the renderer started, by why.
         Rtx::TexelReads mTexelReads;
 
+        /// The most every frame of the place, its wait among them, came to in residency.
+        ResidencyMost mResidency;
+
         GameHeld mGame;
     };
 
@@ -301,6 +306,9 @@ namespace RtxTool
 
     /// The asks for the files' headers' texels by why, with their bytes, as one line, or nothing where none was asked.
     std::string describeTexelReads(const Rtx::TexelReads& reads);
+
+    /// A place's residency at its most, one line; nothing for a place that took no frame.
+    std::string describeResidency(const ResidencyMost& most);
 
     /// The header as the lines the report opens with.
     std::string describeHeader(const BenchHeader& header);

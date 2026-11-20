@@ -224,6 +224,17 @@ namespace RtxTool
                 reads.mChainsFoundWhole, reads.mCancelled);
         }
 
+        std::string asJson(const ResidencyMost& most)
+        {
+            return std::format(
+                R"({{"frames": {}, "opsIssued": {}, "bytesUploaded": {}, "bytesCopied": {}, "belowWant": {}, )"
+                R"("standIns": {}, "meshesMissing": {}, "starvedTextures": {}, "starvedStructures": {}, )"
+                R"("slotsLive": {}, "slotsRetiring": {}, "bytesHeld": {}, "capBytesLeast": {}}})",
+                most.mFrames, most.mOpsIssued, most.mBytesUploaded, most.mBytesCopied, most.mBelowWant, most.mStandIns,
+                most.mMeshesMissing, most.mStarvedTextures, most.mStarvedStructures, most.mSlotsLive,
+                most.mSlotsRetiring, most.mBytesHeld, most.mCapBytesLeast);
+        }
+
         std::string asJson(const Arrivals& arrivals)
         {
             std::string worst = "[";
@@ -464,6 +475,19 @@ namespace RtxTool
         return out.empty() ? std::string() : "  ring  standing of held by distance" + out + "\n";
     }
 
+    std::string describeResidency(const ResidencyMost& most)
+    {
+        if (most.mFrames == 0)
+            return {};
+        return std::format(
+            "  residency at most   ops {}   uploaded {:.1f} MiB   copied {:.1f} MiB   below want {}   "
+            "stand-ins {}   meshes missing {}   starved {} textures {} meshes   slots {} live {} "
+            "retiring   held {:.1f} MiB under a cap of {:.1f} MiB at the least\n",
+            most.mOpsIssued, Rtx::mebibytes(most.mBytesUploaded), Rtx::mebibytes(most.mBytesCopied), most.mBelowWant,
+            most.mStandIns, most.mMeshesMissing, most.mStarvedTextures, most.mStarvedStructures, most.mSlotsLive,
+            most.mSlotsRetiring, Rtx::mebibytes(most.mBytesHeld), Rtx::mebibytes(most.mCapBytesLeast));
+    }
+
     std::string describeTexelReads(const Rtx::TexelReads& reads)
     {
         // Said only where a header was asked at all: a renderer that reads no file through one asks nothing.
@@ -556,6 +580,7 @@ namespace RtxTool
         out += describeRingStanding(place.mContent.mRing);
         out += describeGameHeld(place.mGame);
         out += describeTexelReads(place.mTexelReads);
+        out += describeResidency(place.mResidency);
 
         // How much of the frame hit something is what tells "the cell rendered" from "the camera faced away".
         if (place.mHitPercent > 0.0)
@@ -667,7 +692,7 @@ namespace RtxTool
             asJson(place.mCell), jsonNumber(place.mHour, 4), asJson(place.mWeather))
              << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
              << R"(, "driver": )" << asJson(place.mDriver) << R"(, "content": )" << asJson(place.mContent)
-             << R"(, "texelReads": )" << asJson(place.mTexelReads)
+             << R"(, "texelReads": )" << asJson(place.mTexelReads) << R"(, "residency": )" << asJson(place.mResidency)
              << std::format(R"(, "game": {{"loadedCells": {}, "preloadedCells": {}, "starvedLooks": {}}})",
                     place.mGame.mLoadedCells, place.mGame.mPreloadedCells, place.mGame.mStarvedLooks)
              << std::format(R"(, "frames": {}, "wallSeconds": {}, "hitPercent": {}, )", place.mFrames,

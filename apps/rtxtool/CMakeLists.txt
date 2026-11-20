@@ -83,6 +83,7 @@ target_sources(
                 instruments/threadcounters.hpp
                 instruments/wholenumber.hpp
                 model/benchrecord.hpp
+                model/residencymost.hpp
                 model/benchrun.hpp
                 model/benchspec.hpp
                 model/blockfile.hpp

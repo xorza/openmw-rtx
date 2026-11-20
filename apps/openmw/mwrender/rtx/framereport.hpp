@@ -11,8 +11,8 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/framespend.hpp>
-#include <components/rtx/renderer/missingdemanded.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
@@ -70,8 +70,9 @@ namespace MWRender
         /// How many cells the walk left to stand, `Rtx::CellRing::getCellsToStand`.
         std::uint32_t mCellsToStand = 0;
 
-        /// The world's demanded residents that stand nothing yet, by why (`Rtx::ResidencyReport::mMissingDemanded`).
-        Rtx::MissingDemanded mMissing{};
+        /// What residency planned, issued and held as the world was handed over (`Rtx::Residency::getReport`): its
+        /// demanded residents that stand nothing yet among it.
+        Rtx::ResidencyReport mResidency{};
 
         /// Whether the world stood paused for this frame: the game's own flag, as the frame was
         /// described with it, and not the one the game will have set by the time anybody asks.
@@ -102,7 +103,8 @@ namespace MWRender
         /// frame after it draws what this one drew.
         bool isWhole() const
         {
-            return mCellsToStand == 0 && mMissing.total() == 0 && mUpload.mKind == Rtx::SceneUpload::Kind::Placed;
+            return mCellsToStand == 0 && mResidency.mMissingDemanded.total() == 0
+                && mUpload.mKind == Rtx::SceneUpload::Kind::Placed;
         }
     };
 

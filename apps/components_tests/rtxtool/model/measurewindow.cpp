@@ -170,11 +170,13 @@ namespace RtxTool
             // a frame, never stalls over thirty seconds of frames, where counted in cells alone it stalled at the
             // twelfth. The same images standing still stall, and the failure names them by why, and what still
             // arrives; a cell nearer counts its own images from where it brought them. The images are asked of the
-            // feed, but for one come and waiting for room and two not yet asked.
+            // feed, but for one come and waiting for room, and a file and a composite not yet asked.
             const auto making = [](const std::uint32_t cells, const std::uint32_t images, const bool arriving) {
                 WindowFrame frame = standing(cells, 1000.0);
                 frame.mWhole = false;
-                frame.mMissing = Rtx::MissingDemanded{ .mAsked = images - 3, .mArrived = 1, .mUnasked = 2 };
+                frame.mMissing = Rtx::MissingDemanded{
+                    .mAsked = images - 3, .mArrived = 1, .mUnaskedFiles = 1, .mUnaskedComposites = 1
+                };
                 frame.mArriving = arriving;
                 return frame;
             };
@@ -186,11 +188,12 @@ namespace RtxTool
             EXPECT_EQ(images.take(making(0, 11, true)).mOutcome, Outcome::Stalled);
             EXPECT_EQ(images.getUnstood(),
                 (MeasureWindow::Unstood{ .mCells = 0,
-                    .mMissing = Rtx::MissingDemanded{ .mAsked = 8, .mArrived = 1, .mUnasked = 2 },
+                    .mMissing
+                    = Rtx::MissingDemanded{ .mAsked = 8, .mArrived = 1, .mUnaskedFiles = 1, .mUnaskedComposites = 1 },
                     .mArriving = true }));
             EXPECT_EQ(describeUnstood(images.getUnstood()),
-                "11 images still being made (8 on their way, 1 come and waiting for room, 2 not yet asked), content "
-                "still arriving");
+                "11 images still being made (8 on their way, 1 come and waiting for room, not yet asked 1 files, 0 "
+                "bakes and 1 composites), content still arriving");
 
             MeasureWindow both(0, 30, false);
             both.take(making(3, 10, false));
@@ -203,8 +206,8 @@ namespace RtxTool
             both.take(making(2, 24, false));
             EXPECT_DOUBLE_EQ(both.getStalledMs(), 1000.0);
             EXPECT_EQ(describeUnstood(both.getUnstood()),
-                "2 cells short, 24 images still being made (21 on their way, 1 come and waiting for room, 2 not yet "
-                "asked)");
+                "2 cells short, 24 images still being made (21 on their way, 1 come and waiting for room, not yet "
+                "asked 1 files, 0 bakes and 1 composites)");
 
             // And a mesh standing nothing is named apart.
             EXPECT_EQ(describeUnstood(MeasureWindow::Unstood{ .mMissing = Rtx::MissingDemanded{ .mMeshes = 3 } }),

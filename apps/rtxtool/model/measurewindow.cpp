@@ -100,10 +100,11 @@ namespace RtxTool
         };
         add(unstood.mCells > 0, std::format("{} cells short", unstood.mCells));
         const Rtx::MissingDemanded& missing = unstood.mMissing;
-        const std::uint32_t images = missing.mAsked + missing.mArrived + missing.mUnasked;
-        add(images > 0,
-            std::format("{} images still being made ({} on their way, {} come and waiting for room, {} not yet asked)",
-                images, missing.mAsked, missing.mArrived, missing.mUnasked));
+        add(missing.textures() > 0,
+            std::format("{} images still being made ({} on their way, {} come and waiting for room, not yet asked {} "
+                        "files, {} bakes and {} composites)",
+                missing.textures(), missing.mAsked, missing.mArrived, missing.mUnaskedFiles, missing.mUnaskedBakes,
+                missing.mUnaskedComposites));
         add(missing.mMeshes > 0, std::format("{} meshes still being built", missing.mMeshes));
         add(unstood.mArriving, "content still arriving");
         return text;

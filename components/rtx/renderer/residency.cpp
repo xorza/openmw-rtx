@@ -505,6 +505,30 @@ namespace Rtx
         const auto rows = table.getRows();
         if (rows.size() > scene.mTextures.size())
             scene.mTextures.resize(rows.size());
+
+        // **A ground composite waiting to be made holds its layers at its own tier**: it is made of them, and a layer
+        // held at the cache's tier alone was dropped where the cap was tight, which left the composite waiting for
+        // good, "not yet asked" at every stop of the handheld's tour. Gathered first, so a layer's tier is taken once.
+        mLayerTiers.assign(scene.mTextures.size(), HoldTier::Unheld);
+        const MaterialTable& materials = handing.mScene.materials();
+        for (std::uint32_t at = 0; at < rows.size(); ++at)
+        {
+            // As the table describes the row, which a composite taken this hand-over is not yet synced as.
+            const TextureIndex row(at);
+            if (!table.isLive(row) || rows[row].mGroundOf == sNoRow || !isDemanded(table.getTier(row)))
+                continue;
+            const TextureResident& composite = scene.mTextures[row];
+            const bool same = composite.mLive && composite.mGeneration == table.generationOf(row);
+            if (same
+                && (std::holds_alternative<StandingFailed>(composite.mStanding) || standingOf(composite).has_value()))
+                continue;
+            const HoldTier tier = table.getTier(row);
+            for (const MaterialLayer& layer :
+                materials.getRows()[rows[row].mGroundOf].mLayers.in(materials.getLayers()))
+                if (layer.mDiffuse != Shaders::TEXTURE_NEUTRAL && layer.mDiffuse < mLayerTiers.size())
+                    mLayerTiers[layer.mDiffuse] = std::min(mLayerTiers[layer.mDiffuse], tier);
+        }
+
         for (std::uint32_t at = 0; at < scene.mTextures.size(); ++at)
         {
             const TextureIndex row(at);
@@ -526,7 +550,7 @@ namespace Rtx
             if (std::holds_alternative<StandingFailed>(texture.mStanding))
                 continue;
 
-            const HoldTier tier = table.getTier(row);
+            const HoldTier tier = std::min(table.getTier(row), mLayerTiers[at]);
             if (tier != texture.mTier)
             {
                 texture.mTier = tier;
@@ -1324,9 +1348,14 @@ namespace Rtx
                     || standingLevelOf(texture).has_value())
                     continue;
                 const auto* const arriving = std::get_if<TextureArriving>(&texture.mStanding);
-                ++(arriving == nullptr                ? missing.mUnasked
-                        : arriving->mMade.has_value() ? missing.mArrived
-                                                      : missing.mAsked);
+                if (arriving != nullptr)
+                    ++(arriving->mMade.has_value() ? missing.mArrived : missing.mAsked);
+                else if (texture.mBakedFrom != sNoRow)
+                    ++missing.mUnaskedBakes;
+                else if (texture.mGroundOf != sNoRow)
+                    ++missing.mUnaskedComposites;
+                else
+                    ++missing.mUnaskedFiles;
             }
             missing.mMeshes += static_cast<std::uint32_t>(
                 std::ranges::count_if(each.mStructures, [](const StructureResident& structure) {

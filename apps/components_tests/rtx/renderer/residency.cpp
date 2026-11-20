@@ -350,10 +350,10 @@ namespace Rtx
             EXPECT_TRUE(world.mResidency.getLedger().isConsistent());
         }
 
-        /// **A composite stands once its layers stand, as they stand after the hand-over's own drops and arrivals**: a
-        /// chunk of two layers, held hidden, and its composite held shown, so each hand-over looks at the composite
-        /// before the layers. The hand-over the layers' texels land on stands them and not the composite, which saw
-        /// them arriving; the next stands it, reading both layers' slots.
+        /// **A composite stands once its layers stand, and holds them at its own tier while it waits**: a chunk of two
+        /// layers, held hidden, and its composite held shown. While it waits its layers are shown, asked of the feed,
+        /// the composite not yet asked; the hand-over their texels land on stands them first and the composite after
+        /// them, reading both layers' slots; made, its layers go back to hidden.
         TEST(RtxResidencyTest, aCompositeStandsOnceItsLayersStand)
         {
             World world(1024 * sMiB);
@@ -373,22 +373,27 @@ namespace Rtx
 
             world.frame();
             EXPECT_EQ(countOps<StandImage>(world.mDevice.getLastOps()), 0u) << "the layers' texels asked";
+            EXPECT_EQ(world.residentOf(under).mTier, HoldTier::Shown) << "a waiting composite's layer at its tier";
+            EXPECT_EQ(world.residentOf(over).mTier, HoldTier::Shown);
+            EXPECT_EQ(world.mResidency.getReport().mMissingDemanded,
+                (MissingDemanded{ .mAsked = 2, .mUnaskedComposites = 1 }))
+                << "the layers on their way, the composite not yet asked";
+
             world.frame();
             EXPECT_EQ(world.standingOf(under), std::optional<std::uint8_t>(0));
             EXPECT_EQ(world.standingOf(over), std::optional<std::uint8_t>(0));
-            EXPECT_EQ(world.standingOf(ground), std::nullopt) << "the composite stood over layers still arriving";
-            EXPECT_EQ(countOps<StandImage>(world.mDevice.getLastOps()), 2u);
-
-            world.frame();
-            ASSERT_EQ(world.standingOf(ground), std::optional<std::uint8_t>(0));
+            ASSERT_EQ(world.standingOf(ground), std::optional<std::uint8_t>(0)) << "made in the layers' hand-over";
             const std::span<const ResidencyOp> ops = world.mDevice.getLastOps();
-            ASSERT_EQ(countOps<StandImage>(ops), 1u);
-            const auto& baked = std::get<StandImage>(ops[0]);
-            EXPECT_EQ(baked.mTexture, ground);
+            ASSERT_EQ(countOps<StandImage>(ops), 3u);
+            const auto& baked = std::get<StandImage>(ops[2]);
+            EXPECT_EQ(baked.mTexture, ground) << "after the layers it is made of";
             ASSERT_NE(baked.mTexels, nullptr);
             EXPECT_EQ(baked.mTexels->mSource, TextureSource::GroundComposite);
             EXPECT_EQ(std::vector<TextureIndex>(baked.mTexels->mReads.begin(), baked.mTexels->mReads.end()),
                 (std::vector<TextureIndex>{ under, over }));
+
+            world.frame();
+            EXPECT_EQ(world.residentOf(under).mTier, HoldTier::Hidden) << "a made composite's layer back at its own";
         }
 
         /// **What fits nowhere is starved and named**: under a cap of nought every shown texture's floor is starved,

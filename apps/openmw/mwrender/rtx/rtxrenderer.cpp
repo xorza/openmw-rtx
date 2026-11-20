@@ -1019,7 +1019,7 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
         report.mUpload = handed;
         report.mCellsToStand = mMirror.getRing().getCellsToStand();
-        report.mMissing = mResidency->getReport().mMissingDemanded;
+        report.mResidency = mResidency->getReport();
 
         // What the device gave back lately stays its own to take again, not the caches' next second.
         getResources().getCacheBudget().yieldTo(mRenderer->getSystemClaim());

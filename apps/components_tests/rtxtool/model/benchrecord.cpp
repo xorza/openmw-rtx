@@ -172,6 +172,40 @@ namespace RtxTool
                 "whole 17   cancelled 5\n");
         }
 
+        /// **The residency line says each figure at its most over a place's frames, and the cap at its least**: two
+        /// frames, the first issuing 30 operations and copying 4 MiB under a cap of 900 MiB with 5 stand-ins, 2 of them
+        /// come and waiting for room, the second issuing 12 and uploading 16 MiB under 800 with 1 mesh missing; and no
+        /// line for a place that took none.
+        TEST(RtxBenchRecordTest, theResidencyLineSaysEachFigureAtItsMost)
+        {
+            constexpr std::uint64_t sMiB = std::uint64_t{ 1 } << 20;
+            ResidencyMost most;
+            EXPECT_EQ(describeResidency(most), "");
+
+            Rtx::ResidencyReport first;
+            first.mOpsIssued = 30;
+            first.mBytesCopied = 4 * sMiB;
+            first.mCapBytes = 900 * sMiB;
+            first.mMissingDemanded = Rtx::MissingDemanded{ .mAsked = 3, .mArrived = 2 };
+            first.mSlots.mSlotsLive = 70;
+            first.mSlots.mBytesHeld = 512 * sMiB;
+            Rtx::ResidencyReport second;
+            second.mOpsIssued = 12;
+            second.mBytesUploaded = 16 * sMiB;
+            second.mCapBytes = 800 * sMiB;
+            second.mMissingDemanded = Rtx::MissingDemanded{ .mMeshes = 1 };
+            second.mStarvedTextures = 2;
+            second.mSlots.mSlotsRetiring = 6;
+            most.take(first);
+            most.take(second);
+            EXPECT_EQ(most.mFrames, 2u);
+            EXPECT_EQ(describeResidency(most),
+                "  residency at most   ops 30   uploaded 16.0 MiB   copied 4.0 MiB   below want 0   stand-ins 5   "
+                "meshes missing 1   starved 2 textures 0 meshes   slots 70 live 6 retiring   held 512.0 MiB under a "
+                "cap of "
+                "800.0 MiB at the least\n");
+        }
+
         /// **The ring by distance, what stands of what it holds**, only the distances holding a placement, the last
         /// one every cell past it.
         TEST(RtxBenchRecordTest, theRingLineSaysWhatStandsOfWhatIsHeldByDistance)
@@ -383,6 +417,19 @@ namespace RtxTool
             place.mTexelReads.mBytes = { 51, 52, 53 };
             place.mTexelReads.mChainsFoundWhole = 54;
             place.mTexelReads.mCancelled = 66;
+            Rtx::ResidencyReport residency;
+            residency.mOpsIssued = 81;
+            residency.mBytesUploaded = 82;
+            residency.mBytesCopied = 83;
+            residency.mBelowWant = 84;
+            residency.mMissingDemanded = Rtx::MissingDemanded{ .mAsked = 85, .mMeshes = 86 };
+            residency.mStarvedTextures = 87;
+            residency.mStarvedStructures = 88;
+            residency.mSlots.mSlotsLive = 89;
+            residency.mSlots.mSlotsRetiring = 90;
+            residency.mSlots.mBytesHeld = 91;
+            residency.mCapBytes = 92;
+            place.mResidency.take(residency);
             place.mGame = GameHeld{ .mLoadedCells = 63, .mPreloadedCells = 64, .mStarvedLooks = 65 };
 
             const std::string json = recordPlaceLine(place);
@@ -422,11 +469,15 @@ namespace RtxTool
                 std::string::npos)
                 << json;
             EXPECT_NE(json.find(content), std::string::npos) << json;
-            EXPECT_NE(json.find(R"(, "texelReads": {"file": 47, "fileBytes": 51, )"
-                                R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"
-                                R"("chainsFoundWhole": 54, "cancelled": 66}, "game": {"loadedCells": 63, )"
-                                R"("preloadedCells": 64, )"
-                                R"("starvedLooks": 65})"),
+            EXPECT_NE(
+                json.find(R"(, "texelReads": {"file": 47, "fileBytes": 51, )"
+                          R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"
+                          R"("chainsFoundWhole": 54, "cancelled": 66}, "residency": {"frames": 1, "opsIssued": 81, )"
+                          R"("bytesUploaded": 82, "bytesCopied": 83, "belowWant": 84, "standIns": 85, )"
+                          R"("meshesMissing": 86, "starvedTextures": 87, "starvedStructures": 88, "slotsLive": 89, )"
+                          R"("slotsRetiring": 90, "bytesHeld": 91, "capBytesLeast": 92}, "game": {"loadedCells": 63, )"
+                          R"("preloadedCells": 64, )"
+                          R"("starvedLooks": 65})"),
                 std::string::npos)
                 << json;
         }
