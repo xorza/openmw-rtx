@@ -154,6 +154,9 @@ namespace Rtx
                 }
             const bool written = preparation.finish();
             const std::chrono::nanoseconds around = std::chrono::steady_clock::now() - began;
+            // The store's writes waited out, as a start waits them out under its screen (`WorldMirror::awaitStored`):
+            // the next preparation finds standing only what landed.
+            setup.mStore.flush();
             return Prepared{ .mWalked = preparation.getWalked(),
                 .mShapes = preparation.getStats().at(ContentPassId::Shape).mAsked,
                 .mChains = preparation.getStats().at(ContentPassId::Chain).mAsked,

@@ -51,6 +51,12 @@ namespace RtxTool
         mCovered.clear();
         mSlow = 0;
         mMeasured = 0;
+        mStandInFrames = 0;
+        mStandInsMost = 0;
+        mStandInFirst.reset();
+        mBelowWantRun = 0;
+        mBelowWantLongest = 0;
+        mBelowWantAt.reset();
         mSlowWorstMs = 0.0;
         mSlowWorst.reset();
     }
@@ -120,6 +126,20 @@ namespace RtxTool
             return;
 
         ++mMeasured;
+        if (frame.mStandIns > 0)
+        {
+            if (mStandInFrames++ == 0)
+                mStandInFirst = places.read(mLeg, mFrame, mAir);
+            mStandInsMost = std::max(mStandInsMost, frame.mStandIns);
+        }
+        mBelowWantRun = frame.mBelowWant > 0 ? mBelowWantRun + 1 : 0;
+        if (mBelowWantRun > mBelowWantLongest)
+        {
+            mBelowWantLongest = mBelowWantRun;
+            if (mBelowWantRun == sBelowWantFramesMost + 1)
+                mBelowWantAt = places.read(mLeg, mFrame, mAir);
+        }
+
         // As it stood on the screen: a window covered for a minute is no frame of a minute.
         const ClosedSpan seen{ .mSpend = measured->mSpend.seen(), .mArrived = measured->mArrived };
         const double frameMs = seen.mSpend.at(Rtx::Timing::Frame);
@@ -154,6 +174,21 @@ namespace RtxTool
 
         for (const Check check : failed)
             add(FindingKind::CheckFailed, checkName(check), places);
+
+        const ResidencyMost& residency = place.mResidency;
+        if (residency.mStarvedTextures + residency.mStarvedStructures > 0)
+            add(FindingKind::Starved,
+                std::format("{}: {} textures and {} meshes fitted nowhere at their floors, at the most", mLeg,
+                    residency.mStarvedTextures, residency.mStarvedStructures),
+                places);
+        if (mStandInFrames > 0 && mStandInFirst.has_value())
+            mTable.add(FindingKind::StandInDrawn, mLeg, *mStandInFirst,
+                FindingMet{ .mNote = std::format("{} of {} measured frames drew a stand-in, {} textures at the most",
+                                mStandInFrames, mMeasured, mStandInsMost) });
+        if (mBelowWantLongest > sBelowWantFramesMost && mBelowWantAt.has_value())
+            mTable.add(FindingKind::BelowWant, mLeg, *mBelowWantAt,
+                FindingMet{ .mNote = std::format("a demanded texture below its want for {} measured frames on end",
+                                mBelowWantLongest) });
 
         if (!mPaced && mSlow > 0 && mSlowWorst.has_value())
         {

@@ -41,6 +41,9 @@ namespace RtxTool
             { FindingKind::SlowFrames, "slow-frames", false, FindingPlaced::Worst },
             { FindingKind::LogWarning, "log-warning", false, FindingPlaced::First },
             { FindingKind::Growth, "growth", false, FindingPlaced::First },
+            { FindingKind::Starved, "starved", false, FindingPlaced::First },
+            { FindingKind::StandInDrawn, "stand-in", false, FindingPlaced::First },
+            { FindingKind::BelowWant, "below-want", false, FindingPlaced::First },
             { FindingKind::Mark, "mark", false, FindingPlaced::First },
         } };
 

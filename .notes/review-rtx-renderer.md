@@ -1065,10 +1065,6 @@ Files: `apps/rtxtool/{session,measurer,tourwatch,checks}.cpp`, `apps/rtxtool/mod
 
 What is left here reads `Residency`'s report and the core's types, so it lands with batch 4, after the contract.
 
-- [ ] `apps/rtxtool/model/finding.hpp` — no finding for memory. Target: `OverBudget` (the driver's usage past its
-  budget, by frames), `BelowWant` (a shown texture coarser than wanted for more than N frames), `StandInDrawn`
-  (frames a shown slot drew it), `Starved`, `LedgerDrift` (the arena's chunks against the driver's usage less what
-  is outside it), each with its threshold stated.
 - [ ] `tour --record-residency=<file>`: a hand-over's asks, holds by tier, arrivals, drops and budget, in the core's
   types. One Repack and one PBR tour of the handheld and of the desk are kept as the replay's inputs.
 
@@ -1500,6 +1496,10 @@ Items that landed in another shape than their target, each with how and why.
   its wait among them (`ResidencyMost`), the cap at its least; what keeps a demanded resident from standing is counted
   by why (`Rtx::MissingDemanded`), which a stalled leg names. Operations queued are not apart from those issued: the
   hand-over issues all it plans, so the two are one count.
+- The memory findings are `Starved`, `StandInDrawn` and `BelowWant` (`sBelowWantFramesMost`), judged on the measured
+  frames and the place's most. `OverBudget` and `LedgerDrift` wait for batch 8, which gives a frame the driver's usage
+  and the arena's held bytes beside it: the leg's end is the one moment the harness reads the driver now, and a
+  finding judged on one sample a leg would repeat the defect batch 2 named.
 - A ground composite waiting to be made holds its layers at its own tier (`Residency::syncTextures`): a layer held at
   the cache's tier alone can be dropped under a tight cap, which leaves the composite waiting for good. The handheld's
   Repack tour waited on 31 textures not yet asked at its first leg, which is what that comes to.

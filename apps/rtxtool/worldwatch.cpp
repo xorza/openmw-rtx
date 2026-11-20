@@ -56,6 +56,8 @@ namespace RtxTool
             .mEndNs
             = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
                 .count(),
+            .mStandIns = report.mResidency.mMissingDemanded.textures(),
+            .mBelowWant = report.mResidency.mBelowWant,
         };
     }
 

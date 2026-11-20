@@ -18,6 +18,7 @@
 #include <apps/rtxtool/model/tourwatch.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
@@ -136,6 +137,66 @@ namespace RtxTool
             paced.endLeg(legOf("leg-2"), BenchPlace{}, {}, places);
             ASSERT_EQ(paced.getTable().getFindings().size(), 1u);
             EXPECT_NE(find(paced.getTable(), FindingKind::Hitch, "led by walk on leg-2"), nullptr);
+        }
+
+        /// **A leg's residency is judged as it was measured**: of five measured frames under the step, two drew a
+        /// stand-in, three at the most, a finding placed at the first; a demanded texture below its want for
+        /// `sBelowWantFramesMost` measured frames on end is none, and one frame more is one, placed where the run
+        /// passed the bound; a frame ahead of the measurement counts for neither. The leg's most starved two textures
+        /// and a mesh. Another leg counts from nothing.
+        TEST(RtxTourWatchTest, aLegsResidencyIsJudgedAsItWasMeasured)
+        {
+            World world;
+            Places places;
+            TourWatch watch(1.0f / 60.0f, false, Expectations{});
+            const Stop leg = legOf("leg-1");
+            watch.begin(leg);
+
+            WatchFrame ahead = world.frame(std::nullopt);
+            ahead.mStandIns = 9;
+            ahead.mBelowWant = 1;
+            watch.frame(ahead, places);
+            for (const std::uint32_t standIns : { 0u, 3u, 0u, 1u, 0u })
+            {
+                WatchFrame frame = world.frame(10.0);
+                frame.mStandIns = standIns;
+                watch.frame(frame, places);
+            }
+            for (std::uint32_t at = 0; at < sBelowWantFramesMost; ++at)
+            {
+                WatchFrame frame = world.frame(10.0);
+                frame.mBelowWant = 2;
+                watch.frame(frame, places);
+            }
+            BenchPlace place;
+            Rtx::ResidencyReport starved;
+            starved.mStarvedTextures = 2;
+            starved.mStarvedStructures = 1;
+            place.mResidency.take(starved);
+            watch.endLeg(leg, place, {}, places);
+            const Finding* const standIn = find(watch.getTable(), FindingKind::StandInDrawn, "leg-1");
+            ASSERT_NE(standIn, nullptr);
+            EXPECT_EQ(standIn->mNote, "2 of 125 measured frames drew a stand-in, 3 textures at the most");
+            EXPECT_EQ(standIn->mPlace.mFrame, 3u);
+            EXPECT_EQ(find(watch.getTable(), FindingKind::BelowWant, "leg-1"), nullptr) << "a run at the bound";
+            EXPECT_NE(find(watch.getTable(), FindingKind::Starved,
+                          "leg-1: 2 textures and 1 meshes fitted nowhere at their floors, at the most"),
+                nullptr);
+
+            const Stop next = legOf("leg-2");
+            watch.begin(next);
+            for (std::uint32_t at = 0; at <= sBelowWantFramesMost; ++at)
+            {
+                WatchFrame frame = world.frame(10.0);
+                frame.mBelowWant = 1;
+                watch.frame(frame, places);
+            }
+            watch.endLeg(next, BenchPlace{}, {}, places);
+            const Finding* const below = find(watch.getTable(), FindingKind::BelowWant, "leg-2");
+            ASSERT_NE(below, nullptr);
+            EXPECT_EQ(below->mNote, "a demanded texture below its want for 121 measured frames on end");
+            EXPECT_EQ(below->mPlace.mFrame, 121u);
+            EXPECT_EQ(find(watch.getTable(), FindingKind::StandInDrawn, "leg-2"), nullptr) << "counted from nothing";
         }
 
         /// **What the content gave that the renderer refused is a finding a refusal, by its kind, its name and why**,

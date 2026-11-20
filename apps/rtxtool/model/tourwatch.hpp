@@ -48,7 +48,16 @@ namespace RtxTool
         /// it ended on the steady clock.
         std::optional<ClosedSpan> mMeasured{};
         std::int64_t mEndNs = 0;
+
+        /// Demanded textures drawing the stand-in, and demanded textures planned coarser than they want
+        /// (`Rtx::ResidencyReport`).
+        std::uint32_t mStandIns = 0;
+        std::uint32_t mBelowWant = 0;
     };
+
+    /// **How long a demanded texture may stand coarser than it wants before it is a finding**: two seconds of frames at
+    /// sixty, past a raise that waits a chunk's room or a want that fell and holds (`Residency::sWantHoldHandOvers`).
+    inline constexpr std::uint32_t sBelowWantFramesMost = 120;
 
     /// Where a finding is met, read only where one takes a place: the stop that would put a camera back there and
     /// the sky it stood under, which are the world's to say.
@@ -139,6 +148,15 @@ namespace RtxTool
 
         /// The columns of the leg's cells a frame stood whole in while the player was there.
         std::vector<std::int32_t> mCovered;
+
+        /// The leg's measured frames that drew a stand-in, and where the first stood; the frames on end a demanded
+        /// texture stood below its want, the longest run and where it ended.
+        std::uint32_t mStandInFrames = 0;
+        std::uint32_t mStandInsMost = 0;
+        std::optional<FindingPlace> mStandInFirst;
+        std::uint32_t mBelowWantRun = 0;
+        std::uint32_t mBelowWantLongest = 0;
+        std::optional<FindingPlace> mBelowWantAt;
 
         /// The leg's slow frames, the worst of them and where it stood.
         std::uint32_t mSlow = 0;
