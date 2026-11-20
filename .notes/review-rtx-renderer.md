@@ -8,8 +8,8 @@ work landed and `docs/research/` from 2026-11-09 were read for what each mechani
 every finding is read from the code, and says so where it is a reading and not a measurement. Test times are last
 night's `ctest` log's: no test over one second, the largest suite a GPU shard at 22 s.
 
-Part one is the target design. Part two is the plan, in batches. `.notes/proposal-streaming.md` is carried here whole,
-rewritten to fit ("The world is whole before it is shown"); that file goes when this one is accepted.
+Part one is the target design. Part two is the plan, in batches. The streaming proposal ("the world is whole before
+it is shown") is carried here whole, rewritten to fit, and its own file is gone.
 
 ## Decisions
 
@@ -717,8 +717,8 @@ public:
 
 ## The world is whole before it is shown
 
-`.notes/proposal-streaming.md`, rewritten. Its decisions stand but the one on upstream's code; what the review found
-is under each.
+The streaming proposal, rewritten. Its decisions stand but the one on upstream's code; what the review found is under
+each.
 
 ### Decisions
 
@@ -768,9 +768,11 @@ is under each.
 - **Indoors the land rests.** With no eye band the exterior's cells hold their content `Kept`; the plan keeps it
   while it fits and gives its room to the interior where it does not; the reader's ask is withdrawn. Today the ring
   keeps up to 497 cells' content live beside a room nothing of it is drawn in.
-- **A tour fails on a pop**, three findings: `Pop`, a cell adopted inside the drawn reach; `LateStand`, a placement
-  of the walk whose mesh or texture stood after its first frame; `LevelStep`, a shown texture raised a level in view.
-  The second and third are costs until warm-ahead (below) lands, then faults.
+- **A tour fails on a pop**, three findings: `Pop`, a cell adopted inside the drawn reach; `LateStand`, a placement of
+  the walk whose mesh or texture stood after its first frame; `LevelStep`, a shown texture raised a level in view. The
+  second and third are costs until warm-ahead (below) lands, then faults. And one cost a tour counts:
+  `HeldAtCrossing`, a crossing whose band was not whole, with how long it waited, which is how often the flight outran
+  the predictions.
 
 ### The streamer
 
@@ -1363,7 +1365,7 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
 - [ ] `FrameReport::isWhole` is the two predicates; `mCellsToStand`, `mImagesPending` and the upload's kind are
   what they report. It sees what it does not today: a mesh not built, a texture below its plan, a composite not
   baked.
-- [ ] Findings `Pop`, `LateStand`, `LevelStep` (model, tests, the expectation files).
+- [ ] Findings `Pop`, `LateStand`, `LevelStep`, and the cost `HeldAtCrossing` (model, tests, the expectation files).
 - [ ] `cellplacer.cpp:107-133,96-105` — `setNightDay` and each `setGate` walk every placement of every held cell.
   Target: a short index a cell of the placements a switch or a gate touches; gate changes applied in one pass.
 - [ ] `cellplacer.cpp:904-917` — every lamp of every shown cell is made again each walk. Target: the still ones
@@ -1378,7 +1380,7 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
   never neither" frame by frame; a band whose view goes; `standWhole` over `NullRenderer`, by kind; the bound on cells
   read ahead.
 - [ ] `.notes/todo.md`'s unsettled-tours item and "The ring reads what can stand" go or are rewritten against the
-  streamer; `docs/architecture.md` takes the decisions; `.notes/proposal-streaming.md` is deleted.
+  streamer; `docs/architecture.md` takes the decisions.
 
 ## Batch 8: host memory
 
