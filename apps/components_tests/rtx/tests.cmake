@@ -139,6 +139,7 @@ target_sources(
         rtxtool/model/skycrossing.cpp
         rtxtool/model/stopdescription.cpp
         rtxtool/model/tour.cpp
+        rtxtool/model/tourwatch.cpp
         rtxtool/model/viewfile.cpp
         rtxtool/noise.cpp
         rtxtool/numbervalue.cpp

@@ -418,7 +418,7 @@ namespace RtxTool
             const bool asked = mHome.wantsPicture();
             mHome.listen();
             if (!asked && mHome.wantsPicture())
-                mWatch->mark(mNote);
+                mWatch->mark(mWorldWatch);
         }
         if (mRequest.mPlayed && !MWBase::Environment::get().getWindowManager()->isGuiMode())
         {
@@ -477,7 +477,7 @@ namespace RtxTool
         // The watch after the measurer, which closes the span the frame before worked in: a hitch is read there.
         const Measurer::Verdict verdict = mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived());
         if (mWatch.has_value())
-            mWatch->frame(context, report, mNote, mMeasurer.getMeasuredSpan());
+            mWatch->frame(mWorldWatch.frameOf(context, report, mMeasurer.getMeasuredSpan()), mWorldWatch);
 
         switch (verdict)
         {
@@ -504,7 +504,7 @@ namespace RtxTool
             mMeasurer.finish(stop, context, report, route.has_value() ? mCamera.getTravelled(*route) : 1.0f, mWriter));
         if (mWatch.has_value())
         {
-            mWatch->endLeg(stop, mRecord.getPlaces().back(), mRecord.takeFailedChecks(), mNote);
+            mWatch->endLeg(stop, mRecord.getPlaces().back(), mRecord.takeFailedChecks(), mWorldWatch);
             writeSoFar();
         }
 
@@ -537,7 +537,7 @@ namespace RtxTool
                          << " failed, and the run goes on: " << why;
         if (mWatch.has_value())
         {
-            mWatch->failLeg(currentStop(), why, mNote);
+            mWatch->failLeg(currentStop(), why, mWorldWatch);
             writeSoFar();
         }
         mRecord.fail(currentStop(), why);

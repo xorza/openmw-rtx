@@ -45,6 +45,7 @@ target_sources(
         model/skycrossing.cpp
         model/stopdescription.cpp
         model/tour.cpp
+        model/tourwatch.cpp
         model/viewfile.cpp
         noise.cpp
         options.cpp
@@ -103,6 +104,7 @@ target_sources(
                 model/skycrossing.hpp
                 model/stopdescription.hpp
                 model/tour.hpp
+                model/tourwatch.hpp
                 model/viewfile.hpp
                 noise.hpp
                 numbervalue.hpp
@@ -191,8 +193,8 @@ target_sources(
         stager.cpp
         standingnote.cpp
         stopwriter.cpp
-        tourwatch.cpp
         worldmap.cpp
+        worldwatch.cpp
     PRIVATE
         FILE_SET HEADERS
             BASE_DIRS
@@ -207,8 +209,8 @@ target_sources(
                 stager.hpp
                 standingnote.hpp
                 stopwriter.hpp
-                tourwatch.hpp
                 worldmap.hpp
+                worldwatch.hpp
 )
 
 target_link_libraries(
