@@ -262,14 +262,15 @@ namespace Rtx
         FrameTracer::declare(render, output, mProfile, mUpscaler, declared);
         const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared, mUpscaler);
 
-        // A frame of a different size is not one this one can be reprojected against; a mode that
-        // traces and shows at the sizes the last did keeps every history.
-        if (moves.mRenderExtent || moves.mOutputExtent)
+        // A frame of a different size is not one this one can be reprojected against, nor is one traced through a
+        // chain made again; a mode that traces and shows at the sizes the last did, through the chain it did, keeps
+        // every history.
+        if (moves.losesPast())
             mDescriber.lose(FramePast::resized());
 
         // **Logged where the frame differs from the last one logged or anything is made again**: the mode
-        // alone, Native against Off, moves no extent, and a mode that keeps its extents keeps the chain and
-        // every history; a resize to the size the targets stand at says nothing new.
+        // alone, Native against Off, moves no extent, and keeps the chain and every history wherever one filter
+        // serves both; a resize to the size the targets stand at says nothing new.
         std::string frame = std::format(
             "{}x{} shown, traced at {}x{} ({}, {:.1f}% a side), by {}, the light filtered by the {}", output.width,
             output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),

@@ -167,6 +167,7 @@ target_sources(
         rtxvulkan/device/validation.cpp
         rtxvulkan/device/zonecounters.cpp
         rtxvulkan/frame/gbufferstages.cpp
+        rtxvulkan/frametracer.cpp
         rtxvulkan/pipeline/dispatch.cpp
         rtxvulkan/pipeline/passbindings.cpp
         rtxvulkan/present/swapchain.cpp
