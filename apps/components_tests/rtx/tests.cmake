@@ -158,6 +158,7 @@ target_sources(
         rtxvulkan/device/memory/systemshare.cpp
         rtxvulkan/device/memory/uploads.cpp
         rtxvulkan/device/physicaldevice.cpp
+        rtxvulkan/device/pipelinecacheblob.cpp
         rtxvulkan/device/pipelinecode.cpp
         rtxvulkan/device/pipelinetally.cpp
         rtxvulkan/device/requirements.cpp
